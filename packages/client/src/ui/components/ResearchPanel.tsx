@@ -1,0 +1,206 @@
+import React from 'react';
+import type { StarSystem, ResearchState, ResearchSlot, SystemResearchState, ObservedRange } from '@nebulife/core';
+import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched } from '@nebulife/core';
+
+const panelStyle: React.CSSProperties = {
+  position: 'absolute', right: 16, top: 60, width: 280,
+  background: 'rgba(10,15,25,0.92)', border: '1px solid #334455',
+  borderRadius: 4, padding: 16, fontFamily: 'monospace', color: '#aabbcc',
+  fontSize: 11, pointerEvents: 'auto',
+};
+
+const headerStyle: React.CSSProperties = {
+  fontSize: 14, color: '#ccddee', marginBottom: 12, display: 'flex',
+  justifyContent: 'space-between', alignItems: 'center',
+};
+
+const rowStyle: React.CSSProperties = {
+  display: 'flex', justifyContent: 'space-between', padding: '3px 0',
+  borderBottom: '1px solid rgba(50,60,70,0.3)',
+};
+
+const closeBtnStyle: React.CSSProperties = {
+  cursor: 'pointer', background: 'none', border: 'none',
+  color: '#667788', fontSize: 16, fontFamily: 'monospace',
+};
+
+const btnStyle: React.CSSProperties = {
+  width: '100%', marginTop: 12, padding: '8px 0', cursor: 'pointer',
+  background: 'rgba(30,60,80,0.6)', border: '1px solid #446688',
+  color: '#aaccee', fontFamily: 'monospace', fontSize: 12, borderRadius: 3,
+};
+
+const btnDisabledStyle: React.CSSProperties = {
+  ...btnStyle,
+  opacity: 0.4, cursor: 'not-allowed',
+};
+
+function formatRange(r: ObservedRange | null, suffix = '', decimals = 1): string {
+  if (!r) return '—';
+  if (r.exact !== undefined) return `${r.exact.toFixed(decimals)}${suffix}`;
+  const min = r.min.toFixed(decimals);
+  const max = r.max.toFixed(decimals);
+  return min === max ? `${min}${suffix}` : `${min} – ${max}${suffix}`;
+}
+
+function formatPercent(r: ObservedRange | null): string {
+  if (!r) return '—';
+  if (r.exact !== undefined) return `${(r.exact * 100).toFixed(0)}%`;
+  const min = (r.min * 100).toFixed(0);
+  const max = (r.max * 100).toFixed(0);
+  return min === max ? `${min}%` : `${min} – ${max}%`;
+}
+
+function formatInt(r: ObservedRange | null): string {
+  if (!r) return '—';
+  if (r.exact !== undefined) return `${r.exact}`;
+  return r.min === r.max ? `${r.min}` : `${r.min} – ${r.max}`;
+}
+
+/** Research slots indicator */
+function SlotsIndicator({ slots, allSystems }: { slots: ResearchSlot[]; allSystems: StarSystem[] }) {
+  const systemMap = new Map(allSystems.map((s) => [s.id, s]));
+
+  return (
+    <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+      {slots.map((slot) => {
+        const sys = slot.systemId ? systemMap.get(slot.systemId) : null;
+        const active = slot.systemId !== null;
+        return (
+          <div
+            key={slot.slotIndex}
+            style={{
+              flex: 1, padding: '4px 6px', fontSize: 9,
+              background: active ? 'rgba(40,80,120,0.4)' : 'rgba(30,40,50,0.3)',
+              border: `1px solid ${active ? '#446688' : '#2a3a4a'}`,
+              borderRadius: 3, textAlign: 'center',
+              color: active ? '#88bbdd' : '#445566',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}
+          >
+            {active ? (sys?.name ?? slot.systemId) : 'вільно'}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Progress bar */
+function ProgressBar({ progress }: { progress: number }) {
+  return (
+    <div style={{ width: '100%', height: 6, background: 'rgba(30,40,50,0.6)', borderRadius: 3, marginBottom: 8 }}>
+      <div
+        style={{
+          width: `${progress}%`, height: '100%', borderRadius: 3,
+          background: progress >= 100
+            ? 'linear-gradient(90deg, #22aa55, #44ff88)'
+            : 'linear-gradient(90deg, #2266aa, #44aaff)',
+          transition: 'width 0.3s ease',
+        }}
+      />
+    </div>
+  );
+}
+
+export function ResearchPanel({
+  system,
+  researchState,
+  allSystems,
+  activeSlotTimerText,
+  onStartResearch,
+  onClose,
+}: {
+  system: StarSystem;
+  researchState: ResearchState;
+  allSystems: StarSystem[];
+  activeSlotTimerText: string | null;
+  onStartResearch: (systemId: string) => void;
+  onClose: () => void;
+}) {
+  const progress = getResearchProgress(researchState, system.id);
+  const research = getSystemResearch(researchState, system.id);
+  const obs = research?.observation;
+  const isResearching = researchState.slots.some((s) => s.systemId === system.id);
+  const canStart = canStartResearch(researchState, system.id, system.ringIndex);
+  const isComplete = isSystemFullyResearched(researchState, system.id);
+
+  return (
+    <div style={panelStyle}>
+      <div style={headerStyle}>
+        <span>{progress > 0 ? system.name : 'Невідома система'}</span>
+        <button style={closeBtnStyle} onClick={onClose}>&times;</button>
+      </div>
+
+      {/* Research slots */}
+      <div style={{ marginBottom: 4, color: '#778899', fontSize: 10 }}>ОБСЕРВАТОРІЇ</div>
+      <SlotsIndicator slots={researchState.slots} allSystems={allSystems} />
+
+      {/* Progress */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 10 }}>
+        <span style={{ color: '#778899' }}>ДОСЛІДЖЕННЯ</span>
+        <span style={{ color: progress >= 100 ? '#44ff88' : '#4488aa' }}>{progress}%</span>
+      </div>
+      <ProgressBar progress={progress} />
+
+      {/* Timer */}
+      {isResearching && activeSlotTimerText && (
+        <div style={{ textAlign: 'center', color: '#4488aa', fontSize: 10, marginBottom: 8 }}>
+          {activeSlotTimerText}
+        </div>
+      )}
+
+      {/* Observed data */}
+      {progress > 0 && obs && (
+        <>
+          <div style={{ marginBottom: 4, marginTop: 8, color: '#778899', fontSize: 10 }}>
+            ВІДОМІ ДАНІ
+          </div>
+          {obs.starClass && (
+            <div style={rowStyle}><span>Тип зірки</span><span>{obs.starClass}</span></div>
+          )}
+          {obs.planetCount && (
+            <div style={rowStyle}><span>Планет</span><span>{formatInt(obs.planetCount)}</span></div>
+          )}
+          {obs.waterCoverage && (
+            <div style={rowStyle}><span>Вода</span><span>{formatPercent(obs.waterCoverage)}</span></div>
+          )}
+          {obs.temperature && (
+            <div style={rowStyle}><span>Температура</span><span>{formatRange(obs.temperature, ' K', 0)}</span></div>
+          )}
+          {obs.distanceAU && (
+            <div style={rowStyle}><span>Відстань до зірки</span><span>{formatRange(obs.distanceAU, ' AU')}</span></div>
+          )}
+          {obs.habitability && (
+            <div style={rowStyle}>
+              <span>Придатність</span>
+              <span style={{ color: obs.habitability.exact !== undefined
+                ? (obs.habitability.exact > 0.5 ? '#44ff88' : '#ff8844')
+                : '#aabbcc'
+              }}>
+                {formatPercent(obs.habitability)}
+              </span>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Action button */}
+      {!isComplete && !isResearching && (
+        <button
+          style={canStart ? btnStyle : btnDisabledStyle}
+          onClick={() => canStart && onStartResearch(system.id)}
+          disabled={!canStart}
+        >
+          {canStart ? 'Почати дослідження' : 'Немає вільних обсерваторій'}
+        </button>
+      )}
+
+      {isResearching && (
+        <button style={{ ...btnStyle, background: 'rgba(40,80,120,0.3)', cursor: 'default' }} disabled>
+          Дослідження...
+        </button>
+      )}
+    </div>
+  );
+}

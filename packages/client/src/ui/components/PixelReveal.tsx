@@ -1,0 +1,279 @@
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+
+// ---------------------------------------------------------------------------
+// PixelReveal — progressive pixel-by-pixel image reveal on canvas
+// ---------------------------------------------------------------------------
+// The image starts fully black, then blocks are revealed over `duration` ms.
+// Centre-weighted: blocks near the middle are revealed earlier.
+// Includes a scanning-line effect and progress bar.
+// ---------------------------------------------------------------------------
+
+const BLOCK_SIZE = 4;          // pixels per reveal block
+const TICK_MS = 50;            // refresh interval
+const SCAN_LINE_HEIGHT = 2;    // green scan line thickness
+
+/** Simple seeded PRNG (xorshift) for deterministic shuffle */
+function shuffleWithSeed(arr: number[], seed: number): void {
+  let s = seed | 0 || 1;
+  for (let i = arr.length - 1; i > 0; i--) {
+    s ^= s << 13;
+    s ^= s >> 17;
+    s ^= s << 5;
+    const j = ((s >>> 0) % (i + 1));
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+}
+
+export interface PixelRevealProps {
+  /** The full image to reveal (already downloaded). */
+  imageBlob: Blob;
+  /** Total reveal duration in ms (default 300_000 = 5 min). */
+  duration?: number;
+  /** Deterministic seed for shuffle order. */
+  seed?: number;
+  /** Called with progress 0-1. */
+  onProgress?: (progress: number) => void;
+  /** Called when reveal is complete. */
+  onComplete?: () => void;
+  /** External skip trigger. */
+  skip?: boolean;
+}
+
+export function PixelReveal({
+  imageBlob,
+  duration = 300_000,
+  seed = 42,
+  onProgress,
+  onComplete,
+  skip = false,
+}: PixelRevealProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const stateRef = useRef({
+    revealed: 0,
+    totalBlocks: 0,
+    order: [] as number[],
+    running: true,
+    completed: false,
+  });
+
+  const [progress, setProgress] = useState(0);
+
+  // Load image from blob
+  const loadImage = useCallback(async () => {
+    const url = URL.createObjectURL(imageBlob);
+    return new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image'));
+      };
+      img.src = url;
+    });
+  }, [imageBlob]);
+
+  // Build centre-weighted block order
+  const buildOrder = useCallback(
+    (w: number, h: number): number[] => {
+      const bw = Math.ceil(w / BLOCK_SIZE);
+      const bh = Math.ceil(h / BLOCK_SIZE);
+      const total = bw * bh;
+
+      // Assign each block a priority based on distance from centre
+      const cx = bw / 2;
+      const cy = bh / 2;
+      const maxDist = Math.sqrt(cx * cx + cy * cy);
+
+      const indices = Array.from({ length: total }, (_, i) => i);
+
+      // Centre-weighted sort: blocks nearer the centre come first
+      // but with randomness mixed in so it's not a perfect circle
+      const rng = seed | 0 || 1;
+      indices.sort((a, b) => {
+        const ax = a % bw;
+        const ay = Math.floor(a / bw);
+        const bx2 = b % bw;
+        const by = Math.floor(b / bw);
+
+        const da = Math.sqrt((ax - cx) ** 2 + (ay - cy) ** 2) / maxDist;
+        const db = Math.sqrt((bx2 - cx) ** 2 + (by - cy) ** 2) / maxDist;
+
+        // Add noise so it's not perfectly circular
+        const na = ((ax * 31 + ay * 17 + rng) & 0xffff) / 0xffff * 0.35;
+        const nb = ((bx2 * 31 + by * 17 + rng) & 0xffff) / 0xffff * 0.35;
+
+        return (da + na) - (db + nb);
+      });
+
+      // Then shuffle within roughly similar priority bands
+      const bandSize = Math.max(10, Math.floor(total / 50));
+      for (let start = 0; start < total; start += bandSize) {
+        const end = Math.min(start + bandSize, total);
+        const band = indices.slice(start, end);
+        shuffleWithSeed(band, seed + start);
+        for (let i = 0; i < band.length; i++) {
+          indices[start + i] = band[i];
+        }
+      }
+
+      return indices;
+    },
+    [seed],
+  );
+
+  // Main effect: set up canvas + animation
+  useEffect(() => {
+    let animId: number | null = null;
+    let lastTick = 0;
+    const st = stateRef.current;
+
+    const setup = async () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const img = await loadImage();
+      imgRef.current = img;
+
+      // Fill canvas to viewport
+      const dpr = window.devicePixelRatio || 1;
+      const cw = canvas.clientWidth;
+      const ch = canvas.clientHeight;
+      canvas.width = cw * dpr;
+      canvas.height = ch * dpr;
+
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(dpr, dpr);
+
+      // Draw image to offscreen canvas for sampling
+      const offscreen = document.createElement('canvas');
+      offscreen.width = cw;
+      offscreen.height = ch;
+      const offCtx = offscreen.getContext('2d')!;
+      // Fit image cover-style
+      const imgRatio = img.width / img.height;
+      const canvasRatio = cw / ch;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (imgRatio > canvasRatio) {
+        sw = img.height * canvasRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / canvasRatio;
+        sy = (img.height - sh) / 2;
+      }
+      offCtx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+
+      // Start fully black
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, cw, ch);
+
+      // Build reveal order
+      st.order = buildOrder(cw, ch);
+      st.totalBlocks = st.order.length;
+      st.revealed = 0;
+      st.running = true;
+      st.completed = false;
+
+      const bw = Math.ceil(cw / BLOCK_SIZE);
+      const blocksPerTick = Math.max(1, Math.floor(st.totalBlocks / (duration / TICK_MS)));
+
+      const tick = (now: number) => {
+        if (!st.running) return;
+
+        if (now - lastTick < TICK_MS) {
+          animId = requestAnimationFrame(tick);
+          return;
+        }
+        lastTick = now;
+
+        // Reveal blocks
+        const revealCount = skip ? st.totalBlocks : blocksPerTick;
+        const end = Math.min(st.revealed + revealCount, st.totalBlocks);
+
+        for (let i = st.revealed; i < end; i++) {
+          const idx = st.order[i];
+          const bx = (idx % bw) * BLOCK_SIZE;
+          const by = Math.floor(idx / bw) * BLOCK_SIZE;
+          const w = Math.min(BLOCK_SIZE, cw - bx);
+          const h = Math.min(BLOCK_SIZE, ch - by);
+
+          // Copy from offscreen
+          const imgData = offCtx.getImageData(bx, by, w, h);
+          ctx.putImageData(imgData, bx, by);
+        }
+
+        st.revealed = end;
+        const p = st.revealed / st.totalBlocks;
+        setProgress(p);
+        onProgress?.(p);
+
+        // Scan line effect
+        if (!skip && p < 1) {
+          const scanY = (p * ch) % ch;
+          ctx.fillStyle = 'rgba(0, 255, 100, 0.15)';
+          ctx.fillRect(0, scanY, cw, SCAN_LINE_HEIGHT);
+        }
+
+        if (st.revealed >= st.totalBlocks) {
+          // Final clean pass — redraw full image
+          ctx.drawImage(offscreen, 0, 0);
+          st.running = false;
+          st.completed = true;
+          onComplete?.();
+          return;
+        }
+
+        animId = requestAnimationFrame(tick);
+      };
+
+      animId = requestAnimationFrame(tick);
+    };
+
+    setup().catch(console.error);
+
+    return () => {
+      stateRef.current.running = false;
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [imageBlob, duration, seed, skip, loadImage, buildOrder, onProgress, onComplete]);
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block',
+          background: '#000',
+          imageRendering: 'pixelated',
+        }}
+      />
+      {/* Progress bar */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: 'rgba(0,0,0,0.6)',
+        }}
+      >
+        <div
+          style={{
+            height: '100%',
+            width: `${progress * 100}%`,
+            background: 'linear-gradient(90deg, #00ff66 0%, #44ff88 100%)',
+            transition: 'width 0.1s linear',
+          }}
+        />
+      </div>
+    </div>
+  );
+}

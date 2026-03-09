@@ -1,0 +1,71 @@
+import React from 'react';
+import type { StarSystem } from '@nebulife/core';
+
+const panelStyle: React.CSSProperties = {
+  position: 'absolute', right: 16, top: 60, width: 280,
+  background: 'rgba(10,15,25,0.92)', border: '1px solid #334455',
+  borderRadius: 4, padding: 16, fontFamily: 'monospace', color: '#aabbcc',
+  fontSize: 11, pointerEvents: 'auto',
+};
+
+const headerStyle: React.CSSProperties = {
+  fontSize: 14, color: '#ccddee', marginBottom: 12, display: 'flex',
+  justifyContent: 'space-between', alignItems: 'center',
+};
+
+const rowStyle: React.CSSProperties = {
+  display: 'flex', justifyContent: 'space-between', padding: '3px 0',
+  borderBottom: '1px solid rgba(50,60,70,0.3)',
+};
+
+const btnStyle: React.CSSProperties = {
+  width: '100%', marginTop: 12, padding: '8px 0', cursor: 'pointer',
+  background: 'rgba(30,60,80,0.6)', border: '1px solid #446688',
+  color: '#aaccee', fontFamily: 'monospace', fontSize: 12, borderRadius: 3,
+};
+
+const closeBtnStyle: React.CSSProperties = {
+  cursor: 'pointer', background: 'none', border: 'none',
+  color: '#667788', fontSize: 16, fontFamily: 'monospace',
+};
+
+export function SystemInfoPanel({ system, onEnterSystem, onClose }: {
+  system: StarSystem;
+  onEnterSystem: () => void;
+  onClose: () => void;
+}) {
+  const star = system.star;
+  const habitablePlanets = system.planets.filter(p => p.zone === 'habitable');
+  const lifeCount = system.planets.filter(p => p.hasLife).length;
+
+  return (
+    <div style={panelStyle}>
+      <div style={headerStyle}>
+        <span>{system.name}</span>
+        <button style={closeBtnStyle} onClick={onClose}>&times;</button>
+      </div>
+
+      <div style={{ marginBottom: 8, color: '#778899', fontSize: 10 }}>STAR</div>
+      <div style={rowStyle}><span>Class</span><span style={{ color: star.colorHex }}>{star.spectralClass}{star.subType}V</span></div>
+      <div style={rowStyle}><span>Temperature</span><span>{star.temperatureK} K</span></div>
+      <div style={rowStyle}><span>Mass</span><span>{star.massSolar} M&#x2609;</span></div>
+      <div style={rowStyle}><span>Luminosity</span><span>{star.luminositySolar} L&#x2609;</span></div>
+      <div style={rowStyle}><span>Age</span><span>{star.ageGyr} Gyr</span></div>
+
+      <div style={{ marginTop: 12, marginBottom: 8, color: '#778899', fontSize: 10 }}>SYSTEM</div>
+      <div style={rowStyle}><span>Planets</span><span>{system.planets.length}</span></div>
+      <div style={rowStyle}><span>Habitable zone</span><span>{habitablePlanets.length} planet{habitablePlanets.length !== 1 ? 's' : ''}</span></div>
+      <div style={rowStyle}>
+        <span>Life detected</span>
+        <span style={{ color: lifeCount > 0 ? '#44ff88' : '#667788' }}>
+          {lifeCount > 0 ? `${lifeCount} planet${lifeCount > 1 ? 's' : ''}` : 'None'}
+        </span>
+      </div>
+      <div style={rowStyle}><span>Ring</span><span>{system.ringIndex}</span></div>
+
+      <button style={btnStyle} onClick={onEnterSystem}>
+        Enter System &rarr;
+      </button>
+    </div>
+  );
+}

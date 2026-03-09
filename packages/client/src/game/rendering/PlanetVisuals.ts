@@ -1,0 +1,331 @@
+import type { Planet, PlanetType } from '@nebulife/core';
+import type { Star } from '@nebulife/core';
+
+export interface BiomeColors {
+  tropical: number;
+  temperate: number;
+  boreal: number;
+  desert: number;
+  tundra: number;
+}
+
+export interface PlanetVisualConfig {
+  // Surface
+  surfaceBaseColor: number;
+  surfaceHighColor: number;
+  hasBiomes: boolean;
+  biomeColors: BiomeColors;
+  landThreshold: number;        // noise threshold: below = water, above = land
+
+  // Ocean
+  hasOcean: boolean;
+  oceanShallow: number;
+  oceanDeep: number;
+  waterCoverage: number;        // 0..1
+
+  // Ice
+  iceCapFraction: number;       // 0..1
+
+  // Atmosphere
+  hasAtmosphere: boolean;
+  atmosColor: number;
+  atmosOpacity: number;         // 0..0.3
+  atmosRingCount: number;
+  limbColor: number;
+
+  // Clouds
+  hasSignificantClouds: boolean;
+  cloudDensity: number;         // 0..1
+  cloudColor: number;           // tint based on atmosphere composition
+
+  // Lighting
+  starTint: number;
+
+  // Special
+  hasLavaFlows: boolean;
+  lavaColor: number;
+  isGasGiant: boolean;
+  isIceGiant: boolean;
+
+  // Gas giant specifics
+  bandColor1: number;
+  bandColor2: number;
+}
+
+/** Linearly interpolate between two colors */
+export function lerpColor(c1: number, c2: number, t: number): number {
+  const t1 = Math.max(0, Math.min(1, t));
+  const r1 = (c1 >> 16) & 0xff, g1 = (c1 >> 8) & 0xff, b1 = c1 & 0xff;
+  const r2 = (c2 >> 16) & 0xff, g2 = (c2 >> 8) & 0xff, b2 = c2 & 0xff;
+  const r = Math.round(r1 + (r2 - r1) * t1);
+  const g = Math.round(g1 + (g2 - g1) * t1);
+  const b = Math.round(b1 + (b2 - b1) * t1);
+  return (r << 16) | (g << 8) | b;
+}
+
+/** Clamp value to [min, max] */
+export function clamp(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
+}
+
+/** Convert hex color string to number */
+function hexToNum(hex: string): number {
+  return parseInt(hex.replace('#', ''), 16);
+}
+
+/** Find dominant gas in atmosphere composition */
+function getDominantGas(composition: Record<string, number>): string {
+  let maxGas = '';
+  let maxFraction = 0;
+  for (const [gas, fraction] of Object.entries(composition)) {
+    if (fraction > maxFraction) {
+      maxFraction = fraction;
+      maxGas = gas;
+    }
+  }
+  return maxGas;
+}
+
+/** Derive atmosphere color from composition */
+function deriveAtmosColor(composition: Record<string, number>): number {
+  const o2 = composition['O2'] ?? 0;
+  const co2 = composition['CO2'] ?? 0;
+  const ch4 = composition['CH4'] ?? 0;
+  const h2 = composition['H2'] ?? 0;
+
+  // N2 + O2 → Rayleigh scattering blue (Earth-like)
+  if (o2 > 0.1) return 0x4488ff;
+  // CO2-dominant → orange-yellow (Venus-like)
+  if (co2 > 0.5) return 0xddaa44;
+  // CH4 present → brown-orange (Titan-like)
+  if (ch4 > 0.1) return 0x886644;
+  // H2-dominant → pale blue (gas giant)
+  if (h2 > 0.5) return 0x8899cc;
+  // N2 alone or other → gray-blue
+  return 0x667788;
+}
+
+/** Derive atmosphere opacity from surface pressure */
+function deriveAtmosOpacity(pressureAtm: number): number {
+  if (pressureAtm > 50) return 0.25;
+  if (pressureAtm >= 1) return 0.04 + (pressureAtm - 1) / 49 * 0.11;
+  if (pressureAtm >= 0.1) return 0.01 + (pressureAtm - 0.1) / 0.9 * 0.03;
+  return 0.005;
+}
+
+/** Derive surface base color from temperature (for rocky/dwarf planets without life) */
+function deriveSurfaceBaseColor(tempK: number): number {
+  if (tempK > 1200) return 0x1a0a00;    // lava world
+  if (tempK > 600) return 0xaa5533;      // hot Venus-like
+  if (tempK > 373) return 0xbb9966;      // warm desert
+  if (tempK > 273) return 0x887766;      // temperate rock
+  if (tempK > 200) return 0x8899aa;      // cold frosted
+  return 0xaabbcc;                        // frozen
+}
+
+/** Derive surface high elevation color */
+function deriveSurfaceHighColor(tempK: number): number {
+  if (tempK > 1200) return 0x331500;
+  if (tempK > 600) return 0x664433;
+  if (tempK > 373) return 0x8a7755;
+  if (tempK > 273) return 0x6a5a4a;
+  if (tempK > 200) return 0x778899;
+  return 0x99aabc;
+}
+
+/** Derive ocean colors from depth */
+function deriveOceanColors(depthKm: number, tempK: number): { shallow: number; deep: number } {
+  if (tempK > 373) {
+    // Super-hot water → murky / boiling
+    return { shallow: 0x4a3a2a, deep: 0x2a1a0a };
+  }
+  if (tempK < 200) {
+    // Frozen — subsurface ocean is dark
+    return { shallow: 0x3a4a6a, deep: 0x1a2a4a };
+  }
+  // Normal liquid water
+  const depthFactor = clamp(depthKm / 10, 0, 1);
+  const shallow = lerpColor(0x2a6a8a, 0x1a4a7a, depthFactor);
+  const deep = lerpColor(0x1a3a5a, 0x0a1a3a, depthFactor);
+  return { shallow, deep };
+}
+
+/** Derive biome colors based on temperature and life complexity */
+function deriveBiomeColors(tempK: number, lifeComplexity: string): BiomeColors {
+  if (lifeComplexity === 'intelligent' || lifeComplexity === 'multicellular') {
+    // Full biomes
+    return {
+      tropical: 0x1a6a2a,    // deep green
+      temperate: 0x2a6a2a,   // forest green
+      boreal: 0x3a5a2a,      // dark green
+      desert: 0xc4a55a,      // sandy
+      tundra: 0x5a6a4a,      // muted green-brown
+    };
+  }
+  if (lifeComplexity === 'unicellular') {
+    // Subtle green tint
+    return {
+      tropical: 0x4a7a4a,
+      temperate: 0x5a7a5a,
+      boreal: 0x5a6a4a,
+      desert: 0xaa9a6a,
+      tundra: 0x6a6a5a,
+    };
+  }
+  // microbial / moss — very subtle
+  return {
+    tropical: 0x6a7a5a,
+    temperate: 0x6a7a5a,
+    boreal: 0x6a6a5a,
+    desert: 0x9a8a6a,
+    tundra: 0x6a6a5a,
+  };
+}
+
+/** Derive land threshold from water coverage fraction.
+ *  Higher water coverage → higher threshold (more land submerged) */
+function deriveLandThreshold(waterCoverage: number): number {
+  // Earth: waterCoverage=0.71, noise threshold ~0.05
+  // Maps 0..1 water coverage to -0.4..0.35 threshold
+  // At 0 water, threshold is very low (almost everything is land)
+  // At 1 water, threshold is very high (everything submerged)
+  return -0.4 + waterCoverage * 0.75;
+}
+
+/** Derive cloud color from atmosphere composition */
+function deriveCloudColor(composition: Record<string, number>): number {
+  const o2 = composition['O2'] ?? 0;
+  const co2 = composition['CO2'] ?? 0;
+  const ch4 = composition['CH4'] ?? 0;
+  const h2 = composition['H2'] ?? 0;
+
+  // Earth-like (O2 present) → white with slight blue tint
+  if (o2 > 0.1) return 0xeef4ff;
+  // Venus-like (CO2 dominant) → yellowish
+  if (co2 > 0.5) return 0xeeddaa;
+  // Titan-like (CH4 present) → brownish-orange haze
+  if (ch4 > 0.1) return 0xccaa88;
+  // H2 dominant → gray-blue
+  if (h2 > 0.5) return 0xccddee;
+  // Default → grayish-white
+  return 0xdde0e4;
+}
+
+/** Derive gas giant band colors from temperature */
+function deriveGasGiantColors(tempK: number): { c1: number; c2: number } {
+  if (tempK > 1000) {
+    // Hot Jupiter — deep reds / oranges
+    return { c1: 0xcc5522, c2: 0x883311 };
+  }
+  if (tempK > 400) {
+    // Warm — orange / tan
+    return { c1: 0xcc9955, c2: 0x886633 };
+  }
+  // Cold — brown / tan (Saturn-like)
+  return { c1: 0xaa8855, c2: 0x665533 };
+}
+
+/** Derive ice giant visual config */
+function deriveIceGiantColors(tempK: number): { c1: number; c2: number } {
+  if (tempK > 200) {
+    return { c1: 0x5588aa, c2: 0x336688 };
+  }
+  // Very cold — deep blue (Neptune-like)
+  return { c1: 0x3366aa, c2: 0x224488 };
+}
+
+/**
+ * Derive all visual parameters for a planet from its physical properties.
+ * This is the core data-driven mapping: Planet params → visual config.
+ */
+export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualConfig {
+  const tempK = planet.surfaceTempK;
+  const atmo = planet.atmosphere;
+  const hydro = planet.hydrosphere;
+  const isGas = planet.type === 'gas-giant';
+  const isIce = planet.type === 'ice-giant';
+
+  // Star tint
+  const starTint = hexToNum(star.colorHex);
+
+  // --- Atmosphere ---
+  const hasAtmosphere = atmo !== null;
+  const atmosColor = hasAtmosphere ? deriveAtmosColor(atmo.composition) : 0x667788;
+  const atmosOpacity = hasAtmosphere ? deriveAtmosOpacity(atmo.surfacePressureAtm) : 0;
+  const atmosRingCount = hasAtmosphere ? (atmo.surfacePressureAtm > 1 ? 10 : atmo.surfacePressureAtm > 0.1 ? 6 : 3) : 0;
+  const limbColor = hasAtmosphere ? lerpColor(atmosColor, 0xffffff, 0.3) : 0x667788;
+
+  // --- Ocean ---
+  const waterCoverage = hydro?.waterCoverageFraction ?? 0;
+  const hasOcean = waterCoverage > 0.01 && !isGas && !isIce;
+  const oceanDepth = hydro?.oceanDepthKm ?? 0;
+  const oceanColors = deriveOceanColors(oceanDepth, tempK);
+
+  // --- Ice ---
+  const iceCapFraction = hydro?.iceCapFraction ?? (tempK < 250 ? clamp((250 - tempK) / 200, 0.1, 0.8) : 0);
+
+  // --- Surface ---
+  const surfaceBaseColor = deriveSurfaceBaseColor(tempK);
+  const surfaceHighColor = deriveSurfaceHighColor(tempK);
+
+  // --- Biomes (only for planets with life) ---
+  const hasBiomes = planet.hasLife && (planet.type === 'rocky' || planet.type === 'dwarf');
+  const biomeColors = hasBiomes
+    ? deriveBiomeColors(tempK, planet.lifeComplexity)
+    : { tropical: surfaceBaseColor, temperate: surfaceBaseColor, boreal: surfaceBaseColor, desert: surfaceBaseColor, tundra: surfaceBaseColor };
+
+  // --- Land threshold ---
+  const landThreshold = hasOcean ? deriveLandThreshold(waterCoverage) : -1; // -1 = no ocean, all land
+
+  // --- Clouds ---
+  const hasSignificantClouds = hasAtmosphere && atmo.surfacePressureAtm > 0.1
+    && (waterCoverage > 0 || isGas || isIce);
+  const cloudDensity = hasSignificantClouds
+    ? (isGas || isIce)
+      ? 0.6  // Gas/ice giants have thick cloud bands
+      : clamp(Math.sqrt(atmo.surfacePressureAtm) * waterCoverage * 1.2, 0, 1)
+    : 0;
+  const cloudColor = hasAtmosphere ? deriveCloudColor(atmo.composition) : 0xdde0e4;
+
+  // --- Special ---
+  const hasLavaFlows = tempK > 1200 && (planet.type === 'rocky' || planet.type === 'dwarf');
+
+  // --- Gas/Ice giant ---
+  const gasColors = isGas ? deriveGasGiantColors(tempK) : { c1: 0, c2: 0 };
+  const iceColors = isIce ? deriveIceGiantColors(tempK) : { c1: 0, c2: 0 };
+
+  return {
+    surfaceBaseColor,
+    surfaceHighColor,
+    hasBiomes,
+    biomeColors,
+    landThreshold,
+
+    hasOcean,
+    oceanShallow: oceanColors.shallow,
+    oceanDeep: oceanColors.deep,
+    waterCoverage,
+
+    iceCapFraction,
+
+    hasAtmosphere,
+    atmosColor,
+    atmosOpacity,
+    atmosRingCount,
+    limbColor,
+
+    hasSignificantClouds,
+    cloudDensity,
+    cloudColor,
+
+    starTint,
+
+    hasLavaFlows,
+    lavaColor: 0xff4400,
+    isGasGiant: isGas,
+    isIceGiant: isIce,
+
+    bandColor1: isGas ? gasColors.c1 : iceColors.c1,
+    bandColor2: isGas ? gasColors.c2 : iceColors.c2,
+  };
+}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#0a1428"/>
+  <circle cx="96" cy="86" r="36" fill="none" stroke="#44ff88" stroke-width="2.5" opacity="0.8"/>
+  <circle cx="96" cy="86" r="18" fill="none" stroke="#4488aa" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="96" cy="86" r="4" fill="#44ff88"/>
+  <circle cx="60" cy="56" r="2" fill="#aaccee" opacity="0.7"/>
+  <circle cx="132" cy="70" r="1.5" fill="#aaccee" opacity="0.5"/>
+  <circle cx="78" cy="112" r="1.5" fill="#aaccee" opacity="0.6"/>
+  <circle cx="140" cy="100" r="2" fill="#cc8822" opacity="0.4"/>
+  <circle cx="52" cy="96" r="1" fill="#8844cc" opacity="0.5"/>
+  <text x="96" y="152" text-anchor="middle" font-family="monospace" font-size="18" fill="#aaccee" letter-spacing="3">NEBULIFE</text>
+</svg>

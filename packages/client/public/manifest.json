@@ -1,0 +1,24 @@
+{
+  "name": "Nebulife — Cosmic Discovery",
+  "short_name": "Nebulife",
+  "description": "Explore the galaxy, discover cosmic objects, and photograph them with AI",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#0a1428",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
