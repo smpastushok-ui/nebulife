@@ -414,7 +414,8 @@ export function App() {
       planetId: state.selectedPlanet.id,
       systemId: state.selectedSystem.id,
       planetName: state.selectedPlanet.name,
-      existingModelId: existing?.id,
+      // Only resume existing model if payment was confirmed (paid) — not for stuck awaiting_payment
+      existingModelId: existing?.payment_status === 'paid' ? existing.id : undefined,
     });
   }, [state.selectedPlanet, state.selectedSystem, planetModels]);
 

@@ -36,8 +36,8 @@ export async function createPlayer(player: {
 }): Promise<PlayerRow> {
   const sql = getSQL();
   const rows = await sql`
-    INSERT INTO players (id, name, home_system_id, home_planet_id, last_login)
-    VALUES (${player.id}, ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, NOW())
+    INSERT INTO players (id, name, home_system_id, home_planet_id, last_login, quarks)
+    VALUES (${player.id}, ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, NOW(), 0)
     ON CONFLICT (id) DO NOTHING
     RETURNING *
   `;

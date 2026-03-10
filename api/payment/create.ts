@@ -42,8 +42,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const modelId = `pm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    // 2. Try to pay with quarks
-    if (player.quarks >= MODEL_PRICE_QUARKS) {
+    // 2. Try to pay with quarks (treat null/undefined as 0)
+    const playerQuarks = player.quarks ?? 0;
+    if (playerQuarks >= MODEL_PRICE_QUARKS) {
       // Enough quarks — deduct atomically
       const updated = await deductQuarks(playerId, MODEL_PRICE_QUARKS);
       if (!updated) {
@@ -80,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 3. Not enough quarks — create MonoPay invoice for deficit
-    const deficit = MODEL_PRICE_QUARKS - player.quarks;
+    const deficit = MODEL_PRICE_QUARKS - playerQuarks;
     const reference = `model_${modelId}`;
 
     // Save planet model with pending status
