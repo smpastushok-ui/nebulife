@@ -414,7 +414,20 @@ nebulife/
 │   │       │   └── GameEngine.ts
 │   │       ├── ui/components/   # React HUD, panels, menus, modals
 │   │       └── App.tsx          # Root component, state management
-│   └── server/        # (future)
+│   └── server/        # Серверні функції (Neon DB, Kling, Tripo)
+│       └── src/
+│           ├── db.ts               # Neon PostgreSQL CRUD (players, surface_maps, planet_models, payment_intents)
+│           ├── kling-client.ts     # Kling AI API (JWT auth, image generation)
+│           ├── tripo-client.ts     # Tripo 3D API (GLB model generation)
+│           ├── surface-analyzer.ts # HSL-based terrain zone detection
+│           ├── surface-prompt-builder.ts # Kling prompt from planet/star data
+│           └── index.ts            # Barrel exports
+├── api/               # Vercel serverless endpoints
+│   ├── player/        # GET/POST player data
+│   ├── payment/       # create, callback, topup (MonoPay)
+│   ├── surface/       # generate, status/[id], buildings, map
+│   ├── kling/         # Kling task management
+│   └── tripo/         # Tripo 3D model pipeline
 ```
 
 **Ключові утиліти**:
@@ -462,3 +475,190 @@ nebulife/
 - **Яскраві кольори без причини** — палітра приглушена, акценти тільки для семантики
 - **Емодзі** — ніколи
 - **Текстури / спрайти** — все процедурне через Graphics API
+
+---
+
+## 10. Серверна архітектура
+
+### 10.1 Database (Neon PostgreSQL)
+
+**Таблиці**:
+| Таблиця | Призначення |
+|---|---|
+| `players` | id, name, quarks, registeredAt |
+| `surface_maps` | AI-generated planet photos + zone maps (UNIQUE по planet_id) |
+| `planet_models` | 3D GLB models (Tripo pipeline status tracking) |
+| `payment_intents` | MonoPay payment tracking (topup, purchase_model, purchase_surface) |
+| `kling_tasks` | Kling AI task tracking |
+| `discoveries` | Cosmic discoveries from research |
+| `expeditions` | Player expeditions |
+| `surface_buildings` | Placed buildings on planet surfaces |
+
+### 10.2 API Endpoints
+
+| Endpoint | Method | Опис |
+|---|---|---|
+| `/api/player/:id` | GET | Отримати дані гравця (quarks, name) |
+| `/api/payment/create` | POST | Створити платіж (quarks-first, потім MonoPay) |
+| `/api/payment/callback` | POST | MonoPay webhook → creditQuarks |
+| `/api/payment/topup` | POST | Поповнення кварків через MonoPay |
+| `/api/surface/generate` | POST | Запуск AI генерації поверхні (Kling) |
+| `/api/surface/status/:id` | GET | Polling статусу генерації |
+| `/api/surface/buildings` | GET/POST/DELETE | CRUD будівель на поверхні |
+| `/api/kling/generate` | POST | Kling image generation |
+| `/api/kling/status/:id` | GET | Kling task status |
+| `/api/tripo/create` | POST | Tripo 3D model creation |
+| `/api/tripo/status/:id` | GET | Tripo task status |
+
+### 10.3 Imports
+
+API endpoints імпортують серверні функції через `@nebulife/server`:
+```typescript
+import { getSurfaceMap, saveSurfaceMap, deductQuarks, generateImage } from '@nebulife/server';
+```
+**НІКОЛИ** не використовувати прямі шляхи `@nebulife/server/src/...` — вони не працюють на Vercel.
+
+---
+
+## 11. Ігрова валюта "Кварки" (⚛)
+
+### 11.1 Концепція
+
+1 кварк = 1 гривня. Всі ігрові покупки за кварки. Баланс зберігається на сервері (`players.quarks`).
+
+### 11.2 Ціни
+
+| Покупка | Ціна | Примітка |
+|---|---|---|
+| AI поверхня (перша рідна планета) | **Безкоштовно** | Тільки 1-ша генерація home planet |
+| AI поверхня (решта) | **10 ⚛** | Нові планети та перегенерація |
+| 3D модель планети | **49 ⚛** | Kling photo → Tripo GLB |
+| Поповнення | Будь-яка сума | MonoPay → creditQuarks |
+
+### 11.3 Механіка
+
+- **Списання**: атомарне `UPDATE players SET quarks = quarks - $amount WHERE quarks >= $amount`
+- **Поповнення**: `UPDATE players SET quarks = quarks + $amount`
+- **Покупка з недостатнім балансом**: deficit = price - quarks → MonoPay на deficit → callback → credit → deduct
+- **UI**: баланс в CommandBar (права секція), кнопка поповнення → QuarkTopUpModal
+
+---
+
+## 12. AI-генерована поверхня
+
+### 12.1 Pipeline
+
+```
+POST /api/surface/generate
+  → buildSurfacePrompt(planet, star) → prompt
+  → generateImage(prompt, 16:9, 2K) → klingTaskId
+  → saveSurfaceMap(generating)
+
+GET /api/surface/status/:id (polling кожні 5с)
+  → checkTaskStatus(klingTaskId)
+  → succeed → analyzePhotoForZones(imageUrl) → zone_map
+  → updateSurfaceMap(ready, photo_url, zone_map)
+```
+
+### 12.2 Prompt Builder
+
+Збирає промпт з даних планети:
+- `waterCoverageFraction` → опис водних мас
+- `surfaceTempK` → кліматична зона (frozen/temperate/hot/lava)
+- `hydrosphere` → океани, льодовики
+- `resources` → колір ґрунту (Fe = червонуватий, Si = блідий)
+- `lifeComplexity` → рослинність
+- `star.spectralClass` → відтінок освітлення
+
+### 12.3 Zone Analyzer
+
+Після отримання фото від Kling:
+1. Fetch image як Buffer
+2. Поділити на **64x36 grid** (для 16:9)
+3. Для кожної клітинки: RGB → HSL → terrain classification
+4. Класифікація:
+
+| HSL діапазон | Terrain |
+|---|---|
+| H 180-260, S>25 | water (deep_ocean/ocean/shallow) |
+| L>85, S<30 | ice |
+| H 60-160, S>20 | vegetation (forest/grassland) |
+| H 20-50, S>15 | desert/sand |
+| L<35, S<30 | mountain |
+| Решта | plains |
+
+5. `buildable`: true для vegetation, desert, plains, ice; false для water, mountain
+
+### 12.4 Клієнт (SurfaceView.tsx)
+
+**Фази**:
+- `procedural` (дефолт) — SurfaceMapRenderer (canvas noise tiles), працює без API
+- `generating` — AI генерація в процесі (лоадер)
+- `ai-ready` — AI фото + SimplexNoise хмари + zone overlay
+- `error` — помилка AI, повернення до procedural
+
+**AI генерація запускається тільки по кнопці**, не автоматично.
+
+---
+
+## 13. 3D моделі планет
+
+### 13.1 Pipeline
+
+```
+1. Kling: generateImage(planet photo, 1:1) → photo_url
+2. Tripo: createModelTask(photo_url) → taskId
+3. Poll: checkModelTask(taskId) → status
+4. Ready: download GLB → viewer (Babylon.js)
+```
+
+### 13.2 Statuses
+
+`pending` → `generating_photo` → `photo_ready` → `generating_model` → `ready` / `failed`
+
+### 13.3 Viewer (Planet3DViewer.tsx)
+
+- Babylon.js engine + SceneLoader (GLB)
+- Автоматична камера (ArcRotateCamera)
+- Освітлення від зоряного кольору
+
+---
+
+## 14. Уніфікована панель управління (CommandBar)
+
+### 14.1 Концепція
+
+Єдина нижня панель (bottom bar) присутня на ВСІХ рівнях гри. Структура постійна, змінюється тільки набір інструментів.
+
+### 14.2 Layout
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  ◁ Домівка › Галактика › Система  │  [Tools...]  │  ⚛120 Name  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+- **Ліва секція**: breadcrumbs навігації (клікабельні)
+- **Центральна секція**: інструменти сцени (змінюються)
+- **Права секція**: кварки + ім'я гравця
+
+### 14.3 Інструменти по сценах
+
+| Сцена | Інструменти |
+|---|---|
+| Home Intro | [Дослідити галактику] + zoom |
+| Galaxy | [Обсерваторії X/Y] [Домівка] |
+| System (з планетою) | [Екзосфера] [Поверхня] [3D] [Інфо] |
+| Planet View | [Поверхня] [3D] [Інфо] + zoom |
+| Surface | [Будівлі] [AI Знімок] + terrain info + zoom |
+
+### 14.4 Стилі
+
+```
+height: 48px
+position: fixed; bottom: 0
+background: rgba(5, 10, 20, 0.92)
+backdrop-filter: blur(12px)
+border-top: 1px solid rgba(60, 100, 160, 0.15)
+z-index: 9500
+```

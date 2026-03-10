@@ -1,5 +1,5 @@
+import { randomUUID } from 'node:crypto';
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { v4 as uuidv4 } from 'uuid';
 import {
   getSurfaceMap,
   saveSurfaceMap,
@@ -79,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const klingTaskId = klingResponse.taskId;
 
     // Save surface map to database
-    const surfaceMapId = uuidv4();
+    const surfaceMapId = randomUUID();
     const surfaceMap = await saveSurfaceMap({
       id: surfaceMapId,
       playerId,
