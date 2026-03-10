@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build -w @nebulife/client",
+  "buildCommand": "npm run build -w @nebulife/core && npm run build -w @nebulife/server && npm run build -w @nebulife/client",
   "outputDirectory": "packages/client/dist",
   "installCommand": "npm install",
   "framework": null,
