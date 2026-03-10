@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GameEngine } from './game/GameEngine.js';
-import { HUD } from './ui/components/HUD.js';
+import { CommandBar } from './ui/components/CommandBar/index.js';
+import type { BreadcrumbItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
 import { PlanetInfoPanel } from './ui/components/PlanetInfoPanel.js';
 import { PlanetContextMenu } from './ui/components/PlanetContextMenu.js';
 import { SystemInfoPanel } from './ui/components/SystemInfoPanel.js';
@@ -11,8 +12,12 @@ import { ObservatoryView } from './ui/components/ObservatoryView.js';
 import ModelGenerationOverlay from './ui/components/ModelGenerationOverlay.js';
 import Planet3DViewer from './ui/components/Planet3DViewer.js';
 import { SurfaceView } from './ui/components/SurfaceView.js';
+import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfaceView.js';
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
-import type { Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery } from '@nebulife/core';
+import type {
+  Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
+  SurfaceTile, SurfaceResourceDeposit,
+} from '@nebulife/core';
 import { getPlayerModels } from './api/tripo-api.js';
 import type { PlanetModel } from './api/tripo-api.js';
 import {
@@ -115,6 +120,14 @@ export function App() {
   /** Quarks (in-game currency) */
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+
+  // ── Surface integration state for CommandBar ────────────────────────────
+  const surfaceViewRef = useRef<SurfaceViewHandle>(null);
+  const [surfacePhase, setSurfacePhase] = useState<SurfacePhase>('procedural');
+  const [surfaceBuildPanelOpen, setSurfaceBuildPanelOpen] = useState(true);
+  const [surfaceHoveredTile, setSurfaceHoveredTile] = useState<SurfaceTile | null>(null);
+  const [surfaceHoveredResource, setSurfaceHoveredResource] = useState<SurfaceResourceDeposit | null>(null);
+  const [surfaceBuildingCount, setSurfaceBuildingCount] = useState(0);
 
   const refreshQuarks = useCallback(() => {
     fetch(`/api/player/${playerId.current}`)
@@ -371,15 +384,12 @@ export function App() {
   }, []);
 
   const handleSaveToGallery = useCallback((discoveryId: string, imageUrl: string) => {
-    // The server already persists the photo_url when Kling completes,
-    // so this is mainly for any additional client-side bookkeeping.
     console.log(`[Gallery] Saved discovery ${discoveryId} with image ${imageUrl}`);
   }, []);
 
   // ── 3D Model handlers ─────────────────────────────────────────────────
   const handleUpgradePlanet = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
-    // Check if there's already a model in progress
     const existing = planetModels.find(
       (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id,
     );
@@ -406,7 +416,6 @@ export function App() {
   }, [state.selectedPlanet, state.selectedSystem, planetModels]);
 
   const handleModelReady = useCallback((modelId: string, glbUrl: string) => {
-    // Update local cache
     setPlanetModels((prev) => {
       const idx = prev.findIndex((m) => m.id === modelId);
       if (idx >= 0) {
@@ -416,7 +425,6 @@ export function App() {
       }
       return prev;
     });
-    // Refresh from server
     getPlayerModels(playerId.current).then(setPlanetModels).catch(() => {});
   }, []);
 
@@ -440,6 +448,41 @@ export function App() {
   const handleCloseSurface = useCallback(() => {
     setSurfaceTarget(null);
   }, []);
+
+  // ── Breadcrumb navigation handler ──────────────────────────────────────
+  const handleBreadcrumbNavigate = useCallback((targetScene: string) => {
+    // Close surface if open
+    if (surfaceTarget) {
+      setSurfaceTarget(null);
+    }
+
+    switch (targetScene) {
+      case 'home-intro':
+        handleGoToHomePlanet();
+        break;
+      case 'galaxy':
+        handleBackToGalaxy();
+        break;
+      case 'system':
+        if (state.selectedSystem) {
+          engineRef.current?.showSystemScene(state.selectedSystem);
+          setState((prev) => ({
+            ...prev,
+            scene: 'system' as const,
+            selectedPlanet: null,
+            showPlanetMenu: false,
+            showPlanetInfo: false,
+          }));
+        }
+        break;
+      case 'planet-view':
+        if (state.scene !== 'planet-view') {
+          handleViewPlanet();
+        }
+        break;
+      // 'surface' — already on surface, no action
+    }
+  }, [surfaceTarget, state.selectedSystem, state.scene, handleViewPlanet]);
 
   // Helper: get model for currently selected planet
   const selectedPlanetModel = state.selectedPlanet && state.selectedSystem
@@ -467,6 +510,150 @@ export function App() {
       })()
     : null;
 
+  // ── CommandBar data ──────────────────────────────────────────────────
+  const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
+
+  const breadcrumbs: BreadcrumbItem[] = [
+    { id: 'home', label: 'Домівка', scene: 'home-intro', isActive: effectiveScene === 'home-intro' },
+  ];
+
+  if (effectiveScene !== 'home-intro') {
+    breadcrumbs.push({
+      id: 'galaxy', label: 'Галактика', scene: 'galaxy',
+      isActive: effectiveScene === 'galaxy',
+    });
+  }
+
+  if (['system', 'planet-view', 'surface'].includes(effectiveScene) && state.selectedSystem) {
+    breadcrumbs.push({
+      id: 'system', label: state.selectedSystem.star.name, scene: 'system',
+      isActive: effectiveScene === 'system',
+    });
+  }
+
+  if (['planet-view', 'surface'].includes(effectiveScene) && state.selectedPlanet) {
+    breadcrumbs.push({
+      id: 'planet', label: state.selectedPlanet.name, scene: 'planet-view',
+      isActive: effectiveScene === 'planet-view',
+    });
+  }
+
+  if (effectiveScene === 'surface') {
+    breadcrumbs.push({
+      id: 'surface', label: 'Поверхня', scene: 'surface', isActive: true,
+    });
+  }
+
+  // Build tool groups based on current scene
+  const toolGroups: ToolGroup[] = [];
+
+  switch (effectiveScene) {
+    case 'home-intro': {
+      if (showExploreBtn) {
+        toolGroups.push({
+          type: 'buttons',
+          items: [{
+            id: 'explore',
+            label: 'Дослідити галактику',
+            onClick: handleStartExploration,
+            variant: 'primary',
+          }],
+        });
+      }
+      toolGroups.push({
+        type: 'zoom',
+        items: [
+          { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.homePlanetZoomIn() },
+          { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.homePlanetZoomOut() },
+        ],
+      });
+      break;
+    }
+
+    case 'galaxy': {
+      const activeSlots = researchState.slots.filter((s) => s.systemId !== null).length;
+      toolGroups.push({
+        type: 'buttons',
+        items: [{
+          id: 'observatories',
+          label: 'Обсерваторії',
+          onClick: () => {},
+          badge: `${activeSlots}/${HOME_OBSERVATORY_COUNT}`,
+        }],
+      });
+      break;
+    }
+
+    case 'system': {
+      if (state.selectedPlanet) {
+        toolGroups.push({
+          type: 'buttons',
+          items: [
+            { id: 'view-planet', label: 'Екзосфера', onClick: handleViewPlanet },
+            { id: 'surface', label: 'Поверхня', onClick: handleOpenSurface },
+            { id: 'info', label: 'Інфо', onClick: handleShowCharacteristics },
+          ],
+        });
+      }
+      break;
+    }
+
+    case 'planet-view': {
+      const tools: ToolItem[] = [
+        { id: 'surface', label: 'Поверхня', onClick: handleOpenSurface },
+        { id: 'info', label: 'Інфо', onClick: handleShowCharacteristics },
+      ];
+      if (selectedPlanetModel?.status === 'ready' && selectedPlanetModel?.glb_url) {
+        tools.push({ id: '3d', label: '3D', onClick: handleView3DModel });
+      } else {
+        tools.push({ id: '3d', label: '3D', onClick: handleUpgradePlanet, variant: 'accent' });
+      }
+      toolGroups.push({ type: 'buttons', items: tools });
+      toolGroups.push({
+        type: 'zoom',
+        items: [
+          { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.planetViewZoomIn() },
+          { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.planetViewZoomOut() },
+        ],
+      });
+      break;
+    }
+
+    case 'surface': {
+      const tools: ToolItem[] = [
+        {
+          id: 'buildings',
+          label: 'Будівлі',
+          onClick: () => surfaceViewRef.current?.toggleBuildPanel(),
+          active: surfaceBuildPanelOpen,
+        },
+      ];
+      if (surfacePhase === 'procedural') {
+        tools.push({
+          id: 'ai-snapshot',
+          label: 'AI Знімок',
+          onClick: () => surfaceViewRef.current?.startAIGeneration(),
+          variant: 'accent',
+        });
+      } else if (surfacePhase === 'ai-ready') {
+        tools.push({
+          id: 'procedural-map',
+          label: 'Карта',
+          onClick: () => surfaceViewRef.current?.backToProcedural(),
+        });
+      }
+      toolGroups.push({ type: 'buttons', items: tools });
+      toolGroups.push({
+        type: 'zoom',
+        items: [
+          { id: 'zoom-in', label: '+', onClick: () => surfaceViewRef.current?.zoomIn() },
+          { id: 'zoom-out', label: '\u2212', onClick: () => surfaceViewRef.current?.zoomOut() },
+        ],
+      });
+      break;
+    }
+  }
+
   if (state.error) {
     return (
       <div style={{ color: '#ff4444', padding: 20, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
@@ -479,113 +666,23 @@ export function App() {
   return (
     <>
       <div ref={canvasRef} id="game-canvas" />
-      {state.scene !== 'home-intro' && (
-        <HUD
-          scene={state.scene}
-          playerName={state.playerName}
-          quarks={quarks}
-          onBackToGalaxy={state.scene === 'system' ? handleBackToGalaxy : undefined}
-          onBackToSystem={state.scene === 'planet-view' ? handleBackToSystem : undefined}
-          onGoToHomePlanet={handleGoToHomePlanet}
-          onTopUp={() => setShowTopUpModal(true)}
-        />
-      )}
-      {state.scene === 'home-intro' && showExploreBtn && (
-        <button
-          onClick={handleStartExploration}
-          style={{
-            position: 'absolute',
-            bottom: 60,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            padding: '14px 36px',
-            background: 'rgba(10,20,40,0.7)',
-            border: '1px solid rgba(100,160,220,0.4)',
-            borderRadius: 6,
-            color: '#aaccee',
-            fontFamily: 'monospace',
-            fontSize: 16,
-            cursor: 'pointer',
-            zIndex: 10,
-            pointerEvents: 'auto',
-            animation: 'fadeIn 1.5s ease-in',
-          }}
-        >
-          Дослідити галактику &rarr;
-        </button>
-      )}
-      {state.scene === 'home-intro' && (
-        <div style={{
-          position: 'absolute', right: 16, bottom: 80,
-          display: 'flex', flexDirection: 'column', gap: 6,
-          pointerEvents: 'auto', zIndex: 10,
-        }}>
-          {[
-            { label: '+', fn: () => engineRef.current?.homePlanetZoomIn() },
-            { label: '\u2212', fn: () => engineRef.current?.homePlanetZoomOut() },
-          ].map((btn) => (
-            <button
-              key={btn.label}
-              onClick={btn.fn}
-              style={{
-                width: 36, height: 36,
-                background: 'rgba(10,20,40,0.7)',
-                border: '1px solid rgba(100,160,220,0.3)',
-                borderRadius: 4,
-                color: '#8899aa',
-                fontFamily: 'monospace',
-                fontSize: 18,
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {state.scene === 'planet-view' && (
-        <>
-          <div style={{
-            position: 'absolute', right: 16, bottom: 80,
-            display: 'flex', flexDirection: 'column', gap: 6,
-            pointerEvents: 'auto', zIndex: 10,
-          }}>
-            {[
-              { label: '+', fn: () => engineRef.current?.planetViewZoomIn() },
-              { label: '\u2212', fn: () => engineRef.current?.planetViewZoomOut() },
-            ].map((btn) => (
-              <button
-                key={btn.label}
-                onClick={btn.fn}
-                style={{
-                  width: 36, height: 36,
-                  background: 'rgba(10,20,40,0.7)',
-                  border: '1px solid rgba(100,160,220,0.3)',
-                  borderRadius: 4,
-                  color: '#8899aa',
-                  fontFamily: 'monospace',
-                  fontSize: 18,
-                  cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                {btn.label}
-              </button>
-            ))}
-          </div>
-          {state.selectedPlanet && (
-            <div style={{
-              position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-              fontFamily: 'monospace', color: '#aaccee', fontSize: 14,
-              background: 'rgba(10,20,40,0.5)', padding: '6px 16px', borderRadius: 4,
-              pointerEvents: 'none', zIndex: 10,
-            }}>
-              {state.selectedPlanet.name}
-            </div>
-          )}
-        </>
-      )}
+
+      {/* CommandBar — always visible at bottom */}
+      <CommandBar
+        scene={effectiveScene}
+        breadcrumbs={breadcrumbs}
+        toolGroups={toolGroups}
+        quarks={quarks}
+        playerName={state.playerName}
+        onNavigate={handleBreadcrumbNavigate}
+        onTopUp={() => setShowTopUpModal(true)}
+        surfaceInfo={surfaceTarget ? {
+          hoveredTile: surfaceHoveredTile,
+          hoveredResource: surfaceHoveredResource,
+          buildingCount: surfaceBuildingCount,
+        } : undefined}
+      />
+
       {showResearchPanel && (
         <ResearchPanel
           system={selectedSystem}
@@ -680,10 +777,16 @@ export function App() {
       {/* Surface View (biosphere level) */}
       {surfaceTarget && (
         <SurfaceView
+          ref={surfaceViewRef}
           planet={surfaceTarget.planet}
           star={surfaceTarget.star}
           playerId={playerId.current}
           onClose={handleCloseSurface}
+          onHoveredTileChange={setSurfaceHoveredTile}
+          onHoveredResourceChange={setSurfaceHoveredResource}
+          onBuildingCountChange={setSurfaceBuildingCount}
+          onPhaseChange={setSurfacePhase}
+          onBuildPanelChange={setSurfaceBuildPanelOpen}
         />
       )}
       {/* Quark Top-Up Modal */}

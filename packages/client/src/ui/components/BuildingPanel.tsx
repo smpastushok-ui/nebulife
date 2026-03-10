@@ -21,8 +21,8 @@ const BUILDING_ICONS: Record<BuildingType, string> = {
 const panelStyle: React.CSSProperties = {
   position: 'absolute',
   right: 0,
-  top: 48,
-  bottom: 0,
+  top: 0,
+  bottom: 48,
   width: 240,
   background: 'rgba(5, 10, 25, 0.9)',
   borderLeft: '1px solid rgba(60, 100, 160, 0.3)',

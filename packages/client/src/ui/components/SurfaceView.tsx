@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import type {
   Planet, Star, SurfaceMap, SurfaceTile, SurfaceResourceDeposit,
   PlacedBuilding, BuildingType,
@@ -9,19 +9,11 @@ import {
 } from '@nebulife/core';
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
 import { SurfaceMapRenderer } from '../../game/rendering/SurfaceMapRenderer.js';
-import { SurfaceHUD } from './SurfaceHUD.js';
 import { BuildingPanel } from './BuildingPanel.js';
 import {
   getBuildings, placeBuilding, removeBuilding,
   generateSurface, checkSurfaceStatus,
 } from '../../api/surface-api.js';
-
-interface SurfaceViewProps {
-  planet: Planet;
-  star: Star;
-  playerId: string;
-  onClose: () => void;
-}
 
 /**
  * Phases:
@@ -30,7 +22,28 @@ interface SurfaceViewProps {
  * - 'ai-ready'   — AI photo ready, shows image + clouds overlay
  * - 'error'      — AI failed, stays on procedural
  */
-type SurfacePhase = 'procedural' | 'generating' | 'ai-ready' | 'error';
+export type SurfacePhase = 'procedural' | 'generating' | 'ai-ready' | 'error';
+
+/** Methods exposed to parent via ref for CommandBar integration */
+export interface SurfaceViewHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  startAIGeneration: () => void;
+  backToProcedural: () => void;
+  toggleBuildPanel: () => void;
+}
+
+interface SurfaceViewProps {
+  planet: Planet;
+  star: Star;
+  playerId: string;
+  onClose: () => void;
+  onHoveredTileChange?: (tile: SurfaceTile | null) => void;
+  onHoveredResourceChange?: (resource: SurfaceResourceDeposit | null) => void;
+  onBuildingCountChange?: (count: number) => void;
+  onPhaseChange?: (phase: SurfacePhase) => void;
+  onBuildPanelChange?: (open: boolean) => void;
+}
 
 interface ZoneCell {
   x: number;
@@ -63,7 +76,14 @@ const imageContainerStyle: React.CSSProperties = {
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-export function SurfaceView({ planet, star, playerId, onClose }: SurfaceViewProps) {
+export const SurfaceView = forwardRef<SurfaceViewHandle, SurfaceViewProps>(function SurfaceView(
+  {
+    planet, star, playerId, onClose,
+    onHoveredTileChange, onHoveredResourceChange,
+    onBuildingCountChange, onPhaseChange, onBuildPanelChange,
+  },
+  ref
+) {
   /* ---------- State ---------- */
   const [phase, setPhase] = useState<SurfacePhase>('procedural');
   const [surfaceMapId, setSurfaceMapId] = useState<string | null>(null);
@@ -102,54 +122,27 @@ export function SurfaceView({ planet, star, playerId, onClose }: SurfaceViewProp
   const GRID_WIDTH = 64;
   const GRID_HEIGHT = 36;
 
+  /* ---------- Stable callback refs (avoid stale closures) ---------- */
+  const onHoveredTileChangeRef = useRef(onHoveredTileChange);
+  onHoveredTileChangeRef.current = onHoveredTileChange;
+  const onHoveredResourceChangeRef = useRef(onHoveredResourceChange);
+  onHoveredResourceChangeRef.current = onHoveredResourceChange;
+
   /* ================================================================ */
-  /*  PROCEDURAL MODE — init on mount                                  */
+  /*  Callback effects — notify parent of state changes               */
   /* ================================================================ */
 
   useEffect(() => {
-    if (phase !== 'procedural') return;
+    onBuildingCountChange?.(buildings.length);
+  }, [buildings.length, onBuildingCountChange]);
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [phase, onPhaseChange]);
 
-    // Generate surface map + resources (deterministic, no API)
-    const map = generateSurfaceMap(planet);
-    const visuals = derivePlanetVisuals(planet, star);
-    const resources = generateResourceDeposits(map, planet);
-
-    surfaceMapRef.current = map;
-    resourcesRef.current = resources;
-
-    // Size canvas to window
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    // Create renderer
-    const renderer = new SurfaceMapRenderer(canvas, map, visuals);
-    renderer.setResources(resources);
-    rendererRef.current = renderer;
-
-    // Load buildings from server (non-blocking)
-    loadBuildings().then((serverBuildings) => {
-      renderer.setBuildings(serverBuildings);
-      renderer.render();
-    });
-
-    // Initial render
-    renderer.render();
-
-    // Resize handler
-    const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      renderer.render();
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [phase, planet, star]);
+  useEffect(() => {
+    onBuildPanelChange?.(showBuildPanel);
+  }, [showBuildPanel, onBuildPanelChange]);
 
   /* ================================================================ */
   /*  Load buildings from server                                       */
@@ -167,101 +160,7 @@ export function SurfaceView({ planet, star, playerId, onClose }: SurfaceViewProp
   }, [playerId, planet.id]);
 
   /* ================================================================ */
-  /*  Procedural input handlers (pan, zoom, hover, click)              */
-  /* ================================================================ */
-
-  const handleProceduralMouseDown = useCallback((e: React.MouseEvent) => {
-    dragRef.current = { active: true, startX: e.clientX, startY: e.clientY };
-  }, []);
-
-  const handleProceduralMouseMove = useCallback((e: React.MouseEvent) => {
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-
-    if (dragRef.current.active) {
-      const dx = e.clientX - dragRef.current.startX;
-      const dy = e.clientY - dragRef.current.startY;
-      dragRef.current.startX = e.clientX;
-      dragRef.current.startY = e.clientY;
-      renderer.pan(dx, dy);
-      renderer.render();
-    }
-
-    // Hover tile info
-    const tile = renderer.screenToTile(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-    if (tile) {
-      const surfTile = renderer.getTile(tile.x, tile.y);
-      setHoveredTile(surfTile);
-      renderer.setHighlightedTile(tile);
-
-      // Check for resource at this tile
-      const resource = resourcesRef.current.find((r) => r.x === tile.x && r.y === tile.y);
-      setHoveredResource(resource ?? null);
-    } else {
-      setHoveredTile(null);
-      setHoveredResource(null);
-      renderer.setHighlightedTile(null);
-    }
-
-    renderer.render();
-  }, []);
-
-  const handleProceduralMouseUp = useCallback(() => {
-    dragRef.current.active = false;
-  }, []);
-
-  const handleProceduralClick = useCallback((e: React.MouseEvent) => {
-    if (!selectedBuilding) return;
-
-    const renderer = rendererRef.current;
-    const map = surfaceMapRef.current;
-    if (!renderer || !map) return;
-
-    const coord = renderer.screenToTile(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-    if (!coord) return;
-
-    const tile = renderer.getTile(coord.x, coord.y);
-    if (!tile || !tile.buildable) return;
-
-    // Check if occupied
-    const occupied = buildings.find((b) => b.x === coord.x && b.y === coord.y);
-    if (occupied) return;
-
-    const newBuilding: PlacedBuilding = {
-      id: `bld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      type: selectedBuilding,
-      x: coord.x,
-      y: coord.y,
-      level: 1,
-      builtAt: new Date().toISOString(),
-    };
-
-    setBuildings((prev) => {
-      const updated = [...prev, newBuilding];
-      renderer.setBuildings(updated);
-      renderer.render();
-      return updated;
-    });
-    setSelectedBuilding(null);
-
-    // Persist to server
-    placeBuilding(playerId, planet.id, newBuilding).catch((err) => {
-      console.error('Failed to save building:', err);
-    });
-  }, [selectedBuilding, buildings, playerId, planet.id]);
-
-  const handleProceduralWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    renderer.setZoom(renderer.getZoom() * delta);
-    renderer.render();
-  }, []);
-
-  /* ================================================================ */
-  /*  AI generation — triggered by button click only                   */
+  /*  AI generation — triggered via ref from CommandBar                */
   /* ================================================================ */
 
   const startAIGeneration = useCallback(async () => {
@@ -327,6 +226,203 @@ export function SurfaceView({ planet, star, playerId, onClose }: SurfaceViewProp
 
     poll();
   }, [loadBuildings]);
+
+  /* ================================================================ */
+  /*  Imperative handle — expose methods to parent via ref            */
+  /* ================================================================ */
+
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => {
+      if (phase === 'procedural') {
+        const renderer = rendererRef.current;
+        if (renderer) {
+          renderer.setZoom(renderer.getZoom() * 1.2);
+          renderer.render();
+        }
+      } else if (phase === 'ai-ready') {
+        zoomRef.current = Math.min(3, zoomRef.current * 1.2);
+        const image = imageRef.current;
+        if (image) {
+          image.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
+        }
+      }
+    },
+    zoomOut: () => {
+      if (phase === 'procedural') {
+        const renderer = rendererRef.current;
+        if (renderer) {
+          renderer.setZoom(renderer.getZoom() * 0.8);
+          renderer.render();
+        }
+      } else if (phase === 'ai-ready') {
+        zoomRef.current = Math.max(0.5, zoomRef.current * 0.8);
+        const image = imageRef.current;
+        if (image) {
+          image.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
+        }
+      }
+    },
+    startAIGeneration: () => {
+      if (phase === 'procedural') {
+        startAIGeneration();
+      }
+    },
+    backToProcedural: () => {
+      if (phase === 'ai-ready' || phase === 'error') {
+        setPhase('procedural');
+      }
+    },
+    toggleBuildPanel: () => {
+      setShowBuildPanel((prev) => !prev);
+    },
+  }), [phase, startAIGeneration]);
+
+  /* ================================================================ */
+  /*  PROCEDURAL MODE — init on mount                                  */
+  /* ================================================================ */
+
+  useEffect(() => {
+    if (phase !== 'procedural') return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Generate surface map + resources (deterministic, no API)
+    const map = generateSurfaceMap(planet);
+    const visuals = derivePlanetVisuals(planet, star);
+    const resources = generateResourceDeposits(map, planet);
+
+    surfaceMapRef.current = map;
+    resourcesRef.current = resources;
+
+    // Size canvas to window
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Create renderer
+    const renderer = new SurfaceMapRenderer(canvas, map, visuals);
+    renderer.setResources(resources);
+    rendererRef.current = renderer;
+
+    // Load buildings from server (non-blocking)
+    loadBuildings().then((serverBuildings) => {
+      renderer.setBuildings(serverBuildings);
+      renderer.render();
+    });
+
+    // Initial render
+    renderer.render();
+
+    // Resize handler
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      renderer.render();
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [phase, planet, star]);
+
+  /* ================================================================ */
+  /*  Procedural input handlers (pan, zoom, hover, click)              */
+  /* ================================================================ */
+
+  const handleProceduralMouseDown = useCallback((e: React.MouseEvent) => {
+    dragRef.current = { active: true, startX: e.clientX, startY: e.clientY };
+  }, []);
+
+  const handleProceduralMouseMove = useCallback((e: React.MouseEvent) => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+
+    if (dragRef.current.active) {
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+      dragRef.current.startX = e.clientX;
+      dragRef.current.startY = e.clientY;
+      renderer.pan(dx, dy);
+      renderer.render();
+    }
+
+    // Hover tile info
+    const tile = renderer.screenToTile(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    if (tile) {
+      const surfTile = renderer.getTile(tile.x, tile.y);
+      setHoveredTile(surfTile);
+      onHoveredTileChangeRef.current?.(surfTile);
+      renderer.setHighlightedTile(tile);
+
+      // Check for resource at this tile
+      const resource = resourcesRef.current.find((r) => r.x === tile.x && r.y === tile.y);
+      setHoveredResource(resource ?? null);
+      onHoveredResourceChangeRef.current?.(resource ?? null);
+    } else {
+      setHoveredTile(null);
+      setHoveredResource(null);
+      onHoveredTileChangeRef.current?.(null);
+      onHoveredResourceChangeRef.current?.(null);
+      renderer.setHighlightedTile(null);
+    }
+
+    renderer.render();
+  }, []);
+
+  const handleProceduralMouseUp = useCallback(() => {
+    dragRef.current.active = false;
+  }, []);
+
+  const handleProceduralClick = useCallback((e: React.MouseEvent) => {
+    if (!selectedBuilding) return;
+
+    const renderer = rendererRef.current;
+    const map = surfaceMapRef.current;
+    if (!renderer || !map) return;
+
+    const coord = renderer.screenToTile(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    if (!coord) return;
+
+    const tile = renderer.getTile(coord.x, coord.y);
+    if (!tile || !tile.buildable) return;
+
+    // Check if occupied
+    const occupied = buildings.find((b) => b.x === coord.x && b.y === coord.y);
+    if (occupied) return;
+
+    const newBuilding: PlacedBuilding = {
+      id: `bld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      type: selectedBuilding,
+      x: coord.x,
+      y: coord.y,
+      level: 1,
+      builtAt: new Date().toISOString(),
+    };
+
+    setBuildings((prev) => {
+      const updated = [...prev, newBuilding];
+      renderer.setBuildings(updated);
+      renderer.render();
+      return updated;
+    });
+    setSelectedBuilding(null);
+
+    // Persist to server
+    placeBuilding(playerId, planet.id, newBuilding).catch((err) => {
+      console.error('Failed to save building:', err);
+    });
+  }, [selectedBuilding, buildings, playerId, planet.id]);
+
+  const handleProceduralWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    renderer.setZoom(renderer.getZoom() * delta);
+    renderer.render();
+  }, []);
 
   /* ================================================================ */
   /*  AI-ready: Cloud animation                                        */
@@ -665,33 +761,6 @@ export function SurfaceView({ planet, star, playerId, onClose }: SurfaceViewProp
           onWheel={handleAIWheel}
         />
 
-        {/* HUD */}
-        <SurfaceHUD
-          planetName={planet.name}
-          hoveredTile={null}
-          hoveredResource={null}
-          buildingCount={buildings.length}
-          onClose={onClose}
-        />
-
-        {/* Building panel toggle */}
-        {!showBuildPanel && (
-          <button
-            onClick={() => setShowBuildPanel(true)}
-            style={{
-              position: 'absolute', right: 12, top: 56,
-              background: 'rgba(10, 20, 40, 0.8)',
-              border: '1px solid rgba(60, 100, 160, 0.3)',
-              borderRadius: 4, padding: '6px 12px',
-              color: '#8899aa', fontFamily: 'monospace',
-              fontSize: 12, cursor: 'pointer',
-              zIndex: 100, pointerEvents: 'auto',
-            }}
-          >
-            Будівлі &#9656;
-          </button>
-        )}
-
         {/* Building panel */}
         {showBuildPanel && (
           <BuildingPanel
@@ -700,28 +769,12 @@ export function SurfaceView({ planet, star, playerId, onClose }: SurfaceViewProp
             onClose={() => setShowBuildPanel(false)}
           />
         )}
-
-        {/* Back to procedural button */}
-        <button
-          onClick={() => setPhase('procedural')}
-          style={{
-            position: 'absolute', left: 16, bottom: 16,
-            padding: '6px 14px',
-            background: 'rgba(10, 20, 40, 0.8)',
-            border: '1px solid rgba(60, 100, 160, 0.3)',
-            borderRadius: 4, color: '#8899aa',
-            fontFamily: 'monospace', fontSize: 12,
-            cursor: 'pointer', zIndex: 100,
-          }}
-        >
-          &#127758; Процедурна карта
-        </button>
       </div>
     );
   }
 
   /* ================================================================ */
-  /*  RENDER: Procedural phase (DEFAULT) — canvas + HUD                */
+  /*  RENDER: Procedural phase (DEFAULT) — canvas only                 */
   /* ================================================================ */
 
   return (
@@ -741,52 +794,6 @@ export function SurfaceView({ planet, star, playerId, onClose }: SurfaceViewProp
         onWheel={handleProceduralWheel}
       />
 
-      {/* HUD */}
-      <SurfaceHUD
-        planetName={planet.name}
-        hoveredTile={hoveredTile}
-        hoveredResource={hoveredResource}
-        buildingCount={buildings.length}
-        onClose={onClose}
-      />
-
-      {/* AI snapshot button */}
-      <button
-        onClick={startAIGeneration}
-        style={{
-          position: 'absolute', left: 16, bottom: 16,
-          padding: '8px 16px',
-          background: 'linear-gradient(135deg, rgba(30, 60, 120, 0.8), rgba(60, 100, 180, 0.6))',
-          border: '1px solid rgba(100, 160, 255, 0.4)',
-          borderRadius: 6, color: '#aaccff',
-          fontFamily: 'monospace', fontSize: 13,
-          cursor: 'pointer', zIndex: 100,
-          boxShadow: '0 2px 12px rgba(60, 120, 200, 0.2)',
-          transition: 'all 0.2s',
-        }}
-        title="Згенерувати AI-знімок планети (10 кварків)"
-      >
-        &#128248; AI Знімок
-      </button>
-
-      {/* Building panel toggle */}
-      {!showBuildPanel && (
-        <button
-          onClick={() => setShowBuildPanel(true)}
-          style={{
-            position: 'absolute', right: 12, top: 56,
-            background: 'rgba(10, 20, 40, 0.8)',
-            border: '1px solid rgba(60, 100, 160, 0.3)',
-            borderRadius: 4, padding: '6px 12px',
-            color: '#8899aa', fontFamily: 'monospace',
-            fontSize: 12, cursor: 'pointer',
-            zIndex: 100, pointerEvents: 'auto',
-          }}
-        >
-          Будівлі &#9656;
-        </button>
-      )}
-
       {/* Building panel */}
       {showBuildPanel && (
         <BuildingPanel
@@ -797,6 +804,6 @@ export function SurfaceView({ planet, star, playerId, onClose }: SurfaceViewProp
       )}
     </div>
   );
-}
+});
 
 export default SurfaceView;
