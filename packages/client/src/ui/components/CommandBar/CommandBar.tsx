@@ -16,7 +16,6 @@ export function CommandBar({
   playerName,
   onNavigate,
   onTopUp,
-  surfaceInfo,
 }: CommandBarProps) {
   const injected = useRef(false);
 
@@ -45,7 +44,6 @@ export function CommandBar({
       <SceneTools
         groups={toolGroups}
         scene={scene}
-        surfaceInfo={surfaceInfo}
       />
 
       <PlayerPanel

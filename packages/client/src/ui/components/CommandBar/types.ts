@@ -1,5 +1,4 @@
 import type { SceneType } from '../../../App.js';
-import type { SurfaceTile, SurfaceResourceDeposit } from '@nebulife/core';
 
 export type ExtendedScene = SceneType | 'surface';
 
@@ -25,12 +24,6 @@ export interface ToolGroup {
   items: ToolItem[];
 }
 
-export interface SurfaceInfo {
-  hoveredTile: SurfaceTile | null;
-  hoveredResource: SurfaceResourceDeposit | null;
-  buildingCount: number;
-}
-
 export interface CommandBarProps {
   scene: ExtendedScene;
   breadcrumbs: BreadcrumbItem[];
@@ -39,5 +32,4 @@ export interface CommandBarProps {
   playerName: string;
   onNavigate: (targetScene: string) => void;
   onTopUp: () => void;
-  surfaceInfo?: SurfaceInfo;
 }

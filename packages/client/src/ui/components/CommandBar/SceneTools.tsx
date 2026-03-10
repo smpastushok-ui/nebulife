@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ToolGroup, SurfaceInfo, ExtendedScene } from './types.js';
+import type { ToolGroup, ExtendedScene } from './types.js';
 import {
   sectionCenter,
   toolButtonBase, toolButtonPrimary, toolButtonAccent, toolButtonActive,
@@ -9,41 +9,6 @@ import {
 interface SceneToolsProps {
   groups: ToolGroup[];
   scene: ExtendedScene;
-  surfaceInfo?: SurfaceInfo;
-}
-
-/** Terrain label in Ukrainian */
-function terrainLabel(terrain: string): string {
-  switch (terrain) {
-    case 'deep_ocean': return 'Глиб. океан';
-    case 'ocean': return 'Океан';
-    case 'coast': return 'Узбережжя';
-    case 'beach': return 'Пляж';
-    case 'lowland': return 'Низовина';
-    case 'plains': return 'Рівнина';
-    case 'hills': return 'Пагорби';
-    case 'mountains': return 'Гори';
-    case 'peaks': return 'Вершини';
-    case 'volcano': return 'Вулкан';
-    default: return terrain;
-  }
-}
-
-/** Biome label in Ukrainian */
-function biomeLabel(biome: string): string {
-  switch (biome) {
-    case 'tropical_forest': return 'Троп. ліс';
-    case 'savanna': return 'Савана';
-    case 'desert': return 'Пустеля';
-    case 'temperate_forest': return 'Пом. ліс';
-    case 'grassland': return 'Степ';
-    case 'boreal_forest': return 'Тайга';
-    case 'tundra': return 'Тундра';
-    case 'ice': return 'Льодовик';
-    case 'wetland': return 'Болото';
-    case 'volcanic': return 'Вулканічна';
-    default: return biome;
-  }
 }
 
 function getButtonStyle(
@@ -65,7 +30,7 @@ function getButtonStyle(
   return base;
 }
 
-export function SceneTools({ groups, scene, surfaceInfo }: SceneToolsProps) {
+export function SceneTools({ groups, scene }: SceneToolsProps) {
   return (
     <div style={sectionCenter} key={scene}>
       {groups.map((group, gi) => (
@@ -144,25 +109,6 @@ export function SceneTools({ groups, scene, surfaceInfo }: SceneToolsProps) {
         </div>
       ))}
 
-      {/* Surface info (inline terrain/biome when hovering in surface mode) */}
-      {scene === 'surface' && surfaceInfo?.hoveredTile && (
-        <div style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          fontSize: 10,
-          color: '#667788',
-          marginLeft: 8,
-          animation: 'cmdbar-fade-in 0.2s ease-out',
-        }}>
-          <span>{terrainLabel(surfaceInfo.hoveredTile.terrain)}</span>
-          <span style={{ color: '#334455' }}>|</span>
-          <span>{biomeLabel(surfaceInfo.hoveredTile.biome)}</span>
-          {surfaceInfo.hoveredTile.buildable && (
-            <span style={{ color: '#44aa66', fontSize: 9 }}>&#9632;</span>
-          )}
-        </div>
-      )}
     </div>
   );
 }

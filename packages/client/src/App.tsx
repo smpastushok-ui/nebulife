@@ -16,7 +16,6 @@ import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfaceVie
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
-  SurfaceTile, SurfaceResourceDeposit,
 } from '@nebulife/core';
 import { getPlayerModels } from './api/tripo-api.js';
 import type { PlanetModel } from './api/tripo-api.js';
@@ -30,7 +29,7 @@ import {
   HOME_OBSERVATORY_COUNT,
   RESEARCH_DURATION_MS,
 } from '@nebulife/core';
-import { getOrCreatePlayerId } from './api/player-api.js';
+import { getOrCreatePlayerId, getPlayer, createPlayer } from './api/player-api.js';
 
 export type SceneType = 'galaxy' | 'system' | 'home-intro' | 'planet-view';
 
@@ -123,10 +122,8 @@ export function App() {
 
   // ── Surface integration state for CommandBar ────────────────────────────
   const surfaceViewRef = useRef<SurfaceViewHandle>(null);
-  const [surfacePhase, setSurfacePhase] = useState<SurfacePhase>('procedural');
+  const [surfacePhase, setSurfacePhase] = useState<SurfacePhase>('generating');
   const [surfaceBuildPanelOpen, setSurfaceBuildPanelOpen] = useState(true);
-  const [surfaceHoveredTile, setSurfaceHoveredTile] = useState<SurfaceTile | null>(null);
-  const [surfaceHoveredResource, setSurfaceHoveredResource] = useState<SurfaceResourceDeposit | null>(null);
   const [surfaceBuildingCount, setSurfaceBuildingCount] = useState(0);
 
   const refreshQuarks = useCallback(() => {
@@ -136,10 +133,29 @@ export function App() {
       .catch(() => {});
   }, []);
 
-  // Load player's existing 3D models on mount + quarks balance
+  // Ensure player exists in DB + load 3D models + quarks balance
   useEffect(() => {
-    getPlayerModels(playerId.current).then(setPlanetModels).catch(() => {});
-    refreshQuarks();
+    const pid = playerId.current;
+
+    // Auto-create player in DB if it doesn't exist
+    (async () => {
+      try {
+        const existing = await getPlayer(pid);
+        if (!existing) {
+          await createPlayer({
+            id: pid,
+            name: 'Explorer',
+            homeSystemId: 'home',
+            homePlanetId: 'home',
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to ensure player in DB:', err);
+      }
+      refreshQuarks();
+    })();
+
+    getPlayerModels(pid).then(setPlanetModels).catch(() => {});
   }, [refreshQuarks]);
 
   // Handle payment redirect (e.g., ?payment=success&topup=true)
@@ -628,28 +644,16 @@ export function App() {
           active: surfaceBuildPanelOpen,
         },
       ];
-      if (surfacePhase === 'procedural') {
-        tools.push({
-          id: 'ai-snapshot',
-          label: 'AI Знімок',
-          onClick: () => surfaceViewRef.current?.startAIGeneration(),
-          variant: 'accent',
-        });
-      } else if (surfacePhase === 'ai-ready') {
-        tools.push({
-          id: 'procedural-map',
-          label: 'Карта',
-          onClick: () => surfaceViewRef.current?.backToProcedural(),
+      toolGroups.push({ type: 'buttons', items: tools });
+      if (surfacePhase === 'ai-ready') {
+        toolGroups.push({
+          type: 'zoom',
+          items: [
+            { id: 'zoom-in', label: '+', onClick: () => surfaceViewRef.current?.zoomIn() },
+            { id: 'zoom-out', label: '\u2212', onClick: () => surfaceViewRef.current?.zoomOut() },
+          ],
         });
       }
-      toolGroups.push({ type: 'buttons', items: tools });
-      toolGroups.push({
-        type: 'zoom',
-        items: [
-          { id: 'zoom-in', label: '+', onClick: () => surfaceViewRef.current?.zoomIn() },
-          { id: 'zoom-out', label: '\u2212', onClick: () => surfaceViewRef.current?.zoomOut() },
-        ],
-      });
       break;
     }
   }
@@ -676,11 +680,6 @@ export function App() {
         playerName={state.playerName}
         onNavigate={handleBreadcrumbNavigate}
         onTopUp={() => setShowTopUpModal(true)}
-        surfaceInfo={surfaceTarget ? {
-          hoveredTile: surfaceHoveredTile,
-          hoveredResource: surfaceHoveredResource,
-          buildingCount: surfaceBuildingCount,
-        } : undefined}
       />
 
       {showResearchPanel && (
@@ -782,8 +781,6 @@ export function App() {
           star={surfaceTarget.star}
           playerId={playerId.current}
           onClose={handleCloseSurface}
-          onHoveredTileChange={setSurfaceHoveredTile}
-          onHoveredResourceChange={setSurfaceHoveredResource}
           onBuildingCountChange={setSurfaceBuildingCount}
           onPhaseChange={setSurfacePhase}
           onBuildPanelChange={setSurfaceBuildPanelOpen}

@@ -38,8 +38,14 @@ export async function createPlayer(player: {
   const rows = await sql`
     INSERT INTO players (id, name, home_system_id, home_planet_id, last_login)
     VALUES (${player.id}, ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, NOW())
+    ON CONFLICT (id) DO NOTHING
     RETURNING *
   `;
+  // If ON CONFLICT fired, row won't be returned — fetch existing
+  if (!rows[0]) {
+    const existing = await sql`SELECT * FROM players WHERE id = ${player.id}`;
+    return existing[0] as PlayerRow;
+  }
   return rows[0] as PlayerRow;
 }
 

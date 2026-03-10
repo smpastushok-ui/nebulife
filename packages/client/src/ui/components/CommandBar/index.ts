@@ -4,6 +4,5 @@ export type {
   BreadcrumbItem,
   ToolItem,
   ToolGroup,
-  SurfaceInfo,
   CommandBarProps,
 } from './types.js';
