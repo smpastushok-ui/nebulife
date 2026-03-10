@@ -25,6 +25,7 @@ export interface PlayerRow {
   last_login: string | null;
   created_at: string;
   game_state: Record<string, unknown>;
+  quarks: number;
 }
 
 export async function createPlayer(player: {
@@ -56,6 +57,7 @@ export async function updatePlayer(
     login_streak: number;
     last_login: string;
     game_state: Record<string, unknown>;
+    quarks: number;
   }>,
 ): Promise<PlayerRow | null> {
   const sql = getSQL();
@@ -94,7 +96,8 @@ export async function updatePlayer(
         science_points = COALESCE(${updates.science_points ?? null}, science_points),
         login_streak = COALESCE(${updates.login_streak ?? null}, login_streak),
         last_login = COALESCE(${updates.last_login ?? null}, last_login),
-        game_state = COALESCE(${updates.game_state ? JSON.stringify(updates.game_state) : null}::jsonb, game_state)
+        game_state = COALESCE(${updates.game_state ? JSON.stringify(updates.game_state) : null}::jsonb, game_state),
+        quarks = COALESCE(${updates.quarks ?? null}, quarks)
     WHERE id = ${playerId}
     RETURNING *
   `;
@@ -279,4 +282,317 @@ export async function completeExpedition(id: string): Promise<void> {
     UPDATE expeditions SET status = 'completed', completed_at = NOW()
     WHERE id = ${id}
   `;
+}
+
+// ---------------------------------------------------------------------------
+// Planet Model helpers (3D generation via Tripo3D)
+// ---------------------------------------------------------------------------
+
+export interface PlanetModelRow {
+  id: string;
+  player_id: string;
+  planet_id: string;
+  system_id: string;
+  status: string;
+  kling_photo_url: string | null;
+  glb_url: string | null;
+  tripo_task_id: string | null;
+  payment_id: string | null;
+  payment_status: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function savePlanetModel(m: {
+  id: string;
+  playerId: string;
+  planetId: string;
+  systemId: string;
+  paymentId?: string;
+}): Promise<PlanetModelRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO planet_models (id, player_id, planet_id, system_id, payment_id)
+    VALUES (${m.id}, ${m.playerId}, ${m.planetId}, ${m.systemId}, ${m.paymentId ?? null})
+    RETURNING *
+  `;
+  return rows[0] as PlanetModelRow;
+}
+
+export async function getPlanetModel(id: string): Promise<PlanetModelRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM planet_models WHERE id = ${id}`;
+  return (rows[0] as PlanetModelRow) ?? null;
+}
+
+export async function getPlanetModelByPayment(paymentId: string): Promise<PlanetModelRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM planet_models WHERE payment_id = ${paymentId}`;
+  return (rows[0] as PlanetModelRow) ?? null;
+}
+
+export async function getPlanetModels(playerId: string): Promise<PlanetModelRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM planet_models
+    WHERE player_id = ${playerId}
+    ORDER BY created_at DESC
+  `) as PlanetModelRow[];
+}
+
+export async function updatePlanetModel(
+  id: string,
+  updates: Partial<{
+    status: string;
+    kling_photo_url: string;
+    glb_url: string;
+    tripo_task_id: string;
+    payment_status: string;
+    completed_at: string;
+  }>,
+): Promise<PlanetModelRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE planet_models
+    SET status = COALESCE(${updates.status ?? null}, status),
+        kling_photo_url = COALESCE(${updates.kling_photo_url ?? null}, kling_photo_url),
+        glb_url = COALESCE(${updates.glb_url ?? null}, glb_url),
+        tripo_task_id = COALESCE(${updates.tripo_task_id ?? null}, tripo_task_id),
+        payment_status = COALESCE(${updates.payment_status ?? null}, payment_status),
+        completed_at = COALESCE(${updates.completed_at ?? null}::timestamptz, completed_at)
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as PlanetModelRow) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Surface Building helpers
+// ---------------------------------------------------------------------------
+
+export interface SurfaceBuildingRow {
+  id: string;
+  player_id: string;
+  planet_id: string;
+  type: string;
+  x: number;
+  y: number;
+  level: number;
+  built_at: string;
+}
+
+export async function saveSurfaceBuilding(b: {
+  id: string;
+  playerId: string;
+  planetId: string;
+  type: string;
+  x: number;
+  y: number;
+}): Promise<SurfaceBuildingRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO surface_buildings (id, player_id, planet_id, type, x, y)
+    VALUES (${b.id}, ${b.playerId}, ${b.planetId}, ${b.type}, ${b.x}, ${b.y})
+    RETURNING *
+  `;
+  return rows[0] as SurfaceBuildingRow;
+}
+
+export async function getSurfaceBuildings(
+  playerId: string,
+  planetId: string,
+): Promise<SurfaceBuildingRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM surface_buildings
+    WHERE player_id = ${playerId} AND planet_id = ${planetId}
+    ORDER BY built_at ASC
+  `) as SurfaceBuildingRow[];
+}
+
+export async function removeSurfaceBuilding(
+  id: string,
+  playerId: string,
+): Promise<boolean> {
+  const sql = getSQL();
+  await sql`
+    DELETE FROM surface_buildings WHERE id = ${id} AND player_id = ${playerId}
+  `;
+  return true;
+}
+
+export async function upgradeSurfaceBuilding(
+  id: string,
+  playerId: string,
+): Promise<SurfaceBuildingRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE surface_buildings
+    SET level = level + 1
+    WHERE id = ${id} AND player_id = ${playerId}
+    RETURNING *
+  `;
+  return (rows[0] as SurfaceBuildingRow) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Quark currency helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Atomically deduct quarks from player balance.
+ * Returns updated player row, or null if insufficient funds.
+ */
+export async function deductQuarks(
+  playerId: string,
+  amount: number,
+): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET quarks = quarks - ${amount}
+    WHERE id = ${playerId} AND quarks >= ${amount}
+    RETURNING *
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+/**
+ * Atomically credit quarks to player balance.
+ */
+export async function creditQuarks(
+  playerId: string,
+  amount: number,
+): Promise<PlayerRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET quarks = quarks + ${amount}
+    WHERE id = ${playerId}
+    RETURNING *
+  `;
+  return rows[0] as PlayerRow;
+}
+
+// ---------------------------------------------------------------------------
+// Payment Intent helpers
+// ---------------------------------------------------------------------------
+
+export interface PaymentIntentRow {
+  reference: string;
+  player_id: string;
+  amount_quarks: number;
+  purpose: string;
+  purchase_meta: Record<string, unknown> | null;
+  status: string;
+  created_at: string;
+}
+
+export async function savePaymentIntent(intent: {
+  reference: string;
+  playerId: string;
+  amountQuarks: number;
+  purpose: string;
+  purchaseMeta?: Record<string, unknown>;
+}): Promise<PaymentIntentRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO payment_intents (reference, player_id, amount_quarks, purpose, purchase_meta)
+    VALUES (
+      ${intent.reference},
+      ${intent.playerId},
+      ${intent.amountQuarks},
+      ${intent.purpose},
+      ${intent.purchaseMeta ? JSON.stringify(intent.purchaseMeta) : null}::jsonb
+    )
+    RETURNING *
+  `;
+  return rows[0] as PaymentIntentRow;
+}
+
+export async function getPaymentIntent(reference: string): Promise<PaymentIntentRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM payment_intents WHERE reference = ${reference}
+  `;
+  return (rows[0] as PaymentIntentRow) ?? null;
+}
+
+export async function updatePaymentIntentStatus(
+  reference: string,
+  status: string,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE payment_intents SET status = ${status} WHERE reference = ${reference}
+  `;
+}
+
+// ---------------------------------------------------------------------------
+// Surface Map helpers
+// ---------------------------------------------------------------------------
+
+export interface SurfaceMapRow {
+  id: string;
+  player_id: string;
+  planet_id: string;
+  system_id: string;
+  photo_url: string | null;
+  kling_task_id: string | null;
+  status: string;
+  zone_map: Record<string, unknown> | null;
+  generation_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function saveSurfaceMap(data: {
+  id: string;
+  playerId: string;
+  planetId: string;
+  systemId: string;
+  klingTaskId: string;
+}): Promise<SurfaceMapRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO surface_maps (id, player_id, planet_id, system_id, kling_task_id, status)
+    VALUES (${data.id}, ${data.playerId}, ${data.planetId}, ${data.systemId}, ${data.klingTaskId}, 'generating')
+    RETURNING *
+  `;
+  return rows[0] as SurfaceMapRow;
+}
+
+export async function getSurfaceMap(planetId: string): Promise<SurfaceMapRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM surface_maps WHERE planet_id = ${planetId}`;
+  return (rows[0] as SurfaceMapRow) ?? null;
+}
+
+export async function getSurfaceMapById(id: string): Promise<SurfaceMapRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM surface_maps WHERE id = ${id}`;
+  return (rows[0] as SurfaceMapRow) ?? null;
+}
+
+export async function updateSurfaceMap(
+  id: string,
+  updates: Partial<{
+    status: string;
+    photo_url: string;
+    zone_map: Record<string, unknown>;
+    generation_count: number;
+  }>,
+): Promise<SurfaceMapRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE surface_maps
+    SET status = COALESCE(${updates.status ?? null}, status),
+        photo_url = COALESCE(${updates.photo_url ?? null}, photo_url),
+        zone_map = COALESCE(${updates.zone_map ? JSON.stringify(updates.zone_map) : null}::jsonb, zone_map),
+        generation_count = COALESCE(${updates.generation_count ?? null}, generation_count),
+        updated_at = NOW()
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as SurfaceMapRow) ?? null;
 }

@@ -31,4 +31,6 @@ export interface Player {
   sciencePoints: number;
   loginStreak: number;
   lastLoginDate: string | null;  // ISO date string
+  // In-game currency (1 quark = 1 UAH)
+  quarks: number;
 }

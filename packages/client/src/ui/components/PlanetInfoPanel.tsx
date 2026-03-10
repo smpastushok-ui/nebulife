@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Planet } from '@nebulife/core';
+import PlanetUpgradeButton from './PlanetUpgradeButton.js';
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute', right: 16, top: 60, width: 300,
@@ -51,9 +52,14 @@ const closeBtnStyle: React.CSSProperties = {
   color: '#667788', fontSize: 16, fontFamily: 'monospace',
 };
 
-export function PlanetInfoPanel({ planet, onClose }: {
+export function PlanetInfoPanel({ planet, onClose, has3DModel, modelStatus, onUpgrade, onView3D, onSurface }: {
   planet: Planet;
   onClose: () => void;
+  has3DModel?: boolean;
+  modelStatus?: string;
+  onUpgrade?: () => void;
+  onView3D?: () => void;
+  onSurface?: () => void;
 }) {
   const hab = planet.habitability;
   const typeLabel = planet.type.replace('-', ' ');
@@ -160,7 +166,7 @@ export function PlanetInfoPanel({ planet, onClose }: {
       )}
 
       {/* --- Group 6: Colonization --- */}
-      <div style={{ ...groupStyle, borderBottom: 'none', marginBottom: 0 }}>
+      <div style={groupStyle}>
         <div style={groupTitleStyle}>Colonization</div>
         <div style={rowStyle}>
           <span>Terraform difficulty</span>
@@ -173,6 +179,44 @@ export function PlanetInfoPanel({ planet, onClose }: {
           </span>
         </div>
       </div>
+
+      {/* --- Surface button (home planet / colonized) --- */}
+      {onSurface && (planet.isHomePlanet || planet.isColonizable) && (
+        <div style={{ marginTop: 8 }}>
+          <button
+            onClick={onSurface}
+            style={{
+              width: '100%',
+              padding: '10px 16px',
+              background: 'rgba(30, 60, 40, 0.5)',
+              border: '1px solid rgba(80, 160, 100, 0.4)',
+              borderRadius: 4,
+              color: '#88ccaa',
+              fontFamily: 'monospace',
+              fontSize: 12,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            &#x1F30D; Спуститися на поверхню
+          </button>
+        </div>
+      )}
+
+      {/* --- 3D Model Upgrade --- */}
+      {onUpgrade && onView3D && (
+        <div style={{ marginTop: 8 }}>
+          <PlanetUpgradeButton
+            has3DModel={has3DModel ?? false}
+            modelStatus={modelStatus}
+            onUpgrade={onUpgrade}
+            onView3D={onView3D}
+          />
+        </div>
+      )}
     </div>
   );
 }

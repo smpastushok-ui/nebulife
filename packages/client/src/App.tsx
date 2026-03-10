@@ -8,7 +8,13 @@ import { ResearchPanel } from './ui/components/ResearchPanel.js';
 import { ResearchCompleteModal } from './ui/components/ResearchCompleteModal.js';
 import { DiscoveryNotification } from './ui/components/DiscoveryNotification.js';
 import { ObservatoryView } from './ui/components/ObservatoryView.js';
-import type { Planet, StarSystem, ResearchState, SystemResearchState, Discovery } from '@nebulife/core';
+import ModelGenerationOverlay from './ui/components/ModelGenerationOverlay.js';
+import Planet3DViewer from './ui/components/Planet3DViewer.js';
+import { SurfaceView } from './ui/components/SurfaceView.js';
+import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
+import type { Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery } from '@nebulife/core';
+import { getPlayerModels } from './api/tripo-api.js';
+import type { PlanetModel } from './api/tripo-api.js';
 import {
   createResearchState,
   startResearch,
@@ -79,6 +85,60 @@ export function App() {
     discovery: Discovery;
     system: StarSystem;
   } | null>(null);
+
+  // ── 3D Planet Model system state ──────────────────────────────────────────
+  /** Cached planet models for this player */
+  const [planetModels, setPlanetModels] = useState<PlanetModel[]>([]);
+
+  /** Active 3D generation overlay */
+  const [modelGenerationTarget, setModelGenerationTarget] = useState<{
+    planetId: string;
+    systemId: string;
+    planetName: string;
+    starColor?: string;
+    existingModelId?: string;
+  } | null>(null);
+
+  /** Active 3D viewer (when viewing a ready model) */
+  const [planet3DViewer, setPlanet3DViewer] = useState<{
+    glbUrl: string;
+    planetName: string;
+    starColor?: string;
+  } | null>(null);
+
+  /** Surface view target */
+  const [surfaceTarget, setSurfaceTarget] = useState<{
+    planet: Planet;
+    star: Star;
+  } | null>(null);
+
+  /** Quarks (in-game currency) */
+  const [quarks, setQuarks] = useState<number>(0);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+
+  const refreshQuarks = useCallback(() => {
+    fetch(`/api/player/${playerId.current}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.quarks !== undefined) setQuarks(data.quarks); })
+      .catch(() => {});
+  }, []);
+
+  // Load player's existing 3D models on mount + quarks balance
+  useEffect(() => {
+    getPlayerModels(playerId.current).then(setPlanetModels).catch(() => {});
+    refreshQuarks();
+  }, [refreshQuarks]);
+
+  // Handle payment redirect (e.g., ?payment=success&topup=true)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') {
+      // Refresh quarks after any payment success
+      setTimeout(refreshQuarks, 1000);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [refreshQuarks]);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowExploreBtn(true), 3000);
@@ -316,6 +376,78 @@ export function App() {
     console.log(`[Gallery] Saved discovery ${discoveryId} with image ${imageUrl}`);
   }, []);
 
+  // ── 3D Model handlers ─────────────────────────────────────────────────
+  const handleUpgradePlanet = useCallback(() => {
+    if (!state.selectedPlanet || !state.selectedSystem) return;
+    // Check if there's already a model in progress
+    const existing = planetModels.find(
+      (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id,
+    );
+
+    setModelGenerationTarget({
+      planetId: state.selectedPlanet.id,
+      systemId: state.selectedSystem.id,
+      planetName: state.selectedPlanet.name,
+      existingModelId: existing?.id,
+    });
+  }, [state.selectedPlanet, state.selectedSystem, planetModels]);
+
+  const handleView3DModel = useCallback(() => {
+    if (!state.selectedPlanet || !state.selectedSystem) return;
+    const model = planetModels.find(
+      (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id && m.status === 'ready',
+    );
+    if (model?.glb_url) {
+      setPlanet3DViewer({
+        glbUrl: model.glb_url,
+        planetName: state.selectedPlanet.name,
+      });
+    }
+  }, [state.selectedPlanet, state.selectedSystem, planetModels]);
+
+  const handleModelReady = useCallback((modelId: string, glbUrl: string) => {
+    // Update local cache
+    setPlanetModels((prev) => {
+      const idx = prev.findIndex((m) => m.id === modelId);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = { ...updated[idx], status: 'ready', glb_url: glbUrl };
+        return updated;
+      }
+      return prev;
+    });
+    // Refresh from server
+    getPlayerModels(playerId.current).then(setPlanetModels).catch(() => {});
+  }, []);
+
+  const handleCloseModelGeneration = useCallback(() => {
+    setModelGenerationTarget(null);
+  }, []);
+
+  const handleClose3DViewer = useCallback(() => {
+    setPlanet3DViewer(null);
+  }, []);
+
+  // ── Surface view handlers ─────────────────────────────────────────────
+  const handleOpenSurface = useCallback(() => {
+    if (!state.selectedPlanet || !state.selectedSystem) return;
+    setSurfaceTarget({
+      planet: state.selectedPlanet,
+      star: state.selectedSystem.star,
+    });
+  }, [state.selectedPlanet, state.selectedSystem]);
+
+  const handleCloseSurface = useCallback(() => {
+    setSurfaceTarget(null);
+  }, []);
+
+  // Helper: get model for currently selected planet
+  const selectedPlanetModel = state.selectedPlanet && state.selectedSystem
+    ? planetModels.find(
+        (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id,
+      )
+    : undefined;
+
   // Determine which panel to show for the selected system
   const selectedSystem = state.selectedSystem;
   const showResearchPanel = selectedSystem
@@ -351,9 +483,11 @@ export function App() {
         <HUD
           scene={state.scene}
           playerName={state.playerName}
+          quarks={quarks}
           onBackToGalaxy={state.scene === 'system' ? handleBackToGalaxy : undefined}
           onBackToSystem={state.scene === 'planet-view' ? handleBackToSystem : undefined}
           onGoToHomePlanet={handleGoToHomePlanet}
+          onTopUp={() => setShowTopUpModal(true)}
         />
       )}
       {state.scene === 'home-intro' && showExploreBtn && (
@@ -476,12 +610,22 @@ export function App() {
           onViewPlanet={handleViewPlanet}
           onShowCharacteristics={handleShowCharacteristics}
           onClose={handleClosePlanetMenu}
+          onSurface={handleOpenSurface}
+          onUpgrade={handleUpgradePlanet}
+          onView3D={handleView3DModel}
+          has3DModel={selectedPlanetModel?.status === 'ready' && !!selectedPlanetModel?.glb_url}
+          modelStatus={selectedPlanetModel?.status}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && (
         <PlanetInfoPanel
           planet={state.selectedPlanet}
           onClose={() => setState((prev) => ({ ...prev, showPlanetInfo: false, selectedPlanet: null }))}
+          has3DModel={selectedPlanetModel?.status === 'ready' && !!selectedPlanetModel?.glb_url}
+          modelStatus={selectedPlanetModel?.status}
+          onUpgrade={handleUpgradePlanet}
+          onView3D={handleView3DModel}
+          onSurface={handleOpenSurface}
         />
       )}
       {completedModal && (
@@ -508,6 +652,46 @@ export function App() {
           playerId={playerId.current}
           onClose={handleCloseObservatory}
           onSaveToGallery={handleSaveToGallery}
+        />
+      )}
+      {/* 3D Model Generation Overlay */}
+      {modelGenerationTarget && (
+        <ModelGenerationOverlay
+          playerId={playerId.current}
+          planetId={modelGenerationTarget.planetId}
+          systemId={modelGenerationTarget.systemId}
+          planetName={modelGenerationTarget.planetName}
+          starColor={modelGenerationTarget.starColor}
+          existingModelId={modelGenerationTarget.existingModelId}
+          onClose={handleCloseModelGeneration}
+          onModelReady={handleModelReady}
+          onQuarksChanged={refreshQuarks}
+        />
+      )}
+      {/* 3D Planet Viewer */}
+      {planet3DViewer && (
+        <Planet3DViewer
+          glbUrl={planet3DViewer.glbUrl}
+          planetName={planet3DViewer.planetName}
+          starColor={planet3DViewer.starColor}
+          onClose={handleClose3DViewer}
+        />
+      )}
+      {/* Surface View (biosphere level) */}
+      {surfaceTarget && (
+        <SurfaceView
+          planet={surfaceTarget.planet}
+          star={surfaceTarget.star}
+          playerId={playerId.current}
+          onClose={handleCloseSurface}
+        />
+      )}
+      {/* Quark Top-Up Modal */}
+      {showTopUpModal && (
+        <QuarkTopUpModal
+          playerId={playerId.current}
+          currentBalance={quarks}
+          onClose={() => setShowTopUpModal(false)}
         />
       )}
     </>
