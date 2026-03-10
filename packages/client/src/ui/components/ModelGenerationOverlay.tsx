@@ -38,6 +38,7 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isMonobankPayment, setIsMonobankPayment] = useState(false);
 
   // If we have an existing model, start polling immediately
   useEffect(() => {
@@ -57,6 +58,9 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
         // Paid instantly with quarks — skip payment wait, go to generation
         onQuarksChanged?.();
         setPhase('generating_photo');
+      } else {
+        // Monobank payment — show waiting screen with Monobank instructions
+        setIsMonobankPayment(true);
       }
 
       // Start polling for generation completion
@@ -148,10 +152,13 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
         {phase === 'processing_payment' && (
           <div style={styles.phaseContainer}>
             <div style={styles.spinnerLarge} />
-            <div style={styles.phaseTitle}>Очікування оплати</div>
+            <div style={styles.phaseTitle}>
+              {isMonobankPayment ? 'Очікування оплати' : 'Обробка платежу...'}
+            </div>
             <div style={styles.phaseDesc}>
-              Завершіть оплату у відкритому вікні Monobank.
-              Після підтвердження генерація почнеться автоматично.
+              {isMonobankPayment
+                ? 'Завершіть оплату у відкритому вікні Monobank. Після підтвердження генерація почнеться автоматично.'
+                : 'Списуємо з внутрішнього рахунку...'}
             </div>
           </div>
         )}
