@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { GameEngine } from './game/GameEngine.js';
 import { CommandBar } from './ui/components/CommandBar/index.js';
 import type { BreadcrumbItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
@@ -107,14 +107,8 @@ export function App() {
     star?: Star;
   } | null>(null);
 
-  /** Active 3D viewer (when viewing a ready model) */
-  const [planet3DViewer, setPlanet3DViewer] = useState<{
-    glbUrl: string;
-    planetName: string;
-    starColor?: string;
-    atmosphere?: { surfacePressureAtm: number; composition: Record<string, number>; hasOzone: boolean } | null;
-    planetType?: string;
-  } | null>(null);
+  // ── Home planet info (for navigation from home page) ──────────────
+  const [homeInfo, setHomeInfo] = useState<{ system: StarSystem; planet: Planet } | null>(null);
 
   /** Surface view target */
   const [surfaceTarget, setSurfaceTarget] = useState<{
@@ -306,6 +300,15 @@ export function App() {
         engine.updateSystemResearchVisual(sys.id, debugResearch);
       }
       console.log(`[DEBUG] Unlocked ${allSystems.length} systems for testing`);
+
+      // Store home system/planet info for navigation
+      const homeSystem = allSystems.find(s => s.ownerPlayerId !== null);
+      if (homeSystem) {
+        const homePlanet = homeSystem.planets.find(p => p.isHomePlanet) ?? homeSystem.planets[0];
+        if (homePlanet) {
+          setHomeInfo({ system: homeSystem, planet: homePlanet });
+        }
+      }
       // END DEBUG
     }).catch((err) => {
       console.error('GameEngine init error:', err);
@@ -443,27 +446,6 @@ export function App() {
     });
   }, [state.selectedPlanet, state.selectedSystem, planetModels]);
 
-  const handleView3DModel = useCallback(() => {
-    if (!state.selectedPlanet || !state.selectedSystem) return;
-    const model = planetModels.find(
-      (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id && m.status === 'ready',
-    );
-    const proxied = model ? proxyGlbUrl(model.id, model.glb_url) : null;
-    if (proxied) {
-      const planet = state.selectedPlanet;
-      setPlanet3DViewer({
-        glbUrl: proxied,
-        planetName: planet.name,
-        atmosphere: planet.atmosphere ? {
-          surfacePressureAtm: planet.atmosphere.surfacePressureAtm,
-          composition: planet.atmosphere.composition,
-          hasOzone: planet.atmosphere.hasOzone,
-        } : null,
-        planetType: planet.type,
-      });
-    }
-  }, [state.selectedPlanet, state.selectedSystem, planetModels]);
-
   const handleModelReady = useCallback((modelId: string, glbUrl: string) => {
     setPlanetModels((prev) => {
       const idx = prev.findIndex((m) => m.id === modelId);
@@ -481,10 +463,6 @@ export function App() {
     setModelGenerationTarget(null);
   }, []);
 
-  const handleClose3DViewer = useCallback(() => {
-    setPlanet3DViewer(null);
-  }, []);
-
   // ── Surface view handlers ─────────────────────────────────────────────
   const handleOpenSurface = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
@@ -497,6 +475,33 @@ export function App() {
   const handleCloseSurface = useCallback(() => {
     setSurfaceTarget(null);
   }, []);
+
+  // ── Home planet navigation handlers ─────────────────────────────────
+  const handleGoToExosphere = useCallback(() => {
+    if (!homeInfo) return;
+    setState(prev => ({
+      ...prev,
+      selectedSystem: homeInfo.system,
+      selectedPlanet: homeInfo.planet,
+      scene: 'planet-view' as const,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+    }));
+    engineRef.current?.showPlanetViewScene(homeInfo.system, homeInfo.planet);
+  }, [homeInfo]);
+
+  const handleGoToHomeSurface = useCallback(() => {
+    if (!homeInfo) return;
+    setState(prev => ({
+      ...prev,
+      selectedSystem: homeInfo.system,
+      selectedPlanet: homeInfo.planet,
+    }));
+    setSurfaceTarget({
+      planet: homeInfo.planet,
+      star: homeInfo.system.star,
+    });
+  }, [homeInfo]);
 
   // ── Breadcrumb navigation handler ──────────────────────────────────────
   const handleBreadcrumbNavigate = useCallback((targetScene: string) => {
@@ -544,6 +549,41 @@ export function App() {
           ?? matches[0];
       })()
     : undefined;
+
+  // Auto-show 3D model as background on home-intro and planet-view (if model exists)
+  const backgroundModelInfo = useMemo(() => {
+    let planet: Planet | null = null;
+    let system: StarSystem | null = null;
+
+    if (state.scene === 'home-intro' && homeInfo) {
+      planet = homeInfo.planet;
+      system = homeInfo.system;
+    } else if (state.scene === 'planet-view' && state.selectedPlanet && state.selectedSystem) {
+      planet = state.selectedPlanet;
+      system = state.selectedSystem;
+    }
+
+    if (!planet || !system) return null;
+
+    const model = planetModels.find(
+      m => m.planet_id === planet!.id && m.system_id === system!.id && m.status === 'ready',
+    );
+    if (!model) return null;
+
+    const proxied = proxyGlbUrl(model.id, model.glb_url);
+    if (!proxied) return null;
+
+    return {
+      glbUrl: proxied,
+      planetName: planet.name,
+      atmosphere: planet.atmosphere ? {
+        surfacePressureAtm: planet.atmosphere.surfacePressureAtm,
+        composition: planet.atmosphere.composition,
+        hasOzone: planet.atmosphere.hasOzone,
+      } : null,
+      planetType: planet.type,
+    };
+  }, [state.scene, state.selectedPlanet, state.selectedSystem, homeInfo, planetModels]);
 
   // Determine which panel to show for the selected system
   const selectedSystem = state.selectedSystem;
@@ -603,24 +643,33 @@ export function App() {
 
   switch (effectiveScene) {
     case 'home-intro': {
+      const homeTools: ToolItem[] = [];
+      if (homeInfo) {
+        homeTools.push(
+          { id: 'exosphere', label: 'Екзосфера', onClick: handleGoToExosphere },
+          { id: 'surface', label: 'Поверхня', onClick: handleGoToHomeSurface },
+        );
+      }
       if (showExploreBtn) {
-        toolGroups.push({
-          type: 'buttons',
-          items: [{
-            id: 'explore',
-            label: 'Дослідити галактику',
-            onClick: handleStartExploration,
-            variant: 'primary',
-          }],
+        homeTools.push({
+          id: 'explore',
+          label: 'Дослідити галактику',
+          onClick: handleStartExploration,
+          variant: 'primary',
         });
       }
-      toolGroups.push({
-        type: 'zoom',
-        items: [
-          { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.homePlanetZoomIn() },
-          { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.homePlanetZoomOut() },
-        ],
-      });
+      if (homeTools.length > 0) {
+        toolGroups.push({ type: 'buttons', items: homeTools });
+      }
+      if (!backgroundModelInfo) {
+        toolGroups.push({
+          type: 'zoom',
+          items: [
+            { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.homePlanetZoomIn() },
+            { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.homePlanetZoomOut() },
+          ],
+        });
+      }
       break;
     }
 
@@ -658,18 +707,22 @@ export function App() {
         { id: 'info', label: 'Інфо', onClick: handleShowCharacteristics },
       ];
       if (selectedPlanetModel?.status === 'ready' && selectedPlanetModel?.glb_url) {
-        tools.push({ id: '3d', label: '3D', onClick: handleView3DModel });
+        // Model exists & auto-shown as background → offer regeneration
+        tools.push({ id: '3d', label: 'Змінити вигляд 49⚛', onClick: handleUpgradePlanet });
       } else {
-        tools.push({ id: '3d', label: '3D', onClick: handleUpgradePlanet, variant: 'accent' });
+        tools.push({ id: '3d', label: '3D 49⚛', onClick: handleUpgradePlanet, variant: 'accent' });
       }
       toolGroups.push({ type: 'buttons', items: tools });
-      toolGroups.push({
-        type: 'zoom',
-        items: [
-          { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.planetViewZoomIn() },
-          { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.planetViewZoomOut() },
-        ],
-      });
+      if (!backgroundModelInfo) {
+        // Only show zoom for PixiJS view (3D viewer has its own orbit controls)
+        toolGroups.push({
+          type: 'zoom',
+          items: [
+            { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.planetViewZoomIn() },
+            { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.planetViewZoomOut() },
+          ],
+        });
+      }
       break;
     }
 
@@ -758,7 +811,6 @@ export function App() {
           onClose={handleClosePlanetMenu}
           onSurface={handleOpenSurface}
           onUpgrade={handleUpgradePlanet}
-          onView3D={handleView3DModel}
           has3DModel={selectedPlanetModel?.status === 'ready' && !!selectedPlanetModel?.glb_url}
           modelStatus={selectedPlanetModel?.status}
         />
@@ -770,7 +822,6 @@ export function App() {
           has3DModel={selectedPlanetModel?.status === 'ready' && !!selectedPlanetModel?.glb_url}
           modelStatus={selectedPlanetModel?.status}
           onUpgrade={handleUpgradePlanet}
-          onView3D={handleView3DModel}
           onSurface={handleOpenSurface}
         />
       )}
@@ -816,15 +867,15 @@ export function App() {
           onQuarksChanged={refreshQuarks}
         />
       )}
-      {/* 3D Planet Viewer */}
-      {planet3DViewer && (
+      {/* Background 3D Model (auto-shown on home/planet-view if model exists) */}
+      {backgroundModelInfo && (
         <Planet3DViewer
-          glbUrl={planet3DViewer.glbUrl}
-          planetName={planet3DViewer.planetName}
-          starColor={planet3DViewer.starColor}
-          atmosphere={planet3DViewer.atmosphere}
-          planetType={planet3DViewer.planetType}
-          onClose={handleClose3DViewer}
+          glbUrl={backgroundModelInfo.glbUrl}
+          planetName={backgroundModelInfo.planetName}
+          atmosphere={backgroundModelInfo.atmosphere}
+          planetType={backgroundModelInfo.planetType}
+          mode="background"
+          onClose={() => {}}
         />
       )}
       {/* Surface View (biosphere level) */}

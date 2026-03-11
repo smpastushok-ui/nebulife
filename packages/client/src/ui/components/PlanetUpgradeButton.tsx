@@ -8,21 +8,22 @@ interface PlanetUpgradeButtonProps {
   has3DModel: boolean;
   modelStatus?: string;
   onUpgrade: () => void;
-  onView3D: () => void;
 }
 
 const PlanetUpgradeButton: React.FC<PlanetUpgradeButtonProps> = ({
   has3DModel,
   modelStatus,
   onUpgrade,
-  onView3D,
 }) => {
-  // Model is ready — show view button
+  // Model is ready — offer to regenerate with new look
   if (has3DModel) {
     return (
-      <button style={styles.viewButton} onClick={onView3D}>
+      <button style={styles.upgradeButton} onClick={onUpgrade}>
         <span style={styles.icon3D}>3D</span>
-        <span>Переглянути 3D модель</span>
+        <div style={styles.upgradeText}>
+          <span style={styles.upgradeTitle}>Змінити вигляд</span>
+          <span style={styles.upgradePrice}>49 ⚛</span>
+        </div>
       </button>
     );
   }

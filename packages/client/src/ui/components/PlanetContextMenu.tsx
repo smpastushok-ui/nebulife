@@ -90,9 +90,10 @@ export function PlanetContextMenu({
   let modelAction: (() => void) | null = null;
   let modelColor: string | undefined;
 
-  if (has3DModel && onView3D) {
-    modelLabel = '3D модель';
-    modelAction = onView3D;
+  if (has3DModel && onUpgrade) {
+    modelLabel = 'Змінити вигляд — 49 ⚛';
+    modelAction = onUpgrade;
+    modelColor = '#7bb8ff';
   } else if (
     modelStatus === 'generating_photo' ||
     modelStatus === 'generating_3d' ||

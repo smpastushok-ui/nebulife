@@ -26,6 +26,7 @@ interface Planet3DViewerProps {
   starColor?: string; // hex color for directional light (simulating star)
   atmosphere?: AtmosphereInfo | null;
   planetType?: string; // 'rocky' | 'gas-giant' | 'ice-giant' | 'dwarf'
+  mode?: 'overlay' | 'background'; // overlay = fullscreen with header; background = behind CommandBar
   onClose: () => void;
 }
 
@@ -35,8 +36,10 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
   starColor = '#fff5e0',
   atmosphere,
   planetType,
+  mode = 'overlay',
   onClose,
 }) => {
+  const isOverlay = mode === 'overlay';
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const [loadProgress, setLoadProgress] = useState(0);
@@ -222,17 +225,19 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
   }, [glbUrl, starColor, atmosphere, planetType, cleanup]);
 
   return (
-    <div style={styles.overlay}>
-      {/* Header */}
-      <div style={styles.header}>
-        <button style={styles.closeButton} onClick={onClose}>
-          ✕
-        </button>
-        <div style={styles.planetNameContainer}>
-          <div style={styles.planetName}>{planetName}</div>
-          <div style={styles.label3D}>3D Модель</div>
+    <div style={isOverlay ? styles.overlay : styles.background}>
+      {/* Header — only in overlay mode */}
+      {isOverlay && (
+        <div style={styles.header}>
+          <button style={styles.closeButton} onClick={onClose}>
+            ✕
+          </button>
+          <div style={styles.planetNameContainer}>
+            <div style={styles.planetName}>{planetName}</div>
+            <div style={styles.label3D}>3D Модель</div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Three.js canvas container */}
       <div ref={containerRef} style={styles.canvasContainer} />
@@ -268,8 +273,8 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         </div>
       )}
 
-      {/* Controls hint */}
-      {!isLoading && !error && (
+      {/* Controls hint — only in overlay mode */}
+      {isOverlay && !isLoading && !error && (
         <div style={styles.controlsHint}>
           Обертайте пальцем · Зум щипком
         </div>
@@ -606,6 +611,14 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'fixed',
     inset: 0,
     zIndex: 10000,
+    background: '#000',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  background: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 50,
     background: '#000',
     display: 'flex',
     flexDirection: 'column',

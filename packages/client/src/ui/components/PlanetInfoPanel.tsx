@@ -52,13 +52,12 @@ const closeBtnStyle: React.CSSProperties = {
   color: '#667788', fontSize: 16, fontFamily: 'monospace',
 };
 
-export function PlanetInfoPanel({ planet, onClose, has3DModel, modelStatus, onUpgrade, onView3D, onSurface }: {
+export function PlanetInfoPanel({ planet, onClose, has3DModel, modelStatus, onUpgrade, onSurface }: {
   planet: Planet;
   onClose: () => void;
   has3DModel?: boolean;
   modelStatus?: string;
   onUpgrade?: () => void;
-  onView3D?: () => void;
   onSurface?: () => void;
 }) {
   const hab = planet.habitability;
@@ -207,13 +206,12 @@ export function PlanetInfoPanel({ planet, onClose, has3DModel, modelStatus, onUp
       )}
 
       {/* --- 3D Model Upgrade --- */}
-      {onUpgrade && onView3D && (
+      {onUpgrade && (
         <div style={{ marginTop: 8 }}>
           <PlanetUpgradeButton
             has3DModel={has3DModel ?? false}
             modelStatus={modelStatus}
             onUpgrade={onUpgrade}
-            onView3D={onView3D}
           />
         </div>
       )}
