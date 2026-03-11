@@ -1,7 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { GalaxyRing, StarSystem, ResearchState } from '@nebulife/core';
 import { getResearchProgress, isSystemFullyResearched } from '@nebulife/core';
-import { renderStarDot } from '../rendering/StarRenderer.js';
 import { createGalaxyBackdrop, type TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
 
 /* ── Helpers ───────────────────────────────────────────────────── */
@@ -16,6 +15,16 @@ function hslToRgb(h: number, s: number, l: number): number {
   return ((Math.round(f(0) * 255) << 16) | (Math.round(f(8) * 255) << 8) | Math.round(f(4) * 255));
 }
 
+/** Convert hex color string (#rrggbb) to number */
+function hexToNum(hex: string): number {
+  return parseInt(hex.replace('#', ''), 16);
+}
+
+/** Compute star display radius from luminosity (log-scale, clamped 3-12px) */
+function starBaseRadius(luminositySolar: number): number {
+  return Math.max(3, Math.min(12, Math.log2(1 + luminositySolar) * 4));
+}
+
 /* ── Layout constants ──────────────────────────────────────────── */
 
 type Direction = 'up' | 'right' | 'down' | 'left';
@@ -25,6 +34,10 @@ const DIR_ANGLES: Record<Direction, number> = {
   right: 0,
   down: Math.PI / 2,
   left: Math.PI,
+};
+
+const OPPOSITE: Record<Direction, Direction> = {
+  up: 'down', down: 'up', left: 'right', right: 'left',
 };
 
 const DIR_ORDER: Direction[] = ['up', 'right', 'down', 'left'];
@@ -41,10 +54,17 @@ interface SystemNode {
   container: Container;
   system: StarSystem;
   nameLabel: Text;
-  planetLabel: Text | null;
+  progressLabel: Text | null;
   progressRing: Graphics | null;
-  baseAlpha: number;
+  /** Animatable glow layers */
+  glowOuter: Graphics;
+  glowMid: Graphics;
+  core: Graphics;
+  /** Animation params */
   phaseOffset: number;
+  speed: number;
+  baseRadius: number;
+  baseAlpha: number;
   /** Expanded position relative to HOME (0,0) */
   tx: number;
   ty: number;
@@ -58,6 +78,7 @@ interface DirGroup {
   systems: StarSystem[];
   nodes: SystemNode[];
   bg: Graphics;
+  arrowGfx: Graphics;
   button: Container;
   expanded: boolean;
   /** 0 = collapsed, 1 = expanded */
@@ -72,6 +93,7 @@ export class GalaxyScene {
   private groups = new Map<Direction, DirGroup>();
   private systemNodes = new Map<string, SystemNode>();
   private homeSystem: StarSystem;
+  private homeNode: SystemNode | null = null;
   private time = 0;
 
   private accretionDisk: Container | null = null;
@@ -176,56 +198,78 @@ export class GalaxyScene {
     return (Math.abs(h) % 10000) / 10000 * Math.PI * 2;
   }
 
-  private planetDots(parent: Container, planets: Array<{ isHomePlanet: boolean; isColonizable: boolean; habitability?: { overall: number } }>) {
-    if (!planets.length) return;
-    const g = new Graphics();
-    const r = 18;
-    for (let i = 0; i < planets.length; i++) {
-      const a = (i / planets.length) * Math.PI * 2 - Math.PI / 2;
-      const p = planets[i];
-      const col = p.isHomePlanet ? 0x44ff88
-        : (p.isColonizable && (p.habitability?.overall ?? 0) > 0.5) ? 0xddaa44
-        : 0x556677;
-      g.circle(Math.cos(a) * r, Math.sin(a) * r, 2);
-      g.fill({ color: col, alpha: col === 0x556677 ? 0.3 : 0.7 });
-    }
-    parent.addChild(g);
+  /**
+   * Create the 3 animatable glow layers for a star.
+   * Returns a container with outer glow, mid glow, and bright core.
+   */
+  private createStarGfx(color: number, radius: number): {
+    container: Container; glowOuter: Graphics; glowMid: Graphics; core: Graphics;
+  } {
+    const container = new Container();
+
+    // Outer glow — soft, wide
+    const glowOuter = new Graphics();
+    glowOuter.circle(0, 0, radius * 3.0);
+    glowOuter.fill({ color, alpha: 0.06 });
+    container.addChild(glowOuter);
+
+    // Mid glow — brighter, tighter
+    const glowMid = new Graphics();
+    glowMid.circle(0, 0, radius * 1.8);
+    glowMid.fill({ color, alpha: 0.18 });
+    container.addChild(glowMid);
+
+    // Core — bright white center with vivid color overlay
+    const core = new Graphics();
+    core.circle(0, 0, radius);
+    core.fill({ color: 0xffffff, alpha: 0.9 });
+    core.circle(0, 0, radius * 0.7);
+    core.fill({ color, alpha: 0.65 });
+    container.addChild(core);
+
+    return { container, glowOuter, glowMid, core };
   }
 
   /* ── HOME node ─────────────────────────────────────────────── */
 
   private buildHomeNode() {
     const sys = this.homeSystem;
-    const dot = renderStarDot(sys.star, 14, false);
+    const color = hexToNum(sys.star.colorHex);
+    const baseR = starBaseRadius(sys.star.luminositySolar) * 1.4;
+    const phase = this.hash(sys.id);
 
-    // Rings
-    const r1 = new Graphics();
-    r1.circle(0, 0, 22);
-    r1.stroke({ width: 2.5, color: 0x44ff88, alpha: 0.6 });
-    dot.addChild(r1);
+    const { container: dot, glowOuter, glowMid, core } = this.createStarGfx(color, baseR);
 
-    const r2 = new Graphics();
-    r2.circle(0, 0, 32);
-    r2.stroke({ width: 1, color: 0x44ff88, alpha: 0.15 });
-    dot.addChild(r2);
-
-    this.planetDots(dot, sys.planets);
-
+    // HOME label
     const hl = new Text({
       text: 'HOME',
       style: { fontSize: 11, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold' },
     });
     hl.anchor.set(0.5, 0);
-    hl.y = 28;
+    hl.y = baseR + 6;
     dot.addChild(hl);
 
+    // System name label (compact, right after HOME)
     const nl = new Text({
       text: sys.name,
-      style: { fontSize: 9, fill: 0x8899aa, fontFamily: 'monospace' },
+      style: { fontSize: 8, fill: 0x667788, fontFamily: 'monospace' },
     });
     nl.anchor.set(0.5, 0);
-    nl.y = 42;
+    nl.y = baseR + 18;
     dot.addChild(nl);
+
+    // Observatory marker
+    const hasObs = this.researchState.slots.some(s => s.systemId === sys.id);
+    if (hasObs) {
+      const om = new Text({
+        text: '[O]',
+        style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
+      });
+      om.anchor.set(0.5, 0.5);
+      om.x = baseR + 10;
+      om.y = -6;
+      dot.addChild(om);
+    }
 
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
@@ -245,6 +289,15 @@ export class GalaxyScene {
     });
 
     this.nodesLayer.addChild(dot);
+
+    this.homeNode = {
+      container: dot, system: sys, nameLabel: nl,
+      progressLabel: null, progressRing: null,
+      glowOuter, glowMid, core,
+      phaseOffset: phase, speed: 0.8 + (phase / (Math.PI * 2)) * 0.7,
+      baseRadius: baseR, baseAlpha: 1,
+      tx: 0, ty: 0, index: 0,
+    };
   }
 
   /* ── Direction group ───────────────────────────────────────── */
@@ -254,7 +307,8 @@ export class GalaxyScene {
       // Still create a stub group with no button
       this.groups.set(dir, {
         direction: dir, angle: DIR_ANGLES[dir], systems: [], nodes: [],
-        bg: new Graphics(), button: new Container(), expanded: false, progress: 0,
+        bg: new Graphics(), arrowGfx: new Graphics(), button: new Container(),
+        expanded: false, progress: 0,
       });
       return;
     }
@@ -274,21 +328,30 @@ export class GalaxyScene {
     this.drawBtnBg(bg, false);
     button.addChild(bg);
 
-    // Directional arrow
-    this.drawArrow(button, dir, false);
+    // Directional arrow (positioned near edge of button)
+    const arrowGfx = new Graphics();
+    this.drawArrowGfx(arrowGfx, dir, false);
+    const arrowOffset = 7;
+    switch (dir) {
+      case 'up':    arrowGfx.y = -arrowOffset; break;
+      case 'down':  arrowGfx.y = arrowOffset; break;
+      case 'left':  arrowGfx.x = -arrowOffset; break;
+      case 'right': arrowGfx.x = arrowOffset; break;
+    }
+    button.addChild(arrowGfx);
 
-    // Count
+    // Count (larger, brighter, positioned opposite to arrow — near center)
     const cl = new Text({
       text: `${systems.length}`,
-      style: { fontSize: 9, fill: 0x667788, fontFamily: 'monospace' },
+      style: { fontSize: 12, fill: 0x99aabb, fontFamily: 'monospace', fontWeight: 'bold' },
     });
     cl.anchor.set(0.5, 0.5);
-    // Offset count from arrow
-    const cOff = 10;
-    if (dir === 'up') { cl.x = 0; cl.y = 6; }
-    else if (dir === 'down') { cl.x = 0; cl.y = -6; }
-    else if (dir === 'right') { cl.x = -4; cl.y = 0; }
-    else { cl.x = 4; cl.y = 0; }
+    switch (dir) {
+      case 'up':    cl.y = 7; break;
+      case 'down':  cl.y = -7; break;
+      case 'left':  cl.x = 7; break;
+      case 'right': cl.x = -7; break;
+    }
     button.addChild(cl);
 
     button.hitArea = { contains: (px: number, py: number) => px * px + py * py < 500 };
@@ -318,7 +381,7 @@ export class GalaxyScene {
 
     this.groups.set(dir, {
       direction: dir, angle, systems, nodes,
-      bg, button, expanded: false, progress: 0,
+      bg, arrowGfx, button, expanded: false, progress: 0,
     });
   }
 
@@ -330,17 +393,18 @@ export class GalaxyScene {
     g.stroke({ width: 1, color: active ? 0x446688 : 0x2a3a50, alpha: active ? 0.8 : 0.5 });
   }
 
-  private drawArrow(parent: Container, dir: Direction, _active: boolean) {
-    const g = new Graphics();
-    const s = 5;
-    switch (dir) {
+  /** Draw arrow chevron — flipped inverts direction (for collapse indicator) */
+  private drawArrowGfx(g: Graphics, dir: Direction, flipped: boolean) {
+    g.clear();
+    const s = 6;
+    const d = flipped ? OPPOSITE[dir] : dir;
+    switch (d) {
       case 'up':    g.moveTo(-s, 3); g.lineTo(0, -s); g.lineTo(s, 3); break;
       case 'down':  g.moveTo(-s, -3); g.lineTo(0, s); g.lineTo(s, -3); break;
       case 'left':  g.moveTo(3, -s); g.lineTo(-s, 0); g.lineTo(3, s); break;
       case 'right': g.moveTo(-3, -s); g.lineTo(s, 0); g.lineTo(-3, s); break;
     }
-    g.stroke({ width: 2, color: 0x8899aa, alpha: 0.8 });
-    parent.addChild(g);
+    g.stroke({ width: 2, color: 0xaabbcc, alpha: 0.9 });
   }
 
   /* ── System node ───────────────────────────────────────────── */
@@ -349,48 +413,41 @@ export class GalaxyScene {
     const state = this.getState(sys);
     const progress = getResearchProgress(this.researchState, sys.id);
     const phase = this.hash(sys.id);
+    const color = hexToNum(sys.star.colorHex);
+    const baseR = starBaseRadius(sys.star.luminositySolar);
 
-    const dotR = state === 'researched' ? 7 : state === 'researching' ? 5 : 4;
-    const dot = renderStarDot(sys.star, dotR, false);
+    // State-dependent size multiplier
+    const radiusMul = state === 'researched' ? 1.2 : state === 'researching' ? 0.9 : 0.7;
+    const effectiveR = baseR * radiusMul;
+
+    const { container: dot, glowOuter, glowMid, core } = this.createStarGfx(color, effectiveR);
     dot.x = 0;
     dot.y = 0;
     dot.alpha = 0;
     dot.visible = false;
 
     let nameLabel: Text;
-    let planetLabel: Text | null = null;
+    let progressLabel: Text | null = null;
     let progressRing: Graphics | null = null;
+
+    // Label position: below core area
+    const labelY = effectiveR + 6;
 
     switch (state) {
       case 'researched': {
-        const ring = new Graphics();
-        ring.circle(0, 0, 14);
-        ring.stroke({ width: 1, color: 0x44ff88, alpha: 0.35 });
-        dot.addChild(ring);
-
-        this.planetDots(dot, sys.planets);
-
         nameLabel = new Text({
           text: sys.name,
           style: { fontSize: 9, fill: 0x8899aa, fontFamily: 'monospace' },
         });
         nameLabel.anchor.set(0.5, 0);
-        nameLabel.y = 20;
+        nameLabel.y = labelY;
         dot.addChild(nameLabel);
-
-        planetLabel = new Text({
-          text: `${sys.planets.length}p`,
-          style: { fontSize: 7, fill: 0x667788, fontFamily: 'monospace' },
-        });
-        planetLabel.anchor.set(0.5, 0);
-        planetLabel.y = 31;
-        dot.addChild(planetLabel);
         break;
       }
 
       case 'researching': {
         progressRing = new Graphics();
-        this.drawArc(progressRing, progress, 10);
+        this.drawArc(progressRing, progress, effectiveR + 4);
         dot.addChild(progressRing);
 
         nameLabel = new Text({
@@ -398,16 +455,16 @@ export class GalaxyScene {
           style: { fontSize: 8, fill: 0x556677, fontFamily: 'monospace' },
         });
         nameLabel.anchor.set(0.5, 0);
-        nameLabel.y = 14;
+        nameLabel.y = labelY + 4;
         dot.addChild(nameLabel);
 
-        planetLabel = new Text({
+        progressLabel = new Text({
           text: `${progress}%`,
           style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
         });
-        planetLabel.anchor.set(0.5, 0);
-        planetLabel.y = 24;
-        dot.addChild(planetLabel);
+        progressLabel.anchor.set(0.5, 0);
+        progressLabel.y = labelY + 16;
+        dot.addChild(progressLabel);
         break;
       }
 
@@ -417,8 +474,8 @@ export class GalaxyScene {
           text: '?',
           style: { fontSize: 10, fill: 0x445566, fontFamily: 'monospace', fontWeight: 'bold' },
         });
-        qm.anchor.set(0.5, 0);
-        qm.y = 8;
+        qm.anchor.set(0.5, 0.5);
+        qm.y = effectiveR + 8;
         dot.addChild(qm);
 
         nameLabel = new Text({
@@ -426,7 +483,7 @@ export class GalaxyScene {
           style: { fontSize: 7, fill: 0x334455, fontFamily: 'monospace' },
         });
         nameLabel.anchor.set(0.5, 0);
-        nameLabel.y = 20;
+        nameLabel.y = effectiveR + 16;
         dot.addChild(nameLabel);
         break;
       }
@@ -440,7 +497,7 @@ export class GalaxyScene {
         style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
       });
       om.anchor.set(0.5, 0.5);
-      om.x = dotR + 10;
+      om.x = effectiveR + 10;
       om.y = -6;
       dot.addChild(om);
     }
@@ -475,7 +532,15 @@ export class GalaxyScene {
       ? 0.35 + (progress / 100) * 0.55
       : state === 'unexplored' ? 0.45 : 1;
 
-    return { container: dot, system: sys, nameLabel, planetLabel, progressRing, baseAlpha, phaseOffset: phase, tx, ty, index };
+    const speed = 0.5 + (phase / (Math.PI * 2)) * 1.0;
+
+    return {
+      container: dot, system: sys, nameLabel,
+      progressLabel, progressRing,
+      glowOuter, glowMid, core,
+      phaseOffset: phase, speed, baseRadius: effectiveR,
+      baseAlpha, tx, ty, index,
+    };
   }
 
   private drawArc(g: Graphics, progress: number, radius: number) {
@@ -500,6 +565,8 @@ export class GalaxyScene {
         grp.expanded = false;
       }
       this.drawBtnBg(grp.bg, grp.expanded);
+      // Flip arrow on expand/collapse
+      this.drawArrowGfx(grp.arrowGfx, d, grp.expanded);
     }
   }
 
@@ -520,8 +587,8 @@ export class GalaxyScene {
 
     if (state === 'researching' && node.progressRing) {
       node.baseAlpha = 0.35 + (prog / 100) * 0.55;
-      this.drawArc(node.progressRing, prog, 10);
-      if (node.planetLabel) node.planetLabel.text = `${prog}%`;
+      this.drawArc(node.progressRing, prog, node.baseRadius + 4);
+      if (node.progressLabel) node.progressLabel.text = `${prog}%`;
     }
 
     if (state === 'researched') {
@@ -529,9 +596,8 @@ export class GalaxyScene {
       if (node.progressRing) node.progressRing.clear();
       node.nameLabel.text = node.system.name;
       node.nameLabel.style.fill = 0x8899aa;
-      if (node.planetLabel) {
-        node.planetLabel.text = `${node.system.planets.length}p`;
-        node.planetLabel.style.fill = 0x667788;
+      if (node.progressLabel) {
+        node.progressLabel.visible = false;
       }
     }
   }
@@ -541,13 +607,13 @@ export class GalaxyScene {
   update(deltaMs: number) {
     this.time += deltaMs;
     const dt = deltaMs / 1000;
+    const t = this.time;
 
     // Backdrop animations
     if (this.accretionDisk) this.accretionDisk.rotation += deltaMs * 0.0003;
     if (this.backdropContainer) this.backdropContainer.rotation += deltaMs * 0.000012;
 
-    // Chaotic star twinkle: scale pulsing + alpha breathing + color shimmer
-    const t = this.time;
+    // Chaotic backdrop twinkle stars: scale pulsing + alpha breathing + color shimmer
     for (const star of this.twinkleStars) {
       const sp = star.speed;
       const ph = star.phaseOffset;
@@ -569,7 +635,12 @@ export class GalaxyScene {
       star.gfx.tint = hslToRgb(hue, 0.35, 0.82);
     }
 
-    // Expand / collapse animation
+    // Animate HOME star burning
+    if (this.homeNode) {
+      this.animateStarBurn(this.homeNode, t);
+    }
+
+    // Expand / collapse animation + animate system star nodes
     for (const [, grp] of this.groups) {
       const target = grp.expanded ? 1 : 0;
       grp.progress += (target - grp.progress) * Math.min(1, ANIM_SPEED * dt);
@@ -590,8 +661,9 @@ export class GalaxyScene {
         node.container.y = node.ty * ease;
 
         if (node.container.visible) {
-          const twinkle = Math.sin(this.time * 0.0015 + node.phaseOffset) * 0.06;
-          node.container.alpha = ease * (node.baseAlpha + twinkle);
+          node.container.alpha = ease * node.baseAlpha;
+          // Animate star burning
+          this.animateStarBurn(node, t);
         } else {
           node.container.alpha = 0;
         }
@@ -624,6 +696,29 @@ export class GalaxyScene {
         this.beamGfx.stroke({ width: 4, color: 0x4488aa, alpha: this.beamAlpha * 0.15 });
       }
     }
+  }
+
+  /** Animate individual star glow layers for chaotic burning effect */
+  private animateStarBurn(node: SystemNode, t: number) {
+    const sp = node.speed;
+    const ph = node.phaseOffset;
+
+    // Outer glow: slow chaotic breathing
+    const s1 = Math.sin(t * sp * 0.0009 + ph) * 0.4
+             + Math.sin(t * sp * 0.0017 + ph * 2.3) * 0.2;
+    node.glowOuter.alpha = 0.06 + s1 * 0.03;
+    node.glowOuter.scale.set(1.0 + s1 * 0.25, 1.0 + s1 * 0.25);
+
+    // Mid glow: medium frequency, independent phase
+    const s2 = Math.sin(t * sp * 0.0014 + ph * 1.7) * 0.3
+             + Math.sin(t * sp * 0.0023 + ph * 0.9) * 0.15;
+    node.glowMid.alpha = 0.18 + s2 * 0.08;
+    node.glowMid.scale.set(1.0 + s2 * 0.15, 1.0 + s2 * 0.15);
+
+    // Core: fast subtle flicker
+    const s3 = Math.sin(t * sp * 0.003 + ph * 2.1) * 0.1
+             + Math.sin(t * sp * 0.005 + ph * 3.7) * 0.05;
+    node.core.alpha = 0.85 + s3;
   }
 
   /* ── Cleanup ───────────────────────────────────────────────── */
