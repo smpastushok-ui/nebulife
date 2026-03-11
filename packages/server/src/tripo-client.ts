@@ -140,11 +140,14 @@ export async function checkModelTask(taskId: string): Promise<{
       status = 'unknown';
   }
 
-  // Tripo v2: output.model can be a direct URL string or an object with .url
+  // Tripo v2: GLB URL is in output.pbr_model (primary) or output.model (fallback)
+  const pbr = result.data.output?.pbr_model;
   const modelField = result.data.output?.model;
-  const glbUrl = typeof modelField === 'string'
-    ? modelField
-    : modelField?.url;
+  const glbUrl = typeof pbr === 'string'
+    ? pbr
+    : typeof modelField === 'string'
+      ? modelField
+      : (modelField as { url: string } | undefined)?.url;
 
   return { status, progress: result.data.progress ?? 0, glbUrl };
 }
