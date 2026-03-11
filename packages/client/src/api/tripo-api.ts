@@ -63,7 +63,10 @@ export async function requestModelGeneration(req: {
  * Check model generation status.
  */
 export async function checkModelStatus(modelId: string): Promise<ModelStatusResponse> {
-  const res = await fetch(`${API_BASE}/tripo/status/${modelId}`);
+  // Cache-busting timestamp to avoid 304 stale responses
+  const res = await fetch(`${API_BASE}/tripo/status/${modelId}?_t=${Date.now()}`, {
+    cache: 'no-store',
+  });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));

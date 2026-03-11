@@ -93,11 +93,17 @@ export function PlanetContextMenu({
   if (has3DModel && onView3D) {
     modelLabel = '3D модель';
     modelAction = onView3D;
-  } else if (modelStatus === 'generating_photo' || modelStatus === 'generating_3d') {
+  } else if (
+    modelStatus === 'generating_photo' ||
+    modelStatus === 'generating_3d' ||
+    modelStatus === 'running' ||
+    modelStatus === 'awaiting_payment'
+  ) {
     modelLabel = '3D — генерація...';
     modelAction = onUpgrade ?? null;
     modelColor = '#667788';
   } else if (onUpgrade) {
+    // No model, or model failed — show buy button
     modelLabel = 'Оживити в 3D — 49 ⚛';
     modelAction = onUpgrade;
     modelColor = '#ddaa44';
