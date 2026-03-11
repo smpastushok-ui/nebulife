@@ -416,8 +416,14 @@ export function App() {
       planetId: state.selectedPlanet.id,
       systemId: state.selectedSystem.id,
       planetName: state.selectedPlanet.name,
-      // Only resume existing model if payment was confirmed (paid) — not for stuck awaiting_payment
-      existingModelId: existing?.payment_status === 'paid' ? existing.id : undefined,
+      // Only resume in-progress models (paid + still generating) — skip failed/ready/awaiting
+      existingModelId:
+        existing?.payment_status === 'paid' &&
+        existing.status !== 'failed' &&
+        existing.status !== 'payment_failed' &&
+        existing.status !== 'ready'
+          ? existing.id
+          : undefined,
       planet: state.selectedPlanet,
       star: state.selectedSystem.star,
     });
