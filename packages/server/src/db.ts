@@ -573,6 +573,11 @@ export async function saveSurfaceMap(data: {
   const rows = await sql`
     INSERT INTO surface_maps (id, player_id, planet_id, system_id, kling_task_id, status)
     VALUES (${data.id}, ${data.playerId}, ${data.planetId}, ${data.systemId}, ${data.klingTaskId}, 'generating')
+    ON CONFLICT (planet_id) DO UPDATE SET
+      kling_task_id = EXCLUDED.kling_task_id,
+      status = 'generating',
+      kling_image_url = NULL,
+      image_url = NULL
     RETURNING *
   `;
   return rows[0] as SurfaceMapRow;
