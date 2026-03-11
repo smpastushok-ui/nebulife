@@ -247,6 +247,8 @@ export class HomePlanetScene {
 
   setPlanetVisible(visible: boolean) {
     this.planetContainer.visible = visible;
+    // Also hide/show moon when planet is hidden (3D model takes over)
+    this.moonContainer.visible = visible;
   }
 
   zoomIn() {

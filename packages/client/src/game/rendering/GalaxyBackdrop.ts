@@ -351,37 +351,23 @@ function drawBlackHole(_rng: SeededRNG, cx: number, cy: number): Container {
 
   const g = new Graphics();
 
-  // Outer accretion glow
+  // Soft accretion glow (diffuse, no hard rings)
   g.circle(0, 0, 40);
-  g.fill({ color: 0xff4422, alpha: 0.04 });
+  g.fill({ color: 0xff4422, alpha: 0.03 });
 
-  g.circle(0, 0, 28);
-  g.fill({ color: 0xff6633, alpha: 0.06 });
+  g.circle(0, 0, 24);
+  g.fill({ color: 0xff6633, alpha: 0.05 });
 
-  // Accretion disk — bright ring
-  // Outer ring (red-orange)
-  g.circle(0, 0, 22);
-  g.stroke({ width: 3, color: 0xff4422, alpha: 0.15 });
-
-  // Mid ring (orange-yellow)
-  g.circle(0, 0, 16);
-  g.stroke({ width: 2.5, color: 0xffaa44, alpha: 0.25 });
-
-  // Inner ring (bright white-yellow)
-  g.circle(0, 0, 10);
-  g.stroke({ width: 2, color: 0xffeebb, alpha: 0.35 });
+  g.circle(0, 0, 14);
+  g.fill({ color: 0xffaa66, alpha: 0.06 });
 
   // Hot inner glow
   g.circle(0, 0, 7);
-  g.fill({ color: 0xffffff, alpha: 0.08 });
+  g.fill({ color: 0xffeedd, alpha: 0.08 });
 
   // Event horizon — pure black
   g.circle(0, 0, 4);
   g.fill({ color: 0x000000, alpha: 1.0 });
-
-  // Tiny bright ring at event horizon edge
-  g.circle(0, 0, 4.5);
-  g.stroke({ width: 0.5, color: 0xffffff, alpha: 0.3 });
 
   bhContainer.addChild(g);
 

@@ -26,6 +26,7 @@ interface Planet3DViewerProps {
   starColor?: string; // hex color for directional light (simulating star)
   atmosphere?: AtmosphereInfo | null;
   planetType?: string; // 'rocky' | 'gas-giant' | 'ice-giant' | 'dwarf'
+  planetMassEarth?: number; // mass in Earth masses (for ring detection)
   mode?: 'overlay' | 'background'; // overlay = fullscreen with header; background = behind CommandBar
   onClose: () => void;
 }
@@ -36,6 +37,7 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
   starColor = '#fff5e0',
   atmosphere,
   planetType,
+  planetMassEarth,
   mode = 'overlay',
   onClose,
 }) => {
@@ -124,8 +126,10 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
     starLight.position.set(5, 3, 4);
     scene.add(starLight);
 
-    // Star background
-    createStarfield(scene);
+    // Star background — only in overlay mode (background mode uses PixiJS starfield)
+    if (isOverlay) {
+      createStarfield(scene);
+    }
 
     // Cloud mesh ref for animation
     let cloudRef: THREE.Mesh | null = null;
@@ -167,6 +171,13 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         model.position.sub(center.multiplyScalar(scale));
 
         scene.add(model);
+
+        // Add Saturn-like ring for massive gas giants
+        if (planetType === 'gas-giant' && (planetMassEarth ?? 0) > 50) {
+          const ring = createPlanetRing(maxDim, scale);
+          ring.position.copy(model.position);
+          scene.add(ring);
+        }
 
         // Add cloud layer if planet has substantial atmosphere
         if (atmosphere && atmosphere.surfacePressureAtm > 0.1) {
@@ -244,7 +255,7 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         container.removeChild(renderer.domElement);
       }
     };
-  }, [glbUrl, starColor, atmosphere, planetType, cleanup]);
+  }, [glbUrl, starColor, atmosphere, planetType, planetMassEarth, cleanup]);
 
   return (
     <div style={isOverlay ? styles.overlay : styles.background}>
@@ -342,6 +353,61 @@ function createStarfield(scene: THREE.Scene) {
 
   const stars = new THREE.Points(geometry, material);
   scene.add(stars);
+}
+
+// ---------------------------------------------------------------------------
+// Planetary ring (Saturn-like) — textured semi-transparent ring
+// ---------------------------------------------------------------------------
+
+function createPlanetRing(modelMaxDim: number, modelScale: number): THREE.Group {
+  const planetRadius = (modelMaxDim / 2) * modelScale;
+  const innerRadius = planetRadius * 1.2;
+  const outerRadius = planetRadius * 2.2;
+
+  const ringGroup = new THREE.Group();
+
+  // Main ring — RingGeometry with custom vertex colors for radial gradient
+  const segments = 128;
+  const ringGeo = new THREE.RingGeometry(innerRadius, outerRadius, segments, 4);
+
+  // Custom shader for radial fade + semi-transparency
+  const ringMat = new THREE.ShaderMaterial({
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 vUv;
+      void main() {
+        // Radial distance from inner to outer (v coordinate)
+        float r = vUv.y;
+        // Multiple semi-transparent bands
+        float band1 = smoothstep(0.0, 0.1, r) * smoothstep(0.45, 0.35, r);
+        float band2 = smoothstep(0.5, 0.55, r) * smoothstep(1.0, 0.85, r);
+        float gap = smoothstep(0.35, 0.45, r) * smoothstep(0.55, 0.5, r);
+        float alpha = (band1 * 0.5 + band2 * 0.35) * (1.0 - gap * 0.8);
+        // Warm color gradient: inner = bright, outer = darker
+        vec3 innerColor = vec3(0.85, 0.75, 0.6);
+        vec3 outerColor = vec3(0.55, 0.5, 0.45);
+        vec3 color = mix(innerColor, outerColor, r);
+        gl_FragColor = vec4(color, alpha);
+      }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+
+  const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+  // Tilt ring slightly (like Saturn's ~27° axial tilt)
+  ringMesh.rotation.x = -Math.PI / 2 + 0.47; // ~27° tilt
+
+  ringGroup.add(ringMesh);
+
+  return ringGroup;
 }
 
 // ---------------------------------------------------------------------------

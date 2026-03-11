@@ -582,6 +582,7 @@ export function App() {
         hasOzone: planet.atmosphere.hasOzone,
       } : null,
       planetType: planet.type,
+      planetMassEarth: planet.massEarth,
     };
   }, [state.scene, state.selectedPlanet, state.selectedSystem, homeInfo, planetModels]);
 
@@ -879,6 +880,7 @@ export function App() {
           planetName={backgroundModelInfo.planetName}
           atmosphere={backgroundModelInfo.atmosphere}
           planetType={backgroundModelInfo.planetType}
+          planetMassEarth={backgroundModelInfo.planetMassEarth}
           mode="background"
           onClose={() => {}}
         />
