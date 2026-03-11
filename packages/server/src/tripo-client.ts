@@ -114,6 +114,7 @@ export async function checkModelTask(taskId: string): Promise<{
   }
 
   const result = (await response.json()) as TripoTaskStatusResponse;
+  console.log(`Tripo3D raw response for task ${taskId}:`, JSON.stringify(result.data));
 
   if (result.code !== 0) {
     throw new Error(`Tripo3D API error code ${result.code}`);

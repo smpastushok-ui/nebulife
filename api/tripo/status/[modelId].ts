@@ -54,6 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // --- Tripo phase: has tripo_task_id → poll Tripo ---
     if (model.tripo_task_id && (model.status === 'generating_3d' || model.status === 'running')) {
       const result = await checkModelTask(model.tripo_task_id);
+      console.log(`Tripo check: model=${modelId}, tripoTask=${model.tripo_task_id}, status=${result.status}, progress=${result.progress}, glbUrl=${result.glbUrl ? 'yes' : 'no'}`);
 
       if (result.status === 'success' && result.glbUrl) {
         await updatePlanetModel(modelId, {
