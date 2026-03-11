@@ -101,27 +101,20 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
       }, 3000);
     });
 
-    // Lighting — soft, diffuse (planet in space, not a studio product shot)
-    // Hemisphere light for natural sky/ground ambient fill
-    const hemiLight = new THREE.HemisphereLight(0x667788, 0x1a1a2e, 0.6);
+    // Lighting — purely diffuse, even illumination, no specular hotspot
+    const hemiLight = new THREE.HemisphereLight(0x8899bb, 0x223344, 1.4);
     scene.add(hemiLight);
 
-    // Ambient fill — keeps shadow side visible
-    const ambientLight = new THREE.AmbientLight(0x334455, 0.4);
+    const ambientLight = new THREE.AmbientLight(0x445566, 0.5);
     scene.add(ambientLight);
 
-    // Star light — main directional, moderate intensity
+    // Soft fill directional — just for subtle shading, not a bright point
     const starLight = new THREE.DirectionalLight(
       new THREE.Color(starColor),
-      1.8,
+      0.4,
     );
-    starLight.position.set(5, 2, 4);
+    starLight.position.set(5, 3, 4);
     scene.add(starLight);
-
-    // Subtle rim/back light for atmosphere edge
-    const rimLight = new THREE.DirectionalLight(0x4488ff, 0.15);
-    rimLight.position.set(-3, -1, -3);
-    scene.add(rimLight);
 
     // Star background
     createStarfield(scene);
@@ -133,16 +126,19 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
       (gltf) => {
         const model = gltf.scene;
 
-        // Make all materials matte (remove glossy plastic look)
+        // Force fully matte materials — no specular, no reflections
         model.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.Mesh;
             const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
             for (const mat of materials) {
               if (mat instanceof THREE.MeshStandardMaterial) {
-                mat.roughness = 0.95;   // Almost fully matte
-                mat.metalness = 0.0;    // Non-metallic (no mirror reflections)
-                mat.envMapIntensity = 0.1; // Minimize environment reflections
+                mat.roughness = 1.0;          // Fully matte — zero specular
+                mat.metalness = 0.0;          // Non-metallic
+                mat.envMapIntensity = 0.0;    // No environment reflections
+                mat.roughnessMap = null;      // Override model's roughness texture
+                mat.metalnessMap = null;      // Override model's metalness texture
+                mat.envMap = null;            // Remove environment map
                 mat.needsUpdate = true;
               }
             }
@@ -160,6 +156,15 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         model.position.sub(center.multiplyScalar(scale));
 
         scene.add(model);
+
+        // Add cloud layer if planet has substantial atmosphere
+        if (atmosphere && atmosphere.surfacePressureAtm > 0.1) {
+          const cloudMesh = createCloudLayer(maxDim, scale, atmosphere, planetType);
+          if (cloudMesh) {
+            cloudMesh.position.copy(model.position);
+            scene.add(cloudMesh);
+          }
+        }
 
         // Add atmosphere glow if planet has one
         if (atmosphere && atmosphere.surfacePressureAtm > 0.01) {
@@ -443,6 +448,150 @@ function createAtmosphere(
     side: THREE.FrontSide,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
+  });
+
+  return new THREE.Mesh(geometry, material);
+}
+
+// ---------------------------------------------------------------------------
+// Cloud layer — procedural 3D noise on a sphere
+// ---------------------------------------------------------------------------
+
+const CLOUD_VERTEX = `
+  varying vec3 vPos;
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+  void main() {
+    vPos = position;
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+    vViewDir = normalize(-mvPos.xyz);
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+const CLOUD_FRAGMENT = `
+  uniform vec3 uCloudColor;
+  uniform float uCoverage;
+  varying vec3 vPos;
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+
+  float hash3(vec3 p) {
+    p = fract(p * vec3(443.897, 397.297, 491.187));
+    p += dot(p, p.yxz + 19.19);
+    return fract((p.x + p.y) * p.z);
+  }
+
+  float noise3(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(mix(hash3(i), hash3(i + vec3(1,0,0)), f.x),
+          mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), f.x), f.y),
+      mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), f.x),
+          mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y),
+      f.z
+    );
+  }
+
+  float fbm(vec3 p) {
+    float v = 0.0;
+    float a = 0.5;
+    for (int i = 0; i < 5; i++) {
+      v += a * noise3(p);
+      p *= 2.0;
+      a *= 0.5;
+    }
+    return v;
+  }
+
+  void main() {
+    vec3 n = normalize(vPos);
+    float clouds = fbm(n * 3.5);
+    clouds = smoothstep(0.40, 0.62, clouds);
+
+    // Fade at edges (Fresnel-like)
+    float rim = max(dot(vNormal, vViewDir), 0.0);
+    rim = smoothstep(0.0, 0.3, rim);
+
+    float alpha = clouds * uCoverage * rim;
+    gl_FragColor = vec4(uCloudColor, alpha);
+  }
+`;
+
+/**
+ * Derive cloud parameters from atmosphere:
+ * - Gas giants: thick banded clouds
+ * - Ice giants: dense pale clouds
+ * - CO2 thick (Venus): yellowish dense cover
+ * - N2/O2 (Earth): white scattered clouds
+ * - Thin atmosphere (<0.1 atm): no clouds
+ */
+function getCloudParams(
+  atmo: { surfacePressureAtm: number; composition: Record<string, number> },
+  planetType?: string,
+): { color: THREE.Color; coverage: number; scale: number } | null {
+  if (planetType === 'gas-giant') {
+    return { color: new THREE.Color(0.95, 0.9, 0.8), coverage: 0.7, scale: 1.02 };
+  }
+  if (planetType === 'ice-giant') {
+    return { color: new THREE.Color(0.85, 0.9, 0.95), coverage: 0.6, scale: 1.02 };
+  }
+
+  const pressure = atmo.surfacePressureAtm;
+  if (pressure < 0.1) return null;
+
+  // CO2 thick (Venus-like) — yellowish dense cover
+  if ((atmo.composition['CO2'] ?? 0) > 0.4 && pressure > 1) {
+    return {
+      color: new THREE.Color(0.95, 0.85, 0.65),
+      coverage: Math.min(0.8, pressure * 0.1),
+      scale: 1.015,
+    };
+  }
+
+  // N2/O2 (Earth-like) — white scattered clouds
+  if ((atmo.composition['N2'] ?? 0) > 0.5 || (atmo.composition['O2'] ?? 0) > 0.1) {
+    return {
+      color: new THREE.Color(1.0, 1.0, 1.0),
+      coverage: Math.min(0.5, 0.2 + pressure * 0.15),
+      scale: 1.01,
+    };
+  }
+
+  // Default — faint thin clouds
+  return {
+    color: new THREE.Color(0.9, 0.9, 0.95),
+    coverage: Math.min(0.3, pressure * 0.1),
+    scale: 1.01,
+  };
+}
+
+function createCloudLayer(
+  modelMaxDim: number,
+  modelScale: number,
+  atmo: { surfacePressureAtm: number; composition: Record<string, number> },
+  planetType?: string,
+): THREE.Mesh | null {
+  const params = getCloudParams(atmo, planetType);
+  if (!params) return null;
+
+  const planetRadius = (modelMaxDim / 2) * modelScale;
+  const cloudRadius = planetRadius * params.scale;
+
+  const geometry = new THREE.SphereGeometry(cloudRadius, 64, 64);
+  const material = new THREE.ShaderMaterial({
+    vertexShader: CLOUD_VERTEX,
+    fragmentShader: CLOUD_FRAGMENT,
+    uniforms: {
+      uCloudColor: { value: params.color },
+      uCoverage: { value: params.coverage },
+    },
+    transparent: true,
+    side: THREE.FrontSide,
+    depthWrite: false,
   });
 
   return new THREE.Mesh(geometry, material);
