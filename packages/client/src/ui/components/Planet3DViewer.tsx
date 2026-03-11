@@ -65,7 +65,7 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -91,18 +91,25 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
       }, 3000);
     });
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    // Lighting — soft, diffuse (planet in space, not a studio product shot)
+    // Hemisphere light for natural sky/ground ambient fill
+    const hemiLight = new THREE.HemisphereLight(0x667788, 0x1a1a2e, 0.6);
+    scene.add(hemiLight);
+
+    // Ambient fill — keeps shadow side visible
+    const ambientLight = new THREE.AmbientLight(0x334455, 0.4);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(
+    // Star light — main directional, moderate intensity
+    const starLight = new THREE.DirectionalLight(
       new THREE.Color(starColor),
-      1.5,
+      1.8,
     );
-    directionalLight.position.set(5, 3, 5);
-    scene.add(directionalLight);
+    starLight.position.set(5, 2, 4);
+    scene.add(starLight);
 
-    const rimLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+    // Subtle rim/back light for atmosphere edge
+    const rimLight = new THREE.DirectionalLight(0x4488ff, 0.15);
     rimLight.position.set(-3, -1, -3);
     scene.add(rimLight);
 
@@ -115,6 +122,22 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
       glbUrl,
       (gltf) => {
         const model = gltf.scene;
+
+        // Make all materials matte (remove glossy plastic look)
+        model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            for (const mat of materials) {
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.roughness = 0.95;   // Almost fully matte
+                mat.metalness = 0.0;    // Non-metallic (no mirror reflections)
+                mat.envMapIntensity = 0.1; // Minimize environment reflections
+                mat.needsUpdate = true;
+              }
+            }
+          }
+        });
 
         // Center and scale model to fit view
         const box = new THREE.Box3().setFromObject(model);
