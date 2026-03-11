@@ -617,3 +617,67 @@ export async function updateSurfaceMap(
   `;
   return (rows[0] as SurfaceMapRow) ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Player Aliases (custom names for systems/planets)
+// ---------------------------------------------------------------------------
+
+export interface PlayerAliasRow {
+  player_id: string;
+  entity_type: string;
+  entity_id: string;
+  custom_name: string;
+  created_at: string;
+}
+
+/**
+ * Get all aliases for a player as a map: entityId → customName
+ */
+export async function getPlayerAliases(playerId: string): Promise<Record<string, string>> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT entity_id, custom_name FROM player_aliases
+    WHERE player_id = ${playerId}
+  `;
+  const map: Record<string, string> = {};
+  for (const row of rows) {
+    map[(row as PlayerAliasRow).entity_id] = (row as PlayerAliasRow).custom_name;
+  }
+  return map;
+}
+
+/**
+ * Set or update a custom name alias for a system or planet.
+ * Uses upsert to handle both insert and update.
+ */
+export async function setPlayerAlias(
+  playerId: string,
+  entityType: 'system' | 'planet',
+  entityId: string,
+  customName: string,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO player_aliases (player_id, entity_type, entity_id, custom_name)
+    VALUES (${playerId}, ${entityType}, ${entityId}, ${customName})
+    ON CONFLICT (player_id, entity_type, entity_id)
+    DO UPDATE SET custom_name = ${customName}
+  `;
+}
+
+/**
+ * Remove a custom alias (revert to original name).
+ */
+export async function removePlayerAlias(
+  playerId: string,
+  entityType: 'system' | 'planet',
+  entityId: string,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    DELETE FROM player_aliases
+    WHERE player_id = ${playerId}
+      AND entity_type = ${entityType}
+      AND entity_id = ${entityId}
+  `;
+}

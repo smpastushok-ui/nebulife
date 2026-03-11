@@ -42,6 +42,10 @@ export {
   savePaymentIntent,
   getPaymentIntent,
   updatePaymentIntentStatus,
+  // Player Aliases (custom names)
+  getPlayerAliases,
+  setPlayerAlias,
+  removePlayerAlias,
 } from './db.js';
 
 export type {
@@ -53,6 +57,7 @@ export type {
   SurfaceBuildingRow,
   SurfaceMapRow,
   PaymentIntentRow,
+  PlayerAliasRow,
 } from './db.js';
 
 export {

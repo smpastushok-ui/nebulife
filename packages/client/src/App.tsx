@@ -19,6 +19,7 @@ import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
 } from '@nebulife/core';
 import { getPlayerModels } from './api/tripo-api.js';
+import { getPlayerAliases, setAlias } from './api/alias-api.js';
 import type { PlanetModel } from './api/tripo-api.js';
 import {
   createResearchState,
@@ -126,6 +127,9 @@ export function App() {
   // ── Warp animation state ──────────────────────────────────────────────
   const [warpTarget, setWarpTarget] = useState<StarSystem | null>(null);
 
+  // ── Player aliases (custom names for systems/planets) ──────────────
+  const [aliases, setAliases] = useState<Record<string, string>>({});
+
   // ── Surface integration state for CommandBar ────────────────────────────
   const surfaceViewRef = useRef<SurfaceViewHandle>(null);
   const [surfacePhase, setSurfacePhase] = useState<SurfacePhase>('generating');
@@ -162,6 +166,7 @@ export function App() {
     })();
 
     getPlayerModels(pid).then(setPlanetModels).catch(() => {});
+    getPlayerAliases(pid).then(setAliases).catch(() => {});
   }, [refreshQuarks]);
 
   // Handle payment redirect (e.g., ?payment=success&topup=true)
@@ -713,8 +718,20 @@ export function App() {
       {showSystemInfoPanel && (
         <SystemInfoPanel
           system={selectedSystem!}
+          displayName={aliases[selectedSystem!.id] ?? undefined}
           onEnterSystem={() => handleEnterSystem(selectedSystem!)}
           onClose={() => setState((prev) => ({ ...prev, selectedSystem: null }))}
+          onRename={(newName) => {
+            const sys = selectedSystem!;
+            setAlias({
+              playerId: playerId.current,
+              entityType: 'system',
+              entityId: sys.id,
+              customName: newName,
+            }).then(() => {
+              setAliases((prev) => ({ ...prev, [sys.id]: newName }));
+            }).catch((err) => console.error('Rename failed:', err));
+          }}
         />
       )}
       {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && (

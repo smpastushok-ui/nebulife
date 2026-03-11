@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { StarSystem } from '@nebulife/core';
 
 const panelStyle: React.CSSProperties = {
@@ -29,19 +29,71 @@ const closeBtnStyle: React.CSSProperties = {
   color: '#667788', fontSize: 16, fontFamily: 'monospace',
 };
 
-export function SystemInfoPanel({ system, onEnterSystem, onClose }: {
+const renameBtnStyle: React.CSSProperties = {
+  cursor: 'pointer', background: 'none', border: 'none',
+  color: '#4488aa', fontSize: 10, fontFamily: 'monospace', marginLeft: 6,
+  padding: '0 4px',
+};
+
+const renameInputStyle: React.CSSProperties = {
+  background: 'rgba(5,10,20,0.8)', border: '1px solid #446688',
+  color: '#ccddee', fontFamily: 'monospace', fontSize: 13,
+  padding: '3px 6px', borderRadius: 3, width: '100%',
+  outline: 'none',
+};
+
+export function SystemInfoPanel({ system, onEnterSystem, onClose, displayName, onRename }: {
   system: StarSystem;
   onEnterSystem: () => void;
   onClose: () => void;
+  displayName?: string;
+  onRename?: (newName: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(displayName ?? system.name);
+
   const star = system.star;
   const habitablePlanets = system.planets.filter(p => p.zone === 'habitable');
   const lifeCount = system.planets.filter(p => p.hasLife).length;
+  const name = displayName ?? system.name;
+
+  const handleSave = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== system.name && onRename) {
+      onRename(trimmed);
+    }
+    setEditing(false);
+  };
 
   return (
     <div style={panelStyle}>
       <div style={headerStyle}>
-        <span>{system.name}</span>
+        {editing ? (
+          <input
+            style={renameInputStyle}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave();
+              if (e.key === 'Escape') setEditing(false);
+            }}
+            onBlur={handleSave}
+            maxLength={50}
+            autoFocus
+          />
+        ) : (
+          <span>
+            {name}
+            {name !== system.name && (
+              <span style={{ color: '#556677', fontSize: 9, marginLeft: 4 }}>({system.name})</span>
+            )}
+            {onRename && (
+              <button style={renameBtnStyle} onClick={() => { setEditValue(name); setEditing(true); }}>
+                [rename]
+              </button>
+            )}
+          </span>
+        )}
         <button style={closeBtnStyle} onClick={onClose}>&times;</button>
       </div>
 
