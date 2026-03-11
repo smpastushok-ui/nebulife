@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import type { Planet, Star } from '@nebulife/core';
 import { startPaymentFlow } from '../../api/payment-api';
 import { checkModelStatus, pollModelUntilComplete } from '../../api/tripo-api';
 import type { ModelStatusResponse } from '../../api/tripo-api';
@@ -16,6 +17,8 @@ interface ModelGenerationOverlayProps {
   systemId: string;
   planetName: string;
   starColor?: string;
+  planet?: Planet;
+  star?: Star;
   existingModelId?: string; // Resume tracking existing generation
   onClose: () => void;
   onModelReady?: (modelId: string, glbUrl: string) => void;
@@ -28,6 +31,8 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
   systemId,
   planetName,
   starColor,
+  planet,
+  star,
   existingModelId,
   onClose,
   onModelReady,
@@ -51,7 +56,13 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
   const handleStartPayment = useCallback(async () => {
     try {
       setPhase('processing_payment');
-      const result = await startPaymentFlow({ playerId, planetId, systemId });
+      const result = await startPaymentFlow({
+        playerId,
+        planetId,
+        systemId,
+        planetData: planet,
+        starData: star,
+      });
       setModelId(result.modelId);
 
       if (result.paidWithQuarks) {

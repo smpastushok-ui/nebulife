@@ -81,5 +81,8 @@ export type {
 // Surface prompt builder
 export { buildSurfacePrompt } from './surface-prompt-builder.js';
 
+// Planet 3D model prompt builder
+export { buildPlanetModelPrompt } from './planet-model-prompt-builder.js';
+
 // Surface photo analyzer
 export { analyzePhotoForZones } from './surface-analyzer.js';

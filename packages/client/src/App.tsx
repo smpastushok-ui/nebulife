@@ -101,6 +101,8 @@ export function App() {
     planetName: string;
     starColor?: string;
     existingModelId?: string;
+    planet?: Planet;
+    star?: Star;
   } | null>(null);
 
   /** Active 3D viewer (when viewing a ready model) */
@@ -416,6 +418,8 @@ export function App() {
       planetName: state.selectedPlanet.name,
       // Only resume existing model if payment was confirmed (paid) — not for stuck awaiting_payment
       existingModelId: existing?.payment_status === 'paid' ? existing.id : undefined,
+      planet: state.selectedPlanet,
+      star: state.selectedSystem.star,
     });
   }, [state.selectedPlanet, state.selectedSystem, planetModels]);
 
@@ -760,6 +764,8 @@ export function App() {
           planetName={modelGenerationTarget.planetName}
           starColor={modelGenerationTarget.starColor}
           existingModelId={modelGenerationTarget.existingModelId}
+          planet={modelGenerationTarget.planet}
+          star={modelGenerationTarget.star}
           onClose={handleCloseModelGeneration}
           onModelReady={handleModelReady}
           onQuarksChanged={refreshQuarks}

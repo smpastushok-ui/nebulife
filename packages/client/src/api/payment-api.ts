@@ -10,6 +10,8 @@ export interface CreatePaymentRequest {
   playerId: string;
   planetId: string;
   systemId: string;
+  planetData?: unknown;
+  starData?: unknown;
 }
 
 export interface CreatePaymentResponse {

@@ -6,9 +6,12 @@ import {
   creditQuarks,
   deductQuarks,
   getPlanetModelByPayment,
+  getPlanetModel,
   updatePlanetModel,
 } from '../../packages/server/src/db.js';
 import { generateImage } from '../../packages/server/src/kling-client.js';
+import { buildPlanetModelPrompt } from '../../packages/server/src/planet-model-prompt-builder.js';
+import type { Planet, Star } from '@nebulife/core';
 
 /**
  * POST /api/payment/callback
@@ -181,7 +184,10 @@ async function handleIntentSuccess(
       status: 'generating_photo',
     });
 
-    const klingPrompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${planetId}, star system: ${systemId}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
+    const model = await getPlanetModel(modelId);
+    const klingPrompt = model?.planet_data && model?.star_data
+      ? buildPlanetModelPrompt(model.planet_data as unknown as Planet, model.star_data as unknown as Star)
+      : `Single alien planet sphere, photorealistic, isolated on pure white background, no stars, scientific visualization, 4K`;
     const { taskId: klingTaskId } = await generateImage({ prompt: klingPrompt, aspectRatio: '1:1' });
     await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
 
@@ -212,7 +218,10 @@ async function handleLegacyModelSuccess(
     status: 'generating_photo',
   });
 
-  const klingPrompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${planetId}, star system: ${systemId}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
+  const legacyModel = await getPlanetModel(modelId);
+  const klingPrompt = legacyModel?.planet_data && legacyModel?.star_data
+    ? buildPlanetModelPrompt(legacyModel.planet_data as unknown as Planet, legacyModel.star_data as unknown as Star)
+    : `Single alien planet sphere, photorealistic, isolated on pure white background, no stars, scientific visualization, 4K`;
   const { taskId: klingTaskId } = await generateImage({ prompt: klingPrompt, aspectRatio: '1:1' });
   await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
 

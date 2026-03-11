@@ -306,6 +306,8 @@ export interface PlanetModelRow {
   tripo_task_id: string | null;
   payment_id: string | null;
   payment_status: string;
+  planet_data: Record<string, unknown> | null;
+  star_data: Record<string, unknown> | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -316,11 +318,16 @@ export async function savePlanetModel(m: {
   planetId: string;
   systemId: string;
   paymentId?: string;
+  planetData?: Record<string, unknown>;
+  starData?: Record<string, unknown>;
 }): Promise<PlanetModelRow> {
   const sql = getSQL();
+  const planetDataJson = m.planetData ? JSON.stringify(m.planetData) : null;
+  const starDataJson = m.starData ? JSON.stringify(m.starData) : null;
   const rows = await sql`
-    INSERT INTO planet_models (id, player_id, planet_id, system_id, payment_id)
-    VALUES (${m.id}, ${m.playerId}, ${m.planetId}, ${m.systemId}, ${m.paymentId ?? null})
+    INSERT INTO planet_models (id, player_id, planet_id, system_id, payment_id, planet_data, star_data)
+    VALUES (${m.id}, ${m.playerId}, ${m.planetId}, ${m.systemId}, ${m.paymentId ?? null},
+            ${planetDataJson}::jsonb, ${starDataJson}::jsonb)
     RETURNING *
   `;
   return rows[0] as PlanetModelRow;

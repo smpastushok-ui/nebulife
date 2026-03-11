@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { Planet, Star } from '@nebulife/core';
 import { getPlanetModel, updatePlanetModel } from '../../../packages/server/src/db.js';
 import { checkTaskStatus as checkKlingStatus, generateImage } from '../../../packages/server/src/kling-client.js';
 import { checkModelTask, createModelTask } from '../../../packages/server/src/tripo-client.js';
+import { buildPlanetModelPrompt } from '../../../packages/server/src/planet-model-prompt-builder.js';
 
 /**
  * GET /api/tripo/status/:modelId
@@ -107,7 +109,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // --- Recovery: no kling_task_id and no photo → (re)start Kling ---
     if (model.status === 'generating_photo' && !model.kling_task_id && !model.kling_photo_url) {
-      const prompt = buildKlingPrompt(model.planet_id, model.system_id);
+      const prompt = model.planet_data && model.star_data
+        ? buildPlanetModelPrompt(model.planet_data as unknown as Planet, model.star_data as unknown as Star)
+        : buildKlingPrompt(model.planet_id, model.system_id);
       const { taskId: klingTaskId } = await generateImage({ prompt, aspectRatio: '1:1' });
       await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
       return res.status(200).json({ status: 'generating_photo', klingPhotoUrl: null });

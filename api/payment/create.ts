@@ -5,13 +5,15 @@ import {
   savePlanetModel,
   savePaymentIntent,
 } from '../../packages/server/src/db.js';
+import { buildPlanetModelPrompt } from '../../packages/server/src/planet-model-prompt-builder.js';
+import type { Planet, Star } from '@nebulife/core';
 
 const MODEL_PRICE_QUARKS = 49;
 
 /**
  * POST /api/payment/create
  *
- * Body: { playerId, planetId, systemId }
+ * Body: { playerId, planetId, systemId, planetData?, starData? }
  *
  * Quarks-first purchase logic:
  * 1. If player has enough quarks → deduct and start generation immediately
@@ -28,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { playerId, planetId, systemId } = req.body;
+    const { playerId, planetId, systemId, planetData, starData } = req.body;
 
     if (!playerId || !planetId || !systemId) {
       return res.status(400).json({ error: 'Missing required fields: playerId, planetId, systemId' });
@@ -52,12 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(409).json({ error: 'Insufficient quarks (race condition)' });
       }
 
-      // Save model with paid status
+      // Save model with paid status + planet/star data for prompt generation
       await savePlanetModel({
         id: modelId,
         playerId,
         planetId,
         systemId,
+        planetData: planetData ?? undefined,
+        starData: starData ?? undefined,
       });
 
       // Import here to avoid circular deps
@@ -69,8 +73,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: 'generating_photo',
       });
 
+      // Build rich planet-specific prompt (white background sphere for Tripo3D)
+      const klingPrompt = planetData && starData
+        ? buildPlanetModelPrompt(planetData as Planet, starData as Star)
+        : `Single alien planet sphere, photorealistic, isolated on pure white background, no stars, scientific visualization, 4K`;
+
       // Create Kling task immediately and store ID — status endpoint will drive the rest
-      const klingPrompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${planetId}, star system: ${systemId}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
       const { taskId: klingTaskId } = await generateImage({ prompt: klingPrompt, aspectRatio: '1:1' });
       await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
 
@@ -85,13 +93,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const deficit = MODEL_PRICE_QUARKS - playerQuarks;
     const reference = `model_${modelId}`;
 
-    // Save planet model with pending status
+    // Save planet model with pending status + planet/star data
     await savePlanetModel({
       id: modelId,
       playerId,
       planetId,
       systemId,
       paymentId: reference,
+      planetData: planetData ?? undefined,
+      starData: starData ?? undefined,
     });
 
     // Save payment intent so callback knows what to do
