@@ -79,13 +79,10 @@ export interface TripoTaskStatusResponse {
     status: string; // 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
     progress: number; // 0-100
     output?: {
-      model?: {
-        url: string;   // URL to download GLB
-        type: string;  // 'glb'
-      };
-      rendered_image?: {
-        url: string;
-      };
+      // Tripo v2 API: model is a direct URL string (not nested object)
+      model?: string | { url: string; type: string };
+      pbr_model?: string;
+      rendered_image?: string | { url: string };
     };
   };
 }
@@ -143,7 +140,11 @@ export async function checkModelTask(taskId: string): Promise<{
       status = 'unknown';
   }
 
-  const glbUrl = result.data.output?.model?.url;
+  // Tripo v2: output.model can be a direct URL string or an object with .url
+  const modelField = result.data.output?.model;
+  const glbUrl = typeof modelField === 'string'
+    ? modelField
+    : modelField?.url;
 
   return { status, progress: result.data.progress ?? 0, glbUrl };
 }
