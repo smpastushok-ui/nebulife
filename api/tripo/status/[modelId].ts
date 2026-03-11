@@ -1,11 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getPlanetModel, updatePlanetModel } from '../../../packages/server/src/db.js';
-import { checkModelTask } from '../../../packages/server/src/tripo-client.js';
+import { checkTaskStatus as checkKlingStatus, generateImage } from '../../../packages/server/src/kling-client.js';
+import { checkModelTask, createModelTask } from '../../../packages/server/src/tripo-client.js';
 
 /**
  * GET /api/tripo/status/:modelId
  *
  * Check the status of a planet 3D model generation.
+ * Acts as a pull-based pipeline driver — each poll advances the pipeline one step.
+ * Pattern mirrors api/surface/status/[id].ts.
+ *
  * Returns: { status, progress?, glbUrl?, klingPhotoUrl? }
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -45,18 +49,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // If generating 3D and we have a tripo task, poll it
+    // --- Tripo phase: has tripo_task_id → poll Tripo ---
     if (model.tripo_task_id && (model.status === 'generating_3d' || model.status === 'running')) {
       const result = await checkModelTask(model.tripo_task_id);
 
       if (result.status === 'success' && result.glbUrl) {
-        // Model ready!
         await updatePlanetModel(modelId, {
           glb_url: result.glbUrl,
           status: 'ready',
           completed_at: new Date().toISOString(),
         });
-
         return res.status(200).json({
           status: 'ready',
           glbUrl: result.glbUrl,
@@ -76,7 +78,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Still generating photo or in queue
+    // --- Kling phase: has kling_task_id but no photo yet → check Kling ---
+    if (model.status === 'generating_photo' && model.kling_task_id && !model.kling_photo_url) {
+      const klingResult = await checkKlingStatus(model.kling_task_id);
+
+      if (klingResult.status === 'succeed' && klingResult.imageUrl) {
+        // Kling done — save photo and create Tripo task
+        await updatePlanetModel(modelId, {
+          kling_photo_url: klingResult.imageUrl,
+          status: 'generating_3d',
+        });
+        const { taskId: tripoTaskId } = await createModelTask(klingResult.imageUrl);
+        await updatePlanetModel(modelId, { tripo_task_id: tripoTaskId });
+        return res.status(200).json({
+          status: 'generating_3d',
+          progress: 0,
+          klingPhotoUrl: klingResult.imageUrl,
+        });
+      }
+
+      if (klingResult.status === 'failed') {
+        await updatePlanetModel(modelId, { status: 'failed' });
+        return res.status(200).json({ status: 'failed' });
+      }
+
+      return res.status(200).json({ status: 'generating_photo', klingPhotoUrl: null });
+    }
+
+    // --- Recovery: no kling_task_id and no photo → (re)start Kling ---
+    if (model.status === 'generating_photo' && !model.kling_task_id && !model.kling_photo_url) {
+      const prompt = buildKlingPrompt(model.planet_id, model.system_id);
+      const { taskId: klingTaskId } = await generateImage({ prompt, aspectRatio: '1:1' });
+      await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
+      return res.status(200).json({ status: 'generating_photo', klingPhotoUrl: null });
+    }
+
+    // --- Recovery: has photo but no tripo task → create Tripo task ---
+    if (model.status === 'generating_3d' && model.kling_photo_url && !model.tripo_task_id) {
+      const { taskId: tripoTaskId } = await createModelTask(model.kling_photo_url);
+      await updatePlanetModel(modelId, { tripo_task_id: tripoTaskId });
+      return res.status(200).json({
+        status: 'generating_3d',
+        progress: 0,
+        klingPhotoUrl: model.kling_photo_url,
+      });
+    }
+
+    // Fallback: return current status
     return res.status(200).json({
       status: model.status,
       klingPhotoUrl: model.kling_photo_url,
@@ -85,4 +133,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Tripo status error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
   }
+}
+
+function buildKlingPrompt(planetId: string, systemId: string): string {
+  return `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${planetId}, star system: ${systemId}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
 }

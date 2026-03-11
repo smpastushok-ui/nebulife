@@ -300,6 +300,7 @@ export interface PlanetModelRow {
   planet_id: string;
   system_id: string;
   status: string;
+  kling_task_id: string | null;
   kling_photo_url: string | null;
   glb_url: string | null;
   tripo_task_id: string | null;
@@ -350,6 +351,7 @@ export async function updatePlanetModel(
   id: string,
   updates: Partial<{
     status: string;
+    kling_task_id: string;
     kling_photo_url: string;
     glb_url: string;
     tripo_task_id: string;
@@ -361,6 +363,7 @@ export async function updatePlanetModel(
   const rows = await sql`
     UPDATE planet_models
     SET status = COALESCE(${updates.status ?? null}, status),
+        kling_task_id = COALESCE(${updates.kling_task_id ?? null}, kling_task_id),
         kling_photo_url = COALESCE(${updates.kling_photo_url ?? null}, kling_photo_url),
         glb_url = COALESCE(${updates.glb_url ?? null}, glb_url),
         tripo_task_id = COALESCE(${updates.tripo_task_id ?? null}, tripo_task_id),

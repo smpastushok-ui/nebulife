@@ -60,18 +60,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         systemId,
       });
 
-      // Import here to avoid circular deps, and start pipeline
+      // Import here to avoid circular deps
       const { updatePlanetModel } = await import('../../packages/server/src/db.js');
+      const { generateImage } = await import('../../packages/server/src/kling-client.js');
+
       await updatePlanetModel(modelId, {
         payment_status: 'paid',
         status: 'generating_photo',
       });
 
-      // Start generation pipeline async
-      startGenerationPipeline(modelId, planetId, systemId).catch((err) => {
-        console.error(`Generation pipeline error for model ${modelId}:`, err);
-        updatePlanetModel(modelId, { status: 'failed' }).catch(() => {});
-      });
+      // Create Kling task immediately and store ID — status endpoint will drive the rest
+      const klingPrompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${planetId}, star system: ${systemId}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
+      const { taskId: klingTaskId } = await generateImage({ prompt: klingPrompt, aspectRatio: '1:1' });
+      await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
 
       return res.status(200).json({
         modelId,
@@ -155,71 +156,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Payment create error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
   }
-}
-
-/**
- * Start the Kling → Tripo pipeline (async, runs after handler responds).
- */
-async function startGenerationPipeline(modelId: string, planetId: string, systemId: string) {
-  const { updatePlanetModel } = await import('../../packages/server/src/db.js');
-  const { generateImage, checkTaskStatus } = await import('../../packages/server/src/kling-client.js');
-  const { createModelTask, checkModelTask } = await import('../../packages/server/src/tripo-client.js');
-
-  // Step 1: Generate planet photo with Kling AI
-  const prompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${planetId}, star system: ${systemId}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
-
-  const { taskId: klingTaskId } = await generateImage({
-    prompt,
-    aspectRatio: '1:1',
-  });
-
-  // Step 2: Poll Kling until complete
-  let imageUrl: string | undefined;
-  for (let i = 0; i < 60; i++) {
-    await sleep(3000);
-    const result = await checkTaskStatus(klingTaskId);
-    if (result.status === 'succeed' && result.imageUrl) {
-      imageUrl = result.imageUrl;
-      break;
-    }
-    if (result.status === 'failed') {
-      throw new Error('Kling photo generation failed');
-    }
-  }
-
-  if (!imageUrl) throw new Error('Kling photo generation timed out');
-
-  await updatePlanetModel(modelId, {
-    kling_photo_url: imageUrl,
-    status: 'generating_3d',
-  });
-
-  // Step 3: Send to Tripo3D
-  const { taskId: tripoTaskId } = await createModelTask(imageUrl);
-  await updatePlanetModel(modelId, { tripo_task_id: tripoTaskId });
-
-  // Step 4: Poll Tripo until complete
-  for (let i = 0; i < 120; i++) {
-    await sleep(5000);
-    const result = await checkModelTask(tripoTaskId);
-    if (result.status === 'success' && result.glbUrl) {
-      await updatePlanetModel(modelId, {
-        glb_url: result.glbUrl,
-        status: 'ready',
-        completed_at: new Date().toISOString(),
-      });
-      return;
-    }
-    if (result.status === 'failed' || result.status === 'cancelled') {
-      throw new Error(`Tripo3D generation ${result.status}`);
-    }
-  }
-
-  throw new Error('Tripo3D generation timed out');
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getBaseUrl(req: VercelRequest): string {

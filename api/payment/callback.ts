@@ -9,7 +9,6 @@ import {
   updatePlanetModel,
 } from '../../packages/server/src/db.js';
 import { generateImage } from '../../packages/server/src/kling-client.js';
-import { createModelTask } from '../../packages/server/src/tripo-client.js';
 
 /**
  * POST /api/payment/callback
@@ -176,16 +175,15 @@ async function handleIntentSuccess(
       return res.status(200).json({ status: 'ok', warning: 'deduction_failed' });
     }
 
-    // Start generation pipeline
+    // Start generation: mark paid, create Kling task, store ID for status endpoint to drive
     await updatePlanetModel(modelId, {
       payment_status: 'paid',
       status: 'generating_photo',
     });
 
-    startGenerationPipeline(modelId, planetId, systemId).catch((err) => {
-      console.error(`Generation pipeline error for model ${modelId}:`, err);
-      updatePlanetModel(modelId, { status: 'failed' }).catch(() => {});
-    });
+    const klingPrompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${planetId}, star system: ${systemId}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
+    const { taskId: klingTaskId } = await generateImage({ prompt: klingPrompt, aspectRatio: '1:1' });
+    await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
 
     console.log(`Purchase model completed: ${modelId}, player ${intent.player_id}`);
     return res.status(200).json({ status: 'ok', type: 'purchase_model' });
@@ -214,67 +212,10 @@ async function handleLegacyModelSuccess(
     status: 'generating_photo',
   });
 
-  startGenerationPipeline(modelId, planetId, systemId).catch((err) => {
-    console.error(`Generation pipeline error for model ${modelId}:`, err);
-    updatePlanetModel(modelId, { status: 'failed' }).catch(() => {});
-  });
+  const klingPrompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${planetId}, star system: ${systemId}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
+  const { taskId: klingTaskId } = await generateImage({ prompt: klingPrompt, aspectRatio: '1:1' });
+  await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
 
   return res.status(200).json({ status: 'ok' });
 }
 
-/**
- * Kling → Tripo generation pipeline (runs async).
- */
-async function startGenerationPipeline(modelId: string, planetId: string, systemId: string) {
-  const prompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${planetId}, star system: ${systemId}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
-
-  const { taskId: klingTaskId } = await generateImage({
-    prompt,
-    aspectRatio: '1:1',
-  });
-
-  let imageUrl: string | undefined;
-  for (let i = 0; i < 60; i++) {
-    await sleep(3000);
-    const { checkTaskStatus } = await import('../../packages/server/src/kling-client.js');
-    const result = await checkTaskStatus(klingTaskId);
-    if (result.status === 'succeed' && result.imageUrl) {
-      imageUrl = result.imageUrl;
-      break;
-    }
-    if (result.status === 'failed') throw new Error('Kling photo generation failed');
-  }
-
-  if (!imageUrl) throw new Error('Kling photo generation timed out');
-
-  await updatePlanetModel(modelId, {
-    kling_photo_url: imageUrl,
-    status: 'generating_3d',
-  });
-
-  const { taskId: tripoTaskId } = await createModelTask(imageUrl);
-  await updatePlanetModel(modelId, { tripo_task_id: tripoTaskId });
-
-  for (let i = 0; i < 120; i++) {
-    await sleep(5000);
-    const { checkModelTask } = await import('../../packages/server/src/tripo-client.js');
-    const result = await checkModelTask(tripoTaskId);
-    if (result.status === 'success' && result.glbUrl) {
-      await updatePlanetModel(modelId, {
-        glb_url: result.glbUrl,
-        status: 'ready',
-        completed_at: new Date().toISOString(),
-      });
-      return;
-    }
-    if (result.status === 'failed' || result.status === 'cancelled') {
-      throw new Error(`Tripo3D generation ${result.status}`);
-    }
-  }
-
-  throw new Error('Tripo3D generation timed out');
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
