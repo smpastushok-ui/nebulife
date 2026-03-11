@@ -121,6 +121,16 @@ export async function getPlayerModels(playerId: string): Promise<PlanetModel[]> 
   return data.models;
 }
 
+/**
+ * Convert a GLB URL to use our proxy (Tripo CDN lacks CORS headers).
+ * If the URL is already a proxy URL, return as-is.
+ */
+export function proxyGlbUrl(modelId: string, glbUrl: string | null): string | null {
+  if (!glbUrl) return null;
+  if (glbUrl.startsWith('/api/tripo/glb/')) return glbUrl;
+  return `/api/tripo/glb/${modelId}`;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

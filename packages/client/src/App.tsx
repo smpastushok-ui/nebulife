@@ -18,7 +18,7 @@ import { WarpOverlay } from './ui/components/WarpOverlay.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
 } from '@nebulife/core';
-import { getPlayerModels } from './api/tripo-api.js';
+import { getPlayerModels, proxyGlbUrl } from './api/tripo-api.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
 import type { PlanetModel } from './api/tripo-api.js';
 import {
@@ -446,9 +446,10 @@ export function App() {
     const model = planetModels.find(
       (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id && m.status === 'ready',
     );
-    if (model?.glb_url) {
+    const proxied = model ? proxyGlbUrl(model.id, model.glb_url) : null;
+    if (proxied) {
       setPlanet3DViewer({
-        glbUrl: model.glb_url,
+        glbUrl: proxied,
         planetName: state.selectedPlanet.name,
       });
     }
