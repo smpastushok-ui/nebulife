@@ -524,11 +524,16 @@ export function App() {
     }
   }, [surfaceTarget, state.selectedSystem, state.scene, handleViewPlanet]);
 
-  // Helper: get model for currently selected planet
+  // Helper: get best model for currently selected planet (prefer ready > generating > failed)
   const selectedPlanetModel = state.selectedPlanet && state.selectedSystem
-    ? planetModels.find(
-        (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id,
-      )
+    ? (() => {
+        const matches = planetModels.filter(
+          (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id,
+        );
+        return matches.find((m) => m.status === 'ready')
+          ?? matches.find((m) => m.status !== 'failed' && m.status !== 'payment_failed')
+          ?? matches[0];
+      })()
     : undefined;
 
   // Determine which panel to show for the selected system
