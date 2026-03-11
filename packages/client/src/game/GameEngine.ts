@@ -130,10 +130,7 @@ export class GameEngine {
       this.playerPos.y,
       this.researchState,
       (system) => {
-        // Smooth zoom to selected system
-        const worldX = system.position.x * 8; // SCALE = 8
-        const worldY = system.position.y * 8;
-        this.camera.animateTo(worldX, worldY, 2.0, 500);
+        // New directional layout — no camera animation needed
         this.callbacks.onSystemSelect(system);
       },
       (system) => {
@@ -159,8 +156,10 @@ export class GameEngine {
 
     this.app.stage.addChild(this.galaxyScene.container);
     this.activeScene = this.galaxyScene.container;
-    this.camera.attach(this.galaxyScene.container);
-    this.camera.reset();
+    // Directional navigation layout — no pan/zoom, position HOME slightly above center
+    this.camera.detach();
+    this.galaxyScene.container.x = this.app.screen.width / 2;
+    this.galaxyScene.container.y = this.app.screen.height * 0.42;
     this.callbacks.onSceneChange('galaxy');
   }
 
@@ -200,6 +199,12 @@ export class GameEngine {
   // Planet view camera controls
   planetViewZoomIn() { this.planetViewScene?.zoomIn(); }
   planetViewZoomOut() { this.planetViewScene?.zoomOut(); }
+
+  /** Hide/show the PixiJS procedural planet (when 3D model is active) */
+  setPlanetVisible(visible: boolean) {
+    this.homePlanetScene?.setPlanetVisible(visible);
+    this.planetViewScene?.setPlanetVisible(visible);
+  }
 
   /** Enter a system (called after warp animation completes) */
   enterSystem(system: StarSystem) {

@@ -263,6 +263,10 @@ export class PlanetViewScene {
     this.updateTerminatorAngle();
   }
 
+  setPlanetVisible(visible: boolean) {
+    this.planetContainer.visible = visible;
+  }
+
   zoomIn() {
     this.viewScale = Math.min(1.8, this.viewScale * 1.2);
     this.applyView();

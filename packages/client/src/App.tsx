@@ -585,6 +585,11 @@ export function App() {
     };
   }, [state.scene, state.selectedPlanet, state.selectedSystem, homeInfo, planetModels]);
 
+  // Hide PixiJS procedural planet when 3D model is showing as background
+  useEffect(() => {
+    engineRef.current?.setPlanetVisible(!backgroundModelInfo);
+  }, [backgroundModelInfo]);
+
   // Determine which panel to show for the selected system
   const selectedSystem = state.selectedSystem;
   const showResearchPanel = selectedSystem

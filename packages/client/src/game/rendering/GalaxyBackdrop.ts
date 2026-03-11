@@ -26,6 +26,17 @@ const NEBULA_COLORS = [
   0xff44aa, // magenta
 ];
 
+/** Individual star that can be animated per-frame (scale, alpha, color) */
+export interface TwinkleStarData {
+  gfx: Graphics;
+  baseAlpha: number;
+  baseScale: number;
+  phaseOffset: number;
+  colorPhase: number;
+  /** Individual speed multiplier (0.4 – 1.8) for chaotic feel */
+  speed: number;
+}
+
 export interface GalaxyBackdropOptions {
   seed: number;
   /** Galaxy center offset in pixels (relative to player at 0,0) */
@@ -38,6 +49,8 @@ export function createGalaxyBackdrop(opts: GalaxyBackdropOptions): {
   accretionDisk: Container;
   /** The full backdrop container (for slow rotation animation) */
   backdropContainer: Container;
+  /** Individually animatable twinkle stars */
+  twinkleStars: TwinkleStarData[];
 } {
   const rng = new SeededRNG(opts.seed * 7919 + 13);
   const container = new Container();
@@ -65,11 +78,15 @@ export function createGalaxyBackdrop(opts: GalaxyBackdropOptions): {
   // Layer 6: Nebulae
   container.addChild(drawNebulae(rng, cx, cy));
 
-  // Layer 7: Black hole + accretion disk
+  // Layer 7: Twinkling stars (individually animated)
+  const { container: twinkleContainer, stars: twinkleStars } = createTwinkleStars(rng, cx, cy);
+  container.addChild(twinkleContainer);
+
+  // Layer 8: Black hole + accretion disk
   const accretionDisk = drawBlackHole(rng, cx, cy);
   container.addChild(accretionDisk);
 
-  return { container, accretionDisk, backdropContainer: container };
+  return { container, accretionDisk, backdropContainer: container, twinkleStars };
 }
 
 function pick(rng: SeededRNG, arr: number[]): number {
@@ -274,7 +291,59 @@ function drawNebulae(rng: SeededRNG, cx: number, cy: number): Graphics {
   return g;
 }
 
-/** Layer 7: Central black hole with accretion disk */
+/** Layer 7: Individually animatable twinkling stars */
+function createTwinkleStars(
+  rng: SeededRNG, cx: number, cy: number,
+): { container: Container; stars: TwinkleStarData[] } {
+  const twinkleContainer = new Container();
+  const stars: TwinkleStarData[] = [];
+  const count = 120;
+
+  for (let i = 0; i < count; i++) {
+    // Distribute across galaxy — mostly along spiral arms + halo
+    const dist = Math.abs(rng.nextGaussian(0, 320));
+    const angle = rng.next() * Math.PI * 2;
+    const x = cx + dist * Math.cos(angle);
+    const y = cy + dist * Math.sin(angle);
+
+    if (Math.abs(x) > HALF || Math.abs(y) > HALF) continue;
+
+    const radius = rng.next() * 1.4 + 0.5;
+    const baseAlpha = rng.next() * 0.3 + 0.08;
+
+    // Draw as white so tint controls color entirely
+    const gfx = new Graphics();
+    gfx.circle(0, 0, radius * 2.8);
+    gfx.fill({ color: 0xffffff, alpha: 0.06 });
+    gfx.circle(0, 0, radius * 1.6);
+    gfx.fill({ color: 0xffffff, alpha: 0.15 });
+    gfx.circle(0, 0, radius);
+    gfx.fill({ color: 0xffffff, alpha: 0.8 });
+
+    gfx.x = x;
+    gfx.y = y;
+    gfx.alpha = baseAlpha;
+
+    // Initial tint: random warm/cool
+    const palette = [...WARM_COLORS, ...COOL_COLORS, ...WHITE_COLORS];
+    gfx.tint = palette[Math.floor(rng.next() * palette.length)];
+
+    twinkleContainer.addChild(gfx);
+
+    stars.push({
+      gfx,
+      baseAlpha,
+      baseScale: 1.0,
+      phaseOffset: rng.next() * Math.PI * 2,
+      colorPhase: rng.next() * Math.PI * 2,
+      speed: 0.4 + rng.next() * 1.4,
+    });
+  }
+
+  return { container: twinkleContainer, stars };
+}
+
+/** Layer 8: Central black hole with accretion disk */
 function drawBlackHole(_rng: SeededRNG, cx: number, cy: number): Container {
   const bhContainer = new Container();
   bhContainer.x = cx;

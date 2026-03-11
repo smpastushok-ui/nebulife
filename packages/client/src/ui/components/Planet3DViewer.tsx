@@ -59,7 +59,9 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
 
     // Scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+    if (isOverlay) {
+      scene.background = new THREE.Color(0x000000);
+    }
 
     // Camera
     const camera = new THREE.PerspectiveCamera(
@@ -73,12 +75,15 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
     // Renderer
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: false,
+      alpha: !isOverlay,
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
+    if (!isOverlay) {
+      renderer.setClearColor(0x000000, 0);
+    }
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -122,6 +127,9 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
     // Star background
     createStarfield(scene);
 
+    // Cloud mesh ref for animation
+    let cloudRef: THREE.Mesh | null = null;
+
     // Load GLB model
     const loader = new GLTFLoader();
     loader.load(
@@ -162,10 +170,11 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
 
         // Add cloud layer if planet has substantial atmosphere
         if (atmosphere && atmosphere.surfacePressureAtm > 0.1) {
-          const cloudMesh = createCloudLayer(maxDim, scale, atmosphere, planetType);
-          if (cloudMesh) {
-            cloudMesh.position.copy(model.position);
-            scene.add(cloudMesh);
+          const cm = createCloudLayer(maxDim, scale, atmosphere, planetType);
+          if (cm) {
+            cm.position.copy(model.position);
+            scene.add(cm);
+            cloudRef = cm;
           }
         }
 
@@ -194,9 +203,22 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
 
     // Animation loop
     let animationId: number;
+    const clock = new THREE.Clock();
     const animate = () => {
       animationId = requestAnimationFrame(animate);
+      const dt = clock.getDelta();
       controls.update();
+
+      // Rotate cloud layer slowly (atmospheric wind)
+      if (cloudRef) {
+        cloudRef.rotation.y += dt * 0.02; // slow drift around Y axis
+        // Update time uniform for shader-based wind
+        const mat = cloudRef.material as THREE.ShaderMaterial;
+        if (mat.uniforms.uTime) {
+          mat.uniforms.uTime.value = clock.elapsedTime;
+        }
+      }
+
       renderer.render(scene, camera);
     };
     animate();
@@ -478,6 +500,7 @@ const CLOUD_VERTEX = `
 const CLOUD_FRAGMENT = `
   uniform vec3 uCloudColor;
   uniform float uCoverage;
+  uniform float uTime;
   varying vec3 vPos;
   varying vec3 vNormal;
   varying vec3 vViewDir;
@@ -514,7 +537,9 @@ const CLOUD_FRAGMENT = `
 
   void main() {
     vec3 n = normalize(vPos);
-    float clouds = fbm(n * 3.5);
+    // Shift noise coordinates over time for wind effect
+    vec3 windOffset = vec3(uTime * 0.015, uTime * 0.005, uTime * 0.008);
+    float clouds = fbm(n * 3.5 + windOffset);
     clouds = smoothstep(0.40, 0.62, clouds);
 
     // Fade at edges (Fresnel-like)
@@ -593,6 +618,7 @@ function createCloudLayer(
     uniforms: {
       uCloudColor: { value: params.color },
       uCoverage: { value: params.coverage },
+      uTime: { value: 0.0 },
     },
     transparent: true,
     side: THREE.FrontSide,
@@ -619,7 +645,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'fixed',
     inset: 0,
     zIndex: 50,
-    background: '#000',
+    background: 'transparent',
     display: 'flex',
     flexDirection: 'column',
   },
