@@ -112,6 +112,8 @@ export function App() {
     glbUrl: string;
     planetName: string;
     starColor?: string;
+    atmosphere?: { surfacePressureAtm: number; composition: Record<string, number>; hasOzone: boolean } | null;
+    planetType?: string;
   } | null>(null);
 
   /** Surface view target */
@@ -448,9 +450,16 @@ export function App() {
     );
     const proxied = model ? proxyGlbUrl(model.id, model.glb_url) : null;
     if (proxied) {
+      const planet = state.selectedPlanet;
       setPlanet3DViewer({
         glbUrl: proxied,
-        planetName: state.selectedPlanet.name,
+        planetName: planet.name,
+        atmosphere: planet.atmosphere ? {
+          surfacePressureAtm: planet.atmosphere.surfacePressureAtm,
+          composition: planet.atmosphere.composition,
+          hasOzone: planet.atmosphere.hasOzone,
+        } : null,
+        planetType: planet.type,
       });
     }
   }, [state.selectedPlanet, state.selectedSystem, planetModels]);
@@ -813,6 +822,8 @@ export function App() {
           glbUrl={planet3DViewer.glbUrl}
           planetName={planet3DViewer.planetName}
           starColor={planet3DViewer.starColor}
+          atmosphere={planet3DViewer.atmosphere}
+          planetType={planet3DViewer.planetType}
           onClose={handleClose3DViewer}
         />
       )}

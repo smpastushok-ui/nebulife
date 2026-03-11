@@ -14,10 +14,18 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // - Star background
 // ---------------------------------------------------------------------------
 
+interface AtmosphereInfo {
+  surfacePressureAtm: number;
+  composition: Record<string, number>; // e.g. { N2: 0.78, O2: 0.21, CO2: 0.01 }
+  hasOzone: boolean;
+}
+
 interface Planet3DViewerProps {
   glbUrl: string;
   planetName: string;
   starColor?: string; // hex color for directional light (simulating star)
+  atmosphere?: AtmosphereInfo | null;
+  planetType?: string; // 'rocky' | 'gas-giant' | 'ice-giant' | 'dwarf'
   onClose: () => void;
 }
 
@@ -25,6 +33,8 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
   glbUrl,
   planetName,
   starColor = '#fff5e0',
+  atmosphere,
+  planetType,
   onClose,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -150,6 +160,16 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         model.position.sub(center.multiplyScalar(scale));
 
         scene.add(model);
+
+        // Add atmosphere glow if planet has one
+        if (atmosphere && atmosphere.surfacePressureAtm > 0.01) {
+          const atmoMesh = createAtmosphere(maxDim, scale, atmosphere, planetType);
+          if (atmoMesh) {
+            atmoMesh.position.copy(model.position);
+            scene.add(atmoMesh);
+          }
+        }
+
         setIsLoading(false);
       },
       (progress) => {
@@ -194,7 +214,7 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         container.removeChild(renderer.domElement);
       }
     };
-  }, [glbUrl, starColor, cleanup]);
+  }, [glbUrl, starColor, atmosphere, planetType, cleanup]);
 
   return (
     <div style={styles.overlay}>
@@ -290,6 +310,142 @@ function createStarfield(scene: THREE.Scene) {
 
   const stars = new THREE.Points(geometry, material);
   scene.add(stars);
+}
+
+// ---------------------------------------------------------------------------
+// Atmosphere — Fresnel-based glow shell
+// ---------------------------------------------------------------------------
+
+// Vertex shader: pass normal and view direction to fragment
+const ATMO_VERTEX = `
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+    vViewDir = normalize(-mvPos.xyz);
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+// Fragment shader: Fresnel edge glow (transparent in center, bright at edges)
+const ATMO_FRAGMENT = `
+  uniform vec3 uColor;
+  uniform float uIntensity;
+  uniform float uPower;
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+  void main() {
+    float fresnel = 1.0 - dot(vNormal, vViewDir);
+    fresnel = pow(max(fresnel, 0.0), uPower);
+    gl_FragColor = vec4(uColor, fresnel * uIntensity);
+  }
+`;
+
+/**
+ * Derive atmosphere color from composition:
+ * - N2/O2 dominant (Earth-like) → blue
+ * - CO2 dominant (Venus/Mars) → orange-amber
+ * - H2/He dominant (gas giants) → pale blue-white
+ * - CH4 dominant (ice giants) → cyan-teal
+ * - Thin/no atmosphere → skip
+ */
+function getAtmosphereColor(
+  atmo: { composition: Record<string, number>; surfacePressureAtm: number },
+  planetType?: string,
+): { color: THREE.Color; intensity: number; power: number; scale: number } {
+  const comp = atmo.composition;
+  const pressure = atmo.surfacePressureAtm;
+
+  // Gas giants — thick hazy shell
+  if (planetType === 'gas-giant') {
+    return {
+      color: new THREE.Color(0.85, 0.75, 0.55),  // warm amber haze
+      intensity: 0.5,
+      power: 2.5,
+      scale: 1.08,
+    };
+  }
+
+  // Ice giants — cyan-teal
+  if (planetType === 'ice-giant') {
+    return {
+      color: new THREE.Color(0.4, 0.75, 0.9),
+      intensity: 0.5,
+      power: 2.5,
+      scale: 1.07,
+    };
+  }
+
+  // CO2 dominant (>40%) — orange haze (Venus-like)
+  if ((comp['CO2'] ?? 0) > 0.4) {
+    return {
+      color: new THREE.Color(0.9, 0.6, 0.3),
+      intensity: Math.min(0.7, 0.3 + pressure * 0.05),
+      power: 2.0,
+      scale: 1.04 + Math.min(pressure * 0.005, 0.06),
+    };
+  }
+
+  // N2+O2 dominant — blue (Earth-like)
+  if ((comp['N2'] ?? 0) > 0.5 || (comp['O2'] ?? 0) > 0.1) {
+    return {
+      color: new THREE.Color(0.4, 0.65, 1.0),
+      intensity: Math.min(0.6, 0.25 + pressure * 0.15),
+      power: 3.0,
+      scale: 1.03 + Math.min(pressure * 0.01, 0.04),
+    };
+  }
+
+  // H2/He dominant — pale white
+  if ((comp['H2'] ?? 0) > 0.3 || (comp['He'] ?? 0) > 0.2) {
+    return {
+      color: new THREE.Color(0.8, 0.85, 1.0),
+      intensity: 0.4,
+      power: 2.5,
+      scale: 1.06,
+    };
+  }
+
+  // Default thin atmosphere — faint blue-grey
+  return {
+    color: new THREE.Color(0.5, 0.6, 0.8),
+    intensity: Math.min(0.35, 0.15 + pressure * 0.1),
+    power: 4.0,
+    scale: 1.02,
+  };
+}
+
+function createAtmosphere(
+  modelMaxDim: number,
+  modelScale: number,
+  atmo: { surfacePressureAtm: number; composition: Record<string, number>; hasOzone: boolean },
+  planetType?: string,
+): THREE.Mesh | null {
+  if (atmo.surfacePressureAtm < 0.01) return null;
+
+  const { color, intensity, power, scale: atmoScale } = getAtmosphereColor(atmo, planetType);
+
+  // Atmosphere sphere slightly larger than the planet
+  const planetRadius = (modelMaxDim / 2) * modelScale;
+  const atmoRadius = planetRadius * atmoScale;
+
+  const geometry = new THREE.SphereGeometry(atmoRadius, 64, 64);
+  const material = new THREE.ShaderMaterial({
+    vertexShader: ATMO_VERTEX,
+    fragmentShader: ATMO_FRAGMENT,
+    uniforms: {
+      uColor: { value: color },
+      uIntensity: { value: intensity },
+      uPower: { value: power },
+    },
+    transparent: true,
+    side: THREE.FrontSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  return new THREE.Mesh(geometry, material);
 }
 
 // ---------------------------------------------------------------------------
