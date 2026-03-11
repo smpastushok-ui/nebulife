@@ -18,6 +18,8 @@ export interface GameCallbacks {
   onSystemSelect: (system: StarSystem) => void;
   onPlanetSelect: (planet: Planet, screenPos: { x: number; y: number }) => void;
   onSceneChange: (scene: 'galaxy' | 'system' | 'home-intro' | 'planet-view') => void;
+  /** Called when player wants to enter a system (double-click). App shows warp overlay then calls enterSystem(). */
+  onWarpToSystem?: (system: StarSystem) => void;
 }
 
 const GALAXY_SEED = 42;
@@ -74,10 +76,12 @@ export class GameEngine {
 
     // Animation loop
     this.app.ticker.add(() => {
-      this.galaxyScene?.update(this.app.ticker.deltaMS);
-      this.systemScene?.update(this.app.ticker.deltaMS);
-      this.homePlanetScene?.update(this.app.ticker.deltaMS);
-      this.planetViewScene?.update(this.app.ticker.deltaMS);
+      const dt = this.app.ticker.deltaMS;
+      this.camera.update(dt);
+      this.galaxyScene?.update(dt);
+      this.systemScene?.update(dt);
+      this.homePlanetScene?.update(dt);
+      this.planetViewScene?.update(dt);
     });
   }
 
@@ -126,6 +130,10 @@ export class GameEngine {
       this.playerPos.y,
       this.researchState,
       (system) => {
+        // Smooth zoom to selected system
+        const worldX = system.position.x * 8; // SCALE = 8
+        const worldY = system.position.y * 8;
+        this.camera.animateTo(worldX, worldY, 2.0, 500);
         this.callbacks.onSystemSelect(system);
       },
       (system) => {
@@ -134,8 +142,14 @@ export class GameEngine {
           || isSystemFullyResearched(this.researchState, system.id);
         if (canEnter) {
           this.callbacks.onSystemSelect(system);
-          this.showSystemScene(system);
-          this.callbacks.onSceneChange('system');
+          if (this.callbacks.onWarpToSystem) {
+            // Use warp animation — App will call enterSystem() after animation
+            this.callbacks.onWarpToSystem(system);
+          } else {
+            // Fallback: instant transition
+            this.showSystemScene(system);
+            this.callbacks.onSceneChange('system');
+          }
         } else {
           // Just select it (will show research panel)
           this.callbacks.onSystemSelect(system);
@@ -186,6 +200,12 @@ export class GameEngine {
   // Planet view camera controls
   planetViewZoomIn() { this.planetViewScene?.zoomIn(); }
   planetViewZoomOut() { this.planetViewScene?.zoomOut(); }
+
+  /** Enter a system (called after warp animation completes) */
+  enterSystem(system: StarSystem) {
+    this.showSystemScene(system);
+    this.callbacks.onSceneChange('system');
+  }
 
   /** Get all systems from all rings. */
   getAllSystems(): StarSystem[] {

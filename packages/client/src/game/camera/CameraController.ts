@@ -10,6 +10,17 @@ export class CameraController {
   private minScale = 0.1;
   private maxScale = 5;
 
+  // Smooth animation state
+  private animating = false;
+  private animStartTime = 0;
+  private animDuration = 0;
+  private animStartX = 0;
+  private animStartY = 0;
+  private animStartScale = 0;
+  private animEndX = 0;
+  private animEndY = 0;
+  private animEndScale = 0;
+
   private onWheel: (e: WheelEvent) => void;
   private onPointerDown: (e: PointerEvent) => void;
   private onPointerMove: (e: PointerEvent) => void;
@@ -94,7 +105,43 @@ export class CameraController {
     this.target = null;
   }
 
+  /** Smoothly animate camera to center on a world position at a target scale */
+  animateTo(worldX: number, worldY: number, targetScale: number, durationMs = 500) {
+    if (!this.target) return;
+    this.animating = true;
+    this.animStartTime = Date.now();
+    this.animDuration = durationMs;
+    this.animStartX = this.target.x;
+    this.animStartY = this.target.y;
+    this.animStartScale = this.scale;
+    this.animEndScale = Math.max(this.minScale, Math.min(this.maxScale, targetScale));
+    const w = this.app.screen.width;
+    const h = this.app.screen.height;
+    this.animEndX = w / 2 - worldX * this.animEndScale;
+    this.animEndY = h / 2 - worldY * this.animEndScale;
+  }
+
+  /** Call from ticker each frame to drive camera animations */
+  update(_deltaMs: number) {
+    if (!this.animating || !this.target) return;
+
+    const elapsed = Date.now() - this.animStartTime;
+    let t = Math.min(1, elapsed / this.animDuration);
+    // Ease out cubic
+    t = 1 - Math.pow(1 - t, 3);
+
+    this.target.x = this.animStartX + (this.animEndX - this.animStartX) * t;
+    this.target.y = this.animStartY + (this.animEndY - this.animStartY) * t;
+    this.scale = this.animStartScale + (this.animEndScale - this.animStartScale) * t;
+    this.target.scale.set(this.scale);
+
+    if (t >= 1) {
+      this.animating = false;
+    }
+  }
+
   reset() {
+    this.animating = false;
     this.scale = 1;
     if (this.target) {
       this.target.scale.set(1);

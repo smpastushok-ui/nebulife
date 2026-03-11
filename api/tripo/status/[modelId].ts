@@ -34,11 +34,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'Planet model not found' });
     }
 
-    // If already complete, return cached result
+    // If already complete, return proxied URL (Tripo CDN doesn't have CORS headers)
     if (model.status === 'ready' && model.glb_url) {
       return res.status(200).json({
         status: 'ready',
-        glbUrl: model.glb_url,
+        glbUrl: `/api/tripo/glb/${modelId}`,
         klingPhotoUrl: model.kling_photo_url,
       });
     }
@@ -68,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
         return res.status(200).json({
           status: 'ready',
-          glbUrl: result.glbUrl,
+          glbUrl: `/api/tripo/glb/${modelId}`,
           klingPhotoUrl: model.kling_photo_url,
         });
       }

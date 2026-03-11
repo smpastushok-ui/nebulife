@@ -14,6 +14,7 @@ import Planet3DViewer from './ui/components/Planet3DViewer.js';
 import { SurfaceView } from './ui/components/SurfaceView.js';
 import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfaceView.js';
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
+import { WarpOverlay } from './ui/components/WarpOverlay.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
 } from '@nebulife/core';
@@ -121,6 +122,9 @@ export function App() {
   /** Quarks (in-game currency) */
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+
+  // ── Warp animation state ──────────────────────────────────────────────
+  const [warpTarget, setWarpTarget] = useState<StarSystem | null>(null);
 
   // ── Surface integration state for CommandBar ────────────────────────────
   const surfaceViewRef = useRef<SurfaceViewHandle>(null);
@@ -266,6 +270,9 @@ export function App() {
           ...prev, scene, selectedPlanet: null,
           showPlanetMenu: false, showPlanetInfo: false, planetClickPos: null,
         }));
+      },
+      onWarpToSystem: (system) => {
+        setWarpTarget(system);
       },
     });
 
@@ -797,6 +804,19 @@ export function App() {
           onBuildingCountChange={setSurfaceBuildingCount}
           onPhaseChange={setSurfacePhase}
           onBuildPanelChange={setSurfaceBuildPanelOpen}
+        />
+      )}
+      {/* Warp Animation Overlay */}
+      {warpTarget && (
+        <WarpOverlay
+          systemName={warpTarget.name}
+          onComplete={() => {
+            const system = warpTarget;
+            setWarpTarget(null);
+            if (engineRef.current && system) {
+              engineRef.current.enterSystem(system);
+            }
+          }}
         />
       )}
       {/* Quark Top-Up Modal */}

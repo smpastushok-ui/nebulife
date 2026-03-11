@@ -14,6 +14,8 @@ interface SystemNode {
   progressRing: Graphics | null;
   questionMark: Text | null;
   checkMark: Graphics | null;
+  baseAlpha: number;
+  phaseOffset: number;
 }
 
 export class GalaxyScene {
@@ -21,7 +23,12 @@ export class GalaxyScene {
   private systemNodes: Map<string, SystemNode> = new Map();
   private time = 0;
   private accretionDisk: Container | null = null;
+  private backdropContainer: Container | null = null;
   private researchState: ResearchState;
+  private beamGraphics: Graphics | null = null;
+  private selectedSystemId: string | null = null;
+  private homeSystemPos: { x: number; y: number } | null = null;
+  private beamAlpha = 0;
 
   constructor(
     rings: GalaxyRing[],
@@ -46,9 +53,17 @@ export class GalaxyScene {
     });
     this.container.addChild(backdrop.container);
     this.accretionDisk = backdrop.accretionDisk;
+    this.backdropContainer = backdrop.backdropContainer;
 
-    // Draw ring boundaries (subtle)
-    this.drawRingBoundaries(rings);
+    // Find home system position for beam drawing
+    const homeSystem = rings.flatMap(r => r.starSystems).find(s => s.ownerPlayerId !== null);
+    if (homeSystem) {
+      this.homeSystemPos = { x: homeSystem.position.x * SCALE, y: homeSystem.position.y * SCALE };
+    }
+
+    // Beam graphics layer (drawn between connections and system nodes)
+    this.beamGraphics = new Graphics();
+    this.container.addChild(this.beamGraphics);
 
     // Draw connections between nearby systems (only visible ones)
     this.drawConnections(rings);
@@ -58,27 +73,6 @@ export class GalaxyScene {
       for (const system of ring.starSystems) {
         this.addSystemNode(system);
       }
-    }
-  }
-
-  private drawRingBoundaries(rings: GalaxyRing[]) {
-    const maxRing = rings.length;
-    for (let r = 1; r <= maxRing; r++) {
-      const radius = r * 5 * SCALE;
-      const circle = new Graphics();
-      circle.circle(0, 0, radius);
-      circle.stroke({ width: 0.3, color: 0x334455, alpha: 0.15 });
-      this.container.addChild(circle);
-
-      const label = new Text({
-        text: `Ring ${r}`,
-        style: { fontSize: 8, fill: 0x334455, fontFamily: 'monospace' },
-      });
-      label.anchor.set(0, 0.5);
-      label.x = radius + 4;
-      label.y = 0;
-      label.alpha = 0.4;
-      this.container.addChild(label);
     }
   }
 
@@ -120,14 +114,48 @@ export class GalaxyScene {
     return 'unexplored';
   }
 
+  /** Simple hash from string to get a deterministic phase offset */
+  private hashStringToFloat(s: string): number {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    }
+    return (Math.abs(h) % 10000) / 10000 * Math.PI * 2;
+  }
+
+  /** Get color for planet habitability dot */
+  private getHabitabilityColor(planet: { isHomePlanet: boolean; isColonizable: boolean; habitability?: { overall: number } }): number {
+    if (planet.isHomePlanet) return 0x44ff88;                    // green — colonized
+    if (planet.isColonizable && (planet.habitability?.overall ?? 0) > 0.5) return 0xddaa44; // yellow — habitable
+    return 0x556677;                                              // dim — other
+  }
+
+  /** Draw small planet dots orbiting around a system node */
+  private drawPlanetDots(parent: Container, planets: Array<{ isHomePlanet: boolean; isColonizable: boolean; habitability?: { overall: number } }>) {
+    const count = planets.length;
+    if (count === 0) return;
+    const orbitRadius = 18;
+    const g = new Graphics();
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+      const px = Math.cos(angle) * orbitRadius;
+      const py = Math.sin(angle) * orbitRadius;
+      const color = this.getHabitabilityColor(planets[i]);
+      g.circle(px, py, 2);
+      g.fill({ color, alpha: color === 0x556677 ? 0.3 : 0.7 });
+    }
+    parent.addChild(g);
+  }
+
   private addSystemNode(system: StarSystem) {
     const x = system.position.x * SCALE;
     const y = system.position.y * SCALE;
     const state = this.getSystemVisualState(system);
     const progress = getResearchProgress(this.researchState, system.id);
+    const phaseOffset = this.hashStringToFloat(system.id);
 
     const isHome = state === 'home';
-    const dotRadius = isHome ? 7 : state === 'researched' ? 6 : 5;
+    const dotRadius = isHome ? 10 : state === 'researched' ? 6 : 5;
     const starDot = renderStarDot(system.star, dotRadius, false);
     starDot.x = x;
     starDot.y = y;
@@ -141,31 +169,39 @@ export class GalaxyScene {
     // Visual state-specific rendering
     switch (state) {
       case 'home': {
-        // Green rings
+        // Double green rings (larger HOME node)
         const homeRing = new Graphics();
-        homeRing.circle(0, 0, 14);
-        homeRing.stroke({ width: 1.5, color: 0x44ff88, alpha: 0.6 });
+        homeRing.circle(0, 0, 18);
+        homeRing.stroke({ width: 2, color: 0x44ff88, alpha: 0.6 });
         starDot.addChild(homeRing);
 
         const glowRing = new Graphics();
-        glowRing.circle(0, 0, 20);
+        glowRing.circle(0, 0, 26);
         glowRing.stroke({ width: 1, color: 0x44ff88, alpha: 0.15 });
         starDot.addChild(glowRing);
 
+        const outerGlow = new Graphics();
+        outerGlow.circle(0, 0, 34);
+        outerGlow.stroke({ width: 0.5, color: 0x44ff88, alpha: 0.06 });
+        starDot.addChild(outerGlow);
+
+        // Planet habitability dots
+        this.drawPlanetDots(starDot, system.planets);
+
         const homeLabel = new Text({
           text: 'HOME',
-          style: { fontSize: 8, fill: 0x44ff88, fontFamily: 'monospace' },
+          style: { fontSize: 10, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold' },
         });
         homeLabel.anchor.set(0.5, 0);
-        homeLabel.y = 16;
+        homeLabel.y = 22;
         starDot.addChild(homeLabel);
 
         nameLabel = new Text({
           text: system.name,
-          style: { fontSize: 8, fill: 0x8899aa, fontFamily: 'monospace' },
+          style: { fontSize: 9, fill: 0x8899aa, fontFamily: 'monospace' },
         });
         nameLabel.anchor.set(0.5, 0);
-        nameLabel.y = 26;
+        nameLabel.y = 34;
         starDot.addChild(nameLabel);
 
         planetLabel = new Text({
@@ -173,7 +209,7 @@ export class GalaxyScene {
           style: { fontSize: 7, fill: 0x667788, fontFamily: 'monospace' },
         });
         planetLabel.anchor.set(0.5, 0);
-        planetLabel.y = 36;
+        planetLabel.y = 45;
         starDot.addChild(planetLabel);
         break;
       }
@@ -185,12 +221,15 @@ export class GalaxyScene {
         checkMark.stroke({ width: 1, color: 0x44ff88, alpha: 0.4 });
         starDot.addChild(checkMark);
 
+        // Planet habitability dots
+        this.drawPlanetDots(starDot, system.planets);
+
         nameLabel = new Text({
           text: system.name,
           style: { fontSize: 8, fill: 0x8899aa, fontFamily: 'monospace' },
         });
         nameLabel.anchor.set(0.5, 0);
-        nameLabel.y = 10;
+        nameLabel.y = 22;
         starDot.addChild(nameLabel);
 
         planetLabel = new Text({
@@ -198,7 +237,7 @@ export class GalaxyScene {
           style: { fontSize: 7, fill: 0x667788, fontFamily: 'monospace' },
         });
         planetLabel.anchor.set(0.5, 0);
-        planetLabel.y = 20;
+        planetLabel.y = 32;
         starDot.addChild(planetLabel);
         break;
       }
@@ -257,6 +296,19 @@ export class GalaxyScene {
       }
     }
 
+    // Observatory marker if this system has an active research slot
+    const hasObservatory = this.researchState.slots.some(s => s.systemId === system.id);
+    if (hasObservatory) {
+      const obsMarker = new Text({
+        text: '[O]',
+        style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
+      });
+      obsMarker.anchor.set(0.5, 0.5);
+      obsMarker.x = dotRadius + 10;
+      obsMarker.y = -6;
+      starDot.addChild(obsMarker);
+    }
+
     // Interactivity
     starDot.eventMode = 'static';
     starDot.cursor = 'pointer';
@@ -269,7 +321,10 @@ export class GalaxyScene {
       clickCount++;
       if (clickCount === 1) {
         clickTimer = setTimeout(() => {
-          if (clickCount === 1) this.onSelect(system);
+          if (clickCount === 1) {
+            this.selectSystem(system.id);
+            this.onSelect(system);
+          }
           clickCount = 0;
         }, 300);
       } else if (clickCount === 2) {
@@ -280,15 +335,15 @@ export class GalaxyScene {
     });
 
     // Hover effect
-    const baseAlpha = starDot.alpha;
+    const nodeBaseAlpha = starDot.alpha;
     starDot.on('pointerover', () => {
       starDot.scale.set(1.3);
-      starDot.alpha = Math.min(1, baseAlpha + 0.3);
+      starDot.alpha = Math.min(1, nodeBaseAlpha + 0.3);
       nameLabel.style.fill = state === 'unexplored' ? 0x778899 : 0xffffff;
     });
     starDot.on('pointerout', () => {
       starDot.scale.set(1.0);
-      starDot.alpha = baseAlpha;
+      starDot.alpha = nodeBaseAlpha;
       nameLabel.style.fill = state === 'home' || state === 'researched' ? 0x8899aa : state === 'researching' ? 0x556677 : 0x445566;
     });
 
@@ -301,7 +356,15 @@ export class GalaxyScene {
       progressRing,
       questionMark,
       checkMark,
+      baseAlpha: starDot.alpha,
+      phaseOffset,
     });
+  }
+
+  /** Select a system — draws beam from HOME to selected system */
+  selectSystem(systemId: string | null) {
+    this.selectedSystemId = systemId;
+    this.beamAlpha = 0; // reset beam animation
   }
 
   private drawProgressArc(g: Graphics, progress: number, radius: number) {
@@ -389,10 +452,41 @@ export class GalaxyScene {
       this.accretionDisk.rotation += deltaMs * 0.0003;
     }
 
-    // Pulse home system
+    // Slow galaxy backdrop rotation (~1 revolution per 87 minutes)
+    if (this.backdropContainer) {
+      this.backdropContainer.rotation += deltaMs * 0.000012;
+    }
+
+    // Animate system nodes: home pulse + star twinkling
     for (const [, node] of this.systemNodes) {
       if (node.system.ownerPlayerId) {
+        // Home system: gentle pulse
         node.container.alpha = 0.85 + Math.sin(this.time * 0.002) * 0.15;
+      } else {
+        // All other stars: subtle twinkling
+        const twinkle = Math.sin(this.time * 0.0015 + node.phaseOffset) * 0.08;
+        node.container.alpha = node.baseAlpha + twinkle;
+      }
+    }
+
+    // Animate beam from HOME to selected system
+    if (this.beamGraphics) {
+      this.beamGraphics.clear();
+      if (this.selectedSystemId && this.homeSystemPos) {
+        const targetNode = this.systemNodes.get(this.selectedSystemId);
+        if (targetNode && targetNode.system.ownerPlayerId === null) {
+          // Fade in beam
+          this.beamAlpha = Math.min(0.6, this.beamAlpha + deltaMs * 0.002);
+          const tx = targetNode.system.position.x * SCALE;
+          const ty = targetNode.system.position.y * SCALE;
+          this.beamGraphics.moveTo(this.homeSystemPos.x, this.homeSystemPos.y);
+          this.beamGraphics.lineTo(tx, ty);
+          this.beamGraphics.stroke({ width: 1.5, color: 0x4488aa, alpha: this.beamAlpha });
+          // Glow beam
+          this.beamGraphics.moveTo(this.homeSystemPos.x, this.homeSystemPos.y);
+          this.beamGraphics.lineTo(tx, ty);
+          this.beamGraphics.stroke({ width: 4, color: 0x4488aa, alpha: this.beamAlpha * 0.15 });
+        }
       }
     }
   }

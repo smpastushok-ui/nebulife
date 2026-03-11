@@ -36,6 +36,8 @@ export interface GalaxyBackdropOptions {
 export function createGalaxyBackdrop(opts: GalaxyBackdropOptions): {
   container: Container;
   accretionDisk: Container;
+  /** The full backdrop container (for slow rotation animation) */
+  backdropContainer: Container;
 } {
   const rng = new SeededRNG(opts.seed * 7919 + 13);
   const container = new Container();
@@ -67,7 +69,7 @@ export function createGalaxyBackdrop(opts: GalaxyBackdropOptions): {
   const accretionDisk = drawBlackHole(rng, cx, cy);
   container.addChild(accretionDisk);
 
-  return { container, accretionDisk };
+  return { container, accretionDisk, backdropContainer: container };
 }
 
 function pick(rng: SeededRNG, arr: number[]): number {
