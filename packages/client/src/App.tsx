@@ -19,6 +19,7 @@ import { SurfaceView } from './ui/components/SurfaceView.js';
 import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfaceView.js';
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
 import { WarpOverlay } from './ui/components/WarpOverlay.js';
+import { SystemNavHeader } from './ui/components/SystemNavHeader.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
 } from '@nebulife/core';
@@ -613,6 +614,19 @@ export function App() {
     }
   }, [state.selectedSystem]);
 
+  // ── System-to-system navigation (arrows in SystemNavHeader) ─────────
+  const handleNavToSystem = useCallback((system: StarSystem) => {
+    engineRef.current?.showSystemScene(system);
+    setState((prev) => ({
+      ...prev,
+      scene: 'system' as const,
+      selectedSystem: system,
+      selectedPlanet: null,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+    }));
+  }, []);
+
   // ── Discovery handlers ───────────────────────────────────────────────
   const handleInvestigateDiscovery = useCallback(() => {
     if (pendingDiscovery) {
@@ -898,6 +912,26 @@ export function App() {
       })()
     : null;
 
+  // ── System nav header (prev/next navigable systems) ──────────────────
+  // Computed inline (not useMemo) because engineRef isn't reactive but is
+  // always initialised by the time state.scene === 'system'.
+  const navigableSystems: StarSystem[] =
+    state.scene === 'system' && engineRef.current
+      ? engineRef.current.getAllSystems().filter(
+          (s) => s.ownerPlayerId !== null || isSystemFullyResearched(researchState, s.id),
+        )
+      : [];
+
+  const currentNavIndex = state.selectedSystem
+    ? navigableSystems.findIndex((s) => s.id === state.selectedSystem!.id)
+    : -1;
+
+  const prevNavSystem = currentNavIndex > 0 ? navigableSystems[currentNavIndex - 1] : null;
+  const nextNavSystem =
+    currentNavIndex >= 0 && currentNavIndex < navigableSystems.length - 1
+      ? navigableSystems[currentNavIndex + 1]
+      : null;
+
   // ── CommandBar data ──────────────────────────────────────────────────
   const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
 
@@ -1075,6 +1109,20 @@ export function App() {
         onNavigate={handleBreadcrumbNavigate}
         onTopUp={() => setShowTopUpModal(true)}
       />
+
+      {/* System navigation header — fixed top-center, visible when inside a system */}
+      {state.scene === 'system' && state.selectedSystem && (
+        <SystemNavHeader
+          currentSystem={state.selectedSystem}
+          currentAlias={aliases[state.selectedSystem.id]}
+          prevSystem={prevNavSystem}
+          prevAlias={prevNavSystem ? aliases[prevNavSystem.id] : undefined}
+          nextSystem={nextNavSystem}
+          nextAlias={nextNavSystem ? aliases[nextNavSystem.id] : undefined}
+          onPrev={() => prevNavSystem && handleNavToSystem(prevNavSystem)}
+          onNext={() => nextNavSystem && handleNavToSystem(nextNavSystem)}
+        />
+      )}
 
       {showResearchPanel && (
         <ResearchPanel
