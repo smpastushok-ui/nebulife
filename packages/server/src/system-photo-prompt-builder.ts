@@ -136,6 +136,7 @@ function getArtisticDirection(spectralClass: SpectralClass): string {
 /**
  * Build a Gemini-optimized prompt for generating a cinematic star system photo.
  * English only, rich visual description, JWST/Hubble aesthetic.
+ * Includes structured scientific catalog of all objects in the system.
  */
 export function buildGeminiSystemPhotoPrompt(system: StarSystem): string {
   const { star, planets } = system;
@@ -145,18 +146,60 @@ export function buildGeminiSystemPhotoPrompt(system: StarSystem): string {
     star.spectralClass, star.subType, star.temperatureK, star.colorHex,
   );
 
-  // Build detailed planet descriptions
-  const planetDetails = planets.map((p, i) => {
+  // ── Structured system catalog (scientific data for Gemini) ──────────
+  const starCatalog = [
+    `SYSTEM CATALOG:`,
+    `Star: ${star.name}, spectral class ${star.spectralClass}${star.subType}V,`,
+    `temperature ${Math.round(star.temperatureK)}K, mass ${star.massSolar.toFixed(2)} M☉,`,
+    `radius ${star.radiusSolar.toFixed(2)} R☉, luminosity class ${starColor}.`,
+  ].join(' ');
+
+  const sortedPlanets = [...planets].sort(
+    (a, b) => a.orbit.semiMajorAxisAU - b.orbit.semiMajorAxisAU,
+  );
+
+  const planetCatalog = sortedPlanets.map((p, i) => {
+    // Composition descriptor
+    let composition: string;
+    if (p.type === 'gas-giant') composition = 'hydrogen-helium gas giant';
+    else if (p.type === 'ice-giant') composition = 'water-methane-ammonia ice giant';
+    else if (p.type === 'dwarf') composition = 'rocky-icy dwarf body';
+    else if (p.surfaceTempK > 900) composition = 'molten silicate-iron rocky world';
+    else if (p.hydrosphere && p.hydrosphere.waterCoverageFraction > 0.4) composition = 'silicate-iron rocky world with global ocean';
+    else if (p.surfaceTempK < 180) composition = 'rocky-ice world with frozen surface';
+    else composition = 'silicate-iron rocky world';
+
+    // Moon list
+    const moonList = p.moons.length > 0
+      ? p.moons.map(m =>
+          `${m.name} (${m.compositionType}, radius ${Math.round(m.radiusKm)}km, orbit ${Math.round(m.orbitalRadiusKm)}km)`,
+        ).join('; ')
+      : 'none';
+
+    const atmoDesc = p.atmosphere
+      ? `atm pressure ${p.atmosphere.surfacePressureAtm.toFixed(2)}atm`
+      : 'no atmosphere';
+
+    return [
+      `Planet ${i + 1}: ${p.name},`,
+      `type=${p.type}, composition=${composition},`,
+      `radius=${p.radiusEarth.toFixed(2)} Earth radii, mass=${p.massEarth.toFixed(3)} Earth masses,`,
+      `orbit=${p.orbit.semiMajorAxisAU.toFixed(3)}AU,`,
+      `surface temp=${Math.round(p.surfaceTempK)}K, ${atmoDesc}.`,
+      `Moons: ${moonList}.`,
+    ].join(' ');
+  }).join(' ');
+
+  // ── Cinematic planet visuals (for image composition) ──────────────
+  const planetDetails = sortedPlanets.map((p, i) => {
     const parts: string[] = [];
 
-    // Size category
     if (p.radiusEarth < 0.5) parts.push('a small rocky body');
     else if (p.radiusEarth < 1.5) parts.push('an Earth-sized world');
     else if (p.radiusEarth < 4) parts.push('a super-Earth');
     else if (p.radiusEarth < 10) parts.push('a Neptune-class ice giant');
     else parts.push('a massive gas giant');
 
-    // Type-specific visuals
     if (p.type === 'gas-giant') {
       const bandColors = p.surfaceTempK > 700
         ? 'with incandescent orange-red cloud bands'
@@ -178,20 +221,15 @@ export function buildGeminiSystemPhotoPrompt(system: StarSystem): string {
       parts.push('with a barren rocky surface and impact craters');
     }
 
-    // Atmosphere
     if (p.atmosphere && p.atmosphere.surfacePressureAtm > 2) {
       parts.push('shrouded in thick hazy atmosphere');
     } else if (p.atmosphere && p.atmosphere.surfacePressureAtm > 0.1) {
       parts.push('with a thin atmospheric halo visible at the limb');
     }
 
-    // Moons
     const moons = p.moons?.length ?? 0;
-    if (moons > 2) {
-      parts.push(`accompanied by ${moons} moons`);
-    } else if (moons === 1) {
-      parts.push('with a single moon nearby');
-    }
+    if (moons > 2) parts.push(`accompanied by ${moons} moons`);
+    else if (moons === 1) parts.push('with a single moon nearby');
 
     return `Planet ${i + 1} is ${parts.join(', ')}`;
   }).join('. ');
@@ -201,10 +239,13 @@ export function buildGeminiSystemPhotoPrompt(system: StarSystem): string {
 
   // Compose the full prompt
   return [
+    starCatalog,
+    planetCatalog,
+    `---`,
     `A breathtaking deep space photograph captured by a next-generation space telescope.`,
     `The scene shows a ${starDesc} at the center of the frame,`,
     `radiating intense ${starColor} light with subtle lens diffraction spikes.`,
-    `${planets.length} planets orbit at various distances in the system.`,
+    `${sortedPlanets.length} planets orbit at various distances in the system.`,
     planetDetails + '.',
     cinematicDir,
     `Ultra high resolution astrophotography, NASA JWST quality,`,

@@ -21,6 +21,7 @@ import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
 import { WarpOverlay } from './ui/components/WarpOverlay.js';
 import { SystemNavHeader } from './ui/components/SystemNavHeader.js';
 import { SystemObjectsPanel } from './ui/components/SystemObjectsPanel.js';
+import { PlanetDetailWindow } from './ui/components/PlanetDetailWindow.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
 } from '@nebulife/core';
@@ -86,8 +87,8 @@ export function App() {
   // Timer text per slot
   const [slotTimers, setSlotTimers] = useState<Record<number, string>>({});
 
-  // Intro button visibility (appears after 3 seconds)
-  const [showExploreBtn, setShowExploreBtn] = useState(false);
+  // Intro button visibility (shown immediately)
+  const [showExploreBtn, setShowExploreBtn] = useState(true);
 
   // ── Discovery system state ──────────────────────────────────────────────
   const playerId = useRef(getOrCreatePlayerId());
@@ -147,12 +148,26 @@ export function App() {
   const [home3DProgress, setHome3DProgress] = useState(0);
   const [home3DGenPhase, setHome3DGenPhase] = useState<'generating_photo' | 'generating_3d'>('generating_photo');
 
+  // ── Planet-view 3D generation flow (scanning + materialization) ────────
+  const [planetView3DPhase, setPlanetView3DPhase] = useState<
+    'idle' | 'paying' | 'scanning' | 'materializing' | 'complete'
+  >('idle');
+  const [planetView3DProgress, setPlanetView3DProgress] = useState(0);
+  const [planetView3DGenPhase, setPlanetView3DGenPhase] = useState<'generating_photo' | 'generating_3d'>('generating_photo');
+
   // ── Warp animation state ──────────────────────────────────────────────
   const [warpTarget, setWarpTarget] = useState<StarSystem | null>(null);
 
   // ── System objects panel state ────────────────────────────────────────
   const [showObjectsPanel, setShowObjectsPanel] = useState(false);
   const [objectsPanelSystem, setObjectsPanelSystem] = useState<StarSystem | null>(null);
+
+  // ── Planet detail window state ────────────────────────────────────────
+  const [planetDetailTarget, setPlanetDetailTarget] = useState<{
+    system: StarSystem;
+    planetIndex: number;
+    displayName?: string;
+  } | null>(null);
 
   // ── Player aliases (custom names for systems/planets) ──────────────
   const [aliases, setAliases] = useState<Record<string, string>>({});
@@ -222,10 +237,7 @@ export function App() {
     }
   }, [refreshQuarks]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setShowExploreBtn(true), 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  // (showExploreBtn initialized to true, no delay needed)
 
   // Research timer — check every 500ms
   useEffect(() => {
@@ -807,6 +819,66 @@ export function App() {
     }
   }, [homeInfo, refreshQuarks, handleModelReady]);
 
+  // ── Planet-view 3D generation handler (Quantum Scanning flow) ─────────
+  const handlePlanetView3DGenerate = useCallback(async () => {
+    if (!state.selectedPlanet || !state.selectedSystem) return;
+    const planet = state.selectedPlanet;
+    const system = state.selectedSystem;
+    setPlanetView3DPhase('paying');
+
+    try {
+      const result = await startPaymentFlow({
+        playerId: playerId.current,
+        planetId: planet.id,
+        systemId: system.id,
+        planetData: planet,
+        starData: system.star,
+      });
+
+      if (result.paidWithQuarks) {
+        refreshQuarks();
+      }
+
+      // Activate scanning
+      setPlanetView3DPhase('scanning');
+      setPlanetView3DGenPhase('generating_photo');
+      setPlanetView3DProgress(0);
+      engineRef.current?.startPlanetViewScanning();
+
+      // Poll for completion
+      const completed = await pollModelUntilComplete(result.modelId, (status) => {
+        if (status.status === 'generating_photo') {
+          setPlanetView3DGenPhase('generating_photo');
+          setPlanetView3DProgress(0);
+        } else if (status.status === 'generating_3d' || status.status === 'running') {
+          setPlanetView3DGenPhase('generating_3d');
+          setPlanetView3DProgress(status.progress ?? 0);
+          engineRef.current?.updatePlanetViewScanProgress(status.progress ?? 0);
+        }
+      });
+
+      // Model ready — stop scanning, start materialization
+      engineRef.current?.stopPlanetViewScanning();
+
+      // Update planet models list (triggers backgroundModelInfo)
+      handleModelReady(result.modelId, completed.glbUrl);
+
+      // Small delay to let backgroundModelInfo update, then start materialization
+      setTimeout(() => {
+        setPlanetView3DPhase('materializing');
+      }, 100);
+    } catch (err) {
+      engineRef.current?.stopPlanetViewScanning();
+      setPlanetView3DPhase('idle');
+      console.error('Planet-view 3D generation error:', err);
+    }
+  }, [state.selectedPlanet, state.selectedSystem, refreshQuarks, handleModelReady]);
+
+  // ── Planet detail window handler ────────────────────────────────────────
+  const handleViewPlanetDetail = useCallback((system: StarSystem, planetIndex: number, displayName?: string) => {
+    setPlanetDetailTarget({ system, planetIndex, displayName });
+  }, []);
+
   // ── Breadcrumb navigation handler ──────────────────────────────────────
   const handleBreadcrumbNavigate = useCallback((targetScene: string) => {
     // Close surface if open
@@ -899,7 +971,9 @@ export function App() {
   // PixiJS planet briefly appears before we know whether a 3D model exists.
   // state.scene in deps re-fires when switching scenes so new PixiJS scene is immediately hidden.
   useEffect(() => {
-    const keepPixiVisible = home3DPhase === 'scanning' || home3DPhase === 'materializing';
+    const keepPixiVisible =
+      home3DPhase === 'scanning' || home3DPhase === 'materializing' ||
+      planetView3DPhase === 'scanning' || planetView3DPhase === 'materializing';
 
     // Not ready yet — keep planet hidden
     if (!modelsLoaded) {
@@ -914,7 +988,7 @@ export function App() {
     }
 
     engineRef.current?.setPlanetVisible(!backgroundModelInfo || keepPixiVisible);
-  }, [backgroundModelInfo, home3DPhase, modelsLoaded, state.scene, homeInfo]);
+  }, [backgroundModelInfo, home3DPhase, planetView3DPhase, modelsLoaded, state.scene, homeInfo]);
 
   // Determine which panel to show for the selected system
   // (panels open via context menu actions, not directly from click)
@@ -1073,9 +1147,9 @@ export function App() {
       ];
       if (selectedPlanetModel?.status === 'ready' && selectedPlanetModel?.glb_url) {
         // Model exists & auto-shown as background → offer regeneration
-        tools.push({ id: '3d', label: 'Змінити вигляд 49⚛', onClick: handleUpgradePlanet });
-      } else {
-        tools.push({ id: '3d', label: '3D 49⚛', onClick: handleUpgradePlanet, variant: 'accent' });
+        tools.push({ id: '3d', label: 'Змінити вигляд 49⚛', onClick: handlePlanetView3DGenerate });
+      } else if (planetView3DPhase === 'idle') {
+        tools.push({ id: '3d', label: '3D 49⚛', onClick: handlePlanetView3DGenerate, variant: 'accent' });
       }
       toolGroups.push({ type: 'buttons', items: tools });
       if (!backgroundModelInfo) {
@@ -1272,7 +1346,9 @@ export function App() {
         />
       )}
       {/* Background 3D Model (auto-shown on home/planet-view if model exists) */}
-      {backgroundModelInfo && home3DPhase !== 'scanning' && home3DPhase !== 'materializing' && (
+      {backgroundModelInfo &&
+        home3DPhase !== 'scanning' && home3DPhase !== 'materializing' &&
+        planetView3DPhase !== 'scanning' && planetView3DPhase !== 'materializing' && (
         <Planet3DViewer
           glbUrl={backgroundModelInfo.glbUrl}
           planetName={backgroundModelInfo.planetName}
@@ -1284,7 +1360,7 @@ export function App() {
           onClose={() => {}}
         />
       )}
-      {/* Quantum Scan Terminal (during scanning phase) */}
+      {/* Quantum Scan Terminal — home 3D generation */}
       {home3DPhase === 'scanning' && homeInfo && (
         <QuantumScanTerminal
           phase={home3DGenPhase}
@@ -1292,7 +1368,7 @@ export function App() {
           planetName={homeInfo.planet.name}
         />
       )}
-      {/* Holographic Materialization (2D->3D transition) */}
+      {/* Holographic Materialization — home 3D */}
       {home3DPhase === 'materializing' && backgroundModelInfo && (
         <HolographicTransition
           glbUrl={backgroundModelInfo.glbUrl}
@@ -1302,6 +1378,26 @@ export function App() {
           planetMassEarth={backgroundModelInfo.planetMassEarth}
           moons={backgroundModelInfo.moons}
           onComplete={() => setHome3DPhase('complete')}
+        />
+      )}
+      {/* Quantum Scan Terminal — planet-view 3D generation */}
+      {planetView3DPhase === 'scanning' && state.selectedPlanet && (
+        <QuantumScanTerminal
+          phase={planetView3DGenPhase}
+          progress={planetView3DProgress}
+          planetName={state.selectedPlanet.name}
+        />
+      )}
+      {/* Holographic Materialization — planet-view 3D */}
+      {planetView3DPhase === 'materializing' && backgroundModelInfo && (
+        <HolographicTransition
+          glbUrl={backgroundModelInfo.glbUrl}
+          planetName={backgroundModelInfo.planetName}
+          atmosphere={backgroundModelInfo.atmosphere}
+          planetType={backgroundModelInfo.planetType}
+          planetMassEarth={backgroundModelInfo.planetMassEarth}
+          moons={backgroundModelInfo.moons}
+          onComplete={() => setPlanetView3DPhase('complete')}
         />
       )}
       {/* Surface View (biosphere level) */}
@@ -1348,6 +1444,21 @@ export function App() {
             setShowObjectsPanel(false);
             setObjectsPanelSystem(null);
           }}
+          onViewPlanet={(idx) => handleViewPlanetDetail(
+            objectsPanelSystem,
+            idx,
+            aliases[objectsPanelSystem.id] ?? undefined,
+          )}
+        />
+      )}
+
+      {/* Planet Detail Window */}
+      {planetDetailTarget && (
+        <PlanetDetailWindow
+          system={planetDetailTarget.system}
+          systemDisplayName={planetDetailTarget.displayName}
+          initialPlanetIndex={planetDetailTarget.planetIndex}
+          onClose={() => setPlanetDetailTarget(null)}
         />
       )}
     </>

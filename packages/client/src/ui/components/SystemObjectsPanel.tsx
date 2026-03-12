@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { StarSystem, Planet, Moon, PlanetType } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -41,13 +41,33 @@ function ensureStyles() {
   document.head.appendChild(el);
 }
 
+// ─── SVG Eye icon (outline only) ─────────────────────────────────────────────
+
+function EyeIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 18 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0, display: 'block' }}
+    >
+      <path d="M1 6C1 6 4 1 9 1s8 5 8 5-3 5-8 5S1 6 1 6z" />
+      <circle cx="9" cy="6" r="2.2" />
+    </svg>
+  );
+}
+
 // ─── Colour helpers ───────────────────────────────────────────────────────────
 
 function getPlanetColor(p: Planet): string {
   if (p.type === 'gas-giant') return p.surfaceTempK > 500 ? '#cc7733' : '#aa9966';
   if (p.type === 'ice-giant') return '#4488bb';
   if (p.type === 'dwarf') return '#667788';
-  // rocky
   if (p.surfaceTempK > 900) return '#cc3322';
   if (p.surfaceTempK > 450) return '#bb6633';
   if (p.surfaceTempK > 273 && p.hasLife) return '#44aa66';
@@ -105,6 +125,17 @@ function habitabilityLabel(p: Planet): string {
   return '✗ мертва';
 }
 
+// ─── Divider cell wrapper ─────────────────────────────────────────────────────
+
+const divStyle: React.CSSProperties = {
+  borderRight: '1px solid rgba(40,58,80,0.55)',
+  paddingRight: 8,
+  marginRight: 4,
+  flexShrink: 0,
+  display: 'flex',
+  alignItems: 'center',
+};
+
 // ─── Moon row ─────────────────────────────────────────────────────────────────
 
 function MoonRow({ moon, moonIdx }: { moon: Moon; moonIdx: number }) {
@@ -120,24 +151,44 @@ function MoonRow({ moon, moonIdx }: { moon: Moon; moonIdx: number }) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
         padding: '4px 14px 4px 34px',
         opacity: on ? 1 : 0,
         transform: on ? 'none' : 'translateX(-6px)',
         transition: 'opacity 0.22s ease-out, transform 0.22s ease-out',
         fontSize: 10,
+        gap: 0,
       }}
     >
-      <span style={{ color: '#334455', flexShrink: 0, fontSize: 9 }}>↳</span>
+      {/* Arrow indent */}
+      <span style={{ color: '#2a3d52', flexShrink: 0, fontSize: 9, marginRight: 6 }}>↳</span>
+
+      {/* Color dot — no divider on first col */}
       <span
         style={{
-          width: 6, height: 6, borderRadius: '50%',
-          background: getMoonColor(moon), flexShrink: 0,
-          boxShadow: `0 0 3px ${getMoonColor(moon)}77`,
+          ...divStyle,
+          width: 22, justifyContent: 'center',
         }}
-      />
-      <span style={{ color: '#667788', minWidth: 88, fontSize: 10 }}>{moon.name}</span>
-      <span style={{ color: '#445566', minWidth: 66, fontSize: 9 }}>{moonCompositionName(moon.compositionType)}</span>
+      >
+        <span
+          style={{
+            width: 5, height: 5, borderRadius: '50%',
+            background: getMoonColor(moon),
+            boxShadow: `0 0 3px ${getMoonColor(moon)}77`,
+          }}
+        />
+      </span>
+
+      {/* Name */}
+      <span style={{ ...divStyle, color: '#667788', minWidth: 88, fontSize: 10 }}>
+        {moon.name}
+      </span>
+
+      {/* Composition */}
+      <span style={{ ...divStyle, color: '#445566', minWidth: 70, fontSize: 9 }}>
+        {moonCompositionName(moon.compositionType)}
+      </span>
+
+      {/* Orbit */}
       <span style={{ color: '#3a5066', fontSize: 9 }}>
         {moon.orbitalRadiusKm.toLocaleString('uk-UA', { maximumFractionDigits: 0 })} km
       </span>
@@ -177,74 +228,81 @@ function HabitBar({ score, delay, color }: { score: number; delay: number; color
 
 interface PlanetRowProps {
   planet: Planet;
-  baseDelay: number;   // ms, when this row starts appearing
+  baseDelay: number;
   isExpanded: boolean;
   onToggle: () => void;
+  onViewDetail: () => void;
 }
 
-function PlanetRow({ planet, baseDelay, isExpanded, onToggle }: PlanetRowProps) {
+function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onViewDetail }: PlanetRowProps) {
   const color = getPlanetColor(planet);
   const hScore = planet.habitability.overall;
   const hColor = habitabilityColor(hScore);
   const hasMoons = planet.moons.length > 0;
   const isHome = planet.isHomePlanet;
 
-  const d = (extra: number) =>
-    `sopCell 0.22s ease-out ${baseDelay + extra}ms both`;
-
+  const d = (extra: number) => `sopCell 0.22s ease-out ${baseDelay + extra}ms both`;
   const [hovered, setHovered] = useState(false);
+  const [eyeHovered, setEyeHovered] = useState(false);
 
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
-        padding: '7px 14px',
+        padding: '6px 14px',
         cursor: hasMoons ? 'pointer' : 'default',
-        background: hovered && hasMoons ? 'rgba(40,60,80,0.25)' : 'transparent',
+        background: hovered ? 'rgba(30,48,70,0.22)' : 'transparent',
         transition: 'background 0.15s',
         borderRadius: 3,
         animation: `sopRow 0.32s ease-out ${baseDelay}ms both`,
+        gap: 0,
       }}
       onClick={hasMoons ? onToggle : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Planet indicator */}
+      {/* Color dot */}
       <span
         style={{
-          width: 10, height: 10, borderRadius: '50%',
-          background: color, flexShrink: 0,
-          boxShadow: `0 0 5px ${color}66`,
-          animation: `sopCell 0.2s ease-out ${baseDelay}ms both`,
+          ...divStyle,
+          width: 22, justifyContent: 'center',
         }}
-      />
+      >
+        <span
+          style={{
+            width: 10, height: 10, borderRadius: '50%',
+            background: color,
+            boxShadow: `0 0 5px ${color}66`,
+            animation: `sopCell 0.2s ease-out ${baseDelay}ms both`,
+          }}
+        />
+      </span>
 
       {/* Name */}
       <span
         style={{
+          ...divStyle,
           color: isHome ? '#44ff88' : '#aabbcc',
           fontSize: 11,
-          minWidth: 96,
-          animation: d(55),
-          display: 'flex',
-          alignItems: 'center',
+          minWidth: 90,
           gap: 4,
+          animation: d(55),
         }}
       >
         {planet.name}
         {isHome && (
-          <span style={{ color: '#44ff88', fontSize: 8, opacity: 0.8 }}>HOME</span>
+          <span style={{ color: '#44ff88', fontSize: 7, opacity: 0.8 }}>HOME</span>
         )}
       </span>
 
       {/* Type */}
       <span
         style={{
+          ...divStyle,
           color: '#556677',
           fontSize: 9,
-          minWidth: 68,
+          minWidth: 72,
           animation: d(110),
         }}
       >
@@ -254,9 +312,10 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle }: PlanetRowProps) 
       {/* Orbit */}
       <span
         style={{
+          ...divStyle,
           color: '#4477aa',
           fontSize: 9,
-          minWidth: 52,
+          minWidth: 54,
           animation: d(160),
         }}
       >
@@ -266,10 +325,10 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle }: PlanetRowProps) 
       {/* Habitability */}
       <div
         style={{
-          display: 'flex',
+          ...divStyle,
           flexDirection: 'column',
           alignItems: 'flex-start',
-          minWidth: 66,
+          minWidth: 70,
           animation: d(215),
         }}
       >
@@ -277,20 +336,45 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle }: PlanetRowProps) 
         <HabitBar score={hScore} delay={baseDelay + 280} color={hColor} />
       </div>
 
-      {/* Moon count toggle */}
-      {hasMoons && (
-        <span
-          style={{
-            color: '#4477aa',
-            fontSize: 9,
-            marginLeft: 'auto',
-            flexShrink: 0,
-            animation: d(260),
-          }}
-        >
-          {isExpanded ? '▾' : '▸'} {planet.moons.length}
-        </span>
-      )}
+      {/* Moon toggle */}
+      <span
+        style={{
+          ...divStyle,
+          color: hasMoons ? '#4477aa' : '#2a3a4e',
+          fontSize: 9,
+          minWidth: 26,
+          justifyContent: 'center',
+          animation: d(260),
+        }}
+      >
+        {hasMoons ? `${isExpanded ? '▾' : '▸'} ${planet.moons.length}` : '—'}
+      </span>
+
+      {/* Eye button — open detail window */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onViewDetail();
+        }}
+        onMouseEnter={(e) => { e.stopPropagation(); setEyeHovered(true); }}
+        onMouseLeave={() => setEyeHovered(false)}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '2px 4px',
+          color: eyeHovered ? '#7bb8ff' : '#334455',
+          display: 'flex',
+          alignItems: 'center',
+          borderRadius: 2,
+          transition: 'color 0.15s',
+          animation: d(300),
+          marginLeft: 2,
+        }}
+        title="Відкрити деталі планети"
+      >
+        <EyeIcon size={13} />
+      </button>
     </div>
   );
 }
@@ -307,43 +391,40 @@ function StarRow({ star }: { star: StarSystem['star'] }) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
         padding: '10px 14px',
         borderBottom: '1px solid rgba(40,55,75,0.5)',
         animation: 'sopStar 0.35s ease-out 0.45s both',
+        gap: 0,
       }}
     >
-      {/* Star dot with glow */}
+      {/* Star dot */}
       <span
         style={{
-          width: 14,
-          height: 14,
-          borderRadius: '50%',
-          background: star.colorHex,
-          boxShadow: `0 0 10px ${star.colorHex}99, 0 0 20px ${star.colorHex}44`,
-          flexShrink: 0,
+          ...divStyle,
+          width: 22, justifyContent: 'center',
         }}
-      />
+      >
+        <span
+          style={{
+            width: 13, height: 13, borderRadius: '50%',
+            background: star.colorHex,
+            boxShadow: `0 0 10px ${star.colorHex}99, 0 0 20px ${star.colorHex}44`,
+          }}
+        />
+      </span>
 
       {/* Name */}
-      <span style={{ color: '#ddeeff', fontSize: 12, minWidth: 100 }}>
+      <span style={{ ...divStyle, color: '#ddeeff', fontSize: 12, minWidth: 90 }}>
         {star.name}
       </span>
 
       {/* Spectral class */}
-      <span
-        style={{
-          color: star.colorHex,
-          fontSize: 10,
-          minWidth: 36,
-          opacity: 0.9,
-        }}
-      >
+      <span style={{ ...divStyle, color: star.colorHex, fontSize: 10, minWidth: 38, opacity: 0.9 }}>
         {spectralLabel}
       </span>
 
-      {/* Temperature */}
-      <span style={{ color: '#446688', fontSize: 9, minWidth: 64 }}>
+      {/* Temp */}
+      <span style={{ ...divStyle, color: '#446688', fontSize: 9, minWidth: 64 }}>
         {tempStr} K
       </span>
 
@@ -361,12 +442,14 @@ export interface SystemObjectsPanelProps {
   system: StarSystem;
   displayName?: string;
   onClose: () => void;
+  onViewPlanet: (planetIndex: number) => void; // opens PlanetDetailWindow
 }
 
 export function SystemObjectsPanel({
   system,
   displayName,
   onClose,
+  onViewPlanet,
 }: SystemObjectsPanelProps) {
   ensureStyles();
 
@@ -403,7 +486,7 @@ export function SystemObjectsPanel({
           top: 0,
           right: 0,
           bottom: 0,
-          width: 460,
+          width: 490,
           background: 'rgba(5, 9, 18, 0.97)',
           borderLeft: '1px solid #334455',
           display: 'flex',
@@ -432,7 +515,9 @@ export function SystemObjectsPanel({
               {systemName.toUpperCase()}
             </div>
             <div style={{ fontSize: 9, color: '#445566', marginTop: 3, letterSpacing: '0.04em' }}>
-              ОБ'ЄКТИ СИСТЕМИ &nbsp;·&nbsp; {planetsCount} {planetsCount === 1 ? 'планета' : planetsCount < 5 ? 'планети' : 'планет'} &nbsp;·&nbsp; {moonsCount} супутників
+              ОБ'ЄКТИ СИСТЕМИ &nbsp;·&nbsp;
+              {planetsCount} {planetsCount === 1 ? 'планета' : planetsCount < 5 ? 'планети' : 'планет'}
+              &nbsp;·&nbsp; {moonsCount} супутників
             </div>
           </div>
           <button
@@ -465,20 +550,29 @@ export function SystemObjectsPanel({
           <div
             style={{
               display: 'flex',
-              gap: 10,
               padding: '5px 14px 4px',
               fontSize: 8,
-              color: '#33445599',
+              color: '#2d404f',
               letterSpacing: '0.08em',
               borderBottom: '1px solid rgba(30,42,60,0.5)',
               animation: 'sopCell 0.25s ease-out 0.58s both',
+              gap: 0,
             }}
           >
-            <span style={{ minWidth: 10 }} />
-            <span style={{ minWidth: 96 }}>ОБ'ЄКТ</span>
-            <span style={{ minWidth: 68 }}>ТИП</span>
-            <span style={{ minWidth: 52 }}>ОРБІТА</span>
-            <span style={{ minWidth: 66 }}>ПРИДАТНІСТЬ</span>
+            {/* dot col header */}
+            <span style={{ ...divStyle, width: 22, justifyContent: 'center' }} />
+            {/* name */}
+            <span style={{ ...divStyle, minWidth: 90 }}>ОБ'ЄКТ</span>
+            {/* type */}
+            <span style={{ ...divStyle, minWidth: 72 }}>ТИП</span>
+            {/* orbit */}
+            <span style={{ ...divStyle, minWidth: 54 }}>ОРБІТА</span>
+            {/* habitability */}
+            <span style={{ ...divStyle, minWidth: 70 }}>ПРИДАТНІСТЬ</span>
+            {/* moons */}
+            <span style={{ ...divStyle, minWidth: 26, justifyContent: 'center' }}>СУП</span>
+            {/* eye */}
+            <span style={{ fontSize: 8 }}> </span>
           </div>
 
           {/* Planet rows */}
@@ -493,6 +587,7 @@ export function SystemObjectsPanel({
                   baseDelay={baseDelay}
                   isExpanded={expanded}
                   onToggle={() => toggleExpand(planet.id)}
+                  onViewDetail={() => onViewPlanet(pi)}
                 />
 
                 {/* Moon rows (appear when expanded) */}

@@ -244,6 +244,21 @@ export class GameEngine {
     this.homePlanetScene?.updateScanProgress(progress);
   }
 
+  /** Activate scanning effects on planet-view scene */
+  startPlanetViewScanning() {
+    this.planetViewScene?.startScanning();
+  }
+
+  /** Deactivate scanning effects on planet-view scene */
+  stopPlanetViewScanning() {
+    this.planetViewScene?.stopScanning();
+  }
+
+  /** Update scanning progress on planet-view scene (0-100) */
+  updatePlanetViewScanProgress(progress: number) {
+    this.planetViewScene?.updateScanProgress(progress);
+  }
+
   /** Enter a system (called after warp animation completes) */
   enterSystem(system: StarSystem) {
     this.showSystemScene(system);

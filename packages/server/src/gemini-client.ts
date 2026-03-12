@@ -9,7 +9,7 @@ import { put } from '@vercel/blob';
 // persistent URL storage.
 // ---------------------------------------------------------------------------
 
-const GEMINI_MODEL = 'gemini-2.0-flash-preview-image-generation';
+const GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
 
 /**
  * Supported aspect ratios by Gemini.
@@ -84,9 +84,11 @@ export async function generateImageWithGemini(
     model: GEMINI_MODEL,
     contents: req.prompt,
     config: {
+      thinkingConfig: { thinkingBudget: 0 }, // MINIMAL — image generation needs no chain-of-thought
       responseModalities: ['IMAGE', 'TEXT'],
       imageConfig: {
-        aspectRatio: aspectRatio as '16:9' | '9:16' | '4:3' | '3:4' | '1:1',
+        aspectRatio: aspectRatio,
+        imageSize: '2K', // Higher quality output (2048px on larger dimension)
       },
     },
   });
