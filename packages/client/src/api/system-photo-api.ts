@@ -6,6 +6,8 @@
 
 import type { StarSystem } from '@nebulife/core';
 
+import { authFetch } from '../auth/api-client.js';
+
 const API_BASE = '/api';
 
 // ---------------------------------------------------------------------------
@@ -46,7 +48,7 @@ export async function generateSystemPhoto(
   screenWidth?: number,
   screenHeight?: number,
 ): Promise<SystemPhotoGenerateResponse> {
-  const res = await fetch(`${API_BASE}/system-photo/generate`, {
+  const res = await authFetch(`${API_BASE}/system-photo/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -70,7 +72,7 @@ export async function generateSystemPhoto(
  * Check the status of a system photo generation.
  */
 export async function checkSystemPhotoStatus(photoId: string): Promise<SystemPhotoStatusResponse> {
-  const res = await fetch(`${API_BASE}/system-photo/status/${photoId}`);
+  const res = await authFetch(`${API_BASE}/system-photo/status/${photoId}`);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}`);
   }
@@ -81,7 +83,7 @@ export async function checkSystemPhotoStatus(photoId: string): Promise<SystemPho
  * Get all system photos for a player.
  */
 export async function getPlayerSystemPhotos(playerId: string): Promise<SystemPhotoListItem[]> {
-  const res = await fetch(`${API_BASE}/system-photo/list?playerId=${encodeURIComponent(playerId)}`);
+  const res = await authFetch(`${API_BASE}/system-photo/list?playerId=${encodeURIComponent(playerId)}`);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}`);
   }
@@ -114,7 +116,7 @@ export async function generateSystemMission(
   durationType: 'short' | 'long',
   systemData: StarSystem,
 ): Promise<SystemMissionGenerateResponse> {
-  const res = await fetch(`${API_BASE}/system-mission/generate`, {
+  const res = await authFetch(`${API_BASE}/system-mission/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId, systemId, photoId, durationType, systemData }),
@@ -132,7 +134,7 @@ export async function generateSystemMission(
  * Check the status of a system mission (video generation).
  */
 export async function checkMissionStatus(missionId: string): Promise<SystemMissionStatusResponse> {
-  const res = await fetch(`${API_BASE}/system-mission/status/${missionId}`);
+  const res = await authFetch(`${API_BASE}/system-mission/status/${missionId}`);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}`);
   }

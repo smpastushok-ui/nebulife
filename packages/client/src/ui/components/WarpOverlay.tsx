@@ -1,10 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 const WARP_DURATION_MS = 3000;
 const STAR_COUNT = 120;
 
 interface WarpOverlayProps {
   systemName: string;
+  /** Called when fade starts (~2500ms) — switch scene underneath the overlay */
+  onPrepareScene?: () => void;
+  /** Called when animation ends (3000ms) — unmount the overlay */
   onComplete: () => void;
 }
 
@@ -14,9 +17,9 @@ interface WarpOverlayProps {
  * Phase 2 (500-2500ms): star streaks flying toward viewer
  * Phase 3 (2500-3000ms): fade out
  */
-export function WarpOverlay({ systemName, onComplete }: WarpOverlayProps) {
+export function WarpOverlay({ systemName, onPrepareScene, onComplete }: WarpOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [phase, setPhase] = useState<'zoom' | 'warp' | 'fade'>('zoom');
+  const containerRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef(Date.now());
 
   // Generate star positions once
@@ -29,13 +32,17 @@ export function WarpOverlay({ systemName, onComplete }: WarpOverlayProps) {
     })),
   );
 
-  // Use ref to avoid re-creating timeout when onComplete changes (inline callback)
+  // Use refs to avoid re-creating timeouts when callbacks change (inline callbacks)
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const onPrepareSceneRef = useRef(onPrepareScene);
+  onPrepareSceneRef.current = onPrepareScene;
 
   useEffect(() => {
+    // Fire scene switch before fade starts — system renders underneath overlay
+    const prepareTimer = setTimeout(() => onPrepareSceneRef.current?.(), WARP_DURATION_MS - 500);
     const timer = setTimeout(() => onCompleteRef.current(), WARP_DURATION_MS);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(prepareTimer); clearTimeout(timer); };
   }, []);
 
   useEffect(() => {
@@ -59,10 +66,11 @@ export function WarpOverlay({ systemName, onComplete }: WarpOverlayProps) {
       const elapsed = Date.now() - startTimeRef.current;
       const t = Math.min(1, elapsed / WARP_DURATION_MS);
 
-      // Update phase
-      if (t < 0.17) setPhase('zoom');
-      else if (t < 0.83) setPhase('warp');
-      else setPhase('fade');
+      // Drive fade-out directly via DOM (React re-renders can't keep up with rAF)
+      if (t >= 0.83 && containerRef.current) {
+        const fadeProgress = (t - 0.83) / 0.17; // 0→1
+        containerRef.current.style.opacity = String(Math.max(0, 1 - fadeProgress));
+      }
 
       // Clear
       ctx.fillStyle = '#020510';
@@ -120,12 +128,9 @@ export function WarpOverlay({ systemName, onComplete }: WarpOverlayProps) {
     return () => cancelAnimationFrame(animId);
   }, [systemName]);
 
-  // Fade out during last phase
-  const elapsed = Date.now() - startTimeRef.current;
-  const t = Math.min(1, elapsed / WARP_DURATION_MS);
-
   return (
     <div
+      ref={containerRef}
       style={{
         position: 'fixed',
         top: 0,
@@ -133,8 +138,7 @@ export function WarpOverlay({ systemName, onComplete }: WarpOverlayProps) {
         right: 0,
         bottom: 0,
         zIndex: 100,
-        opacity: phase === 'fade' ? Math.max(0, 1 - (t - 0.83) / 0.17) : 1,
-        transition: 'opacity 0.3s ease-out',
+        opacity: 1,
         pointerEvents: 'all',
       }}
     >

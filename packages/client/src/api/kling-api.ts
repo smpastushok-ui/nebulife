@@ -5,6 +5,8 @@
 // Never calls Kling directly — all auth handled server-side.
 // ---------------------------------------------------------------------------
 
+import { authFetch } from '../auth/api-client.js';
+
 const API_BASE = '/api';
 
 export interface GenerateRequest {
@@ -35,7 +37,7 @@ export interface TaskStatusResponse {
  * Creates a discovery record in DB and submits to Kling.
  */
 export async function requestGeneration(req: GenerateRequest): Promise<GenerateResponse> {
-  const res = await fetch(`${API_BASE}/kling/generate`, {
+  const res = await authFetch(`${API_BASE}/kling/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -54,7 +56,7 @@ export async function requestGeneration(req: GenerateRequest): Promise<GenerateR
  * Returns status + imageUrl when complete.
  */
 export async function checkTaskStatus(taskId: string): Promise<TaskStatusResponse> {
-  const res = await fetch(`${API_BASE}/kling/status/${taskId}`);
+  const res = await authFetch(`${API_BASE}/kling/status/${taskId}`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
@@ -105,7 +107,7 @@ export async function pollUntilComplete(
  * Used before pixel-reveal: fetch the full image first.
  */
 export async function downloadImage(imageUrl: string): Promise<Blob> {
-  const res = await fetch(imageUrl);
+  const res = await authFetch(imageUrl);
   if (!res.ok) throw new Error(`Failed to download image: ${res.status}`);
   return res.blob();
 }

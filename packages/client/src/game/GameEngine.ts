@@ -197,6 +197,9 @@ export class GameEngine {
     const dynamicMinScale = fieldSize > 0 ? screenDim / fieldSize : 0.1;
     this.camera.setMinScale(Math.max(0.05, dynamicMinScale));
 
+    // Limit pan to system bounds (can't scroll into empty space beyond stars)
+    this.camera.setPanBounds(maxExtent * 1.5);
+
     // Fit all planets on screen
     this.camera.resetToFit(maxExtent);
     this.callbacks.onSceneChange('system');
@@ -271,7 +274,7 @@ export class GameEngine {
   /** Enter a system (called after warp animation completes) */
   enterSystem(system: StarSystem) {
     this.showSystemScene(system);
-    this.callbacks.onSceneChange('system');
+    // Note: showSystemScene already calls onSceneChange('system')
   }
 
   /** Get all systems from all rings. */
@@ -384,8 +387,9 @@ export class GameEngine {
   private clearScenes() {
     this.teardownHomePlanetInput();
     this.teardownPlanetViewInput();
-    // Reset camera min zoom (was overridden in system scene)
+    // Reset camera constraints (overridden in system scene)
     this.camera.setMinScale(0.1);
+    this.camera.setPanBounds(null);
 
     if (this.galaxyScene) {
       this.app.stage.removeChild(this.galaxyScene.container);

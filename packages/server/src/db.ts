@@ -26,6 +26,13 @@ export interface PlayerRow {
   created_at: string;
   game_state: Record<string, unknown>;
   quarks: number;
+  // Auth fields
+  firebase_uid: string | null;
+  auth_provider: string;
+  email: string | null;
+  callsign: string | null;
+  callsign_set_at: string | null;
+  linked_at: string | null;
 }
 
 export async function createPlayer(player: {
@@ -36,8 +43,8 @@ export async function createPlayer(player: {
 }): Promise<PlayerRow> {
   const sql = getSQL();
   const rows = await sql`
-    INSERT INTO players (id, name, home_system_id, home_planet_id, last_login, quarks)
-    VALUES (${player.id}, ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, NOW(), 0)
+    INSERT INTO players (id, name, home_system_id, home_planet_id, game_phase, last_login, quarks)
+    VALUES (${player.id}, ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), 0)
     ON CONFLICT (id) DO NOTHING
     RETURNING *
   `;
@@ -491,6 +498,106 @@ export async function creditQuarks(
 }
 
 // ---------------------------------------------------------------------------
+// Auth helpers
+// ---------------------------------------------------------------------------
+
+/** Find a player by their Firebase UID. */
+export async function getPlayerByFirebaseUid(firebaseUid: string): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM players WHERE firebase_uid = ${firebaseUid}`;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+/** Link a Firebase UID to an existing legacy player (migration). */
+export async function linkFirebaseToPlayer(
+  legacyPlayerId: string,
+  firebaseUid: string,
+  authProvider: string,
+  email?: string,
+): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET firebase_uid = ${firebaseUid},
+        auth_provider = ${authProvider},
+        email = ${email ?? null},
+        linked_at = NOW()
+    WHERE id = ${legacyPlayerId} AND firebase_uid IS NULL
+    RETURNING *
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+/** Check if a callsign is available (case-insensitive). */
+export async function checkCallsignAvailable(callsign: string): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT 1 FROM players WHERE LOWER(callsign) = LOWER(${callsign}) LIMIT 1
+  `;
+  return rows.length === 0;
+}
+
+/** Set a player's callsign (also updates name for backward compat). */
+export async function setCallsign(
+  playerId: string,
+  callsign: string,
+): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET callsign = ${callsign},
+        callsign_set_at = NOW(),
+        name = ${callsign}
+    WHERE id = ${playerId}
+    RETURNING *
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+/** Create a player with Firebase auth data. */
+export async function createPlayerWithAuth(player: {
+  id: string;
+  firebaseUid: string;
+  authProvider: string;
+  email?: string;
+  name: string;
+  homeSystemId: string;
+  homePlanetId: string;
+}): Promise<PlayerRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO players (id, firebase_uid, auth_provider, email, name, home_system_id, home_planet_id, game_phase, last_login, quarks)
+    VALUES (${player.id}, ${player.firebaseUid}, ${player.authProvider}, ${player.email ?? null},
+            ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), 0)
+    ON CONFLICT (id) DO NOTHING
+    RETURNING *
+  `;
+  if (!rows[0]) {
+    const existing = await sql`SELECT * FROM players WHERE id = ${player.id}`;
+    return existing[0] as PlayerRow;
+  }
+  return rows[0] as PlayerRow;
+}
+
+/** Update a player's auth provider and email (after account linking). */
+export async function updatePlayerAuth(
+  playerId: string,
+  authProvider: string,
+  email?: string,
+): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET auth_provider = ${authProvider},
+        email = ${email ?? null},
+        linked_at = NOW()
+    WHERE id = ${playerId}
+    RETURNING *
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Payment Intent helpers
 // ---------------------------------------------------------------------------
 
@@ -576,8 +683,7 @@ export async function saveSurfaceMap(data: {
     ON CONFLICT (planet_id) DO UPDATE SET
       kling_task_id = EXCLUDED.kling_task_id,
       status = 'generating',
-      kling_image_url = NULL,
-      image_url = NULL
+      photo_url = NULL
     RETURNING *
   `;
   return rows[0] as SurfaceMapRow;
@@ -865,4 +971,122 @@ export async function getPlayerSystemMissions(playerId: string): Promise<SystemM
     WHERE player_id = ${playerId}
     ORDER BY created_at DESC
   `) as SystemMissionRow[];
+}
+
+// ---------------------------------------------------------------------------
+// Messages (chat)
+// ---------------------------------------------------------------------------
+
+export interface MessageRow {
+  id: string;
+  channel: string;
+  sender_id: string;
+  sender_name: string;
+  content: string;
+  created_at: string;
+}
+
+export interface DMChannelInfo {
+  channel: string;
+  peer_id: string;
+  peer_name: string;
+  last_message: string;
+  last_at: string;
+}
+
+/** Save a chat message. */
+export async function saveMessage(
+  senderId: string,
+  senderName: string,
+  channel: string,
+  content: string,
+): Promise<MessageRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO messages (sender_id, sender_name, channel, content)
+    VALUES (${senderId}, ${senderName}, ${channel}, ${content})
+    RETURNING *
+  `;
+  return rows[0] as MessageRow;
+}
+
+/** Get messages for a channel, optionally after a timestamp. Newest last. */
+export async function getMessages(
+  channel: string,
+  limit: number = 50,
+  after?: string,
+): Promise<MessageRow[]> {
+  const sql = getSQL();
+  if (after) {
+    return (await sql`
+      SELECT * FROM messages
+      WHERE channel = ${channel} AND created_at > ${after}
+      ORDER BY created_at ASC
+      LIMIT ${limit}
+    `) as MessageRow[];
+  }
+  // Without after: get last N messages (sub-select to reverse order)
+  return (await sql`
+    SELECT * FROM (
+      SELECT * FROM messages
+      WHERE channel = ${channel}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    ) sub ORDER BY created_at ASC
+  `) as MessageRow[];
+}
+
+/** Get DM channels for a player with last message info. */
+export async function getPlayerDMChannels(playerId: string): Promise<DMChannelInfo[]> {
+  const sql = getSQL();
+  // Find channels where playerId is a participant (dm:{id1}:{id2} format)
+  const pattern = `dm:%${playerId}%`;
+  const rows = await sql`
+    SELECT DISTINCT ON (m.channel)
+      m.channel,
+      m.content AS last_message,
+      m.created_at AS last_at,
+      m.sender_id,
+      m.sender_name
+    FROM messages m
+    WHERE m.channel LIKE ${pattern}
+      AND (m.channel LIKE ${'dm:' + playerId + ':%'} OR m.channel LIKE ${'%:' + playerId})
+    ORDER BY m.channel, m.created_at DESC
+  `;
+
+  // Resolve peer info from channel ID
+  return (rows as Array<Record<string, string>>).map((row) => {
+    const parts = row.channel.split(':');
+    const peerId = parts[1] === playerId ? parts[2] : parts[1];
+    const peerName = row.sender_id === playerId ? '' : row.sender_name;
+    return {
+      channel: row.channel,
+      peer_id: peerId,
+      peer_name: peerName,
+      last_message: row.last_message,
+      last_at: row.last_at,
+    } as DMChannelInfo;
+  });
+}
+
+/** Search players by callsign prefix (for DM search). */
+export async function searchPlayers(
+  query: string,
+  limit: number = 10,
+  excludeId?: string,
+): Promise<Array<{ id: string; callsign: string }>> {
+  const sql = getSQL();
+  const pattern = query + '%';
+  if (excludeId) {
+    return (await sql`
+      SELECT id, callsign FROM players
+      WHERE callsign ILIKE ${pattern} AND id != ${excludeId} AND callsign IS NOT NULL
+      LIMIT ${limit}
+    `) as Array<{ id: string; callsign: string }>;
+  }
+  return (await sql`
+    SELECT id, callsign FROM players
+    WHERE callsign ILIKE ${pattern} AND callsign IS NOT NULL
+    LIMIT ${limit}
+  `) as Array<{ id: string; callsign: string }>;
 }

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@nebulife/core": "*",
+    "firebase": "^12.10.0",
     "pixi.js": "^8.6.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

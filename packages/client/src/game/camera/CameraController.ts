@@ -9,6 +9,7 @@ export class CameraController {
   private scale = 1;
   private minScale = 0.1;
   private maxScale = 5;
+  private panBounds: { radius: number } | null = null;
 
   // Smooth animation state
   private animating = false;
@@ -49,6 +50,7 @@ export class CameraController {
 
       this.target.x = mouseX - worldX * this.scale;
       this.target.y = mouseY - worldY * this.scale;
+      this.clampPan();
     };
 
     this.onPointerDown = (e: PointerEvent) => {
@@ -70,6 +72,7 @@ export class CameraController {
       const dy = e.clientY - this.lastPos.y;
       this.target.x += dx;
       this.target.y += dy;
+      this.clampPan();
       this.lastPos = { x: e.clientX, y: e.clientY };
     };
 
@@ -156,6 +159,32 @@ export class CameraController {
   /** Override the minimum zoom scale (e.g. to prevent dark edges in system view) */
   setMinScale(val: number) {
     this.minScale = val;
+  }
+
+  /** Set circular pan boundary (world-space radius from origin). null = unlimited. */
+  setPanBounds(radius: number | null) {
+    this.panBounds = radius !== null ? { radius } : null;
+  }
+
+  /** Clamp target position so world origin stays within screen bounds */
+  private clampPan() {
+    if (!this.target || !this.panBounds) return;
+    const w = this.app.screen.width;
+    const h = this.app.screen.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    // World origin in screen space
+    const originScreenX = this.target.x;
+    const originScreenY = this.target.y;
+    const dx = originScreenX - cx;
+    const dy = originScreenY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const maxDist = this.panBounds.radius * this.scale;
+    if (dist > maxDist) {
+      const ratio = maxDist / dist;
+      this.target.x = cx + dx * ratio;
+      this.target.y = cy + dy * ratio;
+    }
   }
 
   /** Reset and fit a given world-radius (px) on screen with padding */

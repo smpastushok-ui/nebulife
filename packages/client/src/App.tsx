@@ -40,7 +40,16 @@ import {
   HOME_OBSERVATORY_COUNT,
   RESEARCH_DURATION_MS,
 } from '@nebulife/core';
-import { getOrCreatePlayerId, getPlayer, createPlayer } from './api/player-api.js';
+import { getPlayer, createPlayer } from './api/player-api.js';
+import { onAuthChange } from './auth/auth-service.js';
+import { authFetch } from './auth/api-client.js';
+import { isFirebaseConfigured } from './auth/firebase-config.js';
+import { AuthScreen } from './ui/components/AuthScreen.js';
+import { CallsignModal } from './ui/components/CallsignModal.js';
+import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
+import { OnboardingScreen } from './ui/components/OnboardingScreen.js';
+import { ChatWidget } from './ui/components/ChatWidget.js';
+import type { User } from 'firebase/auth';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
   generateSystemMission, pollMissionStatus,
@@ -92,8 +101,16 @@ export function App() {
   // Intro button visibility (shown immediately)
   const [showExploreBtn, setShowExploreBtn] = useState(true);
 
+  // ── Auth state ─────────────────────────────────────────────────────────
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [needsCallsign, setNeedsCallsign] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
   // ── Discovery system state ──────────────────────────────────────────────
-  const playerId = useRef(getOrCreatePlayerId());
+  const playerId = useRef<string>('');
 
   /** Discovery toast notification (from research completion) */
   const [pendingDiscovery, setPendingDiscovery] = useState<{
@@ -187,27 +204,74 @@ export function App() {
       .catch(() => {});
   }, []);
 
-  // Ensure player exists in DB + load 3D models + quarks balance
+  // ── Firebase auth lifecycle ──────────────────────────────────────────
   useEffect(() => {
-    const pid = playerId.current;
-
-    // Auto-create player in DB if it doesn't exist
-    (async () => {
-      try {
-        const existing = await getPlayer(pid);
-        if (!existing) {
-          await createPlayer({
-            id: pid,
-            name: 'Explorer',
-            homeSystemId: 'home',
-            homePlanetId: 'home',
-          });
-        }
-      } catch (err) {
-        console.warn('Failed to ensure player in DB:', err);
+    // Fallback: Firebase not configured → use legacy localStorage player ID
+    if (!isFirebaseConfigured) {
+      const PLAYER_ID_KEY = 'nebulife_player_id';
+      let id = localStorage.getItem(PLAYER_ID_KEY);
+      if (!id) {
+        id = `player-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        localStorage.setItem(PLAYER_ID_KEY, id);
       }
-      refreshQuarks();
-    })();
+      playerId.current = id;
+      // Legacy: check if onboarding done
+      if (!localStorage.getItem('nebulife_onboarding_done')) {
+        setNeedsOnboarding(true);
+      }
+      setAuthLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthChange(async (user) => {
+      setFirebaseUser(user);
+      setAuthLoading(false);
+      if (user) {
+        playerId.current = user.uid;
+        setIsGuest(user.isAnonymous);
+
+        // Register/sync player in DB
+        try {
+          const legacyId = localStorage.getItem('nebulife_player_id');
+          const res = await authFetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ legacyPlayerId: legacyId || undefined }),
+          });
+          if (res.ok) {
+            const player = await res.json();
+            playerId.current = player.id; // Use DB id (may differ from UID for migrated)
+            setQuarks(player.quarks ?? 0);
+            setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
+            setNeedsCallsign(!player.callsign);
+            // Check if player needs onboarding
+            if (player.game_phase === 'onboarding') {
+              setNeedsOnboarding(true);
+            }
+            // Clear legacy ID after successful migration
+            if (legacyId && player.firebase_uid) {
+              localStorage.removeItem('nebulife_player_id');
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to register player:', err);
+        }
+      } else {
+        playerId.current = '';
+        setNeedsCallsign(false);
+        setIsGuest(false);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Ensure player data loaded + load 3D models + quarks balance
+  useEffect(() => {
+    if (isFirebaseConfigured && !firebaseUser) return;
+    const pid = playerId.current;
+    if (!pid) return;
+
+    refreshQuarks();
 
     getPlayerModels(pid).then(models => {
       setPlanetModels(models);
@@ -226,7 +290,7 @@ export function App() {
       }
       setSystemPhotos(map);
     }).catch(() => {});
-  }, [refreshQuarks]);
+  }, [firebaseUser, refreshQuarks]);
 
   // Handle payment redirect (e.g., ?payment=success&topup=true)
   useEffect(() => {
@@ -390,6 +454,24 @@ export function App() {
     };
   }, []);
 
+  const handleOnboardingComplete = useCallback(async () => {
+    setNeedsOnboarding(false);
+    localStorage.setItem('nebulife_onboarding_done', '1');
+    // Update game_phase on server
+    const pid = playerId.current;
+    if (pid) {
+      try {
+        await authFetch(`/api/player/${pid}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ game_phase: 'exploring' }),
+        });
+      } catch {
+        // Non-critical — localStorage fallback already set
+      }
+    }
+  }, []);
+
   const handleStartExploration = () => {
     engineRef.current?.showGalaxyScene();
     setState((prev) => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
@@ -523,7 +605,7 @@ export function App() {
 
     // Check quark balance
     if (quarks < 30) {
-      setShowTopUpModal(true);
+      if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
       return;
     }
 
@@ -1228,7 +1310,7 @@ export function App() {
         quarks={quarks}
         playerName={state.playerName}
         onNavigate={handleBreadcrumbNavigate}
-        onTopUp={() => setShowTopUpModal(true)}
+        onTopUp={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
 
       {/* System navigation header — fixed top-center, visible when inside a system */}
@@ -1442,12 +1524,15 @@ export function App() {
       {warpTarget && (
         <WarpOverlay
           systemName={warpTarget.name}
-          onComplete={() => {
-            const system = warpTarget;
-            setWarpTarget(null);
-            if (engineRef.current && system) {
-              engineRef.current.enterSystem(system);
+          onPrepareScene={() => {
+            // Switch to system scene while overlay is still visible (before fade)
+            if (engineRef.current && warpTarget) {
+              engineRef.current.enterSystem(warpTarget);
             }
+          }}
+          onComplete={() => {
+            // Unmount overlay after fade completes — system already rendered underneath
+            setWarpTarget(null);
           }}
         />
       )}
@@ -1474,17 +1559,6 @@ export function App() {
             idx,
             aliases[objectsPanelSystem.id] ?? undefined,
           )}
-          onEnterPlanet={(planet) => {
-            setShowObjectsPanel(false);
-            setObjectsPanelSystem(null);
-            setState((prev) => ({
-              ...prev,
-              selectedSystem: objectsPanelSystem,
-              selectedPlanet: planet,
-              scene: 'planet-view' as SceneType,
-            }));
-            engineRef.current?.showPlanetViewScene(objectsPanelSystem, planet, true);
-          }}
         />
       )}
 
@@ -1495,6 +1569,67 @@ export function App() {
           systemDisplayName={planetDetailTarget.displayName}
           initialPlanetIndex={planetDetailTarget.planetIndex}
           onClose={() => setPlanetDetailTarget(null)}
+        />
+      )}
+
+      {/* Chat widget (visible when authenticated, not in onboarding) */}
+      {!authLoading && !needsOnboarding && !needsCallsign && playerId.current && (
+        <ChatWidget
+          playerId={playerId.current}
+          playerName={state.playerName}
+        />
+      )}
+
+      {/* Auth: Loading screen */}
+      {authLoading && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: '#020510',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'monospace', color: '#556677', fontSize: 12,
+        }}>
+          Завантаження...
+        </div>
+      )}
+
+      {/* Auth: Login screen (only when Firebase is configured) */}
+      {isFirebaseConfigured && !authLoading && !firebaseUser && (
+        <AuthScreen
+          onAuthenticated={async (user, _isNew) => {
+            setFirebaseUser(user);
+            playerId.current = user.uid;
+            setIsGuest(user.isAnonymous);
+            // Registration handled by onAuthStateChanged listener
+          }}
+        />
+      )}
+
+      {/* Auth: Callsign selection */}
+      {isFirebaseConfigured && !authLoading && firebaseUser && needsCallsign && (
+        <CallsignModal
+          onComplete={(callsign) => {
+            setNeedsCallsign(false);
+            setState((prev) => ({ ...prev, playerName: callsign }));
+          }}
+        />
+      )}
+
+      {/* Story onboarding (new players) */}
+      {needsOnboarding && !needsCallsign && homeInfo && (
+        <OnboardingScreen
+          homeInfo={homeInfo}
+          onComplete={handleOnboardingComplete}
+        />
+      )}
+
+      {/* Auth: Link account modal (for guests) */}
+      {showLinkModal && (
+        <LinkAccountModal
+          onLinked={() => {
+            setShowLinkModal(false);
+            setIsGuest(false);
+          }}
+          onClose={() => setShowLinkModal(false)}
         />
       )}
     </>

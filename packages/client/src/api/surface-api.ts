@@ -4,13 +4,15 @@
 
 import type { PlacedBuilding, BuildingType } from '@nebulife/core';
 
+import { authFetch } from '../auth/api-client.js';
+
 const API_BASE = '/api';
 
 /**
  * Get all buildings on a planet for a player.
  */
 export async function getBuildings(playerId: string, planetId: string): Promise<PlacedBuilding[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/surface/buildings?playerId=${encodeURIComponent(playerId)}&planetId=${encodeURIComponent(planetId)}`,
   );
 
@@ -30,7 +32,7 @@ export async function placeBuilding(
   planetId: string,
   building: PlacedBuilding,
 ): Promise<PlacedBuilding> {
-  const res = await fetch(`${API_BASE}/surface/buildings`, {
+  const res = await authFetch(`${API_BASE}/surface/buildings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -58,7 +60,7 @@ export async function removeBuilding(
   playerId: string,
   buildingId: string,
 ): Promise<void> {
-  const res = await fetch(`${API_BASE}/surface/buildings?id=${encodeURIComponent(buildingId)}&playerId=${encodeURIComponent(playerId)}`, {
+  const res = await authFetch(`${API_BASE}/surface/buildings?id=${encodeURIComponent(buildingId)}&playerId=${encodeURIComponent(playerId)}`, {
     method: 'DELETE',
   });
 
@@ -91,7 +93,7 @@ export interface GenerateSurfaceResponse {
  * Sends planet and star data to AI, returns surface map ID and task ID.
  */
 export async function generateSurface(req: GenerateSurfaceRequest): Promise<GenerateSurfaceResponse> {
-  const res = await fetch(`${API_BASE}/surface/generate`, {
+  const res = await authFetch(`${API_BASE}/surface/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -119,7 +121,7 @@ export interface SurfaceStatusResponse {
  * Polls Kling task status and returns photo URL and zone map when ready.
  */
 export async function checkSurfaceStatus(surfaceMapId: string): Promise<SurfaceStatusResponse> {
-  const res = await fetch(`${API_BASE}/surface/status/${encodeURIComponent(surfaceMapId)}`);
+  const res = await authFetch(`${API_BASE}/surface/status/${encodeURIComponent(surfaceMapId)}`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));

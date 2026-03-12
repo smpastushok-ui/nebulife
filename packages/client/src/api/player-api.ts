@@ -4,6 +4,8 @@
 // Communicates with /api/player/*, /api/discoveries/*, /api/gallery/*
 // ---------------------------------------------------------------------------
 
+import { authFetch } from '../auth/api-client.js';
+
 const API_BASE = '/api';
 
 // ---------------------------------------------------------------------------
@@ -32,7 +34,7 @@ export async function createPlayer(data: {
   homeSystemId: string;
   homePlanetId: string;
 }): Promise<PlayerData> {
-  const res = await fetch(`${API_BASE}/player/create`, {
+  const res = await authFetch(`${API_BASE}/player/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -50,7 +52,7 @@ export async function createPlayer(data: {
  * Get player data by ID.
  */
 export async function getPlayer(playerId: string): Promise<PlayerData | null> {
-  const res = await fetch(`${API_BASE}/player/${playerId}`);
+  const res = await authFetch(`${API_BASE}/player/${playerId}`);
 
   if (res.status === 404) return null;
 
@@ -75,7 +77,7 @@ export async function updatePlayer(
     game_state: Record<string, unknown>;
   }>,
 ): Promise<PlayerData> {
-  const res = await fetch(`${API_BASE}/player/${playerId}`, {
+  const res = await authFetch(`${API_BASE}/player/${playerId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -117,7 +119,7 @@ export async function getDiscoveries(
   const params = new URLSearchParams({ playerId });
   if (category) params.set('category', category);
 
-  const res = await fetch(`${API_BASE}/discoveries?${params}`);
+  const res = await authFetch(`${API_BASE}/discoveries?${params}`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
@@ -142,7 +144,7 @@ export async function getGallery(
   const params = new URLSearchParams({ playerId });
   if (category) params.set('category', category);
 
-  const res = await fetch(`${API_BASE}/gallery?${params}`);
+  const res = await authFetch(`${API_BASE}/gallery?${params}`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
@@ -161,7 +163,7 @@ export async function deleteGalleryPhoto(
 ): Promise<void> {
   const params = new URLSearchParams({ id, playerId });
 
-  const res = await fetch(`${API_BASE}/gallery?${params}`, {
+  const res = await authFetch(`${API_BASE}/gallery?${params}`, {
     method: 'DELETE',
   });
 
@@ -171,28 +173,3 @@ export async function deleteGalleryPhoto(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Player ID management (localStorage-based)
-// ---------------------------------------------------------------------------
-
-const PLAYER_ID_KEY = 'nebulife_player_id';
-
-/**
- * Get or generate a persistent player ID.
- * Stored in localStorage so it survives page refreshes.
- */
-export function getOrCreatePlayerId(): string {
-  let id = localStorage.getItem(PLAYER_ID_KEY);
-  if (!id) {
-    id = `player-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    localStorage.setItem(PLAYER_ID_KEY, id);
-  }
-  return id;
-}
-
-/**
- * Get stored player ID, or null if not yet created.
- */
-export function getStoredPlayerId(): string | null {
-  return localStorage.getItem(PLAYER_ID_KEY);
-}

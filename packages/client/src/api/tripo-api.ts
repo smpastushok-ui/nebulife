@@ -5,6 +5,8 @@
 // Never calls Tripo3D directly — all auth handled server-side.
 // ---------------------------------------------------------------------------
 
+import { authFetch } from '../auth/api-client.js';
+
 const API_BASE = '/api';
 
 export interface ModelStatusResponse {
@@ -45,7 +47,7 @@ export async function requestModelGeneration(req: {
   modelId: string;
   klingPhotoUrl?: string;
 }): Promise<GenerateModelResponse> {
-  const res = await fetch(`${API_BASE}/tripo/generate`, {
+  const res = await authFetch(`${API_BASE}/tripo/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -64,7 +66,7 @@ export async function requestModelGeneration(req: {
  */
 export async function checkModelStatus(modelId: string): Promise<ModelStatusResponse> {
   // Cache-busting timestamp to avoid 304 stale responses
-  const res = await fetch(`${API_BASE}/tripo/status/${modelId}?_t=${Date.now()}`, {
+  const res = await authFetch(`${API_BASE}/tripo/status/${modelId}?_t=${Date.now()}`, {
     cache: 'no-store',
   });
 
@@ -110,7 +112,7 @@ export async function pollModelUntilComplete(
  * Get all planet models for a player.
  */
 export async function getPlayerModels(playerId: string): Promise<PlanetModel[]> {
-  const res = await fetch(`${API_BASE}/models?playerId=${encodeURIComponent(playerId)}`);
+  const res = await authFetch(`${API_BASE}/models?playerId=${encodeURIComponent(playerId)}`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));

@@ -1,0 +1,233 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { authFetch } from '../../auth/api-client.js';
+
+// ---------------------------------------------------------------------------
+// CallsignModal — required after first auth, sets unique player name
+// ---------------------------------------------------------------------------
+
+const CALLSIGN_RE = /^[a-zA-Z0-9_-]{3,20}$/;
+const API_BASE = '/api';
+
+interface CallsignModalProps {
+  onComplete: (callsign: string) => void;
+}
+
+export function CallsignModal({ onComplete }: CallsignModalProps) {
+  const [value, setValue] = useState('');
+  const [available, setAvailable] = useState<boolean | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const checkAvailability = useCallback(async (callsign: string) => {
+    if (!CALLSIGN_RE.test(callsign)) {
+      setAvailable(null);
+      setChecking(false);
+      return;
+    }
+
+    setChecking(true);
+    try {
+      const res = await fetch(
+        `${API_BASE}/auth/check-callsign?callsign=${encodeURIComponent(callsign)}`,
+      );
+      const data = await res.json();
+      setAvailable(data.available);
+      if (data.error) setError(data.error);
+    } catch {
+      setError('Помилка перевірки');
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  const handleChange = (val: string) => {
+    // Allow only valid characters
+    const filtered = val.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20);
+    setValue(filtered);
+    setAvailable(null);
+    setError('');
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (filtered.length >= 3) {
+      debounceRef.current = setTimeout(() => checkAvailability(filtered), 500);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!CALLSIGN_RE.test(value)) {
+      setError('Позивний має бути 3-20 символів (латиниця, цифри, _ або -)');
+      return;
+    }
+    if (available === false) {
+      setError('Позивний вже зайнятий');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await authFetch(`${API_BASE}/auth/set-callsign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callsign: value }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Помилка' }));
+        setError(data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+
+      onComplete(value);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const isValid = CALLSIGN_RE.test(value);
+  const canSubmit = isValid && available === true && !submitting && !checking;
+
+  return (
+    <div style={overlayStyle}>
+      <div style={cardStyle}>
+        <div style={titleStyle}>Оберіть позивний</div>
+        <div style={hintStyle}>
+          Ваше унікальне ім'я у всесвіті Nebulife
+        </div>
+
+        <input
+          ref={inputRef}
+          style={inputStyle}
+          type="text"
+          placeholder="Commander_42"
+          value={value}
+          onChange={(e) => handleChange(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
+          maxLength={20}
+        />
+
+        {/* Validation feedback */}
+        <div style={{ minHeight: 18 }}>
+          {value.length > 0 && value.length < 3 && (
+            <div style={feedbackStyle('#667788')}>Мінімум 3 символи</div>
+          )}
+          {checking && (
+            <div style={feedbackStyle('#4488aa')}>Перевірка...</div>
+          )}
+          {!checking && available === true && (
+            <div style={feedbackStyle('#44ff88')}>Позивний вільний</div>
+          )}
+          {!checking && available === false && (
+            <div style={feedbackStyle('#cc4444')}>Позивний зайнятий</div>
+          )}
+          {error && (
+            <div style={feedbackStyle('#cc4444')}>{error}</div>
+          )}
+        </div>
+
+        <button
+          style={{
+            ...btnStyle,
+            opacity: canSubmit ? 1 : 0.4,
+            cursor: canSubmit ? 'pointer' : 'default',
+          }}
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+        >
+          {submitting ? 'Збереження...' : 'Підтвердити'}
+        </button>
+
+        <div style={rulesStyle}>
+          Латиниця, цифри, _ або - (3-20 символів)
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Styles ────────────────────────────────────────────────────────────────────
+
+const overlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 10001,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'rgba(2, 5, 16, 0.88)',
+  fontFamily: 'monospace',
+};
+
+const cardStyle: React.CSSProperties = {
+  width: 340,
+  padding: '32px 28px',
+  background: 'rgba(10, 15, 25, 0.96)',
+  border: '1px solid #334455',
+  borderRadius: 6,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+};
+
+const titleStyle: React.CSSProperties = {
+  fontSize: 15,
+  color: '#ccddee',
+  textAlign: 'center',
+  letterSpacing: '0.06em',
+  marginBottom: 2,
+};
+
+const hintStyle: React.CSSProperties = {
+  fontSize: 10,
+  color: '#556677',
+  textAlign: 'center',
+  marginBottom: 8,
+};
+
+const inputStyle: React.CSSProperties = {
+  padding: '10px 12px',
+  background: 'rgba(10, 20, 35, 0.8)',
+  border: '1px solid #446688',
+  color: '#ccddee',
+  fontSize: 14,
+  fontFamily: 'monospace',
+  borderRadius: 3,
+  outline: 'none',
+  textAlign: 'center',
+  letterSpacing: '0.05em',
+};
+
+const btnStyle: React.CSSProperties = {
+  padding: '10px 0',
+  background: 'rgba(30, 60, 80, 0.6)',
+  border: '1px solid #446688',
+  color: '#aaccee',
+  fontSize: 12,
+  fontFamily: 'monospace',
+  borderRadius: 3,
+  transition: 'opacity 0.15s',
+};
+
+const rulesStyle: React.CSSProperties = {
+  fontSize: 9,
+  color: '#445566',
+  textAlign: 'center',
+};
+
+function feedbackStyle(color: string): React.CSSProperties {
+  return {
+    fontSize: 10,
+    color,
+    textAlign: 'center',
+  };
+}

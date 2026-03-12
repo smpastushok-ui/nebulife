@@ -383,7 +383,6 @@ export interface SystemObjectsPanelProps {
   displayName?: string;
   onClose: () => void;
   onViewPlanet: (planetIndex: number) => void; // opens PlanetDetailWindow
-  onEnterPlanet?: (planet: Planet) => void; // navigate to planet-view (exosphere)
 }
 
 export function SystemObjectsPanel({
@@ -391,7 +390,6 @@ export function SystemObjectsPanel({
   displayName,
   onClose,
   onViewPlanet,
-  onEnterPlanet,
 }: SystemObjectsPanelProps) {
   ensureStyles();
 
@@ -529,7 +527,7 @@ export function SystemObjectsPanel({
                   baseDelay={baseDelay}
                   isExpanded={expanded}
                   onToggle={() => toggleExpand(planet.id)}
-                  onEnterPlanet={() => onEnterPlanet?.(planet)}
+                  onEnterPlanet={() => onViewPlanet(pi)}
                 />
 
                 {/* Moon rows (appear when expanded) */}

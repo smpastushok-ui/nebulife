@@ -4,6 +4,8 @@
 // Supports both direct quark purchases and MonoPay fallback.
 // ---------------------------------------------------------------------------
 
+import { authFetch } from '../auth/api-client.js';
+
 const API_BASE = '/api';
 
 export interface CreatePaymentRequest {
@@ -30,7 +32,7 @@ export interface CreatePaymentResponse {
  * If not, returns MonoPay URL for the deficit (paid=false).
  */
 export async function createPayment(req: CreatePaymentRequest): Promise<CreatePaymentResponse> {
-  const res = await fetch(`${API_BASE}/payment/create`, {
+  const res = await authFetch(`${API_BASE}/payment/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -95,7 +97,7 @@ export interface TopUpResponse {
  * Opens MonoPay page for the specified amount.
  */
 export async function startTopUpFlow(req: TopUpRequest): Promise<void> {
-  const res = await fetch(`${API_BASE}/payment/topup`, {
+  const res = await authFetch(`${API_BASE}/payment/topup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),

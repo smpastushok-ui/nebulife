@@ -3,8 +3,15 @@
 export {
   // Player
   createPlayer,
+  createPlayerWithAuth,
   getPlayer,
   updatePlayer,
+  // Auth
+  getPlayerByFirebaseUid,
+  linkFirebaseToPlayer,
+  checkCallsignAvailable,
+  setCallsign,
+  updatePlayerAuth,
   // Discoveries
   saveDiscovery,
   getDiscoveries,
@@ -58,6 +65,11 @@ export {
   getActiveSystemMission,
   updateSystemMission,
   getPlayerSystemMissions,
+  // Messages (chat)
+  saveMessage,
+  getMessages,
+  getPlayerDMChannels,
+  searchPlayers,
 } from './db.js';
 
 export type {
@@ -72,6 +84,8 @@ export type {
   PlayerAliasRow,
   SystemPhotoRow,
   SystemMissionRow,
+  MessageRow,
+  DMChannelInfo,
 } from './db.js';
 
 export {
@@ -115,3 +129,8 @@ export type { GeminiGenerateImageRequest, GeminiGenerateImageResult } from './ge
 
 // Surface photo analyzer
 export { analyzePhotoForZones } from './surface-analyzer.js';
+
+// Firebase Auth
+export { verifyFirebaseToken } from './firebase-admin.js';
+export { authenticate, authenticateToken } from './auth-middleware.js';
+export type { AuthResult } from './auth-middleware.js';

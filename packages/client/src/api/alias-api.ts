@@ -2,6 +2,8 @@
 // Player Aliases — Client API for custom system/planet names
 // ---------------------------------------------------------------------------
 
+import { authFetch } from '../auth/api-client.js';
+
 const API_BASE = '/api';
 
 /**
@@ -9,7 +11,7 @@ const API_BASE = '/api';
  * Returns a map: entityId → customName
  */
 export async function getPlayerAliases(playerId: string): Promise<Record<string, string>> {
-  const res = await fetch(`${API_BASE}/alias?playerId=${encodeURIComponent(playerId)}`);
+  const res = await authFetch(`${API_BASE}/alias?playerId=${encodeURIComponent(playerId)}`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(err.error ?? `Failed to get aliases: ${res.status}`);
@@ -27,7 +29,7 @@ export async function setAlias(req: {
   entityId: string;
   customName: string;
 }): Promise<void> {
-  const res = await fetch(`${API_BASE}/alias`, {
+  const res = await authFetch(`${API_BASE}/alias`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -46,7 +48,7 @@ export async function removeAlias(req: {
   entityType: 'system' | 'planet';
   entityId: string;
 }): Promise<void> {
-  const res = await fetch(`${API_BASE}/alias`, {
+  const res = await authFetch(`${API_BASE}/alias`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
