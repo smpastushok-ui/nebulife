@@ -20,6 +20,7 @@ import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfaceVie
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
 import { WarpOverlay } from './ui/components/WarpOverlay.js';
 import { SystemNavHeader } from './ui/components/SystemNavHeader.js';
+import { SystemObjectsPanel } from './ui/components/SystemObjectsPanel.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
 } from '@nebulife/core';
@@ -148,6 +149,10 @@ export function App() {
 
   // ── Warp animation state ──────────────────────────────────────────────
   const [warpTarget, setWarpTarget] = useState<StarSystem | null>(null);
+
+  // ── System objects panel state ────────────────────────────────────────
+  const [showObjectsPanel, setShowObjectsPanel] = useState(false);
+  const [objectsPanelSystem, setObjectsPanelSystem] = useState<StarSystem | null>(null);
 
   // ── Player aliases (custom names for systems/planets) ──────────────
   const [aliases, setAliases] = useState<Record<string, string>>({});
@@ -478,12 +483,25 @@ export function App() {
     }
   }, [state.selectedSystem]);
 
+  const handleObjectsList = useCallback(() => {
+    if (!state.selectedSystem) return;
+    setObjectsPanelSystem(state.selectedSystem);
+    setShowObjectsPanel(true);
+    // Close the context menu
+    setShowSystemMenu(false);
+    setSystemMenuPos(null);
+    setState((prev) => ({ ...prev, selectedSystem: null }));
+    engineRef.current?.unfocusSystem();
+  }, [state.selectedSystem]);
+
   const handleTelescopePhoto = useCallback(() => {
     if (!state.selectedSystem) return;
     const sys = state.selectedSystem;
     const sysId = sys.id;
+    // Close menu and clear selected system to prevent PixiJS from re-opening it
     setShowSystemMenu(false);
     setSystemMenuPos(null);
+    setState((prev) => ({ ...prev, selectedSystem: null }));
     engineRef.current?.unfocusSystem();
 
     // Mark as generating immediately
@@ -1165,6 +1183,7 @@ export function App() {
           quarks={quarks}
           onClose={handleCloseSystemMenu}
           onEnterSystem={handleSystemMenuEnter}
+          onObjectsList={handleObjectsList}
           onRename={handleSystemMenuRename}
           onCharacteristics={handleSystemMenuCharacteristics}
           onResearch={handleSystemMenuResearch}
@@ -1304,6 +1323,18 @@ export function App() {
           playerId={playerId.current}
           currentBalance={quarks}
           onClose={() => setShowTopUpModal(false)}
+        />
+      )}
+
+      {/* System Objects Panel */}
+      {showObjectsPanel && objectsPanelSystem && (
+        <SystemObjectsPanel
+          system={objectsPanelSystem}
+          displayName={aliases[objectsPanelSystem.id] ?? undefined}
+          onClose={() => {
+            setShowObjectsPanel(false);
+            setObjectsPanelSystem(null);
+          }}
         />
       )}
     </>
