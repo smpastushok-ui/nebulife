@@ -120,6 +120,9 @@ export class GameEngine {
     const w = this.app.screen.width;
     const h = this.app.screen.height;
 
+    // Force resize to fix stale viewport dimensions after overlay transitions
+    this.app.resize();
+
     this.homePlanetScene = new HomePlanetScene(homeSystem, homePlanet, w, h);
     // Start planet hidden to prevent PixiJS flash; visibility useEffect will show if no 3D model
     if (startHidden) this.homePlanetScene.setPlanetVisible(false);
@@ -173,15 +176,27 @@ export class GameEngine {
 
     this.app.stage.addChild(this.galaxyScene.container);
     this.activeScene = this.galaxyScene.container;
-    // Directional navigation layout — no pan/zoom, position HOME slightly above center
-    this.camera.detach();
+
+    // Force resize to fix stale viewport dimensions after overlay transitions
+    this.app.resize();
+
+    // Enable camera zoom/pan for galaxy hex grid
+    this.camera.attach(this.galaxyScene.container);
+    this.camera.setMinScale(0.4);
+    // Pan bounds: limit movement to galaxy backdrop area
+    this.camera.setPanBounds(250);
+    // Position HOME at center of screen
     this.galaxyScene.container.x = this.app.screen.width / 2;
-    this.galaxyScene.container.y = this.app.screen.height * 0.42;
+    this.galaxyScene.container.y = this.app.screen.height * 0.45;
+    this.camera.resetToFit(200);
     this.callbacks.onSceneChange('galaxy');
   }
 
   showSystemScene(system: StarSystem) {
     this.clearScenes();
+
+    // Force resize to fix stale viewport dimensions after overlay transitions
+    this.app.resize();
 
     this.systemScene = new SystemScene(system, (planet, screenPos) => {
       this.callbacks.onPlanetSelect(planet, screenPos);

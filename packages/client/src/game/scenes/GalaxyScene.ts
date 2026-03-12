@@ -44,9 +44,9 @@ function hexToNum(hex: string): number {
   return parseInt(hex.replace('#', ''), 16);
 }
 
-/** Compute star display radius from luminosity (log-scale, clamped 3-12px) */
+/** Compute star display radius from luminosity (log-scale, clamped 5-16px) */
 function starBaseRadius(luminositySolar: number): number {
-  return Math.max(3, Math.min(12, Math.log2(1 + luminositySolar) * 4));
+  return Math.max(5, Math.min(16, Math.log2(1 + luminositySolar) * 5.5));
 }
 
 /** Size multiplier per spectral class */
@@ -59,8 +59,8 @@ const HOT_STARS: Set<SpectralClass> = new Set(['O', 'B', 'A']);
 
 /* ── Layout constants ──────────────────────────────────────────── */
 
-/** Pixels per light-year for hex->screen conversion */
-const PX_PER_LY = 18;
+/** Pixels per light-year for hex->screen conversion (halved for tighter layout) */
+const PX_PER_LY = 9;
 
 /** Easing speed for alpha transitions */
 const ANIM_SPEED = 5;
@@ -223,7 +223,7 @@ export class GalaxyScene {
   private buildHomeNode(sys: StarSystem) {
     const color = hexToNum(sys.star.colorHex);
     const spectralMul = SPECTRAL_SIZE_MUL[sys.star.spectralClass] ?? 1.0;
-    const baseR = starBaseRadius(sys.star.luminositySolar) * 1.4 * spectralMul;
+    const baseR = starBaseRadius(sys.star.luminositySolar) * 1.6 * spectralMul;
     const phase = this.hash(sys.id);
 
     const { container: dot, glowOuter, glowMid, corona, core } = this.createStarGfx(color, baseR);
@@ -312,7 +312,7 @@ export class GalaxyScene {
     const spectralMul = SPECTRAL_SIZE_MUL[sys.star.spectralClass] ?? 1.0;
 
     // State-dependent size multiplier
-    const radiusMul = state === 'researched' ? 1.2 : state === 'researching' ? 0.9 : 0.5;
+    const radiusMul = state === 'researched' ? 1.3 : state === 'researching' ? 1.0 : 0.65;
     const effectiveR = baseR * radiusMul * spectralMul;
 
     // Unexplored: use dim gray color, not star's actual color

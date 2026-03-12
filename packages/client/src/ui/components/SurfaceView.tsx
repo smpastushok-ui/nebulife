@@ -209,12 +209,13 @@ export const SurfaceView = forwardRef<SurfaceViewHandle, SurfaceViewProps>(funct
   /*  Auto-start AI generation on mount                                */
   /* ================================================================ */
 
-  useEffect(() => {
-    if (!generationStarted.current) {
-      generationStarted.current = true;
-      startAIGeneration();
-    }
-  }, [startAIGeneration]);
+  // AI generation disabled — will be replaced with 2.5D fields
+  // useEffect(() => {
+  //   if (!generationStarted.current) {
+  //     generationStarted.current = true;
+  //     startAIGeneration();
+  //   }
+  // }, [startAIGeneration]);
 
   /* ================================================================ */
   /*  Imperative handle — expose methods to parent via ref            */
@@ -454,32 +455,12 @@ export const SurfaceView = forwardRef<SurfaceViewHandle, SurfaceViewProps>(funct
             zIndex: 200,
           }}
         >
-          <div style={{ textAlign: 'center', fontFamily: 'monospace', color: '#7bb8ff', maxWidth: 400 }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>&#128248;</div>
-            <div style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 24 }}>
-              Супутниковий знімок поверхні
+          <div style={{ textAlign: 'center', fontFamily: 'monospace', color: '#667788', maxWidth: 400 }}>
+            <div style={{ fontSize: 14, marginBottom: 16 }}>
+              Поверхня в розробці
             </div>
-            <div style={{ fontSize: 14, color: '#aaccff', marginBottom: 24 }}>
-              Супутник передає дані з орбіти...
-            </div>
-            <div style={{
-              width: 200, height: 8,
-              background: 'rgba(123, 184, 255, 0.1)',
-              borderRadius: 4, overflow: 'hidden',
-              margin: '0 auto 12px',
-            }}>
-              <div style={{
-                height: '100%',
-                background: 'linear-gradient(90deg, #4488ff, #7bb8ff)',
-                width: `${Math.min(progress, 100)}%`,
-                transition: 'width 0.3s',
-              }} />
-            </div>
-            <div style={{ fontSize: 12, color: '#667788' }}>
-              {progress > 0 ? `${progress}%` : 'Очікування...'}
-            </div>
-            <div style={{ fontSize: 11, color: '#445566', marginTop: 16 }}>
-              Зазвичай ~3-5 хвилин
+            <div style={{ fontSize: 11, color: '#445566' }}>
+              Скоро тут будуть 2.5D поля
             </div>
           </div>
         </div>
