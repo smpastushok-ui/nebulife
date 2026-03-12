@@ -1,5 +1,5 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-const CACHE_NAME = 'nebulife-v1';
+const CACHE_NAME = 'nebulife-v2';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
@@ -40,18 +40,15 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetched = fetch(event.request).then((response) => {
+    fetch(event.request)
+      .then((response) => {
         // Cache successful GET responses
         if (response.ok && event.request.method === 'GET') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
-      });
-
-      // Return cached version immediately, update in background
-      return cached || fetched;
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
