@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { StarSystem } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -6,6 +6,7 @@ import type { StarSystem } from '@nebulife/core';
 // ---------------------------------------------------------------------------
 // Shows current system name with ◀ prev / next ▶ buttons anchored to the
 // top of the screen. Does not move during pan/zoom of the PixiJS scene.
+// Click the center name block to open search among navigable systems.
 // ---------------------------------------------------------------------------
 
 interface SystemNavHeaderProps {
@@ -15,8 +16,30 @@ interface SystemNavHeaderProps {
   prevAlias?: string;
   nextSystem: StarSystem | null;
   nextAlias?: string;
+  allSystems: StarSystem[];
+  aliases: Record<string, string>;
   onPrev: () => void;
   onNext: () => void;
+  onNavigate: (system: StarSystem) => void;
+}
+
+// SVG magnifying glass icon (outline only, no fill)
+function SearchIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      style={{ flexShrink: 0 }}
+    >
+      <circle cx="6.5" cy="6.5" r="4.5" />
+      <line x1="10" y1="10" x2="14" y2="14" />
+    </svg>
+  );
 }
 
 export function SystemNavHeader({
@@ -26,12 +49,45 @@ export function SystemNavHeader({
   prevAlias,
   nextSystem,
   nextAlias,
+  allSystems,
+  aliases,
   onPrev,
   onNext,
+  onNavigate,
 }: SystemNavHeaderProps) {
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const currentName = currentAlias ?? currentSystem.star.name;
   const prevName = prevSystem ? (prevAlias ?? prevSystem.star.name) : null;
   const nextName = nextSystem ? (nextAlias ?? nextSystem.star.name) : null;
+
+  // Filtered systems list
+  const filtered = query.trim()
+    ? allSystems.filter((s) => {
+        const name = (aliases[s.id] ?? s.star.name).toLowerCase();
+        return name.includes(query.toLowerCase());
+      })
+    : allSystems;
+
+  // Open search: focus input
+  useEffect(() => {
+    if (searchOpen) {
+      setQuery('');
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [searchOpen]);
+
+  // Close search on Escape
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSearchOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [searchOpen]);
 
   const btnBase: React.CSSProperties = {
     background: 'none',
@@ -72,66 +128,182 @@ export function SystemNavHeader({
         transform: 'translateX(-50%)',
         zIndex: 40,
         display: 'flex',
-        alignItems: 'center',
-        background: 'rgba(5, 10, 20, 0.85)',
-        border: '1px solid #334455',
-        borderRadius: 4,
+        flexDirection: 'column',
+        alignItems: 'stretch',
         fontFamily: 'monospace',
-        whiteSpace: 'nowrap',
         userSelect: 'none',
-        backdropFilter: 'blur(6px)',
       }}
     >
-      {/* Prev button */}
-      <button
-        onClick={onPrev}
-        disabled={!prevSystem}
-        title={prevName ?? undefined}
-        style={{
-          ...btnBase,
-          cursor: prevSystem ? 'pointer' : 'default',
-          justifyContent: 'flex-end',
-          opacity: prevSystem ? 1 : 0,
-          pointerEvents: prevSystem ? 'auto' : 'none',
-        }}
-      >
-        <span style={arrowStyle}>◀</span>
-        <span style={nameStyle}>{prevName}</span>
-      </button>
-
-      {divider}
-
-      {/* Current system name */}
+      {/* Main nav row */}
       <div
         style={{
-          color: '#aabbcc',
-          fontSize: 12,
-          letterSpacing: '0.08em',
-          padding: '5px 16px',
-          textTransform: 'uppercase',
+          display: 'flex',
+          alignItems: 'center',
+          background: 'rgba(5, 10, 20, 0.85)',
+          border: '1px solid #334455',
+          borderRadius: searchOpen ? '4px 4px 0 0' : 4,
+          whiteSpace: 'nowrap',
+          backdropFilter: 'blur(6px)',
         }}
       >
-        {currentName}
+        {/* Prev button */}
+        <button
+          onClick={onPrev}
+          title={prevName ?? undefined}
+          style={{
+            ...btnBase,
+            cursor: prevSystem ? 'pointer' : 'default',
+            justifyContent: 'flex-end',
+            color: prevSystem ? '#667788' : 'transparent',
+            pointerEvents: prevSystem ? 'auto' : 'none',
+          }}
+        >
+          <span style={arrowStyle}>◀</span>
+          <span style={nameStyle}>{prevName}</span>
+        </button>
+
+        {divider}
+
+        {/* Current system name — click to toggle search */}
+        <button
+          onClick={() => setSearchOpen((v) => !v)}
+          style={{
+            background: 'none',
+            border: 'none',
+            outline: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '5px 14px',
+          }}
+        >
+          <span
+            style={{
+              color: '#aabbcc',
+              fontSize: 12,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              fontFamily: 'monospace',
+            }}
+          >
+            {currentName}
+          </span>
+          <span style={{ color: searchOpen ? '#7bb8ff' : '#334455' }}>
+            <SearchIcon size={13} />
+          </span>
+        </button>
+
+        {divider}
+
+        {/* Next button */}
+        <button
+          onClick={onNext}
+          title={nextName ?? undefined}
+          style={{
+            ...btnBase,
+            cursor: nextSystem ? 'pointer' : 'default',
+            justifyContent: 'flex-start',
+            color: nextSystem ? '#667788' : 'transparent',
+            pointerEvents: nextSystem ? 'auto' : 'none',
+          }}
+        >
+          <span style={nameStyle}>{nextName}</span>
+          <span style={arrowStyle}>▶</span>
+        </button>
       </div>
 
-      {divider}
+      {/* Search dropdown */}
+      {searchOpen && (
+        <div
+          style={{
+            background: 'rgba(5, 10, 20, 0.95)',
+            border: '1px solid #334455',
+            borderTop: 'none',
+            borderRadius: '0 0 4px 4px',
+            backdropFilter: 'blur(6px)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Search input */}
+          <div style={{ padding: '6px 10px', borderBottom: '1px solid rgba(51,68,85,0.5)' }}>
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="пошук системи..."
+              style={{
+                width: '100%',
+                background: 'none',
+                border: 'none',
+                outline: 'none',
+                color: '#aabbcc',
+                fontFamily: 'monospace',
+                fontSize: 11,
+                caretColor: '#7bb8ff',
+              }}
+            />
+          </div>
 
-      {/* Next button */}
-      <button
-        onClick={onNext}
-        disabled={!nextSystem}
-        title={nextName ?? undefined}
-        style={{
-          ...btnBase,
-          cursor: nextSystem ? 'pointer' : 'default',
-          justifyContent: 'flex-start',
-          opacity: nextSystem ? 1 : 0,
-          pointerEvents: nextSystem ? 'auto' : 'none',
-        }}
-      >
-        <span style={nameStyle}>{nextName}</span>
-        <span style={arrowStyle}>▶</span>
-      </button>
+          {/* Results list */}
+          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '8px 12px', color: '#445566', fontSize: 11 }}>
+                нічого не знайдено
+              </div>
+            ) : (
+              filtered.map((s) => {
+                const name = aliases[s.id] ?? s.star.name;
+                const isCurrent = s.id === currentSystem.id;
+                return (
+                  <SearchResultItem
+                    key={s.id}
+                    name={name}
+                    spectral={`${s.star.spectralClass}${s.star.subType}`}
+                    isCurrent={isCurrent}
+                    onClick={() => {
+                      setSearchOpen(false);
+                      if (!isCurrent) onNavigate(s);
+                    }}
+                  />
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function SearchResultItem({
+  name, spectral, isCurrent, onClick,
+}: {
+  name: string; spectral: string; isCurrent: boolean; onClick: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        padding: '6px 12px',
+        background: hover ? 'rgba(40,60,90,0.4)' : 'none',
+        border: 'none',
+        cursor: isCurrent ? 'default' : 'pointer',
+        fontFamily: 'monospace',
+        fontSize: 11,
+        textAlign: 'left',
+        color: isCurrent ? '#7bb8ff' : '#8899aa',
+      }}
+    >
+      <span>{name}</span>
+      <span style={{ color: '#445566', fontSize: 10 }}>{spectral}</span>
+    </button>
   );
 }

@@ -36,15 +36,31 @@ interface PlanetNode {
   moonNodes: MoonNode[];
 }
 
+interface SysShootingStar {
+  gfx: Graphics;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  lifetime: number;
+  maxLife: number;
+}
+
 export class SystemScene {
   container: Container;
   /** Max orbital distance in pixels — used to fit all planets on screen */
   maxExtent = 0;
+  /** Background star field size in pixels — used to set camera minScale */
+  fieldSize = 0;
   private planetNodes: Map<string, PlanetNode> = new Map();
   private time = 0;
   private starCorona: Container | null = null;
   private twinkleStars: TwinkleStar[] = [];
   private orbitContainer: Container;
+
+  // Shooting stars in system background
+  private sysShootingStars: SysShootingStar[] = [];
+  private sysShootingStarTimer = 5000 + Math.random() * 5000; // first: 5-10s
 
   constructor(
     private system: StarSystem,
@@ -121,7 +137,8 @@ export class SystemScene {
 
   private drawBackground() {
     const rng = new SeededRNG(this.system.seed * 7919 + 31);
-    const fieldSize = Math.max(2000, this.maxExtent * 3);
+    this.fieldSize = Math.max(2000, this.maxExtent * 3);
+    const fieldSize = this.fieldSize;
     const halfField = fieldSize / 2;
 
     function pick(arr: number[]): number {
@@ -330,6 +347,14 @@ export class SystemScene {
       ts.graphic.alpha = ts.baseAlpha * (0.5 + 0.5 * Math.sin(this.time * ts.speed + ts.phase));
     }
 
+    // Shooting stars (subtle background events every 5-10s)
+    this.sysShootingStarTimer -= deltaMs;
+    if (this.sysShootingStarTimer <= 0) {
+      this.spawnSystemShootingStar();
+      this.sysShootingStarTimer = 5000 + Math.random() * 5000;
+    }
+    this.updateSystemShootingStars(deltaMs);
+
     // Animate planet orbits
     for (const [, node] of this.planetNodes) {
       // Angular speed inversely proportional to orbital period
@@ -363,7 +388,72 @@ export class SystemScene {
     }
   }
 
+  // --- System shooting stars ---
+  private spawnSystemShootingStar() {
+    if (this.fieldSize === 0) return;
+    const gfx = new Graphics();
+
+    // Random start position across the background field
+    const halfField = this.fieldSize * 0.42;
+    const x = (Math.random() - 0.5) * halfField * 2;
+    const y = (Math.random() - 0.5) * halfField * 2;
+
+    const dirAngle = Math.random() * Math.PI * 2;
+    // Subtle speed in world-space pixels per ms
+    const speed = 0.12 + Math.random() * 0.18;
+    const vx = Math.cos(dirAngle) * speed;
+    const vy = Math.sin(dirAngle) * speed;
+
+    const maxLife = 400 + Math.random() * 600;
+    const streakLen = speed * 65;
+
+    // Streak line (subtle)
+    gfx.moveTo(0, 0);
+    gfx.lineTo(-Math.cos(dirAngle) * streakLen, -Math.sin(dirAngle) * streakLen);
+    gfx.stroke({ width: 1.0, color: 0xffffff, alpha: 0.65 });
+    // Soft glow tail
+    gfx.moveTo(0, 0);
+    gfx.lineTo(-Math.cos(dirAngle) * streakLen * 0.4, -Math.sin(dirAngle) * streakLen * 0.4);
+    gfx.stroke({ width: 2.5, color: 0xaaccff, alpha: 0.1 });
+
+    gfx.x = x;
+    gfx.y = y;
+    gfx.zIndex = -1;
+    gfx.alpha = 0;
+    this.container.addChild(gfx);
+
+    this.sysShootingStars.push({ gfx, x, y, vx, vy, lifetime: 0, maxLife });
+  }
+
+  private updateSystemShootingStars(deltaMs: number) {
+    for (let i = this.sysShootingStars.length - 1; i >= 0; i--) {
+      const s = this.sysShootingStars[i];
+      s.lifetime += deltaMs;
+      s.x += s.vx * deltaMs;
+      s.y += s.vy * deltaMs;
+      s.gfx.x = s.x;
+      s.gfx.y = s.y;
+
+      const t = s.lifetime / s.maxLife;
+      if (t < 0.1) {
+        s.gfx.alpha = t / 0.1;
+      } else if (t > 0.6) {
+        s.gfx.alpha = (1 - t) / 0.4;
+      } else {
+        s.gfx.alpha = 1;
+      }
+
+      if (s.lifetime >= s.maxLife) {
+        this.container.removeChild(s.gfx);
+        s.gfx.destroy();
+        this.sysShootingStars.splice(i, 1);
+      }
+    }
+  }
+
   destroy() {
+    for (const ss of this.sysShootingStars) { ss.gfx.destroy(); }
+    this.sysShootingStars.length = 0;
     this.container.destroy({ children: true });
     this.planetNodes.clear();
     this.twinkleStars.length = 0;

@@ -48,6 +48,14 @@ export class GameEngine {
   private hpOnPointerMove: ((e: PointerEvent) => void) | null = null;
   private hpOnPointerUp: ((e: PointerEvent) => void) | null = null;
 
+  // Planet view drag/rotate + wheel zoom state
+  private pvDragging = false;
+  private pvLastPointerX = 0;
+  private pvOnPointerDown: ((e: PointerEvent) => void) | null = null;
+  private pvOnPointerMove: ((e: PointerEvent) => void) | null = null;
+  private pvOnPointerUp: ((e: PointerEvent) => void) | null = null;
+  private pvOnWheel: ((e: WheelEvent) => void) | null = null;
+
   constructor(container: HTMLElement, callbacks: GameCallbacks) {
     this.container = container;
     this.callbacks = callbacks;
@@ -175,8 +183,15 @@ export class GameEngine {
     this.app.stage.addChild(this.systemScene.container);
     this.activeScene = this.systemScene.container;
     this.camera.attach(this.systemScene.container);
+
+    // Set min zoom so background star field always covers the screen (no dark edges)
+    const { fieldSize, maxExtent } = this.systemScene;
+    const screenDim = Math.max(this.app.screen.width, this.app.screen.height);
+    const dynamicMinScale = fieldSize > 0 ? screenDim / fieldSize : 0.1;
+    this.camera.setMinScale(Math.max(0.05, dynamicMinScale));
+
     // Fit all planets on screen
-    this.camera.resetToFit(this.systemScene.maxExtent);
+    this.camera.resetToFit(maxExtent);
     this.callbacks.onSceneChange('system');
   }
 
@@ -191,6 +206,7 @@ export class GameEngine {
     this.app.stage.addChild(this.planetViewScene.vignetteOverlay);
     this.activeScene = this.planetViewScene.container;
     this.camera.detach();
+    this.setupPlanetViewInput();
     this.callbacks.onSceneChange('planet-view');
   }
 
@@ -285,8 +301,67 @@ export class GameEngine {
     this.hpDragging = false;
   }
 
+  /** Setup mouse/touch wheel-zoom + drag-rotate for planet view scene */
+  private setupPlanetViewInput() {
+    const canvas = this.app.canvas;
+    canvas.style.touchAction = 'none';
+
+    this.pvOnPointerDown = (e: PointerEvent) => {
+      this.pvDragging = true;
+      this.pvLastPointerX = e.clientX;
+    };
+
+    this.pvOnPointerMove = (e: PointerEvent) => {
+      if (!this.pvDragging || !this.planetViewScene) return;
+      const dx = e.clientX - this.pvLastPointerX;
+      this.pvLastPointerX = e.clientX;
+      this.planetViewScene.rotate(-dx * 0.004);
+    };
+
+    this.pvOnPointerUp = () => {
+      this.pvDragging = false;
+    };
+
+    this.pvOnWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.deltaY > 0) {
+        this.planetViewScene?.zoomOut();
+      } else {
+        this.planetViewScene?.zoomIn();
+      }
+    };
+
+    canvas.addEventListener('pointerdown', this.pvOnPointerDown);
+    canvas.addEventListener('pointermove', this.pvOnPointerMove);
+    canvas.addEventListener('pointerup', this.pvOnPointerUp);
+    canvas.addEventListener('pointerleave', this.pvOnPointerUp);
+    canvas.addEventListener('pointercancel', this.pvOnPointerUp);
+    canvas.addEventListener('wheel', this.pvOnWheel, { passive: false });
+  }
+
+  /** Remove planet view drag/wheel listeners */
+  private teardownPlanetViewInput() {
+    const canvas = this.app.canvas;
+    if (this.pvOnPointerDown) {
+      canvas.removeEventListener('pointerdown', this.pvOnPointerDown);
+      canvas.removeEventListener('pointermove', this.pvOnPointerMove!);
+      canvas.removeEventListener('pointerup', this.pvOnPointerUp!);
+      canvas.removeEventListener('pointerleave', this.pvOnPointerUp!);
+      canvas.removeEventListener('pointercancel', this.pvOnPointerUp!);
+      canvas.removeEventListener('wheel', this.pvOnWheel!);
+      this.pvOnPointerDown = null;
+      this.pvOnPointerMove = null;
+      this.pvOnPointerUp = null;
+      this.pvOnWheel = null;
+    }
+    this.pvDragging = false;
+  }
+
   private clearScenes() {
     this.teardownHomePlanetInput();
+    this.teardownPlanetViewInput();
+    // Reset camera min zoom (was overridden in system scene)
+    this.camera.setMinScale(0.1);
 
     if (this.galaxyScene) {
       this.app.stage.removeChild(this.galaxyScene.container);

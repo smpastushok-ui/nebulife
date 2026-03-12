@@ -281,6 +281,12 @@ export class PlanetViewScene {
     this.applyView();
   }
 
+  /** Rotate the cosmos view by delta radians (drag-to-rotate) */
+  rotate(delta: number) {
+    this.viewAngle += delta;
+    this.applyView();
+  }
+
   update(deltaMs: number) {
     this.time += deltaMs;
 

@@ -75,6 +75,9 @@ export class HomePlanetScene {
   private supernovae: SupernovaFlash[] = [];
   private shootingStarTimer = 5000 + Math.random() * 10000;   // first: 5-15s
   private supernovaTimer = 20000 + Math.random() * 40000;     // first: 20-60s
+  // Track last supernova position to ensure chaotic (non-repeating) placement
+  private lastSupernovaX = -9999;
+  private lastSupernovaY = -9999;
 
   // Quantum scanning overlay
   private scanContainer: Container | null = null;
@@ -385,17 +388,22 @@ export class HomePlanetScene {
   private spawnSupernova() {
     const gfx = new Graphics();
 
-    // Random position — avoid planet area
-    let x: number, y: number;
+    // Random position — avoid planet area AND last supernova position (chaotic, non-repeating)
+    const minFromPlanet = this.planetRadius * 1.5;
+    const minFromLast = this.planetRadius * 3;
+    let x: number = 0, y: number = 0;
     let attempts = 0;
     do {
       x = this.planetX + (Math.random() - 0.5) * this.screenW * 0.9;
       y = this.planetY + (Math.random() - 0.5) * this.screenH * 0.9;
       attempts++;
-    } while (
-      Math.sqrt((x - this.planetX) ** 2 + (y - this.planetY) ** 2) < this.planetRadius * 1.5
-      && attempts < 10
-    );
+      const distPlanet = Math.sqrt((x - this.planetX) ** 2 + (y - this.planetY) ** 2);
+      const distLast = Math.sqrt((x - this.lastSupernovaX) ** 2 + (y - this.lastSupernovaY) ** 2);
+      if (distPlanet >= minFromPlanet && distLast >= minFromLast) break;
+    } while (attempts < 20);
+
+    this.lastSupernovaX = x;
+    this.lastSupernovaY = y;
 
     const maxLife = 2000 + Math.random() * 2000; // 2-4s
     const maxRadius = 2 + Math.random() * 4;

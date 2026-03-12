@@ -153,6 +153,11 @@ export class CameraController {
     }
   }
 
+  /** Override the minimum zoom scale (e.g. to prevent dark edges in system view) */
+  setMinScale(val: number) {
+    this.minScale = val;
+  }
+
   /** Reset and fit a given world-radius (px) on screen with padding */
   resetToFit(worldRadius: number) {
     if (!this.target) return;

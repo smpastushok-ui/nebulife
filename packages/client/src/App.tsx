@@ -415,7 +415,15 @@ export function App() {
 
   const handleViewPlanet = useCallback(() => {
     if (state.selectedPlanet && state.selectedSystem) {
-      engineRef.current?.showPlanetViewScene(state.selectedSystem, state.selectedPlanet);
+      const engine = engineRef.current;
+      engine?.showPlanetViewScene(state.selectedSystem, state.selectedPlanet);
+      // Prevent PixiJS flash: immediately hide planet if 3D model exists for this planet
+      const hasModel = planetModels.some(
+        (m) => m.planet_id === state.selectedPlanet!.id
+          && m.system_id === state.selectedSystem!.id
+          && m.status === 'ready',
+      );
+      if (hasModel) engine?.setPlanetVisible(false);
       setState((prev) => ({
         ...prev,
         scene: 'planet-view' as const,
@@ -423,7 +431,7 @@ export function App() {
         showPlanetInfo: false,
       }));
     }
-  }, [state.selectedPlanet, state.selectedSystem]);
+  }, [state.selectedPlanet, state.selectedSystem, planetModels]);
 
   const handleShowCharacteristics = useCallback(() => {
     setState((prev) => ({
@@ -944,11 +952,13 @@ export function App() {
     ? navigableSystems.findIndex((s) => s.id === state.selectedSystem!.id)
     : -1;
 
-  const prevNavSystem = currentNavIndex > 0 ? navigableSystems[currentNavIndex - 1] : null;
-  const nextNavSystem =
-    currentNavIndex >= 0 && currentNavIndex < navigableSystems.length - 1
-      ? navigableSystems[currentNavIndex + 1]
-      : null;
+  // Circular navigation: wrap around at ends
+  const prevNavSystem = navigableSystems.length > 1 && currentNavIndex >= 0
+    ? navigableSystems[(currentNavIndex - 1 + navigableSystems.length) % navigableSystems.length]
+    : null;
+  const nextNavSystem = navigableSystems.length > 1 && currentNavIndex >= 0
+    ? navigableSystems[(currentNavIndex + 1) % navigableSystems.length]
+    : null;
 
   // ── CommandBar data ──────────────────────────────────────────────────
   const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
@@ -992,7 +1002,6 @@ export function App() {
       const homeTools: ToolItem[] = [];
       if (homeInfo) {
         homeTools.push(
-          { id: 'exosphere', label: 'Екзосфера', onClick: handleGoToExosphere },
           { id: 'surface', label: 'Поверхня', onClick: handleGoToHomeSurface },
         );
         // 3D button — only if no model exists and not currently generating
@@ -1058,6 +1067,7 @@ export function App() {
 
     case 'planet-view': {
       const tools: ToolItem[] = [
+        { id: 'back-system', label: 'Система', onClick: handleBackToSystem },
         { id: 'surface', label: 'Поверхня', onClick: handleOpenSurface },
         { id: 'info', label: 'Інфо', onClick: handleShowCharacteristics },
       ];
@@ -1137,8 +1147,11 @@ export function App() {
           prevAlias={prevNavSystem ? aliases[prevNavSystem.id] : undefined}
           nextSystem={nextNavSystem}
           nextAlias={nextNavSystem ? aliases[nextNavSystem.id] : undefined}
+          allSystems={navigableSystems}
+          aliases={aliases}
           onPrev={() => prevNavSystem && handleNavToSystem(prevNavSystem)}
           onNext={() => nextNavSystem && handleNavToSystem(nextNavSystem)}
+          onNavigate={handleNavToSystem}
         />
       )}
 
