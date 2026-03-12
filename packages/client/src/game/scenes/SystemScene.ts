@@ -24,6 +24,7 @@ interface MoonNode {
   angle: number;
   orbitRadius: number;
   angularSpeed: number;
+  yCompress: number;
 }
 
 interface PlanetNode {
@@ -61,6 +62,7 @@ export class SystemScene {
   // Shooting stars in system background
   private sysShootingStars: SysShootingStar[] = [];
   private sysShootingStarTimer = 5000 + Math.random() * 5000; // first: 5-10s
+  private outerBeltContainer: Container | null = null;
 
   constructor(
     private system: StarSystem,
@@ -132,6 +134,32 @@ export class SystemScene {
       beltGfx.fill({ color: 0x665544, alpha: 0.3 });
       beltGfx.zIndex = 1;
       this.container.addChild(beltGfx);
+    }
+
+    // Procedural outer asteroid belt (beyond outermost planet)
+    if (system.planets.length > 0) {
+      const outerPlanetAU = Math.max(...system.planets.map(p => p.orbit.semiMajorAxisAU));
+      const outerR = auToScreen(outerPlanetAU);
+      const beltInner = outerR * 1.3;
+      const beltOuter = outerR * 1.8;
+      const beltRng = new SeededRNG(system.seed * 997 + 43);
+      const asteroidCount = 60 + beltRng.nextInt(0, 40);
+      const outerBeltGfx = new Graphics();
+      for (let i = 0; i < asteroidCount; i++) {
+        const angle = beltRng.next() * Math.PI * 2;
+        const r = beltInner + beltRng.next() * (beltOuter - beltInner);
+        const size = 0.5 + beltRng.next() * 1.5;
+        outerBeltGfx.circle(
+          Math.cos(angle) * r,
+          Math.sin(angle) * r * Y_COMPRESS,
+          size,
+        );
+      }
+      outerBeltGfx.fill({ color: 0x556644, alpha: 0.25 });
+      outerBeltGfx.zIndex = 1;
+      this.outerBeltContainer = new Container();
+      this.outerBeltContainer.addChild(outerBeltGfx);
+      this.container.addChild(this.outerBeltContainer);
     }
   }
 
@@ -301,14 +329,18 @@ export class SystemScene {
     const moonNodes: MoonNode[] = [];
     if (planet.moons.length > 0) {
       const planetSize = getPlanetSize(planet);
+      const moonRng = new SeededRNG(planet.seed * 13 + 7);
       for (let i = 0; i < planet.moons.length; i++) {
         const moon = planet.moons[i];
         const moonRadius = Math.max(2, Math.min(5, moon.radiusKm / 500));
         const moonOrbitR = planetSize + 6 + i * 8;
         const moonGfx = renderSystemMoon(moon.compositionType, moonRadius);
         const moonStartAngle = (moon.seed % 360) * Math.PI / 180;
+        // Per-moon orbital inclination for visual diversity
+        const inclination = (moonRng.next() - 0.5) * 0.4;
+        const moonYCompress = Y_COMPRESS + inclination;
         moonGfx.x = Math.cos(moonStartAngle) * moonOrbitR;
-        moonGfx.y = Math.sin(moonStartAngle) * moonOrbitR * Y_COMPRESS;
+        moonGfx.y = Math.sin(moonStartAngle) * moonOrbitR * moonYCompress;
         planetSprite.addChild(moonGfx);
         // Cap: no moon orbits faster than 1 revolution per 8 seconds (at 60fps)
         const maxMoonSpeed = (2 * Math.PI) / (8 * 60);
@@ -318,6 +350,7 @@ export class SystemScene {
           angle: moonStartAngle,
           orbitRadius: moonOrbitR,
           angularSpeed: Math.min(rawSpeed, maxMoonSpeed),
+          yCompress: moonYCompress,
         });
       }
     }
@@ -335,6 +368,11 @@ export class SystemScene {
 
   update(deltaMs: number) {
     this.time += deltaMs;
+
+    // Rotate outer asteroid belt slowly
+    if (this.outerBeltContainer) {
+      this.outerBeltContainer.rotation += deltaMs * 0.00002;
+    }
 
     // Star corona animation: gentle pulsing + slow rotation
     if (this.starCorona) {
@@ -379,11 +417,11 @@ export class SystemScene {
       // Dynamic lighting: rotate lightingGroup so highlight faces the star
       node.lightingGroup.rotation = Math.atan2(-node.container.y, -node.container.x);
 
-      // Moon sub-orbits (Y-compressed)
+      // Moon sub-orbits (per-moon Y-compression for orbital diversity)
       for (const moon of node.moonNodes) {
         moon.angle += moon.angularSpeed * (deltaMs / 16.67);
         moon.gfx.x = Math.cos(moon.angle) * moon.orbitRadius;
-        moon.gfx.y = Math.sin(moon.angle) * moon.orbitRadius * Y_COMPRESS;
+        moon.gfx.y = Math.sin(moon.angle) * moon.orbitRadius * moon.yCompress;
       }
     }
   }

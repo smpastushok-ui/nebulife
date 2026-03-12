@@ -19,6 +19,7 @@ import { SurfaceView } from './ui/components/SurfaceView.js';
 import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfaceView.js';
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
 import { WarpOverlay } from './ui/components/WarpOverlay.js';
+import { ScanLineOverlay } from './ui/components/ScanLineOverlay.js';
 import { SystemNavHeader } from './ui/components/SystemNavHeader.js';
 import { SystemObjectsPanel } from './ui/components/SystemObjectsPanel.js';
 import { PlanetDetailWindow } from './ui/components/PlanetDetailWindow.js';
@@ -62,6 +63,7 @@ export interface GameState {
 export function App() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
+  const telescopePhotoRef = useRef<(sys: StarSystem) => void>(() => {});
 
   const [state, setState] = useState<GameState>({
     scene: 'home-intro',
@@ -340,6 +342,9 @@ export function App() {
       onWarpToSystem: (system) => {
         setWarpTarget(system);
       },
+      onTelescopeClick: (system) => {
+        telescopePhotoRef.current(system);
+      },
     });
 
     engine.init().then(() => {
@@ -396,7 +401,7 @@ export function App() {
   };
 
   const handleGoToHomePlanet = () => {
-    engineRef.current?.showHomePlanetScene();
+    engineRef.current?.showHomePlanetScene(true);
     setState((prev) => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
     setShowExploreBtn(true);
   };
@@ -428,14 +433,7 @@ export function App() {
   const handleViewPlanet = useCallback(() => {
     if (state.selectedPlanet && state.selectedSystem) {
       const engine = engineRef.current;
-      engine?.showPlanetViewScene(state.selectedSystem, state.selectedPlanet);
-      // Prevent PixiJS flash: immediately hide planet if 3D model exists for this planet
-      const hasModel = planetModels.some(
-        (m) => m.planet_id === state.selectedPlanet!.id
-          && m.system_id === state.selectedSystem!.id
-          && m.status === 'ready',
-      );
-      if (hasModel) engine?.setPlanetVisible(false);
+      engine?.showPlanetViewScene(state.selectedSystem, state.selectedPlanet, true);
       setState((prev) => ({
         ...prev,
         scene: 'planet-view' as const,
@@ -516,8 +514,19 @@ export function App() {
 
   const handleTelescopePhoto = useCallback(() => {
     if (!state.selectedSystem) return;
-    const sys = state.selectedSystem;
+    handleTelescopePhotoForSystem(state.selectedSystem);
+  }, [state.selectedSystem]);
+
+  /** Telescope photo generation — accepts system directly (for both menu and galaxy icon) */
+  const handleTelescopePhotoForSystem = useCallback((sys: StarSystem) => {
     const sysId = sys.id;
+
+    // Check quark balance
+    if (quarks < 30) {
+      setShowTopUpModal(true);
+      return;
+    }
+
     // Close menu and clear selected system to prevent PixiJS from re-opening it
     setShowSystemMenu(false);
     setSystemMenuPos(null);
@@ -565,7 +574,10 @@ export function App() {
           return next;
         });
       });
-  }, [state.selectedSystem]);
+  }, [quarks]);
+
+  // Keep ref updated for GameEngine callback (avoid stale closure)
+  telescopePhotoRef.current = handleTelescopePhotoForSystem;
 
   const handleViewSystemPhoto = useCallback(() => {
     if (!state.selectedSystem) return;
@@ -727,7 +739,7 @@ export function App() {
       showPlanetMenu: false,
       showPlanetInfo: false,
     }));
-    engineRef.current?.showPlanetViewScene(homeInfo.system, homeInfo.planet);
+    engineRef.current?.showPlanetViewScene(homeInfo.system, homeInfo.planet, true);
   }, [homeInfo]);
 
   const handleGoToHomeSurface = useCallback(() => {
@@ -1352,6 +1364,10 @@ export function App() {
           onQuarksChanged={refreshQuarks}
         />
       )}
+      {/* Scan line while checking for 3D models */}
+      {!modelsLoaded && (state.scene === 'home-intro' || state.scene === 'planet-view') && (
+        <ScanLineOverlay />
+      )}
       {/* Background 3D Model (auto-shown on home/planet-view if model exists) */}
       {backgroundModelInfo &&
         home3DPhase !== 'scanning' && home3DPhase !== 'materializing' &&
@@ -1456,6 +1472,22 @@ export function App() {
             idx,
             aliases[objectsPanelSystem.id] ?? undefined,
           )}
+          onEnterPlanet={(planet) => {
+            setShowObjectsPanel(false);
+            setObjectsPanelSystem(null);
+            setState((prev) => ({
+              ...prev,
+              selectedSystem: objectsPanelSystem,
+              selectedPlanet: planet,
+              scene: 'planet-view' as SceneType,
+            }));
+            engineRef.current?.showPlanetViewScene(objectsPanelSystem, planet, true);
+          }}
+          allSystems={engineRef.current?.getAllSystems()}
+          onNavigateSystem={(sys) => {
+            setObjectsPanelSystem(sys);
+            setState((prev) => ({ ...prev, selectedSystem: sys }));
+          }}
         />
       )}
 

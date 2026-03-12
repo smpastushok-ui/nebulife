@@ -29,10 +29,14 @@ export function WarpOverlay({ systemName, onComplete }: WarpOverlayProps) {
     })),
   );
 
+  // Use ref to avoid re-creating timeout when onComplete changes (inline callback)
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
-    const timer = setTimeout(onComplete, WARP_DURATION_MS);
+    const timer = setTimeout(() => onCompleteRef.current(), WARP_DURATION_MS);
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;

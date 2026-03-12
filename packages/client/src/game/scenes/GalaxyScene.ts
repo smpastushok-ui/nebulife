@@ -159,6 +159,7 @@ export class GalaxyScene {
     researchState: ResearchState,
     private onSelect: (system: StarSystem, screenPos?: { x: number; y: number }) => void,
     private onDoubleClick: (system: StarSystem) => void,
+    private onTelescopeClick?: (system: StarSystem) => void,
   ) {
     this.container = new Container();
     this.researchState = researchState;
@@ -289,23 +290,57 @@ export class GalaxyScene {
 
     const { container: dot, glowOuter, glowMid, corona, core } = this.createStarGfx(color, baseR);
 
-    // HOME label
+    // HOME label — centered ON the star
+    const hlBg = new Graphics();
+    hlBg.circle(0, 0, 12);
+    hlBg.fill({ color: 0x020510, alpha: 0.45 });
+    dot.addChild(hlBg);
+
     const hl = new Text({
       text: 'HOME',
-      style: { fontSize: 11, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold' },
+      style: { fontSize: 8, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 1 },
     });
-    hl.anchor.set(0.5, 0);
-    hl.y = baseR + 6;
+    hl.anchor.set(0.5, 0.5);
+    hl.y = 0;
     dot.addChild(hl);
 
-    // System name label (compact, right after HOME)
+    // System name label (below star)
     const nl = new Text({
       text: sys.name,
       style: { fontSize: 8, fill: 0x667788, fontFamily: 'monospace' },
     });
     nl.anchor.set(0.5, 0);
-    nl.y = baseR + 18;
+    nl.y = baseR + 6;
     dot.addChild(nl);
+
+    // Telescope icon for HOME
+    if (this.onTelescopeClick) {
+      const telIcon = new Container();
+      const telGfx = new Graphics();
+      telGfx.moveTo(-5, 2);
+      telGfx.lineTo(4, -2);
+      telGfx.stroke({ width: 1.5, color: 0x4488aa, alpha: 0.55 });
+      telGfx.circle(5, -3, 2);
+      telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.55 });
+      telGfx.moveTo(-5, 2);
+      telGfx.lineTo(-6, 5);
+      telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.35 });
+      telGfx.moveTo(-5, 2);
+      telGfx.lineTo(-3, 5);
+      telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.35 });
+      telIcon.addChild(telGfx);
+      telIcon.y = baseR + 18;
+      telIcon.eventMode = 'static';
+      telIcon.cursor = 'pointer';
+      telIcon.hitArea = { contains: (px: number, py: number) => px * px + py * py < 100 };
+      telIcon.on('pointerdown', (e: any) => {
+        e.stopPropagation();
+        this.onTelescopeClick!(sys);
+      });
+      telIcon.on('pointerover', () => { telGfx.alpha = 1; });
+      telIcon.on('pointerout', () => { telGfx.alpha = 0.55; });
+      dot.addChild(telIcon);
+    }
 
     // Observatory marker
     const hasObs = this.researchState.slots.some(s => s.systemId === sys.id);
@@ -500,6 +535,38 @@ export class GalaxyScene {
         nameLabel.anchor.set(0.5, 0);
         nameLabel.y = labelY;
         dot.addChild(nameLabel);
+
+        // Telescope icon (procedural) — triggers photo generation
+        if (this.onTelescopeClick) {
+          const telIcon = new Container();
+          const telGfx = new Graphics();
+          // Tube body
+          telGfx.moveTo(-5, 2);
+          telGfx.lineTo(4, -2);
+          telGfx.stroke({ width: 1.5, color: 0x4488aa, alpha: 0.55 });
+          // Lens
+          telGfx.circle(5, -3, 2);
+          telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.55 });
+          // Tripod leg
+          telGfx.moveTo(-5, 2);
+          telGfx.lineTo(-6, 5);
+          telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.35 });
+          telGfx.moveTo(-5, 2);
+          telGfx.lineTo(-3, 5);
+          telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.35 });
+          telIcon.addChild(telGfx);
+          telIcon.y = labelY + 14;
+          telIcon.eventMode = 'static';
+          telIcon.cursor = 'pointer';
+          telIcon.hitArea = { contains: (px: number, py: number) => px * px + py * py < 100 };
+          telIcon.on('pointerdown', (e: any) => {
+            e.stopPropagation();
+            this.onTelescopeClick!(sys);
+          });
+          telIcon.on('pointerover', () => { telGfx.alpha = 1; });
+          telIcon.on('pointerout', () => { telGfx.alpha = 0.55; });
+          dot.addChild(telIcon);
+        }
         break;
       }
 

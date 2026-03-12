@@ -41,27 +41,6 @@ function ensureStyles() {
   document.head.appendChild(el);
 }
 
-// ─── SVG Eye icon (outline only) ─────────────────────────────────────────────
-
-function EyeIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 18 12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ flexShrink: 0, display: 'block' }}
-    >
-      <path d="M1 6C1 6 4 1 9 1s8 5 8 5-3 5-8 5S1 6 1 6z" />
-      <circle cx="9" cy="6" r="2.2" />
-    </svg>
-  );
-}
-
 // ─── Colour helpers ───────────────────────────────────────────────────────────
 
 function getPlanetColor(p: Planet): string {
@@ -77,10 +56,10 @@ function getPlanetColor(p: Planet): string {
 
 function getMoonColor(m: Moon): string {
   switch (m.compositionType) {
-    case 'rocky':    return '#887766';
-    case 'icy':      return '#8899bb';
-    case 'metallic': return '#99aaaa';
-    case 'volcanic': return '#996644';
+    case 'rocky':    return '#997755';
+    case 'icy':      return '#99ccee';
+    case 'metallic': return '#aabbbb';
+    case 'volcanic': return '#cc6633';
     default:         return '#667788';
   }
 }
@@ -125,17 +104,6 @@ function habitabilityLabel(p: Planet): string {
   return '✗ мертва';
 }
 
-// ─── Divider cell wrapper ─────────────────────────────────────────────────────
-
-const divStyle: React.CSSProperties = {
-  borderRight: '1px solid rgba(40,58,80,0.55)',
-  paddingRight: 8,
-  marginRight: 4,
-  flexShrink: 0,
-  display: 'flex',
-  alignItems: 'center',
-};
-
 // ─── Moon row ─────────────────────────────────────────────────────────────────
 
 function MoonRow({ moon, moonIdx }: { moon: Moon; moonIdx: number }) {
@@ -156,19 +124,14 @@ function MoonRow({ moon, moonIdx }: { moon: Moon; moonIdx: number }) {
         transform: on ? 'none' : 'translateX(-6px)',
         transition: 'opacity 0.22s ease-out, transform 0.22s ease-out',
         fontSize: 10,
-        gap: 0,
+        gap: 6,
       }}
     >
       {/* Arrow indent */}
-      <span style={{ color: '#2a3d52', flexShrink: 0, fontSize: 9, marginRight: 6 }}>↳</span>
+      <span style={{ color: '#2a3d52', flexShrink: 0, fontSize: 9 }}>↳</span>
 
-      {/* Color dot — no divider on first col */}
-      <span
-        style={{
-          ...divStyle,
-          width: 22, justifyContent: 'center',
-        }}
-      >
+      {/* Color dot */}
+      <span style={{ width: 22, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
         <span
           style={{
             width: 5, height: 5, borderRadius: '50%',
@@ -179,12 +142,12 @@ function MoonRow({ moon, moonIdx }: { moon: Moon; moonIdx: number }) {
       </span>
 
       {/* Name */}
-      <span style={{ ...divStyle, color: '#667788', minWidth: 88, fontSize: 10 }}>
+      <span style={{ color: '#667788', minWidth: 88, fontSize: 10 }}>
         {moon.name}
       </span>
 
       {/* Composition */}
-      <span style={{ ...divStyle, color: '#445566', minWidth: 70, fontSize: 9 }}>
+      <span style={{ color: '#445566', minWidth: 70, fontSize: 9 }}>
         {moonCompositionName(moon.compositionType)}
       </span>
 
@@ -231,10 +194,10 @@ interface PlanetRowProps {
   baseDelay: number;
   isExpanded: boolean;
   onToggle: () => void;
-  onViewDetail: () => void;
+  onEnterPlanet: () => void;
 }
 
-function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onViewDetail }: PlanetRowProps) {
+function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet }: PlanetRowProps) {
   const color = getPlanetColor(planet);
   const hScore = planet.habitability.overall;
   const hColor = habitabilityColor(hScore);
@@ -243,7 +206,7 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onViewDetail }: Pl
 
   const d = (extra: number) => `sopCell 0.22s ease-out ${baseDelay + extra}ms both`;
   const [hovered, setHovered] = useState(false);
-  const [eyeHovered, setEyeHovered] = useState(false);
+  const [nameHovered, setNameHovered] = useState(false);
 
   return (
     <div
@@ -251,24 +214,17 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onViewDetail }: Pl
         display: 'flex',
         alignItems: 'center',
         padding: '6px 14px',
-        cursor: hasMoons ? 'pointer' : 'default',
         background: hovered ? 'rgba(30,48,70,0.22)' : 'transparent',
         transition: 'background 0.15s',
         borderRadius: 3,
         animation: `sopRow 0.32s ease-out ${baseDelay}ms both`,
-        gap: 0,
+        gap: 6,
       }}
-      onClick={hasMoons ? onToggle : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Color dot */}
-      <span
-        style={{
-          ...divStyle,
-          width: 22, justifyContent: 'center',
-        }}
-      >
+      <span style={{ width: 22, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
         <span
           style={{
             width: 10, height: 10, borderRadius: '50%',
@@ -279,16 +235,22 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onViewDetail }: Pl
         />
       </span>
 
-      {/* Name */}
+      {/* Clickable name — navigates to planet-view */}
       <span
         style={{
-          ...divStyle,
-          color: isHome ? '#44ff88' : '#aabbcc',
+          color: nameHovered ? '#7bb8ff' : (isHome ? '#44ff88' : '#aabbcc'),
           fontSize: 11,
           minWidth: 90,
           gap: 4,
+          display: 'flex',
+          alignItems: 'center',
           animation: d(55),
+          cursor: 'pointer',
+          transition: 'color 0.15s',
         }}
+        onClick={(e) => { e.stopPropagation(); onEnterPlanet(); }}
+        onMouseEnter={() => setNameHovered(true)}
+        onMouseLeave={() => setNameHovered(false)}
       >
         {planet.name}
         {isHome && (
@@ -299,7 +261,6 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onViewDetail }: Pl
       {/* Type */}
       <span
         style={{
-          ...divStyle,
           color: '#556677',
           fontSize: 9,
           minWidth: 72,
@@ -312,7 +273,6 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onViewDetail }: Pl
       {/* Orbit */}
       <span
         style={{
-          ...divStyle,
           color: '#4477aa',
           fontSize: 9,
           minWidth: 54,
@@ -325,9 +285,9 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onViewDetail }: Pl
       {/* Habitability */}
       <div
         style={{
-          ...divStyle,
           flexDirection: 'column',
           alignItems: 'flex-start',
+          display: 'flex',
           minWidth: 70,
           animation: d(215),
         }}
@@ -336,45 +296,30 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onViewDetail }: Pl
         <HabitBar score={hScore} delay={baseDelay + 280} color={hColor} />
       </div>
 
-      {/* Moon toggle */}
-      <span
-        style={{
-          ...divStyle,
-          color: hasMoons ? '#4477aa' : '#2a3a4e',
-          fontSize: 9,
-          minWidth: 26,
-          justifyContent: 'center',
-          animation: d(260),
-        }}
-      >
-        {hasMoons ? `${isExpanded ? '▾' : '▸'} ${planet.moons.length}` : '—'}
-      </span>
+      {/* Spacer */}
+      <span style={{ flex: 1 }} />
 
-      {/* Eye button — open detail window */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onViewDetail();
-        }}
-        onMouseEnter={(e) => { e.stopPropagation(); setEyeHovered(true); }}
-        onMouseLeave={() => setEyeHovered(false)}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '2px 4px',
-          color: eyeHovered ? '#7bb8ff' : '#334455',
-          display: 'flex',
-          alignItems: 'center',
-          borderRadius: 2,
-          transition: 'color 0.15s',
-          animation: d(300),
-          marginLeft: 2,
-        }}
-        title="Відкрити деталі планети"
-      >
-        <EyeIcon size={13} />
-      </button>
+      {/* Moon toggle — right side */}
+      {hasMoons ? (
+        <span
+          style={{
+            color: '#4477aa',
+            fontSize: 9,
+            cursor: 'pointer',
+            padding: '2px 4px',
+            borderRadius: 2,
+            animation: d(260),
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+            flexShrink: 0,
+          }}
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        >
+          {planet.moons.length}
+          <span style={{ fontSize: 7 }}>{isExpanded ? '▾' : '▸'}</span>
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -394,16 +339,11 @@ function StarRow({ star }: { star: StarSystem['star'] }) {
         padding: '10px 14px',
         borderBottom: '1px solid rgba(40,55,75,0.5)',
         animation: 'sopStar 0.35s ease-out 0.45s both',
-        gap: 0,
+        gap: 6,
       }}
     >
       {/* Star dot */}
-      <span
-        style={{
-          ...divStyle,
-          width: 22, justifyContent: 'center',
-        }}
-      >
+      <span style={{ width: 22, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
         <span
           style={{
             width: 13, height: 13, borderRadius: '50%',
@@ -414,17 +354,17 @@ function StarRow({ star }: { star: StarSystem['star'] }) {
       </span>
 
       {/* Name */}
-      <span style={{ ...divStyle, color: '#ddeeff', fontSize: 12, minWidth: 90 }}>
+      <span style={{ color: '#ddeeff', fontSize: 12, minWidth: 90 }}>
         {star.name}
       </span>
 
       {/* Spectral class */}
-      <span style={{ ...divStyle, color: star.colorHex, fontSize: 10, minWidth: 38, opacity: 0.9 }}>
+      <span style={{ color: star.colorHex, fontSize: 10, minWidth: 38, opacity: 0.9 }}>
         {spectralLabel}
       </span>
 
       {/* Temp */}
-      <span style={{ ...divStyle, color: '#446688', fontSize: 9, minWidth: 64 }}>
+      <span style={{ color: '#446688', fontSize: 9, minWidth: 64 }}>
         {tempStr} K
       </span>
 
@@ -443,6 +383,9 @@ export interface SystemObjectsPanelProps {
   displayName?: string;
   onClose: () => void;
   onViewPlanet: (planetIndex: number) => void; // opens PlanetDetailWindow
+  onEnterPlanet?: (planet: Planet) => void; // navigate to planet-view (exosphere)
+  allSystems?: StarSystem[];
+  onNavigateSystem?: (system: StarSystem) => void;
 }
 
 export function SystemObjectsPanel({
@@ -450,6 +393,9 @@ export function SystemObjectsPanel({
   displayName,
   onClose,
   onViewPlanet,
+  onEnterPlanet,
+  allSystems,
+  onNavigateSystem,
 }: SystemObjectsPanelProps) {
   ensureStyles();
 
@@ -465,6 +411,21 @@ export function SystemObjectsPanel({
   const systemName = displayName ?? system.name;
   const planetsCount = sortedPlanets.length;
   const moonsCount = sortedPlanets.reduce((sum, p) => sum + p.moons.length, 0);
+
+  // System navigation
+  const canNavigate = allSystems && allSystems.length > 1 && onNavigateSystem;
+  const currentIdx = allSystems ? allSystems.findIndex((s) => s.id === system.id) : -1;
+
+  const goPrev = () => {
+    if (!allSystems || !onNavigateSystem) return;
+    const prevIdx = (currentIdx - 1 + allSystems.length) % allSystems.length;
+    onNavigateSystem(allSystems[prevIdx]);
+  };
+  const goNext = () => {
+    if (!allSystems || !onNavigateSystem) return;
+    const nextIdx = (currentIdx + 1) % allSystems.length;
+    onNavigateSystem(allSystems[nextIdx]);
+  };
 
   return (
     <>
@@ -510,9 +471,18 @@ export function SystemObjectsPanel({
             animation: 'sopRow 0.3s ease-out 0.2s both',
           }}
         >
-          <div>
-            <div style={{ fontSize: 13, color: '#ccddee', letterSpacing: '0.06em' }}>
-              {systemName.toUpperCase()}
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            {/* System name with nav arrows */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {canNavigate && (
+                <NavArrow direction="left" onClick={goPrev} />
+              )}
+              <span style={{ fontSize: 13, color: '#ccddee', letterSpacing: '0.06em' }}>
+                {systemName.toUpperCase()}
+              </span>
+              {canNavigate && (
+                <NavArrow direction="right" onClick={goNext} />
+              )}
             </div>
             <div style={{ fontSize: 9, color: '#445566', marginTop: 3, letterSpacing: '0.04em' }}>
               ОБ'ЄКТИ СИСТЕМИ &nbsp;·&nbsp;
@@ -556,23 +526,23 @@ export function SystemObjectsPanel({
               letterSpacing: '0.08em',
               borderBottom: '1px solid rgba(30,42,60,0.5)',
               animation: 'sopCell 0.25s ease-out 0.58s both',
-              gap: 0,
+              gap: 6,
             }}
           >
             {/* dot col header */}
-            <span style={{ ...divStyle, width: 22, justifyContent: 'center' }} />
+            <span style={{ width: 22, display: 'flex', justifyContent: 'center', flexShrink: 0 }} />
             {/* name */}
-            <span style={{ ...divStyle, minWidth: 90 }}>ОБ'ЄКТ</span>
+            <span style={{ minWidth: 90 }}>ОБ'ЄКТ</span>
             {/* type */}
-            <span style={{ ...divStyle, minWidth: 72 }}>ТИП</span>
+            <span style={{ minWidth: 72 }}>ТИП</span>
             {/* orbit */}
-            <span style={{ ...divStyle, minWidth: 54 }}>ОРБІТА</span>
+            <span style={{ minWidth: 54 }}>ОРБІТА</span>
             {/* habitability */}
-            <span style={{ ...divStyle, minWidth: 70 }}>ПРИДАТНІСТЬ</span>
+            <span style={{ minWidth: 70 }}>ПРИДАТНІСТЬ</span>
+            {/* spacer */}
+            <span style={{ flex: 1 }} />
             {/* moons */}
-            <span style={{ ...divStyle, minWidth: 26, justifyContent: 'center' }}>СУП</span>
-            {/* eye */}
-            <span style={{ fontSize: 8 }}> </span>
+            <span style={{ flexShrink: 0, paddingRight: 4 }}>СУП</span>
           </div>
 
           {/* Planet rows */}
@@ -587,7 +557,7 @@ export function SystemObjectsPanel({
                   baseDelay={baseDelay}
                   isExpanded={expanded}
                   onToggle={() => toggleExpand(planet.id)}
-                  onViewDetail={() => onViewPlanet(pi)}
+                  onEnterPlanet={() => onEnterPlanet?.(planet)}
                 />
 
                 {/* Moon rows (appear when expanded) */}
@@ -609,5 +579,33 @@ export function SystemObjectsPanel({
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Nav arrow button ─────────────────────────────────────────────────────────
+
+function NavArrow({ direction, onClick }: { direction: 'left' | 'right'; onClick: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: 'none',
+        border: '1px solid',
+        borderColor: hovered ? '#446688' : '#334455',
+        color: hovered ? '#aabbcc' : '#556677',
+        fontSize: 10,
+        cursor: 'pointer',
+        fontFamily: 'monospace',
+        padding: '1px 5px',
+        borderRadius: 3,
+        lineHeight: 1,
+        transition: 'color 0.15s, border-color 0.15s',
+      }}
+    >
+      {direction === 'left' ? '◀' : '▶'}
+    </button>
   );
 }

@@ -26,6 +26,10 @@ const KEYFRAMES = `
     from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  @keyframes pdwPulse {
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50%      { transform: scale(1.05); opacity: 0.7; }
+  }
 `;
 
 function ensureStyles() {
@@ -139,8 +143,10 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const rafRef = useRef<number>(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     if (!containerRef.current) return;
     let destroyed = false;
     let viewAngle = 0;
@@ -160,6 +166,7 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
     }).then(() => {
       if (destroyed) { app.destroy(true, { children: true, texture: true }); return; }
       containerRef.current?.appendChild(app.canvas);
+      setLoading(false);
 
       const sceneContainer = new Container();
       app.stage.addChild(sceneContainer);
@@ -264,8 +271,25 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
         overflow: 'hidden',
         borderRadius: 4,
         flexShrink: 0,
+        position: 'relative',
       }}
-    />
+    >
+      {loading && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: '#020510',
+        }}>
+          <div style={{
+            width: displayRadius * 0.5,
+            height: displayRadius * 0.5,
+            borderRadius: '50%',
+            border: '1px solid rgba(68,136,170,0.25)',
+            animation: 'pdwPulse 1.5s ease-in-out infinite',
+          }} />
+        </div>
+      )}
+    </div>
   );
 }
 

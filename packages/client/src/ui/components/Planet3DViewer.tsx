@@ -264,12 +264,16 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
       },
     );
 
-    // Animation loop
+    // Animation loop — manual delta instead of deprecated THREE.Clock
     let animationId: number;
-    const clock = new THREE.Clock();
+    let prevTime = performance.now();
+    let elapsed = 0;
     const animate = () => {
       animationId = requestAnimationFrame(animate);
-      const dt = clock.getDelta();
+      const now = performance.now();
+      const dt = (now - prevTime) / 1000; // seconds
+      prevTime = now;
+      elapsed += dt;
       controls.update();
 
       // Rotate cloud layer slowly (atmospheric wind)
@@ -278,7 +282,7 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         // Update time uniform for shader-based wind
         const mat = cloudRef.material as THREE.ShaderMaterial;
         if (mat.uniforms.uTime) {
-          mat.uniforms.uTime.value = clock.elapsedTime;
+          mat.uniforms.uTime.value = elapsed;
         }
       }
 
@@ -767,7 +771,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   background: {
     position: 'fixed',
-    inset: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 48,
     zIndex: 50,
     background: 'transparent',
     display: 'flex',

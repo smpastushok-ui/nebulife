@@ -20,6 +20,8 @@ export interface GameCallbacks {
   onSceneChange: (scene: 'galaxy' | 'system' | 'home-intro' | 'planet-view') => void;
   /** Called when player wants to enter a system (double-click). App shows warp overlay then calls enterSystem(). */
   onWarpToSystem?: (system: StarSystem) => void;
+  /** Called when telescope icon is clicked on galaxy map. */
+  onTelescopeClick?: (system: StarSystem) => void;
 }
 
 const GALAXY_SEED = 42;
@@ -79,8 +81,8 @@ export class GameEngine {
     this.playerPos = assignPlayerPosition(GALAXY_SEED, PLAYER_INDEX);
     this.rings = generatePlayerRings(GALAXY_SEED, this.playerPos.x, this.playerPos.y, 'player-0');
 
-    // Start with home planet intro
-    this.showHomePlanetScene();
+    // Start with home planet intro (hidden by default — App visibility effect decides)
+    this.showHomePlanetScene(true);
 
     // Animation loop
     this.app.ticker.add(() => {
@@ -103,7 +105,7 @@ export class GameEngine {
     this.galaxyScene?.updateSystemVisual(systemId, state);
   }
 
-  showHomePlanetScene() {
+  showHomePlanetScene(startHidden = false) {
     this.clearScenes();
 
     // Find home system and its best planet
@@ -119,6 +121,8 @@ export class GameEngine {
     const h = this.app.screen.height;
 
     this.homePlanetScene = new HomePlanetScene(homeSystem, homePlanet, w, h);
+    // Start planet hidden to prevent PixiJS flash; visibility useEffect will show if no 3D model
+    if (startHidden) this.homePlanetScene.setPlanetVisible(false);
     this.app.stage.addChild(this.homePlanetScene.container);
     this.app.stage.addChild(this.homePlanetScene.vignetteOverlay);
     this.activeScene = this.homePlanetScene.container;
@@ -162,6 +166,9 @@ export class GameEngine {
           this.callbacks.onSystemSelect(system);
         }
       },
+      this.callbacks.onTelescopeClick ? (system) => {
+        this.callbacks.onTelescopeClick!(system);
+      } : undefined,
     );
 
     this.app.stage.addChild(this.galaxyScene.container);
@@ -195,13 +202,15 @@ export class GameEngine {
     this.callbacks.onSceneChange('system');
   }
 
-  showPlanetViewScene(system: StarSystem, planet: Planet) {
+  showPlanetViewScene(system: StarSystem, planet: Planet, startHidden = false) {
     this.clearScenes();
 
     const w = this.app.screen.width;
     const h = this.app.screen.height;
 
     this.planetViewScene = new PlanetViewScene(system, planet, w, h);
+    // Start planet hidden to prevent PixiJS flash; visibility useEffect will show it if no 3D model
+    if (startHidden) this.planetViewScene.setPlanetVisible(false);
     this.app.stage.addChild(this.planetViewScene.container);
     this.app.stage.addChild(this.planetViewScene.vignetteOverlay);
     this.activeScene = this.planetViewScene.container;

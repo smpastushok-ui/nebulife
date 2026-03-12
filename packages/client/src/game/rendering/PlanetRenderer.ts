@@ -150,10 +150,10 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
 
 /** Moon composition colors for system-view scale (small dots) */
 const MOON_COLORS: Record<string, number> = {
-  rocky: 0x888899,
-  icy: 0xaabbcc,
-  metallic: 0x998877,
-  volcanic: 0x775544,
+  rocky: 0x997755,
+  icy: 0x99ccee,
+  metallic: 0xaabbbb,
+  volcanic: 0xcc6633,
 };
 
 /**

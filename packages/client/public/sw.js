@@ -29,6 +29,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Only handle http/https — skip chrome-extension:// and other schemes
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+
   // Never cache API calls
   if (url.pathname.startsWith('/api/')) {
     return;
