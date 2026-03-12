@@ -161,3 +161,132 @@ export async function checkTaskStatus(taskId: string): Promise<{
 
   return { status, imageUrl };
 }
+
+// ---------------------------------------------------------------------------
+// Video Generation (Image-to-Video)
+// ---------------------------------------------------------------------------
+
+export interface KlingVideoGenerateRequest {
+  imageUrl: string;
+  prompt?: string;
+  duration: '5' | '10'; // seconds
+}
+
+interface KlingVideoGenerateResponse {
+  code: number;
+  message: string;
+  request_id: string;
+  data: {
+    task_id: string;
+    task_status: string;
+  };
+}
+
+/**
+ * Submit an image-to-video generation task to Kling AI.
+ * Converts a still image into a short video clip.
+ */
+export async function generateVideo(req: KlingVideoGenerateRequest): Promise<{ taskId: string }> {
+  const token = generateJWT();
+
+  const body: Record<string, unknown> = {
+    model_name: 'kling-v1-6',
+    image: req.imageUrl,
+    duration: req.duration,
+    mode: 'std',
+  };
+
+  if (req.prompt) {
+    body.prompt = req.prompt;
+  }
+
+  const response = await fetch(`${KLING_API_BASE}/videos/image2video`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Kling Video API error ${response.status}: ${errText}`);
+  }
+
+  const result = (await response.json()) as KlingVideoGenerateResponse;
+
+  if (result.code !== 0) {
+    throw new Error(`Kling Video API error code ${result.code}: ${result.message}`);
+  }
+
+  return { taskId: result.data.task_id };
+}
+
+// ---------------------------------------------------------------------------
+// Video Task Status Polling
+// ---------------------------------------------------------------------------
+
+interface KlingVideoTaskStatusResponse {
+  code: number;
+  message: string;
+  request_id: string;
+  data: {
+    task_id: string;
+    task_status: string;
+    task_status_msg?: string;
+    task_result?: {
+      videos?: Array<{
+        id: string;
+        url: string;
+        duration: string;
+      }>;
+    };
+  };
+}
+
+/**
+ * Check the status of a Kling video generation task.
+ * Returns normalized status + video URL if complete.
+ */
+export async function checkVideoTaskStatus(taskId: string): Promise<{
+  status: TaskStatus;
+  videoUrl?: string;
+}> {
+  const token = generateJWT();
+
+  const response = await fetch(`${KLING_API_BASE}/videos/image2video/${taskId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Kling Video status check error ${response.status}: ${errText}`);
+  }
+
+  const result = (await response.json()) as KlingVideoTaskStatusResponse;
+
+  if (result.code !== 0) {
+    throw new Error(`Kling Video API error code ${result.code}: ${result.message}`);
+  }
+
+  const apiStatus = result.data.task_status;
+  let status: TaskStatus;
+
+  if (apiStatus === 'succeed') {
+    status = 'succeed';
+  } else if (apiStatus === 'failed') {
+    status = 'failed';
+  } else if (apiStatus === 'processing') {
+    status = 'processing';
+  } else {
+    status = 'pending';
+  }
+
+  const videoUrl = result.data.task_result?.videos?.[0]?.url;
+
+  return { status, videoUrl };
+}

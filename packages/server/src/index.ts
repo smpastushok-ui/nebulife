@@ -46,6 +46,18 @@ export {
   getPlayerAliases,
   setPlayerAlias,
   removePlayerAlias,
+  // System Photos (telescope)
+  saveSystemPhoto,
+  getSystemPhoto,
+  getSystemPhotoById,
+  updateSystemPhoto,
+  getPlayerSystemPhotos,
+  // System Missions (video)
+  saveSystemMission,
+  getSystemMission,
+  getActiveSystemMission,
+  updateSystemMission,
+  getPlayerSystemMissions,
 } from './db.js';
 
 export type {
@@ -58,17 +70,22 @@ export type {
   SurfaceMapRow,
   PaymentIntentRow,
   PlayerAliasRow,
+  SystemPhotoRow,
+  SystemMissionRow,
 } from './db.js';
 
 export {
   generateImage,
   checkTaskStatus,
+  generateVideo,
+  checkVideoTaskStatus,
 } from './kling-client.js';
 
 export type {
   KlingGenerateRequest,
   KlingGenerateResponse,
   KlingTaskStatusResponse,
+  KlingVideoGenerateRequest,
   TaskStatus,
 } from './kling-client.js';
 
@@ -88,6 +105,9 @@ export { buildSurfacePrompt } from './surface-prompt-builder.js';
 
 // Planet 3D model prompt builder
 export { buildPlanetModelPrompt } from './planet-model-prompt-builder.js';
+
+// System photo/mission prompt builder
+export { buildSystemPhotoPrompt, buildMissionVideoPrompt } from './system-photo-prompt-builder.js';
 
 // Surface photo analyzer
 export { analyzePhotoForZones } from './surface-analyzer.js';

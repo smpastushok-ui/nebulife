@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import type { GalaxyRing, StarSystem, ResearchState } from '@nebulife/core';
+import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebulife/core';
 import { getResearchProgress, isSystemFullyResearched } from '@nebulife/core';
 import { createGalaxyBackdrop, type TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
 
@@ -15,6 +15,30 @@ function hslToRgb(h: number, s: number, l: number): number {
   return ((Math.round(f(0) * 255) << 16) | (Math.round(f(8) * 255) << 8) | Math.round(f(4) * 255));
 }
 
+/** RGB hex → HSL (returns h: 0-1, s: 0-1, l: 0-1) */
+function rgbToHsl(hex: number): [number, number, number] {
+  const r = ((hex >> 16) & 0xff) / 255;
+  const g = ((hex >> 8) & 0xff) / 255;
+  const b = (hex & 0xff) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return [h, s, l];
+}
+
+/** Boost saturation of a hex color by `boost` amount (0-1 scale) */
+function saturateColor(hex: number, boost: number): number {
+  const [h, s, l] = rgbToHsl(hex);
+  return hslToRgb(h, Math.min(1, s + boost), l);
+}
+
 /** Convert hex color string (#rrggbb) to number */
 function hexToNum(hex: string): number {
   return parseInt(hex.replace('#', ''), 16);
@@ -24,6 +48,14 @@ function hexToNum(hex: string): number {
 function starBaseRadius(luminositySolar: number): number {
   return Math.max(3, Math.min(12, Math.log2(1 + luminositySolar) * 4));
 }
+
+/** Size multiplier per spectral class — hot/massive stars appear bigger */
+const SPECTRAL_SIZE_MUL: Record<SpectralClass, number> = {
+  O: 1.8, B: 1.5, A: 1.2, F: 1.1, G: 1.0, K: 0.95, M: 0.85,
+};
+
+/** Hot stars (O/B/A) get stronger burn animation */
+const HOT_STARS: Set<SpectralClass> = new Set(['O', 'B', 'A']);
 
 /* ── Layout constants ──────────────────────────────────────────── */
 
@@ -59,12 +91,14 @@ interface SystemNode {
   /** Animatable glow layers */
   glowOuter: Graphics;
   glowMid: Graphics;
+  corona: Graphics;
   core: Graphics;
   /** Animation params */
   phaseOffset: number;
   speed: number;
   baseRadius: number;
   baseAlpha: number;
+  spectralClass: SpectralClass;
   /** Expanded position relative to HOME (0,0) */
   tx: number;
   ty: number;
@@ -110,13 +144,20 @@ export class GalaxyScene {
   /** Individually animated backdrop twinkle stars */
   private twinkleStars: TwinkleStarData[] = [];
 
+  /** Focus state: which system is focused (centered with menu) */
+  private focusedSystemId: string | null = null;
+  /** Saved positions before focus (for unfocus restore) */
+  private preFocusPositions = new Map<string, { tx: number; ty: number; baseAlpha: number }>();
+  /** Saved expanded state of direction groups before focus */
+  private preFocusExpanded = new Map<Direction, boolean>();
+
   constructor(
     rings: GalaxyRing[],
     galaxySeed: number,
     playerCenterX: number,
     playerCenterY: number,
     researchState: ResearchState,
-    private onSelect: (system: StarSystem) => void,
+    private onSelect: (system: StarSystem, screenPos?: { x: number; y: number }) => void,
     private onDoubleClick: (system: StarSystem) => void,
   ) {
     this.container = new Container();
@@ -199,35 +240,42 @@ export class GalaxyScene {
   }
 
   /**
-   * Create the 3 animatable glow layers for a star.
-   * Returns a container with outer glow, mid glow, and bright core.
+   * Create the 4 animatable glow layers for a star.
+   * Layers: outer glow, mid glow (saturated), corona (key visibility), bright core.
    */
   private createStarGfx(color: number, radius: number): {
-    container: Container; glowOuter: Graphics; glowMid: Graphics; core: Graphics;
+    container: Container; glowOuter: Graphics; glowMid: Graphics; corona: Graphics; core: Graphics;
   } {
     const container = new Container();
+    const saturated = saturateColor(color, 0.4);
 
-    // Outer glow — soft, wide
+    // Outer glow — soft, wide (boosted alpha)
     const glowOuter = new Graphics();
     glowOuter.circle(0, 0, radius * 3.0);
-    glowOuter.fill({ color, alpha: 0.06 });
+    glowOuter.fill({ color, alpha: 0.12 });
     container.addChild(glowOuter);
 
-    // Mid glow — brighter, tighter
+    // Mid glow — saturated color, brighter (boosted alpha)
     const glowMid = new Graphics();
     glowMid.circle(0, 0, radius * 1.8);
-    glowMid.fill({ color, alpha: 0.18 });
+    glowMid.fill({ color: saturated, alpha: 0.30 });
     container.addChild(glowMid);
 
-    // Core — bright white center with vivid color overlay
+    // Corona — key visibility layer, strong saturated color
+    const corona = new Graphics();
+    corona.circle(0, 0, radius * 1.2);
+    corona.fill({ color: saturated, alpha: 0.40 });
+    container.addChild(corona);
+
+    // Core — bright white center with vivid color overlay (boosted)
     const core = new Graphics();
     core.circle(0, 0, radius);
     core.fill({ color: 0xffffff, alpha: 0.9 });
     core.circle(0, 0, radius * 0.7);
-    core.fill({ color, alpha: 0.65 });
+    core.fill({ color, alpha: 0.85 });
     container.addChild(core);
 
-    return { container, glowOuter, glowMid, core };
+    return { container, glowOuter, glowMid, corona, core };
   }
 
   /* ── HOME node ─────────────────────────────────────────────── */
@@ -235,10 +283,11 @@ export class GalaxyScene {
   private buildHomeNode() {
     const sys = this.homeSystem;
     const color = hexToNum(sys.star.colorHex);
-    const baseR = starBaseRadius(sys.star.luminositySolar) * 1.4;
+    const spectralMul = SPECTRAL_SIZE_MUL[sys.star.spectralClass] ?? 1.0;
+    const baseR = starBaseRadius(sys.star.luminositySolar) * 1.4 * spectralMul;
     const phase = this.hash(sys.id);
 
-    const { container: dot, glowOuter, glowMid, core } = this.createStarGfx(color, baseR);
+    const { container: dot, glowOuter, glowMid, corona, core } = this.createStarGfx(color, baseR);
 
     // HOME label
     const hl = new Text({
@@ -280,7 +329,14 @@ export class GalaxyScene {
     dot.on('pointerdown', () => {
       cc++;
       if (cc === 1) {
-        ct = setTimeout(() => { if (cc === 1) this.onSelect(sys); cc = 0; }, 300);
+        ct = setTimeout(() => {
+          if (cc === 1) {
+            const gp = dot.getGlobalPosition();
+            this.focusOnSystem(sys.id);
+            this.onSelect(sys, { x: gp.x, y: gp.y });
+          }
+          cc = 0;
+        }, 300);
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
@@ -293,9 +349,10 @@ export class GalaxyScene {
     this.homeNode = {
       container: dot, system: sys, nameLabel: nl,
       progressLabel: null, progressRing: null,
-      glowOuter, glowMid, core,
+      glowOuter, glowMid, corona, core,
       phaseOffset: phase, speed: 0.8 + (phase / (Math.PI * 2)) * 0.7,
       baseRadius: baseR, baseAlpha: 1,
+      spectralClass: sys.star.spectralClass,
       tx: 0, ty: 0, index: 0,
     };
   }
@@ -415,12 +472,13 @@ export class GalaxyScene {
     const phase = this.hash(sys.id);
     const color = hexToNum(sys.star.colorHex);
     const baseR = starBaseRadius(sys.star.luminositySolar);
+    const spectralMul = SPECTRAL_SIZE_MUL[sys.star.spectralClass] ?? 1.0;
 
-    // State-dependent size multiplier
+    // State-dependent size multiplier + spectral class multiplier
     const radiusMul = state === 'researched' ? 1.2 : state === 'researching' ? 0.9 : 0.7;
-    const effectiveR = baseR * radiusMul;
+    const effectiveR = baseR * radiusMul * spectralMul;
 
-    const { container: dot, glowOuter, glowMid, core } = this.createStarGfx(color, effectiveR);
+    const { container: dot, glowOuter, glowMid, corona, core } = this.createStarGfx(color, effectiveR);
     dot.x = 0;
     dot.y = 0;
     dot.alpha = 0;
@@ -513,7 +571,12 @@ export class GalaxyScene {
       cc++;
       if (cc === 1) {
         ct = setTimeout(() => {
-          if (cc === 1) { this.selectSystem(sys.id); this.onSelect(sys); }
+          if (cc === 1) {
+            const gp = dot.getGlobalPosition();
+            this.selectSystem(sys.id);
+            this.focusOnSystem(sys.id);
+            this.onSelect(sys, { x: gp.x, y: gp.y });
+          }
           cc = 0;
         }, 300);
       } else if (cc === 2) {
@@ -537,9 +600,10 @@ export class GalaxyScene {
     return {
       container: dot, system: sys, nameLabel,
       progressLabel, progressRing,
-      glowOuter, glowMid, core,
+      glowOuter, glowMid, corona, core,
       phaseOffset: phase, speed, baseRadius: effectiveR,
       baseAlpha, tx, ty, index,
+      spectralClass: sys.star.spectralClass,
     };
   }
 
@@ -558,16 +622,11 @@ export class GalaxyScene {
   /* ── Direction toggle ──────────────────────────────────────── */
 
   private toggleDir(dir: Direction) {
-    for (const [d, grp] of this.groups) {
-      if (d === dir) {
-        grp.expanded = !grp.expanded;
-      } else {
-        grp.expanded = false;
-      }
-      this.drawBtnBg(grp.bg, grp.expanded);
-      // Flip arrow on expand/collapse
-      this.drawArrowGfx(grp.arrowGfx, d, grp.expanded);
-    }
+    const grp = this.groups.get(dir);
+    if (!grp) return;
+    grp.expanded = !grp.expanded;
+    this.drawBtnBg(grp.bg, grp.expanded);
+    this.drawArrowGfx(grp.arrowGfx, dir, grp.expanded);
   }
 
   /* ── Public API ────────────────────────────────────────────── */
@@ -575,6 +634,103 @@ export class GalaxyScene {
   selectSystem(systemId: string | null) {
     this.selectedSystemId = systemId;
     this.beamAlpha = 0;
+  }
+
+  /**
+   * Focus on a system: highlight it, dim others (keep positions & buttons intact).
+   * Expand its direction group if needed.
+   */
+  focusOnSystem(systemId: string) {
+    if (this.focusedSystemId === systemId) return;
+
+    // If already focused on something else, unfocus first
+    if (this.focusedSystemId) this.unfocusSystem();
+
+    this.focusedSystemId = systemId;
+    this.preFocusPositions.clear();
+    this.preFocusExpanded.clear();
+
+    // Save expanded state + alpha of all nodes
+    for (const [d, grp] of this.groups) {
+      this.preFocusExpanded.set(d, grp.expanded);
+    }
+    if (this.homeNode) {
+      this.preFocusPositions.set(this.homeNode.system.id, {
+        tx: this.homeNode.tx, ty: this.homeNode.ty, baseAlpha: this.homeNode.baseAlpha,
+      });
+    }
+    for (const [, grp] of this.groups) {
+      for (const node of grp.nodes) {
+        this.preFocusPositions.set(node.system.id, {
+          tx: node.tx, ty: node.ty, baseAlpha: node.baseAlpha,
+        });
+      }
+    }
+
+    // Make sure the focused node's group is expanded
+    for (const [, grp] of this.groups) {
+      for (const node of grp.nodes) {
+        if (node.system.id === systemId && !grp.expanded) {
+          grp.expanded = true;
+          this.drawBtnBg(grp.bg, true);
+          this.drawArrowGfx(grp.arrowGfx, grp.direction, true);
+        }
+      }
+    }
+
+    // Dim all non-focused visible stars (keep their positions)
+    if (this.homeNode && this.homeNode.system.id !== systemId) {
+      this.homeNode.baseAlpha = 0.15;
+    }
+    for (const [, grp] of this.groups) {
+      for (const node of grp.nodes) {
+        if (node.system.id === systemId) {
+          node.baseAlpha = 1;
+        } else {
+          node.baseAlpha = 0.15;
+        }
+      }
+    }
+  }
+
+  /** Unfocus: restore all alphas and expanded states */
+  unfocusSystem() {
+    if (!this.focusedSystemId) return;
+    this.focusedSystemId = null;
+
+    // Restore alphas
+    if (this.homeNode) {
+      const saved = this.preFocusPositions.get(this.homeNode.system.id);
+      if (saved) {
+        this.homeNode.baseAlpha = saved.baseAlpha;
+      }
+    }
+    for (const [, grp] of this.groups) {
+      for (const node of grp.nodes) {
+        const saved = this.preFocusPositions.get(node.system.id);
+        if (saved) {
+          node.baseAlpha = saved.baseAlpha;
+        }
+      }
+    }
+
+    // Restore expanded state of groups
+    for (const [d, grp] of this.groups) {
+      const wasExpanded = this.preFocusExpanded.get(d) ?? false;
+      grp.expanded = wasExpanded;
+      this.drawBtnBg(grp.bg, wasExpanded);
+      this.drawArrowGfx(grp.arrowGfx, d, wasExpanded);
+    }
+
+    this.preFocusPositions.clear();
+    this.preFocusExpanded.clear();
+    this.selectedSystemId = null;
+    this.beamAlpha = 0;
+  }
+
+  /** Whether a system is currently focused */
+  get isFocused(): boolean {
+    return this.focusedSystemId !== null;
   }
 
   updateSystemVisual(systemId: string, researchState: ResearchState) {
@@ -635,9 +791,12 @@ export class GalaxyScene {
       star.gfx.tint = hslToRgb(hue, 0.35, 0.82);
     }
 
-    // Animate HOME star burning
+    // Animate HOME star: alpha easing + burning
     if (this.homeNode) {
-      this.animateStarBurn(this.homeNode, t);
+      const hn = this.homeNode;
+      // Smooth alpha easing (for focus/unfocus dimming)
+      hn.container.alpha += (hn.baseAlpha - hn.container.alpha) * Math.min(1, ANIM_SPEED * dt);
+      this.animateStarBurn(hn, t);
     }
 
     // Expand / collapse animation + animate system star nodes
@@ -702,22 +861,30 @@ export class GalaxyScene {
   private animateStarBurn(node: SystemNode, t: number) {
     const sp = node.speed;
     const ph = node.phaseOffset;
+    // Hot stars (O/B/A) burn more intensely
+    const amp = HOT_STARS.has(node.spectralClass) ? 1.5 : 1.0;
 
     // Outer glow: slow chaotic breathing
-    const s1 = Math.sin(t * sp * 0.0009 + ph) * 0.4
-             + Math.sin(t * sp * 0.0017 + ph * 2.3) * 0.2;
-    node.glowOuter.alpha = 0.06 + s1 * 0.03;
+    const s1 = (Math.sin(t * sp * 0.0009 + ph) * 0.4
+             + Math.sin(t * sp * 0.0017 + ph * 2.3) * 0.2) * amp;
+    node.glowOuter.alpha = 0.12 + s1 * 0.05;
     node.glowOuter.scale.set(1.0 + s1 * 0.25, 1.0 + s1 * 0.25);
 
     // Mid glow: medium frequency, independent phase
-    const s2 = Math.sin(t * sp * 0.0014 + ph * 1.7) * 0.3
-             + Math.sin(t * sp * 0.0023 + ph * 0.9) * 0.15;
-    node.glowMid.alpha = 0.18 + s2 * 0.08;
+    const s2 = (Math.sin(t * sp * 0.0014 + ph * 1.7) * 0.3
+             + Math.sin(t * sp * 0.0023 + ph * 0.9) * 0.15) * amp;
+    node.glowMid.alpha = 0.30 + s2 * 0.12;
     node.glowMid.scale.set(1.0 + s2 * 0.15, 1.0 + s2 * 0.15);
 
+    // Corona: key visibility pulsing
+    const s4 = (Math.sin(t * sp * 0.0011 + ph * 1.3) * 0.25
+             + Math.sin(t * sp * 0.0020 + ph * 2.7) * 0.12) * amp;
+    node.corona.alpha = 0.40 + s4 * 0.15;
+    node.corona.scale.set(1.0 + s4 * 0.12, 1.0 + s4 * 0.12);
+
     // Core: fast subtle flicker
-    const s3 = Math.sin(t * sp * 0.003 + ph * 2.1) * 0.1
-             + Math.sin(t * sp * 0.005 + ph * 3.7) * 0.05;
+    const s3 = (Math.sin(t * sp * 0.003 + ph * 2.1) * 0.1
+             + Math.sin(t * sp * 0.005 + ph * 3.7) * 0.05) * amp;
     node.core.alpha = 0.85 + s3;
   }
 

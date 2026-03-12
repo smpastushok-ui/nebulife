@@ -681,3 +681,182 @@ export async function removePlayerAlias(
       AND entity_id = ${entityId}
   `;
 }
+
+// ---------------------------------------------------------------------------
+// System Photo helpers (telescope photos of star systems)
+// ---------------------------------------------------------------------------
+
+export interface SystemPhotoRow {
+  id: string;
+  player_id: string;
+  system_id: string;
+  photo_url: string | null;
+  kling_task_id: string | null;
+  prompt_used: string | null;
+  status: string; // 'generating' | 'succeed' | 'failed'
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function saveSystemPhoto(data: {
+  id: string;
+  playerId: string;
+  systemId: string;
+  klingTaskId: string;
+  promptUsed: string;
+}): Promise<SystemPhotoRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO system_photos (id, player_id, system_id, kling_task_id, prompt_used, status)
+    VALUES (${data.id}, ${data.playerId}, ${data.systemId}, ${data.klingTaskId}, ${data.promptUsed}, 'generating')
+    ON CONFLICT (player_id, system_id) DO UPDATE SET
+      kling_task_id = EXCLUDED.kling_task_id,
+      prompt_used = EXCLUDED.prompt_used,
+      status = 'generating',
+      photo_url = NULL,
+      completed_at = NULL
+    RETURNING *
+  `;
+  return rows[0] as SystemPhotoRow;
+}
+
+export async function getSystemPhoto(
+  playerId: string,
+  systemId: string,
+): Promise<SystemPhotoRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM system_photos
+    WHERE player_id = ${playerId} AND system_id = ${systemId}
+  `;
+  return (rows[0] as SystemPhotoRow) ?? null;
+}
+
+export async function getSystemPhotoById(id: string): Promise<SystemPhotoRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM system_photos WHERE id = ${id}`;
+  return (rows[0] as SystemPhotoRow) ?? null;
+}
+
+export async function updateSystemPhoto(
+  id: string,
+  updates: Partial<{
+    status: string;
+    photo_url: string;
+  }>,
+): Promise<SystemPhotoRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE system_photos
+    SET status = COALESCE(${updates.status ?? null}, status),
+        photo_url = COALESCE(${updates.photo_url ?? null}, photo_url),
+        completed_at = CASE WHEN ${updates.status ?? null} IN ('succeed', 'failed') THEN NOW() ELSE completed_at END
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as SystemPhotoRow) ?? null;
+}
+
+export async function getPlayerSystemPhotos(playerId: string): Promise<SystemPhotoRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM system_photos
+    WHERE player_id = ${playerId}
+    ORDER BY created_at DESC
+  `) as SystemPhotoRow[];
+}
+
+// ---------------------------------------------------------------------------
+// System Mission helpers (video missions from system photos)
+// ---------------------------------------------------------------------------
+
+export interface SystemMissionRow {
+  id: string;
+  player_id: string;
+  system_id: string;
+  photo_id: string;
+  duration_type: string; // 'short' | 'long'
+  duration_sec: number;
+  cost_quarks: number;
+  status: string; // 'generating' | 'succeed' | 'failed'
+  kling_task_id: string | null;
+  video_url: string | null;
+  prompt_used: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function saveSystemMission(data: {
+  id: string;
+  playerId: string;
+  systemId: string;
+  photoId: string;
+  durationType: 'short' | 'long';
+  durationSec: number;
+  costQuarks: number;
+  klingTaskId: string;
+  promptUsed: string;
+}): Promise<SystemMissionRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO system_missions (
+      id, player_id, system_id, photo_id,
+      duration_type, duration_sec, cost_quarks,
+      kling_task_id, prompt_used, status
+    ) VALUES (
+      ${data.id}, ${data.playerId}, ${data.systemId}, ${data.photoId},
+      ${data.durationType}, ${data.durationSec}, ${data.costQuarks},
+      ${data.klingTaskId}, ${data.promptUsed}, 'generating'
+    )
+    RETURNING *
+  `;
+  return rows[0] as SystemMissionRow;
+}
+
+export async function getSystemMission(id: string): Promise<SystemMissionRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM system_missions WHERE id = ${id}`;
+  return (rows[0] as SystemMissionRow) ?? null;
+}
+
+export async function getActiveSystemMission(
+  playerId: string,
+  systemId: string,
+): Promise<SystemMissionRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM system_missions
+    WHERE player_id = ${playerId} AND system_id = ${systemId}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  return (rows[0] as SystemMissionRow) ?? null;
+}
+
+export async function updateSystemMission(
+  id: string,
+  updates: Partial<{
+    status: string;
+    video_url: string;
+  }>,
+): Promise<SystemMissionRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE system_missions
+    SET status = COALESCE(${updates.status ?? null}, status),
+        video_url = COALESCE(${updates.video_url ?? null}, video_url),
+        completed_at = CASE WHEN ${updates.status ?? null} IN ('succeed', 'failed') THEN NOW() ELSE completed_at END
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as SystemMissionRow) ?? null;
+}
+
+export async function getPlayerSystemMissions(playerId: string): Promise<SystemMissionRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM system_missions
+    WHERE player_id = ${playerId}
+    ORDER BY created_at DESC
+  `) as SystemMissionRow[];
+}

@@ -15,7 +15,7 @@ import { PlanetViewScene } from './scenes/PlanetViewScene.js';
 import { CameraController } from './camera/CameraController.js';
 
 export interface GameCallbacks {
-  onSystemSelect: (system: StarSystem) => void;
+  onSystemSelect: (system: StarSystem, screenPos?: { x: number; y: number }) => void;
   onPlanetSelect: (planet: Planet, screenPos: { x: number; y: number }) => void;
   onSceneChange: (scene: 'galaxy' | 'system' | 'home-intro' | 'planet-view') => void;
   /** Called when player wants to enter a system (double-click). App shows warp overlay then calls enterSystem(). */
@@ -129,11 +129,13 @@ export class GameEngine {
       this.playerPos.x,
       this.playerPos.y,
       this.researchState,
-      (system) => {
+      (system, screenPos) => {
         // New directional layout — no camera animation needed
-        this.callbacks.onSystemSelect(system);
+        this.callbacks.onSystemSelect(system, screenPos);
       },
       (system) => {
+        // Double-click: unfocus first, then navigate
+        this.galaxyScene?.unfocusSystem();
         // Only enter if home or fully researched
         const canEnter = system.ownerPlayerId !== null
           || isSystemFullyResearched(this.researchState, system.id);
@@ -204,6 +206,11 @@ export class GameEngine {
   setPlanetVisible(visible: boolean) {
     this.homePlanetScene?.setPlanetVisible(visible);
     this.planetViewScene?.setPlanetVisible(visible);
+  }
+
+  /** Unfocus galaxy system (restores all stars to normal positions) */
+  unfocusSystem() {
+    this.galaxyScene?.unfocusSystem();
   }
 
   /** Enter a system (called after warp animation completes) */

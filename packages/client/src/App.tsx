@@ -4,6 +4,8 @@ import { CommandBar } from './ui/components/CommandBar/index.js';
 import type { BreadcrumbItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
 import { PlanetInfoPanel } from './ui/components/PlanetInfoPanel.js';
 import { PlanetContextMenu } from './ui/components/PlanetContextMenu.js';
+import { SystemContextMenu } from './ui/components/SystemContextMenu.js';
+import type { SystemPhotoData, SystemMissionData } from './ui/components/SystemContextMenu.js';
 import { SystemInfoPanel } from './ui/components/SystemInfoPanel.js';
 import { ResearchPanel } from './ui/components/ResearchPanel.js';
 import { ResearchCompleteModal } from './ui/components/ResearchCompleteModal.js';
@@ -32,6 +34,11 @@ import {
   RESEARCH_DURATION_MS,
 } from '@nebulife/core';
 import { getOrCreatePlayerId, getPlayer, createPlayer } from './api/player-api.js';
+import {
+  generateSystemPhoto, pollSystemPhotoStatus,
+  generateSystemMission, pollMissionStatus,
+  getPlayerSystemPhotos as fetchPlayerSystemPhotos,
+} from './api/system-photo-api.js';
 
 export type SceneType = 'galaxy' | 'system' | 'home-intro' | 'planet-view';
 
@@ -120,6 +127,12 @@ export function App() {
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
 
+  // ── System context menu state (galaxy view) ────────────────────────────
+  const [showSystemMenu, setShowSystemMenu] = useState(false);
+  const [systemMenuPos, setSystemMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [systemPhotos, setSystemPhotos] = useState<Map<string, SystemPhotoData>>(new Map());
+  const [systemMissions, setSystemMissions] = useState<Map<string, SystemMissionData>>(new Map());
+
   // ── Warp animation state ──────────────────────────────────────────────
   const [warpTarget, setWarpTarget] = useState<StarSystem | null>(null);
 
@@ -163,6 +176,18 @@ export function App() {
 
     getPlayerModels(pid).then(setPlanetModels).catch(() => {});
     getPlayerAliases(pid).then(setAliases).catch(() => {});
+    // Load system photos for initial state
+    fetchPlayerSystemPhotos(pid).then(photos => {
+      const map = new Map<string, SystemPhotoData>();
+      for (const p of photos) {
+        map.set(p.system_id, {
+          id: p.id,
+          photoUrl: p.photo_url ?? '',
+          status: p.status as 'generating' | 'succeed' | 'failed',
+        });
+      }
+      setSystemPhotos(map);
+    }).catch(() => {});
   }, [refreshQuarks]);
 
   // Handle payment redirect (e.g., ?payment=success&topup=true)
@@ -254,8 +279,12 @@ export function App() {
     if (!canvasRef.current || engineRef.current) return;
 
     const engine = new GameEngine(canvasRef.current, {
-      onSystemSelect: (system) => {
+      onSystemSelect: (system, screenPos) => {
         setState((prev) => ({ ...prev, selectedSystem: system, selectedPlanet: null }));
+        if (screenPos) {
+          setSystemMenuPos(screenPos);
+          setShowSystemMenu(true);
+        }
       },
       onPlanetSelect: (planet, screenPos) => {
         setState((prev) => ({
@@ -271,6 +300,9 @@ export function App() {
           ...prev, scene, selectedPlanet: null,
           showPlanetMenu: false, showPlanetInfo: false, planetClickPos: null,
         }));
+        // Reset system menu state on scene change
+        setShowSystemMenu(false);
+        setSystemMenuPos(null);
       },
       onWarpToSystem: (system) => {
         setWarpTarget(system);
@@ -388,6 +420,170 @@ export function App() {
       planetClickPos: null,
     }));
   }, []);
+
+  const handleCloseSystemMenu = useCallback(() => {
+    setShowSystemMenu(false);
+    setSystemMenuPos(null);
+    setState((prev) => ({ ...prev, selectedSystem: null }));
+    engineRef.current?.unfocusSystem();
+  }, []);
+
+  const handleSystemMenuEnter = useCallback(() => {
+    if (!state.selectedSystem) return;
+    setShowSystemMenu(false);
+    setSystemMenuPos(null);
+    engineRef.current?.unfocusSystem();
+    handleEnterSystem(state.selectedSystem);
+  }, [state.selectedSystem, handleEnterSystem]);
+
+  const handleSystemMenuCharacteristics = useCallback(() => {
+    setShowSystemMenu(false);
+    // Will show SystemInfoPanel (existing panel)
+  }, []);
+
+  const handleSystemMenuResearch = useCallback(() => {
+    setShowSystemMenu(false);
+    // Will show ResearchPanel (existing panel)
+  }, []);
+
+  const handleSystemMenuRename = useCallback(() => {
+    if (!state.selectedSystem) return;
+    const newName = prompt('Нова назва системи:', state.selectedSystem.name);
+    if (newName && newName.trim()) {
+      const sys = state.selectedSystem;
+      setAlias({
+        playerId: playerId.current,
+        entityType: 'system',
+        entityId: sys.id,
+        customName: newName.trim(),
+      }).then(() => {
+        setAliases((prev) => ({ ...prev, [sys.id]: newName.trim() }));
+      }).catch((err) => console.error('Rename failed:', err));
+    }
+  }, [state.selectedSystem]);
+
+  const handleTelescopePhoto = useCallback(() => {
+    if (!state.selectedSystem) return;
+    const sys = state.selectedSystem;
+    const sysId = sys.id;
+    setShowSystemMenu(false);
+    setSystemMenuPos(null);
+    engineRef.current?.unfocusSystem();
+
+    // Mark as generating immediately
+    setSystemPhotos(prev => {
+      const next = new Map(prev);
+      next.set(sysId, { id: `temp-${sysId}`, photoUrl: '', status: 'generating' });
+      return next;
+    });
+
+    // Call API
+    generateSystemPhoto(playerId.current, sysId, sys)
+      .then(({ photoId, quarksRemaining }) => {
+        setQuarks(quarksRemaining);
+        setSystemPhotos(prev => {
+          const next = new Map(prev);
+          next.set(sysId, { id: photoId, photoUrl: '', status: 'generating' });
+          return next;
+        });
+        // Poll for completion
+        pollSystemPhotoStatus(photoId, (result) => {
+          if (result.status === 'succeed' && result.photoUrl) {
+            setSystemPhotos(prev => {
+              const next = new Map(prev);
+              next.set(sysId, { id: photoId, photoUrl: result.photoUrl!, status: 'succeed' });
+              return next;
+            });
+          } else if (result.status === 'failed') {
+            setSystemPhotos(prev => {
+              const next = new Map(prev);
+              next.set(sysId, { id: photoId, photoUrl: '', status: 'failed' });
+              return next;
+            });
+          }
+        });
+      })
+      .catch(err => {
+        console.error('[TelescopePhoto] Error:', err);
+        setSystemPhotos(prev => {
+          const next = new Map(prev);
+          next.delete(sysId);
+          return next;
+        });
+      });
+  }, [state.selectedSystem]);
+
+  const handleViewSystemPhoto = useCallback(() => {
+    if (!state.selectedSystem) return;
+    const photo = systemPhotos.get(state.selectedSystem.id);
+    if (photo?.photoUrl) {
+      // Open photo in new tab for now (PhotoModal can be added later)
+      window.open(photo.photoUrl, '_blank');
+    }
+  }, [state.selectedSystem, systemPhotos]);
+
+  const handleSendMission = useCallback((dur: 'short' | 'long') => {
+    if (!state.selectedSystem) return;
+    const sys = state.selectedSystem;
+    const sysId = sys.id;
+    const photo = systemPhotos.get(sysId);
+    if (!photo || photo.status !== 'succeed') return;
+
+    setShowSystemMenu(false);
+    setSystemMenuPos(null);
+    engineRef.current?.unfocusSystem();
+
+    // Mark as generating immediately
+    setSystemMissions(prev => {
+      const next = new Map(prev);
+      next.set(sysId, { id: `temp-${sysId}`, status: 'generating', durationType: dur });
+      return next;
+    });
+
+    // Call API
+    generateSystemMission(playerId.current, sysId, photo.id, dur, sys)
+      .then(({ missionId, quarksRemaining }) => {
+        setQuarks(quarksRemaining);
+        setSystemMissions(prev => {
+          const next = new Map(prev);
+          next.set(sysId, { id: missionId, status: 'generating', durationType: dur });
+          return next;
+        });
+        // Poll for completion
+        pollMissionStatus(missionId, (result) => {
+          if (result.status === 'succeed' && result.videoUrl) {
+            setSystemMissions(prev => {
+              const next = new Map(prev);
+              next.set(sysId, { id: missionId, status: 'succeed', videoUrl: result.videoUrl!, durationType: dur });
+              return next;
+            });
+          } else if (result.status === 'failed') {
+            setSystemMissions(prev => {
+              const next = new Map(prev);
+              next.set(sysId, { id: missionId, status: 'failed', durationType: dur });
+              return next;
+            });
+          }
+        });
+      })
+      .catch(err => {
+        console.error('[Mission] Error:', err);
+        setSystemMissions(prev => {
+          const next = new Map(prev);
+          next.delete(sysId);
+          return next;
+        });
+      });
+  }, [state.selectedSystem, systemPhotos]);
+
+  const handleViewMissionVideo = useCallback(() => {
+    if (!state.selectedSystem) return;
+    const mission = systemMissions.get(state.selectedSystem.id);
+    if (mission?.videoUrl) {
+      // Open video in new tab for now
+      window.open(mission.videoUrl, '_blank');
+    }
+  }, [state.selectedSystem, systemMissions]);
 
   const handleBackToSystem = useCallback(() => {
     if (state.selectedSystem) {
@@ -592,14 +788,17 @@ export function App() {
   }, [backgroundModelInfo]);
 
   // Determine which panel to show for the selected system
+  // (panels open via context menu actions, not directly from click)
   const selectedSystem = state.selectedSystem;
   const showResearchPanel = selectedSystem
     && state.scene === 'galaxy'
+    && !showSystemMenu
     && selectedSystem.ownerPlayerId === null
     && !isSystemFullyResearched(researchState, selectedSystem.id);
 
   const showSystemInfoPanel = selectedSystem
     && state.scene === 'galaxy'
+    && !showSystemMenu
     && (selectedSystem.ownerPlayerId !== null || isSystemFullyResearched(researchState, selectedSystem.id));
 
   // Timer text for the selected system's active slot
@@ -806,6 +1005,27 @@ export function App() {
               setAliases((prev) => ({ ...prev, [sys.id]: newName }));
             }).catch((err) => console.error('Rename failed:', err));
           }}
+        />
+      )}
+      {/* System Context Menu (galaxy view) */}
+      {showSystemMenu && state.selectedSystem && systemMenuPos && state.scene === 'galaxy' && (
+        <SystemContextMenu
+          system={state.selectedSystem}
+          screenPosition={systemMenuPos}
+          isHome={state.selectedSystem.ownerPlayerId !== null}
+          isResearched={isSystemFullyResearched(researchState, state.selectedSystem.id)}
+          systemPhoto={systemPhotos.get(state.selectedSystem.id) ?? null}
+          activeMission={systemMissions.get(state.selectedSystem.id) ?? null}
+          quarks={quarks}
+          onClose={handleCloseSystemMenu}
+          onEnterSystem={handleSystemMenuEnter}
+          onRename={handleSystemMenuRename}
+          onCharacteristics={handleSystemMenuCharacteristics}
+          onResearch={handleSystemMenuResearch}
+          onTelescopePhoto={handleTelescopePhoto}
+          onViewPhoto={handleViewSystemPhoto}
+          onSendMission={handleSendMission}
+          onViewVideo={handleViewMissionVideo}
         />
       )}
       {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && (
