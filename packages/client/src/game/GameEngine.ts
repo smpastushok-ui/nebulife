@@ -213,6 +213,21 @@ export class GameEngine {
     this.galaxyScene?.unfocusSystem();
   }
 
+  /** Activate scanning effects on home planet */
+  startHomeScanning() {
+    this.homePlanetScene?.startScanning();
+  }
+
+  /** Deactivate scanning effects on home planet */
+  stopHomeScanning() {
+    this.homePlanetScene?.stopScanning();
+  }
+
+  /** Update scanning progress (0-100) */
+  updateScanProgress(progress: number) {
+    this.homePlanetScene?.updateScanProgress(progress);
+  }
+
   /** Enter a system (called after warp animation completes) */
   enterSystem(system: StarSystem) {
     this.showSystemScene(system);

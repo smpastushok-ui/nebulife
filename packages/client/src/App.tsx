@@ -13,6 +13,8 @@ import { DiscoveryNotification } from './ui/components/DiscoveryNotification.js'
 import { ObservatoryView } from './ui/components/ObservatoryView.js';
 import ModelGenerationOverlay from './ui/components/ModelGenerationOverlay.js';
 import Planet3DViewer from './ui/components/Planet3DViewer.js';
+import QuantumScanTerminal from './ui/components/QuantumScanTerminal.js';
+import HolographicTransition from './ui/components/HolographicTransition.js';
 import { SurfaceView } from './ui/components/SurfaceView.js';
 import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfaceView.js';
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
@@ -20,7 +22,8 @@ import { WarpOverlay } from './ui/components/WarpOverlay.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
 } from '@nebulife/core';
-import { getPlayerModels, proxyGlbUrl } from './api/tripo-api.js';
+import { getPlayerModels, proxyGlbUrl, pollModelUntilComplete } from './api/tripo-api.js';
+import { startPaymentFlow } from './api/payment-api.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
 import type { PlanetModel } from './api/tripo-api.js';
 import {
@@ -132,6 +135,13 @@ export function App() {
   const [systemMenuPos, setSystemMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [systemPhotos, setSystemPhotos] = useState<Map<string, SystemPhotoData>>(new Map());
   const [systemMissions, setSystemMissions] = useState<Map<string, SystemMissionData>>(new Map());
+
+  // ── Home 3D generation flow (scanning + materialization) ──────────────
+  const [home3DPhase, setHome3DPhase] = useState<
+    'idle' | 'paying' | 'scanning' | 'materializing' | 'complete'
+  >('idle');
+  const [home3DProgress, setHome3DProgress] = useState(0);
+  const [home3DGenPhase, setHome3DGenPhase] = useState<'generating_photo' | 'generating_3d'>('generating_photo');
 
   // ── Warp animation state ──────────────────────────────────────────────
   const [warpTarget, setWarpTarget] = useState<StarSystem | null>(null);
@@ -699,6 +709,59 @@ export function App() {
     });
   }, [homeInfo]);
 
+  // ── Home 3D generation handler (Quantum Scanning flow) ──────────────
+  const handleHome3DGenerate = useCallback(async () => {
+    if (!homeInfo) return;
+    setHome3DPhase('paying');
+
+    try {
+      const result = await startPaymentFlow({
+        playerId: playerId.current,
+        planetId: homeInfo.planet.id,
+        systemId: homeInfo.system.id,
+        planetData: homeInfo.planet,
+        starData: homeInfo.system.star,
+      });
+
+      if (result.paidWithQuarks) {
+        refreshQuarks();
+      }
+
+      // Activate scanning
+      setHome3DPhase('scanning');
+      setHome3DGenPhase('generating_photo');
+      setHome3DProgress(0);
+      engineRef.current?.startHomeScanning();
+
+      // Poll for completion
+      const completed = await pollModelUntilComplete(result.modelId, (status) => {
+        if (status.status === 'generating_photo') {
+          setHome3DGenPhase('generating_photo');
+          setHome3DProgress(0);
+        } else if (status.status === 'generating_3d' || status.status === 'running') {
+          setHome3DGenPhase('generating_3d');
+          setHome3DProgress(status.progress ?? 0);
+          engineRef.current?.updateScanProgress(status.progress ?? 0);
+        }
+      });
+
+      // Model ready — stop scanning, start materialization
+      engineRef.current?.stopHomeScanning();
+
+      // Update planet models list (triggers backgroundModelInfo)
+      handleModelReady(result.modelId, completed.glbUrl);
+
+      // Small delay to let backgroundModelInfo update, then start materialization
+      setTimeout(() => {
+        setHome3DPhase('materializing');
+      }, 100);
+    } catch (err) {
+      engineRef.current?.stopHomeScanning();
+      setHome3DPhase('idle');
+      console.error('Home 3D generation error:', err);
+    }
+  }, [homeInfo, refreshQuarks, handleModelReady]);
+
   // ── Breadcrumb navigation handler ──────────────────────────────────────
   const handleBreadcrumbNavigate = useCallback((targetScene: string) => {
     // Close surface if open
@@ -783,9 +846,11 @@ export function App() {
   }, [state.scene, state.selectedPlanet, state.selectedSystem, homeInfo, planetModels]);
 
   // Hide PixiJS procedural planet when 3D model is showing as background
+  // During scanning/materializing, keep PixiJS visible (scanning effects are on top)
   useEffect(() => {
-    engineRef.current?.setPlanetVisible(!backgroundModelInfo);
-  }, [backgroundModelInfo]);
+    const keepPixiVisible = home3DPhase === 'scanning' || home3DPhase === 'materializing';
+    engineRef.current?.setPlanetVisible(!backgroundModelInfo || keepPixiVisible);
+  }, [backgroundModelInfo, home3DPhase]);
 
   // Determine which panel to show for the selected system
   // (panels open via context menu actions, not directly from click)
@@ -854,6 +919,15 @@ export function App() {
           { id: 'exosphere', label: 'Екзосфера', onClick: handleGoToExosphere },
           { id: 'surface', label: 'Поверхня', onClick: handleGoToHomeSurface },
         );
+        // 3D button — only if no model exists and not currently generating
+        if (!backgroundModelInfo && home3DPhase === 'idle') {
+          homeTools.push({
+            id: '3d-home',
+            label: '3D 49⚛',
+            onClick: handleHome3DGenerate,
+            variant: 'accent',
+          });
+        }
       }
       if (showExploreBtn) {
         homeTools.push({
@@ -866,7 +940,7 @@ export function App() {
       if (homeTools.length > 0) {
         toolGroups.push({ type: 'buttons', items: homeTools });
       }
-      if (!backgroundModelInfo) {
+      if (!backgroundModelInfo && home3DPhase !== 'scanning') {
         toolGroups.push({
           type: 'zoom',
           items: [
@@ -1094,7 +1168,7 @@ export function App() {
         />
       )}
       {/* Background 3D Model (auto-shown on home/planet-view if model exists) */}
-      {backgroundModelInfo && (
+      {backgroundModelInfo && home3DPhase !== 'scanning' && home3DPhase !== 'materializing' && (
         <Planet3DViewer
           glbUrl={backgroundModelInfo.glbUrl}
           planetName={backgroundModelInfo.planetName}
@@ -1103,6 +1177,25 @@ export function App() {
           planetMassEarth={backgroundModelInfo.planetMassEarth}
           mode="background"
           onClose={() => {}}
+        />
+      )}
+      {/* Quantum Scan Terminal (during scanning phase) */}
+      {home3DPhase === 'scanning' && homeInfo && (
+        <QuantumScanTerminal
+          phase={home3DGenPhase}
+          progress={home3DProgress}
+          planetName={homeInfo.planet.name}
+        />
+      )}
+      {/* Holographic Materialization (2D->3D transition) */}
+      {home3DPhase === 'materializing' && backgroundModelInfo && (
+        <HolographicTransition
+          glbUrl={backgroundModelInfo.glbUrl}
+          planetName={backgroundModelInfo.planetName}
+          atmosphere={backgroundModelInfo.atmosphere}
+          planetType={backgroundModelInfo.planetType}
+          planetMassEarth={backgroundModelInfo.planetMassEarth}
+          onComplete={() => setHome3DPhase('complete')}
         />
       )}
       {/* Surface View (biosphere level) */}

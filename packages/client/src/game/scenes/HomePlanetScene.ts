@@ -76,6 +76,13 @@ export class HomePlanetScene {
   private shootingStarTimer = 5000 + Math.random() * 10000;   // first: 5-15s
   private supernovaTimer = 20000 + Math.random() * 40000;     // first: 20-60s
 
+  // Quantum scanning overlay
+  private scanContainer: Container | null = null;
+  private scanGfx: Graphics | null = null;
+  private scanTime = 0;
+  private scanActive = false;
+  private scanProgress = 0; // 0-100
+
   constructor(
     system: StarSystem,
     homePlanet: Planet,
@@ -301,6 +308,12 @@ export class HomePlanetScene {
     }
     this.updateShootingStars(deltaMs);
     this.updateSupernovae(deltaMs);
+
+    // 6. Scanning overlay animation
+    if (this.scanActive && this.scanGfx) {
+      this.scanTime += deltaMs;
+      this.redrawScanOverlay();
+    }
   }
 
   // --- Shooting stars ---
@@ -427,7 +440,253 @@ export class HomePlanetScene {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Quantum Scanning Overlay
+  // ---------------------------------------------------------------------------
+
+  /** Activate scanning effects on the planet */
+  startScanning() {
+    if (this.scanActive) return;
+    this.scanActive = true;
+    this.scanTime = 0;
+    this.scanProgress = 0;
+
+    this.scanContainer = new Container();
+    this.scanContainer.x = this.planetX;
+    this.scanContainer.y = this.planetY;
+
+    this.scanGfx = new Graphics();
+    this.scanContainer.addChild(this.scanGfx);
+
+    // Insert above planetContainer
+    const planetIdx = this.container.getChildIndex(this.planetContainer);
+    this.container.addChildAt(this.scanContainer, planetIdx + 1);
+  }
+
+  /** Deactivate scanning effects */
+  stopScanning() {
+    if (!this.scanActive) return;
+    this.scanActive = false;
+    if (this.scanContainer) {
+      this.container.removeChild(this.scanContainer);
+      this.scanContainer.destroy({ children: true });
+      this.scanContainer = null;
+      this.scanGfx = null;
+    }
+  }
+
+  /** Update scanning progress (0-100) */
+  updateScanProgress(progress: number) {
+    this.scanProgress = Math.max(0, Math.min(100, progress));
+  }
+
+  /** Redraw all scanning effects for current frame */
+  private redrawScanOverlay() {
+    const gfx = this.scanGfx;
+    if (!gfx) return;
+    gfx.clear();
+
+    const R = this.planetRadius;
+    const t = this.scanTime;
+
+    // --- a) Wireframe Grid ---
+    this.drawWireframeGrid(gfx, R, t);
+
+    // --- b) Lidar Beam ---
+    this.drawLidarBeam(gfx, R, t);
+
+    // --- c) HUD Data Rings ---
+    this.drawHudRings(gfx, R, t);
+
+    // --- d) Progress Arc ---
+    this.drawProgressArc(gfx, R);
+  }
+
+  /** Draw latitude + longitude lines on sphere surface */
+  private drawWireframeGrid(gfx: Graphics, R: number, time: number) {
+    const SCAN_GREEN = 0x44ffaa;
+    const lonRotation = time * 0.0003; // slow rotation
+
+    // Scan line position (sweeps from top to bottom cyclically)
+    const scanCycle = (time * 0.0004) % (Math.PI); // 0 to PI
+    const scanLat = Math.PI / 2 - scanCycle; // PI/2 to -PI/2
+
+    // Latitude lines (5 lines at evenly spaced latitudes)
+    for (let i = 0; i < 5; i++) {
+      const lat = -Math.PI / 2 + (Math.PI / 6) * (i + 1); // -60 to +60 deg
+      const yOff = R * Math.sin(lat);
+      const rCircle = R * Math.cos(lat);
+      if (rCircle < 2) continue;
+
+      // Brighter if close to scan line
+      const dist = Math.abs(lat - scanLat);
+      const alpha = dist < 0.3 ? 0.35 + (0.3 - dist) * 1.0 : 0.15;
+
+      gfx.circle(0, -yOff, rCircle);
+      gfx.stroke({ width: 0.8, color: SCAN_GREEN, alpha });
+    }
+
+    // Longitude lines (6 lines, rotating)
+    const steps = 30;
+    for (let i = 0; i < 6; i++) {
+      const lon = (Math.PI / 6) * i + lonRotation;
+      const sinLon = Math.sin(lon);
+      // Only draw if visible hemisphere (sinLon > 0 means front)
+      const alphaBase = Math.abs(sinLon) > 0.05 ? 0.2 * Math.abs(sinLon) : 0;
+      if (alphaBase < 0.01) continue;
+
+      gfx.moveTo(R * sinLon * Math.cos(-Math.PI / 2), R * Math.sin(Math.PI / 2));
+      for (let j = 1; j <= steps; j++) {
+        const phi = -Math.PI / 2 + (Math.PI / steps) * j;
+        const x = R * Math.cos(phi) * sinLon;
+        const y = -R * Math.sin(phi);
+        gfx.lineTo(x, y);
+      }
+      gfx.stroke({ width: 0.8, color: SCAN_GREEN, alpha: alphaBase });
+    }
+
+    // Active scan line (bright horizontal line at scan position)
+    const scanY = -R * Math.sin(scanLat);
+    const scanR = R * Math.cos(scanLat);
+    if (scanR > 2) {
+      gfx.circle(0, scanY, scanR);
+      gfx.stroke({ width: 1.5, color: 0x88ffcc, alpha: 0.6 });
+      // Glow around scan line
+      gfx.circle(0, scanY, scanR);
+      gfx.stroke({ width: 5, color: 0x44ffaa, alpha: 0.08 });
+    }
+  }
+
+  /** Draw sweeping lidar beam */
+  private drawLidarBeam(gfx: Graphics, R: number, time: number) {
+    const LIDAR_GREEN = 0x44ff88;
+    const beamAngle = time * 0.0015; // ~4.2s per revolution
+    const bx = Math.cos(beamAngle) * R;
+    const by = Math.sin(beamAngle) * R;
+
+    // Main beam
+    gfx.moveTo(0, 0);
+    gfx.lineTo(bx, by);
+    gfx.stroke({ width: 1.5, color: LIDAR_GREEN, alpha: 0.5 });
+
+    // Glow
+    gfx.moveTo(0, 0);
+    gfx.lineTo(bx, by);
+    gfx.stroke({ width: 5, color: LIDAR_GREEN, alpha: 0.08 });
+
+    // Trail arc (fading behind the beam, ~60 degrees)
+    const trailSegments = 12;
+    const trailSpan = Math.PI / 3;
+    for (let i = 0; i < trailSegments; i++) {
+      const segAngle = beamAngle - (trailSpan / trailSegments) * (i + 1);
+      const nextAngle = beamAngle - (trailSpan / trailSegments) * i;
+      const alpha = 0.15 * (1 - i / trailSegments);
+
+      const x1 = Math.cos(segAngle) * R;
+      const y1 = Math.sin(segAngle) * R;
+      const x2 = Math.cos(nextAngle) * R;
+      const y2 = Math.sin(nextAngle) * R;
+
+      gfx.moveTo(x1, y1);
+      gfx.lineTo(x2, y2);
+      gfx.stroke({ width: 2, color: LIDAR_GREEN, alpha });
+    }
+
+    // Beam tip dot
+    gfx.circle(bx, by, 3);
+    gfx.fill({ color: LIDAR_GREEN, alpha: 0.7 });
+    gfx.circle(bx, by, 6);
+    gfx.fill({ color: LIDAR_GREEN, alpha: 0.1 });
+  }
+
+  /** Draw 2 rotating segmented HUD rings */
+  private drawHudRings(gfx: Graphics, R: number, time: number) {
+    const HUD_BLUE = 0x4488aa;
+
+    // Inner ring: R*1.15, 24 segments, rotates CW
+    this.drawSegmentedRing(gfx, R * 1.15, 24, time * 0.0002, HUD_BLUE, 0.25);
+
+    // Outer ring: R*1.35, 36 segments, rotates CCW
+    this.drawSegmentedRing(gfx, R * 1.35, 36, -time * 0.00015, HUD_BLUE, 0.18);
+  }
+
+  /** Draw a segmented ring with data markers */
+  private drawSegmentedRing(
+    gfx: Graphics,
+    radius: number,
+    segments: number,
+    rotation: number,
+    color: number,
+    alpha: number,
+  ) {
+    const gap = 0.03; // gap between segments in radians
+    const segAngle = (Math.PI * 2) / segments;
+
+    for (let i = 0; i < segments; i++) {
+      const startAngle = segAngle * i + rotation;
+      const endAngle = startAngle + segAngle - gap;
+
+      // Draw arc segment
+      const steps = 4;
+      const x0 = Math.cos(startAngle) * radius;
+      const y0 = Math.sin(startAngle) * radius;
+      gfx.moveTo(x0, y0);
+
+      for (let j = 1; j <= steps; j++) {
+        const a = startAngle + ((endAngle - startAngle) / steps) * j;
+        gfx.lineTo(Math.cos(a) * radius, Math.sin(a) * radius);
+      }
+      gfx.stroke({ width: 0.8, color, alpha });
+
+      // Data marker every 4th segment (small tick mark)
+      if (i % 4 === 0) {
+        const midAngle = (startAngle + endAngle) / 2;
+        const mx = Math.cos(midAngle);
+        const my = Math.sin(midAngle);
+        gfx.moveTo(mx * (radius - 3), my * (radius - 3));
+        gfx.lineTo(mx * (radius + 3), my * (radius + 3));
+        gfx.stroke({ width: 1.2, color, alpha: alpha * 1.5 });
+      }
+    }
+  }
+
+  /** Draw progress arc around planet */
+  private drawProgressArc(gfx: Graphics, R: number) {
+    if (this.scanProgress <= 0) return;
+    const ARC_GREEN = 0x44ff88;
+    const arcR = R * 1.5;
+    const totalAngle = (this.scanProgress / 100) * Math.PI * 2;
+    const startAngle = -Math.PI / 2; // start from top
+
+    const steps = Math.max(8, Math.floor(totalAngle * 20));
+    const x0 = Math.cos(startAngle) * arcR;
+    const y0 = Math.sin(startAngle) * arcR;
+    gfx.moveTo(x0, y0);
+
+    for (let i = 1; i <= steps; i++) {
+      const a = startAngle + (totalAngle / steps) * i;
+      gfx.lineTo(Math.cos(a) * arcR, Math.sin(a) * arcR);
+    }
+    gfx.stroke({ width: 2, color: ARC_GREEN, alpha: 0.5 });
+
+    // Glow on progress arc
+    gfx.moveTo(x0, y0);
+    for (let i = 1; i <= steps; i++) {
+      const a = startAngle + (totalAngle / steps) * i;
+      gfx.lineTo(Math.cos(a) * arcR, Math.sin(a) * arcR);
+    }
+    gfx.stroke({ width: 6, color: ARC_GREEN, alpha: 0.08 });
+
+    // Progress percentage text marker at the arc tip
+    const tipAngle = startAngle + totalAngle;
+    const tx = Math.cos(tipAngle) * (arcR + 10);
+    const ty = Math.sin(tipAngle) * (arcR + 10);
+    gfx.circle(tx, ty, 3);
+    gfx.fill({ color: ARC_GREEN, alpha: 0.6 });
+  }
+
   destroy() {
+    this.stopScanning();
     this.shootingStars.length = 0;
     this.supernovae.length = 0;
     this.container.destroy({ children: true });
