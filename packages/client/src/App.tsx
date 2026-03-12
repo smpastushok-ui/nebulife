@@ -1483,11 +1483,6 @@ export function App() {
             }));
             engineRef.current?.showPlanetViewScene(objectsPanelSystem, planet, true);
           }}
-          allSystems={engineRef.current?.getAllSystems()}
-          onNavigateSystem={(sys) => {
-            setObjectsPanelSystem(sys);
-            setState((prev) => ({ ...prev, selectedSystem: sys }));
-          }}
         />
       )}
 

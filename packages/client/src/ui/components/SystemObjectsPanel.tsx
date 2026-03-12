@@ -384,8 +384,6 @@ export interface SystemObjectsPanelProps {
   onClose: () => void;
   onViewPlanet: (planetIndex: number) => void; // opens PlanetDetailWindow
   onEnterPlanet?: (planet: Planet) => void; // navigate to planet-view (exosphere)
-  allSystems?: StarSystem[];
-  onNavigateSystem?: (system: StarSystem) => void;
 }
 
 export function SystemObjectsPanel({
@@ -394,8 +392,6 @@ export function SystemObjectsPanel({
   onClose,
   onViewPlanet,
   onEnterPlanet,
-  allSystems,
-  onNavigateSystem,
 }: SystemObjectsPanelProps) {
   ensureStyles();
 
@@ -411,21 +407,6 @@ export function SystemObjectsPanel({
   const systemName = displayName ?? system.name;
   const planetsCount = sortedPlanets.length;
   const moonsCount = sortedPlanets.reduce((sum, p) => sum + p.moons.length, 0);
-
-  // System navigation
-  const canNavigate = allSystems && allSystems.length > 1 && onNavigateSystem;
-  const currentIdx = allSystems ? allSystems.findIndex((s) => s.id === system.id) : -1;
-
-  const goPrev = () => {
-    if (!allSystems || !onNavigateSystem) return;
-    const prevIdx = (currentIdx - 1 + allSystems.length) % allSystems.length;
-    onNavigateSystem(allSystems[prevIdx]);
-  };
-  const goNext = () => {
-    if (!allSystems || !onNavigateSystem) return;
-    const nextIdx = (currentIdx + 1) % allSystems.length;
-    onNavigateSystem(allSystems[nextIdx]);
-  };
 
   return (
     <>
@@ -472,18 +453,9 @@ export function SystemObjectsPanel({
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            {/* System name with nav arrows */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {canNavigate && (
-                <NavArrow direction="left" onClick={goPrev} />
-              )}
-              <span style={{ fontSize: 13, color: '#ccddee', letterSpacing: '0.06em' }}>
-                {systemName.toUpperCase()}
-              </span>
-              {canNavigate && (
-                <NavArrow direction="right" onClick={goNext} />
-              )}
-            </div>
+            <span style={{ fontSize: 13, color: '#ccddee', letterSpacing: '0.06em' }}>
+              {systemName.toUpperCase()}
+            </span>
             <div style={{ fontSize: 9, color: '#445566', marginTop: 3, letterSpacing: '0.04em' }}>
               ОБ'ЄКТИ СИСТЕМИ &nbsp;·&nbsp;
               {planetsCount} {planetsCount === 1 ? 'планета' : planetsCount < 5 ? 'планети' : 'планет'}
@@ -582,30 +554,3 @@ export function SystemObjectsPanel({
   );
 }
 
-// ─── Nav arrow button ─────────────────────────────────────────────────────────
-
-function NavArrow({ direction, onClick }: { direction: 'left' | 'right'; onClick: () => void }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: 'none',
-        border: '1px solid',
-        borderColor: hovered ? '#446688' : '#334455',
-        color: hovered ? '#aabbcc' : '#556677',
-        fontSize: 10,
-        cursor: 'pointer',
-        fontFamily: 'monospace',
-        padding: '1px 5px',
-        borderRadius: 3,
-        lineHeight: 1,
-        transition: 'color 0.15s, border-color 0.15s',
-      }}
-    >
-      {direction === 'left' ? '◀' : '▶'}
-    </button>
-  );
-}
