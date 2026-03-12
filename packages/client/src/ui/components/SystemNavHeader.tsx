@@ -21,6 +21,8 @@ interface SystemNavHeaderProps {
   onPrev: () => void;
   onNext: () => void;
   onNavigate: (system: StarSystem) => void;
+  onTelescopePhoto?: () => void;
+  isPhotoGenerating?: boolean;
 }
 
 // SVG magnifying glass icon (outline only, no fill)
@@ -54,6 +56,8 @@ export function SystemNavHeader({
   onPrev,
   onNext,
   onNavigate,
+  onTelescopePhoto,
+  isPhotoGenerating,
 }: SystemNavHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -213,6 +217,11 @@ export function SystemNavHeader({
         </button>
       </div>
 
+      {/* Telescope photo button */}
+      {onTelescopePhoto && !searchOpen && (
+        <TelescopeButton onClick={onTelescopePhoto} generating={isPhotoGenerating} />
+      )}
+
       {/* Search dropdown */}
       {searchOpen && (
         <div
@@ -304,6 +313,46 @@ function SearchResultItem({
     >
       <span>{name}</span>
       <span style={{ color: '#445566', fontSize: 10 }}>{spectral}</span>
+    </button>
+  );
+}
+
+function TelescopeButton({ onClick, generating }: { onClick: () => void; generating?: boolean }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      disabled={generating}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        padding: '4px 12px',
+        marginTop: 4,
+        background: hover && !generating ? 'rgba(30, 50, 80, 0.7)' : 'rgba(5, 10, 20, 0.85)',
+        border: '1px solid',
+        borderColor: generating ? '#446688' : hover ? '#4488aa' : '#334455',
+        borderRadius: 4,
+        cursor: generating ? 'default' : 'pointer',
+        fontFamily: 'monospace',
+        fontSize: 10,
+        color: generating ? '#4488aa' : hover ? '#aabbcc' : '#667788',
+        backdropFilter: 'blur(6px)',
+        transition: 'all 0.15s',
+        alignSelf: 'center',
+      }}
+    >
+      {/* Telescope SVG icon */}
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+        <line x1="2" y1="11" x2="10" y2="5" />
+        <circle cx="12" cy="3.5" r="2.5" />
+        <line x1="2" y1="11" x2="0.5" y2="15" />
+        <line x1="2" y1="11" x2="4" y2="15" />
+      </svg>
+      <span>{generating ? 'Обробка знімку...' : 'Фото 30⚛'}</span>
     </button>
   );
 }

@@ -100,7 +100,7 @@ export function PlanetContextMenu({
     modelStatus === 'running' ||
     modelStatus === 'awaiting_payment'
   ) {
-    modelLabel = '3D — генерація...';
+    modelLabel = '3D — матеріалізація...';
     modelAction = onUpgrade ?? null;
     modelColor = '#667788';
   } else if (onUpgrade) {

@@ -313,35 +313,6 @@ export class GalaxyScene {
     nl.y = baseR + 6;
     dot.addChild(nl);
 
-    // Telescope icon for HOME
-    if (this.onTelescopeClick) {
-      const telIcon = new Container();
-      const telGfx = new Graphics();
-      telGfx.moveTo(-5, 2);
-      telGfx.lineTo(4, -2);
-      telGfx.stroke({ width: 1.5, color: 0x4488aa, alpha: 0.55 });
-      telGfx.circle(5, -3, 2);
-      telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.55 });
-      telGfx.moveTo(-5, 2);
-      telGfx.lineTo(-6, 5);
-      telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.35 });
-      telGfx.moveTo(-5, 2);
-      telGfx.lineTo(-3, 5);
-      telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.35 });
-      telIcon.addChild(telGfx);
-      telIcon.y = baseR + 18;
-      telIcon.eventMode = 'static';
-      telIcon.cursor = 'pointer';
-      telIcon.hitArea = { contains: (px: number, py: number) => px * px + py * py < 100 };
-      telIcon.on('pointerdown', (e: any) => {
-        e.stopPropagation();
-        this.onTelescopeClick!(sys);
-      });
-      telIcon.on('pointerover', () => { telGfx.alpha = 1; });
-      telIcon.on('pointerout', () => { telGfx.alpha = 0.55; });
-      dot.addChild(telIcon);
-    }
-
     // Observatory marker
     const hasObs = this.researchState.slots.some(s => s.systemId === sys.id);
     if (hasObs) {
@@ -536,37 +507,6 @@ export class GalaxyScene {
         nameLabel.y = labelY;
         dot.addChild(nameLabel);
 
-        // Telescope icon (procedural) — triggers photo generation
-        if (this.onTelescopeClick) {
-          const telIcon = new Container();
-          const telGfx = new Graphics();
-          // Tube body
-          telGfx.moveTo(-5, 2);
-          telGfx.lineTo(4, -2);
-          telGfx.stroke({ width: 1.5, color: 0x4488aa, alpha: 0.55 });
-          // Lens
-          telGfx.circle(5, -3, 2);
-          telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.55 });
-          // Tripod leg
-          telGfx.moveTo(-5, 2);
-          telGfx.lineTo(-6, 5);
-          telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.35 });
-          telGfx.moveTo(-5, 2);
-          telGfx.lineTo(-3, 5);
-          telGfx.stroke({ width: 1, color: 0x4488aa, alpha: 0.35 });
-          telIcon.addChild(telGfx);
-          telIcon.y = labelY + 14;
-          telIcon.eventMode = 'static';
-          telIcon.cursor = 'pointer';
-          telIcon.hitArea = { contains: (px: number, py: number) => px * px + py * py < 100 };
-          telIcon.on('pointerdown', (e: any) => {
-            e.stopPropagation();
-            this.onTelescopeClick!(sys);
-          });
-          telIcon.on('pointerover', () => { telGfx.alpha = 1; });
-          telIcon.on('pointerout', () => { telGfx.alpha = 0.55; });
-          dot.addChild(telIcon);
-        }
         break;
       }
 

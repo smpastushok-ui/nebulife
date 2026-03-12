@@ -34,7 +34,7 @@ const PlanetUpgradeButton: React.FC<PlanetUpgradeButtonProps> = ({
       <button style={styles.generatingButton} disabled>
         <span style={styles.spinnerSmall} />
         <span>
-          {modelStatus === 'generating_photo' ? 'Генерація фото...' : 'Створення 3D моделі...'}
+          {modelStatus === 'generating_photo' ? 'Сканування поверхні...' : 'Матеріалізація...'}
         </span>
       </button>
     );

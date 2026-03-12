@@ -457,10 +457,10 @@ export const SurfaceView = forwardRef<SurfaceViewHandle, SurfaceViewProps>(funct
           <div style={{ textAlign: 'center', fontFamily: 'monospace', color: '#7bb8ff', maxWidth: 400 }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>&#128248;</div>
             <div style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 24 }}>
-              AI-знімок поверхні
+              Супутниковий знімок поверхні
             </div>
             <div style={{ fontSize: 14, color: '#aaccff', marginBottom: 24 }}>
-              Генеруємо супутниковий знімок планети...
+              Супутник передає дані з орбіти...
             </div>
             <div style={{
               width: 200, height: 8,
@@ -505,7 +505,7 @@ export const SurfaceView = forwardRef<SurfaceViewHandle, SurfaceViewProps>(funct
           <div style={{ textAlign: 'center', fontFamily: 'monospace', color: '#ff6b6b', maxWidth: 400 }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>&#9888;&#65039;</div>
             <div style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>
-              Помилка генерації AI-знімку
+              Збій передачі даних з супутника
             </div>
             <div style={{ fontSize: 14, marginBottom: 24, color: '#ffaaaa' }}>{error}</div>
             <button

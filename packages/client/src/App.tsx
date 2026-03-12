@@ -1245,6 +1245,8 @@ export function App() {
           onPrev={() => prevNavSystem && handleNavToSystem(prevNavSystem)}
           onNext={() => nextNavSystem && handleNavToSystem(nextNavSystem)}
           onNavigate={handleNavToSystem}
+          onTelescopePhoto={() => handleTelescopePhotoForSystem(state.selectedSystem!)}
+          isPhotoGenerating={systemPhotos.get(state.selectedSystem!.id)?.status === 'generating'}
         />
       )}
 

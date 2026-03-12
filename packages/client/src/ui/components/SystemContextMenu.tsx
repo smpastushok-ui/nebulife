@@ -214,7 +214,7 @@ export function SystemContextMenu({
               />
             )}
             {photoGenerating && (
-              <MenuItem label="Фото — генерується..." onClick={() => {}} disabled />
+              <MenuItem label="Обробка знімку..." onClick={() => {}} disabled />
             )}
             {hasPhoto && (
               <MenuItem label="Дивитися фото системи" onClick={onViewPhoto} color="#7bb8ff" />

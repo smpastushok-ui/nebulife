@@ -101,7 +101,7 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
       setPhase('ready');
       onModelReady?.(id, result.glbUrl);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Помилка генерації');
+      setErrorMsg(err instanceof Error ? err.message : 'Збій матеріалізації');
       setPhase('error');
     }
   }, [onModelReady]);
@@ -140,22 +140,22 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
             <div style={styles.pipelineSteps}>
               <div style={styles.step}>
                 <span style={styles.stepNum}>1</span>
-                <span>AI генерує фотореалістичне зображення</span>
+                <span>Квантове сканування поверхні</span>
               </div>
               <div style={styles.step}>
                 <span style={styles.stepNum}>2</span>
-                <span>Tripo3D перетворює в 3D модель</span>
+                <span>Голографічна матеріалізація</span>
               </div>
               <div style={styles.step}>
                 <span style={styles.stepNum}>3</span>
-                <span>Three.js рендерить прямо в грі</span>
+                <span>Проєкція в реальний простір</span>
               </div>
             </div>
 
             <button style={styles.payButton} onClick={handleStartPayment}>
               <span>Купити за 49 ⚛</span>
             </button>
-            <div style={styles.payNote}>Час генерації: ~3-5 хвилин</div>
+            <div style={styles.payNote}>Час матеріалізації: ~3-5 хвилин</div>
           </div>
         )}
 
@@ -168,7 +168,7 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
             </div>
             <div style={styles.phaseDesc}>
               {isMonobankPayment
-                ? 'Завершіть оплату у відкритому вікні Monobank. Після підтвердження генерація почнеться автоматично.'
+                ? 'Завершіть оплату у відкритому вікні Monobank. Після підтвердження матеріалізація почнеться автоматично.'
                 : 'Списуємо з внутрішнього рахунку...'}
             </div>
           </div>
@@ -178,9 +178,9 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
         {phase === 'generating_photo' && (
           <div style={styles.phaseContainer}>
             <div style={styles.phaseIcon}>📸</div>
-            <div style={styles.phaseTitle}>Генерація зображення</div>
+            <div style={styles.phaseTitle}>Квантове сканування</div>
             <div style={styles.phaseDesc}>
-              AI створює фотореалістичне зображення вашої планети...
+              Зонд аналізує поверхню та атмосферу планети...
             </div>
             <div style={styles.progressBarBg}>
               <div style={{ ...styles.progressBarFill, width: '30%' }} />
@@ -193,9 +193,9 @@ const ModelGenerationOverlay: React.FC<ModelGenerationOverlayProps> = ({
         {phase === 'generating_3d' && (
           <div style={styles.phaseContainer}>
             <div style={styles.phaseIcon}>🔮</div>
-            <div style={styles.phaseTitle}>Створення 3D моделі</div>
+            <div style={styles.phaseTitle}>Голографічна матеріалізація</div>
             <div style={styles.phaseDesc}>
-              Tripo3D перетворює зображення в 3D модель...
+              Реконструкція тривимірної структури планети...
             </div>
             <div style={styles.progressBarBg}>
               <div
