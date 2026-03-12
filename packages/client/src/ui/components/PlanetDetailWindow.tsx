@@ -158,7 +158,7 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
       resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
     }).then(() => {
-      if (destroyed) { app.destroy(true); return; }
+      if (destroyed) { app.destroy(true, { children: true, texture: true }); return; }
       containerRef.current?.appendChild(app.canvas);
 
       const sceneContainer = new Container();
@@ -250,7 +250,7 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
       destroyed = true;
       cancelAnimationFrame(rafRef.current);
       // Small delay to let PixiJS finish init before destroy
-      setTimeout(() => { app.destroy(true); }, 50);
+      setTimeout(() => { app.destroy(true, { children: true, texture: true }); }, 50);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planet.id, displayRadius, canvasW, canvasH]);

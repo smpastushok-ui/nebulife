@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
-import { deductQuarks, saveSystemPhoto } from '../../packages/server/src/db.js';
+import { deductQuarks, creditQuarks, saveSystemPhoto } from '../../packages/server/src/db.js';
 import { buildGeminiSystemPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
 import type { StarSystem } from '@nebulife/core';
 
@@ -67,6 +67,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err) {
     console.error('System photo generate error:', err);
+
+    // Refund quarks on generation failure (player already paid)
+    try {
+      const { playerId } = req.body;
+      if (playerId) {
+        const refunded = await creditQuarks(playerId, PHOTO_COST);
+        console.log(`[Refund] Credited ${PHOTO_COST} quarks back to ${playerId}, new balance: ${refunded.quarks}`);
+        return res.status(500).json({
+          error: err instanceof Error ? err.message : 'Internal error',
+          refunded: true,
+          quarksRemaining: refunded.quarks,
+        });
+      }
+    } catch (refundErr) {
+      console.error('Quark refund failed:', refundErr);
+    }
+
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
   }
 }

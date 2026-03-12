@@ -772,6 +772,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'transparent',
     display: 'flex',
     flexDirection: 'column',
+    pointerEvents: 'none' as const,
   },
   header: {
     position: 'absolute',
@@ -823,6 +824,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     height: '100%',
     touchAction: 'none',
+    pointerEvents: 'auto' as const,
   },
   loadingOverlay: {
     position: 'absolute',

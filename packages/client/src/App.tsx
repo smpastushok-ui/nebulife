@@ -686,29 +686,6 @@ export function App() {
   }, []);
 
   // ── 3D Model handlers ─────────────────────────────────────────────────
-  const handleUpgradePlanet = useCallback(() => {
-    if (!state.selectedPlanet || !state.selectedSystem) return;
-    const existing = planetModels.find(
-      (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id,
-    );
-
-    setModelGenerationTarget({
-      planetId: state.selectedPlanet.id,
-      systemId: state.selectedSystem.id,
-      planetName: state.selectedPlanet.name,
-      // Only resume in-progress models (paid + still generating) — skip failed/ready/awaiting
-      existingModelId:
-        existing?.payment_status === 'paid' &&
-        existing.status !== 'failed' &&
-        existing.status !== 'payment_failed' &&
-        existing.status !== 'ready'
-          ? existing.id
-          : undefined,
-      planet: state.selectedPlanet,
-      star: state.selectedSystem.star,
-    });
-  }, [state.selectedPlanet, state.selectedSystem, planetModels]);
-
   const handleModelReady = useCallback((modelId: string, glbUrl: string) => {
     setPlanetModels((prev) => {
       const idx = prev.findIndex((m) => m.id === modelId);
@@ -873,6 +850,36 @@ export function App() {
       console.error('Planet-view 3D generation error:', err);
     }
   }, [state.selectedPlanet, state.selectedSystem, refreshQuarks, handleModelReady]);
+
+  const handleUpgradePlanet = useCallback(() => {
+    if (!state.selectedPlanet || !state.selectedSystem) return;
+
+    // On planet-view scene, use immersive scanning flow instead of overlay
+    if (state.scene === 'planet-view') {
+      handlePlanetView3DGenerate();
+      return;
+    }
+
+    const existing = planetModels.find(
+      (m) => m.planet_id === state.selectedPlanet!.id && m.system_id === state.selectedSystem!.id,
+    );
+
+    setModelGenerationTarget({
+      planetId: state.selectedPlanet.id,
+      systemId: state.selectedSystem.id,
+      planetName: state.selectedPlanet.name,
+      // Only resume in-progress models (paid + still generating) — skip failed/ready/awaiting
+      existingModelId:
+        existing?.payment_status === 'paid' &&
+        existing.status !== 'failed' &&
+        existing.status !== 'payment_failed' &&
+        existing.status !== 'ready'
+          ? existing.id
+          : undefined,
+      planet: state.selectedPlanet,
+      star: state.selectedSystem.star,
+    });
+  }, [state.selectedPlanet, state.selectedSystem, state.scene, planetModels, handlePlanetView3DGenerate]);
 
   // ── Planet detail window handler ────────────────────────────────────────
   const handleViewPlanetDetail = useCallback((system: StarSystem, planetIndex: number, displayName?: string) => {
