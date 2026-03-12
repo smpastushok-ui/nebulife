@@ -401,9 +401,9 @@ export function renderPlanetCloseup(
         const c2 = cloudNoise.fbm3D(cx * 8, sy * 8, cz * 8, Math.max(2, opts.cloudOctaves - 1));
         const cloudVal = c1 * 0.7 + c2 * 0.3;
 
-        const threshold = 0.3 - visuals.cloudDensity * 0.35;
+        const threshold = 0.3 - visuals.cloudDensity * 0.2;
         if (cloudVal > threshold) {
-          const alpha = clamp((cloudVal - threshold) * 0.8 * limbFactor, 0, 0.7);
+          const alpha = clamp((cloudVal - threshold) * 0.55 * limbFactor, 0, 0.45);
           cloudGraphics.circle(px, py, cloudDotSize);
           cloudGraphics.fill({ color: visuals.cloudColor, alpha });
         }
