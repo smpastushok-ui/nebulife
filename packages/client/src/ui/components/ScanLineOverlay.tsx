@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 
 // ---------------------------------------------------------------------------
 // ScanLineOverlay — horizontal green "x-ray" scan line while loading
 // ---------------------------------------------------------------------------
 // Shows a single bright green horizontal line sweeping top-to-bottom
-// with a subtle green glow trail, overlaid on the dark scene.
+// over 2 seconds. Content above the scan line reveals at full opacity,
+// content below remains semi-transparent.
 // ---------------------------------------------------------------------------
 
 const STYLE_ID = 'scan-line-styles';
@@ -12,6 +13,10 @@ const KEYFRAMES = `
   @keyframes scanSweep {
     0%   { top: -2px; }
     100% { top: 100%; }
+  }
+  @keyframes scanReveal {
+    0%   { clip-path: inset(100% 0 0 0); }
+    100% { clip-path: inset(0 0 0 0); }
   }
   @keyframes scanFadeIn {
     from { opacity: 0; }
@@ -45,6 +50,17 @@ export function ScanLineOverlay() {
         animation: 'scanFadeIn 0.3s ease-out',
       }}
     >
+      {/* Semi-transparent darkening layer — reveals as scan line passes */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(2,5,16,0.6)',
+          animation: 'scanReveal 2s ease-in-out forwards',
+          animationDirection: 'reverse',
+        }}
+      />
+
       {/* Sweeping scan line */}
       <div
         style={{
@@ -54,9 +70,10 @@ export function ScanLineOverlay() {
           height: 2,
           background: '#44ff88',
           boxShadow: '0 0 12px 3px rgba(68,255,136,0.5), 0 0 40px 8px rgba(68,255,136,0.15)',
-          animation: 'scanSweep 2.5s ease-in-out infinite',
+          animation: 'scanSweep 2s ease-in-out forwards',
         }}
       />
+
       {/* Subtle vignette tint */}
       <div
         style={{

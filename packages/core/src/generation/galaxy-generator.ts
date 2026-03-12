@@ -3,6 +3,7 @@ import { RING_DISTANCE_LY, systemsPerRing, RINGS_PER_REGISTRATION } from '../con
 import { generateStarSystem } from './star-system-generator.js';
 import { generateHomePlanet } from './home-planet-generator.js';
 import { calculateHabitability } from '../biology/habitability.js';
+import { getPlayerHomeCoordinates, hexToPixel, PLAYER_SPACING } from './galaxy-topology.js';
 import type { StarSystem, GalaxyRing } from '../types/universe.js';
 import type { Planet } from '../types/planet.js';
 
@@ -197,16 +198,15 @@ function ensureColonizablePlanetInRing(rings: GalaxyRing[], ringIndex: number): 
 
 /**
  * Assign a position for a new player in the galaxy.
- * Spreads players across the galaxy to minimize overlap initially.
+ * Uses hex-grid super-grid placement for even spacing.
+ * Returns position in light-years.
  */
 export function assignPlayerPosition(galaxySeed: number, playerIndex: number): { x: number; y: number } {
-  const rng = new SeededRNG(galaxySeed);
-  // Spiral distribution: each player gets a position further out
-  const angle = playerIndex * 2.399963; // Golden angle in radians
-  const radius = 20 + playerIndex * 15; // Increasing distance from center
-
+  const hexCoord = getPlayerHomeCoordinates(galaxySeed, playerIndex);
+  // Convert hex coord to LY position using RING_DISTANCE_LY as hex size
+  const pos = hexToPixel(hexCoord.q, hexCoord.r, RING_DISTANCE_LY);
   return {
-    x: Math.round(radius * Math.cos(angle) * 100) / 100,
-    y: Math.round(radius * Math.sin(angle) * 100) / 100,
+    x: Math.round(pos.x * 100) / 100,
+    y: Math.round(pos.y * 100) / 100,
   };
 }

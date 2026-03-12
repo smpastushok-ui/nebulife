@@ -68,9 +68,8 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
 
     // Scene setup
     const scene = new THREE.Scene();
-    if (isOverlay) {
-      scene.background = new THREE.Color(0x000000);
-    }
+    // Both modes get a dark background (background mode was transparent but that shows nothing)
+    scene.background = new THREE.Color(0x020510);
 
     // Camera
     const camera = new THREE.PerspectiveCamera(
@@ -84,15 +83,12 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
     // Renderer
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: !isOverlay,
+      alpha: false,
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
-    if (!isOverlay) {
-      renderer.setClearColor(0x000000, 0);
-    }
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -133,10 +129,14 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
     starLight.position.set(5, 3, 4);
     scene.add(starLight);
 
-    // Star background — only in overlay mode (background mode uses PixiJS starfield)
-    if (isOverlay) {
-      createStarfield(scene);
-    }
+    // Star background — both modes get a starfield
+    const starfieldData = createStarfield(scene, !isOverlay);
+
+    // Background mode: add shooting stars and supernovae
+    const shootingStars: ShootingStar[] = [];
+    const supernovae: SupernovaFlash[] = [];
+    let nextShootingStarAt = 2 + Math.random() * 3; // first one after 2-5s
+    let nextSupernovaAt = 10 + Math.random() * 15; // first one after 10-25s
 
     // Cloud mesh ref for animation
     let cloudRef: THREE.Mesh | null = null;
@@ -292,6 +292,75 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         moonPivots[mi].rotation.y += dt * speed;
       }
 
+      // Twinkling stars
+      if (starfieldData.twinkleIndices) {
+        const positions = starfieldData.stars.geometry.getAttribute('position');
+        const sizes = starfieldData.stars.geometry.getAttribute('size') as THREE.BufferAttribute;
+        for (const idx of starfieldData.twinkleIndices) {
+          const baseSz = starfieldData.baseSizes[idx];
+          const phase = idx * 1.618;
+          const twinkle = 0.7 + 0.3 * Math.sin(elapsed * (0.8 + (idx % 7) * 0.3) + phase);
+          sizes.setX(idx, baseSz * twinkle);
+        }
+        sizes.needsUpdate = true;
+      }
+
+      // Shooting stars (background mode only)
+      if (!isOverlay) {
+        nextShootingStarAt -= dt;
+        if (nextShootingStarAt <= 0) {
+          shootingStars.push(createShootingStar(scene));
+          nextShootingStarAt = 3 + Math.random() * 5;
+        }
+        for (let i = shootingStars.length - 1; i >= 0; i--) {
+          const ss = shootingStars[i];
+          ss.elapsed += dt;
+          const p = ss.elapsed / ss.duration;
+          if (p >= 1) {
+            scene.remove(ss.line);
+            ss.line.geometry.dispose();
+            (ss.line.material as THREE.Material).dispose();
+            shootingStars.splice(i, 1);
+          } else {
+            // Move head forward, fade out
+            const headPos = ss.start.clone().lerp(ss.end, Math.min(1, p * 1.5));
+            const tailPos = ss.start.clone().lerp(ss.end, Math.max(0, p * 1.5 - 0.3));
+            const positions = ss.line.geometry.getAttribute('position') as THREE.BufferAttribute;
+            positions.setXYZ(0, tailPos.x, tailPos.y, tailPos.z);
+            positions.setXYZ(1, headPos.x, headPos.y, headPos.z);
+            positions.needsUpdate = true;
+            (ss.line.material as THREE.LineBasicMaterial).opacity = Math.max(0, 1 - p);
+          }
+        }
+
+        // Supernova flashes
+        nextSupernovaAt -= dt;
+        if (nextSupernovaAt <= 0) {
+          supernovae.push(createSupernovaFlash(scene));
+          nextSupernovaAt = 15 + Math.random() * 15;
+        }
+        for (let i = supernovae.length - 1; i >= 0; i--) {
+          const sn = supernovae[i];
+          sn.elapsed += dt;
+          if (sn.elapsed >= sn.duration) {
+            scene.remove(sn.light);
+            scene.remove(sn.sprite);
+            (sn.sprite.material as THREE.Material).dispose();
+            supernovae.splice(i, 1);
+          } else {
+            const p = sn.elapsed / sn.duration;
+            // Fade in 0-0.15, hold 0.15-0.3, fade out 0.3-1
+            let intensity: number;
+            if (p < 0.15) intensity = p / 0.15;
+            else if (p < 0.3) intensity = 1;
+            else intensity = 1 - (p - 0.3) / 0.7;
+            sn.light.intensity = intensity * 2;
+            sn.sprite.material.opacity = intensity * 0.8;
+            sn.sprite.scale.setScalar(0.5 + intensity * 1.5);
+          }
+        }
+      }
+
       renderer.render(scene, camera);
     };
     animate();
@@ -379,17 +448,23 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
 };
 
 // ---------------------------------------------------------------------------
-// Starfield
+// Starfield + Sky effects
 // ---------------------------------------------------------------------------
 
-function createStarfield(scene: THREE.Scene) {
-  const starCount = 2000;
+interface StarfieldResult {
+  stars: THREE.Points;
+  twinkleIndices: number[] | null;
+  baseSizes: Float32Array;
+}
+
+function createStarfield(scene: THREE.Scene, enhanced: boolean): StarfieldResult {
+  const starCount = enhanced ? 3000 : 2000;
   const positions = new Float32Array(starCount * 3);
   const sizes = new Float32Array(starCount);
+  const colors = new Float32Array(starCount * 3);
 
   for (let i = 0; i < starCount; i++) {
     const i3 = i * 3;
-    // Random position on a sphere
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
     const r = 50 + Math.random() * 50;
@@ -398,23 +473,150 @@ function createStarfield(scene: THREE.Scene) {
     positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
     positions[i3 + 2] = r * Math.cos(phi);
 
-    sizes[i] = 0.5 + Math.random() * 1.5;
+    sizes[i] = enhanced
+      ? 0.3 + Math.random() * 2.0
+      : 0.5 + Math.random() * 1.5;
+
+    // Color variety: warm, cool, or white
+    const colorRoll = Math.random();
+    if (colorRoll < 0.2) {
+      // Warm (reddish/yellow)
+      colors[i3] = 1.0; colors[i3 + 1] = 0.85 + Math.random() * 0.15; colors[i3 + 2] = 0.7 + Math.random() * 0.2;
+    } else if (colorRoll < 0.4) {
+      // Cool (blue)
+      colors[i3] = 0.6 + Math.random() * 0.2; colors[i3 + 1] = 0.7 + Math.random() * 0.2; colors[i3 + 2] = 1.0;
+    } else {
+      // White
+      const w = 0.9 + Math.random() * 0.1;
+      colors[i3] = w; colors[i3 + 1] = w; colors[i3 + 2] = w;
+    }
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
   const material = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 0.15,
+    size: enhanced ? 0.18 : 0.15,
     sizeAttenuation: true,
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.85,
+    vertexColors: true,
   });
 
   const stars = new THREE.Points(geometry, material);
   scene.add(stars);
+
+  // Select ~200 stars for twinkling (enhanced mode)
+  let twinkleIndices: number[] | null = null;
+  if (enhanced) {
+    twinkleIndices = [];
+    for (let i = 0; i < starCount && twinkleIndices.length < 200; i++) {
+      if (Math.random() < 0.07) twinkleIndices.push(i);
+    }
+  }
+
+  return { stars, twinkleIndices, baseSizes: new Float32Array(sizes) };
+}
+
+// ---------------------------------------------------------------------------
+// Shooting star
+// ---------------------------------------------------------------------------
+
+interface ShootingStar {
+  line: THREE.Line;
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+  elapsed: number;
+  duration: number;
+}
+
+function createShootingStar(scene: THREE.Scene): ShootingStar {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const r = 40;
+
+  const start = new THREE.Vector3(
+    r * Math.sin(phi) * Math.cos(theta),
+    r * Math.sin(phi) * Math.sin(theta),
+    r * Math.cos(phi),
+  );
+
+  // Direction: slightly inward + random drift
+  const dir = start.clone().normalize().multiplyScalar(-1).add(
+    new THREE.Vector3(
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5,
+    ),
+  ).normalize();
+
+  const length = 5 + Math.random() * 10;
+  const end = start.clone().add(dir.multiplyScalar(length));
+  const duration = 0.5 + Math.random() * 1.0;
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(
+    new Float32Array([start.x, start.y, start.z, start.x, start.y, start.z]), 3,
+  ));
+
+  const material = new THREE.LineBasicMaterial({
+    color: 0xaaccff,
+    transparent: true,
+    opacity: 1.0,
+    linewidth: 1,
+  });
+
+  const line = new THREE.Line(geometry, material);
+  scene.add(line);
+
+  return { line, start, end, elapsed: 0, duration };
+}
+
+// ---------------------------------------------------------------------------
+// Supernova flash
+// ---------------------------------------------------------------------------
+
+interface SupernovaFlash {
+  light: THREE.PointLight;
+  sprite: THREE.Sprite;
+  elapsed: number;
+  duration: number;
+}
+
+function createSupernovaFlash(scene: THREE.Scene): SupernovaFlash {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const r = 35 + Math.random() * 20;
+
+  const pos = new THREE.Vector3(
+    r * Math.sin(phi) * Math.cos(theta),
+    r * Math.sin(phi) * Math.sin(theta),
+    r * Math.cos(phi),
+  );
+
+  // Warm flash color
+  const colors = [0xffffee, 0xffddaa, 0xffcccc, 0xeeddff];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+
+  const light = new THREE.PointLight(color, 0, 30);
+  light.position.copy(pos);
+  scene.add(light);
+
+  // Sprite for visible burst
+  const spriteMat = new THREE.SpriteMaterial({
+    color,
+    transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+  });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.position.copy(pos);
+  sprite.scale.setScalar(0.5);
+  scene.add(sprite);
+
+  return { light, sprite, elapsed: 0, duration: 2 + Math.random() * 1.5 };
 }
 
 // ---------------------------------------------------------------------------

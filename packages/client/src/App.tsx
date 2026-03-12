@@ -34,7 +34,6 @@ import {
   createResearchState,
   startResearch,
   completeResearchSession,
-  calculateObservation,
   findFreeSlot,
   isSystemFullyResearched,
   HOME_OBSERVATORY_COUNT,
@@ -414,28 +413,8 @@ export function App() {
     engine.init().then(() => {
       engineRef.current = engine;
 
-      // DEBUG: unlock all systems for testing (remove after testing)
-      const allSystems = engine.getAllSystems();
-      const debugResearch: ResearchState = {
-        slots: researchState.slots.map(s => ({ ...s, systemId: null, startedAt: null })),
-        systems: Object.fromEntries(
-          allSystems.map(sys => [sys.id, {
-            systemId: sys.id,
-            progress: 100,
-            isComplete: true,
-            observation: calculateObservation(sys, 100),
-          }]),
-        ),
-      };
-      setResearchState(debugResearch);
-      engine.setResearchState(debugResearch);
-      // Update galaxy visuals for all systems
-      for (const sys of allSystems) {
-        engine.updateSystemResearchVisual(sys.id, debugResearch);
-      }
-      console.log(`[DEBUG] Unlocked ${allSystems.length} systems for testing`);
-
       // Store home system/planet info for navigation
+      const allSystems = engine.getAllSystems();
       const homeSystem = allSystems.find(s => s.ownerPlayerId !== null);
       if (homeSystem) {
         const homePlanet = homeSystem.planets.find(p => p.isHomePlanet) ?? homeSystem.planets[0];
@@ -443,7 +422,6 @@ export function App() {
           setHomeInfo({ system: homeSystem, planet: homePlanet });
         }
       }
-      // END DEBUG
     }).catch((err) => {
       console.error('GameEngine init error:', err);
       setState((prev) => ({ ...prev, error: String(err) }));
