@@ -854,18 +854,27 @@ export function App() {
     };
   }, [state.scene, state.selectedPlanet, state.selectedSystem, homeInfo, planetModels]);
 
-  // Hide PixiJS procedural planet when 3D model is showing as background
-  // Also hide while models are loading (to avoid PixiJS flash before 3D shows)
-  // During scanning/materializing, keep PixiJS visible (scanning effects are on top)
+  // Hide PixiJS procedural planet when 3D model is showing as background.
+  // Also hide while models or homeInfo are still loading — prevents the flash where
+  // PixiJS planet briefly appears before we know whether a 3D model exists.
+  // state.scene in deps re-fires when switching scenes so new PixiJS scene is immediately hidden.
   useEffect(() => {
     const keepPixiVisible = home3DPhase === 'scanning' || home3DPhase === 'materializing';
+
+    // Not ready yet — keep planet hidden
     if (!modelsLoaded) {
-      // While loading models, hide PixiJS planet (show only star/sky)
       engineRef.current?.setPlanetVisible(false);
-    } else {
-      engineRef.current?.setPlanetVisible(!backgroundModelInfo || keepPixiVisible);
+      return;
     }
-  }, [backgroundModelInfo, home3DPhase, modelsLoaded]);
+
+    // On home-intro, also wait for homeInfo (set after engine init, slightly later)
+    if (state.scene === 'home-intro' && !homeInfo) {
+      engineRef.current?.setPlanetVisible(false);
+      return;
+    }
+
+    engineRef.current?.setPlanetVisible(!backgroundModelInfo || keepPixiVisible);
+  }, [backgroundModelInfo, home3DPhase, modelsLoaded, state.scene, homeInfo]);
 
   // Determine which panel to show for the selected system
   // (panels open via context menu actions, not directly from click)
