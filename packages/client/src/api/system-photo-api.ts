@@ -14,7 +14,9 @@ const API_BASE = '/api';
 
 export interface SystemPhotoGenerateResponse {
   photoId: string;
-  klingTaskId: string;
+  klingTaskId?: string;
+  status?: 'succeed' | 'generating';
+  photoUrl?: string;
   quarksRemaining: number;
 }
 
@@ -33,17 +35,27 @@ export interface SystemPhotoListItem {
 }
 
 /**
- * Generate a telescope photo for a star system (costs 15 quarks).
+ * Generate a telescope photo for a star system (costs 30 quarks).
+ * Uses Gemini AI — synchronous, returns the image URL directly.
+ * Passes screen dimensions for optimal aspect ratio.
  */
 export async function generateSystemPhoto(
   playerId: string,
   systemId: string,
   systemData: StarSystem,
+  screenWidth?: number,
+  screenHeight?: number,
 ): Promise<SystemPhotoGenerateResponse> {
   const res = await fetch(`${API_BASE}/system-photo/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, systemId, systemData }),
+    body: JSON.stringify({
+      playerId,
+      systemId,
+      systemData,
+      screenWidth: screenWidth ?? window.innerWidth,
+      screenHeight: screenHeight ?? window.innerHeight,
+    }),
   });
 
   if (!res.ok) {

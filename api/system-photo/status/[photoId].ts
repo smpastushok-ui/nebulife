@@ -6,6 +6,10 @@ import { getSystemPhotoById, updateSystemPhoto } from '../../../packages/server/
  * GET /api/system-photo/status/[photoId]
  *
  * Returns: { status, photoUrl? }
+ *
+ * Handles both:
+ * - Gemini photos (already complete, no kling_task_id)
+ * - Legacy Kling photos (polls Kling API for completion)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -23,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'Photo not found' });
     }
 
-    // Already completed?
+    // Already completed or failed? Return immediately.
     if (photo.status === 'succeed' || photo.status === 'failed') {
       return res.status(200).json({
         status: photo.status,
@@ -31,11 +35,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Poll Kling
+    // No kling_task_id = Gemini photo (should already be complete)
     if (!photo.kling_task_id) {
       return res.status(200).json({ status: photo.status });
     }
 
+    // Poll Kling for legacy photos
     const result = await checkTaskStatus(photo.kling_task_id);
 
     // Update DB if status changed

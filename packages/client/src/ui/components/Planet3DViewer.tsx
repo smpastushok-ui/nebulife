@@ -20,6 +20,11 @@ interface AtmosphereInfo {
   hasOzone: boolean;
 }
 
+interface MoonInfo {
+  compositionType: 'rocky' | 'icy' | 'metallic' | 'volcanic';
+  radiusKm: number;
+}
+
 interface Planet3DViewerProps {
   glbUrl: string;
   planetName: string;
@@ -27,6 +32,7 @@ interface Planet3DViewerProps {
   atmosphere?: AtmosphereInfo | null;
   planetType?: string; // 'rocky' | 'gas-giant' | 'ice-giant' | 'dwarf'
   planetMassEarth?: number; // mass in Earth masses (for ring detection)
+  moons?: MoonInfo[]; // moon data for orbiting satellites
   mode?: 'overlay' | 'background'; // overlay = fullscreen with header; background = behind CommandBar
   onClose: () => void;
 }
@@ -38,6 +44,7 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
   atmosphere,
   planetType,
   planetMassEarth,
+  moons,
   mode = 'overlay',
   onClose,
 }) => {
@@ -134,6 +141,9 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
     // Cloud mesh ref for animation
     let cloudRef: THREE.Mesh | null = null;
 
+    // Moon orbit refs for animation
+    const moonPivots: THREE.Object3D[] = [];
+
     // Load GLB model
     const loader = new GLTFLoader();
     loader.load(
@@ -198,6 +208,48 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
           }
         }
 
+        // Add orbiting moons
+        if (moons && moons.length > 0) {
+          const planetRadius = (maxDim * scale) / 2;
+          const maxMoons = Math.min(moons.length, 3); // limit visual clutter
+          for (let mi = 0; mi < maxMoons; mi++) {
+            const moonData = moons[mi];
+            // Moon size relative to planet (clamped for visibility)
+            const moonScale = Math.max(0.08, Math.min(0.3, moonData.radiusKm / 6371 * 0.5));
+            const moonRadius = planetRadius * moonScale;
+
+            // Moon orbit radius: different per moon
+            const orbitRadius = planetRadius * (1.8 + mi * 0.6);
+
+            // Moon color based on composition
+            const moonColor = moonData.compositionType === 'icy' ? 0xccddee
+              : moonData.compositionType === 'volcanic' ? 0x998866
+              : moonData.compositionType === 'metallic' ? 0xaaaaaa
+              : 0x999988; // rocky
+
+            const moonGeom = new THREE.SphereGeometry(moonRadius, 16, 12);
+            const moonMat = new THREE.MeshStandardMaterial({
+              color: moonColor,
+              roughness: 1.0,
+              metalness: 0.0,
+            });
+            const moonMesh = new THREE.Mesh(moonGeom, moonMat);
+            moonMesh.position.set(orbitRadius, 0, 0);
+
+            // Create pivot for orbital motion
+            const pivot = new THREE.Object3D();
+            pivot.position.copy(model.position);
+            // Tilt each moon orbit slightly for visual interest
+            pivot.rotation.x = 0.15 + mi * 0.2;
+            pivot.rotation.z = mi * 0.3;
+            // Start at different angles
+            pivot.rotation.y = mi * (Math.PI * 2 / 3);
+            pivot.add(moonMesh);
+            scene.add(pivot);
+            moonPivots.push(pivot);
+          }
+        }
+
         setIsLoading(false);
       },
       (progress) => {
@@ -230,6 +282,12 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         }
       }
 
+      // Orbit moons around planet
+      for (let mi = 0; mi < moonPivots.length; mi++) {
+        const speed = 0.15 - mi * 0.03; // outer moons orbit slower
+        moonPivots[mi].rotation.y += dt * speed;
+      }
+
       renderer.render(scene, camera);
     };
     animate();
@@ -255,7 +313,7 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         container.removeChild(renderer.domElement);
       }
     };
-  }, [glbUrl, starColor, atmosphere, planetType, planetMassEarth, cleanup]);
+  }, [glbUrl, starColor, atmosphere, planetType, planetMassEarth, moons, cleanup]);
 
   return (
     <div style={isOverlay ? styles.overlay : styles.background}>
@@ -275,8 +333,8 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
       {/* Three.js canvas container */}
       <div ref={containerRef} style={styles.canvasContainer} />
 
-      {/* Loading overlay */}
-      {isLoading && (
+      {/* Loading overlay — only in overlay mode (background mode loads silently) */}
+      {isLoading && isOverlay && (
         <div style={styles.loadingOverlay}>
           <div style={styles.loadingContent}>
             <div style={styles.spinner} />
@@ -294,8 +352,8 @@ const Planet3DViewer: React.FC<Planet3DViewerProps> = ({
         </div>
       )}
 
-      {/* Error */}
-      {error && (
+      {/* Error — only in overlay mode */}
+      {error && isOverlay && (
         <div style={styles.loadingOverlay}>
           <div style={styles.loadingContent}>
             <div style={styles.errorText}>{error}</div>

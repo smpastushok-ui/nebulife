@@ -702,19 +702,25 @@ export async function saveSystemPhoto(data: {
   id: string;
   playerId: string;
   systemId: string;
-  klingTaskId: string;
+  klingTaskId?: string | null;
   promptUsed: string;
+  status?: string;
+  photoUrl?: string | null;
 }): Promise<SystemPhotoRow> {
   const sql = getSQL();
+  const status = data.status ?? 'generating';
+  const photoUrl = data.photoUrl ?? null;
+  const klingTaskId = data.klingTaskId ?? null;
+  const completedAt = status === 'succeed' ? new Date().toISOString() : null;
   const rows = await sql`
-    INSERT INTO system_photos (id, player_id, system_id, kling_task_id, prompt_used, status)
-    VALUES (${data.id}, ${data.playerId}, ${data.systemId}, ${data.klingTaskId}, ${data.promptUsed}, 'generating')
+    INSERT INTO system_photos (id, player_id, system_id, kling_task_id, prompt_used, status, photo_url, completed_at)
+    VALUES (${data.id}, ${data.playerId}, ${data.systemId}, ${klingTaskId}, ${data.promptUsed}, ${status}, ${photoUrl}, ${completedAt})
     ON CONFLICT (player_id, system_id) DO UPDATE SET
       kling_task_id = EXCLUDED.kling_task_id,
       prompt_used = EXCLUDED.prompt_used,
-      status = 'generating',
-      photo_url = NULL,
-      completed_at = NULL
+      status = EXCLUDED.status,
+      photo_url = EXCLUDED.photo_url,
+      completed_at = EXCLUDED.completed_at
     RETURNING *
   `;
   return rows[0] as SystemPhotoRow;

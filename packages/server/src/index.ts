@@ -107,7 +107,11 @@ export { buildSurfacePrompt } from './surface-prompt-builder.js';
 export { buildPlanetModelPrompt } from './planet-model-prompt-builder.js';
 
 // System photo/mission prompt builder
-export { buildSystemPhotoPrompt, buildMissionVideoPrompt } from './system-photo-prompt-builder.js';
+export { buildSystemPhotoPrompt, buildMissionVideoPrompt, buildGeminiSystemPhotoPrompt } from './system-photo-prompt-builder.js';
+
+// Gemini AI image generation
+export { generateImageWithGemini, computeAspectRatio } from './gemini-client.js';
+export type { GeminiGenerateImageRequest, GeminiGenerateImageResult } from './gemini-client.js';
 
 // Surface photo analyzer
 export { analyzePhotoForZones } from './surface-analyzer.js';

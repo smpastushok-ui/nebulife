@@ -1,16 +1,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateImage } from '../../packages/server/src/kling-client.js';
+import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
 import { deductQuarks, saveSystemPhoto } from '../../packages/server/src/db.js';
-import { buildSystemPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
+import { buildGeminiSystemPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
 import type { StarSystem } from '@nebulife/core';
 
-const PHOTO_COST = 15;
+const PHOTO_COST = 30;
+
+// Allow up to 60s for Gemini image generation + blob upload
+export const config = {
+  maxDuration: 60,
+};
 
 /**
  * POST /api/system-photo/generate
  *
- * Body: { playerId: string, systemId: string, systemData: StarSystem }
- * Returns: { photoId: string, klingTaskId: string }
+ * Body: { playerId, systemId, systemData, screenWidth?, screenHeight? }
+ * Returns: { photoId, status, photoUrl, quarksRemaining }
+ *
+ * Uses Gemini AI for synchronous image generation.
+ * Image is uploaded to Vercel Blob and returned as a public URL.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -18,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { playerId, systemId, systemData } = req.body;
+    const { playerId, systemId, systemData, screenWidth, screenHeight } = req.body;
 
     if (!playerId || !systemId || !systemData) {
       return res.status(400).json({ error: 'Missing required fields: playerId, systemId, systemData' });
@@ -30,28 +38,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(402).json({ error: 'Insufficient quarks', required: PHOTO_COST });
     }
 
-    // 2. Build prompt from system data
-    const prompt = buildSystemPhotoPrompt(systemData as StarSystem);
+    // 2. Build cinematic prompt
+    const prompt = buildGeminiSystemPhotoPrompt(systemData as StarSystem);
 
-    // 3. Submit to Kling AI
-    const { taskId } = await generateImage({
+    // 3. Generate image with Gemini (synchronous — returns base64, uploads to blob)
+    const result = await generateImageWithGemini({
       prompt,
-      aspectRatio: '16:9',
+      screenWidth: screenWidth ? Number(screenWidth) : undefined,
+      screenHeight: screenHeight ? Number(screenHeight) : undefined,
     });
 
-    // 4. Save to DB
+    // 4. Save to DB with completed status
     const photoId = `sp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     await saveSystemPhoto({
       id: photoId,
       playerId,
       systemId,
-      klingTaskId: taskId,
       promptUsed: prompt,
+      status: 'succeed',
+      photoUrl: result.imageUrl,
     });
 
     return res.status(200).json({
       photoId,
-      klingTaskId: taskId,
+      status: 'succeed',
+      photoUrl: result.imageUrl,
       quarksRemaining: player.quarks,
     });
   } catch (err) {

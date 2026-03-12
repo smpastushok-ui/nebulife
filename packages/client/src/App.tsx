@@ -105,6 +105,8 @@ export function App() {
   // ── 3D Planet Model system state ──────────────────────────────────────────
   /** Cached planet models for this player */
   const [planetModels, setPlanetModels] = useState<PlanetModel[]>([]);
+  /** Whether planet models have been loaded from server (to avoid PixiJS flash) */
+  const [modelsLoaded, setModelsLoaded] = useState(false);
 
   /** Active 3D generation overlay */
   const [modelGenerationTarget, setModelGenerationTarget] = useState<{
@@ -184,7 +186,10 @@ export function App() {
       refreshQuarks();
     })();
 
-    getPlayerModels(pid).then(setPlanetModels).catch(() => {});
+    getPlayerModels(pid).then(models => {
+      setPlanetModels(models);
+      setModelsLoaded(true);
+    }).catch(() => { setModelsLoaded(true); });
     getPlayerAliases(pid).then(setAliases).catch(() => {});
     // Load system photos for initial state
     fetchPlayerSystemPhotos(pid).then(photos => {
@@ -842,15 +847,25 @@ export function App() {
       } : null,
       planetType: planet.type,
       planetMassEarth: planet.massEarth,
+      moons: planet.moons?.map(m => ({
+        compositionType: m.compositionType,
+        radiusKm: m.radiusKm,
+      })),
     };
   }, [state.scene, state.selectedPlanet, state.selectedSystem, homeInfo, planetModels]);
 
   // Hide PixiJS procedural planet when 3D model is showing as background
+  // Also hide while models are loading (to avoid PixiJS flash before 3D shows)
   // During scanning/materializing, keep PixiJS visible (scanning effects are on top)
   useEffect(() => {
     const keepPixiVisible = home3DPhase === 'scanning' || home3DPhase === 'materializing';
-    engineRef.current?.setPlanetVisible(!backgroundModelInfo || keepPixiVisible);
-  }, [backgroundModelInfo, home3DPhase]);
+    if (!modelsLoaded) {
+      // While loading models, hide PixiJS planet (show only star/sky)
+      engineRef.current?.setPlanetVisible(false);
+    } else {
+      engineRef.current?.setPlanetVisible(!backgroundModelInfo || keepPixiVisible);
+    }
+  }, [backgroundModelInfo, home3DPhase, modelsLoaded]);
 
   // Determine which panel to show for the selected system
   // (panels open via context menu actions, not directly from click)
@@ -1175,6 +1190,7 @@ export function App() {
           atmosphere={backgroundModelInfo.atmosphere}
           planetType={backgroundModelInfo.planetType}
           planetMassEarth={backgroundModelInfo.planetMassEarth}
+          moons={backgroundModelInfo.moons}
           mode="background"
           onClose={() => {}}
         />
@@ -1195,6 +1211,7 @@ export function App() {
           atmosphere={backgroundModelInfo.atmosphere}
           planetType={backgroundModelInfo.planetType}
           planetMassEarth={backgroundModelInfo.planetMassEarth}
+          moons={backgroundModelInfo.moons}
           onComplete={() => setHome3DPhase('complete')}
         />
       )}

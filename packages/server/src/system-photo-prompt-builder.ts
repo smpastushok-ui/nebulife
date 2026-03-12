@@ -128,3 +128,110 @@ function getArtisticDirection(spectralClass: SpectralClass): string {
       return 'Deep crimson-red illumination, dramatic shadows, moody alien atmosphere, dark space backdrop.';
   }
 }
+
+// ---------------------------------------------------------------------------
+// Gemini-specific prompt builder (cinematic English, JWST-style)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a Gemini-optimized prompt for generating a cinematic star system photo.
+ * English only, rich visual description, JWST/Hubble aesthetic.
+ */
+export function buildGeminiSystemPhotoPrompt(system: StarSystem): string {
+  const { star, planets } = system;
+
+  const starColor = getStarColorWord(star.spectralClass);
+  const starDesc = describeStarForPrompt(
+    star.spectralClass, star.subType, star.temperatureK, star.colorHex,
+  );
+
+  // Build detailed planet descriptions
+  const planetDetails = planets.map((p, i) => {
+    const parts: string[] = [];
+
+    // Size category
+    if (p.radiusEarth < 0.5) parts.push('a small rocky body');
+    else if (p.radiusEarth < 1.5) parts.push('an Earth-sized world');
+    else if (p.radiusEarth < 4) parts.push('a super-Earth');
+    else if (p.radiusEarth < 10) parts.push('a Neptune-class ice giant');
+    else parts.push('a massive gas giant');
+
+    // Type-specific visuals
+    if (p.type === 'gas-giant') {
+      const bandColors = p.surfaceTempK > 700
+        ? 'with incandescent orange-red cloud bands'
+        : p.surfaceTempK > 373
+          ? 'with amber and ochre atmospheric bands'
+          : 'with pale cream and blue-grey cloud bands';
+      parts.push(bandColors);
+    } else if (p.type === 'ice-giant') {
+      parts.push('with a deep blue-cyan atmosphere and faint ring system');
+    } else if (p.hydrosphere && p.hydrosphere.waterCoverageFraction > 0.5) {
+      parts.push('with vast blue oceans and white cloud patterns');
+    } else if (p.hydrosphere && p.hydrosphere.waterCoverageFraction > 0.1) {
+      parts.push('with scattered seas and continental landmasses');
+    } else if (p.surfaceTempK > 700) {
+      parts.push('with a scorched volcanic surface glowing at the terminator');
+    } else if (p.surfaceTempK < 150) {
+      parts.push('with an icy cratered surface reflecting starlight');
+    } else {
+      parts.push('with a barren rocky surface and impact craters');
+    }
+
+    // Atmosphere
+    if (p.atmosphere && p.atmosphere.surfacePressureAtm > 2) {
+      parts.push('shrouded in thick hazy atmosphere');
+    } else if (p.atmosphere && p.atmosphere.surfacePressureAtm > 0.1) {
+      parts.push('with a thin atmospheric halo visible at the limb');
+    }
+
+    // Moons
+    const moons = p.moons?.length ?? 0;
+    if (moons > 2) {
+      parts.push(`accompanied by ${moons} moons`);
+    } else if (moons === 1) {
+      parts.push('with a single moon nearby');
+    }
+
+    return `Planet ${i + 1} is ${parts.join(', ')}`;
+  }).join('. ');
+
+  // Cinematic direction per spectral class
+  const cinematicDir = getCinematicDirection(star.spectralClass);
+
+  // Compose the full prompt
+  return [
+    `A breathtaking deep space photograph captured by a next-generation space telescope.`,
+    `The scene shows a ${starDesc} at the center of the frame,`,
+    `radiating intense ${starColor} light with subtle lens diffraction spikes.`,
+    `${planets.length} planets orbit at various distances in the system.`,
+    planetDetails + '.',
+    cinematicDir,
+    `Ultra high resolution astrophotography, NASA JWST quality,`,
+    `scientifically accurate planetary illumination from the central star,`,
+    `volumetric light scattering, subtle nebula wisps in the background,`,
+    `deep black space with thousands of pinpoint background stars,`,
+    `cinematic composition with dramatic depth of field.`,
+    `No text, no labels, no UI elements, no watermarks.`,
+  ].join(' ');
+}
+
+/**
+ * Cinematic direction tuned per spectral class for Gemini.
+ */
+function getCinematicDirection(spectralClass: SpectralClass): string {
+  switch (spectralClass) {
+    case 'O':
+    case 'B':
+      return 'The scene is bathed in intense blue-violet stellar radiation, with electric blue god rays piercing through planetary atmospheres. High-energy ultraviolet glow creates vivid fluorescent halos around gas giants.';
+    case 'A':
+    case 'F':
+      return 'Crisp white-blue starlight floods the scene with pristine clarity. Sharp shadows define planetary surfaces. The overall tone is clean and luminous, like a diamond in the void.';
+    case 'G':
+      return 'Warm golden sunlight paints the scene in familiar, inviting tones. The star casts a comfortable yellow glow reminiscent of our own Sun, with gentle gradients across planetary terminator lines.';
+    case 'K':
+      return 'Rich amber-orange starlight drenches the system in warm sunset tones. Planetary surfaces glow with copper and bronze hues. The atmosphere feels intimate and ancient.';
+    case 'M':
+      return 'Deep crimson starlight creates a dramatic, moody atmosphere. Blood-red illumination casts long shadows across planetary surfaces. The scene feels alien and primordial, with a haunting beauty.';
+  }
+}

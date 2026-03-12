@@ -15,12 +15,18 @@ interface AtmosphereInfo {
   hasOzone: boolean;
 }
 
+interface MoonInfo {
+  compositionType: 'rocky' | 'icy' | 'metallic' | 'volcanic';
+  radiusKm: number;
+}
+
 interface HolographicTransitionProps {
   glbUrl: string;
   planetName: string;
   atmosphere?: AtmosphereInfo | null;
   planetType?: string;
   planetMassEarth?: number;
+  moons?: MoonInfo[];
   onComplete: () => void;
 }
 
@@ -34,6 +40,7 @@ const HolographicTransition: React.FC<HolographicTransitionProps> = ({
   atmosphere,
   planetType,
   planetMassEarth,
+  moons,
   onComplete,
 }) => {
   const [clipPercent, setClipPercent] = useState(100); // 100 = fully hidden, 0 = fully revealed
@@ -134,6 +141,7 @@ const HolographicTransition: React.FC<HolographicTransitionProps> = ({
           atmosphere={atmosphere}
           planetType={planetType}
           planetMassEarth={planetMassEarth}
+          moons={moons}
           mode="background"
           onClose={() => {}}
         />
