@@ -227,7 +227,17 @@ export class GalaxyScene {
 
     const { container: dot, glowOuter, glowMid, corona, core } = this.createStarGfx(color, baseR);
 
-    // System name label (below star)
+    // HOME badge — centered inside the star
+    const hl = new Text({
+      text: 'HOME',
+      style: { fontSize: 6, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 1 },
+      resolution: 3,
+    });
+    hl.anchor.set(0.5, 0.5);
+    hl.y = 0;
+    dot.addChild(hl);
+
+    // Name label — hidden by default, shown on hover
     const nl = new Text({
       text: sys.name,
       style: { fontSize: 8, fill: 0x667788, fontFamily: 'monospace' },
@@ -235,35 +245,16 @@ export class GalaxyScene {
     });
     nl.anchor.set(0.5, 0);
     nl.y = baseR + 10;
+    nl.visible = false;
     dot.addChild(nl);
-
-    // HOME badge (below name, separated)
-    const hl = new Text({
-      text: 'HOME',
-      style: { fontSize: 7, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 2 },
-      resolution: 3,
-    });
-    hl.anchor.set(0.5, 0);
-    hl.y = baseR + 22;
-    dot.addChild(hl);
-
-    // Observatory marker
-    const hasObs = this.researchState.slots.some(s => s.systemId === sys.id);
-    if (hasObs) {
-      const om = new Text({
-        text: '[O]',
-        style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
-        resolution: 3,
-      });
-      om.anchor.set(0.5, 0.5);
-      om.x = baseR + 10;
-      om.y = -6;
-      dot.addChild(om);
-    }
 
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
     dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < (baseR + 10) * (baseR + 10) };
+
+    // Show/hide name on hover
+    dot.on('pointerover', () => { nl.visible = true; dot.scale.set(1.15); });
+    dot.on('pointerout', () => { nl.visible = false; dot.scale.set(1.0); });
 
     let cc = 0;
     let ct: ReturnType<typeof setTimeout> | null = null;
@@ -319,84 +310,43 @@ export class GalaxyScene {
     dot.x = tx;
     dot.y = ty;
 
-    let nameLabel: Text;
+    // Progress % inside star (only for 1-99%)
     let progressLabel: Text | null = null;
-    let progressRing: Graphics | null = null;
-
-    const labelY = effectiveR + 10;
-
-    switch (state) {
-      case 'researched': {
-        nameLabel = new Text({
-          text: sys.name,
-          style: { fontSize: 9, fill: 0x8899aa, fontFamily: 'monospace' },
-          resolution: 3,
-        });
-        nameLabel.anchor.set(0.5, 0);
-        nameLabel.y = labelY;
-        dot.addChild(nameLabel);
-        break;
-      }
-
-      case 'researching': {
-        progressRing = new Graphics();
-        this.drawArc(progressRing, progress, effectiveR + 4);
-        dot.addChild(progressRing);
-
-        nameLabel = new Text({
-          text: sys.name,
-          style: { fontSize: 8, fill: 0x556677, fontFamily: 'monospace' },
-          resolution: 3,
-        });
-        nameLabel.anchor.set(0.5, 0);
-        nameLabel.y = labelY + 4;
-        dot.addChild(nameLabel);
-
-        progressLabel = new Text({
-          text: `${progress}%`,
-          style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
-          resolution: 3,
-        });
-        progressLabel.anchor.set(0.5, 0);
-        progressLabel.y = labelY + 18;
-        dot.addChild(progressLabel);
-        break;
-      }
-
-      default: {
-        // Unexplored - no label, just the dim star
-        nameLabel = new Text({
-          text: '',
-          style: { fontSize: 7, fill: 0x334455, fontFamily: 'monospace' },
-          resolution: 2,
-        });
-        nameLabel.anchor.set(0.5, 0);
-        nameLabel.y = effectiveR + 6;
-        nameLabel.visible = false;
-        dot.addChild(nameLabel);
-        break;
-      }
-    }
-
-    // Observatory marker
-    const hasObs = this.researchState.slots.some(s => s.systemId === sys.id);
-    if (hasObs) {
-      const om = new Text({
-        text: '[O]',
-        style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
+    if (state === 'researching' && progress > 0 && progress < 100) {
+      progressLabel = new Text({
+        text: `${progress}%`,
+        style: { fontSize: Math.max(6, effectiveR * 0.5), fill: 0xddeeff, fontFamily: 'monospace' },
         resolution: 3,
       });
-      om.anchor.set(0.5, 0.5);
-      om.x = effectiveR + 10;
-      om.y = -6;
-      dot.addChild(om);
+      progressLabel.anchor.set(0.5, 0.5);
+      progressLabel.y = 0;
+      dot.addChild(progressLabel);
     }
+
+    // Name label — hidden by default, shown on hover/tap
+    const nameLabel = new Text({
+      text: state === 'unexplored' ? '' : sys.name,
+      style: {
+        fontSize: state === 'researched' ? 9 : 8,
+        fill: state === 'researched' ? 0x8899aa : 0x556677,
+        fontFamily: 'monospace',
+      },
+      resolution: 3,
+    });
+    nameLabel.anchor.set(0.5, 0);
+    nameLabel.y = effectiveR + 8;
+    nameLabel.visible = false;
+    dot.addChild(nameLabel);
 
     // Interactivity
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
     const hitR = effectiveR + 8;
     dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < hitR * hitR };
+
+    // Show/hide name on hover
+    dot.on('pointerover', () => { nameLabel.visible = true; dot.scale.set(1.15); });
+    dot.on('pointerout', () => { nameLabel.visible = false; dot.scale.set(1.0); });
 
     let cc = 0;
     let ct: ReturnType<typeof setTimeout> | null = null;
@@ -419,9 +369,6 @@ export class GalaxyScene {
       }
     });
 
-    dot.on('pointerover', () => { dot.scale.set(1.2); });
-    dot.on('pointerout', () => { dot.scale.set(1.0); });
-
     this.nodesLayer.addChild(dot);
 
     // Alpha by state and ring distance
@@ -441,24 +388,12 @@ export class GalaxyScene {
 
     return {
       container: dot, system: sys, nameLabel,
-      progressLabel, progressRing,
+      progressLabel, progressRing: null,
       glowOuter, glowMid, corona, core,
       phaseOffset: phase, speed, baseRadius: effectiveR,
       baseAlpha, tx, ty, ringIndex,
       spectralClass: sys.star.spectralClass,
     };
-  }
-
-  private drawArc(g: Graphics, progress: number, radius: number) {
-    g.clear();
-    const s = -Math.PI / 2;
-    const e = s + (progress / 100) * Math.PI * 2;
-    g.circle(0, 0, radius);
-    g.stroke({ width: 1, color: 0x334455, alpha: 0.3 });
-    if (progress > 0) {
-      g.arc(0, 0, radius, s, e);
-      g.stroke({ width: 1.5, color: 0x44aaff, alpha: 0.7 });
-    }
   }
 
   /* ── Public API ────────────────────────────────────────────── */
@@ -526,21 +461,26 @@ export class GalaxyScene {
     const state = this.getState(node.system);
     const prog = getResearchProgress(researchState, systemId);
 
-    if (state === 'researching' && node.progressRing) {
+    if (state === 'researching') {
       node.baseAlpha = 0.35 + (prog / 100) * 0.55;
-      this.drawArc(node.progressRing, prog, node.baseRadius + 4);
-      if (node.progressLabel) node.progressLabel.text = `${prog}%`;
+      // Update % text inside star
+      if (node.progressLabel) {
+        if (prog > 0 && prog < 100) {
+          node.progressLabel.text = `${prog}%`;
+          node.progressLabel.visible = true;
+        } else {
+          node.progressLabel.visible = false;
+        }
+      }
     }
 
     if (state === 'researched') {
       node.baseAlpha = 1;
-      if (node.progressRing) node.progressRing.clear();
+      // Hide progress %, set name ready for hover
+      if (node.progressLabel) node.progressLabel.visible = false;
       node.nameLabel.text = node.system.name;
       node.nameLabel.style.fill = 0x8899aa;
-      node.nameLabel.visible = true;
-      if (node.progressLabel) {
-        node.progressLabel.visible = false;
-      }
+      // Name stays hidden until hover
     }
   }
 
