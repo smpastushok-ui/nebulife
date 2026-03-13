@@ -131,7 +131,7 @@ export function CosmicArchive({
   onViewPlanetDetail,
   onGoHome,
 }: CosmicArchiveProps) {
-  const [mainTab, setMainTab] = useState<MainTab>('collections');
+  const [mainTab, setMainTab] = useState<MainTab>('management');
   const [subTabMap, setSubTabMap] = useState<Record<MainTab, SubTab>>({
     collections: 'cosmos',
     management: 'tech',

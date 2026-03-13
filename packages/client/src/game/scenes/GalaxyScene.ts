@@ -502,6 +502,14 @@ export class GalaxyScene {
     return this.transitionActive;
   }
 
+  /** Get world position of a system relative to galaxy container origin (HOME = 0,0) */
+  getSystemWorldPosition(systemId: string): { x: number; y: number } | null {
+    if (this.homeNode?.system.id === systemId) return { x: 0, y: 0 };
+    const node = this.systemNodes.get(systemId);
+    if (!node) return null;
+    return { x: node.tx, y: node.ty };
+  }
+
   /**
    * Start the star-fold transition: all stars converge into the target,
    * galaxy backdrop spins up, twinkle stars scatter outward.

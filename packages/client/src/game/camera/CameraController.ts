@@ -355,6 +355,33 @@ export class CameraController {
     }
   }
 
+  /** Get current zoom scale */
+  getCurrentScale(): number {
+    return this.scale;
+  }
+
+  /** Programmatic zoom: factor > 1 = zoom in, < 1 = zoom out. Zooms toward screen center. */
+  zoomBy(factor: number) {
+    if (!this.target) return;
+    this.targetScale = Math.max(this.minScale, Math.min(this.maxScale, this.targetScale * factor));
+    const w = this.app.screen.width;
+    const h = this.app.screen.height;
+    this.zoomCenterX = w / 2;
+    this.zoomCenterY = h / 2;
+    this.zoomWorldX = (this.zoomCenterX - this.target.x) / this.scale;
+    this.zoomWorldY = (this.zoomCenterY - this.target.y) / this.scale;
+    this._isZooming = true;
+    this.zoomSettleTimer = 0;
+  }
+
+  /** Smoothly center camera on world origin (0,0) at current scale */
+  centerOnOrigin() {
+    if (!this.target) return;
+    const w = this.app.screen.width;
+    const h = this.app.screen.height;
+    this.animateTo(0, 0, this.scale, 400);
+  }
+
   /** Reset and fit a given world-radius (px) on screen with padding */
   resetToFit(worldRadius: number) {
     if (!this.target) return;

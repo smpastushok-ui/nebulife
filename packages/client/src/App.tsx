@@ -216,6 +216,7 @@ export function App() {
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   // ── System context menu state (galaxy view) ────────────────────────────
   const [showSystemMenu, setShowSystemMenu] = useState(false);
@@ -478,6 +479,11 @@ export function App() {
       onTelescopeClick: (system) => {
         telescopePhotoRef.current(system);
       },
+      onRequestResearch: (system) => {
+        // Double-click on non-fully-researched star — show research panel
+        setShowSystemMenu(false);
+        setSystemMenuPos(null);
+      },
     });
 
     engine.init().then(() => {
@@ -566,7 +572,7 @@ export function App() {
 
   const handleEnterSystem = useCallback((system: StarSystem) => {
     engineRef.current?.showSystemScene(system);
-    setState((prev) => ({ ...prev, scene: 'system' }));
+    setState((prev) => ({ ...prev, scene: 'system', selectedSystem: system }));
   }, []);
 
   const handleStartResearch = useCallback((systemId: string) => {
@@ -1106,7 +1112,12 @@ export function App() {
         break;
       case 'planet-view':
         if (state.scene !== 'planet-view') {
-          handleViewPlanet();
+          // If navigating back to home planet, go to home-intro (shows 3D model)
+          if (state.selectedPlanet?.isHomePlanet) {
+            handleGoToHomePlanet();
+          } else {
+            handleViewPlanet();
+          }
         }
         break;
       // 'surface' — already on surface, no action
@@ -1283,34 +1294,47 @@ export function App() {
   // ── CommandBar data ──────────────────────────────────────────────────
   const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
 
+  // SVG breadcrumb icons
+  const homeIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M3 8.5V14h4v-4h2v4h4V8.5" /><path d="M1 9l7-7 7 7" /></svg>;
+  const galaxyIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="2" /><ellipse cx="8" cy="8" rx="7" ry="3" /><ellipse cx="8" cy="8" rx="3" ry="7" /></svg>;
+  const starIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="3" /><line x1="8" y1="1" x2="8" y2="4" /><line x1="8" y1="12" x2="8" y2="15" /><line x1="1" y1="8" x2="4" y2="8" /><line x1="12" y1="8" x2="15" y2="8" /></svg>;
+  const planetIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="5" /><ellipse cx="8" cy="8" rx="7" ry="2" transform="rotate(-20 8 8)" /></svg>;
+  const surfaceIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 12l3-4 3 2 4-5 4 4" /><line x1="1" y1="14" x2="15" y2="14" /></svg>;
+
   const breadcrumbs: BreadcrumbItem[] = [
-    { id: 'home', label: 'Домівка', scene: 'home-intro', isActive: effectiveScene === 'home-intro' },
+    { id: 'home', label: '', scene: 'home-intro', isActive: effectiveScene === 'home-intro', icon: homeIcon },
   ];
 
   if (effectiveScene !== 'home-intro') {
     breadcrumbs.push({
-      id: 'galaxy', label: 'Галактика', scene: 'galaxy',
+      id: 'galaxy', label: '', scene: 'galaxy',
       isActive: effectiveScene === 'galaxy',
+      icon: galaxyIcon,
     });
   }
 
   if (['system', 'planet-view', 'surface'].includes(effectiveScene) && state.selectedSystem) {
+    const sysName = aliases[state.selectedSystem.id] || state.selectedSystem.star.name;
     breadcrumbs.push({
-      id: 'system', label: state.selectedSystem.star.name, scene: 'system',
+      id: 'system', label: sysName, scene: 'system',
       isActive: effectiveScene === 'system',
+      icon: starIcon,
     });
   }
 
   if (['planet-view', 'surface'].includes(effectiveScene) && state.selectedPlanet) {
+    const isHomePlanet = state.selectedPlanet.isHomePlanet;
     breadcrumbs.push({
       id: 'planet', label: state.selectedPlanet.name, scene: 'planet-view',
       isActive: effectiveScene === 'planet-view',
+      icon: isHomePlanet ? homeIcon : planetIcon,
     });
   }
 
   if (effectiveScene === 'surface') {
     breadcrumbs.push({
-      id: 'surface', label: 'Поверхня', scene: 'surface', isActive: true,
+      id: 'surface', label: '', scene: 'surface', isActive: true,
+      icon: surfaceIcon,
     });
   }
 
@@ -1363,10 +1387,24 @@ export function App() {
         type: 'buttons',
         items: [{
           id: 'observatories',
-          label: 'Обсерваторії',
+          label: '',
+          icon: React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
+            React.createElement('line', { x1: '2', y1: '11', x2: '10', y2: '5' }),
+            React.createElement('circle', { cx: '12', cy: '3.5', r: '2.5' }),
+            React.createElement('line', { x1: '2', y1: '11', x2: '0.5', y2: '15' }),
+            React.createElement('line', { x1: '2', y1: '11', x2: '4', y2: '15' }),
+          ),
+          tooltip: 'Обсерваторії',
           onClick: () => {},
           badge: `${activeSlots}/${HOME_OBSERVATORY_COUNT}`,
         }],
+      });
+      toolGroups.push({
+        type: 'zoom',
+        items: [
+          { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.galaxyZoomIn() },
+          { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.galaxyZoomOut() },
+        ],
       });
       break;
     }
@@ -1432,12 +1470,18 @@ export function App() {
     }
   }
 
-  // Global: Archive button on all scenes
+  // Global: Command center button on all scenes
   toolGroups.push({
     type: 'buttons',
     items: [{
-      id: 'archive',
-      label: 'Архів',
+      id: 'command-center',
+      label: '',
+      icon: React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
+        React.createElement('rect', { x: '2', y: '2', width: '12', height: '12', rx: '2' }),
+        React.createElement('line', { x1: '2', y1: '6', x2: '14', y2: '6' }),
+        React.createElement('line', { x1: '6', y1: '6', x2: '6', y2: '14' }),
+      ),
+      tooltip: 'Командний центр',
       onClick: () => setShowCosmicArchive(true),
     }],
   });
@@ -1465,6 +1509,49 @@ export function App() {
         onNavigate={handleBreadcrumbNavigate}
         onTopUp={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
+
+      {/* Center camera button — top-left, visible on galaxy level */}
+      {state.scene === 'galaxy' && (
+        <button
+          onClick={() => engineRef.current?.galaxyCenterOnOrigin()}
+          title="Центрувати"
+          style={{
+            position: 'fixed',
+            top: 14,
+            left: 14,
+            width: 32,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(10,15,25,0.85)',
+            border: '1px solid rgba(68,102,136,0.4)',
+            borderRadius: 4,
+            color: '#8899aa',
+            cursor: 'pointer',
+            zIndex: 9400,
+            padding: 0,
+            fontFamily: 'monospace',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(120,160,255,0.5)';
+            e.currentTarget.style.color = '#aabbcc';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(68,102,136,0.4)';
+            e.currentTarget.style.color = '#8899aa';
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <circle cx="8" cy="8" r="6" />
+            <line x1="8" y1="2" x2="8" y2="5" />
+            <line x1="8" y1="11" x2="8" y2="14" />
+            <line x1="2" y1="8" x2="5" y2="8" />
+            <line x1="11" y1="8" x2="14" y2="8" />
+            <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+      )}
 
       {/* Research blur overlay for unresearched systems */}
       {state.scene === 'system' && !isCurrentSystemFullyAccessible && (
@@ -1642,8 +1729,8 @@ export function App() {
           onQuarksChanged={refreshQuarks}
         />
       )}
-      {/* Scan line while checking for 3D models */}
-      {!modelsLoaded && (state.scene === 'home-intro' || state.scene === 'planet-view') && (
+      {/* Scan line while checking for 3D models (planet-view only, skip home to avoid flash) */}
+      {!modelsLoaded && state.scene === 'planet-view' && (
         <ScanLineOverlay />
       )}
       {/* Background 3D Model (auto-shown on home/planet-view if model exists) */}
@@ -1773,11 +1860,44 @@ export function App() {
         />
       )}
 
+      {/* Chat unread notification dot — visible above chat widget */}
+      {chatUnreadCount > 0 && !showCosmicArchive && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 90,
+            right: 18,
+            zIndex: 9450,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            background: 'rgba(10,15,25,0.9)',
+            border: '1px solid rgba(68,255,136,0.3)',
+            borderRadius: 10,
+            padding: '3px 8px',
+            fontFamily: 'monospace',
+            fontSize: 10,
+            color: '#44ff88',
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: '#44ff88',
+            display: 'inline-block',
+          }} />
+          {chatUnreadCount > 1 ? `${chatUnreadCount}` : ''}
+        </div>
+      )}
+
       {/* Chat widget (visible when authenticated, not in onboarding) */}
       {!authLoading && !needsOnboarding && !needsCallsign && playerId.current && (
         <ChatWidget
           playerId={playerId.current}
           playerName={state.playerName}
+          onUnreadChange={setChatUnreadCount}
         />
       )}
 

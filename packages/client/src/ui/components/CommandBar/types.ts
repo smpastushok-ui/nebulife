@@ -1,4 +1,5 @@
 import type { SceneType } from '../../../App.js';
+import type React from 'react';
 
 export type ExtendedScene = SceneType | 'surface';
 
@@ -7,6 +8,7 @@ export interface BreadcrumbItem {
   label: string;
   scene: ExtendedScene;
   isActive: boolean;
+  icon?: React.ReactNode;
 }
 
 export interface ToolItem {
@@ -17,6 +19,8 @@ export interface ToolItem {
   disabled?: boolean;
   active?: boolean;
   badge?: string;
+  icon?: React.ReactNode;
+  tooltip?: string;
 }
 
 export interface ToolGroup {

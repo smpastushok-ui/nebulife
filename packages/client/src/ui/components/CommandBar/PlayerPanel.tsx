@@ -23,7 +23,6 @@ export function PlayerPanel({ quarks, playerName, onTopUp }: PlayerPanelProps) {
         <span style={{ fontSize: 13 }}>&#9883;</span>
         <span>{quarks}</span>
       </button>
-      <span style={playerNameStyle}>{playerName}</span>
     </div>
   );
 }

@@ -20,6 +20,8 @@ export interface GameCallbacks {
   onSceneChange: (scene: 'galaxy' | 'system' | 'home-intro' | 'planet-view') => void;
   /** Called when telescope icon is clicked on galaxy map. */
   onTelescopeClick?: (system: StarSystem) => void;
+  /** Called on double-click of non-fully-researched star to open research panel */
+  onRequestResearch?: (system: StarSystem) => void;
 }
 
 const GALAXY_SEED = 42;
@@ -156,13 +158,21 @@ export class GameEngine {
           || isSystemFullyResearched(this.researchState, system.id);
         if (canEnter) {
           this.callbacks.onSystemSelect(system);
+          // Center camera on target star during transition (non-home stars)
+          if (system.ownerPlayerId === null) {
+            const worldPos = this.galaxyScene?.getSystemWorldPosition(system.id);
+            if (worldPos) {
+              this.camera.animateTo(worldPos.x, worldPos.y, this.camera.getCurrentScale(), 1500);
+            }
+          }
           // Start star-fold transition in GalaxyScene, then switch to system
           this.galaxyScene?.startTransition(system.id, () => {
             this.showSystemScene(system);
           });
         } else {
-          // Just select it (will show research panel)
+          // Not fully researched — open research/observatory panel
           this.callbacks.onSystemSelect(system);
+          this.callbacks.onRequestResearch?.(system);
         }
       },
       this.callbacks.onTelescopeClick ? (system) => {
@@ -237,6 +247,11 @@ export class GameEngine {
     this.setupPlanetViewInput();
     this.callbacks.onSceneChange('planet-view');
   }
+
+  // Galaxy camera controls
+  galaxyZoomIn() { this.camera.zoomBy(1.3); }
+  galaxyZoomOut() { this.camera.zoomBy(0.77); }
+  galaxyCenterOnOrigin() { this.camera.centerOnOrigin(); }
 
   // Home planet camera controls
   homePlanetZoomIn() { this.homePlanetScene?.zoomIn(); }

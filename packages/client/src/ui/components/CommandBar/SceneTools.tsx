@@ -91,8 +91,9 @@ export function SceneTools({ groups, scene }: SceneToolsProps) {
                     (e.target as HTMLElement).style.color = s.color as string ?? '#8899aa';
                   }
                 }}
+                title={tool.tooltip}
               >
-                {tool.label}
+                {tool.icon ?? tool.label}
                 {tool.badge && (
                   <span style={{
                     marginLeft: 4,

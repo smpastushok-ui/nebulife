@@ -16,11 +16,12 @@ import { NewDMModal } from './NewDMModal.js';
 interface ChatWidgetProps {
   playerId: string;
   playerName: string;
+  onUnreadChange?: (count: number) => void;
 }
 
 type Tab = 'global' | 'dm-list' | 'dm-chat';
 
-export function ChatWidget({ playerId, playerName }: ChatWidgetProps) {
+export function ChatWidget({ playerId, playerName, onUnreadChange }: ChatWidgetProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [tab, setTab] = useState<Tab>('global');
   const [messages, setMessages] = useState<MessageData[]>([]);
@@ -116,6 +117,11 @@ export function ChatWidget({ playerId, playerName }: ChatWidgetProps) {
     iv = setInterval(checkUnread, 10000);
     return () => { if (iv) clearInterval(iv); };
   }, [collapsed]);
+
+  // Notify parent of unread count changes
+  useEffect(() => {
+    onUnreadChange?.(unreadGlobal);
+  }, [unreadGlobal, onUnreadChange]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
