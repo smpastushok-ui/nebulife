@@ -64,9 +64,14 @@ export class SystemScene {
   private sysShootingStarTimer = 5000 + Math.random() * 5000; // first: 5-10s
   private outerBeltContainer: Container | null = null;
 
+  /** True while camera is zooming — orbit animations pause to prevent jitter */
+  private _freezeOrbits = false;
+  set freezeOrbits(v: boolean) { this._freezeOrbits = v; }
+
   constructor(
     private system: StarSystem,
     private onPlanetSelect: (planet: Planet, screenPos: { x: number; y: number }) => void,
+    private clickGuard?: () => boolean,
   ) {
     this.container = new Container();
     this.container.eventMode = 'static';
@@ -319,6 +324,7 @@ export class SystemScene {
     planetSprite.hitArea = { contains: (px: number, py: number) => px * px + py * py < hitSize * hitSize };
 
     planetSprite.on('pointerdown', (ev) => {
+      if (this.clickGuard?.()) return;
       this.onPlanetSelect(planet, { x: ev.global.x, y: ev.global.y });
     });
     planetSprite.on('pointerover', () => {
@@ -396,11 +402,13 @@ export class SystemScene {
     }
     this.updateSystemShootingStars(deltaMs);
 
-    // Animate planet orbits
+    // Animate planet orbits (freeze during pinch/zoom to prevent jitter)
     for (const [, node] of this.planetNodes) {
-      // Angular speed inversely proportional to orbital period
-      const angularSpeed = (2 * Math.PI) / (node.planet.orbit.periodDays * 200);
-      node.angle += angularSpeed * (deltaMs / 16.67);
+      if (!this._freezeOrbits) {
+        // Angular speed inversely proportional to orbital period
+        const angularSpeed = (2 * Math.PI) / (node.planet.orbit.periodDays * 200);
+        node.angle += angularSpeed * (deltaMs / 16.67);
+      }
 
       // Position on ellipse with star at focus (Y-compressed)
       const a = node.distance;
@@ -422,7 +430,7 @@ export class SystemScene {
 
       // Moon sub-orbits (per-moon Y-compression for orbital diversity)
       for (const moon of node.moonNodes) {
-        moon.angle += moon.angularSpeed * (deltaMs / 16.67);
+        if (!this._freezeOrbits) moon.angle += moon.angularSpeed * (deltaMs / 16.67);
         moon.gfx.x = Math.cos(moon.angle) * moon.orbitRadius;
         moon.gfx.y = Math.sin(moon.angle) * moon.orbitRadius * moon.yCompress;
       }

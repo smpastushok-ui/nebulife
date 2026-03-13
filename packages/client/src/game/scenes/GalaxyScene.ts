@@ -139,6 +139,7 @@ export class GalaxyScene {
     private onSelect: (system: StarSystem, screenPos?: { x: number; y: number }) => void,
     private onDoubleClick: (system: StarSystem) => void,
     private onTelescopeClick?: (system: StarSystem) => void,
+    private clickGuard?: () => boolean,
   ) {
     this.container = new Container();
     this.researchState = researchState;
@@ -360,21 +361,28 @@ export class GalaxyScene {
     let cc = 0;
     let ct: ReturnType<typeof setTimeout> | null = null;
     dot.on('pointerdown', () => {
+      // Block clicks during/after drag or pinch
+      if (this.clickGuard?.()) return;
       cc++;
       if (cc === 1) {
         ct = setTimeout(() => {
           if (cc === 1) {
-            const gp = dot.getGlobalPosition();
-            this.selectSystem(sys.id);
-            this.focusOnSystem(sys.id);
-            this.onSelect(sys, { x: gp.x, y: gp.y });
+            // Re-check guard in case drag started during timeout
+            if (!this.clickGuard?.()) {
+              const gp = dot.getGlobalPosition();
+              this.selectSystem(sys.id);
+              this.focusOnSystem(sys.id);
+              this.onSelect(sys, { x: gp.x, y: gp.y });
+            }
           }
           cc = 0;
         }, 300);
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
-        this.onDoubleClick(sys);
+        if (!this.clickGuard?.()) {
+          this.onDoubleClick(sys);
+        }
       }
     });
 

@@ -86,6 +86,8 @@ export class GameEngine {
     this.app.ticker.add(() => {
       const dt = this.app.ticker.deltaMS;
       this.camera.update(dt);
+      // Freeze orbit animations during zoom/pinch to prevent jitter
+      if (this.systemScene) this.systemScene.freezeOrbits = this.camera.isZooming;
       this.galaxyScene?.update(dt);
       this.systemScene?.update(dt);
       this.homePlanetScene?.update(dt);
@@ -166,6 +168,7 @@ export class GameEngine {
       this.callbacks.onTelescopeClick ? (system) => {
         this.callbacks.onTelescopeClick!(system);
       } : undefined,
+      () => this.camera.recentlyInteracted,
     );
 
     this.app.stage.addChild(this.galaxyScene.container);
@@ -192,9 +195,13 @@ export class GameEngine {
     // Force resize to fix stale viewport dimensions after overlay transitions
     this.app.resize();
 
-    this.systemScene = new SystemScene(system, (planet, screenPos) => {
-      this.callbacks.onPlanetSelect(planet, screenPos);
-    });
+    this.systemScene = new SystemScene(
+      system,
+      (planet, screenPos) => {
+        this.callbacks.onPlanetSelect(planet, screenPos);
+      },
+      () => this.camera.recentlyInteracted,
+    );
 
     this.app.stage.addChild(this.systemScene.container);
     this.activeScene = this.systemScene.container;
