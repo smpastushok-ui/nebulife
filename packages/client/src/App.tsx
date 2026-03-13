@@ -78,15 +78,18 @@ export function App() {
   const engineRef = useRef<GameEngine | null>(null);
   const telescopePhotoRef = useRef<(sys: StarSystem) => void>(() => {});
 
-  const [state, setState] = useState<GameState>({
-    scene: 'home-intro',
-    selectedSystem: null,
-    selectedPlanet: null,
-    planetClickPos: null,
-    showPlanetMenu: false,
-    showPlanetInfo: false,
-    playerName: 'Explorer',
-    error: null,
+  const [state, setState] = useState<GameState>(() => {
+    const savedScene = localStorage.getItem('nebulife_scene') as GameState['scene'] | null;
+    return {
+      scene: savedScene === 'galaxy' ? 'galaxy' : 'home-intro',
+      selectedSystem: null,
+      selectedPlanet: null,
+      planetClickPos: null,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+      playerName: 'Explorer',
+      error: null,
+    };
   });
 
   const [researchState, setResearchState] = useState<ResearchState>(() => {
@@ -110,6 +113,13 @@ export function App() {
       localStorage.setItem('nebulife_research_state', JSON.stringify(researchState));
     } catch { /* ignore quota errors */ }
   }, [researchState]);
+
+  // Persist scene to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('nebulife_scene', state.scene);
+    } catch { /* ignore */ }
+  }, [state.scene]);
 
   // Completed research modal
   const [completedModal, setCompletedModal] = useState<{
@@ -466,6 +476,8 @@ export function App() {
     });
 
     engine.init().then(() => {
+      // Sync restored research state before anything else
+      engine.setResearchState(researchState);
       engineRef.current = engine;
 
       // Store home system/planet info for navigation
@@ -476,6 +488,12 @@ export function App() {
         if (homePlanet) {
           setHomeInfo({ system: homeSystem, planet: homePlanet });
         }
+      }
+
+      // Restore saved scene (engine always starts at home-intro)
+      const savedScene = localStorage.getItem('nebulife_scene');
+      if (savedScene === 'galaxy') {
+        engine.showGalaxyScene();
       }
     }).catch((err) => {
       console.error('GameEngine init error:', err);
