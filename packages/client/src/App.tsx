@@ -506,6 +506,28 @@ export function App() {
       if (!localStorage.getItem('nebulife_onboarding_done')) {
         setNeedsOnboarding(true);
       }
+      // Ensure legacy player exists in DB (create if missing)
+      (async () => {
+        try {
+          const existing = await getPlayer(id!);
+          if (!existing) {
+            console.log('[Legacy] Player not in DB, creating:', id);
+            const created = await createPlayer({
+              id: id!,
+              name: 'Explorer',
+              homeSystemId: 'home',
+              homePlanetId: 'home',
+            });
+            setQuarks(created.quarks ?? 0);
+            setState((prev) => ({ ...prev, playerName: created.callsign || created.name || 'Explorer' }));
+          } else {
+            setQuarks(existing.quarks ?? 0);
+            setState((prev) => ({ ...prev, playerName: existing.callsign || existing.name || 'Explorer' }));
+          }
+        } catch (err) {
+          console.warn('[Legacy] Failed to ensure player in DB:', err);
+        }
+      })();
       setAuthLoading(false);
       return;
     }

@@ -23,6 +23,11 @@ export interface PlayerData {
   last_login: string | null;
   created_at: string;
   game_state: Record<string, unknown>;
+  quarks: number;
+  firebase_uid: string | null;
+  auth_provider: string;
+  email: string | null;
+  callsign: string | null;
 }
 
 /**
