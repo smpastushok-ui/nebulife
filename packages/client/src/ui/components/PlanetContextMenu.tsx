@@ -64,7 +64,7 @@ function MenuItem({ label, onClick, color }: { label: string; onClick: () => voi
 export function PlanetContextMenu({
   planet, screenPosition,
   onViewPlanet, onShowCharacteristics, onClose,
-  onSurface,
+  onSurface, on3DGenerate, has3DModel, is3DGenerating,
 }: {
   planet: Planet;
   screenPosition: { x: number; y: number };
@@ -72,6 +72,9 @@ export function PlanetContextMenu({
   onShowCharacteristics: () => void;
   onClose: () => void;
   onSurface?: () => void;
+  on3DGenerate?: () => void;
+  has3DModel?: boolean;
+  is3DGenerating?: boolean;
 }) {
   // Clamp position to keep menu on screen
   const maxX = window.innerWidth - MENU_WIDTH - 16;
@@ -97,6 +100,9 @@ export function PlanetContextMenu({
           <MenuItem label="На поверхню" onClick={onSurface} color="#88ccaa" />
         )}
         <MenuItem label="Характеристики" onClick={onShowCharacteristics} />
+        {on3DGenerate && !has3DModel && !is3DGenerating && (
+          <MenuItem label="3D 49 кварки" onClick={on3DGenerate} color="#4488aa" />
+        )}
       </div>
     </>
   );

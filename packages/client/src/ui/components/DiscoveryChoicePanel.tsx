@@ -129,28 +129,19 @@ export function DiscoveryChoicePanel({
             gap: 16,
           }}
         >
-          {/* Header */}
+          {/* Header — narrative message */}
           <div
             style={{
-              fontSize: 10,
-              textTransform: 'uppercase',
-              letterSpacing: 3,
-              color: '#556677',
+              fontSize: 11,
+              lineHeight: 1.6,
+              color: '#778899',
             }}
           >
-            Нове відкриття
-          </div>
-
-          {/* Object name */}
-          <div
-            style={{
-              fontSize: 18,
-              color: '#ddeeff',
-              fontWeight: 'bold',
-              lineHeight: 1.3,
-            }}
-          >
-            {name}
+            Командоре, глибоке сканування системи{' '}
+            <span style={{ color: '#aabbcc' }}>{system.name}</span>{' '}
+            виявило аномалію:{' '}
+            <span style={{ color: '#ddeeff', fontWeight: 'bold' }}>{name}</span>.{' '}
+            Сигнал слабкий, маємо запит на виділення додаткових ресурсів телескопа.
           </div>
 
           {/* Rarity + Category badges */}
@@ -227,7 +218,7 @@ export function DiscoveryChoicePanel({
           {/* Choice 1: Telemetry (free) */}
           <ChoiceButton
             title="Базова телеметрія"
-            subtitle="Сканер зробить знімок."
+            subtitle="Безкоштовно"
             borderColor="#445566"
             hoverBorderColor="#667788"
             textColor="#8899aa"
@@ -241,14 +232,14 @@ export function DiscoveryChoicePanel({
             }
           />
 
-          {/* Choice 2: Super Telescope (3⚛ or free) */}
+          {/* Choice 2: Quantum Focus (3⚛ or free) */}
           <ChoiceButton
-            title="Оренда супер-телескопа"
+            title="Квантове фокусування"
             subtitle={
               isFreeQuantum
                 ? isFirstDiscovery
                   ? 'Перше відкриття безкоштовно!'
-                  : 'Щасливий випадок — безкоштовно!'
+                  : 'Отримано додаткові енергоквоти'
                 : (
                   <span>
                     {'Разовий доступ до супертелескопа.\u00a0'}

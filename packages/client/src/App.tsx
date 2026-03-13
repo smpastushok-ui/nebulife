@@ -53,6 +53,7 @@ import { CallsignModal } from './ui/components/CallsignModal.js';
 import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
 import { OnboardingScreen } from './ui/components/OnboardingScreen.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
+import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import type { User } from 'firebase/auth';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
@@ -214,6 +215,7 @@ export function App() {
   /** Quarks (in-game currency) */
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showCosmicArchive, setShowCosmicArchive] = useState(false);
 
   // ── System context menu state (galaxy view) ────────────────────────────
   const [showSystemMenu, setShowSystemMenu] = useState(false);
@@ -836,7 +838,7 @@ export function App() {
   /** Loyalty: first discovery or 1/50 lucky from 3rd onward */
   const isFirstDiscovery = playerStats.totalDiscoveries === 0;
   const isLuckyFree = !isFirstDiscovery
-    && playerStats.totalDiscoveries >= 2
+    && playerStats.totalDiscoveries >= 3
     && (pendingDiscovery ? ((pendingDiscovery.discovery.timestamp % 50) === 0) : false);
 
   const handleTelemetry = useCallback(() => {
@@ -849,7 +851,7 @@ export function App() {
   const handleQuantumFocus = useCallback(() => {
     if (pendingDiscovery) {
       const isFree = playerStats.totalDiscoveries === 0
-        || (playerStats.totalDiscoveries >= 2 && (pendingDiscovery.discovery.timestamp % 50) === 0);
+        || (playerStats.totalDiscoveries >= 3 && (pendingDiscovery.discovery.timestamp % 50) === 0);
       if (!isFree && quarks < 3) {
         if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
         return;
@@ -1430,6 +1432,16 @@ export function App() {
     }
   }
 
+  // Global: Archive button on all scenes
+  toolGroups.push({
+    type: 'buttons',
+    items: [{
+      id: 'archive',
+      label: 'Архів',
+      onClick: () => setShowCosmicArchive(true),
+    }],
+  });
+
   if (state.error) {
     return (
       <div style={{ color: '#ff4444', padding: 20, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
@@ -1561,6 +1573,9 @@ export function App() {
           onShowCharacteristics={handleShowCharacteristics}
           onClose={handleClosePlanetMenu}
           onSurface={handleOpenSurface}
+          on3DGenerate={handlePlanetView3DGenerate}
+          has3DModel={!!(selectedPlanetModel?.status === 'ready' && selectedPlanetModel?.glb_url)}
+          is3DGenerating={planetView3DPhase !== 'idle' && planetView3DPhase !== 'complete'}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -1705,6 +1720,29 @@ export function App() {
           playerId={playerId.current}
           currentBalance={quarks}
           onClose={() => setShowTopUpModal(false)}
+        />
+      )}
+
+      {/* Cosmic Archive */}
+      {showCosmicArchive && playerId.current && (
+        <CosmicArchive
+          playerId={playerId.current}
+          allSystems={engineRef.current?.getAllSystems() ?? []}
+          aliases={aliases}
+          onClose={() => setShowCosmicArchive(false)}
+          onNavigateToSystem={(system) => {
+            setShowCosmicArchive(false);
+            handleEnterSystem(system);
+          }}
+          onViewPlanetDetail={(system, planetId) => {
+            setShowCosmicArchive(false);
+            const pIdx = system.planets.findIndex((p) => p.id === planetId);
+            if (pIdx >= 0) handleViewPlanetDetail(system, pIdx, aliases[system.id] ?? undefined);
+          }}
+          onGoHome={() => {
+            setShowCosmicArchive(false);
+            handleGoToHomePlanet();
+          }}
         />
       )}
 
