@@ -32,6 +32,7 @@ export interface CommandBarProps {
   scene: ExtendedScene;
   breadcrumbs: BreadcrumbItem[];
   toolGroups: ToolGroup[];
+  leftActions?: ToolItem[];
   quarks: number;
   playerName: string;
   onNavigate: (targetScene: string) => void;

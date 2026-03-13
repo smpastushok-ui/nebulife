@@ -75,6 +75,7 @@ export interface CosmicArchiveProps {
   allSystems: StarSystem[];
   aliases: Record<string, string>;
   logEntries: LogEntry[];
+  getResearchProgress?: (systemId: string) => number;
   onClose: () => void;
   onNavigateToSystem: (system: StarSystem) => void;
   onViewPlanetDetail: (system: StarSystem, planetId: string) => void;
@@ -152,6 +153,7 @@ export function CosmicArchive({
   allSystems,
   aliases,
   logEntries,
+  getResearchProgress,
   onClose,
   onNavigateToSystem,
   onViewPlanetDetail,
@@ -293,6 +295,7 @@ export function CosmicArchive({
           onViewPlanet={handleViewPlanet}
           favorites={favorites}
           onToggleFavorite={toggleFavorite}
+          getResearchProgress={getResearchProgress}
         />
       );
     }

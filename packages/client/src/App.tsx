@@ -1415,14 +1415,11 @@ export function App() {
 
   switch (effectiveScene) {
     case 'home-intro': {
-      const homeTools: ToolItem[] = [];
-      if (homeInfo) {
-        homeTools.push(
-          { id: 'surface', label: 'Поверхня', onClick: handleGoToHomeSurface },
-        );
-        // 3D button — only if no model exists and not currently generating
-        if (!backgroundModelInfo && home3DPhase === 'idle') {
-          homeTools.push({
+      // 3D button in center — only if no model exists and not generating
+      if (homeInfo && !backgroundModelInfo && home3DPhase === 'idle') {
+        toolGroups.push({
+          type: 'buttons',
+          items: [{
             id: '3d-home',
             label: '',
             icon: React.createElement('span', { style: { display: 'flex', alignItems: 'center', gap: 4 } },
@@ -1432,7 +1429,6 @@ export function App() {
                 React.createElement('line', { x1: '8', y1: '8', x2: '2', y2: '4.5' }),
                 React.createElement('line', { x1: '8', y1: '8', x2: '14', y2: '4.5' }),
               ),
-              React.createElement('span', null, 'Квантовий синтез'),
               React.createElement('span', { style: { opacity: 0.75 } }, '49'),
               React.createElement('svg', { width: 11, height: 11, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round' },
                 React.createElement('circle', { cx: '8', cy: '8', r: '2' }),
@@ -1442,29 +1438,10 @@ export function App() {
             ),
             onClick: handleHome3DGenerate,
             variant: 'accent',
-          });
-        }
-      }
-      if (showExploreBtn) {
-        homeTools.push({
-          id: 'explore',
-          label: 'Дослідити галактику',
-          onClick: handleStartExploration,
-          variant: 'primary',
+          }],
         });
       }
-      if (homeTools.length > 0) {
-        toolGroups.push({ type: 'buttons', items: homeTools });
-      }
-      if (!backgroundModelInfo && home3DPhase !== 'scanning') {
-        toolGroups.push({
-          type: 'zoom',
-          items: [
-            { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.homePlanetZoomIn() },
-            { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.homePlanetZoomOut() },
-          ],
-        });
-      }
+      // Zoom moved to SceneControlsPanel
       break;
     }
 
@@ -1548,6 +1525,37 @@ export function App() {
     }],
   });
 
+  // Left-side action buttons (home-intro: surface + explore icons)
+  const leftActions: ToolItem[] = [];
+  if (effectiveScene === 'home-intro') {
+    if (homeInfo) {
+      leftActions.push({
+        id: 'surface',
+        label: 'Поверхня',
+        tooltip: 'На поверхню',
+        icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3', strokeLinecap: 'round', strokeLinejoin: 'round' },
+          React.createElement('path', { d: 'M1 12l3-4 3 2 4-5 4 4' }),
+          React.createElement('line', { x1: '1', y1: '14', x2: '15', y2: '14' }),
+        ),
+        onClick: handleGoToHomeSurface,
+      });
+    }
+    if (showExploreBtn) {
+      leftActions.push({
+        id: 'explore',
+        label: 'Дослідити галактику',
+        tooltip: 'Дослідити галактику',
+        icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
+          React.createElement('circle', { cx: '8', cy: '8', r: '6' }),
+          React.createElement('ellipse', { cx: '8', cy: '8', rx: '6', ry: '2.5' }),
+          React.createElement('ellipse', { cx: '8', cy: '8', rx: '2.5', ry: '6' }),
+          React.createElement('circle', { cx: '8', cy: '8', r: '1', fill: 'currentColor', stroke: 'none' }),
+        ),
+        onClick: handleStartExploration,
+      });
+    }
+  }
+
   if (state.error) {
     return (
       <div style={{ color: '#ff4444', padding: 20, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
@@ -1566,11 +1574,23 @@ export function App() {
         scene={effectiveScene}
         breadcrumbs={breadcrumbs}
         toolGroups={toolGroups}
+        leftActions={leftActions.length > 0 ? leftActions : undefined}
         quarks={quarks}
         playerName={state.playerName}
         onNavigate={handleBreadcrumbNavigate}
         onTopUp={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
+
+      {/* Left-side scene controls — home-intro */}
+      {state.scene === 'home-intro' && !backgroundModelInfo && home3DPhase !== 'scanning' && (
+        <SceneControlsPanel
+          onBack={handleStartExploration}
+          onZoomIn={() => engineRef.current?.homePlanetZoomIn()}
+          onZoomOut={() => engineRef.current?.homePlanetZoomOut()}
+          backLabel="Галактика"
+          showZoom
+        />
+      )}
 
       {/* Left-side scene controls — galaxy */}
       {state.scene === 'galaxy' && (
@@ -1898,6 +1918,11 @@ export function App() {
           allSystems={engineRef.current?.getAllSystems() ?? []}
           aliases={aliases}
           logEntries={logEntries}
+          getResearchProgress={(sysId: string) => {
+            const sys = (engineRef.current?.getAllSystems() ?? []).find(s => s.id === sysId);
+            if (sys?.ownerPlayerId !== null && sys?.ownerPlayerId !== undefined) return 100;
+            return getResearchProgress(researchState, sysId);
+          }}
           onClose={() => setShowCosmicArchive(false)}
           onNavigateToSystem={(system) => {
             setShowCosmicArchive(false);

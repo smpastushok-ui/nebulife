@@ -63,6 +63,7 @@ interface PlanetsCatalogProps {
   onViewPlanet: (system: StarSystem, planetId: string) => void;
   favorites: Set<string>;
   onToggleFavorite: (planetId: string) => void;
+  getResearchProgress?: (systemId: string) => number;
 }
 
 export function PlanetsCatalog({
@@ -71,6 +72,7 @@ export function PlanetsCatalog({
   onViewPlanet,
   favorites,
   onToggleFavorite,
+  getResearchProgress,
 }: PlanetsCatalogProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pinned, setPinned] = useState<Set<string>>(() => {
@@ -226,6 +228,11 @@ export function PlanetsCatalog({
               <span style={{ color: '#556677', fontSize: 10, flexShrink: 0 }}>
                 {system.planets.length} пл.
               </span>
+
+              {/* Research progress */}
+              {getResearchProgress && (
+                <ResearchProgressIcon progress={getResearchProgress(system.id)} />
+              )}
 
               {/* Pin SVG icon */}
               <span
@@ -499,6 +506,47 @@ function PlanetChip({
         <div style={{ fontSize: 8, color: '#44ff88' }}>HOME</div>
       )}
     </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ResearchProgressIcon — circular progress indicator for system research
+// ---------------------------------------------------------------------------
+
+function ResearchProgressIcon({ progress }: { progress: number }) {
+  const r = 6;
+  const circumference = 2 * Math.PI * r;
+  const filled = (progress / 100) * circumference;
+  const isComplete = progress >= 100;
+
+  return (
+    <span
+      style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+      title={isComplete ? 'Дослiджено' : `Дослiджено: ${Math.round(progress)}%`}
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16">
+        {/* Background circle */}
+        <circle cx="8" cy="8" r={r} fill="none"
+          stroke="rgba(51, 68, 85, 0.3)" strokeWidth="1.5" />
+        {/* Progress arc */}
+        <circle cx="8" cy="8" r={r} fill="none"
+          stroke={isComplete ? '#44ff88' : '#4488aa'}
+          strokeWidth="1.5"
+          strokeDasharray={`${filled} ${circumference - filled}`}
+          strokeDashoffset={circumference * 0.25}
+          strokeLinecap="round"
+          transform="rotate(-90 8 8)"
+        />
+        {/* Check mark for 100% */}
+        {isComplete && (
+          <path d="M5.5 8l2 2 3-4" fill="none" stroke="#44ff88"
+            strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        )}
+      </svg>
+      {!isComplete && (
+        <span style={{ fontSize: 9, color: '#556677' }}>{Math.round(progress)}%</span>
+      )}
+    </span>
   );
 }
 
