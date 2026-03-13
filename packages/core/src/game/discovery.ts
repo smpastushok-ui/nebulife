@@ -87,10 +87,10 @@ export interface Discovery {
 
 /**
  * Discovery chance per research session.
- * Ring 1: 1/30 (~3.3%), Ring 2: 1/60 (~1.7%), Ring 3+: halved again each ring.
+ * Ring 1: 1/5 (20%), Ring 2: 1/10 (10%), Ring 3+: halved again each ring.
  */
 export function getDiscoveryChance(ringIndex: number = 1): number {
-  const base = 1 / 30;
+  const base = 1 / 5;
   // Ring 0 (home) and Ring 1 get base rate; each subsequent ring halves the chance
   const ringPenalty = Math.max(0, ringIndex - 1);
   return base / Math.pow(2, ringPenalty);

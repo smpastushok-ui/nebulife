@@ -27,8 +27,9 @@ import { SystemObjectsPanel } from './ui/components/SystemObjectsPanel.js';
 import { PlanetDetailWindow } from './ui/components/PlanetDetailWindow.js';
 import { SceneControlsPanel } from './ui/components/SceneControlsPanel.js';
 import type {
-  Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
+  Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
+import { getCatalogEntry } from '@nebulife/core';
 import { getPlayerModels, proxyGlbUrl, pollModelUntilComplete } from './api/tripo-api.js';
 import { startPaymentFlow } from './api/payment-api.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
@@ -45,7 +46,9 @@ import {
 } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
-import { getPlayer, createPlayer } from './api/player-api.js';
+import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
+import { getPlayer, createPlayer, getDiscoveries } from './api/player-api.js';
+import type { DiscoveryData } from './api/player-api.js';
 import { onAuthChange } from './auth/auth-service.js';
 import { authFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
@@ -187,6 +190,16 @@ export function App() {
   const [telemetryTarget, setTelemetryTarget] = useState<{
     discovery: Discovery;
     system: StarSystem;
+  } | null>(null);
+
+  /** Gallery: map object_type → existing DiscoveryData (with photo) for duplicate check */
+  const [galleryMap, setGalleryMap] = useState<Map<string, DiscoveryData>>(new Map());
+
+  /** Gallery compare modal state (when trying to save to an occupied cell) */
+  const [galleryCompare, setGalleryCompare] = useState<{
+    newDiscovery: Discovery;
+    newImageUrl: string;
+    existingData: DiscoveryData;
   } | null>(null);
 
   // ── 3D Planet Model system state ──────────────────────────────────────────
@@ -363,6 +376,19 @@ export function App() {
         });
       }
       setSystemPhotos(map);
+    }).catch(() => {});
+    // Load gallery discoveries for duplicate detection
+    getDiscoveries(pid, 'cosmos').then(discoveries => {
+      const gmap = new Map<string, DiscoveryData>();
+      for (const d of discoveries) {
+        if (d.photo_url) {
+          const existing = gmap.get(d.object_type);
+          if (!existing || (d.discovered_at > existing.discovered_at)) {
+            gmap.set(d.object_type, d);
+          }
+        }
+      }
+      setGalleryMap(gmap);
     }).catch(() => {});
   }, [firebaseUser, refreshQuarks]);
 
@@ -887,7 +913,74 @@ export function App() {
   }, []);
 
   const handleSaveToGallery = useCallback((discoveryId: string, imageUrl: string) => {
-    console.log(`[Gallery] Saved discovery ${discoveryId} with image ${imageUrl}`);
+    // Find the active discovery (from observatory or telemetry)
+    const activeDiscovery = observatoryTarget?.discovery ?? telemetryTarget?.discovery;
+    if (!activeDiscovery) {
+      console.log(`[Gallery] Saved discovery ${discoveryId} with image ${imageUrl}`);
+      return;
+    }
+
+    const objectType = activeDiscovery.type;
+    const existing = galleryMap.get(objectType);
+
+    if (existing && existing.photo_url) {
+      // Cell is occupied — show comparison modal
+      setGalleryCompare({
+        newDiscovery: activeDiscovery,
+        newImageUrl: imageUrl,
+        existingData: existing,
+      });
+    } else {
+      // Cell is free — save directly & update local map
+      console.log(`[Gallery] Saved discovery ${discoveryId} with image ${imageUrl}`);
+      setGalleryMap((prev) => {
+        const next = new Map(prev);
+        next.set(objectType, {
+          id: discoveryId,
+          player_id: playerId.current,
+          object_type: objectType,
+          rarity: activeDiscovery.rarity,
+          gallery_category: activeDiscovery.galleryCategory,
+          system_id: activeDiscovery.systemId,
+          planet_id: activeDiscovery.planetId ?? null,
+          photo_url: imageUrl,
+          prompt_used: null,
+          scientific_report: null,
+          discovered_at: new Date().toISOString(),
+        });
+        return next;
+      });
+    }
+  }, [observatoryTarget, telemetryTarget, galleryMap]);
+
+  /** Replace existing gallery entry with new one */
+  const handleGalleryReplace = useCallback(() => {
+    if (!galleryCompare) return;
+    const { newDiscovery, newImageUrl } = galleryCompare;
+    console.log(`[Gallery] Replaced ${newDiscovery.type} with new image ${newImageUrl}`);
+    setGalleryMap((prev) => {
+      const next = new Map(prev);
+      next.set(newDiscovery.type, {
+        id: newDiscovery.id,
+        player_id: playerId.current,
+        object_type: newDiscovery.type,
+        rarity: newDiscovery.rarity,
+        gallery_category: newDiscovery.galleryCategory,
+        system_id: newDiscovery.systemId,
+        planet_id: newDiscovery.planetId ?? null,
+        photo_url: newImageUrl,
+        prompt_used: null,
+        scientific_report: null,
+        discovered_at: new Date().toISOString(),
+      });
+      return next;
+    });
+    setGalleryCompare(null);
+  }, [galleryCompare]);
+
+  /** Keep old gallery entry */
+  const handleGalleryKeepOld = useCallback(() => {
+    setGalleryCompare(null);
   }, []);
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
@@ -1788,6 +1881,18 @@ export function App() {
           onClose={handleCloseObservatory}
           onSaveToGallery={handleSaveToGallery}
           cost={observatoryTarget.cost}
+        />
+      )}
+      {/* Gallery compare modal (when cell is occupied) */}
+      {galleryCompare && (
+        <GalleryCompareModal
+          newDiscovery={galleryCompare.newDiscovery}
+          newImageUrl={galleryCompare.newImageUrl}
+          existingImageUrl={galleryCompare.existingData.photo_url!}
+          existingDate={galleryCompare.existingData.discovered_at}
+          objectName={(getCatalogEntry(galleryCompare.newDiscovery.type) as CatalogEntry | undefined)?.nameUk ?? galleryCompare.newDiscovery.type}
+          onReplace={handleGalleryReplace}
+          onKeepOld={handleGalleryKeepOld}
         />
       )}
       {/* 3D Model Generation Overlay */}

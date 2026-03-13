@@ -4,9 +4,8 @@ import { RARITY_COLORS, RARITY_LABELS, getCatalogEntry } from '@nebulife/core';
 import type { CatalogEntry } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
-// DiscoveryChoicePanel — Slide-in panel with 3 choices when a discovery is made
+// DiscoveryChoicePanel — Centered modal with 3 choices when a discovery is made
 // ---------------------------------------------------------------------------
-// Replaces the old DiscoveryNotification toast.
 // Shows: object name, rarity badge, description, and 3 action buttons:
 //   1. Базова телеметрія (free scanner image)
 //   2. Квантове фокусування (3⚛ AI observatory)
@@ -76,45 +75,50 @@ export function DiscoveryChoicePanel({
           position: 'fixed',
           inset: 0,
           zIndex: 9700,
-          background: 'rgba(1, 3, 10, 0.5)',
-          backdropFilter: 'blur(3px)',
+          background: 'rgba(1, 3, 10, 0.6)',
+          backdropFilter: 'blur(4px)',
           opacity: visible && !exiting ? 1 : 0,
           transition: 'opacity 0.4s ease',
         }}
         onClick={() => exit(onSkip)}
       />
 
-      {/* Panel */}
+      {/* Centered modal */}
       <div
         style={{
           position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 380,
-          maxWidth: '92vw',
+          top: '50%',
+          left: '50%',
           zIndex: 9701,
+          width: 400,
+          maxWidth: '92vw',
+          maxHeight: '90vh',
           background: 'rgba(6, 10, 18, 0.97)',
-          borderLeft: `1px solid ${color}55`,
+          border: `1px solid ${color}44`,
+          borderRadius: 6,
           fontFamily: 'monospace',
           display: 'flex',
           flexDirection: 'column',
-          transform: visible && !exiting ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
-          boxShadow: `-8px 0 40px rgba(0,0,0,0.5)`,
+          transform: visible && !exiting
+            ? 'translate(-50%, -50%) scale(1)'
+            : 'translate(-50%, -50%) scale(0.92)',
+          opacity: visible && !exiting ? 1 : 0,
+          transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease',
+          boxShadow: `0 0 60px rgba(0,0,0,0.6), 0 0 20px ${color}15`,
+          overflow: 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Glow strip at left edge */}
+        {/* Top glow line */}
         <div
           style={{
             position: 'absolute',
-            left: 0,
             top: 0,
-            bottom: 0,
-            width: 2,
-            background: `linear-gradient(180deg, transparent, ${color}, transparent)`,
-            opacity: 0.6,
+            left: 0,
+            right: 0,
+            height: 2,
+            background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+            opacity: 0.5,
           }}
         />
 
@@ -123,10 +127,10 @@ export function DiscoveryChoicePanel({
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '32px 24px 20px',
+            padding: '24px 24px 20px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 16,
+            gap: 14,
           }}
         >
           {/* Header — narrative message */}
@@ -145,7 +149,7 @@ export function DiscoveryChoicePanel({
           </div>
 
           {/* Rarity + Category badges */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             <span
               style={{
                 fontSize: 10,
@@ -183,6 +187,7 @@ export function DiscoveryChoicePanel({
                 fontSize: 11,
                 color: '#778899',
                 lineHeight: 1.7,
+                textAlign: 'center',
               }}
             >
               {catalog.descriptionUk}
@@ -194,8 +199,7 @@ export function DiscoveryChoicePanel({
             style={{
               fontSize: 10,
               color: '#445566',
-              borderTop: '1px solid rgba(51, 68, 85, 0.3)',
-              paddingTop: 12,
+              textAlign: 'center',
             }}
           >
             Система: {system.name}
