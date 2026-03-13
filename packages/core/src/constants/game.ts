@@ -1,7 +1,7 @@
 // ===== Game Balance Constants =====
 
-/** Time before asteroid impact (seconds) */
-export const ASTEROID_COUNTDOWN_SECONDS = 3600; // 1 hour
+/** Real-time before asteroid impact (seconds). Game-time = 24x faster (1h real = 24h game) */
+export const ASTEROID_COUNTDOWN_SECONDS = 3600; // 1 real hour = 24 game hours
 
 /** Number of star system rings added per player registration */
 export const RINGS_PER_REGISTRATION = 2;

@@ -85,7 +85,7 @@ export function CosmosGallery({ playerId, highlightedType }: CosmosGalleryProps)
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getDiscoveries(playerId, 'cosmos')
+    getDiscoveries(playerId)
       .then((data) => {
         if (!cancelled) setDiscoveries(data);
       })
@@ -116,7 +116,6 @@ export function CosmosGallery({ playerId, highlightedType }: CosmosGalleryProps)
   // Sort catalog: by category order, then by rarity within category
   const sortedCatalog = useMemo(() => {
     return [...COSMIC_CATALOG]
-      .filter((e) => e.galleryCategory === 'cosmos')
       .sort((a, b) => {
         const catA = CATEGORY_ORDER.indexOf(a.category as typeof CATEGORY_ORDER[number]);
         const catB = CATEGORY_ORDER.indexOf(b.category as typeof CATEGORY_ORDER[number]);

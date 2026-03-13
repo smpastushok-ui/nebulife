@@ -50,6 +50,11 @@ import {
   RESEARCH_DATA_COST,
   calculateImpactTime,
   remainingTimeFormatted,
+  remainingGameSeconds,
+  formatGameTime,
+  gameSecondsElapsed,
+  BASE_TIME_MULTIPLIER,
+  GAME_TOTAL_SECONDS,
 } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
@@ -212,7 +217,10 @@ export function App() {
     catch { /* ignore */ }
   }, [isExodusPhase]);
 
-  // ── Asteroid countdown timer ───────────────────────────────────────────
+  // ── Doomsday Clock — game-time countdown ─────────────────────────────
+  // Real 1 hour = Game 24 hours. 1 real second = 24 game seconds.
+  // Seconds tick 24x faster, creating visual panic.
+  // After finding habitable planet: multiplier doubles to 48x.
   const [gameStartedAt] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('nebulife_game_started_at');
@@ -225,23 +233,112 @@ export function App() {
   });
 
   const impactTime = useMemo(() => calculateImpactTime(gameStartedAt), [gameStartedAt]);
+
+  // Time multiplier: BASE_TIME_MULTIPLIER (24) normally, doubled (48) after finding habitable
+  const [timeMultiplier, setTimeMultiplier] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_time_multiplier');
+      if (saved) return parseFloat(saved);
+    } catch { /* ignore */ }
+    return BASE_TIME_MULTIPLIER;
+  });
+  // Snapshot: real timestamp when multiplier changed
+  const [accelAt, setAccelAt] = useState<number | null>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_accel_at');
+      if (saved) return parseInt(saved, 10);
+    } catch { /* ignore */ }
+    return null;
+  });
+  // Snapshot: game-seconds already consumed at moment of acceleration
+  const [gameTimeAtAccel, setGameTimeAtAccel] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_game_time_at_accel');
+      if (saved) return parseFloat(saved);
+    } catch { /* ignore */ }
+    return 0;
+  });
+
   const [countdownText, setCountdownText] = useState('');
   const [countdownUrgent, setCountdownUrgent] = useState(false);
 
+  // Clock appearance state machine
+  type ClockPhase = 'hidden' | 'syncing' | 'glitch' | 'visible';
+  const [clockPhase, setClockPhase] = useState<ClockPhase>(() => {
+    try {
+      const done = localStorage.getItem('nebulife_clock_revealed');
+      if (done === '1') return 'visible';
+    } catch { /* ignore */ }
+    return 'hidden';
+  });
+
+  // Epic clock reveal: triggered after onboarding completes
   useEffect(() => {
-    if (!isExodusPhase) return;
+    if (!isExodusPhase || clockPhase !== 'hidden' || needsOnboarding) return;
+    // Wait a beat after onboarding closes, then start sync text
+    const t = setTimeout(() => setClockPhase('syncing'), 1500);
+    return () => clearTimeout(t);
+  }, [isExodusPhase, clockPhase, needsOnboarding]);
+
+  useEffect(() => {
+    if (clockPhase === 'syncing') {
+      const t = setTimeout(() => setClockPhase('glitch'), 2500);
+      return () => clearTimeout(t);
+    }
+    if (clockPhase === 'glitch') {
+      const t = setTimeout(() => {
+        setClockPhase('visible');
+        try { localStorage.setItem('nebulife_clock_revealed', '1'); } catch { /* ignore */ }
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [clockPhase]);
+
+  // Game-time tick — update every ~42ms for smooth game-second display
+  useEffect(() => {
+    if (!isExodusPhase || clockPhase !== 'visible') return;
     const tick = () => {
-      const t = remainingTimeFormatted(impactTime);
-      const hh = String(t.hours).padStart(2, '0');
-      const mm = String(t.minutes).padStart(2, '0');
-      const ss = String(t.seconds).padStart(2, '0');
-      setCountdownText(t.days > 0 ? `${t.days}d ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`);
-      setCountdownUrgent(t.totalSeconds < 600); // < 10 min
+      const gameSecs = remainingGameSeconds(
+        gameStartedAt, Date.now(), timeMultiplier, accelAt, gameTimeAtAccel,
+      );
+      const t = formatGameTime(gameSecs);
+      setCountdownText(t.text);
+      // Urgent when < 2 game hours remaining (7200 game seconds)
+      setCountdownUrgent(t.totalGameSeconds < 7200);
     };
     tick();
-    const id = setInterval(tick, 1000);
+    // 42ms interval = ~24 ticks per real second, matching game-second frequency
+    const id = setInterval(tick, 42);
     return () => clearInterval(id);
-  }, [isExodusPhase, impactTime]);
+  }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel]);
+
+  // Speed-up twist modal state
+  const [showSpeedUpTwist, setShowSpeedUpTwist] = useState(false);
+  const speedUpAppliedRef = useRef(accelAt !== null);
+
+  /** Activate the speed-up twist (called when finding habitable planet during research) */
+  const activateSpeedUp = useCallback(() => {
+    if (speedUpAppliedRef.current) return;
+    speedUpAppliedRef.current = true;
+    // Pause timer and show twist modal
+    setShowSpeedUpTwist(true);
+  }, []);
+
+  /** Called when twist modal is dismissed — apply the 2x acceleration */
+  const handleSpeedUpDismiss = useCallback(() => {
+    setShowSpeedUpTwist(false);
+    const now = Date.now();
+    const consumed = gameSecondsElapsed(gameStartedAt, now, timeMultiplier);
+    const newMultiplier = BASE_TIME_MULTIPLIER * 2; // 48x
+    setAccelAt(now);
+    setGameTimeAtAccel(consumed);
+    setTimeMultiplier(newMultiplier);
+    try {
+      localStorage.setItem('nebulife_time_multiplier', String(newMultiplier));
+      localStorage.setItem('nebulife_accel_at', String(now));
+      localStorage.setItem('nebulife_game_time_at_accel', String(consumed));
+    } catch { /* ignore */ }
+  }, [gameStartedAt, timeMultiplier]);
 
   // ── Evacuation state ──────────────────────────────────────────────────
   type EvacuationPhase = 'idle' | 'cutscene-launch' | 'transit' | 'cutscene-explosion' | 'arrival' | 'colony-prompt' | 'cutscene-landing' | 'surface';
@@ -535,11 +632,13 @@ export function App() {
                   if (research) {
                     setCompletedModal({ system, research });
                   }
-                  // Check for colonizable planet — trigger evacuation prompt
+                  // Check for colonizable planet — trigger evacuation prompt + speed-up twist
                   if (isExodusPhase) {
                     const colonizable = findColonizablePlanet(system);
                     if (colonizable) {
                       setEvacuationTarget({ system, planet: colonizable });
+                      // Trigger the "Hope & Despair" speed-up twist
+                      activateSpeedUp();
                     }
                   }
                 }
@@ -1887,8 +1986,34 @@ export function App() {
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
 
-      {/* Asteroid countdown timer — center top (Exodus phase only) */}
-      {isExodusPhase && countdownText && (
+      {/* Doomsday Clock — center top (Exodus phase only) */}
+      {/* Phase 1: "СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ..." */}
+      {isExodusPhase && clockPhase === 'syncing' && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 10,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 200,
+            fontFamily: 'monospace',
+            fontSize: 11,
+            color: '#44ff88',
+            letterSpacing: 1,
+            padding: '6px 16px',
+            background: 'rgba(5,10,20,0.85)',
+            border: '1px solid rgba(68,255,136,0.3)',
+            borderRadius: 4,
+            animation: 'cmdbar-terminal-pulse 1s infinite',
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {'> СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ...'}
+        </div>
+      )}
+      {/* Phase 2: Glitch effect */}
+      {isExodusPhase && clockPhase === 'glitch' && (
         <div
           style={{
             position: 'fixed',
@@ -1899,18 +2024,118 @@ export function App() {
             fontFamily: 'monospace',
             fontSize: 18,
             fontWeight: 'bold',
-            color: countdownUrgent ? '#cc4444' : '#ff8844',
-            textShadow: countdownUrgent ? '0 0 12px rgba(204,68,68,0.6)' : '0 0 8px rgba(255,136,68,0.3)',
-            letterSpacing: 2,
+            color: '#cc4444',
+            letterSpacing: 3,
             padding: '4px 14px',
-            background: 'rgba(5,10,20,0.7)',
-            border: `1px solid ${countdownUrgent ? 'rgba(204,68,68,0.4)' : 'rgba(255,136,68,0.2)'}`,
+            background: 'rgba(5,10,20,0.85)',
+            border: '1px solid rgba(204,68,68,0.5)',
             borderRadius: 4,
-            animation: countdownUrgent ? 'cmdbar-terminal-pulse 1.5s infinite' : undefined,
+            pointerEvents: 'none',
+            textShadow: '2px 0 #cc4444, -2px 0 #4488aa, 0 0 16px rgba(204,68,68,0.8)',
+            filter: 'blur(0.5px)',
+          }}
+        >
+          {'##:##:##'}
+        </div>
+      )}
+      {/* Phase 3: Visible — active game-time countdown */}
+      {isExodusPhase && clockPhase === 'visible' && countdownText && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 10,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 200,
+            fontFamily: 'monospace',
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: countdownUrgent ? '#cc4444' : '#cc4444',
+            textShadow: countdownUrgent
+              ? '0 0 16px rgba(204,68,68,0.8), 0 0 32px rgba(204,68,68,0.4)'
+              : '0 0 8px rgba(204,68,68,0.4)',
+            letterSpacing: 3,
+            padding: '4px 16px',
+            background: 'rgba(5,10,20,0.8)',
+            border: `1px solid ${countdownUrgent ? 'rgba(204,68,68,0.6)' : 'rgba(204,68,68,0.3)'}`,
+            borderRadius: 4,
+            animation: countdownUrgent ? 'cmdbar-terminal-pulse 0.8s infinite' : undefined,
             pointerEvents: 'none',
           }}
         >
           {countdownText}
+        </div>
+      )}
+
+      {/* Speed-up twist modal — "trajectory updated" */}
+      {showSpeedUpTwist && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9800,
+            background: 'rgba(2,5,16,0.95)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'monospace',
+          }}
+          onClick={handleSpeedUpDismiss}
+        >
+          <div
+            style={{
+              maxWidth: 520,
+              padding: '32px 40px',
+              background: 'rgba(10,15,25,0.95)',
+              border: '1px solid rgba(204,68,68,0.4)',
+              borderRadius: 6,
+              textAlign: 'center',
+            }}
+          >
+            {/* Video placeholder */}
+            <div
+              style={{
+                width: '100%',
+                aspectRatio: '16/9',
+                border: '1px dashed rgba(204,68,68,0.3)',
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#667788',
+                fontSize: 11,
+                marginBottom: 20,
+                background: 'rgba(5,10,20,0.5)',
+              }}
+            >
+              {'[ ТЕРМIНОВЕ ВIДЕО-ПОВIДОМЛЕННЯ ]'}
+            </div>
+            <div style={{ color: '#cc4444', fontSize: 13, fontWeight: 'bold', marginBottom: 12, letterSpacing: 1 }}>
+              УВАГА: ТРАЄКТОРIЯ ОНОВЛЕНА
+            </div>
+            <div style={{ color: '#aabbcc', fontSize: 12, lineHeight: 1.6, marginBottom: 24 }}>
+              Командоре, розрахунки траєкторiї астероїда оновилися. Часу лишилося критично мало...
+              Але є й гарна новина. Здається, в цiй системi є те, що ми так довго шукали.
+              Потрiбно поспiшати!
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleSpeedUpDismiss(); }}
+              style={{
+                background: 'rgba(204,68,68,0.15)',
+                border: '1px solid rgba(204,68,68,0.5)',
+                borderRadius: 3,
+                color: '#cc4444',
+                fontFamily: 'monospace',
+                fontSize: 12,
+                padding: '8px 24px',
+                cursor: 'pointer',
+                letterSpacing: 1,
+                fontWeight: 'bold',
+              }}
+            >
+              ЗРОЗУМIЛО
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,4 +1,14 @@
-export { calculateImpactTime, remainingTimeMs, remainingTimeFormatted, isPlanetDestroyed } from './timeline.js';
+export {
+  calculateImpactTime,
+  remainingTimeMs,
+  remainingTimeFormatted,
+  isPlanetDestroyed,
+  remainingGameSeconds,
+  formatGameTime,
+  gameSecondsElapsed,
+  BASE_TIME_MULTIPLIER,
+  GAME_TOTAL_SECONDS,
+} from './timeline.js';
 export { travelTimeSeconds, travelTimeDays, distanceLY, launchDoomsdayShip, shipProgress } from './doomsday-ship.js';
 export { isWithinExplorationRange, sortByDistance, rankColonizationTargets } from './exploration.js';
 export {
