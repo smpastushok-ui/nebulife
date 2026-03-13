@@ -1,18 +1,82 @@
 import React, { useCallback, useState } from 'react';
-import type { Discovery, CatalogEntry, DiscoveryRarity } from '@nebulife/core';
-import { RARITY_COLORS, getCatalogEntry } from '@nebulife/core';
+import type { Discovery, CatalogEntry } from '@nebulife/core';
+import { RARITY_COLORS, RARITY_LABELS, getCatalogEntry } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // PhotoModal — fullscreen photo view with share & save buttons
 // ---------------------------------------------------------------------------
 
-const RARITY_LABELS: Record<DiscoveryRarity, string> = {
-  common: 'Звичайне',
-  uncommon: 'Незвичайне',
-  rare: 'Рідкісне',
-  epic: 'Епічне',
-  legendary: 'Легендарне',
+/** Game links — update when custom domain or app stores are ready */
+const GAME_URL_WEB = 'https://nebulife.vercel.app';
+// const GAME_URL_APP_IOS = 'https://apps.apple.com/app/nebulife/id...';
+// const GAME_URL_APP_ANDROID = 'https://play.google.com/store/apps/details?id=...';
+
+/** Rarity emojis for share messages */
+const RARITY_EMOJI: Record<string, string> = {
+  common: '\u{1F30C}',       // milky way
+  uncommon: '\u{2728}',      // sparkles
+  rare: '\u{1F52D}',         // telescope
+  epic: '\u{1F525}',         // fire
+  legendary: '\u{1F31F}',    // glowing star
 };
+
+/** Category emojis for share messages */
+const CATEGORY_EMOJI: Record<string, string> = {
+  cosmos: '\u{1F30C}',       // milky way
+  flora: '\u{1F33F}',        // herb
+  fauna: '\u{1F9AC}',        // bison (alien creature)
+  anomalies: '\u{26A0}\u{FE0F}', // warning
+  landscapes: '\u{1F3D4}\u{FE0F}', // mountain
+};
+
+/**
+ * Build a beautiful share text that grabs attention.
+ */
+function buildShareText(
+  name: string,
+  rarityKey: string,
+  galleryCategory: string,
+  systemName?: string,
+  description?: string,
+): string {
+  const emoji = RARITY_EMOJI[rarityKey] ?? '\u{2B50}';
+  const catEmoji = CATEGORY_EMOJI[galleryCategory] ?? '\u{1F30D}';
+  const rarityLabel = RARITY_LABELS[rarityKey as keyof typeof RARITY_LABELS] ?? rarityKey;
+
+  const lines: string[] = [];
+
+  // Hook line
+  lines.push(`${emoji} ${name}`);
+  lines.push(`${catEmoji} ${rarityLabel}`);
+
+  // Short description
+  if (description) {
+    const shortDesc = description.length > 120 ? description.slice(0, 117) + '...' : description;
+    lines.push('');
+    lines.push(shortDesc);
+  }
+
+  // System context
+  if (systemName) {
+    lines.push('');
+    lines.push(`\u{1F4CD} ${systemName}`);
+  }
+
+  // CTA + links
+  lines.push('');
+  lines.push(`\u{1F680} Nebulife \u2014 \u0412\u0456\u0434\u043A\u0440\u0438\u0439 \u0441\u0432\u0456\u0439 \u043A\u043E\u0441\u043C\u043E\u0441`);
+  lines.push(`\u{1F310} ${GAME_URL_WEB}`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Build a shorter share title for platforms that separate title/text.
+ */
+function buildShareTitle(name: string, rarityKey: string): string {
+  const emoji = RARITY_EMOJI[rarityKey] ?? '\u{2B50}';
+  return `${emoji} ${name} | Nebulife`;
+}
 
 export function PhotoModal({
   discovery,
@@ -35,37 +99,77 @@ export function PhotoModal({
 
   const handleShare = useCallback(async () => {
     try {
-      // Try to fetch the image as a file for native share
-      const res = await fetch(imageUrl);
-      const blob = await res.blob();
-      const file = new File([blob], `nebulife-${discovery.type}.png`, { type: blob.type });
+      const shareTitle = buildShareTitle(name, discovery.rarity);
+      const shareText = buildShareText(
+        name,
+        discovery.rarity,
+        discovery.galleryCategory,
+        systemName,
+        catalog?.descriptionUk,
+      );
 
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      // Try to fetch the image as a file for native share
+      let file: File | null = null;
+      try {
+        const res = await fetch(imageUrl);
+        const blob = await res.blob();
+        file = new File([blob], `nebulife-${discovery.type}.png`, { type: blob.type });
+      } catch {
+        // Image fetch failed — continue without file
+      }
+
+      if (navigator.share && file && navigator.canShare?.({ files: [file] })) {
+        // Best case: share with image file + rich text + link
         await navigator.share({
-          title: `Nebulife: ${name}`,
-          text: `Я відкрив ${name} у грі Nebulife! ${catalog?.descriptionUk?.slice(0, 100) ?? ''}`,
+          title: shareTitle,
+          text: shareText,
           files: [file],
         });
         setShared(true);
       } else if (navigator.share) {
-        // Fallback: share without file
+        // Fallback: share text + URL (no file)
         await navigator.share({
-          title: `Nebulife: ${name}`,
-          text: `Я відкрив ${name} у грі Nebulife!`,
-          url: window.location.href,
+          title: shareTitle,
+          text: shareText,
+          url: GAME_URL_WEB,
         });
         setShared(true);
       } else {
-        // Fallback: download
-        downloadImage(blob, `nebulife-${discovery.type}.png`);
+        // Desktop fallback: copy share text to clipboard
+        const clipText = `${shareText}`;
+        await navigator.clipboard.writeText(clipText);
+        setShared(true);
       }
     } catch (err) {
-      // User cancelled share or error — ignore
       if ((err as Error).name !== 'AbortError') {
-        console.warn('Share failed:', err);
+        // Last resort: try clipboard
+        try {
+          const shareText = buildShareText(
+            name,
+            discovery.rarity,
+            discovery.galleryCategory,
+            systemName,
+            catalog?.descriptionUk,
+          );
+          await navigator.clipboard.writeText(shareText);
+          setShared(true);
+        } catch {
+          console.warn('Share failed:', err);
+        }
       }
     }
-  }, [imageUrl, discovery.type, name, catalog]);
+  }, [imageUrl, discovery, name, catalog, systemName]);
+
+  const handleDownload = useCallback(async () => {
+    try {
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      downloadImageFile(blob, `nebulife-${discovery.type}.png`);
+    } catch {
+      // Direct link fallback
+      window.open(imageUrl, '_blank');
+    }
+  }, [imageUrl, discovery.type]);
 
   const handleSave = useCallback(() => {
     onSaveToGallery?.();
@@ -134,7 +238,7 @@ export function PhotoModal({
             <div style={{ fontSize: 16, color: '#eeffff', fontWeight: 'bold', marginBottom: 4 }}>
               {name}
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <span
                 style={{
                   fontSize: 10,
@@ -165,68 +269,93 @@ export function PhotoModal({
         <div
           style={{
             display: 'flex',
-            gap: 12,
+            gap: 10,
             marginTop: 16,
             fontFamily: 'monospace',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
           }}
         >
           {onSaveToGallery && (
-            <button
+            <ActionButton
               onClick={handleSave}
               disabled={saved}
-              style={{
-                padding: '10px 20px',
-                background: saved ? 'rgba(40, 80, 50, 0.4)' : 'rgba(20, 60, 40, 0.6)',
-                border: `1px solid ${saved ? '#44ff8866' : '#44ff88'}`,
-                color: saved ? '#44ff8888' : '#44ff88',
-                fontSize: 12,
-                borderRadius: 4,
-                cursor: saved ? 'default' : 'pointer',
-                transition: 'all 0.2s',
-              }}
-            >
-              {saved ? 'Збережено \u2713' : 'Зберегти в галерею'}
-            </button>
+              bgColor={saved ? 'rgba(40, 80, 50, 0.4)' : 'rgba(20, 60, 40, 0.6)'}
+              borderColor={saved ? '#44ff8866' : '#44ff88'}
+              textColor={saved ? '#44ff8888' : '#44ff88'}
+              label={saved ? 'Збережено' : 'В архів'}
+            />
           )}
-          <button
+          <ActionButton
             onClick={handleShare}
-            style={{
-              padding: '10px 20px',
-              background: shared ? 'rgba(40, 60, 80, 0.4)' : 'rgba(20, 40, 60, 0.6)',
-              border: `1px solid ${shared ? '#4488aa66' : '#4488aa'}`,
-              color: shared ? '#4488aa88' : '#4488aa',
-              fontSize: 12,
-              fontFamily: 'monospace',
-              borderRadius: 4,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            {shared ? 'Надіслано \u2713' : 'Поділитися'}
-          </button>
-          <button
+            bgColor={shared ? 'rgba(40, 60, 80, 0.4)' : 'rgba(20, 40, 60, 0.6)'}
+            borderColor={shared ? '#4488aa66' : '#4488aa'}
+            textColor={shared ? '#4488aa88' : '#4488aa'}
+            label={shared ? 'Скопійовано' : 'Поділитися'}
+          />
+          <ActionButton
+            onClick={handleDownload}
+            bgColor="rgba(30, 35, 50, 0.6)"
+            borderColor="#556677"
+            textColor="#8899aa"
+            label="Завантажити"
+          />
+          <ActionButton
             onClick={onClose}
-            style={{
-              padding: '10px 20px',
-              background: 'rgba(30, 35, 45, 0.6)',
-              border: '1px solid #445566',
-              color: '#8899aa',
-              fontSize: 12,
-              fontFamily: 'monospace',
-              borderRadius: 4,
-              cursor: 'pointer',
-            }}
-          >
-            Закрити
-          </button>
+            bgColor="rgba(30, 35, 45, 0.6)"
+            borderColor="#445566"
+            textColor="#778899"
+            label="Закрити"
+          />
         </div>
       </div>
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function ActionButton({
+  onClick,
+  disabled,
+  bgColor,
+  borderColor,
+  textColor,
+  label,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  bgColor: string;
+  borderColor: string;
+  textColor: string;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        padding: '9px 16px',
+        background: bgColor,
+        border: `1px solid ${borderColor}`,
+        color: textColor,
+        fontSize: 11,
+        fontFamily: 'monospace',
+        borderRadius: 4,
+        cursor: disabled ? 'default' : 'pointer',
+        transition: 'all 0.2s',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 /** Fallback download helper */
-function downloadImage(blob: Blob, filename: string) {
+function downloadImageFile(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
