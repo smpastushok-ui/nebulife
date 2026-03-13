@@ -35,7 +35,7 @@ const RARITY_LABELS: Record<DiscoveryRarity, string> = {
   legendary: 'Легендарне',
 };
 
-const REVEAL_DURATION_MS = 300_000; // 5 minutes
+const REVEAL_DURATION_MS = 30_000; // 30 seconds
 
 export function ObservatoryView({
   discovery,

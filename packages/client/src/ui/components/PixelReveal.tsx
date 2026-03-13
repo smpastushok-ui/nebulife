@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 
 // ---------------------------------------------------------------------------
-// PixelReveal — progressive pixel-by-pixel image reveal on canvas
+// PixelReveal — two-phase image reveal on canvas
 // ---------------------------------------------------------------------------
-// The image starts fully black, then blocks are revealed over `duration` ms.
-// Centre-weighted: blocks near the middle are revealed earlier.
-// Includes a scanning-line effect and progress bar.
+// Phase 1: Green curtain sweeps left-to-right (~1.5s)
+// Phase 2: Image pixels appear chaotically over green (~30s)
 // ---------------------------------------------------------------------------
 
 const BLOCK_SIZE = 4;          // pixels per reveal block
 const TICK_MS = 50;            // refresh interval
-const SCAN_LINE_HEIGHT = 2;    // green scan line thickness
+const GREEN_SWEEP_MS = 1500;   // green curtain duration
+const GREEN_HEX = '#44ff88';   // curtain color
 
 /** Simple seeded PRNG (xorshift) for deterministic shuffle */
 function shuffleWithSeed(arr: number[], seed: number): void {
@@ -29,7 +29,7 @@ function shuffleWithSeed(arr: number[], seed: number): void {
 export interface PixelRevealProps {
   /** The full image to reveal (already downloaded). */
   imageBlob: Blob;
-  /** Total reveal duration in ms (default 300_000 = 5 min). */
+  /** Total reveal duration in ms (default 30_000 = 30 sec). */
   duration?: number;
   /** Deterministic seed for shuffle order. */
   seed?: number;
@@ -43,20 +43,21 @@ export interface PixelRevealProps {
 
 export function PixelReveal({
   imageBlob,
-  duration = 300_000,
+  duration = 30_000,
   seed = 42,
   onProgress,
   onComplete,
   skip = false,
 }: PixelRevealProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imgRef = useRef<HTMLImageElement | null>(null);
   const stateRef = useRef({
     revealed: 0,
     totalBlocks: 0,
     order: [] as number[],
     running: true,
     completed: false,
+    phase: 'sweep' as 'sweep' | 'reveal',
+    sweepProgress: 0,
   });
 
   const [progress, setProgress] = useState(0);
@@ -78,50 +79,14 @@ export function PixelReveal({
     });
   }, [imageBlob]);
 
-  // Build centre-weighted block order
+  // Build fully random block order (chaotic, not centre-weighted)
   const buildOrder = useCallback(
     (w: number, h: number): number[] => {
       const bw = Math.ceil(w / BLOCK_SIZE);
       const bh = Math.ceil(h / BLOCK_SIZE);
       const total = bw * bh;
-
-      // Assign each block a priority based on distance from centre
-      const cx = bw / 2;
-      const cy = bh / 2;
-      const maxDist = Math.sqrt(cx * cx + cy * cy);
-
       const indices = Array.from({ length: total }, (_, i) => i);
-
-      // Centre-weighted sort: blocks nearer the centre come first
-      // but with randomness mixed in so it's not a perfect circle
-      const rng = seed | 0 || 1;
-      indices.sort((a, b) => {
-        const ax = a % bw;
-        const ay = Math.floor(a / bw);
-        const bx2 = b % bw;
-        const by = Math.floor(b / bw);
-
-        const da = Math.sqrt((ax - cx) ** 2 + (ay - cy) ** 2) / maxDist;
-        const db = Math.sqrt((bx2 - cx) ** 2 + (by - cy) ** 2) / maxDist;
-
-        // Add noise so it's not perfectly circular
-        const na = ((ax * 31 + ay * 17 + rng) & 0xffff) / 0xffff * 0.35;
-        const nb = ((bx2 * 31 + by * 17 + rng) & 0xffff) / 0xffff * 0.35;
-
-        return (da + na) - (db + nb);
-      });
-
-      // Then shuffle within roughly similar priority bands
-      const bandSize = Math.max(10, Math.floor(total / 50));
-      for (let start = 0; start < total; start += bandSize) {
-        const end = Math.min(start + bandSize, total);
-        const band = indices.slice(start, end);
-        shuffleWithSeed(band, seed + start);
-        for (let i = 0; i < band.length; i++) {
-          indices[start + i] = band[i];
-        }
-      }
-
+      shuffleWithSeed(indices, seed);
       return indices;
     },
     [seed],
@@ -130,7 +95,7 @@ export function PixelReveal({
   // Main effect: set up canvas + animation
   useEffect(() => {
     let animId: number | null = null;
-    let lastTick = 0;
+    let startTime = 0;
     const st = stateRef.current;
 
     const setup = async () => {
@@ -138,7 +103,6 @@ export function PixelReveal({
       if (!canvas) return;
 
       const img = await loadImage();
-      imgRef.current = img;
 
       // Fill canvas to viewport
       const dpr = window.devicePixelRatio || 1;
@@ -155,6 +119,7 @@ export function PixelReveal({
       offscreen.width = cw;
       offscreen.height = ch;
       const offCtx = offscreen.getContext('2d')!;
+
       // Fit image cover-style
       const imgRatio = img.width / img.height;
       const canvasRatio = cw / ch;
@@ -178,18 +143,68 @@ export function PixelReveal({
       st.revealed = 0;
       st.running = true;
       st.completed = false;
+      st.phase = 'sweep';
+      st.sweepProgress = 0;
 
       const bw = Math.ceil(cw / BLOCK_SIZE);
       const blocksPerTick = Math.max(1, Math.floor(st.totalBlocks / (duration / TICK_MS)));
 
+      startTime = performance.now();
+
       const tick = (now: number) => {
         if (!st.running) return;
 
-        if (now - lastTick < TICK_MS) {
+        const elapsed = now - startTime;
+
+        // ── Phase 1: Green curtain sweep (left to right) ──
+        if (st.phase === 'sweep') {
+          if (skip) {
+            // Skip: fill green instantly, move to reveal
+            ctx.fillStyle = GREEN_HEX;
+            ctx.fillRect(0, 0, cw, ch);
+            st.phase = 'reveal';
+            startTime = now; // reset for reveal phase
+            animId = requestAnimationFrame(tick);
+            return;
+          }
+
+          const sweepFrac = Math.min(1, elapsed / GREEN_SWEEP_MS);
+          st.sweepProgress = sweepFrac;
+
+          // Draw green columns from left to right
+          const sweepX = Math.floor(sweepFrac * cw);
+
+          // Clear to black first, then draw green up to sweepX
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, cw, ch);
+          ctx.fillStyle = GREEN_HEX;
+          ctx.fillRect(0, 0, sweepX, ch);
+
+          // Bright scan line at the sweep edge
+          if (sweepFrac < 1) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.fillRect(sweepX - 2, 0, 3, ch);
+            ctx.fillStyle = 'rgba(68, 255, 136, 0.4)';
+            ctx.fillRect(sweepX - 6, 0, 8, ch);
+          }
+
+          if (sweepFrac >= 1) {
+            // Sweep complete — fill fully green, switch to reveal
+            ctx.fillStyle = GREEN_HEX;
+            ctx.fillRect(0, 0, cw, ch);
+            st.phase = 'reveal';
+            startTime = now; // reset timer for reveal phase
+          }
+
           animId = requestAnimationFrame(tick);
           return;
         }
-        lastTick = now;
+
+        // ── Phase 2: Chaotic pixel reveal over green ──
+        if (now - startTime < TICK_MS * Math.floor(st.revealed / blocksPerTick) && !skip) {
+          animId = requestAnimationFrame(tick);
+          return;
+        }
 
         // Reveal blocks
         const revealCount = skip ? st.totalBlocks : blocksPerTick;
@@ -202,7 +217,7 @@ export function PixelReveal({
           const w = Math.min(BLOCK_SIZE, cw - bx);
           const h = Math.min(BLOCK_SIZE, ch - by);
 
-          // Copy from offscreen
+          // Copy image pixels from offscreen over the green
           const imgData = offCtx.getImageData(bx, by, w, h);
           ctx.putImageData(imgData, bx, by);
         }
@@ -211,13 +226,6 @@ export function PixelReveal({
         const p = st.revealed / st.totalBlocks;
         setProgress(p);
         onProgress?.(p);
-
-        // Scan line effect
-        if (!skip && p < 1) {
-          const scanY = (p * ch) % ch;
-          ctx.fillStyle = 'rgba(0, 255, 100, 0.15)';
-          ctx.fillRect(0, scanY, cw, SCAN_LINE_HEIGHT);
-        }
 
         if (st.revealed >= st.totalBlocks) {
           // Final clean pass — redraw full image
