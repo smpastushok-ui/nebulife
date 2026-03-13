@@ -324,17 +324,12 @@ export class GalaxyScene {
     dot.x = tx;
     dot.y = ty;
 
-    // Progress % inside star (only for 1-99%)
-    let progressLabel: Text | null = null;
+    // Progress pie-chart ring (only for 1-99%)
+    let progressRing: Graphics | null = null;
     if (state === 'researching' && progress > 0 && progress < 100) {
-      progressLabel = new Text({
-        text: `${progress}%`,
-        style: { fontSize: Math.max(6, effectiveR * 0.5), fill: 0xddeeff, fontFamily: 'monospace' },
-        resolution: 3,
-      });
-      progressLabel.anchor.set(0.5, 0.5);
-      progressLabel.y = 0;
-      dot.addChild(progressLabel);
+      progressRing = new Graphics();
+      this.drawProgressPie(progressRing, effectiveR + 4, progress / 100);
+      dot.addChild(progressRing);
     }
 
     // Name label — hidden by default, shown on hover/tap
@@ -402,7 +397,7 @@ export class GalaxyScene {
 
     return {
       container: dot, system: sys, nameLabel,
-      progressLabel, progressRing: null,
+      progressLabel: null, progressRing,
       glowOuter, glowMid, corona, core,
       phaseOffset: phase, speed, baseRadius: effectiveR,
       baseAlpha, tx, ty, ringIndex,
@@ -461,6 +456,34 @@ export class GalaxyScene {
     this.preFocusAlphas.clear();
     this.selectedSystemId = null;
     this.beamAlpha = 0;
+  }
+
+  /** Draw a pie-chart progress indicator: dark ring with bright filled arc */
+  private drawProgressPie(g: Graphics, radius: number, fraction: number) {
+    const r = radius;
+    const segments = 32;
+    const startAngle = -Math.PI / 2; // 12 o'clock
+
+    // Dark background ring (unfilled portion)
+    g.circle(0, 0, r + 1.5);
+    g.fill({ color: 0x112233, alpha: 0.5 });
+    g.circle(0, 0, r - 1.5);
+    g.cut();
+
+    // Bright filled arc
+    if (fraction > 0.005) {
+      const endAngle = startAngle + fraction * Math.PI * 2;
+      g.moveTo(0, 0);
+      for (let i = 0; i <= segments; i++) {
+        const a = startAngle + (endAngle - startAngle) * (i / segments);
+        g.lineTo(Math.cos(a) * (r + 1.5), Math.sin(a) * (r + 1.5));
+      }
+      g.closePath();
+      g.fill({ color: 0x88ccff, alpha: 0.6 });
+      // Cut inner to make ring shape
+      g.circle(0, 0, r - 1.5);
+      g.cut();
+    }
   }
 
   get isFocused(): boolean {
@@ -524,21 +547,22 @@ export class GalaxyScene {
 
     if (state === 'researching') {
       node.baseAlpha = 0.35 + (prog / 100) * 0.55;
-      // Update % text inside star
-      if (node.progressLabel) {
+      // Update pie-chart ring
+      if (node.progressRing) {
         if (prog > 0 && prog < 100) {
-          node.progressLabel.text = `${prog}%`;
-          node.progressLabel.visible = true;
+          node.progressRing.clear();
+          this.drawProgressPie(node.progressRing, node.baseRadius + 4, prog / 100);
+          node.progressRing.visible = true;
         } else {
-          node.progressLabel.visible = false;
+          node.progressRing.visible = false;
         }
       }
     }
 
     if (state === 'researched') {
       node.baseAlpha = 1;
-      // Hide progress %, set name ready for hover
-      if (node.progressLabel) node.progressLabel.visible = false;
+      // Hide progress ring, set name ready for hover
+      if (node.progressRing) node.progressRing.visible = false;
       node.nameLabel.text = node.system.name;
       node.nameLabel.style.fill = 0x8899aa;
       // Name stays hidden until hover
@@ -679,7 +703,7 @@ export class GalaxyScene {
         node.container.scale.set(1 + ease * 0.6);
         // Hide labels
         node.nameLabel.visible = false;
-        if (node.progressLabel) node.progressLabel.visible = false;
+        if (node.progressRing) node.progressRing.visible = false;
       } else {
         // Move toward target position
         const startX = node.tx;
@@ -693,7 +717,7 @@ export class GalaxyScene {
         node.container.alpha = node.baseAlpha * (p < 0.7 ? 1 + ease * 0.5 : Math.max(0, (1 - p) / 0.3));
         // Hide labels
         node.nameLabel.visible = false;
-        if (node.progressLabel) node.progressLabel.visible = false;
+        if (node.progressRing) node.progressRing.visible = false;
       }
       this.animateStarBurn(node, t);
     };

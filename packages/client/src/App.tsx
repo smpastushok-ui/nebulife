@@ -80,8 +80,9 @@ export function App() {
 
   const [state, setState] = useState<GameState>(() => {
     const savedScene = localStorage.getItem('nebulife_scene') as GameState['scene'] | null;
+    const validScenes: GameState['scene'][] = ['home-intro', 'galaxy', 'system', 'planet-view'];
     return {
-      scene: savedScene === 'galaxy' ? 'galaxy' : 'home-intro',
+      scene: savedScene && validScenes.includes(savedScene) ? savedScene : 'home-intro',
       selectedSystem: null,
       selectedPlanet: null,
       planetClickPos: null,
@@ -114,12 +115,14 @@ export function App() {
     } catch { /* ignore quota errors */ }
   }, [researchState]);
 
-  // Persist scene to localStorage
+  // Persist scene + navigation context to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('nebulife_scene', state.scene);
+      localStorage.setItem('nebulife_nav_system', state.selectedSystem?.id ?? '');
+      localStorage.setItem('nebulife_nav_planet', state.selectedPlanet?.id ?? '');
     } catch { /* ignore */ }
-  }, [state.scene]);
+  }, [state.scene, state.selectedSystem, state.selectedPlanet]);
 
   // Completed research modal
   const [completedModal, setCompletedModal] = useState<{
@@ -492,7 +495,27 @@ export function App() {
 
       // Restore saved scene (engine always starts at home-intro)
       const savedScene = localStorage.getItem('nebulife_scene');
-      if (savedScene === 'galaxy') {
+      const savedSystemId = localStorage.getItem('nebulife_nav_system');
+      const savedPlanetId = localStorage.getItem('nebulife_nav_planet');
+
+      if (savedScene === 'system' && savedSystemId) {
+        const sys = allSystems.find(s => s.id === savedSystemId);
+        if (sys) {
+          engine.showSystemScene(sys);
+          setState(prev => ({ ...prev, selectedSystem: sys }));
+        } else {
+          engine.showGalaxyScene();
+        }
+      } else if (savedScene === 'planet-view' && savedSystemId && savedPlanetId) {
+        const sys = allSystems.find(s => s.id === savedSystemId);
+        const planet = sys?.planets.find(p => p.id === savedPlanetId);
+        if (sys && planet) {
+          engine.showPlanetViewScene(sys, planet);
+          setState(prev => ({ ...prev, selectedSystem: sys, selectedPlanet: planet }));
+        } else {
+          engine.showGalaxyScene();
+        }
+      } else if (savedScene === 'galaxy') {
         engine.showGalaxyScene();
       }
     }).catch((err) => {
@@ -1486,7 +1509,7 @@ export function App() {
           allSystems={engineRef.current?.getAllSystems() ?? []}
           activeSlotTimerText={activeSlotTimer}
           onStartResearch={handleStartResearch}
-          onClose={() => setState((prev) => ({ ...prev, selectedSystem: null }))}
+          onClose={() => { setState((prev) => ({ ...prev, selectedSystem: null })); engineRef.current?.unfocusSystem(); }}
         />
       )}
       {showSystemInfoPanel && (
@@ -1494,7 +1517,7 @@ export function App() {
           system={selectedSystem!}
           displayName={aliases[selectedSystem!.id] ?? undefined}
           onEnterSystem={() => handleEnterSystem(selectedSystem!)}
-          onClose={() => setState((prev) => ({ ...prev, selectedSystem: null }))}
+          onClose={() => { setState((prev) => ({ ...prev, selectedSystem: null })); engineRef.current?.unfocusSystem(); }}
           onRename={(newName) => {
             const sys = selectedSystem!;
             setAlias({

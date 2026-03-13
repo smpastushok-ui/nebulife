@@ -290,13 +290,14 @@ export function completeResearchSession(
   // Hook mechanic: force a common discovery on the 2nd session
   const forceCommon = shouldForceDiscovery(totalCompletedSessions + 1);
 
-  // Roll for a cosmic discovery
+  // Roll for a cosmic discovery (chance halved per ring from ring 2+)
   const discovery = rollForDiscovery(
     system.seed,
     newProgress,
     gained,
     COSMIC_CATALOG,
     forceCommon,
+    system.ringIndex,
   );
 
   // Patch discovery with the real system ID

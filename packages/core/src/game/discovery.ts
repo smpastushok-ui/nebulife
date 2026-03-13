@@ -85,9 +85,15 @@ export interface Discovery {
 // Chance calculation
 // ---------------------------------------------------------------------------
 
-/** Fixed discovery chance: 1 in 30 per research session (~3.3 %). */
-export function getDiscoveryChance(): number {
-  return 1 / 30;
+/**
+ * Discovery chance per research session.
+ * Ring 1: 1/30 (~3.3%), Ring 2: 1/60 (~1.7%), Ring 3+: halved again each ring.
+ */
+export function getDiscoveryChance(ringIndex: number = 1): number {
+  const base = 1 / 30;
+  // Ring 0 (home) and Ring 1 get base rate; each subsequent ring halves the chance
+  const ringPenalty = Math.max(0, ringIndex - 1);
+  return base / Math.pow(2, ringPenalty);
 }
 
 /**
@@ -118,12 +124,13 @@ export function rollForDiscovery(
   progressGained: number,
   catalog: ReadonlyArray<{ type: string; category: CosmicObjectCategory; rarity: DiscoveryRarity; galleryCategory: GalleryCategory }>,
   forceCommon: boolean = false,
+  ringIndex: number = 1,
 ): Discovery | null {
   const rng = new SeededRNG(systemSeed * 113 + progress * 7);
 
   if (!forceCommon) {
-    // Check if a discovery happens at all (1/30 chance)
-    const chance = getDiscoveryChance();
+    // Check if a discovery happens at all (halved per ring from ring 2+)
+    const chance = getDiscoveryChance(ringIndex);
     if (rng.next() > chance) return null;
   }
 
