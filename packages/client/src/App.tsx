@@ -36,9 +36,11 @@ import {
   completeResearchSession,
   findFreeSlot,
   isSystemFullyResearched,
+  getResearchProgress,
   HOME_OBSERVATORY_COUNT,
   RESEARCH_DURATION_MS,
 } from '@nebulife/core';
+import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { getPlayer, createPlayer } from './api/player-api.js';
 import { onAuthChange } from './auth/auth-service.js';
 import { authFetch } from './auth/api-client.js';
@@ -467,11 +469,9 @@ export function App() {
   };
 
   const handleEnterSystem = useCallback((system: StarSystem) => {
-    const canEnter = system.ownerPlayerId !== null || isSystemFullyResearched(researchState, system.id);
-    if (!canEnter) return;
     engineRef.current?.showSystemScene(system);
     setState((prev) => ({ ...prev, scene: 'system' }));
-  }, [researchState]);
+  }, []);
 
   const handleStartResearch = useCallback((systemId: string) => {
     setResearchState((prev) => {
@@ -1092,13 +1092,10 @@ export function App() {
     : null;
 
   // ── System nav header (prev/next navigable systems) ──────────────────
-  // Computed inline (not useMemo) because engineRef isn't reactive but is
-  // always initialised by the time state.scene === 'system'.
+  // All systems navigable — unresearched ones shown blurred via overlay.
   const navigableSystems: StarSystem[] =
     state.scene === 'system' && engineRef.current
-      ? engineRef.current.getAllSystems().filter(
-          (s) => s.ownerPlayerId !== null || isSystemFullyResearched(researchState, s.id),
-        )
+      ? engineRef.current.getAllSystems()
       : [];
 
   const currentNavIndex = state.selectedSystem
@@ -1112,6 +1109,14 @@ export function App() {
   const nextNavSystem = navigableSystems.length > 1 && currentNavIndex >= 0
     ? navigableSystems[(currentNavIndex + 1) % navigableSystems.length]
     : null;
+
+  // Research progress for current system (home is always 100%)
+  const currentSystemProgress = state.scene === 'system' && state.selectedSystem
+    ? (state.selectedSystem.ownerPlayerId !== null
+        ? 100
+        : getResearchProgress(researchState, state.selectedSystem.id))
+    : 100;
+  const isCurrentSystemFullyAccessible = currentSystemProgress >= 100;
 
   // ── CommandBar data ──────────────────────────────────────────────────
   const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
@@ -1291,6 +1296,11 @@ export function App() {
         onTopUp={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
 
+      {/* Research blur overlay for unresearched systems */}
+      {state.scene === 'system' && !isCurrentSystemFullyAccessible && (
+        <SystemResearchOverlay progress={currentSystemProgress} />
+      )}
+
       {/* System navigation header — fixed top-center, visible when inside a system */}
       {state.scene === 'system' && state.selectedSystem && (
         <SystemNavHeader
@@ -1307,6 +1317,11 @@ export function App() {
           onNavigate={handleNavToSystem}
           onTelescopePhoto={() => handleTelescopePhotoForSystem(state.selectedSystem!)}
           isPhotoGenerating={systemPhotos.get(state.selectedSystem!.id)?.status === 'generating'}
+          getSystemProgress={(id) => {
+            const sys = navigableSystems.find(s => s.id === id);
+            if (sys?.ownerPlayerId) return 100;
+            return getResearchProgress(researchState, id);
+          }}
         />
       )}
 
@@ -1361,7 +1376,7 @@ export function App() {
           onViewVideo={handleViewMissionVideo}
         />
       )}
-      {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && (
+      {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && isCurrentSystemFullyAccessible && (
         <PlanetContextMenu
           planet={state.selectedPlanet}
           screenPosition={state.planetClickPos}
@@ -1369,18 +1384,12 @@ export function App() {
           onShowCharacteristics={handleShowCharacteristics}
           onClose={handleClosePlanetMenu}
           onSurface={handleOpenSurface}
-          onUpgrade={handleUpgradePlanet}
-          has3DModel={selectedPlanetModel?.status === 'ready' && !!selectedPlanetModel?.glb_url}
-          modelStatus={selectedPlanetModel?.status}
         />
       )}
-      {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && (
+      {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
         <PlanetInfoPanel
           planet={state.selectedPlanet}
           onClose={() => setState((prev) => ({ ...prev, showPlanetInfo: false, selectedPlanet: null }))}
-          has3DModel={selectedPlanetModel?.status === 'ready' && !!selectedPlanetModel?.glb_url}
-          modelStatus={selectedPlanetModel?.status}
-          onUpgrade={handleUpgradePlanet}
           onSurface={handleOpenSurface}
         />
       )}

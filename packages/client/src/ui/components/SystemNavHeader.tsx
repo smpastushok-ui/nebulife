@@ -23,6 +23,7 @@ interface SystemNavHeaderProps {
   onNavigate: (system: StarSystem) => void;
   onTelescopePhoto?: () => void;
   isPhotoGenerating?: boolean;
+  getSystemProgress?: (systemId: string) => number;
 }
 
 // SVG magnifying glass icon (outline only, no fill)
@@ -58,6 +59,7 @@ export function SystemNavHeader({
   onNavigate,
   onTelescopePhoto,
   isPhotoGenerating,
+  getSystemProgress,
 }: SystemNavHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -264,12 +266,14 @@ export function SystemNavHeader({
               filtered.map((s) => {
                 const name = aliases[s.id] ?? s.star.name;
                 const isCurrent = s.id === currentSystem.id;
+                const prog = getSystemProgress?.(s.id);
                 return (
                   <SearchResultItem
                     key={s.id}
                     name={name}
                     spectral={`${s.star.spectralClass}${s.star.subType}`}
                     isCurrent={isCurrent}
+                    progress={prog}
                     onClick={() => {
                       setSearchOpen(false);
                       if (!isCurrent) onNavigate(s);
@@ -286,11 +290,12 @@ export function SystemNavHeader({
 }
 
 function SearchResultItem({
-  name, spectral, isCurrent, onClick,
+  name, spectral, isCurrent, progress, onClick,
 }: {
-  name: string; spectral: string; isCurrent: boolean; onClick: () => void;
+  name: string; spectral: string; isCurrent: boolean; progress?: number; onClick: () => void;
 }) {
   const [hover, setHover] = useState(false);
+  const isUnresearched = progress !== undefined && progress < 100;
   return (
     <button
       onClick={onClick}
@@ -308,10 +313,17 @@ function SearchResultItem({
         fontFamily: 'monospace',
         fontSize: 11,
         textAlign: 'left',
-        color: isCurrent ? '#7bb8ff' : '#8899aa',
+        color: isCurrent ? '#7bb8ff' : isUnresearched ? '#556677' : '#8899aa',
       }}
     >
-      <span>{name}</span>
+      <span>
+        {name}
+        {isUnresearched && (
+          <span style={{ color: '#445566', fontSize: 9, marginLeft: 6 }}>
+            {`${Math.round(progress)}%`}
+          </span>
+        )}
+      </span>
       <span style={{ color: '#445566', fontSize: 10 }}>{spectral}</span>
     </button>
   );

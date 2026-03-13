@@ -2,7 +2,7 @@ import React from 'react';
 import type { Planet } from '@nebulife/core';
 
 const MENU_WIDTH = 220;
-const MENU_HEIGHT_APPROX = 220;
+const MENU_HEIGHT_APPROX = 170;
 
 const backdropStyle: React.CSSProperties = {
   position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -64,7 +64,7 @@ function MenuItem({ label, onClick, color }: { label: string; onClick: () => voi
 export function PlanetContextMenu({
   planet, screenPosition,
   onViewPlanet, onShowCharacteristics, onClose,
-  onSurface, onUpgrade, onView3D, has3DModel, modelStatus,
+  onSurface,
 }: {
   planet: Planet;
   screenPosition: { x: number; y: number };
@@ -72,10 +72,6 @@ export function PlanetContextMenu({
   onShowCharacteristics: () => void;
   onClose: () => void;
   onSurface?: () => void;
-  onUpgrade?: () => void;
-  onView3D?: () => void;
-  has3DModel?: boolean;
-  modelStatus?: string;
 }) {
   // Clamp position to keep menu on screen
   const maxX = window.innerWidth - MENU_WIDTH - 16;
@@ -83,32 +79,7 @@ export function PlanetContextMenu({
   const left = Math.min(screenPosition.x + 8, maxX);
   const top = Math.min(screenPosition.y - 20, maxY);
 
-  // 3D button label based on model status
   const showSurface = onSurface && (planet.isHomePlanet || planet.isColonizable);
-
-  let modelLabel: string | null = null;
-  let modelAction: (() => void) | null = null;
-  let modelColor: string | undefined;
-
-  if (has3DModel && onUpgrade) {
-    modelLabel = 'Змінити вигляд — 49 ⚛';
-    modelAction = onUpgrade;
-    modelColor = '#7bb8ff';
-  } else if (
-    modelStatus === 'generating_photo' ||
-    modelStatus === 'generating_3d' ||
-    modelStatus === 'running' ||
-    modelStatus === 'awaiting_payment'
-  ) {
-    modelLabel = '3D — матеріалізація...';
-    modelAction = onUpgrade ?? null;
-    modelColor = '#667788';
-  } else if (onUpgrade) {
-    // No model, or model failed — show buy button
-    modelLabel = 'Оживити в 3D — 49 ⚛';
-    modelAction = onUpgrade;
-    modelColor = '#ddaa44';
-  }
 
   return (
     <>
@@ -124,9 +95,6 @@ export function PlanetContextMenu({
         <MenuItem label="Екзосфера" onClick={onViewPlanet} />
         {showSurface && (
           <MenuItem label="На поверхню" onClick={onSurface} color="#88ccaa" />
-        )}
-        {modelLabel && modelAction && (
-          <MenuItem label={modelLabel} onClick={modelAction} color={modelColor} />
         )}
         <MenuItem label="Характеристики" onClick={onShowCharacteristics} />
       </div>

@@ -1,6 +1,5 @@
 import React from 'react';
 import type { Planet } from '@nebulife/core';
-import PlanetUpgradeButton from './PlanetUpgradeButton.js';
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute', right: 16, top: 12, width: 300,
@@ -52,12 +51,9 @@ const closeBtnStyle: React.CSSProperties = {
   color: '#667788', fontSize: 16, fontFamily: 'monospace',
 };
 
-export function PlanetInfoPanel({ planet, onClose, has3DModel, modelStatus, onUpgrade, onSurface }: {
+export function PlanetInfoPanel({ planet, onClose, onSurface }: {
   planet: Planet;
   onClose: () => void;
-  has3DModel?: boolean;
-  modelStatus?: string;
-  onUpgrade?: () => void;
   onSurface?: () => void;
 }) {
   const hab = planet.habitability;
@@ -205,16 +201,6 @@ export function PlanetInfoPanel({ planet, onClose, has3DModel, modelStatus, onUp
         </div>
       )}
 
-      {/* --- 3D Model Upgrade --- */}
-      {onUpgrade && (
-        <div style={{ marginTop: 8 }}>
-          <PlanetUpgradeButton
-            has3DModel={has3DModel ?? false}
-            modelStatus={modelStatus}
-            onUpgrade={onUpgrade}
-          />
-        </div>
-      )}
     </div>
   );
 }
