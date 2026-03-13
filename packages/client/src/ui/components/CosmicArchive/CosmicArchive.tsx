@@ -94,7 +94,10 @@ export interface CosmicArchiveProps {
 
 const overlayStyle: React.CSSProperties = {
   position: 'fixed',
-  inset: 0,
+  top: 40,
+  left: 0,
+  right: 0,
+  bottom: 0,
   zIndex: 9600,
   background: 'rgba(2, 5, 16, 0.98)',
   fontFamily: 'monospace',

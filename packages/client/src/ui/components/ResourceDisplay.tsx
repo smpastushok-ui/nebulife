@@ -17,7 +17,7 @@ const containerStyle: React.CSSProperties = {
   position: 'fixed',
   top: 12,
   right: 12,
-  zIndex: 200,
+  zIndex: 9700,
   display: 'flex',
   alignItems: 'center',
   gap: 0,
