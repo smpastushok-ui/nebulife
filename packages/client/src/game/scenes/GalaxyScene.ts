@@ -242,8 +242,8 @@ export class GalaxyScene {
     const hl = new Text({
       text: 'HOME',
       style: {
-        fontSize: 6, fill: 0x1a5c3a, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 1,
-        dropShadow: { alpha: 0.6, blur: 4, color: 0x44ff88, distance: 0 },
+        fontSize: 6, fill: 0x1a3a5c, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 1,
+        dropShadow: { alpha: 0.6, blur: 4, color: 0x4488cc, distance: 0 },
       },
       resolution: 3,
     });

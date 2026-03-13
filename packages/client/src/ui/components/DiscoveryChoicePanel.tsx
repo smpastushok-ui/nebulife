@@ -251,7 +251,7 @@ export function DiscoveryChoicePanel({
                   : 'Щасливий випадок — безкоштовно!'
                 : (
                   <span>
-                    {'AI-обсерваторія.\u00a0'}
+                    {'Разовий доступ до супертелескопа.\u00a0'}
                     <span style={{ color: canAffordQuantum ? '#4488ff' : '#995544' }}>3 &#9883;</span>
                     {!canAffordQuantum && <span style={{ color: '#885555' }}> — недостатньо</span>}
                   </span>

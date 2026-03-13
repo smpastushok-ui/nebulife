@@ -31,6 +31,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
 
 /**
  * Build a beautiful share text that grabs attention.
+ * If photoUrl is provided, it's included so Telegram/messengers show a photo preview.
  */
 function buildShareText(
   name: string,
@@ -38,6 +39,7 @@ function buildShareText(
   galleryCategory: string,
   systemName?: string,
   description?: string,
+  photoUrl?: string,
 ): string {
   const emoji = RARITY_EMOJI[rarityKey] ?? '\u{2B50}';
   const catEmoji = CATEGORY_EMOJI[galleryCategory] ?? '\u{1F30D}';
@@ -60,6 +62,12 @@ function buildShareText(
   if (systemName) {
     lines.push('');
     lines.push(`\u{1F4CD} ${systemName}`);
+  }
+
+  // Photo link (Telegram will auto-preview it)
+  if (photoUrl) {
+    lines.push('');
+    lines.push(photoUrl);
   }
 
   // CTA + links
@@ -100,13 +108,6 @@ export function PhotoModal({
   const handleShare = useCallback(async () => {
     try {
       const shareTitle = buildShareTitle(name, discovery.rarity);
-      const shareText = buildShareText(
-        name,
-        discovery.rarity,
-        discovery.galleryCategory,
-        systemName,
-        catalog?.descriptionUk,
-      );
 
       // Try to fetch the image as a file for native share
       let file: File | null = null;
@@ -119,7 +120,10 @@ export function PhotoModal({
       }
 
       if (navigator.share && file && navigator.canShare?.({ files: [file] })) {
-        // Best case: share with image file + rich text + link
+        // Best case: share with image file + rich text (no photo URL needed — file IS the photo)
+        const shareText = buildShareText(
+          name, discovery.rarity, discovery.galleryCategory, systemName, catalog?.descriptionUk,
+        );
         await navigator.share({
           title: shareTitle,
           text: shareText,
@@ -127,16 +131,20 @@ export function PhotoModal({
         });
         setShared(true);
       } else if (navigator.share) {
-        // Fallback: share text + URL (no file)
+        // Fallback: share text with photo URL so messengers show a preview
+        const shareText = buildShareText(
+          name, discovery.rarity, discovery.galleryCategory, systemName, catalog?.descriptionUk, imageUrl,
+        );
         await navigator.share({
           title: shareTitle,
           text: shareText,
-          url: GAME_URL_WEB,
         });
         setShared(true);
       } else {
-        // Desktop fallback: copy share text to clipboard
-        const clipText = `${shareText}`;
+        // Desktop fallback: copy share text with photo URL to clipboard
+        const clipText = buildShareText(
+          name, discovery.rarity, discovery.galleryCategory, systemName, catalog?.descriptionUk, imageUrl,
+        );
         await navigator.clipboard.writeText(clipText);
         setShared(true);
       }
@@ -144,14 +152,10 @@ export function PhotoModal({
       if ((err as Error).name !== 'AbortError') {
         // Last resort: try clipboard
         try {
-          const shareText = buildShareText(
-            name,
-            discovery.rarity,
-            discovery.galleryCategory,
-            systemName,
-            catalog?.descriptionUk,
+          const clipText = buildShareText(
+            name, discovery.rarity, discovery.galleryCategory, systemName, catalog?.descriptionUk, imageUrl,
           );
-          await navigator.clipboard.writeText(shareText);
+          await navigator.clipboard.writeText(clipText);
           setShared(true);
         } catch {
           console.warn('Share failed:', err);
