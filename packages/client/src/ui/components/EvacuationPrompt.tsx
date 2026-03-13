@@ -9,11 +9,10 @@ interface EvacuationPromptProps {
   system: StarSystem;
   planet: Planet;
   onStartEvacuation: () => void;
-  onContinue: () => void;
 }
 
-export function EvacuationPrompt({ system, planet, onStartEvacuation, onContinue }: EvacuationPromptProps) {
-  const [hover, setHover] = useState<'evacuate' | 'continue' | null>(null);
+export function EvacuationPrompt({ system, planet, onStartEvacuation }: EvacuationPromptProps) {
+  const [hover, setHover] = useState<'evacuate' | null>(null);
   const habitabilityPct = Math.round(planet.habitability.overall * 100);
 
   return (
@@ -115,29 +114,9 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, onContinue
             cursor: 'pointer',
             letterSpacing: 1,
             transition: 'background 0.2s',
-            marginBottom: 10,
           }}
         >
           ПОЧАТИ ЕВАКУАЦIЮ
-        </button>
-        <button
-          onClick={onContinue}
-          onMouseEnter={() => setHover('continue')}
-          onMouseLeave={() => setHover(null)}
-          style={{
-            width: '100%',
-            padding: '10px 0',
-            background: hover === 'continue' ? 'rgba(40,50,60,0.6)' : 'rgba(30,40,50,0.4)',
-            border: '1px solid #445566',
-            borderRadius: 4,
-            color: '#667788',
-            fontFamily: 'monospace',
-            fontSize: 11,
-            cursor: 'pointer',
-            transition: 'background 0.2s',
-          }}
-        >
-          Продовжити дослідження
         </button>
       </div>
     </div>

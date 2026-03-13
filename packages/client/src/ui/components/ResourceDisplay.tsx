@@ -11,6 +11,10 @@ interface ResourceDisplayProps {
   quarks: number;
   isExodusPhase: boolean;
   onClick: () => void;
+  /** Colony resources (shown after colonization, Phase 2+) */
+  minerals?: number;
+  volatiles?: number;
+  isotopes?: number;
 }
 
 const containerStyle: React.CSSProperties = {
@@ -60,7 +64,42 @@ function ResearchDataIcon() {
   );
 }
 
-export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick }: ResourceDisplayProps) {
+/** SVG crystal icon for Minerals */
+function MineralsIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#aa8855" strokeWidth="1.2">
+      <path d="M8 2L13 7L8 14L3 7Z" />
+      <line x1="3" y1="7" x2="13" y2="7" />
+      <line x1="8" y1="2" x2="5.5" y2="7" />
+      <line x1="8" y1="2" x2="10.5" y2="7" />
+    </svg>
+  );
+}
+
+/** SVG cloud icon for Volatiles */
+function VolatilesIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#55aaaa" strokeWidth="1.2">
+      <circle cx="6" cy="9" r="3" />
+      <circle cx="10" cy="8" r="3.5" />
+      <circle cx="8" cy="6" r="2.5" />
+    </svg>
+  );
+}
+
+/** SVG atom icon for Isotopes */
+function IsotopesIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#88aa44" strokeWidth="1.2">
+      <circle cx="8" cy="8" r="2" />
+      <ellipse cx="8" cy="8" rx="6" ry="2.5" />
+      <ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(-60 8 8)" />
+    </svg>
+  );
+}
+
+export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, minerals = 0, volatiles = 0, isotopes = 0 }: ResourceDisplayProps) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -78,6 +117,27 @@ export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick }
           <div style={itemStyle}>
             <ResearchDataIcon />
             <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{researchData}</span>
+          </div>
+          <div style={dividerStyle} />
+        </>
+      )}
+
+      {/* Colony resources (Phase 2+) */}
+      {!isExodusPhase && (
+        <>
+          <div style={itemStyle} title="Мiнерали">
+            <MineralsIcon />
+            <span style={{ color: '#aa8855' }}>{minerals}</span>
+          </div>
+          <div style={dividerStyle} />
+          <div style={itemStyle} title="Леткi речовини">
+            <VolatilesIcon />
+            <span style={{ color: '#55aaaa' }}>{volatiles}</span>
+          </div>
+          <div style={dividerStyle} />
+          <div style={itemStyle} title="Iзотопи">
+            <IsotopesIcon />
+            <span style={{ color: '#88aa44' }}>{isotopes}</span>
           </div>
           <div style={dividerStyle} />
         </>

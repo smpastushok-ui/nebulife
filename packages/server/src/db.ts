@@ -71,6 +71,8 @@ export async function updatePlayer(
     last_login: string;
     game_state: Record<string, unknown>;
     quarks: number;
+    home_system_id: string;
+    home_planet_id: string;
   }>,
 ): Promise<PlayerRow | null> {
   const sql = getSQL();
@@ -110,7 +112,9 @@ export async function updatePlayer(
         login_streak = COALESCE(${updates.login_streak ?? null}, login_streak),
         last_login = COALESCE(${updates.last_login ?? null}, last_login),
         game_state = COALESCE(${updates.game_state ? JSON.stringify(updates.game_state) : null}::jsonb, game_state),
-        quarks = COALESCE(${updates.quarks ?? null}, quarks)
+        quarks = COALESCE(${updates.quarks ?? null}, quarks),
+        home_system_id = COALESCE(${updates.home_system_id ?? null}, home_system_id),
+        home_planet_id = COALESCE(${updates.home_planet_id ?? null}, home_planet_id)
     WHERE id = ${playerId}
     RETURNING *
   `;

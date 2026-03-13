@@ -54,6 +54,15 @@ export class PlanetViewScene {
   private scanActive = false;
   private scanProgress = 0;
 
+  // ── Ship approach ──────────────────────────────────────────────────
+  private shipApproachActive = false;
+  private shipApproachProgress = 0; // 0→1
+  private shipOnOrbit = false;
+  private shipApproachGfx: Graphics | null = null;
+  private shipApproachTrail: { x: number; y: number }[] = [];
+  private shipApproachSpeed = 0.00014; // progress per ms (~7s approach)
+  private shipOrbitAngle = 0;
+
   constructor(
     system: StarSystem,
     planet: Planet,
@@ -322,6 +331,9 @@ export class PlanetViewScene {
       this.scanTime += deltaMs;
       this.redrawScanOverlay();
     }
+
+    // 6. Ship approach
+    this.updateShipApproach(deltaMs);
   }
 
   /** Activate scanning effects on the planet */
@@ -504,8 +516,156 @@ export class PlanetViewScene {
     gfx.fill({ color: ARC_GREEN, alpha: 0.6 });
   }
 
+  // ── Ship approach methods ────────────────────────────────────────────
+
+  /** Start ship approach from off-screen to orbit around the planet */
+  startShipApproach() {
+    if (this.shipApproachActive) return;
+    this.shipApproachActive = true;
+    this.shipApproachProgress = 0;
+    this.shipOnOrbit = false;
+    this.shipApproachTrail = [];
+    this.shipOrbitAngle = 0;
+
+    this.shipApproachGfx = new Graphics();
+    this.container.addChild(this.shipApproachGfx);
+  }
+
+  /** Is the ship on orbit (approach complete)? */
+  isShipOnOrbit(): boolean {
+    return this.shipOnOrbit;
+  }
+
+  /** Cleanup ship visuals */
+  stopShipFlight() {
+    this.shipApproachActive = false;
+    this.shipOnOrbit = false;
+    if (this.shipApproachGfx) {
+      this.container.removeChild(this.shipApproachGfx);
+      this.shipApproachGfx.destroy();
+      this.shipApproachGfx = null;
+    }
+    if (this.shipBodyGfx) {
+      this.container.removeChild(this.shipBodyGfx);
+      this.shipBodyGfx.destroy();
+      this.shipBodyGfx = null;
+    }
+    this.shipApproachTrail = [];
+  }
+
+  /** Update ship approach (called from update loop) */
+  private updateShipApproach(deltaMs: number) {
+    if (!this.shipApproachActive || !this.shipApproachGfx) return;
+
+    const gfx = this.shipApproachGfx;
+    gfx.clear();
+
+    const orbitR = this.planetRadius * 1.6;
+    const px = this.planetX;
+    const py = this.planetY;
+
+    if (!this.shipOnOrbit) {
+      // Approach phase: quadratic Bezier from top-left to orbit point
+      this.shipApproachProgress = Math.min(1, this.shipApproachProgress + this.shipApproachSpeed * deltaMs);
+
+      // Start from off-screen top-left
+      const startX = -this.screenW * 0.2;
+      const startY = -this.screenH * 0.2;
+      // End on right side of orbit
+      const endX = px + orbitR;
+      const endY = py;
+      // Control point above planet
+      const cpX = px;
+      const cpY = -this.screenH * 0.1;
+
+      // Quadratic Bezier
+      const t = this.shipApproachProgress;
+      const u = 1 - t;
+      const x = u * u * startX + 2 * u * t * cpX + t * t * endX;
+      const y = u * u * startY + 2 * u * t * cpY + t * t * endY;
+
+      // Ship scale grows during approach
+      const scale = 1.0 + t * 0.25;
+
+      // Trail
+      this.shipApproachTrail.push({ x, y });
+      if (this.shipApproachTrail.length > 50) this.shipApproachTrail.shift();
+
+      // Direction for rotation
+      const nextT = Math.min(1, t + 0.01);
+      const nx = (1 - nextT) * (1 - nextT) * startX + 2 * (1 - nextT) * nextT * cpX + nextT * nextT * endX;
+      const ny = (1 - nextT) * (1 - nextT) * startY + 2 * (1 - nextT) * nextT * cpY + nextT * nextT * endY;
+      const angle = Math.atan2(ny - y, nx - x);
+
+      this.drawShipAt(gfx, x, y, angle, scale);
+      this.drawShipTrail(gfx);
+
+      if (this.shipApproachProgress >= 1) {
+        this.shipOnOrbit = true;
+        this.shipOrbitAngle = 0; // Start at right side
+      }
+    } else {
+      // On orbit — slowly orbit the planet
+      this.shipOrbitAngle += deltaMs * 0.0005;
+      const orbitEcc = 0.35; // Y-compression for pseudo-3D
+      const x = px + Math.cos(this.shipOrbitAngle) * orbitR;
+      const y = py + Math.sin(this.shipOrbitAngle) * orbitR * orbitEcc;
+      const angle = this.shipOrbitAngle + Math.PI / 2;
+
+      this.drawShipAt(gfx, x, y, angle, 1.25);
+
+      // Draw orbit path (dotted)
+      const segments = 60;
+      for (let i = 0; i < segments; i++) {
+        const a = (Math.PI * 2 / segments) * i;
+        const ox = px + Math.cos(a) * orbitR;
+        const oy = py + Math.sin(a) * orbitR * orbitEcc;
+        gfx.circle(ox, oy, 0.5);
+      }
+      gfx.fill({ color: 0x4488ff, alpha: 0.2 });
+    }
+  }
+
+  private shipBodyGfx: Graphics | null = null;
+
+  private drawShipAt(_parentGfx: Graphics, x: number, y: number, angle: number, scale: number) {
+    // Use a separate Graphics for the ship body so we can apply position/rotation
+    if (!this.shipBodyGfx) {
+      this.shipBodyGfx = new Graphics();
+      this.container.addChild(this.shipBodyGfx);
+    }
+    this.shipBodyGfx.clear();
+    this.shipBodyGfx.position.set(x, y);
+    this.shipBodyGfx.rotation = angle;
+    this.shipBodyGfx.scale.set(scale);
+    // Ship hull
+    this.shipBodyGfx.roundRect(-10, -4, 20, 8, 3);
+    this.shipBodyGfx.fill({ color: 0xaabbcc, alpha: 0.9 });
+    // Cockpit
+    this.shipBodyGfx.roundRect(5, -2.5, 6, 5, 1.5);
+    this.shipBodyGfx.fill({ color: 0x4488ff, alpha: 0.7 });
+    // Engine glow
+    this.shipBodyGfx.circle(-10, 0, 4);
+    this.shipBodyGfx.fill({ color: 0x4488ff, alpha: 0.5 });
+    this.shipBodyGfx.circle(-10, 0, 7);
+    this.shipBodyGfx.fill({ color: 0x4488ff, alpha: 0.15 });
+  }
+
+  private drawShipTrail(gfx: Graphics) {
+    const pts = this.shipApproachTrail;
+    if (pts.length < 2) return;
+    for (let i = 1; i < pts.length; i++) {
+      const alpha = (i / pts.length) * 0.4;
+      const width = (i / pts.length) * 2.5;
+      gfx.moveTo(pts[i - 1].x, pts[i - 1].y);
+      gfx.lineTo(pts[i].x, pts[i].y);
+      gfx.stroke({ width, color: 0x4488ff, alpha });
+    }
+  }
+
   destroy() {
     this.stopScanning();
+    this.stopShipFlight();
     this.container.destroy({ children: true });
     this.vignetteOverlay.destroy({ children: true });
   }

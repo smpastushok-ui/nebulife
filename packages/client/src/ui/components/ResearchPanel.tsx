@@ -139,7 +139,9 @@ export function ResearchPanel({
       </div>
 
       {/* Research slots */}
-      <div style={{ marginBottom: 4, color: '#778899', fontSize: 10 }}>ОБСЕРВАТОРІЇ</div>
+      <div style={{ marginBottom: 4, color: '#778899', fontSize: 10 }}>
+        ОБСЕРВАТОРІЇ (<span style={{ color: '#4488aa' }}>{researchState.slots.filter((s) => s.systemId !== null).length}</span>/{researchState.slots.length})
+      </div>
       <SlotsIndicator slots={researchState.slots} allSystems={allSystems} />
 
       {/* Progress */}

@@ -63,7 +63,7 @@ import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
 import { CutscenePlaceholder } from './ui/components/CutscenePlaceholder.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
-import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer } from './api/player-api.js';
+import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { onAuthChange } from './auth/auth-service.js';
 import { authFetch } from './auth/api-client.js';
@@ -203,6 +203,20 @@ export function App() {
     catch { /* ignore */ }
   }, [researchData]);
 
+  // ── Colony Resources (Phase 2+, after colonization) ───────────────────
+  const [colonyResources, setColonyResources] = useState<{ minerals: number; volatiles: number; isotopes: number }>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_colony_resources');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return { minerals: 0, volatiles: 0, isotopes: 0 };
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(colonyResources)); }
+    catch { /* ignore */ }
+  }, [colonyResources]);
+
   // ── Exodus phase flag ──────────────────────────────────────────────────
   const [isExodusPhase, setIsExodusPhase] = useState<boolean>(() => {
     try {
@@ -341,9 +355,24 @@ export function App() {
   }, [gameStartedAt, timeMultiplier]);
 
   // ── Evacuation state ──────────────────────────────────────────────────
-  type EvacuationPhase = 'idle' | 'cutscene-launch' | 'transit' | 'cutscene-explosion' | 'arrival' | 'colony-prompt' | 'cutscene-landing' | 'surface';
+  type EvacuationPhase =
+    | 'idle'
+    | 'stage0-launch'          // CutscenePlaceholder: ship launch (4s)
+    | 'stage1-system-flight'   // SystemScene + ship Bezier flight to planet
+    | 'stage2-explosion'       // CutscenePlaceholder: planet destruction (6s)
+    | 'stage3-planet-approach' // PlanetViewScene + ship from edge to orbit
+    | 'stage4-orbit'           // Ship on orbit + colony founding button
+    | 'cutscene-landing'       // CutscenePlaceholder: landing (5s)
+    | 'surface';               // Surface view on new planet
   const [evacuationPhase, setEvacuationPhase] = useState<EvacuationPhase>('idle');
   const [evacuationTarget, setEvacuationTarget] = useState<{ system: StarSystem; planet: Planet } | null>(null);
+  const [evacuationFadeBlack, setEvacuationFadeBlack] = useState(false);
+
+  // Refs for values needed inside research-timer interval (stale-closure prevention)
+  const isExodusPhaseRef = useRef(isExodusPhase);
+  isExodusPhaseRef.current = isExodusPhase;
+  const evacuationTargetRef = useRef(evacuationTarget);
+  evacuationTargetRef.current = evacuationTarget;
 
   /** Discovery choice panel (from research completion) */
   const [pendingDiscovery, setPendingDiscovery] = useState<{
@@ -632,14 +661,16 @@ export function App() {
                   if (research) {
                     setCompletedModal({ system, research });
                   }
-                  // Check for colonizable planet — trigger evacuation prompt + speed-up twist
-                  if (isExodusPhase) {
-                    const colonizable = findColonizablePlanet(system);
-                    if (colonizable) {
-                      setEvacuationTarget({ system, planet: colonizable });
-                      // Trigger the "Hope & Despair" speed-up twist
-                      activateSpeedUp();
-                    }
+                }
+
+                // Check for colonizable planet at 30%+ — trigger evacuation + speed-up twist
+                const newProgress = current.systems[system.id]?.progress ?? 0;
+                if (isExodusPhaseRef.current && !evacuationTargetRef.current && !speedUpAppliedRef.current && newProgress >= 30) {
+                  const colonizable = findColonizablePlanet(system);
+                  if (colonizable) {
+                    setEvacuationTarget({ system, planet: colonizable });
+                    // Trigger the "Hope & Despair" speed-up twist
+                    activateSpeedUp();
                   }
                 }
               }
@@ -1069,7 +1100,9 @@ export function App() {
   // ── Discovery handlers ───────────────────────────────────────────────
 
   /** Loyalty: first discovery or 1/50 lucky from 3rd onward */
-  const isFirstDiscovery = playerStats.totalDiscoveries === 0;
+  // totalDiscoveries is already incremented by the time the panel renders,
+  // so <= 1 means "this is the player's very first discovery"
+  const isFirstDiscovery = playerStats.totalDiscoveries <= 1;
   const isLuckyFree = !isFirstDiscovery
     && playerStats.totalDiscoveries >= 3
     && (pendingDiscovery ? ((pendingDiscovery.discovery.timestamp % 50) === 0) : false);
@@ -1083,7 +1116,7 @@ export function App() {
 
   const handleQuantumFocus = useCallback(() => {
     if (pendingDiscovery) {
-      const isFree = playerStats.totalDiscoveries === 0
+      const isFree = playerStats.totalDiscoveries <= 1
         || (playerStats.totalDiscoveries >= 3 && (pendingDiscovery.discovery.timestamp % 50) === 0);
       if (!isFree && quarks < 3) {
         if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
@@ -1213,46 +1246,110 @@ export function App() {
   // ── Evacuation handlers ──────────────────────────────────────────────
   const handleStartEvacuation = useCallback(() => {
     if (!evacuationTarget) return;
-    setEvacuationPhase('cutscene-launch');
+    setEvacuationPhase('stage0-launch');
   }, [evacuationTarget]);
 
-  const handleDismissEvacuationPrompt = useCallback(() => {
-    setEvacuationTarget(null);
-  }, []);
-
-  const handleCutsceneLaunchComplete = useCallback(() => {
+  // Stage 0 complete → switch to system scene, start ship flight
+  const handleStage0Complete = useCallback(() => {
     if (!evacuationTarget) return;
-    // Navigate to the destination system
     engineRef.current?.showSystemScene(evacuationTarget.system);
     setState((prev) => ({ ...prev, scene: 'system', selectedSystem: evacuationTarget.system }));
-    setEvacuationPhase('cutscene-explosion');
+    // Start ship flight to target planet
+    setTimeout(() => {
+      engineRef.current?.startSystemShipFlight(evacuationTarget.planet.id);
+    }, 300);
+    setEvacuationPhase('stage1-system-flight');
   }, [evacuationTarget]);
 
-  const handleCutsceneExplosionComplete = useCallback(() => {
+  // Poll ship progress in stage1 — at 60% fade to black, then switch to explosion
+  useEffect(() => {
+    if (evacuationPhase !== 'stage1-system-flight') return;
+    const pollId = setInterval(() => {
+      const progress = engineRef.current?.getSystemShipProgress() ?? 0;
+      if (progress >= 0.6 && !evacuationFadeBlack) {
+        setEvacuationFadeBlack(true);
+        // After fade (0.8s), switch to explosion cutscene
+        setTimeout(() => {
+          engineRef.current?.stopSystemShipFlight();
+          setEvacuationFadeBlack(false);
+          setEvacuationPhase('stage2-explosion');
+        }, 800);
+      }
+    }, 100);
+    return () => clearInterval(pollId);
+  }, [evacuationPhase, evacuationFadeBlack]);
+
+  // Stage 2 complete → switch to planet-view, start ship approach
+  const handleStage2Complete = useCallback(() => {
     if (!evacuationTarget) return;
-    // Navigate to destination planet view
     engineRef.current?.showPlanetViewScene(evacuationTarget.system, evacuationTarget.planet);
-    setState((prev) => ({ ...prev, scene: 'planet-view', selectedSystem: evacuationTarget.system, selectedPlanet: evacuationTarget.planet }));
-    setEvacuationPhase('colony-prompt');
+    setState((prev) => ({
+      ...prev,
+      scene: 'planet-view',
+      selectedSystem: evacuationTarget.system,
+      selectedPlanet: evacuationTarget.planet,
+    }));
+    setTimeout(() => {
+      engineRef.current?.startPlanetViewShipApproach();
+    }, 300);
+    setEvacuationPhase('stage3-planet-approach');
   }, [evacuationTarget]);
 
+  // Poll ship approach in stage3 — when on orbit, switch to stage4
+  useEffect(() => {
+    if (evacuationPhase !== 'stage3-planet-approach') return;
+    const pollId = setInterval(() => {
+      if (engineRef.current?.isPlanetViewShipOnOrbit()) {
+        setEvacuationPhase('stage4-orbit');
+      }
+    }, 100);
+    return () => clearInterval(pollId);
+  }, [evacuationPhase]);
+
+  // Colony founding
   const handleFoundColony = useCallback(() => {
+    engineRef.current?.stopPlanetViewShipFlight();
     setEvacuationPhase('cutscene-landing');
   }, []);
 
   const handleCutsceneLandingComplete = useCallback(() => {
+    if (!evacuationTarget) return;
+
+    // Save old home planet as destroyed
+    if (homeInfo) {
+      try {
+        const raw = localStorage.getItem('nebulife_destroyed_planets');
+        const destroyed: Array<{ planetId: string; systemId: string; orbitAU: number }> = raw ? JSON.parse(raw) : [];
+        destroyed.push({
+          planetId: homeInfo.planet.id,
+          systemId: homeInfo.system.id,
+          orbitAU: homeInfo.planet.orbit.semiMajorAxisAU,
+        });
+        localStorage.setItem('nebulife_destroyed_planets', JSON.stringify(destroyed));
+      } catch { /* ignore */ }
+    }
+
+    // Update home planet on server
+    updatePlayer(playerId.current, {
+      home_system_id: evacuationTarget.system.id,
+      home_planet_id: evacuationTarget.planet.id,
+      game_phase: 'colonizing',
+    }).catch((err) => console.error('Home update failed:', err));
+
+    // Update local home info
+    setHomeInfo({ system: evacuationTarget.system, planet: evacuationTarget.planet });
+
     // Transition to colonization
     setIsExodusPhase(false);
     setEvacuationPhase('idle');
     setEvacuationTarget(null);
+
     // Open surface view for the colony planet
-    if (evacuationTarget) {
-      setSurfaceTarget({
-        planet: evacuationTarget.planet,
-        star: evacuationTarget.system.star,
-      });
-    }
-  }, [evacuationTarget]);
+    setSurfaceTarget({
+      planet: evacuationTarget.planet,
+      star: evacuationTarget.system.star,
+    });
+  }, [evacuationTarget, homeInfo]);
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
   useEffect(() => { currentSceneRef.current = state.scene; }, [state.scene]);
@@ -1983,6 +2080,9 @@ export function App() {
         researchData={researchData}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
+        minerals={colonyResources.minerals}
+        volatiles={colonyResources.volatiles}
+        isotopes={colonyResources.isotopes}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
 
@@ -2389,35 +2489,53 @@ export function App() {
           system={evacuationTarget.system}
           planet={evacuationTarget.planet}
           onStartEvacuation={handleStartEvacuation}
-          onContinue={handleDismissEvacuationPrompt}
         />
       )}
-      {/* Cutscene: Ship launch */}
-      {evacuationPhase === 'cutscene-launch' && (
+      {/* Stage 0: Ship launch cutscene (4s) */}
+      {evacuationPhase === 'stage0-launch' && (
         <CutscenePlaceholder
-          label="Кат-сцена: Запуск евакуацiйного корабля"
-          onComplete={handleCutsceneLaunchComplete}
+          label="Запуск евакуацiйного корабля"
+          duration={4}
+          onComplete={handleStage0Complete}
         />
       )}
-      {/* Cutscene: Home planet explosion */}
-      {evacuationPhase === 'cutscene-explosion' && (
+      {/* Stage 1: System flight — no overlay, ship flies in PixiJS scene */}
+      {/* Stage 2: Planet explosion cutscene (6s) */}
+      {evacuationPhase === 'stage2-explosion' && (
         <CutscenePlaceholder
-          label="Кат-сцена: Загибель рiдної планети"
-          onComplete={handleCutsceneExplosionComplete}
+          label="Загибель рiдної планети"
+          duration={6}
+          onComplete={handleStage2Complete}
         />
       )}
-      {/* Colony founding prompt — shown after arrival */}
-      {evacuationPhase === 'colony-prompt' && evacuationTarget && (
+      {/* Stage 3: Planet approach — no overlay, ship flies in PlanetViewScene */}
+      {/* Stage 4: Ship on orbit — colony founding prompt */}
+      {evacuationPhase === 'stage4-orbit' && evacuationTarget && (
         <ColonyFoundingPrompt
           planet={evacuationTarget.planet}
           onFoundColony={handleFoundColony}
         />
       )}
-      {/* Cutscene: Landing on new planet */}
+      {/* Cutscene: Landing on new planet (5s) */}
       {evacuationPhase === 'cutscene-landing' && (
         <CutscenePlaceholder
-          label="Кат-сцена: Посадка на нову планету"
+          label="Посадка на нову планету"
+          duration={5}
           onComplete={handleCutsceneLandingComplete}
+        />
+      )}
+      {/* Fade-to-black overlay for stage1→stage2 transition */}
+      {evacuationFadeBlack && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: '#020510',
+            opacity: 1,
+            transition: 'opacity 0.8s ease',
+            pointerEvents: 'none',
+          }}
         />
       )}
       {/* 3D Model Generation Overlay */}
@@ -2589,6 +2707,7 @@ export function App() {
             setShowCosmicArchive(false);
             handleStartExploration();
           }}
+          isSystemResearching={(sysId: string) => researchState.slots.some((s) => s.systemId === sysId)}
         />
       )}
 

@@ -68,11 +68,26 @@ export class SystemScene {
   private _freezeOrbits = false;
   set freezeOrbits(v: boolean) { this._freezeOrbits = v; }
 
+  // ── Ship flight ──────────────────────────────────────────────────────
+  private shipContainer: Container | null = null;
+  private shipGfx: Graphics | null = null;
+  private shipTrailGfx: Graphics | null = null;
+  private shipProgress = 0; // 0→1
+  private shipActive = false;
+  private shipBezier: { p0: { x: number; y: number }; p1: { x: number; y: number }; p2: { x: number; y: number }; p3: { x: number; y: number } } | null = null;
+  private shipTrailPoints: { x: number; y: number }[] = [];
+  private shipSpeed = 0.00015; // progress units per ms (~6.7s flight)
+
+  /** Set of destroyed planet IDs — render debris belt instead of planet */
+  private destroyedPlanetIds: Set<string>;
+
   constructor(
     private system: StarSystem,
     private onPlanetSelect: (planet: Planet, screenPos: { x: number; y: number }) => void,
     private clickGuard?: () => boolean,
+    destroyedPlanetIds?: Set<string>,
   ) {
+    this.destroyedPlanetIds = destroyedPlanetIds ?? new Set();
     this.container = new Container();
     this.container.eventMode = 'static';
     this.container.sortableChildren = true;
@@ -123,9 +138,13 @@ export class SystemScene {
     sysLabel.zIndex = 10002;
     this.container.addChild(sysLabel);
 
-    // Orbits and planets
+    // Orbits and planets (skip destroyed planets, render debris belt)
     for (const planet of system.planets) {
-      this.addPlanetNode(planet);
+      if (this.destroyedPlanetIds.has(planet.id)) {
+        this.addDebrisBelt(planet);
+      } else {
+        this.addPlanetNode(planet);
+      }
     }
 
     // Asteroid belts
@@ -375,6 +394,60 @@ export class SystemScene {
     });
   }
 
+  /** Render debris belt on a destroyed planet's orbit */
+  private addDebrisBelt(planet: Planet) {
+    const distance = auToScreen(planet.orbit.semiMajorAxisAU);
+    const e = planet.orbit.eccentricity;
+    const b = distance * Math.sqrt(1 - e * e);
+    const cFocal = distance * e;
+
+    // Orbit path (dimmer, reddish)
+    const orbitPath = renderOrbitProjected(distance, e, Y_COMPRESS);
+    orbitPath.alpha = 0.5;
+    this.orbitContainer.addChild(orbitPath);
+
+    // Debris particles along the orbit
+    const debrisGfx = new Graphics();
+    const rng = new SeededRNG(planet.seed * 1337 + 99);
+    const debrisCount = 120;
+
+    for (let i = 0; i < debrisCount; i++) {
+      const angle = rng.next() * Math.PI * 2;
+      const jitter = rng.nextFloat(-8, 8); // spread around orbit
+      const x = -cFocal + Math.cos(angle) * (distance + jitter);
+      const y = Math.sin(angle) * (b + jitter) * Y_COMPRESS;
+      const size = 0.5 + rng.next() * 2;
+      debrisGfx.circle(x, y, size);
+      debrisGfx.fill({ color: 0x886644, alpha: 0.2 + rng.next() * 0.15 });
+    }
+
+    // Reddish glow particles (fewer, larger)
+    for (let i = 0; i < 30; i++) {
+      const angle = rng.next() * Math.PI * 2;
+      const jitter = rng.nextFloat(-5, 5);
+      const x = -cFocal + Math.cos(angle) * (distance + jitter);
+      const y = Math.sin(angle) * (b + jitter) * Y_COMPRESS;
+      debrisGfx.circle(x, y, 2 + rng.next() * 3);
+      debrisGfx.fill({ color: 0xcc4422, alpha: 0.06 + rng.next() * 0.06 });
+    }
+
+    debrisGfx.zIndex = 5;
+    this.container.addChild(debrisGfx);
+
+    // Destroyed label
+    const label = new Text({
+      text: `${planet.name} [зруйновано]`,
+      style: { fontSize: 8, fill: 0x884422, fontFamily: 'monospace' },
+      resolution: 3,
+    });
+    label.anchor.set(0.5, 0);
+    label.x = -cFocal + distance;
+    label.y = 12;
+    label.alpha = 0.5;
+    label.zIndex = 6;
+    this.container.addChild(label);
+  }
+
   update(deltaMs: number) {
     this.time += deltaMs;
 
@@ -435,6 +508,9 @@ export class SystemScene {
         moon.gfx.y = Math.sin(moon.angle) * moon.orbitRadius * moon.yCompress;
       }
     }
+
+    // Ship flight animation
+    this.updateShip(deltaMs);
   }
 
   // --- System shooting stars ---
@@ -500,7 +576,140 @@ export class SystemScene {
     }
   }
 
+  // ── Ship flight methods ───────────────────────────────────────────────
+
+  /** Start ship flight from off-screen to the target planet via cubic Bezier */
+  startShipFlight(targetPlanetId: string) {
+    const targetNode = this.planetNodes.get(targetPlanetId);
+    if (!targetNode) return;
+
+    // Target position (current planet position)
+    const tx = targetNode.container.x;
+    const ty = targetNode.container.y;
+
+    // Start from off-screen (left side, above scene)
+    const startX = -this.maxExtent * 1.5;
+    const startY = -this.maxExtent * 0.8;
+
+    // Bezier control points — sweeping curve through the system
+    const cp1x = startX * 0.3;
+    const cp1y = startY * 0.5;
+    const cp2x = tx * 0.6;
+    const cp2y = ty - this.maxExtent * 0.3;
+
+    this.shipBezier = {
+      p0: { x: startX, y: startY },
+      p1: { x: cp1x, y: cp1y },
+      p2: { x: cp2x, y: cp2y },
+      p3: { x: tx, y: ty },
+    };
+
+    this.shipProgress = 0;
+    this.shipActive = true;
+    this.shipTrailPoints = [];
+
+    // Create ship container
+    this.shipContainer = new Container();
+    this.shipContainer.zIndex = 20000;
+    this.container.addChild(this.shipContainer);
+
+    // Trail graphics (rendered below ship body)
+    this.shipTrailGfx = new Graphics();
+    this.shipContainer.addChild(this.shipTrailGfx);
+
+    // Ship body (placeholder rectangle with engine glow)
+    this.shipGfx = new Graphics();
+    this.shipContainer.addChild(this.shipGfx);
+  }
+
+  /** Get ship flight progress 0→1 */
+  getShipProgress(): number {
+    return this.shipProgress;
+  }
+
+  /** Stop and cleanup ship flight */
+  stopShipFlight() {
+    this.shipActive = false;
+    if (this.shipContainer) {
+      this.container.removeChild(this.shipContainer);
+      this.shipContainer.destroy({ children: true });
+      this.shipContainer = null;
+      this.shipGfx = null;
+      this.shipTrailGfx = null;
+    }
+    this.shipTrailPoints = [];
+    this.shipBezier = null;
+  }
+
+  /** Evaluate cubic Bezier at t ∈ [0,1] */
+  private evalBezier(t: number): { x: number; y: number } {
+    if (!this.shipBezier) return { x: 0, y: 0 };
+    const { p0, p1, p2, p3 } = this.shipBezier;
+    const u = 1 - t;
+    const uu = u * u;
+    const uuu = uu * u;
+    const tt = t * t;
+    const ttt = tt * t;
+    return {
+      x: uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
+      y: uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y,
+    };
+  }
+
+  /** Update ship position and trail (called from update loop) */
+  private updateShip(deltaMs: number) {
+    if (!this.shipActive || !this.shipBezier || !this.shipGfx || !this.shipTrailGfx) return;
+
+    // Advance progress
+    this.shipProgress = Math.min(1, this.shipProgress + this.shipSpeed * deltaMs);
+    const pos = this.evalBezier(this.shipProgress);
+
+    // Store trail point
+    this.shipTrailPoints.push({ x: pos.x, y: pos.y });
+    // Keep last 60 trail points
+    if (this.shipTrailPoints.length > 60) this.shipTrailPoints.shift();
+
+    // Get direction for ship rotation
+    const nextT = Math.min(1, this.shipProgress + 0.01);
+    const nextPos = this.evalBezier(nextT);
+    const dx = nextPos.x - pos.x;
+    const dy = nextPos.y - pos.y;
+    const angle = Math.atan2(dy, dx);
+
+    // Draw ship body using a sub-container for rotation
+    this.shipGfx.clear();
+    this.shipGfx.position.set(pos.x, pos.y);
+    this.shipGfx.rotation = angle;
+    // Ship hull
+    this.shipGfx.roundRect(-8, -3, 16, 6, 2);
+    this.shipGfx.fill({ color: 0xaabbcc, alpha: 0.9 });
+    // Cockpit
+    this.shipGfx.roundRect(4, -2, 5, 4, 1);
+    this.shipGfx.fill({ color: 0x4488ff, alpha: 0.7 });
+    // Engine glow
+    this.shipGfx.circle(-8, 0, 3);
+    this.shipGfx.fill({ color: 0x4488ff, alpha: 0.6 });
+    this.shipGfx.circle(-8, 0, 5);
+    this.shipGfx.fill({ color: 0x4488ff, alpha: 0.2 });
+
+    // Draw engine trail
+    this.shipTrailGfx.clear();
+    const trailLen = this.shipTrailPoints.length;
+    if (trailLen > 1) {
+      for (let i = 1; i < trailLen; i++) {
+        const alpha = (i / trailLen) * 0.5;
+        const width = (i / trailLen) * 2;
+        const prev = this.shipTrailPoints[i - 1];
+        const cur = this.shipTrailPoints[i];
+        this.shipTrailGfx.moveTo(prev.x, prev.y);
+        this.shipTrailGfx.lineTo(cur.x, cur.y);
+        this.shipTrailGfx.stroke({ width, color: 0x4488ff, alpha });
+      }
+    }
+  }
+
   destroy() {
+    this.stopShipFlight();
     for (const ss of this.sysShootingStars) { ss.gfx.destroy(); }
     this.sysShootingStars.length = 0;
     this.container.destroy({ children: true });

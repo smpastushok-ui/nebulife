@@ -205,12 +205,24 @@ export class GameEngine {
     // Force resize to fix stale viewport dimensions after overlay transitions
     this.app.resize();
 
+    // Check localStorage for destroyed planets in this system
+    let destroyedIds: Set<string> | undefined;
+    try {
+      const raw = localStorage.getItem('nebulife_destroyed_planets');
+      if (raw) {
+        const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
+        const systemDestroyedIds = arr.filter(d => d.systemId === system.id).map(d => d.planetId);
+        if (systemDestroyedIds.length > 0) destroyedIds = new Set(systemDestroyedIds);
+      }
+    } catch { /* ignore */ }
+
     this.systemScene = new SystemScene(
       system,
       (planet, screenPos) => {
         this.callbacks.onPlanetSelect(planet, screenPos);
       },
       () => this.camera.recentlyInteracted,
+      destroyedIds,
     );
 
     this.app.stage.addChild(this.systemScene.container);
@@ -305,6 +317,38 @@ export class GameEngine {
   /** Update scanning progress on planet-view scene (0-100) */
   updatePlanetViewScanProgress(progress: number) {
     this.planetViewScene?.updateScanProgress(progress);
+  }
+
+  // ── Ship flight proxies ────────────────────────────────────────────
+
+  /** Start ship flight in system scene toward target planet */
+  startSystemShipFlight(targetPlanetId: string) {
+    this.systemScene?.startShipFlight(targetPlanetId);
+  }
+
+  /** Get system scene ship progress (0→1) */
+  getSystemShipProgress(): number {
+    return this.systemScene?.getShipProgress() ?? 0;
+  }
+
+  /** Stop system scene ship flight */
+  stopSystemShipFlight() {
+    this.systemScene?.stopShipFlight();
+  }
+
+  /** Start ship approach in planet-view scene */
+  startPlanetViewShipApproach() {
+    this.planetViewScene?.startShipApproach();
+  }
+
+  /** Is planet-view ship on orbit? */
+  isPlanetViewShipOnOrbit(): boolean {
+    return this.planetViewScene?.isShipOnOrbit() ?? false;
+  }
+
+  /** Stop planet-view ship flight */
+  stopPlanetViewShipFlight() {
+    this.planetViewScene?.stopShipFlight();
   }
 
   /** Enter a system (called after warp animation completes) */

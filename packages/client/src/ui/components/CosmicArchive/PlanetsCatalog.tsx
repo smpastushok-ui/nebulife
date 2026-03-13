@@ -117,6 +117,7 @@ interface PlanetsCatalogProps {
   onStartResearch?: (systemId: string) => void;
   canStartResearch?: (systemId: string) => boolean;
   onRenameSystem?: (systemId: string, newName: string) => void;
+  isSystemResearching?: (systemId: string) => boolean;
 }
 
 export function PlanetsCatalog({
@@ -129,6 +130,7 @@ export function PlanetsCatalog({
   onStartResearch,
   canStartResearch,
   onRenameSystem,
+  isSystemResearching,
 }: PlanetsCatalogProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pinned, setPinned] = useState<Set<string>>(() => {
@@ -574,6 +576,7 @@ export function PlanetsCatalog({
                   <ResearchProgressIcon
                     progress={progress}
                     interactive={!isComplete && !!onStartResearch && (canStartResearch?.(system.id) ?? false)}
+                    isResearching={isSystemResearching?.(system.id)}
                   />
                 )}
               </div>
@@ -882,7 +885,16 @@ function PlanetChip({
 // ResearchProgressIcon — circular progress indicator for system research
 // ---------------------------------------------------------------------------
 
-function ResearchProgressIcon({ progress, interactive }: { progress: number; interactive?: boolean }) {
+// Inject scan-spin keyframe once
+const SCAN_STYLE_ID = 'nebulife-scan-spin';
+if (typeof document !== 'undefined' && !document.getElementById(SCAN_STYLE_ID)) {
+  const style = document.createElement('style');
+  style.id = SCAN_STYLE_ID;
+  style.textContent = `@keyframes nebulife-scan-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+  document.head.appendChild(style);
+}
+
+function ResearchProgressIcon({ progress, interactive, isResearching }: { progress: number; interactive?: boolean; isResearching?: boolean }) {
   const [hover, setHover] = useState(false);
   const r = 7;
   const circumference = 2 * Math.PI * r;
@@ -917,6 +929,16 @@ function ResearchProgressIcon({ progress, interactive }: { progress: number; int
           transform="rotate(-90 9 9)"
           style={{ transition: 'stroke 0.15s' }}
         />
+        {/* Scanning arc — spinning blue dash when researching */}
+        {isResearching && !isComplete && (
+          <circle cx="9" cy="9" r={r} fill="none"
+            stroke="#4488ff"
+            strokeWidth="2"
+            strokeDasharray={`${circumference * 0.25} ${circumference * 0.75}`}
+            strokeLinecap="round"
+            style={{ transformOrigin: '9px 9px', animation: 'nebulife-scan-spin 2s linear infinite' }}
+          />
+        )}
         {/* Check mark for 100% */}
         {isComplete && (
           <path d="M6 9l2 2 3-4" fill="none" stroke="#44ff88"
@@ -925,7 +947,7 @@ function ResearchProgressIcon({ progress, interactive }: { progress: number; int
         {/* Center text (percentage) */}
         {!isComplete && (
           <text x="9" y="9" textAnchor="middle" dominantBaseline="central"
-            fill={interactive && hover ? '#aabbcc' : '#667788'}
+            fill={isResearching ? '#4488ff' : interactive && hover ? '#aabbcc' : '#667788'}
             fontSize="6" fontFamily="monospace"
             style={{ transition: 'fill 0.15s' }}
           >

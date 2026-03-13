@@ -75,6 +75,8 @@ export async function updatePlayer(
     login_streak: number;
     last_login: string;
     game_state: Record<string, unknown>;
+    home_system_id: string;
+    home_planet_id: string;
   }>,
 ): Promise<PlayerData> {
   const res = await authFetch(`${API_BASE}/player/${playerId}`, {

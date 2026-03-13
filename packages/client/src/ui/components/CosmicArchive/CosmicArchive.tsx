@@ -89,6 +89,8 @@ export interface CosmicArchiveProps {
   highlightedType?: string | null;
   /** Locally-saved entries that may not yet be on the server */
   localEntries?: Map<string, DiscoveryData>;
+  /** Whether a system is currently being researched (for scan animation) */
+  isSystemResearching?: (systemId: string) => boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,6 +177,7 @@ export function CosmicArchive({
   onNavigateToGalaxy,
   highlightedType,
   localEntries,
+  isSystemResearching,
 }: CosmicArchiveProps) {
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
@@ -316,6 +319,7 @@ export function CosmicArchive({
           onStartResearch={onStartResearch}
           canStartResearch={canStartResearch}
           onRenameSystem={onRenameSystem}
+          isSystemResearching={isSystemResearching}
         />
       );
     }
