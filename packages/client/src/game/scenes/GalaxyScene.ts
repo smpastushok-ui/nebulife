@@ -44,9 +44,9 @@ function hexToNum(hex: string): number {
   return parseInt(hex.replace('#', ''), 16);
 }
 
-/** Compute star display radius from luminosity (log-scale, clamped 5-16px) */
+/** Compute star display radius from luminosity (log-scale, clamped 10-32px) */
 function starBaseRadius(luminositySolar: number): number {
-  return Math.max(5, Math.min(16, Math.log2(1 + luminositySolar) * 5.5));
+  return Math.max(10, Math.min(32, Math.log2(1 + luminositySolar) * 11));
 }
 
 /** Size multiplier per spectral class */
@@ -193,9 +193,8 @@ export class GalaxyScene {
     const container = new Container();
     const saturated = saturateColor(color, 0.4);
 
+    // glowOuter kept as empty Graphics for animation compatibility
     const glowOuter = new Graphics();
-    glowOuter.circle(0, 0, radius * 3.0);
-    glowOuter.fill({ color, alpha: 0.12 });
     container.addChild(glowOuter);
 
     const glowMid = new Graphics();
@@ -237,6 +236,7 @@ export class GalaxyScene {
     const hl = new Text({
       text: 'HOME',
       style: { fontSize: 8, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 1 },
+      resolution: 3,
     });
     hl.anchor.set(0.5, 0.5);
     hl.y = 0;
@@ -246,6 +246,7 @@ export class GalaxyScene {
     const nl = new Text({
       text: sys.name,
       style: { fontSize: 8, fill: 0x667788, fontFamily: 'monospace' },
+      resolution: 3,
     });
     nl.anchor.set(0.5, 0);
     nl.y = baseR + 6;
@@ -257,6 +258,7 @@ export class GalaxyScene {
       const om = new Text({
         text: '[O]',
         style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
+        resolution: 3,
       });
       om.anchor.set(0.5, 0.5);
       om.x = baseR + 10;
@@ -266,7 +268,7 @@ export class GalaxyScene {
 
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
-    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < 900 };
+    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < (baseR + 10) * (baseR + 10) };
 
     let cc = 0;
     let ct: ReturnType<typeof setTimeout> | null = null;
@@ -333,6 +335,7 @@ export class GalaxyScene {
         nameLabel = new Text({
           text: sys.name,
           style: { fontSize: 9, fill: 0x8899aa, fontFamily: 'monospace' },
+          resolution: 3,
         });
         nameLabel.anchor.set(0.5, 0);
         nameLabel.y = labelY;
@@ -348,6 +351,7 @@ export class GalaxyScene {
         nameLabel = new Text({
           text: sys.name,
           style: { fontSize: 8, fill: 0x556677, fontFamily: 'monospace' },
+          resolution: 3,
         });
         nameLabel.anchor.set(0.5, 0);
         nameLabel.y = labelY + 4;
@@ -356,6 +360,7 @@ export class GalaxyScene {
         progressLabel = new Text({
           text: `${progress}%`,
           style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
+          resolution: 3,
         });
         progressLabel.anchor.set(0.5, 0);
         progressLabel.y = labelY + 16;
@@ -364,22 +369,14 @@ export class GalaxyScene {
       }
 
       default: {
-        // Unexplored - question mark, no name
-        const qm = new Text({
-          text: '?',
-          style: { fontSize: 10, fill: 0x445566, fontFamily: 'monospace', fontWeight: 'bold' },
-        });
-        qm.anchor.set(0.5, 0.5);
-        qm.y = effectiveR + 8;
-        dot.addChild(qm);
-
-        // Hidden name label (for state tracking)
+        // Unexplored - no label, just the dim star
         nameLabel = new Text({
           text: '',
           style: { fontSize: 7, fill: 0x334455, fontFamily: 'monospace' },
+          resolution: 2,
         });
         nameLabel.anchor.set(0.5, 0);
-        nameLabel.y = effectiveR + 16;
+        nameLabel.y = effectiveR + 6;
         nameLabel.visible = false;
         dot.addChild(nameLabel);
         break;
@@ -392,6 +389,7 @@ export class GalaxyScene {
       const om = new Text({
         text: '[O]',
         style: { fontSize: 7, fill: 0x4488aa, fontFamily: 'monospace' },
+        resolution: 3,
       });
       om.anchor.set(0.5, 0.5);
       om.x = effectiveR + 10;
@@ -402,7 +400,8 @@ export class GalaxyScene {
     // Interactivity
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
-    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < 600 };
+    const hitR = effectiveR + 8;
+    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < hitR * hitR };
 
     let cc = 0;
     let ct: ReturnType<typeof setTimeout> | null = null;
