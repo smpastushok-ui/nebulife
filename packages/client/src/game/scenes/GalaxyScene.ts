@@ -117,6 +117,19 @@ export class GalaxyScene {
   private focusedSystemId: string | null = null;
   private preFocusAlphas = new Map<string, number>();
 
+  /** Transition animation state */
+  private transitionActive = false;
+  private transitionProgress = 0;
+  private transitionTargetId: string | null = null;
+  private transitionTargetX = 0;
+  private transitionTargetY = 0;
+  private transitionOnComplete: (() => void) | null = null;
+  /** Scatter velocities for twinkle stars during transition */
+  private twinkleScatterVx: number[] = [];
+  private twinkleScatterVy: number[] = [];
+  /** Fade overlay drawn on top during transition */
+  private fadeOverlay: Graphics | null = null;
+
   constructor(
     rings: GalaxyRing[],
     galaxySeed: number,
@@ -130,10 +143,8 @@ export class GalaxyScene {
     this.container = new Container();
     this.researchState = researchState;
 
-    /* Galaxy backdrop (visual only) */
-    const gcx = -playerCenterX * 8;
-    const gcy = -playerCenterY * 8;
-    const bd = createGalaxyBackdrop({ seed: galaxySeed, centerX: gcx, centerY: gcy });
+    /* Galaxy backdrop (visual only) — centered on HOME (0,0) so black hole is behind HOME star */
+    const bd = createGalaxyBackdrop({ seed: galaxySeed, centerX: 0, centerY: 0 });
     this.container.addChild(bd.container);
     this.accretionDisk = bd.accretionDisk;
     this.backdropContainer = bd.backdropContainer;
@@ -230,7 +241,10 @@ export class GalaxyScene {
     // HOME badge — centered inside the star
     const hl = new Text({
       text: 'HOME',
-      style: { fontSize: 6, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 1 },
+      style: {
+        fontSize: 6, fill: 0x1a5c3a, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 1,
+        dropShadow: { alpha: 0.6, blur: 4, color: 0x44ff88, distance: 0 },
+      },
       resolution: 3,
     });
     hl.anchor.set(0.5, 0.5);
@@ -453,6 +467,53 @@ export class GalaxyScene {
     return this.focusedSystemId !== null;
   }
 
+  get isTransitioning(): boolean {
+    return this.transitionActive;
+  }
+
+  /**
+   * Start the star-fold transition: all stars converge into the target,
+   * galaxy backdrop spins up, twinkle stars scatter outward.
+   * Duration: 2 seconds. Calls onComplete when done.
+   */
+  startTransition(targetSystemId: string, onComplete: () => void) {
+    if (this.transitionActive) return;
+
+    // Find target position
+    const targetNode = this.systemNodes.get(targetSystemId);
+    const isHome = this.homeNode?.system.id === targetSystemId;
+    if (!targetNode && !isHome) return;
+
+    this.transitionActive = true;
+    this.transitionProgress = 0;
+    this.transitionTargetId = targetSystemId;
+    this.transitionTargetX = isHome ? 0 : targetNode!.tx;
+    this.transitionTargetY = isHome ? 0 : targetNode!.ty;
+    this.transitionOnComplete = onComplete;
+
+    // Disable interactivity during transition
+    if (this.homeNode) this.homeNode.container.eventMode = 'none';
+    for (const [, n] of this.systemNodes) n.container.eventMode = 'none';
+
+    // Hide UI elements
+    this.connectionLines.visible = false;
+    this.beamGfx.visible = false;
+
+    // Assign random scatter velocities to twinkle stars (outward from center)
+    this.twinkleScatterVx = [];
+    this.twinkleScatterVy = [];
+    for (const star of this.twinkleStars) {
+      const angle = Math.atan2(star.gfx.y, star.gfx.x) + (Math.random() - 0.5) * 1.2;
+      const speed = 200 + Math.random() * 600;
+      this.twinkleScatterVx.push(Math.cos(angle) * speed);
+      this.twinkleScatterVy.push(Math.sin(angle) * speed);
+    }
+
+    // Create fade overlay
+    this.fadeOverlay = new Graphics();
+    this.container.addChild(this.fadeOverlay);
+  }
+
   updateSystemVisual(systemId: string, researchState: ResearchState) {
     this.researchState = researchState;
     const node = this.systemNodes.get(systemId);
@@ -491,28 +552,20 @@ export class GalaxyScene {
     const dt = deltaMs / 1000;
     const t = this.time;
 
+    // ── Transition animation ──────────────────────────────────
+    if (this.transitionActive) {
+      this.updateTransition(deltaMs, dt, t);
+      return;
+    }
+
+    // ── Normal animation ──────────────────────────────────────
+
     // Backdrop animations
     if (this.accretionDisk) this.accretionDisk.rotation += deltaMs * 0.0003;
     if (this.backdropContainer) this.backdropContainer.rotation += deltaMs * 0.000012;
 
     // Chaotic backdrop twinkle stars
-    for (const star of this.twinkleStars) {
-      const sp = star.speed;
-      const ph = star.phaseOffset;
-      const cp = star.colorPhase;
-
-      const s1 = Math.sin(t * sp * 0.0008 + ph) * 0.35;
-      const s2 = Math.sin(t * sp * 0.0013 + ph * 2.1) * 0.15;
-      const scale = star.baseScale + s1 + s2;
-      star.gfx.scale.set(scale, scale);
-
-      const a1 = Math.sin(t * sp * 0.0006 + ph * 1.4) * 0.15;
-      const a2 = Math.sin(t * sp * 0.0019 + ph * 0.7) * 0.08;
-      star.gfx.alpha = Math.max(0.02, star.baseAlpha + a1 + a2);
-
-      const hue = (Math.sin(t * sp * 0.00025 + cp) * 0.5 + 0.5);
-      star.gfx.tint = hslToRgb(hue, 0.35, 0.82);
-    }
+    this.updateTwinkleStars(t);
 
     // Animate HOME star
     if (this.homeNode) {
@@ -523,7 +576,6 @@ export class GalaxyScene {
 
     // Animate all system nodes
     for (const [, node] of this.systemNodes) {
-      // Smooth alpha transition
       node.container.alpha += (node.baseAlpha - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
       this.animateStarBurn(node, t);
     }
@@ -532,13 +584,10 @@ export class GalaxyScene {
     this.connectionLines.clear();
     for (const [, node] of this.systemNodes) {
       if (node.ringIndex === 1) {
-        // Line from HOME to Ring 1
         this.connectionLines.moveTo(0, 0);
         this.connectionLines.lineTo(node.tx, node.ty);
         this.connectionLines.stroke({ width: 0.8, color: 0x2a3a4a, alpha: 0.3 });
       } else if (node.ringIndex === 2) {
-        // Line from nearest Ring 1 to this Ring 2 node
-        // Find closest Ring 1 node
         let closest: SystemNode | null = null;
         let minDist = Infinity;
         for (const [, r1] of this.systemNodes) {
@@ -568,6 +617,125 @@ export class GalaxyScene {
         this.beamGfx.moveTo(0, 0);
         this.beamGfx.lineTo(node.tx, node.ty);
         this.beamGfx.stroke({ width: 4, color: 0x4488aa, alpha: this.beamAlpha * 0.15 });
+      }
+    }
+  }
+
+  /** Normal twinkle star animation */
+  private updateTwinkleStars(t: number) {
+    for (const star of this.twinkleStars) {
+      const sp = star.speed;
+      const ph = star.phaseOffset;
+      const cp = star.colorPhase;
+
+      const s1 = Math.sin(t * sp * 0.0008 + ph) * 0.35;
+      const s2 = Math.sin(t * sp * 0.0013 + ph * 2.1) * 0.15;
+      const scale = star.baseScale + s1 + s2;
+      star.gfx.scale.set(scale, scale);
+
+      const a1 = Math.sin(t * sp * 0.0006 + ph * 1.4) * 0.15;
+      const a2 = Math.sin(t * sp * 0.0019 + ph * 0.7) * 0.08;
+      star.gfx.alpha = Math.max(0.02, star.baseAlpha + a1 + a2);
+
+      const hue = (Math.sin(t * sp * 0.00025 + cp) * 0.5 + 0.5);
+      star.gfx.tint = hslToRgb(hue, 0.35, 0.82);
+    }
+  }
+
+  /** Transition animation: fold stars into target, spin galaxy, scatter twinkle stars */
+  private updateTransition(deltaMs: number, dt: number, t: number) {
+    const TRANSITION_DURATION = 2000; // 2 seconds
+    this.transitionProgress = Math.min(1, this.transitionProgress + deltaMs / TRANSITION_DURATION);
+    const p = this.transitionProgress;
+
+    // Easing: ease-in-out cubic
+    const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+    const tx = this.transitionTargetX;
+    const ty = this.transitionTargetY;
+
+    // ── Galaxy backdrop: spin up dramatically ──
+    const spinSpeed = 0.000012 + ease * 0.008; // ramps from normal to very fast
+    if (this.backdropContainer) this.backdropContainer.rotation += deltaMs * spinSpeed;
+    if (this.accretionDisk) this.accretionDisk.rotation += deltaMs * (0.0003 + ease * 0.005);
+
+    // ── Twinkle stars: scatter outward chaotically ──
+    for (let i = 0; i < this.twinkleStars.length; i++) {
+      const star = this.twinkleStars[i];
+      const vx = this.twinkleScatterVx[i] ?? 0;
+      const vy = this.twinkleScatterVy[i] ?? 0;
+      // Accelerate outward with easing
+      star.gfx.x += vx * dt * ease * 2;
+      star.gfx.y += vy * dt * ease * 2;
+      // Fade out
+      star.gfx.alpha = Math.max(0, star.baseAlpha * (1 - ease));
+    }
+
+    // ── System stars: fold toward target ──
+    const foldStar = (node: SystemNode, isTarget: boolean) => {
+      if (isTarget) {
+        // Target grows brighter and slightly larger
+        node.container.alpha = Math.min(1, node.baseAlpha + ease * 0.5);
+        node.container.scale.set(1 + ease * 0.6);
+        // Hide labels
+        node.nameLabel.visible = false;
+        if (node.progressLabel) node.progressLabel.visible = false;
+      } else {
+        // Move toward target position
+        const startX = node.tx;
+        const startY = node.ty;
+        node.container.x = startX + (tx - startX) * ease;
+        node.container.y = startY + (ty - startY) * ease;
+        // Scale down as approaching
+        const scale = Math.max(0.05, 1 - ease * 0.9);
+        node.container.scale.set(scale);
+        // Brighten slightly during convergence, then fade
+        node.container.alpha = node.baseAlpha * (p < 0.7 ? 1 + ease * 0.5 : Math.max(0, (1 - p) / 0.3));
+        // Hide labels
+        node.nameLabel.visible = false;
+        if (node.progressLabel) node.progressLabel.visible = false;
+      }
+      this.animateStarBurn(node, t);
+    };
+
+    // HOME node
+    if (this.homeNode) {
+      const isTarget = this.homeNode.system.id === this.transitionTargetId;
+      if (!isTarget) {
+        // HOME also folds toward target (starts at 0,0)
+        this.homeNode.container.x = tx * ease;
+        this.homeNode.container.y = ty * ease;
+        const scale = Math.max(0.05, 1 - ease * 0.9);
+        this.homeNode.container.scale.set(scale);
+        this.homeNode.container.alpha = this.homeNode.baseAlpha * (p < 0.7 ? 1 : Math.max(0, (1 - p) / 0.3));
+        this.homeNode.nameLabel.visible = false;
+      } else {
+        this.homeNode.container.alpha = Math.min(1, this.homeNode.baseAlpha + ease * 0.5);
+        this.homeNode.container.scale.set(1 + ease * 0.6);
+        this.homeNode.nameLabel.visible = false;
+      }
+      this.animateStarBurn(this.homeNode, t);
+    }
+
+    // All system nodes
+    for (const [id, node] of this.systemNodes) {
+      foldStar(node, id === this.transitionTargetId);
+    }
+
+    // ── Fade to black in last 30% ──
+    if (this.fadeOverlay && p > 0.7) {
+      const fadeP = (p - 0.7) / 0.3; // 0→1
+      this.fadeOverlay.clear();
+      this.fadeOverlay.rect(-2000, -2000, 4000, 4000);
+      this.fadeOverlay.fill({ color: 0x020510, alpha: fadeP });
+    }
+
+    // ── Complete ──
+    if (p >= 1) {
+      this.transitionActive = false;
+      if (this.transitionOnComplete) {
+        this.transitionOnComplete();
+        this.transitionOnComplete = null;
       }
     }
   }

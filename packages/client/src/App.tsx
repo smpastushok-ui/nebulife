@@ -19,7 +19,6 @@ import HolographicTransition from './ui/components/HolographicTransition.js';
 import { SurfaceView } from './ui/components/SurfaceView.js';
 import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfaceView.js';
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
-import { WarpOverlay } from './ui/components/WarpOverlay.js';
 import { ScanLineOverlay } from './ui/components/ScanLineOverlay.js';
 import { SystemNavHeader } from './ui/components/SystemNavHeader.js';
 import { PlanetNavHeader } from './ui/components/PlanetNavHeader.js';
@@ -223,8 +222,6 @@ export function App() {
   const [planetView3DProgress, setPlanetView3DProgress] = useState(0);
   const [planetView3DGenPhase, setPlanetView3DGenPhase] = useState<'generating_photo' | 'generating_3d'>('generating_photo');
 
-  // ── Warp animation state ──────────────────────────────────────────────
-  const [warpTarget, setWarpTarget] = useState<StarSystem | null>(null);
 
   // ── System objects panel state ────────────────────────────────────────
   const [showObjectsPanel, setShowObjectsPanel] = useState(false);
@@ -462,9 +459,6 @@ export function App() {
         // Reset system menu state on scene change
         setShowSystemMenu(false);
         setSystemMenuPos(null);
-      },
-      onWarpToSystem: (system) => {
-        setWarpTarget(system);
       },
       onTelescopeClick: (system) => {
         telescopePhotoRef.current(system);
@@ -1662,22 +1656,6 @@ export function App() {
           onBuildingCountChange={setSurfaceBuildingCount}
           onPhaseChange={setSurfacePhase}
           onBuildPanelChange={setSurfaceBuildPanelOpen}
-        />
-      )}
-      {/* Warp Animation Overlay */}
-      {warpTarget && (
-        <WarpOverlay
-          systemName={warpTarget.name}
-          onPrepareScene={() => {
-            // Switch to system scene while overlay is still visible (before fade)
-            if (engineRef.current && warpTarget) {
-              engineRef.current.enterSystem(warpTarget);
-            }
-          }}
-          onComplete={() => {
-            // Unmount overlay after fade completes — system already rendered underneath
-            setWarpTarget(null);
-          }}
         />
       )}
       {/* Quark Top-Up Modal */}

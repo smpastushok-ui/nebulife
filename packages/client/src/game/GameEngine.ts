@@ -18,8 +18,6 @@ export interface GameCallbacks {
   onSystemSelect: (system: StarSystem, screenPos?: { x: number; y: number }) => void;
   onPlanetSelect: (planet: Planet, screenPos: { x: number; y: number }) => void;
   onSceneChange: (scene: 'galaxy' | 'system' | 'home-intro' | 'planet-view') => void;
-  /** Called when player wants to enter a system (double-click). App shows warp overlay then calls enterSystem(). */
-  onWarpToSystem?: (system: StarSystem) => void;
   /** Called when telescope icon is clicked on galaxy map. */
   onTelescopeClick?: (system: StarSystem) => void;
 }
@@ -156,14 +154,10 @@ export class GameEngine {
           || isSystemFullyResearched(this.researchState, system.id);
         if (canEnter) {
           this.callbacks.onSystemSelect(system);
-          if (this.callbacks.onWarpToSystem) {
-            // Use warp animation — App will call enterSystem() after animation
-            this.callbacks.onWarpToSystem(system);
-          } else {
-            // Fallback: instant transition
+          // Start star-fold transition in GalaxyScene, then switch to system
+          this.galaxyScene?.startTransition(system.id, () => {
             this.showSystemScene(system);
-            this.callbacks.onSceneChange('system');
-          }
+          });
         } else {
           // Just select it (will show research panel)
           this.callbacks.onSystemSelect(system);
