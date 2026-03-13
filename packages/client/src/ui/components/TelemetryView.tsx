@@ -1010,7 +1010,7 @@ export function TelemetryView({
       style={{
         position: 'absolute',
         inset: 0,
-        zIndex: 250,
+        zIndex: 350,
         background: '#000',
         display: 'flex',
         flexDirection: 'column',

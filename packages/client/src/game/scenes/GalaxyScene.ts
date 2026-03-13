@@ -73,6 +73,7 @@ interface SystemNode {
   nameLabel: Text;
   progressLabel: Text | null;
   progressRing: Graphics | null;
+  scanArc: Graphics | null;
   glowOuter: Graphics;
   glowMid: Graphics;
   corona: Graphics;
@@ -295,7 +296,7 @@ export class GalaxyScene {
 
     this.homeNode = {
       container: dot, system: sys, nameLabel: nl,
-      progressLabel: null, progressRing: null,
+      progressLabel: null, progressRing: null, scanArc: null,
       glowOuter, glowMid, corona, core,
       phaseOffset: phase, speed: 0.8 + (phase / (Math.PI * 2)) * 0.7,
       baseRadius: baseR, baseAlpha: 1,
@@ -331,6 +332,13 @@ export class GalaxyScene {
       progressRing = new Graphics();
       this.drawProgressPie(progressRing, effectiveR + 4, progress / 100);
       dot.addChild(progressRing);
+    }
+
+    // Scanning arc (spinning blue arc for actively researching systems)
+    let scanArc: Graphics | null = null;
+    if (state === 'researching') {
+      scanArc = new Graphics();
+      dot.addChild(scanArc);
     }
 
     // Name label — hidden by default, shown on hover/tap
@@ -405,7 +413,7 @@ export class GalaxyScene {
 
     return {
       container: dot, system: sys, nameLabel,
-      progressLabel: null, progressRing,
+      progressLabel: null, progressRing, scanArc,
       glowOuter, glowMid, corona, core,
       phaseOffset: phase, speed, baseRadius: effectiveR,
       baseAlpha, tx, ty, ringIndex,
@@ -573,12 +581,18 @@ export class GalaxyScene {
           node.progressRing.visible = false;
         }
       }
+      // Create scan arc if missing
+      if (!node.scanArc) {
+        node.scanArc = new Graphics();
+        node.container.addChild(node.scanArc);
+      }
     }
 
     if (state === 'researched') {
       node.baseAlpha = 1;
-      // Hide progress ring, set name ready for hover
+      // Hide progress ring and scan arc, set name ready for hover
       if (node.progressRing) node.progressRing.visible = false;
+      if (node.scanArc) { node.scanArc.visible = false; }
       node.nameLabel.text = node.system.name;
       node.nameLabel.style.fill = 0x8899aa;
       // Name stays hidden until hover
@@ -618,6 +632,28 @@ export class GalaxyScene {
     for (const [, node] of this.systemNodes) {
       node.container.alpha += (node.baseAlpha - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
       this.animateStarBurn(node, t);
+
+      // Animate scan arc (blue spinning ring during active research)
+      if (node.scanArc) {
+        const isActive = this.researchState.slots.some((s) => s.systemId === node.system.id);
+        node.scanArc.visible = isActive;
+        if (isActive) {
+          node.scanArc.clear();
+          const r = node.baseRadius + 6;
+          const angle = (t * 0.003) % (Math.PI * 2);
+          const arcLen = Math.PI * 0.6; // ~108 degree arc
+          const segments = 16;
+          // Draw the arc
+          for (let i = 0; i < segments; i++) {
+            const a0 = angle + (arcLen * i) / segments;
+            const a1 = angle + (arcLen * (i + 1)) / segments;
+            const alpha = 0.7 * (1 - i / segments); // Fade tail
+            node.scanArc.moveTo(Math.cos(a0) * r, Math.sin(a0) * r);
+            node.scanArc.lineTo(Math.cos(a1) * r, Math.sin(a1) * r);
+            node.scanArc.stroke({ width: 1.5, color: 0x4488ff, alpha });
+          }
+        }
+      }
     }
 
     // Connection lines: HOME -> Ring 1 -> Ring 2

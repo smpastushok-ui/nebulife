@@ -91,7 +91,7 @@ export interface Discovery {
  * Early game (first 7 sessions, < 2 discoveries): 25% base — ensures
  * the player gets 2 discoveries quickly for engagement.
  *
- * Standard (after that): 5% base — rare, exciting events.
+ * Standard (after that): 3% base — rare, exciting events.
  *
  * Ring penalty: chance halved per ring from ring 2+.
  */
@@ -102,7 +102,7 @@ export function getDiscoveryChance(
 ): number {
   // Early game: boosted chance so player gets 2 discoveries within first 7 sessions
   const isEarlyGame = totalCompletedSessions <= 7 && totalDiscoveries < 2;
-  const base = isEarlyGame ? 1 / 4 : 1 / 20; // 25% early, 5% standard
+  const base = isEarlyGame ? 1 / 4 : 3 / 100; // 25% early, 3% standard
   const ringPenalty = Math.max(0, ringIndex - 1);
   return base / Math.pow(2, ringPenalty);
 }

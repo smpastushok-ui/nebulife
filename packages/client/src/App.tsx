@@ -58,7 +58,7 @@ import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
 import { CutscenePlaceholder } from './ui/components/CutscenePlaceholder.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
-import { getPlayer, createPlayer, getDiscoveries } from './api/player-api.js';
+import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { onAuthChange } from './auth/auth-service.js';
 import { authFetch } from './auth/api-client.js';
@@ -307,6 +307,7 @@ export function App() {
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
+  const [highlightedGalleryType, setHighlightedGalleryType] = useState<string | null>(null);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
@@ -337,6 +338,9 @@ export function App() {
   // ── System objects panel state ────────────────────────────────────────
   const [showObjectsPanel, setShowObjectsPanel] = useState(false);
   const [objectsPanelSystem, setObjectsPanelSystem] = useState<StarSystem | null>(null);
+
+  // ── System-scene research panel ────────────────────────────────────
+  const [showSystemResearch, setShowSystemResearch] = useState(false);
 
   // ── Planet detail window state ────────────────────────────────────────
   const [planetDetailTarget, setPlanetDetailTarget] = useState<{
@@ -516,6 +520,13 @@ export function App() {
                 // Show discovery choice panel if one was rolled
                 if (result.discovery) {
                   setPendingDiscovery({ discovery: result.discovery, system });
+                  // Log the discovery event
+                  const discEntry = getCatalogEntry(result.discovery.type) as CatalogEntry | undefined;
+                  const discName = discEntry?.nameUk ?? result.discovery.type;
+                  addLogEntry('science',
+                    `Обсерваторiя зафiксувала сигнал: ${discName} в системi ${system.name}. Очiкує рiшення оператора.`,
+                    { systemId: system.id },
+                  );
                 }
 
                 // Show modal if just completed
@@ -1007,6 +1018,39 @@ export function App() {
     const objectType = activeDiscovery.type;
     const existing = galleryMap.get(objectType);
 
+    // Helper: persist to server and update local map
+    const persistDiscovery = (disc: Discovery, imgUrl: string) => {
+      const entry: DiscoveryData = {
+        id: disc.id,
+        player_id: playerId.current,
+        object_type: disc.type,
+        rarity: disc.rarity,
+        gallery_category: disc.galleryCategory,
+        system_id: disc.systemId,
+        planet_id: disc.planetId ?? null,
+        photo_url: imgUrl,
+        prompt_used: null,
+        scientific_report: null,
+        discovered_at: new Date().toISOString(),
+      };
+      setGalleryMap((prev) => {
+        const next = new Map(prev);
+        next.set(objectType, entry);
+        return next;
+      });
+      // Persist to server (fire & forget)
+      saveDiscoveryToServer({
+        id: disc.id,
+        playerId: playerId.current,
+        objectType: disc.type,
+        rarity: disc.rarity,
+        galleryCategory: disc.galleryCategory,
+        systemId: disc.systemId,
+        planetId: disc.planetId ?? null,
+        photoUrl: imgUrl,
+      }).catch((err) => console.error('[Gallery] Save failed:', err));
+    };
+
     if (existing && existing.photo_url) {
       // Cell is occupied — show comparison modal
       setGalleryCompare({
@@ -1015,25 +1059,15 @@ export function App() {
         existingData: existing,
       });
     } else {
-      // Cell is free — save directly & update local map
-      console.log(`[Gallery] Saved discovery ${discoveryId} with image ${imageUrl}`);
-      setGalleryMap((prev) => {
-        const next = new Map(prev);
-        next.set(objectType, {
-          id: discoveryId,
-          player_id: playerId.current,
-          object_type: objectType,
-          rarity: activeDiscovery.rarity,
-          gallery_category: activeDiscovery.galleryCategory,
-          system_id: activeDiscovery.systemId,
-          planet_id: activeDiscovery.planetId ?? null,
-          photo_url: imageUrl,
-          prompt_used: null,
-          scientific_report: null,
-          discovered_at: new Date().toISOString(),
-        });
-        return next;
-      });
+      // Cell is free — save directly
+      persistDiscovery(activeDiscovery, imageUrl);
+      // Close telemetry/observatory and show archive with highlight
+      setTelemetryTarget(null);
+      setObservatoryTarget(null);
+      setHighlightedGalleryType(objectType);
+      setShowCosmicArchive(true);
+      // Clear highlight after animation
+      setTimeout(() => setHighlightedGalleryType(null), 3000);
     }
   }, [observatoryTarget, telemetryTarget, galleryMap]);
 
@@ -1041,7 +1075,6 @@ export function App() {
   const handleGalleryReplace = useCallback(() => {
     if (!galleryCompare) return;
     const { newDiscovery, newImageUrl } = galleryCompare;
-    console.log(`[Gallery] Replaced ${newDiscovery.type} with new image ${newImageUrl}`);
     setGalleryMap((prev) => {
       const next = new Map(prev);
       next.set(newDiscovery.type, {
@@ -1059,6 +1092,17 @@ export function App() {
       });
       return next;
     });
+    // Persist replacement to server
+    saveDiscoveryToServer({
+      id: newDiscovery.id,
+      playerId: playerId.current,
+      objectType: newDiscovery.type,
+      rarity: newDiscovery.rarity,
+      galleryCategory: newDiscovery.galleryCategory,
+      systemId: newDiscovery.systemId,
+      planetId: newDiscovery.planetId ?? null,
+      photoUrl: newImageUrl,
+    }).catch((err) => console.error('[Gallery] Replace save failed:', err));
     setGalleryCompare(null);
   }, [galleryCompare]);
 
@@ -1672,16 +1716,16 @@ export function App() {
         type: 'buttons',
         items: [{
           id: 'observatories',
-          label: '',
+          label: `${activeSlots}/${HOME_OBSERVATORY_COUNT}`,
           icon: React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
-            React.createElement('line', { x1: '2', y1: '11', x2: '10', y2: '5' }),
-            React.createElement('circle', { cx: '12', cy: '3.5', r: '2.5' }),
-            React.createElement('line', { x1: '2', y1: '11', x2: '0.5', y2: '15' }),
-            React.createElement('line', { x1: '2', y1: '11', x2: '4', y2: '15' }),
+            React.createElement('circle', { cx: '8', cy: '5', r: '4' }),
+            React.createElement('line', { x1: '4', y1: '9', x2: '12', y2: '9' }),
+            React.createElement('line', { x1: '3', y1: '9', x2: '3', y2: '14' }),
+            React.createElement('line', { x1: '13', y1: '9', x2: '13', y2: '14' }),
+            React.createElement('line', { x1: '1', y1: '14', x2: '15', y2: '14' }),
           ),
           tooltip: 'Обсерваторії',
           onClick: () => {},
-          badge: `${activeSlots}/${HOME_OBSERVATORY_COUNT}`,
         }],
       });
       // Zoom moved to SceneControlsPanel (left side)
@@ -1689,24 +1733,69 @@ export function App() {
     }
 
     case 'system': {
+      const sysActiveSlots = researchState.slots.filter((s) => s.systemId !== null).length;
       if (state.selectedPlanet) {
         toolGroups.push({
           type: 'buttons',
           items: [
-            { id: 'view-planet', label: 'Екзосфера', onClick: handleViewPlanet },
-            { id: 'surface', label: 'Поверхня', onClick: handleOpenSurface },
+            {
+              id: 'view-planet',
+              label: 'Екзосфера',
+              icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
+                React.createElement('circle', { cx: '8', cy: '8', r: '5' }),
+                React.createElement('ellipse', { cx: '8', cy: '8', rx: '7', ry: '3' }),
+              ),
+              onClick: handleViewPlanet,
+            },
+            {
+              id: 'surface',
+              label: 'Поверхня',
+              icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
+                React.createElement('path', { d: 'M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z' }),
+                React.createElement('circle', { cx: '12', cy: '3', r: '2' }),
+              ),
+              onClick: handleOpenSurface,
+            },
             { id: 'info', label: 'Інфо', onClick: handleShowCharacteristics },
           ],
+        });
+      }
+      // Observatory research button (always visible on system scene)
+      if (state.selectedSystem && state.selectedSystem.ownerPlayerId === null) {
+        toolGroups.push({
+          type: 'buttons',
+          items: [{
+            id: 'system-research',
+            label: `${sysActiveSlots}/${HOME_OBSERVATORY_COUNT}`,
+            icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
+              React.createElement('circle', { cx: '8', cy: '5', r: '4' }),
+              React.createElement('line', { x1: '4', y1: '9', x2: '12', y2: '9' }),
+              React.createElement('line', { x1: '3', y1: '9', x2: '3', y2: '14' }),
+              React.createElement('line', { x1: '13', y1: '9', x2: '13', y2: '14' }),
+              React.createElement('line', { x1: '1', y1: '14', x2: '15', y2: '14' }),
+            ),
+            tooltip: 'Дослідити систему',
+            onClick: () => setShowSystemResearch((prev) => !prev),
+            active: showSystemResearch,
+          }],
         });
       }
       break;
     }
 
     case 'planet-view': {
-      // Surface button only (back + zoom moved to SceneControlsPanel)
+      // Surface button with SVG icon (back + zoom moved to SceneControlsPanel)
       toolGroups.push({
         type: 'buttons',
-        items: [{ id: 'surface', label: 'Поверхня', onClick: handleOpenSurface }],
+        items: [{
+          id: 'surface',
+          label: 'Поверхня',
+          icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
+            React.createElement('path', { d: 'M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z' }),
+            React.createElement('circle', { cx: '12', cy: '3', r: '2' }),
+          ),
+          onClick: handleOpenSurface,
+        }],
       });
       break;
     }
@@ -1941,6 +2030,18 @@ export function App() {
           researchData={researchData}
           onStartResearch={handleStartResearch}
           onClose={() => { setState((prev) => ({ ...prev, selectedSystem: null })); engineRef.current?.unfocusSystem(); }}
+        />
+      )}
+      {/* Research panel on system scene */}
+      {showSystemResearch && state.scene === 'system' && state.selectedSystem && (
+        <ResearchPanel
+          system={state.selectedSystem}
+          researchState={researchState}
+          allSystems={engineRef.current?.getAllSystems() ?? []}
+          activeSlotTimerText={activeSlotTimer}
+          researchData={researchData}
+          onStartResearch={handleStartResearch}
+          onClose={() => setShowSystemResearch(false)}
         />
       )}
       {showSystemInfoPanel && (
@@ -2222,6 +2323,7 @@ export function App() {
           allSystems={engineRef.current?.getAllSystems() ?? []}
           aliases={aliases}
           logEntries={logEntries}
+          highlightedType={highlightedGalleryType}
           getResearchProgress={(sysId: string) => {
             const sys = (engineRef.current?.getAllSystems() ?? []).find(s => s.id === sysId);
             if (sys?.ownerPlayerId !== null && sys?.ownerPlayerId !== undefined) return 100;

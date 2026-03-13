@@ -84,6 +84,8 @@ export interface CosmicArchiveProps {
   onViewPlanetDetail: (system: StarSystem, planetId: string) => void;
   onGoHome: () => void;
   onNavigateToGalaxy: () => void;
+  /** Highlight a newly-saved discovery in the gallery */
+  highlightedType?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -165,8 +167,10 @@ export function CosmicArchive({
   onViewPlanetDetail,
   onGoHome,
   onNavigateToGalaxy,
+  highlightedType,
 }: CosmicArchiveProps) {
-  const [mainTab, setMainTab] = useState<MainTab>('navigation');
+  // Auto-switch to collections/cosmos tab when highlighting a new save
+  const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
   const [subTabMap, setSubTabMap] = useState<Record<MainTab, SubTab>>({
     collections: 'cosmos',
     management: 'tech',
@@ -291,7 +295,7 @@ export function CosmicArchive({
 
   const renderContent = () => {
     if (mainTab === 'collections' && currentSubTab === 'cosmos') {
-      return <CosmosGallery playerId={playerId} />;
+      return <CosmosGallery playerId={playerId} highlightedType={highlightedType} />;
     }
     if (mainTab === 'navigation' && currentSubTab === 'planets') {
       return (

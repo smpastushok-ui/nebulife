@@ -53,15 +53,33 @@ const RARITY_ORDER: Record<string, number> = {
 
 interface CosmosGalleryProps {
   playerId: string;
+  highlightedType?: string | null;
 }
 
-export function CosmosGallery({ playerId }: CosmosGalleryProps) {
+export function CosmosGallery({ playerId, highlightedType }: CosmosGalleryProps) {
   const [discoveries, setDiscoveries] = useState<DiscoveryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [photoModal, setPhotoModal] = useState<{
     discovery: Discovery;
     url: string;
   } | null>(null);
+
+  // Inject highlight animation keyframes
+  useEffect(() => {
+    const styleId = 'gallery-highlight-anim';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        @keyframes gallery-highlight {
+          0% { transform: scale(0.8); opacity: 0.3; }
+          40% { transform: scale(1.08); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   // Fetch player discoveries
   useEffect(() => {
@@ -177,6 +195,7 @@ export function CosmosGallery({ playerId }: CosmosGalleryProps) {
                   key={entry.type}
                   entry={entry}
                   discovery={disc ?? null}
+                  highlighted={entry.type === highlightedType}
                   onClick={() => {
                     if (disc?.photo_url) {
                       const discovery: Discovery = {
@@ -224,10 +243,12 @@ export function CosmosGallery({ playerId }: CosmosGalleryProps) {
 function CatalogCell({
   entry,
   discovery,
+  highlighted,
   onClick,
 }: {
   entry: CatalogEntry;
   discovery: DiscoveryData | null;
+  highlighted?: boolean;
   onClick: () => void;
 }) {
   const [hover, setHover] = useState(false);
@@ -342,11 +363,13 @@ function CatalogCell({
       style={{
         height: 100,
         borderRadius: 3,
-        border: `1px solid ${hover ? color : `${color}55`}`,
+        border: `1px solid ${highlighted ? '#44ff88' : hover ? color : `${color}55`}`,
         overflow: 'hidden',
         cursor: 'pointer',
         position: 'relative',
-        transition: 'border-color 0.15s',
+        transition: 'border-color 0.15s, box-shadow 0.3s',
+        boxShadow: highlighted ? `0 0 12px ${color}66, 0 0 24px ${color}33` : 'none',
+        animation: highlighted ? 'gallery-highlight 1.5s ease-in-out' : 'none',
       }}
     >
       {/* Photo thumbnail */}

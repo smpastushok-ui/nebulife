@@ -110,6 +110,33 @@ export interface DiscoveryData {
 }
 
 /**
+ * Save a discovery (with optional photo) to the server.
+ */
+export async function saveDiscoveryToServer(data: {
+  id: string;
+  playerId: string;
+  objectType: string;
+  rarity: string;
+  galleryCategory: string;
+  systemId: string;
+  planetId?: string | null;
+  photoUrl?: string | null;
+}): Promise<DiscoveryData> {
+  const res = await authFetch(`${API_BASE}/discoveries`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `Save discovery failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
  * Get all discoveries for a player, optionally filtered by gallery category.
  */
 export async function getDiscoveries(

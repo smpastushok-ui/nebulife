@@ -21,11 +21,13 @@ function generateOrbitalSlots(rng: SeededRNG, count: number, starRadiusSolar: nu
     slots.push(Math.round(distance * 10000) / 10000);
   }
 
-  // Sort and ensure minimum separation
+  // Sort and ensure minimum separation (proportional to distance for realistic spacing)
   slots.sort((a, b) => a - b);
   for (let i = 1; i < slots.length; i++) {
-    if (slots[i] - slots[i - 1] < 0.05) {
-      slots[i] = slots[i - 1] + 0.05 + rng.nextFloat(0, 0.1);
+    // Minimum gap scales with distance: at least 15% of the inner orbit or 0.08 AU (whichever is larger)
+    const minGap = Math.max(0.08, slots[i - 1] * 0.15);
+    if (slots[i] - slots[i - 1] < minGap) {
+      slots[i] = slots[i - 1] + minGap + rng.nextFloat(0, minGap * 0.3);
     }
   }
 
