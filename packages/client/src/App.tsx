@@ -39,6 +39,7 @@ import {
   startResearch,
   completeResearchSession,
   findFreeSlot,
+  canStartResearch,
   isSystemFullyResearched,
   getResearchProgress,
   HOME_OBSERVATORY_COUNT,
@@ -2041,6 +2042,22 @@ export function App() {
           onGoHome={() => {
             setShowCosmicArchive(false);
             handleGoToHomePlanet();
+          }}
+          onStartResearch={handleStartResearch}
+          canStartResearch={(sysId: string) => {
+            const sys = (engineRef.current?.getAllSystems() ?? []).find(s => s.id === sysId);
+            if (!sys) return false;
+            return canStartResearch(researchState, sysId, sys.ringIndex);
+          }}
+          onRenameSystem={(sysId: string, newName: string) => {
+            setAlias({
+              playerId: playerId.current,
+              entityType: 'system',
+              entityId: sysId,
+              customName: newName,
+            }).then(() => {
+              setAliases((prev) => ({ ...prev, [sysId]: newName }));
+            }).catch((err) => console.error('Rename failed:', err));
           }}
           onNavigateToGalaxy={() => {
             setShowCosmicArchive(false);

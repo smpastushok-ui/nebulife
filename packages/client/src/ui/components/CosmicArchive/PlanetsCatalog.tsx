@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { StarSystem, Planet, Star } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -54,6 +54,56 @@ function getPlanetChipColor(planet: Planet, _star: Star): string {
 }
 
 // ---------------------------------------------------------------------------
+// Tooltip component
+// ---------------------------------------------------------------------------
+
+function HeaderIcon({
+  children,
+  tooltip,
+}: {
+  children: React.ReactNode;
+  tooltip: string;
+}) {
+  const [show, setShow] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  return (
+    <div
+      ref={ref}
+      style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            marginBottom: 6,
+            padding: '6px 10px',
+            background: 'rgba(10, 15, 25, 0.96)',
+            border: '1px solid #446688',
+            borderRadius: 4,
+            fontSize: 10,
+            color: '#aabbcc',
+            fontFamily: 'monospace',
+            whiteSpace: 'nowrap',
+            zIndex: 100,
+            pointerEvents: 'none',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          }}
+        >
+          {tooltip}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PlanetsCatalog
 // ---------------------------------------------------------------------------
 
@@ -64,6 +114,9 @@ interface PlanetsCatalogProps {
   favorites: Set<string>;
   onToggleFavorite: (planetId: string) => void;
   getResearchProgress?: (systemId: string) => number;
+  onStartResearch?: (systemId: string) => void;
+  canStartResearch?: (systemId: string) => boolean;
+  onRenameSystem?: (systemId: string, newName: string) => void;
 }
 
 export function PlanetsCatalog({
@@ -73,6 +126,9 @@ export function PlanetsCatalog({
   favorites,
   onToggleFavorite,
   getResearchProgress,
+  onStartResearch,
+  canStartResearch,
+  onRenameSystem,
 }: PlanetsCatalogProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pinned, setPinned] = useState<Set<string>>(() => {
@@ -84,6 +140,22 @@ export function PlanetsCatalog({
     }
   });
 
+  // Saved order of systems (by id)
+  const [systemOrder, setSystemOrder] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('nebulife_system_order');
+      return raw ? JSON.parse(raw) as string[] : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Drag state
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const dragStartY = useRef(0);
+  const touchDragId = useRef<string | null>(null);
+
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     planetId: string;
@@ -91,6 +163,11 @@ export function PlanetsCatalog({
     x: number;
     y: number;
   } | null>(null);
+
+  // Rename input state
+  const [renamingSystemId, setRenamingSystemId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   // Close context menu on click outside
   useEffect(() => {
@@ -103,28 +180,48 @@ export function PlanetsCatalog({
   // Save pinned state
   useEffect(() => {
     try {
-      localStorage.setItem(
-        'nebulife_pinned_systems',
-        JSON.stringify([...pinned]),
-      );
-    } catch {
-      /* ignore */
-    }
+      localStorage.setItem('nebulife_pinned_systems', JSON.stringify([...pinned]));
+    } catch { /* ignore */ }
   }, [pinned]);
 
-  // Filter: only systems with planets, home system first, then pinned, then rest
+  // Save system order
+  useEffect(() => {
+    try {
+      localStorage.setItem('nebulife_system_order', JSON.stringify(systemOrder));
+    } catch { /* ignore */ }
+  }, [systemOrder]);
+
+  // Focus rename input
+  useEffect(() => {
+    if (renamingSystemId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingSystemId]);
+
+  // Sort: home first, then by saved order, then pinned, then rest
   const sortedSystems = useMemo(() => {
     const withPlanets = allSystems.filter((s) => s.planets.length > 0);
+
     return withPlanets.sort((a, b) => {
       const aHome = a.planets.some((p) => p.isHomePlanet) ? -1 : 0;
       const bHome = b.planets.some((p) => p.isHomePlanet) ? -1 : 0;
       if (aHome !== bHome) return aHome - bHome;
+
+      // Custom order
+      const aIdx = systemOrder.indexOf(a.id);
+      const bIdx = systemOrder.indexOf(b.id);
+      if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx;
+      if (aIdx >= 0) return -1;
+      if (bIdx >= 0) return 1;
+
       const aPinned = pinned.has(a.id) ? -1 : 0;
       const bPinned = pinned.has(b.id) ? -1 : 0;
       if (aPinned !== bPinned) return aPinned - bPinned;
+
       return 0;
     });
-  }, [allSystems, pinned]);
+  }, [allSystems, pinned, systemOrder]);
 
   const toggleExpanded = (id: string) => {
     setExpanded((prev) => {
@@ -151,9 +248,119 @@ export function PlanetsCatalog({
       planetId,
       systemId: system.id,
       x: Math.min(e.clientX, window.innerWidth - 180),
-      y: Math.min(e.clientY, window.innerHeight - 120),
+      y: Math.min(e.clientY, window.innerHeight - 160),
     });
   }, []);
+
+  // ── Drag & drop handlers ──────────────────────────────────────────────
+
+  const handleDragStart = useCallback((systemId: string) => {
+    setDragId(systemId);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, systemId: string) => {
+    e.preventDefault();
+    if (dragId && dragId !== systemId) {
+      setDragOverId(systemId);
+    }
+  }, [dragId]);
+
+  const handleDrop = useCallback((targetId: string) => {
+    if (!dragId || dragId === targetId) {
+      setDragId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    // Reorder
+    const ids = sortedSystems.map((s) => s.id);
+    const fromIdx = ids.indexOf(dragId);
+    const toIdx = ids.indexOf(targetId);
+    if (fromIdx < 0 || toIdx < 0) {
+      setDragId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const newOrder = [...ids];
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, dragId);
+    setSystemOrder(newOrder);
+    setDragId(null);
+    setDragOverId(null);
+  }, [dragId, sortedSystems]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragId(null);
+    setDragOverId(null);
+  }, []);
+
+  // ── Touch drag handlers ───────────────────────────────────────────────
+
+  const handleTouchStart = useCallback((systemId: string, e: React.TouchEvent) => {
+    touchDragId.current = systemId;
+    dragStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchDragId.current) return;
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const row = el?.closest('[data-system-id]');
+    if (row) {
+      const targetId = row.getAttribute('data-system-id');
+      if (targetId && targetId !== touchDragId.current) {
+        setDragOverId(targetId);
+      }
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchDragId.current && dragOverId) {
+      const fromId = touchDragId.current;
+      const ids = sortedSystems.map((s) => s.id);
+      const fromIdx = ids.indexOf(fromId);
+      const toIdx = ids.indexOf(dragOverId);
+      if (fromIdx >= 0 && toIdx >= 0) {
+        const newOrder = [...ids];
+        newOrder.splice(fromIdx, 1);
+        newOrder.splice(toIdx, 0, fromId);
+        setSystemOrder(newOrder);
+      }
+    }
+    touchDragId.current = null;
+    setDragOverId(null);
+  }, [dragOverId, sortedSystems]);
+
+  // ── Rename handlers ───────────────────────────────────────────────────
+
+  const startRenaming = useCallback((systemId: string, currentName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRenamingSystemId(systemId);
+    setRenameValue(currentName);
+  }, []);
+
+  const commitRename = useCallback(() => {
+    if (renamingSystemId && renameValue.trim() && onRenameSystem) {
+      onRenameSystem(renamingSystemId, renameValue.trim());
+    }
+    setRenamingSystemId(null);
+    setRenameValue('');
+  }, [renamingSystemId, renameValue, onRenameSystem]);
+
+  const cancelRename = useCallback(() => {
+    setRenamingSystemId(null);
+    setRenameValue('');
+  }, []);
+
+  // ── Research click handler ────────────────────────────────────────────
+
+  const handleResearchClick = useCallback((systemId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onStartResearch && canStartResearch?.(systemId)) {
+      onStartResearch(systemId);
+    }
+  }, [onStartResearch, canStartResearch]);
 
   if (sortedSystems.length === 0) {
     return (
@@ -164,86 +371,217 @@ export function PlanetsCatalog({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* Column headers */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 44px 44px 44px 36px 28px',
+          gap: 0,
+          padding: '4px 12px 6px',
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(51, 68, 85, 0.2)',
+          marginBottom: 2,
+        }}
+      >
+        <div style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1 }}>
+          Назва
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <HeaderIcon tooltip="Спектральний клас зірки">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+              <circle cx="8" cy="8" r="4" />
+              <line x1="8" y1="0.5" x2="8" y2="3" />
+              <line x1="8" y1="13" x2="8" y2="15.5" />
+              <line x1="0.5" y1="8" x2="3" y2="8" />
+              <line x1="13" y1="8" x2="15.5" y2="8" />
+              <line x1="2.8" y1="2.8" x2="4.8" y2="4.8" />
+              <line x1="11.2" y1="11.2" x2="13.2" y2="13.2" />
+              <line x1="13.2" y1="2.8" x2="11.2" y2="4.8" />
+              <line x1="4.8" y1="11.2" x2="2.8" y2="13.2" />
+            </svg>
+          </HeaderIcon>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <HeaderIcon tooltip="Кількість планет у системі">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+              <circle cx="8" cy="8" r="5" />
+              <ellipse cx="8" cy="8" rx="7.5" ry="2.5" transform="rotate(-30 8 8)" />
+            </svg>
+          </HeaderIcon>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <HeaderIcon tooltip="Прогрес дослідження системи">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+              <circle cx="8" cy="8" r="6" />
+              <path d="M8 4v4l3 2" strokeLinecap="round" />
+            </svg>
+          </HeaderIcon>
+        </div>
+        {/* Pin column — no header */}
+        <div />
+        {/* Expand column — no header */}
+        <div />
+      </div>
+
+      {/* System rows */}
       {sortedSystems.map((system) => {
         const isOpen = expanded.has(system.id);
         const isPinned = pinned.has(system.id);
         const isHome = system.planets.some((p) => p.isHomePlanet);
         const name = aliases[system.id] || system.name;
-        const starColor =
-          SPECTRAL_COLORS[system.star.spectralClass?.[0] ?? 'G'] ?? '#fff4e8';
+        const starColor = SPECTRAL_COLORS[system.star.spectralClass?.[0] ?? 'G'] ?? '#fff4e8';
+        const progress = getResearchProgress?.(system.id) ?? 0;
+        const isComplete = progress >= 100;
+        const isRenaming = renamingSystemId === system.id;
+        const isDragOver = dragOverId === system.id;
 
         return (
-          <div key={system.id}>
+          <div
+            key={system.id}
+            data-system-id={system.id}
+          >
             {/* Star row */}
-            <button
-              onClick={() => toggleExpanded(system.id)}
+            <div
+              draggable
+              onDragStart={() => handleDragStart(system.id)}
+              onDragOver={(e) => handleDragOver(e, system.id)}
+              onDrop={() => handleDrop(system.id)}
+              onDragEnd={handleDragEnd}
+              onTouchStart={(e) => handleTouchStart(system.id, e)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onClick={() => !isRenaming && toggleExpanded(system.id)}
               style={{
                 width: '100%',
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: '1fr 44px 44px 44px 36px 28px',
+                gap: 0,
                 alignItems: 'center',
-                gap: 10,
                 padding: '10px 12px',
-                background: isOpen
-                  ? 'rgba(20, 30, 45, 0.6)'
-                  : 'rgba(10, 15, 25, 0.4)',
-                border: '1px solid rgba(51, 68, 85, 0.2)',
-                borderRadius: 3,
-                cursor: 'pointer',
+                background: isDragOver
+                  ? 'rgba(40, 60, 90, 0.5)'
+                  : isOpen
+                    ? 'rgba(20, 30, 45, 0.6)'
+                    : dragId === system.id
+                      ? 'rgba(30, 45, 65, 0.5)'
+                      : 'rgba(10, 15, 25, 0.4)',
+                border: isDragOver
+                  ? '1px solid rgba(68, 136, 170, 0.5)'
+                  : '1px solid rgba(51, 68, 85, 0.2)',
+                borderRadius: isOpen ? '3px 3px 0 0' : 3,
+                cursor: 'grab',
                 fontFamily: 'monospace',
                 fontSize: 12,
                 color: '#aabbcc',
                 textAlign: 'left',
-                transition: 'background 0.15s',
+                transition: 'background 0.15s, border-color 0.15s',
+                opacity: dragId === system.id ? 0.6 : 1,
+                marginTop: 2,
               }}
             >
-              {/* Star color dot */}
-              <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: starColor,
-                  boxShadow: `0 0 4px ${starColor}66`,
-                  flexShrink: 0,
-                }}
-              />
+              {/* Name cell */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden' }}>
+                {/* Star color dot */}
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: starColor,
+                    boxShadow: `0 0 4px ${starColor}66`,
+                    flexShrink: 0,
+                  }}
+                />
 
-              {/* Name */}
-              <span style={{ flex: 1, minWidth: 0 }}>
-                {name}
-                {isHome && (
-                  <span style={{ color: '#44ff88', fontSize: 9, marginLeft: 6 }}>
-                    HOME
+                {/* Name or rename input */}
+                {isRenaming ? (
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename();
+                      if (e.key === 'Escape') cancelRename();
+                    }}
+                    onBlur={commitRename}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      background: 'rgba(10, 15, 25, 0.8)',
+                      border: '1px solid #4488aa',
+                      borderRadius: 3,
+                      padding: '2px 6px',
+                      color: '#aabbcc',
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      outline: 'none',
+                    }}
+                  />
+                ) : (
+                  <span
+                    style={{
+                      flex: 1, minWidth: 0, overflow: 'hidden',
+                      textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}
+                    onDoubleClick={(e) => {
+                      if (onRenameSystem) startRenaming(system.id, name, e);
+                    }}
+                  >
+                    {name}
+                    {isHome && (
+                      <span style={{ color: '#44ff88', fontSize: 9, marginLeft: 6 }}>HOME</span>
+                    )}
                   </span>
                 )}
-              </span>
+              </div>
 
-              {/* Spectral class */}
-              <span style={{ color: '#556677', fontSize: 10, flexShrink: 0 }}>
+              {/* Spectral class cell */}
+              <div style={{
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                color: starColor, fontSize: 11, fontWeight: 'bold',
+              }}>
                 {system.star.spectralClass}
-              </span>
+              </div>
 
-              {/* Planet count */}
-              <span style={{ color: '#556677', fontSize: 10, flexShrink: 0 }}>
-                {system.planets.length} пл.
-              </span>
+              {/* Planet count cell */}
+              <div style={{
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                color: '#667788', fontSize: 11,
+              }}>
+                {system.planets.length}
+              </div>
 
-              {/* Research progress */}
-              {getResearchProgress && (
-                <ResearchProgressIcon progress={getResearchProgress(system.id)} />
-              )}
-
-              {/* Pin SVG icon */}
-              <span
-                onClick={(e) => togglePin(system.id, e)}
+              {/* Research progress cell */}
+              <div
                 style={{
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'opacity 0.15s',
+                  display: 'flex', justifyContent: 'center', alignItems: 'center',
+                  cursor: !isComplete && onStartResearch && canStartResearch?.(system.id) ? 'pointer' : 'default',
                 }}
+                onClick={(e) => {
+                  if (!isComplete) handleResearchClick(system.id, e);
+                }}
+                title={
+                  isComplete
+                    ? 'Дослiджено'
+                    : canStartResearch?.(system.id)
+                      ? `${Math.round(progress)}% — натисніть для дослідження`
+                      : `${Math.round(progress)}%`
+                }
+              >
+                {getResearchProgress && (
+                  <ResearchProgressIcon
+                    progress={progress}
+                    interactive={!isComplete && !!onStartResearch && (canStartResearch?.(system.id) ?? false)}
+                  />
+                )}
+              </div>
+
+              {/* Pin cell */}
+              <div
+                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                onClick={(e) => togglePin(system.id, e)}
                 title={isPinned ? 'Відкріпити' : 'Закріпити'}
               >
                 <svg
@@ -255,16 +593,20 @@ export function PlanetsCatalog({
                   strokeWidth="1.2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  style={{ cursor: 'pointer' }}
                 >
                   <path d="M5 1h6l1 5-2 1v4l-2 4-2-4V7L4 6l1-5z" />
                 </svg>
-              </span>
+              </div>
 
-              {/* Expand indicator */}
-              <span style={{ color: '#445566', fontSize: 10, flexShrink: 0 }}>
-                {isOpen ? '-' : '+'}
-              </span>
-            </button>
+              {/* Expand indicator cell */}
+              <div style={{
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                color: '#445566', fontSize: 10,
+              }}>
+                {isOpen ? '\u2212' : '+'}
+              </div>
+            </div>
 
             {/* Expanded planet row */}
             {isOpen && (
@@ -314,6 +656,15 @@ export function PlanetsCatalog({
             if (sys) onViewPlanet(sys, contextMenu.planetId);
             setContextMenu(null);
           }}
+          onRename={onRenameSystem ? () => {
+            const sys = allSystems.find((s) => s.id === contextMenu.systemId);
+            if (sys) {
+              const name = aliases[sys.id] || sys.name;
+              setRenamingSystemId(sys.id);
+              setRenameValue(name);
+            }
+            setContextMenu(null);
+          } : undefined}
         />
       )}
     </div>
@@ -332,6 +683,7 @@ function PlanetContextMenuPopup({
   isFavorite,
   onToggleFavorite,
   onView,
+  onRename,
 }: {
   planetId: string;
   systemId: string;
@@ -340,6 +692,7 @@ function PlanetContextMenuPopup({
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onView: () => void;
+  onRename?: () => void;
 }) {
   const menuItemStyle: React.CSSProperties = {
     display: 'block',
@@ -400,6 +753,22 @@ function PlanetContextMenuPopup({
       >
         Переглянути
       </button>
+      {onRename && (
+        <button
+          style={menuItemStyle}
+          onClick={onRename}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(30, 50, 70, 0.5)';
+            e.currentTarget.style.color = '#aaccee';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'none';
+            e.currentTarget.style.color = '#aabbcc';
+          }}
+        >
+          Перейменувати
+        </button>
+      )}
     </div>
   );
 }
@@ -513,39 +882,57 @@ function PlanetChip({
 // ResearchProgressIcon — circular progress indicator for system research
 // ---------------------------------------------------------------------------
 
-function ResearchProgressIcon({ progress }: { progress: number }) {
-  const r = 6;
+function ResearchProgressIcon({ progress, interactive }: { progress: number; interactive?: boolean }) {
+  const [hover, setHover] = useState(false);
+  const r = 7;
   const circumference = 2 * Math.PI * r;
   const filled = (progress / 100) * circumference;
   const isComplete = progress >= 100;
 
   return (
     <span
-      style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}
-      title={isComplete ? 'Дослiджено' : `Дослiджено: ${Math.round(progress)}%`}
+      style={{
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
     >
-      <svg width="16" height="16" viewBox="0 0 16 16">
+      <svg width="20" height="20" viewBox="0 0 18 18">
         {/* Background circle */}
-        <circle cx="8" cy="8" r={r} fill="none"
-          stroke="rgba(51, 68, 85, 0.3)" strokeWidth="1.5" />
+        <circle cx="9" cy="9" r={r} fill="none"
+          stroke={interactive && hover ? 'rgba(68, 136, 170, 0.5)' : 'rgba(51, 68, 85, 0.3)'}
+          strokeWidth="1.8"
+          style={{ transition: 'stroke 0.15s' }}
+        />
         {/* Progress arc */}
-        <circle cx="8" cy="8" r={r} fill="none"
-          stroke={isComplete ? '#44ff88' : '#4488aa'}
-          strokeWidth="1.5"
+        <circle cx="9" cy="9" r={r} fill="none"
+          stroke={isComplete ? '#44ff88' : interactive && hover ? '#66aacc' : '#4488aa'}
+          strokeWidth="1.8"
           strokeDasharray={`${filled} ${circumference - filled}`}
           strokeDashoffset={circumference * 0.25}
           strokeLinecap="round"
-          transform="rotate(-90 8 8)"
+          transform="rotate(-90 9 9)"
+          style={{ transition: 'stroke 0.15s' }}
         />
         {/* Check mark for 100% */}
         {isComplete && (
-          <path d="M5.5 8l2 2 3-4" fill="none" stroke="#44ff88"
+          <path d="M6 9l2 2 3-4" fill="none" stroke="#44ff88"
             strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         )}
+        {/* Center text (percentage) */}
+        {!isComplete && (
+          <text x="9" y="9" textAnchor="middle" dominantBaseline="central"
+            fill={interactive && hover ? '#aabbcc' : '#667788'}
+            fontSize="6" fontFamily="monospace"
+            style={{ transition: 'fill 0.15s' }}
+          >
+            {Math.round(progress)}
+          </text>
+        )}
       </svg>
-      {!isComplete && (
-        <span style={{ fontSize: 9, color: '#556677' }}>{Math.round(progress)}%</span>
-      )}
     </span>
   );
 }
