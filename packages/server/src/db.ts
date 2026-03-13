@@ -570,18 +570,28 @@ export async function createPlayerWithAuth(player: {
   homePlanetId: string;
 }): Promise<PlayerRow> {
   const sql = getSQL();
-  const rows = await sql`
-    INSERT INTO players (id, firebase_uid, auth_provider, email, name, home_system_id, home_planet_id, game_phase, last_login, quarks)
-    VALUES (${player.id}, ${player.firebaseUid}, ${player.authProvider}, ${player.email ?? null},
-            ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), 0)
-    ON CONFLICT (id) DO NOTHING
-    RETURNING *
-  `;
-  if (!rows[0]) {
+  console.log(`[db] createPlayerWithAuth: id=${player.id}, provider=${player.authProvider}`);
+  try {
+    const rows = await sql`
+      INSERT INTO players (id, firebase_uid, auth_provider, email, name, home_system_id, home_planet_id, game_phase, last_login, quarks)
+      VALUES (${player.id}, ${player.firebaseUid}, ${player.authProvider}, ${player.email ?? null},
+              ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), 0)
+      ON CONFLICT (id) DO UPDATE SET
+        last_login = NOW(),
+        firebase_uid = COALESCE(players.firebase_uid, EXCLUDED.firebase_uid),
+        auth_provider = EXCLUDED.auth_provider
+      RETURNING *
+    `;
+    console.log(`[db] createPlayerWithAuth: inserted/updated, rows=${rows.length}`);
+    if (rows[0]) return rows[0] as PlayerRow;
+    // Fallback: fetch existing
     const existing = await sql`SELECT * FROM players WHERE id = ${player.id}`;
+    console.log(`[db] createPlayerWithAuth: fallback fetch, rows=${existing.length}`);
     return existing[0] as PlayerRow;
+  } catch (err) {
+    console.error(`[db] createPlayerWithAuth FAILED:`, err instanceof Error ? err.message : err);
+    throw err;
   }
-  return rows[0] as PlayerRow;
 }
 
 /** Update a player's auth provider and email (after account linking). */

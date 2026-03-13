@@ -22,19 +22,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    console.log('[register] Starting registration...');
     const auth = await authenticateToken(req, res);
     if (!auth) return; // 401 already sent
+    console.log(`[register] Token verified: uid=${auth.uid}, provider=${auth.provider}`);
 
     const { legacyPlayerId } = req.body ?? {};
 
     // 1. Check if player already exists for this Firebase UID
     const existing = await getPlayerByFirebaseUid(auth.uid);
     if (existing) {
+      console.log(`[register] Found existing player: id=${existing.id}`);
       return res.status(200).json(existing);
     }
+    console.log('[register] No existing player found, creating new...');
 
     // 2. Migration: link Firebase UID to existing legacy player
     if (legacyPlayerId && typeof legacyPlayerId === 'string') {
+      console.log(`[register] Attempting legacy link: legacyId=${legacyPlayerId}`);
       const linked = await linkFirebaseToPlayer(
         legacyPlayerId,
         auth.uid,
@@ -42,9 +47,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         auth.email,
       );
       if (linked) {
+        console.log(`[register] Linked to legacy player: id=${linked.id}`);
         return res.status(200).json(linked);
       }
-      // If linkage failed (player not found or already linked), fall through to create new
+      console.log('[register] Legacy link failed, creating fresh player');
     }
 
     // 3. Create a new player with Firebase auth
@@ -52,6 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : auth.provider === 'password' ? 'email'
       : 'anonymous';
 
+    console.log(`[register] Creating player: uid=${auth.uid}, provider=${normalizedProvider}`);
     const player = await createPlayerWithAuth({
       id: auth.uid,
       firebaseUid: auth.uid,
@@ -62,9 +69,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       homePlanetId: 'home',
     });
 
+    console.log(`[register] Player created: id=${player?.id}, phase=${player?.game_phase}`);
     return res.status(201).json(player);
   } catch (err) {
-    console.error('Auth register error:', err);
-    return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
+    console.error('[register] FATAL ERROR:', err instanceof Error ? err.stack : err);
+    return res.status(500).json({
+      error: err instanceof Error ? err.message : 'Internal error',
+      details: err instanceof Error ? err.stack : undefined,
+    });
   }
 }
