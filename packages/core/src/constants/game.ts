@@ -1,7 +1,7 @@
 // ===== Game Balance Constants =====
 
 /** Time before asteroid impact (seconds) */
-export const ASTEROID_COUNTDOWN_SECONDS = 7 * 24 * 3600; // 7 days
+export const ASTEROID_COUNTDOWN_SECONDS = 3600; // 1 hour
 
 /** Number of star system rings added per player registration */
 export const RINGS_PER_REGISTRATION = 2;

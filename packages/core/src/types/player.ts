@@ -1,5 +1,5 @@
 export type GamePhase =
-  | 'exploring'        // First 7 days, exploring surroundings
+  | 'exploring'        // First 1 day, exploring surroundings
   | 'ship-launched'    // Doomsday ship sent
   | 'in-transit'       // Ship traveling
   | 'colonizing'       // Ship arrived, building colony
@@ -22,7 +22,7 @@ export interface Player {
   registeredAt: number;          // Unix timestamp
   homeStarSystemId: string;
   homePlanetId: string;
-  asteroidImpactAt: number;      // registeredAt + 7 days
+  asteroidImpactAt: number;      // registeredAt + 1 hour
   doomsdayShip: DoomsdayShip | null;
   exploredSystemIds: string[];
   selectedDestinationId: string | null;

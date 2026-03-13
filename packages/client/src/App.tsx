@@ -42,12 +42,22 @@ import {
   canStartResearch,
   isSystemFullyResearched,
   getResearchProgress,
+  hasResearchData,
+  findColonizablePlanet,
   HOME_OBSERVATORY_COUNT,
   RESEARCH_DURATION_MS,
+  INITIAL_RESEARCH_DATA,
+  RESEARCH_DATA_COST,
+  calculateImpactTime,
+  remainingTimeFormatted,
 } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
+import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
+import { CutscenePlaceholder } from './ui/components/CutscenePlaceholder.js';
+import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
+import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { onAuthChange } from './auth/auth-service.js';
@@ -173,6 +183,70 @@ export function App() {
     try { localStorage.setItem('nebulife_player_stats', JSON.stringify(playerStats)); }
     catch { /* ignore */ }
   }, [playerStats]);
+
+  // ── Research Data (scan currency) ──────────────────────────────────────
+  const [researchData, setResearchData] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_research_data');
+      if (saved !== null) return parseInt(saved, 10);
+    } catch { /* ignore */ }
+    return INITIAL_RESEARCH_DATA;
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_research_data', String(researchData)); }
+    catch { /* ignore */ }
+  }, [researchData]);
+
+  // ── Exodus phase flag ──────────────────────────────────────────────────
+  const [isExodusPhase, setIsExodusPhase] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_exodus_phase');
+      if (saved !== null) return saved === 'true';
+    } catch { /* ignore */ }
+    return true; // starts in exodus
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_exodus_phase', String(isExodusPhase)); }
+    catch { /* ignore */ }
+  }, [isExodusPhase]);
+
+  // ── Asteroid countdown timer ───────────────────────────────────────────
+  const [gameStartedAt] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_game_started_at');
+      if (saved) return parseInt(saved, 10);
+    } catch { /* ignore */ }
+    const now = Date.now();
+    try { localStorage.setItem('nebulife_game_started_at', String(now)); }
+    catch { /* ignore */ }
+    return now;
+  });
+
+  const impactTime = useMemo(() => calculateImpactTime(gameStartedAt), [gameStartedAt]);
+  const [countdownText, setCountdownText] = useState('');
+  const [countdownUrgent, setCountdownUrgent] = useState(false);
+
+  useEffect(() => {
+    if (!isExodusPhase) return;
+    const tick = () => {
+      const t = remainingTimeFormatted(impactTime);
+      const hh = String(t.hours).padStart(2, '0');
+      const mm = String(t.minutes).padStart(2, '0');
+      const ss = String(t.seconds).padStart(2, '0');
+      setCountdownText(t.days > 0 ? `${t.days}d ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`);
+      setCountdownUrgent(t.totalSeconds < 600); // < 10 min
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isExodusPhase, impactTime]);
+
+  // ── Evacuation state ──────────────────────────────────────────────────
+  type EvacuationPhase = 'idle' | 'cutscene-launch' | 'transit' | 'cutscene-explosion' | 'arrival' | 'colony-prompt' | 'cutscene-landing' | 'surface';
+  const [evacuationPhase, setEvacuationPhase] = useState<EvacuationPhase>('idle');
+  const [evacuationTarget, setEvacuationTarget] = useState<{ system: StarSystem; planet: Planet } | null>(null);
 
   /** Discovery choice panel (from research completion) */
   const [pendingDiscovery, setPendingDiscovery] = useState<{
@@ -426,7 +500,7 @@ export function App() {
               // Session complete — find the system object
               const system = engine.getAllSystems().find((s) => s.id === slot.systemId);
               if (system) {
-                const result = completeResearchSession(current, slot.slotIndex, system, playerStats.totalCompletedSessions);
+                const result = completeResearchSession(current, slot.slotIndex, system, playerStats.totalCompletedSessions, playerStats.totalDiscoveries);
                 current = result.state;
                 changed = true;
 
@@ -449,6 +523,13 @@ export function App() {
                   const research = current.systems[system.id];
                   if (research) {
                     setCompletedModal({ system, research });
+                  }
+                  // Check for colonizable planet — trigger evacuation prompt
+                  if (isExodusPhase) {
+                    const colonizable = findColonizablePlanet(system);
+                    if (colonizable) {
+                      setEvacuationTarget({ system, planet: colonizable });
+                    }
                   }
                 }
               }
@@ -610,6 +691,8 @@ export function App() {
   }, []);
 
   const handleStartResearch = useCallback((systemId: string) => {
+    if (!hasResearchData(researchData)) return;
+    setResearchData((prev) => prev - RESEARCH_DATA_COST);
     setResearchState((prev) => {
       const slotIndex = findFreeSlot(prev);
       if (slotIndex < 0) return prev;
@@ -617,7 +700,7 @@ export function App() {
       engineRef.current?.updateSystemResearchVisual(systemId, next);
       return next;
     });
-  }, []);
+  }, [researchData]);
 
   const handleViewResearchedSystem = useCallback(() => {
     if (!completedModal) return;
@@ -983,6 +1066,50 @@ export function App() {
   const handleGalleryKeepOld = useCallback(() => {
     setGalleryCompare(null);
   }, []);
+
+  // ── Evacuation handlers ──────────────────────────────────────────────
+  const handleStartEvacuation = useCallback(() => {
+    if (!evacuationTarget) return;
+    setEvacuationPhase('cutscene-launch');
+  }, [evacuationTarget]);
+
+  const handleDismissEvacuationPrompt = useCallback(() => {
+    setEvacuationTarget(null);
+  }, []);
+
+  const handleCutsceneLaunchComplete = useCallback(() => {
+    if (!evacuationTarget) return;
+    // Navigate to the destination system
+    engineRef.current?.showSystemScene(evacuationTarget.system);
+    setState((prev) => ({ ...prev, scene: 'system', selectedSystem: evacuationTarget.system }));
+    setEvacuationPhase('cutscene-explosion');
+  }, [evacuationTarget]);
+
+  const handleCutsceneExplosionComplete = useCallback(() => {
+    if (!evacuationTarget) return;
+    // Navigate to destination planet view
+    engineRef.current?.showPlanetViewScene(evacuationTarget.system, evacuationTarget.planet);
+    setState((prev) => ({ ...prev, scene: 'planet-view', selectedSystem: evacuationTarget.system, selectedPlanet: evacuationTarget.planet }));
+    setEvacuationPhase('colony-prompt');
+  }, [evacuationTarget]);
+
+  const handleFoundColony = useCallback(() => {
+    setEvacuationPhase('cutscene-landing');
+  }, []);
+
+  const handleCutsceneLandingComplete = useCallback(() => {
+    // Transition to colonization
+    setIsExodusPhase(false);
+    setEvacuationPhase('idle');
+    setEvacuationTarget(null);
+    // Open surface view for the colony planet
+    if (evacuationTarget) {
+      setSurfaceTarget({
+        planet: evacuationTarget.planet,
+        star: evacuationTarget.system.star,
+      });
+    }
+  }, [evacuationTarget]);
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
   useEffect(() => { currentSceneRef.current = state.scene; }, [state.scene]);
@@ -1663,16 +1790,49 @@ export function App() {
     <>
       <div ref={canvasRef} id="game-canvas" />
 
+      {/* Resource HUD — top right */}
+      <ResourceDisplay
+        researchData={researchData}
+        quarks={quarks}
+        isExodusPhase={isExodusPhase}
+        onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
+      />
+
+      {/* Asteroid countdown timer — center top (Exodus phase only) */}
+      {isExodusPhase && countdownText && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 10,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 200,
+            fontFamily: 'monospace',
+            fontSize: 18,
+            fontWeight: 'bold',
+            color: countdownUrgent ? '#cc4444' : '#ff8844',
+            textShadow: countdownUrgent ? '0 0 12px rgba(204,68,68,0.6)' : '0 0 8px rgba(255,136,68,0.3)',
+            letterSpacing: 2,
+            padding: '4px 14px',
+            background: 'rgba(5,10,20,0.7)',
+            border: `1px solid ${countdownUrgent ? 'rgba(204,68,68,0.4)' : 'rgba(255,136,68,0.2)'}`,
+            borderRadius: 4,
+            animation: countdownUrgent ? 'cmdbar-terminal-pulse 1.5s infinite' : undefined,
+            pointerEvents: 'none',
+          }}
+        >
+          {countdownText}
+        </div>
+      )}
+
       {/* CommandBar — always visible at bottom */}
       <CommandBar
         scene={effectiveScene}
         breadcrumbs={breadcrumbs}
         toolGroups={toolGroups}
         leftActions={leftActions.length > 0 ? leftActions : undefined}
-        quarks={quarks}
         playerName={state.playerName}
         onNavigate={handleBreadcrumbNavigate}
-        onTopUp={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
 
       {/* Left-side scene controls — home-intro */}
@@ -1778,6 +1938,7 @@ export function App() {
           researchState={researchState}
           allSystems={engineRef.current?.getAllSystems() ?? []}
           activeSlotTimerText={activeSlotTimer}
+          researchData={researchData}
           onStartResearch={handleStartResearch}
           onClose={() => { setState((prev) => ({ ...prev, selectedSystem: null })); engineRef.current?.unfocusSystem(); }}
         />
@@ -1894,6 +2055,43 @@ export function App() {
           objectName={(getCatalogEntry(galleryCompare.newDiscovery.type) as CatalogEntry | undefined)?.nameUk ?? galleryCompare.newDiscovery.type}
           onReplace={handleGalleryReplace}
           onKeepOld={handleGalleryKeepOld}
+        />
+      )}
+      {/* Evacuation Prompt — shown when habitable planet found */}
+      {evacuationTarget && evacuationPhase === 'idle' && (
+        <EvacuationPrompt
+          system={evacuationTarget.system}
+          planet={evacuationTarget.planet}
+          onStartEvacuation={handleStartEvacuation}
+          onContinue={handleDismissEvacuationPrompt}
+        />
+      )}
+      {/* Cutscene: Ship launch */}
+      {evacuationPhase === 'cutscene-launch' && (
+        <CutscenePlaceholder
+          label="Кат-сцена: Запуск евакуацiйного корабля"
+          onComplete={handleCutsceneLaunchComplete}
+        />
+      )}
+      {/* Cutscene: Home planet explosion */}
+      {evacuationPhase === 'cutscene-explosion' && (
+        <CutscenePlaceholder
+          label="Кат-сцена: Загибель рiдної планети"
+          onComplete={handleCutsceneExplosionComplete}
+        />
+      )}
+      {/* Colony founding prompt — shown after arrival */}
+      {evacuationPhase === 'colony-prompt' && evacuationTarget && (
+        <ColonyFoundingPrompt
+          planet={evacuationTarget.planet}
+          onFoundColony={handleFoundColony}
+        />
+      )}
+      {/* Cutscene: Landing on new planet */}
+      {evacuationPhase === 'cutscene-landing' && (
+        <CutscenePlaceholder
+          label="Кат-сцена: Посадка на нову планету"
+          onComplete={handleCutsceneLandingComplete}
         />
       )}
       {/* 3D Model Generation Overlay */}

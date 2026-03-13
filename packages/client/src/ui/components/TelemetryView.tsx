@@ -932,6 +932,7 @@ export function TelemetryView({
 }) {
   const [phase, setPhase] = useState<Phase>('scanning');
   const [scanProgress, setScanProgress] = useState(0);
+  const [saved, setSaved] = useState(false);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [reportText, setReportText] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -998,10 +999,11 @@ export function TelemetryView({
   }, []);
 
   const handleSave = useCallback(() => {
-    if (imageDataUrl) {
+    if (imageDataUrl && !saved) {
       onSaveToArchive?.(discovery.id, imageDataUrl);
+      setSaved(true);
     }
-  }, [discovery.id, imageDataUrl, onSaveToArchive]);
+  }, [discovery.id, imageDataUrl, onSaveToArchive, saved]);
 
   return (
     <div
@@ -1221,19 +1223,21 @@ export function TelemetryView({
             {onSaveToArchive && (
               <button
                 onClick={handleSave}
+                disabled={saved}
                 style={{
                   padding: '8px 18px',
-                  background: `${color}22`,
-                  border: `1px solid ${color}66`,
+                  background: saved ? `${color}11` : `${color}22`,
+                  border: `1px solid ${saved ? `${color}33` : `${color}66`}`,
                   borderRadius: 4,
-                  color,
+                  color: saved ? `${color}88` : color,
                   fontFamily: 'monospace',
                   fontSize: 11,
-                  cursor: 'pointer',
+                  cursor: saved ? 'default' : 'pointer',
                   transition: 'background 0.15s',
+                  opacity: saved ? 0.6 : 1,
                 }}
               >
-                Зберегти в архів
+                {saved ? 'Збережено' : 'Зберегти в архів'}
               </button>
             )}
             <button

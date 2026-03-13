@@ -1,6 +1,6 @@
 import React from 'react';
 import type { StarSystem, ResearchState, ResearchSlot, SystemResearchState, ObservedRange } from '@nebulife/core';
-import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched, isRingFullyResearched } from '@nebulife/core';
+import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched, isRingFullyResearched, RESEARCH_DATA_COST } from '@nebulife/core';
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute', right: 16, top: 12, width: 280,
@@ -108,6 +108,7 @@ export function ResearchPanel({
   researchState,
   allSystems,
   activeSlotTimerText,
+  researchData,
   onStartResearch,
   onClose,
 }: {
@@ -115,6 +116,7 @@ export function ResearchPanel({
   researchState: ResearchState;
   allSystems: StarSystem[];
   activeSlotTimerText: string | null;
+  researchData: number;
   onStartResearch: (systemId: string) => void;
   onClose: () => void;
 }) {
@@ -125,7 +127,8 @@ export function ResearchPanel({
   // Ring gating: Ring N requires all Ring N-1 systems to be 100% researched
   const ringLocked = system.ringIndex > 1
     && !isRingFullyResearched(researchState, allSystems, system.ringIndex - 1);
-  const canStart = !ringLocked && canStartResearch(researchState, system.id, system.ringIndex);
+  const hasData = researchData >= RESEARCH_DATA_COST;
+  const canStart = !ringLocked && hasData && canStartResearch(researchState, system.id, system.ringIndex);
   const isComplete = isSystemFullyResearched(researchState, system.id);
 
   return (
@@ -188,6 +191,13 @@ export function ResearchPanel({
         </>
       )}
 
+      {/* Research data balance */}
+      {!isComplete && !isResearching && (
+        <div style={{ fontSize: 10, color: '#667788', marginTop: 8, textAlign: 'right' }}>
+          Дослідницькі дані: <span style={{ color: hasData ? '#4488aa' : '#cc4444' }}>{researchData}</span>
+        </div>
+      )}
+
       {/* Action button */}
       {!isComplete && !isResearching && (
         <button
@@ -196,10 +206,12 @@ export function ResearchPanel({
           disabled={!canStart}
         >
           {canStart
-            ? 'Почати дослідження'
-            : ringLocked
-              ? `Спершу дослідіть Кільце ${system.ringIndex - 1}`
-              : 'Немає вільних обсерваторій'}
+            ? `Сканувати (-${RESEARCH_DATA_COST} д.д.)`
+            : !hasData
+              ? 'Недостатньо дослідницьких даних'
+              : ringLocked
+                ? `Спершу дослідіть Кільце ${system.ringIndex - 1}`
+                : 'Немає вільних обсерваторій'}
         </button>
       )}
 

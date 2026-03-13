@@ -156,7 +156,7 @@ export function OnboardingScreen({ homeInfo, onComplete }: OnboardingScreenProps
     `> ПЛАНЕТА: ${planet.name}`,
     `> ВИЯВЛЕНО ЗАГРОЗУ: астероїд класу Omega`,
     `> ТРАЄКТОРІЯ: зіткнення з домашньою планетою`,
-    `> ЧАС ДО УДАРУ: 7 діб`,
+    `> ЧАС ДО УДАРУ: 1 доба`,
     `> СТАТУС: активовано протокол евакуації`,
   ];
 
@@ -338,7 +338,7 @@ export function OnboardingScreen({ homeInfo, onComplete }: OnboardingScreenProps
               lineHeight: '1.6',
               maxWidth: 400,
             }}>
-              Ви маєте 7 діб. Кожна хвилина на рахунку.
+              Ви маєте 1 добу. Кожна хвилина на рахунку.
             </div>
           </div>
         )}

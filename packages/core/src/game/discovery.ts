@@ -87,11 +87,22 @@ export interface Discovery {
 
 /**
  * Discovery chance per research session.
- * Ring 1: 1/5 (20%), Ring 2: 1/10 (10%), Ring 3+: halved again each ring.
+ *
+ * Early game (first 7 sessions, < 2 discoveries): 25% base — ensures
+ * the player gets 2 discoveries quickly for engagement.
+ *
+ * Standard (after that): 5% base — rare, exciting events.
+ *
+ * Ring penalty: chance halved per ring from ring 2+.
  */
-export function getDiscoveryChance(ringIndex: number = 1): number {
-  const base = 1 / 5;
-  // Ring 0 (home) and Ring 1 get base rate; each subsequent ring halves the chance
+export function getDiscoveryChance(
+  totalCompletedSessions: number = 0,
+  totalDiscoveries: number = 0,
+  ringIndex: number = 1,
+): number {
+  // Early game: boosted chance so player gets 2 discoveries within first 7 sessions
+  const isEarlyGame = totalCompletedSessions <= 7 && totalDiscoveries < 2;
+  const base = isEarlyGame ? 1 / 4 : 1 / 20; // 25% early, 5% standard
   const ringPenalty = Math.max(0, ringIndex - 1);
   return base / Math.pow(2, ringPenalty);
 }
@@ -111,11 +122,14 @@ export function shouldForceDiscovery(totalCompletedSessions: number): boolean {
 /**
  * Roll for a discovery after a research session completes.
  *
- * @param systemSeed     Deterministic seed from the star system.
- * @param progress       Current research progress (0-100).
- * @param progressGained How much progress was gained this session.
- * @param catalog        The full cosmic catalog array.
- * @param forceCommon    If true, skip the chance roll and force a common discovery (hook mechanic).
+ * @param systemSeed              Deterministic seed from the star system.
+ * @param progress                Current research progress (0-100).
+ * @param progressGained          How much progress was gained this session.
+ * @param catalog                 The full cosmic catalog array.
+ * @param forceCommon             If true, skip the chance roll and force a common discovery (hook mechanic).
+ * @param ringIndex               Galaxy ring index (affects chance).
+ * @param totalCompletedSessions  Player's total completed sessions (for early-game boost).
+ * @param totalDiscoveries        Player's total discoveries made so far.
  * @returns A Discovery or null.
  */
 export function rollForDiscovery(
@@ -125,12 +139,14 @@ export function rollForDiscovery(
   catalog: ReadonlyArray<{ type: string; category: CosmicObjectCategory; rarity: DiscoveryRarity; galleryCategory: GalleryCategory }>,
   forceCommon: boolean = false,
   ringIndex: number = 1,
+  totalCompletedSessions: number = 0,
+  totalDiscoveries: number = 0,
 ): Discovery | null {
   const rng = new SeededRNG(systemSeed * 113 + progress * 7);
 
   if (!forceCommon) {
-    // Check if a discovery happens at all (halved per ring from ring 2+)
-    const chance = getDiscoveryChance(ringIndex);
+    // Check if a discovery happens at all
+    const chance = getDiscoveryChance(totalCompletedSessions, totalDiscoveries, ringIndex);
     if (rng.next() > chance) return null;
   }
 

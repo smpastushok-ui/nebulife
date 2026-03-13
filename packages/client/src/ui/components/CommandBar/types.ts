@@ -33,8 +33,6 @@ export interface CommandBarProps {
   breadcrumbs: BreadcrumbItem[];
   toolGroups: ToolGroup[];
   leftActions?: ToolItem[];
-  quarks: number;
   playerName: string;
   onNavigate: (targetScene: string) => void;
-  onTopUp: () => void;
 }

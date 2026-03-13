@@ -40,10 +40,8 @@ export function CommandBar({
   breadcrumbs,
   toolGroups,
   leftActions,
-  quarks,
   playerName,
   onNavigate,
-  onTopUp,
 }: CommandBarProps) {
   const injected = useRef(false);
 
@@ -85,9 +83,7 @@ export function CommandBar({
       />
 
       <PlayerPanel
-        quarks={quarks}
         playerName={playerName}
-        onTopUp={onTopUp}
       />
     </div>
   );

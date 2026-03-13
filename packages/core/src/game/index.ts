@@ -13,6 +13,8 @@ export {
   isSystemFullyResearched,
   isRingFullyResearched,
   getSystemResearch,
+  hasResearchData,
+  findColonizablePlanet,
 } from './research.js';
 
 // Discovery system

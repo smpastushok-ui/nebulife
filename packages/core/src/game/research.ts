@@ -6,11 +6,13 @@ import type {
   ObservedRange,
 } from '../types/research.js';
 import type { StarSystem } from '../types/universe.js';
+import type { Planet } from '../types/planet.js';
 import { SeededRNG } from '../math/rng.js';
 import {
   RESEARCH_MIN_PROGRESS,
   RESEARCH_MAX_PROGRESS,
   HOME_RESEARCH_MAX_RING,
+  RESEARCH_DATA_COST,
 } from '../constants/balance.js';
 import type { Discovery } from './discovery.js';
 import { rollForDiscovery, shouldForceDiscovery } from './discovery.js';
@@ -255,6 +257,7 @@ export function startResearch(
  * and roll for a potential cosmic discovery.
  *
  * @param totalCompletedSessions  Player's total completed research sessions (for hook mechanic).
+ * @param totalDiscoveries        Player's total discoveries made so far (for early-game boost).
  * Returns { state, progressGained, isNowComplete, discovery }.
  */
 export function completeResearchSession(
@@ -262,6 +265,7 @@ export function completeResearchSession(
   slotIndex: number,
   system: StarSystem,
   totalCompletedSessions: number = 0,
+  totalDiscoveries: number = 0,
 ): { state: ResearchState; progressGained: number; isNowComplete: boolean; discovery: Discovery | null } {
   const slot = state.slots[slotIndex];
   if (!slot || !slot.systemId) {
@@ -290,7 +294,7 @@ export function completeResearchSession(
   // Hook mechanic: force a common discovery on the 2nd session
   const forceCommon = shouldForceDiscovery(totalCompletedSessions + 1);
 
-  // Roll for a cosmic discovery (chance halved per ring from ring 2+)
+  // Roll for a cosmic discovery
   const discovery = rollForDiscovery(
     system.seed,
     newProgress,
@@ -298,6 +302,8 @@ export function completeResearchSession(
     COSMIC_CATALOG,
     forceCommon,
     system.ringIndex,
+    totalCompletedSessions + 1,
+    totalDiscoveries,
   );
 
   // Patch discovery with the real system ID
@@ -375,4 +381,21 @@ export function getSystemResearch(
   systemId: string,
 ): SystemResearchState | null {
   return state.systems[systemId] ?? null;
+}
+
+// ─── Research Data (resource cost) ─────────────────────────────────────
+
+/** Check if player has enough research data to start a scan. */
+export function hasResearchData(researchData: number): boolean {
+  return researchData >= RESEARCH_DATA_COST;
+}
+
+// ─── Colonization helpers ──────────────────────────────────────────────
+
+/** Find first planet with habitability above threshold. */
+export function findColonizablePlanet(
+  system: StarSystem,
+  threshold: number = 0.3,
+): Planet | null {
+  return system.planets.find((p) => p.habitability.overall > threshold) ?? null;
 }
