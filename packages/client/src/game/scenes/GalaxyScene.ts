@@ -227,30 +227,25 @@ export class GalaxyScene {
 
     const { container: dot, glowOuter, glowMid, corona, core } = this.createStarGfx(color, baseR);
 
-    // HOME label
-    const hlBg = new Graphics();
-    hlBg.circle(0, 0, 12);
-    hlBg.fill({ color: 0x020510, alpha: 0.45 });
-    dot.addChild(hlBg);
-
-    const hl = new Text({
-      text: 'HOME',
-      style: { fontSize: 8, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 1 },
-      resolution: 3,
-    });
-    hl.anchor.set(0.5, 0.5);
-    hl.y = 0;
-    dot.addChild(hl);
-
-    // System name label
+    // System name label (below star)
     const nl = new Text({
       text: sys.name,
       style: { fontSize: 8, fill: 0x667788, fontFamily: 'monospace' },
       resolution: 3,
     });
     nl.anchor.set(0.5, 0);
-    nl.y = baseR + 6;
+    nl.y = baseR + 10;
     dot.addChild(nl);
+
+    // HOME badge (below name, separated)
+    const hl = new Text({
+      text: 'HOME',
+      style: { fontSize: 7, fill: 0x44ff88, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 2 },
+      resolution: 3,
+    });
+    hl.anchor.set(0.5, 0);
+    hl.y = baseR + 22;
+    dot.addChild(hl);
 
     // Observatory marker
     const hasObs = this.researchState.slots.some(s => s.systemId === sys.id);
@@ -328,7 +323,7 @@ export class GalaxyScene {
     let progressLabel: Text | null = null;
     let progressRing: Graphics | null = null;
 
-    const labelY = effectiveR + 6;
+    const labelY = effectiveR + 10;
 
     switch (state) {
       case 'researched': {
@@ -363,7 +358,7 @@ export class GalaxyScene {
           resolution: 3,
         });
         progressLabel.anchor.set(0.5, 0);
-        progressLabel.y = labelY + 16;
+        progressLabel.y = labelY + 18;
         dot.addChild(progressLabel);
         break;
       }

@@ -19,8 +19,8 @@ import {
 const STYLE_ID = 'planet-detail-styles';
 const KEYFRAMES = `
   @keyframes pdwIn {
-    from { opacity: 0; transform: scale(0.98); }
-    to   { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: scale(0.95) translateY(12px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
   }
   @keyframes pdwSlide {
     from { opacity: 0; transform: translateY(10px); }
@@ -415,7 +415,7 @@ export function PlanetDetailWindow({
           display: 'flex',
           flexDirection: 'column',
           fontFamily: 'monospace',
-          animation: 'pdwIn 0.22s ease-out both',
+          animation: 'pdwIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both',
           pointerEvents: 'none',
         }}
         onClick={(e) => e.stopPropagation()}

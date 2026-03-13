@@ -18,8 +18,10 @@ export {
 export {
   rollForDiscovery,
   getDiscoveryChance,
+  shouldForceDiscovery,
   RARITY_COLORS,
   RARITY_WEIGHTS,
+  RARITY_LABELS,
 } from './discovery.js';
 export type {
   CosmicObjectCategory,

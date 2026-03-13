@@ -47,11 +47,20 @@ export const RARITY_COLORS: Record<DiscoveryRarity, string> = {
 
 /** Rarity drop weights (must sum to 100) */
 export const RARITY_WEIGHTS: Record<DiscoveryRarity, number> = {
-  common: 40,
-  uncommon: 25,
-  rare: 18,
-  epic: 12,
-  legendary: 5,
+  common: 81,
+  uncommon: 10,
+  rare: 5,
+  epic: 3,
+  legendary: 1,
+};
+
+/** Rarity display labels (Ukrainian) */
+export const RARITY_LABELS: Record<DiscoveryRarity, string> = {
+  common: 'Штатна подія',
+  uncommon: 'Аномалія',
+  rare: 'Феномен',
+  epic: 'Епічна знахідка',
+  legendary: 'Свідок епохи',
 };
 
 // ---------------------------------------------------------------------------
@@ -76,26 +85,17 @@ export interface Discovery {
 // Chance calculation
 // ---------------------------------------------------------------------------
 
+/** Fixed discovery chance: 1 in 30 per research session (~3.3 %). */
+export function getDiscoveryChance(): number {
+  return 1 / 30;
+}
+
 /**
- * Get the probability (0–1) of making a discovery this research session.
- *
- * @param progressGained  How many % the research just gained.
- * @param streakDays      Consecutive login days (0-7).
+ * Hook mechanic: force a discovery on the player's 2nd research session
+ * to demonstrate the system and keep engagement.
  */
-export function getDiscoveryChance(
-  progressGained: number,
-  streakDays: number = 0,
-): number {
-  // Base chance: 15 % per session
-  let chance = 0.15;
-
-  // Higher progress gained → better chance (max +15 %)
-  chance += Math.min(0.15, progressGained * 0.003);
-
-  // Daily streak bonus: +5 % per day (max 7 days = +35 %)
-  chance += Math.min(0.35, streakDays * 0.05);
-
-  return Math.min(1.0, chance);
+export function shouldForceDiscovery(totalCompletedSessions: number): boolean {
+  return totalCompletedSessions === 2;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,7 +109,7 @@ export function getDiscoveryChance(
  * @param progress       Current research progress (0-100).
  * @param progressGained How much progress was gained this session.
  * @param catalog        The full cosmic catalog array.
- * @param streakDays     Player's login streak.
+ * @param forceCommon    If true, skip the chance roll and force a common discovery (hook mechanic).
  * @returns A Discovery or null.
  */
 export function rollForDiscovery(
@@ -117,23 +117,27 @@ export function rollForDiscovery(
   progress: number,
   progressGained: number,
   catalog: ReadonlyArray<{ type: string; category: CosmicObjectCategory; rarity: DiscoveryRarity; galleryCategory: GalleryCategory }>,
-  streakDays: number = 0,
+  forceCommon: boolean = false,
 ): Discovery | null {
   const rng = new SeededRNG(systemSeed * 113 + progress * 7);
 
-  // Check if a discovery happens at all
-  const chance = getDiscoveryChance(progressGained, streakDays);
-  if (rng.next() > chance) return null;
+  if (!forceCommon) {
+    // Check if a discovery happens at all (1/30 chance)
+    const chance = getDiscoveryChance();
+    if (rng.next() > chance) return null;
+  }
 
-  // 1. Roll rarity
-  const rarityRoll = rng.next() * 100;
-  let cumulative = 0;
+  // 1. Roll rarity (or force common for hook)
   let rarity: DiscoveryRarity = 'common';
-  for (const [r, w] of Object.entries(RARITY_WEIGHTS) as [DiscoveryRarity, number][]) {
-    cumulative += w;
-    if (rarityRoll < cumulative) {
-      rarity = r;
-      break;
+  if (!forceCommon) {
+    const rarityRoll = rng.next() * 100;
+    let cumulative = 0;
+    for (const [r, w] of Object.entries(RARITY_WEIGHTS) as [DiscoveryRarity, number][]) {
+      cumulative += w;
+      if (rarityRoll < cumulative) {
+        rarity = r;
+        break;
+      }
     }
   }
 

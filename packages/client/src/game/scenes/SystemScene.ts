@@ -100,6 +100,7 @@ export class SystemScene {
     const starLabel = new Text({
       text: `${system.star.name}\n${system.star.spectralClass}${system.star.subType}V  ${system.star.temperatureK}K`,
       style: { fontSize: 10, fill: 0x889999, fontFamily: 'monospace', align: 'center' },
+      resolution: 3,
     });
     starLabel.anchor.set(0.5, 0);
     starLabel.y = starSize + 8;
@@ -110,6 +111,7 @@ export class SystemScene {
     const sysLabel = new Text({
       text: system.name,
       style: { fontSize: 14, fill: 0x556677, fontFamily: 'monospace', letterSpacing: 3 },
+      resolution: 3,
     });
     sysLabel.anchor.set(0.5, 1);
     sysLabel.y = -Math.max(200, system.planets.length * 30) - 20;
@@ -277,6 +279,7 @@ export class SystemScene {
     const hzLabel = new Text({
       text: 'HABITABLE ZONE',
       style: { fontSize: 8, fill: 0x22aa44, fontFamily: 'monospace' },
+      resolution: 3,
     });
     hzLabel.anchor.set(0, 0.5);
     hzLabel.x = outer + 4;

@@ -9,8 +9,9 @@ import type { SystemPhotoData, SystemMissionData } from './ui/components/SystemC
 import { SystemInfoPanel } from './ui/components/SystemInfoPanel.js';
 import { ResearchPanel } from './ui/components/ResearchPanel.js';
 import { ResearchCompleteModal } from './ui/components/ResearchCompleteModal.js';
-import { DiscoveryNotification } from './ui/components/DiscoveryNotification.js';
+import { DiscoveryChoicePanel } from './ui/components/DiscoveryChoicePanel.js';
 import { ObservatoryView } from './ui/components/ObservatoryView.js';
+import { TelemetryView } from './ui/components/TelemetryView.js';
 import ModelGenerationOverlay from './ui/components/ModelGenerationOverlay.js';
 import Planet3DViewer from './ui/components/Planet3DViewer.js';
 import QuantumScanTerminal from './ui/components/QuantumScanTerminal.js';
@@ -21,6 +22,8 @@ import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
 import { WarpOverlay } from './ui/components/WarpOverlay.js';
 import { ScanLineOverlay } from './ui/components/ScanLineOverlay.js';
 import { SystemNavHeader } from './ui/components/SystemNavHeader.js';
+import { PlanetNavHeader } from './ui/components/PlanetNavHeader.js';
+import { FloatingInfoButton } from './ui/components/FloatingInfoButton.js';
 import { SystemObjectsPanel } from './ui/components/SystemObjectsPanel.js';
 import { PlanetDetailWindow } from './ui/components/PlanetDetailWindow.js';
 import type {
@@ -41,6 +44,7 @@ import {
   RESEARCH_DURATION_MS,
 } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
+import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { getPlayer, createPlayer } from './api/player-api.js';
 import { onAuthChange } from './auth/auth-service.js';
 import { authFetch } from './auth/api-client.js';
@@ -86,9 +90,27 @@ export function App() {
     error: null,
   });
 
-  const [researchState, setResearchState] = useState<ResearchState>(() =>
-    createResearchState(HOME_OBSERVATORY_COUNT),
-  );
+  const [researchState, setResearchState] = useState<ResearchState>(() => {
+    // Try to restore research state from localStorage
+    try {
+      const saved = localStorage.getItem('nebulife_research_state');
+      if (saved) {
+        const parsed = JSON.parse(saved) as ResearchState;
+        // Validate structure minimally
+        if (parsed && Array.isArray(parsed.slots) && typeof parsed.systems === 'object') {
+          return parsed;
+        }
+      }
+    } catch { /* ignore parse errors */ }
+    return createResearchState(HOME_OBSERVATORY_COUNT);
+  });
+
+  // Persist research state to localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem('nebulife_research_state', JSON.stringify(researchState));
+    } catch { /* ignore quota errors */ }
+  }, [researchState]);
 
   // Completed research modal
   const [completedModal, setCompletedModal] = useState<{
@@ -109,18 +131,44 @@ export function App() {
   const [isGuest, setIsGuest] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [showGuestReminder, setShowGuestReminder] = useState(false);
 
   // ── Discovery system state ──────────────────────────────────────────────
   const playerId = useRef<string>('');
 
-  /** Discovery toast notification (from research completion) */
+  /** Player stats for discovery hook & loyalty mechanics */
+  const [playerStats, setPlayerStats] = useState<{ totalCompletedSessions: number; totalDiscoveries: number }>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_player_stats');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.totalCompletedSessions === 'number') return parsed;
+      }
+    } catch { /* ignore */ }
+    return { totalCompletedSessions: 0, totalDiscoveries: 0 };
+  });
+
+  // Persist player stats
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_player_stats', JSON.stringify(playerStats)); }
+    catch { /* ignore */ }
+  }, [playerStats]);
+
+  /** Discovery choice panel (from research completion) */
   const [pendingDiscovery, setPendingDiscovery] = useState<{
     discovery: Discovery;
     system: StarSystem;
   } | null>(null);
 
-  /** Observatory view (when player clicks "Investigate") */
+  /** Observatory view (when player clicks "Quantum Focus") */
   const [observatoryTarget, setObservatoryTarget] = useState<{
+    discovery: Discovery;
+    system: StarSystem;
+    cost: number;
+  } | null>(null);
+
+  /** Telemetry view (when player clicks "Basic Telemetry") */
+  const [telemetryTarget, setTelemetryTarget] = useState<{
     discovery: Discovery;
     system: StarSystem;
   } | null>(null);
@@ -230,6 +278,11 @@ export function App() {
       if (user) {
         playerId.current = user.uid;
         setIsGuest(user.isAnonymous);
+        // Show registration reminder for guests (once per session)
+        if (user.isAnonymous && !sessionStorage.getItem('nebulife_reg_reminder_shown')) {
+          setShowGuestReminder(true);
+          sessionStorage.setItem('nebulife_reg_reminder_shown', '1');
+        }
 
         // Register/sync player in DB
         try {
@@ -326,14 +379,20 @@ export function App() {
               // Session complete — find the system object
               const system = engine.getAllSystems().find((s) => s.id === slot.systemId);
               if (system) {
-                const result = completeResearchSession(current, slot.slotIndex, system);
+                const result = completeResearchSession(current, slot.slotIndex, system, playerStats.totalCompletedSessions);
                 current = result.state;
                 changed = true;
+
+                // Track player stats
+                setPlayerStats((ps) => ({
+                  totalCompletedSessions: ps.totalCompletedSessions + 1,
+                  totalDiscoveries: ps.totalDiscoveries + (result.discovery ? 1 : 0),
+                }));
 
                 // Update galaxy visual
                 engine.updateSystemResearchVisual(slot.systemId, current);
 
-                // Show discovery notification if one was rolled
+                // Show discovery choice panel if one was rolled
                 if (result.discovery) {
                   setPendingDiscovery({ discovery: result.discovery, system });
                 }
@@ -738,19 +797,43 @@ export function App() {
   }, []);
 
   // ── Discovery handlers ───────────────────────────────────────────────
-  const handleInvestigateDiscovery = useCallback(() => {
+
+  /** Loyalty: first discovery or 1/50 lucky from 3rd onward */
+  const isFirstDiscovery = playerStats.totalDiscoveries === 0;
+  const isLuckyFree = !isFirstDiscovery
+    && playerStats.totalDiscoveries >= 2
+    && (pendingDiscovery ? ((pendingDiscovery.discovery.timestamp % 50) === 0) : false);
+
+  const handleTelemetry = useCallback(() => {
     if (pendingDiscovery) {
-      setObservatoryTarget(pendingDiscovery);
+      setTelemetryTarget(pendingDiscovery);
       setPendingDiscovery(null);
     }
   }, [pendingDiscovery]);
 
-  const handleDismissDiscovery = useCallback(() => {
+  const handleQuantumFocus = useCallback(() => {
+    if (pendingDiscovery) {
+      const isFree = playerStats.totalDiscoveries === 0
+        || (playerStats.totalDiscoveries >= 2 && (pendingDiscovery.discovery.timestamp % 50) === 0);
+      if (!isFree && quarks < 3) {
+        if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
+        return;
+      }
+      setObservatoryTarget({ ...pendingDiscovery, cost: isFree ? 0 : 3 });
+      setPendingDiscovery(null);
+    }
+  }, [pendingDiscovery, playerStats, quarks, isGuest]);
+
+  const handleSkipDiscovery = useCallback(() => {
     setPendingDiscovery(null);
   }, []);
 
   const handleCloseObservatory = useCallback(() => {
     setObservatoryTarget(null);
+  }, []);
+
+  const handleCloseTelemetry = useCallback(() => {
+    setTelemetryTarget(null);
   }, []);
 
   const handleSaveToGallery = useCallback((discoveryId: string, imageUrl: string) => {
@@ -1118,6 +1201,48 @@ export function App() {
     : 100;
   const isCurrentSystemFullyAccessible = currentSystemProgress >= 100;
 
+  // ── Planet nav header (prev/next planets within system) ────────────
+  const sortedPlanets = useMemo(() => {
+    if (state.scene !== 'planet-view' || !state.selectedSystem) return [];
+    return [...state.selectedSystem.planets].sort(
+      (a, b) => a.orbit.semiMajorAxisAU - b.orbit.semiMajorAxisAU,
+    );
+  }, [state.scene, state.selectedSystem]);
+
+  const currentPlanetIndex = state.selectedPlanet
+    ? sortedPlanets.findIndex((p) => p.id === state.selectedPlanet!.id)
+    : -1;
+
+  const prevNavPlanet = sortedPlanets.length > 1 && currentPlanetIndex >= 0
+    ? sortedPlanets[(currentPlanetIndex - 1 + sortedPlanets.length) % sortedPlanets.length]
+    : null;
+  const nextNavPlanet = sortedPlanets.length > 1 && currentPlanetIndex >= 0
+    ? sortedPlanets[(currentPlanetIndex + 1) % sortedPlanets.length]
+    : null;
+
+  const handleNavigatePlanet = useCallback((planet: Planet) => {
+    if (!state.selectedSystem) return;
+    engineRef.current?.showPlanetViewScene(state.selectedSystem, planet, true);
+    setState((prev) => ({
+      ...prev,
+      selectedPlanet: planet,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+    }));
+    // Reset 3D phase when switching planets
+    setPlanetView3DPhase('idle');
+    setPlanetView3DProgress(0);
+  }, [state.selectedSystem]);
+
+  const handlePlanetInfoFromButton = useCallback(() => {
+    if (!state.selectedPlanet || !state.selectedSystem) return;
+    const idx = sortedPlanets.findIndex((p) => p.id === state.selectedPlanet!.id);
+    setPlanetDetailTarget({
+      system: state.selectedSystem,
+      planetIndex: idx >= 0 ? idx : 0,
+    });
+  }, [state.selectedPlanet, state.selectedSystem, sortedPlanets]);
+
   // ── CommandBar data ──────────────────────────────────────────────────
   const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
 
@@ -1224,20 +1349,13 @@ export function App() {
     }
 
     case 'planet-view': {
-      const tools: ToolItem[] = [
-        { id: 'back-system', label: 'Система', onClick: handleBackToSystem },
-        { id: 'surface', label: 'Поверхня', onClick: handleOpenSurface },
-        { id: 'info', label: 'Інфо', onClick: handleShowCharacteristics },
-      ];
-      if (selectedPlanetModel?.status === 'ready' && selectedPlanetModel?.glb_url) {
-        // Model exists & auto-shown as background → offer regeneration
-        tools.push({ id: '3d', label: 'Змінити вигляд 49⚛', onClick: handlePlanetView3DGenerate });
-      } else if (planetView3DPhase === 'idle') {
-        tools.push({ id: '3d', label: '3D 49⚛', onClick: handlePlanetView3DGenerate, variant: 'accent' });
-      }
-      toolGroups.push({ type: 'buttons', items: tools });
+      // Left: back to system
+      toolGroups.push({
+        type: 'buttons',
+        items: [{ id: 'back-system', label: 'Система', onClick: handleBackToSystem }],
+      });
+      // Center: zoom controls (only for PixiJS view, 3D viewer has orbit controls)
       if (!backgroundModelInfo) {
-        // Only show zoom for PixiJS view (3D viewer has its own orbit controls)
         toolGroups.push({
           type: 'zoom',
           items: [
@@ -1246,6 +1364,11 @@ export function App() {
           ],
         });
       }
+      // Right: surface
+      toolGroups.push({
+        type: 'buttons',
+        items: [{ id: 'surface', label: 'Поверхня', onClick: handleOpenSurface }],
+      });
       break;
     }
 
@@ -1325,6 +1448,25 @@ export function App() {
         />
       )}
 
+      {/* Planet navigation header — fixed top-center, visible in planet-view */}
+      {state.scene === 'planet-view' && state.selectedPlanet && (
+        <PlanetNavHeader
+          currentPlanet={state.selectedPlanet}
+          prevPlanet={prevNavPlanet}
+          nextPlanet={nextNavPlanet}
+          onPrev={() => prevNavPlanet && handleNavigatePlanet(prevNavPlanet)}
+          onNext={() => nextNavPlanet && handleNavigatePlanet(nextNavPlanet)}
+          on3DGenerate={handlePlanetView3DGenerate}
+          is3DGenerating={planetView3DPhase !== 'idle' && planetView3DPhase !== 'complete'}
+          has3DModel={!!(selectedPlanetModel?.status === 'ready' && selectedPlanetModel?.glb_url)}
+        />
+      )}
+
+      {/* Floating info button — right of planet in exosphere view */}
+      {state.scene === 'planet-view' && state.selectedPlanet && !surfaceTarget && (
+        <FloatingInfoButton onClick={handlePlanetInfoFromButton} />
+      )}
+
       {showResearchPanel && (
         <ResearchPanel
           system={selectedSystem}
@@ -1401,15 +1543,29 @@ export function App() {
           onClose={() => setCompletedModal(null)}
         />
       )}
-      {/* Discovery notification toast */}
+      {/* Discovery choice panel (slide-in with 3 options) */}
       {pendingDiscovery && (
-        <DiscoveryNotification
+        <DiscoveryChoicePanel
           discovery={pendingDiscovery.discovery}
-          onInvestigate={handleInvestigateDiscovery}
-          onDismiss={handleDismissDiscovery}
+          system={pendingDiscovery.system}
+          isFirstDiscovery={isFirstDiscovery}
+          isLuckyFree={isLuckyFree}
+          playerQuarks={quarks}
+          onTelemetry={handleTelemetry}
+          onQuantumFocus={handleQuantumFocus}
+          onSkip={handleSkipDiscovery}
         />
       )}
-      {/* Observatory view (full-screen overlay) */}
+      {/* Telemetry view (free procedural scanner) */}
+      {telemetryTarget && (
+        <TelemetryView
+          discovery={telemetryTarget.discovery}
+          system={telemetryTarget.system}
+          onClose={handleCloseTelemetry}
+          onSaveToArchive={handleSaveToGallery}
+        />
+      )}
+      {/* Observatory view (AI Kling — paid with quarks) */}
       {observatoryTarget && (
         <ObservatoryView
           discovery={observatoryTarget.discovery}
@@ -1417,6 +1573,7 @@ export function App() {
           playerId={playerId.current}
           onClose={handleCloseObservatory}
           onSaveToGallery={handleSaveToGallery}
+          cost={observatoryTarget.cost}
         />
       )}
       {/* 3D Model Generation Overlay */}
@@ -1615,8 +1772,24 @@ export function App() {
           onLinked={() => {
             setShowLinkModal(false);
             setIsGuest(false);
+            setShowGuestReminder(false);
           }}
           onClose={() => setShowLinkModal(false)}
+        />
+      )}
+
+      {/* Guest registration reminder */}
+      {showGuestReminder && isGuest && !showLinkModal && !needsCallsign && !needsOnboarding && (
+        <GuestRegistrationReminder
+          onDismiss={() => setShowGuestReminder(false)}
+          onOpenEmailAuth={() => {
+            setShowGuestReminder(false);
+            setShowLinkModal(true);
+          }}
+          onLinked={() => {
+            setShowGuestReminder(false);
+            setIsGuest(false);
+          }}
         />
       )}
     </>

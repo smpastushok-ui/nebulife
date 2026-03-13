@@ -20,11 +20,13 @@ export interface GenerateRequest {
   prompt: string;
   aspectRatio?: string;
   scientificReport?: string;
+  cost?: number;
 }
 
 export interface GenerateResponse {
   taskId: string;
   discoveryId: string;
+  quarksRemaining?: number;
 }
 
 export interface TaskStatusResponse {

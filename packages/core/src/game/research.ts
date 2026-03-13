@@ -13,7 +13,7 @@ import {
   HOME_RESEARCH_MAX_RING,
 } from '../constants/balance.js';
 import type { Discovery } from './discovery.js';
-import { rollForDiscovery } from './discovery.js';
+import { rollForDiscovery, shouldForceDiscovery } from './discovery.js';
 import { COSMIC_CATALOG } from './cosmic-catalog.js';
 
 // ─── Helpers ───────────────────────────────────────────────────────────
@@ -254,13 +254,14 @@ export function startResearch(
  * Complete a research session: add random progress, recalculate observed ranges,
  * and roll for a potential cosmic discovery.
  *
+ * @param totalCompletedSessions  Player's total completed research sessions (for hook mechanic).
  * Returns { state, progressGained, isNowComplete, discovery }.
  */
 export function completeResearchSession(
   state: ResearchState,
   slotIndex: number,
   system: StarSystem,
-  streakDays: number = 0,
+  totalCompletedSessions: number = 0,
 ): { state: ResearchState; progressGained: number; isNowComplete: boolean; discovery: Discovery | null } {
   const slot = state.slots[slotIndex];
   if (!slot || !slot.systemId) {
@@ -286,13 +287,16 @@ export function completeResearchSession(
   // Recalculate observation
   const observation = calculateObservation(system, newProgress);
 
+  // Hook mechanic: force a common discovery on the 2nd session
+  const forceCommon = shouldForceDiscovery(totalCompletedSessions + 1);
+
   // Roll for a cosmic discovery
   const discovery = rollForDiscovery(
     system.seed,
     newProgress,
     gained,
     COSMIC_CATALOG,
-    streakDays,
+    forceCommon,
   );
 
   // Patch discovery with the real system ID

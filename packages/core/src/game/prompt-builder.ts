@@ -22,6 +22,8 @@ const QUALITY_SUFFIX =
 
 /**
  * Build a complete Kling AI prompt from game state.
+ * Includes a SYSTEM CATALOG section with star info, all planets, and moons
+ * for maximum context to the AI model.
  *
  * @param objectType  The cosmic object type key from the catalog.
  * @param system      The star system where the discovery was made.
@@ -42,25 +44,52 @@ export function buildPrompt(
   const rng = new SeededRNG(seed * 31 + system.seed);
   const parts: string[] = [];
 
-  // 1. Base template from catalog
+  // 1. Target object from catalog
   parts.push(entry.promptTemplate);
 
-  // 2. System context
+  // 2. System catalog context
+  parts.push(buildSystemCatalog(system));
+
+  // 3. Star lighting context
   parts.push(buildStarContext(system, rng));
 
-  // 3. Planet context (if applicable)
+  // 4. Planet context (if applicable)
   if (planet) {
     parts.push(buildPlanetContext(planet, rng));
   }
 
-  // 4. Random perspective
+  // 5. Random perspective
   const perspective = PERSPECTIVES[rng.nextInt(0, PERSPECTIVES.length - 1)];
   parts.push(perspective);
 
-  // 5. Quality suffix
+  // 6. Quality suffix
   parts.push(QUALITY_SUFFIX);
 
   return parts.join(', ');
+}
+
+/**
+ * Build a concise SYSTEM CATALOG section with star + planets + moons.
+ */
+function buildSystemCatalog(system: StarSystem): string {
+  const star = system.star;
+  const lines: string[] = [];
+
+  // Star summary
+  lines.push(`observed from star system ${system.name} with ${star.spectralClass}-class star (${Math.round(star.temperatureK)}K, ${star.luminositySolar.toFixed(2)} L_sun)`);
+
+  // Planet summaries (max 5 for prompt brevity)
+  const planets = system.planets.slice(0, 5);
+  if (planets.length > 0) {
+    const planetDescs = planets.map((p) => {
+      const moonCount = p.moons.length;
+      const moonStr = moonCount > 0 ? ` with ${moonCount} moon${moonCount > 1 ? 's' : ''}` : '';
+      return `${p.name.split(' ').pop()} (${p.type}, ${Math.round(p.surfaceTempK)}K, ${p.orbit.semiMajorAxisAU.toFixed(2)} AU${moonStr})`;
+    });
+    lines.push(`system contains ${system.planets.length} planets: ${planetDescs.join('; ')}`);
+  }
+
+  return lines.join(', ');
 }
 
 /**

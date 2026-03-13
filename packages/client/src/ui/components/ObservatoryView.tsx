@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import type { Discovery, CatalogEntry, StarSystem, DiscoveryRarity } from '@nebulife/core';
+import type { Discovery, CatalogEntry, StarSystem } from '@nebulife/core';
 import {
   RARITY_COLORS,
+  RARITY_LABELS,
   getCatalogEntry,
   buildPrompt,
   generateScientificReport,
@@ -27,13 +28,6 @@ import { PhotoModal } from './PhotoModal.js';
 
 type Phase = 'submitting' | 'awaiting' | 'revealing' | 'report' | 'photo' | 'error';
 
-const RARITY_LABELS: Record<DiscoveryRarity, string> = {
-  common: 'Звичайне',
-  uncommon: 'Незвичайне',
-  rare: 'Рідкісне',
-  epic: 'Епічне',
-  legendary: 'Легендарне',
-};
 
 const REVEAL_DURATION_MS = 30_000; // 30 seconds
 
@@ -43,12 +37,14 @@ export function ObservatoryView({
   playerId,
   onClose,
   onSaveToGallery,
+  cost = 0,
 }: {
   discovery: Discovery;
   system: StarSystem;
   playerId: string;
   onClose: () => void;
   onSaveToGallery?: (discoveryId: string, imageUrl: string) => void;
+  cost?: number;
 }) {
   const [phase, setPhase] = useState<Phase>('submitting');
   const [klingStatus, setKlingStatus] = useState<string>('pending');
@@ -93,6 +89,7 @@ export function ObservatoryView({
           prompt,
           aspectRatio,
           scientificReport: reportText || undefined,
+          cost,
         });
 
         if (cancelled) return;
@@ -132,7 +129,7 @@ export function ObservatoryView({
       cancelled = true;
       mountedRef.current = false;
     };
-  }, [discovery, system, playerId, reportText]);
+  }, [discovery, system, playerId, reportText, cost]);
 
   const handleRevealComplete = useCallback(() => {
     setPhase('report');

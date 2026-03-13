@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateImage } from '../../packages/server/src/kling-client.js';
-import { saveKlingTask, saveDiscovery } from '../../packages/server/src/db.js';
+import { saveKlingTask, saveDiscovery, deductQuarks } from '../../packages/server/src/db.js';
 
 /**
  * POST /api/kling/generate
@@ -16,9 +16,10 @@ import { saveKlingTask, saveDiscovery } from '../../packages/server/src/db.js';
  *   prompt: string,
  *   aspectRatio?: string,
  *   scientificReport?: string,
+ *   cost?: number,          // quark cost (0 = free, default 0)
  * }
  *
- * Returns: { taskId: string, discoveryId: string }
+ * Returns: { taskId: string, discoveryId: string, quarksRemaining?: number }
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -37,10 +38,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       prompt,
       aspectRatio,
       scientificReport,
+      cost,
     } = req.body;
 
     if (!playerId || !discoveryId || !objectType || !prompt) {
       return res.status(400).json({ error: 'Missing required fields: playerId, discoveryId, objectType, prompt' });
+    }
+
+    // Deduct quarks if cost > 0
+    let quarksRemaining: number | undefined;
+    const quarkCost = typeof cost === 'number' && cost > 0 ? cost : 0;
+    if (quarkCost > 0) {
+      const player = await deductQuarks(playerId, quarkCost);
+      if (!player) {
+        return res.status(402).json({ error: 'Insufficient quarks' });
+      }
+      quarksRemaining = player.quarks;
     }
 
     // 1. Save discovery record to DB (without photo yet)
@@ -69,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       discoveryId,
     });
 
-    return res.status(200).json({ taskId, discoveryId });
+    return res.status(200).json({ taskId, discoveryId, quarksRemaining });
   } catch (err) {
     console.error('Kling generate error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });

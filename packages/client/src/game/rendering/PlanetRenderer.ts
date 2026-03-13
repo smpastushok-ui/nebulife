@@ -140,6 +140,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   const label = new Text({
     text: `${nameStr}\n${typeName} ${planet.surfaceTempK}K${moonStr}`,
     style: { fontSize: 9, fill: 0x889999, fontFamily: 'monospace', align: 'center', lineHeight: 11 },
+    resolution: 3,
   });
   label.anchor.set(0.5, 0);
   label.y = size + 6;
