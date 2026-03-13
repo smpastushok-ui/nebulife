@@ -179,7 +179,7 @@ function Generate3DButton({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       disabled={generating}
-      title={hasModel ? 'Оновити 3D-модель' : 'Створити 3D-модель'}
+      title={hasModel ? 'Оновити 3D-модель' : 'Квантовий синтез поверхні'}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -212,7 +212,7 @@ function Generate3DButton({
         <span>Генерація...</span>
       ) : (
         <>
-          <span>{hasModel ? 'Оновити' : '3D'}</span>
+          <span>{hasModel ? 'Оновити' : 'Квантовий синтез'}</span>
           <span style={{ opacity: 0.75 }}>49</span>
           {/* Quark / atom icon */}
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor"

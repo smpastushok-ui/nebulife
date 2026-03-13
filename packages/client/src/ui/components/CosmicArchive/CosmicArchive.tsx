@@ -4,12 +4,14 @@ import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
 import { PlanetsCatalog, FavoritesPlanetsList } from './PlanetsCatalog';
 import { SystemsList } from './SystemsList';
+import { SystemLog } from './SystemLog';
+import type { LogEntry } from './SystemLog';
 
 // ---------------------------------------------------------------------------
 // Tab structure
 // ---------------------------------------------------------------------------
 
-type MainTab = 'collections' | 'management' | 'navigation' | 'interaction';
+type MainTab = 'collections' | 'management' | 'navigation' | 'interaction' | 'log';
 type SubTab = string;
 
 interface TabDef {
@@ -55,6 +57,13 @@ const TABS: TabDef[] = [
       { id: 'quests', label: 'Квести' },
     ],
   },
+  {
+    id: 'log',
+    label: 'Журнал',
+    subTabs: [
+      { id: 'all-events', label: 'Бортовий журнал' },
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -65,6 +74,7 @@ export interface CosmicArchiveProps {
   playerId: string;
   allSystems: StarSystem[];
   aliases: Record<string, string>;
+  logEntries: LogEntry[];
   onClose: () => void;
   onNavigateToSystem: (system: StarSystem) => void;
   onViewPlanetDetail: (system: StarSystem, planetId: string) => void;
@@ -141,6 +151,7 @@ export function CosmicArchive({
   playerId,
   allSystems,
   aliases,
+  logEntries,
   onClose,
   onNavigateToSystem,
   onViewPlanetDetail,
@@ -153,6 +164,7 @@ export function CosmicArchive({
     management: 'tech',
     navigation: 'planets',
     interaction: 'diplomacy',
+    log: 'all-events',
   });
   const [visible, setVisible] = useState(false);
 
@@ -303,6 +315,10 @@ export function CosmicArchive({
           onViewPlanet={handleViewPlanet}
         />
       );
+    }
+
+    if (mainTab === 'log') {
+      return <SystemLog entries={logEntries} />;
     }
 
     // All other tabs => placeholder

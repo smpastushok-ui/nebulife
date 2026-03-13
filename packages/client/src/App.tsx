@@ -56,6 +56,7 @@ import { OnboardingScreen } from './ui/components/OnboardingScreen.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
+import type { LogEntry, LogCategory } from './ui/components/CosmicArchive/SystemLog.js';
 import type { User } from 'firebase/auth';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
@@ -220,6 +221,7 @@ export function App() {
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>([]);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   // Ref that always holds the current scene (for use inside async callbacks)
   const currentSceneRef = useRef<string>('home-intro');
 
@@ -897,12 +899,30 @@ export function App() {
       ...prev,
       {
         id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        text: `3D-модель планети ${planetName} готова`,
+        text: `Квантовий синтез ${planetName} завершено`,
         planetName,
         systemId,
         planetId,
         timestamp: Date.now(),
         read: false,
+      },
+    ]);
+  }, []);
+
+  // ── System Log helper ──────────────────────────────────────────────────
+  const addLogEntry = useCallback((
+    category: LogCategory,
+    text: string,
+    extra?: { planetName?: string; systemId?: string; planetId?: string },
+  ) => {
+    setLogEntries((prev) => [
+      ...prev,
+      {
+        id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        category,
+        text,
+        timestamp: Date.now(),
+        ...extra,
       },
     ]);
   }, []);
@@ -981,6 +1001,11 @@ export function App() {
 
       if (result.paidWithQuarks) {
         refreshQuarks();
+        // Log: economy entry
+        addLogEntry('economy',
+          `Списано 49 кваркiв. Авторизовано запит на квантовий синтез для об'єкта ${homeInfo.planet.name}.`,
+          { planetName: homeInfo.planet.name, systemId: homeInfo.system.id, planetId: homeInfo.planet.id },
+        );
       }
 
       // Activate scanning
@@ -1007,6 +1032,12 @@ export function App() {
       // Update planet models list (triggers backgroundModelInfo)
       handleModelReady(result.modelId, completed.glbUrl);
 
+      // Log: science entry on completion
+      addLogEntry('science',
+        `Квантовий синтез ${homeInfo.planet.name} успішно завершено. Топографічна 3D-модель інтегрована в базу.`,
+        { planetName: homeInfo.planet.name, systemId: homeInfo.system.id, planetId: homeInfo.planet.id },
+      );
+
       // Small delay to let backgroundModelInfo update, then start materialization
       setTimeout(() => {
         setHome3DPhase('materializing');
@@ -1016,7 +1047,7 @@ export function App() {
       setHome3DPhase('idle');
       console.error('Home 3D generation error:', err);
     }
-  }, [homeInfo, refreshQuarks, handleModelReady]);
+  }, [homeInfo, refreshQuarks, handleModelReady, addLogEntry]);
 
   // ── Planet-view 3D generation handler (Quantum Scanning flow) ─────────
   const handlePlanetView3DGenerate = useCallback(async () => {
@@ -1036,6 +1067,11 @@ export function App() {
 
       if (result.paidWithQuarks) {
         refreshQuarks();
+        // Log: economy entry
+        addLogEntry('economy',
+          `Списано 49 кваркiв. Авторизовано запит на квантовий синтез для об'єкта ${planet.name}.`,
+          { planetName: planet.name, systemId: system.id, planetId: planet.id },
+        );
       }
 
       // Activate scanning
@@ -1062,6 +1098,12 @@ export function App() {
       // Update planet models list (triggers backgroundModelInfo)
       handleModelReady(result.modelId, completed.glbUrl);
 
+      // Log: science entry on completion
+      addLogEntry('science',
+        `Квантовий синтез ${planet.name} успішно завершено. Топографічна 3D-модель інтегрована в базу.`,
+        { planetName: planet.name, systemId: system.id, planetId: planet.id },
+      );
+
       // Small delay to let backgroundModelInfo update, then start materialization
       // If user navigated away from planet-view, skip animation and go straight to complete
       setTimeout(() => {
@@ -1077,7 +1119,7 @@ export function App() {
       setPlanetView3DPhase('idle');
       console.error('Planet-view 3D generation error:', err);
     }
-  }, [state.selectedPlanet, state.selectedSystem, refreshQuarks, handleModelReady, addSystemNotif]);
+  }, [state.selectedPlanet, state.selectedSystem, refreshQuarks, handleModelReady, addSystemNotif, addLogEntry]);
 
   const handleUpgradePlanet = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
@@ -1390,7 +1432,7 @@ export function App() {
                 React.createElement('line', { x1: '8', y1: '8', x2: '2', y2: '4.5' }),
                 React.createElement('line', { x1: '8', y1: '8', x2: '14', y2: '4.5' }),
               ),
-              React.createElement('span', null, '3D'),
+              React.createElement('span', null, 'Квантовий синтез'),
               React.createElement('span', { style: { opacity: 0.75 } }, '49'),
               React.createElement('svg', { width: 11, height: 11, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round' },
                 React.createElement('circle', { cx: '8', cy: '8', r: '2' }),
@@ -1749,9 +1791,23 @@ export function App() {
                 modelGenerationTarget.systemId,
                 modelGenerationTarget.planetId,
               );
+              // Log: science entry on completion
+              addLogEntry('science',
+                `Квантовий синтез ${modelGenerationTarget.planetName} успішно завершено. Топографічна 3D-модель інтегрована в базу.`,
+                { planetName: modelGenerationTarget.planetName, systemId: modelGenerationTarget.systemId, planetId: modelGenerationTarget.planetId },
+              );
             }
           }}
-          onQuarksChanged={refreshQuarks}
+          onQuarksChanged={() => {
+            refreshQuarks();
+            // Log: economy entry on payment
+            if (modelGenerationTarget) {
+              addLogEntry('economy',
+                `Списано 49 кваркiв. Авторизовано запит на квантовий синтез для об'єкта ${modelGenerationTarget.planetName}.`,
+                { planetName: modelGenerationTarget.planetName, systemId: modelGenerationTarget.systemId, planetId: modelGenerationTarget.planetId },
+              );
+            }
+          }}
         />
       )}
       {/* Scan line while checking for 3D models (planet-view only, skip home to avoid flash) */}
@@ -1841,6 +1897,7 @@ export function App() {
           playerId={playerId.current}
           allSystems={engineRef.current?.getAllSystems() ?? []}
           aliases={aliases}
+          logEntries={logEntries}
           onClose={() => setShowCosmicArchive(false)}
           onNavigateToSystem={(system) => {
             setShowCosmicArchive(false);

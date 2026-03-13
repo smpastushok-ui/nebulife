@@ -137,7 +137,7 @@ export function PlanetContextMenu({
             onClick={on3DGenerate}
           >
             <CubeIcon />
-            <span>3D</span>
+            <span>Квантовий синтез</span>
             <span style={{ color: hover3D ? '#aaccff' : '#667799', marginLeft: 2 }}>49</span>
             <QuarkIcon />
           </button>
