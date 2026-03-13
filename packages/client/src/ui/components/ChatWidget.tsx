@@ -34,6 +34,7 @@ export function ChatWidget({ playerId, playerName }: ChatWidgetProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastReadRef = useRef<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const authFailedRef = useRef(false);
 
   // Current channel
   const activeChannel = tab === 'global' ? 'global' : activeDM?.channel ?? '';
@@ -45,12 +46,16 @@ export function ChatWidget({ playerId, playerName }: ChatWidgetProps) {
 
   // Fetch messages for active channel
   const fetchMessages = useCallback(async () => {
-    if (!activeChannel) return;
+    if (!activeChannel || authFailedRef.current) return;
     try {
       const msgs = await getMessages(activeChannel, 50);
       setMessages(msgs);
-    } catch {
-      // Silently fail on poll errors
+    } catch (err) {
+      // Stop polling on auth errors (401/403)
+      if (err instanceof Error && /40[13]/.test(err.message)) {
+        authFailedRef.current = true;
+        if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+      }
     }
   }, [activeChannel]);
 
@@ -59,6 +64,7 @@ export function ChatWidget({ playerId, playerName }: ChatWidgetProps) {
     if (collapsed) return;
     if (!activeChannel) return;
 
+    authFailedRef.current = false;
     fetchMessages();
     pollingRef.current = setInterval(fetchMessages, 3000);
     return () => {
@@ -71,30 +77,44 @@ export function ChatWidget({ playerId, playerName }: ChatWidgetProps) {
     if (collapsed) return;
     if (tab !== 'dm-list') return;
 
-    getDMChannels().then(setDmChannels).catch(() => {});
-    const iv = setInterval(() => {
-      getDMChannels().then(setDmChannels).catch(() => {});
-    }, 10000);
-    return () => clearInterval(iv);
+    let iv: ReturnType<typeof setInterval> | null = null;
+    let stopped = false;
+    const fetchDM = () => {
+      getDMChannels().then(setDmChannels).catch((err) => {
+        if (err instanceof Error && /40[13]/.test(err.message)) {
+          stopped = true;
+          if (iv) clearInterval(iv);
+        }
+      });
+    };
+    fetchDM();
+    iv = setInterval(() => { if (!stopped) fetchDM(); }, 10000);
+    return () => { if (iv) clearInterval(iv); };
   }, [collapsed, tab]);
 
   // Unread count polling (when collapsed)
   useEffect(() => {
     if (!collapsed) return;
 
+    let iv: ReturnType<typeof setInterval> | null = null;
+    let stopped = false;
     const checkUnread = async () => {
+      if (stopped) return;
       try {
         const lastRead = localStorage.getItem('nebulife_chat_last_read_global');
         const msgs = await getMessages('global', 50, lastRead || undefined);
         setUnreadGlobal(msgs.length);
-      } catch {
-        // Silently fail
+      } catch (err) {
+        if (err instanceof Error && /40[13]/.test(err.message)) {
+          stopped = true;
+          if (iv) clearInterval(iv);
+        }
       }
     };
 
     checkUnread();
-    const iv = setInterval(checkUnread, 10000);
-    return () => clearInterval(iv);
+    iv = setInterval(checkUnread, 10000);
+    return () => { if (iv) clearInterval(iv); };
   }, [collapsed]);
 
   // Auto-scroll to bottom on new messages

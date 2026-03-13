@@ -151,6 +151,7 @@ export async function saveDiscovery(d: {
     INSERT INTO discoveries (id, player_id, object_type, rarity, gallery_category, system_id, planet_id, prompt_used, scientific_report)
     VALUES (${d.id}, ${d.playerId}, ${d.objectType}, ${d.rarity}, ${d.galleryCategory},
             ${d.systemId}, ${d.planetId ?? null}, ${d.promptUsed ?? null}, ${d.scientificReport ?? null})
+    ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
     RETURNING *
   `;
   return rows[0] as DiscoveryRow;
