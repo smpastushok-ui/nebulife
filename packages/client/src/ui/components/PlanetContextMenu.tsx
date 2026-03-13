@@ -61,6 +61,27 @@ function MenuItem({ label, onClick, color }: { label: string; onClick: () => voi
   );
 }
 
+/** 3D cube SVG icon */
+const CubeIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
+    strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" />
+    <line x1="8" y1="15" x2="8" y2="8" />
+    <line x1="8" y1="8" x2="2" y2="4.5" />
+    <line x1="8" y1="8" x2="14" y2="4.5" />
+  </svg>
+);
+
+/** Atom / quark currency icon */
+const QuarkIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
+    strokeLinecap="round" style={{ flexShrink: 0 }}>
+    <circle cx="8" cy="8" r="2" />
+    <ellipse cx="8" cy="8" rx="7" ry="3" />
+    <ellipse cx="8" cy="8" rx="3" ry="7" />
+  </svg>
+);
+
 export function PlanetContextMenu({
   planet, screenPosition,
   onViewPlanet, onShowCharacteristics, onClose,
@@ -76,6 +97,7 @@ export function PlanetContextMenu({
   has3DModel?: boolean;
   is3DGenerating?: boolean;
 }) {
+  const [hover3D, setHover3D] = React.useState(false);
   // Clamp position to keep menu on screen
   const maxX = window.innerWidth - MENU_WIDTH - 16;
   const maxY = window.innerHeight - MENU_HEIGHT_APPROX - 16;
@@ -101,7 +123,24 @@ export function PlanetContextMenu({
         )}
         <MenuItem label="Характеристики" onClick={onShowCharacteristics} />
         {on3DGenerate && !has3DModel && !is3DGenerating && (
-          <MenuItem label="3D 49 кварки" onClick={on3DGenerate} color="#4488aa" />
+          <button
+            style={{
+              ...itemStyle,
+              background: hover3D ? itemHoverBg : 'none',
+              color: hover3D ? '#7bb8ff' : '#4488aa',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            onMouseEnter={() => setHover3D(true)}
+            onMouseLeave={() => setHover3D(false)}
+            onClick={on3DGenerate}
+          >
+            <CubeIcon />
+            <span>3D</span>
+            <span style={{ color: hover3D ? '#aaccff' : '#667799', marginLeft: 2 }}>49</span>
+            <QuarkIcon />
+          </button>
         )}
       </div>
     </>

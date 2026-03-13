@@ -173,23 +173,18 @@ function Generate3DButton({
   hasModel?: boolean;
 }) {
   const [hover, setHover] = useState(false);
-  const label = generating
-    ? 'Генерація 3D...'
-    : hasModel
-      ? 'Змінити вигляд 49\u269B'
-      : 'Створити 3D планету 49\u269B';
-
   return (
     <button
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       disabled={generating}
+      title={hasModel ? 'Оновити 3D-модель' : 'Створити 3D-модель'}
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
+        gap: 5,
         padding: '4px 12px',
         marginTop: 4,
         background: hover && !generating ? 'rgba(30, 50, 80, 0.7)' : 'rgba(5, 10, 20, 0.85)',
@@ -206,22 +201,28 @@ function Generate3DButton({
       }}
     >
       {/* 3D cube icon */}
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+        strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M8 1L14.5 4.75V11.25L8 15L1.5 11.25V4.75L8 1Z" />
         <path d="M8 15V8" />
         <path d="M8 8L1.5 4.75" />
         <path d="M8 8L14.5 4.75" />
       </svg>
-      <span>{label}</span>
+      {generating ? (
+        <span>Генерація...</span>
+      ) : (
+        <>
+          <span>{hasModel ? 'Оновити' : '3D'}</span>
+          <span style={{ opacity: 0.75 }}>49</span>
+          {/* Quark / atom icon */}
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+            strokeWidth="1.4" strokeLinecap="round">
+            <circle cx="8" cy="8" r="2" />
+            <ellipse cx="8" cy="8" rx="7" ry="3" />
+            <ellipse cx="8" cy="8" rx="3" ry="7" />
+          </svg>
+        </>
+      )}
     </button>
   );
 }

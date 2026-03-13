@@ -53,6 +53,7 @@ import { CallsignModal } from './ui/components/CallsignModal.js';
 import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
 import { OnboardingScreen } from './ui/components/OnboardingScreen.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
+import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import type { User } from 'firebase/auth';
 import {
@@ -217,6 +218,9 @@ export function App() {
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>([]);
+  // Ref that always holds the current scene (for use inside async callbacks)
+  const currentSceneRef = useRef<string>('home-intro');
 
   // ── System context menu state (galaxy view) ────────────────────────────
   const [showSystemMenu, setShowSystemMenu] = useState(false);
@@ -883,6 +887,25 @@ export function App() {
     console.log(`[Gallery] Saved discovery ${discoveryId} with image ${imageUrl}`);
   }, []);
 
+  // Keep currentSceneRef in sync with state.scene for use in async callbacks
+  useEffect(() => { currentSceneRef.current = state.scene; }, [state.scene]);
+
+  // ── System notification helper ────────────────────────────────────────
+  const addSystemNotif = useCallback((planetName: string, systemId: string, planetId: string) => {
+    setSystemNotifs((prev) => [
+      ...prev,
+      {
+        id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        text: `3D-модель планети ${planetName} готова`,
+        planetName,
+        systemId,
+        planetId,
+        timestamp: Date.now(),
+        read: false,
+      },
+    ]);
+  }, []);
+
   // ── 3D Model handlers ─────────────────────────────────────────────────
   const handleModelReady = useCallback((modelId: string, glbUrl: string) => {
     setPlanetModels((prev) => {
@@ -1032,22 +1055,28 @@ export function App() {
         }
       });
 
-      // Model ready — stop scanning, start materialization
+      // Model ready — stop scanning
       engineRef.current?.stopPlanetViewScanning();
 
       // Update planet models list (triggers backgroundModelInfo)
       handleModelReady(result.modelId, completed.glbUrl);
 
       // Small delay to let backgroundModelInfo update, then start materialization
+      // If user navigated away from planet-view, skip animation and go straight to complete
       setTimeout(() => {
-        setPlanetView3DPhase('materializing');
+        if (currentSceneRef.current === 'planet-view') {
+          setPlanetView3DPhase('materializing');
+        } else {
+          setPlanetView3DPhase('complete');
+          addSystemNotif(planet.name, system.id, planet.id);
+        }
       }, 100);
     } catch (err) {
       engineRef.current?.stopPlanetViewScanning();
       setPlanetView3DPhase('idle');
       console.error('Planet-view 3D generation error:', err);
     }
-  }, [state.selectedPlanet, state.selectedSystem, refreshQuarks, handleModelReady]);
+  }, [state.selectedPlanet, state.selectedSystem, refreshQuarks, handleModelReady, addSystemNotif]);
 
   const handleUpgradePlanet = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
@@ -1352,7 +1381,22 @@ export function App() {
         if (!backgroundModelInfo && home3DPhase === 'idle') {
           homeTools.push({
             id: '3d-home',
-            label: '3D 49⚛',
+            label: '',
+            icon: React.createElement('span', { style: { display: 'flex', alignItems: 'center', gap: 4 } },
+              React.createElement('svg', { width: 12, height: 12, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round' },
+                React.createElement('path', { d: 'M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z' }),
+                React.createElement('line', { x1: '8', y1: '15', x2: '8', y2: '8' }),
+                React.createElement('line', { x1: '8', y1: '8', x2: '2', y2: '4.5' }),
+                React.createElement('line', { x1: '8', y1: '8', x2: '14', y2: '4.5' }),
+              ),
+              React.createElement('span', null, '3D'),
+              React.createElement('span', { style: { opacity: 0.75 } }, '49'),
+              React.createElement('svg', { width: 11, height: 11, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round' },
+                React.createElement('circle', { cx: '8', cy: '8', r: '2' }),
+                React.createElement('ellipse', { cx: '8', cy: '8', rx: '7', ry: '3' }),
+                React.createElement('ellipse', { cx: '8', cy: '8', rx: '3', ry: '7' }),
+              ),
+            ),
             onClick: handleHome3DGenerate,
             variant: 'accent',
           });
@@ -1660,9 +1704,9 @@ export function App() {
           onShowCharacteristics={handleShowCharacteristics}
           onClose={handleClosePlanetMenu}
           onSurface={handleOpenSurface}
-          on3DGenerate={handlePlanetView3DGenerate}
+          on3DGenerate={handleUpgradePlanet}
           has3DModel={!!(selectedPlanetModel?.status === 'ready' && selectedPlanetModel?.glb_url)}
-          is3DGenerating={planetView3DPhase !== 'idle' && planetView3DPhase !== 'complete'}
+          is3DGenerating={(planetView3DPhase !== 'idle' && planetView3DPhase !== 'complete') || !!modelGenerationTarget}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -1725,7 +1769,17 @@ export function App() {
           planet={modelGenerationTarget.planet}
           star={modelGenerationTarget.star}
           onClose={handleCloseModelGeneration}
-          onModelReady={handleModelReady}
+          onModelReady={(modelId, glbUrl) => {
+            handleModelReady(modelId, glbUrl);
+            // Fire system notification so player knows 3D is ready
+            if (modelGenerationTarget) {
+              addSystemNotif(
+                modelGenerationTarget.planetName,
+                modelGenerationTarget.systemId,
+                modelGenerationTarget.planetId,
+              );
+            }
+          }}
           onQuarksChanged={refreshQuarks}
         />
       )}
@@ -1898,6 +1952,19 @@ export function App() {
           playerId={playerId.current}
           playerName={state.playerName}
           onUnreadChange={setChatUnreadCount}
+          systemNotifs={systemNotifs}
+          onSystemNotifRead={(id) =>
+            setSystemNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
+          }
+          onNavigateToPlanet={(systemId, planetId) => {
+            const allSystems = engineRef.current?.getAllSystems() ?? [];
+            const sys = allSystems.find((s) => s.id === systemId);
+            const planet = sys?.planets.find((p) => p.id === planetId);
+            if (sys && planet) {
+              engineRef.current?.showPlanetViewScene(sys, planet);
+              setState((prev) => ({ ...prev, scene: 'planet-view' as const, selectedSystem: sys, selectedPlanet: planet }));
+            }
+          }}
         />
       )}
 

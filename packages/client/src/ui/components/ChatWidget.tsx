@@ -13,15 +13,28 @@ import { NewDMModal } from './NewDMModal.js';
 // ChatWidget — minimized messenger at bottom-right
 // ---------------------------------------------------------------------------
 
+export interface SystemNotif {
+  id: string;
+  text: string;
+  planetName: string;
+  systemId: string;
+  planetId: string;
+  timestamp: number;
+  read: boolean;
+}
+
 interface ChatWidgetProps {
   playerId: string;
   playerName: string;
   onUnreadChange?: (count: number) => void;
+  systemNotifs?: SystemNotif[];
+  onSystemNotifRead?: (id: string) => void;
+  onNavigateToPlanet?: (systemId: string, planetId: string) => void;
 }
 
-type Tab = 'global' | 'dm-list' | 'dm-chat';
+type Tab = 'global' | 'dm-list' | 'dm-chat' | 'system';
 
-export function ChatWidget({ playerId, playerName, onUnreadChange }: ChatWidgetProps) {
+export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet }: ChatWidgetProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [tab, setTab] = useState<Tab>('global');
   const [messages, setMessages] = useState<MessageData[]>([]);
@@ -118,10 +131,18 @@ export function ChatWidget({ playerId, playerName, onUnreadChange }: ChatWidgetP
     return () => { if (iv) clearInterval(iv); };
   }, [collapsed]);
 
-  // Notify parent of unread count changes
+  // Notify parent of unread count changes (global + system)
+  const unreadSystem = systemNotifs.filter(n => !n.read).length;
   useEffect(() => {
-    onUnreadChange?.(unreadGlobal);
-  }, [unreadGlobal, onUnreadChange]);
+    onUnreadChange?.(unreadGlobal + unreadSystem);
+  }, [unreadGlobal, unreadSystem, onUnreadChange]);
+
+  // Mark system notifs as read when viewing system tab
+  useEffect(() => {
+    if (!collapsed && tab === 'system') {
+      systemNotifs.filter(n => !n.read).forEach(n => onSystemNotifRead?.(n.id));
+    }
+  }, [collapsed, tab, systemNotifs, onSystemNotifRead]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -172,9 +193,14 @@ export function ChatWidget({ playerId, playerName, onUnreadChange }: ChatWidgetP
 
   // ── Collapsed state ──
   if (collapsed) {
+    const totalUnread = unreadGlobal + unreadSystem;
     return (
       <button
-        onClick={() => setCollapsed(false)}
+        onClick={() => {
+          // If unread system notifs, open to system tab
+          if (unreadSystem > 0) setTab('system');
+          setCollapsed(false);
+        }}
         style={{
           position: 'fixed',
           bottom: 56,
@@ -194,9 +220,9 @@ export function ChatWidget({ playerId, playerName, onUnreadChange }: ChatWidgetP
         }}
       >
         Чат
-        {unreadGlobal > 0 && (
+        {totalUnread > 0 && (
           <span style={{
-            background: '#44ff88',
+            background: unreadSystem > 0 ? '#4488aa' : '#44ff88',
             color: '#020510',
             fontSize: 9,
             fontWeight: 'bold',
@@ -205,7 +231,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange }: ChatWidgetP
             minWidth: 14,
             textAlign: 'center',
           }}>
-            {unreadGlobal > 99 ? '99+' : unreadGlobal}
+            {totalUnread > 99 ? '99+' : totalUnread}
           </span>
         )}
       </button>
@@ -248,6 +274,12 @@ export function ChatWidget({ playerId, playerName, onUnreadChange }: ChatWidgetP
               active={tab === 'dm-list' || tab === 'dm-chat'}
               onClick={() => { setTab('dm-list'); setActiveDM(null); }}
               label="DM"
+            />
+            <TabButton
+              active={tab === 'system'}
+              onClick={() => { setTab('system'); setActiveDM(null); }}
+              label="Система"
+              badge={unreadSystem > 0 ? unreadSystem : undefined}
             />
           </div>
           <button
@@ -364,6 +396,64 @@ export function ChatWidget({ playerId, playerName, onUnreadChange }: ChatWidgetP
           </>
         )}
 
+        {/* System notifications tab */}
+        {tab === 'system' && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {systemNotifs.length === 0 ? (
+              <div style={{ color: '#445566', fontSize: 10, textAlign: 'center', marginTop: 40, fontFamily: 'monospace' }}>
+                Немає системних сповіщень
+              </div>
+            ) : (
+              [...systemNotifs].reverse().map((notif) => {
+                const time = new Date(notif.timestamp).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <div key={notif.id} style={{
+                    background: notif.read ? 'rgba(10,20,35,0.4)' : 'rgba(20,40,70,0.6)',
+                    border: `1px solid ${notif.read ? '#223344' : '#446688'}`,
+                    borderRadius: 4,
+                    padding: '8px 10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ color: '#4488aa', fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                        СИСТЕМА
+                      </span>
+                      <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{time}</span>
+                    </div>
+                    <div style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4' }}>
+                      {notif.text}
+                    </div>
+                    {onNavigateToPlanet && (
+                      <button
+                        onClick={() => {
+                          onSystemNotifRead?.(notif.id);
+                          onNavigateToPlanet(notif.systemId, notif.planetId);
+                          setCollapsed(true);
+                        }}
+                        style={{
+                          alignSelf: 'flex-start',
+                          background: 'rgba(34,102,170,0.25)',
+                          border: '1px solid #4488aa',
+                          borderRadius: 3,
+                          color: '#7bb8ff',
+                          fontFamily: 'monospace',
+                          fontSize: 10,
+                          padding: '3px 10px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Перейти до планети
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
         {/* DM list */}
         {tab === 'dm-list' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
@@ -437,7 +527,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange }: ChatWidgetP
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function TabButton({ active, onClick, label, badge }: { active: boolean; onClick: () => void; label: string; badge?: number }) {
   return (
     <button
       onClick={onClick}
@@ -447,12 +537,30 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
         borderRadius: 3,
         color: active ? '#4488aa' : '#667788',
         fontFamily: 'monospace',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
         fontSize: 10,
         padding: '3px 10px',
         cursor: 'pointer',
       }}
     >
       {label}
+      {badge !== undefined && badge > 0 && (
+        <span style={{
+          background: '#4488aa',
+          color: '#020510',
+          fontSize: 8,
+          fontWeight: 'bold',
+          borderRadius: 6,
+          padding: '1px 4px',
+          minWidth: 12,
+          textAlign: 'center',
+          lineHeight: '1.5',
+        }}>
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
     </button>
   );
 }
