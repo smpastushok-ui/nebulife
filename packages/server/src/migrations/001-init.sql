@@ -12,7 +12,14 @@ CREATE TABLE IF NOT EXISTS players (
   login_streak    INTEGER NOT NULL DEFAULT 0,
   last_login      TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  game_state      JSONB NOT NULL DEFAULT '{}'
+  game_state      JSONB NOT NULL DEFAULT '{}',
+  quarks          INTEGER NOT NULL DEFAULT 0,
+  firebase_uid    TEXT,
+  auth_provider   TEXT NOT NULL DEFAULT 'anonymous',
+  email           TEXT,
+  callsign        TEXT,
+  callsign_set_at TIMESTAMPTZ,
+  linked_at       TIMESTAMPTZ
 );
 
 -- Discoveries table

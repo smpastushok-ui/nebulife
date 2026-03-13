@@ -522,31 +522,42 @@ export function App() {
           sessionStorage.setItem('nebulife_reg_reminder_shown', '1');
         }
 
-        // Register/sync player in DB
-        try {
-          const legacyId = localStorage.getItem('nebulife_player_id');
-          const res = await authFetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ legacyPlayerId: legacyId || undefined }),
-          });
-          if (res.ok) {
-            const player = await res.json();
-            playerId.current = player.id; // Use DB id (may differ from UID for migrated)
-            setQuarks(player.quarks ?? 0);
-            setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
-            setNeedsCallsign(!player.callsign);
-            // Check if player needs onboarding
-            if (player.game_phase === 'onboarding') {
-              setNeedsOnboarding(true);
+        // Register/sync player in DB (retry up to 3 times on failure)
+        let registered = false;
+        for (let attempt = 0; attempt < 3 && !registered; attempt++) {
+          try {
+            const legacyId = localStorage.getItem('nebulife_player_id');
+            const res = await authFetch('/api/auth/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ legacyPlayerId: legacyId || undefined }),
+            });
+            if (res.ok) {
+              const player = await res.json();
+              playerId.current = player.id; // Use DB id (may differ from UID for migrated)
+              setQuarks(player.quarks ?? 0);
+              setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
+              setNeedsCallsign(!player.callsign);
+              // Check if player needs onboarding
+              if (player.game_phase === 'onboarding') {
+                setNeedsOnboarding(true);
+              }
+              // Clear legacy ID after successful migration
+              if (legacyId && player.firebase_uid) {
+                localStorage.removeItem('nebulife_player_id');
+              }
+              registered = true;
+            } else {
+              console.warn(`[Auth] Register attempt ${attempt + 1} failed: ${res.status}`);
+              if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
             }
-            // Clear legacy ID after successful migration
-            if (legacyId && player.firebase_uid) {
-              localStorage.removeItem('nebulife_player_id');
-            }
+          } catch (err) {
+            console.warn(`[Auth] Register attempt ${attempt + 1} error:`, err);
+            if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
           }
-        } catch (err) {
-          console.warn('Failed to register player:', err);
+        }
+        if (!registered) {
+          console.error('[Auth] Failed to register player after 3 attempts');
         }
       } else {
         playerId.current = '';
