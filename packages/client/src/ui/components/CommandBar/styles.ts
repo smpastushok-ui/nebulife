@@ -19,6 +19,11 @@ export const KEYFRAMES_CSS = `
   0%, 100% { box-shadow: 0 0 4px rgba(120, 184, 255, 0.15); }
   50%      { box-shadow: 0 0 8px rgba(120, 184, 255, 0.35); }
 }
+
+@keyframes cmdbar-terminal-pulse {
+  0%, 100% { border-top-color: rgba(68, 136, 170, 0.5); }
+  50%      { border-top-color: rgba(120, 184, 255, 0.8); }
+}
 `;
 
 /* ------------------------------------------------------------------ */
@@ -99,6 +104,18 @@ export const toolButtonAccent: React.CSSProperties = {
   color: '#aaccff',
   borderColor: 'rgba(120, 160, 255, 0.4)',
   background: 'linear-gradient(135deg, rgba(30, 60, 120, 0.6), rgba(60, 100, 180, 0.4))',
+};
+
+export const toolButtonTerminal: React.CSSProperties = {
+  ...toolButtonBase,
+  padding: '8px 14px',
+  color: '#aaccee',
+  borderColor: 'rgba(68, 136, 170, 0.5)',
+  borderTop: '2px solid #4488aa',
+  background: 'rgba(20, 40, 65, 0.7)',
+  letterSpacing: 1.5,
+  fontSize: 11,
+  animation: 'cmdbar-terminal-pulse 3s ease-in-out infinite',
 };
 
 export const toolButtonActive: React.CSSProperties = {

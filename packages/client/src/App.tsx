@@ -25,6 +25,7 @@ import { PlanetNavHeader } from './ui/components/PlanetNavHeader.js';
 import { FloatingInfoButton } from './ui/components/FloatingInfoButton.js';
 import { SystemObjectsPanel } from './ui/components/SystemObjectsPanel.js';
 import { PlanetDetailWindow } from './ui/components/PlanetDetailWindow.js';
+import { SceneControlsPanel } from './ui/components/SceneControlsPanel.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery,
 } from '@nebulife/core';
@@ -1443,13 +1444,7 @@ export function App() {
           badge: `${activeSlots}/${HOME_OBSERVATORY_COUNT}`,
         }],
       });
-      toolGroups.push({
-        type: 'zoom',
-        items: [
-          { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.galaxyZoomIn() },
-          { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.galaxyZoomOut() },
-        ],
-      });
+      // Zoom moved to SceneControlsPanel (left side)
       break;
     }
 
@@ -1468,22 +1463,7 @@ export function App() {
     }
 
     case 'planet-view': {
-      // Left: back to system
-      toolGroups.push({
-        type: 'buttons',
-        items: [{ id: 'back-system', label: 'Система', onClick: handleBackToSystem }],
-      });
-      // Center: zoom controls (only for PixiJS view, 3D viewer has orbit controls)
-      if (!backgroundModelInfo) {
-        toolGroups.push({
-          type: 'zoom',
-          items: [
-            { id: 'zoom-in', label: '+', onClick: () => engineRef.current?.planetViewZoomIn() },
-            { id: 'zoom-out', label: '\u2212', onClick: () => engineRef.current?.planetViewZoomOut() },
-          ],
-        });
-      }
-      // Right: surface
+      // Surface button only (back + zoom moved to SceneControlsPanel)
       toolGroups.push({
         type: 'buttons',
         items: [{ id: 'surface', label: 'Поверхня', onClick: handleOpenSurface }],
@@ -1514,18 +1494,14 @@ export function App() {
     }
   }
 
-  // Global: Command center button on all scenes
+  // Global: Terminal button on all scenes
   toolGroups.push({
     type: 'buttons',
     items: [{
       id: 'command-center',
-      label: '',
-      icon: React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
-        React.createElement('rect', { x: '2', y: '2', width: '12', height: '12', rx: '2' }),
-        React.createElement('line', { x1: '2', y1: '6', x2: '14', y2: '6' }),
-        React.createElement('line', { x1: '6', y1: '6', x2: '6', y2: '14' }),
-      ),
-      tooltip: 'Командний центр',
+      label: 'ТЕРМІНАЛ',
+      variant: 'terminal' as const,
+      tooltip: 'Центр управлiння',
       onClick: () => setShowCosmicArchive(true),
     }],
   });
@@ -1554,47 +1530,42 @@ export function App() {
         onTopUp={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
 
-      {/* Center camera button — top-left, visible on galaxy level */}
+      {/* Left-side scene controls — galaxy */}
       {state.scene === 'galaxy' && (
-        <button
-          onClick={() => engineRef.current?.galaxyCenterOnOrigin()}
-          title="Центрувати"
-          style={{
-            position: 'fixed',
-            top: 14,
-            left: 14,
-            width: 32,
-            height: 32,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(10,15,25,0.85)',
-            border: '1px solid rgba(68,102,136,0.4)',
-            borderRadius: 4,
-            color: '#8899aa',
-            cursor: 'pointer',
-            zIndex: 9400,
-            padding: 0,
-            fontFamily: 'monospace',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(120,160,255,0.5)';
-            e.currentTarget.style.color = '#aabbcc';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(68,102,136,0.4)';
-            e.currentTarget.style.color = '#8899aa';
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <circle cx="8" cy="8" r="6" />
-            <line x1="8" y1="2" x2="8" y2="5" />
-            <line x1="8" y1="11" x2="8" y2="14" />
-            <line x1="2" y1="8" x2="5" y2="8" />
-            <line x1="11" y1="8" x2="14" y2="8" />
-            <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" />
-          </svg>
-        </button>
+        <SceneControlsPanel
+          onBack={handleGoToHomePlanet}
+          onCenter={() => engineRef.current?.galaxyCenterOnOrigin()}
+          onZoomIn={() => engineRef.current?.galaxyZoomIn()}
+          onZoomOut={() => engineRef.current?.galaxyZoomOut()}
+          backLabel="Домівка"
+          showCenter
+          showZoom
+        />
+      )}
+
+      {/* Left-side scene controls — system */}
+      {state.scene === 'system' && (
+        <SceneControlsPanel
+          onBack={handleBackToGalaxy}
+          onCenter={() => engineRef.current?.systemCenterOnOrigin()}
+          onZoomIn={() => engineRef.current?.systemZoomIn()}
+          onZoomOut={() => engineRef.current?.systemZoomOut()}
+          backLabel="Галактика"
+          showCenter
+          showZoom
+        />
+      )}
+
+      {/* Left-side scene controls — planet-view */}
+      {state.scene === 'planet-view' && !backgroundModelInfo && (
+        <SceneControlsPanel
+          onBack={handleBackToSystem}
+          onCenter={() => {}}
+          onZoomIn={() => engineRef.current?.planetViewZoomIn()}
+          onZoomOut={() => engineRef.current?.planetViewZoomOut()}
+          backLabel="Система"
+          showZoom
+        />
       )}
 
       {/* Research blur overlay for unresearched systems */}
@@ -1884,6 +1855,10 @@ export function App() {
             setShowCosmicArchive(false);
             handleGoToHomePlanet();
           }}
+          onNavigateToGalaxy={() => {
+            setShowCosmicArchive(false);
+            handleStartExploration();
+          }}
         />
       )}
 
@@ -1915,13 +1890,13 @@ export function App() {
       )}
 
       {/* Chat unread notification dot — visible above chat widget */}
-      {chatUnreadCount > 0 && !showCosmicArchive && (
+      {chatUnreadCount > 0 && (
         <div
           style={{
             position: 'fixed',
             bottom: 90,
             right: 18,
-            zIndex: 9450,
+            zIndex: 9750,
             display: 'flex',
             alignItems: 'center',
             gap: 4,

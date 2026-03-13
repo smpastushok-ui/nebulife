@@ -253,6 +253,11 @@ export class GameEngine {
   galaxyZoomOut() { this.camera.zoomBy(0.77); }
   galaxyCenterOnOrigin() { this.camera.centerOnOrigin(); }
 
+  // System camera controls (system scene shares the camera)
+  systemZoomIn() { this.camera.zoomBy(1.3); }
+  systemZoomOut() { this.camera.zoomBy(0.77); }
+  systemCenterOnOrigin() { this.camera.centerOnOrigin(); }
+
   // Home planet camera controls
   homePlanetZoomIn() { this.homePlanetScene?.zoomIn(); }
   homePlanetZoomOut() { this.homePlanetScene?.zoomOut(); }

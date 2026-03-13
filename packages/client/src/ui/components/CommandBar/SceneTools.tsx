@@ -2,7 +2,7 @@ import React from 'react';
 import type { ToolGroup, ExtendedScene } from './types.js';
 import {
   sectionCenter,
-  toolButtonBase, toolButtonPrimary, toolButtonAccent, toolButtonActive,
+  toolButtonBase, toolButtonPrimary, toolButtonAccent, toolButtonTerminal, toolButtonActive,
   zoomButtonStyle,
 } from './styles.js';
 
@@ -12,7 +12,7 @@ interface SceneToolsProps {
 }
 
 function getButtonStyle(
-  variant: 'default' | 'primary' | 'accent' | undefined,
+  variant: 'default' | 'primary' | 'accent' | 'terminal' | undefined,
   active: boolean | undefined,
 ): React.CSSProperties {
   let base: React.CSSProperties;
@@ -20,6 +20,7 @@ function getButtonStyle(
   switch (variant) {
     case 'primary': base = toolButtonPrimary; break;
     case 'accent': base = toolButtonAccent; break;
+    case 'terminal': base = toolButtonTerminal; break;
     default: base = toolButtonBase; break;
   }
 

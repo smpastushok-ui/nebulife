@@ -15,7 +15,7 @@ export interface ToolItem {
   id: string;
   label: string;
   onClick: () => void;
-  variant?: 'default' | 'primary' | 'accent';
+  variant?: 'default' | 'primary' | 'accent' | 'terminal';
   disabled?: boolean;
   active?: boolean;
   badge?: string;
