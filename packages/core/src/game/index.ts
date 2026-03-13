@@ -11,6 +11,7 @@ export {
   findFreeSlot,
   getResearchProgress,
   isSystemFullyResearched,
+  isRingFullyResearched,
   getSystemResearch,
 } from './research.js';
 

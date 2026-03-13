@@ -227,7 +227,7 @@ export function DiscoveryChoicePanel({
           {/* Choice 1: Telemetry (free) */}
           <ChoiceButton
             title="Базова телеметрія"
-            subtitle="Сканер зробить знімок. Безкоштовно."
+            subtitle="Сканер зробить знімок."
             borderColor="#445566"
             hoverBorderColor="#667788"
             textColor="#8899aa"
@@ -241,32 +241,38 @@ export function DiscoveryChoicePanel({
             }
           />
 
-          {/* Choice 2: Quantum Focus (3⚛ or free) */}
+          {/* Choice 2: Super Telescope (3⚛ or free) */}
           <ChoiceButton
-            title="Квантове фокусування"
+            title="Оренда супер-телескопа"
             subtitle={
               isFreeQuantum
                 ? isFirstDiscovery
                   ? 'Перше відкриття безкоштовно!'
                   : 'Щасливий випадок — безкоштовно!'
-                : canAffordQuantum
-                  ? 'AI-обсерваторія. 3 кварки.'
-                  : 'AI-обсерваторія. Потрібно 3 кварки.'
+                : (
+                  <span>
+                    {'AI-обсерваторія.\u00a0'}
+                    <span style={{ color: canAffordQuantum ? '#4488ff' : '#995544' }}>3 &#9883;</span>
+                    {!canAffordQuantum && <span style={{ color: '#885555' }}> — недостатньо</span>}
+                  </span>
+                )
             }
-            borderColor={isFreeQuantum ? '#44ff88' : canAffordQuantum ? color : '#553333'}
-            hoverBorderColor={isFreeQuantum ? '#66ffaa' : canAffordQuantum ? color : '#774444'}
-            textColor={isFreeQuantum ? '#44ff88' : canAffordQuantum ? color : '#885555'}
+            borderColor={isFreeQuantum ? '#44ff88' : canAffordQuantum ? '#2255aa' : '#553333'}
+            hoverBorderColor={isFreeQuantum ? '#66ffaa' : canAffordQuantum ? '#4477cc' : '#774444'}
+            textColor={isFreeQuantum ? '#44ff88' : canAffordQuantum ? '#aaccff' : '#885555'}
             disabled={!canAffordQuantum}
-            badge={isFreeQuantum ? null : '3'}
+            premium={canAffordQuantum}
             onClick={() => exit(onQuantumFocus)}
             icon={
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
-                <circle cx="8" cy="8" r="6" />
-                <circle cx="8" cy="8" r="2" />
-                <line x1="8" y1="2" x2="8" y2="4" />
-                <line x1="8" y1="12" x2="8" y2="14" />
-                <line x1="2" y1="8" x2="4" y2="8" />
-                <line x1="12" y1="8" x2="14" y2="8" />
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.2">
+                <circle cx="9" cy="9" r="7" />
+                <circle cx="9" cy="9" r="3" />
+                <line x1="9" y1="2" x2="9" y2="5" />
+                <line x1="9" y1="13" x2="9" y2="16" />
+                <line x1="2" y1="9" x2="5" y2="9" />
+                <line x1="13" y1="9" x2="16" y2="9" />
+                <line x1="4.5" y1="4.5" x2="6.5" y2="6.5" />
+                <line x1="11.5" y1="11.5" x2="13.5" y2="13.5" />
               </svg>
             }
           />
@@ -293,7 +299,13 @@ export function DiscoveryChoicePanel({
         </div>
       </div>
 
-      {/* Epic glow animation */}
+      {/* Animations */}
+      <style>{`
+        @keyframes premium-pulse {
+          0%, 100% { box-shadow: 0 0 10px rgba(50, 90, 210, 0.12); }
+          50% { box-shadow: 0 0 22px rgba(60, 110, 230, 0.28); }
+        }
+      `}</style>
       {isEpicOrAbove && (
         <style>{`
           @keyframes disc-panel-glow {
@@ -318,20 +330,23 @@ function ChoiceButton({
   textColor,
   disabled,
   badge,
+  premium,
   onClick,
   icon,
 }: {
   title: string;
-  subtitle: string;
+  subtitle: React.ReactNode;
   borderColor: string;
   hoverBorderColor: string;
   textColor: string;
   disabled?: boolean;
   badge?: string | null;
+  premium?: boolean;
   onClick: () => void;
   icon: React.ReactNode;
 }) {
   const [hover, setHover] = useState(false);
+  const isPremiumActive = premium && !disabled;
 
   return (
     <button
@@ -341,8 +356,14 @@ function ChoiceButton({
       onMouseLeave={() => setHover(false)}
       style={{
         width: '100%',
-        padding: '14px 16px',
-        background: hover && !disabled ? 'rgba(20, 35, 55, 0.5)' : 'rgba(8, 14, 24, 0.6)',
+        padding: isPremiumActive ? '16px 16px' : '14px 16px',
+        background: isPremiumActive
+          ? hover
+            ? 'linear-gradient(135deg, rgba(18, 36, 90, 0.95) 0%, rgba(10, 22, 60, 0.98) 100%)'
+            : 'linear-gradient(135deg, rgba(12, 24, 65, 0.92) 0%, rgba(7, 15, 42, 0.96) 100%)'
+          : hover && !disabled
+            ? 'rgba(20, 35, 55, 0.5)'
+            : 'rgba(8, 14, 24, 0.6)',
         border: `1px solid ${hover && !disabled ? hoverBorderColor : borderColor}`,
         borderRadius: 4,
         cursor: disabled ? 'default' : 'pointer',
@@ -352,22 +373,62 @@ function ChoiceButton({
         display: 'flex',
         alignItems: 'center',
         gap: 14,
-        transition: 'all 0.15s',
+        transition: 'all 0.2s',
         color: textColor,
+        position: 'relative',
+        animation: isPremiumActive && !hover ? 'premium-pulse 3s ease-in-out infinite' : undefined,
+        boxShadow: isPremiumActive && hover
+          ? '0 0 24px rgba(60, 110, 230, 0.30), inset 0 0 30px rgba(40, 80, 200, 0.06)'
+          : undefined,
       }}
     >
+      {/* Premium shimmer line at top edge */}
+      {isPremiumActive && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+            background: 'linear-gradient(90deg, transparent 0%, rgba(100, 160, 255, 0.55) 50%, transparent 100%)',
+            borderRadius: '4px 4px 0 0',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
       {/* Icon */}
-      <div style={{ flexShrink: 0, opacity: 0.7 }}>{icon}</div>
+      <div style={{
+        flexShrink: 0,
+        opacity: isPremiumActive ? 0.8 : 0.7,
+        color: isPremiumActive ? '#6699cc' : 'inherit',
+      }}>
+        {icon}
+      </div>
 
       {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{
+          fontSize: isPremiumActive ? 13 : 12,
+          fontWeight: 'bold',
+          marginBottom: 4,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          letterSpacing: isPremiumActive ? 0.3 : 0,
+        }}>
           {title}
           {badge && (
             <span style={{ fontSize: 10, opacity: 0.7 }}>{badge}</span>
           )}
         </div>
-        <div style={{ fontSize: 10, opacity: 0.6, lineHeight: 1.4 }}>{subtitle}</div>
+        <div style={{ fontSize: 10, lineHeight: 1.4 }}>
+          {typeof subtitle === 'string'
+            ? <span style={{ opacity: 0.6 }}>{subtitle}</span>
+            : subtitle
+          }
+        </div>
       </div>
     </button>
   );

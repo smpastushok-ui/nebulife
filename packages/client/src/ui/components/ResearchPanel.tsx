@@ -1,6 +1,6 @@
 import React from 'react';
 import type { StarSystem, ResearchState, ResearchSlot, SystemResearchState, ObservedRange } from '@nebulife/core';
-import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched } from '@nebulife/core';
+import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched, isRingFullyResearched } from '@nebulife/core';
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute', right: 16, top: 12, width: 280,
@@ -122,7 +122,10 @@ export function ResearchPanel({
   const research = getSystemResearch(researchState, system.id);
   const obs = research?.observation;
   const isResearching = researchState.slots.some((s) => s.systemId === system.id);
-  const canStart = canStartResearch(researchState, system.id, system.ringIndex);
+  // Ring gating: Ring N requires all Ring N-1 systems to be 100% researched
+  const ringLocked = system.ringIndex > 1
+    && !isRingFullyResearched(researchState, allSystems, system.ringIndex - 1);
+  const canStart = !ringLocked && canStartResearch(researchState, system.id, system.ringIndex);
   const isComplete = isSystemFullyResearched(researchState, system.id);
 
   return (
@@ -192,7 +195,11 @@ export function ResearchPanel({
           onClick={() => canStart && onStartResearch(system.id)}
           disabled={!canStart}
         >
-          {canStart ? 'Почати дослідження' : 'Немає вільних обсерваторій'}
+          {canStart
+            ? 'Почати дослідження'
+            : ringLocked
+              ? `Спершу дослідіть Кільце ${system.ringIndex - 1}`
+              : 'Немає вільних обсерваторій'}
         </button>
       )}
 

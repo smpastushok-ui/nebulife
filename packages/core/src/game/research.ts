@@ -347,6 +347,19 @@ export function getResearchProgress(
   return state.systems[systemId]?.progress ?? 0;
 }
 
+/** Check if ALL systems in a given ring are fully researched. */
+export function isRingFullyResearched(
+  state: ResearchState,
+  systems: StarSystem[],
+  ringIndex: number,
+): boolean {
+  const ringSystems = systems.filter(
+    (s) => s.ringIndex === ringIndex && s.ownerPlayerId === null,
+  );
+  if (ringSystems.length === 0) return true;
+  return ringSystems.every((s) => state.systems[s.id]?.isComplete === true);
+}
+
 /** Check if a system is fully researched (100 %). */
 export function isSystemFullyResearched(
   state: ResearchState,

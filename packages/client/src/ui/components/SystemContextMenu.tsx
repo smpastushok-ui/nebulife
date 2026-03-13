@@ -177,8 +177,11 @@ export function SystemContextMenu({
           )}
         </div>
         <div style={subHeaderStyle}>
-          {starTag} &nbsp;|&nbsp; {planetsCount}{' '}
-          {planetsCount === 1 ? 'планета' : planetsCount < 5 ? 'планети' : 'планет'}
+          {isHome || isResearched
+            ? <>{starTag} &nbsp;|&nbsp; {planetsCount}{' '}
+                {planetsCount === 1 ? 'планета' : planetsCount < 5 ? 'планети' : 'планет'}</>
+            : <>? &nbsp;|&nbsp; ? планет</>
+          }
         </div>
 
         {/* Navigation */}

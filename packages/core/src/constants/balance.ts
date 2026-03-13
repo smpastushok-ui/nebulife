@@ -21,4 +21,4 @@ export const HOME_OBSERVATORY_COUNT = 3;
 export const MAX_CONCURRENT_RESEARCH = 3;
 
 /** Ring levels accessible from home planet observatories. */
-export const HOME_RESEARCH_MAX_RING = 1;
+export const HOME_RESEARCH_MAX_RING = 2;
