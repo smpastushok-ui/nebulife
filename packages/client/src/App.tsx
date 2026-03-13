@@ -1111,6 +1111,7 @@ export function App() {
     if (pendingDiscovery) {
       setTelemetryTarget(pendingDiscovery);
       setPendingDiscovery(null);
+      setShowCosmicArchive(false); // Close archive so telemetry is visible
     }
   }, [pendingDiscovery]);
 
@@ -1124,6 +1125,7 @@ export function App() {
       }
       setObservatoryTarget({ ...pendingDiscovery, cost: isFree ? 0 : 3 });
       setPendingDiscovery(null);
+      setShowCosmicArchive(false); // Close archive so observatory view is visible
     }
   }, [pendingDiscovery, playerStats, quarks, isGuest]);
 
@@ -2083,6 +2085,8 @@ export function App() {
         minerals={colonyResources.minerals}
         volatiles={colonyResources.volatiles}
         isotopes={colonyResources.isotopes}
+        activeObservatories={researchState.slots.filter((s) => s.systemId !== null).length}
+        totalObservatories={researchState.slots.length}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
 

@@ -1008,9 +1008,9 @@ export function TelemetryView({
   return (
     <div
       style={{
-        position: 'absolute',
+        position: 'fixed',
         inset: 0,
-        zIndex: 350,
+        zIndex: 9650,
         background: '#000',
         display: 'flex',
         flexDirection: 'column',

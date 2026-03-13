@@ -437,6 +437,7 @@ export function PlanetsCatalog({
         const isComplete = progress >= 100;
         const isRenaming = renamingSystemId === system.id;
         const isDragOver = dragOverId === system.id;
+        const isResearching = isSystemResearching?.(system.id) ?? false;
 
         return (
           <div
@@ -470,7 +471,10 @@ export function PlanetsCatalog({
                       : 'rgba(10, 15, 25, 0.4)',
                 border: isDragOver
                   ? '1px solid rgba(68, 136, 170, 0.5)'
-                  : '1px solid rgba(51, 68, 85, 0.2)',
+                  : isResearching
+                    ? '1px solid rgba(68, 136, 255, 0.45)'
+                    : '1px solid rgba(51, 68, 85, 0.2)',
+                boxShadow: isResearching ? 'inset 0 0 12px rgba(68, 136, 255, 0.08)' : undefined,
                 borderRadius: isOpen ? '3px 3px 0 0' : 3,
                 cursor: 'grab',
                 fontFamily: 'monospace',
@@ -534,6 +538,9 @@ export function PlanetsCatalog({
                     {name}
                     {isHome && (
                       <span style={{ color: '#44ff88', fontSize: 9, marginLeft: 6 }}>HOME</span>
+                    )}
+                    {isResearching && (
+                      <span style={{ color: '#4488ff', fontSize: 9, marginLeft: 6, animation: 'nebulife-scan-pulse 1.5s ease-in-out infinite' }}>сканування...</span>
                     )}
                   </span>
                 )}
@@ -885,12 +892,15 @@ function PlanetChip({
 // ResearchProgressIcon — circular progress indicator for system research
 // ---------------------------------------------------------------------------
 
-// Inject scan-spin keyframe once
+// Inject scan-spin + pulse keyframes once
 const SCAN_STYLE_ID = 'nebulife-scan-spin';
 if (typeof document !== 'undefined' && !document.getElementById(SCAN_STYLE_ID)) {
   const style = document.createElement('style');
   style.id = SCAN_STYLE_ID;
-  style.textContent = `@keyframes nebulife-scan-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+  style.textContent = [
+    `@keyframes nebulife-scan-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`,
+    `@keyframes nebulife-scan-pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }`,
+  ].join('\n');
   document.head.appendChild(style);
 }
 
@@ -931,13 +941,15 @@ function ResearchProgressIcon({ progress, interactive, isResearching }: { progre
         />
         {/* Scanning arc — spinning blue dash when researching */}
         {isResearching && !isComplete && (
-          <circle cx="9" cy="9" r={r} fill="none"
-            stroke="#4488ff"
-            strokeWidth="2"
-            strokeDasharray={`${circumference * 0.25} ${circumference * 0.75}`}
-            strokeLinecap="round"
-            style={{ transformOrigin: '9px 9px', animation: 'nebulife-scan-spin 2s linear infinite' }}
-          />
+          <g style={{ transformOrigin: '9px 9px', animation: 'nebulife-scan-spin 2s linear infinite' }}>
+            <circle cx="9" cy="9" r={r} fill="none"
+              stroke="#4488ff"
+              strokeWidth="2.2"
+              strokeDasharray={`${circumference * 0.3} ${circumference * 0.7}`}
+              strokeLinecap="round"
+              style={{ animation: 'nebulife-scan-pulse 1.5s ease-in-out infinite' }}
+            />
+          </g>
         )}
         {/* Check mark for 100% */}
         {isComplete && (

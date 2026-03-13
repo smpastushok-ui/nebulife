@@ -139,9 +139,6 @@ export function ResearchPanel({
       </div>
 
       {/* Research slots */}
-      <div style={{ marginBottom: 4, color: '#778899', fontSize: 10 }}>
-        ОБСЕРВАТОРІЇ (<span style={{ color: '#4488aa' }}>{researchState.slots.filter((s) => s.systemId !== null).length}</span>/{researchState.slots.length})
-      </div>
       <SlotsIndicator slots={researchState.slots} allSystems={allSystems} />
 
       {/* Progress */}
@@ -203,12 +200,26 @@ export function ResearchPanel({
       {/* Action button */}
       {!isComplete && !isResearching && (
         <button
-          style={canStart ? btnStyle : btnDisabledStyle}
+          style={{
+            ...(canStart ? btnStyle : btnDisabledStyle),
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}
           onClick={() => canStart && onStartResearch(system.id)}
           disabled={!canStart}
         >
           {canStart
-            ? `Сканувати (-${RESEARCH_DATA_COST} д.д.)`
+            ? <>
+                Сканувати
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ verticalAlign: 'middle' }}>
+                  <circle cx="8" cy="8" r="6" />
+                  <circle cx="8" cy="8" r="2" />
+                  <line x1="8" y1="2" x2="8" y2="5" />
+                  <line x1="8" y1="11" x2="8" y2="14" />
+                  <line x1="2" y1="8" x2="5" y2="8" />
+                  <line x1="11" y1="8" x2="14" y2="8" />
+                </svg>
+                {RESEARCH_DATA_COST}
+              </>
             : !hasData
               ? 'Недостатньо дослідницьких даних'
               : ringLocked

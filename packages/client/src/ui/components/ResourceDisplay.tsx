@@ -15,6 +15,9 @@ interface ResourceDisplayProps {
   minerals?: number;
   volatiles?: number;
   isotopes?: number;
+  /** Observatory slots (active / total) */
+  activeObservatories?: number;
+  totalObservatories?: number;
 }
 
 const containerStyle: React.CSSProperties = {
@@ -64,6 +67,18 @@ function ResearchDataIcon() {
   );
 }
 
+/** SVG atom icon for Quarks */
+function QuarksIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="rgba(120,160,255,0.7)" strokeWidth="1.2">
+      <circle cx="8" cy="8" r="2" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(-60 8 8)" />
+    </svg>
+  );
+}
+
 /** SVG crystal icon for Minerals */
 function MineralsIcon() {
   return (
@@ -99,7 +114,20 @@ function IsotopesIcon() {
   );
 }
 
-export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, minerals = 0, volatiles = 0, isotopes = 0 }: ResourceDisplayProps) {
+/** SVG telescope icon for Observatories */
+function ObservatoryIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#778899" strokeWidth="1.2" strokeLinecap="round">
+      <line x1="3" y1="14" x2="8" y2="8" />
+      <line x1="13" y1="14" x2="8" y2="8" />
+      <line x1="8" y1="8" x2="14" y2="4" />
+      <circle cx="14" cy="4" r="2" />
+      <line x1="6" y1="12" x2="10" y2="12" />
+    </svg>
+  );
+}
+
+export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, minerals = 0, volatiles = 0, isotopes = 0, activeObservatories = 0, totalObservatories = 0 }: ResourceDisplayProps) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -119,6 +147,15 @@ export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, 
             <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{researchData}</span>
           </div>
           <div style={dividerStyle} />
+          {totalObservatories > 0 && (
+            <>
+              <div style={itemStyle} title="Обсерваторії">
+                <ObservatoryIcon />
+                <span><span style={{ color: activeObservatories > 0 ? '#4488aa' : '#667788' }}>{activeObservatories}</span><span style={{ color: '#556677' }}>/{totalObservatories}</span></span>
+              </div>
+              <div style={dividerStyle} />
+            </>
+          )}
         </>
       )}
 
@@ -144,7 +181,7 @@ export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, 
       )}
 
       <div style={itemStyle}>
-        <span style={{ fontSize: 13, color: 'rgba(120,160,255,0.7)' }}>&#9883;</span>
+        <QuarksIcon />
         <span>{quarks}</span>
       </div>
     </div>
