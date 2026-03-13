@@ -6,6 +6,7 @@ import { PlanetsCatalog, FavoritesPlanetsList } from './PlanetsCatalog';
 import { SystemsList } from './SystemsList';
 import { SystemLog } from './SystemLog';
 import type { LogEntry } from './SystemLog';
+import type { DiscoveryData } from '../../../api/player-api';
 
 // ---------------------------------------------------------------------------
 // Tab structure
@@ -86,6 +87,8 @@ export interface CosmicArchiveProps {
   onNavigateToGalaxy: () => void;
   /** Highlight a newly-saved discovery in the gallery */
   highlightedType?: string | null;
+  /** Locally-saved entries that may not yet be on the server */
+  localEntries?: Map<string, DiscoveryData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,6 +174,7 @@ export function CosmicArchive({
   onGoHome,
   onNavigateToGalaxy,
   highlightedType,
+  localEntries,
 }: CosmicArchiveProps) {
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
@@ -298,7 +302,7 @@ export function CosmicArchive({
 
   const renderContent = () => {
     if (mainTab === 'collections' && currentSubTab === 'cosmos') {
-      return <CosmosGallery playerId={playerId} highlightedType={highlightedType} />;
+      return <CosmosGallery playerId={playerId} highlightedType={highlightedType} localEntries={localEntries} />;
     }
     if (mainTab === 'navigation' && currentSubTab === 'planets') {
       return (

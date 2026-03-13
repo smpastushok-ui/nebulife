@@ -54,9 +54,11 @@ const RARITY_ORDER: Record<string, number> = {
 interface CosmosGalleryProps {
   playerId: string;
   highlightedType?: string | null;
+  /** Locally-saved entries that may not yet be on the server */
+  localEntries?: Map<string, DiscoveryData>;
 }
 
-export function CosmosGallery({ playerId, highlightedType }: CosmosGalleryProps) {
+export function CosmosGallery({ playerId, highlightedType, localEntries }: CosmosGalleryProps) {
   const [discoveries, setDiscoveries] = useState<DiscoveryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [photoModal, setPhotoModal] = useState<{
@@ -101,6 +103,7 @@ export function CosmosGallery({ playerId, highlightedType }: CosmosGalleryProps)
   }, [playerId]);
 
   // Map: object_type → DiscoveryData (first/best match)
+  // Merge server data with locally-saved entries (local wins if it has a photo)
   const discoveryMap = useMemo(() => {
     const map = new Map<string, DiscoveryData>();
     for (const d of discoveries) {
@@ -110,8 +113,17 @@ export function CosmosGallery({ playerId, highlightedType }: CosmosGalleryProps)
         map.set(d.object_type, d);
       }
     }
+    // Overlay local entries (from current session, may not be on server yet)
+    if (localEntries) {
+      for (const [objType, entry] of localEntries) {
+        const existing = map.get(objType);
+        if (!existing || (entry.photo_url && !existing.photo_url)) {
+          map.set(objType, entry);
+        }
+      }
+    }
     return map;
-  }, [discoveries]);
+  }, [discoveries, localEntries]);
 
   // Sort catalog: by category order, then by rarity within category
   const sortedCatalog = useMemo(() => {

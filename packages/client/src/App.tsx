@@ -554,7 +554,7 @@ export function App() {
       setSystemPhotos(map);
     }).catch(() => {});
     // Load gallery discoveries for duplicate detection
-    getDiscoveries(pid, 'cosmos').then(discoveries => {
+    getDiscoveries(pid).then(discoveries => {
       const gmap = new Map<string, DiscoveryData>();
       for (const d of discoveries) {
         if (d.photo_url) {
@@ -2549,6 +2549,7 @@ export function App() {
           aliases={aliases}
           logEntries={logEntries}
           highlightedType={highlightedGalleryType}
+          localEntries={galleryMap}
           getResearchProgress={(sysId: string) => {
             const sys = (engineRef.current?.getAllSystems() ?? []).find(s => s.id === sysId);
             if (sys?.ownerPlayerId !== null && sys?.ownerPlayerId !== undefined) return 100;
