@@ -3,7 +3,7 @@ import type { StarSystem, ResearchState, ResearchSlot, SystemResearchState, Obse
 import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched, isRingFullyResearched, RESEARCH_DATA_COST } from '@nebulife/core';
 
 const panelStyle: React.CSSProperties = {
-  position: 'absolute', right: 16, top: 12, width: 280,
+  position: 'absolute', right: 16, top: 48, width: 280,
   background: 'rgba(10,15,25,0.92)', border: '1px solid #334455',
   borderRadius: 4, padding: 16, fontFamily: 'monospace', color: '#aabbcc',
   fontSize: 11, pointerEvents: 'auto',

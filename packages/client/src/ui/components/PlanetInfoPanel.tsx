@@ -2,7 +2,7 @@ import React from 'react';
 import type { Planet } from '@nebulife/core';
 
 const panelStyle: React.CSSProperties = {
-  position: 'absolute', right: 16, top: 12, width: 300,
+  position: 'absolute', right: 16, top: 48, width: 300,
   background: 'rgba(10,15,25,0.92)', border: '1px solid #334455',
   borderRadius: 4, padding: 16, fontFamily: 'monospace', color: '#aabbcc',
   fontSize: 11, pointerEvents: 'auto', maxHeight: 'calc(100vh - 100px)',
