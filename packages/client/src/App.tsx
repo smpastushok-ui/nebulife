@@ -326,6 +326,9 @@ export function App() {
     return () => clearInterval(id);
   }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel]);
 
+  // Timer expired — force evacuation if no target found yet
+  // (the actual useEffect is placed after homeInfo declaration below)
+
   // Speed-up twist modal state
   const [showSpeedUpTwist, setShowSpeedUpTwist] = useState(false);
   const speedUpAppliedRef = useRef(accelAt !== null);
@@ -367,6 +370,8 @@ export function App() {
   const [evacuationPhase, setEvacuationPhase] = useState<EvacuationPhase>('idle');
   const [evacuationTarget, setEvacuationTarget] = useState<{ system: StarSystem; planet: Planet } | null>(null);
   const [evacuationFadeBlack, setEvacuationFadeBlack] = useState(false);
+  /** True when evacuation was triggered by timer expiration (not by finding a planet) */
+  const [forcedEvacuation, setForcedEvacuation] = useState(false);
 
   // Refs for values needed inside research-timer interval (stale-closure prevention)
   const isExodusPhaseRef = useRef(isExodusPhase);
@@ -422,6 +427,55 @@ export function App() {
 
   // ── Home planet info (for navigation from home page) ──────────────
   const [homeInfo, setHomeInfo] = useState<{ system: StarSystem; planet: Planet } | null>(null);
+
+  // Timer expired — force evacuation if no target found yet
+  const timerExpiredHandledRef = useRef(false);
+  useEffect(() => {
+    if (!isExodusPhase || clockPhase !== 'visible' || timerExpiredHandledRef.current) return;
+    const checkExpired = () => {
+      const gameSecs = remainingGameSeconds(
+        gameStartedAt, Date.now(), timeMultiplier, accelAt, gameTimeAtAccel,
+      );
+      if (gameSecs > 0) return; // Not expired yet
+      if (evacuationTargetRef.current) return; // Already have a target
+      timerExpiredHandledRef.current = true;
+
+      // Time's up — find ANY habitable planet across all systems
+      const engine = engineRef.current;
+      if (!engine) return;
+      const allSystems = engine.getAllSystems();
+      let target: { system: StarSystem; planet: Planet } | null = null;
+
+      // First pass: look for planets with habitability > 30%
+      for (const sys of allSystems) {
+        const planet = findColonizablePlanet(sys, 0.3);
+        if (planet) { target = { system: sys, planet }; break; }
+      }
+      // Second pass: lower threshold to 10%
+      if (!target) {
+        for (const sys of allSystems) {
+          const planet = findColonizablePlanet(sys, 0.1);
+          if (planet) { target = { system: sys, planet }; break; }
+        }
+      }
+      // Last resort: pick ANY planet that isn't the home planet
+      if (!target) {
+        for (const sys of allSystems) {
+          const p = sys.planets.find(pl => pl.id !== homeInfo?.planet?.id);
+          if (p) { target = { system: sys, planet: p }; break; }
+        }
+      }
+
+      if (target) {
+        setForcedEvacuation(true);
+        setEvacuationTarget(target);
+      }
+    };
+    // Check every second
+    const id = setInterval(checkExpired, 1000);
+    checkExpired(); // Check immediately
+    return () => clearInterval(id);
+  }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, homeInfo]);
 
   /** Surface view target */
   const [surfaceTarget, setSurfaceTarget] = useState<{
@@ -1378,6 +1432,7 @@ export function App() {
     setIsExodusPhase(false);
     setEvacuationPhase('idle');
     setEvacuationTarget(null);
+    setForcedEvacuation(false);
 
     // Open surface view for the colony planet
     setSurfaceTarget({
@@ -2520,19 +2575,22 @@ export function App() {
           onKeepOld={handleGalleryKeepOld}
         />
       )}
-      {/* Evacuation Prompt — shown when habitable planet found */}
+      {/* Evacuation Prompt — shown when habitable planet found or timer expired */}
       {evacuationTarget && evacuationPhase === 'idle' && (
         <EvacuationPrompt
           system={evacuationTarget.system}
           planet={evacuationTarget.planet}
           onStartEvacuation={handleStartEvacuation}
+          forced={forcedEvacuation}
         />
       )}
-      {/* Stage 0: Ship launch cutscene (4s) */}
+      {/* Stage 0: Ship launch cutscene */}
       {evacuationPhase === 'stage0-launch' && (
         <CutscenePlaceholder
-          label="Запуск евакуацiйного корабля"
-          duration={4}
+          label={forcedEvacuation
+            ? 'Термiнова евакуацiя. Вибору немає.'
+            : 'Запуск евакуацiйного корабля'}
+          duration={forcedEvacuation ? 5 : 4}
           onComplete={handleStage0Complete}
         />
       )}
@@ -2540,7 +2598,9 @@ export function App() {
       {/* Stage 2: Planet explosion cutscene (6s) */}
       {evacuationPhase === 'stage2-explosion' && (
         <CutscenePlaceholder
-          label="Загибель рiдної планети"
+          label={forcedEvacuation
+            ? 'Зiткнення. Рiдна планета знищена.'
+            : 'Загибель рiдної планети'}
           duration={6}
           onComplete={handleStage2Complete}
         />

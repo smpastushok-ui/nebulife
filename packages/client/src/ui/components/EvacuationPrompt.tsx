@@ -3,17 +3,24 @@ import type { StarSystem, Planet } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // EvacuationPrompt — shown when a habitable planet is discovered
+// OR forced by timer expiration (desperate mode)
 // ---------------------------------------------------------------------------
 
 interface EvacuationPromptProps {
   system: StarSystem;
   planet: Planet;
   onStartEvacuation: () => void;
+  /** If true, timer expired — desperate tone, no choice */
+  forced?: boolean;
 }
 
-export function EvacuationPrompt({ system, planet, onStartEvacuation }: EvacuationPromptProps) {
+export function EvacuationPrompt({ system, planet, onStartEvacuation, forced }: EvacuationPromptProps) {
   const [hover, setHover] = useState<'evacuate' | null>(null);
   const habitabilityPct = Math.round(planet.habitability.overall * 100);
+
+  // Colors: green for normal, orange/red for forced
+  const accentColor = forced ? '#ff8844' : '#44ff88';
+  const borderColor = forced ? '#cc4444' : '#44ff88';
 
   return (
     <div
@@ -31,10 +38,10 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation }: Evacuati
     >
       <div
         style={{
-          width: 420,
+          width: 440,
           maxWidth: '92vw',
           background: 'rgba(10,15,25,0.96)',
-          border: '1px solid #44ff88',
+          border: `1px solid ${borderColor}`,
           borderRadius: 6,
           padding: 28,
         }}
@@ -43,30 +50,50 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation }: Evacuati
         <div
           style={{
             fontSize: 10,
-            color: '#44ff88',
+            color: forced ? '#cc4444' : '#44ff88',
             letterSpacing: 2,
             textTransform: 'uppercase',
             marginBottom: 6,
           }}
         >
-          СИГНАЛ ВИЯВЛЕННЯ
+          {forced ? 'КРИТИЧНА СИТУАЦIЯ' : 'СИГНАЛ ВИЯВЛЕННЯ'}
         </div>
         <div
           style={{
             fontSize: 18,
             color: '#ccddee',
             fontWeight: 'bold',
-            marginBottom: 16,
+            marginBottom: forced ? 12 : 16,
           }}
         >
-          Виявлено придатну планету
+          {forced ? 'Час вичерпано' : 'Виявлено придатну планету'}
         </div>
+
+        {/* Forced: desperate message */}
+        {forced && (
+          <div
+            style={{
+              fontSize: 12,
+              color: '#99aabb',
+              lineHeight: 1.6,
+              marginBottom: 16,
+              padding: '10px 12px',
+              background: 'rgba(204,68,68,0.08)',
+              border: '1px solid rgba(204,68,68,0.2)',
+              borderRadius: 4,
+            }}
+          >
+            Астероїд на фiнальнiй траєкторiї. Ми не встигли знайти iдеальну планету,
+            але вибору немає. Евакуацiйний корабель готовий. Летимо i будемо надiятися,
+            що цей свiт стане нашим новим домом.
+          </div>
+        )}
 
         {/* Planet info */}
         <div
           style={{
-            background: 'rgba(20,40,30,0.3)',
-            border: '1px solid rgba(68,255,136,0.2)',
+            background: forced ? 'rgba(40,30,20,0.3)' : 'rgba(20,40,30,0.3)',
+            border: `1px solid ${forced ? 'rgba(255,136,68,0.2)' : 'rgba(68,255,136,0.2)'}`,
             borderRadius: 4,
             padding: 14,
             marginBottom: 20,
@@ -82,7 +109,13 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation }: Evacuati
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ color: '#667788', fontSize: 10 }}>ПРИДАТНIСТЬ</span>
-            <span style={{ color: '#44ff88', fontSize: 11, fontWeight: 'bold' }}>{habitabilityPct}%</span>
+            <span style={{
+              color: habitabilityPct >= 30 ? '#44ff88' : habitabilityPct >= 10 ? '#ff8844' : '#cc4444',
+              fontSize: 11,
+              fontWeight: 'bold',
+            }}>
+              {habitabilityPct}%
+            </span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ color: '#667788', fontSize: 10 }}>ТИП</span>
@@ -104,10 +137,12 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation }: Evacuati
           style={{
             width: '100%',
             padding: '14px 0',
-            background: hover === 'evacuate' ? 'rgba(68,255,136,0.15)' : 'rgba(68,255,136,0.08)',
-            border: '2px solid #44ff88',
+            background: hover === 'evacuate'
+              ? `${accentColor}26`
+              : `${accentColor}14`,
+            border: `2px solid ${accentColor}`,
             borderRadius: 4,
-            color: '#44ff88',
+            color: accentColor,
             fontFamily: 'monospace',
             fontSize: 14,
             fontWeight: 'bold',
@@ -116,7 +151,7 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation }: Evacuati
             transition: 'background 0.2s',
           }}
         >
-          ПОЧАТИ ЕВАКУАЦIЮ
+          {forced ? 'ТЕРМIНОВА ЕВАКУАЦIЯ' : 'ПОЧАТИ ЕВАКУАЦIЮ'}
         </button>
       </div>
     </div>
