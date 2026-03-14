@@ -12,6 +12,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/share/:discoveryId", "destination": "/api/share/:discoveryId" },
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ]
 }

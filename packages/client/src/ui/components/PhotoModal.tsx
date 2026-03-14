@@ -30,16 +30,24 @@ const CATEGORY_EMOJI: Record<string, string> = {
 };
 
 /**
+ * Build share URL with dynamic OG tags.
+ * Telegram/messengers will fetch this URL and see the discovery photo as og:image.
+ */
+function buildShareUrl(discoveryId: string): string {
+  return `${GAME_URL_WEB}/share/${discoveryId}`;
+}
+
+/**
  * Build a beautiful share text that grabs attention.
- * If photoUrl is provided, it's included so Telegram/messengers show a photo preview.
+ * Includes a share URL with dynamic OG tags so messengers show the discovery photo.
  */
 function buildShareText(
   name: string,
   rarityKey: string,
   galleryCategory: string,
+  discoveryId: string,
   systemName?: string,
   description?: string,
-  photoUrl?: string,
 ): string {
   const emoji = RARITY_EMOJI[rarityKey] ?? '\u{2B50}';
   const catEmoji = CATEGORY_EMOJI[galleryCategory] ?? '\u{1F30D}';
@@ -64,16 +72,9 @@ function buildShareText(
     lines.push(`\u{1F4CD} ${systemName}`);
   }
 
-  // Photo link (Telegram will auto-preview it)
-  if (photoUrl) {
-    lines.push('');
-    lines.push(photoUrl);
-  }
-
-  // CTA + links
+  // Share link (with dynamic OG tags — Telegram will show discovery photo)
   lines.push('');
-  lines.push(`\u{1F680} Nebulife \u2014 \u0412\u0456\u0434\u043A\u0440\u0438\u0439 \u0441\u0432\u0456\u0439 \u043A\u043E\u0441\u043C\u043E\u0441`);
-  lines.push(`\u{1F310} ${GAME_URL_WEB}`);
+  lines.push(buildShareUrl(discoveryId));
 
   return lines.join('\n');
 }
@@ -108,6 +109,11 @@ export function PhotoModal({
   const handleShare = useCallback(async () => {
     try {
       const shareTitle = buildShareTitle(name, discovery.rarity);
+      const shareUrl = buildShareUrl(discovery.id);
+      const shareText = buildShareText(
+        name, discovery.rarity, discovery.galleryCategory, discovery.id,
+        systemName, catalog?.descriptionUk,
+      );
 
       // Try to fetch the image as a file for native share
       let file: File | null = null;
@@ -120,32 +126,25 @@ export function PhotoModal({
       }
 
       if (navigator.share && file && navigator.canShare?.({ files: [file] })) {
-        // Best case: share with image file + rich text (no photo URL needed — file IS the photo)
-        const shareText = buildShareText(
-          name, discovery.rarity, discovery.galleryCategory, systemName, catalog?.descriptionUk,
-        );
+        // Best case: share with image file + rich text + URL
         await navigator.share({
           title: shareTitle,
           text: shareText,
+          url: shareUrl,
           files: [file],
         });
         setShared(true);
       } else if (navigator.share) {
-        // Fallback: share text with photo URL so messengers show a preview
-        const shareText = buildShareText(
-          name, discovery.rarity, discovery.galleryCategory, systemName, catalog?.descriptionUk, imageUrl,
-        );
+        // Fallback: share URL (Telegram will fetch OG tags and show photo)
         await navigator.share({
           title: shareTitle,
           text: shareText,
+          url: shareUrl,
         });
         setShared(true);
       } else {
-        // Desktop fallback: copy share text with photo URL to clipboard
-        const clipText = buildShareText(
-          name, discovery.rarity, discovery.galleryCategory, systemName, catalog?.descriptionUk, imageUrl,
-        );
-        await navigator.clipboard.writeText(clipText);
+        // Desktop fallback: copy share text to clipboard
+        await navigator.clipboard.writeText(shareText);
         setShared(true);
       }
     } catch (err) {
@@ -153,7 +152,8 @@ export function PhotoModal({
         // Last resort: try clipboard
         try {
           const clipText = buildShareText(
-            name, discovery.rarity, discovery.galleryCategory, systemName, catalog?.descriptionUk, imageUrl,
+            name, discovery.rarity, discovery.galleryCategory, discovery.id,
+            systemName, catalog?.descriptionUk,
           );
           await navigator.clipboard.writeText(clipText);
           setShared(true);
