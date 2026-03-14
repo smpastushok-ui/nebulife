@@ -1,10 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateImage } from '../../packages/server/src/kling-client.js';
 import { saveKlingTask, saveDiscovery, deductQuarks } from '../../packages/server/src/db.js';
+import { authenticate } from '../../packages/server/src/auth-middleware.js';
 
 /**
  * POST /api/kling/generate
  *
+ * Auth: Bearer token (Firebase)
  * Body: {
  *   playerId: string,
  *   discoveryId: string,
@@ -26,6 +28,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   try {
     const {
       playerId,
@@ -43,6 +49,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!playerId || !discoveryId || !objectType || !prompt) {
       return res.status(400).json({ error: 'Missing required fields: playerId, discoveryId, objectType, prompt' });
+    }
+
+    // Verify player owns this playerId
+    if (playerId !== auth.playerId) {
+      return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
 
     // Deduct quarks if cost > 0

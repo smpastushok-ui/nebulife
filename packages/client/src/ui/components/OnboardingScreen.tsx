@@ -363,6 +363,7 @@ export function OnboardingScreen({ homeInfo, onComplete }: OnboardingScreenProps
               fontFamily: 'monospace',
               fontSize: 12,
               padding: '10px 32px',
+              minHeight: 44,
               cursor: 'pointer',
               transition: 'background 0.2s, border-color 0.2s',
             }}
@@ -389,6 +390,7 @@ export function OnboardingScreen({ homeInfo, onComplete }: OnboardingScreenProps
               fontFamily: 'monospace',
               fontSize: 13,
               padding: '12px 40px',
+              minHeight: 44,
               cursor: 'pointer',
               transition: 'background 0.2s',
             }}

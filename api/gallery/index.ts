@@ -1,11 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDiscoveries, deleteDiscovery } from '../../packages/server/src/db.js';
+import { authenticate } from '../../packages/server/src/auth-middleware.js';
 
 /**
- * GET    /api/gallery?playerId=...&category=cosmos|flora|fauna|anomalies|landscapes
- * DELETE /api/gallery?id=...&playerId=...
+ * GET    /api/gallery?playerId=...&category=cosmos|flora|fauna|anomalies|landscapes (auth required)
+ * DELETE /api/gallery?id=...&playerId=... (auth required)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   if (req.method === 'GET') {
     try {
       const playerId = req.query.playerId as string | undefined;
@@ -13,6 +18,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!playerId) {
         return res.status(400).json({ error: 'Missing playerId query parameter' });
+      }
+
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
       // Gallery only shows discoveries that have photos
@@ -33,6 +42,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!id || !playerId) {
         return res.status(400).json({ error: 'Missing id and playerId query parameters' });
+      }
+
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
       await deleteDiscovery(id, playerId);

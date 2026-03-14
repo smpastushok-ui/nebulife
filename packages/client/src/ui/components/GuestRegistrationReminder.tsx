@@ -134,6 +134,7 @@ export function GuestRegistrationReminder({
               fontSize: 11,
               cursor: 'pointer',
               padding: '8px 0',
+              minHeight: 44,
               textAlign: 'center',
               transition: 'color 0.15s',
             }}
@@ -185,6 +186,7 @@ function AuthButton({
       style={{
         width: '100%',
         padding: '10px 0',
+        minHeight: 44,
         background: hover ? 'rgba(30, 50, 80, 0.4)' : 'rgba(10, 20, 35, 0.5)',
         border: `1px solid ${hover ? color : borderColor}`,
         borderRadius: 4,

@@ -43,9 +43,11 @@ const subHeaderStyle: React.CSSProperties = {
 };
 
 const itemStyle: React.CSSProperties = {
-  display: 'block',
+  display: 'flex',
+  alignItems: 'center',
   width: '100%',
   padding: '8px 14px',
+  minHeight: 44,
   background: 'none',
   border: 'none',
   color: '#8899aa',

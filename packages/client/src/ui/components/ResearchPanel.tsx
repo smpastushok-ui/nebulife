@@ -22,10 +22,12 @@ const rowStyle: React.CSSProperties = {
 const closeBtnStyle: React.CSSProperties = {
   cursor: 'pointer', background: 'none', border: 'none',
   color: '#667788', fontSize: 16, fontFamily: 'monospace',
+  minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
 };
 
 const btnStyle: React.CSSProperties = {
   width: '100%', marginTop: 12, padding: '8px 0', cursor: 'pointer',
+  minHeight: 44,
   background: 'rgba(30,60,80,0.6)', border: '1px solid #446688',
   color: '#aaccee', fontFamily: 'monospace', fontSize: 12, borderRadius: 3,
 };

@@ -32,8 +32,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : `${rarity} — Nebulife`;
 
     const photoUrl = discovery.photo_url;
-    const pageUrl = `https://nebulife.vercel.app/share/${discoveryId}`;
-    const appUrl = `https://nebulife.vercel.app/?discovery=${discoveryId}`;
+    const pageUrl = `https://nebulife.space/share/${discoveryId}`;
+    const appUrl = `https://nebulife.space/?discovery=${discoveryId}`;
 
     // Escape HTML entities for safe embedding
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

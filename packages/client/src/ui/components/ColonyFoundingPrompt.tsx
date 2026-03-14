@@ -108,6 +108,7 @@ export function ColonyFoundingPrompt({ planet, onFoundColony }: ColonyFoundingPr
           style={{
             width: '100%',
             padding: '14px 0',
+            minHeight: 44,
             background: hover ? 'rgba(68,255,136,0.15)' : 'rgba(68,255,136,0.08)',
             border: '2px solid #44ff88',
             borderRadius: 4,

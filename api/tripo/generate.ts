@@ -2,10 +2,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getPlanetModel, updatePlanetModel } from '../../packages/server/src/db.js';
 import { generateImage, checkTaskStatus as checkKlingStatus } from '../../packages/server/src/kling-client.js';
 import { createModelTask } from '../../packages/server/src/tripo-client.js';
+import { authenticate } from '../../packages/server/src/auth-middleware.js';
 
 /**
  * POST /api/tripo/generate
  *
+ * Auth: Bearer token (Firebase)
  * Body: {
  *   modelId: string,        // planet_model record ID
  *   klingPhotoUrl?: string,  // optional: skip Kling, use existing photo
@@ -21,6 +23,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   try {
     const { modelId, klingPhotoUrl } = req.body;
 
@@ -32,6 +38,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const model = await getPlanetModel(modelId);
     if (!model) {
       return res.status(404).json({ error: 'Planet model not found' });
+    }
+
+    // Verify authenticated player owns this model
+    if (model.player_id !== auth.playerId) {
+      return res.status(403).json({ error: 'Forbidden: not your model' });
     }
 
     if (model.payment_status !== 'paid') {

@@ -1,20 +1,28 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getPlayerAliases, setPlayerAlias, removePlayerAlias } from '../packages/server/src/db.js';
+import { authenticate } from '../packages/server/src/auth-middleware.js';
 
 /**
- * GET  /api/alias?playerId=...        → all aliases for a player
- * POST /api/alias                     → set/update an alias
- * DELETE /api/alias                   → remove an alias
+ * GET  /api/alias?playerId=...        → all aliases for a player (auth required)
+ * POST /api/alias                     → set/update an alias (auth required)
+ * DELETE /api/alias                   → remove an alias (auth required)
  *
  * POST body: { playerId, entityType: 'system'|'planet', entityId, customName }
  * DELETE body: { playerId, entityType, entityId }
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   try {
     if (req.method === 'GET') {
       const playerId = req.query.playerId as string;
       if (!playerId) {
         return res.status(400).json({ error: 'Missing playerId' });
+      }
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
       const aliases = await getPlayerAliases(playerId);
       return res.status(200).json({ aliases });
@@ -24,6 +32,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { playerId, entityType, entityId, customName } = req.body;
       if (!playerId || !entityType || !entityId || !customName) {
         return res.status(400).json({ error: 'Missing required fields: playerId, entityType, entityId, customName' });
+      }
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
       if (entityType !== 'system' && entityType !== 'planet') {
         return res.status(400).json({ error: 'entityType must be "system" or "planet"' });
@@ -39,6 +50,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { playerId, entityType, entityId } = req.body;
       if (!playerId || !entityType || !entityId) {
         return res.status(400).json({ error: 'Missing required fields: playerId, entityType, entityId' });
+      }
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
       await removePlayerAlias(playerId, entityType, entityId);
       return res.status(200).json({ ok: true });

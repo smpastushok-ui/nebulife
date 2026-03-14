@@ -470,9 +470,13 @@ export function SystemObjectsPanel({
               cursor: 'pointer',
               fontFamily: 'monospace',
               padding: '2px 7px',
+              minWidth: 44,
+              minHeight: 44,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               borderRadius: 3,
               lineHeight: 1,
-              marginTop: 2,
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#aabbcc'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#667788'; }}

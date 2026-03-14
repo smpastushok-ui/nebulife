@@ -5,6 +5,7 @@ import {
   savePlanetModel,
   savePaymentIntent,
 } from '../../packages/server/src/db.js';
+import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { buildPlanetModelPrompt } from '../../packages/server/src/planet-model-prompt-builder.js';
 import type { Planet, Star } from '@nebulife/core';
 
@@ -13,6 +14,7 @@ const MODEL_PRICE_QUARKS = 49;
 /**
  * POST /api/payment/create
  *
+ * Auth: Bearer token (Firebase)
  * Body: { playerId, planetId, systemId, planetData?, starData? }
  *
  * Quarks-first purchase logic:
@@ -29,11 +31,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   try {
     const { playerId, planetId, systemId, planetData, starData } = req.body;
 
     if (!playerId || !planetId || !systemId) {
       return res.status(400).json({ error: 'Missing required fields: playerId, planetId, systemId' });
+    }
+
+    // Verify player owns this playerId
+    if (playerId !== auth.playerId) {
+      return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
 
     // 1. Get player to check quark balance
@@ -169,7 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 function getBaseUrl(req: VercelRequest): string {
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'nebulife.vercel.app';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'nebulife.space';
   const proto = req.headers['x-forwarded-proto'] || 'https';
   return `${proto}://${host}`;
 }

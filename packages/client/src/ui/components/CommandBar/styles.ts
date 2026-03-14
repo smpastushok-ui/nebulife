@@ -63,7 +63,7 @@ export const sectionCenter: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 6,
+  gap: 4,
   flex: '1 1 auto',
   overflow: 'hidden',
 };
@@ -81,6 +81,10 @@ export const sectionRight: React.CSSProperties = {
 
 export const toolButtonBase: React.CSSProperties = {
   padding: '4px 10px',
+  minHeight: 44,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   background: 'rgba(20, 30, 50, 0.6)',
   border: '1px solid rgba(60, 100, 160, 0.25)',
   borderRadius: 3,
@@ -125,8 +129,8 @@ export const toolButtonActive: React.CSSProperties = {
 };
 
 export const zoomButtonStyle: React.CSSProperties = {
-  width: 28,
-  height: 28,
+  width: 44,
+  height: 44,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -148,7 +152,10 @@ export const breadcrumbButton: React.CSSProperties = {
   fontFamily: 'monospace',
   fontSize: 11,
   cursor: 'pointer',
-  padding: '2px 4px',
+  padding: '2px 6px',
+  minHeight: 44,
+  display: 'flex',
+  alignItems: 'center',
   transition: 'color 0.2s',
   whiteSpace: 'nowrap',
 };
@@ -172,6 +179,7 @@ export const quarksButtonStyle: React.CSSProperties = {
   border: '1px solid rgba(120, 160, 255, 0.25)',
   color: '#aaccff',
   padding: '4px 10px',
+  minHeight: 44,
   fontSize: 12,
   fontFamily: 'monospace',
   borderRadius: 4,

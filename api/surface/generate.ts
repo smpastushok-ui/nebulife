@@ -7,6 +7,7 @@ import {
   getPlayer,
   generateImage,
   buildSurfacePrompt,
+  authenticate,
 } from '@nebulife/server';
 
 const SURFACE_GENERATION_COST = 10; // quarks
@@ -14,6 +15,7 @@ const SURFACE_GENERATION_COST = 10; // quarks
 /**
  * POST /api/surface/generate
  *
+ * Auth: Bearer token (Firebase)
  * Body: {
  *   playerId: string,
  *   planetId: string,
@@ -29,12 +31,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   try {
     const { playerId, planetId, systemId, planetData, starData } = req.body;
 
     // Validate required fields
     if (!playerId || !planetId || !systemId || !planetData || !starData) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Verify player owns this playerId
+    if (playerId !== auth.playerId) {
+      return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
 
     // Check if surface map already exists for this planet

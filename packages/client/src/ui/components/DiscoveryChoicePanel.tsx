@@ -283,6 +283,7 @@ export function DiscoveryChoicePanel({
               fontSize: 11,
               cursor: 'pointer',
               padding: '10px 0',
+              minHeight: 44,
               textAlign: 'center',
               transition: 'color 0.15s',
             }}

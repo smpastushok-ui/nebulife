@@ -1,13 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDiscoveries, saveDiscovery, updateDiscoveryPhoto } from '../../packages/server/src/db.js';
+import { authenticate } from '../../packages/server/src/auth-middleware.js';
 
 /**
- * GET  /api/discoveries?playerId=...&category=...
- * POST /api/discoveries  { id, playerId, objectType, rarity, galleryCategory, systemId, planetId?, photoUrl? }
+ * GET  /api/discoveries?playerId=...&category=... (auth required)
+ * POST /api/discoveries  { id, playerId, objectType, rarity, galleryCategory, systemId, planetId?, photoUrl? } (auth required)
  *
  * Returns: DiscoveryRow | DiscoveryRow[]
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   if (req.method === 'GET') {
     try {
       const playerId = req.query.playerId as string | undefined;
@@ -15,6 +20,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!playerId) {
         return res.status(400).json({ error: 'Missing playerId query parameter' });
+      }
+
+      // Verify player owns this playerId
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
       const discoveries = await getDiscoveries(playerId, category);
@@ -31,6 +41,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!id || !playerId || !objectType || !rarity || !galleryCategory || !systemId) {
         return res.status(400).json({ error: 'Missing required fields: id, playerId, objectType, rarity, galleryCategory, systemId' });
+      }
+
+      // Verify player owns this playerId
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
       const row = await saveDiscovery({ id, playerId, objectType, rarity, galleryCategory, systemId, planetId });

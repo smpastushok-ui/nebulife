@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateVideo } from '../../packages/server/src/kling-client.js';
 import { deductQuarks, getSystemPhotoById, saveSystemMission } from '../../packages/server/src/db.js';
+import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { buildMissionVideoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
 import type { StarSystem } from '@nebulife/core';
 
@@ -10,6 +11,7 @@ const MISSION_DURATIONS = { short: 5, long: 10 };
 /**
  * POST /api/system-mission/generate
  *
+ * Auth: Bearer token (Firebase)
  * Body: { playerId, systemId, photoId, durationType: 'short' | 'long', systemData: StarSystem }
  * Returns: { missionId, klingTaskId, quarksRemaining }
  */
@@ -18,6 +20,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   try {
     const { playerId, systemId, photoId, durationType, systemData } = req.body;
 
@@ -25,6 +31,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({
         error: 'Missing required fields: playerId, systemId, photoId, durationType, systemData',
       });
+    }
+
+    // Verify player owns this playerId
+    if (playerId !== auth.playerId) {
+      return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
 
     if (durationType !== 'short' && durationType !== 'long') {

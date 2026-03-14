@@ -12,15 +12,15 @@
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Nebulife — Explore Your Cosmos" />
   <meta property="og:description" content="Discover stars, planets and cosmic anomalies. Photograph them with AI. Build your cosmic archive." />
-  <meta property="og:image" content="https://nebulife.vercel.app/og-image.svg" />
-  <meta property="og:url" content="https://nebulife.vercel.app" />
+  <meta property="og:image" content="https://nebulife.space/og-image.svg" />
+  <meta property="og:url" content="https://nebulife.space" />
   <meta property="og:site_name" content="Nebulife" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Nebulife — Explore Your Cosmos" />
   <meta name="twitter:description" content="Discover stars, planets and cosmic anomalies. Photograph them with AI." />
-  <meta name="twitter:image" content="https://nebulife.vercel.app/og-image.svg" />
+  <meta name="twitter:image" content="https://nebulife.space/og-image.svg" />
 
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
@@ -28,7 +28,15 @@
   <title>Nebulife</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden; background: #000;
+      overscroll-behavior: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
     /* Safe area insets for notch/island devices */
     body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
     #root { width: 100%; height: 100%; position: relative; }

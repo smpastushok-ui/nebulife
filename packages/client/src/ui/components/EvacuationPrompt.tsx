@@ -137,6 +137,7 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced }: 
           style={{
             width: '100%',
             padding: '14px 0',
+            minHeight: 44,
             background: hover === 'evacuate'
               ? `${accentColor}26`
               : `${accentColor}14`,

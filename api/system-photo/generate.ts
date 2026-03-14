@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
 import { deductQuarks, creditQuarks, saveSystemPhoto } from '../../packages/server/src/db.js';
+import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { buildGeminiSystemPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
 import type { StarSystem } from '@nebulife/core';
 
@@ -14,6 +15,7 @@ export const config = {
 /**
  * POST /api/system-photo/generate
  *
+ * Auth: Bearer token (Firebase)
  * Body: { playerId, systemId, systemData, screenWidth?, screenHeight? }
  * Returns: { photoId, status, photoUrl, quarksRemaining }
  *
@@ -25,11 +27,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   try {
     const { playerId, systemId, systemData, screenWidth, screenHeight } = req.body;
 
     if (!playerId || !systemId || !systemData) {
       return res.status(400).json({ error: 'Missing required fields: playerId, systemId, systemData' });
+    }
+
+    // Verify player owns this playerId
+    if (playerId !== auth.playerId) {
+      return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
 
     // 1. Deduct quarks

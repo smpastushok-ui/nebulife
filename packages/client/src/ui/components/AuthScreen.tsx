@@ -286,28 +286,29 @@ const errorStyle: React.CSSProperties = {
 
 const btnStyle: React.CSSProperties = {
   padding: '10px 0',
-  background: 'rgba(30, 60, 80, 0.6)',
-  border: '1px solid #446688',
-  color: '#aaccee',
+  minHeight: 44,
+  background: 'rgba(40, 80, 110, 0.7)',
+  border: '1px solid #5599bb',
+  color: '#bbddff',
   fontSize: 12,
   fontFamily: 'monospace',
   borderRadius: 3,
   cursor: 'pointer',
-  transition: 'background 0.15s, border-color 0.15s',
+  transition: 'background 0.15s, border-color 0.15s, color 0.15s',
 };
 
 const googleBtnStyle: React.CSSProperties = {
   ...btnStyle,
-  background: 'rgba(40, 70, 100, 0.7)',
-  borderColor: '#4488aa',
-  color: '#bbddff',
+  background: 'rgba(50, 90, 120, 0.8)',
+  borderColor: '#66aacc',
+  color: '#cceeff',
 };
 
 const guestBtnStyle: React.CSSProperties = {
   ...btnStyle,
-  background: 'transparent',
-  borderColor: '#334455',
-  color: '#667788',
+  background: 'rgba(30, 60, 80, 0.5)',
+  borderColor: '#4488aa',
+  color: '#88bbdd',
   fontSize: 11,
 };
 
@@ -326,11 +327,16 @@ const linkBtnStyle: React.CSSProperties = {
   fontFamily: 'monospace',
   cursor: 'pointer',
   padding: '4px 0',
+  minHeight: 44,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   textAlign: 'center',
 };
 
 const inputStyle: React.CSSProperties = {
   padding: '9px 12px',
+  minHeight: 44,
   background: 'rgba(10, 20, 35, 0.8)',
   border: '1px solid #334455',
   color: '#aabbcc',
@@ -360,12 +366,14 @@ const dividerTextStyle: React.CSSProperties = {
 
 function hoverIn(e: React.MouseEvent<HTMLButtonElement>) {
   const btn = e.currentTarget;
-  btn.style.background = 'rgba(40, 80, 110, 0.7)';
-  btn.style.borderColor = '#5599bb';
+  btn.style.background = 'rgba(25, 40, 55, 0.6)';
+  btn.style.borderColor = '#445566';
+  btn.style.color = '#8899aa';
 }
 
 function hoverOut(e: React.MouseEvent<HTMLButtonElement>) {
   const btn = e.currentTarget;
   btn.style.background = '';
   btn.style.borderColor = '';
+  btn.style.color = '';
 }

@@ -4,15 +4,20 @@ import {
   getSurfaceBuildings,
   removeSurfaceBuilding,
 } from '../../packages/server/src/db.js';
+import { authenticate } from '../../packages/server/src/auth-middleware.js';
 
 /**
- * /api/surface/buildings
+ * /api/surface/buildings (auth required)
  *
  * GET  ?playerId=...&planetId=... → list buildings
  * POST { playerId, planetId, id, type, x, y } → place building
  * DELETE ?id=...&playerId=... → remove building
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Verify Firebase auth token
+  const auth = await authenticate(req, res);
+  if (!auth) return;
+
   try {
     // --- GET: List buildings ---
     if (req.method === 'GET') {
@@ -21,6 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!playerId || !planetId) {
         return res.status(400).json({ error: 'Missing playerId or planetId' });
+      }
+
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
       const rows = await getSurfaceBuildings(playerId, planetId);
@@ -44,6 +53,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!playerId || !planetId || !id || !type || x === undefined || y === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
       const row = await saveSurfaceBuilding({
@@ -72,6 +85,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!id || !playerId) {
         return res.status(400).json({ error: 'Missing id or playerId' });
+      }
+
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
       await removeSurfaceBuilding(id, playerId);

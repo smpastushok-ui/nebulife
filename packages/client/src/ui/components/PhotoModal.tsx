@@ -7,7 +7,7 @@ import { RARITY_COLORS, RARITY_LABELS, getCatalogEntry } from '@nebulife/core';
 // ---------------------------------------------------------------------------
 
 /** Game links — update when custom domain or app stores are ready */
-const GAME_URL_WEB = 'https://nebulife.vercel.app';
+const GAME_URL_WEB = 'https://nebulife.space';
 // const GAME_URL_APP_IOS = 'https://apps.apple.com/app/nebulife/id...';
 // const GAME_URL_APP_ANDROID = 'https://play.google.com/store/apps/details?id=...';
 
