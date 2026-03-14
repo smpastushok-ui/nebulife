@@ -372,6 +372,8 @@ export function App() {
   const [evacuationFadeBlack, setEvacuationFadeBlack] = useState(false);
   /** True when evacuation was triggered by timer expiration (not by finding a planet) */
   const [forcedEvacuation, setForcedEvacuation] = useState(false);
+  /** True when user dismissed the evacuation prompt (can reopen from timer button) */
+  const [evacuationPromptDismissed, setEvacuationPromptDismissed] = useState(false);
 
   // Refs for values needed inside research-timer interval (stale-closure prevention)
   const isExodusPhaseRef = useRef(isExodusPhase);
@@ -2238,7 +2240,7 @@ export function App() {
           {'##:##:##'}
         </div>
       )}
-      {/* Phase 3: Visible — active game-time countdown */}
+      {/* Phase 3: Visible — active game-time countdown + evacuation button */}
       {isExodusPhase && clockPhase === 'visible' && countdownText && (
         <div
           style={{
@@ -2248,22 +2250,64 @@ export function App() {
             transform: 'translateX(-50%)',
             zIndex: 9700,
             fontFamily: 'monospace',
-            fontSize: 20,
-            fontWeight: 'bold',
-            color: countdownUrgent ? '#cc4444' : '#cc4444',
-            textShadow: countdownUrgent
-              ? '0 0 16px rgba(204,68,68,0.8), 0 0 32px rgba(204,68,68,0.4)'
-              : '0 0 8px rgba(204,68,68,0.4)',
-            letterSpacing: 3,
-            padding: '4px 16px',
-            background: 'rgba(5,10,20,0.8)',
-            border: `1px solid ${countdownUrgent ? 'rgba(204,68,68,0.6)' : 'rgba(204,68,68,0.3)'}`,
-            borderRadius: 4,
-            animation: countdownUrgent ? 'cmdbar-terminal-pulse 0.8s infinite' : undefined,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 6,
             pointerEvents: 'none',
           }}
         >
-          {countdownText}
+          {/* Timer */}
+          <div
+            style={{
+              fontSize: 20,
+              fontWeight: 'bold',
+              color: '#cc4444',
+              textShadow: countdownUrgent
+                ? '0 0 16px rgba(204,68,68,0.8), 0 0 32px rgba(204,68,68,0.4)'
+                : '0 0 8px rgba(204,68,68,0.4)',
+              letterSpacing: 3,
+              padding: '4px 16px',
+              background: 'rgba(5,10,20,0.8)',
+              border: `1px solid ${countdownUrgent ? 'rgba(204,68,68,0.6)' : 'rgba(204,68,68,0.3)'}`,
+              borderRadius: 4,
+              animation: countdownUrgent ? 'cmdbar-terminal-pulse 0.8s infinite' : undefined,
+            }}
+          >
+            {countdownText}
+          </div>
+          {/* Evacuation button — shown when prompt is dismissed */}
+          {evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed && (
+            <button
+              onClick={() => setEvacuationPromptDismissed(false)}
+              style={{
+                pointerEvents: 'auto',
+                padding: '5px 14px',
+                minHeight: 32,
+                background: 'rgba(68,255,136,0.1)',
+                border: '1px solid rgba(68,255,136,0.5)',
+                borderRadius: 3,
+                color: '#44ff88',
+                fontFamily: 'monospace',
+                fontSize: 10,
+                fontWeight: 'bold',
+                letterSpacing: 1,
+                cursor: 'pointer',
+                transition: 'background 0.15s, border-color 0.15s',
+                textTransform: 'uppercase',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(68,255,136,0.2)';
+                e.currentTarget.style.borderColor = '#44ff88';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(68,255,136,0.1)';
+                e.currentTarget.style.borderColor = 'rgba(68,255,136,0.5)';
+              }}
+            >
+              Евакуація
+            </button>
+          )}
         </div>
       )}
 
@@ -2584,12 +2628,13 @@ export function App() {
         />
       )}
       {/* Evacuation Prompt — shown when habitable planet found or timer expired */}
-      {evacuationTarget && evacuationPhase === 'idle' && (
+      {evacuationTarget && evacuationPhase === 'idle' && !evacuationPromptDismissed && (
         <EvacuationPrompt
           system={evacuationTarget.system}
           planet={evacuationTarget.planet}
           onStartEvacuation={handleStartEvacuation}
           forced={forcedEvacuation}
+          onDismiss={() => setEvacuationPromptDismissed(true)}
         />
       )}
       {/* Stage 0: Ship launch cutscene */}

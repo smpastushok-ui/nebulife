@@ -12,9 +12,11 @@ interface EvacuationPromptProps {
   onStartEvacuation: () => void;
   /** If true, timer expired — desperate tone, no choice */
   forced?: boolean;
+  /** Dismiss prompt (can be reopened from timer button) */
+  onDismiss?: () => void;
 }
 
-export function EvacuationPrompt({ system, planet, onStartEvacuation, forced }: EvacuationPromptProps) {
+export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, onDismiss }: EvacuationPromptProps) {
   const [hover, setHover] = useState<'evacuate' | null>(null);
   const habitabilityPct = Math.round(planet.habitability.overall * 100);
 
@@ -154,6 +156,30 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced }: 
         >
           {forced ? 'ТЕРМIНОВА ЕВАКУАЦIЯ' : 'ПОЧАТИ ЕВАКУАЦIЮ'}
         </button>
+
+        {/* Dismiss button — hide prompt, reopen via timer button */}
+        {onDismiss && !forced && (
+          <button
+            onClick={onDismiss}
+            style={{
+              width: '100%',
+              marginTop: 10,
+              padding: '10px 0',
+              minHeight: 44,
+              background: 'none',
+              border: 'none',
+              color: '#556677',
+              fontFamily: 'monospace',
+              fontSize: 11,
+              cursor: 'pointer',
+              transition: 'color 0.15s',
+            }}
+            onMouseEnter={(e) => { (e.target as HTMLElement).style.color = '#8899aa'; }}
+            onMouseLeave={(e) => { (e.target as HTMLElement).style.color = '#556677'; }}
+          >
+            Пізніше
+          </button>
+        )}
       </div>
     </div>
   );
