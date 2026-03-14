@@ -31,6 +31,7 @@ interface SurfaceViewProps {
   playerId: string;
   onClose: () => void;
   onBuildingCountChange?: (count: number) => void;
+  onBuildingPlaced?: () => void;
   onPhaseChange?: (phase: SurfacePhase) => void;
   onBuildPanelChange?: (open: boolean) => void;
 }
@@ -69,7 +70,7 @@ const imageContainerStyle: React.CSSProperties = {
 export const SurfaceView = forwardRef<SurfaceViewHandle, SurfaceViewProps>(function SurfaceView(
   {
     planet, star, playerId, onClose,
-    onBuildingCountChange, onPhaseChange, onBuildPanelChange,
+    onBuildingCountChange, onBuildingPlaced, onPhaseChange, onBuildPanelChange,
   },
   ref
 ) {
@@ -404,11 +405,12 @@ export const SurfaceView = forwardRef<SurfaceViewHandle, SurfaceViewProps>(funct
 
     setBuildings((prev) => [...prev, newBuilding]);
     setSelectedBuilding(null);
+    onBuildingPlaced?.();
 
     placeBuilding(playerId, planet.id, newBuilding).catch((err) => {
       console.error('Failed to save building:', err);
     });
-  }, [selectedBuilding, buildings, playerId, planet.id, zoneMap]);
+  }, [selectedBuilding, buildings, playerId, planet.id, zoneMap, onBuildingPlaced]);
 
   const handleAIWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();

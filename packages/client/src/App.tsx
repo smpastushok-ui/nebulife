@@ -55,6 +55,8 @@ import {
   gameSecondsElapsed,
   BASE_TIME_MULTIPLIER,
   GAME_TOTAL_SECONDS,
+  levelFromXP,
+  XP_REWARDS,
 } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
@@ -230,6 +232,41 @@ export function App() {
     try { localStorage.setItem('nebulife_exodus_phase', String(isExodusPhase)); }
     catch { /* ignore */ }
   }, [isExodusPhase]);
+
+  // ── Player Level / XP ───────────────────────────────────────────────
+  const [playerLevel, setPlayerLevel] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_player_level');
+      if (saved !== null) { const n = parseInt(saved, 10); if (n > 0) return n; }
+    } catch { /* ignore */ }
+    return 1;
+  });
+
+  const [playerXP, setPlayerXP] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_player_xp');
+      if (saved !== null) { const n = parseInt(saved, 10); if (n >= 0) return n; }
+    } catch { /* ignore */ }
+    return 0;
+  });
+
+  const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
+  const gameStateRef = useRef<Record<string, unknown>>({});
+  const awardXPRef = useRef<(amount: number, reason: string) => void>(() => {});
+  /** Stable reference to awardXP that can be used in callbacks defined before the actual implementation. */
+  const awardXP = useCallback((amount: number, reason: string) => {
+    awardXPRef.current(amount, reason);
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_player_level', String(playerLevel)); }
+    catch { /* ignore */ }
+  }, [playerLevel]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_player_xp', String(playerXP)); }
+    catch { /* ignore */ }
+  }, [playerXP]);
 
   // ── Doomsday Clock — game-time countdown ─────────────────────────────
   // Real 1 hour = Game 24 hours. 1 real second = 24 game seconds.
@@ -564,6 +601,19 @@ export function App() {
       .catch(() => {});
   }, []);
 
+  /** Hydrate player level/xp from server game_state on login. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hydrateXPFromServer = useCallback((player: any) => {
+    const gs = player?.game_state as Record<string, unknown> | undefined;
+    if (gs && typeof gs === 'object') {
+      gameStateRef.current = { ...gs };
+      if (typeof gs.xp === 'number' && gs.xp >= 0) {
+        setPlayerXP(gs.xp);
+        setPlayerLevel(typeof gs.level === 'number' && gs.level > 0 ? gs.level : levelFromXP(gs.xp));
+      }
+    }
+  }, []);
+
   // ── Firebase auth lifecycle ──────────────────────────────────────────
   useEffect(() => {
     // Fallback: Firebase not configured → use legacy localStorage player ID
@@ -592,9 +642,11 @@ export function App() {
               homePlanetId: 'home',
             });
             setQuarks(created.quarks ?? 0);
+            hydrateXPFromServer(created);
             setState((prev) => ({ ...prev, playerName: created.callsign || created.name || 'Explorer' }));
           } else {
             setQuarks(existing.quarks ?? 0);
+            hydrateXPFromServer(existing);
             setState((prev) => ({ ...prev, playerName: existing.callsign || existing.name || 'Explorer' }));
           }
         } catch (err) {
@@ -631,6 +683,7 @@ export function App() {
               const player = await res.json();
               playerId.current = player.id; // Use DB id (may differ from UID for migrated)
               setQuarks(player.quarks ?? 0);
+              hydrateXPFromServer(player);
               setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
               setNeedsCallsign(!player.callsign);
               // Check if player needs onboarding
@@ -759,6 +812,9 @@ export function App() {
                     `Обсерваторiя зафiксувала сигнал: ${discName} в системi ${system.name}. Очiкує рiшення оператора.`,
                     { systemId: system.id, objectType: result.discovery.type, discoveryRef: result.discovery },
                   );
+                  // Award XP for discovery (base + rarity bonus)
+                  const rarityBonus = XP_REWARDS.DISCOVERY_RARITY_BONUS[result.discovery.rarity] ?? 0;
+                  awardXP(XP_REWARDS.DISCOVERY_BASE + rarityBonus, 'discovery');
                 }
 
                 // Show modal if just completed
@@ -766,6 +822,7 @@ export function App() {
                   const research = current.systems[system.id];
                   if (research) {
                     setCompletedModal({ system, research });
+                    awardXP(XP_REWARDS.RESEARCH_COMPLETE, 'research_complete');
                   }
                 }
 
@@ -1225,6 +1282,7 @@ export function App() {
       setTelemetryTarget(pendingDiscovery);
       setPendingDiscovery(null);
       setShowCosmicArchive(false); // Close archive so telemetry is visible
+      awardXP(XP_REWARDS.TELEMETRY_SCAN, 'telemetry');
     }
   }, [pendingDiscovery]);
 
@@ -1239,6 +1297,7 @@ export function App() {
       setObservatoryTarget({ ...pendingDiscovery, cost: isFree ? 0 : 3 });
       setPendingDiscovery(null);
       setShowCosmicArchive(false); // Close archive so observatory view is visible
+      awardXP(XP_REWARDS.OBSERVATORY_SCAN, 'observatory');
     }
   }, [pendingDiscovery, playerStats, quarks, isGuest]);
 
@@ -1316,6 +1375,7 @@ export function App() {
     } else {
       // Cell is free — save directly
       persistDiscovery(activeDiscovery, imageUrl);
+      awardXP(XP_REWARDS.GALLERY_SAVE, 'gallery_save');
       // Close telemetry/observatory and show archive with highlight
       setTelemetryTarget(null);
       setObservatoryTarget(null);
@@ -1370,6 +1430,7 @@ export function App() {
   const handleStartEvacuation = useCallback(() => {
     if (!evacuationTarget) return;
     setEvacuationPhase('stage0-launch');
+    awardXP(XP_REWARDS.EVACUATION_START, 'evacuation');
   }, [evacuationTarget]);
 
   // Stage 0 complete → switch to system scene, start ship flight
@@ -1437,6 +1498,7 @@ export function App() {
 
   const handleCutsceneLandingComplete = useCallback(() => {
     if (!evacuationTarget) return;
+    awardXP(XP_REWARDS.COLONY_FOUNDED, 'colony_founded');
 
     // Save old home planet as destroyed
     if (homeInfo) {
@@ -1520,6 +1582,28 @@ export function App() {
       },
     ]);
   }, []);
+
+  // ── Award XP & level-up detection (assign to ref for stable callbacks) ──
+  awardXPRef.current = (amount: number, _reason: string) => {
+    setPlayerXP((prevXP) => {
+      const newXP = prevXP + amount;
+      const oldLevel = levelFromXP(prevXP);
+      const newLevel = levelFromXP(newXP);
+
+      if (newLevel > oldLevel) {
+        setPlayerLevel(newLevel);
+        setLevelUpNotification(newLevel);
+        setTimeout(() => setLevelUpNotification(null), 4000);
+        addLogEntry('system', `Рiвень пiдвищено до ${newLevel}!`);
+      }
+
+      // Fire-and-forget server sync
+      gameStateRef.current = { ...gameStateRef.current, level: newLevel > oldLevel ? newLevel : oldLevel, xp: newXP };
+      updatePlayer(playerId.current, { game_state: gameStateRef.current }).catch(() => {});
+
+      return newXP;
+    });
+  };
 
   // ── 3D Model handlers ─────────────────────────────────────────────────
   const handleModelReady = useCallback((modelId: string, glbUrl: string) => {
@@ -2423,8 +2507,34 @@ export function App() {
         toolGroups={toolGroups}
         leftActions={leftActions.length > 0 ? leftActions : undefined}
         playerName={state.playerName}
+        playerLevel={playerLevel}
+        playerXP={playerXP}
         onNavigate={handleBreadcrumbNavigate}
       />
+
+      {/* Level-up notification toast */}
+      {levelUpNotification !== null && (
+        <div style={{
+          position: 'fixed',
+          bottom: 60,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9600,
+          background: 'rgba(10, 15, 25, 0.95)',
+          border: '1px solid #44ff88',
+          borderRadius: 4,
+          padding: '10px 24px',
+          fontFamily: 'monospace',
+          fontSize: 13,
+          color: '#44ff88',
+          letterSpacing: 1,
+          pointerEvents: 'none',
+          animation: 'cmdbar-fade-in 0.3s ease',
+          boxShadow: '0 0 20px rgba(68, 255, 136, 0.15)',
+        }}>
+          РIВЕНЬ {levelUpNotification}
+        </div>
+      )}
 
       {/* Left-side scene controls — home-intro */}
       {state.scene === 'home-intro' && !backgroundModelInfo && home3DPhase !== 'scanning' && (
@@ -2747,6 +2857,7 @@ export function App() {
                 `Квантовий синтез ${modelGenerationTarget.planetName} успішно завершено. Топографічна 3D-модель інтегрована в базу.`,
                 { planetName: modelGenerationTarget.planetName, systemId: modelGenerationTarget.systemId, planetId: modelGenerationTarget.planetId },
               );
+              awardXP(XP_REWARDS.MODEL_3D_GENERATED, '3d_model');
             }
           }}
           onQuarksChanged={() => {
@@ -2829,6 +2940,7 @@ export function App() {
           playerId={playerId.current}
           onClose={handleCloseSurface}
           onBuildingCountChange={setSurfaceBuildingCount}
+          onBuildingPlaced={() => awardXP(XP_REWARDS.BUILDING_PLACED, 'building_placed')}
           onPhaseChange={setSurfacePhase}
           onBuildPanelChange={setSurfaceBuildPanelOpen}
         />

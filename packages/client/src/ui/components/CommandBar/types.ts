@@ -34,5 +34,7 @@ export interface CommandBarProps {
   toolGroups: ToolGroup[];
   leftActions?: ToolItem[];
   playerName: string;
+  playerLevel?: number;
+  playerXP?: number;
   onNavigate: (targetScene: string) => void;
 }
