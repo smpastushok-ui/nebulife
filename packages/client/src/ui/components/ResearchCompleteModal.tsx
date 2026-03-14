@@ -43,7 +43,7 @@ export function ResearchCompleteModal({
   const obs = research.observation;
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
+    <div style={overlayStyle}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={titleStyle}>Дослідження завершено!</div>
         <div style={{ fontSize: 16, color: '#eeffee', marginBottom: 16 }}>{system.name}</div>
@@ -79,6 +79,18 @@ export function ResearchCompleteModal({
 
         <button style={btnStyle} onClick={onViewSystem}>
           Оглянути систему &rarr;
+        </button>
+        <button
+          style={{
+            marginTop: 10, padding: '8px 24px', cursor: 'pointer',
+            background: 'none', border: 'none',
+            color: '#556677', fontFamily: 'monospace', fontSize: 11,
+          }}
+          onClick={onClose}
+          onMouseEnter={(e) => { (e.target as HTMLElement).style.color = '#8899aa'; }}
+          onMouseLeave={(e) => { (e.target as HTMLElement).style.color = '#556677'; }}
+        >
+          Закрити
         </button>
       </div>
     </div>

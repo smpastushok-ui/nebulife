@@ -80,7 +80,7 @@ export function DiscoveryChoicePanel({
           opacity: visible && !exiting ? 1 : 0,
           transition: 'opacity 0.4s ease',
         }}
-        onClick={() => exit(onSkip)}
+        /* No backdrop dismiss — prevent accidental loss of discovery */
       />
 
       {/* Centered modal */}

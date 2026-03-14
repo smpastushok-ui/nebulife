@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import type { Discovery } from '@nebulife/core';
+import type { DiscoveryData } from '../../../api/player-api';
 
 // ---------------------------------------------------------------------------
 // System Log — chronological event feed (ship's log style)
@@ -14,6 +16,10 @@ export interface LogEntry {
   planetName?: string;
   systemId?: string;
   planetId?: string;
+  /** Catalog object type — links this entry to a discovery */
+  objectType?: string;
+  /** Full Discovery ref for re-opening the generation flow from the log */
+  discoveryRef?: Discovery;
 }
 
 const CATEGORY_LABELS: Record<LogCategory, string> = {
@@ -32,9 +38,13 @@ const CATEGORY_COLORS: Record<LogCategory, string> = {
 
 interface SystemLogProps {
   entries: LogEntry[];
+  /** Map of object_type → DiscoveryData to check photo status */
+  galleryMap?: Map<string, DiscoveryData>;
+  /** Callback when user clicks an active (no-photo) discovery entry */
+  onOpenDiscovery?: (discovery: Discovery) => void;
 }
 
-export function SystemLog({ entries }: SystemLogProps) {
+export function SystemLog({ entries, galleryMap, onOpenDiscovery }: SystemLogProps) {
   const [filter, setFilter] = useState<LogCategory | 'all'>('all');
 
   const filtered = useMemo(() => {
@@ -104,9 +114,25 @@ export function SystemLog({ entries }: SystemLogProps) {
               : 'Немає записів у цій категорії.'}
           </div>
         ) : (
-          filtered.map((entry) => (
-            <LogEntryRow key={entry.id} entry={entry} />
-          ))
+          filtered.map((entry) => {
+            // Determine if this discovery entry is actionable (has discovery, no photo yet)
+            const hasPhoto = entry.objectType
+              ? !!(galleryMap?.get(entry.objectType)?.photo_url)
+              : false;
+            const isActionable = !!entry.discoveryRef && !hasPhoto;
+
+            return (
+              <LogEntryRow
+                key={entry.id}
+                entry={entry}
+                actionable={isActionable}
+                completed={!!entry.discoveryRef && hasPhoto}
+                onClick={isActionable && onOpenDiscovery
+                  ? () => onOpenDiscovery(entry.discoveryRef!)
+                  : undefined}
+              />
+            );
+          })
         )}
       </div>
     </div>
@@ -117,7 +143,17 @@ export function SystemLog({ entries }: SystemLogProps) {
 // LogEntryRow
 // ---------------------------------------------------------------------------
 
-function LogEntryRow({ entry }: { entry: LogEntry }) {
+function LogEntryRow({
+  entry,
+  actionable,
+  completed,
+  onClick,
+}: {
+  entry: LogEntry;
+  actionable?: boolean;
+  completed?: boolean;
+  onClick?: () => void;
+}) {
   const [hover, setHover] = useState(false);
   const time = new Date(entry.timestamp).toLocaleString('uk-UA', {
     hour: '2-digit',
@@ -133,14 +169,21 @@ function LogEntryRow({ entry }: { entry: LogEntry }) {
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      onClick={onClick}
       style={{
         padding: '6px 14px',
         display: 'flex',
         gap: 10,
         alignItems: 'flex-start',
-        background: hover ? 'rgba(20, 30, 45, 0.3)' : 'transparent',
+        background: actionable && hover
+          ? 'rgba(30, 50, 70, 0.4)'
+          : hover
+            ? 'rgba(20, 30, 45, 0.3)'
+            : 'transparent',
         transition: 'background 0.1s',
         fontSize: 11,
+        cursor: actionable ? 'pointer' : 'default',
+        opacity: completed ? 0.45 : 1,
       }}
     >
       {/* Timestamp */}
@@ -168,11 +211,30 @@ function LogEntryRow({ entry }: { entry: LogEntry }) {
 
       {/* Message text */}
       <span style={{
-        color: '#8899aa',
+        color: completed ? '#556677' : actionable ? '#aaccee' : '#8899aa',
         flex: 1,
         lineHeight: '1.4',
       }}>
         {entry.text}
+        {actionable && (
+          <span style={{
+            color: '#4488aa',
+            fontSize: 9,
+            marginLeft: 6,
+          }}>
+            [відкрити]
+          </span>
+        )}
+        {completed && (
+          <span style={{
+            color: '#44ff88',
+            fontSize: 9,
+            marginLeft: 6,
+            opacity: 0.7,
+          }}>
+            [знято]
+          </span>
+        )}
       </span>
     </div>
   );

@@ -172,9 +172,8 @@ export function OnboardingScreen({ homeInfo, onComplete }: OnboardingScreenProps
     setTimeout(onComplete, 600);
   };
 
-  // Can advance?
-  const canNext =
-    slide === 0 || slide === 2 || slide === 3 || (slide === 1 && typewriterDone);
+  // Can always advance (slide 1 typewriter can be skipped by pressing Далі)
+  const canNext = slide === 0 || slide === 1 || slide === 2 || slide === 3;
 
   return (
     <div

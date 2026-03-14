@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { StarSystem, CatalogEntry } from '@nebulife/core';
+import type { StarSystem, CatalogEntry, Discovery } from '@nebulife/core';
 import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
 import { PlanetsCatalog, FavoritesPlanetsList } from './PlanetsCatalog';
@@ -91,6 +91,10 @@ export interface CosmicArchiveProps {
   localEntries?: Map<string, DiscoveryData>;
   /** Whether a system is currently being researched (for scan animation) */
   isSystemResearching?: (systemId: string) => boolean;
+  /** Map of object_type → DiscoveryData for checking photo status in log */
+  galleryMap?: Map<string, DiscoveryData>;
+  /** Callback when user clicks a discovery log entry to (re)open generation flow */
+  onOpenDiscovery?: (discovery: Discovery) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +182,8 @@ export function CosmicArchive({
   highlightedType,
   localEntries,
   isSystemResearching,
+  galleryMap,
+  onOpenDiscovery,
 }: CosmicArchiveProps) {
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
@@ -345,7 +351,13 @@ export function CosmicArchive({
     }
 
     if (mainTab === 'log') {
-      return <SystemLog entries={logEntries} />;
+      return (
+        <SystemLog
+          entries={logEntries}
+          galleryMap={galleryMap}
+          onOpenDiscovery={onOpenDiscovery}
+        />
+      );
     }
 
     // All other tabs => placeholder

@@ -738,7 +738,7 @@ export function App() {
                   const discName = discEntry?.nameUk ?? result.discovery.type;
                   addLogEntry('science',
                     `Обсерваторiя зафiксувала сигнал: ${discName} в системi ${system.name}. Очiкує рiшення оператора.`,
-                    { systemId: system.id },
+                    { systemId: system.id, objectType: result.discovery.type, discoveryRef: result.discovery },
                   );
                 }
 
@@ -1220,6 +1220,14 @@ export function App() {
     setPendingDiscovery(null);
   }, []);
 
+  /** Re-open a discovery from the journal log (find system by id, set pendingDiscovery) */
+  const handleOpenDiscoveryFromLog = useCallback((discovery: Discovery) => {
+    const allSystems = engineRef.current?.getAllSystems() ?? [];
+    const system = allSystems.find((s) => s.id === discovery.systemId);
+    if (!system) return;
+    setPendingDiscovery({ discovery, system });
+  }, []);
+
   const handleCloseObservatory = useCallback(() => {
     setObservatoryTarget(null);
   }, []);
@@ -1464,7 +1472,7 @@ export function App() {
   const addLogEntry = useCallback((
     category: LogCategory,
     text: string,
-    extra?: { planetName?: string; systemId?: string; planetId?: string },
+    extra?: { planetName?: string; systemId?: string; planetId?: string; objectType?: string; discoveryRef?: Discovery },
   ) => {
     setLogEntries((prev) => [
       ...prev,
@@ -2765,6 +2773,8 @@ export function App() {
           logEntries={logEntries}
           highlightedType={highlightedGalleryType}
           localEntries={galleryMap}
+          galleryMap={galleryMap}
+          onOpenDiscovery={handleOpenDiscoveryFromLog}
           getResearchProgress={(sysId: string) => {
             const sys = (engineRef.current?.getAllSystems() ?? []).find(s => s.id === sysId);
             if (sys?.ownerPlayerId !== null && sys?.ownerPlayerId !== undefined) return 100;
