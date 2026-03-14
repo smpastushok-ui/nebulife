@@ -492,7 +492,24 @@ export function App() {
   const [highlightedGalleryType, setHighlightedGalleryType] = useState<string | null>(null);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>([]);
-  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_log_entries');
+      if (saved) {
+        const parsed = JSON.parse(saved) as LogEntry[];
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch { /* ignore */ }
+    return [];
+  });
+
+  // Persist log entries to localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem('nebulife_log_entries', JSON.stringify(logEntries));
+    } catch { /* ignore quota errors */ }
+  }, [logEntries]);
+
   // Ref that always holds the current scene (for use inside async callbacks)
   const currentSceneRef = useRef<string>('home-intro');
 
