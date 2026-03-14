@@ -558,7 +558,7 @@ export function App() {
   const [surfaceBuildingCount, setSurfaceBuildingCount] = useState(0);
 
   const refreshQuarks = useCallback(() => {
-    fetch(`/api/player/${playerId.current}`)
+    authFetch(`/api/player/${playerId.current}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data?.quarks !== undefined) setQuarks(data.quarks); })
       .catch(() => {});
@@ -852,6 +852,13 @@ export function App() {
       // Sync restored research state before anything else
       engine.setResearchState(researchState);
       engineRef.current = engine;
+
+      // If home was relocated via evacuation, update engine rings before navigation
+      const savedHomeSysId = localStorage.getItem('nebulife_home_system_id');
+      const savedHomePlanetId = localStorage.getItem('nebulife_home_planet_id');
+      if (savedHomeSysId && savedHomePlanetId) {
+        engine.updateHomeSystem(savedHomeSysId, savedHomePlanetId);
+      }
 
       // Store home system/planet info for navigation
       const allSystems = engine.getAllSystems();
@@ -1451,6 +1458,15 @@ export function App() {
       home_planet_id: evacuationTarget.planet.id,
       game_phase: 'colonizing',
     }).catch((err) => console.error('Home update failed:', err));
+
+    // Persist new home IDs to localStorage (so engine init picks them up on reload)
+    try {
+      localStorage.setItem('nebulife_home_system_id', evacuationTarget.system.id);
+      localStorage.setItem('nebulife_home_planet_id', evacuationTarget.planet.id);
+    } catch { /* ignore */ }
+
+    // Update GameEngine rings: move ownerPlayerId + isHomePlanet to new system/planet
+    engineRef.current?.updateHomeSystem(evacuationTarget.system.id, evacuationTarget.planet.id);
 
     // Update local home info
     setHomeInfo({ system: evacuationTarget.system, planet: evacuationTarget.planet });

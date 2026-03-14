@@ -362,6 +362,30 @@ export class GameEngine {
     return this.rings.flatMap((r) => r.starSystems);
   }
 
+  /**
+   * Relocate the "home" to a different system/planet after evacuation.
+   * Clears ownerPlayerId + isHomePlanet on the old home, sets them on the new one.
+   */
+  updateHomeSystem(newSystemId: string, newPlanetId: string) {
+    const allSystems = this.getAllSystems();
+    // Clear old home markers
+    for (const sys of allSystems) {
+      if (sys.ownerPlayerId !== null) {
+        sys.ownerPlayerId = null;
+        for (const p of sys.planets) {
+          if (p.isHomePlanet) p.isHomePlanet = false;
+        }
+      }
+    }
+    // Set new home
+    const newSys = allSystems.find((s) => s.id === newSystemId);
+    if (newSys) {
+      newSys.ownerPlayerId = 'player-0';
+      const newPlanet = newSys.planets.find((p) => p.id === newPlanetId);
+      if (newPlanet) newPlanet.isHomePlanet = true;
+    }
+  }
+
   /** Setup mouse/touch drag-to-rotate for home planet scene */
   private setupHomePlanetInput() {
     const canvas = this.app.canvas;
