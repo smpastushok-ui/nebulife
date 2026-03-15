@@ -60,6 +60,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 
   const isInfoStep = step.type === 'info';
   const isAutoStep = step.type === 'auto';
+  const isWaiting = step.waitForTarget && !targetRect;
 
   useEffect(() => {
     ensureStyles();
@@ -200,6 +201,11 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
     : {
         display: 'none',
       };
+
+  // When waitForTarget is set and target isn't found, hide everything
+  if (isWaiting) {
+    return null;
+  }
 
   return (
     <>

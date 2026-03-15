@@ -33,6 +33,7 @@ export interface PlayerRow {
   callsign: string | null;
   callsign_set_at: string | null;
   linked_at: string | null;
+  global_index: number | null;
 }
 
 export async function createPlayer(player: {
@@ -1145,4 +1146,15 @@ export async function searchPlayers(
     WHERE callsign ILIKE ${pattern} AND callsign IS NOT NULL
     LIMIT ${limit}
   `) as Array<{ id: string; callsign: string }>;
+}
+
+// ---------------------------------------------------------------------------
+// Universe helpers
+// ---------------------------------------------------------------------------
+
+/** Get total number of registered players (for galaxy group count). */
+export async function getTotalPlayerCount(): Promise<number> {
+  const sql = getSQL();
+  const rows = await sql`SELECT COUNT(*)::int AS count FROM players`;
+  return (rows[0] as { count: number }).count;
 }

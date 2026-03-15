@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 
 // ---------------------------------------------------------------------------
-// ResourceDisplay -- top-right HUD showing player resources
-// Phase 1 (Exodus): Research Data | Quarks
-// Phase 2+:         Minerals | Volatiles | Isotopes | Quarks
+// ResourceDisplay -- two HUD elements:
+//   1. Timer — fixed top-center
+//   2. Resources — fixed top-right
 // ---------------------------------------------------------------------------
 
 interface ResourceDisplayProps {
@@ -21,13 +21,13 @@ interface ResourceDisplayProps {
   countdownUrgent?: boolean;
   /** Callback when timer is clicked (e.g. show evacuation) */
   onTimerClick?: () => void;
+  /** Observatory slots: how many are currently active */
+  observatoryUsed?: number;
+  /** Observatory slots: total available */
+  observatoryTotal?: number;
 }
 
-const containerStyle: React.CSSProperties = {
-  position: 'fixed',
-  top: 12,
-  left: '50%',
-  transform: 'translateX(-50%)',
+const panelStyle: React.CSSProperties = {
   zIndex: 9700,
   display: 'flex',
   alignItems: 'center',
@@ -56,6 +56,19 @@ const itemStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: 5,
 };
+
+/** SVG telescope icon for Observatories */
+function ObservatoryIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.2">
+      <circle cx="8" cy="5" r="4" />
+      <line x1="8" y1="9" x2="8" y2="14" />
+      <line x1="5" y1="14" x2="11" y2="14" />
+      <line x1="4" y1="11" x2="8" y2="9" />
+      <line x1="12" y1="11" x2="8" y2="9" />
+    </svg>
+  );
+}
 
 /** SVG radar/scan icon for Research Data */
 function ResearchDataIcon() {
@@ -121,79 +134,101 @@ function IsotopesIcon() {
 export function ResourceDisplay({
   researchData, quarks, isExodusPhase, onClick, minerals = 0, volatiles = 0, isotopes = 0,
   countdownText, countdownUrgent = false, onTimerClick,
+  observatoryUsed = 0, observatoryTotal = 0,
 }: ResourceDisplayProps) {
-  const [hover, setHover] = useState(false);
+  const [hoverResources, setHoverResources] = useState(false);
+  const [hoverTimer, setHoverTimer] = useState(false);
 
   return (
-    <div
-      style={{
-        ...containerStyle,
-        borderColor: hover ? '#446688' : '#334455',
-      }}
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      {/* Countdown timer (inline, same style) */}
+    <>
+      {/* Timer -- fixed top-center */}
       {countdownText && (
-        <>
-          <div
+        <div
+          style={{
+            ...panelStyle,
+            position: 'fixed',
+            top: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            cursor: onTimerClick ? 'pointer' : 'default',
+            borderColor: hoverTimer ? '#446688' : '#334455',
+          }}
+          onClick={onTimerClick || undefined}
+          onMouseEnter={() => setHoverTimer(true)}
+          onMouseLeave={() => setHoverTimer(false)}
+        >
+          <span
             style={{
-              ...itemStyle,
-              cursor: onTimerClick ? 'pointer' : 'default',
+              color: '#cc4444',
+              fontWeight: 'bold',
+              letterSpacing: 1,
+              animation: countdownUrgent ? 'cmdbar-terminal-pulse 0.8s infinite' : undefined,
             }}
-            onClick={onTimerClick ? (e) => { e.stopPropagation(); onTimerClick(); } : undefined}
           >
-            <span
-              style={{
-                color: '#cc4444',
-                fontWeight: 'bold',
-                letterSpacing: 1,
-                animation: countdownUrgent ? 'cmdbar-terminal-pulse 0.8s infinite' : undefined,
-              }}
-            >
-              {countdownText}
-            </span>
-          </div>
-          <div style={dividerStyle} />
-        </>
+            {countdownText}
+          </span>
+        </div>
       )}
 
-      {isExodusPhase && (
-        <>
-          <div style={itemStyle} data-tutorial-id="resource-data">
-            <ResearchDataIcon />
-            <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{researchData}</span>
-          </div>
-          <div style={dividerStyle} />
-        </>
-      )}
+      {/* Resources -- fixed top-right */}
+      <div
+        style={{
+          ...panelStyle,
+          position: 'fixed',
+          top: 12,
+          right: 12,
+          borderColor: hoverResources ? '#446688' : '#334455',
+        }}
+        onClick={onClick}
+        onMouseEnter={() => setHoverResources(true)}
+        onMouseLeave={() => setHoverResources(false)}
+      >
+        {/* Observatories */}
+        {observatoryTotal > 0 && (
+          <>
+            <div style={itemStyle} data-tutorial-id="resource-observatories" title="Обсерваторiї">
+              <ObservatoryIcon />
+              <span style={{ color: observatoryUsed >= observatoryTotal ? '#cc4444' : '#7bb8ff' }}>
+                {observatoryUsed}/{observatoryTotal}
+              </span>
+            </div>
+            <div style={dividerStyle} />
+          </>
+        )}
 
-      {/* Colony resources (Phase 2+) */}
-      {!isExodusPhase && (
-        <>
-          <div style={itemStyle} title="Мiнерали">
-            <MineralsIcon />
-            <span style={{ color: '#aa8855' }}>{minerals}</span>
-          </div>
-          <div style={dividerStyle} />
-          <div style={itemStyle} title="Леткi речовини">
-            <VolatilesIcon />
-            <span style={{ color: '#55aaaa' }}>{volatiles}</span>
-          </div>
-          <div style={dividerStyle} />
-          <div style={itemStyle} title="Iзотопи">
-            <IsotopesIcon />
-            <span style={{ color: '#88aa44' }}>{isotopes}</span>
-          </div>
-          <div style={dividerStyle} />
-        </>
-      )}
+        {/* Research Data -- always visible */}
+        <div style={itemStyle} data-tutorial-id="resource-data">
+          <ResearchDataIcon />
+          <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{researchData}</span>
+        </div>
+        <div style={dividerStyle} />
 
-      <div style={itemStyle}>
-        <QuarksIcon />
-        <span>{quarks}</span>
+        {/* Colony resources (Phase 2+) */}
+        {!isExodusPhase && (
+          <>
+            <div style={itemStyle} title="Мiнерали">
+              <MineralsIcon />
+              <span style={{ color: '#aa8855' }}>{minerals}</span>
+            </div>
+            <div style={dividerStyle} />
+            <div style={itemStyle} title="Леткi речовини">
+              <VolatilesIcon />
+              <span style={{ color: '#55aaaa' }}>{volatiles}</span>
+            </div>
+            <div style={dividerStyle} />
+            <div style={itemStyle} title="Iзотопи">
+              <IsotopesIcon />
+              <span style={{ color: '#88aa44' }}>{isotopes}</span>
+            </div>
+            <div style={dividerStyle} />
+          </>
+        )}
+
+        <div style={itemStyle}>
+          <QuarksIcon />
+          <span>{quarks}</span>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

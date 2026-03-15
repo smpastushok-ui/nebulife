@@ -74,7 +74,7 @@ import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
 import { CutscenePlaceholder } from './ui/components/CutscenePlaceholder.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
-import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer } from './api/player-api.js';
+import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, fetchUniverseInfo } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { onAuthChange, signOut } from './auth/auth-service.js';
 import { authFetch } from './auth/api-client.js';
@@ -149,6 +149,8 @@ export function App() {
   const engineRef = useRef<GameEngine | null>(null);
   const universeCanvasRef = useRef<HTMLDivElement>(null);
   const universeEngineRef = useRef<UniverseEngine | null>(null);
+  const globalPlayerIndexRef = useRef<number>(0);
+  const universeGroupCountRef = useRef<number>(1);
   const [universeVisible, setUniverseVisible] = useState(false);
   const [warpActive, setWarpActive] = useState(false);
   const warpTargetRef = useRef<'universe' | 'galaxy' | 'home-intro'>('universe');
@@ -909,15 +911,21 @@ export function App() {
               homePlanetId: 'home',
             });
             setQuarks(created.quarks ?? 0);
+            if (created.global_index != null) globalPlayerIndexRef.current = created.global_index;
             try { localStorage.setItem('nebulife_generation_index', String(created.science_points ?? 0)); } catch { /* ignore */ }
             hydrateGameStateFromServer(created);
             setState((prev) => ({ ...prev, playerName: created.callsign || created.name || 'Explorer' }));
           } else {
             setQuarks(existing.quarks ?? 0);
+            if (existing.global_index != null) globalPlayerIndexRef.current = existing.global_index;
             try { localStorage.setItem('nebulife_generation_index', String(existing.science_points ?? 0)); } catch { /* ignore */ }
             hydrateGameStateFromServer(existing);
             setState((prev) => ({ ...prev, playerName: existing.callsign || existing.name || 'Explorer' }));
           }
+          // Fetch universe info for group count
+          fetchUniverseInfo().then(info => {
+            universeGroupCountRef.current = info.groupCount;
+          }).catch(() => { /* use default */ });
         } catch (err) {
           console.warn('[Legacy] Failed to ensure player in DB:', err);
         }
@@ -952,10 +960,15 @@ export function App() {
               const player = await res.json();
               playerId.current = player.id; // Use DB id (may differ from UID for migrated)
               setQuarks(player.quarks ?? 0);
+              if (player.global_index != null) globalPlayerIndexRef.current = player.global_index;
               try { localStorage.setItem('nebulife_generation_index', String(player.science_points ?? 0)); } catch { /* ignore */ }
               hydrateGameStateFromServer(player);
               setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
               setNeedsCallsign(!player.callsign);
+              // Fetch universe info for group count
+              fetchUniverseInfo().then(info => {
+                universeGroupCountRef.current = info.groupCount;
+              }).catch(() => { /* use default */ });
               // Check if player needs onboarding
               if (player.game_phase === 'onboarding') {
                 setNeedsOnboarding(true);
@@ -1302,8 +1315,8 @@ export function App() {
           }
         },
       },
-      950, // globalPlayerIndex — TODO: use real player index
-      60,  // groupCount
+      globalPlayerIndexRef.current,
+      universeGroupCountRef.current,
     );
     await engine.init();
     universeEngineRef.current = engine;
@@ -1769,28 +1782,37 @@ export function App() {
       return;
     }
 
-    setTutorialStep(nextStep);
-
-    // Execute onActivate for the next step
     const next = TUTORIAL_STEPS[nextStep];
-    if (next?.onActivate) {
-      for (const action of next.onActivate) {
-        if (action === 'open-archive') {
-          setShowCosmicArchive(true);
-        } else if (action.startsWith('navigate-')) {
-          // Format: navigate-{mainTab}-{subTab}
-          const parts = action.replace('navigate-', '').split('-');
-          if (parts.length >= 2) {
-            const mainTab = parts[0];
-            const subTab = parts.slice(1).join('-');
-            setTimeout(() => {
-              cosmicArchiveRef.current?.navigateTo(mainTab, subTab);
-            }, 100);
+
+    // Helper to activate next step (execute onActivate actions)
+    const activateStep = (stepIdx: number) => {
+      setTutorialStep(stepIdx);
+      const s = TUTORIAL_STEPS[stepIdx];
+      if (s?.onActivate) {
+        for (const action of s.onActivate) {
+          if (action === 'open-archive') {
+            setShowCosmicArchive(true);
+          } else if (action.startsWith('navigate-')) {
+            const parts = action.replace('navigate-', '').split('-');
+            if (parts.length >= 2) {
+              const mainTab = parts[0];
+              const subTab = parts.slice(1).join('-');
+              setTimeout(() => {
+                cosmicArchiveRef.current?.navigateTo(mainTab, subTab);
+              }, 100);
+            }
+          } else if (action === 'close-archive') {
+            setShowCosmicArchive(false);
           }
-        } else if (action === 'close-archive') {
-          setShowCosmicArchive(false);
         }
       }
+    };
+
+    // Delay activation if step has activateDelay
+    if (next?.activateDelay) {
+      setTimeout(() => activateStep(nextStep), next.activateDelay);
+    } else {
+      activateStep(nextStep);
     }
   }, [isTutorialActive, tutorialStep, tutorialSubStep]);
 
@@ -2867,15 +2889,6 @@ export function App() {
     }
 
     case 'surface': {
-      const tools: ToolItem[] = [
-        {
-          id: 'buildings',
-          label: 'Будівлі',
-          onClick: () => surfaceViewRef.current?.toggleBuildPanel(),
-          active: surfaceBuildPanelOpen,
-        },
-      ];
-      toolGroups.push({ type: 'buttons', items: tools });
       if (surfacePhase === 'ai-ready') {
         toolGroups.push({
           type: 'zoom',
@@ -2932,6 +2945,8 @@ export function App() {
         countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && !isTutorialActive && evacuationPhase === 'idle' ? countdownText : undefined}
         countdownUrgent={countdownUrgent}
         onTimerClick={evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed ? () => setEvacuationPromptDismissed(false) : undefined}
+        observatoryUsed={researchState.slots.filter(s => s.systemId !== null).length}
+        observatoryTotal={researchState.slots.length}
       />
 
       {/* Doomsday Clock — center top (Exodus phase only) */}

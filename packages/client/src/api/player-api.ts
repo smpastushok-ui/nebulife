@@ -28,6 +28,7 @@ export interface PlayerData {
   auth_provider: string;
   email: string | null;
   callsign: string | null;
+  global_index: number | null;
 }
 
 /**
@@ -205,5 +206,26 @@ export async function deleteGalleryPhoto(
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(err.error ?? `Delete photo failed: ${res.status}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Universe
+// ---------------------------------------------------------------------------
+
+export interface UniverseInfo {
+  totalPlayers: number;
+  groupCount: number;
+}
+
+/**
+ * Get universe info (total players, group count) for galaxy rendering.
+ * Public endpoint — no auth required.
+ */
+export async function fetchUniverseInfo(): Promise<UniverseInfo> {
+  const res = await fetch(`${API_BASE}/universe/info`);
+  if (!res.ok) {
+    throw new Error(`Fetch universe info failed: ${res.status}`);
+  }
+  return res.json();
 }
 

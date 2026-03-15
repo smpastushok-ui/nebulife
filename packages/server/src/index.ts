@@ -70,6 +70,8 @@ export {
   getMessages,
   getPlayerDMChannels,
   searchPlayers,
+  // Universe
+  getTotalPlayerCount,
 } from './db.js';
 
 export type {

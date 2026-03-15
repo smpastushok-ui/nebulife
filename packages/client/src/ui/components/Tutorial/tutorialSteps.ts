@@ -27,6 +27,10 @@ export interface TutorialStepConfig {
   onActivate?: string[];
   /** Actions to perform when this step completes */
   onComplete?: string[];
+  /** If true, hide overlay until target element appears in DOM */
+  waitForTarget?: boolean;
+  /** Delay in ms before showing this step (after activation) */
+  activateDelay?: number;
 }
 
 export const TUTORIAL_STEPS: TutorialStepConfig[] = [
@@ -138,15 +142,16 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     text: 'Оберiть "Квантове фокусування" для детального аналiзу. Перше вiдкриття безкоштовно!',
     tooltipPos: 'left',
   },
-  // 11 — Save photo to gallery
+  // 11 — Save photo to gallery (wait until photo is generated and button appears)
   {
     id: 'save-gallery',
     type: 'click',
     target: 'save-to-gallery-btn',
     text: 'Збережiть фото вiдкриття до Галереї для вашої колекцiї.',
     tooltipPos: 'top',
+    waitForTarget: true,
   },
-  // 12 — Final info in Archive gallery
+  // 12 — Final info in Archive gallery (2s delay after photo saved)
   {
     id: 'gallery-final',
     type: 'info',
@@ -155,5 +160,6 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     tooltipPos: 'bottom',
     nextLabel: 'Завершити',
     onActivate: ['open-archive', 'navigate-collections-cosmos'],
+    activateDelay: 2000,
   },
 ];
