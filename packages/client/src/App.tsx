@@ -3250,13 +3250,13 @@ export function App() {
           onZoomOut={() => engineRef.current?.planetViewZoomOut()}
           backLabel="Система"
           showZoom
-          extraButtons={[
+          extraButtons={state.selectedPlanet?.isHomePlanet ? [
             {
               title: 'На поверхню',
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleOpenSurface,
             },
-          ]}
+          ] : undefined}
         />
       )}
 

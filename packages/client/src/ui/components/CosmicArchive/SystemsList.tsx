@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { StarSystem } from '@nebulife/core';
 
 // Tooltip that appears BELOW the icon (so it's not clipped by top menu)
@@ -92,9 +92,16 @@ export function SystemsList({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [insufficientDataId, setInsufficientDataId] = useState<string | null>(null);
   const insufficientTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
   useEffect(() => {
     ensureStyles();
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
   // Clear tooltip timer on unmount
@@ -153,11 +160,11 @@ export function SystemsList({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: hasResearchCol
-            ? '1fr 36px 56px 36px 36px 72px'
-            : '1fr 36px 56px 36px 36px',
-          gap: 4,
-          padding: '6px 8px',
+          gridTemplateColumns: isMobile
+            ? (hasResearchCol ? '1fr 28px 28px 28px auto' : '1fr 28px 28px 28px')
+            : (hasResearchCol ? '1fr 36px 56px 36px 36px 72px' : '1fr 36px 56px 36px 36px'),
+          gap: isMobile ? 2 : 4,
+          padding: isMobile ? '4px 6px' : '6px 8px',
           alignItems: 'center',
           borderBottom: '1px solid rgba(51, 68, 85, 0.2)',
           marginBottom: 4,
@@ -175,15 +182,17 @@ export function SystemsList({
             </svg>
           </HeaderIcon>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderIcon tooltip="Координати у галактиці">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
-              <circle cx="8" cy="8" r="1.5" />
-              <line x1="8" y1="1" x2="8" y2="15" />
-              <line x1="1" y1="8" x2="15" y2="8" />
-            </svg>
-          </HeaderIcon>
-        </div>
+        {!isMobile && (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <HeaderIcon tooltip="Координати у галактиці">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
+                <circle cx="8" cy="8" r="1.5" />
+                <line x1="8" y1="1" x2="8" y2="15" />
+                <line x1="1" y1="8" x2="15" y2="8" />
+              </svg>
+            </HeaderIcon>
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <HeaderIcon tooltip="Кількість планет">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
@@ -232,20 +241,23 @@ export function SystemsList({
             onMouseLeave={() => setHoveredId(null)}
             style={{
               display: 'grid',
-              gridTemplateColumns: hasResearchCol
-                ? '1fr 60px 80px 60px 50px 100px'
-                : '1fr 60px 80px 60px 50px',
-              gap: 8,
-              padding: '8px 12px',
+              gridTemplateColumns: isMobile
+                ? (hasResearchCol ? '1fr 28px 28px 28px auto' : '1fr 28px 28px 28px')
+                : (hasResearchCol ? '1fr 60px 80px 60px 50px 100px' : '1fr 60px 80px 60px 50px'),
+              gap: isMobile ? 2 : 8,
+              padding: isMobile ? '6px 6px' : '8px 12px',
               background: researching
                 ? undefined
                 : isHovered
                   ? 'rgba(25, 35, 50, 0.5)'
                   : 'rgba(10, 15, 25, 0.3)',
-              border: researching
-                ? '1px solid rgba(68, 136, 170, 0.25)'
-                : '1px solid rgba(51, 68, 85, 0.15)',
-              borderRadius: 3,
+              border: isMobile
+                ? 'none'
+                : researching
+                  ? '1px solid rgba(68, 136, 170, 0.25)'
+                  : '1px solid rgba(51, 68, 85, 0.15)',
+              borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.1)' : undefined,
+              borderRadius: isMobile ? 0 : 3,
               fontFamily: 'monospace',
               fontSize: 11,
               color: '#aabbcc',
@@ -279,10 +291,12 @@ export function SystemsList({
               {system.star.spectralClass}
             </span>
 
-            {/* Coordinates */}
-            <span style={{ color: '#556677', fontSize: 10 }}>
-              {system.position.x.toFixed(0)}, {system.position.y.toFixed(0)}
-            </span>
+            {/* Coordinates (hidden on mobile) */}
+            {!isMobile && (
+              <span style={{ color: '#556677', fontSize: 10 }}>
+                {system.position.x.toFixed(0)}, {system.position.y.toFixed(0)}
+              </span>
+            )}
 
             {/* Planet count */}
             <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
