@@ -751,6 +751,24 @@ export class UniverseEngine {
     this.hoveredGroup = -1;
   }
 
+  /** Programmatic zoom in (for UI buttons) */
+  zoomIn(): void {
+    const dir = new THREE.Vector3();
+    dir.subVectors(this.controls.target, this.camera.position).normalize();
+    const dist = this.camera.position.distanceTo(this.controls.target);
+    const step = dist * 0.2;
+    this.camera.position.addScaledVector(dir, step);
+  }
+
+  /** Programmatic zoom out (for UI buttons) */
+  zoomOut(): void {
+    const dir = new THREE.Vector3();
+    dir.subVectors(this.controls.target, this.camera.position).normalize();
+    const dist = this.camera.position.distanceTo(this.controls.target);
+    const step = dist * 0.2;
+    this.camera.position.addScaledVector(dir, -step);
+  }
+
   collapseToGalaxy(): void {
     if (this.lodState === 'cluster') this.collapseCluster();
   }

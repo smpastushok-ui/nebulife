@@ -66,6 +66,14 @@ export function CosmosGallery({ playerId, highlightedType, localEntries }: Cosmo
     url: string;
   } | null>(null);
 
+  // Mobile detection for responsive grid
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Inject highlight animation keyframes
   useEffect(() => {
     const styleId = 'gallery-highlight-anim';
@@ -195,8 +203,8 @@ export function CosmosGallery({ playerId, highlightedType, localEntries }: Cosmo
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-              gap: 6,
+              gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fill, minmax(130px, 1fr))',
+              gap: isMobile ? 4 : 6,
             }}
           >
             {group.entries.map((entry) => {
@@ -207,6 +215,7 @@ export function CosmosGallery({ playerId, highlightedType, localEntries }: Cosmo
                   entry={entry}
                   discovery={disc ?? null}
                   highlighted={entry.type === highlightedType}
+                  isMobile={isMobile}
                   onClick={() => {
                     if (disc?.photo_url) {
                       const discovery: Discovery = {
@@ -255,11 +264,13 @@ function CatalogCell({
   entry,
   discovery,
   highlighted,
+  isMobile,
   onClick,
 }: {
   entry: CatalogEntry;
   discovery: DiscoveryData | null;
   highlighted?: boolean;
+  isMobile?: boolean;
   onClick: () => void;
 }) {
   const [hover, setHover] = useState(false);
@@ -268,12 +279,17 @@ function CatalogCell({
   const color = RARITY_COLORS[entry.rarity];
   const rarityLabel = RARITY_LABELS[entry.rarity];
 
+  // Mobile: 9:16 aspect ratio cells; Desktop: fixed 100px height
+  const cellSize: React.CSSProperties = isMobile
+    ? { aspectRatio: '9 / 16' }
+    : { height: 100 };
+
   // State 1: Undiscovered
   if (!isDiscovered) {
     return (
       <div
         style={{
-          height: 100,
+          ...cellSize,
           background: 'rgba(20, 25, 35, 0.6)',
           borderRadius: 3,
           border: '1px solid rgba(51, 68, 85, 0.15)',
@@ -322,7 +338,7 @@ function CatalogCell({
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
-          height: 100,
+          ...cellSize,
           background: hover
             ? 'rgba(25, 35, 50, 0.7)'
             : 'rgba(15, 22, 35, 0.7)',
@@ -372,7 +388,7 @@ function CatalogCell({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        height: 100,
+        ...cellSize,
         borderRadius: 3,
         border: `1px solid ${highlighted ? '#44ff88' : hover ? color : `${color}55`}`,
         overflow: 'hidden',

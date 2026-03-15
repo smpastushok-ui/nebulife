@@ -220,11 +220,11 @@ export function App() {
     } catch { /* ignore */ }
   }, [state.scene, state.selectedSystem, state.selectedPlanet]);
 
-  // Completed research modal
-  const [completedModal, setCompletedModal] = useState<{
+  // Completed research modal queue (show one at a time)
+  const [completedModalQueue, setCompletedModalQueue] = useState<{
     system: StarSystem;
     research: SystemResearchState;
-  } | null>(null);
+  }[]>([]);
 
   // Timer text per slot
   const [slotTimers, setSlotTimers] = useState<Record<number, string>>({});
@@ -476,14 +476,34 @@ export function App() {
   isExodusPhaseRef.current = isExodusPhase;
   const evacuationTargetRef = useRef(evacuationTarget);
   evacuationTargetRef.current = evacuationTarget;
+
+  // Persist evacuation target to localStorage
+  useEffect(() => {
+    try {
+      if (evacuationTarget) {
+        localStorage.setItem('nebulife_evac_system_id', evacuationTarget.system.id);
+        localStorage.setItem('nebulife_evac_planet_id', evacuationTarget.planet.id);
+        localStorage.setItem('nebulife_evac_forced', String(forcedEvacuation));
+      } else {
+        localStorage.removeItem('nebulife_evac_system_id');
+        localStorage.removeItem('nebulife_evac_planet_id');
+        localStorage.removeItem('nebulife_evac_forced');
+      }
+    } catch { /* ignore */ }
+  }, [evacuationTarget, forcedEvacuation]);
+
   const techTreeStateRef = useRef(techTreeState);
   techTreeStateRef.current = techTreeState;
 
-  /** Discovery choice panel (from research completion) */
-  const [pendingDiscovery, setPendingDiscovery] = useState<{
+  /** Discovery choice panel queue (show one at a time) */
+  const [discoveryQueue, setDiscoveryQueue] = useState<{
     discovery: Discovery;
     system: StarSystem;
-  } | null>(null);
+  }[]>([]);
+  /** Derived: first pending discovery (shown when no completedModal is blocking) */
+  const pendingDiscovery = discoveryQueue.length > 0 && completedModalQueue.length === 0 ? discoveryQueue[0] : null;
+  /** Derived: first completed modal (shown first, before discoveries) */
+  const completedModal = completedModalQueue.length > 0 ? completedModalQueue[0] : null;
 
   /** Observatory view (when player clicks "Quantum Focus") */
   const [observatoryTarget, setObservatoryTarget] = useState<{
@@ -764,14 +784,79 @@ export function App() {
       'nebulife_favorites', 'nebulife_game_started_at', 'nebulife_time_multiplier',
       'nebulife_accel_at', 'nebulife_game_time_at_accel', 'nebulife_clock_revealed',
       'nebulife_home_system_id', 'nebulife_home_planet_id', 'nebulife_generation_index',
+      'nebulife_evac_system_id', 'nebulife_evac_planet_id', 'nebulife_evac_forced',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
 
     // 3. Save new generation_index AFTER clearing — GameEngine will use it on reload
     localStorage.setItem('nebulife_generation_index', String(newGenerationIndex));
 
-    // 4. Reload
-    window.location.reload();
+    // 4. Warp animation then reload
+    // Create a full-screen overlay with fade + warp streaks
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#020510;opacity:0;transition:opacity 0.8s;pointer-events:all;';
+    document.body.appendChild(overlay);
+
+    // Warp streaks canvas
+    const cvs = document.createElement('canvas');
+    cvs.width = window.innerWidth;
+    cvs.height = window.innerHeight;
+    cvs.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+    overlay.appendChild(cvs);
+    const ctx = cvs.getContext('2d');
+
+    // Fade in
+    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+
+    // Generate random stars for warp
+    const stars: { x: number; y: number; z: number; speed: number }[] = [];
+    const cx = cvs.width / 2;
+    const cy = cvs.height / 2;
+    for (let i = 0; i < 200; i++) {
+      stars.push({
+        x: (Math.random() - 0.5) * cvs.width * 2,
+        y: (Math.random() - 0.5) * cvs.height * 2,
+        z: Math.random() * 1000 + 100,
+        speed: Math.random() * 8 + 4,
+      });
+    }
+
+    let frame = 0;
+    const maxFrames = 90; // ~1.5s at 60fps
+    const animate = () => {
+      if (!ctx) { window.location.reload(); return; }
+      ctx.fillStyle = 'rgba(2,5,16,0.3)';
+      ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+      for (const star of stars) {
+        const prevZ = star.z;
+        star.z -= star.speed * (1 + frame * 0.1);
+        if (star.z <= 0) star.z = 1000;
+
+        const sx = cx + (star.x / star.z) * 200;
+        const sy = cy + (star.y / star.z) * 200;
+        const px = cx + (star.x / prevZ) * 200;
+        const py = cy + (star.y / prevZ) * 200;
+
+        const alpha = Math.min(1, (1000 - star.z) / 600) * Math.min(1, frame / 15);
+        ctx.strokeStyle = `rgba(120,170,255,${alpha.toFixed(2)})`;
+        ctx.lineWidth = Math.max(0.5, 2 - star.z / 500);
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(sx, sy);
+        ctx.stroke();
+      }
+
+      frame++;
+      if (frame < maxFrames) {
+        requestAnimationFrame(animate);
+      } else {
+        window.location.reload();
+      }
+    };
+
+    // Start warp after fade-in
+    setTimeout(() => animate(), 800);
   }, []);
 
   /** Hydrate full game state from server on login (cross-platform sync). */
@@ -1092,7 +1177,8 @@ export function App() {
 
                 // Show discovery choice panel if one was rolled
                 if (result.discovery) {
-                  setPendingDiscovery({ discovery: result.discovery, system });
+                  const disc = result.discovery;
+                  setDiscoveryQueue(q => [...q, { discovery: disc, system }]);
                   // Log the discovery event
                   const discEntry = getCatalogEntry(result.discovery.type) as CatalogEntry | undefined;
                   const discName = discEntry?.nameUk ?? result.discovery.type;
@@ -1109,7 +1195,7 @@ export function App() {
                 if (result.isNowComplete) {
                   const research = current.systems[system.id];
                   if (research) {
-                    setCompletedModal({ system, research });
+                    setCompletedModalQueue(q => [...q, { system, research }]);
                     awardXP(XP_REWARDS.RESEARCH_COMPLETE, 'research_complete');
                   }
                 }
@@ -1214,6 +1300,19 @@ export function App() {
         const homePlanet = homeSystem.planets.find(p => p.isHomePlanet) ?? homeSystem.planets[0];
         if (homePlanet) {
           setHomeInfo({ system: homeSystem, planet: homePlanet });
+        }
+      }
+
+      // Restore evacuation target if saved
+      const evacSysId = localStorage.getItem('nebulife_evac_system_id');
+      const evacPlanetId = localStorage.getItem('nebulife_evac_planet_id');
+      const evacForced = localStorage.getItem('nebulife_evac_forced') === 'true';
+      if (evacSysId && evacPlanetId) {
+        const evacSys = allSystems.find(s => s.id === evacSysId);
+        const evacPlanet = evacSys?.planets.find(p => p.id === evacPlanetId);
+        if (evacSys && evacPlanet) {
+          setEvacuationTarget({ system: evacSys, planet: evacPlanet });
+          setForcedEvacuation(evacForced);
         }
       }
 
@@ -1331,6 +1430,7 @@ export function App() {
     const target = warpTargetRef.current;
     if (target === 'universe') {
       // Transitioning TO universe (from PixiJS)
+      setSurfaceTarget(null);
       initUniverseEngine().then(() => {
         setUniverseVisible(true);
         universeEngineRef.current?.setVisible(true);
@@ -1364,6 +1464,10 @@ export function App() {
 
   const handleStartResearch = useCallback((systemId: string) => {
     if (!hasResearchData(researchData)) return;
+    // Block if no observatories or no free slots
+    if (researchState.slots.length === 0) return;
+    const slotIdx = findFreeSlot(researchState);
+    if (slotIdx < 0) return;
     setResearchData((prev) => prev - RESEARCH_DATA_COST);
     setResearchState((prev) => {
       const slotIndex = findFreeSlot(prev);
@@ -1394,7 +1498,7 @@ export function App() {
         });
       }
     }
-  }, [researchData, isTutorialActive, tutorialStep]);
+  }, [researchData, researchState, isTutorialActive, tutorialStep]);
 
   // --- Tech Tree: research a technology ---
   const handleResearchTech = useCallback((techId: string) => {
@@ -1429,7 +1533,7 @@ export function App() {
     if (!completedModal) return;
     handleEnterSystem(completedModal.system);
     setState((prev) => ({ ...prev, selectedSystem: completedModal.system }));
-    setCompletedModal(null);
+    setCompletedModalQueue(q => q.slice(1));
   }, [completedModal, handleEnterSystem]);
 
   const handleViewPlanet = useCallback(() => {
@@ -1692,7 +1796,7 @@ export function App() {
   const handleTelemetry = useCallback(() => {
     if (pendingDiscovery) {
       setTelemetryTarget(pendingDiscovery);
-      setPendingDiscovery(null);
+      setDiscoveryQueue(q => q.slice(1));
       setShowCosmicArchive(false); // Close archive so telemetry is visible
       awardXP(XP_REWARDS.TELEMETRY_SCAN, 'telemetry');
     }
@@ -1707,14 +1811,14 @@ export function App() {
         return;
       }
       setObservatoryTarget({ ...pendingDiscovery, cost: isFree ? 0 : 3 });
-      setPendingDiscovery(null);
+      setDiscoveryQueue(q => q.slice(1));
       setShowCosmicArchive(false); // Close archive so observatory view is visible
       awardXP(XP_REWARDS.OBSERVATORY_SCAN, 'observatory');
     }
   }, [pendingDiscovery, playerStats, quarks, isGuest]);
 
   const handleSkipDiscovery = useCallback(() => {
-    setPendingDiscovery(null);
+    setDiscoveryQueue(q => q.slice(1));
   }, []);
 
   /** Re-open a discovery from the journal log (find system by id, set pendingDiscovery) */
@@ -1722,7 +1826,7 @@ export function App() {
     const allSystems = engineRef.current?.getAllSystems() ?? [];
     const system = allSystems.find((s) => s.id === discovery.systemId);
     if (!system) return;
-    setPendingDiscovery({ discovery, system });
+    setDiscoveryQueue(q => [{ discovery, system }, ...q]);
   }, []);
 
   const handleCloseObservatory = useCallback(() => {
@@ -1766,7 +1870,7 @@ export function App() {
               systemId: nonHomeSys.id,
               timestamp: Date.now(),
             };
-            setPendingDiscovery({ discovery: fakeDiscovery, system: nonHomeSys });
+            setDiscoveryQueue(q => [{ discovery: fakeDiscovery, system: nonHomeSys }, ...q]);
           }
         }
       }
@@ -2033,6 +2137,10 @@ export function App() {
 
     // Update local home info
     setHomeInfo({ system: evacuationTarget.system, planet: evacuationTarget.planet });
+
+    // Reset research state: observatories were on the destroyed planet, 0 slots now
+    // Keep systems data (already researched systems remain known)
+    setResearchState((prev) => ({ ...prev, slots: [] }));
 
     // Transition to colonization
     setIsExodusPhase(false);
@@ -2696,7 +2804,10 @@ export function App() {
   }, [state.selectedPlanet, state.selectedSystem, sortedPlanets]);
 
   // ── CommandBar data ──────────────────────────────────────────────────
-  const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
+  const effectiveScene: ExtendedScene =
+    surfaceTarget && (state.scene === 'planet-view' || state.scene === 'home-intro')
+      ? 'surface'
+      : state.scene;
 
   // SVG navigation icons
   const homeIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M3 8.5V14h4v-4h2v4h4V8.5" /><path d="M1 9l7-7 7 7" /></svg>;
@@ -2759,79 +2870,11 @@ export function App() {
   const toolGroups: ToolGroup[] = [];
 
   switch (effectiveScene) {
-    case 'universe': {
-      toolGroups.push({
-        type: 'buttons',
-        items: [
-          {
-            id: 'fly-to-me',
-            label: 'Де я?',
-            tooltip: 'Полетiти до мого скупчення',
-            icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
-              React.createElement('circle', { cx: '8', cy: '8', r: '3' }),
-              React.createElement('path', { d: 'M8 1v3M8 12v3M1 8h3M12 8h3' }),
-            ),
-            onClick: () => universeEngineRef.current?.flyToMyCluster(),
-          },
-          {
-            id: 'fly-center',
-            label: 'Центр',
-            tooltip: 'Полетiти до центру галактики',
-            icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
-              React.createElement('circle', { cx: '8', cy: '8', r: '6' }),
-              React.createElement('circle', { cx: '8', cy: '8', r: '1.5', fill: 'currentColor', stroke: 'none' }),
-            ),
-            onClick: () => universeEngineRef.current?.flyToCenter(),
-          },
-        ],
-      });
+    case 'universe':
+    case 'cluster':
+      // Buttons moved to SceneControlsPanel (left side)
       break;
-    }
-    case 'cluster': {
-      toolGroups.push({
-        type: 'buttons',
-        items: [
-          {
-            id: 'fly-to-me',
-            label: 'Моя зiрка',
-            tooltip: 'Полетiти до моєї зiрки',
-            icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
-              React.createElement('circle', { cx: '8', cy: '8', r: '3' }),
-              React.createElement('path', { d: 'M8 1v3M8 12v3M1 8h3M12 8h3' }),
-            ),
-            onClick: () => universeEngineRef.current?.flyToMyCluster(),
-          },
-        ],
-      });
-      break;
-    }
     case 'home-intro': {
-      // 3D button in center — only if no model exists and not generating
-      if (homeInfo && !backgroundModelInfo && home3DPhase === 'idle') {
-        toolGroups.push({
-          type: 'buttons',
-          items: [{
-            id: '3d-home',
-            label: '',
-            icon: React.createElement('span', { style: { display: 'flex', alignItems: 'center', gap: 4 } },
-              React.createElement('svg', { width: 12, height: 12, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round' },
-                React.createElement('path', { d: 'M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z' }),
-                React.createElement('line', { x1: '8', y1: '15', x2: '8', y2: '8' }),
-                React.createElement('line', { x1: '8', y1: '8', x2: '2', y2: '4.5' }),
-                React.createElement('line', { x1: '8', y1: '8', x2: '14', y2: '4.5' }),
-              ),
-              React.createElement('span', { style: { opacity: 0.75 } }, '49'),
-              React.createElement('svg', { width: 11, height: 11, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round' },
-                React.createElement('circle', { cx: '8', cy: '8', r: '2' }),
-                React.createElement('ellipse', { cx: '8', cy: '8', rx: '7', ry: '3' }),
-                React.createElement('ellipse', { cx: '8', cy: '8', rx: '3', ry: '7' }),
-              ),
-            ),
-            onClick: handleHome3DGenerate,
-            variant: 'accent',
-          }],
-        });
-      }
       // Zoom moved to SceneControlsPanel
       break;
     }
@@ -2902,6 +2945,27 @@ export function App() {
     }
   }
 
+  // Home button on non-home scenes
+  if (state.scene !== 'home-intro') {
+    toolGroups.push({
+      type: 'buttons',
+      items: [{
+        id: 'go-home',
+        label: '',
+        icon: React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2', strokeLinecap: 'round', strokeLinejoin: 'round' },
+          // Planet circle
+          React.createElement('circle', { cx: '8', cy: '8', r: '7' }),
+          // House roof inside planet
+          React.createElement('path', { d: 'M5 9L8 6L11 9' }),
+          // House body
+          React.createElement('path', { d: 'M6 9V11.5H10V9' }),
+        ),
+        tooltip: 'Домiвка',
+        onClick: handleGoToHomePlanet,
+      }],
+    });
+  }
+
   // Global: Terminal button on all scenes
   const hasTechBadge = hasAvailableTech(playerLevel, techTreeState);
   toolGroups.push({
@@ -2949,13 +3013,13 @@ export function App() {
         observatoryTotal={researchState.slots.length}
       />
 
-      {/* Doomsday Clock — center top (Exodus phase only) */}
+      {/* Doomsday Clock — above command bar (Exodus phase only) */}
       {/* Phase 1: "СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ..." */}
       {isExodusPhase && clockPhase === 'syncing' && !isTutorialActive && (
         <div
           style={{
             position: 'fixed',
-            top: 10,
+            bottom: 56,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 9700,
@@ -2980,7 +3044,7 @@ export function App() {
         <div
           style={{
             position: 'fixed',
-            top: 10,
+            bottom: 56,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 9700,
@@ -3001,11 +3065,11 @@ export function App() {
           {'##:##:##'}
         </div>
       )}
-      {/* Evacuation button — floating below HUD when prompt is dismissed */}
+      {/* Evacuation button — floating above timer when prompt is dismissed */}
       {isExodusPhase && clockPhase === 'visible' && evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed && !isTutorialActive && (
         <div style={{
           position: 'fixed',
-          top: 46,
+          bottom: 90,
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 9700,
@@ -3208,6 +3272,47 @@ export function App() {
         />
       )}
 
+      {/* Left-side scene controls — universe */}
+      {state.scene === 'universe' && universeVisible && (
+        <SceneControlsPanel
+          onBack={handleGoToHomePlanet}
+          onZoomIn={() => universeEngineRef.current?.zoomIn()}
+          onZoomOut={() => universeEngineRef.current?.zoomOut()}
+          backLabel="Домiвка"
+          showZoom
+          extraButtons={[
+            {
+              title: 'Полетiти до мого скупчення',
+              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="3" /><path d="M8 1v3M8 12v3M1 8h3M12 8h3" /></svg>,
+              onClick: () => universeEngineRef.current?.flyToMyCluster(),
+            },
+            {
+              title: 'Полетiти до центру галактики',
+              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="6" /><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" /></svg>,
+              onClick: () => universeEngineRef.current?.flyToCenter(),
+            },
+          ]}
+        />
+      )}
+
+      {/* Left-side scene controls — cluster */}
+      {state.scene === 'cluster' && universeVisible && (
+        <SceneControlsPanel
+          onBack={handleGoToHomePlanet}
+          onZoomIn={() => universeEngineRef.current?.zoomIn()}
+          onZoomOut={() => universeEngineRef.current?.zoomOut()}
+          backLabel="Домiвка"
+          showZoom
+          extraButtons={[
+            {
+              title: 'Полетiти до моєї зiрки',
+              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="3" /><path d="M8 1v3M8 12v3M1 8h3M12 8h3" /></svg>,
+              onClick: () => universeEngineRef.current?.flyToMyCluster(),
+            },
+          ]}
+        />
+      )}
+
       {/* Research blur overlay for unresearched systems */}
       {state.scene === 'system' && !isCurrentSystemFullyAccessible && state.selectedSystem && (
         <SystemResearchOverlay
@@ -3350,7 +3455,7 @@ export function App() {
           system={completedModal.system}
           research={completedModal.research}
           onViewSystem={handleViewResearchedSystem}
-          onClose={() => setCompletedModal(null)}
+          onClose={() => setCompletedModalQueue(q => q.slice(1))}
         />
       )}
       {/* Discovery choice panel (slide-in with 3 options) */}
@@ -3673,6 +3778,15 @@ export function App() {
             idx,
             aliases[objectsPanelSystem.id] ?? undefined,
           )}
+          destroyedPlanetIds={(() => {
+            try {
+              const raw = localStorage.getItem('nebulife_destroyed_planets');
+              if (!raw) return undefined;
+              const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
+              const ids = arr.filter(d => d.systemId === objectsPanelSystem.id).map(d => d.planetId);
+              return ids.length > 0 ? new Set(ids) : undefined;
+            } catch { return undefined; }
+          })()}
         />
       )}
 
@@ -3683,6 +3797,15 @@ export function App() {
           systemDisplayName={planetDetailTarget.displayName}
           initialPlanetIndex={planetDetailTarget.planetIndex}
           onClose={() => setPlanetDetailTarget(null)}
+          destroyedPlanetIds={(() => {
+            try {
+              const raw = localStorage.getItem('nebulife_destroyed_planets');
+              if (!raw) return undefined;
+              const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
+              const ids = arr.filter(d => d.systemId === planetDetailTarget.system.id).map(d => d.planetId);
+              return ids.length > 0 ? new Set(ids) : undefined;
+            } catch { return undefined; }
+          })()}
         />
       )}
 

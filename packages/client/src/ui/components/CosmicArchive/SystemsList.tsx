@@ -1,6 +1,31 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { StarSystem } from '@nebulife/core';
 
+// Tooltip that appears BELOW the icon (so it's not clipped by top menu)
+function HeaderIcon({ children, tooltip }: { children: React.ReactNode; tooltip: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div
+      style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div style={{
+          position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+          marginTop: 6, padding: '6px 10px',
+          background: 'rgba(10, 15, 25, 0.96)', border: '1px solid #446688', borderRadius: 4,
+          fontSize: 10, color: '#aabbcc', fontFamily: 'monospace', whiteSpace: 'nowrap',
+          zIndex: 100, pointerEvents: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+        }}>
+          {tooltip}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // SystemsList — List of all discovered/available star systems
 // ---------------------------------------------------------------------------
@@ -124,29 +149,67 @@ export function SystemsList({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Header row */}
+      {/* Header row — SVG icons with tooltips */}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: hasResearchCol
-            ? '1fr 60px 80px 60px 50px 100px'
-            : '1fr 60px 80px 60px 50px',
-          gap: 8,
-          padding: '6px 12px',
-          fontSize: 10,
-          color: '#445566',
-          textTransform: 'uppercase',
-          letterSpacing: 1,
+            ? '1fr 36px 56px 36px 36px 72px'
+            : '1fr 36px 56px 36px 36px',
+          gap: 4,
+          padding: '6px 8px',
+          alignItems: 'center',
           borderBottom: '1px solid rgba(51, 68, 85, 0.2)',
           marginBottom: 4,
         }}
       >
-        <span>Назва</span>
-        <span>Клас</span>
-        <span>Координати</span>
-        <span>Планети</span>
-        <span>Кільце</span>
-        {hasResearchCol && <span style={{ textAlign: 'center' }}>Дії</span>}
+        <span style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1 }}>Назва</span>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <HeaderIcon tooltip="Спектральний клас зірки">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+              <circle cx="8" cy="8" r="4" />
+              <line x1="8" y1="0.5" x2="8" y2="3" />
+              <line x1="8" y1="13" x2="8" y2="15.5" />
+              <line x1="0.5" y1="8" x2="3" y2="8" />
+              <line x1="13" y1="8" x2="15.5" y2="8" />
+            </svg>
+          </HeaderIcon>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <HeaderIcon tooltip="Координати у галактиці">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
+              <circle cx="8" cy="8" r="1.5" />
+              <line x1="8" y1="1" x2="8" y2="15" />
+              <line x1="1" y1="8" x2="15" y2="8" />
+            </svg>
+          </HeaderIcon>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <HeaderIcon tooltip="Кількість планет">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+              <circle cx="8" cy="8" r="5" />
+              <ellipse cx="8" cy="8" rx="7.5" ry="2.5" transform="rotate(-30 8 8)" />
+            </svg>
+          </HeaderIcon>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <HeaderIcon tooltip="Кільце від домівки">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+              <circle cx="8" cy="8" r="3" />
+              <circle cx="8" cy="8" r="6" strokeDasharray="2 2" />
+            </svg>
+          </HeaderIcon>
+        </div>
+        {hasResearchCol && (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <HeaderIcon tooltip="Дії дослідження">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
+                <circle cx="6.5" cy="6.5" r="4.5" />
+                <line x1="10" y1="10" x2="14" y2="14" />
+              </svg>
+            </HeaderIcon>
+          </div>
+        )}
       </div>
 
       {/* System rows */}
@@ -205,18 +268,10 @@ export function SystemsList({
                   borderRadius: '50%',
                   background: starColor,
                   flexShrink: 0,
+                  boxShadow: isHome ? '0 0 0 3px rgba(68,255,136,0.5), 0 0 0 1px #44ff88' : undefined,
                 }}
               />
-              <span>
-                {name}
-                {isHome && (
-                  <span
-                    style={{ color: '#44ff88', fontSize: 9, marginLeft: 6 }}
-                  >
-                    HOME
-                  </span>
-                )}
-              </span>
+              <span>{name}</span>
             </span>
 
             {/* Spectral class */}

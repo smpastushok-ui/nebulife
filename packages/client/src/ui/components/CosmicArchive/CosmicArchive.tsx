@@ -9,6 +9,17 @@ import type { LogEntry } from './SystemLog';
 import type { DiscoveryData } from '../../../api/player-api';
 import { TechTreeView } from '../TechTree';
 
+// Hide scrollbar on tab bars for mobile swipe
+const SWIPE_STYLE_ID = 'nebulife-swipe-tabs-style';
+if (typeof document !== 'undefined' && !document.getElementById(SWIPE_STYLE_ID)) {
+  const style = document.createElement('style');
+  style.id = SWIPE_STYLE_ID;
+  style.textContent = `
+    [data-swipe-tabs]::-webkit-scrollbar { display: none; }
+  `;
+  document.head.appendChild(style);
+}
+
 // ---------------------------------------------------------------------------
 // Tab structure
 // ---------------------------------------------------------------------------
@@ -143,6 +154,10 @@ const mainTabBarStyle: React.CSSProperties = {
   padding: '0 24px',
   borderBottom: '1px solid rgba(51, 68, 85, 0.3)',
   flexShrink: 0,
+  overflowX: 'auto',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'none',
+  msOverflowStyle: 'none',
 };
 
 const subTabBarStyle: React.CSSProperties = {
@@ -152,6 +167,10 @@ const subTabBarStyle: React.CSSProperties = {
   borderBottom: '1px solid rgba(51, 68, 85, 0.2)',
   flexShrink: 0,
   background: 'rgba(8, 12, 22, 0.5)',
+  overflowX: 'auto',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'none',
+  msOverflowStyle: 'none',
 };
 
 const contentStyle: React.CSSProperties = {
@@ -550,7 +569,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       </div>
 
       {/* Main tabs */}
-      <div style={mainTabBarStyle}>
+      <div data-swipe-tabs="" style={mainTabBarStyle}>
         {TABS.map((tab) => (
           <TabButton
             key={tab.id}
@@ -563,7 +582,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       </div>
 
       {/* Sub tabs */}
-      <div style={subTabBarStyle}>
+      <div data-swipe-tabs="" style={subTabBarStyle}>
         {currentTabDef.subTabs.map((sub) => (
           <TabButton
             key={sub.id}
@@ -619,6 +638,8 @@ function TabButton({
         cursor: 'pointer',
         transition: 'color 0.15s, border-color 0.15s',
         letterSpacing: small ? 0 : 0.5,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
       }}
     >
       {label}

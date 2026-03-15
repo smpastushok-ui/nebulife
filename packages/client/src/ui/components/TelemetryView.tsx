@@ -1092,7 +1092,7 @@ export function TelemetryView({
             onClick={onClose}
             style={{
               position: 'absolute',
-              top: 14, right: 16,
+              top: 14, left: 16,
               background: 'none',
               border: '1px solid #334455',
               color: '#556677',

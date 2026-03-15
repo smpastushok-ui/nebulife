@@ -195,12 +195,13 @@ interface PlanetRowProps {
   isExpanded: boolean;
   onToggle: () => void;
   onEnterPlanet: () => void;
+  isDestroyed?: boolean;
 }
 
-function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet }: PlanetRowProps) {
-  const color = getPlanetColor(planet);
+function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet, isDestroyed }: PlanetRowProps) {
+  const color = isDestroyed ? '#884422' : getPlanetColor(planet);
   const hScore = planet.habitability.overall;
-  const hColor = habitabilityColor(hScore);
+  const hColor = isDestroyed ? '#553322' : habitabilityColor(hScore);
   const hasMoons = planet.moons.length > 0;
   const isHome = planet.isHomePlanet;
 
@@ -253,7 +254,10 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet }: P
         onMouseLeave={() => setNameHovered(false)}
       >
         {planet.name}
-        {isHome && (
+        {isDestroyed && (
+          <span style={{ color: '#884422', fontSize: 7, opacity: 0.8 }}>зруйновано</span>
+        )}
+        {isHome && !isDestroyed && (
           <span style={{ color: '#44ff88', fontSize: 7, opacity: 0.8 }}>HOME</span>
         )}
       </span>
@@ -383,6 +387,8 @@ export interface SystemObjectsPanelProps {
   displayName?: string;
   onClose: () => void;
   onViewPlanet: (planetIndex: number) => void; // opens PlanetDetailWindow
+  /** IDs of planets that have been destroyed (shown as debris belt in system scene) */
+  destroyedPlanetIds?: Set<string>;
 }
 
 export function SystemObjectsPanel({
@@ -390,6 +396,7 @@ export function SystemObjectsPanel({
   displayName,
   onClose,
   onViewPlanet,
+  destroyedPlanetIds,
 }: SystemObjectsPanelProps) {
   ensureStyles();
 
@@ -532,6 +539,7 @@ export function SystemObjectsPanel({
                   isExpanded={expanded}
                   onToggle={() => toggleExpand(planet.id)}
                   onEnterPlanet={() => onViewPlanet(pi)}
+                  isDestroyed={destroyedPlanetIds?.has(planet.id)}
                 />
 
                 {/* Moon rows (appear when expanded) */}

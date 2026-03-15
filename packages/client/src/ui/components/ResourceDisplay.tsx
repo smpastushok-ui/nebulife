@@ -141,13 +141,13 @@ export function ResourceDisplay({
 
   return (
     <>
-      {/* Timer -- fixed top-center */}
+      {/* Timer -- above TERMINAL button (bottom bar) */}
       {countdownText && (
         <div
           style={{
             ...panelStyle,
             position: 'fixed',
-            top: 12,
+            bottom: 56,
             left: '50%',
             transform: 'translateX(-50%)',
             cursor: onTimerClick ? 'pointer' : 'default',
@@ -186,7 +186,7 @@ export function ResourceDisplay({
         {/* Observatories */}
         {observatoryTotal > 0 && (
           <>
-            <div style={itemStyle} data-tutorial-id="resource-observatories" title="Обсерваторiї">
+            <div style={itemStyle} data-tutorial-id="resource-observatories" title="Обсерваторiї — дослiдницькi станцiї">
               <ObservatoryIcon />
               <span style={{ color: observatoryUsed >= observatoryTotal ? '#cc4444' : '#7bb8ff' }}>
                 {observatoryUsed}/{observatoryTotal}
@@ -197,7 +197,7 @@ export function ResourceDisplay({
         )}
 
         {/* Research Data -- always visible */}
-        <div style={itemStyle} data-tutorial-id="resource-data">
+        <div style={itemStyle} data-tutorial-id="resource-data" title="Данi дослiджень — ресурс для сканування систем">
           <ResearchDataIcon />
           <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{researchData}</span>
         </div>
@@ -206,17 +206,17 @@ export function ResourceDisplay({
         {/* Colony resources (Phase 2+) */}
         {!isExodusPhase && (
           <>
-            <div style={itemStyle} title="Мiнерали">
+            <div style={itemStyle} title="Мiнерали — будiвельний ресурс">
               <MineralsIcon />
               <span style={{ color: '#aa8855' }}>{minerals}</span>
             </div>
             <div style={dividerStyle} />
-            <div style={itemStyle} title="Леткi речовини">
+            <div style={itemStyle} title="Леткi речовини — паливо та хiмiя">
               <VolatilesIcon />
               <span style={{ color: '#55aaaa' }}>{volatiles}</span>
             </div>
             <div style={dividerStyle} />
-            <div style={itemStyle} title="Iзотопи">
+            <div style={itemStyle} title="Iзотопи — енергетичний ресурс">
               <IsotopesIcon />
               <span style={{ color: '#88aa44' }}>{isotopes}</span>
             </div>
@@ -224,7 +224,7 @@ export function ResourceDisplay({
           </>
         )}
 
-        <div style={itemStyle}>
+        <div style={itemStyle} title="Кварки — унiверсальна валюта">
           <QuarksIcon />
           <span>{quarks}</span>
         </div>

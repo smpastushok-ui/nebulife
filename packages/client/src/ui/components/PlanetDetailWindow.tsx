@@ -331,6 +331,8 @@ export interface PlanetDetailWindowProps {
   systemDisplayName?: string;
   initialPlanetIndex: number; // index in sorted-by-orbit array
   onClose: () => void;
+  /** IDs of planets that have been destroyed */
+  destroyedPlanetIds?: Set<string>;
 }
 
 export function PlanetDetailWindow({
@@ -338,6 +340,7 @@ export function PlanetDetailWindow({
   systemDisplayName,
   initialPlanetIndex,
   onClose,
+  destroyedPlanetIds,
 }: PlanetDetailWindowProps) {
   ensureStyles();
 
@@ -443,7 +446,11 @@ export function PlanetDetailWindow({
             <span style={{ color: '#aabbcc', fontSize: 13, letterSpacing: '0.05em' }}>
               {p.name}
             </span>
-            {p.isHomePlanet && (
+            {destroyedPlanetIds?.has(p.id) ? (
+              <span style={{ color: '#884422', fontSize: 9, border: '1px solid #88442255', padding: '1px 5px', borderRadius: 2 }}>
+                ЗРУЙНОВАНО
+              </span>
+            ) : p.isHomePlanet && (
               <span style={{ color: '#44ff88', fontSize: 9, border: '1px solid #44ff8855', padding: '1px 5px', borderRadius: 2 }}>
                 HOME
               </span>

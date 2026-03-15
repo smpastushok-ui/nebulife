@@ -4,6 +4,12 @@ import React, { useState } from 'react';
 // SceneControlsPanel — Left-side vertical controls (back, center, zoom)
 // ---------------------------------------------------------------------------
 
+interface ExtraButton {
+  title: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}
+
 interface SceneControlsPanelProps {
   onBack: () => void;
   onCenter?: () => void;
@@ -12,6 +18,8 @@ interface SceneControlsPanelProps {
   backLabel?: string;
   showCenter?: boolean;
   showZoom?: boolean;
+  /** Additional custom buttons rendered after zoom controls */
+  extraButtons?: ExtraButton[];
 }
 
 const btnStyle: React.CSSProperties = {
@@ -66,6 +74,7 @@ export function SceneControlsPanel({
   backLabel,
   showCenter = false,
   showZoom = false,
+  extraButtons,
 }: SceneControlsPanelProps) {
   return (
     <div
@@ -114,6 +123,13 @@ export function SceneControlsPanel({
           {'\u2212'}
         </ControlButton>
       )}
+
+      {/* Extra buttons */}
+      {extraButtons && extraButtons.map((btn, i) => (
+        <ControlButton key={i} onClick={btn.onClick} title={btn.title}>
+          {btn.icon}
+        </ControlButton>
+      ))}
     </div>
   );
 }

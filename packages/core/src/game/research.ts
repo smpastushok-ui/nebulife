@@ -205,6 +205,8 @@ export function canStartResearch(
 ): boolean {
   // Only Ring 1 (or configured max) from home
   if (ringIndex > HOME_RESEARCH_MAX_RING) return false;
+  // No observatories at all?
+  if (state.slots.length === 0) return false;
   // Already fully researched?
   const sys = state.systems[systemId];
   if (sys?.isComplete) return false;

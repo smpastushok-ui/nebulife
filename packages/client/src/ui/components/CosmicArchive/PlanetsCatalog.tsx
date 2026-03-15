@@ -79,10 +79,10 @@ function HeaderIcon({
         <div
           style={{
             position: 'absolute',
-            bottom: '100%',
+            top: '100%',
             left: '50%',
             transform: 'translateX(-50%)',
-            marginBottom: 6,
+            marginTop: 6,
             padding: '6px 10px',
             background: 'rgba(10, 15, 25, 0.96)',
             border: '1px solid #446688',
@@ -496,7 +496,9 @@ export function PlanetsCatalog({
                     height: 8,
                     borderRadius: '50%',
                     background: starColor,
-                    boxShadow: `0 0 4px ${starColor}66`,
+                    boxShadow: isHome
+                      ? `0 0 4px ${starColor}66, 0 0 0 3px rgba(68,255,136,0.5), 0 0 0 1px #44ff88`
+                      : `0 0 4px ${starColor}66`,
                     flexShrink: 0,
                   }}
                 />
@@ -537,9 +539,6 @@ export function PlanetsCatalog({
                     }}
                   >
                     {name}
-                    {isHome && (
-                      <span style={{ color: '#44ff88', fontSize: 9, marginLeft: 6 }}>HOME</span>
-                    )}
                     {isResearching && (
                       <span style={{ color: '#4488ff', fontSize: 9, marginLeft: 6, animation: 'nebulife-scan-pulse 1.5s ease-in-out infinite' }}>сканування...</span>
                     )}
@@ -904,9 +903,19 @@ function PlanetChip({
         {planet.name}
       </div>
 
-      {/* Home badge */}
+      {/* Home badge — green ring on planet circle */}
       {planet.isHomePlanet && (
-        <div style={{ fontSize: 8, color: '#44ff88' }}>HOME</div>
+        <div style={{
+          position: 'absolute',
+          top: 6,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: size + 6,
+          height: size + 6,
+          borderRadius: '50%',
+          border: '1.5px solid #44ff88',
+          pointerEvents: 'none',
+        }} />
       )}
     </button>
   );
