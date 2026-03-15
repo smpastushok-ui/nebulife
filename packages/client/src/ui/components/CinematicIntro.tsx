@@ -456,6 +456,7 @@ export function CinematicIntro({
 }: CinematicIntroProps) {
   const [stage, setStage] = useState<Stage>(0);
   const [subtitlesDone, setSubtitlesDone] = useState(false);
+  const [startClicked, setStartClicked] = useState(false);
   const [statusVisible, setStatusVisible] = useState(true);
   const [warpActive, setWarpActive] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
@@ -479,12 +480,12 @@ export function CinematicIntro({
     onRequestUniverseScene();
   }, []); // mount only
 
-  // ── Stage 0 → 1: After subtitles done → warp from universe to galaxy ──
+  // ── Stage 0 → 1: After player clicks "Почати гру" → warp from universe to galaxy ──
   useEffect(() => {
-    if (!subtitlesDone || stage !== 0) return;
+    if (!startClicked || stage !== 0) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
-    // Brief pause after last subtitle
+    // Brief pause after button click
     timers.push(setTimeout(() => {
       if (!mountedRef.current) return;
       setStage(1);
@@ -519,7 +520,7 @@ export function CinematicIntro({
     }, 500));
 
     return () => timers.forEach(clearTimeout);
-  }, [subtitlesDone, stage]);
+  }, [startClicked, stage]);
 
   // ── Stage 2: Scene transitions → system → home ──
   useEffect(() => {
@@ -620,8 +621,45 @@ export function CinematicIntro({
             />
           </div>
 
+          {/* "Почати гру" button — appears after subtitles finish */}
+          {subtitlesDone && !startClicked && (
+            <div style={{
+              position: 'relative',
+              zIndex: 1,
+              marginTop: 28,
+              opacity: 1,
+              animation: 'cin-pulse 2s ease-in-out 1',
+            }}>
+              <button
+                onClick={() => setStartClicked(true)}
+                style={{
+                  background: 'rgba(68,136,170,0.12)',
+                  border: '1px solid #4488aa',
+                  borderRadius: 3,
+                  color: '#4488aa',
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                  padding: '12px 44px',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s, border-color 0.2s',
+                  letterSpacing: 2,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(68,136,170,0.25)';
+                  e.currentTarget.style.borderColor = '#5599bb';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(68,136,170,0.12)';
+                  e.currentTarget.style.borderColor = '#4488aa';
+                }}
+              >
+                ПОЧАТИ ГРУ
+              </button>
+            </div>
+          )}
+
           {/* Status line */}
-          {statusVisible && (
+          {statusVisible && !subtitlesDone && (
             <div style={{
               position: 'relative',
               zIndex: 1,
