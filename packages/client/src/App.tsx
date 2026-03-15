@@ -57,7 +57,14 @@ import {
   GAME_TOTAL_SECONDS,
   levelFromXP,
   XP_REWARDS,
+  createTechTreeState,
+  getTechNodeStatus,
+  researchTech,
+  getEffectValue,
+  hasAvailableTech,
+  ASTRONOMY_NODES,
 } from '@nebulife/core';
+import type { TechTreeState } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
@@ -117,6 +124,8 @@ interface SyncedGameState {
   scene: string;
   nav_system: string;
   nav_planet: string;
+  // Technology tree
+  tech_tree: unknown;
   // Metadata
   synced_at: number;
 }
@@ -173,6 +182,24 @@ export function App() {
       localStorage.setItem('nebulife_research_state', JSON.stringify(researchState));
     } catch { /* ignore quota errors */ }
   }, [researchState]);
+
+  // --- Tech Tree State ---
+  const [techTreeState, setTechTreeState] = useState<TechTreeState>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_tech_tree');
+      if (saved) {
+        const parsed = JSON.parse(saved) as TechTreeState;
+        if (parsed && typeof parsed.researched === 'object') return parsed;
+      }
+    } catch { /* ignore */ }
+    return createTechTreeState();
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('nebulife_tech_tree', JSON.stringify(techTreeState));
+    } catch { /* ignore */ }
+  }, [techTreeState]);
 
   // Persist scene + navigation context to localStorage
   useEffect(() => {
@@ -468,6 +495,8 @@ export function App() {
   isExodusPhaseRef.current = isExodusPhase;
   const evacuationTargetRef = useRef(evacuationTarget);
   evacuationTargetRef.current = evacuationTarget;
+  const techTreeStateRef = useRef(techTreeState);
+  techTreeStateRef.current = techTreeState;
 
   /** Discovery choice panel (from research completion) */
   const [pendingDiscovery, setPendingDiscovery] = useState<{
@@ -728,6 +757,14 @@ export function App() {
       setTutorialStep(gs.tutorial_step);
       try { localStorage.setItem('nebulife_tutorial_step', String(gs.tutorial_step)); } catch { /* ignore */ }
     }
+    // Tech tree
+    if (gs.tech_tree && typeof gs.tech_tree === 'object') {
+      const tt = gs.tech_tree as TechTreeState;
+      if (tt.researched && typeof tt.researched === 'object') {
+        setTechTreeState(tt);
+        try { localStorage.setItem('nebulife_tech_tree', JSON.stringify(tt)); } catch { /* ignore */ }
+      }
+    }
 
     // Timer
     if (typeof gs.game_started_at === 'number') {
@@ -927,11 +964,15 @@ export function App() {
         let changed = false;
         const newTimers: Record<number, string> = {};
 
+        // Apply tech tree speed multiplier to research duration
+        const speedMult = getEffectValue(techTreeStateRef.current, 'research_speed_mult', 1.0);
+        const effectiveDuration = Math.round(RESEARCH_DURATION_MS * speedMult);
+
         for (const slot of current.slots) {
           if (slot.systemId && slot.startedAt) {
             const elapsed = now - slot.startedAt;
 
-            if (elapsed >= RESEARCH_DURATION_MS) {
+            if (elapsed >= effectiveDuration) {
               // Session complete — find the system object
               const system = engine.getAllSystems().find((s) => s.id === slot.systemId);
               if (system) {
@@ -985,7 +1026,7 @@ export function App() {
               }
             } else {
               // Update timer text
-              const remaining = RESEARCH_DURATION_MS - elapsed;
+              const remaining = effectiveDuration - elapsed;
               const secs = Math.ceil(remaining / 1000);
               const mins = Math.floor(secs / 60);
               const s = secs % 60;
@@ -1193,6 +1234,35 @@ export function App() {
       }
     }
   }, [researchData, isTutorialActive, tutorialStep]);
+
+  // --- Tech Tree: research a technology ---
+  const handleResearchTech = useCallback((techId: string) => {
+    const node = ASTRONOMY_NODES.find((n) => n.id === techId);
+    if (!node) return;
+    const status = getTechNodeStatus(node, playerLevel, techTreeState);
+    if (status !== 'available') return;
+
+    const newState = researchTech(techTreeState, techId);
+    setTechTreeState(newState);
+    awardXP(node.xpReward, 'tech_researched');
+    addLogEntry('system', `Дослiджено технологiю: ${node.name}`);
+
+    // Expand research slots if observatory/concurrent effects changed
+    const extraSlots =
+      getEffectValue(newState, 'observatory_count_add', 0) +
+      getEffectValue(newState, 'concurrent_research_add', 0);
+    const totalNeeded = HOME_OBSERVATORY_COUNT + extraSlots;
+    setResearchState((prev) => {
+      if (prev.slots.length >= totalNeeded) return prev;
+      const extended = [...prev.slots];
+      while (extended.length < totalNeeded) {
+        extended.push({ slotIndex: extended.length, systemId: null, startedAt: null });
+      }
+      return { ...prev, slots: extended };
+    });
+
+    scheduleSyncToServer();
+  }, [playerLevel, techTreeState, awardXP, scheduleSyncToServer]);
 
   const handleViewResearchedSystem = useCallback(() => {
     if (!completedModal) return;
@@ -1859,6 +1929,10 @@ export function App() {
         setLevelUpNotification(newLevel);
         setTimeout(() => setLevelUpNotification(null), 4000);
         addLogEntry('system', `Рiвень пiдвищено до ${newLevel}!`);
+        // Check for newly available technologies
+        if (hasAvailableTech(newLevel, techTreeStateRef.current)) {
+          addLogEntry('system', 'Новi технологiї доступнi для дослiдження!');
+        }
       }
 
       // Schedule debounced sync (instead of immediate fire-and-forget per XP award)
@@ -1888,6 +1962,7 @@ export function App() {
       destroyed_planets: destroyedPlanets,
       onboarding_done: localStorage.getItem('nebulife_onboarding_done') === '1',
       tutorial_step: tutorialStep,
+      tech_tree: techTreeState,
       game_started_at: gameStartedAt,
       time_multiplier: timeMultiplier,
       accel_at: accelAt,
@@ -1915,7 +1990,7 @@ export function App() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData, techTreeState]);
 
   // Sync on page hide / beforeunload (best-effort)
   useEffect(() => {
@@ -2616,6 +2691,7 @@ export function App() {
   }
 
   // Global: Terminal button on all scenes
+  const hasTechBadge = hasAvailableTech(playerLevel, techTreeState);
   toolGroups.push({
     type: 'buttons',
     items: [{
@@ -2624,6 +2700,7 @@ export function App() {
       variant: 'terminal' as const,
       tooltip: 'Центр управлiння',
       tutorialId: 'terminal-btn',
+      badge: hasTechBadge ? 'NEW' : undefined,
       onClick: () => setShowCosmicArchive(true),
     }],
   });
@@ -3386,6 +3463,9 @@ export function App() {
             handleStartExploration();
           }}
           isSystemResearching={(sysId: string) => researchState.slots.some((s) => s.systemId === sysId)}
+          playerLevel={playerLevel}
+          techTreeState={techTreeState}
+          onResearchTech={handleResearchTech}
         />
       )}
 

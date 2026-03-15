@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import type { StarSystem, CatalogEntry, Discovery } from '@nebulife/core';
+import type { StarSystem, CatalogEntry, Discovery, TechTreeState } from '@nebulife/core';
 import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
 import { PlanetsCatalog, FavoritesPlanetsList } from './PlanetsCatalog';
@@ -7,6 +7,7 @@ import { SystemsList } from './SystemsList';
 import { SystemLog } from './SystemLog';
 import type { LogEntry } from './SystemLog';
 import type { DiscoveryData } from '../../../api/player-api';
+import { TechTreeView } from '../TechTree';
 
 // ---------------------------------------------------------------------------
 // Tab structure
@@ -35,8 +36,10 @@ const TABS: TabDef[] = [
     id: 'management',
     label: 'Управління та Наука',
     subTabs: [
-      { id: 'tech', label: 'Технології' },
-      { id: 'science', label: 'Наука' },
+      { id: 'astronomy', label: 'Астрономія' },
+      { id: 'physics', label: 'Фізика' },
+      { id: 'chemistry', label: 'Хімія' },
+      { id: 'biology', label: 'Біологія' },
       { id: 'resources', label: 'Ресурси' },
     ],
   },
@@ -95,6 +98,12 @@ export interface CosmicArchiveProps {
   galleryMap?: Map<string, DiscoveryData>;
   /** Callback when user clicks a discovery log entry to (re)open generation flow */
   onOpenDiscovery?: (discovery: Discovery) => void;
+  /** Player level for tech tree gating */
+  playerLevel?: number;
+  /** Tech tree persistent state */
+  techTreeState?: TechTreeState;
+  /** Callback to research a technology */
+  onResearchTech?: (techId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,12 +201,15 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   isSystemResearching,
   galleryMap,
   onOpenDiscovery,
+  playerLevel,
+  techTreeState,
+  onResearchTech,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
   const [subTabMap, setSubTabMap] = useState<Record<MainTab, SubTab>>({
     collections: 'cosmos',
-    management: 'tech',
+    management: 'astronomy',
     navigation: 'planets',
     interaction: 'diplomacy',
     log: 'all-events',
@@ -377,6 +389,18 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           entries={logEntries}
           galleryMap={galleryMap}
           onOpenDiscovery={onOpenDiscovery}
+        />
+      );
+    }
+
+    // Tech tree branches
+    if (mainTab === 'management' && currentSubTab === 'astronomy' && techTreeState && onResearchTech) {
+      return (
+        <TechTreeView
+          branch="astronomy"
+          playerLevel={playerLevel ?? 1}
+          techState={techTreeState}
+          onResearch={onResearchTech}
         />
       );
     }

@@ -52,3 +52,23 @@ export { buildPrompt, buildExpeditionPrompt } from './prompt-builder.js';
 
 // Scientific reports
 export { generateScientificReport } from './scientific-report.js';
+
+// Technology tree
+export {
+  createTechTreeState,
+  getBranchNodes,
+  getTechNodeStatus,
+  researchTech,
+  getActiveEffects,
+  getEffectValue,
+  hasAvailableTech,
+  ASTRONOMY_NODES,
+} from './tech-tree.js';
+export type {
+  TechBranch,
+  TechNodeStatus,
+  TechNode,
+  TechEffect,
+  TechEffectType,
+  TechTreeState,
+} from './tech-tree.js';
