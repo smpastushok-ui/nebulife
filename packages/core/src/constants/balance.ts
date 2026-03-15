@@ -5,8 +5,8 @@
  */
 
 // --- Research ---
-/** Duration of one research session in milliseconds. 20s for dev, 3_600_000 (1h) for prod. */
-export const RESEARCH_DURATION_MS = 20_000;
+/** Duration of one research session in milliseconds. 30s for dev, 3_600_000 (1h) for prod. */
+export const RESEARCH_DURATION_MS = 30_000;
 
 /** Minimum progress gained per research session (%). */
 export const RESEARCH_MIN_PROGRESS = 2;
