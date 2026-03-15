@@ -399,7 +399,7 @@ export function PlanetDetailWindow({
         style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 58,
+          zIndex: 9800,
           background: 'rgba(1,3,10,0.75)',
           backdropFilter: 'blur(3px)',
         }}
@@ -411,7 +411,7 @@ export function PlanetDetailWindow({
         style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 59,
+          zIndex: 9801,
           display: 'flex',
           flexDirection: 'column',
           fontFamily: 'monospace',

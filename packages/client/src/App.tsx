@@ -79,6 +79,8 @@ import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import type { LogEntry, LogCategory } from './ui/components/CosmicArchive/SystemLog.js';
 import type { User } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
   generateSystemMission, pollMissionStatus,
@@ -86,6 +88,35 @@ import {
 } from './api/system-photo-api.js';
 
 export type SceneType = 'galaxy' | 'system' | 'home-intro' | 'planet-view';
+
+/** Full game state synced to server via game_state JSONB */
+interface SyncedGameState {
+  // Progression
+  xp: number;
+  level: number;
+  // Research
+  research_state: unknown;
+  player_stats: { totalCompletedSessions: number; totalDiscoveries: number };
+  research_data: number;
+  // Colony
+  colony_resources: { minerals: number; volatiles: number; isotopes: number };
+  // Game phase
+  exodus_phase: boolean;
+  destroyed_planets: Array<{ planetId: string; systemId: string; orbitAU: number }>;
+  onboarding_done: boolean;
+  // Timer
+  game_started_at: number | null;
+  time_multiplier: number;
+  accel_at: number | null;
+  game_time_at_accel: number;
+  clock_revealed: boolean;
+  // Navigation
+  scene: string;
+  nav_system: string;
+  nav_planet: string;
+  // Metadata
+  synced_at: number;
+}
 
 export interface GameState {
   scene: SceneType;
@@ -252,10 +283,19 @@ export function App() {
 
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
   const gameStateRef = useRef<Record<string, unknown>>({});
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncGameStateRef = useRef<() => void>(() => {});
   const awardXPRef = useRef<(amount: number, reason: string) => void>(() => {});
   /** Stable reference to awardXP that can be used in callbacks defined before the actual implementation. */
   const awardXP = useCallback((amount: number, reason: string) => {
     awardXPRef.current(amount, reason);
+  }, []);
+  /** Schedule a debounced game state sync to server (5s delay). */
+  const scheduleSyncToServer = useCallback(() => {
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = setTimeout(() => {
+      syncGameStateRef.current();
+    }, 5000);
   }, []);
 
   useEffect(() => {
@@ -272,18 +312,16 @@ export function App() {
   // Real 1 hour = Game 24 hours. 1 real second = 24 game seconds.
   // Seconds tick 24x faster, creating visual panic.
   // After finding habitable planet: multiplier doubles to 48x.
-  const [gameStartedAt] = useState<number>(() => {
+  const [gameStartedAt, setGameStartedAt] = useState<number | null>(() => {
     try {
       const saved = localStorage.getItem('nebulife_game_started_at');
       if (saved) return parseInt(saved, 10);
     } catch { /* ignore */ }
-    const now = Date.now();
-    try { localStorage.setItem('nebulife_game_started_at', String(now)); }
-    catch { /* ignore */ }
-    return now;
+    // Do NOT create timestamp here — wait until onboarding completes
+    return null;
   });
 
-  const impactTime = useMemo(() => calculateImpactTime(gameStartedAt), [gameStartedAt]);
+  const impactTime = useMemo(() => gameStartedAt !== null ? calculateImpactTime(gameStartedAt) : null, [gameStartedAt]);
 
   // Time multiplier: BASE_TIME_MULTIPLIER (24) normally, doubled (48) after finding habitable
   const [timeMultiplier, setTimeMultiplier] = useState<number>(() => {
@@ -345,12 +383,21 @@ export function App() {
     }
   }, [clockPhase]);
 
+  // Fallback: ensure gameStartedAt is set for existing players who already completed onboarding
+  useEffect(() => {
+    if (!isExodusPhase || needsOnboarding || gameStartedAt !== null) return;
+    const now = Date.now();
+    setGameStartedAt(now);
+    try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
+  }, [isExodusPhase, needsOnboarding, gameStartedAt]);
+
   // Game-time tick — update every ~42ms for smooth game-second display
   useEffect(() => {
-    if (!isExodusPhase || clockPhase !== 'visible') return;
+    if (!isExodusPhase || clockPhase !== 'visible' || gameStartedAt === null) return;
+    const startedAt = gameStartedAt; // narrowed to number
     const tick = () => {
       const gameSecs = remainingGameSeconds(
-        gameStartedAt, Date.now(), timeMultiplier, accelAt, gameTimeAtAccel,
+        startedAt, Date.now(), timeMultiplier, accelAt, gameTimeAtAccel,
       );
       const t = formatGameTime(gameSecs);
       setCountdownText(t.text);
@@ -380,6 +427,7 @@ export function App() {
 
   /** Called when twist modal is dismissed — apply the 2x acceleration */
   const handleSpeedUpDismiss = useCallback(() => {
+    if (gameStartedAt === null) return;
     setShowSpeedUpTwist(false);
     const now = Date.now();
     const consumed = gameSecondsElapsed(gameStartedAt, now, timeMultiplier);
@@ -470,10 +518,11 @@ export function App() {
   // Timer expired — force evacuation if no target found yet
   const timerExpiredHandledRef = useRef(false);
   useEffect(() => {
-    if (!isExodusPhase || clockPhase !== 'visible' || timerExpiredHandledRef.current) return;
+    if (!isExodusPhase || clockPhase !== 'visible' || timerExpiredHandledRef.current || gameStartedAt === null) return;
+    const startedAt = gameStartedAt; // narrowed to number
     const checkExpired = () => {
       const gameSecs = remainingGameSeconds(
-        gameStartedAt, Date.now(), timeMultiplier, accelAt, gameTimeAtAccel,
+        startedAt, Date.now(), timeMultiplier, accelAt, gameTimeAtAccel,
       );
       if (gameSecs > 0) return; // Not expired yet
       if (evacuationTargetRef.current) return; // Already have a target
@@ -601,15 +650,85 @@ export function App() {
       .catch(() => {});
   }, []);
 
-  /** Hydrate player level/xp from server game_state on login. */
+  /** Hydrate full game state from server on login (cross-platform sync). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const hydrateXPFromServer = useCallback((player: any) => {
-    const gs = player?.game_state as Record<string, unknown> | undefined;
-    if (gs && typeof gs === 'object') {
-      gameStateRef.current = { ...gs };
-      if (typeof gs.xp === 'number' && gs.xp >= 0) {
-        setPlayerXP(gs.xp);
-        setPlayerLevel(typeof gs.level === 'number' && gs.level > 0 ? gs.level : levelFromXP(gs.xp));
+  const hydrateGameStateFromServer = useCallback((player: any) => {
+    const gs = player?.game_state as Partial<SyncedGameState> | undefined;
+    if (!gs || typeof gs !== 'object') return;
+
+    gameStateRef.current = { ...gs };
+
+    // Progression
+    if (typeof gs.xp === 'number' && gs.xp >= 0) {
+      setPlayerXP(gs.xp);
+      setPlayerLevel(typeof gs.level === 'number' && gs.level > 0 ? gs.level : levelFromXP(gs.xp));
+      try { localStorage.setItem('nebulife_player_xp', String(gs.xp)); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_player_level', String(gs.level ?? levelFromXP(gs.xp))); } catch { /* ignore */ }
+    }
+
+    // Research
+    if (gs.research_state && typeof gs.research_state === 'object') {
+      const rs = gs.research_state as ResearchState;
+      if (Array.isArray(rs.slots) && typeof rs.systems === 'object') {
+        setResearchState(rs);
+        try { localStorage.setItem('nebulife_research_state', JSON.stringify(rs)); } catch { /* ignore */ }
+      }
+    }
+    if (gs.player_stats && typeof gs.player_stats === 'object') {
+      setPlayerStats(gs.player_stats);
+      try { localStorage.setItem('nebulife_player_stats', JSON.stringify(gs.player_stats)); } catch { /* ignore */ }
+    }
+    if (typeof gs.research_data === 'number') {
+      setResearchData(gs.research_data);
+      try { localStorage.setItem('nebulife_research_data', String(gs.research_data)); } catch { /* ignore */ }
+    }
+
+    // Colony
+    if (gs.colony_resources && typeof gs.colony_resources === 'object') {
+      setColonyResources(gs.colony_resources);
+      try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(gs.colony_resources)); } catch { /* ignore */ }
+    }
+
+    // Game phase
+    if (typeof gs.exodus_phase === 'boolean') {
+      setIsExodusPhase(gs.exodus_phase);
+      try { localStorage.setItem('nebulife_exodus_phase', String(gs.exodus_phase)); } catch { /* ignore */ }
+    }
+    if (Array.isArray(gs.destroyed_planets)) {
+      try { localStorage.setItem('nebulife_destroyed_planets', JSON.stringify(gs.destroyed_planets)); } catch { /* ignore */ }
+    }
+    if (gs.onboarding_done) {
+      try { localStorage.setItem('nebulife_onboarding_done', '1'); } catch { /* ignore */ }
+      setNeedsOnboarding(false);
+    }
+
+    // Timer
+    if (typeof gs.game_started_at === 'number') {
+      setGameStartedAt(gs.game_started_at);
+      try { localStorage.setItem('nebulife_game_started_at', String(gs.game_started_at)); } catch { /* ignore */ }
+    }
+    if (typeof gs.time_multiplier === 'number') {
+      setTimeMultiplier(gs.time_multiplier);
+      try { localStorage.setItem('nebulife_time_multiplier', String(gs.time_multiplier)); } catch { /* ignore */ }
+    }
+    if (typeof gs.accel_at === 'number') {
+      setAccelAt(gs.accel_at);
+      try { localStorage.setItem('nebulife_accel_at', String(gs.accel_at)); } catch { /* ignore */ }
+    }
+    if (typeof gs.game_time_at_accel === 'number') {
+      setGameTimeAtAccel(gs.game_time_at_accel);
+      try { localStorage.setItem('nebulife_game_time_at_accel', String(gs.game_time_at_accel)); } catch { /* ignore */ }
+    }
+    if (gs.clock_revealed) {
+      try { localStorage.setItem('nebulife_clock_revealed', '1'); } catch { /* ignore */ }
+    }
+
+    // Navigation (restore scene)
+    if (gs.scene && typeof gs.scene === 'string') {
+      const validScenes: SceneType[] = ['home-intro', 'galaxy', 'system', 'planet-view'];
+      if (validScenes.includes(gs.scene as SceneType)) {
+        setState(prev => ({ ...prev, scene: gs.scene as SceneType }));
+        try { localStorage.setItem('nebulife_scene', gs.scene); } catch { /* ignore */ }
       }
     }
   }, []);
@@ -642,11 +761,11 @@ export function App() {
               homePlanetId: 'home',
             });
             setQuarks(created.quarks ?? 0);
-            hydrateXPFromServer(created);
+            hydrateGameStateFromServer(created);
             setState((prev) => ({ ...prev, playerName: created.callsign || created.name || 'Explorer' }));
           } else {
             setQuarks(existing.quarks ?? 0);
-            hydrateXPFromServer(existing);
+            hydrateGameStateFromServer(existing);
             setState((prev) => ({ ...prev, playerName: existing.callsign || existing.name || 'Explorer' }));
           }
         } catch (err) {
@@ -683,7 +802,7 @@ export function App() {
               const player = await res.json();
               playerId.current = player.id; // Use DB id (may differ from UID for migrated)
               setQuarks(player.quarks ?? 0);
-              hydrateXPFromServer(player);
+              hydrateGameStateFromServer(player);
               setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
               setNeedsCallsign(!player.callsign);
               // Check if player needs onboarding
@@ -965,6 +1084,14 @@ export function App() {
   const handleOnboardingComplete = useCallback(async () => {
     setNeedsOnboarding(false);
     localStorage.setItem('nebulife_onboarding_done', '1');
+
+    // Start doomsday timer NOW (only if not already started)
+    if (gameStartedAt === null) {
+      const now = Date.now();
+      setGameStartedAt(now);
+      try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
+    }
+
     // Update game_phase on server
     const pid = playerId.current;
     if (pid) {
@@ -978,7 +1105,9 @@ export function App() {
         // Non-critical — localStorage fallback already set
       }
     }
-  }, []);
+    // Immediate sync on critical event
+    setTimeout(() => syncGameStateRef.current(), 500);
+  }, [gameStartedAt]);
 
   const handleStartExploration = () => {
     engineRef.current?.showGalaxyScene();
@@ -1431,6 +1560,8 @@ export function App() {
     if (!evacuationTarget) return;
     setEvacuationPhase('stage0-launch');
     awardXP(XP_REWARDS.EVACUATION_START, 'evacuation');
+    // Immediate sync on critical event
+    setTimeout(() => syncGameStateRef.current(), 100);
   }, [evacuationTarget]);
 
   // Stage 0 complete → switch to system scene, start ship flight
@@ -1544,6 +1675,9 @@ export function App() {
       planet: evacuationTarget.planet,
       star: evacuationTarget.system.star,
     });
+
+    // Immediate sync on critical event (colony founded)
+    setTimeout(() => syncGameStateRef.current(), 100);
   }, [evacuationTarget, homeInfo]);
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
@@ -1597,13 +1731,127 @@ export function App() {
         addLogEntry('system', `Рiвень пiдвищено до ${newLevel}!`);
       }
 
-      // Fire-and-forget server sync
-      gameStateRef.current = { ...gameStateRef.current, level: newLevel > oldLevel ? newLevel : oldLevel, xp: newXP };
-      updatePlayer(playerId.current, { game_state: gameStateRef.current }).catch(() => {});
+      // Schedule debounced sync (instead of immediate fire-and-forget per XP award)
+      scheduleSyncToServer();
 
       return newXP;
     });
   };
+
+  // ── Cross-platform game state sync ─────────────────────────────────────
+  /** Build a full snapshot of current game state for server sync. */
+  const buildGameStateSnapshot = (): SyncedGameState => {
+    let destroyedPlanets: Array<{ planetId: string; systemId: string; orbitAU: number }> = [];
+    try {
+      const raw = localStorage.getItem('nebulife_destroyed_planets');
+      if (raw) destroyedPlanets = JSON.parse(raw);
+    } catch { /* ignore */ }
+
+    return {
+      xp: playerXP,
+      level: playerLevel,
+      research_state: researchState,
+      player_stats: playerStats,
+      research_data: researchData,
+      colony_resources: colonyResources,
+      exodus_phase: isExodusPhase,
+      destroyed_planets: destroyedPlanets,
+      onboarding_done: localStorage.getItem('nebulife_onboarding_done') === '1',
+      game_started_at: gameStartedAt,
+      time_multiplier: timeMultiplier,
+      accel_at: accelAt,
+      game_time_at_accel: gameTimeAtAccel,
+      clock_revealed: localStorage.getItem('nebulife_clock_revealed') === '1',
+      scene: state.scene,
+      nav_system: state.selectedSystem?.id ?? '',
+      nav_planet: state.selectedPlanet?.id ?? '',
+      synced_at: Date.now(),
+    };
+  };
+
+  /** Sync full game state to server (fire-and-forget). */
+  syncGameStateRef.current = () => {
+    const pid = playerId.current;
+    if (!pid) return;
+    const snapshot = buildGameStateSnapshot();
+    gameStateRef.current = snapshot as unknown as Record<string, unknown>;
+    updatePlayer(pid, { game_state: snapshot as unknown as Record<string, unknown> }).catch(() => {});
+  };
+
+  // Debounced sync on critical state changes
+  useEffect(() => {
+    // Skip initial mount — only sync on actual changes
+    const pid = playerId.current;
+    if (!pid) return;
+    scheduleSyncToServer();
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData]);
+
+  // Sync on page hide / beforeunload (best-effort)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // Cancel pending debounce and sync immediately
+        if (syncTimeoutRef.current) { clearTimeout(syncTimeoutRef.current); syncTimeoutRef.current = null; }
+        syncGameStateRef.current();
+      }
+    };
+    const handleBeforeUnload = () => {
+      if (syncTimeoutRef.current) { clearTimeout(syncTimeoutRef.current); syncTimeoutRef.current = null; }
+      syncGameStateRef.current();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  // ── Android hardware back button ────────────────────────────────────────
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handler = CapApp.addListener('backButton', () => {
+      // 1. If surface view is open — close it
+      if (surfaceTarget) {
+        setSurfaceTarget(null);
+        return;
+      }
+
+      // 2. Navigate back through scene hierarchy
+      switch (state.scene) {
+        case 'planet-view':
+          if (state.selectedSystem) {
+            engineRef.current?.showSystemScene(state.selectedSystem);
+            setState(prev => ({
+              ...prev,
+              scene: 'system' as const,
+              selectedPlanet: null,
+              showPlanetMenu: false,
+              showPlanetInfo: false,
+            }));
+          } else {
+            engineRef.current?.showGalaxyScene();
+            setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+          }
+          break;
+        case 'system':
+          engineRef.current?.showGalaxyScene();
+          setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+          break;
+        case 'galaxy':
+          engineRef.current?.showHomePlanetScene(true);
+          setState(prev => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
+          break;
+        case 'home-intro':
+          // At root — minimize app instead of exiting
+          CapApp.minimizeApp();
+          break;
+      }
+    });
+
+    return () => { handler.then(h => h.remove()); };
+  }, [state.scene, surfaceTarget, state.selectedSystem]);
 
   // ── 3D Model handlers ─────────────────────────────────────────────────
   const handleModelReady = useCallback((modelId: string, glbUrl: string) => {
