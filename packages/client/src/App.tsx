@@ -2148,6 +2148,11 @@ export function App() {
     setEvacuationTarget(null);
     setForcedEvacuation(false);
 
+    // Ensure tutorial is complete after colonization
+    if (isTutorialActive) {
+      setTutorialStep(13);
+    }
+
     // Open surface view for the colony planet
     setSurfaceTarget({
       planet: evacuationTarget.planet,
@@ -2878,32 +2883,7 @@ export function App() {
     }
 
     case 'system': {
-      if (state.selectedPlanet) {
-        toolGroups.push({
-          type: 'buttons',
-          items: [
-            {
-              id: 'view-planet',
-              label: 'Екзосфера',
-              icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
-                React.createElement('circle', { cx: '8', cy: '8', r: '5' }),
-                React.createElement('ellipse', { cx: '8', cy: '8', rx: '7', ry: '3' }),
-              ),
-              onClick: handleViewPlanet,
-            },
-            {
-              id: 'surface',
-              label: 'Поверхня',
-              icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
-                React.createElement('path', { d: 'M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z' }),
-                React.createElement('circle', { cx: '12', cy: '3', r: '2' }),
-              ),
-              onClick: handleOpenSurface,
-            },
-            { id: 'info', label: 'Інфо', onClick: handleShowCharacteristics },
-          ],
-        });
-      }
+      // Planet actions available via PlanetContextMenu popup
       break;
     }
 

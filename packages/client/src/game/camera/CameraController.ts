@@ -124,6 +124,10 @@ export class CameraController {
         if (this.pointers.size < 2) {
           this.isPinching = false;
           this._dragEndTime = Date.now();
+          // Pinch applied zoom directly — stop smooth zoom to prevent snap
+          this.targetScale = this.scale;
+          this._isZooming = false;
+          this.zoomSettleTimer = 0;
         }
         // If one finger remains, re-init drag from current pos
         if (this.pointers.size === 1) {

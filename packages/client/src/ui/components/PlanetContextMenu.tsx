@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Planet } from '@nebulife/core';
 
 const MENU_WIDTH = 220;
@@ -84,6 +84,37 @@ const QuarkIcon = () => (
   </svg>
 );
 
+/** Info "?" tooltip for quantum synthesis */
+function QuantumInfoTooltip() {
+  const [show, setShow] = useState(false);
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: 'auto', cursor: 'help' }}
+      onClick={(e) => { e.stopPropagation(); setShow(v => !v); }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+        <circle cx="8" cy="8" r="6.5" />
+        <text x="8" y="11" textAnchor="middle" fill="#556677" stroke="none" fontSize="9" fontFamily="monospace">?</text>
+      </svg>
+      {show && (
+        <div style={{
+          position: 'absolute', bottom: '100%', right: 0, marginBottom: 6,
+          width: 220, padding: '10px 12px',
+          background: 'rgba(10, 15, 25, 0.97)', border: '1px solid #446688', borderRadius: 4,
+          fontSize: 10, lineHeight: 1.5, color: '#8899aa', fontFamily: 'monospace',
+          zIndex: 100, pointerEvents: 'none',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+        }}>
+          <div style={{ color: '#aaccee', fontSize: 11, marginBottom: 6 }}>Квантовий синтез</div>
+          <div>Створiть унiкальну iнтерактивну 3D-модель вашої планети. Кожна модель генерується штучним iнтелектом спецiально для вас — двох однакових не iснує.</div>
+        </div>
+      )}
+    </span>
+  );
+}
+
 export function PlanetContextMenu({
   planet, screenPosition,
   onViewPlanet, onShowCharacteristics, onClose,
@@ -142,6 +173,7 @@ export function PlanetContextMenu({
             <span>Квантовий синтез</span>
             <span style={{ color: hover3D ? '#aaccff' : '#667799', marginLeft: 2 }}>49</span>
             <QuarkIcon />
+            <QuantumInfoTooltip />
           </button>
         )}
       </div>
