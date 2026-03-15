@@ -714,7 +714,7 @@ export class UniverseEngine {
     }
   }
 
-  flyToMyCluster(): void {
+  flyToMyCluster(durationMs: number = 2500): void {
     if (this.groups.length <= this.myGroupIndex) return;
     if (this.lodState === 'cluster') this.collapseCluster();
 
@@ -724,7 +724,7 @@ export class UniverseEngine {
 
     this.flyAnimation = {
       startTime: performance.now(),
-      duration: 2500,
+      duration: durationMs,
       from: { pos: this.camera.position.clone(), target: this.controls.target.clone() },
       to: { pos: arrivalPos, target },
     };

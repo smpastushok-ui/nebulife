@@ -2929,7 +2929,7 @@ export function App() {
         volatiles={colonyResources.volatiles}
         isotopes={colonyResources.isotopes}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
-        countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && !isTutorialActive ? countdownText : undefined}
+        countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && !isTutorialActive && evacuationPhase === 'idle' ? countdownText : undefined}
         countdownUrgent={countdownUrgent}
         onTimerClick={evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed ? () => setEvacuationPromptDismissed(false) : undefined}
       />
@@ -3784,6 +3784,8 @@ export function App() {
             universeEngineRef.current?.setVisible(true);
             engineRef.current?.pause();
             setState(prev => ({ ...prev, scene: 'universe' }));
+            // Slow cinematic zoom toward player's home cluster during subtitles
+            setTimeout(() => universeEngineRef.current?.flyToMyCluster(8000), 500);
           }}
           onLeaveUniverseToGalaxy={() => {
             setUniverseVisible(false);
