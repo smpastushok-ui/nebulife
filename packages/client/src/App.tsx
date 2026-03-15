@@ -603,6 +603,17 @@ export function App() {
   const [tutorialSubStep, setTutorialSubStep] = useState(0);
   const isTutorialActive = tutorialStep >= 0 && tutorialStep <= 12;
 
+  // Reset clock state when entering onboarding (account reset scenario)
+  useEffect(() => {
+    if (!needsOnboarding) return;
+    setClockPhase('hidden');
+    setGameStartedAt(null);
+    try {
+      localStorage.removeItem('nebulife_clock_revealed');
+      localStorage.removeItem('nebulife_game_started_at');
+    } catch { /* ignore */ }
+  }, [needsOnboarding]);
+
   // Epic clock reveal: triggered after tutorial completes/skipped
   useEffect(() => {
     if (!isExodusPhase || clockPhase !== 'hidden' || needsOnboarding || isTutorialActive) return;
@@ -2992,16 +3003,16 @@ export function App() {
           {/* Timer */}
           <div
             style={{
-              fontSize: 20,
+              fontSize: 11,
               fontWeight: 'bold',
               color: '#cc4444',
               textShadow: countdownUrgent
-                ? '0 0 16px rgba(204,68,68,0.8), 0 0 32px rgba(204,68,68,0.4)'
-                : '0 0 8px rgba(204,68,68,0.4)',
-              letterSpacing: 3,
-              padding: '4px 16px',
-              background: 'rgba(5,10,20,0.8)',
-              border: `1px solid ${countdownUrgent ? 'rgba(204,68,68,0.6)' : 'rgba(204,68,68,0.3)'}`,
+                ? '0 0 8px rgba(204,68,68,0.6)'
+                : '0 0 4px rgba(204,68,68,0.3)',
+              letterSpacing: 2,
+              padding: '6px 10px',
+              background: 'rgba(10,15,25,0.92)',
+              border: `1px solid ${countdownUrgent ? 'rgba(204,68,68,0.5)' : 'rgba(204,68,68,0.25)'}`,
               borderRadius: 4,
               animation: countdownUrgent ? 'cmdbar-terminal-pulse 0.8s infinite' : undefined,
             }}
@@ -3211,8 +3222,13 @@ export function App() {
       )}
 
       {/* Research blur overlay for unresearched systems */}
-      {state.scene === 'system' && !isCurrentSystemFullyAccessible && (
-        <SystemResearchOverlay progress={currentSystemProgress} />
+      {state.scene === 'system' && !isCurrentSystemFullyAccessible && state.selectedSystem && (
+        <SystemResearchOverlay
+          progress={currentSystemProgress}
+          canResearch={hasResearchData(researchData) && findFreeSlot(researchState) >= 0}
+          isResearching={researchState.slots.some((s) => s.systemId === state.selectedSystem!.id)}
+          onStartResearch={() => handleStartResearch(state.selectedSystem!.id)}
+        />
       )}
 
       {/* System navigation header — fixed top-center, visible when inside a system */}
@@ -3790,6 +3806,20 @@ export function App() {
           homeInfo={homeInfo}
           engineRef={engineRef}
           onComplete={handleOnboardingComplete}
+          onRequestUniverseScene={async () => {
+            await initUniverseEngine();
+            setUniverseVisible(true);
+            universeEngineRef.current?.setVisible(true);
+            engineRef.current?.pause();
+            setState(prev => ({ ...prev, scene: 'universe' }));
+          }}
+          onLeaveUniverseToGalaxy={() => {
+            setUniverseVisible(false);
+            universeEngineRef.current?.setVisible(false);
+            engineRef.current?.resume();
+            engineRef.current?.showGalaxyScene();
+            setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+          }}
           onRequestGalaxyScene={() => {
             engineRef.current?.showGalaxyScene();
             setState((prev) => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));

@@ -11,14 +11,16 @@ export interface CinematicIntroProps {
   homeInfo: { system: StarSystem; planet: Planet };
   engineRef: React.RefObject<GameEngine | null>;
   onComplete: () => void;
+  onRequestUniverseScene: () => Promise<void> | void;
+  onLeaveUniverseToGalaxy: () => void;
   onRequestGalaxyScene: () => void;
   onRequestSystemScene: (system: StarSystem) => void;
   onRequestHomeScene: () => void;
 }
 
 type Stage = 0 | 1 | 2 | 3 | 4;
-// 0 = macro-cosmos (subtitles over galaxy)
-// 1 = warp dive (zoom to home)
+// 0 = macro-cosmos (subtitles over universe — Three.js)
+// 1 = warp dive (universe → galaxy zoom-in)
 // 2 = scene transitions (system → home)
 // 3 = alert modal
 // 4 = handoff (fade out → complete)
@@ -58,6 +60,13 @@ function CinematicTypewriter({
     if (charIdx < currentLine.length) {
       const timer = setTimeout(() => setCharIdx((c) => c + 1), charDelay);
       return () => clearTimeout(timer);
+    } else if (lineIdx >= lines.length - 1) {
+      // Last line finished — complete immediately (no lineDelay)
+      if (!doneRef.current) {
+        doneRef.current = true;
+        setDone(true);
+        onDone();
+      }
     } else {
       const timer = setTimeout(() => {
         setLineIdx((l) => l + 1);
@@ -380,6 +389,8 @@ export function CinematicIntro({
   homeInfo,
   engineRef,
   onComplete,
+  onRequestUniverseScene,
+  onLeaveUniverseToGalaxy,
   onRequestGalaxyScene,
   onRequestSystemScene,
   onRequestHomeScene,
@@ -410,79 +421,80 @@ export function CinematicIntro({
     return () => { mountedRef.current = false; };
   }, []);
 
-  // ── Stage 0: Setup galaxy scene with cinematic mode ──
+  // ── Stage 0: Show Universe scene (Three.js) ──
   useEffect(() => {
-    const engine = engineRef.current;
-    if (!engine) return;
-
-    // Show galaxy scene in cinematic mode
-    onRequestGalaxyScene();
-
-    // Small delay to let scene mount
-    const t = setTimeout(() => {
-      engine.setCinematicMode(true);
-      engine.addFakePlayerMarkers(8);
-
-      // Zoom out to show the whole galaxy
-      engine.animateCameraTo(0, 0, 0.25, 2000);
-    }, 300);
-
-    return () => clearTimeout(t);
+    onRequestUniverseScene();
   }, []); // mount only
 
-  // ── Stage 0 → 1: After subtitles done, wait then warp ──
+  // ── Stage 0 → 1: After subtitles done → warp from universe to galaxy ──
   useEffect(() => {
     if (!subtitlesDone || stage !== 0) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
-    const t = setTimeout(() => {
+    // Brief pause after last subtitle
+    timers.push(setTimeout(() => {
       if (!mountedRef.current) return;
       setStage(1);
       setWarpActive(true);
       setStatusVisible(false);
 
-      const engine = engineRef.current;
-      if (engine) {
-        engine.removeFakePlayerMarkers();
-        // Warp zoom to home system (0,0) at high zoom
-        engine.animateCameraTo(0, 0, 4.5, 3500);
-      }
-
-      // After warp completes → Stage 2
-      setTimeout(() => {
+      // After warp covers the screen, switch from universe to galaxy
+      timers.push(setTimeout(() => {
         if (!mountedRef.current) return;
-        setWarpActive(false);
-        setStage(2);
-      }, 3800);
-    }, 1500);
+        onLeaveUniverseToGalaxy();
 
-    return () => clearTimeout(t);
+        const engine = engineRef.current;
+        if (engine) {
+          engine.setCinematicMode(true);
+          engine.addFakePlayerMarkers(8);
+          engine.animateCameraTo(0, 0, 0.25, 100); // instant zoom-out
+        }
+
+        // Start galaxy zoom-in
+        timers.push(setTimeout(() => {
+          if (!mountedRef.current) return;
+          engineRef.current?.animateCameraTo(0, 0, 4.5, 2500);
+
+          // After zoom → Stage 2
+          timers.push(setTimeout(() => {
+            if (!mountedRef.current) return;
+            setWarpActive(false);
+            setStage(2);
+          }, 2800));
+        }, 300));
+      }, 800));
+    }, 500));
+
+    return () => timers.forEach(clearTimeout);
   }, [subtitlesDone, stage]);
 
   // ── Stage 2: Scene transitions → system → home ──
   useEffect(() => {
     if (stage !== 2) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
     const engine = engineRef.current;
     if (engine) {
       engine.setCinematicMode(false);
+      engine.removeFakePlayerMarkers();
     }
 
     // Show system scene briefly
     onRequestSystemScene(system);
 
     // After a pause → go to home + show alert
-    const t = setTimeout(() => {
+    timers.push(setTimeout(() => {
       if (!mountedRef.current) return;
       onRequestHomeScene();
 
-      setTimeout(() => {
+      timers.push(setTimeout(() => {
         if (!mountedRef.current) return;
         setStage(3);
         setAlertVisible(true);
-      }, 1500);
-    }, 2500);
+      }, 1200));
+    }, 1800));
 
-    return () => clearTimeout(t);
+    return () => timers.forEach(clearTimeout);
   }, [stage]);
 
   // ── Stage 3 → 4: Alert accepted ──
@@ -549,8 +561,8 @@ export function CinematicIntro({
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 600, padding: '0 20px' }}>
             <CinematicTypewriter
               lines={subtitleLines}
-              charDelay={40}
-              lineDelay={1500}
+              charDelay={35}
+              lineDelay={800}
               onDone={() => setSubtitlesDone(true)}
             />
           </div>

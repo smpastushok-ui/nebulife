@@ -12,9 +12,20 @@ import React from 'react';
 interface SystemResearchOverlayProps {
   /** Research progress 0-100 */
   progress: number;
+  /** Whether player can start a new research on this system */
+  canResearch?: boolean;
+  /** Whether this system currently has an active research slot */
+  isResearching?: boolean;
+  /** Callback to start research on this system */
+  onStartResearch?: () => void;
 }
 
-export function SystemResearchOverlay({ progress }: SystemResearchOverlayProps) {
+export function SystemResearchOverlay({
+  progress,
+  canResearch = false,
+  isResearching = false,
+  onStartResearch,
+}: SystemResearchOverlayProps) {
   if (progress >= 100) return null;
 
   // 0% -> 25px blur, 90% -> 3px, 100% -> 0px
@@ -75,6 +86,48 @@ export function SystemResearchOverlay({ progress }: SystemResearchOverlayProps) 
           }}
         />
       </div>
+
+      {/* Research button or status */}
+      {isResearching ? (
+        <div
+          style={{
+            marginTop: 16,
+            color: '#4488aa',
+            fontSize: 11,
+            letterSpacing: '0.1em',
+            opacity: 0.7,
+          }}
+        >
+          Дослiдження в процесi...
+        </div>
+      ) : (
+        <button
+          onClick={canResearch ? onStartResearch : undefined}
+          disabled={!canResearch}
+          style={{
+            marginTop: 16,
+            padding: '8px 24px',
+            background: canResearch ? 'rgba(68,136,170,0.15)' : 'rgba(51,68,85,0.1)',
+            border: `1px solid ${canResearch ? '#4488aa' : '#334455'}`,
+            borderRadius: 3,
+            color: canResearch ? '#4488aa' : '#445566',
+            fontFamily: 'monospace',
+            fontSize: 12,
+            letterSpacing: 1,
+            cursor: canResearch ? 'pointer' : 'default',
+            transition: 'background 0.2s, border-color 0.2s',
+            pointerEvents: 'auto',
+          }}
+          onMouseEnter={(e) => {
+            if (canResearch) e.currentTarget.style.background = 'rgba(68,136,170,0.3)';
+          }}
+          onMouseLeave={(e) => {
+            if (canResearch) e.currentTarget.style.background = 'rgba(68,136,170,0.15)';
+          }}
+        >
+          Дослiдити
+        </button>
+      )}
     </div>
   );
 }
