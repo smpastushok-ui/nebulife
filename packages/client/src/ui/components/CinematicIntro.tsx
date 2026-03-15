@@ -43,6 +43,9 @@ function CinematicTypewriter({
   const [charIdx, setCharIdx] = useState(0);
   const [done, setDone] = useState(false);
   const doneRef = useRef(false);
+  // Keep stable ref for onDone to avoid clearing timeouts on parent re-renders
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     if (doneRef.current) return;
@@ -51,7 +54,7 @@ function CinematicTypewriter({
       if (!doneRef.current) {
         doneRef.current = true;
         setDone(true);
-        onDone();
+        onDoneRef.current();
       }
       return;
     }
@@ -65,7 +68,7 @@ function CinematicTypewriter({
       if (!doneRef.current) {
         doneRef.current = true;
         setDone(true);
-        onDone();
+        onDoneRef.current();
       }
     } else {
       const timer = setTimeout(() => {
@@ -74,7 +77,7 @@ function CinematicTypewriter({
       }, lineDelay);
       return () => clearTimeout(timer);
     }
-  }, [lineIdx, charIdx, lines, charDelay, lineDelay, onDone]);
+  }, [lineIdx, charIdx, lines, charDelay, lineDelay]);
 
   return (
     <div style={{ textAlign: 'center' }}>
@@ -120,11 +123,23 @@ function CinematicTypewriter({
 
 // ---------------------------------------------------------------------------
 // Warp star-trail effect (canvas overlay for Stage 1 → 2 transition)
+// Soft, chaotic particles with varying sizes, drift angles, and fade-out
 // ---------------------------------------------------------------------------
+interface WarpParticle {
+  x: number;
+  y: number;
+  angle: number;      // radial direction from center
+  drift: number;      // angular drift for chaotic motion
+  speed: number;
+  size: number;        // particle width (1-3)
+  alpha: number;       // max brightness
+  life: number;        // 0-1 lifecycle (fades out near 1)
+  lifeSpeed: number;   // how fast life progresses
+}
+
 function WarpOverlay({ active }: { active: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
-  const starsRef = useRef<{ x: number; y: number; speed: number; len: number }[]>([]);
 
   useEffect(() => {
     if (!active) {
@@ -142,56 +157,93 @@ function WarpOverlay({ active }: { active: boolean }) {
 
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
+    const maxDist = Math.sqrt(cx * cx + cy * cy) * 1.2;
 
-    // Initialize radial stars
-    const stars: { x: number; y: number; speed: number; len: number }[] = [];
-    for (let i = 0; i < 200; i++) {
+    function spawnParticle(nearCenter: boolean): WarpParticle {
       const angle = Math.random() * Math.PI * 2;
-      const dist = 20 + Math.random() * 80;
-      stars.push({
+      const dist = nearCenter ? (5 + Math.random() * 60) : (20 + Math.random() * maxDist * 0.4);
+      return {
         x: cx + Math.cos(angle) * dist,
         y: cy + Math.sin(angle) * dist,
-        speed: 3 + Math.random() * 8,
-        len: 10 + Math.random() * 30,
-      });
+        angle,
+        drift: (Math.random() - 0.5) * 0.04, // slight random curve
+        speed: 1.5 + Math.random() * 4,
+        size: 0.5 + Math.random() * 2,
+        alpha: 0.15 + Math.random() * 0.35,
+        life: nearCenter ? 0 : Math.random() * 0.3,
+        lifeSpeed: 0.003 + Math.random() * 0.006,
+      };
     }
-    starsRef.current = stars;
+
+    // Create particles — mix of near-center spawns and scattered
+    const particles: WarpParticle[] = [];
+    for (let i = 0; i < 160; i++) {
+      particles.push(spawnParticle(i < 100));
+    }
 
     let startTime = Date.now();
     const animate = () => {
       const elapsed = Date.now() - startTime;
-      const accel = Math.min(1, elapsed / 2000); // ramp up over 2s
+      const accel = Math.min(1, elapsed / 2500); // gentle ramp up
 
-      ctx.fillStyle = 'rgba(2,5,16,0.3)';
+      // Fade trail (semi-transparent fill for motion blur effect)
+      ctx.fillStyle = 'rgba(2,5,16,0.15)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      for (const star of stars) {
-        const dx = star.x - cx;
-        const dy = star.y - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 1) continue;
+      for (const p of particles) {
+        // Advance life
+        p.life += p.lifeSpeed * accel;
 
-        const nx = dx / dist;
-        const ny = dy / dist;
+        // Fade factor: fade-in at start, fade-out near end
+        const fadeIn = Math.min(1, p.life * 5);
+        const fadeOut = Math.max(0, 1 - (p.life - 0.6) / 0.4);
+        const fade = fadeIn * (p.life > 0.6 ? fadeOut : 1);
 
-        star.x += nx * star.speed * accel * 2;
-        star.y += ny * star.speed * accel * 2;
+        // Move along radial + drift
+        p.angle += p.drift * 0.1;
+        const moveSpeed = p.speed * accel * (0.5 + p.life * 1.5);
+        p.x += Math.cos(p.angle) * moveSpeed;
+        p.y += Math.sin(p.angle) * moveSpeed;
 
-        // Draw trail
-        const trailLen = star.len * accel;
-        ctx.strokeStyle = `rgba(180,200,255,${0.3 + accel * 0.5})`;
-        ctx.lineWidth = 1;
+        // Trail length grows with speed and life
+        const trailLen = (4 + p.life * 20) * accel;
+
+        // Draw soft elongated dot (multiple overlapping circles for blur effect)
+        const drawAlpha = p.alpha * fade * accel;
+        if (drawAlpha < 0.01) continue;
+
+        const nx = Math.cos(p.angle);
+        const ny = Math.sin(p.angle);
+
+        // Outer glow (wider, dimmer)
+        ctx.strokeStyle = `rgba(140,170,220,${drawAlpha * 0.3})`;
+        ctx.lineWidth = p.size + 2;
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(star.x, star.y);
-        ctx.lineTo(star.x - nx * trailLen, star.y - ny * trailLen);
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - nx * trailLen * 0.7, p.y - ny * trailLen * 0.7);
         ctx.stroke();
 
-        // Reset if off screen
-        if (star.x < -50 || star.x > canvas.width + 50 || star.y < -50 || star.y > canvas.height + 50) {
-          const angle = Math.random() * Math.PI * 2;
-          const d = 10 + Math.random() * 40;
-          star.x = cx + Math.cos(angle) * d;
-          star.y = cy + Math.sin(angle) * d;
+        // Core trail (thinner, brighter)
+        ctx.strokeStyle = `rgba(200,215,255,${drawAlpha * 0.7})`;
+        ctx.lineWidth = p.size;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - nx * trailLen, p.y - ny * trailLen);
+        ctx.stroke();
+
+        // Respawn when life exhausted or off screen
+        if (p.life >= 1 || p.x < -100 || p.x > canvas.width + 100 || p.y < -100 || p.y > canvas.height + 100) {
+          const newP = spawnParticle(true);
+          p.x = newP.x;
+          p.y = newP.y;
+          p.angle = newP.angle;
+          p.drift = newP.drift;
+          p.speed = newP.speed;
+          p.size = newP.size;
+          p.alpha = newP.alpha;
+          p.life = 0;
+          p.lifeSpeed = newP.lifeSpeed;
         }
       }
 
@@ -382,6 +434,13 @@ function AlertModal({
   );
 }
 
+// Stable reference — never recreated on re-render
+const SUBTITLE_LINES = [
+  'Мільйони командорів у єдиному просторі.',
+  'Галактика Nebulife -- лише піщинка на мапі світобудови.',
+  'Чи готовий ти до захоплення всесвіту?',
+];
+
 // ---------------------------------------------------------------------------
 // Main component — 5-stage state machine
 // ---------------------------------------------------------------------------
@@ -405,12 +464,6 @@ export function CinematicIntro({
   const mountedRef = useRef(true);
 
   const { system, planet } = homeInfo;
-
-  const subtitleLines = [
-    'Мільйони командорів у єдиному просторі.',
-    'Галактика Nebulife -- лише піщинка на мапі світобудови.',
-    'Чи готовий ти до захоплення всесвіту?',
-  ];
 
   // Track stage in ref for async callbacks
   useEffect(() => {
@@ -560,7 +613,7 @@ export function CinematicIntro({
           {/* Subtitles */}
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 600, padding: '0 20px' }}>
             <CinematicTypewriter
-              lines={subtitleLines}
+              lines={SUBTITLE_LINES}
               charDelay={35}
               lineDelay={800}
               onDone={() => setSubtitlesDone(true)}
