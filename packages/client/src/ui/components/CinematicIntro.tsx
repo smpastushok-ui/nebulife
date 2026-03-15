@@ -123,19 +123,25 @@ function CinematicTypewriter({
 
 // ---------------------------------------------------------------------------
 // Warp star-trail effect (canvas overlay for Stage 1 → 2 transition)
-// Soft, chaotic particles with varying sizes, drift angles, and fade-out
+// 5s total: ramp-up (0-1.5s) → cruise (1.5-3.5s) → fade-out (3.5-5s)
+// During fade-out stars slow down, dim, and stop respawning → smooth exit
 // ---------------------------------------------------------------------------
 interface WarpParticle {
   x: number;
   y: number;
-  angle: number;      // radial direction from center
-  drift: number;      // angular drift for chaotic motion
+  angle: number;
+  drift: number;
   speed: number;
-  size: number;        // particle width (1-3)
-  alpha: number;       // max brightness
-  life: number;        // 0-1 lifecycle (fades out near 1)
-  lifeSpeed: number;   // how fast life progresses
+  size: number;
+  alpha: number;
+  life: number;
+  lifeSpeed: number;
+  dead: boolean;       // marked during fade-out, never respawns
 }
+
+const WARP_DURATION = 5000;
+const WARP_RAMP_END = 1500;     // ramp-up ends at 1.5s
+const WARP_FADE_START = 3500;   // fade-out begins at 3.5s
 
 function WarpOverlay({ active }: { active: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -157,65 +163,86 @@ function WarpOverlay({ active }: { active: boolean }) {
 
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
-    const maxDist = Math.sqrt(cx * cx + cy * cy) * 1.2;
 
     function spawnParticle(nearCenter: boolean): WarpParticle {
       const angle = Math.random() * Math.PI * 2;
-      const dist = nearCenter ? (5 + Math.random() * 60) : (20 + Math.random() * maxDist * 0.4);
+      const dist = nearCenter ? (5 + Math.random() * 60) : (20 + Math.random() * 200);
       return {
         x: cx + Math.cos(angle) * dist,
         y: cy + Math.sin(angle) * dist,
         angle,
-        drift: (Math.random() - 0.5) * 0.04, // slight random curve
+        drift: (Math.random() - 0.5) * 0.04,
         speed: 1.5 + Math.random() * 4,
         size: 0.5 + Math.random() * 2,
         alpha: 0.15 + Math.random() * 0.35,
         life: nearCenter ? 0 : Math.random() * 0.3,
         lifeSpeed: 0.003 + Math.random() * 0.006,
+        dead: false,
       };
     }
 
-    // Create particles — mix of near-center spawns and scattered
     const particles: WarpParticle[] = [];
-    for (let i = 0; i < 160; i++) {
-      particles.push(spawnParticle(i < 100));
+    for (let i = 0; i < 150; i++) {
+      particles.push(spawnParticle(i < 90));
     }
 
-    let startTime = Date.now();
+    const startTime = Date.now();
+
     const animate = () => {
       const elapsed = Date.now() - startTime;
-      const accel = Math.min(1, elapsed / 2500); // gentle ramp up
 
-      // Fade trail (semi-transparent fill for motion blur effect)
-      ctx.fillStyle = 'rgba(2,5,16,0.15)';
+      // Global envelope: ramp-up → cruise → fade-out
+      let envelope: number;
+      if (elapsed < WARP_RAMP_END) {
+        // Smooth ease-in
+        const t = elapsed / WARP_RAMP_END;
+        envelope = t * t; // quadratic ease-in
+      } else if (elapsed < WARP_FADE_START) {
+        envelope = 1;
+      } else {
+        // Smooth ease-out
+        const t = (elapsed - WARP_FADE_START) / (WARP_DURATION - WARP_FADE_START);
+        const clamped = Math.min(1, t);
+        envelope = 1 - clamped * clamped; // quadratic ease-out
+      }
+
+      const isFading = elapsed >= WARP_FADE_START;
+
+      // Canvas clear — faster clear during fade-out to erase trails
+      const clearAlpha = isFading ? 0.12 + (1 - envelope) * 0.25 : 0.15;
+      ctx.fillStyle = `rgba(2,5,16,${clearAlpha})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // Stop animation after duration (canvas naturally clears itself)
+      if (elapsed > WARP_DURATION + 500) return;
+
+      let aliveCount = 0;
+
       for (const p of particles) {
-        // Advance life
-        p.life += p.lifeSpeed * accel;
+        if (p.dead) continue;
 
-        // Fade factor: fade-in at start, fade-out near end
+        p.life += p.lifeSpeed * envelope;
+
+        // Per-particle fade: fade-in at birth, fade-out at end of life
         const fadeIn = Math.min(1, p.life * 5);
-        const fadeOut = Math.max(0, 1 - (p.life - 0.6) / 0.4);
-        const fade = fadeIn * (p.life > 0.6 ? fadeOut : 1);
+        const fadeOutLife = Math.max(0, 1 - (p.life - 0.6) / 0.4);
+        const particleFade = fadeIn * (p.life > 0.6 ? fadeOutLife : 1);
 
-        // Move along radial + drift
+        // Move — speed scales with envelope
         p.angle += p.drift * 0.1;
-        const moveSpeed = p.speed * accel * (0.5 + p.life * 1.5);
+        const moveSpeed = p.speed * envelope * (0.5 + p.life * 1.5);
         p.x += Math.cos(p.angle) * moveSpeed;
         p.y += Math.sin(p.angle) * moveSpeed;
 
-        // Trail length grows with speed and life
-        const trailLen = (4 + p.life * 20) * accel;
-
-        // Draw soft elongated dot (multiple overlapping circles for blur effect)
-        const drawAlpha = p.alpha * fade * accel;
+        const trailLen = (4 + p.life * 20) * envelope;
+        const drawAlpha = p.alpha * particleFade * envelope;
         if (drawAlpha < 0.01) continue;
 
+        aliveCount++;
         const nx = Math.cos(p.angle);
         const ny = Math.sin(p.angle);
 
-        // Outer glow (wider, dimmer)
+        // Outer glow
         ctx.strokeStyle = `rgba(140,170,220,${drawAlpha * 0.3})`;
         ctx.lineWidth = p.size + 2;
         ctx.lineCap = 'round';
@@ -224,7 +251,7 @@ function WarpOverlay({ active }: { active: boolean }) {
         ctx.lineTo(p.x - nx * trailLen * 0.7, p.y - ny * trailLen * 0.7);
         ctx.stroke();
 
-        // Core trail (thinner, brighter)
+        // Core trail
         ctx.strokeStyle = `rgba(200,215,255,${drawAlpha * 0.7})`;
         ctx.lineWidth = p.size;
         ctx.beginPath();
@@ -232,22 +259,27 @@ function WarpOverlay({ active }: { active: boolean }) {
         ctx.lineTo(p.x - nx * trailLen, p.y - ny * trailLen);
         ctx.stroke();
 
-        // Respawn when life exhausted or off screen
-        if (p.life >= 1 || p.x < -100 || p.x > canvas.width + 100 || p.y < -100 || p.y > canvas.height + 100) {
-          const newP = spawnParticle(true);
-          p.x = newP.x;
-          p.y = newP.y;
-          p.angle = newP.angle;
-          p.drift = newP.drift;
-          p.speed = newP.speed;
-          p.size = newP.size;
-          p.alpha = newP.alpha;
-          p.life = 0;
-          p.lifeSpeed = newP.lifeSpeed;
+        // Respawn or die
+        const offScreen = p.x < -100 || p.x > canvas.width + 100 || p.y < -100 || p.y > canvas.height + 100;
+        if (p.life >= 1 || offScreen) {
+          if (isFading) {
+            // During fade-out: don't respawn, just mark dead
+            p.dead = true;
+          } else {
+            const newP = spawnParticle(true);
+            p.x = newP.x; p.y = newP.y;
+            p.angle = newP.angle; p.drift = newP.drift;
+            p.speed = newP.speed; p.size = newP.size;
+            p.alpha = newP.alpha; p.life = 0;
+            p.lifeSpeed = newP.lifeSpeed;
+          }
         }
       }
 
-      rafRef.current = requestAnimationFrame(animate);
+      // Continue until all particles are gone or duration exceeded
+      if (aliveCount > 0 || elapsed < WARP_DURATION) {
+        rafRef.current = requestAnimationFrame(animate);
+      }
     };
 
     animate();
@@ -486,13 +518,14 @@ export function CinematicIntro({
     const timers: ReturnType<typeof setTimeout>[] = [];
 
     // Brief pause after button click
+    // Warp is 5s total: ramp 0-1.5s, cruise 1.5-3.5s, fade 3.5-5s
     timers.push(setTimeout(() => {
       if (!mountedRef.current) return;
       setStage(1);
       setWarpActive(true);
       setStatusVisible(false);
 
-      // After warp covers the screen, switch from universe to galaxy
+      // At ~1.2s: switch from universe to galaxy (warp covers the transition)
       timers.push(setTimeout(() => {
         if (!mountedRef.current) return;
         onLeaveUniverseToGalaxy();
@@ -504,20 +537,20 @@ export function CinematicIntro({
           engine.animateCameraTo(0, 0, 0.25, 100); // instant zoom-out
         }
 
-        // Start galaxy zoom-in
+        // At ~1.5s: start galaxy zoom-in (3s duration, finishes at ~4.5s)
         timers.push(setTimeout(() => {
           if (!mountedRef.current) return;
-          engineRef.current?.animateCameraTo(0, 0, 4.5, 2500);
+          engineRef.current?.animateCameraTo(0, 0, 4.5, 3000);
 
-          // After zoom → Stage 2
+          // At ~5s: warp fully faded, transition to Stage 2
           timers.push(setTimeout(() => {
             if (!mountedRef.current) return;
             setWarpActive(false);
             setStage(2);
-          }, 2800));
+          }, 3500));
         }, 300));
-      }, 800));
-    }, 500));
+      }, 1200));
+    }, 300));
 
     return () => timers.forEach(clearTimeout);
   }, [startClicked, stage]);
