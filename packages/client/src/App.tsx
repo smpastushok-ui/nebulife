@@ -2857,13 +2857,6 @@ export function App() {
       active: effectiveScene === 'planet-view' || effectiveScene === 'surface',
       disabled: !state.selectedPlanet,
     },
-    {
-      id: 'home-intro', label: 'Поверхня', scene: 'home-intro',
-      icon: homeIcon,
-      active: effectiveScene === 'home-intro',
-      disabled: false,
-      separator: true,
-    },
   ];
 
   // Build tool groups based on current scene
@@ -2915,19 +2908,7 @@ export function App() {
     }
 
     case 'planet-view': {
-      // Surface button with SVG icon (back + zoom moved to SceneControlsPanel)
-      toolGroups.push({
-        type: 'buttons',
-        items: [{
-          id: 'surface',
-          label: 'Поверхня',
-          icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
-            React.createElement('path', { d: 'M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z' }),
-            React.createElement('circle', { cx: '12', cy: '3', r: '2' }),
-          ),
-          onClick: handleOpenSurface,
-        }],
-      });
+      // Surface button moved to SceneControlsPanel (left side)
       break;
     }
 
@@ -3269,6 +3250,13 @@ export function App() {
           onZoomOut={() => engineRef.current?.planetViewZoomOut()}
           backLabel="Система"
           showZoom
+          extraButtons={[
+            {
+              title: 'На поверхню',
+              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
+              onClick: handleOpenSurface,
+            },
+          ]}
         />
       )}
 

@@ -75,8 +75,7 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
           pointerEvents: disabled ? 'none' as const : 'auto' as const,
         }}
       >
-        {compassIcon}
-        <span style={{ fontSize: 11 }}>{activeItem?.label ?? ''}</span>
+        {activeItem?.icon ?? compassIcon}
         <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style={{ opacity: 0.5, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
           <path d="M1 5.5L4 2.5L7 5.5" stroke="currentColor" fill="none" strokeWidth="1.2" />
         </svg>
