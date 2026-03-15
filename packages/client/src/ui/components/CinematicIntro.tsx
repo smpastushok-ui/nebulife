@@ -139,9 +139,9 @@ interface WarpParticle {
   dead: boolean;       // marked during fade-out, never respawns
 }
 
-const WARP_DURATION = 5000;
-const WARP_RAMP_END = 1500;     // ramp-up ends at 1.5s
-const WARP_FADE_START = 3500;   // fade-out begins at 3.5s
+const WARP_DURATION = 7000;
+const WARP_RAMP_END = 2000;     // ramp-up ends at 2s
+const WARP_FADE_START = 5000;   // fade-out begins at 5s
 
 function WarpOverlay({ active }: { active: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -519,20 +519,21 @@ export function CinematicIntro({
     onRequestUniverseScene();
   }, []); // mount only
 
-  // ── Stage 0 → 1: After player clicks "Почати гру" → warp from universe to galaxy ──
+  // ── Stage 0 → 1 → 2: After player clicks "Почати гру" → warp → galaxy → system → home ──
+  // NOTE: stage is NOT in deps — setStage(1) inside the callback must NOT trigger cleanup
   useEffect(() => {
-    if (!startClicked || stage !== 0) return;
+    if (!startClicked || stageRef.current !== 0) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
     // Brief pause after button click
-    // Warp is 5s total: ramp 0-1.5s, cruise 1.5-3.5s, fade 3.5-5s
+    // Warp is 7s total: ramp 0-2s, cruise 2-5s, fade 5-7s
     timers.push(setTimeout(() => {
       if (!mountedRef.current) return;
       setStage(1);
       setWarpActive(true);
       setStatusVisible(false);
 
-      // At ~1.2s: switch from universe to galaxy (warp covers the transition)
+      // At ~1.8s: switch from universe to galaxy (warp covers the transition)
       timers.push(setTimeout(() => {
         if (!mountedRef.current) return;
         onLeaveUniverseToGalaxy();
@@ -544,52 +545,38 @@ export function CinematicIntro({
           engine.animateCameraTo(0, 0, 0.25, 100); // instant zoom-out
         }
 
-        // At ~1.5s: start galaxy zoom-in (3s duration, finishes at ~4.5s)
+        // At ~2.1s: start galaxy zoom-in (4s duration, finishes at ~6.1s)
         timers.push(setTimeout(() => {
           if (!mountedRef.current) return;
-          engineRef.current?.animateCameraTo(0, 0, 4.5, 3000);
+          engineRef.current?.animateCameraTo(0, 0, 4.5, 4000);
 
-          // At ~5s: warp fully faded, transition to Stage 2
+          // At ~7s: warp fully faded, transition to Stage 2
           timers.push(setTimeout(() => {
             if (!mountedRef.current) return;
             setWarpActive(false);
+
+            const eng = engineRef.current;
+            if (eng) {
+              eng.setCinematicMode(false);
+              eng.removeFakePlayerMarkers();
+            }
+
+            // Go to home planet scene, then show alert
+            onRequestHomeScene();
             setStage(2);
-          }, 3500));
+
+            timers.push(setTimeout(() => {
+              if (!mountedRef.current) return;
+              setStage(3);
+              setAlertVisible(true);
+            }, 1500));
+          }, 4900));
         }, 300));
-      }, 1200));
+      }, 1800));
     }, 300));
 
     return () => timers.forEach(clearTimeout);
-  }, [startClicked, stage]);
-
-  // ── Stage 2: Scene transitions → system → home ──
-  useEffect(() => {
-    if (stage !== 2) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    const engine = engineRef.current;
-    if (engine) {
-      engine.setCinematicMode(false);
-      engine.removeFakePlayerMarkers();
-    }
-
-    // Show system scene briefly
-    onRequestSystemScene(system);
-
-    // After a pause → go to home + show alert
-    timers.push(setTimeout(() => {
-      if (!mountedRef.current) return;
-      onRequestHomeScene();
-
-      timers.push(setTimeout(() => {
-        if (!mountedRef.current) return;
-        setStage(3);
-        setAlertVisible(true);
-      }, 1200));
-    }, 1800));
-
-    return () => timers.forEach(clearTimeout);
-  }, [stage]);
+  }, [startClicked]);
 
   // ── Stage 3 → 4: Alert accepted ──
   const handleAlertAccept = useCallback(() => {
