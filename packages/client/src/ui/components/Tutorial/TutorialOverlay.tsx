@@ -219,8 +219,8 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
         <div style={spotlightStyle} />
       )}
 
-      {/* No-target dark backdrop (for info steps with no target) */}
-      {!targetRect && currentTarget === '' && (
+      {/* Dark backdrop when no spotlight visible (no target or target not found) */}
+      {!targetRect && (
         <div
           style={{
             position: 'fixed',
