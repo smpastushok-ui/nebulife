@@ -309,25 +309,139 @@ function WarpOverlay({ active }: { active: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// Alert modal (Stage 3) — catastrophe warning
+// Video placeholder (will be replaced with real <video> later)
 // ---------------------------------------------------------------------------
-function AlertModal({
-  visible,
-  planetName,
-  onAccept,
+function VideoPlaceholder({ label }: { label: string }) {
+  return (
+    <div style={{
+      width: '100%',
+      maxWidth: 720,
+      aspectRatio: '16/9',
+      background: 'rgba(15,20,35,0.8)',
+      border: '1px dashed #334455',
+      borderRadius: 4,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#334455',
+      fontFamily: 'monospace',
+      fontSize: 12,
+      margin: '0 auto',
+    }}>
+      // {label}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Terminal typewriter for slide 1 (green text, skip on click)
+// ---------------------------------------------------------------------------
+function TerminalTypewriter({
+  lines,
+  onDone,
 }: {
-  visible: boolean;
-  planetName: string;
-  onAccept: () => void;
+  lines: string[];
+  onDone: () => void;
 }) {
-  const [showContent, setShowContent] = useState(false);
+  const [lineIdx, setLineIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+  const [done, setDone] = useState(false);
+  const skipRef = useRef(false);
+  const doneRef = useRef(false);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  const handleSkip = useCallback(() => {
+    if (doneRef.current) return;
+    skipRef.current = true;
+    setLineIdx(lines.length);
+    setCharIdx(0);
+    setDone(true);
+    doneRef.current = true;
+    onDoneRef.current();
+  }, [lines.length]);
 
   useEffect(() => {
-    if (visible) {
-      const t = setTimeout(() => setShowContent(true), 400);
+    if (skipRef.current || doneRef.current) return;
+    if (lineIdx >= lines.length) {
+      doneRef.current = true;
+      setDone(true);
+      onDoneRef.current();
+      return;
+    }
+    const currentLine = lines[lineIdx];
+    if (charIdx < currentLine.length) {
+      const t = setTimeout(() => setCharIdx((c) => c + 1), 35);
+      return () => clearTimeout(t);
+    } else {
+      const t = setTimeout(() => { setLineIdx((l) => l + 1); setCharIdx(0); }, 400);
       return () => clearTimeout(t);
     }
-  }, [visible]);
+  }, [lineIdx, charIdx, lines]);
+
+  return (
+    <div onClick={handleSkip} style={{ cursor: done ? 'default' : 'pointer', userSelect: 'none' }}>
+      {lines.map((line, i) => {
+        if (i > lineIdx && !skipRef.current) return null;
+        const text = skipRef.current || i < lineIdx ? line : line.slice(0, charIdx);
+        const showCursor = !done && i === lineIdx;
+        return (
+          <div key={i} style={{ color: '#44ff88', fontFamily: 'monospace', fontSize: 13, lineHeight: '1.8', whiteSpace: 'pre' }}>
+            {text}
+            {showCursor && (
+              <span style={{ display: 'inline-block', width: 7, height: 14, background: '#44ff88', marginLeft: 1, verticalAlign: 'text-bottom', animation: 'cin-blink 0.8s step-end infinite' }} />
+            )}
+          </div>
+        );
+      })}
+      {!done && <div style={{ color: '#445566', fontSize: 10, marginTop: 16, textAlign: 'center' }}>натиснiть щоб пропустити</div>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding slides (4 slides, shown over home planet)
+// ---------------------------------------------------------------------------
+type OnboardingSlide = 0 | 1 | 2 | 3;
+
+function OnboardingSlides({
+  visible,
+  system,
+  planet,
+  onComplete,
+}: {
+  visible: boolean;
+  system: { star: { name: string; spectralClass: string; subType: number; temperatureK: number } };
+  planet: { name: string };
+  onComplete: () => void;
+}) {
+  const [slide, setSlide] = useState<OnboardingSlide>(0);
+  const [typewriterDone, setTypewriterDone] = useState(false);
+  const [fadeOut, setFadeOut] = useState(false);
+
+  const { star } = system;
+
+  const terminalLines = [
+    `> СИСТЕМА: ${star.name}`,
+    `> ЗОРЯНИЙ КЛАС: ${star.spectralClass}${star.subType} | ${Math.round(star.temperatureK).toLocaleString()} K`,
+    `> ПЛАНЕТА: ${planet.name}`,
+    `> ВИЯВЛЕНО ЗАГРОЗУ: астероїд класу Omega`,
+    `> ТРАЄКТОРІЯ: зіткнення з домашньою планетою`,
+    `> ЧАС ДО УДАРУ: 1 доба`,
+    `> СТАТУС: активовано протокол евакуації`,
+  ];
+
+  const handleNext = () => {
+    if (slide < 3) {
+      setSlide((s) => (s + 1) as OnboardingSlide);
+      setTypewriterDone(false);
+    }
+  };
+
+  const handleFinish = () => {
+    setFadeOut(true);
+    setTimeout(onComplete, 600);
+  };
 
   if (!visible) return null;
 
@@ -336,138 +450,119 @@ function AlertModal({
       position: 'fixed',
       inset: 0,
       zIndex: 10005,
+      background: 'rgba(2,5,16,0.75)',
+      fontFamily: 'monospace',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'rgba(2,5,16,0.85)',
-      fontFamily: 'monospace',
-      animation: 'cin-flash 0.6s ease-out',
+      opacity: fadeOut ? 0 : 1,
+      transition: 'opacity 0.6s ease',
     }}>
+      {/* Slide indicator */}
+      <div style={{ position: 'absolute', top: 24, display: 'flex', gap: 8 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: i === slide ? '#44ff88' : '#334455',
+            transition: 'background 0.3s',
+          }} />
+        ))}
+      </div>
+
+      {/* Content area */}
       <div style={{
-        maxWidth: 640,
-        width: '90%',
-        background: 'rgba(15,10,10,0.95)',
-        border: '1px solid #cc4444',
-        borderRadius: 6,
-        padding: '32px 28px',
-        opacity: showContent ? 1 : 0,
-        transform: showContent ? 'translateY(0)' : 'translateY(10px)',
-        transition: 'opacity 0.5s ease, transform 0.5s ease',
+        maxWidth: 760, width: '90%', padding: '0 20px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24,
       }}>
-        {/* Warning header */}
-        <div style={{
-          color: '#cc4444',
-          fontSize: 11,
-          letterSpacing: 2,
-          textTransform: 'uppercase',
-          textAlign: 'center',
-          marginBottom: 20,
-          animation: 'cin-blink 1.2s step-end infinite',
-        }}>
-          КРИТИЧНЕ ПОПЕРЕДЖЕННЯ
-        </div>
+        {/* Slide 0: Catastrophe video */}
+        {slide === 0 && (
+          <>
+            <VideoPlaceholder label="CATASTROPHE_VIDEO" />
+            <p style={{ color: '#8899aa', fontSize: 13, textAlign: 'center', lineHeight: '1.6', maxWidth: 500, margin: 0 }}>
+              Ваша цивілізація існувала тисячі років серед зірок.
+              Але час добігає кінця.
+            </p>
+          </>
+        )}
 
-        {/* Video placeholder */}
-        <div style={{
-          width: '100%',
-          aspectRatio: '16/9',
-          background: 'rgba(20,15,15,0.8)',
-          border: '1px dashed #442222',
-          borderRadius: 4,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#442222',
-          fontFamily: 'monospace',
-          fontSize: 12,
-          marginBottom: 20,
-        }}>
-          // CATASTROPHE_TRANSMISSION
-        </div>
-
-        {/* Alert text */}
-        <div style={{
-          color: '#aabbcc',
-          fontSize: 13,
-          lineHeight: '1.8',
-          textAlign: 'center',
-          marginBottom: 8,
-        }}>
-          Виявлено астероїд класу Omega.
-        </div>
-        <div style={{
-          color: '#8899aa',
-          fontSize: 12,
-          lineHeight: '1.8',
-          textAlign: 'center',
-          marginBottom: 4,
-        }}>
-          Траєкторія: зіткнення з планетою {planetName}.
-        </div>
-        <div style={{
-          color: '#cc4444',
-          fontSize: 13,
-          lineHeight: '1.8',
-          textAlign: 'center',
-          marginBottom: 24,
-        }}>
-          Час до удару: 1 доба. Протокол евакуації активовано.
-        </div>
-
-        {/* Mission */}
-        <div style={{
-          background: 'rgba(10,15,25,0.8)',
-          border: '1px solid #334455',
-          borderRadius: 4,
-          padding: '16px 20px',
-          marginBottom: 24,
-        }}>
+        {/* Slide 1: Terminal typewriter */}
+        {slide === 1 && (
           <div style={{
-            color: '#556677',
-            fontSize: 10,
-            letterSpacing: 1.5,
-            textTransform: 'uppercase',
-            marginBottom: 10,
+            width: '100%', maxWidth: 560,
+            background: 'rgba(10,15,25,0.96)', border: '1px solid #334455',
+            borderRadius: 6, padding: '24px 28px',
           }}>
-            ДИРЕКТИВА ЕВАКУАЦІЇ
+            <div style={{ color: '#556677', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16 }}>
+              ЦЕНТР УПРАВЛІННЯ МІСІЯМИ
+            </div>
+            <TerminalTypewriter lines={terminalLines} onDone={() => setTypewriterDone(true)} />
           </div>
-          <div style={{ color: '#44ff88', fontSize: 12, lineHeight: '1.8' }}>
-            {'>'} Дослідити сусідні зоряні системи
-          </div>
-          <div style={{ color: '#44ff88', fontSize: 12, lineHeight: '1.8' }}>
-            {'>'} Знайти придатну для колонізації планету
-          </div>
-          <div style={{ color: '#44ff88', fontSize: 12, lineHeight: '1.8' }}>
-            {'>'} Запустити Корабель Порятунку
-          </div>
-        </div>
+        )}
 
-        {/* Accept button */}
-        <div style={{ textAlign: 'center' }}>
+        {/* Slide 2: Mission briefing + video */}
+        {slide === 2 && (
+          <>
+            <VideoPlaceholder label="BRIEFING_VIDEO" />
+            <div style={{ color: '#aabbcc', fontSize: 13, lineHeight: '1.8', maxWidth: 500, textAlign: 'left' }}>
+              <div style={{ color: '#556677', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>
+                ДИРЕКТИВА ЕВАКУАЦІЇ
+              </div>
+              <div>Ваша мета:</div>
+              <div style={{ paddingLeft: 16, marginTop: 4 }}>
+                <div style={{ color: '#44ff88' }}>{'>'} Дослідити сусідні зоряні системи</div>
+                <div style={{ color: '#44ff88' }}>{'>'} Знайти придатну для колонізації планету</div>
+                <div style={{ color: '#44ff88' }}>{'>'} Запустити Корабель Порятунку з 10 000 пасажирів</div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Slide 3: Final */}
+        {slide === 3 && (
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+            <div style={{ color: '#aabbcc', fontSize: 16, lineHeight: '1.6', maxWidth: 400 }}>
+              Доля вашого народу — у ваших руках.
+            </div>
+            <div style={{ color: '#667788', fontSize: 12, lineHeight: '1.6', maxWidth: 400 }}>
+              Ви маєте 1 добу. Кожна хвилина на рахунку.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation button */}
+      <div style={{ position: 'absolute', bottom: 48, display: 'flex', gap: 16, alignItems: 'center' }}>
+        {slide < 3 && (
           <button
-            onClick={onAccept}
+            onClick={handleNext}
             style={{
-              background: 'rgba(204,68,68,0.15)',
-              border: '1px solid #cc4444',
-              borderRadius: 3,
-              color: '#cc4444',
-              fontFamily: 'monospace',
-              fontSize: 13,
-              padding: '12px 40px',
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-              letterSpacing: 1,
+              background: 'rgba(30,60,80,0.6)', border: '1px solid #446688', borderRadius: 3,
+              color: '#aabbcc', fontFamily: 'monospace', fontSize: 12,
+              padding: '10px 32px', minHeight: 44, cursor: 'pointer',
+              transition: 'background 0.2s, border-color 0.2s',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(204,68,68,0.3)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(204,68,68,0.15)';
-            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(40,80,110,0.7)'; e.currentTarget.style.borderColor = '#558899'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(30,60,80,0.6)'; e.currentTarget.style.borderColor = '#446688'; }}
           >
-            ЗРОЗУМIЛО
+            Далі
           </button>
-        </div>
+        )}
+        {slide === 3 && (
+          <button
+            onClick={handleFinish}
+            style={{
+              background: 'rgba(34,170,68,0.2)', border: '1px solid #44ff88', borderRadius: 3,
+              color: '#44ff88', fontFamily: 'monospace', fontSize: 13,
+              padding: '12px 40px', minHeight: 44, cursor: 'pointer',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(34,170,68,0.35)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(34,170,68,0.2)'; }}
+          >
+            Почати мiсію
+          </button>
+        )}
       </div>
     </div>
   );
@@ -498,7 +593,7 @@ export function CinematicIntro({
   const [startClicked, setStartClicked] = useState(false);
   const [statusVisible, setStatusVisible] = useState(true);
   const [warpActive, setWarpActive] = useState(false);
-  const [alertVisible, setAlertVisible] = useState(false);
+  const [slidesVisible, setSlidesVisible] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const stageRef = useRef<Stage>(0);
   const mountedRef = useRef(true);
@@ -561,14 +656,14 @@ export function CinematicIntro({
               eng.removeFakePlayerMarkers();
             }
 
-            // Go to home planet scene, then show alert
+            // Go to home planet scene, then show onboarding slides
             onRequestHomeScene();
             setStage(2);
 
             timers.push(setTimeout(() => {
               if (!mountedRef.current) return;
               setStage(3);
-              setAlertVisible(true);
+              setSlidesVisible(true);
             }, 1500));
           }, 4900));
         }, 300));
@@ -578,16 +673,11 @@ export function CinematicIntro({
     return () => timers.forEach(clearTimeout);
   }, [startClicked]);
 
-  // ── Stage 3 → 4: Alert accepted ──
-  const handleAlertAccept = useCallback(() => {
-    setAlertVisible(false);
+  // ── Stage 3 → 4: Slides completed ──
+  const handleSlidesComplete = useCallback(() => {
+    setSlidesVisible(false);
     setStage(4);
-    setFadeOut(true);
-
-    setTimeout(() => {
-      if (!mountedRef.current) return;
-      onComplete();
-    }, 600);
+    onComplete();
   }, [onComplete]);
 
   return (
@@ -706,11 +796,12 @@ export function CinematicIntro({
       {/* Warp star-trail overlay */}
       <WarpOverlay active={warpActive} />
 
-      {/* Alert modal (Stage 3) */}
-      <AlertModal
-        visible={alertVisible}
-        planetName={planet.name}
-        onAccept={handleAlertAccept}
+      {/* Onboarding slides (Stage 3) — over home planet */}
+      <OnboardingSlides
+        visible={slidesVisible}
+        system={system}
+        planet={planet}
+        onComplete={handleSlidesComplete}
       />
     </>
   );
