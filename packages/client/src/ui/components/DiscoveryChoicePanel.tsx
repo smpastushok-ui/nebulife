@@ -238,6 +238,7 @@ export function DiscoveryChoicePanel({
 
           {/* Choice 2: Quantum Focus (3⚛ or free) */}
           <ChoiceButton
+            tutorialId="quantum-focus-btn"
             title="Квантове фокусування"
             subtitle={
               isFreeQuantum
@@ -329,6 +330,7 @@ function ChoiceButton({
   premium,
   onClick,
   icon,
+  tutorialId,
 }: {
   title: string;
   subtitle: React.ReactNode;
@@ -340,6 +342,7 @@ function ChoiceButton({
   premium?: boolean;
   onClick: () => void;
   icon: React.ReactNode;
+  tutorialId?: string;
 }) {
   const [hover, setHover] = useState(false);
   const isPremiumActive = premium && !disabled;
@@ -348,6 +351,7 @@ function ChoiceButton({
     <button
       onClick={onClick}
       disabled={disabled}
+      data-tutorial-id={tutorialId}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

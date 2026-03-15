@@ -21,6 +21,8 @@ export interface ToolItem {
   badge?: string;
   icon?: React.ReactNode;
   tooltip?: string;
+  /** Tutorial spotlight anchor ID */
+  tutorialId?: string;
 }
 
 export interface ToolGroup {

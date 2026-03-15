@@ -72,6 +72,7 @@ export function SceneTools({ groups, scene }: SceneToolsProps) {
             ) : (
               <button
                 key={tool.id}
+                data-tutorial-id={tool.tutorialId}
                 style={{
                   ...getButtonStyle(tool.variant, tool.active),
                   opacity: tool.disabled ? 0.4 : 1,

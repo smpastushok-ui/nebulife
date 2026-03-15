@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import type { StarSystem, CatalogEntry, Discovery } from '@nebulife/core';
 import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
@@ -162,10 +162,18 @@ const headerIconBtnStyle: React.CSSProperties = {
 };
 
 // ---------------------------------------------------------------------------
+// Imperative handle for programmatic navigation (used by tutorial)
+// ---------------------------------------------------------------------------
+
+export interface CosmicArchiveHandle {
+  navigateTo(mainTab: string, subTab: string): void;
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function CosmicArchive({
+export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>(function CosmicArchive({
   playerId,
   allSystems,
   aliases,
@@ -184,7 +192,7 @@ export function CosmicArchive({
   isSystemResearching,
   galleryMap,
   onOpenDiscovery,
-}: CosmicArchiveProps) {
+}: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
   const [subTabMap, setSubTabMap] = useState<Record<MainTab, SubTab>>({
@@ -195,6 +203,17 @@ export function CosmicArchive({
     log: 'all-events',
   });
   const [visible, setVisible] = useState(false);
+
+  // Expose programmatic navigation for tutorial
+  useImperativeHandle(ref, () => ({
+    navigateTo(main: string, sub: string) {
+      const validMain = TABS.find((t) => t.id === main);
+      if (validMain) {
+        setMainTab(main as MainTab);
+        setSubTabMap((prev) => ({ ...prev, [main]: sub }));
+      }
+    },
+  }), []);
 
   // Navigation history for back button
   const [navHistory, setNavHistory] = useState<{ main: MainTab; sub: SubTab }[]>([]);
@@ -335,6 +354,8 @@ export function CosmicArchive({
           allSystems={allSystems}
           aliases={aliases}
           onNavigate={handleNavigateSystem}
+          onStartResearch={onStartResearch}
+          canStartResearch={canStartResearch}
         />
       );
     }
@@ -357,6 +378,28 @@ export function CosmicArchive({
           galleryMap={galleryMap}
           onOpenDiscovery={onOpenDiscovery}
         />
+      );
+    }
+
+    // Custom messages for specific tabs
+    if (mainTab === 'collections' && (currentSubTab === 'life' || currentSubTab === 'surface')) {
+      return (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            minHeight: 300,
+            fontFamily: 'monospace',
+            fontSize: 12,
+            color: '#445566',
+            textAlign: 'center',
+            lineHeight: 1.7,
+          }}
+        >
+          У вас немає доступних ресурсів для місій на iншi планети
+        </div>
       );
     }
 
@@ -480,6 +523,7 @@ export function CosmicArchive({
             label={tab.label}
             active={mainTab === tab.id}
             onClick={() => changeMainTab(tab.id)}
+            tutorialId={`maintab-${tab.id}`}
           />
         ))}
       </div>
@@ -493,6 +537,7 @@ export function CosmicArchive({
             active={currentSubTab === sub.id}
             onClick={() => selectSubTab(sub.id)}
             small
+            tutorialId={`subtab-${sub.id}`}
           />
         ))}
       </div>
@@ -501,7 +546,7 @@ export function CosmicArchive({
       <div style={contentStyle}>{renderContent()}</div>
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Tab button sub-component
@@ -512,16 +557,19 @@ function TabButton({
   active,
   onClick,
   small,
+  tutorialId,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
   small?: boolean;
+  tutorialId?: string;
 }) {
   const [hover, setHover] = useState(false);
   return (
     <button
       onClick={onClick}
+      data-tutorial-id={tutorialId}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

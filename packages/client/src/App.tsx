@@ -77,7 +77,9 @@ import { OnboardingScreen } from './ui/components/OnboardingScreen.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
+import type { CosmicArchiveHandle } from './ui/components/CosmicArchive/CosmicArchive.js';
 import type { LogEntry, LogCategory } from './ui/components/CosmicArchive/SystemLog.js';
+import { TutorialOverlay, FreeTaskHUD, TUTORIAL_STEPS } from './ui/components/Tutorial/index.js';
 import type { User } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
@@ -104,6 +106,7 @@ interface SyncedGameState {
   exodus_phase: boolean;
   destroyed_planets: Array<{ planetId: string; systemId: string; orbitAU: number }>;
   onboarding_done: boolean;
+  tutorial_step: number;
   // Timer
   game_started_at: number | null;
   time_multiplier: number;
@@ -575,8 +578,21 @@ export function App() {
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
+  const cosmicArchiveRef = useRef<CosmicArchiveHandle>(null);
   const [highlightedGalleryType, setHighlightedGalleryType] = useState<string | null>(null);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  // ── Tutorial state ──────────────────────────────────────────────────────
+  const [tutorialStep, setTutorialStep] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_tutorial_step');
+      if (saved !== null) return parseInt(saved, 10);
+    } catch { /* ignore */ }
+    return -1; // -1 = inactive, set to 0 after onboarding
+  });
+  const [tutorialFreeCount, setTutorialFreeCount] = useState(0);
+  const [tutorialSubStep, setTutorialSubStep] = useState(0);
+  const isTutorialActive = tutorialStep >= 0 && tutorialStep <= 12;
   const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>(() => {
     try {
@@ -595,6 +611,13 @@ export function App() {
       localStorage.setItem('nebulife_log_entries', JSON.stringify(logEntries));
     } catch { /* ignore quota errors */ }
   }, [logEntries]);
+
+  // Persist tutorial step to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('nebulife_tutorial_step', String(tutorialStep));
+    } catch { /* ignore */ }
+  }, [tutorialStep]);
 
   // Ref that always holds the current scene (for use inside async callbacks)
   const currentSceneRef = useRef<string>('home-intro');
@@ -700,6 +723,10 @@ export function App() {
     if (gs.onboarding_done) {
       try { localStorage.setItem('nebulife_onboarding_done', '1'); } catch { /* ignore */ }
       setNeedsOnboarding(false);
+    }
+    if (typeof gs.tutorial_step === 'number') {
+      setTutorialStep(gs.tutorial_step);
+      try { localStorage.setItem('nebulife_tutorial_step', String(gs.tutorial_step)); } catch { /* ignore */ }
     }
 
     // Timer
@@ -1107,6 +1134,9 @@ export function App() {
     }
     // Immediate sync on critical event
     setTimeout(() => syncGameStateRef.current(), 500);
+
+    // Start tutorial after onboarding
+    setTutorialStep(0);
   }, [gameStartedAt]);
 
   const handleStartExploration = () => {
@@ -1140,7 +1170,29 @@ export function App() {
       engineRef.current?.updateSystemResearchVisual(systemId, next);
       return next;
     });
-  }, [researchData]);
+
+    // Tutorial: track research starts for steps 6 and 8
+    if (isTutorialActive) {
+      if (tutorialStep === 6) {
+        // First research completed — advance to step 7 (HUD info)
+        setTutorialStep(7);
+        setTutorialSubStep(0);
+      } else if (tutorialStep === 8) {
+        // Free task — increment counter
+        setTutorialFreeCount((prev) => {
+          const n = prev + 1;
+          if (n >= 2) {
+            // Completed free task — advance to step 9 (anomaly)
+            setTimeout(() => {
+              setTutorialStep(9);
+              setTutorialSubStep(0);
+            }, 500);
+          }
+          return n;
+        });
+      }
+    }
+  }, [researchData, isTutorialActive, tutorialStep]);
 
   const handleViewResearchedSystem = useCallback(() => {
     if (!completedModal) return;
@@ -1450,6 +1502,84 @@ export function App() {
     setTelemetryTarget(null);
   }, []);
 
+  // ── Tutorial advance handler ─────────────────────────────────────────
+  const handleTutorialAdvance = useCallback(() => {
+    if (!isTutorialActive) return;
+    const step = TUTORIAL_STEPS[tutorialStep];
+    if (!step) return;
+
+    // For info steps with sub-steps — advance sub-step first
+    if (step.subSteps && step.subSteps.length > 0) {
+      if (tutorialSubStep < step.subSteps.length - 1) {
+        setTutorialSubStep((prev) => prev + 1);
+        return;
+      }
+    }
+
+    // Execute onComplete actions
+    if (step.onComplete) {
+      for (const action of step.onComplete) {
+        if (action === 'open-archive') {
+          setShowCosmicArchive(true);
+        } else if (action === 'trigger-discovery') {
+          // Fire a tutorial discovery using existing flow
+          const allSystems = engineRef.current?.getAllSystems() ?? [];
+          const nonHomeSys = allSystems.find((s) => !s.planets.some((p) => p.isHomePlanet));
+          if (nonHomeSys) {
+            const fakeDiscovery: Discovery = {
+              id: `tutorial-discovery-${Date.now()}`,
+              type: 'neutron-star',
+              category: 'stars',
+              galleryCategory: 'cosmos',
+              rarity: 'uncommon' as const,
+              systemId: nonHomeSys.id,
+              timestamp: Date.now(),
+            };
+            setPendingDiscovery({ discovery: fakeDiscovery, system: nonHomeSys });
+          }
+        }
+      }
+    }
+
+    // Move to next step
+    const nextStep = tutorialStep + 1;
+    setTutorialSubStep(0);
+
+    if (nextStep > 12) {
+      // Tutorial complete
+      setTutorialStep(13);
+      return;
+    }
+
+    setTutorialStep(nextStep);
+
+    // Execute onActivate for the next step
+    const next = TUTORIAL_STEPS[nextStep];
+    if (next?.onActivate) {
+      for (const action of next.onActivate) {
+        if (action === 'open-archive') {
+          setShowCosmicArchive(true);
+        } else if (action.startsWith('navigate-')) {
+          // Format: navigate-{mainTab}-{subTab}
+          const parts = action.replace('navigate-', '').split('-');
+          if (parts.length >= 2) {
+            const mainTab = parts[0];
+            const subTab = parts.slice(1).join('-');
+            setTimeout(() => {
+              cosmicArchiveRef.current?.navigateTo(mainTab, subTab);
+            }, 100);
+          }
+        } else if (action === 'close-archive') {
+          setShowCosmicArchive(false);
+        }
+      }
+    }
+  }, [isTutorialActive, tutorialStep, tutorialSubStep]);
+
+  const handleTutorialSkip = useCallback(() => {
+    setTutorialStep(13);
+  }, []);
+
   const handleSaveToGallery = useCallback((discoveryId: string, imageUrl: string) => {
     // Find the active discovery (from observatory or telemetry)
     const activeDiscovery = observatoryTarget?.discovery ?? telemetryTarget?.discovery;
@@ -1757,6 +1887,7 @@ export function App() {
       exodus_phase: isExodusPhase,
       destroyed_planets: destroyedPlanets,
       onboarding_done: localStorage.getItem('nebulife_onboarding_done') === '1',
+      tutorial_step: tutorialStep,
       game_started_at: gameStartedAt,
       time_multiplier: timeMultiplier,
       accel_at: accelAt,
@@ -2492,6 +2623,7 @@ export function App() {
       label: 'ТЕРМІНАЛ',
       variant: 'terminal' as const,
       tooltip: 'Центр управлiння',
+      tutorialId: 'terminal-btn',
       onClick: () => setShowCosmicArchive(true),
     }],
   });
@@ -3205,6 +3337,7 @@ export function App() {
       {/* Cosmic Archive */}
       {showCosmicArchive && playerId.current && (
         <CosmicArchive
+          ref={cosmicArchiveRef}
           playerId={playerId.current}
           allSystems={engineRef.current?.getAllSystems() ?? []}
           aliases={aliases}
@@ -3281,6 +3414,19 @@ export function App() {
           initialPlanetIndex={planetDetailTarget.planetIndex}
           onClose={() => setPlanetDetailTarget(null)}
         />
+      )}
+
+      {/* Tutorial overlay */}
+      {isTutorialActive && tutorialStep !== 8 && TUTORIAL_STEPS[tutorialStep] && (
+        <TutorialOverlay
+          step={TUTORIAL_STEPS[tutorialStep]}
+          subStepIndex={tutorialSubStep}
+          onAdvance={handleTutorialAdvance}
+          onSkip={handleTutorialSkip}
+        />
+      )}
+      {isTutorialActive && tutorialStep === 8 && (
+        <FreeTaskHUD current={tutorialFreeCount} total={2} />
       )}
 
       {/* Chat unread notification dot — visible above chat widget */}

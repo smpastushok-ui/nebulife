@@ -19,12 +19,16 @@ interface SystemsListProps {
   allSystems: StarSystem[];
   aliases: Record<string, string>;
   onNavigate: (system: StarSystem) => void;
+  onStartResearch?: (systemId: string) => void;
+  canStartResearch?: (systemId: string) => boolean;
 }
 
 export function SystemsList({
   allSystems,
   aliases,
   onNavigate,
+  onStartResearch,
+  canStartResearch,
 }: SystemsListProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -41,6 +45,12 @@ export function SystemsList({
     });
   }, [allSystems, aliases]);
 
+  // Track first non-home system for tutorial target
+  const firstNonHomeId = useMemo(() => {
+    const sys = sorted.find((s) => !s.planets.some((p) => p.isHomePlanet));
+    return sys?.id ?? null;
+  }, [sorted]);
+
   if (sorted.length === 0) {
     return (
       <div style={{ fontSize: 12, color: '#556677', textAlign: 'center', padding: 40 }}>
@@ -49,13 +59,17 @@ export function SystemsList({
     );
   }
 
+  const hasResearchCol = !!onStartResearch;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {/* Header row */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 60px 80px 60px 50px',
+          gridTemplateColumns: hasResearchCol
+            ? '1fr 60px 80px 60px 50px 80px'
+            : '1fr 60px 80px 60px 50px',
           gap: 8,
           padding: '6px 12px',
           fontSize: 10,
@@ -71,6 +85,7 @@ export function SystemsList({
         <span>Координати</span>
         <span>Планети</span>
         <span>Кільце</span>
+        {hasResearchCol && <span style={{ textAlign: 'center' }}>Дії</span>}
       </div>
 
       {/* System rows */}
@@ -80,16 +95,19 @@ export function SystemsList({
         const name = aliases[system.id] || system.name;
         const starColor =
           SPECTRAL_COLORS[system.star.spectralClass?.[0] ?? 'G'] ?? '#fff4e8';
+        const canResearch = canStartResearch?.(system.id) ?? false;
+        const isFirstNonHome = system.id === firstNonHomeId;
 
         return (
-          <button
+          <div
             key={system.id}
-            onClick={() => onNavigate(system)}
             onMouseEnter={() => setHoveredId(system.id)}
             onMouseLeave={() => setHoveredId(null)}
             style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 60px 80px 60px 50px',
+              gridTemplateColumns: hasResearchCol
+                ? '1fr 60px 80px 60px 50px 80px'
+                : '1fr 60px 80px 60px 50px',
               gap: 8,
               padding: '8px 12px',
               background: isHovered
@@ -97,7 +115,6 @@ export function SystemsList({
                 : 'rgba(10, 15, 25, 0.3)',
               border: '1px solid rgba(51, 68, 85, 0.15)',
               borderRadius: 3,
-              cursor: 'pointer',
               fontFamily: 'monospace',
               fontSize: 11,
               color: '#aabbcc',
@@ -106,8 +123,11 @@ export function SystemsList({
               transition: 'background 0.15s',
             }}
           >
-            {/* Name */}
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Name (clickable to navigate) */}
+            <span
+              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+              onClick={() => onNavigate(system)}
+            >
               <span
                 style={{
                   width: 6,
@@ -148,7 +168,47 @@ export function SystemsList({
             <span style={{ color: '#556677', fontSize: 10, textAlign: 'center' }}>
               {system.ringIndex ?? '-'}
             </span>
-          </button>
+
+            {/* Research action button */}
+            {hasResearchCol && (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                {!isHome && canResearch ? (
+                  <button
+                    data-tutorial-id={isFirstNonHome ? 'research-btn-first' : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStartResearch?.(system.id);
+                    }}
+                    style={{
+                      background: 'rgba(68, 136, 170, 0.15)',
+                      border: '1px solid rgba(68, 136, 170, 0.35)',
+                      borderRadius: 3,
+                      color: '#4488aa',
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      padding: '3px 10px',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s, border-color 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(68, 136, 170, 0.3)';
+                      e.currentTarget.style.borderColor = 'rgba(68, 136, 170, 0.6)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(68, 136, 170, 0.15)';
+                      e.currentTarget.style.borderColor = 'rgba(68, 136, 170, 0.35)';
+                    }}
+                  >
+                    Дослідити
+                  </button>
+                ) : (
+                  <span style={{ color: '#334455', fontSize: 10 }}>
+                    {isHome ? '' : '\u2014'}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

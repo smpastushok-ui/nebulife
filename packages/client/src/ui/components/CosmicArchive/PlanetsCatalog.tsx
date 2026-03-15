@@ -446,6 +446,7 @@ export function PlanetsCatalog({
           >
             {/* Star row */}
             <div
+              data-tutorial-id={isHome ? 'star-row-home' : undefined}
               draggable
               onDragStart={() => handleDragStart(system.id)}
               onDragOver={(e) => handleDragOver(e, system.id)}
@@ -635,13 +636,36 @@ export function PlanetsCatalog({
                 }}
               >
                 {system.planets.map((planet) => (
-                  <PlanetChip
-                    key={planet.id}
-                    planet={planet}
-                    star={system.star}
-                    isFavorite={favorites.has(planet.id)}
-                    onClick={(e) => handlePlanetClick(system, planet.id, e)}
-                  />
+                  <div key={planet.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <PlanetChip
+                      planet={planet}
+                      star={system.star}
+                      isFavorite={favorites.has(planet.id)}
+                      onClick={(e) => handlePlanetClick(system, planet.id, e)}
+                    />
+                    {planet.isHomePlanet && (
+                      <button
+                        data-tutorial-id="fav-toggle-home"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleFavorite(planet.id);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: `1px solid ${favorites.has(planet.id) ? '#44ff8866' : 'rgba(51, 68, 85, 0.3)'}`,
+                          borderRadius: 3,
+                          color: favorites.has(planet.id) ? '#44ff88' : '#556677',
+                          fontFamily: 'monospace',
+                          fontSize: 9,
+                          padding: '2px 6px',
+                          cursor: 'pointer',
+                          transition: 'color 0.15s, border-color 0.15s',
+                        }}
+                      >
+                        {favorites.has(planet.id) ? 'В обраних' : 'В обранi'}
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             )}

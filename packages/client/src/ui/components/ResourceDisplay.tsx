@@ -142,14 +142,14 @@ export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, 
     >
       {isExodusPhase && (
         <>
-          <div style={itemStyle}>
+          <div style={itemStyle} data-tutorial-id="resource-data">
             <ResearchDataIcon />
             <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{researchData}</span>
           </div>
           <div style={dividerStyle} />
           {totalObservatories > 0 && (
             <>
-              <div style={itemStyle} title="Обсерваторії">
+              <div style={itemStyle} title="Обсерваторії" data-tutorial-id="resource-observatories">
                 <ObservatoryIcon />
                 <span><span style={{ color: activeObservatories > 0 ? '#4488aa' : '#667788' }}>{activeObservatories}</span><span style={{ color: '#556677' }}>/{totalObservatories}</span></span>
               </div>
