@@ -44,6 +44,7 @@ export function CommandBar({
   playerLevel,
   playerXP,
   onNavigate,
+  onOpenPlayerPage,
 }: CommandBarProps) {
   const injected = useRef(false);
 
@@ -88,6 +89,7 @@ export function CommandBar({
         playerName={playerName}
         playerLevel={playerLevel}
         playerXP={playerXP}
+        onClick={onOpenPlayerPage}
       />
     </div>
   );

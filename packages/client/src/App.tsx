@@ -74,7 +74,7 @@ import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
-import { onAuthChange } from './auth/auth-service.js';
+import { onAuthChange, signOut } from './auth/auth-service.js';
 import { authFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
 import { AuthScreen } from './ui/components/AuthScreen.js';
@@ -84,6 +84,7 @@ import { OnboardingScreen } from './ui/components/OnboardingScreen.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
+import { PlayerPage } from './ui/components/PlayerPage.js';
 import type { CosmicArchiveHandle } from './ui/components/CosmicArchive/CosmicArchive.js';
 import type { LogEntry, LogCategory } from './ui/components/CosmicArchive/SystemLog.js';
 import { TutorialOverlay, FreeTaskHUD, TUTORIAL_STEPS } from './ui/components/Tutorial/index.js';
@@ -606,6 +607,7 @@ export function App() {
   /** Quarks (in-game currency) */
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showPlayerPage, setShowPlayerPage] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   const cosmicArchiveRef = useRef<CosmicArchiveHandle>(null);
   const [highlightedGalleryType, setHighlightedGalleryType] = useState<string | null>(null);
@@ -700,6 +702,38 @@ export function App() {
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data?.quarks !== undefined) setQuarks(data.quarks); })
       .catch(() => {});
+  }, []);
+
+  /** Logout: sign out from Firebase and reload */
+  const handleLogout = useCallback(async () => {
+    await signOut();
+    window.location.reload();
+  }, []);
+
+  /** Start over: clear all localStorage, reset server state, reload */
+  const handleStartOver = useCallback(async () => {
+    // 1. Clear all localStorage keys
+    const keysToRemove = [
+      'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
+      'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
+      'nebulife_colony_resources', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
+      'nebulife_log_entries', 'nebulife_onboarding_done', 'nebulife_scene',
+      'nebulife_nav_system', 'nebulife_nav_planet', 'nebulife_destroyed_planets',
+      'nebulife_favorites', 'nebulife_game_started_at', 'nebulife_time_multiplier',
+      'nebulife_accel_at', 'nebulife_game_time_at_accel', 'nebulife_clock_revealed',
+    ];
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+    // 2. Reset game_state on server (set game_phase back to 'onboarding')
+    if (playerId.current) {
+      await updatePlayer(playerId.current, {
+        game_phase: 'onboarding',
+        game_state: {} as Record<string, unknown>,
+      }).catch(() => {});
+    }
+
+    // 3. Reload
+    window.location.reload();
   }, []);
 
   /** Hydrate full game state from server on login (cross-platform sync). */
@@ -2967,6 +3001,7 @@ export function App() {
         playerLevel={playerLevel}
         playerXP={playerXP}
         onNavigate={handleBreadcrumbNavigate}
+        onOpenPlayerPage={() => setShowPlayerPage(true)}
       />
 
       {/* Level-up notification toast */}
@@ -3402,6 +3437,23 @@ export function App() {
           onBuildPanelChange={setSurfaceBuildPanelOpen}
         />
       )}
+      {/* Player Page (profile, quarks, logout, reset) */}
+      {showPlayerPage && (
+        <PlayerPage
+          playerName={state.playerName}
+          playerLevel={playerLevel}
+          playerXP={playerXP}
+          quarks={quarks}
+          isGuest={isGuest}
+          isNative={Capacitor.isNativePlatform()}
+          onClose={() => setShowPlayerPage(false)}
+          onLogout={handleLogout}
+          onStartOver={handleStartOver}
+          onOpenTopUp={() => { setShowPlayerPage(false); setShowTopUpModal(true); }}
+          onLinkAccount={() => { setShowPlayerPage(false); setShowLinkModal(true); }}
+        />
+      )}
+
       {/* Quark Top-Up Modal */}
       {showTopUpModal && (
         <QuarkTopUpModal
@@ -3466,6 +3518,8 @@ export function App() {
           playerLevel={playerLevel}
           techTreeState={techTreeState}
           onResearchTech={handleResearchTech}
+          researchData={researchData}
+          researchDataCost={RESEARCH_DATA_COST}
         />
       )}
 

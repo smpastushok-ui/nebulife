@@ -104,6 +104,10 @@ export interface CosmicArchiveProps {
   techTreeState?: TechTreeState;
   /** Callback to research a technology */
   onResearchTech?: (techId: string) => void;
+  /** Current research data balance */
+  researchData?: number;
+  /** Cost to start research */
+  researchDataCost?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,6 +208,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   playerLevel,
   techTreeState,
   onResearchTech,
+  researchData,
+  researchDataCost,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
@@ -368,6 +374,10 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           onNavigate={handleNavigateSystem}
           onStartResearch={onStartResearch}
           canStartResearch={canStartResearch}
+          isResearching={isSystemResearching}
+          isFullyResearched={getResearchProgress ? (sysId: string) => (getResearchProgress(sysId) >= 100) : undefined}
+          researchData={researchData}
+          researchDataCost={researchDataCost}
         />
       );
     }
