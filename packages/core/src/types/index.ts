@@ -11,3 +11,5 @@ export type {
   PlacedBuilding, SurfaceState,
 } from './surface.js';
 export { BUILDING_DEFS, canPlaceBuilding } from './surface.js';
+export type { CoreSystem, GalaxyGroupCore, GalaxyGroup } from './galaxy-group.js';
+export type { GalacticPosition, GalaxyGroupMeta, PlayerGalaxyAssignment } from './galaxy-map.js';

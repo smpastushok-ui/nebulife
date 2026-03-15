@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { GameEngine } from './game/GameEngine.js';
+import { UniverseEngine } from './game/UniverseEngine.js';
+import { WarpTransition } from './ui/components/WarpTransition.js';
 import { CommandBar } from './ui/components/CommandBar/index.js';
-import type { BreadcrumbItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
+import type { NavigationMenuItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
 import { PlanetInfoPanel } from './ui/components/PlanetInfoPanel.js';
 import { PlanetContextMenu } from './ui/components/PlanetContextMenu.js';
 import { SystemContextMenu } from './ui/components/SystemContextMenu.js';
@@ -97,7 +99,7 @@ import {
   getPlayerSystemPhotos as fetchPlayerSystemPhotos,
 } from './api/system-photo-api.js';
 
-export type SceneType = 'galaxy' | 'system' | 'home-intro' | 'planet-view';
+export type SceneType = 'universe' | 'cluster' | 'galaxy' | 'system' | 'home-intro' | 'planet-view';
 
 /** Full game state synced to server via game_state JSONB */
 interface SyncedGameState {
@@ -145,6 +147,11 @@ export interface GameState {
 export function App() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
+  const universeCanvasRef = useRef<HTMLDivElement>(null);
+  const universeEngineRef = useRef<UniverseEngine | null>(null);
+  const [universeVisible, setUniverseVisible] = useState(false);
+  const [warpActive, setWarpActive] = useState(false);
+  const warpTargetRef = useRef<'universe' | 'galaxy' | 'home-intro'>('universe');
   const telescopePhotoRef = useRef<(sys: StarSystem) => void>(() => {});
 
   const [state, setState] = useState<GameState>(() => {
@@ -712,6 +719,10 @@ export function App() {
 
   /** Start over: full server reset, clear localStorage, generate new systems, reload */
   const handleStartOver = useCallback(async () => {
+    // 0. Disable game-state sync — prevent beforeunload from re-saving old state to server
+    syncGameStateRef.current = () => {};
+    if (syncTimeoutRef.current) { clearTimeout(syncTimeoutRef.current); syncTimeoutRef.current = null; }
+
     let newGenerationIndex = 0;
 
     // 1. Full server reset: deletes all player data, increments generation_index, keeps quarks
@@ -754,6 +765,19 @@ export function App() {
   const hydrateGameStateFromServer = useCallback((player: any) => {
     const gs = player?.game_state as Partial<SyncedGameState> | undefined;
     if (!gs || typeof gs !== 'object') return;
+
+    // Safety net: if player just reset (game_phase === 'onboarding'), force defaults
+    // This handles the race condition where beforeunload sync may have re-saved old state
+    if (player?.game_phase === 'onboarding') {
+      setResearchState(createResearchState(HOME_OBSERVATORY_COUNT));
+      setResearchData(INITIAL_RESEARCH_DATA);
+      setIsExodusPhase(true);
+      try { localStorage.setItem('nebulife_research_state', JSON.stringify(createResearchState(HOME_OBSERVATORY_COUNT))); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_research_data', String(INITIAL_RESEARCH_DATA)); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_exodus_phase', 'true'); } catch { /* ignore */ }
+      gameStateRef.current = {};
+      return;
+    }
 
     gameStateRef.current = { ...gs };
 
@@ -1247,6 +1271,68 @@ export function App() {
     setState((prev) => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
     setShowExploreBtn(true);
   };
+
+  // ── Universe (Three.js) transitions ──
+
+  const initUniverseEngine = useCallback(async () => {
+    if (universeEngineRef.current || !universeCanvasRef.current) return;
+    const engine = new UniverseEngine(
+      universeCanvasRef.current,
+      {
+        onEnterPlayerGalaxy: (_playerSeed: number, _groupIndex: number) => {
+          // Player clicked their home star in cluster view → warp to PixiJS galaxy
+          warpTargetRef.current = 'galaxy';
+          setWarpActive(true);
+        },
+        onLodChange: (lod) => {
+          if (lod === 'cluster') {
+            setState(prev => ({ ...prev, scene: 'cluster' }));
+          } else if (lod === 'galaxy') {
+            setState(prev => ({ ...prev, scene: 'universe' }));
+          }
+        },
+      },
+      950, // globalPlayerIndex — TODO: use real player index
+      60,  // groupCount
+    );
+    await engine.init();
+    universeEngineRef.current = engine;
+  }, []);
+
+  const switchToUniverse = useCallback(() => {
+    warpTargetRef.current = 'universe';
+    setWarpActive(true);
+  }, []);
+
+  const handleWarpMidpoint = useCallback(() => {
+    const target = warpTargetRef.current;
+    if (target === 'universe') {
+      // Transitioning TO universe (from PixiJS)
+      initUniverseEngine().then(() => {
+        setUniverseVisible(true);
+        universeEngineRef.current?.setVisible(true);
+        engineRef.current?.pause();
+        setState(prev => ({ ...prev, scene: 'universe' }));
+      });
+    } else {
+      // Transitioning FROM universe (to PixiJS)
+      setUniverseVisible(false);
+      universeEngineRef.current?.setVisible(false);
+      engineRef.current?.resume();
+      if (target === 'home-intro') {
+        engineRef.current?.showHomePlanetScene(true);
+        setState(prev => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
+        setShowExploreBtn(true);
+      } else {
+        engineRef.current?.showGalaxyScene();
+        setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+      }
+    }
+  }, [initUniverseEngine]);
+
+  const handleWarpComplete = useCallback(() => {
+    setWarpActive(false);
+  }, []);
 
   const handleEnterSystem = useCallback((system: StarSystem) => {
     engineRef.current?.showSystemScene(system);
@@ -2349,10 +2435,40 @@ export function App() {
 
     switch (targetScene) {
       case 'home-intro':
-        handleGoToHomePlanet();
+        if (universeVisible) {
+          // From universe → warp back to home
+          warpTargetRef.current = 'home-intro';
+          setWarpActive(true);
+        } else {
+          handleGoToHomePlanet();
+        }
+        break;
+      case 'universe':
+        // Navigate to universe galaxy view
+        if (universeVisible) {
+          universeEngineRef.current?.collapseToGalaxy();
+          setState(prev => ({ ...prev, scene: 'universe' }));
+        } else {
+          switchToUniverse();
+        }
+        break;
+      case 'cluster':
+        // Navigate to cluster view (fly to player's cluster)
+        if (universeVisible) {
+          universeEngineRef.current?.flyToMyCluster();
+        } else {
+          switchToUniverse();
+          // After warp midpoint, fly to cluster
+        }
         break;
       case 'galaxy':
-        handleBackToGalaxy();
+        if (universeVisible) {
+          // From universe → warp to PixiJS galaxy
+          warpTargetRef.current = 'galaxy';
+          setWarpActive(true);
+        } else {
+          handleBackToGalaxy();
+        }
         break;
       case 'system':
         if (state.selectedSystem) {
@@ -2378,7 +2494,7 @@ export function App() {
         break;
       // 'surface' — already on surface, no action
     }
-  }, [surfaceTarget, state.selectedSystem, state.scene, handleViewPlanet]);
+  }, [surfaceTarget, state.selectedSystem, state.scene, handleViewPlanet, universeVisible, switchToUniverse]);
 
   // Helper: get best model for currently selected planet (prefer ready > generating > failed)
   const selectedPlanetModel = state.selectedPlanet && state.selectedSystem
@@ -2550,54 +2666,113 @@ export function App() {
   // ── CommandBar data ──────────────────────────────────────────────────
   const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
 
-  // SVG breadcrumb icons
+  // SVG navigation icons
   const homeIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M3 8.5V14h4v-4h2v4h4V8.5" /><path d="M1 9l7-7 7 7" /></svg>;
   const galaxyIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="2" /><ellipse cx="8" cy="8" rx="7" ry="3" /><ellipse cx="8" cy="8" rx="3" ry="7" /></svg>;
+  const universeIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M8 1C5 1 2.5 4 2.5 8s2.5 7 5.5 7 5.5-3 5.5-7S11 1 8 1z" /><path d="M3.5 5.5C5 4 6.5 3.5 8 4s3 2 4.5 3.5" /><circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" /></svg>;
+  const clusterIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" /><circle cx="4" cy="5" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" /><circle cx="5" cy="11" r="1" fill="currentColor" stroke="none" /><circle cx="11" cy="11" r="1" fill="currentColor" stroke="none" /></svg>;
   const starIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="3" /><line x1="8" y1="1" x2="8" y2="4" /><line x1="8" y1="12" x2="8" y2="15" /><line x1="1" y1="8" x2="4" y2="8" /><line x1="12" y1="8" x2="15" y2="8" /></svg>;
   const planetIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="5" /><ellipse cx="8" cy="8" rx="7" ry="2" transform="rotate(-20 8 8)" /></svg>;
   const surfaceIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 12l3-4 3 2 4-5 4 4" /><line x1="1" y1="14" x2="15" y2="14" /></svg>;
 
-  const breadcrumbs: BreadcrumbItem[] = [
-    { id: 'home', label: '', scene: 'home-intro', isActive: effectiveScene === 'home-intro', icon: homeIcon },
-  ];
-
-  if (effectiveScene !== 'home-intro') {
-    breadcrumbs.push({
-      id: 'galaxy', label: '', scene: 'galaxy',
-      isActive: effectiveScene === 'galaxy',
+  // Build unified navigation menu items
+  const navigationItems: NavigationMenuItem[] = [
+    {
+      id: 'universe', label: 'Всесвiт', scene: 'universe',
+      icon: universeIcon,
+      active: effectiveScene === 'universe',
+      disabled: false,
+    },
+    {
+      id: 'cluster', label: 'Зоряне скупчення', scene: 'cluster',
+      icon: clusterIcon,
+      active: effectiveScene === 'cluster',
+      disabled: false,
+    },
+    {
+      id: 'galaxy', label: 'Зоряні сектори', scene: 'galaxy',
       icon: galaxyIcon,
-    });
-  }
-
-  if (['system', 'planet-view', 'surface'].includes(effectiveScene) && state.selectedSystem) {
-    const sysName = aliases[state.selectedSystem.id] || state.selectedSystem.star.name;
-    breadcrumbs.push({
-      id: 'system', label: sysName, scene: 'system',
-      isActive: effectiveScene === 'system',
+      active: effectiveScene === 'galaxy',
+      disabled: false,
+      separator: true,
+    },
+    {
+      id: 'system',
+      label: state.selectedSystem
+        ? (aliases[state.selectedSystem.id] || state.selectedSystem.star.name)
+        : 'Зоряна система',
+      scene: 'system',
       icon: starIcon,
-    });
-  }
-
-  if (['planet-view', 'surface'].includes(effectiveScene) && state.selectedPlanet) {
-    const isHomePlanet = state.selectedPlanet.isHomePlanet;
-    breadcrumbs.push({
-      id: 'planet', label: state.selectedPlanet.name, scene: 'planet-view',
-      isActive: effectiveScene === 'planet-view',
-      icon: isHomePlanet ? homeIcon : planetIcon,
-    });
-  }
-
-  if (effectiveScene === 'surface') {
-    breadcrumbs.push({
-      id: 'surface', label: '', scene: 'surface', isActive: true,
-      icon: surfaceIcon,
-    });
-  }
+      active: effectiveScene === 'system',
+      disabled: !state.selectedSystem,
+    },
+    {
+      id: 'planet-view',
+      label: state.selectedPlanet?.name ?? 'Екзосфера',
+      scene: 'planet-view',
+      icon: planetIcon,
+      active: effectiveScene === 'planet-view' || effectiveScene === 'surface',
+      disabled: !state.selectedPlanet,
+    },
+    {
+      id: 'home-intro', label: 'Поверхня', scene: 'home-intro',
+      icon: homeIcon,
+      active: effectiveScene === 'home-intro',
+      disabled: false,
+      separator: true,
+    },
+  ];
 
   // Build tool groups based on current scene
   const toolGroups: ToolGroup[] = [];
 
   switch (effectiveScene) {
+    case 'universe': {
+      toolGroups.push({
+        type: 'buttons',
+        items: [
+          {
+            id: 'fly-to-me',
+            label: 'Де я?',
+            tooltip: 'Полетiти до мого скупчення',
+            icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
+              React.createElement('circle', { cx: '8', cy: '8', r: '3' }),
+              React.createElement('path', { d: 'M8 1v3M8 12v3M1 8h3M12 8h3' }),
+            ),
+            onClick: () => universeEngineRef.current?.flyToMyCluster(),
+          },
+          {
+            id: 'fly-center',
+            label: 'Центр',
+            tooltip: 'Полетiти до центру галактики',
+            icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
+              React.createElement('circle', { cx: '8', cy: '8', r: '6' }),
+              React.createElement('circle', { cx: '8', cy: '8', r: '1.5', fill: 'currentColor', stroke: 'none' }),
+            ),
+            onClick: () => universeEngineRef.current?.flyToCenter(),
+          },
+        ],
+      });
+      break;
+    }
+    case 'cluster': {
+      toolGroups.push({
+        type: 'buttons',
+        items: [
+          {
+            id: 'fly-to-me',
+            label: 'Моя зiрка',
+            tooltip: 'Полетiти до моєї зiрки',
+            icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
+              React.createElement('circle', { cx: '8', cy: '8', r: '3' }),
+              React.createElement('path', { d: 'M8 1v3M8 12v3M1 8h3M12 8h3' }),
+            ),
+            onClick: () => universeEngineRef.current?.flyToMyCluster(),
+          },
+        ],
+      });
+      break;
+    }
     case 'home-intro': {
       // 3D button in center — only if no model exists and not generating
       if (homeInfo && !backgroundModelInfo && home3DPhase === 'idle') {
@@ -2757,36 +2932,7 @@ export function App() {
     }],
   });
 
-  // Left-side action buttons (home-intro: surface + explore icons)
-  const leftActions: ToolItem[] = [];
-  if (effectiveScene === 'home-intro') {
-    if (homeInfo) {
-      leftActions.push({
-        id: 'surface',
-        label: 'Поверхня',
-        tooltip: 'На поверхню',
-        icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3', strokeLinecap: 'round', strokeLinejoin: 'round' },
-          React.createElement('path', { d: 'M1 12l3-4 3 2 4-5 4 4' }),
-          React.createElement('line', { x1: '1', y1: '14', x2: '15', y2: '14' }),
-        ),
-        onClick: handleGoToHomeSurface,
-      });
-    }
-    if (showExploreBtn) {
-      leftActions.push({
-        id: 'explore',
-        label: 'Дослідити галактику',
-        tooltip: 'Дослідити галактику',
-        icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.3' },
-          React.createElement('circle', { cx: '8', cy: '8', r: '6' }),
-          React.createElement('ellipse', { cx: '8', cy: '8', rx: '6', ry: '2.5' }),
-          React.createElement('ellipse', { cx: '8', cy: '8', rx: '2.5', ry: '6' }),
-          React.createElement('circle', { cx: '8', cy: '8', r: '1', fill: 'currentColor', stroke: 'none' }),
-        ),
-        onClick: handleStartExploration,
-      });
-    }
-  }
+
 
   if (state.error) {
     return (
@@ -2799,7 +2945,8 @@ export function App() {
 
   return (
     <>
-      <div ref={canvasRef} id="game-canvas" />
+      <div ref={universeCanvasRef} id="universe-canvas" style={{ position: 'fixed', inset: 0, zIndex: 1, display: universeVisible ? 'block' : 'none' }} />
+      <div ref={canvasRef} id="game-canvas" style={{ display: universeVisible ? 'none' : undefined }} />
 
       {/* Resource HUD — top right */}
       <ResourceDisplay
@@ -3009,12 +3156,18 @@ export function App() {
         </div>
       )}
 
+      {/* Warp transition overlay (Three.js ↔ PixiJS) */}
+      <WarpTransition
+        active={warpActive}
+        onMidpoint={handleWarpMidpoint}
+        onComplete={handleWarpComplete}
+      />
+
       {/* CommandBar — always visible at bottom */}
       <CommandBar
         scene={effectiveScene}
-        breadcrumbs={breadcrumbs}
+        navigationItems={navigationItems}
         toolGroups={toolGroups}
-        leftActions={leftActions.length > 0 ? leftActions : undefined}
         playerName={state.playerName}
         playerLevel={playerLevel}
         playerXP={playerXP}

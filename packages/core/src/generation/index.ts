@@ -21,3 +21,11 @@ export {
   isInCoreZone,
   isInExpansionZone,
 } from './galaxy-topology.js';
+export { generateGalaxyGroupCore } from './galaxy-group-generator.js';
+export {
+  deriveGroupSeed,
+  derivePlayerSeed,
+  computeGroupPosition,
+  assignPlayerToGroup,
+  buildGalaxyMap,
+} from './galaxy-map.js';

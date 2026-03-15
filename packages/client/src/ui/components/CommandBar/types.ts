@@ -3,12 +3,14 @@ import type React from 'react';
 
 export type ExtendedScene = SceneType | 'surface';
 
-export interface BreadcrumbItem {
+export interface NavigationMenuItem {
   id: string;
   label: string;
   scene: ExtendedScene;
-  isActive: boolean;
   icon?: React.ReactNode;
+  active: boolean;
+  disabled: boolean;
+  separator?: boolean;
 }
 
 export interface ToolItem {
@@ -32,9 +34,8 @@ export interface ToolGroup {
 
 export interface CommandBarProps {
   scene: ExtendedScene;
-  breadcrumbs: BreadcrumbItem[];
+  navigationItems: NavigationMenuItem[];
   toolGroups: ToolGroup[];
-  leftActions?: ToolItem[];
   playerName: string;
   playerLevel?: number;
   playerXP?: number;
