@@ -131,10 +131,9 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
     [targetRect, currentTarget, isInfoStep, isAutoStep, onAdvance],
   );
 
-  // Tooltip positioning
+  // Tooltip positioning — screen-aware: never overflows any edge
   const getTooltipStyle = (): React.CSSProperties => {
     if (!targetRect) {
-      // No target — center tooltip on screen
       return {
         position: 'fixed',
         top: '50%',
@@ -143,33 +142,45 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
       };
     }
 
-    const gap = 14;
-    const base: React.CSSProperties = { position: 'fixed' };
+    const MARGIN = 12;
+    const GAP = 10;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
 
-    switch (currentTooltipPos) {
-      case 'bottom':
-        base.top = targetRect.bottom + gap;
-        base.left = targetRect.left + targetRect.width / 2;
-        base.transform = 'translateX(-50%)';
-        break;
-      case 'top':
-        base.bottom = window.innerHeight - targetRect.top + gap;
-        base.left = targetRect.left + targetRect.width / 2;
-        base.transform = 'translateX(-50%)';
-        break;
-      case 'left':
-        base.top = targetRect.top + targetRect.height / 2;
-        base.right = window.innerWidth - targetRect.left + gap;
-        base.transform = 'translateY(-50%)';
-        break;
-      case 'right':
-        base.top = targetRect.top + targetRect.height / 2;
-        base.left = targetRect.right + gap;
-        base.transform = 'translateY(-50%)';
-        break;
+    const centerX = targetRect.left + targetRect.width / 2;
+    const centerY = targetRect.top + targetRect.height / 2;
+
+    // Vertical: place tooltip below if element is in top half, above if in bottom half
+    const placeBelow = centerY < H / 2;
+    // Horizontal: anchor to left edge of element if element is in left half,
+    //             anchor to right edge of element if element is in right half
+    //             so tooltip stays on the SAME side and away from the opposite edge
+    const elementInLeftHalf = centerX <= W / 2;
+
+    const style: React.CSSProperties = {
+      position: 'fixed',
+      maxWidth: Math.min(320, W - MARGIN * 2),
+    };
+
+    // Vertical anchor
+    if (placeBelow) {
+      style.top = targetRect.bottom + GAP;
+    } else {
+      style.bottom = H - targetRect.top + GAP;
     }
 
-    return base;
+    // Horizontal anchor — clamp to screen edges
+    if (elementInLeftHalf) {
+      // Left-align tooltip to the element's left edge
+      const ideal = Math.max(MARGIN, targetRect.left);
+      style.left = ideal;
+    } else {
+      // Right-align tooltip to the element's right edge
+      const ideal = Math.max(MARGIN, W - targetRect.right);
+      style.right = ideal;
+    }
+
+    return style;
   };
 
   // Spotlight style
@@ -295,6 +306,38 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
           <div style={{ fontSize: 10, color: '#556677', marginTop: 8 }}>
             Натиснiть на видiлений елемент
           </div>
+        )}
+
+        {/* Fallback Next button for click steps when element not found */}
+        {step.type === 'click' && !targetRect && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAdvance();
+            }}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '8px 0',
+              marginTop: 14,
+              background: 'rgba(68, 102, 136, 0.2)',
+              border: '1px solid #446688',
+              borderRadius: 3,
+              color: '#aaccee',
+              fontFamily: 'monospace',
+              fontSize: 11,
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLElement).style.background = 'rgba(68, 102, 136, 0.35)';
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLElement).style.background = 'rgba(68, 102, 136, 0.2)';
+            }}
+          >
+            Далi
+          </button>
         )}
       </div>
 

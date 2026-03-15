@@ -710,7 +710,7 @@ export function App() {
     window.location.reload();
   }, []);
 
-  /** Start over: clear all localStorage, reset server state, reload */
+  /** Start over: clear all localStorage, delete server discoveries + reset game_state, reload */
   const handleStartOver = useCallback(async () => {
     // 1. Clear all localStorage keys
     const keysToRemove = [
@@ -724,11 +724,12 @@ export function App() {
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
 
-    // 2. Reset game_state on server (set game_phase back to 'onboarding')
+    // 2. Full server reset: deletes all discoveries + resets game_state to {}
     if (playerId.current) {
-      await updatePlayer(playerId.current, {
-        game_phase: 'onboarding',
-        game_state: {} as Record<string, unknown>,
+      await authFetch('/api/player/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: playerId.current }),
       }).catch(() => {});
     }
 

@@ -194,6 +194,12 @@ export async function deleteDiscovery(id: string, playerId: string): Promise<boo
   return result.length > 0 || true; // neon returns affected rows info differently
 }
 
+/** Delete ALL discoveries for a player (used by "Start over" reset). */
+export async function deletePlayerDiscoveries(playerId: string): Promise<void> {
+  const sql = getSQL();
+  await sql`DELETE FROM discoveries WHERE player_id = ${playerId}`;
+}
+
 // ---------------------------------------------------------------------------
 // Kling task helpers
 // ---------------------------------------------------------------------------

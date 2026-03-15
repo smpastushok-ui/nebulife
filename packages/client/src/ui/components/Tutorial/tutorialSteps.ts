@@ -87,6 +87,7 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     target: 'research-btn-first',
     text: 'Запустiть першe дослiдження! Обсерваторiї просканують систему.',
     tooltipPos: 'left',
+    onActivate: ['open-archive', 'navigate-navigation-systems'],
   },
   // 7 — HUD info (2 sub-steps: observatories + research data)
   {
