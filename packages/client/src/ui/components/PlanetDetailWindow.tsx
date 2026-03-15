@@ -353,9 +353,21 @@ export function PlanetDetailWindow({
   );
   const planet = sortedPlanets[planetIdx];
 
-  // Canvas dimensions: top-left quarter
-  const canvasW = Math.floor(window.innerWidth * 0.46);
-  const canvasH = Math.floor(window.innerHeight * 0.55);
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Canvas dimensions: mobile = full width, 1/3 height; desktop = left quarter
+  const canvasW = isMobile
+    ? Math.floor(window.innerWidth)
+    : Math.floor(window.innerWidth * 0.46);
+  const canvasH = isMobile
+    ? Math.floor(window.innerHeight * 0.30)
+    : Math.floor(window.innerHeight * 0.55);
 
   // Planet display radius: log-scaled from min to max
   const maxR = Math.min(canvasW, canvasH) * 0.32;
@@ -429,38 +441,39 @@ export function PlanetDetailWindow({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '10px 20px',
+            padding: isMobile ? '8px 12px' : '10px 20px',
             borderBottom: '1px solid #334455',
             background: 'rgba(3,7,18,0.95)',
             backdropFilter: 'blur(8px)',
             flexShrink: 0,
             pointerEvents: 'auto',
+            gap: isMobile ? 6 : 12,
           }}
         >
           {/* System name */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ color: '#556677', fontSize: 10, letterSpacing: '0.1em' }}>
-              {sysName.toUpperCase()}
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 12, minWidth: 0, flex: 1 }}>
+            <span style={{ color: '#556677', fontSize: isMobile ? 8 : 10, letterSpacing: '0.1em', flexShrink: 0 }}>
+              {isMobile ? sysName.substring(0, 10).toUpperCase() : sysName.toUpperCase()}
             </span>
-            <span style={{ color: '#334455', fontSize: 10 }}>›</span>
-            <span style={{ color: '#aabbcc', fontSize: 13, letterSpacing: '0.05em' }}>
+            <span style={{ color: '#334455', fontSize: 10, flexShrink: 0 }}>›</span>
+            <span style={{ color: '#aabbcc', fontSize: isMobile ? 11 : 13, letterSpacing: '0.05em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {p.name}
             </span>
             {destroyedPlanetIds?.has(p.id) ? (
-              <span style={{ color: '#884422', fontSize: 9, border: '1px solid #88442255', padding: '1px 5px', borderRadius: 2 }}>
+              <span style={{ color: '#884422', fontSize: 9, border: '1px solid #88442255', padding: '1px 5px', borderRadius: 2, flexShrink: 0 }}>
                 ЗРУЙНОВАНО
               </span>
             ) : p.isHomePlanet && (
-              <span style={{ color: '#44ff88', fontSize: 9, border: '1px solid #44ff8855', padding: '1px 5px', borderRadius: 2 }}>
+              <span style={{ color: '#44ff88', fontSize: 9, border: '1px solid #44ff8855', padding: '1px 5px', borderRadius: 2, flexShrink: 0 }}>
                 HOME
               </span>
             )}
           </div>
 
           {/* Planet navigation */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, flexShrink: 0 }}>
             <NavBtn label="◀" onClick={goPrev} disabled={sortedPlanets.length <= 1} />
-            <span style={{ color: '#4a6077', fontSize: 10, minWidth: 60, textAlign: 'center' }}>
+            <span style={{ color: '#4a6077', fontSize: 10, minWidth: isMobile ? 40 : 60, textAlign: 'center' }}>
               {planetIdx + 1} / {sortedPlanets.length}
             </span>
             <NavBtn label="▶" onClick={goNext} disabled={sortedPlanets.length <= 1} />
@@ -478,6 +491,7 @@ export function PlanetDetailWindow({
               fontFamily: 'monospace',
               padding: '3px 9px',
               borderRadius: 3,
+              flexShrink: 0,
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#aabbcc'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#667788'; }}
@@ -491,11 +505,12 @@ export function PlanetDetailWindow({
           style={{
             flex: 1,
             display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
             overflow: 'hidden',
             pointerEvents: 'auto',
           }}
         >
-          {/* Left column: PixiJS planet canvas */}
+          {/* Planet canvas area */}
           <div
             style={{
               display: 'flex',
@@ -503,20 +518,21 @@ export function PlanetDetailWindow({
               alignItems: 'center',
               justifyContent: 'center',
               background: 'rgba(2,5,16,0.92)',
-              borderRight: '1px solid #1a2535',
-              padding: '20px',
+              borderRight: isMobile ? 'none' : '1px solid #1a2535',
+              borderBottom: isMobile ? '1px solid #1a2535' : 'none',
+              padding: isMobile ? '8px' : '20px',
               flexShrink: 0,
-              width: canvasW + 40,
+              width: isMobile ? '100%' : canvasW + 40,
             }}
           >
             {/* Planet type + orbit label above canvas */}
             <div
               style={{
                 display: 'flex',
-                gap: 16,
-                marginBottom: 12,
+                gap: isMobile ? 10 : 16,
+                marginBottom: isMobile ? 4 : 12,
                 color: '#4a6077',
-                fontSize: 10,
+                fontSize: isMobile ? 9 : 10,
                 letterSpacing: '0.06em',
                 animation: 'pdwSlide 0.3s ease-out 100ms both',
               }}
@@ -539,7 +555,7 @@ export function PlanetDetailWindow({
             />
 
             {/* Moon list below canvas */}
-            {p.moons.length > 0 && (
+            {p.moons.length > 0 && !isMobile && (
               <div
                 style={{
                   marginTop: 14,
@@ -568,13 +584,13 @@ export function PlanetDetailWindow({
             )}
           </div>
 
-          {/* Right column: characteristics panel */}
+          {/* Characteristics panel */}
           <div
             style={{
               flex: 1,
               overflowY: 'auto',
               background: 'rgba(3,7,18,0.97)',
-              padding: '20px 28px 80px',
+              padding: isMobile ? '12px 16px 80px' : '20px 28px 80px',
             }}
           >
             {/* Planet name header */}

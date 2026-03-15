@@ -1056,12 +1056,12 @@ export function TelemetryView({
             }}
           />
 
-          {/* Header */}
+          {/* Header — below resource bar */}
           <div
             style={{
               position: 'absolute',
               top: 0, left: 0, right: 0,
-              padding: '14px 18px',
+              padding: '50px 18px 14px',
               background: 'linear-gradient(rgba(0,0,0,0.7), transparent)',
               fontFamily: 'monospace',
               zIndex: 1,
@@ -1092,7 +1092,7 @@ export function TelemetryView({
             onClick={onClose}
             style={{
               position: 'absolute',
-              top: 14, left: 16,
+              top: 50, left: 16,
               background: 'none',
               border: '1px solid #334455',
               color: '#556677',
