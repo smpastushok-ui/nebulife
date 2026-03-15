@@ -25,13 +25,13 @@ export interface GameCallbacks {
 }
 
 const GALAXY_SEED = 42;
-const PLAYER_INDEX = 0;
 
 export class GameEngine {
   private app: Application;
   private container: HTMLElement;
   private callbacks: GameCallbacks;
   private camera!: CameraController;
+  private playerIndex: number;
 
   private galaxyScene: GalaxyScene | null = null;
   private systemScene: SystemScene | null = null;
@@ -58,9 +58,10 @@ export class GameEngine {
   private pvOnPointerUp: ((e: PointerEvent) => void) | null = null;
   private pvOnWheel: ((e: WheelEvent) => void) | null = null;
 
-  constructor(container: HTMLElement, callbacks: GameCallbacks) {
+  constructor(container: HTMLElement, callbacks: GameCallbacks, playerIndex = 0) {
     this.container = container;
     this.callbacks = callbacks;
+    this.playerIndex = playerIndex;
     this.app = new Application();
   }
 
@@ -77,9 +78,9 @@ export class GameEngine {
 
     this.camera = new CameraController(this.app);
 
-    // Generate player data
-    this.playerPos = assignPlayerPosition(GALAXY_SEED, PLAYER_INDEX);
-    this.rings = generatePlayerRings(GALAXY_SEED, this.playerPos.x, this.playerPos.y, 'player-0');
+    // Generate player data — playerIndex determines position in galaxy
+    this.playerPos = assignPlayerPosition(GALAXY_SEED, this.playerIndex);
+    this.rings = generatePlayerRings(GALAXY_SEED, this.playerPos.x, this.playerPos.y, `player-${this.playerIndex}`);
 
     // Start with home planet intro (hidden by default — App visibility effect decides)
     this.showHomePlanetScene(true);

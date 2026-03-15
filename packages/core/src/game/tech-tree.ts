@@ -53,7 +53,7 @@ export const ASTRONOMY_NODES: TechNode[] = [
     branch: 'astronomy',
     name: 'Радіотелескоп I',
     description: 'Зменшує час дослідження на 10%',
-    levelRequired: 1,
+    levelRequired: 2,
     prerequisiteId: null,
     epoch: 1,
     xpReward: 20,

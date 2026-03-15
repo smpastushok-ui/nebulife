@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { updatePlayer, deletePlayerDiscoveries } from '../../packages/server/src/db.js';
+import { resetPlayerData } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 
 /**
@@ -7,8 +7,12 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
  * Body: { playerId: string }
  *
  * Full game reset for the authenticated player:
- * - Deletes all discoveries
+ * - Deletes all discoveries, 3D models, aliases, buildings, maps, photos, missions
  * - Resets game_state to {} and game_phase to 'onboarding'
+ * - Increments science_points (used as generation_index for new system set)
+ * - Keeps quarks balance
+ *
+ * Returns the updated player record (with new science_points/generation_index).
  *
  * Auth required. Player can only reset their own account.
  */
@@ -31,16 +35,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. Delete all discoveries
-    await deletePlayerDiscoveries(playerId);
-
-    // 2. Reset game_state and game_phase
-    await updatePlayer(playerId, {
-      game_phase: 'onboarding',
-      game_state: {},
-    });
-
-    return res.status(200).json({ ok: true });
+    const player = await resetPlayerData(playerId);
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+    return res.status(200).json({ ok: true, generation_index: player.science_points });
   } catch (err) {
     console.error('Player reset error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });

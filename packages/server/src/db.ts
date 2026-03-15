@@ -200,6 +200,41 @@ export async function deletePlayerDiscoveries(playerId: string): Promise<void> {
   await sql`DELETE FROM discoveries WHERE player_id = ${playerId}`;
 }
 
+/** Full player data reset (used by "Start over").
+ *  Deletes all player-owned data EXCEPT payments and the player record itself.
+ *  Increments science_points as generation_index (for new system generation).
+ *  Keeps quarks balance.
+ */
+export async function resetPlayerData(playerId: string): Promise<PlayerRow | null> {
+  const sql = getSQL();
+
+  // Delete all player-owned data in parallel
+  await Promise.all([
+    sql`DELETE FROM discoveries WHERE player_id = ${playerId}`,
+    sql`DELETE FROM planet_models WHERE player_id = ${playerId}`,
+    sql`DELETE FROM player_aliases WHERE player_id = ${playerId}`,
+    sql`DELETE FROM surface_buildings WHERE player_id = ${playerId}`,
+    sql`DELETE FROM surface_maps WHERE player_id = ${playerId}`,
+    sql`DELETE FROM system_photos WHERE player_id = ${playerId}`,
+    sql`DELETE FROM system_missions WHERE player_id = ${playerId}`,
+    sql`DELETE FROM expeditions WHERE player_id = ${playerId}`,
+    sql`DELETE FROM kling_tasks WHERE player_id = ${playerId}`,
+  ]);
+
+  // Reset player: increment generation_index (science_points), clear game state, keep quarks
+  const rows = await sql`
+    UPDATE players
+    SET game_phase = 'onboarding',
+        game_state = '{}'::jsonb,
+        science_points = science_points + 1,
+        home_system_id = 'home',
+        home_planet_id = 'home'
+    WHERE id = ${playerId}
+    RETURNING *
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Kling task helpers
 // ---------------------------------------------------------------------------

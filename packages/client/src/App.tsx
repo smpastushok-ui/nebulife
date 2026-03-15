@@ -710,9 +710,26 @@ export function App() {
     window.location.reload();
   }, []);
 
-  /** Start over: clear all localStorage, delete server discoveries + reset game_state, reload */
+  /** Start over: full server reset, clear localStorage, generate new systems, reload */
   const handleStartOver = useCallback(async () => {
-    // 1. Clear all localStorage keys
+    let newGenerationIndex = 0;
+
+    // 1. Full server reset: deletes all player data, increments generation_index, keeps quarks
+    if (playerId.current) {
+      try {
+        const res = await authFetch('/api/player/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerId: playerId.current }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          newGenerationIndex = data.generation_index ?? 0;
+        }
+      } catch { /* ignore */ }
+    }
+
+    // 2. Clear all localStorage keys (game progress)
     const keysToRemove = [
       'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
       'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
@@ -721,19 +738,14 @@ export function App() {
       'nebulife_nav_system', 'nebulife_nav_planet', 'nebulife_destroyed_planets',
       'nebulife_favorites', 'nebulife_game_started_at', 'nebulife_time_multiplier',
       'nebulife_accel_at', 'nebulife_game_time_at_accel', 'nebulife_clock_revealed',
+      'nebulife_home_system_id', 'nebulife_home_planet_id', 'nebulife_generation_index',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
 
-    // 2. Full server reset: deletes all discoveries + resets game_state to {}
-    if (playerId.current) {
-      await authFetch('/api/player/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: playerId.current }),
-      }).catch(() => {});
-    }
+    // 3. Save new generation_index AFTER clearing — GameEngine will use it on reload
+    localStorage.setItem('nebulife_generation_index', String(newGenerationIndex));
 
-    // 3. Reload
+    // 4. Reload
     window.location.reload();
   }, []);
 
@@ -860,10 +872,12 @@ export function App() {
               homePlanetId: 'home',
             });
             setQuarks(created.quarks ?? 0);
+            try { localStorage.setItem('nebulife_generation_index', String(created.science_points ?? 0)); } catch { /* ignore */ }
             hydrateGameStateFromServer(created);
             setState((prev) => ({ ...prev, playerName: created.callsign || created.name || 'Explorer' }));
           } else {
             setQuarks(existing.quarks ?? 0);
+            try { localStorage.setItem('nebulife_generation_index', String(existing.science_points ?? 0)); } catch { /* ignore */ }
             hydrateGameStateFromServer(existing);
             setState((prev) => ({ ...prev, playerName: existing.callsign || existing.name || 'Explorer' }));
           }
@@ -901,6 +915,7 @@ export function App() {
               const player = await res.json();
               playerId.current = player.id; // Use DB id (may differ from UID for migrated)
               setQuarks(player.quarks ?? 0);
+              try { localStorage.setItem('nebulife_generation_index', String(player.science_points ?? 0)); } catch { /* ignore */ }
               hydrateGameStateFromServer(player);
               setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
               setNeedsCallsign(!player.callsign);
@@ -1091,6 +1106,8 @@ export function App() {
   useEffect(() => {
     if (!canvasRef.current || engineRef.current) return;
 
+    // Read generation index from localStorage (set by server on auth sync / reset)
+    const genIdx = parseInt(localStorage.getItem('nebulife_generation_index') || '0', 10);
     const engine = new GameEngine(canvasRef.current, {
       onSystemSelect: (system, screenPos) => {
         setState((prev) => ({ ...prev, selectedSystem: system, selectedPlanet: null }));
@@ -1125,7 +1142,7 @@ export function App() {
         setShowSystemMenu(false);
         setSystemMenuPos(null);
       },
-    });
+    }, genIdx);
 
     engine.init().then(() => {
       // Sync restored research state before anything else
