@@ -15,12 +15,19 @@ interface ResourceDisplayProps {
   minerals?: number;
   volatiles?: number;
   isotopes?: number;
+  /** Countdown timer text (shown when clock is visible) */
+  countdownText?: string;
+  /** Whether countdown is in urgent mode */
+  countdownUrgent?: boolean;
+  /** Callback when timer is clicked (e.g. show evacuation) */
+  onTimerClick?: () => void;
 }
 
 const containerStyle: React.CSSProperties = {
   position: 'fixed',
   top: 12,
-  right: 12,
+  left: '50%',
+  transform: 'translateX(-50%)',
   zIndex: 9700,
   display: 'flex',
   alignItems: 'center',
@@ -111,7 +118,10 @@ function IsotopesIcon() {
   );
 }
 
-export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, minerals = 0, volatiles = 0, isotopes = 0 }: ResourceDisplayProps) {
+export function ResourceDisplay({
+  researchData, quarks, isExodusPhase, onClick, minerals = 0, volatiles = 0, isotopes = 0,
+  countdownText, countdownUrgent = false, onTimerClick,
+}: ResourceDisplayProps) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -124,6 +134,31 @@ export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, 
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
+      {/* Countdown timer (inline, same style) */}
+      {countdownText && (
+        <>
+          <div
+            style={{
+              ...itemStyle,
+              cursor: onTimerClick ? 'pointer' : 'default',
+            }}
+            onClick={onTimerClick ? (e) => { e.stopPropagation(); onTimerClick(); } : undefined}
+          >
+            <span
+              style={{
+                color: '#cc4444',
+                fontWeight: 'bold',
+                letterSpacing: 1,
+                animation: countdownUrgent ? 'cmdbar-terminal-pulse 0.8s infinite' : undefined,
+              }}
+            >
+              {countdownText}
+            </span>
+          </div>
+          <div style={dividerStyle} />
+        </>
+      )}
+
       {isExodusPhase && (
         <>
           <div style={itemStyle} data-tutorial-id="resource-data">

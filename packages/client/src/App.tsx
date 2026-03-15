@@ -2920,7 +2920,7 @@ export function App() {
       <div ref={universeCanvasRef} id="universe-canvas" style={{ position: 'fixed', inset: 0, zIndex: 1, display: universeVisible ? 'block' : 'none' }} />
       <div ref={canvasRef} id="game-canvas" style={{ display: universeVisible ? 'none' : undefined }} />
 
-      {/* Resource HUD — top right */}
+      {/* Resource HUD — top center */}
       <ResourceDisplay
         researchData={researchData}
         quarks={quarks}
@@ -2929,6 +2929,9 @@ export function App() {
         volatiles={colonyResources.volatiles}
         isotopes={colonyResources.isotopes}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
+        countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && !isTutorialActive ? countdownText : undefined}
+        countdownUrgent={countdownUrgent}
+        onTimerClick={evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed ? () => setEvacuationPromptDismissed(false) : undefined}
       />
 
       {/* Doomsday Clock — center top (Exodus phase only) */}
@@ -2983,74 +2986,43 @@ export function App() {
           {'##:##:##'}
         </div>
       )}
-      {/* Phase 3: Visible — active game-time countdown + evacuation button */}
-      {isExodusPhase && clockPhase === 'visible' && countdownText && !isTutorialActive && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 10,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 9700,
-            fontFamily: 'monospace',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 6,
-            pointerEvents: 'none',
-          }}
-        >
-          {/* Timer */}
-          <div
+      {/* Evacuation button — floating below HUD when prompt is dismissed */}
+      {isExodusPhase && clockPhase === 'visible' && evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed && !isTutorialActive && (
+        <div style={{
+          position: 'fixed',
+          top: 46,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9700,
+          pointerEvents: 'auto',
+        }}>
+          <button
+            onClick={() => setEvacuationPromptDismissed(false)}
             style={{
-              fontSize: 11,
+              padding: '5px 14px',
+              background: 'rgba(68,255,136,0.1)',
+              border: '1px solid rgba(68,255,136,0.5)',
+              borderRadius: 3,
+              color: '#44ff88',
+              fontFamily: 'monospace',
+              fontSize: 10,
               fontWeight: 'bold',
-              color: '#cc4444',
-              textShadow: countdownUrgent
-                ? '0 0 8px rgba(204,68,68,0.6)'
-                : '0 0 4px rgba(204,68,68,0.3)',
-              letterSpacing: 2,
-              padding: '6px 10px',
-              background: 'rgba(10,15,25,0.92)',
-              border: `1px solid ${countdownUrgent ? 'rgba(204,68,68,0.5)' : 'rgba(204,68,68,0.25)'}`,
-              borderRadius: 4,
-              animation: countdownUrgent ? 'cmdbar-terminal-pulse 0.8s infinite' : undefined,
+              letterSpacing: 1,
+              cursor: 'pointer',
+              transition: 'background 0.15s, border-color 0.15s',
+              textTransform: 'uppercase',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(68,255,136,0.2)';
+              e.currentTarget.style.borderColor = '#44ff88';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(68,255,136,0.1)';
+              e.currentTarget.style.borderColor = 'rgba(68,255,136,0.5)';
             }}
           >
-            {countdownText}
-          </div>
-          {/* Evacuation button — shown when prompt is dismissed */}
-          {evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed && (
-            <button
-              onClick={() => setEvacuationPromptDismissed(false)}
-              style={{
-                pointerEvents: 'auto',
-                padding: '5px 14px',
-                minHeight: 32,
-                background: 'rgba(68,255,136,0.1)',
-                border: '1px solid rgba(68,255,136,0.5)',
-                borderRadius: 3,
-                color: '#44ff88',
-                fontFamily: 'monospace',
-                fontSize: 10,
-                fontWeight: 'bold',
-                letterSpacing: 1,
-                cursor: 'pointer',
-                transition: 'background 0.15s, border-color 0.15s',
-                textTransform: 'uppercase',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(68,255,136,0.2)';
-                e.currentTarget.style.borderColor = '#44ff88';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(68,255,136,0.1)';
-                e.currentTarget.style.borderColor = 'rgba(68,255,136,0.5)';
-              }}
-            >
-              Евакуація
-            </button>
-          )}
+            Евакуація
+          </button>
         </div>
       )}
 
