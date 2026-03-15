@@ -161,9 +161,9 @@ export function SystemsList({
         style={{
           display: 'grid',
           gridTemplateColumns: isMobile
-            ? (hasResearchCol ? '1fr 28px 28px 28px auto' : '1fr 28px 28px 28px')
+            ? (hasResearchCol ? '1fr 34px 32px 32px 68px' : '1fr 34px 32px 32px')
             : (hasResearchCol ? '1fr 36px 56px 36px 36px 72px' : '1fr 36px 56px 36px 36px'),
-          gap: isMobile ? 2 : 4,
+          gap: isMobile ? 4 : 4,
           padding: isMobile ? '4px 6px' : '6px 8px',
           alignItems: 'center',
           borderBottom: '1px solid rgba(51, 68, 85, 0.2)',
@@ -242,9 +242,9 @@ export function SystemsList({
             style={{
               display: 'grid',
               gridTemplateColumns: isMobile
-                ? (hasResearchCol ? '1fr 28px 28px 28px auto' : '1fr 28px 28px 28px')
+                ? (hasResearchCol ? '1fr 34px 32px 32px 68px' : '1fr 34px 32px 32px')
                 : (hasResearchCol ? '1fr 60px 80px 60px 50px 100px' : '1fr 60px 80px 60px 50px'),
-              gap: isMobile ? 2 : 8,
+              gap: isMobile ? 4 : 8,
               padding: isMobile ? '6px 6px' : '8px 12px',
               background: researching
                 ? undefined
@@ -287,7 +287,7 @@ export function SystemsList({
             </span>
 
             {/* Spectral class */}
-            <span style={{ color: '#667788', fontSize: 10 }}>
+            <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
               {system.star.spectralClass}
             </span>
 
