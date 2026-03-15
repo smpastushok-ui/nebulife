@@ -528,6 +528,34 @@ export class GameEngine {
     this.app.ticker.start();
   }
 
+  /* ── Cinematic mode ──────────────────────────────────────── */
+
+  /** Enable/disable cinematic mode (blocks user input + star clicks) */
+  setCinematicMode(enabled: boolean) {
+    this.camera.setInputEnabled(!enabled);
+    this.galaxyScene?.setCinematicMode(enabled);
+  }
+
+  /** Programmatic camera animation (for cinematic intro) */
+  animateCameraTo(worldX: number, worldY: number, scale: number, durationMs: number) {
+    this.camera.animateTo(worldX, worldY, scale, durationMs);
+  }
+
+  /** Get current camera scale */
+  getCameraScale(): number {
+    return this.camera.getCurrentScale();
+  }
+
+  /** Add fake player markers to galaxy scene */
+  addFakePlayerMarkers(count: number) {
+    this.galaxyScene?.addFakePlayerMarkers(count);
+  }
+
+  /** Remove fake player markers */
+  removeFakePlayerMarkers() {
+    this.galaxyScene?.removeFakePlayerMarkers();
+  }
+
   destroy() {
     this.clearScenes();
     this.camera.destroy();

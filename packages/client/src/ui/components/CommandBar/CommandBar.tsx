@@ -17,6 +17,7 @@ export function CommandBar({
   playerXP,
   onNavigate,
   onOpenPlayerPage,
+  navigationDisabled,
 }: CommandBarProps) {
   const injected = useRef(false);
 
@@ -41,6 +42,7 @@ export function CommandBar({
         <NavigationMenu
           items={navigationItems}
           onNavigate={onNavigate}
+          disabled={navigationDisabled}
         />
       </div>
 

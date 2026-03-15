@@ -5,6 +5,7 @@ import { toolButtonBase } from './styles.js';
 interface NavigationMenuProps {
   items: NavigationMenuItem[];
   onNavigate: (targetScene: string) => void;
+  disabled?: boolean;
 }
 
 const compassIcon = (
@@ -16,7 +17,7 @@ const compassIcon = (
   </svg>
 );
 
-export function NavigationMenu({ items = [], onNavigate }: NavigationMenuProps) {
+export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationMenuProps) {
   const [open, setOpen] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -25,8 +26,9 @@ export function NavigationMenu({ items = [], onNavigate }: NavigationMenuProps) 
   const activeItem = items.find(i => i.active);
 
   const handleToggle = useCallback(() => {
+    if (disabled) return;
     setOpen(prev => !prev);
-  }, []);
+  }, [disabled]);
 
   const handleSelect = useCallback((item: NavigationMenuItem) => {
     if (item.disabled || item.active) return;
@@ -69,6 +71,8 @@ export function NavigationMenu({ items = [], onNavigate }: NavigationMenuProps) 
           gap: 6,
           color: open ? '#aaccee' : toolButtonBase.color,
           borderColor: open ? 'rgba(100, 160, 220, 0.4)' : toolButtonBase.borderColor,
+          opacity: disabled ? 0.4 : 1,
+          pointerEvents: disabled ? 'none' as const : 'auto' as const,
         }}
       >
         {compassIcon}

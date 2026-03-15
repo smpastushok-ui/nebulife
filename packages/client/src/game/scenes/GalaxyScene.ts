@@ -131,6 +131,11 @@ export class GalaxyScene {
   /** Fade overlay drawn on top during transition */
   private fadeOverlay: Graphics | null = null;
 
+  /** Cinematic mode — disable user clicks on stars */
+  private cinematicMode = false;
+  /** Fake player markers for cinematic intro */
+  private fakePlayerMarkers: Container[] = [];
+
   constructor(
     rings: GalaxyRing[],
     galaxySeed: number,
@@ -275,6 +280,7 @@ export class GalaxyScene {
     let cc = 0;
     let ct: ReturnType<typeof setTimeout> | null = null;
     dot.on('pointerdown', () => {
+      if (this.cinematicMode) return;
       cc++;
       if (cc === 1) {
         ct = setTimeout(() => {
@@ -369,6 +375,7 @@ export class GalaxyScene {
     let cc = 0;
     let ct: ReturnType<typeof setTimeout> | null = null;
     dot.on('pointerdown', () => {
+      if (this.cinematicMode) return;
       // Block clicks during/after drag or pinch
       if (this.clickGuard?.()) return;
       cc++;
@@ -695,6 +702,11 @@ export class GalaxyScene {
         this.beamGfx.stroke({ width: 4, color: 0x4488aa, alpha: this.beamAlpha * 0.15 });
       }
     }
+
+    // Animate fake player markers
+    if (this.fakePlayerMarkers.length > 0) {
+      this.updateFakePlayerMarkers(t, deltaMs);
+    }
   }
 
   /** Normal twinkle star animation */
@@ -842,9 +854,75 @@ export class GalaxyScene {
     node.core.alpha = 0.85 + s3;
   }
 
+  /* ── Cinematic mode ──────────────────────────────────────── */
+
+  /** Enter/exit cinematic mode — disable click handlers */
+  setCinematicMode(enabled: boolean) {
+    this.cinematicMode = enabled;
+  }
+
+  /** Add animated fake player markers with callsigns */
+  addFakePlayerMarkers(count: number) {
+    const callsigns = [
+      'ORBITAL-7', 'DELTA-3K', 'NOVA-12', 'HELIX-9', 'QUASAR-5',
+      'ZENITH-4', 'PULSAR-88', 'VORTEX-21', 'NEBULA-6', 'COMET-15',
+      'ASTRO-33', 'FLUX-77', 'PHOTON-2', 'PLASMA-19', 'ECHO-44',
+    ];
+    const allNodes = [...this.systemNodes.values()];
+    const n = Math.min(count, allNodes.length);
+    for (let i = 0; i < n; i++) {
+      const node = allNodes[i % allNodes.length];
+      const c = new Container();
+
+      // Blinking dot
+      const dot = new Graphics();
+      dot.circle(0, 0, 3);
+      dot.fill({ color: 0x44ff88, alpha: 0.8 });
+      c.addChild(dot);
+
+      // Callsign label
+      const label = new Text({
+        text: callsigns[i % callsigns.length],
+        style: { fontSize: 7, fill: 0x44ff88, fontFamily: 'monospace' },
+        resolution: 2,
+      });
+      label.alpha = 0.6;
+      label.x = 6;
+      label.y = -4;
+      c.addChild(label);
+
+      c.x = node.tx + (Math.random() - 0.5) * 40;
+      c.y = node.ty + (Math.random() - 0.5) * 40;
+
+      this.nodesLayer.addChild(c);
+      this.fakePlayerMarkers.push(c);
+    }
+  }
+
+  /** Remove all fake player markers */
+  removeFakePlayerMarkers() {
+    for (const m of this.fakePlayerMarkers) {
+      m.parent?.removeChild(m);
+      m.destroy();
+    }
+    this.fakePlayerMarkers = [];
+  }
+
+  /** Animate fake player markers (called from update) */
+  private updateFakePlayerMarkers(t: number, dt: number) {
+    for (let i = 0; i < this.fakePlayerMarkers.length; i++) {
+      const m = this.fakePlayerMarkers[i];
+      const dot = m.children[0] as Graphics;
+      if (dot) dot.alpha = 0.3 + 0.5 * Math.abs(Math.sin(t * 0.003 + i * 1.7));
+      m.x += Math.sin(t * 0.001 + i * 2.3) * dt * 0.004;
+      m.y += Math.cos(t * 0.0012 + i * 3.1) * dt * 0.003;
+    }
+  }
+
   /* ── Cleanup ───────────────────────────────────────────────── */
 
   destroy() {
+    this.removeFakePlayerMarkers();
     this.container.destroy({ children: true });
     this.systemNodes.clear();
   }

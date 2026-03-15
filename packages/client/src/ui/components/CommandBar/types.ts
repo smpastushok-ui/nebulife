@@ -41,4 +41,5 @@ export interface CommandBarProps {
   playerXP?: number;
   onNavigate: (targetScene: string) => void;
   onOpenPlayerPage?: () => void;
+  navigationDisabled?: boolean;
 }

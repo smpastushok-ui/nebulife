@@ -82,7 +82,7 @@ import { isFirebaseConfigured } from './auth/firebase-config.js';
 import { AuthScreen } from './ui/components/AuthScreen.js';
 import { CallsignModal } from './ui/components/CallsignModal.js';
 import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
-import { OnboardingScreen } from './ui/components/OnboardingScreen.js';
+import { CinematicIntro } from './ui/components/CinematicIntro.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
@@ -237,6 +237,7 @@ export function App() {
   const [isGuest, setIsGuest] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [cinematicActive, setCinematicActive] = useState(false);
   const [showGuestReminder, setShowGuestReminder] = useState(false);
 
   // ── Discovery system state ──────────────────────────────────────────────
@@ -398,36 +399,6 @@ export function App() {
     } catch { /* ignore */ }
     return 'hidden';
   });
-
-  // Epic clock reveal: triggered after onboarding completes
-  useEffect(() => {
-    if (!isExodusPhase || clockPhase !== 'hidden' || needsOnboarding) return;
-    // Wait a beat after onboarding closes, then start sync text
-    const t = setTimeout(() => setClockPhase('syncing'), 1500);
-    return () => clearTimeout(t);
-  }, [isExodusPhase, clockPhase, needsOnboarding]);
-
-  useEffect(() => {
-    if (clockPhase === 'syncing') {
-      const t = setTimeout(() => setClockPhase('glitch'), 2500);
-      return () => clearTimeout(t);
-    }
-    if (clockPhase === 'glitch') {
-      const t = setTimeout(() => {
-        setClockPhase('visible');
-        try { localStorage.setItem('nebulife_clock_revealed', '1'); } catch { /* ignore */ }
-      }, 800);
-      return () => clearTimeout(t);
-    }
-  }, [clockPhase]);
-
-  // Fallback: ensure gameStartedAt is set for existing players who already completed onboarding
-  useEffect(() => {
-    if (!isExodusPhase || needsOnboarding || gameStartedAt !== null) return;
-    const now = Date.now();
-    setGameStartedAt(now);
-    try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
-  }, [isExodusPhase, needsOnboarding, gameStartedAt]);
 
   // Game-time tick — update every ~42ms for smooth game-second display
   useEffect(() => {
@@ -631,6 +602,36 @@ export function App() {
   const [tutorialFreeCount, setTutorialFreeCount] = useState(0);
   const [tutorialSubStep, setTutorialSubStep] = useState(0);
   const isTutorialActive = tutorialStep >= 0 && tutorialStep <= 12;
+
+  // Epic clock reveal: triggered after tutorial completes/skipped
+  useEffect(() => {
+    if (!isExodusPhase || clockPhase !== 'hidden' || needsOnboarding || isTutorialActive) return;
+    const t = setTimeout(() => setClockPhase('syncing'), 1500);
+    return () => clearTimeout(t);
+  }, [isExodusPhase, clockPhase, needsOnboarding, isTutorialActive]);
+
+  useEffect(() => {
+    if (clockPhase === 'syncing') {
+      const t = setTimeout(() => setClockPhase('glitch'), 2500);
+      return () => clearTimeout(t);
+    }
+    if (clockPhase === 'glitch') {
+      const t = setTimeout(() => {
+        setClockPhase('visible');
+        try { localStorage.setItem('nebulife_clock_revealed', '1'); } catch { /* ignore */ }
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [clockPhase]);
+
+  // Fallback: ensure gameStartedAt is set for existing players who already completed tutorial
+  useEffect(() => {
+    if (!isExodusPhase || needsOnboarding || isTutorialActive || gameStartedAt !== null) return;
+    const now = Date.now();
+    setGameStartedAt(now);
+    try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
+  }, [isExodusPhase, needsOnboarding, isTutorialActive, gameStartedAt]);
+
   const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>(() => {
     try {
@@ -882,6 +883,7 @@ export function App() {
       // Legacy: check if onboarding done
       if (!localStorage.getItem('nebulife_onboarding_done')) {
         setNeedsOnboarding(true);
+        setCinematicActive(true);
       }
       // Ensure legacy player exists in DB (create if missing)
       (async () => {
@@ -946,6 +948,7 @@ export function App() {
               // Check if player needs onboarding
               if (player.game_phase === 'onboarding') {
                 setNeedsOnboarding(true);
+                setCinematicActive(true);
               }
               // Clear legacy ID after successful migration
               if (legacyId && player.firebase_uid) {
@@ -1227,14 +1230,10 @@ export function App() {
 
   const handleOnboardingComplete = useCallback(async () => {
     setNeedsOnboarding(false);
+    setCinematicActive(false);
     localStorage.setItem('nebulife_onboarding_done', '1');
 
-    // Start doomsday timer NOW (only if not already started)
-    if (gameStartedAt === null) {
-      const now = Date.now();
-      setGameStartedAt(now);
-      try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
-    }
+    // Timer will start automatically via useEffect after tutorial completes
 
     // Update game_phase on server
     const pid = playerId.current;
@@ -2805,29 +2804,11 @@ export function App() {
     }
 
     case 'galaxy': {
-      const activeSlots = researchState.slots.filter((s) => s.systemId !== null).length;
-      toolGroups.push({
-        type: 'buttons',
-        items: [{
-          id: 'observatories',
-          label: `${activeSlots}/${HOME_OBSERVATORY_COUNT}`,
-          icon: React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
-            React.createElement('circle', { cx: '8', cy: '5', r: '4' }),
-            React.createElement('line', { x1: '4', y1: '9', x2: '12', y2: '9' }),
-            React.createElement('line', { x1: '3', y1: '9', x2: '3', y2: '14' }),
-            React.createElement('line', { x1: '13', y1: '9', x2: '13', y2: '14' }),
-            React.createElement('line', { x1: '1', y1: '14', x2: '15', y2: '14' }),
-          ),
-          tooltip: 'Обсерваторії',
-          onClick: () => {},
-        }],
-      });
       // Zoom moved to SceneControlsPanel (left side)
       break;
     }
 
     case 'system': {
-      const sysActiveSlots = researchState.slots.filter((s) => s.systemId !== null).length;
       if (state.selectedPlanet) {
         toolGroups.push({
           type: 'buttons',
@@ -2852,26 +2833,6 @@ export function App() {
             },
             { id: 'info', label: 'Інфо', onClick: handleShowCharacteristics },
           ],
-        });
-      }
-      // Observatory research button (always visible on system scene)
-      if (state.selectedSystem && state.selectedSystem.ownerPlayerId === null) {
-        toolGroups.push({
-          type: 'buttons',
-          items: [{
-            id: 'system-research',
-            label: `${sysActiveSlots}/${HOME_OBSERVATORY_COUNT}`,
-            icon: React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2' },
-              React.createElement('circle', { cx: '8', cy: '5', r: '4' }),
-              React.createElement('line', { x1: '4', y1: '9', x2: '12', y2: '9' }),
-              React.createElement('line', { x1: '3', y1: '9', x2: '3', y2: '14' }),
-              React.createElement('line', { x1: '13', y1: '9', x2: '13', y2: '14' }),
-              React.createElement('line', { x1: '1', y1: '14', x2: '15', y2: '14' }),
-            ),
-            tooltip: 'Дослідити систему',
-            onClick: () => setShowSystemResearch((prev) => !prev),
-            active: showSystemResearch,
-          }],
         });
       }
       break;
@@ -2963,7 +2924,7 @@ export function App() {
 
       {/* Doomsday Clock — center top (Exodus phase only) */}
       {/* Phase 1: "СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ..." */}
-      {isExodusPhase && clockPhase === 'syncing' && (
+      {isExodusPhase && clockPhase === 'syncing' && !isTutorialActive && (
         <div
           style={{
             position: 'fixed',
@@ -2988,7 +2949,7 @@ export function App() {
         </div>
       )}
       {/* Phase 2: Glitch effect */}
-      {isExodusPhase && clockPhase === 'glitch' && (
+      {isExodusPhase && clockPhase === 'glitch' && !isTutorialActive && (
         <div
           style={{
             position: 'fixed',
@@ -3014,7 +2975,7 @@ export function App() {
         </div>
       )}
       {/* Phase 3: Visible — active game-time countdown + evacuation button */}
-      {isExodusPhase && clockPhase === 'visible' && countdownText && (
+      {isExodusPhase && clockPhase === 'visible' && countdownText && !isTutorialActive && (
         <div
           style={{
             position: 'fixed',
@@ -3163,17 +3124,20 @@ export function App() {
         onComplete={handleWarpComplete}
       />
 
-      {/* CommandBar — always visible at bottom */}
-      <CommandBar
-        scene={effectiveScene}
-        navigationItems={navigationItems}
-        toolGroups={toolGroups}
-        playerName={state.playerName}
-        playerLevel={playerLevel}
-        playerXP={playerXP}
-        onNavigate={handleBreadcrumbNavigate}
-        onOpenPlayerPage={() => setShowPlayerPage(true)}
-      />
+      {/* CommandBar — visible at bottom (hidden during cinematic intro) */}
+      {!cinematicActive && (
+        <CommandBar
+          scene={effectiveScene}
+          navigationItems={navigationItems}
+          toolGroups={toolGroups}
+          playerName={state.playerName}
+          playerLevel={playerLevel}
+          playerXP={playerXP}
+          onNavigate={handleBreadcrumbNavigate}
+          onOpenPlayerPage={() => setShowPlayerPage(true)}
+          navigationDisabled={isTutorialActive}
+        />
+      )}
 
       {/* Level-up notification toast */}
       {levelUpNotification !== null && (
@@ -3822,11 +3786,24 @@ export function App() {
         />
       )}
 
-      {/* Story onboarding (new players) */}
+      {/* Cinematic intro (new players) */}
       {needsOnboarding && !needsCallsign && homeInfo && (
-        <OnboardingScreen
+        <CinematicIntro
           homeInfo={homeInfo}
+          engineRef={engineRef}
           onComplete={handleOnboardingComplete}
+          onRequestGalaxyScene={() => {
+            engineRef.current?.showGalaxyScene();
+            setState((prev) => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+          }}
+          onRequestSystemScene={(sys) => {
+            engineRef.current?.showSystemScene(sys);
+            setState((prev) => ({ ...prev, scene: 'system', selectedSystem: sys, selectedPlanet: null }));
+          }}
+          onRequestHomeScene={() => {
+            engineRef.current?.showHomePlanetScene(true);
+            setState((prev) => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
+          }}
         />
       )}
 

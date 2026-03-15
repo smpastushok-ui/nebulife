@@ -31,6 +31,9 @@ export class CameraController {
   // Click guard: prevent accidental clicks after drag/pinch
   private _dragEndTime = 0;
 
+  // Input toggle for cinematic mode
+  private inputEnabled = true;
+
   // Smooth animation state
   private animating = false;
   private animStartTime = 0;
@@ -54,7 +57,7 @@ export class CameraController {
     // ── Smooth wheel zoom ────────────────────────────────
     this.onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      if (!this.target) return;
+      if (!this.target || !this.inputEnabled) return;
 
       const factor = e.deltaY > 0 ? 0.9 : 1.1;
       this.targetScale = Math.max(this.minScale, Math.min(this.maxScale, this.targetScale * factor));
@@ -72,6 +75,7 @@ export class CameraController {
 
     // ── Pointer down ────────────────────────────────────
     this.onPointerDown = (e: PointerEvent) => {
+      if (!this.inputEnabled) return;
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
       if (this.pointers.size === 2) {
@@ -86,7 +90,7 @@ export class CameraController {
 
     // ── Pointer move ────────────────────────────────────
     this.onPointerMove = (e: PointerEvent) => {
-      if (!this.pointers.has(e.pointerId)) return;
+      if (!this.inputEnabled || !this.pointers.has(e.pointerId)) return;
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
       // Pinch zoom (2 fingers)
@@ -381,6 +385,13 @@ export class CameraController {
     const h = this.app.screen.height;
     this.animateTo(0, 0, this.scale, 400);
   }
+
+  /** Enable/disable user input (wheel, drag, pinch) without detaching.
+   *  Programmatic animateTo() still works when disabled. */
+  setInputEnabled(enabled: boolean) {
+    this.inputEnabled = enabled;
+  }
+
 
   /** Reset and fit a given world-radius (px) on screen with padding */
   resetToFit(worldRadius: number) {
