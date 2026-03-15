@@ -15,9 +15,6 @@ interface ResourceDisplayProps {
   minerals?: number;
   volatiles?: number;
   isotopes?: number;
-  /** Observatory slots (active / total) */
-  activeObservatories?: number;
-  totalObservatories?: number;
 }
 
 const containerStyle: React.CSSProperties = {
@@ -114,20 +111,7 @@ function IsotopesIcon() {
   );
 }
 
-/** SVG telescope icon for Observatories */
-function ObservatoryIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#778899" strokeWidth="1.2" strokeLinecap="round">
-      <line x1="3" y1="14" x2="8" y2="8" />
-      <line x1="13" y1="14" x2="8" y2="8" />
-      <line x1="8" y1="8" x2="14" y2="4" />
-      <circle cx="14" cy="4" r="2" />
-      <line x1="6" y1="12" x2="10" y2="12" />
-    </svg>
-  );
-}
-
-export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, minerals = 0, volatiles = 0, isotopes = 0, activeObservatories = 0, totalObservatories = 0 }: ResourceDisplayProps) {
+export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, minerals = 0, volatiles = 0, isotopes = 0 }: ResourceDisplayProps) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -147,15 +131,6 @@ export function ResourceDisplay({ researchData, quarks, isExodusPhase, onClick, 
             <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{researchData}</span>
           </div>
           <div style={dividerStyle} />
-          {totalObservatories > 0 && (
-            <>
-              <div style={itemStyle} title="Обсерваторії" data-tutorial-id="resource-observatories">
-                <ObservatoryIcon />
-                <span><span style={{ color: activeObservatories > 0 ? '#4488aa' : '#667788' }}>{activeObservatories}</span><span style={{ color: '#556677' }}>/{totalObservatories}</span></span>
-              </div>
-              <div style={dividerStyle} />
-            </>
-          )}
         </>
       )}
 

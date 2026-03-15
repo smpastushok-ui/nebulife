@@ -36,8 +36,19 @@ export interface PlanetRenderResult {
   lightingGroup: Container;
 }
 
+/** Lighten a color by blending toward white */
+function lightenColor(color: number, factor: number): number {
+  const r = ((color >> 16) & 0xff);
+  const g = ((color >> 8) & 0xff);
+  const b = (color & 0xff);
+  const lr = Math.round(r + (255 - r) * factor);
+  const lg = Math.round(g + (255 - g) * factor);
+  const lb = Math.round(b + (255 - b) * factor);
+  return (lr << 16) | (lg << 8) | lb;
+}
+
 /**
- * Render a planet as a mini-sphere with 3D-like lighting.
+ * Render a planet as a volumetric mini-sphere with multi-layer 3D lighting.
  * The lightingGroup rotates to track the star direction.
  * Colors derived from physical parameters via derivePlanetVisuals.
  */
@@ -46,88 +57,135 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   const visuals = derivePlanetVisuals(planet, star);
   const color = getPlanetDisplayColor(planet, star);
   const size = getPlanetSize(planet);
+  const isGiant = visuals.isGasGiant || visuals.isIceGiant;
 
   // Lighting group — rotated by SystemScene to face the star
   const lightingGroup = new Container();
 
-  // === Atmosphere glow (outer rings) ===
+  // === Multi-layer atmosphere glow ===
   if (visuals.hasAtmosphere) {
-    const atmoOuter = new Graphics();
-    atmoOuter.circle(0, 0, size + 5);
-    atmoOuter.fill({ color: visuals.atmosColor, alpha: 0.06 });
-    container.addChild(atmoOuter);
-
-    const atmoInner = new Graphics();
-    atmoInner.circle(0, 0, size + 3);
-    atmoInner.fill({ color: visuals.atmosColor, alpha: 0.12 });
-    container.addChild(atmoInner);
+    const atmoGfx = new Graphics();
+    const layers = isGiant ? 5 : 4;
+    const maxRadius = isGiant ? size + 10 : size + 7;
+    for (let i = 0; i < layers; i++) {
+      const t = i / (layers - 1); // 0..1
+      const r = maxRadius - t * (maxRadius - size - 1);
+      const a = 0.03 + t * 0.12;
+      atmoGfx.circle(0, 0, r);
+      atmoGfx.fill({ color: visuals.atmosColor, alpha: a });
+    }
+    container.addChild(atmoGfx);
   }
 
-  // === Dark base (shadow side — full circle) ===
+  // === Dark base (shadow side — full circle, deeper shadow) ===
   const darkBase = new Graphics();
   darkBase.circle(0, 0, size);
-  darkBase.fill({ color: darkenColor(color, 0.25), alpha: 0.95 });
+  darkBase.fill({ color: darkenColor(color, 0.15), alpha: 1 });
   container.addChild(darkBase);
 
-  // === Lit hemisphere (offset toward light source, inside lightingGroup) ===
-  const litHemi = new Graphics();
-  litHemi.circle(size * 0.15, 0, size * 0.92);
-  litHemi.fill({ color, alpha: 0.9 });
-  lightingGroup.addChild(litHemi);
+  // === Multi-layer gradient lighting (4 concentric offset circles) ===
+  // Creates smooth terminator transition from dark to lit side
+  const litLayers = new Graphics();
+  const layerData = [
+    { offset: 0.05, radius: 0.98, brightness: 0.35, alpha: 0.6 },
+    { offset: 0.10, radius: 0.94, brightness: 0.55, alpha: 0.7 },
+    { offset: 0.18, radius: 0.88, brightness: 0.80, alpha: 0.8 },
+    { offset: 0.25, radius: 0.80, brightness: 1.00, alpha: 0.9 },
+  ];
+  for (const layer of layerData) {
+    const layerColor = lerpColor(darkenColor(color, 0.3), color, layer.brightness);
+    litLayers.circle(size * layer.offset, 0, size * layer.radius);
+    litLayers.fill({ color: layerColor, alpha: layer.alpha });
+  }
+  lightingGroup.addChild(litLayers);
 
   // === Gas giant / ice giant bands ===
-  if (visuals.isGasGiant || visuals.isIceGiant) {
-    const bandCount = visuals.isGasGiant ? 5 : 3;
+  if (isGiant) {
+    const bandCount = visuals.isGasGiant ? 7 : 4;
+    const bandGfx = new Graphics();
     for (let i = 0; i < bandCount; i++) {
       const t = (i + 0.5) / bandCount;
-      const bandY = (t - 0.5) * size * 1.6;
-      const bandWidth = size * (0.2 + Math.random() * 0.15);
+      const bandY = (t - 0.5) * size * 1.7;
+      const bandWidth = size * (0.12 + (i % 3) * 0.05);
       const bandColor = i % 2 === 0 ? visuals.bandColor1 : visuals.bandColor2;
-      const band = new Graphics();
-      band.ellipse(size * 0.1, bandY, size * 0.85, bandWidth * 0.4);
-      band.fill({ color: bandColor, alpha: 0.35 });
-      lightingGroup.addChild(band);
+      bandGfx.ellipse(size * 0.08, bandY, size * 0.82, bandWidth * 0.4);
+      bandGfx.fill({ color: bandColor, alpha: 0.3 });
     }
+    lightingGroup.addChild(bandGfx);
+
+    // Subtle equatorial brightening
+    const eqGlow = new Graphics();
+    eqGlow.ellipse(size * 0.15, 0, size * 0.6, size * 0.12);
+    eqGlow.fill({ color: lightenColor(visuals.bandColor1, 0.3), alpha: 0.1 });
+    lightingGroup.addChild(eqGlow);
   }
 
+  // === Terminator line (day/night boundary) ===
+  const terminator = new Graphics();
+  terminator.ellipse(0, 0, size * 0.15, size * 0.95);
+  terminator.fill({ color: 0x000000, alpha: 0.18 });
+  lightingGroup.addChild(terminator);
+
+  // === Fresnel rim (bright edge on lit side) ===
+  const rim = new Graphics();
+  rim.circle(size * 0.3, 0, size);
+  rim.stroke({ width: size * 0.08, color: lightenColor(color, 0.5), alpha: 0.2 });
+  lightingGroup.addChild(rim);
+
   // === Specular highlight (bright spot near light direction) ===
-  const specular = new Graphics();
-  specular.circle(size * 0.35, -size * 0.15, size * 0.25);
-  specular.fill({ color: 0xffffff, alpha: 0.35 });
-  lightingGroup.addChild(specular);
+  const specGfx = new Graphics();
+  // Wide soft glow
+  specGfx.circle(size * 0.25, -size * 0.08, size * 0.5);
+  specGfx.fill({ color: 0xffffff, alpha: 0.08 });
+  // Medium highlight
+  specGfx.circle(size * 0.32, -size * 0.12, size * 0.3);
+  specGfx.fill({ color: 0xffffff, alpha: 0.18 });
+  // Sharp specular
+  specGfx.circle(size * 0.38, -size * 0.15, size * 0.15);
+  specGfx.fill({ color: 0xffffff, alpha: 0.4 });
+  lightingGroup.addChild(specGfx);
 
-  // === Secondary softer highlight ===
-  const softHighlight = new Graphics();
-  softHighlight.circle(size * 0.2, -size * 0.1, size * 0.55);
-  softHighlight.fill({ color: 0xffffff, alpha: 0.1 });
-  lightingGroup.addChild(softHighlight);
-
-  // === Limb darkening (dark edge ring) ===
+  // === Limb darkening (dark edge ring — thicker for more volume) ===
   const limb = new Graphics();
   limb.circle(0, 0, size);
-  limb.stroke({ width: size * 0.2, color: 0x000000, alpha: 0.25 });
+  limb.stroke({ width: size * 0.25, color: 0x000000, alpha: 0.3 });
   container.addChild(limb);
+
+  // === Inner limb (softer, wider) ===
+  const innerLimb = new Graphics();
+  innerLimb.circle(0, 0, size * 0.92);
+  innerLimb.stroke({ width: size * 0.15, color: 0x000000, alpha: 0.1 });
+  container.addChild(innerLimb);
 
   // Add lighting group to container
   container.addChild(lightingGroup);
 
-  // === Ring for gas giants ===
+  // === Ring system for massive gas giants ===
   if (planet.type === 'gas-giant' && planet.massEarth > 50) {
-    const ring = new Graphics();
-    ring.ellipse(0, 0, size * 1.8, size * 0.35 * Y_COMPRESS);
-    ring.stroke({ width: 2, color: 0xccbb99, alpha: 0.3 });
-    // Second thinner ring
-    ring.ellipse(0, 0, size * 1.5, size * 0.28 * Y_COMPRESS);
-    ring.stroke({ width: 1, color: 0xaa9977, alpha: 0.2 });
-    container.addChild(ring);
+    const ringGfx = new Graphics();
+    // Outer ring
+    ringGfx.ellipse(0, 0, size * 1.9, size * 0.35 * Y_COMPRESS);
+    ringGfx.stroke({ width: 3, color: 0xccbb99, alpha: 0.15 });
+    // Main ring
+    ringGfx.ellipse(0, 0, size * 1.7, size * 0.32 * Y_COMPRESS);
+    ringGfx.stroke({ width: 2.5, color: 0xddccaa, alpha: 0.25 });
+    // Inner ring
+    ringGfx.ellipse(0, 0, size * 1.45, size * 0.27 * Y_COMPRESS);
+    ringGfx.stroke({ width: 1.5, color: 0xaa9977, alpha: 0.2 });
+    // Gap ring
+    ringGfx.ellipse(0, 0, size * 1.55, size * 0.29 * Y_COMPRESS);
+    ringGfx.stroke({ width: 0.5, color: 0x020510, alpha: 0.3 });
+    container.addChild(ringGfx);
   }
 
-  // === Life indicator ===
+  // === Life indicator (pulsing green glow) ===
   if (planet.hasLife) {
-    const lifeGlow = new Graphics();
-    lifeGlow.circle(0, 0, size + 6);
-    lifeGlow.stroke({ width: 1.2, color: 0x44ff88, alpha: 0.5 });
-    container.addChild(lifeGlow);
+    const lifeGfx = new Graphics();
+    lifeGfx.circle(0, 0, size + 7);
+    lifeGfx.stroke({ width: 1, color: 0x44ff88, alpha: 0.25 });
+    lifeGfx.circle(0, 0, size + 5);
+    lifeGfx.stroke({ width: 1.5, color: 0x44ff88, alpha: 0.45 });
+    container.addChild(lifeGfx);
   }
 
   // === Label ===
@@ -143,7 +201,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
     resolution: 3,
   });
   label.anchor.set(0.5, 0);
-  label.y = size + 6;
+  label.y = size + 8;
   container.addChild(label);
 
   return { container, lightingGroup };
@@ -159,15 +217,25 @@ const MOON_COLORS: Record<string, number> = {
 
 /**
  * Render a tiny moon dot for the system view.
- * Composition-driven color, with subtle highlight.
+ * Composition-driven color with volumetric shading.
  */
 export function renderSystemMoon(compositionType: string, radius: number): Graphics {
   const gfx = new Graphics();
   const color = MOON_COLORS[compositionType] ?? 0x888899;
+  // Dark base
   gfx.circle(0, 0, radius);
+  gfx.fill({ color: darkenColor(color, 0.4), alpha: 0.9 });
+  // Lit side
+  gfx.circle(radius * 0.15, 0, radius * 0.85);
   gfx.fill({ color, alpha: 0.85 });
-  gfx.circle(-radius * 0.25, -radius * 0.25, radius * 0.5);
-  gfx.fill({ color: 0xffffff, alpha: 0.15 });
+  // Specular highlight
+  gfx.circle(radius * 0.3, -radius * 0.2, radius * 0.35);
+  gfx.fill({ color: 0xffffff, alpha: 0.2 });
+  // Limb darkening
+  if (radius > 2) {
+    gfx.circle(0, 0, radius);
+    gfx.stroke({ width: radius * 0.3, color: 0x000000, alpha: 0.2 });
+  }
   return gfx;
 }
 

@@ -2917,8 +2917,6 @@ export function App() {
         minerals={colonyResources.minerals}
         volatiles={colonyResources.volatiles}
         isotopes={colonyResources.isotopes}
-        activeObservatories={researchState.slots.filter((s) => s.systemId !== null).length}
-        totalObservatories={researchState.slots.length}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
       />
 
