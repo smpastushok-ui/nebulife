@@ -208,12 +208,17 @@ function WarpOverlay({ active }: { active: boolean }) {
 
       const isFading = elapsed >= WARP_FADE_START;
 
-      // Canvas clear — faster clear during fade-out to erase trails
-      const clearAlpha = isFading ? 0.12 + (1 - envelope) * 0.25 : 0.15;
-      ctx.fillStyle = `rgba(2,5,16,${clearAlpha})`;
+      // During fade-out: use CSS opacity to fade the entire canvas to transparent
+      // This reveals the game background underneath smoothly
+      if (isFading && canvas.style.opacity !== '0') {
+        canvas.style.opacity = '0';
+      }
+
+      // Canvas clear — semi-transparent fill creates motion blur trails
+      ctx.fillStyle = 'rgba(2,5,16,0.15)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Stop animation after duration (canvas naturally clears itself)
+      // Stop animation after duration
       if (elapsed > WARP_DURATION + 500) return;
 
       let aliveCount = 0;
@@ -296,6 +301,8 @@ function WarpOverlay({ active }: { active: boolean }) {
         inset: 0,
         zIndex: 10002,
         pointerEvents: 'none',
+        opacity: 1,
+        transition: 'opacity 1.5s ease-out',
       }}
     />
   );
