@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { Planet } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // PlanetNavHeader — Fixed top-center navigation between planets in a system
 // ---------------------------------------------------------------------------
 // Shows current planet name with prev / next buttons anchored to the
-// top of the screen. Does not move during pan/zoom of the PixiJS scene.
-// Below the planet name: "Створити 3D планету" button (like telescope photo).
+// top of the screen. Does not move during pan/zoom of the scene.
 // ---------------------------------------------------------------------------
 
 interface PlanetNavHeaderProps {
@@ -15,10 +14,6 @@ interface PlanetNavHeaderProps {
   nextPlanet: Planet | null;
   onPrev: () => void;
   onNext: () => void;
-  /** 3D model generation */
-  on3DGenerate?: () => void;
-  is3DGenerating?: boolean;
-  has3DModel?: boolean;
 }
 
 export function PlanetNavHeader({
@@ -27,9 +22,6 @@ export function PlanetNavHeader({
   nextPlanet,
   onPrev,
   onNext,
-  on3DGenerate,
-  is3DGenerating,
-  has3DModel,
 }: PlanetNavHeaderProps) {
   const currentName = currentPlanet.name.split(' ').pop() ?? currentPlanet.name;
   const prevName = prevPlanet ? (prevPlanet.name.split(' ').pop() ?? prevPlanet.name) : null;
@@ -151,78 +143,6 @@ export function PlanetNavHeader({
         </button>
       </div>
 
-      {/* 3D generation button */}
-      {on3DGenerate && (
-        <Generate3DButton
-          onClick={on3DGenerate}
-          generating={is3DGenerating}
-          hasModel={has3DModel}
-        />
-      )}
     </div>
-  );
-}
-
-function Generate3DButton({
-  onClick,
-  generating,
-  hasModel,
-}: {
-  onClick: () => void;
-  generating?: boolean;
-  hasModel?: boolean;
-}) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      disabled={generating}
-      title={hasModel ? 'Оновити 3D-модель' : 'Квантовий синтез поверхні'}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 5,
-        padding: '4px 12px',
-        marginTop: 4,
-        background: hover && !generating ? 'rgba(30, 50, 80, 0.7)' : 'rgba(5, 10, 20, 0.85)',
-        border: '1px solid',
-        borderColor: generating ? '#446688' : hover ? '#4488aa' : '#334455',
-        borderRadius: 4,
-        cursor: generating ? 'default' : 'pointer',
-        fontFamily: 'monospace',
-        fontSize: 10,
-        color: generating ? '#4488aa' : hover ? '#aabbcc' : '#667788',
-        backdropFilter: 'blur(6px)',
-        transition: 'all 0.15s',
-        alignSelf: 'center',
-      }}
-    >
-      {/* 3D cube icon */}
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-        strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 1L14.5 4.75V11.25L8 15L1.5 11.25V4.75L8 1Z" />
-        <path d="M8 15V8" />
-        <path d="M8 8L1.5 4.75" />
-        <path d="M8 8L14.5 4.75" />
-      </svg>
-      {generating ? (
-        <span>Генерація...</span>
-      ) : (
-        <>
-          <span>{hasModel ? 'Оновити' : 'Квантовий синтез'}</span>
-          <span style={{ opacity: 0.75 }}>49</span>
-          {/* Quark / atom icon */}
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-            strokeWidth="1.4" strokeLinecap="round">
-            <circle cx="8" cy="8" r="2" />
-            <ellipse cx="8" cy="8" rx="7" ry="3" />
-            <ellipse cx="8" cy="8" rx="3" ry="7" />
-          </svg>
-        </>
-      )}
-    </button>
   );
 }

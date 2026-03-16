@@ -10,8 +10,6 @@ import {
 } from '@nebulife/core';
 import { GalaxyScene } from './scenes/GalaxyScene.js';
 import { SystemScene } from './scenes/SystemScene.js';
-import { HomePlanetScene } from './scenes/HomePlanetScene.js';
-import { PlanetViewScene } from './scenes/PlanetViewScene.js';
 import { CameraController } from './camera/CameraController.js';
 
 export interface GameCallbacks {
@@ -34,28 +32,11 @@ export class GameEngine {
 
   private galaxyScene: GalaxyScene | null = null;
   private systemScene: SystemScene | null = null;
-  private homePlanetScene: HomePlanetScene | null = null;
-  private planetViewScene: PlanetViewScene | null = null;
   private activeScene: Container | null = null;
 
   private rings: GalaxyRing[] = [];
   private playerPos = { x: 0, y: 0 };
   private researchState: ResearchState = { slots: [], systems: {} };
-
-  // Home planet drag/pan state
-  private hpDragging = false;
-  private hpLastPointerX = 0;
-  private hpOnPointerDown: ((e: PointerEvent) => void) | null = null;
-  private hpOnPointerMove: ((e: PointerEvent) => void) | null = null;
-  private hpOnPointerUp: ((e: PointerEvent) => void) | null = null;
-
-  // Planet view drag/rotate + wheel zoom state
-  private pvDragging = false;
-  private pvLastPointerX = 0;
-  private pvOnPointerDown: ((e: PointerEvent) => void) | null = null;
-  private pvOnPointerMove: ((e: PointerEvent) => void) | null = null;
-  private pvOnPointerUp: ((e: PointerEvent) => void) | null = null;
-  private pvOnWheel: ((e: WheelEvent) => void) | null = null;
 
   constructor(container: HTMLElement, callbacks: GameCallbacks, playerIndex = 0, galaxySeed = 42) {
     this.container = container;
@@ -82,8 +63,8 @@ export class GameEngine {
     this.playerPos = assignPlayerPosition(this.galaxySeed, this.playerIndex);
     this.rings = generatePlayerRings(this.galaxySeed, this.playerPos.x, this.playerPos.y, `player-${this.playerIndex}`);
 
-    // Start with home planet intro (hidden by default — App visibility effect decides)
-    this.showHomePlanetScene(true);
+    // Start with home planet intro (PlanetGlobeView handles rendering)
+    this.showHomePlanetScene();
 
     // Animation loop
     this.app.ticker.add(() => {
@@ -93,8 +74,6 @@ export class GameEngine {
       if (this.systemScene) this.systemScene.freezeOrbits = this.camera.isZooming;
       this.galaxyScene?.update(dt);
       this.systemScene?.update(dt);
-      this.homePlanetScene?.update(dt);
-      this.planetViewScene?.update(dt);
     });
   }
 
@@ -108,33 +87,9 @@ export class GameEngine {
     this.galaxyScene?.updateSystemVisual(systemId, state);
   }
 
-  showHomePlanetScene(startHidden = false) {
+  showHomePlanetScene(_startHidden = false) {
     this.clearScenes();
-
-    // Find home system and its best planet
-    const homeSystem = this.getAllSystems().find((s) => s.ownerPlayerId !== null);
-    if (!homeSystem) {
-      // Fallback to galaxy if no home system
-      this.showGalaxyScene();
-      return;
-    }
-    const homePlanet = homeSystem.planets.find((p) => p.isHomePlanet) ?? homeSystem.planets[0];
-
-    const w = this.app.screen.width;
-    const h = this.app.screen.height;
-
-    // Force resize to fix stale viewport dimensions after overlay transitions
-    this.app.resize();
-
-    this.homePlanetScene = new HomePlanetScene(homeSystem, homePlanet, w, h);
-    // Start planet hidden to prevent PixiJS flash; visibility useEffect will show if no 3D model
-    if (startHidden) this.homePlanetScene.setPlanetVisible(false);
-    this.app.stage.addChild(this.homePlanetScene.container);
-    this.app.stage.addChild(this.homePlanetScene.vignetteOverlay);
-    this.activeScene = this.homePlanetScene.container;
-    // No camera controller — rotation disabled for now
     this.camera.detach();
-    // this.setupHomePlanetInput();
     this.callbacks.onSceneChange('home-intro');
   }
 
@@ -244,20 +199,9 @@ export class GameEngine {
     this.callbacks.onSceneChange('system');
   }
 
-  showPlanetViewScene(system: StarSystem, planet: Planet, startHidden = false) {
+  showPlanetViewScene(_system: StarSystem, _planet: Planet, _startHidden = false) {
     this.clearScenes();
-
-    const w = this.app.screen.width;
-    const h = this.app.screen.height;
-
-    this.planetViewScene = new PlanetViewScene(system, planet, w, h);
-    // Start planet hidden to prevent PixiJS flash; visibility useEffect will show it if no 3D model
-    if (startHidden) this.planetViewScene.setPlanetVisible(false);
-    this.app.stage.addChild(this.planetViewScene.container);
-    this.app.stage.addChild(this.planetViewScene.vignetteOverlay);
-    this.activeScene = this.planetViewScene.container;
     this.camera.detach();
-    this.setupPlanetViewInput();
     this.callbacks.onSceneChange('planet-view');
   }
 
@@ -271,53 +215,15 @@ export class GameEngine {
   systemZoomOut() { this.camera.zoomBy(0.77); }
   systemCenterOnOrigin() { this.camera.centerOnOrigin(); }
 
-  // Home planet camera controls
-  homePlanetZoomIn() { this.homePlanetScene?.zoomIn(); }
-  homePlanetZoomOut() { this.homePlanetScene?.zoomOut(); }
-
-  // Planet view camera controls
-  planetViewZoomIn() { this.planetViewScene?.zoomIn(); }
-  planetViewZoomOut() { this.planetViewScene?.zoomOut(); }
-
-  /** Hide/show the PixiJS procedural planet (when 3D model is active) */
-  setPlanetVisible(visible: boolean) {
-    this.homePlanetScene?.setPlanetVisible(visible);
-    this.planetViewScene?.setPlanetVisible(visible);
+  /** Hide/show the PixiJS canvas (when PlanetGlobeView is active) */
+  setPlanetVisible(_visible: boolean) {
+    // No-op: PlanetGlobeView handles rendering independently via React overlay.
+    // PixiJS canvas is hidden by CSS when scene is home-intro or planet-view.
   }
 
   /** Unfocus galaxy system (restores all stars to normal positions) */
   unfocusSystem() {
     this.galaxyScene?.unfocusSystem();
-  }
-
-  /** Activate scanning effects on home planet */
-  startHomeScanning() {
-    this.homePlanetScene?.startScanning();
-  }
-
-  /** Deactivate scanning effects on home planet */
-  stopHomeScanning() {
-    this.homePlanetScene?.stopScanning();
-  }
-
-  /** Update scanning progress (0-100) */
-  updateScanProgress(progress: number) {
-    this.homePlanetScene?.updateScanProgress(progress);
-  }
-
-  /** Activate scanning effects on planet-view scene */
-  startPlanetViewScanning() {
-    this.planetViewScene?.startScanning();
-  }
-
-  /** Deactivate scanning effects on planet-view scene */
-  stopPlanetViewScanning() {
-    this.planetViewScene?.stopScanning();
-  }
-
-  /** Update scanning progress on planet-view scene (0-100) */
-  updatePlanetViewScanProgress(progress: number) {
-    this.planetViewScene?.updateScanProgress(progress);
   }
 
   // ── Ship flight proxies ────────────────────────────────────────────
@@ -335,21 +241,6 @@ export class GameEngine {
   /** Stop system scene ship flight */
   stopSystemShipFlight() {
     this.systemScene?.stopShipFlight();
-  }
-
-  /** Start ship approach in planet-view scene */
-  startPlanetViewShipApproach() {
-    this.planetViewScene?.startShipApproach();
-  }
-
-  /** Is planet-view ship on orbit? */
-  isPlanetViewShipOnOrbit(): boolean {
-    return this.planetViewScene?.isShipOnOrbit() ?? false;
-  }
-
-  /** Stop planet-view ship flight */
-  stopPlanetViewShipFlight() {
-    this.planetViewScene?.stopShipFlight();
   }
 
   /** Enter a system (called after warp animation completes) */
@@ -387,111 +278,7 @@ export class GameEngine {
     }
   }
 
-  /** Setup mouse/touch drag-to-rotate for home planet scene */
-  private setupHomePlanetInput() {
-    const canvas = this.app.canvas;
-    canvas.style.touchAction = 'none'; // prevent browser scroll/zoom on touch
-
-    this.hpOnPointerDown = (e: PointerEvent) => {
-      // Ignore left mouse button — only allow touch and middle/right mouse
-      if (e.pointerType === 'mouse' && e.button === 0) return;
-      this.hpDragging = true;
-      this.hpLastPointerX = e.clientX;
-    };
-
-    this.hpOnPointerMove = (e: PointerEvent) => {
-      if (!this.hpDragging || !this.homePlanetScene) return;
-      const dx = e.clientX - this.hpLastPointerX;
-      this.hpLastPointerX = e.clientX;
-      this.homePlanetScene.rotate(-dx * 0.003);
-    };
-
-    this.hpOnPointerUp = () => {
-      this.hpDragging = false;
-    };
-
-    canvas.addEventListener('pointerdown', this.hpOnPointerDown);
-    canvas.addEventListener('pointermove', this.hpOnPointerMove);
-    canvas.addEventListener('pointerup', this.hpOnPointerUp);
-    canvas.addEventListener('pointerleave', this.hpOnPointerUp);
-    canvas.addEventListener('pointercancel', this.hpOnPointerUp);
-  }
-
-  /** Remove home planet drag listeners */
-  private teardownHomePlanetInput() {
-    const canvas = this.app.canvas;
-    if (this.hpOnPointerDown) {
-      canvas.removeEventListener('pointerdown', this.hpOnPointerDown);
-      canvas.removeEventListener('pointermove', this.hpOnPointerMove!);
-      canvas.removeEventListener('pointerup', this.hpOnPointerUp!);
-      canvas.removeEventListener('pointerleave', this.hpOnPointerUp!);
-      canvas.removeEventListener('pointercancel', this.hpOnPointerUp!);
-      this.hpOnPointerDown = null;
-      this.hpOnPointerMove = null;
-      this.hpOnPointerUp = null;
-    }
-    this.hpDragging = false;
-  }
-
-  /** Setup mouse/touch wheel-zoom + drag-rotate for planet view scene */
-  private setupPlanetViewInput() {
-    const canvas = this.app.canvas;
-    canvas.style.touchAction = 'none';
-
-    this.pvOnPointerDown = (e: PointerEvent) => {
-      this.pvDragging = true;
-      this.pvLastPointerX = e.clientX;
-    };
-
-    this.pvOnPointerMove = (e: PointerEvent) => {
-      if (!this.pvDragging || !this.planetViewScene) return;
-      const dx = e.clientX - this.pvLastPointerX;
-      this.pvLastPointerX = e.clientX;
-      this.planetViewScene.rotate(-dx * 0.004);
-    };
-
-    this.pvOnPointerUp = () => {
-      this.pvDragging = false;
-    };
-
-    this.pvOnWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      if (e.deltaY > 0) {
-        this.planetViewScene?.zoomOut();
-      } else {
-        this.planetViewScene?.zoomIn();
-      }
-    };
-
-    canvas.addEventListener('pointerdown', this.pvOnPointerDown);
-    canvas.addEventListener('pointermove', this.pvOnPointerMove);
-    canvas.addEventListener('pointerup', this.pvOnPointerUp);
-    canvas.addEventListener('pointerleave', this.pvOnPointerUp);
-    canvas.addEventListener('pointercancel', this.pvOnPointerUp);
-    canvas.addEventListener('wheel', this.pvOnWheel, { passive: false });
-  }
-
-  /** Remove planet view drag/wheel listeners */
-  private teardownPlanetViewInput() {
-    const canvas = this.app.canvas;
-    if (this.pvOnPointerDown) {
-      canvas.removeEventListener('pointerdown', this.pvOnPointerDown);
-      canvas.removeEventListener('pointermove', this.pvOnPointerMove!);
-      canvas.removeEventListener('pointerup', this.pvOnPointerUp!);
-      canvas.removeEventListener('pointerleave', this.pvOnPointerUp!);
-      canvas.removeEventListener('pointercancel', this.pvOnPointerUp!);
-      canvas.removeEventListener('wheel', this.pvOnWheel!);
-      this.pvOnPointerDown = null;
-      this.pvOnPointerMove = null;
-      this.pvOnPointerUp = null;
-      this.pvOnWheel = null;
-    }
-    this.pvDragging = false;
-  }
-
   private clearScenes() {
-    this.teardownHomePlanetInput();
-    this.teardownPlanetViewInput();
     // Reset camera constraints (overridden in system scene)
     this.camera.setMinScale(0.1);
     this.camera.setPanBounds(null);
@@ -505,18 +292,6 @@ export class GameEngine {
       this.app.stage.removeChild(this.systemScene.container);
       this.systemScene.destroy();
       this.systemScene = null;
-    }
-    if (this.homePlanetScene) {
-      this.app.stage.removeChild(this.homePlanetScene.container);
-      this.app.stage.removeChild(this.homePlanetScene.vignetteOverlay);
-      this.homePlanetScene.destroy();
-      this.homePlanetScene = null;
-    }
-    if (this.planetViewScene) {
-      this.app.stage.removeChild(this.planetViewScene.container);
-      this.app.stage.removeChild(this.planetViewScene.vignetteOverlay);
-      this.planetViewScene.destroy();
-      this.planetViewScene = null;
     }
   }
 

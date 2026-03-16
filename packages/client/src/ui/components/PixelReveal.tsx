@@ -104,10 +104,33 @@ export function PixelReveal({
 
       const img = await loadImage();
 
+      // Wait for CSS layout to compute actual dimensions (mobile flex can be delayed)
+      let cw = canvas.clientWidth;
+      let ch = canvas.clientHeight;
+      if (cw === 0 || ch === 0) {
+        await new Promise<void>((resolve) => {
+          let tries = 0;
+          const check = () => {
+            cw = canvas.clientWidth;
+            ch = canvas.clientHeight;
+            if ((cw > 0 && ch > 0) || tries++ > 20) {
+              resolve();
+            } else {
+              requestAnimationFrame(check);
+            }
+          };
+          requestAnimationFrame(check);
+        });
+      }
+      // Final fallback: use parent or viewport dimensions
+      if (cw === 0 || ch === 0) {
+        const parent = canvas.parentElement;
+        cw = parent?.clientWidth || window.innerWidth;
+        ch = parent?.clientHeight || window.innerHeight;
+      }
+
       // Fill canvas to viewport
       const dpr = window.devicePixelRatio || 1;
-      const cw = canvas.clientWidth;
-      const ch = canvas.clientHeight;
       canvas.width = cw * dpr;
       canvas.height = ch * dpr;
 

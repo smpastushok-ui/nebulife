@@ -3,7 +3,14 @@ import type { StarSystem, Planet } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import { renderStar } from '../rendering/StarRenderer.js';
 import { renderPlanet, renderOrbitProjected, renderSystemMoon, getPlanetSize, Y_COMPRESS } from '../rendering/PlanetRenderer.js';
-import type { TwinkleStar } from '../rendering/HomePlanetBackdrop.js';
+
+/** Twinkling star data (inline to avoid dependency on HomePlanetBackdrop) */
+interface TwinkleStar {
+  graphic: Graphics;
+  baseAlpha: number;
+  speed: number;
+  phase: number;
+}
 
 /**
  * Non-linear AU → screen-pixel mapping.

@@ -91,6 +91,16 @@ export function CosmosGallery({ playerId, highlightedType, localEntries }: Cosmo
     }
   }, []);
 
+  // Scroll to highlighted cell when a photo is saved
+  useEffect(() => {
+    if (!highlightedType) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector(`[data-gallery-type="${highlightedType}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [highlightedType]);
+
   // Fetch player discoveries
   useEffect(() => {
     let cancelled = false;
@@ -288,6 +298,7 @@ function CatalogCell({
   if (!isDiscovered) {
     return (
       <div
+        data-gallery-type={entry.type}
         style={{
           ...cellSize,
           background: 'rgba(20, 25, 35, 0.6)',
@@ -335,6 +346,7 @@ function CatalogCell({
   if (!hasPhoto) {
     return (
       <div
+        data-gallery-type={entry.type}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
@@ -384,6 +396,7 @@ function CatalogCell({
   // State 3: Discovered with photo
   return (
     <div
+      data-gallery-type={entry.type}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}

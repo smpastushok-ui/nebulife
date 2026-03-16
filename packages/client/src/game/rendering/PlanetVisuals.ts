@@ -1,5 +1,6 @@
 import type { Planet, PlanetType } from '@nebulife/core';
 import type { Star } from '@nebulife/core';
+import * as THREE from 'three';
 
 export interface BiomeColors {
   tropical: number;
@@ -328,4 +329,195 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
     bandColor1: isGas ? gasColors.c1 : iceColors.c1,
     bandColor2: isGas ? gasColors.c2 : iceColors.c2,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Three.js uniform helpers
+// ---------------------------------------------------------------------------
+
+/** Convert 0xRRGGBB integer color to THREE.Color */
+function numToColor(c: number): THREE.Color {
+  return new THREE.Color(
+    ((c >> 16) & 0xff) / 255,
+    ((c >> 8) & 0xff) / 255,
+    (c & 0xff) / 255,
+  );
+}
+
+/** Atmosphere parameters for Three.js rendering */
+export interface AtmosphereParams {
+  color: THREE.Color;
+  intensity: number;
+  power: number;
+  scale: number;
+}
+
+/** Get atmosphere shader parameters from planet data (ported from Planet3DViewer) */
+export function getAtmosphereParams(
+  atmo: { composition: Record<string, number>; surfacePressureAtm: number },
+  planetType: string,
+): AtmosphereParams | null {
+  if (atmo.surfacePressureAtm < 0.01) return null;
+  const comp = atmo.composition;
+  const pressure = atmo.surfacePressureAtm;
+
+  if (planetType === 'gas-giant') {
+    return { color: new THREE.Color(0.85, 0.75, 0.55), intensity: 0.5, power: 2.5, scale: 1.08 };
+  }
+  if (planetType === 'ice-giant') {
+    return { color: new THREE.Color(0.4, 0.75, 0.9), intensity: 0.5, power: 2.5, scale: 1.07 };
+  }
+  if ((comp['CO2'] ?? 0) > 0.4) {
+    return {
+      color: new THREE.Color(0.9, 0.6, 0.3),
+      intensity: Math.min(0.7, 0.3 + pressure * 0.05),
+      power: 2.0,
+      scale: 1.04 + Math.min(pressure * 0.005, 0.06),
+    };
+  }
+  if ((comp['N2'] ?? 0) > 0.5 || (comp['O2'] ?? 0) > 0.1) {
+    return {
+      color: new THREE.Color(0.4, 0.65, 1.0),
+      intensity: Math.min(0.6, 0.25 + pressure * 0.15),
+      power: 3.0,
+      scale: 1.03 + Math.min(pressure * 0.01, 0.04),
+    };
+  }
+  if ((comp['H2'] ?? 0) > 0.3 || (comp['He'] ?? 0) > 0.2) {
+    return { color: new THREE.Color(0.8, 0.85, 1.0), intensity: 0.4, power: 2.5, scale: 1.06 };
+  }
+  return {
+    color: new THREE.Color(0.5, 0.6, 0.8),
+    intensity: Math.min(0.35, 0.15 + pressure * 0.1),
+    power: 4.0,
+    scale: 1.02,
+  };
+}
+
+/** Cloud parameters for Three.js rendering */
+export interface CloudParams {
+  color: THREE.Color;
+  coverage: number;
+  scale: number;
+}
+
+/** Get cloud shader parameters from planet data (ported from Planet3DViewer) */
+export function getCloudParams(
+  atmo: { surfacePressureAtm: number; composition: Record<string, number> },
+  planetType: string,
+): CloudParams | null {
+  if (planetType === 'gas-giant') {
+    return { color: new THREE.Color(0.95, 0.9, 0.8), coverage: 0.7, scale: 1.02 };
+  }
+  if (planetType === 'ice-giant') {
+    return { color: new THREE.Color(0.85, 0.9, 0.95), coverage: 0.6, scale: 1.02 };
+  }
+  const pressure = atmo.surfacePressureAtm;
+  if (pressure < 0.1) return null;
+
+  if ((atmo.composition['CO2'] ?? 0) > 0.4 && pressure > 1) {
+    return {
+      color: new THREE.Color(0.95, 0.85, 0.65),
+      coverage: Math.min(0.8, pressure * 0.1),
+      scale: 1.015,
+    };
+  }
+  if ((atmo.composition['N2'] ?? 0) > 0.5 || (atmo.composition['O2'] ?? 0) > 0.1) {
+    return {
+      color: new THREE.Color(1.0, 1.0, 1.0),
+      coverage: Math.min(0.5, 0.2 + pressure * 0.15),
+      scale: 1.01,
+    };
+  }
+  return {
+    color: new THREE.Color(0.9, 0.9, 0.95),
+    coverage: Math.min(0.3, pressure * 0.1),
+    scale: 1.01,
+  };
+}
+
+/** Moon color palette by composition type */
+export function getMoonColors(compositionType: string, surfaceTempK: number): { base: THREE.Color; high: THREE.Color } {
+  switch (compositionType) {
+    case 'icy':
+      return { base: new THREE.Color(0.65, 0.72, 0.80), high: new THREE.Color(0.85, 0.90, 0.95) };
+    case 'metallic':
+      return { base: new THREE.Color(0.45, 0.42, 0.38), high: new THREE.Color(0.60, 0.58, 0.55) };
+    case 'volcanic':
+      return { base: new THREE.Color(0.35, 0.20, 0.12), high: new THREE.Color(0.65, 0.35, 0.15) };
+    case 'rocky':
+    default:
+      if (surfaceTempK > 400) {
+        return { base: new THREE.Color(0.50, 0.38, 0.28), high: new THREE.Color(0.65, 0.50, 0.35) };
+      }
+      return { base: new THREE.Color(0.45, 0.42, 0.40), high: new THREE.Color(0.60, 0.58, 0.55) };
+  }
+}
+
+/**
+ * Convert PlanetVisualConfig + Planet physics → Three.js shader uniforms.
+ * This is the bridge between planet generation and GPU rendering.
+ */
+export function planetVisualsToUniforms(
+  visuals: PlanetVisualConfig,
+  planet: Planet,
+  star: Star,
+): Record<string, THREE.IUniform> {
+  // Compute star direction (normalized, pointing from planet toward star)
+  // In our scene, star is a distant billboard — we use a fixed direction
+  // based on star position relative to planet center
+  const starDir = new THREE.Vector3(-0.7, 0.5, 0.5).normalize();
+
+  // Resource abundances (crust composition fractions, normalized to [0..1] importance)
+  const crust = planet.resources?.crustComposition ?? {};
+  const feAbundance = clamp((crust['Fe'] ?? 0.056) / 0.1, 0, 1);  // Earth ~0.056
+  const siAbundance = clamp((crust['Si'] ?? 0.28) / 0.5, 0, 1);   // Earth ~0.28
+  const cAbundance = clamp((crust['C'] ?? 0) / 0.05, 0, 1);       // Usually trace in crust
+  const sAbundance = clamp((crust['S'] ?? 0) / 0.05, 0, 1);       // Usually trace in crust
+
+  // Star light intensity from luminosity
+  const distAU = planet.orbit?.semiMajorAxisAU ?? 1;
+  const starIntensity = clamp(Math.pow(star.luminositySolar, 0.25) / Math.sqrt(distAU), 0.3, 2.0);
+
+  const base: Record<string, THREE.IUniform> = {
+    uSeed: { value: planet.seed },
+    uSurfaceBase: { value: numToColor(visuals.surfaceBaseColor) },
+    uSurfaceHigh: { value: numToColor(visuals.surfaceHighColor) },
+    uLandThreshold: { value: visuals.landThreshold },
+    uHasOcean: { value: visuals.hasOcean ? 1.0 : 0.0 },
+    uOceanShallow: { value: numToColor(visuals.oceanShallow) },
+    uOceanDeep: { value: numToColor(visuals.oceanDeep) },
+    uWaterCoverage: { value: visuals.waterCoverage },
+    uIceCapFraction: { value: visuals.iceCapFraction },
+    uHasBiomes: { value: visuals.hasBiomes ? 1.0 : 0.0 },
+    uBiomeTropical: { value: numToColor(visuals.biomeColors.tropical) },
+    uBiomeTemperate: { value: numToColor(visuals.biomeColors.temperate) },
+    uBiomeBoreal: { value: numToColor(visuals.biomeColors.boreal) },
+    uBiomeDesert: { value: numToColor(visuals.biomeColors.desert) },
+    uBiomeTundra: { value: numToColor(visuals.biomeColors.tundra) },
+    uHasLava: { value: visuals.hasLavaFlows ? 1.0 : 0.0 },
+    uHasCityLights: { value: planet.lifeComplexity === 'intelligent' && planet.hasLife ? 1.0 : 0.0 },
+    uStarDir: { value: starDir },
+    uStarColor: { value: numToColor(visuals.starTint) },
+    uStarIntensity: { value: starIntensity },
+    uTime: { value: 0.0 },
+    uAlbedo: { value: planet.albedo ?? 0.3 },
+
+    // Resource/geology uniforms
+    uFeAbundance: { value: feAbundance },
+    uSiAbundance: { value: siAbundance },
+    uCAbundance: { value: cAbundance },
+    uSAbundance: { value: sAbundance },
+    uDensity: { value: planet.densityGCm3 ?? 5.5 },
+    uGravity: { value: planet.surfaceGravityG ?? 1.0 },
+    uMagneticStrength: { value: clamp((planet.magneticField?.strengthT ?? 0) / 5e-5, 0, 2) }, // Normalize to Earth ~5e-5 T
+
+    // Gas giant specifics
+    uBandColor1: { value: numToColor(visuals.bandColor1) },
+    uBandColor2: { value: numToColor(visuals.bandColor2) },
+    uIsGasGiant: { value: visuals.isGasGiant ? 1.0 : 0.0 },
+    uBandCount: { value: visuals.isGasGiant ? 14.0 : 10.0 },
+  };
+
+  return base;
 }

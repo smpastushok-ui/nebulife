@@ -281,14 +281,16 @@ export function PhotoModal({
           }}
         >
           {onSaveToGallery && (
-            <ActionButton
-              onClick={handleSave}
-              disabled={saved}
-              bgColor={saved ? 'rgba(40, 80, 50, 0.4)' : 'rgba(20, 60, 40, 0.6)'}
-              borderColor={saved ? '#44ff8866' : '#44ff88'}
-              textColor={saved ? '#44ff8888' : '#44ff88'}
-              label={saved ? 'Збережено' : 'До колекцiї'}
-            />
+            <div data-tutorial-id="save-to-gallery-btn">
+              <ActionButton
+                onClick={handleSave}
+                disabled={saved}
+                bgColor={saved ? 'rgba(40, 80, 50, 0.4)' : 'rgba(20, 60, 40, 0.6)'}
+                borderColor={saved ? '#44ff8866' : '#44ff88'}
+                textColor={saved ? '#44ff8888' : '#44ff88'}
+                label={saved ? 'Збережено' : 'До колекцiї'}
+              />
+            </div>
           )}
           <IconButton
             onClick={handleShare}

@@ -32,13 +32,11 @@ CREATE TABLE IF NOT EXISTS surface_buildings (
   id              TEXT PRIMARY KEY,
   player_id       TEXT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
   planet_id       TEXT NOT NULL,
-  hex_q           INTEGER NOT NULL,
-  hex_r           INTEGER NOT NULL,
-  building_type   TEXT NOT NULL,
-  tier            INTEGER NOT NULL DEFAULT 1,
-  model_url       TEXT,
-  status          TEXT NOT NULL DEFAULT 'active',
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  type            TEXT NOT NULL,
+  x               INTEGER NOT NULL,
+  y               INTEGER NOT NULL,
+  level           INTEGER NOT NULL DEFAULT 1,
+  built_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_surface_buildings_player_planet
