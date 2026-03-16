@@ -80,15 +80,21 @@ function createStarfield(scene: THREE.Scene): {
 
     sizes[i] = 0.3 + Math.random() * 2.0;
 
+    // Star color distribution with subtle cosmic blue tint
     const roll = Math.random();
-    if (roll < 0.2) {
-      colors[i3] = 1.0; colors[i3 + 1] = 0.85 + Math.random() * 0.15; colors[i3 + 2] = 0.7 + Math.random() * 0.2;
-    } else if (roll < 0.4) {
-      colors[i3] = 0.6 + Math.random() * 0.2; colors[i3 + 1] = 0.7 + Math.random() * 0.2; colors[i3 + 2] = 1.0;
+    let cr: number, cg: number, cb: number;
+    if (roll < 0.12) {
+      // Warm yellow-white (rare)
+      cr = 1.0; cg = 0.85 + Math.random() * 0.15; cb = 0.7 + Math.random() * 0.2;
+    } else if (roll < 0.45) {
+      // Cool blue-white (common)
+      cr = 0.6 + Math.random() * 0.2; cg = 0.7 + Math.random() * 0.2; cb = 1.0;
     } else {
-      const w = 0.9 + Math.random() * 0.1;
-      colors[i3] = w; colors[i3 + 1] = w; colors[i3 + 2] = w;
+      // White with blue tint
+      const w = 0.85 + Math.random() * 0.15;
+      cr = w * 0.85; cg = w * 0.92; cb = w;
     }
+    colors[i3] = cr; colors[i3 + 1] = cg; colors[i3 + 2] = cb;
   }
 
   const geo = new THREE.BufferGeometry();
@@ -712,6 +718,7 @@ interface ShootingStar {
   end: THREE.Vector3;
   elapsed: number;
   duration: number;
+  maxOpacity: number; // visibility variation: subtle (0.15-0.3) or medium (0.5-0.8)
 }
 
 function spawnShootingStar(scene: THREE.Scene): ShootingStar {
@@ -735,14 +742,20 @@ function spawnShootingStar(scene: THREE.Scene): ShootingStar {
 
   const length = 5 + Math.random() * 10;
   const end = start.clone().add(dir.multiplyScalar(length));
-  const duration = 0.5 + Math.random() * 1.0;
+  const duration = 0.4 + Math.random() * 0.8;
+
+  // Visibility variation: 60% barely noticeable, 40% medium brightness
+  const isBright = Math.random() < 0.4;
+  const maxOpacity = isBright
+    ? 0.5 + Math.random() * 0.3   // medium: 0.5-0.8
+    : 0.12 + Math.random() * 0.18; // subtle: 0.12-0.30
 
   const geo = new THREE.BufferGeometry().setFromPoints([start.clone(), start.clone()]);
-  const mat = new THREE.LineBasicMaterial({ color: 0xaaccff, transparent: true, opacity: 1.0 });
+  const mat = new THREE.LineBasicMaterial({ color: 0xaaccff, transparent: true, opacity: maxOpacity });
   const line = new THREE.Line(geo, mat);
   scene.add(line);
 
-  return { line, start, end, elapsed: 0, duration };
+  return { line, start, end, elapsed: 0, duration, maxOpacity };
 }
 
 // ---------------------------------------------------------------------------
@@ -845,6 +858,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // --- Scene ---
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(DEEP_SPACE);
+      // Subtle cosmic blue fog — fades distant stars into deep blue
+      scene.fog = new THREE.FogExp2(0x030818, 0.008);
 
       // --- Camera ---
       const camera = new THREE.PerspectiveCamera(
@@ -910,9 +925,9 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       const ship = createShipState(scene);
       shipRef.current = ship;
 
-      // --- Cosmic events (home mode only) ---
+      // --- Cosmic events (shooting stars on all scenes) ---
       let shootingStars: ShootingStar[] = [];
-      let nextShootingStarTime = 5 + Math.random() * 15;
+      let nextShootingStarTime = 3 + Math.random() * 7; // 3-10s for first
 
       // --- Ambient light (very subtle fill) ---
       const ambient = new THREE.AmbientLight(0x112233, 0.15);
@@ -973,34 +988,33 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           updateShipVisuals(shipRef.current, deltaMs);
         }
 
-        // Shooting stars (home mode)
-        if (mode === 'home') {
-          nextShootingStarTime -= deltaMs / 1000;
-          if (nextShootingStarTime <= 0) {
-            shootingStars.push(spawnShootingStar(scene));
-            nextShootingStarTime = 15 + Math.random() * 45;
+        // Shooting stars (all modes — realistic cosmic background)
+        nextShootingStarTime -= deltaMs / 1000;
+        if (nextShootingStarTime <= 0) {
+          shootingStars.push(spawnShootingStar(scene));
+          nextShootingStarTime = 5 + Math.random() * 5; // every 5-10s
+        }
+
+        for (let i = shootingStars.length - 1; i >= 0; i--) {
+          const ss = shootingStars[i];
+          ss.elapsed += deltaMs / 1000;
+          const t = ss.elapsed / ss.duration;
+          if (t >= 1) {
+            scene.remove(ss.line);
+            ss.line.geometry.dispose();
+            (ss.line.material as THREE.Material).dispose();
+            shootingStars.splice(i, 1);
+            continue;
           }
 
-          for (let i = shootingStars.length - 1; i >= 0; i--) {
-            const ss = shootingStars[i];
-            ss.elapsed += deltaMs / 1000;
-            const t = ss.elapsed / ss.duration;
-            if (t >= 1) {
-              scene.remove(ss.line);
-              ss.line.geometry.dispose();
-              (ss.line.material as THREE.Material).dispose();
-              shootingStars.splice(i, 1);
-              continue;
-            }
-
-            const head = ss.start.clone().lerp(ss.end, t);
-            const tailT = Math.max(0, t - 0.3);
-            const tail = ss.start.clone().lerp(ss.end, tailT);
-            const positions = ss.line.geometry.getAttribute('position');
-            (positions.array as Float32Array).set([tail.x, tail.y, tail.z, head.x, head.y, head.z]);
-            positions.needsUpdate = true;
-            (ss.line.material as THREE.LineBasicMaterial).opacity = 1 - t * 0.8;
-          }
+          const head = ss.start.clone().lerp(ss.end, t);
+          const tailT = Math.max(0, t - 0.3);
+          const tail = ss.start.clone().lerp(ss.end, tailT);
+          const positions = ss.line.geometry.getAttribute('position');
+          (positions.array as Float32Array).set([tail.x, tail.y, tail.z, head.x, head.y, head.z]);
+          positions.needsUpdate = true;
+          // Fade using per-star maxOpacity for visibility variation
+          (ss.line.material as THREE.LineBasicMaterial).opacity = ss.maxOpacity * (1 - t * 0.7);
         }
 
         renderer.render(scene, camera);

@@ -25,6 +25,8 @@ uniform vec3  uStarColor;
 uniform float uStarIntensity;
 uniform float uTime;
 uniform float uAlbedo;
+uniform float uSurfaceTempK;
+uniform float uHasRivers;
 
 // --- Resource/geology uniforms ---
 uniform float uFeAbundance;
@@ -68,6 +70,36 @@ float fbm(vec3 p, int octaves) {
     v += a * noise3(p);
     p *= 2.0;
     a *= 0.5;
+  }
+  return v;
+}
+
+// --- Ridge noise: sharp mountain ridges via folded noise ---
+float ridgeNoise(vec3 p, int octaves) {
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 5; i++) {
+    if (i >= octaves) break;
+    float nr = noise3(p);
+    nr = 1.0 - abs(nr * 2.0 - 1.0); // fold -> sharp ridges
+    nr = nr * nr;                      // sharpen peaks
+    v += a * nr;
+    p *= 2.2;
+    a *= 0.5;
+  }
+  return v;
+}
+
+// --- River detection: noise valley lines (thin meandering channels) ---
+float riverChannel(vec3 p, int octaves) {
+  float v = 0.0;
+  float amp = 0.6;
+  for (int i = 0; i < 4; i++) {
+    if (i >= octaves) break;
+    float nr = noise3(p);
+    v += amp * abs(nr * 2.0 - 1.0); // valley = low |noise|
+    p *= 2.0;
+    amp *= 0.5;
   }
   return v;
 }
@@ -134,6 +166,14 @@ void main() {
   float noiseScale = 1.8 * roughness;
   float elevation = fbm(n * noiseScale + seedOff, 5) * mountainScale;
 
+  // Ridge detail on highlands (sharp mountain ridges)
+  float ridgeDetail = ridgeNoise(n * noiseScale * 1.5 + seedOff + vec3(111.0), 4);
+  float ridgeBlend = smoothstep(0.2, 0.55, elevation);
+  elevation = mix(elevation, elevation + ridgeDetail * 0.25, ridgeBlend);
+
+  // Micro-detail (single noise sample — nearly free)
+  elevation += noise3(n * noiseScale * 8.0 + seedOff) * 0.035;
+
   // Moisture noise (secondary, offset seed)
   float moisture = fbm(n * 2.5 + seedOff + vec3(333.0), 4);
 
@@ -141,11 +181,13 @@ void main() {
   float latitude = abs(n.y);
 
   // Resource-based soil tint: modulate surfaceBase by mineral composition
+  // Cold planets: minerals hidden under ice/frost — fade tinting below 200K
   vec3 surfBase = uSurfaceBase;
-  surfBase = mix(surfBase, vec3(0.55, 0.25, 0.15), uFeAbundance * 0.3); // Fe -> rust-red
-  surfBase = mix(surfBase, vec3(0.75, 0.70, 0.55), uSiAbundance * 0.2); // Si -> pale sandy
-  surfBase = mix(surfBase, vec3(0.15, 0.12, 0.10), uCAbundance * 0.25); // C -> dark
-  surfBase = mix(surfBase, vec3(0.70, 0.65, 0.20), uSAbundance * 0.2);  // S -> yellow
+  float mineralFade = smoothstep(200.0, 280.0, uSurfaceTempK);
+  surfBase = mix(surfBase, vec3(0.55, 0.25, 0.15), uFeAbundance * 0.3 * mineralFade); // Fe -> rust-red
+  surfBase = mix(surfBase, vec3(0.75, 0.70, 0.55), uSiAbundance * 0.2 * mineralFade); // Si -> pale sandy
+  surfBase = mix(surfBase, vec3(0.15, 0.12, 0.10), uCAbundance * 0.25 * mineralFade); // C -> dark
+  surfBase = mix(surfBase, vec3(0.70, 0.65, 0.20), uSAbundance * 0.2 * mineralFade);  // S -> yellow
 
   // --- Day/night lighting (terminator) ---
   float daylight = dot(n, uStarDir);
@@ -164,6 +206,7 @@ void main() {
   float iceBlend = clamp((latitude - effectiveIceLat) / 0.08, 0.0, 1.0);
 
   vec3 color;
+  float isOcean = 0.0;
 
   if (iceBlend > 0.0) {
     // Ice cap rendering
@@ -218,6 +261,7 @@ void main() {
     } else {
       color = mix(uOceanShallow, uOceanDeep, depth);
     }
+    isOcean = 1.0;
 
   } else {
     // Land surface
@@ -230,11 +274,53 @@ void main() {
       color = mix(surfBase, uSurfaceHigh, t);
     }
 
-    // Snow on high mountains in cold climates
-    if (h > 0.5) {
-      float snowFade = clamp((h - 0.5) / 0.3, 0.0, 1.0);
-      color = mix(color, vec3(0.80, 0.87, 0.91), snowFade * 0.6);
+    // Rivers (visible from orbit on habitable wet planets)
+    if (uHasRivers > 0.5 && h < 0.4 && h >= 0.0) {
+      float river1 = riverChannel(n * 4.0 + seedOff + vec3(888.0), 3);
+      float river2 = riverChannel(n * 9.0 + seedOff + vec3(999.0), 2);
+
+      // Width: wider near coast, thinner upstream
+      float riverW1 = 0.06 + max(0.0, 1.0 - h * 4.0) * 0.04;
+      float riverW2 = 0.035;
+
+      float mask1 = 1.0 - smoothstep(0.0, riverW1, river1);
+      float mask2 = 1.0 - smoothstep(0.0, riverW2, river2);
+      float riverMask = max(mask1, mask2 * 0.5);
+
+      // Fade at altitude (rivers start high, widen low)
+      riverMask *= smoothstep(0.4, 0.08, h);
+
+      // Delta near coast
+      if (h < 0.04) {
+        float delta = riverChannel(n * 14.0 + seedOff + vec3(777.0), 2);
+        float deltaMask = 1.0 - smoothstep(0.0, 0.1, delta);
+        riverMask = max(riverMask, deltaMask * 0.4);
+      }
+
+      vec3 riverColor = mix(uOceanShallow, vec3(0.2, 0.38, 0.52), 0.3);
+      color = mix(color, riverColor, riverMask * 0.85);
     }
+
+    // Snow on high mountains (patchy, latitude-dependent snow line)
+    if (h > 0.35) {
+      float snowLine = 0.35 + latitude * 0.12; // lower snow line near poles
+      float snowFade = clamp((h - snowLine) / 0.2, 0.0, 1.0);
+      float snowPatch = noise3(n * 12.0 + seedOff + vec3(555.0));
+      snowFade *= smoothstep(0.25, 0.55, snowPatch); // patchy snow
+      vec3 snowColor = mix(vec3(0.82, 0.87, 0.91), vec3(0.92, 0.94, 0.97), snowPatch);
+      color = mix(color, snowColor, snowFade * 0.7);
+    }
+  }
+
+  // Slope shading: darken steep slopes facing away from star
+  if (isOcean < 0.5 && iceBlend < 0.5) {
+    float eps = 0.005;
+    float ex = fbm((n + vec3(eps, 0.0, 0.0)) * noiseScale + seedOff, 3) * mountainScale;
+    float ez = fbm((n + vec3(0.0, 0.0, eps)) * noiseScale + seedOff, 3) * mountainScale;
+    vec3 slopeNorm = normalize(vec3(elevation - ex, eps * 4.0, elevation - ez));
+    float slopeDot = dot(slopeNorm, uStarDir);
+    float slopeShadow = smoothstep(-0.2, 0.3, slopeDot);
+    color *= 0.75 + 0.25 * slopeShadow;
   }
 
   // --- Apply lighting ---
@@ -254,6 +340,16 @@ void main() {
 
   // Albedo adjustment
   lit *= 0.6 + uAlbedo * 0.8;
+
+  // --- Ocean specular highlight (sun glint) ---
+  if (isOcean > 0.5 && dayFactor > 0.1) {
+    vec3 halfDir = normalize(uStarDir + vViewDir);
+    float specDot = max(dot(n, halfDir), 0.0);
+    float specular = pow(specDot, 120.0) * 1.2;
+    // Softer broad glint
+    float broadSpec = pow(specDot, 20.0) * 0.15;
+    lit += uStarColor * (specular + broadSpec) * dayFactor * uStarIntensity;
+  }
 
   // --- City lights (night side only) ---
   if (uHasCityLights > 0.5 && dayFactor < 0.3) {

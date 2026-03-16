@@ -25,6 +25,7 @@ export {
   getSystemResearch,
   hasResearchData,
   findColonizablePlanet,
+  completeSystemResearchInstantly,
 } from './research.js';
 
 // Discovery system

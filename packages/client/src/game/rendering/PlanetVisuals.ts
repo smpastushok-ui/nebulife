@@ -45,6 +45,7 @@ export interface PlanetVisualConfig {
   // Special
   hasLavaFlows: boolean;
   lavaColor: number;
+  hasRivers: boolean;
   isGasGiant: boolean;
   isIceGiant: boolean;
 
@@ -121,7 +122,8 @@ function deriveSurfaceBaseColor(tempK: number): number {
   if (tempK > 373) return 0xbb9966;      // warm desert
   if (tempK > 273) return 0x887766;      // temperate rock
   if (tempK > 200) return 0x8899aa;      // cold frosted
-  return 0xaabbcc;                        // frozen
+  if (tempK > 120) return 0x7799bb;      // frozen blue
+  return 0x88aacc;                        // deeply frozen blue
 }
 
 /** Derive surface high elevation color */
@@ -131,7 +133,8 @@ function deriveSurfaceHighColor(tempK: number): number {
   if (tempK > 373) return 0x8a7755;
   if (tempK > 273) return 0x6a5a4a;
   if (tempK > 200) return 0x778899;
-  return 0x99aabc;
+  if (tempK > 120) return 0x6688aa;      // frozen blue peaks
+  return 0x7799bb;                        // deeply frozen blue peaks
 }
 
 /** Derive ocean colors from depth */
@@ -291,6 +294,10 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   // --- Special ---
   const hasLavaFlows = tempK > 1200 && (planet.type === 'rocky' || planet.type === 'dwarf');
 
+  // Rivers: liquid water planets with both land and ocean
+  const hasRivers = hasOcean && waterCoverage > 0.1 && waterCoverage < 0.95
+    && tempK > 273 && tempK < 373;
+
   // --- Gas/Ice giant ---
   const gasColors = isGas ? deriveGasGiantColors(tempK) : { c1: 0, c2: 0 };
   const iceColors = isIce ? deriveIceGiantColors(tempK) : { c1: 0, c2: 0 };
@@ -323,6 +330,7 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
 
     hasLavaFlows,
     lavaColor: 0xff4400,
+    hasRivers,
     isGasGiant: isGas,
     isIceGiant: isIce,
 
@@ -502,6 +510,8 @@ export function planetVisualsToUniforms(
     uStarIntensity: { value: starIntensity },
     uTime: { value: 0.0 },
     uAlbedo: { value: planet.albedo ?? 0.3 },
+    uSurfaceTempK: { value: planet.surfaceTempK },
+    uHasRivers: { value: visuals.hasRivers ? 1.0 : 0.0 },
 
     // Resource/geology uniforms
     uFeAbundance: { value: feAbundance },

@@ -401,3 +401,21 @@ export function findColonizablePlanet(
 ): Planet | null {
   return system.planets.find((p) => p.habitability.overall > threshold) ?? null;
 }
+
+/** Instantly complete research for a system (used during evacuation). */
+export function completeSystemResearchInstantly(
+  state: ResearchState,
+  system: StarSystem,
+): ResearchState {
+  const observation = calculateObservation(system, 100);
+  const systems = {
+    ...state.systems,
+    [system.id]: {
+      systemId: system.id,
+      progress: 100,
+      isComplete: true,
+      observation,
+    },
+  };
+  return { ...state, systems };
+}

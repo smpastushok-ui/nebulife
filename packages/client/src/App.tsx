@@ -41,6 +41,7 @@ import {
   getResearchProgress,
   hasResearchData,
   findColonizablePlanet,
+  completeSystemResearchInstantly,
   HOME_OBSERVATORY_COUNT,
   RESEARCH_DURATION_MS,
   INITIAL_RESEARCH_DATA,
@@ -414,9 +415,28 @@ export function App() {
     return 'hidden';
   });
 
+  // Evacuation phase (declared early so tick effect can reference it)
+  type EvacuationPhase =
+    | 'idle'
+    | 'stage0-launch'          // CutscenePlaceholder: ship launch (4s)
+    | 'stage1-system-flight'   // SystemScene + ship Bezier flight to planet
+    | 'stage2-explosion'       // CutscenePlaceholder: planet destruction (6s)
+    | 'stage3-planet-approach' // PlanetViewScene + ship from edge to orbit
+    | 'stage4-orbit'           // Ship on orbit + colony founding button
+    | 'cutscene-landing'       // CutscenePlaceholder: landing (5s)
+    | 'surface';               // Surface view on new planet
+  const [evacuationPhase, setEvacuationPhase] = useState<EvacuationPhase>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_evac_phase');
+      if (saved && saved !== 'idle') return saved as EvacuationPhase;
+    } catch { /* ignore */ }
+    return 'idle';
+  });
+
   // Game-time tick — update every ~42ms for smooth game-second display
+  // Paused during evacuation cutscenes (evacuationPhase !== 'idle')
   useEffect(() => {
-    if (!isExodusPhase || clockPhase !== 'visible' || gameStartedAt === null) return;
+    if (!isExodusPhase || clockPhase !== 'visible' || gameStartedAt === null || evacuationPhase !== 'idle') return;
     const startedAt = gameStartedAt; // narrowed to number
     const tick = () => {
       const gameSecs = remainingGameSeconds(
@@ -431,7 +451,7 @@ export function App() {
     // 42ms interval = ~24 ticks per real second, matching game-second frequency
     const id = setInterval(tick, 42);
     return () => clearInterval(id);
-  }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel]);
+  }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, evacuationPhase]);
 
   // Timer expired — force evacuation if no target found yet
   // (the actual useEffect is placed after homeInfo declaration below)
@@ -466,16 +486,7 @@ export function App() {
   }, [gameStartedAt, timeMultiplier]);
 
   // ── Evacuation state ──────────────────────────────────────────────────
-  type EvacuationPhase =
-    | 'idle'
-    | 'stage0-launch'          // CutscenePlaceholder: ship launch (4s)
-    | 'stage1-system-flight'   // SystemScene + ship Bezier flight to planet
-    | 'stage2-explosion'       // CutscenePlaceholder: planet destruction (6s)
-    | 'stage3-planet-approach' // PlanetViewScene + ship from edge to orbit
-    | 'stage4-orbit'           // Ship on orbit + colony founding button
-    | 'cutscene-landing'       // CutscenePlaceholder: landing (5s)
-    | 'surface';               // Surface view on new planet
-  const [evacuationPhase, setEvacuationPhase] = useState<EvacuationPhase>('idle');
+  // (EvacuationPhase type + evacuationPhase state declared above, before tick effect)
   const [evacuationTarget, setEvacuationTarget] = useState<{ system: StarSystem; planet: Planet } | null>(null);
   const [evacuationFadeBlack, setEvacuationFadeBlack] = useState(false);
   /** True when evacuation was triggered by timer expiration (not by finding a planet) */
@@ -509,6 +520,12 @@ export function App() {
       }
     } catch { /* ignore */ }
   }, [evacuationTarget, forcedEvacuation]);
+
+  // Persist evacuationPhase to localStorage (for reload recovery)
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_evac_phase', evacuationPhase); }
+    catch { /* ignore */ }
+  }, [evacuationPhase]);
 
   const techTreeStateRef = useRef(techTreeState);
   techTreeStateRef.current = techTreeState;
@@ -590,7 +607,7 @@ export function App() {
   // Timer expired — force evacuation if no target found yet
   const timerExpiredHandledRef = useRef(false);
   useEffect(() => {
-    if (!isExodusPhase || clockPhase !== 'visible' || timerExpiredHandledRef.current || gameStartedAt === null) return;
+    if (!isExodusPhase || clockPhase !== 'visible' || timerExpiredHandledRef.current || gameStartedAt === null || evacuationPhase !== 'idle') return;
     const startedAt = gameStartedAt; // narrowed to number
     const checkExpired = () => {
       const gameSecs = remainingGameSeconds(
@@ -629,13 +646,15 @@ export function App() {
       if (target) {
         setForcedEvacuation(true);
         setEvacuationTarget(target);
+        // Auto-complete research for evacuation target system
+        setResearchState((prev) => completeSystemResearchInstantly(prev, target.system));
       }
     };
     // Check every second
     const id = setInterval(checkExpired, 1000);
     checkExpired(); // Check immediately
     return () => clearInterval(id);
-  }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, homeInfo]);
+  }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, homeInfo, evacuationPhase]);
 
   /** Surface view target */
   const [surfaceTarget, setSurfaceTarget] = useState<{
@@ -708,9 +727,16 @@ export function App() {
   }, [clockPhase, tutorialStep]);
 
   // Fallback: ensure gameStartedAt is set for existing players who completed onboarding
-  // Wait for server hydration to avoid creating a wrong timestamp on a new device
+  // Try localStorage first (before server hydration), then create new timestamp after hydration
   useEffect(() => {
-    if (!isExodusPhase || needsOnboarding || gameStartedAt !== null || !serverHydrated) return;
+    if (!isExodusPhase || needsOnboarding || gameStartedAt !== null) return;
+    // Restore from localStorage immediately (no need to wait for server)
+    try {
+      const saved = localStorage.getItem('nebulife_game_started_at');
+      if (saved) { setGameStartedAt(parseInt(saved, 10)); return; }
+    } catch { /* ignore */ }
+    // Wait for server hydration before creating a new timestamp on a new device
+    if (!serverHydrated) return;
     const now = Date.now();
     setGameStartedAt(now);
     try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
@@ -833,10 +859,12 @@ export function App() {
       'nebulife_accel_at', 'nebulife_game_time_at_accel', 'nebulife_clock_revealed',
       'nebulife_home_system_id', 'nebulife_home_planet_id', 'nebulife_generation_index',
       'nebulife_evac_system_id', 'nebulife_evac_planet_id', 'nebulife_evac_forced',
+      'nebulife_evac_phase',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
 
     // 2b. Clear React state to prevent effects from re-persisting to localStorage
+    setEvacuationPhase('idle');
     setEvacuationTarget(null);
     setForcedEvacuation(false);
     setEvacuationPromptDismissed(false);
@@ -1053,7 +1081,9 @@ export function App() {
       try { localStorage.removeItem('nebulife_evac_system_id'); } catch { /* ignore */ }
       try { localStorage.removeItem('nebulife_evac_planet_id'); } catch { /* ignore */ }
       try { localStorage.removeItem('nebulife_evac_forced'); } catch { /* ignore */ }
+      try { localStorage.removeItem('nebulife_evac_phase'); } catch { /* ignore */ }
       pendingEvacRef.current = null;
+      setEvacuationPhase('idle');
       setEvacuationTarget(null);
       setForcedEvacuation(false);
       setEvacuationPromptDismissed(false);
@@ -1315,6 +1345,8 @@ export function App() {
                   const colonizable = findColonizablePlanet(system);
                   if (colonizable) {
                     setEvacuationTarget({ system, planet: colonizable });
+                    // Auto-complete research for evacuation target system
+                    setResearchState((prev) => completeSystemResearchInstantly(prev, system));
                     // Trigger the "Hope & Despair" speed-up twist
                     activateSpeedUp();
                   }
@@ -1421,6 +1453,11 @@ export function App() {
         if (homePlanet) {
           setHomeInfo({ system: homeSystem, planet: homePlanet });
         }
+        // Home system is researched by default (player's own star system)
+        setResearchState((prev) => {
+          if (prev.systems[homeSystem.id]?.isComplete) return prev;
+          return completeSystemResearchInstantly(prev, homeSystem);
+        });
       }
 
       // Restore evacuation target if saved
@@ -1434,6 +1471,14 @@ export function App() {
           setEvacuationTarget({ system: evacSys, planet: evacPlanet });
           setForcedEvacuation(evacForced);
         }
+      }
+
+      // If evacuation was in progress (not idle) before reload, reset to prompt
+      const savedEvacPhase = localStorage.getItem('nebulife_evac_phase');
+      if (savedEvacPhase && savedEvacPhase !== 'idle') {
+        // Can't resume mid-animation — show prompt so player can restart evacuation
+        setEvacuationPhase('idle');
+        setEvacuationPromptDismissed(false);
       }
 
       // Restore saved scene (engine always starts at home-intro)
@@ -1476,7 +1521,12 @@ export function App() {
     setCinematicActive(false);
     localStorage.setItem('nebulife_onboarding_done', '1');
 
-    // Timer will start automatically via useEffect after tutorial completes
+    // Start timer immediately — don't wait for server hydration or useEffect
+    if (gameStartedAt === null) {
+      const now = Date.now();
+      setGameStartedAt(now);
+      try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
+    }
 
     // Update game_phase on server
     const pid = playerId.current;
@@ -1510,6 +1560,8 @@ export function App() {
   };
 
   const handleGoToHomePlanet = () => {
+    // During active evacuation cutscenes, don't navigate to (possibly destroyed) home
+    if (evacuationPhase !== 'idle') return;
     engineRef.current?.showHomePlanetScene(true);
     setState((prev) => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
     setShowExploreBtn(true);
