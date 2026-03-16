@@ -4,6 +4,7 @@
 uniform vec3 uCloudColor;
 uniform float uCoverage;
 uniform float uTime;
+uniform float uSeed;
 
 varying vec3 vPosition;
 varying vec3 vNormal;
@@ -41,11 +42,21 @@ float fbm(vec3 p) {
   return v;
 }
 
+// Hash large seed into small well-distributed value (float32-safe)
+float hashSeed(float s) {
+  s = fract(s * 0.0001031);
+  s *= s + 33.33;
+  s *= s + s;
+  return fract(s);
+}
+
 void main() {
   vec3 n = normalize(vPosition);
+  // Per-planet cloud pattern offset
+  vec3 seedOff = vec3(hashSeed(uSeed), hashSeed(uSeed + 1.0), hashSeed(uSeed + 2.0)) * 500.0;
   // Wind offset for cloud drift animation
   vec3 windOffset = vec3(uTime * 0.015, uTime * 0.005, uTime * 0.008);
-  float clouds = fbm(n * 3.5 + windOffset);
+  float clouds = fbm(n * 3.5 + windOffset + seedOff);
   clouds = smoothstep(0.40, 0.62, clouds);
 
   // Fresnel rim fade - clouds transparent at edges

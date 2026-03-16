@@ -211,6 +211,7 @@ function createCloudLayer(
       uCloudColor: { value: params.color },
       uCoverage: { value: params.coverage },
       uTime: timeUniform,
+      uSeed: { value: planet.seed },
     },
     transparent: true,
     side: THREE.FrontSide,
