@@ -119,6 +119,24 @@ function createStarfield(scene: THREE.Scene): {
 // Distant star (billboard)
 // ---------------------------------------------------------------------------
 
+/** Build a soft radial-gradient canvas texture for star sprites */
+function makeStarTexture(): THREE.CanvasTexture {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const cx = size / 2;
+  const grad = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx);
+  grad.addColorStop(0,    'rgba(255,255,255,1.0)');
+  grad.addColorStop(0.25, 'rgba(255,255,255,0.8)');
+  grad.addColorStop(0.6,  'rgba(255,255,255,0.2)');
+  grad.addColorStop(1.0,  'rgba(255,255,255,0.0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
+
 function createDistantStar(
   scene: THREE.Scene,
   star: Star,
@@ -132,9 +150,11 @@ function createDistantStar(
   const coreSize = Math.max(0.05, Math.min(0.4, 0.1 * (angularSize * 0.5 + brightness * 0.5)));
 
   const starColor = new THREE.Color(star.colorHex);
+  const starTex = makeStarTexture();
 
   // Core glow sprite
   const spriteMat = new THREE.SpriteMaterial({
+    map: starTex,
     color: starColor,
     transparent: true,
     opacity: 0.95,
@@ -146,6 +166,7 @@ function createDistantStar(
 
   // Halo
   const haloMat = new THREE.SpriteMaterial({
+    map: starTex,
     color: starColor,
     transparent: true,
     opacity: 0.15,
