@@ -209,7 +209,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 
   return (
     <>
-      {/* Full-screen click interceptor */}
+      {/* Full-screen click interceptor (disabled for info/auto steps — tooltip button handles them) */}
       <div
         onClick={handleOverlayClick}
         style={{
@@ -217,6 +217,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
           inset: 0,
           zIndex: 10050,
           cursor: targetRect && !isInfoStep && !isAutoStep ? 'pointer' : 'default',
+          pointerEvents: isInfoStep || isAutoStep ? 'none' : 'auto',
         }}
       />
 
