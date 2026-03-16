@@ -1087,17 +1087,17 @@ export function TelemetryView({
             </div>
           </div>
 
-          {/* Close button */}
+          {/* Close button — below ResourceDisplay (top-right, z-index 9700) */}
           <button
             onClick={onClose}
             style={{
               position: 'absolute',
-              top: 50, left: 16,
+              top: 56, right: 16,
               background: 'none',
               border: '1px solid #334455',
               color: '#556677',
-              padding: '5px 10px',
-              fontSize: 10,
+              padding: '6px 12px',
+              fontSize: 11,
               fontFamily: 'monospace',
               borderRadius: 3,
               cursor: 'pointer',
