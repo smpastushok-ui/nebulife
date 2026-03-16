@@ -378,17 +378,17 @@ export function getAtmosphereParams(
   if ((comp['CO2'] ?? 0) > 0.4) {
     return {
       color: new THREE.Color(0.9, 0.6, 0.3),
-      intensity: Math.min(0.7, 0.3 + pressure * 0.05),
-      power: 2.0,
-      scale: 1.04 + Math.min(pressure * 0.005, 0.06),
+      intensity: Math.min(0.5, 0.2 + pressure * 0.04),
+      power: 2.5,
+      scale: 1.03 + Math.min(pressure * 0.004, 0.05),
     };
   }
   if ((comp['N2'] ?? 0) > 0.5 || (comp['O2'] ?? 0) > 0.1) {
     return {
       color: new THREE.Color(0.4, 0.65, 1.0),
-      intensity: Math.min(0.6, 0.25 + pressure * 0.15),
-      power: 3.0,
-      scale: 1.03 + Math.min(pressure * 0.01, 0.04),
+      intensity: Math.min(0.35, 0.12 + pressure * 0.08),
+      power: 4.5,
+      scale: 1.02 + Math.min(pressure * 0.008, 0.03),
     };
   }
   if ((comp['H2'] ?? 0) > 0.3 || (comp['He'] ?? 0) > 0.2) {
@@ -433,8 +433,8 @@ export function getCloudParams(
   if ((atmo.composition['N2'] ?? 0) > 0.5 || (atmo.composition['O2'] ?? 0) > 0.1) {
     return {
       color: new THREE.Color(1.0, 1.0, 1.0),
-      coverage: Math.min(0.5, 0.2 + pressure * 0.15),
-      scale: 1.01,
+      coverage: Math.min(0.35, 0.12 + pressure * 0.1),
+      scale: 1.008,
     };
   }
   return {

@@ -57,12 +57,17 @@ void main() {
   // Wind offset for cloud drift animation
   vec3 windOffset = vec3(uTime * 0.015, uTime * 0.005, uTime * 0.008);
   float clouds = fbm(n * 3.5 + windOffset + seedOff);
-  clouds = smoothstep(0.40, 0.62, clouds);
+  // Higher threshold = thinner, patchier clouds — more surface visible
+  clouds = smoothstep(0.48, 0.68, clouds);
+
+  // Secondary detail layer for wispy edges
+  float detail = fbm(n * 7.0 + windOffset * 1.5 + seedOff + vec3(77.0));
+  clouds *= smoothstep(0.25, 0.55, detail);
 
   // Fresnel rim fade - clouds transparent at edges
   float rim = max(dot(vNormal, vViewDir), 0.0);
-  rim = smoothstep(0.0, 0.3, rim);
+  rim = smoothstep(0.05, 0.4, rim);
 
-  float alpha = clouds * uCoverage * rim;
+  float alpha = clouds * uCoverage * rim * 0.75;
   gl_FragColor = vec4(uCloudColor, alpha);
 }
