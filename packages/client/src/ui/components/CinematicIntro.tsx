@@ -386,7 +386,7 @@ function TerminalTypewriter({
         const text = skipRef.current || i < lineIdx ? line : line.slice(0, charIdx);
         const showCursor = !done && i === lineIdx;
         return (
-          <div key={i} style={{ color: '#44ff88', fontFamily: 'monospace', fontSize: 13, lineHeight: '1.8', whiteSpace: 'pre' }}>
+          <div key={i} style={{ color: '#44ff88', fontFamily: 'monospace', fontSize: 13, lineHeight: '1.8', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {text}
             {showCursor && (
               <span style={{ display: 'inline-block', width: 7, height: 14, background: '#44ff88', marginLeft: 1, verticalAlign: 'text-bottom', animation: 'cin-blink 0.8s step-end infinite' }} />
@@ -489,9 +489,9 @@ function OnboardingSlides({
         {/* Slide 1: Terminal typewriter */}
         {slide === 1 && (
           <div style={{
-            width: '100%', maxWidth: 560,
+            width: '100%', maxWidth: 560, boxSizing: 'border-box',
             background: 'rgba(10,15,25,0.96)', border: '1px solid #334455',
-            borderRadius: 6, padding: '24px 28px',
+            borderRadius: 6, padding: '24px 20px', overflow: 'hidden',
           }}>
             <div style={{ color: '#556677', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16 }}>
               ЦЕНТР УПРАВЛІННЯ МІСІЯМИ

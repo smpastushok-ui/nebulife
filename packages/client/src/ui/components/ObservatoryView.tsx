@@ -254,12 +254,12 @@ export function ObservatoryView({
             ))}
           </div>
 
-          {/* Close button */}
+          {/* Close button — below ResourceDisplay (top-right, z-index 9700) */}
           <button
             onClick={onClose}
             style={{
               position: 'absolute',
-              top: 16,
+              top: 56,
               right: 16,
               background: 'none',
               border: '1px solid #334455',

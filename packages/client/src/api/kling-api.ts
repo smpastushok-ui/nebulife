@@ -109,7 +109,10 @@ export async function pollUntilComplete(
  * Used before pixel-reveal: fetch the full image first.
  */
 export async function downloadImage(imageUrl: string): Promise<Blob> {
-  const res = await authFetch(imageUrl);
+  // Use plain fetch for external CDN URLs (authFetch adds Authorization header
+  // which triggers CORS preflight that external CDNs reject)
+  const isExternal = imageUrl.startsWith('http');
+  const res = isExternal ? await fetch(imageUrl) : await authFetch(imageUrl);
   if (!res.ok) throw new Error(`Failed to download image: ${res.status}`);
   return res.blob();
 }
