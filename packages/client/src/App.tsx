@@ -326,6 +326,8 @@ export function App() {
   const gameStateRef = useRef<Record<string, unknown>>({});
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncGameStateRef = useRef<() => void>(() => {});
+  /** True after server game state has been hydrated — prevents premature local fallbacks */
+  const [serverHydrated, setServerHydrated] = useState(false);
   const awardXPRef = useRef<(amount: number, reason: string) => void>(() => {});
   /** Stable reference to awardXP that can be used in callbacks defined before the actual implementation. */
   const awardXP = useCallback((amount: number, reason: string) => {
@@ -669,12 +671,13 @@ export function App() {
   }, [clockPhase, tutorialStep]);
 
   // Fallback: ensure gameStartedAt is set for existing players who completed onboarding
+  // Wait for server hydration to avoid creating a wrong timestamp on a new device
   useEffect(() => {
-    if (!isExodusPhase || needsOnboarding || gameStartedAt !== null) return;
+    if (!isExodusPhase || needsOnboarding || gameStartedAt !== null || !serverHydrated) return;
     const now = Date.now();
     setGameStartedAt(now);
     try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
-  }, [isExodusPhase, needsOnboarding, gameStartedAt]);
+  }, [isExodusPhase, needsOnboarding, gameStartedAt, serverHydrated]);
 
   const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>(() => {
@@ -976,6 +979,8 @@ export function App() {
         try { localStorage.setItem('nebulife_scene', gs.scene); } catch { /* ignore */ }
       }
     }
+
+    setServerHydrated(true);
   }, []);
 
   // ── Firebase auth lifecycle ──────────────────────────────────────────
@@ -2287,13 +2292,20 @@ export function App() {
     scheduleSyncToServer();
   }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData, techTreeState]);
 
-  // Sync on page hide / beforeunload (best-effort)
+  // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         // Cancel pending debounce and sync immediately
         if (syncTimeoutRef.current) { clearTimeout(syncTimeoutRef.current); syncTimeoutRef.current = null; }
         syncGameStateRef.current();
+      } else if (document.visibilityState === 'visible') {
+        // Re-sync from server when app comes back to foreground (cross-device sync)
+        const pid = playerId.current;
+        if (!pid) return;
+        getPlayer(pid).then((player) => {
+          if (player) hydrateGameStateFromServer(player);
+        }).catch(() => {});
       }
     };
     const handleBeforeUnload = () => {
@@ -2306,7 +2318,7 @@ export function App() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, []);
+  }, [hydrateGameStateFromServer]);
 
   // ── Android hardware back button ────────────────────────────────────────
   useEffect(() => {
