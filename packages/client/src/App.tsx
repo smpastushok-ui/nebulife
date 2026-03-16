@@ -243,7 +243,12 @@ export function App() {
   const [needsCallsign, setNeedsCallsign] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  // Initialize synchronously from localStorage so needsOnboarding=true is set
+  // BEFORE homeInfo arrives, preventing a 0.5s planet flash after reset/first-load.
+  // Server auth callbacks will override this if onboarding is already done.
+  const [needsOnboarding, setNeedsOnboarding] = useState(
+    () => !localStorage.getItem('nebulife_onboarding_done'),
+  );
   const [cinematicActive, setCinematicActive] = useState(false);
   const [showGuestReminder, setShowGuestReminder] = useState(false);
 
