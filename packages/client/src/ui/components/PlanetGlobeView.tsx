@@ -153,7 +153,8 @@ function createDistantStar(
   const distAU = planet.orbit.semiMajorAxisAU;
   const angularSize = star.radiusSolar / distAU;
   const brightness = Math.pow(star.luminositySolar, 0.25) / Math.sqrt(distAU);
-  const coreSize = Math.max(0.05, Math.min(0.4, 0.1 * (angularSize * 0.5 + brightness * 0.5)));
+  // Larger range so stars are visible even from outer orbits
+  const coreSize = Math.max(0.12, Math.min(0.8, 0.25 * (angularSize * 0.6 + brightness * 0.4)));
 
   const starColor = new THREE.Color(star.colorHex);
   const starTex = makeStarTexture();
@@ -777,6 +778,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     const cleanup = useCallback(() => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (rendererRef.current) {
+        rendererRef.current.forceContextLoss();
         rendererRef.current.dispose();
         rendererRef.current = null;
       }
@@ -935,14 +937,14 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
       // --- Animation ---
       let lastTime = performance.now();
-      const clock = new THREE.Clock();
+      const startTime = performance.now();
 
       const animate = () => {
         animFrameRef.current = requestAnimationFrame(animate);
         const now = performance.now();
         const deltaMs = now - lastTime;
         lastTime = now;
-        const elapsed = clock.getElapsedTime();
+        const elapsed = (now - startTime) * 0.001;
 
         controls.update();
 

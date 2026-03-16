@@ -1087,7 +1087,15 @@ export function App() {
       try { localStorage.setItem('nebulife_favorite_planets', JSON.stringify(gs.favorite_planets)); } catch { /* ignore */ }
     }
     // Evacuation target — restore or CLEAR based on server state
-    if (gs.evac_system_id && gs.evac_planet_id) {
+    // Skip if evac target matches current home (colonization already completed)
+    const authHomeSystemId = (player.home_system_id && typeof player.home_system_id === 'string')
+      ? player.home_system_id : (gs.home_system_id || null);
+    const authHomePlanetId = (player.home_planet_id && typeof player.home_planet_id === 'string')
+      ? player.home_planet_id : (gs.home_planet_id || null);
+    const evacMatchesHome = gs.evac_system_id && gs.evac_planet_id
+      && gs.evac_system_id === authHomeSystemId
+      && gs.evac_planet_id === authHomePlanetId;
+    if (gs.evac_system_id && gs.evac_planet_id && !evacMatchesHome) {
       // Active evacuation on server — restore locally
       try { localStorage.setItem('nebulife_evac_system_id', gs.evac_system_id); } catch { /* ignore */ }
       try { localStorage.setItem('nebulife_evac_planet_id', gs.evac_planet_id); } catch { /* ignore */ }
@@ -1578,6 +1586,8 @@ export function App() {
   const handleGoToHomePlanet = () => {
     // During active evacuation cutscenes, don't navigate to (possibly destroyed) home
     if (evacuationPhase !== 'idle') return;
+    // Close surface view if open
+    setSurfaceTarget(null);
     engineRef.current?.showHomePlanetScene(true);
     setState((prev) => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
     setShowExploreBtn(true);
@@ -2327,6 +2337,15 @@ export function App() {
       localStorage.setItem('nebulife_home_planet_id', evacuationTarget.planet.id);
     } catch { /* ignore */ }
 
+    // Clear evacuation localStorage IMMEDIATELY (don't rely on useEffect which runs after render)
+    // This prevents beforeunload sync from sending stale evac data to server
+    try {
+      localStorage.removeItem('nebulife_evac_system_id');
+      localStorage.removeItem('nebulife_evac_planet_id');
+      localStorage.removeItem('nebulife_evac_forced');
+      localStorage.setItem('nebulife_evac_phase', 'idle');
+    } catch { /* ignore */ }
+
     // Update GameEngine rings: move ownerPlayerId + isHomePlanet to new system/planet
     engineRef.current?.updateHomeSystem(evacuationTarget.system.id, evacuationTarget.planet.id);
 
@@ -2894,7 +2913,6 @@ export function App() {
   }
 
   // Global: Terminal button on all scenes
-  const hasTechBadge = hasAvailableTech(playerLevel, techTreeState);
   toolGroups.push({
     type: 'buttons',
     items: [{
@@ -2903,7 +2921,6 @@ export function App() {
       variant: 'terminal' as const,
       tooltip: 'Центр управлiння',
       tutorialId: 'terminal-btn',
-      badge: hasTechBadge ? 'NEW' : undefined,
       onClick: () => setShowCosmicArchive(true),
     }],
   });

@@ -225,10 +225,10 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       scene.add(mesh);
 
       // Animation loop
-      const clock = new THREE.Clock();
+      const startTime = performance.now();
       const animate = () => {
         rafRef.current = requestAnimationFrame(animate);
-        material.uniforms.uTime.value = clock.getElapsedTime();
+        material.uniforms.uTime.value = (performance.now() - startTime) * 0.001;
         material.uniforms.uPan.value.set(panRef.current.x * 0.001, panRef.current.y * 0.001);
         material.uniforms.uZoom.value = zoomRef.current;
         renderer.render(scene, camera);
@@ -246,6 +246,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       return () => {
         window.removeEventListener('resize', handleResize);
         cancelAnimationFrame(rafRef.current);
+        renderer.forceContextLoss();
         renderer.dispose();
         geometry.dispose();
         material.dispose();

@@ -113,7 +113,6 @@ export class GameEngine {
         const canEnter = system.ownerPlayerId !== null
           || isSystemFullyResearched(this.researchState, system.id);
         if (canEnter) {
-          this.callbacks.onSystemSelect(system);
           // Center camera on target star during transition (non-home stars)
           if (system.ownerPlayerId === null) {
             const worldPos = this.galaxyScene?.getSystemWorldPosition(system.id);
@@ -122,7 +121,9 @@ export class GameEngine {
             }
           }
           // Start star-fold transition in GalaxyScene, then switch to system
+          // Set selectedSystem INSIDE callback to avoid briefly showing SystemInfoPanel
           this.galaxyScene?.startTransition(system.id, () => {
+            this.callbacks.onSystemSelect(system);
             this.showSystemScene(system);
           });
         } else {

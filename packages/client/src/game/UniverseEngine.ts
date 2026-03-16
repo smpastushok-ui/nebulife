@@ -695,6 +695,7 @@ export class UniverseEngine {
       }
     });
 
+    this.renderer.forceContextLoss();
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
