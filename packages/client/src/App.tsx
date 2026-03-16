@@ -136,6 +136,9 @@ interface SyncedGameState {
   evac_system_id: string | null;
   evac_planet_id: string | null;
   evac_forced: boolean;
+  // Home planet (cross-device persistence — belt-and-suspenders backup of direct DB columns)
+  home_system_id: string;
+  home_planet_id: string;
   // Metadata
   synced_at: number;
 }
@@ -489,6 +492,9 @@ export function App() {
   // Pending evacuation data from server hydration (resolved once engine is ready)
   const pendingEvacRef = useRef<{ systemId: string; planetId: string; forced: boolean } | null>(null);
 
+  // Pending home planet data from server hydration (resolved once engine is ready)
+  const pendingHomeRef = useRef<{ systemId: string; planetId: string } | null>(null);
+
   // Persist evacuation target to localStorage
   useEffect(() => {
     try {
@@ -576,6 +582,24 @@ export function App() {
       pendingEvacRef.current = null;
     }
   }, [homeInfo, evacuationTarget, serverHydrated]);
+
+  // Resolve pending home planet from server data once engine is ready.
+  // Handles cross-device sync: server has updated home_system_id/home_planet_id after evacuation,
+  // but engine may have initialized from stale localStorage before hydration ran.
+  useEffect(() => {
+    const pending = pendingHomeRef.current;
+    if (!pending || !serverHydrated || !homeInfo) return;
+    const engine = engineRef.current;
+    if (!engine) return;
+    const allSystems = engine.getAllSystems();
+    const sys = allSystems.find(s => s.id === pending.systemId);
+    const planet = sys?.planets.find(p => p.id === pending.planetId);
+    if (sys && planet) {
+      engine.updateHomeSystem(pending.systemId, pending.planetId);
+      setHomeInfo({ system: sys, planet });
+      pendingHomeRef.current = null;
+    }
+  }, [serverHydrated, homeInfo]);
 
   // Timer expired — force evacuation if no target found yet
   const timerExpiredHandledRef = useRef(false);
@@ -1050,6 +1074,24 @@ export function App() {
         planetId: gs.evac_planet_id,
         forced: gs.evac_forced === true,
       };
+    }
+
+    // Home planet — read from direct DB columns (most authoritative, updated on every evacuation landing)
+    // player.home_system_id / player.home_planet_id are top-level PlayerRow columns, NOT inside game_state JSONB.
+    // Belt-and-suspenders: fall back to game_state JSONB (gs.home_system_id) for older records.
+    const dbHomeSystemId = (player.home_system_id && typeof player.home_system_id === 'string')
+      ? player.home_system_id : null;
+    const dbHomePlanetId = (player.home_planet_id && typeof player.home_planet_id === 'string')
+      ? player.home_planet_id : null;
+    const finalHomeSystemId = dbHomeSystemId ?? (gs.home_system_id || null);
+    const finalHomePlanetId = dbHomePlanetId ?? (gs.home_planet_id || null);
+    if (finalHomeSystemId && finalHomePlanetId) {
+      try { localStorage.setItem('nebulife_home_system_id', finalHomeSystemId); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_home_planet_id', finalHomePlanetId); } catch { /* ignore */ }
+      // If engine is already initialized (hydration ran after engine init), update it immediately
+      engineRef.current?.updateHomeSystem(finalHomeSystemId, finalHomePlanetId);
+      // Store for post-engine-init resolution (in case engine not ready yet)
+      pendingHomeRef.current = { systemId: finalHomeSystemId, planetId: finalHomePlanetId };
     }
 
     setServerHydrated(true);
@@ -2358,6 +2400,9 @@ export function App() {
       evac_system_id: localStorage.getItem('nebulife_evac_system_id'),
       evac_planet_id: localStorage.getItem('nebulife_evac_planet_id'),
       evac_forced: localStorage.getItem('nebulife_evac_forced') === 'true',
+      // Home planet (backup; direct DB columns home_system_id/home_planet_id are authoritative)
+      home_system_id: localStorage.getItem('nebulife_home_system_id') ?? '',
+      home_planet_id: localStorage.getItem('nebulife_home_planet_id') ?? '',
       synced_at: Date.now(),
     };
   };
