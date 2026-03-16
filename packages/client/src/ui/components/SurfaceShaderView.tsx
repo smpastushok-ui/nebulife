@@ -433,10 +433,17 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       });
     }, [selectedBuilding, buildings, planet.seed, planet.id, waterCoverage, playerId, onBuildingPlaced]);
 
-    const handleWheel = useCallback((e: React.WheelEvent) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      zoomRef.current = Math.max(0.3, Math.min(4, zoomRef.current * delta));
+    // Native wheel listener (non-passive) to allow preventDefault without warnings
+    useEffect(() => {
+      const canvas = overlayRef.current;
+      if (!canvas) return;
+      const onWheel = (e: WheelEvent) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        zoomRef.current = Math.max(0.3, Math.min(4, zoomRef.current * delta));
+      };
+      canvas.addEventListener('wheel', onWheel, { passive: false });
+      return () => canvas.removeEventListener('wheel', onWheel);
     }, []);
 
     /* ================================================================ */
@@ -484,7 +491,6 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onClick={handleClick}
-          onWheel={handleWheel}
         />
 
         {/* Building panel */}
