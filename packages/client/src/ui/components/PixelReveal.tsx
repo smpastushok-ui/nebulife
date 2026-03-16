@@ -240,9 +240,9 @@ export function PixelReveal({
           const w = Math.min(BLOCK_SIZE, cw - bx);
           const h = Math.min(BLOCK_SIZE, ch - by);
 
-          // Copy image pixels from offscreen over the green
-          const imgData = offCtx.getImageData(bx, by, w, h);
-          ctx.putImageData(imgData, bx, by);
+          // Copy image block from offscreen over the green
+          // NOTE: use drawImage instead of putImageData — putImageData ignores ctx.scale(dpr)
+          ctx.drawImage(offscreen, bx, by, w, h, bx, by, w, h);
         }
 
         st.revealed = end;
