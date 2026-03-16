@@ -657,6 +657,17 @@ export function App() {
     }
   }, [clockPhase]);
 
+  // Start tutorial after clock reveal completes (so timer and tutorial don't overlap)
+  // Only for fresh onboarding — onboardingJustCompleted ref prevents triggering for existing players
+  const onboardingJustCompletedRef = useRef(false);
+  useEffect(() => {
+    if (clockPhase !== 'visible' || tutorialStep !== -1 || !onboardingJustCompletedRef.current) return;
+    onboardingJustCompletedRef.current = false;
+    // Clock just became visible — wait a moment, then start tutorial
+    const t = setTimeout(() => setTutorialStep(0), 2000);
+    return () => clearTimeout(t);
+  }, [clockPhase, tutorialStep]);
+
   // Fallback: ensure gameStartedAt is set for existing players who completed onboarding
   useEffect(() => {
     if (!isExodusPhase || needsOnboarding || gameStartedAt !== null) return;
@@ -1374,8 +1385,9 @@ export function App() {
     // Immediate sync on critical event
     setTimeout(() => syncGameStateRef.current(), 500);
 
-    // Start tutorial after onboarding
-    setTutorialStep(0);
+    // Tutorial will start AFTER clock reveal completes (see clockPhase === 'visible' effect)
+    // Don't start tutorial here — clock reveal must play first
+    onboardingJustCompletedRef.current = true;
   }, [gameStartedAt]);
 
   const handleStartExploration = () => {
