@@ -119,6 +119,10 @@ export interface CosmicArchiveProps {
   researchData?: number;
   /** Cost to start research */
   researchDataCost?: number;
+  /** Favorite planet IDs (managed by parent for cross-device sync) */
+  favoritePlanets?: Set<string>;
+  /** Callback when favorites change */
+  onFavoritesChange?: (favorites: Set<string>) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -229,6 +233,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onResearchTech,
   researchData,
   researchDataCost,
+  favoritePlanets: externalFavorites,
+  onFavoritesChange,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
@@ -255,8 +261,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   // Navigation history for back button
   const [navHistory, setNavHistory] = useState<{ main: MainTab; sub: SubTab }[]>([]);
 
-  // Favorites state (shared between PlanetsCatalog and FavoritesPlanetsList)
-  const [favorites, setFavorites] = useState<Set<string>>(() => {
+  // Favorites state — use parent-managed state if provided, otherwise local
+  const [localFavorites, setLocalFavorites] = useState<Set<string>>(() => {
+    if (externalFavorites) return externalFavorites;
     try {
       const raw = localStorage.getItem('nebulife_favorite_planets');
       return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
@@ -264,6 +271,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       return new Set();
     }
   });
+  const favorites = externalFavorites ?? localFavorites;
 
   // Persist favorites
   useEffect(() => {
@@ -273,13 +281,18 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   }, [favorites]);
 
   const toggleFavorite = useCallback((planetId: string) => {
-    setFavorites((prev) => {
+    const updater = (prev: Set<string>) => {
       const next = new Set(prev);
       if (next.has(planetId)) next.delete(planetId);
       else next.add(planetId);
       return next;
-    });
-  }, []);
+    };
+    if (onFavoritesChange) {
+      onFavoritesChange(updater(favorites));
+    } else {
+      setLocalFavorites(updater);
+    }
+  }, [favorites, onFavoritesChange]);
 
   const currentTabDef = TABS.find((t) => t.id === mainTab)!;
   const currentSubTab = subTabMap[mainTab];

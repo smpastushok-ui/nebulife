@@ -129,6 +129,13 @@ interface SyncedGameState {
   nav_planet: string;
   // Technology tree
   tech_tree: unknown;
+  // Log & favorites (cross-device persistence)
+  log_entries: unknown[];
+  favorite_planets: string[];
+  // Evacuation (cross-device persistence)
+  evac_system_id: string | null;
+  evac_planet_id: string | null;
+  evac_forced: boolean;
   // Metadata
   synced_at: number;
 }
@@ -691,6 +698,18 @@ export function App() {
     return [];
   });
 
+  // Favorite planets (synced to server for cross-device)
+  const [favoritePlanets, setFavoritePlanets] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('nebulife_favorite_planets');
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch { return new Set(); }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_favorite_planets', JSON.stringify([...favoritePlanets])); }
+    catch { /* ignore */ }
+  }, [favoritePlanets]);
+
   // Persist log entries to localStorage on every change
   useEffect(() => {
     try {
@@ -978,6 +997,27 @@ export function App() {
         setState(prev => ({ ...prev, scene: gs.scene as SceneType }));
         try { localStorage.setItem('nebulife_scene', gs.scene); } catch { /* ignore */ }
       }
+    }
+
+    // Log entries (бортовий журнал)
+    if (Array.isArray(gs.log_entries) && gs.log_entries.length > 0) {
+      setLogEntries(gs.log_entries as LogEntry[]);
+      try { localStorage.setItem('nebulife_log_entries', JSON.stringify(gs.log_entries)); } catch { /* ignore */ }
+    }
+    // Favorite planets
+    if (Array.isArray(gs.favorite_planets)) {
+      setFavoritePlanets(new Set(gs.favorite_planets));
+      try { localStorage.setItem('nebulife_favorite_planets', JSON.stringify(gs.favorite_planets)); } catch { /* ignore */ }
+    }
+    // Evacuation target
+    if (gs.evac_system_id) {
+      try { localStorage.setItem('nebulife_evac_system_id', gs.evac_system_id); } catch { /* ignore */ }
+    }
+    if (gs.evac_planet_id) {
+      try { localStorage.setItem('nebulife_evac_planet_id', gs.evac_planet_id); } catch { /* ignore */ }
+    }
+    if (typeof gs.evac_forced === 'boolean') {
+      try { localStorage.setItem('nebulife_evac_forced', String(gs.evac_forced)); } catch { /* ignore */ }
     }
 
     setServerHydrated(true);
@@ -2271,6 +2311,13 @@ export function App() {
       scene: state.scene,
       nav_system: state.selectedSystem?.id ?? '',
       nav_planet: state.selectedPlanet?.id ?? '',
+      // Log & favorites
+      log_entries: logEntries,
+      favorite_planets: [...favoritePlanets],
+      // Evacuation
+      evac_system_id: localStorage.getItem('nebulife_evac_system_id'),
+      evac_planet_id: localStorage.getItem('nebulife_evac_planet_id'),
+      evac_forced: localStorage.getItem('nebulife_evac_forced') === 'true',
       synced_at: Date.now(),
     };
   };
@@ -2290,7 +2337,7 @@ export function App() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData, techTreeState]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData, techTreeState, logEntries, favoritePlanets]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -3770,6 +3817,8 @@ export function App() {
           onResearchTech={handleResearchTech}
           researchData={researchData}
           researchDataCost={RESEARCH_DATA_COST}
+          favoritePlanets={favoritePlanets}
+          onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
         />
       )}
 
