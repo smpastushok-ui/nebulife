@@ -155,6 +155,8 @@ interface MoonOrbitData {
   orbitRadius: number;
   eccentricityY: number;
   angularSpeed: number;
+  inclination: number;
+  ascendingNode: number;
 }
 
 interface PlanetCanvasProps {
@@ -355,13 +357,17 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
         const moonR = Math.max(0.06, Math.min(0.35, rawR));
 
         const normDist = maxOrbitalKm > 0 ? moon.orbitalRadiusKm / maxOrbitalKm : 0.5;
-        const orbitRadius = 1.4 + normDist * 2.0;
+        const minOrbit = 2.8;
+        const maxOrbit = 6.0;
+        const orbitRadius = minOrbit + normDist * (maxOrbit - minOrbit);
 
-        const angularSpeed = (2 * Math.PI) / (moon.orbitalPeriodDays * 120000);
+        const angularSpeed = (2 * Math.PI) / (moon.orbitalPeriodDays * 360000);
 
         const rng = new SeededRNG(moon.seed);
         const startAngle = rng.next() * Math.PI * 2;
-        const eccentricityY = 0.30 + rng.next() * 0.15;
+        const eccentricityY = 0.05 + rng.next() * 0.15;
+        const inclination = 0.1 + rng.next() * 0.4;
+        const ascendingNode = rng.next() * Math.PI * 2;
 
         const { base, high } = getMoonColors(moon.compositionType, moon.surfaceTempK);
 
@@ -388,6 +394,8 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
           orbitRadius,
           eccentricityY,
           angularSpeed,
+          inclination,
+          ascendingNode,
         });
       }
     }
@@ -426,17 +434,22 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
       }
       sizeAttr.needsUpdate = true;
 
-      // Moon orbits
+      // Moon orbits — 3D inclined elliptical
       for (const m of moonOrbits) {
         m.angle += m.angularSpeed * deltaMs;
-        m.mesh.position.set(
-          Math.cos(m.angle) * m.orbitRadius,
-          Math.sin(m.angle) * m.orbitRadius * m.eccentricityY,
-          0,
-        );
-        const depth = Math.sin(m.angle);
+        const localX = Math.cos(m.angle) * m.orbitRadius;
+        const localY = Math.sin(m.angle) * m.orbitRadius * (1.0 - m.eccentricityY);
+        const cosI = Math.cos(m.inclination);
+        const sinI = Math.sin(m.inclination);
+        const cosO = Math.cos(m.ascendingNode);
+        const sinO = Math.sin(m.ascendingNode);
+        const mx = cosO * localX - sinO * cosI * localY;
+        const my = sinO * localX + cosO * cosI * localY;
+        const mz = sinI * localY;
+        m.mesh.position.set(mx, my, mz);
+        const depth = mz / m.orbitRadius;
         m.mesh.scale.setScalar(0.85 + depth * 0.15);
-        m.mesh.renderOrder = depth > 0 ? 2 : -1;
+        m.mesh.renderOrder = mz > 0 ? 2 : -1;
       }
 
       renderer.render(scene, camera);

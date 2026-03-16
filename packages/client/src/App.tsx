@@ -2788,6 +2788,41 @@ export function App() {
     }));
   }, [state.selectedSystem]);
 
+  // ── System nav in exosphere (only fully researched systems) ──────────
+  const fullyResearchedSystems = useMemo(() => {
+    if (state.scene !== 'planet-view' || !engineRef.current) return [];
+    const all = engineRef.current.getAllSystems();
+    return all.filter(s =>
+      s.ownerPlayerId !== null || isSystemFullyResearched(researchState, s.id),
+    );
+  }, [state.scene, researchState]);
+
+  const currentExoSystemIndex = state.selectedSystem
+    ? fullyResearchedSystems.findIndex(s => s.id === state.selectedSystem!.id)
+    : -1;
+
+  const prevExoSystem = fullyResearchedSystems.length > 1 && currentExoSystemIndex >= 0
+    ? fullyResearchedSystems[(currentExoSystemIndex - 1 + fullyResearchedSystems.length) % fullyResearchedSystems.length]
+    : null;
+  const nextExoSystem = fullyResearchedSystems.length > 1 && currentExoSystemIndex >= 0
+    ? fullyResearchedSystems[(currentExoSystemIndex + 1) % fullyResearchedSystems.length]
+    : null;
+
+  const handleNavigateToSystemFromExo = useCallback((system: StarSystem) => {
+    const firstPlanet = [...system.planets].sort(
+      (a, b) => a.orbit.semiMajorAxisAU - b.orbit.semiMajorAxisAU,
+    )[0];
+    if (!firstPlanet) return;
+    engineRef.current?.showPlanetViewScene(system, firstPlanet, true);
+    setState((prev) => ({
+      ...prev,
+      selectedSystem: system,
+      selectedPlanet: firstPlanet,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+    }));
+  }, []);
+
   const handlePlanetInfoFromButton = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
     const idx = sortedPlanets.findIndex((p) => p.id === state.selectedPlanet!.id);
@@ -3327,6 +3362,11 @@ export function App() {
           nextPlanet={nextNavPlanet}
           onPrev={() => prevNavPlanet && handleNavigatePlanet(prevNavPlanet)}
           onNext={() => nextNavPlanet && handleNavigatePlanet(nextNavPlanet)}
+          currentSystemName={state.selectedSystem ? (aliases[state.selectedSystem.id] || state.selectedSystem.star.name) : undefined}
+          prevSystemName={prevExoSystem ? (aliases[prevExoSystem.id] || prevExoSystem.star.name) : null}
+          nextSystemName={nextExoSystem ? (aliases[nextExoSystem.id] || nextExoSystem.star.name) : null}
+          onPrevSystem={() => prevExoSystem && handleNavigateToSystemFromExo(prevExoSystem)}
+          onNextSystem={() => nextExoSystem && handleNavigateToSystemFromExo(nextExoSystem)}
         />
       )}
 
