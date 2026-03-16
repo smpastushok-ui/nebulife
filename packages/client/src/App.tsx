@@ -971,6 +971,15 @@ export function App() {
       try { localStorage.setItem('nebulife_research_state', JSON.stringify(createResearchState(HOME_OBSERVATORY_COUNT))); } catch { /* ignore */ }
       try { localStorage.setItem('nebulife_research_data', String(INITIAL_RESEARCH_DATA)); } catch { /* ignore */ }
       try { localStorage.setItem('nebulife_exodus_phase', 'true'); } catch { /* ignore */ }
+      // Clear stale home/evacuation IDs so they don't corrupt the new generation
+      try {
+        localStorage.removeItem('nebulife_home_system_id');
+        localStorage.removeItem('nebulife_home_planet_id');
+        localStorage.removeItem('nebulife_evac_system_id');
+        localStorage.removeItem('nebulife_evac_planet_id');
+        localStorage.removeItem('nebulife_evac_forced');
+        localStorage.removeItem('nebulife_evac_phase');
+      } catch { /* ignore */ }
       gameStateRef.current = {};
       return;
     }

@@ -260,6 +260,10 @@ export class GameEngine {
    */
   updateHomeSystem(newSystemId: string, newPlanetId: string) {
     const allSystems = this.getAllSystems();
+    // Validate new system exists before clearing old home
+    const newSys = allSystems.find((s) => s.id === newSystemId);
+    if (!newSys) return; // Stale ID — don't clear the existing home
+
     // Clear old home markers
     for (const sys of allSystems) {
       if (sys.ownerPlayerId !== null) {
@@ -270,12 +274,9 @@ export class GameEngine {
       }
     }
     // Set new home
-    const newSys = allSystems.find((s) => s.id === newSystemId);
-    if (newSys) {
-      newSys.ownerPlayerId = 'player-0';
-      const newPlanet = newSys.planets.find((p) => p.id === newPlanetId);
-      if (newPlanet) newPlanet.isHomePlanet = true;
-    }
+    newSys.ownerPlayerId = 'player-0';
+    const newPlanet = newSys.planets.find((p) => p.id === newPlanetId);
+    if (newPlanet) newPlanet.isHomePlanet = true;
   }
 
   private clearScenes() {
