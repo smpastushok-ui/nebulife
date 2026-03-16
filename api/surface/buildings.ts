@@ -3,14 +3,16 @@ import {
   saveSurfaceBuilding,
   getSurfaceBuildings,
   removeSurfaceBuilding,
+  upgradeSurfaceBuilding,
 } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 
 /**
  * /api/surface/buildings (auth required)
  *
- * GET  ?playerId=...&planetId=... → list buildings
- * POST { playerId, planetId, id, type, x, y } → place building
+ * GET    ?playerId=...&planetId=... → list buildings
+ * POST   { playerId, planetId, id, type, x, y } → place building
+ * PATCH  { id, playerId } → upgrade building (level +1)
  * DELETE ?id=...&playerId=... → remove building
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -67,6 +69,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         x: Number(x),
         y: Number(y),
       });
+
+      return res.status(200).json({
+        id: row.id,
+        type: row.type,
+        x: row.x,
+        y: row.y,
+        level: row.level,
+        builtAt: row.built_at,
+      });
+    }
+
+    // --- PATCH: Upgrade building ---
+    if (req.method === 'PATCH') {
+      const { id, playerId } = req.body;
+
+      if (!id || !playerId) {
+        return res.status(400).json({ error: 'Missing id or playerId' });
+      }
+
+      if (playerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Forbidden: player mismatch' });
+      }
+
+      const row = await upgradeSurfaceBuilding(id, playerId);
+      if (!row) {
+        return res.status(404).json({ error: 'Building not found' });
+      }
 
       return res.status(200).json({
         id: row.id,

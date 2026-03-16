@@ -54,6 +54,27 @@ export async function placeBuilding(
 }
 
 /**
+ * Upgrade a building (level +1).
+ */
+export async function upgradeBuilding(
+  playerId: string,
+  buildingId: string,
+): Promise<PlacedBuilding> {
+  const res = await authFetch(`${API_BASE}/surface/buildings`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: buildingId, playerId }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `Failed to upgrade building: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
  * Remove a building from the surface.
  */
 export async function removeBuilding(

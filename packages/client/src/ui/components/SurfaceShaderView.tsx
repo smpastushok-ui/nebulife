@@ -85,6 +85,186 @@ function isCellBuildable(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Building sprites — PNG loading with procedural fallback            */
+/* ------------------------------------------------------------------ */
+
+const SPRITE_SIZE = { w: 256, h: 384 }; // Source sprite dimensions
+
+type BuildingTypeKey =
+  | 'colony_hub' | 'mine' | 'solar_plant' | 'research_lab'
+  | 'water_extractor' | 'greenhouse' | 'observatory';
+
+const spriteCache = new Map<string, HTMLImageElement>();
+const spriteLoading = new Set<string>();
+
+function getSpriteKey(type: string, tier: number): string {
+  return `${type}_t${tier}`;
+}
+
+function loadSprite(type: string, tier: number): HTMLImageElement | null {
+  const key = getSpriteKey(type, tier);
+  const cached = spriteCache.get(key);
+  if (cached) return cached;
+
+  if (spriteLoading.has(key)) return null; // Still loading
+  spriteLoading.add(key);
+
+  const img = new Image();
+  img.src = `/sprites/buildings/${key}.png`;
+  img.onload = () => {
+    spriteCache.set(key, img);
+    spriteLoading.delete(key);
+  };
+  img.onerror = () => {
+    spriteLoading.delete(key);
+    // No sprite found — procedural fallback will be used
+  };
+
+  return null;
+}
+
+/** Procedural icon fallback (canvas primitives per building type) */
+function drawProceduralIcon(
+  ctx: CanvasRenderingContext2D,
+  cx: number, cy: number, size: number,
+  type: string, level: number,
+) {
+  const s = size * 0.4; // Icon size
+
+  const colors: Record<string, string> = {
+    colony_hub: '#44ff88',
+    mine: '#ff8844',
+    solar_plant: '#ffcc44',
+    research_lab: '#4488ff',
+    water_extractor: '#44ccff',
+    greenhouse: '#88ff44',
+    observatory: '#cc88ff',
+  };
+  const col = colors[type] ?? '#aabbcc';
+
+  ctx.save();
+  ctx.fillStyle = col;
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+
+  switch (type) {
+    case 'colony_hub': {
+      // House shape
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - s * 0.9);
+      ctx.lineTo(cx + s * 0.7, cy - s * 0.2);
+      ctx.lineTo(cx + s * 0.7, cy + s * 0.5);
+      ctx.lineTo(cx - s * 0.7, cy + s * 0.5);
+      ctx.lineTo(cx - s * 0.7, cy - s * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    case 'mine': {
+      // Pickaxe-like triangle
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - s * 0.7);
+      ctx.lineTo(cx + s * 0.6, cy + s * 0.5);
+      ctx.lineTo(cx - s * 0.6, cy + s * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    case 'solar_plant': {
+      // Diamond shape
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - s * 0.7);
+      ctx.lineTo(cx + s * 0.6, cy);
+      ctx.lineTo(cx, cy + s * 0.7);
+      ctx.lineTo(cx - s * 0.6, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    case 'research_lab': {
+      // Rounded rect (flask-like)
+      const rr = s * 0.55;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Inner dot
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, rr * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'water_extractor': {
+      // Droplet shape
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - s * 0.8);
+      ctx.quadraticCurveTo(cx + s * 0.7, cy, cx, cy + s * 0.6);
+      ctx.quadraticCurveTo(cx - s * 0.7, cy, cx, cy - s * 0.8);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    case 'greenhouse': {
+      // Half-dome
+      ctx.beginPath();
+      ctx.arc(cx, cy + s * 0.1, s * 0.6, Math.PI, 0);
+      ctx.lineTo(cx + s * 0.6, cy + s * 0.5);
+      ctx.lineTo(cx - s * 0.6, cy + s * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    case 'observatory': {
+      // Dome + cylinder
+      ctx.beginPath();
+      ctx.arc(cx, cy - s * 0.2, s * 0.45, Math.PI, 0);
+      ctx.lineTo(cx + s * 0.35, cy + s * 0.5);
+      ctx.lineTo(cx - s * 0.35, cy + s * 0.5);
+      ctx.lineTo(cx - s * 0.45, cy - s * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    default: {
+      ctx.fillRect(cx - s * 0.5, cy - s * 0.5, s, s);
+      ctx.strokeRect(cx - s * 0.5, cy - s * 0.5, s, s);
+    }
+  }
+
+  // Level indicator (small dots)
+  if (level > 1) {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    const dotR = 2;
+    const dotY = cy + s * 0.7;
+    const totalW = (level - 1) * 6;
+    for (let i = 0; i < level && i < 5; i++) {
+      ctx.beginPath();
+      ctx.arc(cx - totalW * 0.5 + i * 6, dotY, dotR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+/** Short building label for overlay */
+const BUILDING_SHORT_NAMES: Record<string, string> = {
+  colony_hub: 'Центр',
+  mine: 'Шахта',
+  solar_plant: 'Енергія',
+  research_lab: 'Лаб.',
+  water_extractor: 'Вода',
+  greenhouse: 'Теплиця',
+  observatory: 'Обс.',
+};
+
+/* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -167,6 +347,11 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     const cAbund = Math.min((crust['C'] ?? 0) / 10, 1);
     const sAbund = Math.min((crust['S'] ?? 0) / 5, 1);
 
+    // New surface uniforms
+    const volc = visuals.volcanism;
+    const wind = visuals.windIntensity;
+    const surfType = visuals.surfaceType;
+
     /* ================================================================ */
     /*  Three.js setup — procedural terrain on full-screen quad          */
     /* ================================================================ */
@@ -213,6 +398,9 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
           uZoom: { value: 1.0 },
           uTime: { value: 0 },
           uHasLava: { value: hasLava },
+          uVolc: { value: volc },
+          uWind: { value: wind },
+          uType: { value: surfType },
           uFeAbundance: { value: feAbund },
           uSiAbundance: { value: siAbund },
           uCAbundance: { value: cAbund },
@@ -291,45 +479,65 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
         }
       }
 
-      // Draw placed buildings
-      buildings.forEach((b) => {
-        const bx = b.x * cellW;
-        const by = b.y * cellH;
-        // Building icon — small rectangle with type-based color
-        const colors: Record<string, string> = {
-          colony_hub: '#44ff88',
-          mine: '#ff8844',
-          solar_plant: '#ffcc44',
-          research_lab: '#4488ff',
-          water_extractor: '#44ccff',
-          greenhouse: '#88ff44',
-          observatory: '#cc88ff',
-        };
-        const col = colors[b.type] ?? '#aabbcc';
-        ctx.fillStyle = col;
-        const pad = Math.max(2, cellW * 0.15);
-        ctx.fillRect(bx + pad, by + pad, cellW - pad * 2, cellH - pad * 2);
-        // Outline
-        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(bx + pad, by + pad, cellW - pad * 2, cellH - pad * 2);
-      });
+      // Subtle grid lines (only in build mode)
+      if (selectedBuilding) {
+        ctx.strokeStyle = 'rgba(68, 136, 170, 0.08)';
+        ctx.lineWidth = 0.5;
+        for (let gx = 0; gx <= GRID_W; gx++) {
+          ctx.beginPath();
+          ctx.moveTo(gx * cellW, 0);
+          ctx.lineTo(gx * cellW, h);
+          ctx.stroke();
+        }
+        for (let gy = 0; gy <= GRID_H; gy++) {
+          ctx.beginPath();
+          ctx.moveTo(0, gy * cellH);
+          ctx.lineTo(w, gy * cellH);
+          ctx.stroke();
+        }
+      }
 
-      // Subtle grid lines
-      ctx.strokeStyle = 'rgba(68, 136, 170, 0.08)';
-      ctx.lineWidth = 0.5;
-      for (let gx = 0; gx <= GRID_W; gx++) {
+      // Draw placed buildings (shadow -> sprite/icon -> label)
+      const iconSize = Math.max(cellW, cellH) * 1.2;
+      buildings.forEach((b) => {
+        const cx = b.x * cellW + cellW * 0.5;
+        const cy = b.y * cellH + cellH * 0.5;
+
+        // Shadow ellipse (offset toward lower-right, simulating upper-left sun)
+        ctx.save();
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = '#000000';
         ctx.beginPath();
-        ctx.moveTo(gx * cellW, 0);
-        ctx.lineTo(gx * cellW, h);
-        ctx.stroke();
-      }
-      for (let gy = 0; gy <= GRID_H; gy++) {
-        ctx.beginPath();
-        ctx.moveTo(0, gy * cellH);
-        ctx.lineTo(w, gy * cellH);
-        ctx.stroke();
-      }
+        ctx.ellipse(cx + 4, cy + 5, iconSize * 0.45, iconSize * 0.18, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Try PNG sprite first, fall back to procedural icon
+        const sprite = loadSprite(b.type, b.level);
+        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+          // Draw sprite anchored at bottom-center
+          const drawH = iconSize * 1.5;
+          const drawW = drawH * (SPRITE_SIZE.w / SPRITE_SIZE.h);
+          ctx.drawImage(sprite, cx - drawW * 0.5, cy - drawH + iconSize * 0.3, drawW, drawH);
+        } else {
+          // Procedural icon fallback
+          drawProceduralIcon(ctx, cx, cy - iconSize * 0.1, iconSize, b.type, b.level);
+        }
+
+        // Label: building short name + level
+        const label = BUILDING_SHORT_NAMES[b.type] ?? b.type;
+        const levelStr = b.level > 1 ? ` Lv.${b.level}` : '';
+        ctx.save();
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        // Text shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillText(label + levelStr, cx + 1, cy + iconSize * 0.55 + 1);
+        // Text
+        ctx.fillStyle = '#aabbcc';
+        ctx.fillText(label + levelStr, cx, cy + iconSize * 0.55);
+        ctx.restore();
+      });
     }, [selectedBuilding, buildings, planet.seed, waterCoverage]);
 
     // Redraw overlay when state changes

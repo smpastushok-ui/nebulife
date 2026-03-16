@@ -49,6 +49,11 @@ export interface PlanetVisualConfig {
   isGasGiant: boolean;
   isIceGiant: boolean;
 
+  // Surface-level rendering (top-down view)
+  volcanism: number;       // 0..1 continuous volcanism intensity
+  windIntensity: number;   // 0..1 atmospheric wind strength
+  surfaceType: number;     // 0=temperate, 1=gas, 2=ice, 3=lava, 4=barren
+
   // Gas giant specifics
   bandColor1: number;
   bandColor2: number;
@@ -298,6 +303,23 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   const hasRivers = hasOcean && waterCoverage > 0.1 && waterCoverage < 0.95
     && tempK > 273 && tempK < 373;
 
+  // --- Volcanism (continuous 0-1) ---
+  const crust = planet.resources?.crustComposition ?? {};
+  const sAbund = clamp((crust['S'] ?? 0) / 0.05, 0, 1);
+  let volcanism = tempK > 600 ? clamp((tempK - 600) / 1000, 0.05, 1.0) : 0;
+  volcanism = Math.min(volcanism + sAbund * 0.15, 1.0);
+
+  // --- Wind intensity ---
+  const windIntensity = hasAtmosphere ? clamp(atmo.surfacePressureAtm / 2.0, 0, 1) : 0;
+
+  // --- Surface type classification (for top-down surface shader) ---
+  let surfaceType = 0; // 0=temperate (default)
+  if (isGas) surfaceType = 1;
+  else if (isIce) surfaceType = 2;
+  else if (tempK > 800) surfaceType = 3;                                 // lava world
+  else if (tempK < 180) surfaceType = 2;                                 // ice world (cold rocky)
+  else if (!planet.hasLife && waterCoverage < 0.05) surfaceType = 4;     // barren
+
   // --- Gas/Ice giant ---
   const gasColors = isGas ? deriveGasGiantColors(tempK) : { c1: 0, c2: 0 };
   const iceColors = isIce ? deriveIceGiantColors(tempK) : { c1: 0, c2: 0 };
@@ -333,6 +355,10 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
     hasRivers,
     isGasGiant: isGas,
     isIceGiant: isIce,
+
+    volcanism,
+    windIntensity,
+    surfaceType,
 
     bandColor1: isGas ? gasColors.c1 : iceColors.c1,
     bandColor2: isGas ? gasColors.c2 : iceColors.c2,
@@ -512,6 +538,9 @@ export function planetVisualsToUniforms(
     uAlbedo: { value: planet.albedo ?? 0.3 },
     uSurfaceTempK: { value: planet.surfaceTempK },
     uHasRivers: { value: visuals.hasRivers ? 1.0 : 0.0 },
+    uVolc: { value: visuals.volcanism },
+    uWind: { value: visuals.windIntensity },
+    uType: { value: visuals.surfaceType },
 
     // Resource/geology uniforms
     uFeAbundance: { value: feAbundance },
