@@ -72,6 +72,8 @@ interface SystemsListProps {
   isResearching?: (systemId: string) => boolean;
   /** Whether a system is fully researched (100%) */
   isFullyResearched?: (systemId: string) => boolean;
+  /** Whether a ring is locked (previous ring not fully researched) */
+  isRingLocked?: (ringIndex: number) => boolean;
   /** Current research data balance */
   researchData?: number;
   /** Cost to start research */
@@ -86,6 +88,7 @@ export function SystemsList({
   canStartResearch,
   isResearching,
   isFullyResearched,
+  isRingLocked,
   researchData = 0,
   researchDataCost = 1,
 }: SystemsListProps) {
@@ -113,16 +116,34 @@ export function SystemsList({
 
   const sorted = useMemo(() => {
     return [...allSystems].sort((a, b) => {
-      // Home system first
+      // Home system first (ring 0)
       const aHome = a.planets.some((p) => p.isHomePlanet) ? -1 : 0;
       const bHome = b.planets.some((p) => p.isHomePlanet) ? -1 : 0;
       if (aHome !== bHome) return aHome - bHome;
-      // Then by name
+      // Then by ring index
+      const ringDiff = (a.ringIndex ?? 99) - (b.ringIndex ?? 99);
+      if (ringDiff !== 0) return ringDiff;
+      // Then by name within same ring
       const aName = aliases[a.id] || a.name;
       const bName = aliases[b.id] || b.name;
       return aName.localeCompare(bName);
     });
   }, [allSystems, aliases]);
+
+  // Group by ring for section headers
+  const ringGroups = useMemo(() => {
+    const groups: { ringIndex: number; systems: StarSystem[] }[] = [];
+    let current: (typeof groups)[0] | null = null;
+    for (const sys of sorted) {
+      const ri = sys.ringIndex ?? 0;
+      if (!current || current.ringIndex !== ri) {
+        current = { ringIndex: ri, systems: [] };
+        groups.push(current);
+      }
+      current.systems.push(sys);
+    }
+    return groups;
+  }, [sorted]);
 
   // Track first non-home system for tutorial target
   const firstNonHomeId = useMemo(() => {
@@ -221,146 +242,182 @@ export function SystemsList({
         )}
       </div>
 
-      {/* System rows */}
-      {sorted.map((system) => {
-        const isHome = system.planets.some((p) => p.isHomePlanet);
-        const isHovered = hoveredId === system.id;
-        const name = aliases[system.id] || system.name;
-        const starColor =
-          SPECTRAL_COLORS[system.star.spectralClass?.[0] ?? 'G'] ?? '#fff4e8';
-        const canResearch = canStartResearch?.(system.id) ?? false;
-        const isFirstNonHome = system.id === firstNonHomeId;
-        const researching = isResearching?.(system.id) ?? false;
-        const fullyResearched = isFullyResearched?.(system.id) ?? false;
-        const showInsufficientData = insufficientDataId === system.id;
+      {/* System rows grouped by ring */}
+      {ringGroups.map((group) => {
+        const locked = isRingLocked?.(group.ringIndex) ?? false;
+        const ringLabel = group.ringIndex === 0
+          ? 'Домашня система'
+          : `Кiльце ${group.ringIndex}`;
 
         return (
-          <div
-            key={system.id}
-            onMouseEnter={() => setHoveredId(system.id)}
-            onMouseLeave={() => setHoveredId(null)}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile
-                ? (hasResearchCol ? '1fr 34px 32px 32px 68px' : '1fr 34px 32px 32px')
-                : (hasResearchCol ? '1fr 60px 80px 60px 50px 100px' : '1fr 60px 80px 60px 50px'),
-              gap: isMobile ? 4 : 8,
-              padding: isMobile ? '6px 6px' : '8px 12px',
-              background: researching
-                ? undefined
-                : isHovered
-                  ? 'rgba(25, 35, 50, 0.5)'
-                  : 'rgba(10, 15, 25, 0.3)',
-              border: isMobile
-                ? 'none'
-                : researching
-                  ? '1px solid rgba(68, 136, 170, 0.25)'
-                  : '1px solid rgba(51, 68, 85, 0.15)',
-              borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.1)' : undefined,
-              borderRadius: isMobile ? 0 : 3,
-              fontFamily: 'monospace',
-              fontSize: 11,
-              color: '#aabbcc',
-              textAlign: 'left',
-              alignItems: 'center',
-              transition: 'background 0.15s',
-              animation: researching ? 'sys-row-research-pulse 2.5s ease-in-out infinite' : undefined,
-              position: 'relative',
-            }}
-          >
-            {/* Name (clickable to navigate) */}
-            <span
-              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-              onClick={() => onNavigate(system)}
-            >
-              <span
+          <React.Fragment key={`ring-${group.ringIndex}`}>
+            {/* Ring group header */}
+            {group.ringIndex > 0 && (
+              <div
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: starColor,
-                  flexShrink: 0,
-                  boxShadow: isHome ? '0 0 0 3px rgba(68,255,136,0.5), 0 0 0 1px #44ff88' : undefined,
+                  fontSize: 10,
+                  color: locked ? '#445566' : '#667788',
+                  textTransform: 'uppercase',
+                  letterSpacing: 1.5,
+                  padding: isMobile ? '10px 6px 4px' : '12px 8px 4px',
+                  borderBottom: '1px solid rgba(51, 68, 85, 0.15)',
+                  marginBottom: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
-              />
-              <span>{name}</span>
-            </span>
-
-            {/* Spectral class */}
-            <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
-              {system.star.spectralClass}
-            </span>
-
-            {/* Coordinates (hidden on mobile) */}
-            {!isMobile && (
-              <span style={{ color: '#556677', fontSize: 10 }}>
-                {system.position.x.toFixed(0)}, {system.position.y.toFixed(0)}
-              </span>
-            )}
-
-            {/* Planet count */}
-            <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
-              {system.planets.length}
-            </span>
-
-            {/* Ring index */}
-            <span style={{ color: '#556677', fontSize: 10, textAlign: 'center' }}>
-              {system.ringIndex ?? '-'}
-            </span>
-
-            {/* Research action button */}
-            {hasResearchCol && (
-              <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
-                {isHome ? (
-                  /* Home system — no button */
-                  <span style={{ color: '#334455', fontSize: 10 }} />
-                ) : fullyResearched ? (
-                  /* Fully researched — green "Досліджено" button */
-                  <ResearchedButton onClick={() => onNavigate(system)} />
-                ) : researching ? (
-                  /* Currently researching — animated "Досліджується..." */
-                  <ResearchingButton />
-                ) : canResearch ? (
-                  /* Can start research — "Дослідити" */
-                  <div style={{ position: 'relative' }}>
-                    <ResearchButton
-                      tutorialId={isFirstNonHome ? 'research-btn-first' : undefined}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleResearchClick(system.id);
-                      }}
-                    />
-                    {/* Insufficient data tooltip */}
-                    {showInsufficientData && (
-                      <div style={{
-                        position: 'absolute',
-                        bottom: '100%',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        marginBottom: 4,
-                        whiteSpace: 'nowrap',
-                        fontSize: 10,
-                        color: '#cc8844',
-                        background: 'rgba(10, 15, 25, 0.95)',
-                        border: '1px solid rgba(204, 136, 68, 0.3)',
-                        borderRadius: 3,
-                        padding: '4px 8px',
-                        zIndex: 10,
-                        pointerEvents: 'none',
-                      }}>
-                        Недостатньо даних
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* Cannot research — dash */
-                  <span style={{ color: '#334455', fontSize: 10 }}>
-                    {'\u2014'}
+              >
+                <span>{ringLabel}</span>
+                {locked && (
+                  <span style={{ fontSize: 9, color: '#556677', fontStyle: 'italic', textTransform: 'none', letterSpacing: 0 }}>
+                    — дослiдiть усi системи попереднього кiльця
                   </span>
                 )}
               </div>
             )}
-          </div>
+
+            {group.systems.map((system) => {
+              const isHome = system.planets.some((p) => p.isHomePlanet);
+              const isHovered = hoveredId === system.id;
+              const name = aliases[system.id] || system.name;
+              const starColor =
+                SPECTRAL_COLORS[system.star.spectralClass?.[0] ?? 'G'] ?? '#fff4e8';
+              const canResearch = locked ? false : (canStartResearch?.(system.id) ?? false);
+              const isFirstNonHome = system.id === firstNonHomeId;
+              const researching = isResearching?.(system.id) ?? false;
+              const fullyResearched = isFullyResearched?.(system.id) ?? false;
+              const showInsufficientData = insufficientDataId === system.id;
+
+              return (
+                <div
+                  key={system.id}
+                  onMouseEnter={() => setHoveredId(system.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: isMobile
+                      ? (hasResearchCol ? '1fr 34px 32px 32px 68px' : '1fr 34px 32px 32px')
+                      : (hasResearchCol ? '1fr 60px 80px 60px 50px 100px' : '1fr 60px 80px 60px 50px'),
+                    gap: isMobile ? 4 : 8,
+                    padding: isMobile ? '6px 6px' : '8px 12px',
+                    background: researching
+                      ? undefined
+                      : isHovered
+                        ? 'rgba(25, 35, 50, 0.5)'
+                        : 'rgba(10, 15, 25, 0.3)',
+                    border: isMobile
+                      ? 'none'
+                      : researching
+                        ? '1px solid rgba(68, 136, 170, 0.25)'
+                        : '1px solid rgba(51, 68, 85, 0.15)',
+                    borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.1)' : undefined,
+                    borderRadius: isMobile ? 0 : 3,
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    color: locked ? '#556677' : '#aabbcc',
+                    textAlign: 'left',
+                    alignItems: 'center',
+                    transition: 'background 0.15s',
+                    animation: researching ? 'sys-row-research-pulse 2.5s ease-in-out infinite' : undefined,
+                    position: 'relative',
+                    opacity: locked ? 0.6 : 1,
+                  }}
+                >
+                  {/* Name (clickable to navigate) */}
+                  <span
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                    onClick={() => onNavigate(system)}
+                  >
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: starColor,
+                        flexShrink: 0,
+                        boxShadow: isHome ? '0 0 0 3px rgba(68,255,136,0.5), 0 0 0 1px #44ff88' : undefined,
+                      }}
+                    />
+                    <span>{name}</span>
+                  </span>
+
+                  {/* Spectral class */}
+                  <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
+                    {system.star.spectralClass}
+                  </span>
+
+                  {/* Coordinates (hidden on mobile) */}
+                  {!isMobile && (
+                    <span style={{ color: '#556677', fontSize: 10 }}>
+                      {system.position.x.toFixed(0)}, {system.position.y.toFixed(0)}
+                    </span>
+                  )}
+
+                  {/* Planet count */}
+                  <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
+                    {system.planets.length}
+                  </span>
+
+                  {/* Ring index */}
+                  <span style={{ color: '#556677', fontSize: 10, textAlign: 'center' }}>
+                    {system.ringIndex ?? '-'}
+                  </span>
+
+                  {/* Research action button */}
+                  {hasResearchCol && (
+                    <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
+                      {isHome ? (
+                        <span style={{ color: '#334455', fontSize: 10 }} />
+                      ) : locked ? (
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#445566" strokeWidth="1.2" strokeLinecap="round">
+                          <rect x="3" y="7" width="10" height="8" rx="1.5" />
+                          <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+                        </svg>
+                      ) : fullyResearched ? (
+                        <ResearchedButton onClick={() => onNavigate(system)} />
+                      ) : researching ? (
+                        <ResearchingButton />
+                      ) : canResearch ? (
+                        <div style={{ position: 'relative' }}>
+                          <ResearchButton
+                            tutorialId={isFirstNonHome ? 'research-btn-first' : undefined}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleResearchClick(system.id);
+                            }}
+                          />
+                          {showInsufficientData && (
+                            <div style={{
+                              position: 'absolute',
+                              bottom: '100%',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              marginBottom: 4,
+                              whiteSpace: 'nowrap',
+                              fontSize: 10,
+                              color: '#cc8844',
+                              background: 'rgba(10, 15, 25, 0.95)',
+                              border: '1px solid rgba(204, 136, 68, 0.3)',
+                              borderRadius: 3,
+                              padding: '4px 8px',
+                              zIndex: 10,
+                              pointerEvents: 'none',
+                            }}>
+                              Недостатньо даних
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#334455', fontSize: 10 }}>
+                          {'\u2014'}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </React.Fragment>
         );
       })}
     </div>

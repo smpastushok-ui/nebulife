@@ -408,6 +408,14 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           canStartResearch={canStartResearch}
           isResearching={isSystemResearching}
           isFullyResearched={getResearchProgress ? (sysId: string) => (getResearchProgress(sysId) >= 100) : undefined}
+          isRingLocked={getResearchProgress ? (ringIndex: number) => {
+            if (ringIndex <= 1) return false; // Ring 0 (home) and ring 1 always unlocked
+            // Ring N locked if ring N-1 has any non-home system not at 100%
+            const prevRingSystems = allSystems.filter(
+              (s) => s.ringIndex === ringIndex - 1 && s.ownerPlayerId === null,
+            );
+            return prevRingSystems.some((s) => getResearchProgress(s.id) < 100);
+          } : undefined}
           researchData={researchData}
           researchDataCost={researchDataCost}
         />
