@@ -2,6 +2,13 @@ import type { Planet, PlanetType } from '@nebulife/core';
 import type { Star } from '@nebulife/core';
 import * as THREE from 'three';
 
+/**
+ * Star sprite position in the 3D globe scene.
+ * Shared between PlanetGlobeView and PlanetDetailWindow so that
+ * the star visual position matches the lighting direction (uStarDir).
+ */
+export const STAR_SPRITE_POSITION = new THREE.Vector3(-8, 6, -15);
+
 export interface BiomeColors {
   tropical: number;
   temperate: number;
@@ -404,27 +411,27 @@ export function getAtmosphereParams(
   if ((comp['CO2'] ?? 0) > 0.4) {
     return {
       color: new THREE.Color(0.9, 0.6, 0.3),
-      intensity: Math.min(0.5, 0.2 + pressure * 0.04),
+      intensity: Math.min(0.55, 0.25 + pressure * 0.06),
       power: 2.5,
-      scale: 1.03 + Math.min(pressure * 0.004, 0.05),
+      scale: 1.07 + Math.min(pressure * 0.008, 0.06),
     };
   }
   if ((comp['N2'] ?? 0) > 0.5 || (comp['O2'] ?? 0) > 0.1) {
     return {
       color: new THREE.Color(0.4, 0.65, 1.0),
-      intensity: Math.min(0.35, 0.12 + pressure * 0.08),
-      power: 4.5,
-      scale: 1.02 + Math.min(pressure * 0.008, 0.03),
+      intensity: Math.min(0.5, 0.20 + pressure * 0.12),
+      power: 4.0,
+      scale: 1.06 + Math.min(pressure * 0.012, 0.06),
     };
   }
   if ((comp['H2'] ?? 0) > 0.3 || (comp['He'] ?? 0) > 0.2) {
-    return { color: new THREE.Color(0.8, 0.85, 1.0), intensity: 0.4, power: 2.5, scale: 1.06 };
+    return { color: new THREE.Color(0.8, 0.85, 1.0), intensity: 0.45, power: 2.5, scale: 1.07 };
   }
   return {
     color: new THREE.Color(0.5, 0.6, 0.8),
-    intensity: Math.min(0.35, 0.15 + pressure * 0.1),
-    power: 4.0,
-    scale: 1.02,
+    intensity: Math.min(0.4, 0.20 + pressure * 0.12),
+    power: 3.5,
+    scale: 1.06,
   };
 }
 
@@ -498,9 +505,8 @@ export function planetVisualsToUniforms(
   star: Star,
 ): Record<string, THREE.IUniform> {
   // Compute star direction (normalized, pointing from planet toward star)
-  // In our scene, star is a distant billboard — we use a fixed direction
-  // based on star position relative to planet center
-  const starDir = new THREE.Vector3(-0.7, 0.5, 0.5).normalize();
+  // Matches the star sprite position used in PlanetGlobeView/PlanetDetailWindow
+  const starDir = STAR_SPRITE_POSITION.clone().normalize();
 
   // Resource abundances (crust composition fractions, normalized to [0..1] importance)
   const crust = planet.resources?.crustComposition ?? {};

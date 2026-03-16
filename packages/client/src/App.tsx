@@ -668,6 +668,18 @@ export function App() {
     return () => clearInterval(id);
   }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, homeInfo, evacuationPhase]);
 
+  /** Globally memoized destroyed planet IDs (parsed once from localStorage) */
+  const destroyedPlanetIdsSet = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('nebulife_destroyed_planets');
+      if (!raw) return new Set<string>();
+      const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
+      return new Set(arr.map(d => d.planetId));
+    } catch { return new Set<string>(); }
+  // Re-derive after evacuation
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evacuationPhase]);
+
   /** Surface view target */
   const [surfaceTarget, setSurfaceTarget] = useState<{
     planet: Planet;
@@ -3220,7 +3232,7 @@ export function App() {
           backLabel="Система"
           showZoom
           hidden={hideLeftPanel}
-          extraButtons={state.selectedPlanet?.isHomePlanet ? [
+          extraButtons={state.selectedPlanet && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'dwarf') ? [
             {
               title: 'На поверхню',
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
@@ -3395,6 +3407,7 @@ export function App() {
           onShowCharacteristics={handleShowCharacteristics}
           onClose={handleClosePlanetMenu}
           onSurface={handleOpenSurface}
+          isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (

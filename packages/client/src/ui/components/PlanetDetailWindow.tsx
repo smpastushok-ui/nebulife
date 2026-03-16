@@ -9,6 +9,7 @@ import {
   getAtmosphereParams,
   getCloudParams,
   getMoonColors,
+  STAR_SPRITE_POSITION,
 } from '../../game/rendering/PlanetVisuals.js';
 
 // GLSL shader imports (Vite ?raw)
@@ -345,7 +346,7 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
     if (planet.moons.length > 0) {
       const planetRadiusKm = planet.radiusEarth * 6371;
       const maxOrbitalKm = Math.max(...planet.moons.map(m => m.orbitalRadiusKm));
-      const starDir = new THREE.Vector3(-0.7, 0.5, 0.5).normalize();
+      const starDir = STAR_SPRITE_POSITION.clone().normalize();
 
       for (let i = 0; i < planet.moons.length; i++) {
         const moon = planet.moons[i];

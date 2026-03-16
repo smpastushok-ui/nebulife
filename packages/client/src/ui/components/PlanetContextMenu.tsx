@@ -67,6 +67,7 @@ export function PlanetContextMenu({
   planet, screenPosition,
   onViewPlanet, onShowCharacteristics, onClose,
   onSurface,
+  isDestroyed,
 }: {
   planet: Planet;
   screenPosition: { x: number; y: number };
@@ -74,14 +75,33 @@ export function PlanetContextMenu({
   onShowCharacteristics: () => void;
   onClose: () => void;
   onSurface?: () => void;
+  isDestroyed?: boolean;
 }) {
+  // Destroyed planets have no interactive menu
+  if (isDestroyed) {
+    return (
+      <>
+        <div style={backdropStyle} onClick={onClose} />
+        <div style={{ ...menuStyle, left: Math.min(screenPosition.x + 8, window.innerWidth - MENU_WIDTH - 16), top: Math.min(screenPosition.y - 20, window.innerHeight - MENU_HEIGHT_APPROX - 16) }}>
+          <div style={headerStyle}>
+            {planet.name}
+            <span style={{ color: '#884422', marginLeft: 8, fontSize: 10 }}>ЗРУЙНОВАНО</span>
+          </div>
+          <div style={{ padding: '12px 14px', color: '#553322', fontSize: 11, fontFamily: 'monospace' }}>
+            Планета зруйнована. Залишились лише уламки.
+          </div>
+        </div>
+      </>
+    );
+  }
+
   // Clamp position to keep menu on screen
   const maxX = window.innerWidth - MENU_WIDTH - 16;
   const maxY = window.innerHeight - MENU_HEIGHT_APPROX - 16;
   const left = Math.min(screenPosition.x + 8, maxX);
   const top = Math.min(screenPosition.y - 20, maxY);
 
-  const showSurface = onSurface && (planet.isHomePlanet || planet.isColonizable);
+  const showSurface = onSurface && (planet.type === 'rocky' || planet.type === 'dwarf');
 
   return (
     <>

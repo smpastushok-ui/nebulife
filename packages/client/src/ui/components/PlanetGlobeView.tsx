@@ -9,6 +9,7 @@ import {
   getAtmosphereParams,
   getCloudParams,
   getMoonColors,
+  STAR_SPRITE_POSITION,
 } from '../../game/rendering/PlanetVisuals.js';
 
 // GLSL shader imports (Vite ?raw)
@@ -183,8 +184,8 @@ function createDistantStar(
   halo.scale.setScalar(coreSize * 4);
   group.add(halo);
 
-  // Position: top-left area of the sky
-  group.position.set(-8, 6, -15);
+  // Position: top-left area of the sky (synced with STAR_SPRITE_POSITION)
+  group.position.copy(STAR_SPRITE_POSITION);
 
   scene.add(group);
   return group;
@@ -341,7 +342,7 @@ function createMoons(
   const result: MoonOrbitData[] = [];
   const planetRadiusKm = planet.radiusEarth * 6371;
   const maxOrbitalKm = Math.max(...moons.map(m => m.orbitalRadiusKm));
-  const starDir = new THREE.Vector3(-0.7, 0.5, 0.5).normalize();
+  const starDir = STAR_SPRITE_POSITION.clone().normalize();
 
   for (let i = 0; i < moons.length; i++) {
     const moon = moons[i];

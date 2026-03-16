@@ -325,30 +325,34 @@ void main() {
 
   // --- Apply lighting ---
 
-  // Fresnel limb darkening (1 at center, darker at edges)
+  // Fresnel limb darkening (1 at center, subtly darker at edges)
   float rimDot = max(dot(vNormal, vViewDir), 0.0);
   float limbDarken = smoothstep(0.0, 0.5, rimDot);
 
-  // Star color tinting
-  vec3 lit = color * mix(vec3(0.03), uStarColor * uStarIntensity, dayFactor);
+  // Ambient light bounce: starlight scattered by atmosphere + zodiacal glow
+  vec3 ambientNight = vec3(0.03) + uStarColor * 0.02;
+  vec3 lit = color * mix(ambientNight, uStarColor * uStarIntensity, dayFactor);
 
   // Sunset tint at terminator band
   lit = mix(lit, lit * sunsetTint * 3.0, sunsetBand * 0.3);
 
-  // Limb darkening
-  lit *= 0.4 + limbDarken * 0.6;
+  // Limb darkening (subtle — 0.65 to 1.0 range)
+  lit *= 0.65 + limbDarken * 0.35;
 
   // Albedo adjustment
   lit *= 0.6 + uAlbedo * 0.8;
 
-  // --- Ocean specular highlight (sun glint) ---
+  // --- Ocean specular highlight (Fresnel + sun glint) ---
   if (isOcean > 0.5 && dayFactor > 0.1) {
     vec3 halfDir = normalize(uStarDir + vViewDir);
     float specDot = max(dot(n, halfDir), 0.0);
-    float specular = pow(specDot, 120.0) * 1.2;
-    // Softer broad glint
-    float broadSpec = pow(specDot, 20.0) * 0.15;
-    lit += uStarColor * (specular + broadSpec) * dayFactor * uStarIntensity;
+    // Tight sun glint
+    float specular = pow(specDot, 60.0) * 1.5;
+    // Broad ocean shimmer
+    float broadSpec = pow(specDot, 8.0) * 0.25;
+    // Fresnel term (stronger reflection at grazing angles)
+    float fresnelOcean = pow(1.0 - max(dot(n, vViewDir), 0.0), 3.0) * 0.15;
+    lit += uStarColor * (specular + broadSpec + fresnelOcean) * dayFactor * uStarIntensity;
   }
 
   // --- City lights (night side only) ---
@@ -360,21 +364,25 @@ void main() {
     if (cityNoise + coastBonus + tropicBonus > 0.25 && latitude < 0.85) {
       // Only on land
       if (uHasOcean < 0.5 || elevation >= uLandThreshold) {
-        float intensity = clamp((cityNoise - 0.15) * 2.0, 0.3, 1.0);
-        vec3 lightColor = mix(vec3(1.0, 0.80, 0.33), vec3(1.0, 0.93, 0.67), intensity);
+        float cityIntensity = clamp((cityNoise - 0.15) * 2.0, 0.3, 1.0);
+        vec3 lightColor = mix(vec3(1.0, 0.80, 0.33), vec3(1.0, 0.93, 0.67), cityIntensity);
         float nightMask = 1.0 - smoothstep(0.0, 0.3, dayFactor);
-        // Flicker
+        // Flicker (varied per-city with different phases)
         float flicker = 0.85 + 0.15 * sin(uTime * 2.0 + cityNoise * 50.0);
-        lit += lightColor * intensity * 0.12 * nightMask * flicker;
+        lit += lightColor * cityIntensity * 0.25 * nightMask * flicker;
+        // Soft city glow (light pollution halo)
+        float glowNoise = fbm(n * 3.0 + seedOff + vec3(1234.0), 2);
+        float glowMask = smoothstep(0.15, 0.30, glowNoise);
+        lit += lightColor * glowMask * 0.04 * nightMask;
       }
     }
   }
 
   // --- Aurora at poles (magnetic field driven) ---
   if (uMagneticStrength > 0.1) {
-    float auroraLat = smoothstep(0.65, 0.85, latitude);
+    float auroraLat = smoothstep(0.55, 0.80, latitude);
     float auroraNoise = fbm(n * 4.0 + vec3(uTime * 0.02, 0.0, uTime * 0.015), 3);
-    float auroraIntensity = auroraLat * smoothstep(0.3, 0.6, auroraNoise) * uMagneticStrength * 0.15;
+    float auroraIntensity = auroraLat * smoothstep(0.3, 0.6, auroraNoise) * uMagneticStrength * 0.5;
     // Only visible on night side
     float nightAurora = 1.0 - smoothstep(-0.1, 0.2, daylight);
     vec3 auroraColor = mix(vec3(0.2, 1.0, 0.4), vec3(0.3, 0.5, 1.0), auroraNoise);

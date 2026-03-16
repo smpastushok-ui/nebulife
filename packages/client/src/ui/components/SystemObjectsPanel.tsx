@@ -231,43 +231,59 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet, isD
           fontFamily: 'monospace',
           fontSize: 10,
           animation: `sopRow 0.32s ease-out ${baseDelay}ms both`,
+          opacity: isDestroyed ? 0.6 : 1,
         }}
       >
         {/* Name + dot */}
         <span
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
-            color: nameHovered ? '#7bb8ff' : (isHome ? '#44ff88' : '#aabbcc'),
-            cursor: 'pointer', transition: 'color 0.15s',
+            color: isDestroyed ? '#553322' : (nameHovered ? '#7bb8ff' : (isHome ? '#44ff88' : '#aabbcc')),
+            cursor: isDestroyed ? 'default' : 'pointer', transition: 'color 0.15s',
             overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
           }}
-          onClick={(e) => { e.stopPropagation(); onEnterPlanet(); }}
-          onMouseEnter={() => setNameHovered(true)}
-          onMouseLeave={() => setNameHovered(false)}
+          onClick={isDestroyed ? undefined : (e) => { e.stopPropagation(); onEnterPlanet(); }}
+          onMouseEnter={isDestroyed ? undefined : () => setNameHovered(true)}
+          onMouseLeave={isDestroyed ? undefined : () => setNameHovered(false)}
         >
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, boxShadow: isHome ? '0 0 0 2px rgba(68,255,136,0.5)' : undefined }} />
+          {isDestroyed ? (
+            <span style={{ width: 10, height: 10, position: 'relative', flexShrink: 0 }}>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#884422', position: 'absolute', top: 0, left: 2 }} />
+              <span style={{ width: 2, height: 2, borderRadius: '50%', background: '#663311', position: 'absolute', top: 4, left: 6 }} />
+              <span style={{ width: 2, height: 2, borderRadius: '30%', background: '#774422', position: 'absolute', top: 7, left: 1 }} />
+            </span>
+          ) : (
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, boxShadow: isHome ? '0 0 0 2px rgba(68,255,136,0.5)' : undefined }} />
+          )}
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{planet.name}</span>
+          {isDestroyed && <span style={{ color: '#884422', fontSize: 7 }}>x</span>}
           {isHome && !isDestroyed && <span style={{ color: '#44ff88', fontSize: 7 }}>H</span>}
         </span>
 
         {/* Type */}
-        <span style={{ color: '#556677', fontSize: 9 }}>{planetTypeName(planet.type)}</span>
+        <span style={{ color: isDestroyed ? '#443322' : '#556677', fontSize: 9 }}>{isDestroyed ? 'уламки' : planetTypeName(planet.type)}</span>
 
         {/* Orbit */}
-        <span style={{ color: '#4477aa', fontSize: 9 }}>{planet.orbit.semiMajorAxisAU.toFixed(2)}</span>
+        <span style={{ color: isDestroyed ? '#443322' : '#4477aa', fontSize: 9 }}>{planet.orbit.semiMajorAxisAU.toFixed(2)}</span>
 
         {/* Habitability */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ color: hColor, fontSize: 9 }}>{habitabilityLabel(planet)}</span>
-          <HabitBar score={hScore} delay={baseDelay + 280} color={hColor} />
+          {isDestroyed ? (
+            <span style={{ color: '#553322', fontSize: 9 }}>--</span>
+          ) : (
+            <>
+              <span style={{ color: hColor, fontSize: 9 }}>{habitabilityLabel(planet)}</span>
+              <HabitBar score={hScore} delay={baseDelay + 280} color={hColor} />
+            </>
+          )}
         </div>
 
         {/* Moons toggle */}
         <span
-          style={{ color: '#4477aa', fontSize: 9, cursor: hasMoons ? 'pointer' : 'default', textAlign: 'center' }}
-          onClick={hasMoons ? (e) => { e.stopPropagation(); onToggle(); } : undefined}
+          style={{ color: '#4477aa', fontSize: 9, cursor: hasMoons && !isDestroyed ? 'pointer' : 'default', textAlign: 'center' }}
+          onClick={hasMoons && !isDestroyed ? (e) => { e.stopPropagation(); onToggle(); } : undefined}
         >
-          {hasMoons ? `${planet.moons.length}${isExpanded ? '▾' : '▸'}` : ''}
+          {hasMoons && !isDestroyed ? `${planet.moons.length}${isExpanded ? '▾' : '▸'}` : ''}
         </span>
       </div>
     );
@@ -283,36 +299,55 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet, isD
         display: 'flex',
         alignItems: 'center',
         padding: '6px 14px',
-        background: hovered ? 'rgba(30,48,70,0.22)' : 'transparent',
+        background: hovered && !isDestroyed ? 'rgba(30,48,70,0.22)' : 'transparent',
         transition: 'background 0.15s',
         borderRadius: 3,
         animation: `sopRow 0.32s ease-out ${baseDelay}ms both`,
         gap: 6,
+        opacity: isDestroyed ? 0.6 : 1,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <span style={{ width: 22, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, boxShadow: `0 0 5px ${color}66`, animation: `sopCell 0.2s ease-out ${baseDelay}ms both` }} />
+        {isDestroyed ? (
+          <>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#884422', position: 'relative', left: -3, top: -1 }} />
+            <span style={{ width: 2, height: 2, borderRadius: '50%', background: '#663311', position: 'relative', left: 1, top: 2 }} />
+            <span style={{ width: 3, height: 2, borderRadius: '30%', background: '#774422', position: 'relative', left: -5, top: 4 }} />
+          </>
+        ) : (
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, boxShadow: `0 0 5px ${color}66`, animation: `sopCell 0.2s ease-out ${baseDelay}ms both` }} />
+        )}
       </span>
       <span
-        style={{ color: nameHovered ? '#7bb8ff' : (isHome ? '#44ff88' : '#aabbcc'), fontSize: 11, minWidth: 90, gap: 4, display: 'flex', alignItems: 'center', animation: d(55), cursor: 'pointer', transition: 'color 0.15s' }}
-        onClick={(e) => { e.stopPropagation(); onEnterPlanet(); }}
-        onMouseEnter={() => setNameHovered(true)}
-        onMouseLeave={() => setNameHovered(false)}
+        style={{
+          color: isDestroyed ? '#553322' : (nameHovered ? '#7bb8ff' : (isHome ? '#44ff88' : '#aabbcc')),
+          fontSize: 11, minWidth: 90, gap: 4, display: 'flex', alignItems: 'center', animation: d(55),
+          cursor: isDestroyed ? 'default' : 'pointer', transition: 'color 0.15s',
+        }}
+        onClick={isDestroyed ? undefined : (e) => { e.stopPropagation(); onEnterPlanet(); }}
+        onMouseEnter={isDestroyed ? undefined : () => setNameHovered(true)}
+        onMouseLeave={isDestroyed ? undefined : () => setNameHovered(false)}
       >
         {planet.name}
         {isDestroyed && <span style={{ color: '#884422', fontSize: 7, opacity: 0.8 }}>зруйновано</span>}
         {isHome && !isDestroyed && <span style={{ color: '#44ff88', fontSize: 7, opacity: 0.8 }}>HOME</span>}
       </span>
-      <span style={{ color: '#556677', fontSize: 9, minWidth: 72, animation: d(110) }}>{planetTypeName(planet.type)}</span>
-      <span style={{ color: '#4477aa', fontSize: 9, minWidth: 54, animation: d(160) }}>{planet.orbit.semiMajorAxisAU.toFixed(2)} AU</span>
+      <span style={{ color: isDestroyed ? '#443322' : '#556677', fontSize: 9, minWidth: 72, animation: d(110) }}>{isDestroyed ? 'уламки' : planetTypeName(planet.type)}</span>
+      <span style={{ color: isDestroyed ? '#443322' : '#4477aa', fontSize: 9, minWidth: 54, animation: d(160) }}>{planet.orbit.semiMajorAxisAU.toFixed(2)} AU</span>
       <div style={{ flexDirection: 'column', alignItems: 'flex-start', display: 'flex', minWidth: 70, animation: d(215) }}>
-        <span style={{ color: hColor, fontSize: 9 }}>{habitabilityLabel(planet)}</span>
-        <HabitBar score={hScore} delay={baseDelay + 280} color={hColor} />
+        {isDestroyed ? (
+          <span style={{ color: '#553322', fontSize: 9 }}>--</span>
+        ) : (
+          <>
+            <span style={{ color: hColor, fontSize: 9 }}>{habitabilityLabel(planet)}</span>
+            <HabitBar score={hScore} delay={baseDelay + 280} color={hColor} />
+          </>
+        )}
       </div>
       <span style={{ flex: 1 }} />
-      {hasMoons ? (
+      {hasMoons && !isDestroyed ? (
         <span
           style={{ color: '#4477aa', fontSize: 9, cursor: 'pointer', padding: '2px 4px', borderRadius: 2, animation: d(260), display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
