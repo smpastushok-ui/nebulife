@@ -1057,23 +1057,26 @@ export function App() {
       setFavoritePlanets(new Set(gs.favorite_planets));
       try { localStorage.setItem('nebulife_favorite_planets', JSON.stringify(gs.favorite_planets)); } catch { /* ignore */ }
     }
-    // Evacuation target — save to localStorage AND pendingEvacRef for engine-ready resolution
-    if (gs.evac_system_id) {
-      try { localStorage.setItem('nebulife_evac_system_id', gs.evac_system_id); } catch { /* ignore */ }
-    }
-    if (gs.evac_planet_id) {
-      try { localStorage.setItem('nebulife_evac_planet_id', gs.evac_planet_id); } catch { /* ignore */ }
-    }
-    if (typeof gs.evac_forced === 'boolean') {
-      try { localStorage.setItem('nebulife_evac_forced', String(gs.evac_forced)); } catch { /* ignore */ }
-    }
-    // Store pending evac data for resolution after engine init
+    // Evacuation target — restore or CLEAR based on server state
     if (gs.evac_system_id && gs.evac_planet_id) {
+      // Active evacuation on server — restore locally
+      try { localStorage.setItem('nebulife_evac_system_id', gs.evac_system_id); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_evac_planet_id', gs.evac_planet_id); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_evac_forced', String(gs.evac_forced === true)); } catch { /* ignore */ }
       pendingEvacRef.current = {
         systemId: gs.evac_system_id,
         planetId: gs.evac_planet_id,
         forced: gs.evac_forced === true,
       };
+    } else {
+      // No active evacuation on server — clear stale local state
+      try { localStorage.removeItem('nebulife_evac_system_id'); } catch { /* ignore */ }
+      try { localStorage.removeItem('nebulife_evac_planet_id'); } catch { /* ignore */ }
+      try { localStorage.removeItem('nebulife_evac_forced'); } catch { /* ignore */ }
+      pendingEvacRef.current = null;
+      setEvacuationTarget(null);
+      setForcedEvacuation(false);
+      setEvacuationPromptDismissed(false);
     }
 
     // Home planet — read from direct DB columns (most authoritative, updated on every evacuation landing)
