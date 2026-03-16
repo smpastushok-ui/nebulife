@@ -2354,7 +2354,10 @@ export function App() {
 
     // Reset research state: observatories were on the destroyed planet, 0 slots now
     // Keep systems data (already researched systems remain known)
-    setResearchState((prev) => ({ ...prev, slots: [] }));
+    const emptyResearch: ResearchState = { slots: [], systems: researchState.systems };
+    setResearchState(emptyResearch);
+    // Persist IMMEDIATELY to localStorage (don't wait for useEffect — sync might read stale data)
+    try { localStorage.setItem('nebulife_research_state', JSON.stringify(emptyResearch)); } catch { /* ignore */ }
 
     // Transition to colonization
     setIsExodusPhase(false);

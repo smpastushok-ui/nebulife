@@ -1,15 +1,30 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Application, Container } from 'pixi.js';
-import type { StarSystem, Planet } from '@nebulife/core';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import type { StarSystem, Planet, Star, Moon } from '@nebulife/core';
+import { SeededRNG } from '@nebulife/core';
 import {
-  renderPlanetCloseup,
-  renderMoon,
-} from '../../game/rendering/HomePlanetRenderer.js';
+  derivePlanetVisuals,
+  planetVisualsToUniforms,
+  getAtmosphereParams,
+  getCloudParams,
+  getMoonColors,
+} from '../../game/rendering/PlanetVisuals.js';
+
+// GLSL shader imports (Vite ?raw)
+import planetVertSrc from '../../shaders/planet/planet.vert.glsl?raw';
+import rockySurfaceFrag from '../../shaders/planet/rocky-surface.frag.glsl?raw';
+import gasGiantFrag from '../../shaders/planet/gas-giant.frag.glsl?raw';
+import atmosphereFrag from '../../shaders/planet/atmosphere.frag.glsl?raw';
+import cloudLayerFrag from '../../shaders/planet/cloud-layer.frag.glsl?raw';
+import ringVertSrc from '../../shaders/planet/ring.vert.glsl?raw';
+import ringFrag from '../../shaders/planet/ring.frag.glsl?raw';
+import moonSurfaceFrag from '../../shaders/planet/moon-surface.frag.glsl?raw';
 
 // ---------------------------------------------------------------------------
 // PlanetDetailWindow — full-screen planet detail viewer
 // ---------------------------------------------------------------------------
-// Top-left quarter: animated PixiJS planet + moons at correct relative scale
+// Top-left quarter: animated Three.js planet + moons with shader-based rendering
 // Right side: planet characteristics panel
 // Top bar: system name + prev/next planet navigation
 // ---------------------------------------------------------------------------
@@ -129,7 +144,17 @@ function Section({ label, delay = 0 }: { label: string; delay?: number }) {
   );
 }
 
-// ─── PixiJS Planet Canvas ─────────────────────────────────────────────────────
+// ─── Three.js Planet Canvas ──────────────────────────────────────────────────
+
+const DEEP_SPACE = 0x020510;
+
+interface MoonOrbitData {
+  mesh: THREE.Mesh;
+  angle: number;
+  orbitRadius: number;
+  eccentricityY: number;
+  angularSpeed: number;
+}
 
 interface PlanetCanvasProps {
   planet: Planet;
@@ -141,126 +166,306 @@ interface PlanetCanvasProps {
 
 function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const appRef = useRef<Application | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const rafRef = useRef<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
     let destroyed = false;
-    let viewAngle = 0;
-    let time = 0;
-    const cloudDrift = { x: 0 };
 
-    const app = new Application();
-    appRef.current = app;
+    // --- Scene ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(DEEP_SPACE);
+    scene.fog = new THREE.FogExp2(0x030818, 0.008);
 
-    app.init({
-      background: 0x020510,
-      width: canvasW,
-      height: canvasH,
+    // --- Camera ---
+    const camera = new THREE.PerspectiveCamera(
+      50,
+      canvasW / canvasH,
+      0.1,
+      200,
+    );
+    camera.position.set(0, 0, 3);
+
+    // --- Renderer ---
+    const renderer = new THREE.WebGLRenderer({
       antialias: true,
-      resolution: Math.min(window.devicePixelRatio || 1, 2),
-      autoDensity: true,
-    }).then(() => {
-      if (destroyed) { app.destroy(true, { children: true, texture: true }); return; }
-      containerRef.current?.appendChild(app.canvas);
-      setLoading(false);
+      alpha: false,
+    });
+    renderer.setSize(canvasW, canvasH);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+    setLoading(false);
 
-      const sceneContainer = new Container();
-      app.stage.addChild(sceneContainer);
+    // --- Controls (gentle interaction) ---
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.4;
+    controls.minDistance = 1.8;
+    controls.maxDistance = 6;
+    controls.enablePan = false;
 
-      const cx = canvasW / 2;
-      const cy = canvasH / 2;
+    // --- Starfield ---
+    const starCount = 1200;
+    const starPositions = new Float32Array(starCount * 3);
+    const starColors = new Float32Array(starCount * 3);
+    const starSizes = new Float32Array(starCount);
 
-      // Render planet
-      const planetResult = renderPlanetCloseup(planet, star as never, displayRadius);
-      planetResult.container.x = cx;
-      planetResult.container.y = cy;
-      sceneContainer.addChild(planetResult.container);
+    for (let i = 0; i < starCount; i++) {
+      const i3 = i * 3;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 50 + Math.random() * 50;
+      starPositions[i3] = r * Math.sin(phi) * Math.cos(theta);
+      starPositions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      starPositions[i3 + 2] = r * Math.cos(phi);
+      starSizes[i] = 0.3 + Math.random() * 1.5;
+      const roll = Math.random();
+      if (roll < 0.12) {
+        starColors[i3] = 1.0; starColors[i3 + 1] = 0.85 + Math.random() * 0.15; starColors[i3 + 2] = 0.7 + Math.random() * 0.2;
+      } else if (roll < 0.45) {
+        starColors[i3] = 0.6 + Math.random() * 0.2; starColors[i3 + 1] = 0.7 + Math.random() * 0.2; starColors[i3 + 2] = 1.0;
+      } else {
+        const w = 0.85 + Math.random() * 0.15;
+        starColors[i3] = w * 0.85; starColors[i3 + 1] = w * 0.92; starColors[i3 + 2] = w;
+      }
+    }
 
-      // Render moons as small orbiting dots
-      const moonNodes: Array<{
-        container: Container;
-        lightingContainer: Container;
-        angle: number;
-        orbitR: number;
-        speed: number;
-      }> = [];
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+    starGeo.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+    const starMat = new THREE.PointsMaterial({
+      size: 0.16,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.8,
+      vertexColors: true,
+    });
+    const starPoints = new THREE.Points(starGeo, starMat);
+    scene.add(starPoints);
 
-      if (planet.moons.length > 0) {
-        planet.moons.forEach((moon, i) => {
-          const moonRadius = Math.max(3, Math.min(10, displayRadius * 0.08 + i * 1.5));
-          const orbitR = displayRadius + 20 + i * (moonRadius * 2 + 8);
-          const moonResult = renderMoon(moon.seed, moonRadius, {
-            compositionType: moon.compositionType,
-            surfaceTempK: moon.surfaceTempK,
-          });
-          moonResult.container.x = cx + orbitR;
-          moonResult.container.y = cy;
-          sceneContainer.addChild(moonResult.container);
-          moonNodes.push({
-            container: moonResult.container,
-            lightingContainer: moonResult.lightingContainer,
-            angle: (moon.seed % 360) * (Math.PI / 180),
-            orbitR,
-            speed: 0.0002 / (i + 1),
-          });
+    // Twinkle indices
+    const twinkleIndices: number[] = [];
+    const baseSizes = new Float32Array(starSizes);
+    for (let i = 0; i < starCount && twinkleIndices.length < 120; i++) {
+      if (Math.random() < 0.1) twinkleIndices.push(i);
+    }
+
+    // --- Planet sphere (shader-based) ---
+    const visuals = derivePlanetVisuals(planet, star as Star);
+    const planetUniforms = planetVisualsToUniforms(visuals, planet, star as Star);
+
+    const isGas = planet.type === 'gas-giant' || planet.type === 'ice-giant';
+    const fragShader = isGas ? gasGiantFrag : rockySurfaceFrag;
+
+    const planetGeo = new THREE.SphereGeometry(1, 128, 128);
+    const planetMat = new THREE.ShaderMaterial({
+      vertexShader: planetVertSrc,
+      fragmentShader: fragShader,
+      uniforms: planetUniforms,
+    });
+    const planetMesh = new THREE.Mesh(planetGeo, planetMat);
+    scene.add(planetMesh);
+
+    // --- Cloud layer ---
+    let cloudTimeUniform: THREE.IUniform | null = null;
+    if (planet.atmosphere) {
+      const cloudParams = getCloudParams(planet.atmosphere, planet.type);
+      if (cloudParams) {
+        const cloudGeo = new THREE.SphereGeometry(cloudParams.scale, 64, 64);
+        const tUniform = { value: 0.0 };
+        cloudTimeUniform = tUniform;
+        const cloudMat = new THREE.ShaderMaterial({
+          vertexShader: planetVertSrc,
+          fragmentShader: cloudLayerFrag,
+          uniforms: {
+            uCloudColor: { value: cloudParams.color },
+            uCoverage: { value: cloudParams.coverage },
+            uTime: tUniform,
+            uSeed: { value: planet.seed },
+          },
+          transparent: true,
+          side: THREE.FrontSide,
+          depthWrite: false,
+        });
+        const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
+        scene.add(cloudMesh);
+      }
+    }
+
+    // --- Atmosphere shell ---
+    if (planet.atmosphere) {
+      const atmoParams = getAtmosphereParams(planet.atmosphere, planet.type);
+      if (atmoParams) {
+        const atmoGeo = new THREE.SphereGeometry(atmoParams.scale, 32, 32);
+        const atmoMat = new THREE.ShaderMaterial({
+          vertexShader: planetVertSrc,
+          fragmentShader: atmosphereFrag,
+          uniforms: {
+            uColor: { value: atmoParams.color },
+            uIntensity: { value: atmoParams.intensity },
+            uPower: { value: atmoParams.power },
+          },
+          transparent: true,
+          side: THREE.FrontSide,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        const atmoMesh = new THREE.Mesh(atmoGeo, atmoMat);
+        scene.add(atmoMesh);
+      }
+    }
+
+    // --- Ring (gas/ice giants) ---
+    if ((planet.type === 'gas-giant' || planet.type === 'ice-giant') && planet.massEarth >= 15) {
+      const ringGeo = new THREE.RingGeometry(1.2, 2.2, 128, 4);
+      const ringMat = new THREE.ShaderMaterial({
+        vertexShader: ringVertSrc,
+        fragmentShader: ringFrag,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      ringMesh.rotation.x = -Math.PI / 2 + 0.47;
+      scene.add(ringMesh);
+    }
+
+    // --- Moons ---
+    const moonOrbits: MoonOrbitData[] = [];
+    if (planet.moons.length > 0) {
+      const planetRadiusKm = planet.radiusEarth * 6371;
+      const maxOrbitalKm = Math.max(...planet.moons.map(m => m.orbitalRadiusKm));
+      const starDir = new THREE.Vector3(-0.7, 0.5, 0.5).normalize();
+
+      for (let i = 0; i < planet.moons.length; i++) {
+        const moon = planet.moons[i];
+
+        const rawR = moon.radiusKm / planetRadiusKm;
+        const moonR = Math.max(0.06, Math.min(0.35, rawR));
+
+        const normDist = maxOrbitalKm > 0 ? moon.orbitalRadiusKm / maxOrbitalKm : 0.5;
+        const orbitRadius = 1.4 + normDist * 2.0;
+
+        const angularSpeed = (2 * Math.PI) / (moon.orbitalPeriodDays * 120000);
+
+        const rng = new SeededRNG(moon.seed);
+        const startAngle = rng.next() * Math.PI * 2;
+        const eccentricityY = 0.30 + rng.next() * 0.15;
+
+        const { base, high } = getMoonColors(moon.compositionType, moon.surfaceTempK);
+
+        const moonGeo = new THREE.SphereGeometry(moonR, 32, 32);
+        const moonMat = new THREE.ShaderMaterial({
+          vertexShader: planetVertSrc,
+          fragmentShader: moonSurfaceFrag,
+          uniforms: {
+            uSeed: { value: moon.seed },
+            uBaseColor: { value: base },
+            uHighColor: { value: high },
+            uHasCraters: { value: moon.compositionType !== 'icy' ? 1.0 : 0.5 },
+            uStarDir: { value: starDir },
+            uStarColor: { value: new THREE.Color((star as Star).colorHex) },
+          },
+        });
+
+        const moonMesh = new THREE.Mesh(moonGeo, moonMat);
+        scene.add(moonMesh);
+
+        moonOrbits.push({
+          mesh: moonMesh,
+          angle: startAngle,
+          orbitRadius,
+          eccentricityY,
+          angularSpeed,
         });
       }
+    }
 
-      // Ticker
-      let lastTime = performance.now();
-      const tick = () => {
-        if (destroyed) return;
-        rafRef.current = requestAnimationFrame(tick);
+    // --- Ambient light ---
+    const ambient = new THREE.AmbientLight(0x112233, 0.15);
+    scene.add(ambient);
 
-        const now = performance.now();
-        const deltaMs = now - lastTime;
-        lastTime = now;
-        time += deltaMs;
+    // --- Animation ---
+    let lastTime = performance.now();
+    const startTime = performance.now();
 
-        // Slow cosmos rotation via planet offset illusion
-        viewAngle += deltaMs * 0.00002;
+    const animate = () => {
+      if (destroyed) return;
+      rafRef.current = requestAnimationFrame(animate);
+      const now = performance.now();
+      const deltaMs = now - lastTime;
+      lastTime = now;
+      const elapsed = (now - startTime) * 0.001;
 
-        // Gentle cloud drift
-        cloudDrift.x -= deltaMs * 0.0005;
-        planetResult.cloudGroup.x = cloudDrift.x;
+      controls.update();
 
-        // Moon orbits
-        for (const mn of moonNodes) {
-          mn.angle += mn.speed * deltaMs;
-          mn.container.x = cx + Math.cos(mn.angle) * mn.orbitR;
-          mn.container.y = cy + Math.sin(mn.angle) * mn.orbitR * 0.35; // Y-compress
-          // Lighting: shadow faces away from origin (simplified)
-          mn.lightingContainer.rotation = mn.angle + Math.PI;
-          // Z-ordering by Y
-          const depth = Math.sin(mn.angle);
-          const planetIdx = sceneContainer.getChildIndex(planetResult.container);
-          const moonIdx = sceneContainer.getChildIndex(mn.container);
-          if (depth > 0 && moonIdx < planetIdx) {
-            sceneContainer.setChildIndex(mn.container, planetIdx);
-          } else if (depth <= 0 && moonIdx > planetIdx) {
-            sceneContainer.setChildIndex(mn.container, Math.max(0, planetIdx));
-          }
-        }
+      // Update planet time uniform
+      planetUniforms.uTime.value = elapsed;
 
-        // Subtle terminator animation
-        planetResult.terminatorGroup.rotation = Math.sin(time * 0.00005) * 0.015;
-      };
+      // Update cloud time
+      if (cloudTimeUniform) {
+        cloudTimeUniform.value = elapsed;
+      }
 
-      rafRef.current = requestAnimationFrame(tick);
-    });
+      // Twinkle stars
+      const sizeAttr = starPoints.geometry.getAttribute('size');
+      for (const idx of twinkleIndices) {
+        (sizeAttr.array as Float32Array)[idx] =
+          baseSizes[idx] * (0.5 + 0.5 * Math.sin(elapsed * 3 + idx * 1.7));
+      }
+      sizeAttr.needsUpdate = true;
+
+      // Moon orbits
+      for (const m of moonOrbits) {
+        m.angle += m.angularSpeed * deltaMs;
+        m.mesh.position.set(
+          Math.cos(m.angle) * m.orbitRadius,
+          Math.sin(m.angle) * m.orbitRadius * m.eccentricityY,
+          0,
+        );
+        const depth = Math.sin(m.angle);
+        m.mesh.scale.setScalar(0.85 + depth * 0.15);
+        m.mesh.renderOrder = depth > 0 ? 2 : -1;
+      }
+
+      renderer.render(scene, camera);
+    };
+
+    animate();
 
     return () => {
       destroyed = true;
       cancelAnimationFrame(rafRef.current);
-      // Small delay to let PixiJS finish init before destroy
-      setTimeout(() => { app.destroy(true, { children: true, texture: true }); }, 50);
+      controls.dispose();
+      // Dispose all scene objects
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.Line || obj instanceof THREE.Points) {
+          obj.geometry?.dispose();
+          if (obj.material instanceof THREE.Material) obj.material.dispose();
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+        }
+      });
+      if (rendererRef.current) {
+        rendererRef.current.forceContextLoss();
+        rendererRef.current.dispose();
+        rendererRef.current = null;
+      }
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planet.id, displayRadius, canvasW, canvasH]);
+  }, [planet.id, canvasW, canvasH]);
 
   return (
     <div
