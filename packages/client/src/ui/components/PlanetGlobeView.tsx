@@ -154,8 +154,8 @@ function createDistantStar(
   const distAU = planet.orbit.semiMajorAxisAU;
   const angularSize = star.radiusSolar / distAU;
   const brightness = Math.pow(star.luminositySolar, 0.25) / Math.sqrt(distAU);
-  // Larger range so stars are visible even from outer orbits
-  const coreSize = Math.max(0.12, Math.min(0.8, 0.25 * (angularSize * 0.6 + brightness * 0.4)));
+  // Large range — star at ~18 units from camera needs bigger sprites to be visible
+  const coreSize = Math.max(0.4, Math.min(2.5, 0.8 * (angularSize * 0.6 + brightness * 0.4)));
 
   const starColor = new THREE.Color(star.colorHex);
   const starTex = makeStarTexture();
@@ -910,7 +910,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       const starfield = createStarfield(scene);
 
       // 2. Distant star
-      createDistantStar(scene, star, planet);
+      const starGroup = createDistantStar(scene, star, planet);
 
       // 3. Planet sphere
       const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star);
@@ -964,6 +964,11 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         if (cloudResult) {
           cloudResult.uniform.value = elapsed;
         }
+
+        // Dynamic star scale — larger when zoomed in
+        const camDist = camera.position.length();
+        const starScale = 1.0 + (3.0 / camDist - 1.0) * 0.5;
+        starGroup.scale.setScalar(starScale);
 
         // Twinkle stars
         const sizeAttr = starfield.points.geometry.getAttribute('size');

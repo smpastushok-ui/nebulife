@@ -109,7 +109,7 @@ export function PlanetNavHeader({
         top: 50,
         left: '50%',
         transform: 'translateX(-50%)',
-        zIndex: 40,
+        zIndex: 60,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
