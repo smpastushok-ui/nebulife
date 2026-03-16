@@ -3,7 +3,7 @@
 // Supports 5 planet types: temperate(0), gas(1), ice(2), lava(3), barren(4)
 // Composition-aware: Fe/Si/C/S affect surface per planet type
 
-precision mediump float;
+precision highp float;
 
 // Core
 uniform float uSeed;
@@ -122,7 +122,11 @@ float craterNoise(vec2 p) {
 
 void main() {
   // World-space position accounting for pan and zoom
-  vec2 seedOff = vec2(uSeed * 0.1, uSeed * 0.07);
+  // Hash the seed to a small deterministic offset (avoids float precision loss
+  // when seeds are in the billions — large numbers destroy fract() in noise)
+  float seedH1 = fract(sin(uSeed * 0.00001) * 43758.5453);
+  float seedH2 = fract(sin(uSeed * 0.000013 + 7.31) * 24681.1357);
+  vec2 seedOff = vec2(seedH1 * 50.0, seedH2 * 50.0);
   vec2 worldPos = (vUv - 0.5) / uZoom + uPan + seedOff;
 
   // Latitude (0=equator, 1=poles) for biome selection
