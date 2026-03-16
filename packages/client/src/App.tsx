@@ -569,6 +569,18 @@ export function App() {
   // ── Home planet info (for navigation from home page) ──────────────
   const [homeInfo, setHomeInfo] = useState<{ system: StarSystem; planet: Planet } | null>(null);
 
+  // Home system is always researched by default (player's own star system).
+  // This effect ensures it stays researched even after server hydration overwrites state.
+  useEffect(() => {
+    if (!homeInfo) return;
+    const sysId = homeInfo.system.id;
+    if (researchState.systems[sysId]?.isComplete) return;
+    setResearchState((prev) => {
+      if (prev.systems[sysId]?.isComplete) return prev;
+      return completeSystemResearchInstantly(prev, homeInfo.system);
+    });
+  }, [homeInfo, researchState]);
+
   // Resolve pending evacuation target from server data once engine is ready.
   // Handles the race condition where engine init ran before hydration wrote evac IDs to localStorage.
   useEffect(() => {
@@ -1453,11 +1465,6 @@ export function App() {
         if (homePlanet) {
           setHomeInfo({ system: homeSystem, planet: homePlanet });
         }
-        // Home system is researched by default (player's own star system)
-        setResearchState((prev) => {
-          if (prev.systems[homeSystem.id]?.isComplete) return prev;
-          return completeSystemResearchInstantly(prev, homeSystem);
-        });
       }
 
       // Restore evacuation target if saved
