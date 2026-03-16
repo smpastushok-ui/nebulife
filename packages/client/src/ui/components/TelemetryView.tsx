@@ -1237,7 +1237,7 @@ export function TelemetryView({
                   opacity: saved ? 0.6 : 1,
                 }}
               >
-                {saved ? 'Збережено' : 'Зберегти в архів'}
+                {saved ? 'В колекції' : 'В колекцію'}
               </button>
             )}
             <button
