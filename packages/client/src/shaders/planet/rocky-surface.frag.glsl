@@ -181,9 +181,9 @@ void main() {
   float latitude = abs(n.y);
 
   // Resource-based soil tint: modulate surfaceBase by mineral composition
-  // Cold planets: minerals hidden under ice/frost — fade tinting below 200K
+  // Cold planets: minerals hidden under ice/frost — no tinting below 260K
   vec3 surfBase = uSurfaceBase;
-  float mineralFade = smoothstep(200.0, 280.0, uSurfaceTempK);
+  float mineralFade = smoothstep(260.0, 350.0, uSurfaceTempK);
   surfBase = mix(surfBase, vec3(0.55, 0.25, 0.15), uFeAbundance * 0.3 * mineralFade); // Fe -> rust-red
   surfBase = mix(surfBase, vec3(0.75, 0.70, 0.55), uSiAbundance * 0.2 * mineralFade); // Si -> pale sandy
   surfBase = mix(surfBase, vec3(0.15, 0.12, 0.10), uCAbundance * 0.25 * mineralFade); // C -> dark

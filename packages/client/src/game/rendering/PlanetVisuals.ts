@@ -121,9 +121,9 @@ function deriveSurfaceBaseColor(tempK: number): number {
   if (tempK > 600) return 0xaa5533;      // hot Venus-like
   if (tempK > 373) return 0xbb9966;      // warm desert
   if (tempK > 273) return 0x887766;      // temperate rock
-  if (tempK > 200) return 0x8899aa;      // cold frosted
-  if (tempK > 120) return 0x7799bb;      // frozen blue
-  return 0x88aacc;                        // deeply frozen blue
+  if (tempK > 200) return 0x6699bb;      // cold frosted — blue-gray
+  if (tempK > 120) return 0x6699cc;      // frozen — clear blue
+  return 0x7aaddd;                        // deeply frozen — icy blue
 }
 
 /** Derive surface high elevation color */
@@ -132,9 +132,9 @@ function deriveSurfaceHighColor(tempK: number): number {
   if (tempK > 600) return 0x664433;
   if (tempK > 373) return 0x8a7755;
   if (tempK > 273) return 0x6a5a4a;
-  if (tempK > 200) return 0x778899;
-  if (tempK > 120) return 0x6688aa;      // frozen blue peaks
-  return 0x7799bb;                        // deeply frozen blue peaks
+  if (tempK > 200) return 0x5588aa;      // cold frosted peaks — blue
+  if (tempK > 120) return 0x5588bb;      // frozen blue peaks
+  return 0x6699cc;                        // deeply frozen blue peaks
 }
 
 /** Derive ocean colors from depth */
