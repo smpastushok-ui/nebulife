@@ -130,7 +130,11 @@ void main() {
   vec2 worldPos = (vUv - 0.5) / uZoom + uPan + seedOff;
 
   // Latitude (0=equator, 1=poles) for biome selection
+  // Noise-offset breaks horizontal band coherence for organic biome edges
   float lat = abs(vUv.y - 0.5) * 2.0;
+  float latNoise = fbm2(worldPos * 2.5 + seedOff * 2.0, 2);
+  lat += (latNoise - 0.5) * 0.18;
+  lat = clamp(lat, 0.0, 1.0);
 
   // ========================================================
   // TYPE 1: GAS GIANT — full override, horizontal bands
@@ -435,22 +439,22 @@ void main() {
   vec3 biomeColor = soilColor;
 
   if (uLifeComplexity > 0.5) {
-    // Planet has life — biome coloring based on latitude + moisture + temperature
-    if (lat < 0.20) {
-      // Equatorial zone
-      biomeColor = mix(uBiomeTropical, uBiomeDesert, smoothstep(0.4, 0.2, moisture));
-      biomeColor = mix(biomeColor, uBiomeTemperate, smoothstep(0.6, 0.8, moisture));
-    } else if (lat < 0.45) {
-      // Temperate zone
-      biomeColor = mix(uBiomeTemperate, uBiomeDesert, smoothstep(0.45, 0.25, moisture));
-      biomeColor = mix(biomeColor, uBiomeBoreal, smoothstep(0.4, 0.6, lat));
-    } else if (lat < 0.70) {
-      // Boreal zone
-      biomeColor = mix(uBiomeBoreal, uBiomeTundra, smoothstep(0.45, 0.7, lat));
-    } else {
-      // Polar zone
-      biomeColor = uBiomeTundra;
-    }
+    // Planet has life — smooth biome blending via latitude weights (no hard bands)
+    float tropicalW = 1.0 - smoothstep(0.15, 0.30, lat);
+    float temperateW = smoothstep(0.12, 0.25, lat) * (1.0 - smoothstep(0.38, 0.55, lat));
+    float borealW = smoothstep(0.35, 0.50, lat) * (1.0 - smoothstep(0.58, 0.78, lat));
+    float tundraW = smoothstep(0.58, 0.78, lat);
+
+    // Per-zone biome color accounting for moisture
+    vec3 tropBiome = mix(uBiomeTropical, uBiomeDesert, smoothstep(0.4, 0.2, moisture));
+    vec3 tempBiome = mix(uBiomeTemperate, uBiomeDesert, smoothstep(0.45, 0.25, moisture));
+    vec3 borBiome = mix(uBiomeBoreal, uBiomeTundra, smoothstep(0.4, 0.6, moisture));
+    vec3 tunBiome = uBiomeTundra;
+
+    // Weighted blend — no sharp transitions
+    float totalW = tropicalW + temperateW + borealW + tundraW + 0.001;
+    biomeColor = (tropBiome * tropicalW + tempBiome * temperateW +
+                  borBiome * borealW + tunBiome * tundraW) / totalW;
 
     // Blend life intensity with bare soil
     // Dry areas show more mineral color through vegetation
@@ -496,7 +500,7 @@ void main() {
   // ---- Ice caps ----
   if (uIceCap > 0.01) {
     float iceStart = 1.0 - uIceCap;
-    float iceFactor = smoothstep(iceStart - 0.05, iceStart + 0.05, lat);
+    float iceFactor = smoothstep(iceStart - 0.10, iceStart + 0.08, lat);
     vec3 iceColor = vec3(0.85, 0.90, 0.95);
     biomeColor = mix(biomeColor, iceColor, iceFactor);
   }
@@ -560,7 +564,7 @@ void main() {
 
   // ---- Wind streaks ----
   if (uWind > 0.1) {
-    float streak = noise2(vec2(worldPos.x * 2.0 + uTime * 0.03, worldPos.y * 25.0));
+    float streak = noise2(vec2(worldPos.x * 3.0 + uTime * 0.03, worldPos.y * 8.0));
     float streakMask = smoothstep(0.55, 0.70, streak) * uWind * 0.06;
     biomeColor += vec3(streakMask);
   }

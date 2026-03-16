@@ -31,6 +31,7 @@ export interface SurfaceViewHandle {
   zoomOut: () => void;
   startAIGeneration: () => void;
   toggleBuildPanel: () => void;
+  toggleMinimap: () => void;
 }
 
 interface SurfaceShaderViewProps {
@@ -281,6 +282,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     const [buildings, setBuildings] = useState<PlacedBuilding[]>([]);
     const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
     const [showBuildPanel, setShowBuildPanel] = useState(true);
+    const [showMinimap, setShowMinimap] = useState(true);
 
     /* ---------- Refs ---------- */
     const mountRef = useRef<HTMLDivElement>(null);
@@ -288,6 +290,11 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const materialRef = useRef<THREE.ShaderMaterial | null>(null);
     const rafRef = useRef(0);
+
+    // Minimap refs
+    const minimapMountRef = useRef<HTMLDivElement>(null);
+    const minimapOverlayRef = useRef<HTMLCanvasElement>(null);
+    const minimapRendererRef = useRef<THREE.WebGLRenderer | null>(null);
 
     // Pan/zoom state
     const panRef = useRef({ x: 0, y: 0 });
@@ -412,14 +419,102 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       const mesh = new THREE.Mesh(geometry, material);
       scene.add(mesh);
 
+      // ── Minimap renderer (same shader, zoom=1, pan=0) ──
+      const MINIMAP_W = 200;
+      const MINIMAP_H = 150;
+      const minimapMount = minimapMountRef.current;
+      let minimapRenderer: THREE.WebGLRenderer | null = null;
+      let minimapScene: THREE.Scene | null = null;
+      let minimapMaterial: THREE.ShaderMaterial | null = null;
+      let minimapCamera: THREE.OrthographicCamera | null = null;
+
+      if (minimapMount) {
+        minimapRenderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
+        minimapRenderer.setSize(MINIMAP_W, MINIMAP_H);
+        minimapRenderer.setPixelRatio(1); // low-res for performance
+        minimapMount.appendChild(minimapRenderer.domElement);
+        minimapRendererRef.current = minimapRenderer;
+
+        minimapCamera = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, 0.1, 10);
+        minimapCamera.position.z = 1;
+
+        minimapScene = new THREE.Scene();
+        const minimapGeo = new THREE.PlaneGeometry(1, 1);
+        minimapMaterial = new THREE.ShaderMaterial({
+          vertexShader: surfaceVertSrc,
+          fragmentShader: surfaceFragSrc,
+          uniforms: {
+            uSeed: { value: planet.seed },
+            uWaterLevel: { value: waterCoverage },
+            uTempK: { value: planet.surfaceTempK },
+            uIceCap: { value: iceCap },
+            uLifeComplexity: { value: lifeLevel },
+            uSurfaceBase: { value: numToColor(visuals.surfaceBaseColor) },
+            uOceanColor: { value: numToColor(visuals.oceanShallow ?? 0x1a3a5c) },
+            uBiomeTropical: { value: numToColor(visuals.biomeColors.tropical) },
+            uBiomeTemperate: { value: numToColor(visuals.biomeColors.temperate) },
+            uBiomeBoreal: { value: numToColor(visuals.biomeColors.boreal) },
+            uBiomeDesert: { value: numToColor(visuals.biomeColors.desert) },
+            uBiomeTundra: { value: numToColor(visuals.biomeColors.tundra) },
+            uPan: { value: new THREE.Vector2(0, 0) },
+            uZoom: { value: 1.0 },
+            uTime: { value: 0 },
+            uHasLava: { value: hasLava },
+            uVolc: { value: volc },
+            uWind: { value: wind },
+            uType: { value: surfType },
+            uFeAbundance: { value: feAbund },
+            uSiAbundance: { value: siAbund },
+            uCAbundance: { value: cAbund },
+            uSAbundance: { value: sAbund },
+          },
+        });
+        const minimapMesh = new THREE.Mesh(minimapGeo, minimapMaterial);
+        minimapScene.add(minimapMesh);
+      }
+
       // Animation loop
       const startTime = performance.now();
       const animate = () => {
         rafRef.current = requestAnimationFrame(animate);
-        material.uniforms.uTime.value = (performance.now() - startTime) * 0.001;
+        const t = (performance.now() - startTime) * 0.001;
+
+        // Main renderer
+        material.uniforms.uTime.value = t;
         material.uniforms.uPan.value.set(panRef.current.x * 0.001, panRef.current.y * 0.001);
         material.uniforms.uZoom.value = zoomRef.current;
         renderer.render(scene, camera);
+
+        // Minimap renderer (full planet overview, fixed zoom=1, pan=0)
+        if (minimapRenderer && minimapScene && minimapCamera && minimapMaterial) {
+          minimapMaterial.uniforms.uTime.value = t;
+          minimapRenderer.render(minimapScene, minimapCamera);
+        }
+
+        // Draw viewport rectangle on minimap overlay
+        const mmOverlay = minimapOverlayRef.current;
+        if (mmOverlay) {
+          const mw = mmOverlay.width;
+          const mh = mmOverlay.height;
+          const ctx = mmOverlay.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, mw, mh);
+            // Viewport rect: current pan/zoom mapped to minimap coords
+            const panX = panRef.current.x * 0.001;
+            const panY = panRef.current.y * 0.001;
+            const zoom = zoomRef.current;
+            // In shader: worldPos = (vUv - 0.5) / zoom + pan + seedOff
+            // Visible area center in world = pan + seedOff (seedOff is constant)
+            // Visible area size = 1/zoom (in world units mapped to [0,1] UV)
+            const rectW = (1.0 / zoom) * mw;
+            const rectH = (1.0 / zoom) * mh;
+            const rectX = (0.5 - panX) * mw - rectW * 0.5;
+            const rectY = (0.5 + panY) * mh - rectH * 0.5;
+            ctx.strokeStyle = '#44ff88';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(rectX, rectY, rectW, rectH);
+          }
+        }
       };
       animate();
 
@@ -443,6 +538,16 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
         }
         rendererRef.current = null;
         materialRef.current = null;
+        // Cleanup minimap
+        if (minimapRenderer) {
+          minimapRenderer.forceContextLoss();
+          minimapRenderer.dispose();
+          if (minimapMount && minimapMount.contains(minimapRenderer.domElement)) {
+            minimapMount.removeChild(minimapRenderer.domElement);
+          }
+          minimapRendererRef.current = null;
+        }
+        if (minimapMaterial) minimapMaterial.dispose();
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planet.seed]);
@@ -581,6 +686,9 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       toggleBuildPanel: () => {
         setShowBuildPanel((prev) => !prev);
       },
+      toggleMinimap: () => {
+        setShowMinimap((prev) => !prev);
+      },
     }), []);
 
     /* ================================================================ */
@@ -701,6 +809,69 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
           onMouseLeave={handleMouseUp}
           onClick={handleClick}
         />
+
+        {/* Minimap (bottom-left overview with viewport rect) — always mounted for stable ref */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 60,
+            left: 14,
+            width: 200,
+            height: 150,
+            border: '1px solid rgba(68,136,170,0.4)',
+            borderRadius: 4,
+            overflow: 'hidden',
+            zIndex: 10,
+            background: 'rgba(5,10,20,0.85)',
+            display: showMinimap ? 'block' : 'none',
+          }}
+        >
+          {/* Minimap WebGL canvas */}
+          <div
+            ref={minimapMountRef}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+          />
+          {/* Minimap viewport rect overlay */}
+          <canvas
+            ref={minimapOverlayRef}
+            width={200}
+            height={150}
+            style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+          />
+        </div>
+
+        {/* Minimap toggle button (left side, below scene controls) */}
+        <button
+          onClick={() => setShowMinimap((prev) => !prev)}
+          title={showMinimap ? 'Сховати мапу' : 'Показати мапу'}
+          style={{
+            position: 'absolute',
+            bottom: showMinimap ? 218 : 60,
+            left: 14,
+            width: 32,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: showMinimap ? 'rgba(10,15,25,0.92)' : 'rgba(10,15,25,0.85)',
+            border: showMinimap ? '1px solid rgba(68,136,170,0.6)' : '1px solid rgba(68,102,136,0.4)',
+            borderRadius: 4,
+            color: showMinimap ? '#aabbcc' : '#8899aa',
+            cursor: 'pointer',
+            padding: 0,
+            fontFamily: 'monospace',
+            fontSize: 14,
+            zIndex: 10,
+            transition: 'bottom 0.2s ease, border-color 0.15s, color 0.15s',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <rect x="1" y="2" width="14" height="12" rx="1" />
+            <rect x="3" y="4" width="5" height="4" strokeDasharray="2 1" />
+            <line x1="1" y1="9" x2="15" y2="9" />
+            <line x1="9" y1="2" x2="9" y2="14" />
+          </svg>
+        </button>
 
         {/* Building panel */}
         {showBuildPanel && (
