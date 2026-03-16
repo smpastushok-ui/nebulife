@@ -20,6 +20,8 @@ interface SceneControlsPanelProps {
   showZoom?: boolean;
   /** Additional custom buttons rendered after zoom controls */
   extraButtons?: ExtraButton[];
+  /** When true, panel slides off-screen to the left */
+  hidden?: boolean;
 }
 
 const btnStyle: React.CSSProperties = {
@@ -75,18 +77,21 @@ export function SceneControlsPanel({
   showCenter = false,
   showZoom = false,
   extraButtons,
+  hidden = false,
 }: SceneControlsPanelProps) {
   return (
     <div
       style={{
         position: 'fixed',
-        left: 14,
+        left: hidden ? -60 : 14,
         top: '50%',
         transform: 'translateY(-50%)',
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
         zIndex: 9400,
+        transition: 'left 0.3s ease',
+        pointerEvents: hidden ? 'none' : 'auto',
       }}
     >
       {/* Back */}

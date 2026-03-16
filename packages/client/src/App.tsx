@@ -2877,6 +2877,17 @@ export function App() {
   ];
 
   // Build tool groups based on current scene
+  // Hide left SceneControlsPanel when any overlay/modal blocks the view
+  const hideLeftPanel = !!(
+    completedModal ||
+    pendingDiscovery ||
+    observatoryTarget ||
+    telemetryTarget ||
+    needsOnboarding ||
+    (evacuationTarget && evacuationPhase === 'idle' && !evacuationPromptDismissed) ||
+    evacuationPhase !== 'idle'
+  );
+
   const toolGroups: ToolGroup[] = [];
 
   switch (effectiveScene) {
@@ -3204,6 +3215,7 @@ export function App() {
           onZoomOut={() => engineRef.current?.homePlanetZoomOut()}
           backLabel="Галактика"
           showZoom
+          hidden={hideLeftPanel}
         />
       )}
 
@@ -3217,6 +3229,7 @@ export function App() {
           backLabel="Домівка"
           showCenter
           showZoom
+          hidden={hideLeftPanel}
         />
       )}
 
@@ -3230,6 +3243,7 @@ export function App() {
           backLabel="Галактика"
           showCenter
           showZoom
+          hidden={hideLeftPanel}
         />
       )}
 
@@ -3242,6 +3256,7 @@ export function App() {
           onZoomOut={() => engineRef.current?.planetViewZoomOut()}
           backLabel="Система"
           showZoom
+          hidden={hideLeftPanel}
           extraButtons={state.selectedPlanet?.isHomePlanet ? [
             {
               title: 'На поверхню',
@@ -3260,6 +3275,7 @@ export function App() {
           onZoomOut={() => universeEngineRef.current?.zoomOut()}
           backLabel="Домiвка"
           showZoom
+          hidden={hideLeftPanel}
           extraButtons={[
             {
               title: 'Полетiти до мого скупчення',
@@ -3283,6 +3299,7 @@ export function App() {
           onZoomOut={() => universeEngineRef.current?.zoomOut()}
           backLabel="Домiвка"
           showZoom
+          hidden={hideLeftPanel}
           extraButtons={[
             {
               title: 'Полетiти до моєї зiрки',

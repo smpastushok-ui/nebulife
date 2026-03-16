@@ -154,9 +154,9 @@ export function ObservatoryView({
   return (
     <div
       style={{
-        position: 'absolute',
+        position: 'fixed',
         inset: 0,
-        zIndex: 250,
+        zIndex: 9800,
         background: '#000',
         display: 'flex',
         flexDirection: 'column',
