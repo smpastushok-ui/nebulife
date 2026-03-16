@@ -518,6 +518,39 @@ import { getSurfaceMap, saveSurfaceMap, deductQuarks, generateImage } from '@neb
 ```
 **НІКОЛИ** не використовувати прямі шляхи `@nebulife/server/src/...` — вони не працюють на Vercel.
 
+### 10.4 Cross-device синхронізація (game_state JSONB)
+
+Гравець може грати на мобільному та десктопі одночасно. Весь ігровий стан синхронізується через `game_state` JSONB колонку в таблиці `players`.
+
+**Архітектура:**
+```
+localStorage ←→ React state ←→ buildGameStateSnapshot() → server JSONB
+                                hydrateGameStateFromServer() ← server JSONB
+```
+
+**Правило додавання нового ігрового стану (кораблі, будівлі, ресурси, битви тощо):**
+
+1. Додати поле до інтерфейсу `SyncedGameState` в `App.tsx`
+2. Додати до `buildGameStateSnapshot()` — зчитування з React state або localStorage
+3. Додати до `hydrateGameStateFromServer()` — відновлення в React state + localStorage
+4. Додати до масиву залежностей дебаунс-синку `useEffect` (рядок з `scheduleSyncToServer()`)
+5. Додати localStorage ключ до масиву `keysToRemove` в `handleStartOver()` (reset)
+
+**Правила:**
+- Кожне нове `useState` з ігровими даними МУСИТЬ бути в `SyncedGameState`
+- Залежності дебаунсу: кожна змінна стану, що може змінитися незалежно, мусить бути в масиві залежностей
+- Прямі DB колонки (`home_system_id`, `home_planet_id`, `quarks`, `game_phase`): читаються з `player.*` напряму, а не з `game_state` JSONB
+- JSONB backup для прямих колонок: додавати як belt-and-suspenders
+- Race condition: якщо стан потребує engine для резолюції (системи, планети), використовувати `pendingXxxRef` + `useEffect` (паттерн `pendingEvacRef` / `pendingHomeRef`)
+
+**Sync triggers:**
+| Тригер | Коли |
+|---|---|
+| Дебаунс (5 сек) | Зміна будь-якої залежності в масиві |
+| `visibilitychange` → hidden | Негайний sync при згортанні вкладки |
+| `beforeunload` | Негайний sync при закритті |
+| `visibilitychange` → visible | Pull з сервера (hydrate) при поверненні |
+
 ---
 
 ## 11. Ігрова валюта "Кварки" (⚛)

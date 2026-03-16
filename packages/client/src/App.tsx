@@ -858,7 +858,7 @@ export function App() {
       'nebulife_colony_resources', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
       'nebulife_log_entries', 'nebulife_onboarding_done', 'nebulife_scene',
       'nebulife_nav_system', 'nebulife_nav_planet', 'nebulife_destroyed_planets',
-      'nebulife_favorites', 'nebulife_game_started_at', 'nebulife_time_multiplier',
+      'nebulife_favorite_planets', 'nebulife_game_started_at', 'nebulife_time_multiplier',
       'nebulife_accel_at', 'nebulife_game_time_at_accel', 'nebulife_clock_revealed',
       'nebulife_home_system_id', 'nebulife_home_planet_id', 'nebulife_generation_index',
       'nebulife_evac_system_id', 'nebulife_evac_planet_id', 'nebulife_evac_forced',
@@ -2422,7 +2422,7 @@ export function App() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData, techTreeState, logEntries, favoritePlanets]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
