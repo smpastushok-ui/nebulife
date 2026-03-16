@@ -1381,7 +1381,10 @@ export function App() {
       },
       onSceneChange: (scene) => {
         setState((prev) => ({
-          ...prev, scene, selectedPlanet: null,
+          ...prev, scene,
+          // Preserve selectedPlanet when entering planet-view (set by onPlanetSelect just before).
+          // Only clear it when leaving planet-view, so PlanetGlobeView shows the correct planet.
+          ...(scene !== 'planet-view' && { selectedPlanet: null }),
           showPlanetMenu: false, showPlanetInfo: false, planetClickPos: null,
         }));
         // Reset system menu state on scene change
@@ -1656,11 +1659,13 @@ export function App() {
 
   const handleViewPlanet = useCallback(() => {
     if (state.selectedPlanet && state.selectedSystem) {
-      const engine = engineRef.current;
-      engine?.showPlanetViewScene(state.selectedSystem, state.selectedPlanet, true);
+      const planet = state.selectedPlanet; // capture before engine fires onSceneChange
+      const system = state.selectedSystem;
+      engineRef.current?.showPlanetViewScene(system, planet, true);
       setState((prev) => ({
         ...prev,
         scene: 'planet-view' as const,
+        selectedPlanet: planet, // always restore — onSceneChange may have cleared it
         showPlanetMenu: false,
         showPlanetInfo: false,
       }));
