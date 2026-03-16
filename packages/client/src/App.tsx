@@ -486,6 +486,9 @@ export function App() {
   const evacuationTargetRef = useRef(evacuationTarget);
   evacuationTargetRef.current = evacuationTarget;
 
+  // Pending evacuation data from server hydration (resolved once engine is ready)
+  const pendingEvacRef = useRef<{ systemId: string; planetId: string; forced: boolean } | null>(null);
+
   // Persist evacuation target to localStorage
   useEffect(() => {
     try {
@@ -556,6 +559,23 @@ export function App() {
 
   // ── Home planet info (for navigation from home page) ──────────────
   const [homeInfo, setHomeInfo] = useState<{ system: StarSystem; planet: Planet } | null>(null);
+
+  // Resolve pending evacuation target from server data once engine is ready.
+  // Handles the race condition where engine init ran before hydration wrote evac IDs to localStorage.
+  useEffect(() => {
+    const pending = pendingEvacRef.current;
+    if (!pending || evacuationTarget || !homeInfo) return;
+    const engine = engineRef.current;
+    if (!engine) return;
+    const allSystems = engine.getAllSystems();
+    const sys = allSystems.find(s => s.id === pending.systemId);
+    const planet = sys?.planets.find(p => p.id === pending.planetId);
+    if (sys && planet) {
+      setEvacuationTarget({ system: sys, planet });
+      setForcedEvacuation(pending.forced);
+      pendingEvacRef.current = null;
+    }
+  }, [homeInfo, evacuationTarget, serverHydrated]);
 
   // Timer expired — force evacuation if no target found yet
   const timerExpiredHandledRef = useRef(false);
@@ -955,6 +975,8 @@ export function App() {
     if (gs.onboarding_done) {
       try { localStorage.setItem('nebulife_onboarding_done', '1'); } catch { /* ignore */ }
       setNeedsOnboarding(false);
+      // Clear cinematicActive that was set by legacy auth check (cache-clear scenario)
+      setCinematicActive(false);
     }
     if (typeof gs.tutorial_step === 'number') {
       setTutorialStep(gs.tutorial_step);
@@ -988,6 +1010,8 @@ export function App() {
     }
     if (gs.clock_revealed) {
       try { localStorage.setItem('nebulife_clock_revealed', '1'); } catch { /* ignore */ }
+      // Directly set clockPhase for returning players (skip the 4.8s reveal animation)
+      setClockPhase('visible');
     }
 
     // Navigation (restore scene)
@@ -1009,7 +1033,7 @@ export function App() {
       setFavoritePlanets(new Set(gs.favorite_planets));
       try { localStorage.setItem('nebulife_favorite_planets', JSON.stringify(gs.favorite_planets)); } catch { /* ignore */ }
     }
-    // Evacuation target
+    // Evacuation target — save to localStorage AND pendingEvacRef for engine-ready resolution
     if (gs.evac_system_id) {
       try { localStorage.setItem('nebulife_evac_system_id', gs.evac_system_id); } catch { /* ignore */ }
     }
@@ -1018,6 +1042,14 @@ export function App() {
     }
     if (typeof gs.evac_forced === 'boolean') {
       try { localStorage.setItem('nebulife_evac_forced', String(gs.evac_forced)); } catch { /* ignore */ }
+    }
+    // Store pending evac data for resolution after engine init
+    if (gs.evac_system_id && gs.evac_planet_id) {
+      pendingEvacRef.current = {
+        systemId: gs.evac_system_id,
+        planetId: gs.evac_planet_id,
+        forced: gs.evac_forced === true,
+      };
     }
 
     setServerHydrated(true);
