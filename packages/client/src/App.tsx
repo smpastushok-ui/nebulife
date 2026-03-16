@@ -1342,13 +1342,21 @@ export function App() {
         }
       },
       onPlanetSelect: (planet, screenPos) => {
-        setState((prev) => ({
-          ...prev,
-          selectedPlanet: planet,
-          planetClickPos: screenPos,
-          showPlanetMenu: true,
-          showPlanetInfo: false,
-        }));
+        setState((prev) => {
+          // If context menu is already showing for this same planet, ignore the tap.
+          // This prevents PixiJS's capture-phase events from re-firing when the user
+          // taps on the context menu overlay (e.g. double-tap or tapping a menu item).
+          if (prev.showPlanetMenu && prev.selectedPlanet?.id === planet.id) {
+            return prev;
+          }
+          return {
+            ...prev,
+            selectedPlanet: planet,
+            planetClickPos: screenPos,
+            showPlanetMenu: true,
+            showPlanetInfo: false,
+          };
+        });
       },
       onSceneChange: (scene) => {
         setState((prev) => ({
@@ -3339,7 +3347,7 @@ export function App() {
       )}
 
       {/* Left-side scene controls — planet-view */}
-      {state.scene === 'planet-view' && !backgroundModelInfo && (
+      {state.scene === 'planet-view' && !surfaceTarget && !backgroundModelInfo && (
         <SceneControlsPanel
           onBack={handleBackToSystem}
           onCenter={() => {}}

@@ -96,7 +96,12 @@ export function ColonyFoundingPrompt({ planet, onFoundColony }: ColonyFoundingPr
           </div>
           <div>
             <div style={{ fontSize: 9, color: '#556677', marginBottom: 3 }}>ТЕМПЕРАТУРА</div>
-            <div style={{ fontSize: 12, color: '#aabbcc' }}>{Math.round(planet.surfaceTempK)} K</div>
+            <div style={{ fontSize: 12, color: '#aabbcc' }}>
+              {Math.round(planet.surfaceTempK)} K
+              <span style={{ fontSize: 10, color: '#778899', marginLeft: 4 }}>
+                ({Math.round(planet.surfaceTempK - 273.15)}&deg;C)
+              </span>
+            </div>
           </div>
         </div>
 
