@@ -636,12 +636,12 @@ export function App() {
     } catch { /* ignore */ }
   }, [needsOnboarding]);
 
-  // Epic clock reveal: triggered after tutorial completes/skipped
+  // Epic clock reveal: triggered after onboarding completes
   useEffect(() => {
-    if (!isExodusPhase || clockPhase !== 'hidden' || needsOnboarding || isTutorialActive) return;
+    if (!isExodusPhase || clockPhase !== 'hidden' || needsOnboarding) return;
     const t = setTimeout(() => setClockPhase('syncing'), 1500);
     return () => clearTimeout(t);
-  }, [isExodusPhase, clockPhase, needsOnboarding, isTutorialActive]);
+  }, [isExodusPhase, clockPhase, needsOnboarding]);
 
   useEffect(() => {
     if (clockPhase === 'syncing') {
@@ -657,13 +657,13 @@ export function App() {
     }
   }, [clockPhase]);
 
-  // Fallback: ensure gameStartedAt is set for existing players who already completed tutorial
+  // Fallback: ensure gameStartedAt is set for existing players who completed onboarding
   useEffect(() => {
-    if (!isExodusPhase || needsOnboarding || isTutorialActive || gameStartedAt !== null) return;
+    if (!isExodusPhase || needsOnboarding || gameStartedAt !== null) return;
     const now = Date.now();
     setGameStartedAt(now);
     try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
-  }, [isExodusPhase, needsOnboarding, isTutorialActive, gameStartedAt]);
+  }, [isExodusPhase, needsOnboarding, gameStartedAt]);
 
   const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>(() => {
@@ -2967,7 +2967,7 @@ export function App() {
         volatiles={colonyResources.volatiles}
         isotopes={colonyResources.isotopes}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
-        countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && !isTutorialActive && evacuationPhase === 'idle' ? countdownText : undefined}
+        countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && evacuationPhase === 'idle' ? countdownText : undefined}
         countdownUrgent={countdownUrgent}
         onTimerClick={evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed ? () => setEvacuationPromptDismissed(false) : undefined}
         observatoryUsed={researchState.slots.filter(s => s.systemId !== null).length}
@@ -2976,7 +2976,7 @@ export function App() {
 
       {/* Doomsday Clock — above command bar (Exodus phase only) */}
       {/* Phase 1: "СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ..." */}
-      {isExodusPhase && clockPhase === 'syncing' && !isTutorialActive && (
+      {isExodusPhase && clockPhase === 'syncing' && (
         <div
           style={{
             position: 'fixed',
@@ -3001,7 +3001,7 @@ export function App() {
         </div>
       )}
       {/* Phase 2: Glitch effect */}
-      {isExodusPhase && clockPhase === 'glitch' && !isTutorialActive && (
+      {isExodusPhase && clockPhase === 'glitch' && (
         <div
           style={{
             position: 'fixed',
@@ -3027,7 +3027,7 @@ export function App() {
         </div>
       )}
       {/* Evacuation button — floating above timer when prompt is dismissed */}
-      {isExodusPhase && clockPhase === 'visible' && evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed && !isTutorialActive && (
+      {isExodusPhase && clockPhase === 'visible' && evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed && (
         <div style={{
           position: 'fixed',
           bottom: 90,
@@ -3156,7 +3156,7 @@ export function App() {
           playerXP={playerXP}
           onNavigate={handleBreadcrumbNavigate}
           onOpenPlayerPage={() => setShowPlayerPage(true)}
-          navigationDisabled={isTutorialActive}
+          navigationDisabled={false}
         />
       )}
 

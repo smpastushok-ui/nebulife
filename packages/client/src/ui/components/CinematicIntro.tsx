@@ -614,8 +614,8 @@ export function CinematicIntro({
     onRequestUniverseScene();
   }, []); // mount only
 
-  // ── Stage 0 → 1 → 2: After player clicks "Почати гру" → warp → galaxy → system → home ──
-  // NOTE: stage is NOT in deps — setStage(1) inside the callback must NOT trigger cleanup
+  // ── Stage 0 → 1 → 2: After player clicks "Почати гру" → warp → home → slides ──
+  // Skips galaxy level — warp covers transition directly to home planet
   useEffect(() => {
     if (!startClicked || stageRef.current !== 0) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -628,46 +628,26 @@ export function CinematicIntro({
       setWarpActive(true);
       setStatusVisible(false);
 
-      // At ~1.8s: switch from universe to galaxy (warp covers the transition)
+      // At ~2s: switch directly from universe to home planet (warp covers transition)
       timers.push(setTimeout(() => {
         if (!mountedRef.current) return;
         onLeaveUniverseToGalaxy();
+        onRequestHomeScene();
+      }, 2000));
 
-        const engine = engineRef.current;
-        if (engine) {
-          engine.setCinematicMode(true);
-          engine.addFakePlayerMarkers(8);
-          engine.animateCameraTo(0, 0, 0.25, 100); // instant zoom-out
-        }
+      // At ~5.5s: warp fully faded, home planet visible
+      timers.push(setTimeout(() => {
+        if (!mountedRef.current) return;
+        setWarpActive(false);
+        setStage(2);
 
-        // At ~2.1s: start galaxy zoom-in (4s duration, finishes at ~6.1s)
+        // After brief pause show onboarding slides
         timers.push(setTimeout(() => {
           if (!mountedRef.current) return;
-          engineRef.current?.animateCameraTo(0, 0, 4.5, 4000);
-
-          // At ~7s: warp fully faded, transition to Stage 2
-          timers.push(setTimeout(() => {
-            if (!mountedRef.current) return;
-            setWarpActive(false);
-
-            const eng = engineRef.current;
-            if (eng) {
-              eng.setCinematicMode(false);
-              eng.removeFakePlayerMarkers();
-            }
-
-            // Go to home planet scene, then show onboarding slides
-            onRequestHomeScene();
-            setStage(2);
-
-            timers.push(setTimeout(() => {
-              if (!mountedRef.current) return;
-              setStage(3);
-              setSlidesVisible(true);
-            }, 1500));
-          }, 4900));
-        }, 300));
-      }, 1800));
+          setStage(3);
+          setSlidesVisible(true);
+        }, 1500));
+      }, 5500));
     }, 300));
 
     return () => timers.forEach(clearTimeout);

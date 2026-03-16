@@ -394,7 +394,7 @@ function ResearchedButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-/** Animated "Досліджується..." button — shown during active research */
+/** Animated "Дослідж." button — shown during active research (background sweep only) */
 function ResearchingButton() {
   return (
     <span
@@ -410,9 +410,11 @@ function ResearchingButton() {
         padding: '3px 8px',
         animation: 'sys-btn-sweep 2s linear infinite',
         pointerEvents: 'none',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
       }}
     >
-      Дослiджується...
+      Дослідж.
     </span>
   );
 }
