@@ -269,15 +269,15 @@ export function PhotoModal({
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* Action buttons — single row */}
         <div
           style={{
             display: 'flex',
-            gap: 10,
+            gap: 8,
             marginTop: 16,
             fontFamily: 'monospace',
-            flexWrap: 'wrap',
             justifyContent: 'center',
+            alignItems: 'center',
           }}
         >
           {onSaveToGallery && (
@@ -287,30 +287,52 @@ export function PhotoModal({
               bgColor={saved ? 'rgba(40, 80, 50, 0.4)' : 'rgba(20, 60, 40, 0.6)'}
               borderColor={saved ? '#44ff8866' : '#44ff88'}
               textColor={saved ? '#44ff8888' : '#44ff88'}
-              label={saved ? 'Збережено' : 'В архів'}
+              label={saved ? 'Збережено' : 'До колекцiї'}
             />
           )}
-          <ActionButton
+          <IconButton
             onClick={handleShare}
+            title={shared ? 'Скопiйовано' : 'Подiлитися'}
             bgColor={shared ? 'rgba(40, 60, 80, 0.4)' : 'rgba(20, 40, 60, 0.6)'}
             borderColor={shared ? '#4488aa66' : '#4488aa'}
-            textColor={shared ? '#4488aa88' : '#4488aa'}
-            label={shared ? 'Скопійовано' : 'Поділитися'}
-          />
-          <ActionButton
+            iconColor={shared ? '#4488aa88' : '#4488aa'}
+          >
+            {/* Share icon */}
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="3" r="2" />
+              <circle cx="4" cy="8" r="2" />
+              <circle cx="12" cy="13" r="2" />
+              <line x1="5.8" y1="7" x2="10.2" y2="4" />
+              <line x1="5.8" y1="9" x2="10.2" y2="12" />
+            </svg>
+          </IconButton>
+          <IconButton
             onClick={handleDownload}
+            title="Завантажити"
             bgColor="rgba(30, 35, 50, 0.6)"
             borderColor="#556677"
-            textColor="#8899aa"
-            label="Завантажити"
-          />
-          <ActionButton
+            iconColor="#8899aa"
+          >
+            {/* Download icon */}
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 2v9" />
+              <path d="M4.5 8L8 11.5 11.5 8" />
+              <path d="M2 13h12" />
+            </svg>
+          </IconButton>
+          <IconButton
             onClick={onClose}
+            title="Закрити"
             bgColor="rgba(30, 35, 45, 0.6)"
             borderColor="#445566"
-            textColor="#778899"
-            label="Закрити"
-          />
+            iconColor="#778899"
+          >
+            {/* Close icon */}
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="3" y1="3" x2="13" y2="13" />
+              <line x1="13" y1="3" x2="3" y2="13" />
+            </svg>
+          </IconButton>
         </div>
       </div>
     </div>
@@ -354,6 +376,45 @@ function ActionButton({
       }}
     >
       {label}
+    </button>
+  );
+}
+
+function IconButton({
+  onClick,
+  title,
+  bgColor,
+  borderColor,
+  iconColor,
+  children,
+}: {
+  onClick: () => void;
+  title: string;
+  bgColor: string;
+  borderColor: string;
+  iconColor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        width: 36,
+        height: 36,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: bgColor,
+        border: `1px solid ${borderColor}`,
+        color: iconColor,
+        borderRadius: 4,
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        padding: 0,
+      }}
+    >
+      {children}
     </button>
   );
 }
