@@ -112,7 +112,7 @@ export interface SystemMissionData {
 
 export function SystemContextMenu({
   system, screenPosition, isHome, isResearched,
-  systemPhoto, activeMission, quarks,
+  systemPhoto, activeMission, quarks, playerLevel,
   onClose, onEnterSystem, onObjectsList, onRename, onCharacteristics,
   onResearch, onTelescopePhoto, onViewPhoto,
   onSendMission, onViewVideo,
@@ -124,6 +124,7 @@ export function SystemContextMenu({
   systemPhoto: SystemPhotoData | null;
   activeMission: SystemMissionData | null;
   quarks: number;
+  playerLevel: number;
   onClose: () => void;
   onEnterSystem: () => void;
   onObjectsList: () => void;
@@ -153,7 +154,7 @@ export function SystemContextMenu({
 
   const canMission = hasPhoto && !missionGenerating && !missionComplete;
 
-  const PHOTO_COST = 30;
+  const PHOTO_COST = 10;
 
   const starTag = `${system.star.spectralClass}${system.star.subType}`;
   const planetsCount = system.planets.length;
@@ -212,7 +213,7 @@ export function SystemContextMenu({
             {/* Telescope photo */}
             {canPhoto && (
               <MenuItem
-                label={`Фото з телескопа — ${PHOTO_COST} ⚛`}
+                label={`Супертелескоп — ${PHOTO_COST} ⚛`}
                 onClick={onTelescopePhoto}
                 color={quarks >= PHOTO_COST ? '#ddaa44' : '#445566'}
                 disabled={quarks < PHOTO_COST}
@@ -225,12 +226,23 @@ export function SystemContextMenu({
               <MenuItem label="Дивитися фото системи" onClick={onViewPhoto} color="#7bb8ff" />
             )}
 
-            {/* Probe — inactive (requires probe item) */}
-            <MenuItem
-              label="Відправити зонд — 30 ⚛"
-              onClick={() => {}}
-              disabled
-            />
+            {/* Probe — available from level 50+, costs data research */}
+            {playerLevel >= 50 ? (
+              <MenuItem
+                label="Вiдправити зонд"
+                onClick={() => {}}
+                color="#88ccaa"
+                disabled
+              />
+            ) : (
+              <div
+                style={disabledItemStyle}
+                title={`Доступно з 50+ рiвня (зараз: ${playerLevel})`}
+              >
+                Вiдправити зонд
+                <span style={{ marginLeft: 6, fontSize: 9, color: '#445566' }}>рiвень 50+</span>
+              </div>
+            )}
 
             {/* Missions — available after photo is ready */}
             {canMission && (

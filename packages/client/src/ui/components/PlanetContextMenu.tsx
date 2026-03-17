@@ -109,7 +109,7 @@ export function PlanetContextMenu({
   const left = Math.min(screenPosition.x + 8, maxX);
   const top = Math.min(screenPosition.y - 20, maxY);
 
-  const showSurface = onSurface && (planet.type === 'rocky' || planet.type === 'dwarf');
+  const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'dwarf';
 
   return (
     <>
@@ -122,14 +122,7 @@ export function PlanetContextMenu({
             <span style={{ color: '#44ff88', marginLeft: 8, fontSize: 10 }}>HOME</span>
           )}
         </div>
-        {!accessDisabledReason ? (
-          <MenuItem label="Екзосфера" onClick={onViewPlanet} />
-        ) : (
-          <div style={{ ...itemStyle, cursor: 'default', color: '#556677', fontSize: 11 }} title={accessDisabledReason}>
-            Екзосфера
-            <span style={{ marginLeft: 6, fontSize: 9, color: '#445566' }}>{accessDisabledReason}</span>
-          </div>
-        )}
+        <MenuItem label="Екзосфера" onClick={onViewPlanet} />
         {onTelescopePhoto && !isPhotoGenerating && (
           <MenuItem label="Супертелескоп 10⚛" onClick={onTelescopePhoto} color="#7bb8ff" />
         )}
@@ -139,13 +132,12 @@ export function PlanetContextMenu({
             <span style={{ marginLeft: 6, fontSize: 9, color: '#4488aa' }}>генерується...</span>
           </div>
         )}
-        {showSurface && !surfaceDisabledReason && (
+        {isSurfacePlanet && onSurface && !surfaceDisabledReason && (
           <MenuItem label="На поверхню" onClick={onSurface} color="#88ccaa" />
         )}
-        {showSurface && surfaceDisabledReason && (
+        {isSurfacePlanet && surfaceDisabledReason && (
           <div style={{ ...itemStyle, cursor: 'default', color: '#556677', fontSize: 11 }} title={surfaceDisabledReason}>
             На поверхню
-            <span style={{ marginLeft: 6, fontSize: 9, color: '#445566' }}>{surfaceDisabledReason}</span>
           </div>
         )}
         <MenuItem label="Характеристики" onClick={onShowCharacteristics} />

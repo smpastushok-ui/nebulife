@@ -1763,21 +1763,18 @@ export function App() {
     setCompletedModalQueue(q => q.slice(1));
   }, [completedModal, handleEnterSystem]);
 
-  // ── Planet access check (exosphere + surface) ─────────────────────────
+  // ── Planet access checks ────────────────────────────────────────────
+  // Surface landing: home planet or level 50+
   const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string } => {
-    // Always allow home planet
     if (planet.isHomePlanet) return { allowed: true };
-    // Allow colony planet (after evacuation)
     if (homeInfo && planet.id === homeInfo.planet.id) return { allowed: true };
-    // Level 50+ can explore other planets
     if (playerLevel >= 50) return { allowed: true };
-    return { allowed: false, reason: `Потрiбен рiвень 50+ (зараз: ${playerLevel})` };
+    return { allowed: false, reason: `Доступно з 50+ рiвня` };
   }, [homeInfo, playerLevel]);
 
+  // Exosphere: always accessible if system is researched (menu only shows in researched systems)
   const handleViewPlanet = useCallback(() => {
     if (state.selectedPlanet && state.selectedSystem) {
-      const check = canLandOnPlanet(state.selectedPlanet);
-      if (!check.allowed) return;
       const planet = state.selectedPlanet; // capture before engine fires onSceneChange
       const system = state.selectedSystem;
       engineRef.current?.showPlanetViewScene(system, planet, true);
@@ -1789,7 +1786,7 @@ export function App() {
         showPlanetInfo: false,
       }));
     }
-  }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet]);
+  }, [state.selectedPlanet, state.selectedSystem]);
 
   const handleShowCharacteristics = useCallback(() => {
     setState((prev) => ({
@@ -3326,6 +3323,13 @@ export function App() {
           backLabel="Галактика"
           showZoom
           hidden={hideLeftPanel}
+          extraButtons={[
+            {
+              title: 'Поверхня',
+              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
+              onClick: handleGoToHomeSurface,
+            },
+          ]}
         />
       )}
 
@@ -3367,13 +3371,15 @@ export function App() {
           backLabel="Система"
           showZoom
           hidden={hideLeftPanel}
-          extraButtons={state.selectedPlanet && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'dwarf') && canLandOnPlanet(state.selectedPlanet).allowed ? [
-            {
-              title: 'На поверхню',
+          extraButtons={state.selectedPlanet && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'dwarf') ? (() => {
+            const check = canLandOnPlanet(state.selectedPlanet!);
+            return [{
+              title: check.allowed ? 'На поверхню' : (check.reason || 'Недоступно'),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleOpenSurface,
-            },
-          ] : undefined}
+              disabled: !check.allowed,
+            }];
+          })() : undefined}
         />
       )}
 
@@ -3527,6 +3533,7 @@ export function App() {
           systemPhoto={systemPhotos.get(state.selectedSystem.id) ?? null}
           activeMission={systemMissions.get(state.selectedSystem.id) ?? null}
           quarks={quarks}
+          playerLevel={playerLevel}
           onClose={handleCloseSystemMenu}
           onEnterSystem={handleSystemMenuEnter}
           onObjectsList={handleObjectsList}
@@ -3549,7 +3556,6 @@ export function App() {
           onSurface={handleOpenSurface}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
-          accessDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
           onTelescopePhoto={handlePlanetTelescopePhoto}
           isPhotoGenerating={systemPhotos.get(`planet-${state.selectedPlanet.id}`)?.status === 'generating'}
         />

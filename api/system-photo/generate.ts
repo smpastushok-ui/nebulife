@@ -5,7 +5,7 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { buildGeminiSystemPhotoPrompt, buildGeminiPlanetPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
 import type { StarSystem } from '@nebulife/core';
 
-const SYSTEM_PHOTO_COST = 30;
+const SYSTEM_PHOTO_COST = 10;
 const PLANET_PHOTO_COST = 10;
 
 // Allow up to 60s for Gemini image generation + blob upload

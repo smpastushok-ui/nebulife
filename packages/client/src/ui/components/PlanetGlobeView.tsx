@@ -152,10 +152,18 @@ function createDistantStar(
   const group = new THREE.Group();
 
   const distAU = planet.orbit.semiMajorAxisAU;
+  // Angular size: how big the star looks from the planet (in solar-radii / AU)
   const angularSize = star.radiusSolar / distAU;
+  // Brightness falloff: luminosity^0.25 / sqrt(distance)
   const brightness = Math.pow(star.luminositySolar, 0.25) / Math.sqrt(distAU);
-  // Large range — star at ~18 units from camera needs bigger sprites to be visible
-  const coreSize = Math.max(0.4, Math.min(2.5, 0.8 * (angularSize * 0.6 + brightness * 0.4)));
+  // Combined metric — heavily weighted towards angular size for dramatic difference
+  const raw = angularSize * 0.7 + brightness * 0.3;
+  // Wide range: close orbits (0.05 AU) → huge star, far orbits (30+ AU) → barely visible dot
+  const coreSize = Math.max(0.15, Math.min(8.0, raw * 1.8));
+
+  // Dim core & halo for distant/faint stars
+  const coreOpacity = Math.max(0.3, Math.min(0.95, brightness * 0.8));
+  const haloOpacity = Math.max(0.03, Math.min(0.2, brightness * 0.15));
 
   const starColor = new THREE.Color(star.colorHex);
   const starTex = makeStarTexture();
@@ -165,7 +173,7 @@ function createDistantStar(
     map: starTex,
     color: starColor,
     transparent: true,
-    opacity: 0.95,
+    opacity: coreOpacity,
     blending: THREE.AdditiveBlending,
   });
   const sprite = new THREE.Sprite(spriteMat);
@@ -177,11 +185,11 @@ function createDistantStar(
     map: starTex,
     color: starColor,
     transparent: true,
-    opacity: 0.15,
+    opacity: haloOpacity,
     blending: THREE.AdditiveBlending,
   });
   const halo = new THREE.Sprite(haloMat);
-  halo.scale.setScalar(coreSize * 4);
+  halo.scale.setScalar(coreSize * 3.5);
   group.add(halo);
 
   // Position: top-left area of the sky (synced with STAR_SPRITE_POSITION)

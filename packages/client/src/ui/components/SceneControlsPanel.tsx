@@ -8,6 +8,7 @@ interface ExtraButton {
   title: string;
   icon: React.ReactNode;
   onClick: () => void;
+  disabled?: boolean;
 }
 
 interface SceneControlsPanelProps {
@@ -130,11 +131,28 @@ export function SceneControlsPanel({
       )}
 
       {/* Extra buttons */}
-      {extraButtons && extraButtons.map((btn, i) => (
-        <ControlButton key={i} onClick={btn.onClick} title={btn.title}>
-          {btn.icon}
-        </ControlButton>
-      ))}
+      {extraButtons && extraButtons.map((btn, i) =>
+        btn.disabled ? (
+          <button
+            key={i}
+            title={btn.title}
+            style={{
+              ...btnStyle,
+              color: '#556677',
+              borderColor: 'rgba(50,60,80,0.3)',
+              cursor: 'default',
+              opacity: 0.6,
+            }}
+            disabled
+          >
+            {btn.icon}
+          </button>
+        ) : (
+          <ControlButton key={i} onClick={btn.onClick} title={btn.title}>
+            {btn.icon}
+          </ControlButton>
+        )
+      )}
     </div>
   );
 }
