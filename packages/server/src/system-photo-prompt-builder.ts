@@ -1,4 +1,4 @@
-import type { StarSystem, SpectralClass } from '@nebulife/core';
+import type { StarSystem, SpectralClass, Planet } from '@nebulife/core';
 
 /**
  * Build a Kling prompt for generating a telescope photo of a star system.
@@ -261,6 +261,103 @@ export function buildGeminiSystemPhotoPrompt(system: StarSystem): string {
     `cinematic perspective composition with dramatic depth of field.`,
     `No text, no labels, no UI elements, no watermarks.`,
   ].join(' ');
+}
+
+// ---------------------------------------------------------------------------
+// Planet telescope photo prompt (Gemini, close-up JWST-style)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a Gemini-optimized prompt for a close-up telescope photo of a single planet.
+ * Used for the "Super Telescope" feature (10 quarks).
+ */
+export function buildGeminiPlanetPhotoPrompt(system: StarSystem, planet: Planet): string {
+  const { star } = system;
+  const starColor = getStarColorWord(star.spectralClass);
+  const starDesc = describeStarForPrompt(
+    star.spectralClass, star.subType, star.temperatureK, star.colorHex,
+  );
+
+  // Planet physical description
+  const sizeWord = planet.radiusEarth < 0.5 ? 'small'
+    : planet.radiusEarth < 1.5 ? 'Earth-sized'
+    : planet.radiusEarth < 4 ? 'super-Earth'
+    : planet.radiusEarth < 10 ? 'Neptune-class'
+    : 'massive';
+
+  let typeDesc: string;
+  if (planet.type === 'gas-giant') typeDesc = 'gas giant with swirling atmospheric bands';
+  else if (planet.type === 'ice-giant') typeDesc = 'ice giant with deep blue-cyan atmosphere';
+  else if (planet.type === 'dwarf') typeDesc = 'small rocky-icy dwarf body';
+  else if (planet.hydrosphere && planet.hydrosphere.waterCoverageFraction > 0.5)
+    typeDesc = 'rocky world with vast blue oceans and white cloud patterns';
+  else if (planet.hydrosphere && planet.hydrosphere.waterCoverageFraction > 0.1)
+    typeDesc = 'rocky world with scattered seas and continental landmasses';
+  else if (planet.surfaceTempK > 700)
+    typeDesc = 'volcanic world with glowing lava flows on the surface';
+  else if (planet.surfaceTempK < 150)
+    typeDesc = 'frozen world with icy cratered surface';
+  else typeDesc = 'barren rocky world with impact craters';
+
+  // Atmosphere
+  let atmoDesc = '';
+  if (planet.atmosphere && planet.atmosphere.surfacePressureAtm > 5)
+    atmoDesc = 'Thick dense atmosphere visible as a wide hazy limb.';
+  else if (planet.atmosphere && planet.atmosphere.surfacePressureAtm > 0.5)
+    atmoDesc = 'Visible atmospheric halo at the limb with subtle cloud formations.';
+  else if (planet.atmosphere && planet.atmosphere.surfacePressureAtm > 0.01)
+    atmoDesc = 'Thin atmospheric haze barely visible at the planet limb.';
+
+  // Moons
+  const moonCount = planet.moons?.length ?? 0;
+  let moonDesc = '';
+  if (moonCount > 3) {
+    moonDesc = `${moonCount} moons visible at various distances — some small dots, some larger crescents illuminated by the star.`;
+  } else if (moonCount > 0) {
+    const moonDetails = planet.moons.map(m =>
+      `${m.name} (${m.compositionType}, radius ${Math.round(m.radiusKm)}km)`,
+    ).join(', ');
+    moonDesc = `Visible ${moonCount === 1 ? 'moon' : 'moons'}: ${moonDetails}, orbiting nearby as illuminated crescents.`;
+  }
+
+  // Hydrosphere details
+  let hydroDesc = '';
+  if (planet.hydrosphere) {
+    const wf = planet.hydrosphere.waterCoverageFraction;
+    const icef = planet.hydrosphere.iceCapFraction;
+    if (wf > 0.7) hydroDesc = 'The surface is dominated by a global ocean reflecting starlight, with scattered island chains.';
+    else if (wf > 0.3) hydroDesc = 'Continents and oceans are clearly visible, with cloud systems swirling over the water.';
+    if (icef > 0.3) hydroDesc += ' Bright polar ice caps extend towards the equator.';
+    else if (icef > 0.05) hydroDesc += ' Small polar ice caps reflect white against the darker surface.';
+  }
+
+  const cinematicDir = getCinematicDirection(star.spectralClass);
+
+  return [
+    `PLANET DATA:`,
+    `${planet.name}, a ${sizeWord} ${typeDesc},`,
+    `radius ${planet.radiusEarth.toFixed(2)} Earth radii, mass ${planet.massEarth.toFixed(3)} Earth masses,`,
+    `orbit ${planet.orbit.semiMajorAxisAU.toFixed(3)} AU from a ${starDesc},`,
+    `surface temperature ${Math.round(planet.surfaceTempK)}K,`,
+    `gravity ${planet.surfaceGravityG}g.`,
+    `---`,
+    `A stunning close-up telescope photograph of planet ${planet.name},`,
+    `captured by a powerful space telescope from a distant vantage point.`,
+    `The planet dominates the center of the frame, filling about 60% of the image,`,
+    `illuminated from the left by its parent ${starColor} star.`,
+    `The terminator line creates a dramatic crescent of light and shadow across the surface.`,
+    typeDesc + '.',
+    atmoDesc,
+    hydroDesc,
+    moonDesc,
+    cinematicDir,
+    `Ultra high resolution astrophotography, NASA JWST quality,`,
+    `the planet appears as a photorealistic sphere with visible surface details,`,
+    `scientifically accurate illumination from the parent star.`,
+    `Deep black space background with thousands of pinpoint stars.`,
+    `The parent star appears as a bright point with subtle diffraction spikes in the distance.`,
+    `No text, no labels, no UI elements, no watermarks.`,
+  ].filter(Boolean).join(' ');
 }
 
 /**

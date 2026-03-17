@@ -2,10 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
 import { deductQuarks, creditQuarks, saveSystemPhoto } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { buildGeminiSystemPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
+import { buildGeminiSystemPhotoPrompt, buildGeminiPlanetPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
 import type { StarSystem } from '@nebulife/core';
 
-const PHOTO_COST = 30;
+const SYSTEM_PHOTO_COST = 30;
+const PLANET_PHOTO_COST = 10;
 
 // Allow up to 60s for Gemini image generation + blob upload
 export const config = {
@@ -32,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!auth) return;
 
   try {
-    const { playerId, systemId, systemData, screenWidth, screenHeight } = req.body;
+    const { playerId, systemId, systemData, screenWidth, screenHeight, planetId } = req.body;
 
     if (!playerId || !systemId || !systemData) {
       return res.status(400).json({ error: 'Missing required fields: playerId, systemId, systemData' });
@@ -43,14 +44,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
 
+    // Determine cost: planet telescope photo = 10, system photo = 30
+    const isPlanetPhoto = !!planetId;
+    const cost = isPlanetPhoto ? PLANET_PHOTO_COST : SYSTEM_PHOTO_COST;
+
     // 1. Deduct quarks
-    const player = await deductQuarks(playerId, PHOTO_COST);
+    const player = await deductQuarks(playerId, cost);
     if (!player) {
-      return res.status(402).json({ error: 'Insufficient quarks', required: PHOTO_COST });
+      return res.status(402).json({ error: 'Insufficient quarks', required: cost });
     }
 
     // 2. Build cinematic prompt
-    const prompt = buildGeminiSystemPhotoPrompt(systemData as StarSystem);
+    const sys = systemData as StarSystem;
+    let prompt: string;
+    if (isPlanetPhoto) {
+      const planet = sys.planets.find(p => p.id === planetId);
+      if (!planet) {
+        // Refund and return error
+        await creditQuarks(playerId, cost);
+        return res.status(400).json({ error: 'Planet not found in system data' });
+      }
+      prompt = buildGeminiPlanetPhotoPrompt(sys, planet);
+    } else {
+      prompt = buildGeminiSystemPhotoPrompt(sys);
+    }
 
     // 3. Generate image with Gemini (synchronous — returns base64, uploads to blob)
     const result = await generateImageWithGemini({
@@ -81,10 +98,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Refund quarks on generation failure (player already paid)
     try {
-      const { playerId } = req.body;
+      const { playerId, planetId: pid } = req.body;
+      const refundAmount = pid ? PLANET_PHOTO_COST : SYSTEM_PHOTO_COST;
       if (playerId) {
-        const refunded = await creditQuarks(playerId, PHOTO_COST);
-        console.log(`[Refund] Credited ${PHOTO_COST} quarks back to ${playerId}, new balance: ${refunded.quarks}`);
+        const refunded = await creditQuarks(playerId, refundAmount);
+        console.log(`[Refund] Credited ${refundAmount} quarks back to ${playerId}, new balance: ${refunded.quarks}`);
         return res.status(500).json({
           error: err instanceof Error ? err.message : 'Internal error',
           refunded: true,

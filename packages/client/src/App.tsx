@@ -162,6 +162,10 @@ export function App() {
   const warpTargetRef = useRef<'universe' | 'galaxy' | 'home-intro'>('universe');
   const telescopePhotoRef = useRef<(sys: StarSystem) => void>(() => {});
 
+  // Capture saved navigation IDs before any useEffect can overwrite them
+  const savedNavSystemRef = useRef(localStorage.getItem('nebulife_nav_system') || '');
+  const savedNavPlanetRef = useRef(localStorage.getItem('nebulife_nav_planet') || '');
+
   const [state, setState] = useState<GameState>(() => {
     const savedScene = localStorage.getItem('nebulife_scene') as GameState['scene'] | null;
     const validScenes: GameState['scene'][] = ['home-intro', 'galaxy', 'system', 'planet-view'];
@@ -221,8 +225,18 @@ export function App() {
   useEffect(() => {
     try {
       localStorage.setItem('nebulife_scene', state.scene);
-      localStorage.setItem('nebulife_nav_system', state.selectedSystem?.id ?? '');
-      localStorage.setItem('nebulife_nav_planet', state.selectedPlanet?.id ?? '');
+      // Only overwrite nav IDs when they carry real data — avoid erasing
+      // saved IDs before engine restoration has a chance to read them.
+      if (state.selectedSystem) {
+        localStorage.setItem('nebulife_nav_system', state.selectedSystem.id);
+      } else if (state.scene === 'home-intro' || state.scene === 'galaxy') {
+        localStorage.setItem('nebulife_nav_system', '');
+      }
+      if (state.selectedPlanet) {
+        localStorage.setItem('nebulife_nav_planet', state.selectedPlanet.id);
+      } else if (state.scene !== 'planet-view') {
+        localStorage.setItem('nebulife_nav_planet', '');
+      }
     } catch { /* ignore */ }
   }, [state.scene, state.selectedSystem, state.selectedPlanet]);
 
@@ -1518,9 +1532,11 @@ export function App() {
       }
 
       // Restore saved scene (engine always starts at home-intro)
+      // Use refs captured at module init — localStorage may already be overwritten
+      // by the persistence useEffect that fires before this init completes.
       const savedScene = localStorage.getItem('nebulife_scene');
-      const savedSystemId = localStorage.getItem('nebulife_nav_system');
-      const savedPlanetId = localStorage.getItem('nebulife_nav_planet');
+      const savedSystemId = savedNavSystemRef.current;
+      const savedPlanetId = savedNavPlanetRef.current;
 
       if (savedScene === 'system' && savedSystemId) {
         const sys = allSystems.find(s => s.id === savedSystemId);
@@ -1907,6 +1923,75 @@ export function App() {
         });
       });
   }, [quarks]);
+
+  /** Planet telescope photo — close-up shot of a planet via super telescope (10 quarks) */
+  const handlePlanetTelescopePhoto = useCallback(() => {
+    if (!state.selectedPlanet || !state.selectedSystem) return;
+    const planet = state.selectedPlanet;
+    const sys = state.selectedSystem;
+    const sysId = sys.id;
+
+    // Check quark balance
+    if (quarks < 10) {
+      if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
+      return;
+    }
+
+    // Close menu
+    setState((prev) => ({ ...prev, showPlanetMenu: false }));
+
+    // Mark as generating
+    setSystemPhotos(prev => {
+      const next = new Map(prev);
+      next.set(`planet-${planet.id}`, { id: `temp-${planet.id}`, photoUrl: '', status: 'generating' });
+      return next;
+    });
+
+    // Call API with planetId
+    generateSystemPhoto(playerId.current, sysId, sys, undefined, undefined, planet.id)
+      .then(({ photoId, quarksRemaining, photoUrl }) => {
+        setQuarks(quarksRemaining);
+        if (photoUrl) {
+          // Gemini — synchronous, photo already available
+          setSystemPhotos(prev => {
+            const next = new Map(prev);
+            next.set(`planet-${planet.id}`, { id: photoId, photoUrl, status: 'succeed' });
+            return next;
+          });
+          window.open(photoUrl, '_blank');
+        } else {
+          // Async — poll for completion
+          setSystemPhotos(prev => {
+            const next = new Map(prev);
+            next.set(`planet-${planet.id}`, { id: photoId, photoUrl: '', status: 'generating' });
+            return next;
+          });
+          pollSystemPhotoStatus(photoId, (result) => {
+            if (result.status === 'succeed' && result.photoUrl) {
+              setSystemPhotos(prev => {
+                const next = new Map(prev);
+                next.set(`planet-${planet.id}`, { id: photoId, photoUrl: result.photoUrl!, status: 'succeed' });
+                return next;
+              });
+            } else if (result.status === 'failed') {
+              setSystemPhotos(prev => {
+                const next = new Map(prev);
+                next.set(`planet-${planet.id}`, { id: photoId, photoUrl: '', status: 'failed' });
+                return next;
+              });
+            }
+          });
+        }
+      })
+      .catch(err => {
+        console.error('[PlanetTelescopePhoto] Error:', err);
+        setSystemPhotos(prev => {
+          const next = new Map(prev);
+          next.delete(`planet-${planet.id}`);
+          return next;
+        });
+      });
+  }, [state.selectedPlanet, state.selectedSystem, quarks]);
 
   // Keep ref updated for GameEngine callback (avoid stale closure)
   telescopePhotoRef.current = handleTelescopePhotoForSystem;
@@ -3465,6 +3550,8 @@ export function App() {
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
           accessDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
+          onTelescopePhoto={handlePlanetTelescopePhoto}
+          isPhotoGenerating={systemPhotos.get(`planet-${state.selectedPlanet.id}`)?.status === 'generating'}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (

@@ -67,9 +67,11 @@ export function PlanetContextMenu({
   planet, screenPosition,
   onViewPlanet, onShowCharacteristics, onClose,
   onSurface,
+  onTelescopePhoto,
   isDestroyed,
   surfaceDisabledReason,
   accessDisabledReason,
+  isPhotoGenerating,
 }: {
   planet: Planet;
   screenPosition: { x: number; y: number };
@@ -77,9 +79,11 @@ export function PlanetContextMenu({
   onShowCharacteristics: () => void;
   onClose: () => void;
   onSurface?: () => void;
+  onTelescopePhoto?: () => void;
   isDestroyed?: boolean;
   surfaceDisabledReason?: string;
   accessDisabledReason?: string;
+  isPhotoGenerating?: boolean;
 }) {
   // Destroyed planets have no interactive menu
   if (isDestroyed) {
@@ -124,6 +128,15 @@ export function PlanetContextMenu({
           <div style={{ ...itemStyle, cursor: 'default', color: '#556677', fontSize: 11 }} title={accessDisabledReason}>
             Екзосфера
             <span style={{ marginLeft: 6, fontSize: 9, color: '#445566' }}>{accessDisabledReason}</span>
+          </div>
+        )}
+        {onTelescopePhoto && !isPhotoGenerating && (
+          <MenuItem label="Супертелескоп 10⚛" onClick={onTelescopePhoto} color="#7bb8ff" />
+        )}
+        {onTelescopePhoto && isPhotoGenerating && (
+          <div style={{ ...itemStyle, cursor: 'default', color: '#556677', fontSize: 11 }}>
+            Супертелескоп
+            <span style={{ marginLeft: 6, fontSize: 9, color: '#4488aa' }}>генерується...</span>
           </div>
         )}
         {showSurface && !surfaceDisabledReason && (
