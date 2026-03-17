@@ -8,6 +8,8 @@ import { SystemLog } from './SystemLog';
 import type { LogEntry } from './SystemLog';
 import type { DiscoveryData } from '../../../api/player-api';
 import { TechTreeView } from '../TechTree';
+import { TelescopeGallery } from './TelescopeGallery';
+import type { SystemPhotoData } from '../SystemContextMenu';
 
 // Hide scrollbar on tab bars for mobile swipe
 const SWIPE_STYLE_ID = 'nebulife-swipe-tabs-style';
@@ -39,8 +41,10 @@ const TABS: TabDef[] = [
     label: 'Колекції',
     subTabs: [
       { id: 'cosmos', label: 'Космос' },
+      { id: 'star-systems', label: 'Зоряні системи' },
+      { id: 'planets-photos', label: 'Планети' },
+      { id: 'surface', label: 'Поверхня' },
       { id: 'life', label: 'Життя' },
-      { id: 'surface', label: 'На поверхні' },
     ],
   },
   {
@@ -123,6 +127,8 @@ export interface CosmicArchiveProps {
   favoritePlanets?: Set<string>;
   /** Callback when favorites change */
   onFavoritesChange?: (favorites: Set<string>) => void;
+  /** Telescope photos for collection galleries */
+  systemPhotos?: Map<string, SystemPhotoData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +241,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   researchDataCost,
   favoritePlanets: externalFavorites,
   onFavoritesChange,
+  systemPhotos,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
@@ -381,6 +388,27 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   const renderContent = () => {
     if (mainTab === 'collections' && currentSubTab === 'cosmos') {
       return <CosmosGallery playerId={playerId} highlightedType={highlightedType} localEntries={localEntries} />;
+    }
+    if (mainTab === 'collections' && currentSubTab === 'star-systems') {
+      return <TelescopeGallery photos={systemPhotos} type="system" allSystems={allSystems} aliases={aliases} />;
+    }
+    if (mainTab === 'collections' && currentSubTab === 'planets-photos') {
+      return <TelescopeGallery photos={systemPhotos} type="planet" allSystems={allSystems} aliases={aliases} />;
+    }
+    if (mainTab === 'collections' && (currentSubTab === 'surface' || currentSubTab === 'life')) {
+      const isLocked = (playerLevel ?? 1) < 50;
+      if (isLocked) {
+        return (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            height: '100%', minHeight: 300, fontFamily: 'monospace',
+            fontSize: 12, color: '#445566', textAlign: 'center', lineHeight: 1.7,
+          }}>
+            Доступно з 50 рівня екіпажу
+          </div>
+        );
+      }
+      return <PlaceholderTab label={currentSubTab === 'surface' ? 'Поверхня' : 'Життя'} />;
     }
     if (mainTab === 'navigation' && currentSubTab === 'planets') {
       return (
@@ -604,16 +632,20 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
 
       {/* Sub tabs */}
       <div data-swipe-tabs="" style={subTabBarStyle}>
-        {currentTabDef.subTabs.map((sub) => (
-          <TabButton
-            key={sub.id}
-            label={sub.label}
-            active={currentSubTab === sub.id}
-            onClick={() => selectSubTab(sub.id)}
-            small
-            tutorialId={`subtab-${sub.id}`}
-          />
-        ))}
+        {currentTabDef.subTabs.map((sub) => {
+          const isLocked = (sub.id === 'surface' || sub.id === 'life') && (playerLevel ?? 1) < 50;
+          return (
+            <TabButton
+              key={sub.id}
+              label={isLocked ? `${sub.label} [locked]` : sub.label}
+              active={currentSubTab === sub.id}
+              onClick={() => selectSubTab(sub.id)}
+              small
+              dimmed={isLocked}
+              tutorialId={`subtab-${sub.id}`}
+            />
+          );
+        })}
       </div>
 
       {/* Content */}
@@ -631,12 +663,14 @@ function TabButton({
   active,
   onClick,
   small,
+  dimmed,
   tutorialId,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
   small?: boolean;
+  dimmed?: boolean;
   tutorialId?: string;
 }) {
   const [hover, setHover] = useState(false);
@@ -655,7 +689,7 @@ function TabButton({
         padding: small ? '8px 14px' : '10px 18px',
         fontFamily: 'monospace',
         fontSize: small ? 11 : 12,
-        color: active ? '#ccddee' : hover ? '#8899aa' : '#556677',
+        color: dimmed ? '#334455' : active ? '#ccddee' : hover ? '#8899aa' : '#556677',
         cursor: 'pointer',
         transition: 'color 0.15s, border-color 0.15s',
         letterSpacing: small ? 0 : 0.5,

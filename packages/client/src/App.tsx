@@ -25,6 +25,7 @@ import { FloatingInfoButton } from './ui/components/FloatingInfoButton.js';
 import { SystemObjectsPanel } from './ui/components/SystemObjectsPanel.js';
 import { PlanetDetailWindow } from './ui/components/PlanetDetailWindow.js';
 import { SceneControlsPanel } from './ui/components/SceneControlsPanel.js';
+import { TelescopeOverlay } from './ui/components/TelescopeOverlay.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
@@ -831,6 +832,16 @@ export function App() {
   const [systemPhotos, setSystemPhotos] = useState<Map<string, SystemPhotoData>>(new Map());
   const [systemMissions, setSystemMissions] = useState<Map<string, SystemMissionData>>(new Map());
 
+  // ── Telescope overlay state ───────────────────────────────────────────
+  const [telescopeOverlay, setTelescopeOverlay] = useState<{
+    phase: 'init' | 'capture' | 'reveal';
+    targetName: string;
+    targetType: 'system' | 'planet';
+    photoUrl: string | null;
+    photoKey: string;
+  } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   // ── System objects panel state ────────────────────────────────────────
   const [showObjectsPanel, setShowObjectsPanel] = useState(false);
   const [objectsPanelSystem, setObjectsPanelSystem] = useState<StarSystem | null>(null);
@@ -1330,6 +1341,7 @@ export function App() {
           id: p.id,
           photoUrl: p.photo_url ?? '',
           status: p.status as 'generating' | 'succeed' | 'failed',
+          createdAt: p.created_at,
         });
       }
       setSystemPhotos(map);
@@ -1909,6 +1921,20 @@ export function App() {
     setState((prev) => ({ ...prev, selectedSystem: null }));
     engineRef.current?.unfocusSystem();
 
+    // Open cinematic telescope overlay
+    setTelescopeOverlay({
+      phase: 'init',
+      targetName: aliases[sysId] || sys.star.name,
+      targetType: 'system',
+      photoUrl: null,
+      photoKey: sysId,
+    });
+
+    // Transition to capture phase after init animation
+    const initTimer = setTimeout(() => {
+      setTelescopeOverlay(prev => prev ? { ...prev, phase: 'capture' } : null);
+    }, 1500);
+
     // Mark as generating immediately
     setSystemPhotos(prev => {
       const next = new Map(prev);
@@ -1916,31 +1942,59 @@ export function App() {
       return next;
     });
 
+    // Helper: reveal photo in overlay (waits for capture phase if needed)
+    const revealPhoto = (url: string) => {
+      setTelescopeOverlay(prev => {
+        if (!prev) return null;
+        // If still in init phase, wait a bit then reveal
+        if (prev.phase === 'init') {
+          clearTimeout(initTimer);
+          setTimeout(() => {
+            setTelescopeOverlay(p => p ? { ...p, phase: 'reveal', photoUrl: url } : null);
+          }, 800);
+          return { ...prev, phase: 'capture' };
+        }
+        return { ...prev, phase: 'reveal', photoUrl: url };
+      });
+    };
+
     // Call API
     generateSystemPhoto(playerId.current, sysId, sys)
-      .then(({ photoId, quarksRemaining }) => {
+      .then(({ photoId, quarksRemaining, photoUrl }) => {
         setQuarks(quarksRemaining);
-        setSystemPhotos(prev => {
-          const next = new Map(prev);
-          next.set(sysId, { id: photoId, photoUrl: '', status: 'generating' });
-          return next;
-        });
-        // Poll for completion
-        pollSystemPhotoStatus(photoId, (result) => {
-          if (result.status === 'succeed' && result.photoUrl) {
-            setSystemPhotos(prev => {
-              const next = new Map(prev);
-              next.set(sysId, { id: photoId, photoUrl: result.photoUrl!, status: 'succeed' });
-              return next;
-            });
-          } else if (result.status === 'failed') {
-            setSystemPhotos(prev => {
-              const next = new Map(prev);
-              next.set(sysId, { id: photoId, photoUrl: '', status: 'failed' });
-              return next;
-            });
-          }
-        });
+        if (photoUrl) {
+          // Synchronous result (Gemini)
+          setSystemPhotos(prev => {
+            const next = new Map(prev);
+            next.set(sysId, { id: photoId, photoUrl, status: 'succeed', createdAt: new Date().toISOString() });
+            return next;
+          });
+          revealPhoto(photoUrl);
+        } else {
+          setSystemPhotos(prev => {
+            const next = new Map(prev);
+            next.set(sysId, { id: photoId, photoUrl: '', status: 'generating' });
+            return next;
+          });
+          // Poll for completion
+          pollSystemPhotoStatus(photoId, (result) => {
+            if (result.status === 'succeed' && result.photoUrl) {
+              setSystemPhotos(prev => {
+                const next = new Map(prev);
+                next.set(sysId, { id: photoId, photoUrl: result.photoUrl!, status: 'succeed', createdAt: new Date().toISOString() });
+                return next;
+              });
+              revealPhoto(result.photoUrl!);
+            } else if (result.status === 'failed') {
+              setSystemPhotos(prev => {
+                const next = new Map(prev);
+                next.set(sysId, { id: photoId, photoUrl: '', status: 'failed' });
+                return next;
+              });
+              setTelescopeOverlay(null);
+            }
+          });
+        }
       })
       .catch(err => {
         console.error('[TelescopePhoto] Error:', err);
@@ -1949,8 +2003,9 @@ export function App() {
           next.delete(sysId);
           return next;
         });
+        setTelescopeOverlay(null);
       });
-  }, [quarks]);
+  }, [quarks, aliases]);
 
   /** Planet telescope photo — close-up shot of a planet via super telescope (10 quarks) */
   const handlePlanetTelescopePhoto = useCallback(() => {
@@ -1958,6 +2013,7 @@ export function App() {
     const planet = state.selectedPlanet;
     const sys = state.selectedSystem;
     const sysId = sys.id;
+    const photoKey = `planet-${planet.id}`;
 
     // Check quark balance
     if (quarks < 10) {
@@ -1968,12 +2024,41 @@ export function App() {
     // Close menu
     setState((prev) => ({ ...prev, showPlanetMenu: false }));
 
+    // Open cinematic telescope overlay
+    setTelescopeOverlay({
+      phase: 'init',
+      targetName: planet.name,
+      targetType: 'planet',
+      photoUrl: null,
+      photoKey,
+    });
+
+    // Transition to capture phase after init animation
+    const initTimer = setTimeout(() => {
+      setTelescopeOverlay(prev => prev ? { ...prev, phase: 'capture' } : null);
+    }, 1500);
+
     // Mark as generating
     setSystemPhotos(prev => {
       const next = new Map(prev);
-      next.set(`planet-${planet.id}`, { id: `temp-${planet.id}`, photoUrl: '', status: 'generating' });
+      next.set(photoKey, { id: `temp-${planet.id}`, photoUrl: '', status: 'generating' });
       return next;
     });
+
+    // Helper: reveal photo in overlay
+    const revealPhoto = (url: string) => {
+      setTelescopeOverlay(prev => {
+        if (!prev) return null;
+        if (prev.phase === 'init') {
+          clearTimeout(initTimer);
+          setTimeout(() => {
+            setTelescopeOverlay(p => p ? { ...p, phase: 'reveal', photoUrl: url } : null);
+          }, 800);
+          return { ...prev, phase: 'capture' };
+        }
+        return { ...prev, phase: 'reveal', photoUrl: url };
+      });
+    };
 
     // Call API with planetId
     generateSystemPhoto(playerId.current, sysId, sys, undefined, undefined, planet.id)
@@ -1983,30 +2068,32 @@ export function App() {
           // Gemini — synchronous, photo already available
           setSystemPhotos(prev => {
             const next = new Map(prev);
-            next.set(`planet-${planet.id}`, { id: photoId, photoUrl, status: 'succeed' });
+            next.set(photoKey, { id: photoId, photoUrl, status: 'succeed', createdAt: new Date().toISOString() });
             return next;
           });
-          window.open(photoUrl, '_blank');
+          revealPhoto(photoUrl);
         } else {
           // Async — poll for completion
           setSystemPhotos(prev => {
             const next = new Map(prev);
-            next.set(`planet-${planet.id}`, { id: photoId, photoUrl: '', status: 'generating' });
+            next.set(photoKey, { id: photoId, photoUrl: '', status: 'generating' });
             return next;
           });
           pollSystemPhotoStatus(photoId, (result) => {
             if (result.status === 'succeed' && result.photoUrl) {
               setSystemPhotos(prev => {
                 const next = new Map(prev);
-                next.set(`planet-${planet.id}`, { id: photoId, photoUrl: result.photoUrl!, status: 'succeed' });
+                next.set(photoKey, { id: photoId, photoUrl: result.photoUrl!, status: 'succeed', createdAt: new Date().toISOString() });
                 return next;
               });
+              revealPhoto(result.photoUrl!);
             } else if (result.status === 'failed') {
               setSystemPhotos(prev => {
                 const next = new Map(prev);
-                next.set(`planet-${planet.id}`, { id: photoId, photoUrl: '', status: 'failed' });
+                next.set(photoKey, { id: photoId, photoUrl: '', status: 'failed' });
                 return next;
               });
+              setTelescopeOverlay(null);
             }
           });
         }
@@ -2015,9 +2102,10 @@ export function App() {
         console.error('[PlanetTelescopePhoto] Error:', err);
         setSystemPhotos(prev => {
           const next = new Map(prev);
-          next.delete(`planet-${planet.id}`);
+          next.delete(photoKey);
           return next;
         });
+        setTelescopeOverlay(null);
       });
   }, [state.selectedPlanet, state.selectedSystem, quarks]);
 
@@ -2026,12 +2114,51 @@ export function App() {
 
   const handleViewSystemPhoto = useCallback(() => {
     if (!state.selectedSystem) return;
-    const photo = systemPhotos.get(state.selectedSystem.id);
+    const sysId = state.selectedSystem.id;
+    const photo = systemPhotos.get(sysId);
     if (photo?.photoUrl) {
-      // Open photo in new tab for now (PhotoModal can be added later)
-      window.open(photo.photoUrl, '_blank');
+      // Show in telescope overlay (reveal phase, skip init/capture)
+      setTelescopeOverlay({
+        phase: 'reveal',
+        targetName: aliases[sysId] || state.selectedSystem.star.name,
+        targetType: 'system',
+        photoUrl: photo.photoUrl,
+        photoKey: sysId,
+      });
     }
-  }, [state.selectedSystem, systemPhotos]);
+  }, [state.selectedSystem, systemPhotos, aliases]);
+
+  // ── Telescope overlay callbacks ───────────────────────────────────────
+  const handleTelescopeShare = useCallback(async () => {
+    if (!telescopeOverlay?.photoUrl) return;
+    const text = `Nebulife Telescope: ${telescopeOverlay.targetName}\nhttps://nebulife.space`;
+    try {
+      if (navigator.share) {
+        // Try sharing with the photo file
+        const response = await fetch(telescopeOverlay.photoUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'telescope-photo.jpg', { type: blob.type });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ title: 'Nebulife', text, files: [file] });
+        } else {
+          await navigator.share({ title: 'Nebulife', text });
+        }
+      } else {
+        await navigator.clipboard.writeText(text);
+      }
+    } catch {
+      // User cancelled or share failed — silently ignore
+    }
+  }, [telescopeOverlay]);
+
+  const handleTelescopeSaveToCollection = useCallback(() => {
+    // Photo is already in systemPhotos map — just close overlay with animation
+    // The fly-away animation is handled inside TelescopeOverlay
+    setToastMessage('Дані успішно архівовано');
+    setTimeout(() => setTelescopeOverlay(null), 800);
+    // Auto-dismiss toast
+    setTimeout(() => setToastMessage(null), 3500);
+  }, []);
 
   const handleSendMission = useCallback((dur: 'short' | 'long') => {
     if (!state.selectedSystem) return;
@@ -3837,7 +3964,44 @@ export function App() {
           researchDataCost={RESEARCH_DATA_COST}
           favoritePlanets={favoritePlanets}
           onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
+          systemPhotos={systemPhotos}
         />
+      )}
+
+      {/* Telescope Overlay */}
+      {telescopeOverlay && (
+        <TelescopeOverlay
+          targetName={telescopeOverlay.targetName}
+          targetType={telescopeOverlay.targetType}
+          phase={telescopeOverlay.phase}
+          photoUrl={telescopeOverlay.photoUrl}
+          onSaveToCollection={handleTelescopeSaveToCollection}
+          onShare={handleTelescopeShare}
+          onClose={() => setTelescopeOverlay(null)}
+        />
+      )}
+
+      {/* Toast notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: 80,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(10,15,25,0.95)',
+          border: '1px solid #4488aa',
+          borderRadius: 4,
+          padding: '10px 24px',
+          color: '#4488aa',
+          fontFamily: 'monospace',
+          fontSize: 12,
+          letterSpacing: 1,
+          zIndex: 9800,
+          pointerEvents: 'none',
+          animation: 'toastFadeIn 0.3s ease-out',
+        }}>
+          {toastMessage}
+        </div>
       )}
 
       {/* System Objects Panel */}

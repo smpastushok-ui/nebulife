@@ -101,6 +101,7 @@ export interface SystemPhotoData {
   id: string;
   photoUrl: string;
   status: 'generating' | 'succeed' | 'failed';
+  createdAt?: string;
 }
 
 export interface SystemMissionData {
