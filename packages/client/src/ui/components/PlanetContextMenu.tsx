@@ -68,6 +68,7 @@ export function PlanetContextMenu({
   onViewPlanet, onShowCharacteristics, onClose,
   onSurface,
   isDestroyed,
+  surfaceDisabledReason,
 }: {
   planet: Planet;
   screenPosition: { x: number; y: number };
@@ -76,6 +77,7 @@ export function PlanetContextMenu({
   onClose: () => void;
   onSurface?: () => void;
   isDestroyed?: boolean;
+  surfaceDisabledReason?: string;
 }) {
   // Destroyed planets have no interactive menu
   if (isDestroyed) {
@@ -115,8 +117,14 @@ export function PlanetContextMenu({
           )}
         </div>
         <MenuItem label="Екзосфера" onClick={onViewPlanet} />
-        {showSurface && (
+        {showSurface && !surfaceDisabledReason && (
           <MenuItem label="На поверхню" onClick={onSurface} color="#88ccaa" />
+        )}
+        {showSurface && surfaceDisabledReason && (
+          <div style={{ ...itemStyle, cursor: 'default', color: '#556677', fontSize: 11 }} title={surfaceDisabledReason}>
+            На поверхню
+            <span style={{ marginLeft: 6, fontSize: 9, color: '#445566' }}>{surfaceDisabledReason}</span>
+          </div>
         )}
         <MenuItem label="Характеристики" onClick={onShowCharacteristics} />
       </div>

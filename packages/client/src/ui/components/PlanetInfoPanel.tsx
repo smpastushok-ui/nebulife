@@ -51,10 +51,11 @@ const closeBtnStyle: React.CSSProperties = {
   color: '#667788', fontSize: 16, fontFamily: 'monospace',
 };
 
-export function PlanetInfoPanel({ planet, onClose, onSurface }: {
+export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledReason }: {
   planet: Planet;
   onClose: () => void;
   onSurface?: () => void;
+  surfaceDisabledReason?: string;
 }) {
   const hab = planet.habitability;
   const typeLabel = planet.type.replace('-', ' ');
@@ -179,24 +180,26 @@ export function PlanetInfoPanel({ planet, onClose, onSurface }: {
       {onSurface && (planet.isHomePlanet || planet.isColonizable) && (
         <div style={{ marginTop: 8 }}>
           <button
-            onClick={onSurface}
+            onClick={surfaceDisabledReason ? undefined : onSurface}
+            disabled={!!surfaceDisabledReason}
+            title={surfaceDisabledReason}
             style={{
               width: '100%',
               padding: '10px 16px',
-              background: 'rgba(30, 60, 40, 0.5)',
-              border: '1px solid rgba(80, 160, 100, 0.4)',
+              background: surfaceDisabledReason ? 'rgba(20, 25, 35, 0.5)' : 'rgba(30, 60, 40, 0.5)',
+              border: surfaceDisabledReason ? '1px solid rgba(50, 60, 70, 0.4)' : '1px solid rgba(80, 160, 100, 0.4)',
               borderRadius: 4,
-              color: '#88ccaa',
+              color: surfaceDisabledReason ? '#556677' : '#88ccaa',
               fontFamily: 'monospace',
               fontSize: 12,
-              cursor: 'pointer',
+              cursor: surfaceDisabledReason ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
             }}
           >
-            &#x1F30D; Спуститися на поверхню
+            {surfaceDisabledReason ? `На поверхню — ${surfaceDisabledReason}` : 'Спуститися на поверхню'}
           </button>
         </div>
       )}

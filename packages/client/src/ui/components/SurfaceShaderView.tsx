@@ -1,11 +1,12 @@
 import React, {
-  useEffect, useRef, useState, useCallback,
+  useEffect, useRef, useState, useCallback, useMemo,
   forwardRef, useImperativeHandle,
 } from 'react';
 import * as THREE from 'three';
 import type {
-  Planet, Star, PlacedBuilding, BuildingType,
+  Planet, Star, PlacedBuilding, BuildingType, TerrainType,
 } from '@nebulife/core';
+import { BUILDING_DEFS } from '@nebulife/core';
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
 import { BuildingPanel } from './BuildingPanel.js';
 import { getBuildings, placeBuilding } from '../../api/surface-api.js';
@@ -49,8 +50,14 @@ interface SurfaceShaderViewProps {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const GRID_W = 64;
-const GRID_H = 36;
+/** Derive grid dimensions from planet radius (log-scale) */
+function computeMapDimensions(radiusEarth: number) {
+  const scale = Math.max(0.5, Math.min(3.0, Math.log2(radiusEarth + 1) / Math.log2(2)));
+  return {
+    gridW: Math.round(64 * scale),
+    gridH: Math.round(36 * scale),
+  };
+}
 
 const containerStyle: React.CSSProperties = {
   position: 'fixed',
@@ -73,16 +80,37 @@ function numToColor(c: number): THREE.Color {
   );
 }
 
-/** Determine if a grid cell is buildable based on elevation noise */
-function isCellBuildable(
-  x: number, y: number, seed: number, waterLevel: number,
-): boolean {
-  // Simplified deterministic check: hash grid coords + seed
+/** Get deterministic elevation for a grid cell */
+function getCellElevation(x: number, y: number, seed: number): number {
   const h1 = Math.sin(x * 127.1 + y * 311.7 + seed * 0.1) * 43758.5453;
-  const elevation = (h1 - Math.floor(h1));
-  // Must be above water and below mountain threshold
+  const h2 = Math.sin(x * 269.5 + y * 183.3 + seed * 0.2) * 21345.6789;
+  return (h1 - Math.floor(h1)) * 0.7 + (h2 - Math.floor(h2)) * 0.3;
+}
+
+/** Classify a grid cell into a terrain type based on elevation vs water level */
+function classifyCellTerrain(
+  x: number, y: number, seed: number, waterLevel: number,
+): TerrainType {
+  const elev = getCellElevation(x, y, seed);
   const waterThresh = waterLevel * 0.65 + 0.1;
-  return elevation > waterThresh + 0.04 && elevation < waterThresh + 0.55;
+  if (elev < waterThresh - 0.15) return 'deep_ocean';
+  if (elev < waterThresh - 0.04) return 'ocean';
+  if (elev < waterThresh) return 'coast';
+  if (elev < waterThresh + 0.04) return 'beach';
+  if (elev < waterThresh + 0.15) return 'lowland';
+  if (elev < waterThresh + 0.30) return 'plains';
+  if (elev < waterThresh + 0.45) return 'hills';
+  if (elev < waterThresh + 0.55) return 'mountains';
+  return 'peaks';
+}
+
+/** Check if a specific building type can be placed on a grid cell */
+function isCellBuildableFor(
+  x: number, y: number, seed: number, waterLevel: number,
+  buildingType: BuildingType,
+): boolean {
+  const terrain = classifyCellTerrain(x, y, seed, waterLevel);
+  return BUILDING_DEFS[buildingType].requiresTerrain.includes(terrain);
 }
 
 /* ------------------------------------------------------------------ */
@@ -333,6 +361,12 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
 
     const visuals = derivePlanetVisuals(planet, star);
 
+    // Grid dimensions scaled by planet radius
+    const { gridW, gridH } = useMemo(
+      () => computeMapDimensions(planet.radiusEarth),
+      [planet.radiusEarth],
+    );
+
     const lifeLevel = (() => {
       if (!planet.hasLife) return 0;
       switch (planet.lifeComplexity) {
@@ -566,15 +600,15 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       if (!ctx) return;
       ctx.clearRect(0, 0, w, h);
 
-      const cellW = w / GRID_W;
-      const cellH = h / GRID_H;
+      const cellW = w / gridW;
+      const cellH = h / gridH;
 
       // Draw buildable zone highlights in build mode
       if (selectedBuilding) {
         ctx.fillStyle = 'rgba(68, 255, 136, 0.06)';
-        for (let gx = 0; gx < GRID_W; gx++) {
-          for (let gy = 0; gy < GRID_H; gy++) {
-            if (isCellBuildable(gx, gy, planet.seed, waterCoverage)) {
+        for (let gx = 0; gx < gridW; gx++) {
+          for (let gy = 0; gy < gridH; gy++) {
+            if (isCellBuildableFor(gx, gy, planet.seed, waterCoverage, selectedBuilding)) {
               const occupied = buildings.some((b) => b.x === gx && b.y === gy);
               if (!occupied) {
                 ctx.fillRect(gx * cellW, gy * cellH, cellW, cellH);
@@ -588,13 +622,13 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       if (selectedBuilding) {
         ctx.strokeStyle = 'rgba(68, 136, 170, 0.08)';
         ctx.lineWidth = 0.5;
-        for (let gx = 0; gx <= GRID_W; gx++) {
+        for (let gx = 0; gx <= gridW; gx++) {
           ctx.beginPath();
           ctx.moveTo(gx * cellW, 0);
           ctx.lineTo(gx * cellW, h);
           ctx.stroke();
         }
-        for (let gy = 0; gy <= GRID_H; gy++) {
+        for (let gy = 0; gy <= gridH; gy++) {
           ctx.beginPath();
           ctx.moveTo(0, gy * cellH);
           ctx.lineTo(w, gy * cellH);
@@ -643,7 +677,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
         ctx.fillText(label + levelStr, cx, cy + iconSize * 0.55);
         ctx.restore();
       });
-    }, [selectedBuilding, buildings, planet.seed, waterCoverage]);
+    }, [selectedBuilding, buildings, planet.seed, waterCoverage, gridW, gridH]);
 
     // Redraw overlay when state changes
     useEffect(() => {
@@ -673,12 +707,27 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     /*  Imperative handle                                                */
     /* ================================================================ */
 
+    /* ================================================================ */
+    /*  Pan clamping — keep viewport within map bounds                    */
+    /* ================================================================ */
+
+    const clampPan = useCallback(() => {
+      // |uPan| <= 0.5 - 0.5/zoom (UV space)
+      // panRef stores pixel units, uPan = panRef * 0.001
+      const maxPanUV = Math.max(0, 0.5 - 0.5 / zoomRef.current);
+      const maxPanPx = maxPanUV / 0.001;
+      panRef.current.x = Math.max(-maxPanPx, Math.min(maxPanPx, panRef.current.x));
+      panRef.current.y = Math.max(-maxPanPx, Math.min(maxPanPx, panRef.current.y));
+    }, []);
+
     useImperativeHandle(ref, () => ({
       zoomIn: () => {
         zoomRef.current = Math.min(4, zoomRef.current * 1.2);
+        clampPan();
       },
       zoomOut: () => {
         zoomRef.current = Math.max(0.3, zoomRef.current * 0.8);
+        clampPan();
       },
       startAIGeneration: () => {
         // No-op: procedural terrain, no AI generation needed
@@ -689,7 +738,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       toggleMinimap: () => {
         setShowMinimap((prev) => !prev);
       },
-    }), []);
+    }), [clampPan]);
 
     /* ================================================================ */
     /*  Input handlers (pan, zoom, building placement)                   */
@@ -705,8 +754,9 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       const dy = e.clientY - dragRef.current.startY;
       dragRef.current.startX = e.clientX;
       dragRef.current.startY = e.clientY;
-      panRef.current.x += dx;
-      panRef.current.y += dy;
+      panRef.current.x -= dx;
+      panRef.current.y -= dy;
+      clampPan();
       drawOverlay();
     }, [drawOverlay]);
 
@@ -723,11 +773,11 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
 
-      const gridX = Math.floor((cx / rect.width) * GRID_W);
-      const gridY = Math.floor((cy / rect.height) * GRID_H);
+      const gridX = Math.floor((cx / rect.width) * gridW);
+      const gridY = Math.floor((cy / rect.height) * gridH);
 
-      if (gridX < 0 || gridX >= GRID_W || gridY < 0 || gridY >= GRID_H) return;
-      if (!isCellBuildable(gridX, gridY, planet.seed, waterCoverage)) return;
+      if (gridX < 0 || gridX >= gridW || gridY < 0 || gridY >= gridH) return;
+      if (!isCellBuildableFor(gridX, gridY, planet.seed, waterCoverage, selectedBuilding)) return;
 
       const occupied = buildings.find((b) => b.x === gridX && b.y === gridY);
       if (occupied) return;
@@ -758,6 +808,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         zoomRef.current = Math.max(0.3, Math.min(4, zoomRef.current * delta));
+        clampPan();
       };
       canvas.addEventListener('wheel', onWheel, { passive: false });
       return () => canvas.removeEventListener('wheel', onWheel);

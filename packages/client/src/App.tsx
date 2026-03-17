@@ -2589,13 +2589,25 @@ export function App() {
   }, [state.scene, surfaceTarget, state.selectedSystem]);
 
   // ── Surface view handlers ─────────────────────────────────────────────
+  const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string } => {
+    // Always allow home planet
+    if (planet.isHomePlanet) return { allowed: true };
+    // Allow colony planet (after evacuation)
+    if (homeInfo && planet.id === homeInfo.planet.id) return { allowed: true };
+    // Level 50+ can explore other surfaces
+    if (playerLevel >= 50) return { allowed: true };
+    return { allowed: false, reason: `Потрiбен рiвень 50+ (зараз: ${playerLevel})` };
+  }, [homeInfo, playerLevel]);
+
   const handleOpenSurface = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
+    const check = canLandOnPlanet(state.selectedPlanet);
+    if (!check.allowed) return;
     setSurfaceTarget({
       planet: state.selectedPlanet,
       star: state.selectedSystem.star,
     });
-  }, [state.selectedPlanet, state.selectedSystem]);
+  }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet]);
 
   const handleCloseSurface = useCallback(() => {
     setSurfaceTarget(null);
@@ -3448,6 +3460,7 @@ export function App() {
           onClose={handleClosePlanetMenu}
           onSurface={handleOpenSurface}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
+          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -3455,6 +3468,7 @@ export function App() {
           planet={state.selectedPlanet}
           onClose={() => setState((prev) => ({ ...prev, showPlanetInfo: false, selectedPlanet: null }))}
           onSurface={handleOpenSurface}
+          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
         />
       )}
       {completedModal && (
