@@ -162,7 +162,11 @@ export function App() {
   const warpTargetRef = useRef<'universe' | 'galaxy' | 'home-intro'>('universe');
   const telescopePhotoRef = useRef<(sys: StarSystem) => void>(() => {});
 
-  // Capture saved navigation IDs before any useEffect can overwrite them
+  // Capture saved navigation state before any useEffect can overwrite them.
+  // Engine init() calls showHomePlanetScene() which triggers onSceneChange('home-intro')
+  // → persistence useEffect overwrites localStorage with 'home-intro' before
+  // the restoration code in init().then() can read it.
+  const savedNavSceneRef = useRef(localStorage.getItem('nebulife_scene') || '');
   const savedNavSystemRef = useRef(localStorage.getItem('nebulife_nav_system') || '');
   const savedNavPlanetRef = useRef(localStorage.getItem('nebulife_nav_planet') || '');
 
@@ -1020,12 +1024,35 @@ export function App() {
       try { localStorage.setItem('nebulife_player_level', String(gs.level ?? levelFromXP(gs.xp))); } catch { /* ignore */ }
     }
 
-    // Research
+    // Research — only hydrate from server if server data is newer than local data.
+    // After evacuation, local state has slots=[] but server might still have old 3-slot state
+    // if the critical sync didn't complete before page reload.
     if (gs.research_state && typeof gs.research_state === 'object') {
       const rs = gs.research_state as ResearchState;
       if (Array.isArray(rs.slots) && typeof rs.systems === 'object') {
-        setResearchState(rs);
-        try { localStorage.setItem('nebulife_research_state', JSON.stringify(rs)); } catch { /* ignore */ }
+        // Safety check: don't restore slots from server if local state was explicitly emptied
+        // (e.g. after evacuation). Compare: if local has 0 slots but server has >0,
+        // trust local only when local is more recent (synced_at comparison).
+        let localResearch: ResearchState | null = null;
+        try {
+          const raw = localStorage.getItem('nebulife_research_state');
+          if (raw) localResearch = JSON.parse(raw);
+        } catch { /* ignore */ }
+
+        const serverSyncedAt = typeof gs.synced_at === 'number' ? gs.synced_at : 0;
+        const localIsNewer = localResearch
+          && Array.isArray(localResearch.slots)
+          && localResearch.slots.length === 0
+          && rs.slots.length > 0
+          && serverSyncedAt > 0;
+
+        if (localIsNewer) {
+          // Local state says 0 slots (post-evacuation) but server has old slots — keep local
+          console.log('[Hydrate] Skipping server research_state (local has 0 slots, server has', rs.slots.length, ')');
+        } else {
+          setResearchState(rs);
+          try { localStorage.setItem('nebulife_research_state', JSON.stringify(rs)); } catch { /* ignore */ }
+        }
       }
     }
     if (gs.player_stats && typeof gs.player_stats === 'object') {
@@ -1531,10 +1558,11 @@ export function App() {
         setEvacuationPromptDismissed(false);
       }
 
-      // Restore saved scene (engine always starts at home-intro)
-      // Use refs captured at module init — localStorage may already be overwritten
-      // by the persistence useEffect that fires before this init completes.
-      const savedScene = localStorage.getItem('nebulife_scene');
+      // Restore saved scene (engine always starts at home-intro).
+      // Use refs captured at component mount — by this point localStorage is already
+      // overwritten by the persistence useEffect (engine.init() → showHomePlanetScene()
+      // → onSceneChange('home-intro') → setState → useEffect writes 'home-intro').
+      const savedScene = savedNavSceneRef.current;
       const savedSystemId = savedNavSystemRef.current;
       const savedPlanetId = savedNavPlanetRef.current;
 
@@ -1542,7 +1570,7 @@ export function App() {
         const sys = allSystems.find(s => s.id === savedSystemId);
         if (sys) {
           engine.showSystemScene(sys);
-          setState(prev => ({ ...prev, selectedSystem: sys }));
+          setState(prev => ({ ...prev, scene: 'system', selectedSystem: sys }));
         } else {
           engine.showGalaxyScene();
         }
@@ -1551,7 +1579,7 @@ export function App() {
         const planet = sys?.planets.find(p => p.id === savedPlanetId);
         if (sys && planet) {
           engine.showPlanetViewScene(sys, planet);
-          setState(prev => ({ ...prev, selectedSystem: sys, selectedPlanet: planet }));
+          setState(prev => ({ ...prev, scene: 'planet-view', selectedSystem: sys, selectedPlanet: planet }));
         } else {
           engine.showGalaxyScene();
         }
@@ -2483,8 +2511,20 @@ export function App() {
       star: evacuationTarget.system.star,
     });
 
-    // Immediate sync on critical event (colony founded)
-    setTimeout(() => syncGameStateRef.current(), 100);
+    // Critical sync: directly send the empty research state to server.
+    // Can't rely on setTimeout + syncGameStateRef because the React state update
+    // (setResearchState) may not be reflected in buildGameStateSnapshot() yet.
+    const pid = playerId.current;
+    if (pid) {
+      const directSnapshot: Partial<SyncedGameState> = {
+        research_state: emptyResearch,
+        exodus_phase: false,
+      };
+      updatePlayer(pid, { game_state: { ...gameStateRef.current, ...directSnapshot } as unknown as Record<string, unknown> })
+        .catch((err) => console.error('Post-evacuation sync failed:', err));
+    }
+    // Also schedule normal sync for the rest of the state
+    setTimeout(() => syncGameStateRef.current(), 500);
   }, [evacuationTarget, homeInfo]);
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
