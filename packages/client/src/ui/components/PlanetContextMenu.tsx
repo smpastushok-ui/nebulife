@@ -95,6 +95,52 @@ function MenuItem({ label, onClick, color, icon, right, disabled, title }: {
   );
 }
 
+function TooltipHint({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: 'relative', marginRight: 10, flexShrink: 0 }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setShow(!show); }}
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        style={{
+          width: 18, height: 18, borderRadius: '50%',
+          background: 'none',
+          border: '1px solid #445566',
+          color: '#556677',
+          fontFamily: 'monospace',
+          fontSize: 10,
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 0,
+        }}
+      >
+        ?
+      </button>
+      {show && (
+        <div style={{
+          position: 'absolute',
+          right: 0, top: 22,
+          width: 200,
+          padding: '8px 10px',
+          background: 'rgba(8,12,22,0.97)',
+          border: '1px solid #334455',
+          borderRadius: 4,
+          fontSize: 9,
+          color: '#8899aa',
+          lineHeight: 1.5,
+          fontFamily: 'monospace',
+          zIndex: 30,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+          pointerEvents: 'none',
+        }}>
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PlanetGlobe({ planet, star }: { planet: Planet; star: Star }) {
   const visuals = useMemo(() => derivePlanetVisuals(planet, star), [planet, star]);
 
@@ -402,19 +448,23 @@ export function PlanetContextMenu({
               </div>
               {/* Telescope photo */}
               {onTelescopePhoto && !isPhotoGenerating && (
-                <MenuItem
-                  icon="◉"
-                  label="Супертелескоп"
-                  onClick={canAffordPhoto ? onTelescopePhoto : undefined}
-                  color={canAffordPhoto ? '#ddaa44' : '#445566'}
-                  disabled={!canAffordPhoto}
-                  right={<span style={{ color: canAffordPhoto ? '#ddaa44' : '#334455', fontWeight: 'bold' }}>{PHOTO_COST} ⚛</span>}
-                />
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <MenuItem
+                      icon="◉"
+                      label={`Фото планети — ${PHOTO_COST} ⚛`}
+                      onClick={canAffordPhoto ? onTelescopePhoto : undefined}
+                      color={canAffordPhoto ? '#ddaa44' : '#445566'}
+                      disabled={!canAffordPhoto}
+                    />
+                  </div>
+                  <TooltipHint text="Оренда потужностей супертелескопа, який зробить неперевершене унікальне зображення обраної планети. Таке зображення буде лише у вас." />
+                </div>
               )}
               {onTelescopePhoto && isPhotoGenerating && (
                 <MenuItem
                   icon="◉"
-                  label="Супертелескоп"
+                  label="Фото планети"
                   disabled
                   right={<span style={{ color: '#4488aa', fontSize: 9 }}>генерується...</span>}
                 />

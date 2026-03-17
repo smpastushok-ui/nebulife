@@ -364,7 +364,7 @@ function TelescopeButton({ onClick, generating }: { onClick: () => void; generat
         <line x1="2" y1="11" x2="0.5" y2="15" />
         <line x1="2" y1="11" x2="4" y2="15" />
       </svg>
-      <span>{generating ? 'Обробка знімку...' : 'Фото 30⚛'}</span>
+      <span>{generating ? 'Обробка панорами...' : 'Панорама 30⚛'}</span>
     </button>
   );
 }

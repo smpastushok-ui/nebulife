@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 // ---------------------------------------------------------------------------
 // TelescopeOverlay — cinematic full-screen overlay for AI photo generation
 // Phases: init (viewfinder) -> capture (waiting loop) -> reveal (photo + actions)
+// Two modes: "planet" (crosshair viewfinder) and "system" (letterbox panorama)
 // ---------------------------------------------------------------------------
 
 type TelescopePhase = 'init' | 'capture' | 'reveal';
@@ -17,12 +18,22 @@ interface TelescopeOverlayProps {
   onClose: () => void;
 }
 
-const STATUS_MESSAGES = [
+// Planet-mode status messages
+const PLANET_STATUS_MESSAGES = [
   'КАЛІБРУВАННЯ ОПТИКИ...',
   'ЗБІР ФОТОНІВ...',
   'СТАБІЛІЗАЦІЯ МАТРИЦІ...',
   'КВАНТОВА ОБРОБКА ДАНИХ...',
   'АНАЛІЗ СПЕКТРАЛЬНИХ ЛІНІЙ...',
+];
+
+// System panorama status messages
+const SYSTEM_STATUS_MESSAGES = [
+  'АНАЛІЗ ОРБІТАЛЬНИХ ТРАЄКТОРІЙ...',
+  'СИНХРОНІЗАЦІЯ ПАНОРАМНОЇ МАТРИЦІ...',
+  'ЕКСТРАПОЛЯЦІЯ ДАЛЬНЬОГО СВІТЛА...',
+  'КВАНТОВА ОБРОБКА ДАНИХ...',
+  'КОМПІЛЯЦІЯ ПАНОРАМИ...',
 ];
 
 // Noise grain SVG for reveal phase
@@ -37,6 +48,9 @@ export function TelescopeOverlay({
   onShare,
   onClose,
 }: TelescopeOverlayProps) {
+  const isSystem = targetType === 'system';
+  const statusMessages = isSystem ? SYSTEM_STATUS_MESSAGES : PLANET_STATUS_MESSAGES;
+
   // -- Animation state --
   const [scanY, setScanY] = useState(0);
   const [exposureTime, setExposureTime] = useState(0);
@@ -72,39 +86,36 @@ export function TelescopeOverlay({
     if (phase !== 'capture') return;
     startTimeRef.current = performance.now();
 
+    const sweepDuration = isSystem ? 6000 : 3000; // System: slower 6s sweep
+
     const animate = () => {
       const elapsed = performance.now() - startTimeRef.current;
-      // Scan line: 3s per sweep
-      setScanY(((elapsed % 3000) / 3000) * 100);
-      // Exposure timer
+      setScanY(((elapsed % sweepDuration) / sweepDuration) * 100);
       setExposureTime(elapsed / 1000);
       rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
 
     return () => cancelAnimationFrame(rafRef.current);
-  }, [phase]);
+  }, [phase, isSystem]);
 
   // Status message rotation
   useEffect(() => {
     if (phase !== 'capture') return;
     const interval = setInterval(() => {
-      setStatusIdx(prev => (prev + 1) % STATUS_MESSAGES.length);
+      setStatusIdx(prev => (prev + 1) % statusMessages.length);
     }, 4500);
     return () => clearInterval(interval);
-  }, [phase]);
+  }, [phase, statusMessages.length]);
 
   // Reveal phase: flash + grain fade
   useEffect(() => {
     if (phase === 'reveal' && prevPhaseRef.current !== 'reveal') {
-      // Flash
       setShowFlash(true);
       setGrainOpacity(0.4);
       setShowActions(false);
 
-      // Flash fades after 300ms
       const flashTimer = setTimeout(() => setShowFlash(false), 300);
-      // Grain fades over 2s
       const grainStart = performance.now();
       const fadeGrain = () => {
         const elapsed = performance.now() - grainStart;
@@ -113,7 +124,6 @@ export function TelescopeOverlay({
         if (t < 1) requestAnimationFrame(fadeGrain);
       };
       setTimeout(() => requestAnimationFrame(fadeGrain), 400);
-      // Show action buttons after 0.8s
       const actionsTimer = setTimeout(() => setShowActions(true), 800);
 
       return () => {
@@ -151,7 +161,11 @@ export function TelescopeOverlay({
     }
   }, [phase, onClose]);
 
-  const targetLabel = targetType === 'system' ? 'Зоряна система' : 'Планета';
+  const targetLabel = isSystem ? 'Зоряна система' : 'Планета';
+
+  // Letterbox bar height for system mode (creates 16:9 cinematic frame)
+  // If viewport is 16:9, bars are minimal; if taller, bars grow
+  const letterboxH = isSystem ? 'max(0px, calc((100vh - 100vw * 9 / 16) / 2))' : '0px';
 
   return (
     <div
@@ -168,8 +182,43 @@ export function TelescopeOverlay({
       }}
       onClick={handleBackdropClick}
     >
-      {/* ── PHASE 1 & 2: Viewfinder ── */}
-      {(phase === 'init' || phase === 'capture') && (
+      {/* ── System letterbox bars ── */}
+      {isSystem && (phase === 'init' || phase === 'capture') && (
+        <>
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0,
+            height: letterboxH,
+            background: 'rgba(0, 0, 0, 0.7)',
+            zIndex: 3,
+          }} />
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: letterboxH,
+            background: 'rgba(0, 0, 0, 0.7)',
+            zIndex: 3,
+          }} />
+          {/* Letterbox border lines */}
+          <div style={{
+            position: 'absolute', left: 0, right: 0,
+            top: letterboxH,
+            height: 1,
+            background: '#4488aa',
+            opacity: 0.3,
+            zIndex: 4,
+          }} />
+          <div style={{
+            position: 'absolute', left: 0, right: 0,
+            bottom: letterboxH,
+            height: 1,
+            background: '#4488aa',
+            opacity: 0.3,
+            zIndex: 4,
+          }} />
+        </>
+      )}
+
+      {/* ── PHASE 1 & 2: Planet Viewfinder (crosshair + corners) ── */}
+      {!isSystem && (phase === 'init' || phase === 'capture') && (
         <>
           {/* Corner brackets */}
           {[
@@ -202,17 +251,14 @@ export function TelescopeOverlay({
             position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
             width: 80, height: 80,
           }}>
-            {/* Horizontal line */}
             <div style={{
               position: 'absolute', top: '50%', left: 0, right: 0, height: 1,
               background: '#44ff88', opacity: 0.5,
             }} />
-            {/* Vertical line */}
             <div style={{
               position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1,
               background: '#44ff88', opacity: 0.5,
             }} />
-            {/* Center dot */}
             <div style={{
               position: 'absolute', top: '50%', left: '50%',
               transform: 'translate(-50%, -50%)',
@@ -233,10 +279,59 @@ export function TelescopeOverlay({
         </>
       )}
 
-      {/* ── PHASE 2: Capture loop ── */}
-      {phase === 'capture' && (
+      {/* ── PHASE 1 & 2: System Viewfinder (wide-angle panoramic frame) ── */}
+      {isSystem && (phase === 'init' || phase === 'capture') && (
         <>
-          {/* Scan line */}
+          {/* Wide-angle side brackets */}
+          {[
+            { top: '20%', left: '4%', borderTop: '1px solid #4488aa', borderLeft: '1px solid #4488aa' },
+            { top: '20%', right: '4%', borderTop: '1px solid #4488aa', borderRight: '1px solid #4488aa' },
+            { bottom: '20%', left: '4%', borderBottom: '1px solid #4488aa', borderLeft: '1px solid #4488aa' },
+            { bottom: '20%', right: '4%', borderBottom: '1px solid #4488aa', borderRight: '1px solid #4488aa' },
+          ].map((s, i) => (
+            <div key={i} style={{
+              position: 'absolute', width: 60, height: 24, ...s, opacity: 0.5,
+            }} />
+          ))}
+
+          {/* Horizontal guide lines (orbit lanes) */}
+          {[35, 50, 65].map((pct) => (
+            <div key={pct} style={{
+              position: 'absolute',
+              left: '6%', right: '6%',
+              top: `${pct}%`,
+              height: 1,
+              background: '#4488aa',
+              opacity: 0.08,
+            }} />
+          ))}
+
+          {/* Panorama label top-center */}
+          <div style={{
+            position: 'absolute',
+            top: 'calc(20% - 20px)', left: 0, right: 0,
+            textAlign: 'center', fontSize: 8, color: '#445566',
+            letterSpacing: 3, textTransform: 'uppercase',
+          }}>
+            PANORAMIC CAPTURE / 16:9
+          </div>
+
+          {/* Target name center */}
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center', color: '#667788', fontSize: 11,
+            letterSpacing: 3, textTransform: 'uppercase',
+          }}>
+            {targetLabel}: {targetName}
+          </div>
+        </>
+      )}
+
+      {/* ── PHASE 2: Planet Capture loop ── */}
+      {!isSystem && phase === 'capture' && (
+        <>
+          {/* Thin scan line */}
           <div style={{
             position: 'absolute',
             left: '10%', right: '10%',
@@ -276,12 +371,85 @@ export function TelescopeOverlay({
             letterSpacing: 3, textTransform: 'uppercase',
             opacity: 0.7,
           }}>
-            [ {STATUS_MESSAGES[statusIdx]} ]
+            [ {statusMessages[statusIdx]} ]
           </div>
         </>
       )}
 
-      {/* ── PHASE 3: Reveal ── */}
+      {/* ── PHASE 2: System Capture loop (wide orbit scan) ── */}
+      {isSystem && phase === 'capture' && (
+        <>
+          {/* Wide scan band — heavier, slower */}
+          <div style={{
+            position: 'absolute',
+            left: '4%', right: '4%',
+            top: `${20 + scanY * 0.60}%`,
+            height: 3,
+            background: 'linear-gradient(90deg, transparent 0%, #4488aa 15%, #4488aa 85%, transparent 100%)',
+            opacity: 0.35,
+            boxShadow: '0 0 16px #4488aa55, 0 0 4px #4488aa33',
+          }} />
+          {/* Glow trail behind scan band */}
+          <div style={{
+            position: 'absolute',
+            left: '4%', right: '4%',
+            top: `${20 + scanY * 0.60 - 1.5}%`,
+            height: 20,
+            background: 'linear-gradient(180deg, transparent 0%, #4488aa08 40%, #4488aa12 70%, transparent 100%)',
+            opacity: 0.5,
+          }} />
+
+          {/* Telemetry — top left (within letterbox) */}
+          <div style={{
+            position: 'absolute', top: 20, left: 20,
+            fontSize: 10, color: '#556677', lineHeight: 1.8,
+            zIndex: 5,
+          }}>
+            <div>RA: {tel.raH}h {tel.raM}m {raSec}s</div>
+            <div>DEC: {tel.decDeg > 0 ? '+' : ''}{tel.decDeg} {tel.decMin}' {decSec}"</div>
+            <div style={{ marginTop: 4, fontSize: 8, color: '#445566' }}>
+              FOV: 180.0 x 101.3
+            </div>
+          </div>
+
+          {/* Exposure timer — top right */}
+          <div style={{
+            position: 'absolute', top: 20, right: 20,
+            fontSize: 10, color: '#556677', textAlign: 'right',
+            zIndex: 5,
+          }}>
+            <div style={{ color: '#667788', fontSize: 8, letterSpacing: 1, marginBottom: 4 }}>
+              PANORAMA EXPOSURE
+            </div>
+            <div style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatExposure(exposureTime)}
+            </div>
+          </div>
+
+          {/* Orbit count indicator — bottom left */}
+          <div style={{
+            position: 'absolute', bottom: 20, left: 20,
+            fontSize: 9, color: '#445566', lineHeight: 1.6,
+            zIndex: 5,
+          }}>
+            <div>ORBITS: {Math.floor(exposureTime / 6) + 1}</div>
+            <div>SECTORS: {Math.min(Math.floor(exposureTime * 2), 99)}/99</div>
+          </div>
+
+          {/* Status message — bottom center */}
+          <div style={{
+            position: 'absolute', bottom: '18%', left: 0, right: 0,
+            textAlign: 'center', fontSize: 11, color: '#44ff88',
+            letterSpacing: 3, textTransform: 'uppercase',
+            opacity: 0.7,
+            zIndex: 5,
+          }}>
+            [ {statusMessages[statusIdx]} ]
+          </div>
+        </>
+      )}
+
+      {/* ── PHASE 3: Reveal (same for both types) ── */}
       {phase === 'reveal' && photoUrl && (
         <>
           {/* White flash */}

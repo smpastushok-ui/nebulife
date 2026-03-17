@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { StarSystem } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -81,7 +81,7 @@ const separatorStyle: React.CSSProperties = {
 function MenuItem({ label, onClick, color, disabled }: {
   label: string; onClick: () => void; color?: string; disabled?: boolean;
 }) {
-  const [hover, setHover] = React.useState(false);
+  const [hover, setHover] = useState(false);
   if (disabled) {
     return <div style={disabledItemStyle}>{label}</div>;
   }
@@ -94,6 +94,52 @@ function MenuItem({ label, onClick, color, disabled }: {
     >
       {label}
     </button>
+  );
+}
+
+function TooltipHint({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: 'relative', marginRight: 10, flexShrink: 0 }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setShow(!show); }}
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        style={{
+          width: 18, height: 18, borderRadius: '50%',
+          background: 'none',
+          border: '1px solid #445566',
+          color: '#556677',
+          fontFamily: 'monospace',
+          fontSize: 10,
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 0,
+        }}
+      >
+        ?
+      </button>
+      {show && (
+        <div style={{
+          position: 'absolute',
+          right: 0, top: 22,
+          width: 200,
+          padding: '8px 10px',
+          background: 'rgba(8,12,22,0.97)',
+          border: '1px solid #334455',
+          borderRadius: 4,
+          fontSize: 9,
+          color: '#8899aa',
+          lineHeight: 1.5,
+          fontFamily: 'monospace',
+          zIndex: 30,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+          pointerEvents: 'none',
+        }}>
+          {text}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -155,7 +201,7 @@ export function SystemContextMenu({
 
   const canMission = hasPhoto && !missionGenerating && !missionComplete;
 
-  const PHOTO_COST = 10;
+  const PHOTO_COST = 30;
 
   const starTag = `${system.star.spectralClass}${system.star.subType}`;
   const planetsCount = system.planets.length;
@@ -213,18 +259,23 @@ export function SystemContextMenu({
 
             {/* Telescope photo */}
             {canPhoto && (
-              <MenuItem
-                label={`Супертелескоп — ${PHOTO_COST} ⚛`}
-                onClick={onTelescopePhoto}
-                color={quarks >= PHOTO_COST ? '#ddaa44' : '#445566'}
-                disabled={quarks < PHOTO_COST}
-              />
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ flex: 1 }}>
+                  <MenuItem
+                    label={`Панорама системи — ${PHOTO_COST} ⚛`}
+                    onClick={onTelescopePhoto}
+                    color={quarks >= PHOTO_COST ? '#ddaa44' : '#445566'}
+                    disabled={quarks < PHOTO_COST}
+                  />
+                </div>
+                <TooltipHint text="Оренда потужностей супертелескопа, який зробить неперевершену унікальну панораму обраної зоряної системи. Таке зображення буде лише у вас." />
+              </div>
             )}
             {photoGenerating && (
-              <MenuItem label="Обробка знімку..." onClick={() => {}} disabled />
+              <MenuItem label="Обробка панорами..." onClick={() => {}} disabled />
             )}
             {hasPhoto && (
-              <MenuItem label="Дивитися фото системи" onClick={onViewPhoto} color="#7bb8ff" />
+              <MenuItem label="Дивитися панораму системи" onClick={onViewPhoto} color="#7bb8ff" />
             )}
 
             {/* Probe — available from level 50+, costs data research */}
