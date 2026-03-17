@@ -1024,31 +1024,34 @@ export function App() {
       try { localStorage.setItem('nebulife_player_level', String(gs.level ?? levelFromXP(gs.xp))); } catch { /* ignore */ }
     }
 
-    // Research — only hydrate from server if server data is newer than local data.
-    // After evacuation, local state has slots=[] but server might still have old 3-slot state
-    // if the critical sync didn't complete before page reload.
+    // Research — hydrate from server, but NEVER overwrite a local empty-slots state.
+    // After evacuation, local slots=[] is the ground truth. The server may still have
+    // stale 3-slot data if the sync didn't complete before page reload / beforeunload.
     if (gs.research_state && typeof gs.research_state === 'object') {
       const rs = gs.research_state as ResearchState;
       if (Array.isArray(rs.slots) && typeof rs.systems === 'object') {
-        // Safety check: don't restore slots from server if local state was explicitly emptied
-        // (e.g. after evacuation). Compare: if local has 0 slots but server has >0,
-        // trust local only when local is more recent (synced_at comparison).
+        // If local has 0 slots (post-evacuation reset) but server has >0 — trust local.
+        // An empty slots array is always an intentional action (evacuation) that must win.
         let localResearch: ResearchState | null = null;
         try {
           const raw = localStorage.getItem('nebulife_research_state');
           if (raw) localResearch = JSON.parse(raw);
         } catch { /* ignore */ }
 
-        const serverSyncedAt = typeof gs.synced_at === 'number' ? gs.synced_at : 0;
-        const localIsNewer = localResearch
+        const localHasEmptySlots = localResearch
           && Array.isArray(localResearch.slots)
-          && localResearch.slots.length === 0
-          && rs.slots.length > 0
-          && serverSyncedAt > 0;
+          && localResearch.slots.length === 0;
+        const serverHasSlots = rs.slots.length > 0;
 
-        if (localIsNewer) {
-          // Local state says 0 slots (post-evacuation) but server has old slots — keep local
-          console.log('[Hydrate] Skipping server research_state (local has 0 slots, server has', rs.slots.length, ')');
+        if (localHasEmptySlots && serverHasSlots) {
+          // Post-evacuation: local was explicitly emptied, server is stale — keep local
+          // Also push the correct empty state to server to fix the stale data
+          const pid = playerId.current;
+          if (pid) {
+            updatePlayer(pid, {
+              game_state: { ...gs, research_state: localResearch } as unknown as Record<string, unknown>,
+            }).catch(() => {});
+          }
         } else {
           setResearchState(rs);
           try { localStorage.setItem('nebulife_research_state', JSON.stringify(rs)); } catch { /* ignore */ }
@@ -2514,13 +2517,13 @@ export function App() {
     // Critical sync: directly send the empty research state to server.
     // Can't rely on setTimeout + syncGameStateRef because the React state update
     // (setResearchState) may not be reflected in buildGameStateSnapshot() yet.
+    // Also update gameStateRef so beforeunload handler doesn't re-send stale 3-slot data.
     const pid = playerId.current;
     if (pid) {
-      const directSnapshot: Partial<SyncedGameState> = {
-        research_state: emptyResearch,
-        exodus_phase: false,
-      };
-      updatePlayer(pid, { game_state: { ...gameStateRef.current, ...directSnapshot } as unknown as Record<string, unknown> })
+      const directPatch = { research_state: emptyResearch, exodus_phase: false };
+      const merged = { ...gameStateRef.current, ...directPatch };
+      gameStateRef.current = merged as Record<string, unknown>;
+      updatePlayer(pid, { game_state: merged as unknown as Record<string, unknown> })
         .catch((err) => console.error('Post-evacuation sync failed:', err));
     }
     // Also schedule normal sync for the rest of the state
@@ -3589,7 +3592,10 @@ export function App() {
       {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && isCurrentSystemFullyAccessible && (
         <PlanetContextMenu
           planet={state.selectedPlanet}
+          star={state.selectedSystem!.star}
           screenPosition={state.planetClickPos}
+          quarks={quarks}
+          playerLevel={playerLevel}
           onViewPlanet={handleViewPlanet}
           onShowCharacteristics={handleShowCharacteristics}
           onClose={handleClosePlanetMenu}
