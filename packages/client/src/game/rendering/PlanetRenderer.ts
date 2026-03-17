@@ -8,8 +8,8 @@ export const Y_COMPRESS = 0.55;
 /** Get planet visual size (screen pixels) — log-scale for proportional spread */
 export function getPlanetSize(planet: Planet): number {
   const minSize = 6;
-  const size = minSize + Math.log2(1 + planet.radiusEarth) * 12;
-  return Math.max(minSize, Math.min(40, size));
+  const size = minSize + Math.log2(1 + planet.radiusEarth) * 10;
+  return Math.max(minSize, Math.min(32, size));
 }
 
 /** Darken a color by a factor (0..1, lower = darker) */

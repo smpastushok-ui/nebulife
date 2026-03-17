@@ -22,10 +22,12 @@ function generateOrbitalSlots(rng: SeededRNG, count: number, starRadiusSolar: nu
   }
 
   // Sort and ensure minimum separation (proportional to distance for realistic spacing)
+  // Real planetary systems have gaps scaling with orbital distance (Hill sphere ~ a * (M_p/3M_*)^(1/3))
   slots.sort((a, b) => a - b);
   for (let i = 1; i < slots.length; i++) {
-    // Minimum gap scales with distance: at least 15% of the inner orbit or 0.08 AU (whichever is larger)
-    const minGap = Math.max(0.08, slots[i - 1] * 0.15);
+    // Minimum gap: 20% of inner orbit or 0.15 AU, whichever is larger.
+    // Prevents unrealistic crowding of neighboring orbits, especially for outer planets.
+    const minGap = Math.max(0.15, slots[i - 1] * 0.20);
     if (slots[i] - slots[i - 1] < minGap) {
       slots[i] = slots[i - 1] + minGap + rng.nextFloat(0, minGap * 0.3);
     }
