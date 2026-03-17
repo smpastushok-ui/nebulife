@@ -296,10 +296,15 @@ export function PlanetContextMenu({
               )}
               <div style={{ height: 1, background: 'rgba(50,65,85,0.4)', margin: '4px 0' }} />
               <MenuItem icon="☰" label="Характеристики" onClick={onShowCharacteristics} right="›" />
-              {playerLevel < 50 ? (
-                <MenuItem icon="⊙" label="Відправити зонд" disabled title={`Доступно з 50+ рівня (зараз: ${playerLevel})`} right="50+" />
+              {playerLevel < 30 ? (
+                <MenuItem icon="⊙" label="Відправити зонд" disabled title={`Доступно з 30+ рівня (зараз: ${playerLevel})`} right="30+" />
               ) : (
                 <MenuItem icon="⊙" label="Відправити зонд" disabled right="скоро" />
+              )}
+              {playerLevel < 40 ? (
+                <MenuItem icon="▶" label="Місія" disabled title={`Доступно з 40+ рівня (зараз: ${playerLevel})`} right="40+" />
+              ) : (
+                <MenuItem icon="▶" label="Місія" disabled right="скоро" />
               )}
             </>
           )}
@@ -414,13 +419,7 @@ export function PlanetContextMenu({
                   right={<span style={{ color: '#4488aa', fontSize: 9 }}>генерується...</span>}
                 />
               )}
-              {/* Future: missions, probes, etc. */}
-              <MenuItem
-                icon="▶"
-                label="Місія (скоро)"
-                disabled
-                right={<span style={{ color: '#302818' }}>30 ⚛</span>}
-              />
+              {/* Future premium tools will go here */}
             </div>
           )}
         </div>
