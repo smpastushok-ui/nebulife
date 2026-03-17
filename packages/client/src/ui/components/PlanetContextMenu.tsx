@@ -69,6 +69,7 @@ export function PlanetContextMenu({
   onSurface,
   isDestroyed,
   surfaceDisabledReason,
+  accessDisabledReason,
 }: {
   planet: Planet;
   screenPosition: { x: number; y: number };
@@ -78,6 +79,7 @@ export function PlanetContextMenu({
   onSurface?: () => void;
   isDestroyed?: boolean;
   surfaceDisabledReason?: string;
+  accessDisabledReason?: string;
 }) {
   // Destroyed planets have no interactive menu
   if (isDestroyed) {
@@ -116,7 +118,14 @@ export function PlanetContextMenu({
             <span style={{ color: '#44ff88', marginLeft: 8, fontSize: 10 }}>HOME</span>
           )}
         </div>
-        <MenuItem label="Екзосфера" onClick={onViewPlanet} />
+        {!accessDisabledReason ? (
+          <MenuItem label="Екзосфера" onClick={onViewPlanet} />
+        ) : (
+          <div style={{ ...itemStyle, cursor: 'default', color: '#556677', fontSize: 11 }} title={accessDisabledReason}>
+            Екзосфера
+            <span style={{ marginLeft: 6, fontSize: 9, color: '#445566' }}>{accessDisabledReason}</span>
+          </div>
+        )}
         {showSurface && !surfaceDisabledReason && (
           <MenuItem label="На поверхню" onClick={onSurface} color="#88ccaa" />
         )}

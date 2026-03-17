@@ -1747,8 +1747,21 @@ export function App() {
     setCompletedModalQueue(q => q.slice(1));
   }, [completedModal, handleEnterSystem]);
 
+  // ── Planet access check (exosphere + surface) ─────────────────────────
+  const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string } => {
+    // Always allow home planet
+    if (planet.isHomePlanet) return { allowed: true };
+    // Allow colony planet (after evacuation)
+    if (homeInfo && planet.id === homeInfo.planet.id) return { allowed: true };
+    // Level 50+ can explore other planets
+    if (playerLevel >= 50) return { allowed: true };
+    return { allowed: false, reason: `Потрiбен рiвень 50+ (зараз: ${playerLevel})` };
+  }, [homeInfo, playerLevel]);
+
   const handleViewPlanet = useCallback(() => {
     if (state.selectedPlanet && state.selectedSystem) {
+      const check = canLandOnPlanet(state.selectedPlanet);
+      if (!check.allowed) return;
       const planet = state.selectedPlanet; // capture before engine fires onSceneChange
       const system = state.selectedSystem;
       engineRef.current?.showPlanetViewScene(system, planet, true);
@@ -1760,7 +1773,7 @@ export function App() {
         showPlanetInfo: false,
       }));
     }
-  }, [state.selectedPlanet, state.selectedSystem]);
+  }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet]);
 
   const handleShowCharacteristics = useCallback(() => {
     setState((prev) => ({
@@ -2589,16 +2602,6 @@ export function App() {
   }, [state.scene, surfaceTarget, state.selectedSystem]);
 
   // ── Surface view handlers ─────────────────────────────────────────────
-  const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string } => {
-    // Always allow home planet
-    if (planet.isHomePlanet) return { allowed: true };
-    // Allow colony planet (after evacuation)
-    if (homeInfo && planet.id === homeInfo.planet.id) return { allowed: true };
-    // Level 50+ can explore other surfaces
-    if (playerLevel >= 50) return { allowed: true };
-    return { allowed: false, reason: `Потрiбен рiвень 50+ (зараз: ${playerLevel})` };
-  }, [homeInfo, playerLevel]);
-
   const handleOpenSurface = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
     const check = canLandOnPlanet(state.selectedPlanet);
@@ -3279,7 +3282,7 @@ export function App() {
           backLabel="Система"
           showZoom
           hidden={hideLeftPanel}
-          extraButtons={state.selectedPlanet && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'dwarf') ? [
+          extraButtons={state.selectedPlanet && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'dwarf') && canLandOnPlanet(state.selectedPlanet).allowed ? [
             {
               title: 'На поверхню',
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
@@ -3461,6 +3464,7 @@ export function App() {
           onSurface={handleOpenSurface}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
+          accessDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (

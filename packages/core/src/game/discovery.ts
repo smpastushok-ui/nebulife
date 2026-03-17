@@ -86,25 +86,43 @@ export interface Discovery {
 // ---------------------------------------------------------------------------
 
 /**
+ * Per-ring discovery chance ranges.
+ * min = standard chance (after early game), max = peak early-game chance.
+ * Rings 3+ drop sharply to create meaningful progression.
+ */
+const RING_CHANCE: { min: number; max: number }[] = [
+  { min: 0.05, max: 0.60 },  // Ring 1: 5–60%
+  { min: 0.02, max: 0.15 },  // Ring 2: 2–15%
+  { min: 0.01, max: 0.05 },  // Ring 3: 1–5%
+  { min: 0.01, max: 0.02 },  // Ring 4+: 1–2%
+];
+
+/**
  * Discovery chance per research session.
  *
- * Early game (first 7 sessions, < 2 discoveries): 25% base — ensures
- * the player gets 2 discoveries quickly for engagement.
+ * Early game (first 7 sessions, < 2 discoveries): interpolates from max
+ * down to min over those sessions — ensures quick engagement.
  *
- * Standard (after that): 3% base — rare, exciting events.
+ * Standard (after that): uses min chance for the ring.
  *
- * Ring penalty: chance halved per ring from ring 2+.
+ * Rings 3+ have sharply reduced chances to create difficulty curve.
  */
 export function getDiscoveryChance(
   totalCompletedSessions: number = 0,
   totalDiscoveries: number = 0,
   ringIndex: number = 1,
 ): number {
-  // Early game: boosted chance so player gets 2 discoveries within first 7 sessions
+  const idx = Math.min(Math.max(ringIndex - 1, 0), RING_CHANCE.length - 1);
+  const { min, max } = RING_CHANCE[idx];
+
+  // Early game: linearly decay from max → min over 7 sessions
   const isEarlyGame = totalCompletedSessions <= 7 && totalDiscoveries < 2;
-  const base = isEarlyGame ? 1 / 4 : 3 / 100; // 25% early, 3% standard
-  const ringPenalty = Math.max(0, ringIndex - 1);
-  return base / Math.pow(2, ringPenalty);
+  if (isEarlyGame) {
+    const t = totalCompletedSessions / 7; // 0 → 1
+    return min + (max - min) * (1 - t);
+  }
+
+  return min;
 }
 
 /**
