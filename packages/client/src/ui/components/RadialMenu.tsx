@@ -21,6 +21,7 @@ interface ButtonDef {
   color: string;
   action: string;
   dim?: boolean;
+  isPremium?: boolean;
 }
 
 interface ArcPos {
@@ -58,14 +59,10 @@ function buildButtons(props: {
   quarks: number;
   playerLevel: number;
 }): ButtonDef[] {
-  const { isHome, isResearched, systemPhoto, activeMission, quarks } = props;
+  const { isHome, isResearched, systemPhoto, quarks } = props;
   const canEnter = isHome || isResearched;
   const hasPhoto = systemPhoto?.status === 'succeed' && !!systemPhoto.photoUrl;
   const photoGenerating = systemPhoto?.status === 'generating';
-  const missionGenerating = activeMission?.status === 'generating';
-  const missionComplete = activeMission?.status === 'succeed' && !!activeMission.videoUrl;
-  const canPhoto = isResearched && !hasPhoto && !photoGenerating;
-  const canMission = hasPhoto && !missionGenerating && !missionComplete;
 
   const list: ButtonDef[] = [];
 
@@ -84,45 +81,32 @@ function buildButtons(props: {
     list.push({ icon: '\u25CE', tip: 'Дослідити',     color: '#4488aa', action: 'research' });
   }
 
-  // Telescope photo
-  if (canPhoto) {
-    list.push({
-      icon: '\u2B21',
-      tip: `Панорама \u00B7 30\u269B`,
-      color: quarks >= 30 ? '#cc9933' : '#445566',
-      action: quarks >= 30 ? 'telescope' : 'none',
-      dim: quarks < 30,
-    });
-  }
-  if (photoGenerating) {
-    list.push({ icon: '\u25C9', tip: 'Обробка...',    color: '#334455', action: 'none', dim: true });
-  }
-  if (hasPhoto) {
-    list.push({ icon: '\u25C9', tip: 'Дивитися панораму', color: '#7bb8ff', action: 'viewPhoto' });
-  }
+  // Premium button — consolidates all paid tools (panorama active; missions in PremiumStubs.ts)
+  if (isResearched) {
+    let premAction = 'none';
+    let premTip = `Панорама \u00B7 30\u269B`;
+    let premDim = false;
 
-  // Missions
-  if (canMission) {
+    if (hasPhoto) {
+      premAction = 'viewPhoto';
+      premTip = 'Дивитися панораму';
+    } else if (photoGenerating) {
+      premAction = 'none';
+      premTip = 'Обробка...';
+      premDim = true;
+    } else {
+      premAction = quarks >= 30 ? 'telescope' : 'none';
+      premDim = quarks < 30;
+    }
+
     list.push({
-      icon: '\u25B8',
-      tip: `Місія 5с \u00B7 30\u269B`,
-      color: quarks >= 30 ? '#ddaa44' : '#445566',
-      action: quarks >= 30 ? 'missionShort' : 'none',
-      dim: quarks < 30,
+      icon: '\u269B',   // ⚛
+      tip: premTip,
+      color: '#7bb8ff', // blue quark symbol
+      action: premAction,
+      dim: premDim,
+      isPremium: true,
     });
-    list.push({
-      icon: '\u25B8\u25B8',
-      tip: `Місія 10с \u00B7 60\u269B`,
-      color: quarks >= 60 ? '#ddaa44' : '#445566',
-      action: quarks >= 60 ? 'missionLong' : 'none',
-      dim: quarks < 60,
-    });
-  }
-  if (missionGenerating) {
-    list.push({ icon: '\u25C8', tip: 'Місія в процесі',  color: '#334455', action: 'none', dim: true });
-  }
-  if (missionComplete) {
-    list.push({ icon: '\u25C8', tip: 'Дивитися відео',  color: '#7bb8ff', action: 'viewVideo' });
   }
 
   return list;
@@ -320,8 +304,15 @@ export function RadialMenu({
                 width: BTN_SIZE,
                 height: BTN_SIZE,
                 borderRadius: '50%',
-                background: 'rgba(8,16,28,0.95)',
-                border: '1px solid #1a2d42',
+                background: def.isPremium
+                  ? (def.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)')
+                  : 'rgba(8,16,28,0.95)',
+                border: def.isPremium
+                  ? `1px solid ${def.dim ? '#4a3810' : '#ddaa44'}`
+                  : '1px solid #1a2d42',
+                boxShadow: def.isPremium && !def.dim
+                  ? '0 0 10px rgba(221,170,68,0.25), inset 0 0 8px rgba(221,170,68,0.08)'
+                  : 'none',
                 color: def.color,
                 fontFamily: 'monospace',
                 fontSize: 17,
@@ -338,24 +329,33 @@ export function RadialMenu({
                 left: initPositions?.[i]?.left ?? -9999,
                 top: initPositions?.[i]?.top ?? -9999,
               }}
+              data-premium={def.isPremium ? '1' : undefined}
               onMouseEnter={(e) => {
+                const btn = e.currentTarget as HTMLButtonElement;
+                const isPrem = btn.dataset.premium === '1';
                 if (!def.dim) {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'rgba(30,55,85,0.72)';
-                  (e.currentTarget as HTMLButtonElement).style.color = '#ccddef';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(68,136,170,0.45)';
-                  (e.currentTarget as HTMLButtonElement).style.zIndex = '50';
+                  btn.style.background = isPrem ? 'rgba(80,52,10,0.85)' : 'rgba(30,55,85,0.72)';
+                  btn.style.color = isPrem ? '#ffe0a0' : '#ccddef';
+                  btn.style.boxShadow = isPrem
+                    ? '0 0 18px rgba(221,170,68,0.55)'
+                    : '0 0 12px rgba(68,136,170,0.45)';
+                  btn.style.zIndex = '50';
                 }
-                // Show tooltip
-                const tip = e.currentTarget.querySelector('[data-tip]') as HTMLElement | null;
+                const tip = btn.querySelector('[data-tip]') as HTMLElement | null;
                 if (tip) tip.style.opacity = '1';
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(8,16,28,0.95)';
-                (e.currentTarget as HTMLButtonElement).style.color = def.color;
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
-                (e.currentTarget as HTMLButtonElement).style.zIndex = '25';
-                // Hide tooltip
-                const tip = e.currentTarget.querySelector('[data-tip]') as HTMLElement | null;
+                const btn = e.currentTarget as HTMLButtonElement;
+                const isPrem = btn.dataset.premium === '1';
+                btn.style.background = isPrem
+                  ? (def.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)')
+                  : 'rgba(8,16,28,0.95)';
+                btn.style.color = def.color;
+                btn.style.boxShadow = isPrem && !def.dim
+                  ? '0 0 10px rgba(221,170,68,0.25), inset 0 0 8px rgba(221,170,68,0.08)'
+                  : 'none';
+                btn.style.zIndex = '25';
+                const tip = btn.querySelector('[data-tip]') as HTMLElement | null;
                 if (tip) tip.style.opacity = '0';
               }}
             >
