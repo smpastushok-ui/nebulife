@@ -3065,11 +3065,8 @@ export function App() {
   // Determine which panel to show for the selected system
   // (panels open via context menu actions, not directly from click)
   const selectedSystem = state.selectedSystem;
-  const showResearchPanel = selectedSystem
-    && state.scene === 'galaxy'
-    && !showSystemMenu
-    && selectedSystem.ownerPlayerId === null
-    && !isSystemFullyResearched(researchState, selectedSystem.id);
+  // ResearchPanel no longer auto-opens on star click — research triggered directly via radial menu
+  const showResearchPanel = false;
 
   const showSystemInfoPanel = selectedSystem
     && state.scene === 'galaxy'
@@ -3741,17 +3738,7 @@ export function App() {
         <FloatingInfoButton onClick={handlePlanetInfoFromButton} />
       )}
 
-      {showResearchPanel && (
-        <ResearchPanel
-          system={selectedSystem}
-          researchState={researchState}
-          allSystems={engineRef.current?.getAllSystems() ?? []}
-          activeSlotTimerText={activeSlotTimer}
-          researchData={researchData}
-          onStartResearch={handleStartResearch}
-          onClose={() => { setState((prev) => ({ ...prev, selectedSystem: null })); engineRef.current?.unfocusSystem(); }}
-        />
-      )}
+      {/* ResearchPanel in galaxy view removed — research handled by radial menu */}
       {/* Research panel on system scene */}
       {showSystemResearch && state.scene === 'system' && state.selectedSystem && (
         <ResearchPanel
