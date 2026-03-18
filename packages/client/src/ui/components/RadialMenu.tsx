@@ -158,12 +158,15 @@ export function RadialMenu({
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const rafRef = useRef<number>(0);
   const [revealed, setRevealed] = useState<boolean[]>([]);
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  const premSubRef = useRef<HTMLDivElement | null>(null);
 
   // Build button definitions
   const buttons = useMemo(
     () => buildButtons({ isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel }),
     [isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel],
   );
+  const premBtnIdx = useMemo(() => buttons.findIndex(b => b.isPremium), [buttons]);
 
   // Action dispatch
   const handleAction = useCallback((action: string) => {
@@ -214,6 +217,13 @@ export function RadialMenu({
               btn.style.top  = positions[i].top + 'px';
             }
           });
+          if (premSubRef.current && premBtnIdx >= 0 && positions[premBtnIdx]) {
+            const pp = positions[premBtnIdx];
+            premSubRef.current.style.top = pp.top + 'px';
+            premSubRef.current.style.left = pp.cosA < -0.15
+              ? (pp.left - 8 - 155) + 'px'
+              : (pp.left + BTN_SIZE + 8) + 'px';
+          }
         }
         if (chipRef.current) {
           chipRef.current.style.left = pos.x + 'px';
@@ -290,6 +300,8 @@ export function RadialMenu({
         {buttons.map((def, i) => {
           const isLeft = initPositions ? initPositions[i].cosA < -0.15 : false;
           const isOpen = revealed[i] ?? false;
+          const isCollapsed = premiumOpen && !def.isPremium;
+          const isActivePremium = def.isPremium && premiumOpen;
 
           return (
             <button
@@ -297,22 +309,32 @@ export function RadialMenu({
               ref={(el) => { btnRefs.current[i] = el; }}
               onClick={(e) => {
                 e.stopPropagation();
-                if (!def.dim) handleAction(def.action);
+                if (def.isPremium) {
+                  setPremiumOpen(prev => !prev);
+                } else if (!def.dim) {
+                  handleAction(def.action);
+                }
               }}
               style={{
                 position: 'fixed',
                 width: BTN_SIZE,
                 height: BTN_SIZE,
                 borderRadius: '50%',
-                background: def.isPremium
-                  ? (def.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)')
-                  : 'rgba(8,16,28,0.95)',
-                border: def.isPremium
-                  ? `1px solid ${def.dim ? '#4a3810' : '#ddaa44'}`
-                  : '1px solid #1a2d42',
-                boxShadow: def.isPremium && !def.dim
-                  ? '0 0 10px rgba(221,170,68,0.25), inset 0 0 8px rgba(221,170,68,0.08)'
-                  : 'none',
+                background: isActivePremium
+                  ? 'rgba(80,52,10,0.97)'
+                  : def.isPremium
+                    ? (def.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)')
+                    : 'rgba(8,16,28,0.95)',
+                border: isActivePremium
+                  ? '1px solid #ffcc55'
+                  : def.isPremium
+                    ? `1px solid ${def.dim ? '#4a3810' : '#ddaa44'}`
+                    : '1px solid #1a2d42',
+                boxShadow: isActivePremium
+                  ? '0 0 20px rgba(221,170,68,0.6), inset 0 0 10px rgba(221,170,68,0.15)'
+                  : def.isPremium && !def.dim
+                    ? '0 0 10px rgba(221,170,68,0.25), inset 0 0 8px rgba(221,170,68,0.08)'
+                    : 'none',
                 color: def.color,
                 fontFamily: 'monospace',
                 fontSize: 17,
@@ -322,15 +344,18 @@ export function RadialMenu({
                 justifyContent: 'center',
                 padding: 0,
                 zIndex: 25,
-                pointerEvents: isOpen ? 'auto' : 'none',
-                opacity: isOpen ? 1 : 0,
-                transform: isOpen ? 'scale(1)' : 'scale(0)',
-                transition: `opacity 0.15s, transform 0.22s cubic-bezier(.34,1.56,.64,1)`,
+                pointerEvents: isCollapsed ? 'none' : (isOpen ? 'auto' : 'none'),
+                opacity: isCollapsed ? 0 : (isOpen ? 1 : 0),
+                transform: isCollapsed ? 'scale(0)' : (isOpen ? 'scale(1)' : 'scale(0)'),
+                transition: isCollapsed
+                  ? 'opacity 0.14s ease-in, transform 0.16s ease-in'
+                  : 'opacity 0.15s, transform 0.22s cubic-bezier(.34,1.56,.64,1)',
                 left: initPositions?.[i]?.left ?? -9999,
                 top: initPositions?.[i]?.top ?? -9999,
               }}
               data-premium={def.isPremium ? '1' : undefined}
               onMouseEnter={(e) => {
+                if (isCollapsed) return;
                 const btn = e.currentTarget as HTMLButtonElement;
                 const isPrem = btn.dataset.premium === '1';
                 if (!def.dim) {
@@ -341,55 +366,124 @@ export function RadialMenu({
                     : '0 0 12px rgba(68,136,170,0.45)';
                   btn.style.zIndex = '50';
                 }
-                const tip = btn.querySelector('[data-tip]') as HTMLElement | null;
-                if (tip) tip.style.opacity = '1';
+                if (!isPrem || !premiumOpen) {
+                  const tip = btn.querySelector('[data-tip]') as HTMLElement | null;
+                  if (tip) tip.style.opacity = '1';
+                }
               }}
               onMouseLeave={(e) => {
                 const btn = e.currentTarget as HTMLButtonElement;
                 const isPrem = btn.dataset.premium === '1';
-                btn.style.background = isPrem
-                  ? (def.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)')
-                  : 'rgba(8,16,28,0.95)';
+                btn.style.background = isActivePremium
+                  ? 'rgba(80,52,10,0.97)'
+                  : isPrem
+                    ? (def.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)')
+                    : 'rgba(8,16,28,0.95)';
                 btn.style.color = def.color;
-                btn.style.boxShadow = isPrem && !def.dim
-                  ? '0 0 10px rgba(221,170,68,0.25), inset 0 0 8px rgba(221,170,68,0.08)'
-                  : 'none';
+                btn.style.boxShadow = isActivePremium
+                  ? '0 0 20px rgba(221,170,68,0.6), inset 0 0 10px rgba(221,170,68,0.15)'
+                  : isPrem && !def.dim
+                    ? '0 0 10px rgba(221,170,68,0.25), inset 0 0 8px rgba(221,170,68,0.08)'
+                    : 'none';
                 btn.style.zIndex = '25';
                 const tip = btn.querySelector('[data-tip]') as HTMLElement | null;
                 if (tip) tip.style.opacity = '0';
               }}
             >
               {def.icon}
-              {/* Tooltip */}
-              <div
-                data-tip="1"
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  ...(isLeft
-                    ? { right: 'calc(100% + 9px)', left: 'auto' }
-                    : { left: 'calc(100% + 9px)', right: 'auto' }
-                  ),
-                  background: 'rgba(6,11,22,0.97)',
-                  border: '1px solid #1a2d42',
-                  padding: '3px 9px',
-                  borderRadius: 3,
-                  fontSize: 9,
-                  color: '#8899aa',
-                  whiteSpace: 'nowrap',
-                  pointerEvents: 'none',
-                  opacity: 0,
-                  transition: 'opacity 0.1s',
-                  letterSpacing: '0.06em',
-                  zIndex: 10,
-                }}
-              >
-                {def.tip}
-              </div>
+              {/* Tooltip — hidden when premium submenu is open */}
+              {!isActivePremium && (
+                <div
+                  data-tip="1"
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    ...(isLeft
+                      ? { right: 'calc(100% + 9px)', left: 'auto' }
+                      : { left: 'calc(100% + 9px)', right: 'auto' }
+                    ),
+                    background: 'rgba(6,11,22,0.97)',
+                    border: '1px solid #1a2d42',
+                    padding: '3px 9px',
+                    borderRadius: 3,
+                    fontSize: 9,
+                    color: '#8899aa',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                    opacity: 0,
+                    transition: 'opacity 0.1s',
+                    letterSpacing: '0.06em',
+                    zIndex: 10,
+                  }}
+                >
+                  {def.tip}
+                </div>
+              )}
             </button>
           );
         })}
+      </div>
+
+      {/* Premium submenu — rectangular action panel */}
+      <div
+        ref={premSubRef}
+        style={{
+          position: 'fixed',
+          top: -9999,
+          left: -9999,
+          zIndex: 26,
+          opacity: premiumOpen ? 1 : 0,
+          pointerEvents: premiumOpen ? 'auto' : 'none',
+          transition: 'opacity 0.18s',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {premBtnIdx >= 0 && (() => {
+          const pd = buttons[premBtnIdx];
+          return (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!pd.dim) {
+                  handleAction(pd.action);
+                  setPremiumOpen(false);
+                }
+              }}
+              style={{
+                display: 'block',
+                background: pd.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)',
+                border: `1px solid ${pd.dim ? '#4a3810' : '#ddaa44'}`,
+                color: pd.dim ? '#55442a' : '#ddbb77',
+                fontFamily: 'monospace',
+                fontSize: 10,
+                padding: '9px 16px',
+                borderRadius: 3,
+                cursor: pd.dim ? 'default' : 'pointer',
+                whiteSpace: 'nowrap',
+                letterSpacing: '0.07em',
+                textAlign: 'left',
+                minWidth: 148,
+                boxShadow: pd.dim ? 'none' : '0 0 8px rgba(221,170,68,0.2)',
+              }}
+              onMouseEnter={(e) => {
+                if (!pd.dim) {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'rgba(80,52,10,0.97)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 16px rgba(221,170,68,0.45)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = pd.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)';
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = pd.dim ? 'none' : '0 0 8px rgba(221,170,68,0.2)';
+              }}
+            >
+              {pd.tip}
+            </button>
+          );
+        })()}
       </div>
     </>
   );

@@ -1208,23 +1208,20 @@ export class GalaxyScene {
       }
     }
 
-    /* ── Inner gradient halo (tight ring around core, star color) ── */
-    const innerGN = 8;
-    for (let ci = innerGN; ci >= 1; ci--) {
-      const f = ci / innerGN;
-      const r = coreR * 2.0 * f;
-      const a = 0.18 * Math.exp(-f * 3.0) * pulse * br;
+    /* ── Gradient core — no hard edge, smooth center-bright falloff ── */
+    const coreSteps = 14;
+    for (let ci = coreSteps; ci >= 1; ci--) {
+      const f = ci / coreSteps;              // 1.0 = outer edge, 1/14 = inner
+      const r = coreR * f;
+      const a = Math.pow(1 - f, 0.55) * 0.90 * pulse * br;
       if (a > 0.003) {
         g.circle(0, 0, r);
         g.fill({ color: nebulaColor, alpha: a });
       }
     }
-
-    // Core dot — pure spectral color (no white overlay), smooth center
-    g.circle(0, 0, coreR);
-    g.fill({ color: nebulaColor, alpha: 0.92 * pulse * br });
-    g.circle(0, 0, coreR * 0.55);
-    g.fill({ color: 0xffffff, alpha: 0.40 * pulse });
+    // Bright white centre highlight
+    g.circle(0, 0, coreR * 0.22);
+    g.fill({ color: 0xffffff, alpha: 0.55 * pulse });
 
     /* ── HOME: warm glow accent ── */
     if (isHome) {

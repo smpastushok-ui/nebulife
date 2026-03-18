@@ -1548,6 +1548,8 @@ export function App() {
       onRadialClose: () => {
         setRadialSystem(null);
         setRadialGetScreenPos(null);
+        setState(prev => ({ ...prev, selectedSystem: null }));
+        engineRef.current?.unfocusSystem();
       },
     }, genIdx);
 
@@ -1901,11 +1903,16 @@ export function App() {
   }, []);
 
   const handleSystemMenuResearch = useCallback(() => {
+    const sys = state.selectedSystem;
     setShowSystemMenu(false);
     setRadialSystem(null);
     setRadialGetScreenPos(null);
-    // Will show ResearchPanel (existing panel)
-  }, []);
+    if (sys) {
+      handleStartResearch(sys.id);
+      setState(prev => ({ ...prev, selectedSystem: null }));
+      engineRef.current?.unfocusSystem();
+    }
+  }, [state.selectedSystem, handleStartResearch]);
 
   const handleSystemMenuRename = useCallback(() => {
     if (!state.selectedSystem) return;
