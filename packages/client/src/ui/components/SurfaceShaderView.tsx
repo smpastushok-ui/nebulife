@@ -8,7 +8,8 @@ import type {
 } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
-import { BuildingPanel } from './BuildingPanel.js';
+import { BuildingRenderer } from '../../game/rendering/BuildingRenderer.js';
+import { SurfacePanel } from './SurfacePanel.js';
 import { getBuildings, placeBuilding } from '../../api/surface-api.js';
 
 import surfaceVertSrc from '../../shaders/surface/surface.vert.glsl?raw';
@@ -113,185 +114,6 @@ function isCellBuildableFor(
   return BUILDING_DEFS[buildingType].requiresTerrain.includes(terrain);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Building sprites — PNG loading with procedural fallback            */
-/* ------------------------------------------------------------------ */
-
-const SPRITE_SIZE = { w: 256, h: 384 }; // Source sprite dimensions
-
-type BuildingTypeKey =
-  | 'colony_hub' | 'mine' | 'solar_plant' | 'research_lab'
-  | 'water_extractor' | 'greenhouse' | 'observatory';
-
-const spriteCache = new Map<string, HTMLImageElement>();
-const spriteLoading = new Set<string>();
-
-function getSpriteKey(type: string, tier: number): string {
-  return `${type}_t${tier}`;
-}
-
-function loadSprite(type: string, tier: number): HTMLImageElement | null {
-  const key = getSpriteKey(type, tier);
-  const cached = spriteCache.get(key);
-  if (cached) return cached;
-
-  if (spriteLoading.has(key)) return null; // Still loading
-  spriteLoading.add(key);
-
-  const img = new Image();
-  img.src = `/sprites/buildings/${key}.png`;
-  img.onload = () => {
-    spriteCache.set(key, img);
-    spriteLoading.delete(key);
-  };
-  img.onerror = () => {
-    spriteLoading.delete(key);
-    // No sprite found — procedural fallback will be used
-  };
-
-  return null;
-}
-
-/** Procedural icon fallback (canvas primitives per building type) */
-function drawProceduralIcon(
-  ctx: CanvasRenderingContext2D,
-  cx: number, cy: number, size: number,
-  type: string, level: number,
-) {
-  const s = size * 0.4; // Icon size
-
-  const colors: Record<string, string> = {
-    colony_hub: '#44ff88',
-    mine: '#ff8844',
-    solar_plant: '#ffcc44',
-    research_lab: '#4488ff',
-    water_extractor: '#44ccff',
-    greenhouse: '#88ff44',
-    observatory: '#cc88ff',
-  };
-  const col = colors[type] ?? '#aabbcc';
-
-  ctx.save();
-  ctx.fillStyle = col;
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.lineWidth = 1;
-
-  switch (type) {
-    case 'colony_hub': {
-      // House shape
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - s * 0.9);
-      ctx.lineTo(cx + s * 0.7, cy - s * 0.2);
-      ctx.lineTo(cx + s * 0.7, cy + s * 0.5);
-      ctx.lineTo(cx - s * 0.7, cy + s * 0.5);
-      ctx.lineTo(cx - s * 0.7, cy - s * 0.2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case 'mine': {
-      // Pickaxe-like triangle
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - s * 0.7);
-      ctx.lineTo(cx + s * 0.6, cy + s * 0.5);
-      ctx.lineTo(cx - s * 0.6, cy + s * 0.5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case 'solar_plant': {
-      // Diamond shape
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - s * 0.7);
-      ctx.lineTo(cx + s * 0.6, cy);
-      ctx.lineTo(cx, cy + s * 0.7);
-      ctx.lineTo(cx - s * 0.6, cy);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case 'research_lab': {
-      // Rounded rect (flask-like)
-      const rr = s * 0.55;
-      ctx.beginPath();
-      ctx.arc(cx, cy, rr, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      // Inner dot
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.beginPath();
-      ctx.arc(cx, cy, rr * 0.3, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-    }
-    case 'water_extractor': {
-      // Droplet shape
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - s * 0.8);
-      ctx.quadraticCurveTo(cx + s * 0.7, cy, cx, cy + s * 0.6);
-      ctx.quadraticCurveTo(cx - s * 0.7, cy, cx, cy - s * 0.8);
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case 'greenhouse': {
-      // Half-dome
-      ctx.beginPath();
-      ctx.arc(cx, cy + s * 0.1, s * 0.6, Math.PI, 0);
-      ctx.lineTo(cx + s * 0.6, cy + s * 0.5);
-      ctx.lineTo(cx - s * 0.6, cy + s * 0.5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case 'observatory': {
-      // Dome + cylinder
-      ctx.beginPath();
-      ctx.arc(cx, cy - s * 0.2, s * 0.45, Math.PI, 0);
-      ctx.lineTo(cx + s * 0.35, cy + s * 0.5);
-      ctx.lineTo(cx - s * 0.35, cy + s * 0.5);
-      ctx.lineTo(cx - s * 0.45, cy - s * 0.2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    default: {
-      ctx.fillRect(cx - s * 0.5, cy - s * 0.5, s, s);
-      ctx.strokeRect(cx - s * 0.5, cy - s * 0.5, s, s);
-    }
-  }
-
-  // Level indicator (small dots)
-  if (level > 1) {
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    const dotR = 2;
-    const dotY = cy + s * 0.7;
-    const totalW = (level - 1) * 6;
-    for (let i = 0; i < level && i < 5; i++) {
-      ctx.beginPath();
-      ctx.arc(cx - totalW * 0.5 + i * 6, dotY, dotR, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  ctx.restore();
-}
-
-/** Short building label for overlay */
-const BUILDING_SHORT_NAMES: Record<string, string> = {
-  colony_hub: 'Центр',
-  mine: 'Шахта',
-  solar_plant: 'Енергія',
-  research_lab: 'Лаб.',
-  water_extractor: 'Вода',
-  greenhouse: 'Теплиця',
-  observatory: 'Обс.',
-};
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -324,9 +146,12 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     const minimapOverlayRef = useRef<HTMLCanvasElement>(null);
     const minimapRendererRef = useRef<THREE.WebGLRenderer | null>(null);
 
-    // Pan/zoom state
+    // Building renderer ref
+    const buildingRendererRef = useRef<BuildingRenderer | null>(null);
+
+    // Pan state (zoom is fixed — scaling breaks building↔terrain alignment)
     const panRef = useRef({ x: 0, y: 0 });
-    const zoomRef = useRef(1);
+    const zoomRef = useRef(2.0); // fixed zoom; buildings stay in sync
     const dragRef = useRef({ active: false, startX: 0, startY: 0 });
 
     /* ================================================================ */
@@ -453,6 +278,10 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       const mesh = new THREE.Mesh(geometry, material);
       scene.add(mesh);
 
+      // ── Building renderer (Three.js textured planes on terrain) ──
+      const bRenderer = new BuildingRenderer(scene, gridW, gridH);
+      buildingRendererRef.current = bRenderer;
+
       // ── Minimap renderer (same shader, zoom=1, pan=0) ──
       const MINIMAP_W = 200;
       const MINIMAP_H = 150;
@@ -514,9 +343,16 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
         const t = (performance.now() - startTime) * 0.001;
 
         // Main renderer
+        const panX = panRef.current.x * 0.001;
+        const panY = panRef.current.y * 0.001;
+        const zoom = zoomRef.current;
         material.uniforms.uTime.value = t;
-        material.uniforms.uPan.value.set(panRef.current.x * 0.001, panRef.current.y * 0.001);
-        material.uniforms.uZoom.value = zoomRef.current;
+        material.uniforms.uPan.value.set(panX, panY);
+        material.uniforms.uZoom.value = zoom;
+
+        // Update building renderer (sync position with terrain pan/zoom)
+        bRenderer.update(panX, panY, zoom, t);
+
         renderer.render(scene, camera);
 
         // Minimap renderer (full planet overview, fixed zoom=1, pan=0)
@@ -572,6 +408,9 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
         }
         rendererRef.current = null;
         materialRef.current = null;
+        // Cleanup building renderer
+        bRenderer.dispose();
+        buildingRendererRef.current = null;
         // Cleanup minimap
         if (minimapRenderer) {
           minimapRenderer.forceContextLoss();
@@ -587,8 +426,29 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     }, [planet.seed]);
 
     /* ================================================================ */
-    /*  Canvas 2D overlay — grid + buildings + zone highlights           */
+    /*  Sync buildings state → BuildingRenderer (Three.js)               */
     /* ================================================================ */
+
+    useEffect(() => {
+      buildingRendererRef.current?.updateBuildings(buildings);
+    }, [buildings]);
+
+    /* ================================================================ */
+    /*  Canvas 2D overlay — grid lines + zone highlights (build mode)    */
+    /* ================================================================ */
+
+    /** Map grid cell edges to screen rect */
+    const gridCellToScreen = useCallback((gx: number, gy: number, w: number, h: number) => {
+      const panX = panRef.current.x * 0.001;
+      const panY = panRef.current.y * 0.001;
+      const zoom = zoomRef.current;
+      const cellW = zoom * w / gridW;
+      const cellH = zoom * h / gridH;
+      // Top-left corner UV
+      const uvX = (gx / gridW - 0.5 - panX) * zoom + 0.5;
+      const uvY = (0.5 - gy / gridH - panY) * zoom + 0.5;
+      return { x: uvX * w, y: (1 - uvY) * h - cellH, w: cellW, h: cellH };
+    }, [gridW, gridH]);
 
     const drawOverlay = useCallback(() => {
       const canvas = overlayRef.current;
@@ -600,84 +460,49 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       if (!ctx) return;
       ctx.clearRect(0, 0, w, h);
 
-      const cellW = w / gridW;
-      const cellH = h / gridH;
+      if (!selectedBuilding) return;
 
-      // Draw buildable zone highlights in build mode
-      if (selectedBuilding) {
-        ctx.fillStyle = 'rgba(68, 255, 136, 0.06)';
-        for (let gx = 0; gx < gridW; gx++) {
-          for (let gy = 0; gy < gridH; gy++) {
-            if (isCellBuildableFor(gx, gy, planet.seed, waterCoverage, selectedBuilding)) {
-              const occupied = buildings.some((b) => b.x === gx && b.y === gy);
-              if (!occupied) {
-                ctx.fillRect(gx * cellW, gy * cellH, cellW, cellH);
-              }
+      // Draw buildable zone highlights (transformed for pan/zoom)
+      ctx.fillStyle = 'rgba(68, 255, 136, 0.06)';
+      for (let gx = 0; gx < gridW; gx++) {
+        for (let gy = 0; gy < gridH; gy++) {
+          if (isCellBuildableFor(gx, gy, planet.seed, waterCoverage, selectedBuilding)) {
+            const occupied = buildings.some((b) => b.x === gx && b.y === gy);
+            if (!occupied) {
+              const cell = gridCellToScreen(gx, gy, w, h);
+              // Skip cells fully outside viewport
+              if (cell.x + cell.w < 0 || cell.x > w || cell.y + cell.h < 0 || cell.y > h) continue;
+              ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
             }
           }
         }
       }
 
-      // Subtle grid lines (only in build mode)
-      if (selectedBuilding) {
-        ctx.strokeStyle = 'rgba(68, 136, 170, 0.08)';
-        ctx.lineWidth = 0.5;
-        for (let gx = 0; gx <= gridW; gx++) {
-          ctx.beginPath();
-          ctx.moveTo(gx * cellW, 0);
-          ctx.lineTo(gx * cellW, h);
-          ctx.stroke();
-        }
-        for (let gy = 0; gy <= gridH; gy++) {
-          ctx.beginPath();
-          ctx.moveTo(0, gy * cellH);
-          ctx.lineTo(w, gy * cellH);
-          ctx.stroke();
-        }
-      }
-
-      // Draw placed buildings (shadow -> sprite/icon -> label)
-      const iconSize = Math.max(cellW, cellH) * 1.2;
-      buildings.forEach((b) => {
-        const cx = b.x * cellW + cellW * 0.5;
-        const cy = b.y * cellH + cellH * 0.5;
-
-        // Shadow ellipse (offset toward lower-right, simulating upper-left sun)
-        ctx.save();
-        ctx.globalAlpha = 0.25;
-        ctx.fillStyle = '#000000';
+      // Subtle grid lines (transformed for pan/zoom)
+      const zoom = zoomRef.current;
+      const panX = panRef.current.x * 0.001;
+      const panY = panRef.current.y * 0.001;
+      ctx.strokeStyle = 'rgba(68, 136, 170, 0.08)';
+      ctx.lineWidth = 0.5;
+      for (let gx = 0; gx <= gridW; gx++) {
+        const uvX = (gx / gridW - 0.5 - panX) * zoom + 0.5;
+        const sx = uvX * w;
+        if (sx < -1 || sx > w + 1) continue;
         ctx.beginPath();
-        ctx.ellipse(cx + 4, cy + 5, iconSize * 0.45, iconSize * 0.18, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // Try PNG sprite first, fall back to procedural icon
-        const sprite = loadSprite(b.type, b.level);
-        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-          // Draw sprite anchored at bottom-center
-          const drawH = iconSize * 1.5;
-          const drawW = drawH * (SPRITE_SIZE.w / SPRITE_SIZE.h);
-          ctx.drawImage(sprite, cx - drawW * 0.5, cy - drawH + iconSize * 0.3, drawW, drawH);
-        } else {
-          // Procedural icon fallback
-          drawProceduralIcon(ctx, cx, cy - iconSize * 0.1, iconSize, b.type, b.level);
-        }
-
-        // Label: building short name + level
-        const label = BUILDING_SHORT_NAMES[b.type] ?? b.type;
-        const levelStr = b.level > 1 ? ` Lv.${b.level}` : '';
-        ctx.save();
-        ctx.font = '10px monospace';
-        ctx.textAlign = 'center';
-        // Text shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillText(label + levelStr, cx + 1, cy + iconSize * 0.55 + 1);
-        // Text
-        ctx.fillStyle = '#aabbcc';
-        ctx.fillText(label + levelStr, cx, cy + iconSize * 0.55);
-        ctx.restore();
-      });
-    }, [selectedBuilding, buildings, planet.seed, waterCoverage, gridW, gridH]);
+        ctx.moveTo(sx, 0);
+        ctx.lineTo(sx, h);
+        ctx.stroke();
+      }
+      for (let gy = 0; gy <= gridH; gy++) {
+        const uvY = (0.5 - gy / gridH - panY) * zoom + 0.5;
+        const sy = (1 - uvY) * h;
+        if (sy < -1 || sy > h + 1) continue;
+        ctx.beginPath();
+        ctx.moveTo(0, sy);
+        ctx.lineTo(w, sy);
+        ctx.stroke();
+      }
+    }, [selectedBuilding, buildings, planet.seed, waterCoverage, gridW, gridH, gridCellToScreen]);
 
     // Redraw overlay when state changes
     useEffect(() => {
@@ -721,14 +546,8 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     }, []);
 
     useImperativeHandle(ref, () => ({
-      zoomIn: () => {
-        zoomRef.current = Math.min(4, zoomRef.current * 1.2);
-        clampPan();
-      },
-      zoomOut: () => {
-        zoomRef.current = Math.max(0.3, zoomRef.current * 0.8);
-        clampPan();
-      },
+      zoomIn: () => { /* zoom disabled — only pan is supported */ },
+      zoomOut: () => { /* zoom disabled — only pan is supported */ },
       startAIGeneration: () => {
         // No-op: procedural terrain, no AI generation needed
       },
@@ -738,7 +557,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       toggleMinimap: () => {
         setShowMinimap((prev) => !prev);
       },
-    }), [clampPan]);
+    }), []);
 
     /* ================================================================ */
     /*  Input handlers (pan, zoom, building placement)                   */
@@ -764,6 +583,50 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       dragRef.current.active = false;
     }, []);
 
+    /* Touch pan */
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+      if (e.touches.length === 1) {
+        dragRef.current = { active: true, startX: e.touches[0].clientX, startY: e.touches[0].clientY };
+      }
+    }, []);
+
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+      if (!dragRef.current.active || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - dragRef.current.startX;
+      const dy = e.touches[0].clientY - dragRef.current.startY;
+      dragRef.current.startX = e.touches[0].clientX;
+      dragRef.current.startY = e.touches[0].clientY;
+      panRef.current.x -= dx;
+      panRef.current.y -= dy;
+      clampPan();
+      drawOverlay();
+    }, [clampPan, drawOverlay]);
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+      dragRef.current.active = false;
+      // Single tap → building placement
+      if (e.changedTouches.length === 1 && selectedBuilding) {
+        const touch = e.changedTouches[0];
+        const canvas = overlayRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const cx = touch.clientX - rect.left;
+        const cy = touch.clientY - rect.top;
+        const panX = panRef.current.x * 0.001;
+        const panY = panRef.current.y * 0.001;
+        const zoom = zoomRef.current;
+        const fracX = (cx / rect.width - 0.5) / zoom + 0.5 + panX;
+        const fracY = 0.5 - ((1 - cy / rect.height - 0.5) / zoom + 0.5 - panY);
+        const gridX = Math.floor(fracX * gridW);
+        const gridY = Math.floor(fracY * gridH);
+        if (gridX >= 0 && gridX < gridW && gridY >= 0 && gridY < gridH) {
+          // Reuse handleClick logic via synthetic trigger — just dispatch same logic
+          const synth = new MouseEvent('click', { clientX: touch.clientX, clientY: touch.clientY });
+          canvas.dispatchEvent(synth);
+        }
+      }
+    }, [selectedBuilding, gridW, gridH]);
+
     const handleClick = useCallback((e: React.MouseEvent) => {
       if (!selectedBuilding) return;
 
@@ -773,8 +636,20 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
 
-      const gridX = Math.floor((cx / rect.width) * gridW);
-      const gridY = Math.floor((cy / rect.height) * gridH);
+      // Convert screen position to grid cell accounting for pan/zoom
+      const panX = panRef.current.x * 0.001;
+      const panY = panRef.current.y * 0.001;
+      const zoom = zoomRef.current;
+      // Screen → UV: uvX = screenX / w, uvY = 1 - screenY / h
+      const uvX = cx / rect.width;
+      const uvY = 1 - cy / rect.height;
+      // UV → grid: reverse the transform used in gridCellToScreen
+      // uvX = (gx/gridW - 0.5 - panX) * zoom + 0.5
+      // gx/gridW = (uvX - 0.5) / zoom + 0.5 + panX
+      const fracX = (uvX - 0.5) / zoom + 0.5 + panX;
+      const fracY = 0.5 - ((uvY - 0.5) / zoom + 0.5 - panY);
+      const gridX = Math.floor(fracX * gridW);
+      const gridY = Math.floor(fracY * gridH);
 
       if (gridX < 0 || gridX >= gridW || gridY < 0 || gridY >= gridH) return;
       if (!isCellBuildableFor(gridX, gridY, planet.seed, waterCoverage, selectedBuilding)) return;
@@ -800,16 +675,11 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       });
     }, [selectedBuilding, buildings, planet.seed, planet.id, waterCoverage, playerId, onBuildingPlaced]);
 
-    // Native wheel listener (non-passive) to allow preventDefault without warnings
+    // Prevent page scroll on the canvas overlay (zoom is disabled, only panning)
     useEffect(() => {
       const canvas = overlayRef.current;
       if (!canvas) return;
-      const onWheel = (e: WheelEvent) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        zoomRef.current = Math.max(0.3, Math.min(4, zoomRef.current * delta));
-        clampPan();
-      };
+      const onWheel = (e: WheelEvent) => { e.preventDefault(); };
       canvas.addEventListener('wheel', onWheel, { passive: false });
       return () => canvas.removeEventListener('wheel', onWheel);
     }, []);
@@ -853,12 +723,16 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
           style={{
             position: 'absolute', top: 0, left: 0,
             cursor: selectedBuilding ? 'crosshair' : 'default',
+            touchAction: 'none',
           }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onClick={handleClick}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         />
 
         {/* Minimap (bottom-left overview with viewport rect) — always mounted for stable ref */}
@@ -924,9 +798,11 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
           </svg>
         </button>
 
-        {/* Building panel */}
+        {/* Surface management panel */}
         {showBuildPanel && (
-          <BuildingPanel
+          <SurfacePanel
+            planet={planet}
+            buildings={buildings}
             selectedBuilding={selectedBuilding}
             onSelectBuilding={setSelectedBuilding}
             onClose={() => setShowBuildPanel(false)}

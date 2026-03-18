@@ -204,7 +204,7 @@ export function generatePlanet(
     lifeComplexity: lifeResult.complexity,
     moons,
     isHomePlanet: false,
-    isColonizable: habitability.overall > 0.3,
+    isColonizable: false, // only paradise planet is colonizable
     terraformDifficulty: round(terraformDifficulty, 3),
   };
 }

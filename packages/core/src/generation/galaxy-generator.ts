@@ -1,7 +1,7 @@
 import { SeededRNG } from '../math/rng.js';
 import { RING_DISTANCE_LY, systemsPerRing, RINGS_PER_REGISTRATION } from '../constants/game.js';
 import { generateStarSystem } from './star-system-generator.js';
-import { generateHomePlanet } from './home-planet-generator.js';
+import { generateHomePlanet, generateParadisePlanet } from './home-planet-generator.js';
 import { calculateHabitability } from '../biology/habitability.js';
 import { getPlayerHomeCoordinates, hexToPixel, PLAYER_SPACING } from './galaxy-topology.js';
 import type { StarSystem, GalaxyRing } from '../types/universe.js';
@@ -122,78 +122,55 @@ export function generatePlayerRings(
     rings.push({ ringIndex: ringIdx, starSystems: systems });
   }
 
-  // Guarantee at least one colonizable planet in Ring 1
-  ensureColonizablePlanetInRing(rings, 1);
+  // Clear any colonizable flags across ALL rings (safety net)
+  for (const ring of rings) {
+    for (const sys of ring.starSystems) {
+      for (const p of sys.planets) {
+        if (p.isColonizable) p.isColonizable = false;
+      }
+    }
+  }
+
+  // Place exactly one paradise planet in Ring 1 — the only evacuation target
+  placeParadisePlanetInRing(rings, 1);
 
   return rings;
 }
 
 /**
- * Ensure at least one system in the given ring has a colonizable planet.
- * If none exists, force-upgrade the best candidate rocky planet.
+ * Place exactly one paradise planet in the given ring.
+ * Finds first system with a habitable-zone rocky planet and replaces it,
+ * or inserts at index 2 of the first system.
  */
-function ensureColonizablePlanetInRing(rings: GalaxyRing[], ringIndex: number): void {
+function placeParadisePlanetInRing(rings: GalaxyRing[], ringIndex: number): void {
   const ring = rings.find((r) => r.ringIndex === ringIndex);
-  if (!ring) return;
+  if (!ring || ring.starSystems.length === 0) return;
 
-  // Check if any planet in this ring is already colonizable
-  const hasColonizable = ring.starSystems.some((sys) =>
-    sys.planets.some((p) => p.isColonizable && !p.isHomePlanet),
-  );
-  if (hasColonizable) return;
-
-  // Find best candidate: rocky planet closest to habitable zone
-  let bestPlanet: Planet | null = null;
-  let bestScore = -1;
+  // Find best system: one with a habitable-zone rocky planet
+  let targetSystem = ring.starSystems[0];
+  let replaceIndex = -1;
 
   for (const sys of ring.starSystems) {
-    for (const planet of sys.planets) {
-      if (planet.type !== 'rocky' || planet.isHomePlanet) continue;
-      // Prefer planets already in habitable zone, then inner zone
-      let score = 0;
-      if (planet.zone === 'habitable') score = 3;
-      else if (planet.zone === 'inner') score = 2;
-      else if (planet.zone === 'outer') score = 1;
-      // Prefer larger rocky planets
-      score += Math.min(planet.massEarth, 2) * 0.5;
-      if (score > bestScore) {
-        bestScore = score;
-        bestPlanet = planet;
-      }
+    const idx = sys.planets.findIndex(p => p.zone === 'habitable' && p.type === 'rocky');
+    if (idx >= 0) {
+      targetSystem = sys;
+      replaceIndex = idx;
+      break;
     }
   }
 
-  if (!bestPlanet) return;
-
-  // Force-upgrade the planet to be marginally colonizable
-  bestPlanet.surfaceTempK = 275;
-  bestPlanet.atmosphere = {
-    surfacePressureAtm: 0.7,
-    composition: { N2: 0.80, O2: 0.15, CO2: 0.003, Ar: 0.01 },
-    greenhouse: 0.6,
-    hasOzone: true,
-  };
-  bestPlanet.hydrosphere = {
-    waterCoverageFraction: 0.35,
-    oceanDepthKm: 1.2,
-    iceCapFraction: 0.08,
-    hasSubsurfaceOcean: false,
-  };
-  bestPlanet.magneticField = {
-    strengthT: 3e-5,
-    hasMagnetosphere: true,
-  };
-
-  // Recalculate habitability
-  bestPlanet.habitability = calculateHabitability(
-    bestPlanet.surfaceTempK,
-    bestPlanet.atmosphere,
-    bestPlanet.hydrosphere,
-    bestPlanet.magneticField,
-    bestPlanet.surfaceGravityG,
+  const paradise = generateParadisePlanet(
+    targetSystem.star,
+    targetSystem.seed,
+    targetSystem.star.name + ' ' + ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][replaceIndex >= 0 ? replaceIndex : 2],
   );
-  bestPlanet.isColonizable = bestPlanet.habitability.overall > 0.3;
-  bestPlanet.terraformDifficulty = Math.round((1 - bestPlanet.habitability.overall) * 1000) / 1000;
+
+  if (replaceIndex >= 0) {
+    targetSystem.planets[replaceIndex] = paradise;
+  } else {
+    const insertAt = Math.min(2, targetSystem.planets.length);
+    targetSystem.planets.splice(insertAt, 0, paradise);
+  }
 }
 
 /**

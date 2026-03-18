@@ -171,21 +171,21 @@ export function generateParadisePlanet(star: Star, systemSeed: number, name: str
       periodDays: orbitalPeriodDays(hzMid, star.massSolar),
     },
 
-    equilibriumTempK: 252,
-    surfaceTempK: 285, // slightly cooler than Earth
-    albedo: 0.32,
+    equilibriumTempK: 255,
+    surfaceTempK: 288, // Earth average (15 C) — temperate, green
+    albedo: 0.30,
 
     atmosphere: {
       surfacePressureAtm: 0.95,
-      composition: { N2: 0.77, O2: 0.22, CO2: 0.004, Ar: 0.009, H2O: 0.005 },
-      greenhouse: 0.9,
+      composition: { N2: 0.77, O2: 0.21, CO2: 0.005, Ar: 0.009, H2O: 0.006 },
+      greenhouse: 0.95,
       hasOzone: true,
     },
 
     hydrosphere: {
-      waterCoverageFraction: 0.65,
-      oceanDepthKm: 3.2,
-      iceCapFraction: 0.12, // glaciers
+      waterCoverageFraction: 0.55, // 45% land — plenty of room for colony
+      oceanDepthKm: 3.0,
+      iceCapFraction: 0.05, // minimal ice caps
       hasSubsurfaceOcean: false,
     },
 
@@ -209,12 +209,12 @@ export function generateParadisePlanet(star: Star, systemSeed: number, name: str
     },
 
     habitability: {
-      temperature: 0.95,
-      atmosphere: 0.96,
-      water: 0.94,
+      temperature: 1.0,  // 288K = Earth average
+      atmosphere: 0.95,
+      water: 0.90,  // 55% water — good but below Earth's 71%
       magneticField: 1.0,
       gravity: 1.0,
-      overall: 0.95,
+      overall: 0.96,
     },
 
     hasLife: true,
