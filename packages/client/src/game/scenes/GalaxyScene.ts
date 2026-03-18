@@ -76,9 +76,9 @@ const PX_PER_LY = 18;
 /** Easing speed for alpha transitions */
 const ANIM_SPEED = 5;
 
-/** Orbit expand: 1500ms forward, 600ms reverse */
-const EXPAND_DURATION = 1500;
-const COLLAPSE_DURATION = 600;
+/** Orbit expand: 700ms forward, 400ms reverse */
+const EXPAND_DURATION = 700;
+const COLLAPSE_DURATION = 400;
 
 /* ── Interfaces ────────────────────────────────────────────────── */
 
@@ -138,6 +138,7 @@ export class GalaxyScene {
   private connectionLines: Graphics;
   private beamGfx: Graphics;
   private nodesLayer: Container;
+  private territoryGfx: Graphics;
 
   /** MST + extra edges for wavy connection line rendering */
   private connectionEdges: Array<{ x1: number; y1: number; x2: number; y2: number; seed: number; key1: string; key2: string }> = [];
@@ -207,6 +208,8 @@ export class GalaxyScene {
     this.container.addChild(bgStars);
 
     /* Render layers */
+    this.territoryGfx = new Graphics();
+    this.container.addChild(this.territoryGfx);
     this.connectionLines = new Graphics();
     this.container.addChild(this.connectionLines);
     this.beamGfx = new Graphics();
@@ -394,10 +397,8 @@ export class GalaxyScene {
       if (this.cinematicMode) return;
       cc++;
       if (cc === 1) {
-        ct = setTimeout(() => {
-          if (cc === 1) this.expandSystem(sys.id);
-          cc = 0;
-        }, 300);
+        this.expandSystem(sys.id);
+        ct = setTimeout(() => { cc = 0; }, 260);
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
@@ -494,16 +495,12 @@ export class GalaxyScene {
       if (this.clickGuard?.()) return;
       cc++;
       if (cc === 1) {
-        ct = setTimeout(() => {
-          if (cc === 1 && !this.clickGuard?.()) this.expandSystem(sys.id);
-          cc = 0;
-        }, 300);
+        if (!this.clickGuard?.()) this.expandSystem(sys.id);
+        ct = setTimeout(() => { cc = 0; }, 260);
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
-        if (!this.clickGuard?.()) {
-          this.onDoubleClick(sys);
-        }
+        if (!this.clickGuard?.()) this.onDoubleClick(sys);
       }
     });
 
@@ -669,6 +666,9 @@ export class GalaxyScene {
       node.expandTarget = 1;
       this.selectSystem(systemId);
       this.onExpandSystem?.(node.system);
+      // Fire radial menu immediately (no animation delay)
+      node.radialOpenFired = true;
+      this.onRadialOpen?.(node.system, () => this.getSystemScreenPosition(systemId));
     }
   }
 
@@ -734,19 +734,18 @@ export class GalaxyScene {
     this.beamAlpha = 0;
   }
 
-  /** Draw a progress arc: bright arc stroke only, no fill */
+  /** Draw a progress arc: soft dot trail, no stroke border */
   private drawProgressPie(g: Graphics, radius: number, fraction: number) {
     if (fraction <= 0.005) return;
-    const r = radius;
     const startAngle = -Math.PI / 2;
     const endAngle = startAngle + fraction * Math.PI * 2;
-    const segments = 28;
-    g.moveTo(Math.cos(startAngle) * r, Math.sin(startAngle) * r);
-    for (let i = 1; i <= segments; i++) {
+    const segments = 20;
+    for (let i = 0; i <= segments; i++) {
       const a = startAngle + (endAngle - startAngle) * (i / segments);
-      g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      const alpha = 0.08 + (i / segments) * 0.25;
+      g.circle(Math.cos(a) * radius, Math.sin(a) * radius, 1.0);
+      g.fill({ color: 0xddaa44, alpha });
     }
-    g.stroke({ width: 1.5, color: 0xddaa44, alpha: 0.7 });
   }
 
   get isFocused(): boolean {
@@ -927,17 +926,44 @@ export class GalaxyScene {
           const r = Math.max(2.5, node.baseRadius * 0.42) * 1.8 + 6;
           const angle = (t * 0.003) % (Math.PI * 2);
           const arcLen = Math.PI * 0.6;
-          const segments = 16;
+          const segments = 12;
           for (let i = 0; i < segments; i++) {
-            const a0 = angle + (arcLen * i) / segments;
-            const a1 = angle + (arcLen * (i + 1)) / segments;
-            const alpha = 0.7 * (1 - i / segments);
-            node.scanArc.moveTo(Math.cos(a0) * r, Math.sin(a0) * r);
-            node.scanArc.lineTo(Math.cos(a1) * r, Math.sin(a1) * r);
-            node.scanArc.stroke({ width: 1.5, color: 0xddaa44, alpha });
+            const a = angle + (arcLen * i) / segments;
+            const alpha = 0.55 * (1 - i / segments);
+            node.scanArc.circle(Math.cos(a) * r, Math.sin(a) * r, 1.2);
+            node.scanArc.fill({ color: 0xddaa44, alpha });
           }
         }
       }
+    }
+
+    // Territory glow — soft aura under explored systems (home + researched)
+    this.territoryGfx.clear();
+    const drawTerritoryAura = (x: number, y: number) => {
+      const N = 10;
+      const maxR = 52;
+      // Shadow (offset down-right slightly)
+      for (let ci = N; ci >= 1; ci--) {
+        const f = ci / N;
+        const a = 0.07 * Math.exp(-f * 3.5);
+        if (a > 0.003) {
+          this.territoryGfx.circle(x + 2, y + 3, maxR * f);
+          this.territoryGfx.fill({ color: 0x000000, alpha: a });
+        }
+      }
+      // Territory fill (warm teal tint, very low alpha)
+      for (let ci = N; ci >= 1; ci--) {
+        const f = ci / N;
+        const a = 0.055 * Math.exp(-f * 2.8);
+        if (a > 0.003) {
+          this.territoryGfx.circle(x, y, maxR * f);
+          this.territoryGfx.fill({ color: 0x1a4060, alpha: a });
+        }
+      }
+    };
+    if (this.homeNode) drawTerritoryAura(this.homeNode.tx ?? 0, this.homeNode.ty ?? 0);
+    for (const [, node] of this.systemNodes) {
+      if (node.starState === 'researched') drawTerritoryAura(node.tx, node.ty);
     }
 
     // Wavy connection lines — blue threads between stars
@@ -1194,11 +1220,11 @@ export class GalaxyScene {
       }
     }
 
-    // Bright core dot (white + tinted) — matches prototype alpha values
+    // Core dot — pure spectral color (no white overlay), smooth center
     g.circle(0, 0, coreR);
-    g.fill({ color: 0xffffff, alpha: 0.93 * pulse });
-    g.circle(0, 0, coreR * 0.65);
-    g.fill({ color: nebulaColor, alpha: 0.62 * pulse * br });
+    g.fill({ color: nebulaColor, alpha: 0.92 * pulse * br });
+    g.circle(0, 0, coreR * 0.55);
+    g.fill({ color: 0xffffff, alpha: 0.40 * pulse });
 
     /* ── HOME: warm glow accent ── */
     if (isHome) {
