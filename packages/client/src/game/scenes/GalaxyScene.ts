@@ -394,7 +394,10 @@ export class GalaxyScene {
       if (this.cinematicMode) return;
       cc++;
       if (cc === 1) {
-        ct = setTimeout(() => { cc = 0; }, 300);
+        ct = setTimeout(() => {
+          if (cc === 1) this.expandSystem(sys.id);
+          cc = 0;
+        }, 300);
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
@@ -491,7 +494,10 @@ export class GalaxyScene {
       if (this.clickGuard?.()) return;
       cc++;
       if (cc === 1) {
-        ct = setTimeout(() => { cc = 0; }, 300);
+        ct = setTimeout(() => {
+          if (cc === 1 && !this.clickGuard?.()) this.expandSystem(sys.id);
+          cc = 0;
+        }, 300);
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
@@ -1153,16 +1159,6 @@ export class GalaxyScene {
       // Bright core dot
       g.circle(0, 0, Math.max(1, coreR * 0.6));
       g.fill({ color: nebulaColor, alpha: 0.4 * brt });
-      // Quantum shimmer dots (R1: 5 dots, R2: 3 dots)
-      const shimCount = isR2 ? 3 : 5;
-      const tSec = t * 0.001;
-      for (let d = 0; d < shimCount; d++) {
-        const da = d * 2.399 + tSec * 0.5;
-        const dr = 6 + d * 2.5;
-        const sa = 0.15 * (0.4 + 0.6 * Math.sin(tSec * 3.5 + d * 1.8)) * brt;
-        g.circle(Math.cos(da) * dr, Math.sin(da) * dr, 0.5);
-        g.fill({ color: nebulaColor, alpha: sa });
-      }
       return;
     }
 
@@ -1185,29 +1181,6 @@ export class GalaxyScene {
         g.fill({ color: nebulaColor, alpha: a });
       }
     }
-
-    /* ── Ambient particles — always orbit for all visible stars (matching prototype) ── */
-    const isResearching = starState === 'researching';
-    const pCount = isResearching ? 14 : particleCount;
-    const particleColor = SPECTRAL_PARTICLE_COLOR[spectralClass] ?? 0xfff8f0;
-    const tSec = t * 0.001;
-    for (let i = 0; i < pCount; i++) {
-      const baseDist = 15 + ((i * 7 + 3) % 17) / 17 * 32;
-      const dist = isResearching ? baseDist * 0.82 : baseDist;
-      const angle = i * 2.399 + tSec * spinBoost * (i % 2 ? 0.28 : -0.21);
-      const r = 0.65 + (i % 3) * 0.38;
-      const alpha = (0.18 + (i % 5) * 0.08)
-        * (0.5 + 0.5 * Math.sin(tSec * 2.2 + i * 1.37))
-        * br;
-      g.circle(Math.cos(angle) * dist, Math.sin(angle) * dist, r);
-      g.fill({ color: particleColor, alpha });
-    }
-
-    /* ── Two thin pulsing orbit rings ── */
-    g.circle(0, 0, coreR * 2.8);
-    g.stroke({ width: 0.7, color: nebulaColor, alpha: 0.13 * pulse * br });
-    g.circle(0, 0, coreR * 3.5);
-    g.stroke({ width: 0.5, color: nebulaColor, alpha: 0.05 * pulse * br });
 
     /* ── Inner gradient halo (tight ring around core, star color) ── */
     const innerGN = 8;
@@ -1233,16 +1206,26 @@ export class GalaxyScene {
       g.fill({ color: nebulaColor, alpha: 0.055 * pulse });
     }
 
-    /* ── Quantum shimmer around researched/researching stars ── */
-    if (starState === 'researched' || starState === 'researching') {
-      const shimmerCount = isResearching ? 8 : 12;
-      const tSec2 = t * 0.001;
-      for (let i = 0; i < shimmerCount; i++) {
-        const sDist = coreR * (1.5 + (i % 4) * 0.8);
-        const sAngle = i * 2.399 + tSec2 * 0.7;
-        const sAlpha = 0.15 * (0.3 + 0.7 * Math.sin(tSec2 * 4 + i * 2.1)) * br;
-        g.circle(Math.cos(sAngle) * sDist, Math.sin(sAngle) * sDist, 0.4);
-        g.fill({ color: nebulaColor, alpha: sAlpha });
+    /* ── Orbiting particles: only when this star is expanded, fade smaller+dimmer with distance ── */
+    if (ep > 0.05) {
+      const isResearching = starState === 'researching';
+      const pCount = isResearching ? 14 : particleCount;
+      const particleColor = SPECTRAL_PARTICLE_COLOR[spectralClass] ?? 0xfff8f0;
+      const tSec = t * 0.001;
+      const maxDist = isResearching ? 22 : 30;   // orbit radius limit
+      for (let i = 0; i < pCount; i++) {
+        const distFrac = ((i * 7 + 3) % 17) / 17;    // 0..1
+        const dist = coreR * 1.2 + distFrac * (maxDist - coreR * 1.2);
+        // 30% slower rotation (×0.7 vs original)
+        const angle = i * 2.399 + tSec * spinBoost * (i % 2 ? 0.196 : -0.147);
+        // Smaller + dimmer further from core
+        const r = (0.9 - distFrac * 0.55) * (0.65 + (i % 3) * 0.28);
+        // 30% slower twinkle (1.54 vs 2.2), fade with distance
+        const alpha = (0.28 - distFrac * 0.18)
+          * (0.55 + 0.45 * Math.sin(tSec * 1.54 + i * 1.37))
+          * br * Math.min(1, ep * 4);
+        g.circle(Math.cos(angle) * dist, Math.sin(angle) * dist, r);
+        g.fill({ color: particleColor, alpha });
       }
     }
   }
