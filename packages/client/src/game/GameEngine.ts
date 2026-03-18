@@ -285,6 +285,22 @@ export class GameEngine {
     this.galaxyScene?.startTransition(systemId, onComplete);
   }
 
+  /** Enter a system via radial menu — identical path to double-click on star */
+  enterSystemDirect(system: StarSystem) {
+    if (!this.galaxyScene) return;
+    this.galaxyScene.unfocusSystem();
+    if (system.ownerPlayerId === null) {
+      const worldPos = this.galaxyScene.getSystemWorldPosition(system.id);
+      if (worldPos) {
+        this.camera.animateTo(worldPos.x, worldPos.y, this.camera.getCurrentScale(), 1500);
+      }
+    }
+    this.galaxyScene.startTransition(system.id, () => {
+      this.callbacks.onSystemSelect(system);
+      this.showSystemScene(system);
+    });
+  }
+
   /** Get all systems from all rings. */
   getAllSystems(): StarSystem[] {
     return this.rings.flatMap((r) => r.starSystems);

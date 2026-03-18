@@ -1885,14 +1885,9 @@ export function App() {
     setSystemMenuPos(null);
     setRadialSystem(null);
     setRadialGetScreenPos(null);
-    // Start the multi-phase warp transition in PixiJS
-    const system = state.selectedSystem;
-    engineRef.current?.startGalaxyWarp(system.id, () => {
-      // Transition complete (frenzy+collapse+blackout done) — show hyperspace overlay + switch scene
-      setGalaxyWarpPhase('hyperspace');
-      handleEnterSystem(system);
-    });
-  }, [state.selectedSystem, handleEnterSystem]);
+    // Same path as double-click on star — star-fold transition then switch scene
+    engineRef.current?.enterSystemDirect(state.selectedSystem);
+  }, [state.selectedSystem]);
 
   const handleSystemMenuCharacteristics = useCallback(() => {
     setShowSystemMenu(false);
@@ -3769,25 +3764,7 @@ export function App() {
           onClose={() => setShowSystemResearch(false)}
         />
       )}
-      {showSystemInfoPanel && (
-        <SystemInfoPanel
-          system={selectedSystem!}
-          displayName={aliases[selectedSystem!.id] ?? undefined}
-          onEnterSystem={() => handleEnterSystem(selectedSystem!)}
-          onClose={() => { setState((prev) => ({ ...prev, selectedSystem: null })); engineRef.current?.unfocusSystem(); }}
-          onRename={(newName) => {
-            const sys = selectedSystem!;
-            setAlias({
-              playerId: playerId.current,
-              entityType: 'system',
-              entityId: sys.id,
-              customName: newName,
-            }).then(() => {
-              setAliases((prev) => ({ ...prev, [sys.id]: newName }));
-            }).catch((err) => console.error('Rename failed:', err));
-          }}
-        />
-      )}
+      {/* SystemInfoPanel removed — info available via radial menu */}
       {/* Radial Menu (galaxy view — replaces old SystemContextMenu) */}
       {radialSystem && state.scene === 'galaxy' && radialGetScreenPos && (
         <RadialMenu
@@ -3799,6 +3776,11 @@ export function App() {
           activeMission={systemMissions.get(radialSystem.id) ?? null}
           quarks={quarks}
           playerLevel={playerLevel}
+          researchBlockReason={
+            researchState.slots.length === 0 ? 'Немає обсерваторій' :
+            findFreeSlot(researchState) < 0 ? 'Усі обсерваторії зайняті' :
+            null
+          }
           onClose={handleCloseSystemMenu}
           onEnterSystem={handleSystemMenuEnter}
           onObjectsList={handleObjectsList}

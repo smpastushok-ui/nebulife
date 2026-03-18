@@ -58,8 +58,9 @@ function buildButtons(props: {
   activeMission: SystemMissionData | null;
   quarks: number;
   playerLevel: number;
+  researchBlockReason: string | null;
 }): ButtonDef[] {
-  const { isHome, isResearched, systemPhoto, quarks } = props;
+  const { isHome, isResearched, systemPhoto, quarks, researchBlockReason } = props;
   const canEnter = isHome || isResearched;
   const hasPhoto = systemPhoto?.status === 'succeed' && !!systemPhoto.photoUrl;
   const photoGenerating = systemPhoto?.status === 'generating';
@@ -78,7 +79,14 @@ function buildButtons(props: {
 
   // Research
   if (!isResearched && !isHome) {
-    list.push({ icon: '\u25CE', tip: 'Дослідити',     color: '#4488aa', action: 'research' });
+    const blocked = researchBlockReason !== null;
+    list.push({
+      icon: '\u25CE',
+      tip: blocked ? researchBlockReason! : 'Дослідити',
+      color: '#4488aa',
+      action: 'research',
+      dim: blocked,
+    });
   }
 
   // Premium button — consolidates all paid tools (panorama active; missions in PremiumStubs.ts)
@@ -134,6 +142,7 @@ export interface RadialMenuProps {
   activeMission: SystemMissionData | null;
   quarks: number;
   playerLevel: number;
+  researchBlockReason: string | null;
   onClose: () => void;
   onEnterSystem: () => void;
   onObjectsList: () => void;
@@ -149,6 +158,7 @@ export interface RadialMenuProps {
 export function RadialMenu({
   system, getScreenPos,
   isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel,
+  researchBlockReason,
   onClose, onEnterSystem, onObjectsList, onRename, onCharacteristics,
   onResearch, onTelescopePhoto, onViewPhoto, onSendMission, onViewVideo,
 }: RadialMenuProps) {
@@ -160,11 +170,19 @@ export function RadialMenu({
   const [revealed, setRevealed] = useState<boolean[]>([]);
   const [premiumOpen, setPremiumOpen] = useState(false);
   const premSubRef = useRef<HTMLDivElement | null>(null);
+  const [flashMsg, setFlashMsg] = useState<string | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showFlash = (msg: string) => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    setFlashMsg(msg);
+    flashTimerRef.current = setTimeout(() => setFlashMsg(null), 2500);
+  };
 
   // Build button definitions
   const buttons = useMemo(
-    () => buildButtons({ isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel }),
-    [isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel],
+    () => buildButtons({ isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel, researchBlockReason }),
+    [isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel, researchBlockReason],
   );
   const premBtnIdx = useMemo(() => buttons.findIndex(b => b.isPremium), [buttons]);
 
@@ -311,7 +329,9 @@ export function RadialMenu({
                 e.stopPropagation();
                 if (def.isPremium) {
                   setPremiumOpen(prev => !prev);
-                } else if (!def.dim) {
+                } else if (def.dim) {
+                  showFlash(def.tip);
+                } else {
                   handleAction(def.action);
                 }
               }}
@@ -485,6 +505,29 @@ export function RadialMenu({
           );
         })()}
       </div>
+
+      {/* Flash message for blocked actions */}
+      {flashMsg && (
+        <div style={{
+          position: 'fixed',
+          top: '42%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 30,
+          background: 'rgba(6,12,24,0.95)',
+          border: '1px solid #cc4444',
+          color: '#ee8866',
+          fontFamily: 'monospace',
+          fontSize: 10,
+          padding: '7px 14px',
+          borderRadius: 3,
+          letterSpacing: '0.08em',
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+        }}>
+          {flashMsg}
+        </div>
+      )}
     </>
   );
 }
