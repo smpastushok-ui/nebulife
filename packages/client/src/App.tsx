@@ -3073,6 +3073,7 @@ export function App() {
   const showSystemInfoPanel = selectedSystem
     && state.scene === 'galaxy'
     && !showSystemMenu
+    && !radialSystem
     && (selectedSystem.ownerPlayerId !== null || isSystemFullyResearched(researchState, selectedSystem.id));
 
   // Timer text for the selected system's active slot

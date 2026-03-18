@@ -1206,24 +1206,24 @@ export class GalaxyScene {
       g.fill({ color: nebulaColor, alpha: 0.055 * pulse });
     }
 
-    /* ── Orbiting particles: only when this star is expanded, fade smaller+dimmer with distance ── */
-    if (ep > 0.05) {
+    /* ── Orbiting particles: always visible for explored stars, smaller+dimmer with distance ── */
+    {
       const isResearching = starState === 'researching';
-      const pCount = isResearching ? 14 : particleCount;
+      const pCount = isResearching ? 10 : particleCount;
       const particleColor = SPECTRAL_PARTICLE_COLOR[spectralClass] ?? 0xfff8f0;
       const tSec = t * 0.001;
-      const maxDist = isResearching ? 22 : 30;   // orbit radius limit
+      const maxDist = isResearching ? 36 : 48;   // orbit radius limit
       for (let i = 0; i < pCount; i++) {
         const distFrac = ((i * 7 + 3) % 17) / 17;    // 0..1
         const dist = coreR * 1.2 + distFrac * (maxDist - coreR * 1.2);
-        // 30% slower rotation (×0.7 vs original)
+        // Slow rotation
         const angle = i * 2.399 + tSec * spinBoost * (i % 2 ? 0.196 : -0.147);
         // Smaller + dimmer further from core
-        const r = (0.9 - distFrac * 0.55) * (0.65 + (i % 3) * 0.28);
-        // 30% slower twinkle (1.54 vs 2.2), fade with distance
-        const alpha = (0.28 - distFrac * 0.18)
-          * (0.55 + 0.45 * Math.sin(tSec * 1.54 + i * 1.37))
-          * br * Math.min(1, ep * 4);
+        const r = (0.75 - distFrac * 0.45) * (0.6 + (i % 3) * 0.25);
+        // Slow twinkle, fade with distance
+        const alpha = (0.22 - distFrac * 0.14)
+          * (0.5 + 0.5 * Math.sin(tSec * 1.4 + i * 1.37))
+          * br;
         g.circle(Math.cos(angle) * dist, Math.sin(angle) * dist, r);
         g.fill({ color: particleColor, alpha });
       }
