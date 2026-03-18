@@ -31,8 +31,9 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
   }, [disabled]);
 
   const handleSelect = useCallback((item: NavigationMenuItem) => {
-    if (item.disabled || item.active) return;
+    if (item.disabled) return;
     setOpen(false);
+    if (item.active) return;
     onNavigate(item.scene);
   }, [onNavigate]);
 

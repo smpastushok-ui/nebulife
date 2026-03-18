@@ -62,10 +62,11 @@ const SPECTRAL_SIZE_MUL: Record<SpectralClass, number> = {
 /** Hot stars (O/B/A) get stronger burn animation */
 const HOT_STARS: Set<SpectralClass> = new Set(['O', 'B', 'A']);
 
-/** Visual planet colors for orbital dots */
-const PLANET_VIS_COLORS: number[] = [
-  0x4488cc, 0xcc6644, 0x44cc88, 0xcc44aa, 0xaacc44, 0xcc8844, 0x4444cc, 0xcc4444, 0x44aa64,
-];
+/** Particle color per spectral class (matches prototype) */
+const SPECTRAL_PARTICLE_COLOR: Record<string, number> = {
+  O: 0xbbddff, B: 0xbbddff, A: 0xddeeff,
+  F: 0xfffce8, G: 0xfff8f0, K: 0xffc860, M: 0xff8844,
+};
 
 /* ── Layout constants ──────────────────────────────────────────── */
 
@@ -100,14 +101,8 @@ interface SystemNode {
   planetCount: number;
   /** Nebula tint color (from star.colorHex) */
   nebulaColor: number;
-  /** Pre-computed visual orbit data for planet dots */
-  orbitData: Array<{
-    orbitA: number; orbitB: number;
-    color: number; pSize: number;
-    phase: number; speed: number;
-    /** Orbit inclination angle in radians (chaotic tilt) */
-    tilt: number;
-  }>;
+  /** Number of ambient particles orbiting the star */
+  particleCount: number;
   phaseOffset: number;
   speed: number;
   baseRadius: number;
@@ -250,31 +245,6 @@ export class GalaxyScene {
     return (Math.abs(h) % 10000) / 10000 * Math.PI * 2;
   }
 
-  /** Compute visual orbit data for planet dots — deterministic, includes random tilt */
-  private computeOrbitData(sys: StarSystem, coreR: number): SystemNode['orbitData'] {
-    const data: SystemNode['orbitData'] = [];
-    const count = Math.min(sys.planets.length, 5);
-    for (let p = 0; p < count; p++) {
-      const s = (n: number) => {
-        const x = Math.sin(sys.seed * 12.9898 + p * 7919 + n * 78.233) * 43758.5453;
-        return x - Math.floor(x);
-      };
-      // Larger orbits (up to 50px) for impressive expanded view
-      const orbitA = Math.min(50, coreR * (2.5 + p * 2.0) + s(0) * 6 + 2);
-      const orbitB = orbitA * (0.38 + s(1) * 0.28);
-      // Chaotic tilt: each orbit independently tilted (-126° to +126°)
-      const tilt = (s(6) - 0.5) * Math.PI * 1.4;
-      data.push({
-        orbitA, orbitB,
-        color: PLANET_VIS_COLORS[p % PLANET_VIS_COLORS.length],
-        pSize: 1.5 + s(2) * 1.8,
-        phase: s(3) * Math.PI * 2,
-        speed: (0.08 + s(4) * 0.35) * (s(5) < 0.5 ? 1 : -1),
-        tilt,
-      });
-    }
-    return data;
-  }
 
   /**
    * Build organic connection edges (kept for potential future use).
@@ -422,15 +392,13 @@ export class GalaxyScene {
     this.nodesLayer.addChild(dot);
 
     const nebulaColor = hexToNum(sys.star.colorHex);
-    const coreR = Math.max(2.5, baseR * 0.55);
-    const orbitData = this.computeOrbitData(sys, coreR);
 
     this.homeNode = {
       container: dot, system: sys, nameLabel: nl,
       progressLabel: null, progressRing: null, scanArc: null,
       glowOuter, glowMid, corona, core, particleGfx,
       starState: 'home', planetCount: sys.planets.length,
-      nebulaColor, orbitData,
+      nebulaColor, particleCount: 72,
       phaseOffset: phase, speed: 0.8 + (phase / (Math.PI * 2)) * 0.7,
       baseRadius: baseR, baseAlpha: 1,
       spectralClass: sys.star.spectralClass,
@@ -542,14 +510,14 @@ export class GalaxyScene {
 
     const speed = 0.5 + (phase / (Math.PI * 2)) * 1.0;
     const nebulaColor = hexToNum(sys.star.colorHex);
-    const orbitData = this.computeOrbitData(sys, coreR);
+    const particleCount = starState === 'home' ? 72 : 25 + Math.min(sys.planets.length, 8) * 4;
 
     return {
       container: dot, system: sys, nameLabel,
       progressLabel: null, progressRing, scanArc,
       glowOuter, glowMid, corona, core, particleGfx,
       starState, planetCount: sys.planets.length,
-      nebulaColor, orbitData,
+      nebulaColor, particleCount,
       phaseOffset: phase, speed, baseRadius: effectiveR,
       baseAlpha, tx, ty, ringIndex,
       spectralClass: sys.star.spectralClass,
@@ -962,20 +930,7 @@ export class GalaxyScene {
 
     // Connection lines removed per design decision
 
-    // Beam to selected system
-    this.beamGfx.clear();
-    if (this.selectedSystemId) {
-      const node = this.systemNodes.get(this.selectedSystemId);
-      if (node && node.container.alpha > 0.1) {
-        this.beamAlpha = Math.min(0.6, this.beamAlpha + deltaMs * 0.002);
-        this.beamGfx.moveTo(0, 0);
-        this.beamGfx.lineTo(node.tx, node.ty);
-        this.beamGfx.stroke({ width: 1.5, color: 0x4488aa, alpha: this.beamAlpha });
-        this.beamGfx.moveTo(0, 0);
-        this.beamGfx.lineTo(node.tx, node.ty);
-        this.beamGfx.stroke({ width: 4, color: 0x4488aa, alpha: this.beamAlpha * 0.15 });
-      }
-    }
+    this.beamGfx.clear(); // keep clear — beam removed from design
 
     if (this.fakePlayerMarkers.length > 0) {
       this.updateFakePlayerMarkers(t, deltaMs);
@@ -1152,28 +1107,40 @@ export class GalaxyScene {
     const g = node.particleGfx;
     g.clear();
 
-    const { starState, baseRadius, phaseOffset: ph, nebulaColor, orbitData } = node;
+    const { starState, baseRadius, phaseOffset: ph, nebulaColor, particleCount, spectralClass } = node;
     const isHome = starState === 'home';
     const coreR = Math.max(2.5, baseRadius * (isHome ? 0.55 : 0.42));
 
-    /* ── Unexplored: sonar ripple rings ── */
+    /* ── Unexplored: concentric halo (like prototype) ── */
     if (starState === 'unexplored') {
-      // 2× slower period; outer rings fade much faster (exponent falloff)
-      const period = 6400 + ph * 800;
-      const maxR = coreR * 4.5;
-      for (let k = 0; k < 3; k++) {
-        const offset = (k / 3) * period;
-        const phase = ((t + offset) % period) / period;
-        const r = phase * maxR;
-        // Quadratic falloff: further = much less visible
-        const alpha = Math.pow(1 - phase, 2.0) * 0.34;
-        if (r > 0.5) {
-          g.circle(0, 0, r);
-          g.stroke({ width: 0.8, color: nebulaColor, alpha });
+      const isR2 = node.ringIndex >= 2;
+      const maxR = isR2 ? 10 : 16;
+      const baseAlpha = isR2 ? 0.06 : 0.16;
+      const decay = isR2 ? 3.8 : 5.5;
+      const brt = 0.82 + 0.18 * Math.sin(t * 0.0006 + ph);
+      const numCircles = 12;
+      for (let c = 1; c < numCircles; c++) {
+        const cf = c / (numCircles - 1);
+        const cr = maxR * cf;
+        const ca = baseAlpha * Math.pow(1 - cf, decay) * brt;
+        if (ca > 0.005) {
+          g.circle(0, 0, cr);
+          g.stroke({ width: 0.7, color: nebulaColor, alpha: ca });
         }
       }
-      g.circle(0, 0, 1.8);
-      g.fill({ color: nebulaColor, alpha: 0.45 });
+      // Small core dot
+      g.circle(0, 0, Math.max(1, coreR * 0.6));
+      g.fill({ color: nebulaColor, alpha: 0.3 * brt });
+      // R1 only: 5 companion dots in slow orbit
+      if (!isR2) {
+        const tSec = t * 0.001;
+        for (let d = 0; d < 5; d++) {
+          const da = d * 1.2566 + tSec * 0.5;
+          const dr = 8 + d * 3;
+          g.circle(Math.cos(da) * dr, Math.sin(da) * dr, 0.7);
+          g.fill({ color: nebulaColor, alpha: 0.18 * brt });
+        }
+      }
       return;
     }
 
@@ -1184,72 +1151,30 @@ export class GalaxyScene {
     // Eased expansion factor (0=collapsed, 1=fully expanded)
     const ep = easeOutQuad(node.expandProgress);
 
-    /* ── Researching: blue orbital ring ── */
-    if (starState === 'researching') {
-      const ringR = coreR * 2.1;
-      // Outer ring
-      g.circle(0, 0, ringR);
-      g.stroke({ width: 1.2, color: 0x2255cc, alpha: 0.55 * pulse });
-      // Inner thin ring
-      g.circle(0, 0, ringR * 0.7);
-      g.stroke({ width: 0.5, color: 0x4488ff, alpha: 0.25 * pulse });
-    }
-
     /* ── Single subtle ambient glow ── */
     g.circle(0, 0, coreR * 2.5);
     g.fill({ color: nebulaColor, alpha: 0.038 * br * pulse });
 
-    /* ── Tilted chaotic orbits + planet dots (only for researched/home, only when expanding) ── */
-    const canShowOrbits = starState === 'researched' || starState === 'home';
-    if (canShowOrbits && ep > 0.005) {
-      for (const p of orbitData) {
-        const ct2 = Math.cos(p.tilt);
-        const st2 = Math.sin(p.tilt);
-        const scaledA = p.orbitA * ep;
-        const scaledB = p.orbitB * ep;
-
-        // Draw tilted ellipse parametrically (PixiJS ellipse has no rotation)
-        const N = 40;
-        for (let i = 0; i <= N; i++) {
-          const angle = (i / N) * Math.PI * 2;
-          const ex = Math.cos(angle) * scaledA;
-          const ey = Math.sin(angle) * scaledB;
-          const rx = ex * ct2 - ey * st2;
-          const ry = ex * st2 + ey * ct2;
-          if (i === 0) g.moveTo(rx, ry);
-          else g.lineTo(rx, ry);
-        }
-        // Orbit line — brightens slightly at high spin
-        const orbitAlpha = Math.min(0.6, 0.28 * br * ep * (spinBoost > 4 ? 1 + (spinBoost - 4) * 0.06 : 1));
-        const orbitW = Math.min(1.4, 0.5 + (spinBoost > 8 ? (spinBoost - 8) * 0.04 : 0));
-        g.stroke({ width: orbitW, color: 0x2a4d6e, alpha: orbitAlpha });
-
-        // Planet dot at current orbital position (tilted, speed scaled by spinBoost)
-        const planetAngle = p.phase + t * p.speed * 0.001 * spinBoost;
-        const ex = Math.cos(planetAngle) * scaledA;
-        const ey = Math.sin(planetAngle) * scaledB;
-        const px = ex * ct2 - ey * st2;
-        const py = ex * st2 + ey * ct2;
-
-        // Motion blur trail — appears when spinning fast (transition atom effect)
-        if (spinBoost > 2) {
-          const trailSteps = 5;
-          const trailSpan = Math.min(Math.PI * 0.55, (spinBoost - 2) * 0.045) * Math.sign(p.speed);
-          for (let b = trailSteps; b >= 1; b--) {
-            const ta = planetAngle - (b / trailSteps) * trailSpan;
-            const tex = Math.cos(ta) * scaledA;
-            const tey = Math.sin(ta) * scaledB;
-            const trx = tex * ct2 - tey * st2;
-            const tryy = tex * st2 + tey * ct2;
-            const trAlpha = ((trailSteps - b + 1) / trailSteps) * Math.min(0.55, (spinBoost - 2) * 0.07) * ep;
-            g.circle(trx, tryy, p.pSize * 0.75);
-            g.fill({ color: p.color, alpha: trAlpha });
-          }
-        }
-
-        const dotSize = Math.min(p.pSize * 2.2, p.pSize * Math.sqrt(ep) * (spinBoost > 2 ? 1 + (spinBoost - 2) * 0.07 : 1));
-        g.circle(px, py, dotSize);
-        g.fill({ color: p.color, alpha: Math.min(1, 0.88 * br * ep) });
+    /* ── Ambient particles ── */
+    // Researching: always show 14 dim particles (no expand needed)
+    // Researched/home: show full count when expanding
+    const isResearching = starState === 'researching';
+    const pCount = isResearching ? 14 : particleCount;
+    const pEp = isResearching ? 1 : ep;  // researching doesn't need expand
+    if ((isResearching || ep > 0.005) && pEp > 0) {
+      const particleColor = SPECTRAL_PARTICLE_COLOR[spectralClass] ?? 0xfff8f0;
+      const tSec = t * 0.001;
+      for (let i = 0; i < pCount; i++) {
+        const baseDist = 15 + ((i * 7 + 3) % 17) / 17 * 32;
+        const dist = baseDist * (isResearching ? 0.82 : pEp);
+        const angle = i * 2.399 + tSec * spinBoost * (i % 2 ? 0.28 : -0.21);
+        const r = 0.65 + (i % 3) * 0.38;
+        const alpha = (0.18 + (i % 5) * 0.08)
+          * (0.5 + 0.5 * Math.sin(tSec * 2.2 + i * 1.37))
+          * Math.min(1, isResearching ? 1 : ep * 2)
+          * br;
+        g.circle(Math.cos(angle) * dist, Math.sin(angle) * dist, r);
+        g.fill({ color: particleColor, alpha });
       }
     }
 
