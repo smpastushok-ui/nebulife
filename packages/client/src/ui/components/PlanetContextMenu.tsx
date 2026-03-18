@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Planet, Star, ResourceGroup } from '@nebulife/core';
 import { ELEMENTS, RESOURCE_GROUPS, GROUP_NAMES, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
@@ -449,6 +449,13 @@ export function PlanetContextMenu({
 }) {
   const [activeTab, setActiveTab] = useState<TabId>('actions');
   const [expandedGroup, setExpandedGroup] = useState<ResourceGroup | null>(null);
+  // Delay backdrop activation to prevent the touch "click" event (fired after
+  // the pointerdown that opened the menu) from immediately closing it on mobile.
+  const [backdropActive, setBackdropActive] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setBackdropActive(true), 150);
+    return () => clearTimeout(t);
+  }, []);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'dwarf';
 
@@ -456,7 +463,7 @@ export function PlanetContextMenu({
   if (isDestroyed) {
     return (
       <>
-        <div style={backdropStyle} onClick={onClose} />
+        <div style={backdropStyle} onClick={backdropActive ? onClose : undefined} />
         <div style={{
           ...menuStyle,
           left: Math.min(screenPosition.x + 8, window.innerWidth - MENU_WIDTH - 16),
@@ -488,7 +495,7 @@ export function PlanetContextMenu({
 
   return (
     <>
-      <div style={backdropStyle} onClick={onClose} />
+      <div style={backdropStyle} onClick={backdropActive ? onClose : undefined} />
       <div style={{ ...menuStyle, left, top }}>
         {/* ── Header: name + HOME tag ── */}
         <div style={{
