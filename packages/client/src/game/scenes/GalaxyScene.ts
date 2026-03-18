@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebulife/core';
 import { getResearchProgress, isSystemFullyResearched, SeededRNG } from '@nebulife/core';
-import { createGalaxyBackdrop, type TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
+import type { TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
 
 /* ── Helpers ───────────────────────────────────────────────────── */
 
@@ -193,13 +193,18 @@ export class GalaxyScene {
     this.container = new Container();
     this.researchState = researchState;
 
-    /* Galaxy backdrop — faint background stars */
-    const bd = createGalaxyBackdrop({ seed: galaxySeed, centerX: 0, centerY: 0 });
+    /* Simple static background star field (no galaxy backdrop) */
     this.accretionDisk = null;
-    this.backdropContainer = bd.backdropContainer;
-    this.backdropContainer.alpha = 0.45;
-    this.container.addChild(this.backdropContainer);
-    this.twinkleStars = bd.twinkleStars;
+    this.backdropContainer = null;
+    this.twinkleStars = [];
+    const bgStars = new Graphics();
+    for (let i = 0; i < 200; i++) {
+      const x = ((i * 7919 + 1234) % 12000) / 10 - 600;
+      const y = ((i * 6271 + 567) % 7200) / 10 - 360;
+      bgStars.circle(x, y, 0.25 + (i % 3) * 0.18);
+      bgStars.fill({ color: 0xb4c8dc, alpha: 0.04 + (i % 5) * 0.025 });
+    }
+    this.container.addChild(bgStars);
 
     /* Render layers */
     this.connectionLines = new Graphics();
@@ -322,18 +327,17 @@ export class GalaxyScene {
     const len = Math.hypot(dx, dy);
     if (len < 5) return;
     const nx = -dy / len, ny = dx / len;
-    const amp = Math.min(10, len * 0.045);
-    const N = Math.ceil(len / 7);
+    const amp = Math.min(3.8, len * 0.022);
+    const N = Math.ceil(len / 10);
     g.moveTo(x1, y1);
     for (let i = 1; i <= N; i++) {
       const s = i / N;
       const env = Math.sin(s * Math.PI);
-      const w1 = amp * env * Math.sin(s * Math.PI * 2.8 + t * 0.00055 + seed);
-      const w2 = amp * 0.42 * env * Math.sin(s * Math.PI * 5.5 - t * 0.00105 + seed * 2.1);
-      const w3 = amp * 0.18 * env * Math.sin(s * Math.PI * 9 + t * 0.0008 + seed * 3.7);
-      g.lineTo(x1 + dx * s + nx * (w1 + w2 + w3), y1 + dy * s + ny * (w1 + w2 + w3));
+      const w1 = amp * env * Math.sin(s * Math.PI * 3.5 + t * 0.00055 + seed);
+      const w2 = amp * 0.38 * env * Math.sin(s * Math.PI * 7 - t * 0.00105 + seed * 2.1);
+      g.lineTo(x1 + dx * s + nx * (w1 + w2), y1 + dy * s + ny * (w1 + w2));
     }
-    g.stroke({ width: 0.7, color: 0x2e4466, alpha });
+    g.stroke({ width: 0.65, color: 0x2e4466, alpha });
   }
 
   /**
@@ -1185,27 +1189,21 @@ export class GalaxyScene {
     g.circle(0, 0, coreR * 2.5);
     g.fill({ color: nebulaColor, alpha: 0.038 * br * pulse });
 
-    /* ── Ambient particles ── */
-    // Researching: always show 14 dim particles (no expand needed)
-    // Researched/home: show full count when expanding
+    /* ── Ambient particles — always orbit for all visible stars (matching prototype) ── */
     const isResearching = starState === 'researching';
     const pCount = isResearching ? 14 : particleCount;
-    const pEp = isResearching ? 1 : ep;  // researching doesn't need expand
-    if ((isResearching || ep > 0.005) && pEp > 0) {
-      const particleColor = SPECTRAL_PARTICLE_COLOR[spectralClass] ?? 0xfff8f0;
-      const tSec = t * 0.001;
-      for (let i = 0; i < pCount; i++) {
-        const baseDist = 15 + ((i * 7 + 3) % 17) / 17 * 32;
-        const dist = baseDist * (isResearching ? 0.82 : pEp);
-        const angle = i * 2.399 + tSec * spinBoost * (i % 2 ? 0.28 : -0.21);
-        const r = 0.65 + (i % 3) * 0.38;
-        const alpha = (0.18 + (i % 5) * 0.08)
-          * (0.5 + 0.5 * Math.sin(tSec * 2.2 + i * 1.37))
-          * Math.min(1, isResearching ? 1 : ep * 2)
-          * br;
-        g.circle(Math.cos(angle) * dist, Math.sin(angle) * dist, r);
-        g.fill({ color: particleColor, alpha });
-      }
+    const particleColor = SPECTRAL_PARTICLE_COLOR[spectralClass] ?? 0xfff8f0;
+    const tSec = t * 0.001;
+    for (let i = 0; i < pCount; i++) {
+      const baseDist = 15 + ((i * 7 + 3) % 17) / 17 * 32;
+      const dist = isResearching ? baseDist * 0.82 : baseDist;
+      const angle = i * 2.399 + tSec * spinBoost * (i % 2 ? 0.28 : -0.21);
+      const r = 0.65 + (i % 3) * 0.38;
+      const alpha = (0.18 + (i % 5) * 0.08)
+        * (0.5 + 0.5 * Math.sin(tSec * 2.2 + i * 1.37))
+        * br;
+      g.circle(Math.cos(angle) * dist, Math.sin(angle) * dist, r);
+      g.fill({ color: particleColor, alpha });
     }
 
     /* ── Two thin pulsing orbit rings ── */
@@ -1219,11 +1217,11 @@ export class GalaxyScene {
     g.circle(0, 0, coreR * 1.7);
     g.fill({ color: nebulaColor, alpha: 0.12 * pulse * br });
 
-    // Bright core dot (white + tinted)
+    // Bright core dot (white + tinted) — matches prototype alpha values
     g.circle(0, 0, coreR);
-    g.fill({ color: 0xffffff, alpha: 0.85 * pulse });
-    g.circle(0, 0, coreR * 0.7);
-    g.fill({ color: nebulaColor, alpha: 0.25 * pulse });
+    g.fill({ color: 0xffffff, alpha: 0.93 * pulse });
+    g.circle(0, 0, coreR * 0.65);
+    g.fill({ color: nebulaColor, alpha: 0.62 * pulse * br });
 
     /* ── HOME: warm glow accent ── */
     if (isHome) {
