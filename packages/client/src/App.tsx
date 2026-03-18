@@ -1549,7 +1549,6 @@ export function App() {
         setRadialSystem(null);
         setRadialGetScreenPos(null);
         setState(prev => ({ ...prev, selectedSystem: null }));
-        engineRef.current?.unfocusSystem();
       },
     }, genIdx);
 
