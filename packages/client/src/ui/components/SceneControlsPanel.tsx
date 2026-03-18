@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // ---------------------------------------------------------------------------
 // SceneControlsPanel — Left-side vertical controls (back, center, zoom)
@@ -9,6 +9,8 @@ interface ExtraButton {
   icon: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  /** When true, button pulses with blue neon glow */
+  pulse?: boolean;
 }
 
 interface SceneControlsPanelProps {
@@ -24,6 +26,13 @@ interface SceneControlsPanelProps {
   /** When true, panel slides off-screen to the left */
   hidden?: boolean;
 }
+
+const NEON_STYLE_ID = 'scp-neon-pulse';
+const NEON_KEYFRAMES = `
+@keyframes scp-neon-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(68,136,255,0.25); border-color: rgba(68,136,255,0.35); }
+  50% { box-shadow: 0 0 14px rgba(68,136,255,0.55), 0 0 4px rgba(68,136,255,0.3) inset; border-color: rgba(68,136,255,0.65); }
+}`;
 
 const btnStyle: React.CSSProperties = {
   width: 32,
@@ -46,10 +55,12 @@ function ControlButton({
   onClick,
   title,
   children,
+  pulse,
 }: {
   onClick: () => void;
   title: string;
   children: React.ReactNode;
+  pulse?: boolean;
 }) {
   const [hover, setHover] = useState(false);
   return (
@@ -58,8 +69,9 @@ function ControlButton({
       title={title}
       style={{
         ...btnStyle,
-        borderColor: hover ? 'rgba(120,160,255,0.5)' : 'rgba(68,102,136,0.4)',
-        color: hover ? '#aabbcc' : '#8899aa',
+        borderColor: hover ? 'rgba(120,160,255,0.5)' : pulse ? undefined : 'rgba(68,102,136,0.4)',
+        color: hover ? '#aabbcc' : pulse ? '#88bbff' : '#8899aa',
+        ...(pulse ? { animation: 'scp-neon-pulse 2s ease-in-out infinite' } : {}),
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -80,6 +92,20 @@ export function SceneControlsPanel({
   extraButtons,
   hidden = false,
 }: SceneControlsPanelProps) {
+  // Inject neon pulse keyframes once
+  const injected = useRef(false);
+  useEffect(() => {
+    if (injected.current || document.getElementById(NEON_STYLE_ID)) {
+      injected.current = true;
+      return;
+    }
+    const style = document.createElement('style');
+    style.id = NEON_STYLE_ID;
+    style.textContent = NEON_KEYFRAMES;
+    document.head.appendChild(style);
+    injected.current = true;
+  }, []);
+
   return (
     <div
       style={{
@@ -148,7 +174,7 @@ export function SceneControlsPanel({
             {btn.icon}
           </button>
         ) : (
-          <ControlButton key={i} onClick={btn.onClick} title={btn.title}>
+          <ControlButton key={i} onClick={btn.onClick} title={btn.title} pulse={btn.pulse}>
             {btn.icon}
           </ControlButton>
         )

@@ -36,6 +36,8 @@ export interface PlanetGlobeViewHandle {
   startShipApproach(): void;
   isShipOnOrbit(): boolean;
   stopShipFlight(): void;
+  /** Spin up + zoom in over 2s, then call onComplete */
+  spinAndZoom(onComplete: () => void): void;
 }
 
 interface PlanetGlobeViewProps {
@@ -43,6 +45,7 @@ interface PlanetGlobeViewProps {
   star: Star;
   system: StarSystem;
   mode: 'home' | 'planet-view';
+  onDoubleClick?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -781,7 +784,7 @@ function spawnShootingStar(scene: THREE.Scene): ShootingStar {
 // ---------------------------------------------------------------------------
 
 const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
-  ({ planet, star, system, mode }, ref) => {
+  ({ planet, star, system, mode, onDoubleClick }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const animFrameRef = useRef<number>(0);
@@ -791,6 +794,9 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     const scanActiveRef = useRef(false);
     const shipRef = useRef<ShipState | null>(null);
     const controlsRef = useRef<OrbitControls | null>(null);
+    const transitionRef = useRef<{ startTime: number; startDist: number; onComplete: () => void } | null>(null);
+    const onDoubleClickRef = useRef(onDoubleClick);
+    onDoubleClickRef.current = onDoubleClick;
 
     const cleanup = useCallback(() => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -868,6 +874,13 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           s.group.visible = false;
         }
       },
+      spinAndZoom(onComplete: () => void) {
+        const c = controlsRef.current;
+        if (!c || transitionRef.current) return;
+        const dist = c.object.position.length();
+        transitionRef.current = { startTime: performance.now(), startDist: dist, onComplete };
+        c.enabled = false; // block user input during transition
+      },
     }), []);
 
     useEffect(() => {
@@ -911,6 +924,10 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       controls.maxDistance = 8;
       controls.enablePan = false;
       controlsRef.current = controls;
+
+      // Double-click → trigger surface transition
+      const handleDblClick = () => { onDoubleClickRef.current?.(); };
+      renderer.domElement.addEventListener('dblclick', handleDblClick);
 
       // --- Build scene layers ---
 
@@ -962,6 +979,25 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         const deltaMs = now - lastTime;
         lastTime = now;
         const elapsed = (now - startTime) * 0.001;
+
+        // Spin + zoom transition (double-click → surface)
+        const tr = transitionRef.current;
+        if (tr) {
+          const p = Math.min(1, (now - tr.startTime) / 2000);
+          // easeInOutCubic
+          const e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+          controls.autoRotateSpeed = 0.3 + e * 14.7;
+          const targetDist = controls.minDistance;
+          const d = tr.startDist + (targetDist - tr.startDist) * e;
+          camera.position.normalize().multiplyScalar(d);
+          if (p >= 1) {
+            const cb = tr.onComplete;
+            transitionRef.current = null;
+            controls.autoRotateSpeed = 0.3;
+            controls.enabled = true;
+            cb();
+          }
+        }
 
         controls.update();
 
@@ -1063,6 +1099,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
       return () => {
         window.removeEventListener('resize', onResize);
+        renderer.domElement.removeEventListener('dblclick', handleDblClick);
+        transitionRef.current = null;
         cleanup();
         // Dispose scene
         scene.traverse((obj) => {

@@ -2965,6 +2965,21 @@ export function App() {
     });
   }, [homeInfo]);
 
+  // ── Globe double-click → spin + zoom → surface ────────────────────────
+  const handleGlobeDoubleClick = useCallback(() => {
+    const planet = state.scene === 'home-intro' ? homeInfo?.planet : state.selectedPlanet;
+    if (!planet) return;
+    const check = canLandOnPlanet(planet);
+    if (!check.allowed) return;
+    globeRef.current?.spinAndZoom(() => {
+      if (state.scene === 'home-intro') {
+        handleGoToHomeSurface();
+      } else {
+        handleOpenSurface();
+      }
+    });
+  }, [state.scene, state.selectedPlanet, homeInfo, canLandOnPlanet, handleGoToHomeSurface, handleOpenSurface]);
+
   // ── Planet detail window handler ────────────────────────────────────────
   const handleViewPlanetDetail = useCallback((system: StarSystem, planetIndex: number, displayName?: string) => {
     setPlanetDetailTarget({ system, planetIndex, displayName });
@@ -3278,8 +3293,9 @@ export function App() {
     }
   }
 
-  // Home button on non-home scenes
-  if (state.scene !== 'home-intro') {
+  // Home button on non-home scenes (also hide when viewing home planet in planet-view)
+  if (state.scene !== 'home-intro'
+      && !(state.scene === 'planet-view' && state.selectedPlanet?.isHomePlanet)) {
     toolGroups.push({
       type: 'buttons',
       items: [{
@@ -3568,6 +3584,7 @@ export function App() {
               title: 'Поверхня',
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleGoToHomeSurface,
+              pulse: true,
             },
           ]}
         />
@@ -3618,6 +3635,7 @@ export function App() {
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleOpenSurface,
               disabled: !check.allowed,
+              pulse: check.allowed,
             }];
           })() : undefined}
         />
@@ -3962,6 +3980,7 @@ export function App() {
           star={state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem.star : homeInfo.system.star}
           system={state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem : homeInfo.system}
           mode={state.scene === 'home-intro' ? 'home' : 'planet-view'}
+          onDoubleClick={handleGlobeDoubleClick}
         />
       )}
       {/* Surface View (biosphere level) */}
