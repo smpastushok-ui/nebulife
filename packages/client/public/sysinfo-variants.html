@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SystemInfoPanel — Варіанти</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #020510;
+    font-family: monospace;
+    color: #aabbcc;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    align-items: center;
+  }
+  h2 {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: #445566;
+    text-align: center;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .variant-label {
+    font-size: 9px;
+    color: #334455;
+    text-align: center;
+    letter-spacing: 0.14em;
+    margin-bottom: 10px;
+  }
+
+  /* ─── VARIANT 1: Terminal Scan ─── */
+  .v1 {
+    width: 280px;
+    background: rgba(10,15,25,0.96);
+    border: 1px solid #1e3348;
+    border-radius: 4px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .v1::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #4488aa44, #4488aa88, #4488aa44, transparent);
+  }
+  .v1-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .v1-name { font-size: 13px; color: #ccddee; letter-spacing: 0.04em; }
+  .v1-rename { font-size: 9px; color: #4488aa; cursor: pointer; margin-left: 6px; }
+  .v1-close { font-size: 14px; color: #445566; cursor: pointer; background: none; border: none; font-family: monospace; }
+  .v1-section {
+    font-size: 9px;
+    color: #4488aa;
+    letter-spacing: 0.16em;
+    margin: 10px 0 6px;
+    text-transform: uppercase;
+    opacity: 0;
+    animation: fadeIn 0.2s forwards;
+  }
+  .v1-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(30,50,70,0.5);
+    font-size: 11px;
+    opacity: 0;
+    transform: translateX(-6px);
+    animation: slideIn 0.25s forwards;
+  }
+  .v1-row .label { color: #778899; }
+  .v1-row .value { color: #aabbcc; font-size: 11px; }
+  .v1-row .value.star-class { color: #ffcc88; }
+  .v1-row .value.life-none { color: #445566; }
+  .v1-btn {
+    width: 100%; margin-top: 14px; padding: 8px 0;
+    background: rgba(20,50,70,0.5);
+    border: 1px solid #336688;
+    color: #88aacc; font-family: monospace; font-size: 11px;
+    border-radius: 3px; cursor: pointer; letter-spacing: 0.08em;
+    opacity: 0;
+    animation: fadeIn 0.25s forwards;
+    transition: background 0.15s, color 0.15s;
+  }
+  .v1-btn:hover { background: rgba(40,80,110,0.7); color: #bbddff; }
+
+  /* ─── VARIANT 2: HUD Overlay ─── */
+  .v2 {
+    width: 280px;
+    background: rgba(6,10,20,0.97);
+    border: 1px solid #2d4a62;
+    border-radius: 3px;
+    position: relative;
+  }
+  .v2::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgba(45,74,98,0.35);
+    border-radius: 1px;
+    pointer-events: none;
+  }
+  .v2-header {
+    padding: 12px 14px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid #1a2d3d;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
+  }
+  .v2-name { font-size: 14px; color: #d0e4f4; letter-spacing: 0.03em; }
+  .v2-coords { font-size: 8px; color: #334455; margin-top: 3px; letter-spacing: 0.1em; }
+  .v2-close { font-size: 14px; color: #2d4455; cursor: pointer; background: none; border: none; font-family: monospace; }
+  .v2-section-header {
+    padding: 8px 14px 6px;
+    font-size: 8px;
+    letter-spacing: 0.22em;
+    color: #2a6080;
+    text-transform: uppercase;
+    background: rgba(15,30,50,0.6);
+    border-bottom: 1px solid #1a2d3d;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
+  }
+  .v2-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 14px;
+    border-bottom: 1px solid rgba(25,40,55,0.6);
+    font-size: 11px;
+    opacity: 0;
+    transform: translateX(8px);
+    animation: slideInR 0.28s forwards;
+  }
+  .v2-row .label { color: #5a7080; font-size: 10px; }
+  .v2-row .value { color: #98b8cc; }
+  .v2-row .value.star-class { color: #ffcc88; font-size: 12px; }
+  .v2-row .value.life-none { color: #2d4050; }
+  .v2-btn {
+    width: calc(100% - 28px); margin: 12px 14px;
+    padding: 9px 0;
+    background: transparent;
+    border: 1px solid #2d6080;
+    color: #5a9ab8; font-family: monospace; font-size: 11px;
+    border-radius: 2px; cursor: pointer; letter-spacing: 0.1em;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
+    transition: all 0.15s;
+  }
+  .v2-btn:hover { background: rgba(30,70,100,0.4); border-color: #4a9acc; color: #8acce8; }
+
+  /* ─── VARIANT 3: Compact Card ─── */
+  .v3 {
+    width: 280px;
+    background: rgba(8,12,22,0.97);
+    border: 1px solid #243344;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .v3-header {
+    padding: 12px 14px;
+    background: linear-gradient(180deg, rgba(20,35,55,0.8), rgba(10,18,32,0.4));
+    border-bottom: 1px solid #1e3040;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
+  }
+  .v3-title-row { display: flex; justify-content: space-between; align-items: center; }
+  .v3-name { font-size: 14px; color: #c8dcea; letter-spacing: 0.04em; }
+  .v3-close { font-size: 13px; color: #334455; cursor: pointer; background: none; border: none; font-family: monospace; }
+  .v3-star-summary {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .v3-chip {
+    font-size: 9px;
+    padding: 2px 7px;
+    background: rgba(30,50,70,0.6);
+    border: 1px solid #1e3348;
+    border-radius: 10px;
+    color: #6688aa;
+    letter-spacing: 0.06em;
+  }
+  .v3-chip.star { color: #ffcc88; border-color: #3d3010; background: rgba(40,28,6,0.5); }
+  .v3-body { padding: 10px 14px 4px; }
+  .v3-section-label {
+    font-size: 8px;
+    color: #2d4455;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin: 8px 0 5px;
+    opacity: 0;
+    animation: fadeIn 0.2s forwards;
+  }
+  .v3-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 11px;
+    border-bottom: 1px solid rgba(25,40,55,0.4);
+    opacity: 0;
+    transform: translateY(6px);
+    animation: slideUp 0.25s forwards;
+  }
+  .v3-row .label { color: #6688aa; }
+  .v3-row .value { color: #aabbcc; }
+  .v3-row .value.star-class { color: #ffcc88; }
+  .v3-row .value.life-none { color: #334455; }
+  .v3-row .value.life-yes { color: #44ff88; }
+  .v3-footer {
+    padding: 10px 14px 14px;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
+  }
+  .v3-btn {
+    width: 100%; padding: 8px 0;
+    background: rgba(22,44,66,0.5);
+    border: 1px solid #2a5575;
+    color: #7aaecc; font-family: monospace; font-size: 11px;
+    border-radius: 4px; cursor: pointer; letter-spacing: 0.08em;
+    transition: all 0.15s;
+  }
+  .v3-btn:hover { background: rgba(35,70,100,0.65); color: #a8d4ee; }
+
+  /* ─── Keyframes ─── */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes slideInR {
+    from { opacity: 0; transform: translateX(10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     VARIANT 1 — Terminal Scan
+     Рядки з'являються один за одним зліва
+══════════════════════════════════════════════ -->
+<div>
+  <h2>Варіант 1</h2>
+  <div class="variant-label">Terminal Scan — рядки зліва один за одним</div>
+  <div class="v1" id="v1">
+    <div class="v1-header">
+      <span class="v1-name">TYC-50424 <span class="v1-rename">[rename]</span></span>
+      <button class="v1-close">&times;</button>
+    </div>
+
+    <div class="v1-section" style="animation-delay:0.05s">ЗІРКА</div>
+    <div class="v1-row" style="animation-delay:0.10s"><span class="label">Клас</span><span class="value star-class">G3V</span></div>
+    <div class="v1-row" style="animation-delay:0.18s"><span class="label">Температура</span><span class="value">5890 K</span></div>
+    <div class="v1-row" style="animation-delay:0.26s"><span class="label">Маса</span><span class="value">1.001 M&#x2609;</span></div>
+    <div class="v1-row" style="animation-delay:0.34s"><span class="label">Світність</span><span class="value">1.1027 L&#x2609;</span></div>
+    <div class="v1-row" style="animation-delay:0.42s"><span class="label">Вік</span><span class="value">9.08 Gyr</span></div>
+
+    <div class="v1-section" style="animation-delay:0.52s">СИСТЕМА</div>
+    <div class="v1-row" style="animation-delay:0.58s"><span class="label">Планет</span><span class="value">7</span></div>
+    <div class="v1-row" style="animation-delay:0.66s"><span class="label">Зона придатності</span><span class="value">2 планети</span></div>
+    <div class="v1-row" style="animation-delay:0.74s"><span class="label">Виявлене життя</span><span class="value life-none">Немає</span></div>
+    <div class="v1-row" style="animation-delay:0.82s"><span class="label">Кільце</span><span class="value">1</span></div>
+
+    <button class="v1-btn" style="animation-delay:0.96s">Увійти до системи &rarr;</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     VARIANT 2 — HUD Overlay
+     Секції блоками, рядки справа
+══════════════════════════════════════════════ -->
+<div>
+  <h2>Варіант 2</h2>
+  <div class="variant-label">HUD Overlay — секції блоками, справа</div>
+  <div class="v2">
+    <div class="v2-header" style="animation-delay:0.05s">
+      <div>
+        <div class="v2-name">TYC-50424</div>
+        <div class="v2-coords">RA 04h 12m &middot; Dec +31&deg; &middot; G3V</div>
+      </div>
+      <button class="v2-close">&times;</button>
+    </div>
+
+    <div class="v2-section-header" style="animation-delay:0.15s">&#x2014;&#x2014; ЗІРКА &#x2014;&#x2014;</div>
+    <div class="v2-row" style="animation-delay:0.22s"><span class="label">Клас</span><span class="value star-class">G3V</span></div>
+    <div class="v2-row" style="animation-delay:0.29s"><span class="label">Температура</span><span class="value">5890 K</span></div>
+    <div class="v2-row" style="animation-delay:0.36s"><span class="label">Маса</span><span class="value">1.001 M&#x2609;</span></div>
+    <div class="v2-row" style="animation-delay:0.43s"><span class="label">Світність</span><span class="value">1.1027 L&#x2609;</span></div>
+    <div class="v2-row" style="animation-delay:0.50s"><span class="label">Вік</span><span class="value">9.08 Gyr</span></div>
+
+    <div class="v2-section-header" style="animation-delay:0.60s">&#x2014;&#x2014; СИСТЕМА &#x2014;&#x2014;</div>
+    <div class="v2-row" style="animation-delay:0.67s"><span class="label">Планет</span><span class="value">7</span></div>
+    <div class="v2-row" style="animation-delay:0.74s"><span class="label">Зона придатності</span><span class="value">2 планети</span></div>
+    <div class="v2-row" style="animation-delay:0.81s"><span class="label">Виявлене життя</span><span class="value life-none">Немає</span></div>
+    <div class="v2-row" style="animation-delay:0.88s"><span class="label">Кільце</span><span class="value">1</span></div>
+
+    <button class="v2-btn" style="animation-delay:1.02s">Увійти до системи &rarr;</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     VARIANT 3 — Compact Card
+     Чіпи зірки зверху, рядки знизу вгору
+══════════════════════════════════════════════ -->
+<div>
+  <h2>Варіант 3</h2>
+  <div class="variant-label">Compact Card — чіпи параметрів + fade знизу вгору</div>
+  <div class="v3">
+    <div class="v3-header" style="animation-delay:0.05s">
+      <div class="v3-title-row">
+        <span class="v3-name">TYC-50424</span>
+        <button class="v3-close">&times;</button>
+      </div>
+      <div class="v3-star-summary">
+        <span class="v3-chip star">G3V</span>
+        <span class="v3-chip">5890 K</span>
+        <span class="v3-chip">1.001 M&#x2609;</span>
+        <span class="v3-chip">1.1027 L&#x2609;</span>
+        <span class="v3-chip">9.08 Gyr</span>
+      </div>
+    </div>
+
+    <div class="v3-body">
+      <div class="v3-section-label" style="animation-delay:0.25s">Система</div>
+      <div class="v3-row" style="animation-delay:0.32s"><span class="label">Планет</span><span class="value">7</span></div>
+      <div class="v3-row" style="animation-delay:0.40s"><span class="label">Зона придатності</span><span class="value">2 планети</span></div>
+      <div class="v3-row" style="animation-delay:0.48s"><span class="label">Виявлене життя</span><span class="value life-none">Немає</span></div>
+      <div class="v3-row" style="animation-delay:0.56s"><span class="label">Кільце</span><span class="value">1</span></div>
+    </div>
+
+    <div class="v3-footer" style="animation-delay:0.72s">
+      <button class="v3-btn">Увійти до системи &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<div style="height:32px"></div>
+</body>
+</html>

@@ -97,26 +97,26 @@ export function SystemInfoPanel({ system, onEnterSystem, onClose, displayName, o
         <button style={closeBtnStyle} onClick={onClose}>&times;</button>
       </div>
 
-      <div style={{ marginBottom: 8, color: '#778899', fontSize: 10 }}>STAR</div>
-      <div style={rowStyle}><span>Class</span><span style={{ color: star.colorHex }}>{star.spectralClass}{star.subType}V</span></div>
-      <div style={rowStyle}><span>Temperature</span><span>{star.temperatureK} K</span></div>
-      <div style={rowStyle}><span>Mass</span><span>{star.massSolar} M&#x2609;</span></div>
-      <div style={rowStyle}><span>Luminosity</span><span>{star.luminositySolar} L&#x2609;</span></div>
-      <div style={rowStyle}><span>Age</span><span>{star.ageGyr} Gyr</span></div>
+      <div style={{ marginBottom: 8, color: '#778899', fontSize: 10 }}>ЗІРКА</div>
+      <div style={rowStyle}><span>Клас</span><span style={{ color: star.colorHex }}>{star.spectralClass}{star.subType}V</span></div>
+      <div style={rowStyle}><span>Температура</span><span>{star.temperatureK} K</span></div>
+      <div style={rowStyle}><span>Маса</span><span>{star.massSolar} M&#x2609;</span></div>
+      <div style={rowStyle}><span>Світність</span><span>{star.luminositySolar} L&#x2609;</span></div>
+      <div style={rowStyle}><span>Вік</span><span>{star.ageGyr} Gyr</span></div>
 
-      <div style={{ marginTop: 12, marginBottom: 8, color: '#778899', fontSize: 10 }}>SYSTEM</div>
-      <div style={rowStyle}><span>Planets</span><span>{system.planets.length}</span></div>
-      <div style={rowStyle}><span>Habitable zone</span><span>{habitablePlanets.length} planet{habitablePlanets.length !== 1 ? 's' : ''}</span></div>
+      <div style={{ marginTop: 12, marginBottom: 8, color: '#778899', fontSize: 10 }}>СИСТЕМА</div>
+      <div style={rowStyle}><span>Планет</span><span>{system.planets.length}</span></div>
+      <div style={rowStyle}><span>Зона придатності</span><span>{habitablePlanets.length} {habitablePlanets.length === 1 ? 'планета' : habitablePlanets.length < 5 ? 'планети' : 'планет'}</span></div>
       <div style={rowStyle}>
-        <span>Life detected</span>
+        <span>Виявлене життя</span>
         <span style={{ color: lifeCount > 0 ? '#44ff88' : '#667788' }}>
-          {lifeCount > 0 ? `${lifeCount} planet${lifeCount > 1 ? 's' : ''}` : 'None'}
+          {lifeCount > 0 ? `${lifeCount} ${lifeCount === 1 ? 'планета' : lifeCount < 5 ? 'планети' : 'планет'}` : 'Немає'}
         </span>
       </div>
-      <div style={rowStyle}><span>Ring</span><span>{system.ringIndex}</span></div>
+      <div style={rowStyle}><span>Кільце</span><span>{system.ringIndex}</span></div>
 
       <button style={btnStyle} onClick={onEnterSystem}>
-        Enter System &rarr;
+        Увійти до системи &rarr;
       </button>
     </div>
   );
