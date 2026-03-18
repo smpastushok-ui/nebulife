@@ -1496,7 +1496,7 @@ export function App() {
         setState((prev) => ({ ...prev, selectedSystem: system, selectedPlanet: null }));
         if (screenPos) {
           setSystemMenuPos(screenPos);
-          setShowSystemMenu(true);
+          // SystemContextMenu replaced by RadialMenu — do not open old menu
         }
       },
       onPlanetSelect: (planet, screenPos) => {
