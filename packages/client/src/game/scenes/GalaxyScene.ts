@@ -1,6 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebulife/core';
-import { getResearchProgress, isSystemFullyResearched } from '@nebulife/core';
+import { getResearchProgress, isSystemFullyResearched, SeededRNG } from '@nebulife/core';
 import { createGalaxyBackdrop, type TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
 
 /* ── Helpers ───────────────────────────────────────────────────── */
@@ -139,8 +139,8 @@ export class GalaxyScene {
   private beamGfx: Graphics;
   private nodesLayer: Container;
 
-  /** MST + extra edges (kept for reference, not rendered) */
-  private connectionEdges: Array<{ x1: number; y1: number; x2: number; y2: number; seed: number }> = [];
+  /** MST + extra edges for wavy connection line rendering */
+  private connectionEdges: Array<{ x1: number; y1: number; x2: number; y2: number; seed: number; key1: string; key2: string }> = [];
 
   private selectedSystemId: string | null = null;
   private beamAlpha = 0;
@@ -193,10 +193,12 @@ export class GalaxyScene {
     this.container = new Container();
     this.researchState = researchState;
 
-    /* Galaxy backdrop — kept for twinkle stars scatter during transition, but NOT rendered */
+    /* Galaxy backdrop — faint background stars */
     const bd = createGalaxyBackdrop({ seed: galaxySeed, centerX: 0, centerY: 0 });
     this.accretionDisk = null;
-    this.backdropContainer = null;
+    this.backdropContainer = bd.backdropContainer;
+    this.backdropContainer.alpha = 0.45;
+    this.container.addChild(this.backdropContainer);
     this.twinkleStars = bd.twinkleStars;
 
     /* Render layers */
@@ -216,8 +218,14 @@ export class GalaxyScene {
     const homeY = this.homeSystem.position.y;
 
     for (const { system, ringIndex } of all) {
-      const tx = (system.position.x - homeX) * PX_PER_LY;
-      const ty = (system.position.y - homeY) * PX_PER_LY;
+      // Chaotic jitter: deterministic offset per system to break grid pattern
+      let tx = (system.position.x - homeX) * PX_PER_LY;
+      let ty = (system.position.y - homeY) * PX_PER_LY;
+      if (system.ownerPlayerId === null) {
+        const jrng = new SeededRNG(system.seed);
+        tx += (jrng.next() - 0.5) * PX_PER_LY * 1.8;
+        ty += (jrng.next() - 0.5) * PX_PER_LY * 1.8;
+      }
 
       if (system.ownerPlayerId !== null) {
         this.buildHomeNode(system);
@@ -251,7 +259,11 @@ export class GalaxyScene {
    */
   private buildConnectionEdges() {
     const pts: Array<{ x: number; y: number; ring: number }> = [{ x: 0, y: 0, ring: 0 }];
-    for (const [, n] of this.systemNodes) pts.push({ x: n.tx, y: n.ty, ring: n.ringIndex });
+    const nodeKeysList: string[] = ['home'];
+    for (const [id, n] of this.systemNodes) {
+      pts.push({ x: n.tx, y: n.ty, ring: n.ringIndex });
+      nodeKeysList.push(id);
+    }
 
     const N = pts.length;
     if (N < 2) return;
@@ -267,6 +279,8 @@ export class GalaxyScene {
           x1: pts[i].x, y1: pts[i].y,
           x2: pts[j].x, y2: pts[j].y,
           seed: pts[i].x * 0.022 + pts[i].y * 0.016,
+          key1: nodeKeysList[i],
+          key2: nodeKeysList[j],
         });
       }
     };
@@ -734,7 +748,7 @@ export class GalaxyScene {
       const a = startAngle + (endAngle - startAngle) * (i / segments);
       g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
     }
-    g.stroke({ width: 1.5, color: 0x88ccff, alpha: 0.7 });
+    g.stroke({ width: 1.5, color: 0xddaa44, alpha: 0.7 });
   }
 
   get isFocused(): boolean {
@@ -922,13 +936,28 @@ export class GalaxyScene {
             const alpha = 0.7 * (1 - i / segments);
             node.scanArc.moveTo(Math.cos(a0) * r, Math.sin(a0) * r);
             node.scanArc.lineTo(Math.cos(a1) * r, Math.sin(a1) * r);
-            node.scanArc.stroke({ width: 1.5, color: 0x4488ff, alpha });
+            node.scanArc.stroke({ width: 1.5, color: 0xddaa44, alpha });
           }
         }
       }
     }
 
-    // Connection lines removed per design decision
+    // Wavy connection lines — blue threads between stars
+    this.connectionLines.clear();
+    for (const edge of this.connectionEdges) {
+      const st1 = edge.key1 === 'home' ? 'home' : this.systemNodes.get(edge.key1)?.starState ?? 'unexplored';
+      const st2 = edge.key2 === 'home' ? 'home' : this.systemNodes.get(edge.key2)?.starState ?? 'unexplored';
+      const ri1 = edge.key1 === 'home' ? 0 : (this.systemNodes.get(edge.key1)?.ringIndex ?? 0);
+      const ri2 = edge.key2 === 'home' ? 0 : (this.systemNodes.get(edge.key2)?.ringIndex ?? 0);
+      // Skip edges between two deep-unexplored systems
+      if (st1 === 'unexplored' && ri1 >= 2 && st2 === 'unexplored' && ri2 >= 2) continue;
+      const vis = (st: string, ri: number) =>
+        st === 'home' || st === 'researched' ? 1.0 :
+        st === 'researching' ? 0.7 :
+        ri >= 2 ? 0.22 : 0.46;
+      const alpha = Math.min(vis(st1, ri1), vis(st2, ri2)) * 0.28;
+      this.drawWavyLine(this.connectionLines, edge.x1, edge.y1, edge.x2, edge.y2, t, edge.seed, alpha);
+    }
 
     this.beamGfx.clear(); // keep clear — beam removed from design
 
@@ -1111,35 +1140,36 @@ export class GalaxyScene {
     const isHome = starState === 'home';
     const coreR = Math.max(2.5, baseRadius * (isHome ? 0.55 : 0.42));
 
-    /* ── Unexplored: concentric halo (like prototype) ── */
+    /* ── Unexplored: radial glow + quantum shimmer (like prototype) ── */
     if (starState === 'unexplored') {
       const isR2 = node.ringIndex >= 2;
       const maxR = isR2 ? 10 : 16;
       const baseAlpha = isR2 ? 0.06 : 0.16;
       const decay = isR2 ? 3.8 : 5.5;
       const brt = 0.82 + 0.18 * Math.sin(t * 0.0006 + ph);
-      const numCircles = 12;
-      for (let c = 1; c < numCircles; c++) {
-        const cf = c / (numCircles - 1);
+      // Radial fill glow (filled circles, not stroked)
+      const numCircles = 16;
+      for (let c = numCircles; c >= 1; c--) {
+        const cf = c / numCircles;
         const cr = maxR * cf;
-        const ca = baseAlpha * Math.pow(1 - cf, decay) * brt;
-        if (ca > 0.005) {
+        const ca = baseAlpha * Math.exp(-cf * decay) * brt;
+        if (ca > 0.003) {
           g.circle(0, 0, cr);
-          g.stroke({ width: 0.7, color: nebulaColor, alpha: ca });
+          g.fill({ color: nebulaColor, alpha: ca });
         }
       }
-      // Small core dot
+      // Bright core dot
       g.circle(0, 0, Math.max(1, coreR * 0.6));
-      g.fill({ color: nebulaColor, alpha: 0.3 * brt });
-      // R1 only: 5 companion dots in slow orbit
-      if (!isR2) {
-        const tSec = t * 0.001;
-        for (let d = 0; d < 5; d++) {
-          const da = d * 1.2566 + tSec * 0.5;
-          const dr = 8 + d * 3;
-          g.circle(Math.cos(da) * dr, Math.sin(da) * dr, 0.7);
-          g.fill({ color: nebulaColor, alpha: 0.18 * brt });
-        }
+      g.fill({ color: nebulaColor, alpha: 0.4 * brt });
+      // Quantum shimmer dots (R1: 5 dots, R2: 3 dots)
+      const shimCount = isR2 ? 3 : 5;
+      const tSec = t * 0.001;
+      for (let d = 0; d < shimCount; d++) {
+        const da = d * 2.399 + tSec * 0.5;
+        const dr = 6 + d * 2.5;
+        const sa = 0.15 * (0.4 + 0.6 * Math.sin(tSec * 3.5 + d * 1.8)) * brt;
+        g.circle(Math.cos(da) * dr, Math.sin(da) * dr, 0.5);
+        g.fill({ color: nebulaColor, alpha: sa });
       }
       return;
     }
@@ -1178,22 +1208,40 @@ export class GalaxyScene {
       }
     }
 
-    /* ── Star core ── */
-    const starColor = isHome ? 0xffc864
-      : starState === 'researching' ? 0x5599ee : 0xd2ebff;
+    /* ── Two thin pulsing orbit rings ── */
+    g.circle(0, 0, coreR * 2.8);
+    g.stroke({ width: 0.7, color: nebulaColor, alpha: 0.13 * pulse * br });
+    g.circle(0, 0, coreR * 3.5);
+    g.stroke({ width: 0.5, color: nebulaColor, alpha: 0.05 * pulse * br });
 
-    // Soft inner glow ring
+    /* ── Star core — color matches spectral class ── */
+    // Soft inner glow ring (star color)
     g.circle(0, 0, coreR * 1.7);
-    g.fill({ color: starColor, alpha: 0.12 * pulse * br });
+    g.fill({ color: nebulaColor, alpha: 0.12 * pulse * br });
 
-    // Bright core dot
+    // Bright core dot (white + tinted)
     g.circle(0, 0, coreR);
-    g.fill({ color: 0xffffff, alpha: 0.95 * pulse });
+    g.fill({ color: 0xffffff, alpha: 0.85 * pulse });
+    g.circle(0, 0, coreR * 0.7);
+    g.fill({ color: nebulaColor, alpha: 0.25 * pulse });
 
     /* ── HOME: warm glow accent ── */
     if (isHome) {
       g.circle(0, 0, coreR * 2.8);
-      g.fill({ color: 0xffc864, alpha: 0.055 * pulse });
+      g.fill({ color: nebulaColor, alpha: 0.055 * pulse });
+    }
+
+    /* ── Quantum shimmer around researched/researching stars ── */
+    if (starState === 'researched' || starState === 'researching') {
+      const shimmerCount = isResearching ? 8 : 12;
+      const tSec2 = t * 0.001;
+      for (let i = 0; i < shimmerCount; i++) {
+        const sDist = coreR * (1.5 + (i % 4) * 0.8);
+        const sAngle = i * 2.399 + tSec2 * 0.7;
+        const sAlpha = 0.15 * (0.3 + 0.7 * Math.sin(tSec2 * 4 + i * 2.1)) * br;
+        g.circle(Math.cos(sAngle) * sDist, Math.sin(sAngle) * sDist, 0.4);
+        g.fill({ color: nebulaColor, alpha: sAlpha });
+      }
     }
   }
 
