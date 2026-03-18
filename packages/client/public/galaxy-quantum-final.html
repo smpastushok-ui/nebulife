@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Nebulife — Galaxy Quantum Preview</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box }
+    body { background:#020510; overflow:hidden; font-family:monospace; }
+    canvas { display:block; cursor:crosshair; }
+
+    /* ── radial buttons ── */
+    .rb {
+      position:fixed;
+      width:42px; height:42px; border-radius:50%;
+      background:rgba(8,16,28,0.95);
+      border:1px solid #1a2d42;
+      color:#8899aa;
+      font-family:monospace; font-size:17px;
+      cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      z-index:30;
+      pointer-events:none; opacity:0; transform:scale(0);
+      transition:background .14s, color .14s, box-shadow .14s;
+      padding:0;
+    }
+    .rb.open { pointer-events:auto; }
+    .rb:hover {
+      background:rgba(30,55,85,.72);
+      color:#ccddef;
+      box-shadow:0 0 12px rgba(68,136,170,.45);
+    }
+    .rb-tip {
+      position:absolute; top:50%; transform:translateY(-50%);
+      background:rgba(6,11,22,.97); border:1px solid #1a2d42;
+      padding:3px 9px; border-radius:3px;
+      font-size:9px; color:#8899aa; white-space:nowrap;
+      pointer-events:none; opacity:0;
+      transition:opacity .1s;
+      letter-spacing:.06em;
+      z-index:10;
+    }
+    .rb:hover { z-index:50 !important; }
+    .rb:hover .rb-tip { opacity:1; }
+
+    /* ── system info chip ── */
+    #sys-chip {
+      position:fixed;
+      text-align:center;
+      pointer-events:none; z-index:30;
+      font-family:monospace;
+      opacity:0; transition:opacity .25s;
+      transform:translateX(-50%);
+    }
+    #sys-chip.show { opacity:1; }
+    #sys-chip .sc-name { font-size:11px; color:#aabbcc; letter-spacing:.06em; }
+    #sys-chip .sc-type { font-size:8px; color:#445566; margin-top:3px; letter-spacing:.1em; }
+
+    /* ── legend ── */
+    #legend {
+      position:fixed; bottom:14px; left:14px;
+      font-size:8px; color:#2a3d55; letter-spacing:1px; line-height:1;
+    }
+    .lr { display:flex; align-items:center; gap:7px; margin-top:5px; }
+    .ld { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+    /* ── hint ── */
+    #hint {
+      position:fixed; top:12px; left:50%; transform:translateX(-50%);
+      font-size:8px; color:#1e2e40; letter-spacing:2px; pointer-events:none;
+      text-transform:uppercase; white-space:nowrap;
+    }
+    #hint.warp { color:#445566; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <!-- radial buttons mount here (cleared/rebuilt on each open) -->
+  <div id="radial-container"></div>
+
+  <div id="legend">
+    <div class="lr"><div class="ld" style="background:#fff8f0;box-shadow:0 0 4px #fff8f088"></div>HOME система</div>
+    <div class="lr"><div class="ld" style="background:#ffc860;opacity:.7"></div>Відкрита</div>
+    <div class="lr"><div class="ld" style="background:#ffe8b0;opacity:.45"></div>В дослідженні</div>
+    <div class="lr"><div class="ld" style="background:#aabbcc;opacity:.18"></div>Нерозвідана (R1)</div>
+    <div class="lr"><div class="ld" style="background:#aabbcc;opacity:.07"></div>Нерозвідана (R2)</div>
+    <div style="margin-top:10px;color:#1a2d40">ЛКМ — меню &nbsp;|&nbsp; 2×ЛКМ — варп</div>
+  </div>
+
+  <div id="hint">Натисніть на зірку для відкриття меню</div>
+
+  <script>
+  // ── setup ─────────────────────────────────────────────────────────────────
+
+  const c   = document.getElementById('c');
+  const ctx = c.getContext('2d');
+  const hintEl = document.getElementById('hint');
+
+  let W, H;
+  const WW = 900, WH = 540;
+  let initScale = 1;
+
+  function resize() {
+    W = c.width  = window.innerWidth;
+    H = c.height = window.innerHeight;
+    initScale = Math.min(W / WW, H / WH) * 0.9;
+    if (!camReady) {
+      cam.x = cam.tx = WW / 2;
+      cam.y = cam.ty = WH / 2;
+      cam.s = cam.ts = initScale;
+      camReady = true;
+    }
+  }
+  let camReady = false;
+  window.addEventListener('resize', resize);
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+
+  function h2r(hex, a) {
+    const v = parseInt(hex.replace('#',''), 16);
+    return `rgba(${v>>16},${(v>>8)&255},${v&255},${Math.max(0,a).toFixed(3)})`;
+  }
+  const lerp  = (a,b,t) => a+(b-a)*t;
+  const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
+  const ease  = t => { t=clamp(t,0,1); return t<.5 ? 2*t*t : -1+(4-2*t)*t; };
+
+  // ── camera ────────────────────────────────────────────────────────────────
+
+  let cam = { x:WW/2, y:WH/2, s:1, tx:WW/2, ty:WH/2, ts:1 };
+
+  function updateCam(dt) {
+    const k = 1 - Math.pow(0.008, dt * 5);
+    cam.x += (cam.tx - cam.x) * k;
+    cam.y += (cam.ty - cam.y) * k;
+    cam.s += (cam.ts - cam.s) * k;
+  }
+
+  function w2s(wx, wy) { return { x:(wx-cam.x)*cam.s+W/2, y:(wy-cam.y)*cam.s+H/2 }; }
+  function s2w(sx, sy) { return { x:(sx-W/2)/cam.s+cam.x, y:(sy-H/2)/cam.s+cam.y }; }
+
+  // ── star data ─────────────────────────────────────────────────────────────
+
+  const STARS = [
+    { id:0,  x:450, y:270, sp:'G', lum:1.0,  hex:'#fff8f0', st:'home',      pl:3, pr:0,    nm:'Сонарій' },
+    { id:1,  x:272, y:182, sp:'K', lum:0.5,  hex:'#ffc860', st:'explored',  pl:4, pr:0,    nm:'Кетрон'  },
+    { id:2,  x:608, y:162, sp:'F', lum:1.8,  hex:'#fffce8', st:'explored',  pl:2, pr:0,    nm:'Феліус'  },
+    { id:3,  x:658, y:368, sp:'M', lum:0.2,  hex:'#ff8844', st:'explored',  pl:1, pr:0,    nm:'Малярис' },
+    { id:4,  x:322, y:388, sp:'G', lum:0.9,  hex:'#fff4e0', st:'exploring', pl:3, pr:0.45, nm:'Геліон'  },
+    { id:5,  x:162, y:312, sp:'K', lum:0.4,  hex:'#ffaa44', st:'exploring', pl:2, pr:0.70, nm:'Каравус' },
+    { id:6,  x:532, y:448, sp:'A', lum:3.5,  hex:'#ddeeff', st:'exploring', pl:5, pr:0.25, nm:'Арксис'  },
+    { id:7,  x:128, y:168, sp:'M', lum:0.1,  hex:'#ff6633', st:'unex1',     pl:0, pr:0,    nm:'???'     },
+    { id:8,  x:728, y:222, sp:'G', lum:0.8,  hex:'#fff8f0', st:'unex1',     pl:0, pr:0,    nm:'???'     },
+    { id:9,  x:758, y:458, sp:'F', lum:2.0,  hex:'#eef6ff', st:'unex1',     pl:0, pr:0,    nm:'???'     },
+    { id:10, x:182, y:492, sp:'K', lum:0.3,  hex:'#ffbb55', st:'unex2',     pl:0, pr:0,    nm:'?'       },
+    { id:11, x:622, y:508, sp:'M', lum:0.15, hex:'#ff7755', st:'unex2',     pl:0, pr:0,    nm:'?'       },
+    { id:12, x:398, y: 82, sp:'B', lum:8.0,  hex:'#bbddff', st:'unex2',     pl:0, pr:0,    nm:'?'       },
+  ];
+
+  function buildEdges() {
+    const n = STARS.length, inM = Array(n).fill(false);
+    const edges = [];
+    inM[0] = true;
+    for (let k=0; k<n-1; k++) {
+      let best=Infinity, u=-1, v=-1;
+      for (let i=0;i<n;i++) { if(!inM[i]) continue;
+        for (let j=0;j<n;j++) { if(inM[j]) continue;
+          const d=Math.hypot(STARS[i].x-STARS[j].x, STARS[i].y-STARS[j].y);
+          if(d<best){best=d;u=i;v=j;}}}
+      inM[v]=true; edges.push([u,v]);
+    }
+    const ex=[];
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+      if(edges.some(([a,b])=>(a===i&&b===j)||(a===j&&b===i))) continue;
+      const d=Math.hypot(STARS[i].x-STARS[j].x, STARS[i].y-STARS[j].y);
+      if(d<210) ex.push([i,j,d]);
+    }
+    ex.sort((a,b)=>a[2]-b[2]);
+    for(let k=0;k<Math.min(4,ex.length);k++) edges.push([ex[k][0],ex[k][1]]);
+    return edges;
+  }
+  const EDGES = buildEdges();
+
+  const BGSTARS = Array.from({length:200}, (_,i) => ({
+    x: ((i * 7919 + 1234) % (WW * 10)) / 10,
+    y: ((i * 6271 +  567) % (WH * 10)) / 10,
+    r: 0.25 + (i % 3) * 0.18,
+    a: 0.04 + (i % 5) * 0.025,
+  }));
+
+  // ── warp state machine ────────────────────────────────────────────────────
+  // Phases: zooming(0.5) → frenzy(0.7) → collapse(0.4) → whiteout(0.25) → hyperspace(0.75) → restore(0.25)
+  // Total ≈ 2.85s
+
+  let wp = { st:'idle', star:null, t:0, speedMul:1, colP:0 };
+
+  function updateWarp(dt) {
+    if (wp.st === 'idle') return;
+    wp.t += dt;
+
+    if (wp.st === 'zooming') {
+      // Camera animates toward star; just let it settle
+      if (wp.t > 0.5) { wp.st = 'frenzy'; wp.t = 0; }
+
+    } else if (wp.st === 'frenzy') {
+      // Cubic ease-in: very gentle start, accelerates toward end
+      const fp = clamp(wp.t / 0.9, 0, 1);
+      wp.speedMul = 1 + 11 * (fp * fp * fp);
+      if (wp.t > 0.9) { wp.st = 'collapse'; wp.t = 0; }
+
+    } else if (wp.st === 'collapse') {
+      // Particles spin at peak while collapsing to center
+      wp.colP = ease(wp.t / 0.4);
+      if (wp.t > 0.4) {
+        wp.st = 'whiteout'; wp.t = 0; wp.colP = 1;
+        // Start panning camera back to overview now (covered by white)
+        cam.tx = WW / 2; cam.ty = WH / 2; cam.ts = initScale;
+      }
+
+    } else if (wp.st === 'whiteout') {
+      if (wp.t > 0.25) {
+        wp.st = 'hyperspace'; wp.t = 0;
+        // Force cam to overview immediately
+        cam.x = cam.tx = WW/2; cam.y = cam.ty = WH/2; cam.s = cam.ts = initScale;
+      }
+
+    } else if (wp.st === 'hyperspace') {
+      if (wp.t > 0.75) { wp.st = 'restore'; wp.t = 0; }
+
+    } else if (wp.st === 'restore') {
+      if (wp.t > 0.25) {
+        wp.st = 'idle'; wp.speedMul = 1; wp.colP = 0; wp.star = null;
+        setHint('Натисніть на зірку для відкриття меню');
+      }
+    }
+  }
+
+  // ── hyperspace effect ─────────────────────────────────────────────────────
+
+  // Precomputed star data (deterministic, no Math.random)
+  const HS_STARS = Array.from({ length: 180 }, (_, i) => {
+    const s1 = i * 7919 + 3, s2 = i * 3571 + 117;
+    return {
+      angle:    ((s1 * 0.6180339887) % 1) * Math.PI * 2,
+      startF:   0.01 + ((s2 % 80)  / 80)  * 0.10,  // initial distance fraction
+      speed:    0.28 + ((s1 % 100) / 100) * 0.72,   // relative travel speed
+      width:    0.4  + ((s2 % 10)  / 10)  * 1.8,
+      bright:   0.35 + ((s1 % 8)   / 8)   * 0.65,
+      colorType: s1 % 10,  // 0-7 white, 8 blue, 9 gold
+    };
+  });
+
+  function drawHyperspace(progress) {
+    // Deep space background (already dark from blackout)
+    ctx.fillStyle = `rgba(2,5,16,1)`;
+    ctx.fillRect(0, 0, W, H);
+
+    const cx = W / 2, cy = H / 2;
+    const maxD = Math.hypot(W, H) * 0.58;
+
+    HS_STARS.forEach(hs => {
+      const p = Math.min(1, progress * hs.speed / 0.68);
+      if (p <= 0.005) return;
+
+      const dist1 = (hs.startF + p * 0.92) * maxD;
+      const tailLen = (8 + p * 90) * hs.speed;
+      const dist0 = Math.max(hs.startF * maxD, dist1 - tailLen);
+
+      if (dist0 > maxD + 20) return;
+
+      const x1 = cx + Math.cos(hs.angle) * dist0;
+      const y1 = cy + Math.sin(hs.angle) * dist0;
+      const x2 = cx + Math.cos(hs.angle) * Math.min(dist1, maxD + 30);
+      const y2 = cy + Math.sin(hs.angle) * Math.min(dist1, maxD + 30);
+
+      const alpha = Math.min(1, p * 2.5) * hs.bright;
+      let r = 205, g = 222, b = 255;
+      if (hs.colorType === 8) { r = 150; g = 185; b = 255; }  // blue tint
+      if (hs.colorType === 9) { r = 255; g = 215; b = 145; }  // warm gold
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+      ctx.lineWidth = hs.width;
+      ctx.stroke();
+    });
+
+    // Fade out toward end of hyperspace
+    if (progress > 0.78) {
+      const fadeOut = ease((progress - 0.78) / 0.22);
+      ctx.fillStyle = `rgba(2,5,16,${fadeOut})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  // ── core radius ───────────────────────────────────────────────────────────
+
+  function cR(star) {
+    const base = Math.max(2.5, Math.min(10, Math.log2(1 + star.lum) * 9));
+    return base * ({ home:1.5, explored:1.0, exploring:0.88 }[star.st] || 1);
+  }
+
+  // ── drawing functions ─────────────────────────────────────────────────────
+
+  function drawBg() { ctx.fillStyle='#020510'; ctx.fillRect(0,0,W,H); }
+
+  function drawBgStars() {
+    for (const bs of BGSTARS) {
+      ctx.beginPath(); ctx.arc(bs.x,bs.y,bs.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(180,200,220,${bs.a})`; ctx.fill();
+    }
+  }
+
+  function drawWavy(x1,y1,x2,y2,t,alpha) {
+    const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
+    if(len<1) return;
+    const nx=-dy/len, ny=dx/len;
+    const amp=Math.min(3.8,len*0.022), N=Math.ceil(len/10);
+    ctx.beginPath(); ctx.moveTo(x1,y1);
+    for(let i=1;i<=N;i++){
+      const s=i/N, env=Math.sin(s*Math.PI);
+      const w1=amp*env*Math.sin(s*Math.PI*3.5+t*0.55+(x1*0.022+y1*0.016));
+      const w2=amp*0.38*env*Math.sin(s*Math.PI*7-t*1.05+(x2*0.018+y2*0.013));
+      ctx.lineTo(x1+dx*s+nx*(w1+w2), y1+dy*s+ny*(w1+w2));
+    }
+    ctx.strokeStyle=h2r('#2e4466',alpha); ctx.lineWidth=0.65; ctx.stroke();
+  }
+
+  function drawCore(cx,cy,r,hex,brt=1) {
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r*3.5);
+    g.addColorStop(0,h2r(hex,0.22*brt)); g.addColorStop(0.45,h2r(hex,0.07*brt)); g.addColorStop(1,h2r(hex,0));
+    ctx.beginPath(); ctx.arc(cx,cy,r*3.5,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=h2r('#ffffff',0.93*brt); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx,cy,r*0.65,0,Math.PI*2); ctx.fillStyle=h2r(hex,0.62*brt); ctx.fill();
+  }
+
+  function drawParticles(cx,cy,hex,count,speedMul,colP,t) {
+    for(let i=0;i<count;i++){
+      const ang=i*2.399+t*speedMul*(i%2?0.28:-0.21);
+      const bD=15+((i*7+3)%17)/17*32, d=lerp(bD,0,colP);
+      const px=cx+Math.cos(ang)*d, py=cy+Math.sin(ang)*d;
+      const pr=lerp(0.65+(i%3)*0.38,0.2,colP);
+      const fa=(0.18+(i%5)*0.08)*(0.5+0.5*Math.sin(t*2.2+i*1.37))*(1-colP*0.85);
+      ctx.beginPath(); ctx.arc(px,py,pr,0,Math.PI*2);
+      ctx.fillStyle=h2r(hex,fa); ctx.fill();
+    }
+  }
+
+  function drawBlurStar(cx,cy,hex,level,t) {
+    const maxR=level===1?16:10, baseA=level===1?0.16:0.06, decay=level===1?5.5:3.8;
+    for(let r=0.4;r<=maxR;r+=0.6){
+      const pulse=0.82+0.18*Math.sin(t*0.6+r*0.5);
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fillStyle=h2r(hex,baseA*Math.exp(-r/decay)*pulse); ctx.fill();
+    }
+    if(level===1){ for(let i=0;i<5;i++){
+      const ang=i*2.399+t*0.12, d=8+i*1.5;
+      ctx.beginPath(); ctx.arc(cx+Math.cos(ang)*d,cy+Math.sin(ang)*d,0.5,0,Math.PI*2);
+      ctx.fillStyle=h2r(hex,0.08); ctx.fill();
+    }}
+  }
+
+  function drawProgressArc(cx,cy,r,progress,hex,t) {
+    const ar=r+11;
+    ctx.beginPath(); ctx.arc(cx,cy,ar,0,Math.PI*2);
+    ctx.strokeStyle=h2r(hex,0.11); ctx.lineWidth=0.9; ctx.stroke();
+    if(progress>0){
+      ctx.beginPath(); ctx.arc(cx,cy,ar,-Math.PI/2,-Math.PI/2+Math.PI*2*progress);
+      ctx.strokeStyle=h2r(hex,0.45); ctx.lineWidth=1.1; ctx.stroke();
+    }
+    const sa=-Math.PI/2+t*1.4;
+    ctx.beginPath(); ctx.arc(cx+Math.cos(sa)*ar,cy+Math.sin(sa)*ar,1.4,0,Math.PI*2);
+    ctx.fillStyle=h2r(hex,0.7); ctx.fill();
+  }
+
+  function drawHomeRing(cx,cy,hex,t) {
+    const p=0.65+0.35*Math.sin(t*1.4);
+    ctx.beginPath(); ctx.arc(cx,cy,22,0,Math.PI*2);
+    ctx.strokeStyle=h2r(hex,0.13*p); ctx.lineWidth=0.8; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,27,0,Math.PI*2);
+    ctx.strokeStyle=h2r(hex,0.05*p); ctx.lineWidth=0.6; ctx.stroke();
+    ctx.font='7px monospace'; ctx.fillStyle=h2r(hex,0.4); ctx.textAlign='center';
+    ctx.fillText('HOME',cx,cy-30);
+  }
+
+  // ── main draw ─────────────────────────────────────────────────────────────
+
+  function drawFrame(t) {
+    // Hyperspace takes over the whole frame
+    if (wp.st === 'hyperspace') {
+      drawHyperspace(wp.t / 0.75);
+      updateRadialPositions();
+      return;
+    }
+
+    drawBg();
+    ctx.save();
+    ctx.translate(W/2,H/2); ctx.scale(cam.s,cam.s); ctx.translate(-cam.x,-cam.y);
+    drawBgStars();
+
+    for(const [i,j] of EDGES){
+      const s1=STARS[i], s2=STARS[j];
+      if(s1.st==='unex2'&&s2.st==='unex2') continue;
+      const a=(s1.st==='unex2'||s2.st==='unex2')?0.06:(s1.st==='unex1'||s2.st==='unex1')?0.13:0.28;
+      drawWavy(s1.x,s1.y,s2.x,s2.y,t,a);
+    }
+
+    for(const s of STARS){
+      const cx=s.x, cy=s.y, r=cR(s);
+      const isWS=wp.star===s, sm=isWS?wp.speedMul:1, cp=isWS?wp.colP:0;
+      if(s.st==='home'){
+        drawHomeRing(cx,cy,s.hex,t);
+        drawParticles(cx,cy,s.hex,72,sm,cp,t);
+        drawCore(cx,cy,r*1.5,s.hex);
+      } else if(s.st==='explored'){
+        drawParticles(cx,cy,s.hex,25+s.pl*4,sm,cp,t);
+        drawCore(cx,cy,r,s.hex);
+      } else if(s.st==='exploring'){
+        drawParticles(cx,cy,s.hex,14,sm,cp,t);
+        drawProgressArc(cx,cy,r,s.pr,s.hex,t);
+        drawCore(cx,cy,r*0.85,s.hex,0.82);
+      } else if(s.st==='unex1'){
+        drawBlurStar(cx,cy,s.hex,1,t);
+      } else if(s.st==='unex2'){
+        drawBlurStar(cx,cy,s.hex,2,t);
+      }
+    }
+
+    ctx.restore();
+
+    if(cam.s < 4){
+      ctx.textAlign='center';
+      for(const s of STARS){
+        if(s.st==='unex1'||s.st==='unex2') continue;
+        const sp=w2s(s.x,s.y), rS=cR(s)*cam.s;
+        const labelA=Math.min(0.55,(4-cam.s)/3*0.55);
+        ctx.font='9px monospace'; ctx.fillStyle=h2r('#6688aa',labelA);
+        ctx.fillText(s.nm,sp.x,sp.y+rS+14);
+        if(s.pl>0){
+          ctx.font='8px monospace'; ctx.fillStyle=h2r('#3d5568',labelA);
+          ctx.fillText(`${s.pl}p`,sp.x,sp.y+rS+24);
+        }
+      }
+    }
+
+    // Blackout: ramp dark overlay from 0 → 1 (covers galaxy before hyperspace)
+    if (wp.st === 'whiteout') {
+      const fa = ease(clamp(wp.t / 0.25, 0, 1));
+      ctx.fillStyle = `rgba(2,5,16,${fa})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Restore: dark overlay fades out 1 → 0 (reveals galaxy after hyperspace)
+    if (wp.st === 'restore') {
+      const fa = 1 - ease(clamp(wp.t / 0.25, 0, 1));
+      ctx.fillStyle = `rgba(2,5,16,${fa})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Track radial menu to star as camera animates
+    updateRadialPositions();
+  }
+
+  // ── radial menu ───────────────────────────────────────────────────────────
+
+  const RB_RADIUS  = 74;   // px from star center to button center
+  const RB_SIZE    = 42;   // button diameter
+  const RB_STEP    = 38;   // degrees between buttons
+
+  const SP_NAMES = {
+    G:'G-тип', K:'K-тип', F:'F-тип', M:'M-тип', A:'A-тип', B:'B-тип'
+  };
+
+  function getButtons(s) {
+    const list = [];
+    if (s.st === 'home' || s.st === 'explored') {
+      list.push({ icon:'→', tip:'До системи',     color:'#88ccaa', act:'enter'     });
+      list.push({ icon:'○', tip:"Об'єкти системи", color:'#7799bb', act:'objects'   });
+    }
+    list.push({ icon:'≡', tip:'Характеристики', color:'#8899aa', act:'chars'   });
+    list.push({ icon:'✎', tip:'Перейменувати',  color:'#8899aa', act:'rename'  });
+    if (s.st === 'unex1') {
+      list.push({ icon:'◎', tip:'Дослідити · 5⚛',  color:'#4488aa', act:'research'  });
+    }
+    if (s.st === 'exploring') {
+      list.push({ icon:'◎', tip:'Дослідження...',  color:'#334455', act:'none', dim:true });
+    }
+    if (s.st === 'explored' || s.st === 'home') {
+      list.push({ icon:'⬡', tip:'Телескоп · 30⚛', color:'#cc9933', act:'telescope' });
+    }
+    return list;
+  }
+
+  function arcPositions(N, cx, cy) {
+    const halfArc = (N - 1) * RB_STEP / 2;
+    const startDeg = -90 - halfArc;
+    return Array.from({ length: N }, (_, i) => {
+      const rad = (startDeg + i * RB_STEP) * Math.PI / 180;
+      return {
+        left: cx + Math.cos(rad) * RB_RADIUS - RB_SIZE / 2,
+        top:  cy + Math.sin(rad) * RB_RADIUS - RB_SIZE / 2,
+        cosA: Math.cos(rad), // negative = button is left of star
+      };
+    });
+  }
+
+  let radialBtns  = [];
+  let radialTimers = [];
+  let radialStar  = null;
+  let chipEl      = null;
+
+  function updateRadialPositions() {
+    if (!radialStar || !radialBtns.length) return;
+    const sp = w2s(radialStar.x, radialStar.y);
+    const pos = arcPositions(radialBtns.length, sp.x, sp.y);
+    radialBtns.forEach((btn, i) => {
+      btn.style.left = pos[i].left + 'px';
+      btn.style.top  = pos[i].top  + 'px';
+    });
+    if (chipEl) {
+      chipEl.style.left = sp.x + 'px';
+      chipEl.style.top  = (sp.y - RB_RADIUS - 32) + 'px';
+    }
+  }
+
+  function openRadial(s) {
+    closeRadial();
+    radialStar = s;
+
+    const sp  = w2s(s.x, s.y);
+    const defs = getButtons(s);
+    const N   = defs.length;
+    const pos = arcPositions(N, sp.x, sp.y);
+    const container = document.getElementById('radial-container');
+
+    // info chip
+    chipEl = document.createElement('div');
+    chipEl.id = 'sys-chip';
+    chipEl.innerHTML = `<div class="sc-name">${s.nm}</div><div class="sc-type">${SP_NAMES[s.sp] || s.sp} · ${s.pl} планет</div>`;
+    chipEl.style.left = sp.x + 'px';
+    chipEl.style.top  = (sp.y - RB_RADIUS - 32) + 'px';
+    container.appendChild(chipEl);
+    requestAnimationFrame(() => chipEl.classList.add('show'));
+
+    // buttons
+    defs.forEach((def, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'rb';
+      btn.style.cssText = `left:${pos[i].left}px; top:${pos[i].top}px; color:${def.color};`;
+      btn.style.transition = `opacity .15s, transform .22s cubic-bezier(.34,1.56,.64,1), background .14s, color .14s, box-shadow .14s`;
+      if (def.dim) btn.style.cursor = 'default';
+      // Tooltip goes LEFT for left-side buttons, RIGHT for right/top buttons
+      const tipSide = pos[i].cosA < -0.15
+        ? 'right:calc(100% + 9px); left:auto;'
+        : 'left:calc(100% + 9px); right:auto;';
+      btn.innerHTML = `${def.icon}<div class="rb-tip" style="${tipSide}">${def.tip}</div>`;
+      if (!def.dim) {
+        btn.addEventListener('click', e => { e.stopPropagation(); handleAct(def.act, s); });
+      }
+      container.appendChild(btn);
+      radialBtns.push(btn);
+
+      radialTimers.push(setTimeout(() => {
+        btn.style.opacity = '1';
+        btn.style.transform = 'scale(1)';
+        btn.classList.add('open');
+      }, i * 55 + 10));
+    });
+  }
+
+  function closeRadial() {
+    radialTimers.forEach(clearTimeout); radialTimers = [];
+    document.getElementById('radial-container').innerHTML = '';
+    radialBtns = []; chipEl = null; radialStar = null;
+  }
+
+  const ACT_LABELS = {
+    enter:'До системи', objects:"Об'єкти системи",
+    chars:'Характеристики', rename:'Перейменувати',
+    research:'Дослідити', telescope:'Телескоп',
+  };
+
+  function handleAct(act, s) {
+    if (act === 'enter') {
+      closeRadial();
+      wp.star=s; wp.st='zooming'; wp.t=0; wp.speedMul=1; wp.colP=0;
+      cam.tx=s.x; cam.ty=s.y; cam.ts=3.8;
+      setHint('ВАРП-ДВИГУН АКТИВОВАНО');
+      hintEl.classList.add('warp');
+    } else {
+      setHint(`${s.nm}: ${ACT_LABELS[act] || act}`);
+    }
+  }
+
+  // ── interactions ──────────────────────────────────────────────────────────
+
+  function findStar(sx,sy){
+    const {x,y}=s2w(sx,sy);
+    let best=null,bestD=Infinity;
+    for(const s of STARS){
+      const d=Math.hypot(s.x-x,s.y-y);
+      if(d<28&&d<bestD){bestD=d;best=s;}
+    }
+    return best;
+  }
+
+  // Close menu when clicking empty canvas
+  c.addEventListener('pointerdown', e => {
+    if (radialStar) {
+      const s = findStar(e.clientX, e.clientY);
+      if (!s) { closeRadial(); cam.tx=WW/2; cam.ty=WH/2; cam.ts=initScale; }
+    }
+  });
+
+  let clickTimer=null, pendingXY=null;
+
+  c.addEventListener('click', e => {
+    pendingXY = { x:e.clientX, y:e.clientY };
+    if (clickTimer) return;
+    clickTimer = setTimeout(() => {
+      clickTimer = null;
+      if (wp.st !== 'idle') return;
+      const s = findStar(pendingXY.x, pendingXY.y);
+      if (!s) {
+        closeRadial();
+        cam.tx=WW/2; cam.ty=WH/2; cam.ts=initScale;
+        setHint('Натисніть на зірку для відкриття меню');
+        return;
+      }
+      // Toggle: if same star clicked again — close
+      if (radialStar === s) { closeRadial(); cam.tx=WW/2; cam.ty=WH/2; cam.ts=initScale; return; }
+      cam.tx=s.x; cam.ty=s.y; cam.ts=3.8;
+      openRadial(s);
+      setHint(`${s.nm} — виберіть дію`);
+    }, 260);
+  });
+
+  c.addEventListener('dblclick', e => {
+    clearTimeout(clickTimer); clickTimer=null;
+    if (wp.st !== 'idle') return;
+    const s = findStar(e.clientX, e.clientY);
+    if (!s) return;
+    closeRadial();
+    cam.tx=s.x; cam.ty=s.y; cam.ts=3.8;
+    wp.star=s; wp.st='zooming'; wp.t=0; wp.speedMul=1; wp.colP=0;
+    setHint('ВАРП-ДВИГУН АКТИВОВАНО');
+    hintEl.classList.add('warp');
+  });
+
+  function setHint(txt) { hintEl.textContent=txt; hintEl.classList.remove('warp'); }
+
+  // ── smooth zoom (wheel) ─────────────────────────────────────────────────
+
+  const MIN_SCALE_MUL = 0.5;
+  const MAX_SCALE = 8;
+
+  c.addEventListener('wheel', e => {
+    e.preventDefault();
+    if (wp.st !== 'idle') return;
+
+    const minScale = initScale * MIN_SCALE_MUL;
+    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    const newScale = clamp(cam.ts * factor, minScale, MAX_SCALE);
+
+    // Zoom toward cursor: fix the world point under cursor
+    const wx = (e.clientX - W / 2) / cam.ts + cam.tx;
+    const wy = (e.clientY - H / 2) / cam.ts + cam.ty;
+
+    cam.ts = newScale;
+    cam.tx = wx - (e.clientX - W / 2) / newScale;
+    cam.ty = wy - (e.clientY - H / 2) / newScale;
+  }, { passive: false });
+
+  // ── keyboard navigation (arrows + escape) ───────────────────────────────
+
+  window.addEventListener('keydown', e => {
+    if (wp.st !== 'idle') return;
+
+    if (e.key === 'Escape') {
+      closeRadial();
+      cam.tx = WW / 2; cam.ty = WH / 2; cam.ts = initScale;
+      setHint('Натисніть на зірку для відкриття меню');
+      return;
+    }
+
+    const dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    const dir = dirs[e.key];
+    if (!dir) return;
+    e.preventDefault();
+
+    // Origin: currently selected star, or HOME
+    const origin = radialStar || STARS[0];
+    const [dx, dy] = dir;
+
+    let best = null, bestScore = Infinity;
+
+    for (const s of STARS) {
+      if (s === origin) continue;
+      const vx = s.x - origin.x;
+      const vy = s.y - origin.y;
+
+      // Only consider stars in the correct half-plane
+      const proj = vx * dx + vy * dy;
+      if (proj <= 0) continue;
+
+      // Perpendicular distance (how far off-axis)
+      const perp = Math.abs(vx * (-dy) + vy * dx);
+      const dist = Math.hypot(vx, vy);
+
+      // Score: prefer closer + more aligned (perp weighted x2)
+      const score = dist + perp * 2;
+      if (score < bestScore) {
+        bestScore = score;
+        best = s;
+      }
+    }
+
+    if (!best) return;
+
+    closeRadial();
+    cam.tx = best.x; cam.ty = best.y; cam.ts = 3.8;
+    openRadial(best);
+    setHint(`${best.nm} — виберіть дію`);
+  });
+
+  // ── loop ─────────────────────────────────────────────────────────────────
+
+  let t0=null, prevTs=null;
+
+  function frame(ts){
+    if(!t0){ t0=ts; prevTs=ts; resize(); }
+    const t=(ts-t0)/1000;
+    const dt=Math.min((ts-prevTs)/1000,0.05);
+    prevTs=ts;
+    updateCam(dt);
+    updateWarp(dt);
+    drawFrame(t);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

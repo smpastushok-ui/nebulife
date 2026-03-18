@@ -20,6 +20,10 @@ export interface GameCallbacks {
   onTelescopeClick?: (system: StarSystem) => void;
   /** Called on double-click of non-fully-researched star to open research panel */
   onRequestResearch?: (system: StarSystem) => void;
+  /** Called when a star is expanded enough to show the radial menu */
+  onRadialOpen?: (system: StarSystem, getScreenPos: () => { x: number; y: number } | null) => void;
+  /** Called when radial menu should close (collapse, unfocus, transition) */
+  onRadialClose?: () => void;
 }
 
 export class GameEngine {
@@ -136,6 +140,21 @@ export class GameEngine {
         this.callbacks.onTelescopeClick!(system);
       } : undefined,
       () => this.camera.recentlyInteracted,
+      // Expand callback: smoothly center camera on the expanded system
+      (system) => {
+        const worldPos = this.galaxyScene?.getSystemWorldPosition(system.id);
+        if (worldPos) {
+          this.camera.animateTo(worldPos.x, worldPos.y, this.camera.getCurrentScale(), 800);
+        }
+      },
+      // Radial menu open callback
+      this.callbacks.onRadialOpen ? (system, getScreenPos) => {
+        this.callbacks.onRadialOpen!(system, getScreenPos);
+      } : undefined,
+      // Radial menu close callback
+      this.callbacks.onRadialClose ? () => {
+        this.callbacks.onRadialClose!();
+      } : undefined,
     );
 
     this.app.stage.addChild(this.galaxyScene.container);
@@ -248,6 +267,22 @@ export class GameEngine {
   enterSystem(system: StarSystem) {
     this.showSystemScene(system);
     // Note: showSystemScene already calls onSceneChange('system')
+  }
+
+  /** Get current screen position of a system (for React RadialMenu positioning) */
+  getSystemScreenPosition(systemId: string): { x: number; y: number } | null {
+    return this.galaxyScene?.getSystemScreenPosition(systemId) ?? null;
+  }
+
+  /** Navigate to nearest system in direction (for arrow key navigation) */
+  galaxyNavigateDirection(dx: number, dy: number): boolean {
+    return this.galaxyScene?.navigateDirection(dx, dy) ?? false;
+  }
+
+  /** Start the multi-phase warp transition in GalaxyScene (for radial menu "enter" action) */
+  startGalaxyWarp(systemId: string, onComplete: () => void) {
+    this.galaxyScene?.unfocusSystem();
+    this.galaxyScene?.startTransition(systemId, onComplete);
   }
 
   /** Get all systems from all rings. */

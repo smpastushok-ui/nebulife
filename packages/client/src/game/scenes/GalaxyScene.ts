@@ -49,6 +49,11 @@ function starBaseRadius(luminositySolar: number): number {
   return Math.max(10, Math.min(32, Math.log2(1 + luminositySolar) * 11));
 }
 
+/** Ease-out quadratic: fast at start, decelerates to end */
+function easeOutQuad(x: number): number {
+  return x * (2 - x);
+}
+
 /** Size multiplier per spectral class */
 const SPECTRAL_SIZE_MUL: Record<SpectralClass, number> = {
   O: 1.8, B: 1.5, A: 1.2, F: 1.1, G: 1.0, K: 0.95, M: 0.85,
@@ -57,13 +62,22 @@ const SPECTRAL_SIZE_MUL: Record<SpectralClass, number> = {
 /** Hot stars (O/B/A) get stronger burn animation */
 const HOT_STARS: Set<SpectralClass> = new Set(['O', 'B', 'A']);
 
+/** Visual planet colors for orbital dots */
+const PLANET_VIS_COLORS: number[] = [
+  0x4488cc, 0xcc6644, 0x44cc88, 0xcc44aa, 0xaacc44, 0xcc8844, 0x4444cc, 0xcc4444, 0x44aa64,
+];
+
 /* ── Layout constants ──────────────────────────────────────────── */
 
-/** Pixels per light-year for hex->screen conversion (halved for tighter layout) */
-const PX_PER_LY = 9;
+/** Pixels per light-year for hex->screen conversion */
+const PX_PER_LY = 14;
 
 /** Easing speed for alpha transitions */
 const ANIM_SPEED = 5;
+
+/** Orbit expand: 1500ms forward, 600ms reverse */
+const EXPAND_DURATION = 1500;
+const COLLAPSE_DURATION = 600;
 
 /* ── Interfaces ────────────────────────────────────────────────── */
 
@@ -74,10 +88,26 @@ interface SystemNode {
   progressLabel: Text | null;
   progressRing: Graphics | null;
   scanArc: Graphics | null;
-  glowOuter: Graphics;
-  glowMid: Graphics;
-  corona: Graphics;
-  core: Graphics;
+  glowOuter: Graphics;  // kept for transition compat (empty)
+  glowMid: Graphics;    // kept for transition compat (empty)
+  corona: Graphics;     // kept for transition compat (empty)
+  core: Graphics;       // kept for transition compat (empty)
+  /** Per-frame particle canvas — cleared+redrawn every update */
+  particleGfx: Graphics;
+  /** Visual state for rendering */
+  starState: 'home' | 'researched' | 'researching' | 'unexplored';
+  /** Number of planets */
+  planetCount: number;
+  /** Nebula tint color (from star.colorHex) */
+  nebulaColor: number;
+  /** Pre-computed visual orbit data for planet dots */
+  orbitData: Array<{
+    orbitA: number; orbitB: number;
+    color: number; pSize: number;
+    phase: number; speed: number;
+    /** Orbit inclination angle in radians (chaotic tilt) */
+    tilt: number;
+  }>;
   phaseOffset: number;
   speed: number;
   baseRadius: number;
@@ -88,6 +118,12 @@ interface SystemNode {
   ty: number;
   /** Ring index (0 = home, 1, 2) */
   ringIndex: number;
+  /** Orbit expansion: 0=collapsed, 1=fully expanded */
+  expandProgress: number;
+  /** Target for expand animation (0 or 1) */
+  expandTarget: number;
+  /** Whether radial open callback has been fired for this expand cycle */
+  radialOpenFired: boolean;
 }
 
 /* ── Scene ─────────────────────────────────────────────────────── */
@@ -108,6 +144,9 @@ export class GalaxyScene {
   private beamGfx: Graphics;
   private nodesLayer: Container;
 
+  /** MST + extra edges (kept for reference, not rendered) */
+  private connectionEdges: Array<{ x1: number; y1: number; x2: number; y2: number; seed: number }> = [];
+
   private selectedSystemId: string | null = null;
   private beamAlpha = 0;
 
@@ -117,6 +156,12 @@ export class GalaxyScene {
   /** Focus state */
   private focusedSystemId: string | null = null;
   private preFocusAlphas = new Map<string, number>();
+
+  /** Currently expanded system */
+  private expandedSystemId: string | null = null;
+  /** Queued expand: waits for previous collapse to finish before expanding */
+  private pendingExpandId: string | null = null;
+  private pendingExpandDelay = 0;
 
   /** Transition animation state */
   private transitionActive = false;
@@ -146,15 +191,17 @@ export class GalaxyScene {
     private onDoubleClick: (system: StarSystem) => void,
     private onTelescopeClick?: (system: StarSystem) => void,
     private clickGuard?: () => boolean,
+    private onExpandSystem?: (system: StarSystem) => void,
+    private onRadialOpen?: (system: StarSystem, getScreenPos: () => { x: number; y: number } | null) => void,
+    private onRadialClose?: () => void,
   ) {
     this.container = new Container();
     this.researchState = researchState;
 
-    /* Galaxy backdrop (visual only) — centered on HOME (0,0) so black hole is behind HOME star */
+    /* Galaxy backdrop — kept for twinkle stars scatter during transition, but NOT rendered */
     const bd = createGalaxyBackdrop({ seed: galaxySeed, centerX: 0, centerY: 0 });
-    this.container.addChild(bd.container);
-    this.accretionDisk = bd.accretionDisk;
-    this.backdropContainer = bd.backdropContainer;
+    this.accretionDisk = null;
+    this.backdropContainer = null;
     this.twinkleStars = bd.twinkleStars;
 
     /* Render layers */
@@ -174,7 +221,6 @@ export class GalaxyScene {
     const homeY = this.homeSystem.position.y;
 
     for (const { system, ringIndex } of all) {
-      // Screen position relative to home
       const tx = (system.position.x - homeX) * PX_PER_LY;
       const ty = (system.position.y - homeY) * PX_PER_LY;
 
@@ -185,6 +231,8 @@ export class GalaxyScene {
         this.systemNodes.set(system.id, node);
       }
     }
+
+    this.buildConnectionEdges();
   }
 
   /* ── Helpers ────────────────────────────────────────────────── */
@@ -202,63 +250,139 @@ export class GalaxyScene {
     return (Math.abs(h) % 10000) / 10000 * Math.PI * 2;
   }
 
+  /** Compute visual orbit data for planet dots — deterministic, includes random tilt */
+  private computeOrbitData(sys: StarSystem, coreR: number): SystemNode['orbitData'] {
+    const data: SystemNode['orbitData'] = [];
+    const count = Math.min(sys.planets.length, 5);
+    for (let p = 0; p < count; p++) {
+      const s = (n: number) => {
+        const x = Math.sin(sys.seed * 12.9898 + p * 7919 + n * 78.233) * 43758.5453;
+        return x - Math.floor(x);
+      };
+      // Larger orbits (up to 50px) for impressive expanded view
+      const orbitA = Math.min(50, coreR * (2.5 + p * 2.0) + s(0) * 6 + 2);
+      const orbitB = orbitA * (0.38 + s(1) * 0.28);
+      // Chaotic tilt: each orbit independently tilted (-126° to +126°)
+      const tilt = (s(6) - 0.5) * Math.PI * 1.4;
+      data.push({
+        orbitA, orbitB,
+        color: PLANET_VIS_COLORS[p % PLANET_VIS_COLORS.length],
+        pSize: 1.5 + s(2) * 1.8,
+        phase: s(3) * Math.PI * 2,
+        speed: (0.08 + s(4) * 0.35) * (s(5) < 0.5 ? 1 : -1),
+        tilt,
+      });
+    }
+    return data;
+  }
+
   /**
-   * Create 4 animatable glow layers for a star.
+   * Build organic connection edges (kept for potential future use).
    */
-  private createStarGfx(color: number, radius: number): {
-    container: Container; glowOuter: Graphics; glowMid: Graphics; corona: Graphics; core: Graphics;
+  private buildConnectionEdges() {
+    const pts: Array<{ x: number; y: number; ring: number }> = [{ x: 0, y: 0, ring: 0 }];
+    for (const [, n] of this.systemNodes) pts.push({ x: n.tx, y: n.ty, ring: n.ringIndex });
+
+    const N = pts.length;
+    if (N < 2) return;
+
+    const edgeSet = new Set<string>();
+    const edges: typeof this.connectionEdges = [];
+
+    const addEdge = (i: number, j: number) => {
+      const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key);
+        edges.push({
+          x1: pts[i].x, y1: pts[i].y,
+          x2: pts[j].x, y2: pts[j].y,
+          seed: pts[i].x * 0.022 + pts[i].y * 0.016,
+        });
+      }
+    };
+
+    for (let i = 0; i < N; i++) {
+      const isHome = i === 0;
+      const myRing = pts[i].ring;
+      const cands: Array<{ j: number; d: number }> = [];
+      for (let j = 0; j < N; j++) {
+        if (j === i) continue;
+        const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
+        cands.push({ j, d });
+      }
+      cands.sort((a, b) => a.d - b.d);
+
+      if (isHome) {
+        for (let k = 0; k < Math.min(4, cands.length); k++) addEdge(0, cands[k].j);
+      } else {
+        let added = 0;
+        for (const { j } of cands) {
+          if (added >= 2) break;
+          if (pts[j].ring !== myRing) { addEdge(i, j); added++; }
+        }
+        if (added === 0) addEdge(i, cands[0].j);
+      }
+    }
+
+    this.connectionEdges = edges;
+  }
+
+  /**
+   * Draw wavy "thread-in-water" connection line (kept for potential future use).
+   */
+  private drawWavyLine(
+    g: Graphics, x1: number, y1: number, x2: number, y2: number,
+    t: number, seed: number, alpha: number,
+  ) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 5) return;
+    const nx = -dy / len, ny = dx / len;
+    const amp = Math.min(10, len * 0.045);
+    const N = Math.ceil(len / 7);
+    g.moveTo(x1, y1);
+    for (let i = 1; i <= N; i++) {
+      const s = i / N;
+      const env = Math.sin(s * Math.PI);
+      const w1 = amp * env * Math.sin(s * Math.PI * 2.8 + t * 0.00055 + seed);
+      const w2 = amp * 0.42 * env * Math.sin(s * Math.PI * 5.5 - t * 0.00105 + seed * 2.1);
+      const w3 = amp * 0.18 * env * Math.sin(s * Math.PI * 9 + t * 0.0008 + seed * 3.7);
+      g.lineTo(x1 + dx * s + nx * (w1 + w2 + w3), y1 + dy * s + ny * (w1 + w2 + w3));
+    }
+    g.stroke({ width: 0.7, color: 0x2e4466, alpha });
+  }
+
+  /**
+   * Create the standard star container with empty compat Graphics + live particleGfx.
+   */
+  private createStarGfx(): {
+    container: Container; glowOuter: Graphics; glowMid: Graphics; corona: Graphics; core: Graphics; particleGfx: Graphics;
   } {
     const container = new Container();
-    const saturated = saturateColor(color, 0.4);
-
-    // glowOuter kept as empty Graphics for animation compatibility
     const glowOuter = new Graphics();
-    container.addChild(glowOuter);
-
     const glowMid = new Graphics();
-    glowMid.circle(0, 0, radius * 1.8);
-    glowMid.fill({ color: saturated, alpha: 0.30 });
-    container.addChild(glowMid);
-
     const corona = new Graphics();
-    corona.circle(0, 0, radius * 1.2);
-    corona.fill({ color: saturated, alpha: 0.40 });
-    container.addChild(corona);
-
     const core = new Graphics();
-    core.circle(0, 0, radius);
-    core.fill({ color: 0xffffff, alpha: 0.9 });
-    core.circle(0, 0, radius * 0.7);
-    core.fill({ color, alpha: 0.85 });
+    container.addChild(glowOuter);
+    container.addChild(glowMid);
+    container.addChild(corona);
     container.addChild(core);
-
-    return { container, glowOuter, glowMid, corona, core };
+    const particleGfx = new Graphics();
+    container.addChild(particleGfx);
+    return { container, glowOuter, glowMid, corona, core, particleGfx };
   }
+
+  // Menu icon removed — replaced by RadialMenu (React overlay)
 
   /* ── HOME node ─────────────────────────────────────────────── */
 
   private buildHomeNode(sys: StarSystem) {
-    const color = hexToNum(sys.star.colorHex);
     const spectralMul = SPECTRAL_SIZE_MUL[sys.star.spectralClass] ?? 1.0;
     const baseR = starBaseRadius(sys.star.luminositySolar) * 1.6 * spectralMul;
     const phase = this.hash(sys.id);
 
-    const { container: dot, glowOuter, glowMid, corona, core } = this.createStarGfx(color, baseR);
+    const { container: dot, glowOuter, glowMid, corona, core, particleGfx } = this.createStarGfx();
 
-    // HOME badge — centered inside the star
-    const hl = new Text({
-      text: 'HOME',
-      style: {
-        fontSize: 6, fill: 0x1a3a5c, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 1,
-        dropShadow: { alpha: 0.6, blur: 4, color: 0x4488cc, distance: 0 },
-      },
-      resolution: 3,
-    });
-    hl.anchor.set(0.5, 0.5);
-    hl.y = 0;
-    dot.addChild(hl);
-
-    // Name label — hidden by default, shown on hover
     const nl = new Text({
       text: sys.name,
       style: { fontSize: 8, fill: 0x667788, fontFamily: 'monospace' },
@@ -273,8 +397,7 @@ export class GalaxyScene {
     dot.cursor = 'pointer';
     dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < (baseR + 10) * (baseR + 10) };
 
-    // Show/hide name on hover
-    dot.on('pointerover', () => { nl.visible = true; dot.scale.set(1.15); });
+    dot.on('pointerover', () => { nl.visible = true; dot.scale.set(1.12); });
     dot.on('pointerout', () => { nl.visible = false; dot.scale.set(1.0); });
 
     let cc = 0;
@@ -285,9 +408,7 @@ export class GalaxyScene {
       if (cc === 1) {
         ct = setTimeout(() => {
           if (cc === 1) {
-            const gp = dot.getGlobalPosition();
-            this.focusOnSystem(sys.id);
-            this.onSelect(sys, { x: gp.x, y: gp.y });
+            this.expandSystem(sys.id);
           }
           cc = 0;
         }, 300);
@@ -300,14 +421,22 @@ export class GalaxyScene {
 
     this.nodesLayer.addChild(dot);
 
+    const nebulaColor = hexToNum(sys.star.colorHex);
+    const coreR = Math.max(2.5, baseR * 0.55);
+    const orbitData = this.computeOrbitData(sys, coreR);
+
     this.homeNode = {
       container: dot, system: sys, nameLabel: nl,
       progressLabel: null, progressRing: null, scanArc: null,
-      glowOuter, glowMid, corona, core,
+      glowOuter, glowMid, corona, core, particleGfx,
+      starState: 'home', planetCount: sys.planets.length,
+      nebulaColor, orbitData,
       phaseOffset: phase, speed: 0.8 + (phase / (Math.PI * 2)) * 0.7,
       baseRadius: baseR, baseAlpha: 1,
       spectralClass: sys.star.spectralClass,
       tx: 0, ty: 0, ringIndex: 0,
+      expandProgress: 0, expandTarget: 0,
+      radialOpenFired: false,
     };
   }
 
@@ -317,42 +446,43 @@ export class GalaxyScene {
     const state = this.getState(sys);
     const progress = getResearchProgress(this.researchState, sys.id);
     const phase = this.hash(sys.id);
-    const color = hexToNum(sys.star.colorHex);
     const baseR = starBaseRadius(sys.star.luminositySolar);
     const spectralMul = SPECTRAL_SIZE_MUL[sys.star.spectralClass] ?? 1.0;
+    const effectiveR = baseR * spectralMul;
 
-    // State-dependent size multiplier
-    const radiusMul = state === 'researched' ? 1.3 : state === 'researching' ? 1.0 : 0.65;
-    const effectiveR = baseR * radiusMul * spectralMul;
-
-    // Unexplored: use dim gray color, not star's actual color
-    const displayColor = state === 'unexplored' ? 0x445566 : color;
-    const { container: dot, glowOuter, glowMid, corona, core } = this.createStarGfx(displayColor, effectiveR);
+    const { container: dot, glowOuter, glowMid, corona, core, particleGfx } = this.createStarGfx();
+    const starState: SystemNode['starState'] = state === 'unexplored' ? 'unexplored'
+      : state === 'researching' ? 'researching'
+      : state === 'researched' ? 'researched'
+      : 'home';
 
     dot.x = tx;
     dot.y = ty;
 
-    // Progress pie-chart ring (only for 1-99%)
+    // Progress pie arc (only for 1-99%)
     let progressRing: Graphics | null = null;
     if (state === 'researching' && progress > 0 && progress < 100) {
       progressRing = new Graphics();
-      this.drawProgressPie(progressRing, effectiveR + 4, progress / 100);
+      const coreRingR = Math.max(2.5, effectiveR * 0.42) * 1.8 + 5;
+      this.drawProgressPie(progressRing, coreRingR, progress / 100);
       dot.addChild(progressRing);
     }
 
-    // Scanning arc (spinning blue arc for actively researching systems)
+    // Scanning arc (spinning arc for actively researching systems)
     let scanArc: Graphics | null = null;
     if (state === 'researching') {
       scanArc = new Graphics();
       dot.addChild(scanArc);
     }
 
-    // Name label — hidden by default, shown on hover/tap
+    // Name label
     const nameLabel = new Text({
-      text: state === 'unexplored' ? '' : sys.name,
+      text: sys.name,
       style: {
         fontSize: state === 'researched' ? 9 : 8,
-        fill: state === 'researched' ? 0x8899aa : 0x556677,
+        fill: state === 'researched' ? 0x8899aa
+          : state === 'unexplored' ? 0x2d3d4d
+          : 0x556677,
         fontFamily: 'monospace',
       },
       resolution: 3,
@@ -362,32 +492,28 @@ export class GalaxyScene {
     nameLabel.visible = false;
     dot.addChild(nameLabel);
 
+    const coreR = Math.max(2.5, effectiveR * 0.42);
+
     // Interactivity
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
     const hitR = effectiveR + 8;
     dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < hitR * hitR };
 
-    // Show/hide name on hover
-    dot.on('pointerover', () => { nameLabel.visible = true; dot.scale.set(1.15); });
+    dot.on('pointerover', () => { nameLabel.visible = true; dot.scale.set(1.12); });
     dot.on('pointerout', () => { nameLabel.visible = false; dot.scale.set(1.0); });
 
     let cc = 0;
     let ct: ReturnType<typeof setTimeout> | null = null;
     dot.on('pointerdown', () => {
       if (this.cinematicMode) return;
-      // Block clicks during/after drag or pinch
       if (this.clickGuard?.()) return;
       cc++;
       if (cc === 1) {
         ct = setTimeout(() => {
           if (cc === 1) {
-            // Re-check guard in case drag started during timeout
             if (!this.clickGuard?.()) {
-              const gp = dot.getGlobalPosition();
-              this.selectSystem(sys.id);
-              this.focusOnSystem(sys.id);
-              this.onSelect(sys, { x: gp.x, y: gp.y });
+              this.expandSystem(sys.id);
             }
           }
           cc = 0;
@@ -403,28 +529,32 @@ export class GalaxyScene {
 
     this.nodesLayer.addChild(dot);
 
-    // Alpha by state and ring distance
     let baseAlpha: number;
-    if (state === 'researched') {
+    if (state === 'researched' || state === 'home') {
       baseAlpha = 1;
     } else if (state === 'researching') {
-      baseAlpha = 0.35 + (progress / 100) * 0.55;
+      baseAlpha = 0.75 + (progress / 100) * 0.25;
     } else {
-      // Unexplored: dimmer for further rings
-      baseAlpha = ringIndex === 1 ? 0.35 : 0.2;
+      baseAlpha = 0.75;
     }
 
     dot.alpha = baseAlpha;
 
     const speed = 0.5 + (phase / (Math.PI * 2)) * 1.0;
+    const nebulaColor = hexToNum(sys.star.colorHex);
+    const orbitData = this.computeOrbitData(sys, coreR);
 
     return {
       container: dot, system: sys, nameLabel,
       progressLabel: null, progressRing, scanArc,
-      glowOuter, glowMid, corona, core,
+      glowOuter, glowMid, corona, core, particleGfx,
+      starState, planetCount: sys.planets.length,
+      nebulaColor, orbitData,
       phaseOffset: phase, speed, baseRadius: effectiveR,
       baseAlpha, tx, ty, ringIndex,
       spectralClass: sys.star.spectralClass,
+      expandProgress: 0, expandTarget: 0,
+      radialOpenFired: false,
     };
   }
 
@@ -435,8 +565,135 @@ export class GalaxyScene {
     this.beamAlpha = 0;
   }
 
+  /** Get current screen position of a system (for React overlays like RadialMenu) */
+  getSystemScreenPosition(systemId: string): { x: number; y: number } | null {
+    const node = this.homeNode?.system.id === systemId
+      ? this.homeNode
+      : this.systemNodes.get(systemId);
+    if (!node) return null;
+    const gp = node.container.toGlobal({ x: 0, y: 0 });
+    return { x: gp.x, y: gp.y };
+  }
+
   /**
-   * Focus on a system: highlight it, dim others.
+   * Navigate to the nearest system in the given direction from the currently expanded system.
+   * dx/dy: unit direction vector (e.g. [1,0] = right, [0,-1] = up)
+   * Returns true if navigation happened.
+   */
+  navigateDirection(dx: number, dy: number): boolean {
+    if (this.transitionActive) return false;
+
+    // Collect all system nodes (home + others)
+    const allNodes: SystemNode[] = [];
+    if (this.homeNode) allNodes.push(this.homeNode);
+    for (const [, node] of this.systemNodes) allNodes.push(node);
+
+    // Origin: currently expanded system, or home
+    const originId = this.expandedSystemId ?? this.homeNode?.system.id;
+    const originNode = allNodes.find((n) => n.system.id === originId);
+    if (!originNode) return false;
+
+    // Use world position (tx, ty) for non-home; home is at (0, 0)
+    const ox = originNode === this.homeNode ? 0 : originNode.tx;
+    const oy = originNode === this.homeNode ? 0 : originNode.ty;
+
+    let best: SystemNode | null = null;
+    let bestScore = Infinity;
+
+    for (const node of allNodes) {
+      if (node === originNode) continue;
+      const nx = node === this.homeNode ? 0 : node.tx;
+      const ny = node === this.homeNode ? 0 : node.ty;
+      const vx = nx - ox;
+      const vy = ny - oy;
+
+      // Only consider systems in the correct half-plane
+      const proj = vx * dx + vy * dy;
+      if (proj <= 0) continue;
+
+      // Perpendicular distance (how far off the direction axis)
+      const perp = Math.abs(vx * (-dy) + vy * dx);
+      const dist = Math.hypot(vx, vy);
+
+      // Score: prefer closer + more aligned (perp weighted x2)
+      const score = dist + perp * 2;
+      if (score < bestScore) {
+        bestScore = score;
+        best = node;
+      }
+    }
+
+    if (!best) return false;
+
+    this.expandSystem(best.system.id);
+    return true;
+  }
+
+  /**
+   * Expand a system: show orbits animation + focus + dim others.
+   * Collapses any previously expanded system first.
+   */
+  expandSystem(systemId: string) {
+    // Already expanded → no-op
+    if (this.expandedSystemId === systemId) return;
+
+    const prevId = this.expandedSystemId;
+
+    // Cancel any previously queued expand
+    this.pendingExpandId = null;
+    this.pendingExpandDelay = 0;
+
+    if (prevId && prevId !== systemId) {
+      // Collapse previous system immediately
+      const prevNode = prevId === this.homeNode?.system.id
+        ? this.homeNode
+        : this.systemNodes.get(prevId);
+      if (prevNode) {
+        prevNode.expandTarget = 0;
+        prevNode.radialOpenFired = false;
+      }
+      // Close radial menu when switching to a different star
+      this.onRadialClose?.();
+      // Clear expandedSystemId NOW so unfocusSystem (called inside focusOnSystem)
+      // does NOT try to re-collapse it or the new system
+      this.expandedSystemId = null;
+
+      // Focus on new system right away (dims others to 50%)
+      this.focusOnSystem(systemId);
+
+      // Camera centers immediately
+      const newNode = systemId === this.homeNode?.system.id
+        ? this.homeNode
+        : this.systemNodes.get(systemId);
+      if (newNode) this.onExpandSystem?.(newNode.system);
+
+      // Queue the actual orbit expansion — wait for previous to collapse
+      this.pendingExpandId = systemId;
+      this.pendingExpandDelay = COLLAPSE_DURATION;
+    } else {
+      // No previous expanded system — expand directly
+      this._doExpand(systemId);
+    }
+  }
+
+  /** Internal: actually set expandTarget=1 and record expanded state */
+  private _doExpand(systemId: string) {
+    this.focusOnSystem(systemId);
+    this.expandedSystemId = systemId;
+
+    const node = systemId === this.homeNode?.system.id
+      ? this.homeNode
+      : this.systemNodes.get(systemId);
+
+    if (node) {
+      node.expandTarget = 1;
+      this.selectSystem(systemId);
+      this.onExpandSystem?.(node.system);
+    }
+  }
+
+  /**
+   * Focus on a system: dim all others to 50%.
    */
   focusOnSystem(systemId: string) {
     if (this.focusedSystemId === systemId) return;
@@ -445,7 +702,7 @@ export class GalaxyScene {
     this.focusedSystemId = systemId;
     this.preFocusAlphas.clear();
 
-    // Save alphas
+    // Save current alphas
     if (this.homeNode) {
       this.preFocusAlphas.set(this.homeNode.system.id, this.homeNode.baseAlpha);
     }
@@ -453,18 +710,34 @@ export class GalaxyScene {
       this.preFocusAlphas.set(id, node.baseAlpha);
     }
 
-    // Dim all except focused
+    // Dim all except focused to 50%
     if (this.homeNode && this.homeNode.system.id !== systemId) {
-      this.homeNode.baseAlpha = 0.15;
+      this.homeNode.baseAlpha = 0.5;
     }
     for (const [id, node] of this.systemNodes) {
-      node.baseAlpha = id === systemId ? 1 : 0.15;
+      node.baseAlpha = id === systemId ? 1 : 0.5;
     }
   }
 
-  /** Unfocus: restore all alphas */
+  /** Unfocus: restore all alphas and collapse expanded system */
   unfocusSystem() {
     if (!this.focusedSystemId) return;
+
+    // Close radial menu
+    this.onRadialClose?.();
+
+    // Collapse the expanded system
+    if (this.expandedSystemId) {
+      const expNode = this.expandedSystemId === this.homeNode?.system.id
+        ? this.homeNode
+        : this.systemNodes.get(this.expandedSystemId);
+      if (expNode) {
+        expNode.expandTarget = 0;
+        expNode.radialOpenFired = false;
+      }
+      this.expandedSystemId = null;
+    }
+
     this.focusedSystemId = null;
 
     if (this.homeNode) {
@@ -481,32 +754,19 @@ export class GalaxyScene {
     this.beamAlpha = 0;
   }
 
-  /** Draw a pie-chart progress indicator: dark ring with bright filled arc */
+  /** Draw a progress arc: bright arc stroke only, no fill */
   private drawProgressPie(g: Graphics, radius: number, fraction: number) {
+    if (fraction <= 0.005) return;
     const r = radius;
-    const segments = 32;
-    const startAngle = -Math.PI / 2; // 12 o'clock
-
-    // Dark background ring (unfilled portion)
-    g.circle(0, 0, r + 1.5);
-    g.fill({ color: 0x112233, alpha: 0.5 });
-    g.circle(0, 0, r - 1.5);
-    g.cut();
-
-    // Bright filled arc
-    if (fraction > 0.005) {
-      const endAngle = startAngle + fraction * Math.PI * 2;
-      g.moveTo(0, 0);
-      for (let i = 0; i <= segments; i++) {
-        const a = startAngle + (endAngle - startAngle) * (i / segments);
-        g.lineTo(Math.cos(a) * (r + 1.5), Math.sin(a) * (r + 1.5));
-      }
-      g.closePath();
-      g.fill({ color: 0x88ccff, alpha: 0.6 });
-      // Cut inner to make ring shape
-      g.circle(0, 0, r - 1.5);
-      g.cut();
+    const startAngle = -Math.PI / 2;
+    const endAngle = startAngle + fraction * Math.PI * 2;
+    const segments = 28;
+    g.moveTo(Math.cos(startAngle) * r, Math.sin(startAngle) * r);
+    for (let i = 1; i <= segments; i++) {
+      const a = startAngle + (endAngle - startAngle) * (i / segments);
+      g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
     }
+    g.stroke({ width: 1.5, color: 0x88ccff, alpha: 0.7 });
   }
 
   get isFocused(): boolean {
@@ -528,15 +788,16 @@ export class GalaxyScene {
   /**
    * Start the star-fold transition: all stars converge into the target,
    * galaxy backdrop spins up, twinkle stars scatter outward.
-   * Duration: 2 seconds. Calls onComplete when done.
    */
   startTransition(targetSystemId: string, onComplete: () => void) {
     if (this.transitionActive) return;
 
-    // Find target position
     const targetNode = this.systemNodes.get(targetSystemId);
     const isHome = this.homeNode?.system.id === targetSystemId;
     if (!targetNode && !isHome) return;
+
+    // Close radial menu before transition
+    this.onRadialClose?.();
 
     this.transitionActive = true;
     this.transitionProgress = 0;
@@ -545,15 +806,12 @@ export class GalaxyScene {
     this.transitionTargetY = isHome ? 0 : targetNode!.ty;
     this.transitionOnComplete = onComplete;
 
-    // Disable interactivity during transition
     if (this.homeNode) this.homeNode.container.eventMode = 'none';
     for (const [, n] of this.systemNodes) n.container.eventMode = 'none';
 
-    // Hide UI elements
     this.connectionLines.visible = false;
     this.beamGfx.visible = false;
 
-    // Assign random scatter velocities to twinkle stars (outward from center)
     this.twinkleScatterVx = [];
     this.twinkleScatterVy = [];
     for (const star of this.twinkleStars) {
@@ -563,7 +821,6 @@ export class GalaxyScene {
       this.twinkleScatterVy.push(Math.sin(angle) * speed);
     }
 
-    // Create fade overlay
     this.fadeOverlay = new Graphics();
     this.container.addChild(this.fadeOverlay);
   }
@@ -577,18 +834,18 @@ export class GalaxyScene {
     const prog = getResearchProgress(researchState, systemId);
 
     if (state === 'researching') {
-      node.baseAlpha = 0.35 + (prog / 100) * 0.55;
-      // Update pie-chart ring
+      node.starState = 'researching';
+      node.baseAlpha = 0.75 + (prog / 100) * 0.25;
       if (node.progressRing) {
         if (prog > 0 && prog < 100) {
           node.progressRing.clear();
-          this.drawProgressPie(node.progressRing, node.baseRadius + 4, prog / 100);
+          const coreRingR = Math.max(2.5, node.baseRadius * 0.42) * 1.8 + 5;
+          this.drawProgressPie(node.progressRing, coreRingR, prog / 100);
           node.progressRing.visible = true;
         } else {
           node.progressRing.visible = false;
         }
       }
-      // Create scan arc if missing
       if (!node.scanArc) {
         node.scanArc = new Graphics();
         node.container.addChild(node.scanArc);
@@ -596,13 +853,12 @@ export class GalaxyScene {
     }
 
     if (state === 'researched') {
+      node.starState = 'researched';
       node.baseAlpha = 1;
-      // Hide progress ring and scan arc, set name ready for hover
       if (node.progressRing) node.progressRing.visible = false;
-      if (node.scanArc) { node.scanArc.visible = false; }
+      if (node.scanArc) node.scanArc.visible = false;
       node.nameLabel.text = node.system.name;
       node.nameLabel.style.fill = 0x8899aa;
-      // Name stays hidden until hover
     }
   }
 
@@ -621,40 +877,81 @@ export class GalaxyScene {
 
     // ── Normal animation ──────────────────────────────────────
 
-    // Backdrop animations
+    // Process pending expand (delayed after previous collapses)
+    if (this.pendingExpandId && this.pendingExpandDelay > 0) {
+      this.pendingExpandDelay -= deltaMs;
+      if (this.pendingExpandDelay <= 0) {
+        const id = this.pendingExpandId;
+        this.pendingExpandId = null;
+        this.pendingExpandDelay = 0;
+        this._doExpand(id);
+      }
+    }
+
     if (this.accretionDisk) this.accretionDisk.rotation += deltaMs * 0.0003;
     if (this.backdropContainer) this.backdropContainer.rotation += deltaMs * 0.000012;
 
-    // Chaotic backdrop twinkle stars
     this.updateTwinkleStars(t);
+
+    // Helper: animate expand progress + fire radial callbacks
+    const animateExpand = (node: SystemNode) => {
+      const target = node.expandTarget;
+      const cur = node.expandProgress;
+      if (target > cur) {
+        node.expandProgress = Math.min(target, cur + deltaMs / EXPAND_DURATION);
+      } else if (target < cur) {
+        node.expandProgress = Math.max(target, cur - deltaMs / COLLAPSE_DURATION);
+      }
+
+      const ep = node.expandProgress;
+
+      // Fire radial open when expansion crosses 82% threshold
+      if (ep > 0.82 && !node.radialOpenFired && node.system.id === this.expandedSystemId) {
+        node.radialOpenFired = true;
+        const sysId = node.system.id;
+        this.onRadialOpen?.(node.system, () => this.getSystemScreenPosition(sysId));
+      }
+
+      // Fire radial close when collapsing below threshold
+      if (ep <= 0.5 && node.radialOpenFired) {
+        node.radialOpenFired = false;
+        this.onRadialClose?.();
+      }
+
+      // Keep name label visible while expanded (no hover required)
+      if (ep > 0.5) {
+        node.nameLabel.visible = true;
+      }
+    };
 
     // Animate HOME star
     if (this.homeNode) {
       const hn = this.homeNode;
       hn.container.alpha += (hn.baseAlpha - hn.container.alpha) * Math.min(1, ANIM_SPEED * dt);
+      animateExpand(hn);
       this.animateStarBurn(hn, t);
     }
 
     // Animate all system nodes
     for (const [, node] of this.systemNodes) {
       node.container.alpha += (node.baseAlpha - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
+      animateExpand(node);
       this.animateStarBurn(node, t);
 
-      // Animate scan arc (blue spinning ring during active research)
+      // Animate scan arc (spinning ring during active research)
       if (node.scanArc) {
         const isActive = this.researchState.slots.some((s) => s.systemId === node.system.id);
         node.scanArc.visible = isActive;
         if (isActive) {
           node.scanArc.clear();
-          const r = node.baseRadius + 6;
+          const r = Math.max(2.5, node.baseRadius * 0.42) * 1.8 + 6;
           const angle = (t * 0.003) % (Math.PI * 2);
-          const arcLen = Math.PI * 0.6; // ~108 degree arc
+          const arcLen = Math.PI * 0.6;
           const segments = 16;
-          // Draw the arc
           for (let i = 0; i < segments; i++) {
             const a0 = angle + (arcLen * i) / segments;
             const a1 = angle + (arcLen * (i + 1)) / segments;
-            const alpha = 0.7 * (1 - i / segments); // Fade tail
+            const alpha = 0.7 * (1 - i / segments);
             node.scanArc.moveTo(Math.cos(a0) * r, Math.sin(a0) * r);
             node.scanArc.lineTo(Math.cos(a1) * r, Math.sin(a1) * r);
             node.scanArc.stroke({ width: 1.5, color: 0x4488ff, alpha });
@@ -663,30 +960,7 @@ export class GalaxyScene {
       }
     }
 
-    // Connection lines: HOME -> Ring 1 -> Ring 2
-    this.connectionLines.clear();
-    for (const [, node] of this.systemNodes) {
-      if (node.ringIndex === 1) {
-        this.connectionLines.moveTo(0, 0);
-        this.connectionLines.lineTo(node.tx, node.ty);
-        this.connectionLines.stroke({ width: 0.8, color: 0x2a3a4a, alpha: 0.3 });
-      } else if (node.ringIndex === 2) {
-        let closest: SystemNode | null = null;
-        let minDist = Infinity;
-        for (const [, r1] of this.systemNodes) {
-          if (r1.ringIndex !== 1) continue;
-          const dx = r1.tx - node.tx;
-          const dy = r1.ty - node.ty;
-          const d = dx * dx + dy * dy;
-          if (d < minDist) { minDist = d; closest = r1; }
-        }
-        if (closest) {
-          this.connectionLines.moveTo(closest.tx, closest.ty);
-          this.connectionLines.lineTo(node.tx, node.ty);
-          this.connectionLines.stroke({ width: 0.5, color: 0x1a2a3a, alpha: 0.15 });
-        }
-      }
-    }
+    // Connection lines removed per design decision
 
     // Beam to selected system
     this.beamGfx.clear();
@@ -703,7 +977,6 @@ export class GalaxyScene {
       }
     }
 
-    // Animate fake player markers
     if (this.fakePlayerMarkers.length > 0) {
       this.updateFakePlayerMarkers(t, deltaMs);
     }
@@ -730,96 +1003,132 @@ export class GalaxyScene {
     }
   }
 
-  /** Transition animation: fold stars into target, spin galaxy, scatter twinkle stars */
+  /**
+   * Transition animation — multi-phase warp:
+   *   frenzy    (0–900ms)  — cubic spin-up, particles accelerate
+   *   collapse  (900–1300ms) — stars fold toward target, target grows
+   *   blackout  (1300–1550ms) — dark overlay covers everything
+   *   complete  (1550ms) — fire onComplete
+   * Total ~1550ms (hyperspace overlay handled by React GalaxyWarpOverlay)
+   */
   private updateTransition(deltaMs: number, dt: number, t: number) {
-    const TRANSITION_DURATION = 2000; // 2 seconds
-    this.transitionProgress = Math.min(1, this.transitionProgress + deltaMs / TRANSITION_DURATION);
-    const p = this.transitionProgress;
+    const FRENZY_END   = 900;
+    const COLLAPSE_END = 1300;
+    const BLACKOUT_END = 1550;
 
-    // Easing: ease-in-out cubic
-    const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+    this.transitionProgress += deltaMs;
+    const elapsed = this.transitionProgress;
+    const total = BLACKOUT_END;
+    const p = Math.min(1, elapsed / total);
 
     const tx = this.transitionTargetX;
     const ty = this.transitionTargetY;
 
-    // ── Galaxy backdrop: spin up dramatically ──
-    const spinSpeed = 0.000012 + ease * 0.008; // ramps from normal to very fast
-    if (this.backdropContainer) this.backdropContainer.rotation += deltaMs * spinSpeed;
-    if (this.accretionDisk) this.accretionDisk.rotation += deltaMs * (0.0003 + ease * 0.005);
+    // Phase-dependent easing
+    let frenzyP = 0;  // 0→1 during frenzy
+    let collapseP = 0;  // 0→1 during collapse
+    let blackoutP = 0;  // 0→1 during blackout
 
-    // ── Twinkle stars: scatter outward chaotically ──
+    if (elapsed < FRENZY_END) {
+      frenzyP = elapsed / FRENZY_END;
+    } else {
+      frenzyP = 1;
+      if (elapsed < COLLAPSE_END) {
+        collapseP = (elapsed - FRENZY_END) / (COLLAPSE_END - FRENZY_END);
+      } else {
+        collapseP = 1;
+        blackoutP = Math.min(1, (elapsed - COLLAPSE_END) / (BLACKOUT_END - COLLAPSE_END));
+      }
+    }
+
+    // Cubic ease-in for frenzy (very gentle start, accelerates toward end)
+    const spinBoost = 1 + 11 * (frenzyP * frenzyP * frenzyP);
+
+    // Smooth ease for collapse
+    const collapseEase = collapseP < 0.5
+      ? 4 * collapseP * collapseP * collapseP
+      : 1 - Math.pow(-2 * collapseP + 2, 3) / 2;
+
+    // Galaxy backdrop spin
+    const spinSpeed = 0.000012 + frenzyP * frenzyP * 0.004;
+    if (this.backdropContainer) this.backdropContainer.rotation += deltaMs * spinSpeed;
+    if (this.accretionDisk) this.accretionDisk.rotation += deltaMs * (0.0003 + frenzyP * frenzyP * 0.003);
+
+    // Scatter twinkle stars (only during collapse+)
     for (let i = 0; i < this.twinkleStars.length; i++) {
       const star = this.twinkleStars[i];
       const vx = this.twinkleScatterVx[i] ?? 0;
       const vy = this.twinkleScatterVy[i] ?? 0;
-      // Accelerate outward with easing
-      star.gfx.x += vx * dt * ease * 2;
-      star.gfx.y += vy * dt * ease * 2;
-      // Fade out
-      star.gfx.alpha = Math.max(0, star.baseAlpha * (1 - ease));
+      star.gfx.x += vx * dt * collapseEase * 2;
+      star.gfx.y += vy * dt * collapseEase * 2;
+      star.gfx.alpha = Math.max(0, star.baseAlpha * (1 - collapseEase));
     }
 
-    // ── System stars: fold toward target ──
     const foldStar = (node: SystemNode, isTarget: boolean) => {
       if (isTarget) {
-        // Target grows brighter and slightly larger
-        node.container.alpha = Math.min(1, node.baseAlpha + ease * 0.5);
-        node.container.scale.set(1 + ease * 0.6);
-        // Hide labels
+        // Target star: spin up during frenzy, grow during collapse
+        const growP = collapseEase * 0.6;
+        node.container.alpha = Math.min(1, node.baseAlpha + collapseEase * 0.5);
+        node.container.scale.set(1 + growP);
         node.nameLabel.visible = false;
         if (node.progressRing) node.progressRing.visible = false;
+        // Force orbits visible + accelerating spin
+        const savedEP = node.expandProgress;
+        node.expandProgress = 1;
+        this.animateStarBurn(node, t, spinBoost);
+        node.expandProgress = savedEP;
       } else {
-        // Move toward target position
+        // Non-target: converge during collapse
         const startX = node.tx;
         const startY = node.ty;
-        node.container.x = startX + (tx - startX) * ease;
-        node.container.y = startY + (ty - startY) * ease;
-        // Scale down as approaching
-        const scale = Math.max(0.05, 1 - ease * 0.9);
+        node.container.x = startX + (tx - startX) * collapseEase;
+        node.container.y = startY + (ty - startY) * collapseEase;
+        const scale = Math.max(0.05, 1 - collapseEase * 0.9);
         node.container.scale.set(scale);
-        // Brighten slightly during convergence, then fade
-        node.container.alpha = node.baseAlpha * (p < 0.7 ? 1 + ease * 0.5 : Math.max(0, (1 - p) / 0.3));
-        // Hide labels
+        node.container.alpha = node.baseAlpha * (collapseP < 0.7
+          ? 1 + collapseEase * 0.5
+          : Math.max(0, (1 - collapseP) / 0.3));
         node.nameLabel.visible = false;
         if (node.progressRing) node.progressRing.visible = false;
+        this.animateStarBurn(node, t, spinBoost);
       }
-      this.animateStarBurn(node, t);
     };
 
-    // HOME node
     if (this.homeNode) {
       const isTarget = this.homeNode.system.id === this.transitionTargetId;
       if (!isTarget) {
-        // HOME also folds toward target (starts at 0,0)
-        this.homeNode.container.x = tx * ease;
-        this.homeNode.container.y = ty * ease;
-        const scale = Math.max(0.05, 1 - ease * 0.9);
+        this.homeNode.container.x = tx * collapseEase;
+        this.homeNode.container.y = ty * collapseEase;
+        const scale = Math.max(0.05, 1 - collapseEase * 0.9);
         this.homeNode.container.scale.set(scale);
-        this.homeNode.container.alpha = this.homeNode.baseAlpha * (p < 0.7 ? 1 : Math.max(0, (1 - p) / 0.3));
+        this.homeNode.container.alpha = this.homeNode.baseAlpha * (collapseP < 0.7
+          ? 1 : Math.max(0, (1 - collapseP) / 0.3));
         this.homeNode.nameLabel.visible = false;
+        this.animateStarBurn(this.homeNode, t, spinBoost);
       } else {
-        this.homeNode.container.alpha = Math.min(1, this.homeNode.baseAlpha + ease * 0.5);
-        this.homeNode.container.scale.set(1 + ease * 0.6);
+        const growP = collapseEase * 0.6;
+        this.homeNode.container.alpha = Math.min(1, this.homeNode.baseAlpha + collapseEase * 0.5);
+        this.homeNode.container.scale.set(1 + growP);
         this.homeNode.nameLabel.visible = false;
+        const savedEP = this.homeNode.expandProgress;
+        this.homeNode.expandProgress = 1;
+        this.animateStarBurn(this.homeNode, t, spinBoost);
+        this.homeNode.expandProgress = savedEP;
       }
-      this.animateStarBurn(this.homeNode, t);
     }
 
-    // All system nodes
     for (const [id, node] of this.systemNodes) {
       foldStar(node, id === this.transitionTargetId);
     }
 
-    // ── Fade to black in last 30% ──
-    if (this.fadeOverlay && p > 0.7) {
-      const fadeP = (p - 0.7) / 0.3; // 0→1
+    // Dark overlay during blackout phase
+    if (this.fadeOverlay && blackoutP > 0) {
       this.fadeOverlay.clear();
       this.fadeOverlay.rect(-2000, -2000, 4000, 4000);
-      this.fadeOverlay.fill({ color: 0x020510, alpha: fadeP });
+      this.fadeOverlay.fill({ color: 0x020510, alpha: blackoutP });
     }
 
-    // ── Complete ──
-    if (p >= 1) {
+    if (elapsed >= BLACKOUT_END) {
       this.transitionActive = false;
       if (this.transitionOnComplete) {
         this.transitionOnComplete();
@@ -828,40 +1137,147 @@ export class GalaxyScene {
     }
   }
 
-  /** Animate individual star glow layers for chaotic burning effect */
-  private animateStarBurn(node: SystemNode, t: number) {
-    const sp = node.speed;
-    const ph = node.phaseOffset;
-    const amp = HOT_STARS.has(node.spectralClass) ? 1.5 : 1.0;
+  /**
+   * Draw star system visuals into node.particleGfx (cleared each frame).
+   *
+   * Unexplored   → sonar ripple rings (unchanged)
+   * Researching  → blue ring + star core (no orbits by default)
+   * Researched   → clean star core + faint glow (no orbits by default)
+   * Home         → warm star core (no orbits by default)
+   *
+   * When expandProgress > 0: tilted chaotic orbits + orbiting planet dots emerge
+   * from the star's center, scaled by ease-out factor.
+   */
+  private animateStarBurn(node: SystemNode, t: number, spinBoost = 1) {
+    const g = node.particleGfx;
+    g.clear();
 
-    const s1 = (Math.sin(t * sp * 0.0009 + ph) * 0.4
-             + Math.sin(t * sp * 0.0017 + ph * 2.3) * 0.2) * amp;
-    node.glowOuter.alpha = 0.12 + s1 * 0.05;
-    node.glowOuter.scale.set(1.0 + s1 * 0.25, 1.0 + s1 * 0.25);
+    const { starState, baseRadius, phaseOffset: ph, nebulaColor, orbitData } = node;
+    const isHome = starState === 'home';
+    const coreR = Math.max(2.5, baseRadius * (isHome ? 0.55 : 0.42));
 
-    const s2 = (Math.sin(t * sp * 0.0014 + ph * 1.7) * 0.3
-             + Math.sin(t * sp * 0.0023 + ph * 0.9) * 0.15) * amp;
-    node.glowMid.alpha = 0.30 + s2 * 0.12;
-    node.glowMid.scale.set(1.0 + s2 * 0.15, 1.0 + s2 * 0.15);
+    /* ── Unexplored: sonar ripple rings ── */
+    if (starState === 'unexplored') {
+      // 2× slower period; outer rings fade much faster (exponent falloff)
+      const period = 6400 + ph * 800;
+      const maxR = coreR * 4.5;
+      for (let k = 0; k < 3; k++) {
+        const offset = (k / 3) * period;
+        const phase = ((t + offset) % period) / period;
+        const r = phase * maxR;
+        // Quadratic falloff: further = much less visible
+        const alpha = Math.pow(1 - phase, 2.0) * 0.34;
+        if (r > 0.5) {
+          g.circle(0, 0, r);
+          g.stroke({ width: 0.8, color: nebulaColor, alpha });
+        }
+      }
+      g.circle(0, 0, 1.8);
+      g.fill({ color: nebulaColor, alpha: 0.45 });
+      return;
+    }
 
-    const s4 = (Math.sin(t * sp * 0.0011 + ph * 1.3) * 0.25
-             + Math.sin(t * sp * 0.0020 + ph * 2.7) * 0.12) * amp;
-    node.corona.alpha = 0.40 + s4 * 0.15;
-    node.corona.scale.set(1.0 + s4 * 0.12, 1.0 + s4 * 0.12);
+    /* ── Visible star system ── */
+    const pulse = 0.88 + 0.12 * Math.sin(t * 0.00095 + ph * 0.013);
+    const br = starState === 'researching' ? 0.65 : 1.0;
 
-    const s3 = (Math.sin(t * sp * 0.003 + ph * 2.1) * 0.1
-             + Math.sin(t * sp * 0.005 + ph * 3.7) * 0.05) * amp;
-    node.core.alpha = 0.85 + s3;
+    // Eased expansion factor (0=collapsed, 1=fully expanded)
+    const ep = easeOutQuad(node.expandProgress);
+
+    /* ── Researching: blue orbital ring ── */
+    if (starState === 'researching') {
+      const ringR = coreR * 2.1;
+      // Outer ring
+      g.circle(0, 0, ringR);
+      g.stroke({ width: 1.2, color: 0x2255cc, alpha: 0.55 * pulse });
+      // Inner thin ring
+      g.circle(0, 0, ringR * 0.7);
+      g.stroke({ width: 0.5, color: 0x4488ff, alpha: 0.25 * pulse });
+    }
+
+    /* ── Single subtle ambient glow ── */
+    g.circle(0, 0, coreR * 2.5);
+    g.fill({ color: nebulaColor, alpha: 0.038 * br * pulse });
+
+    /* ── Tilted chaotic orbits + planet dots (only for researched/home, only when expanding) ── */
+    const canShowOrbits = starState === 'researched' || starState === 'home';
+    if (canShowOrbits && ep > 0.005) {
+      for (const p of orbitData) {
+        const ct2 = Math.cos(p.tilt);
+        const st2 = Math.sin(p.tilt);
+        const scaledA = p.orbitA * ep;
+        const scaledB = p.orbitB * ep;
+
+        // Draw tilted ellipse parametrically (PixiJS ellipse has no rotation)
+        const N = 40;
+        for (let i = 0; i <= N; i++) {
+          const angle = (i / N) * Math.PI * 2;
+          const ex = Math.cos(angle) * scaledA;
+          const ey = Math.sin(angle) * scaledB;
+          const rx = ex * ct2 - ey * st2;
+          const ry = ex * st2 + ey * ct2;
+          if (i === 0) g.moveTo(rx, ry);
+          else g.lineTo(rx, ry);
+        }
+        // Orbit line — brightens slightly at high spin
+        const orbitAlpha = Math.min(0.6, 0.28 * br * ep * (spinBoost > 4 ? 1 + (spinBoost - 4) * 0.06 : 1));
+        const orbitW = Math.min(1.4, 0.5 + (spinBoost > 8 ? (spinBoost - 8) * 0.04 : 0));
+        g.stroke({ width: orbitW, color: 0x2a4d6e, alpha: orbitAlpha });
+
+        // Planet dot at current orbital position (tilted, speed scaled by spinBoost)
+        const planetAngle = p.phase + t * p.speed * 0.001 * spinBoost;
+        const ex = Math.cos(planetAngle) * scaledA;
+        const ey = Math.sin(planetAngle) * scaledB;
+        const px = ex * ct2 - ey * st2;
+        const py = ex * st2 + ey * ct2;
+
+        // Motion blur trail — appears when spinning fast (transition atom effect)
+        if (spinBoost > 2) {
+          const trailSteps = 5;
+          const trailSpan = Math.min(Math.PI * 0.55, (spinBoost - 2) * 0.045) * Math.sign(p.speed);
+          for (let b = trailSteps; b >= 1; b--) {
+            const ta = planetAngle - (b / trailSteps) * trailSpan;
+            const tex = Math.cos(ta) * scaledA;
+            const tey = Math.sin(ta) * scaledB;
+            const trx = tex * ct2 - tey * st2;
+            const tryy = tex * st2 + tey * ct2;
+            const trAlpha = ((trailSteps - b + 1) / trailSteps) * Math.min(0.55, (spinBoost - 2) * 0.07) * ep;
+            g.circle(trx, tryy, p.pSize * 0.75);
+            g.fill({ color: p.color, alpha: trAlpha });
+          }
+        }
+
+        const dotSize = Math.min(p.pSize * 2.2, p.pSize * Math.sqrt(ep) * (spinBoost > 2 ? 1 + (spinBoost - 2) * 0.07 : 1));
+        g.circle(px, py, dotSize);
+        g.fill({ color: p.color, alpha: Math.min(1, 0.88 * br * ep) });
+      }
+    }
+
+    /* ── Star core ── */
+    const starColor = isHome ? 0xffc864
+      : starState === 'researching' ? 0x5599ee : 0xd2ebff;
+
+    // Soft inner glow ring
+    g.circle(0, 0, coreR * 1.7);
+    g.fill({ color: starColor, alpha: 0.12 * pulse * br });
+
+    // Bright core dot
+    g.circle(0, 0, coreR);
+    g.fill({ color: 0xffffff, alpha: 0.95 * pulse });
+
+    /* ── HOME: warm glow accent ── */
+    if (isHome) {
+      g.circle(0, 0, coreR * 2.8);
+      g.fill({ color: 0xffc864, alpha: 0.055 * pulse });
+    }
   }
 
   /* ── Cinematic mode ──────────────────────────────────────── */
 
-  /** Enter/exit cinematic mode — disable click handlers */
   setCinematicMode(enabled: boolean) {
     this.cinematicMode = enabled;
   }
 
-  /** Add animated fake player markers with callsigns */
   addFakePlayerMarkers(count: number) {
     const callsigns = [
       'ORBITAL-7', 'DELTA-3K', 'NOVA-12', 'HELIX-9', 'QUASAR-5',
@@ -874,13 +1290,11 @@ export class GalaxyScene {
       const node = allNodes[i % allNodes.length];
       const c = new Container();
 
-      // Blinking dot
       const dot = new Graphics();
       dot.circle(0, 0, 3);
       dot.fill({ color: 0x44ff88, alpha: 0.8 });
       c.addChild(dot);
 
-      // Callsign label
       const label = new Text({
         text: callsigns[i % callsigns.length],
         style: { fontSize: 7, fill: 0x44ff88, fontFamily: 'monospace' },
@@ -899,7 +1313,6 @@ export class GalaxyScene {
     }
   }
 
-  /** Remove all fake player markers */
   removeFakePlayerMarkers() {
     for (const m of this.fakePlayerMarkers) {
       m.parent?.removeChild(m);
@@ -908,7 +1321,6 @@ export class GalaxyScene {
     this.fakePlayerMarkers = [];
   }
 
-  /** Animate fake player markers (called from update) */
   private updateFakePlayerMarkers(t: number, dt: number) {
     for (let i = 0; i < this.fakePlayerMarkers.length; i++) {
       const m = this.fakePlayerMarkers[i];

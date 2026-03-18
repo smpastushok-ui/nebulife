@@ -8,6 +8,8 @@ import { PlanetInfoPanel } from './ui/components/PlanetInfoPanel.js';
 import { PlanetContextMenu } from './ui/components/PlanetContextMenu.js';
 import { SystemContextMenu } from './ui/components/SystemContextMenu.js';
 import type { SystemPhotoData, SystemMissionData } from './ui/components/SystemContextMenu.js';
+import { RadialMenu } from './ui/components/RadialMenu.js';
+import { GalaxyWarpOverlay } from './ui/components/GalaxyWarpOverlay.js';
 import { SystemInfoPanel } from './ui/components/SystemInfoPanel.js';
 import { ResearchPanel } from './ui/components/ResearchPanel.js';
 import { ResearchCompleteModal } from './ui/components/ResearchCompleteModal.js';
@@ -829,6 +831,12 @@ export function App() {
   // ── System context menu state (galaxy view) ────────────────────────────
   const [showSystemMenu, setShowSystemMenu] = useState(false);
   const [systemMenuPos, setSystemMenuPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Radial menu state (replaces SystemContextMenu in galaxy view)
+  const [radialSystem, setRadialSystem] = useState<StarSystem | null>(null);
+  const [radialGetScreenPos, setRadialGetScreenPos] = useState<(() => { x: number; y: number } | null) | null>(null);
+  // Galaxy warp overlay state
+  const [galaxyWarpPhase, setGalaxyWarpPhase] = useState<'idle' | 'hyperspace'>('idle');
   const [systemPhotos, setSystemPhotos] = useState<Map<string, SystemPhotoData>>(new Map());
   const [systemMissions, setSystemMissions] = useState<Map<string, SystemMissionData>>(new Map());
 
@@ -1516,9 +1524,11 @@ export function App() {
           ...(scene !== 'planet-view' && { selectedPlanet: null }),
           showPlanetMenu: false, showPlanetInfo: false, planetClickPos: null,
         }));
-        // Reset system menu state on scene change
+        // Reset system menu / radial state on scene change
         setShowSystemMenu(false);
         setSystemMenuPos(null);
+        setRadialSystem(null);
+        setRadialGetScreenPos(null);
       },
       onTelescopeClick: (system) => {
         telescopePhotoRef.current(system);
@@ -1527,6 +1537,17 @@ export function App() {
         // Double-click on non-fully-researched star — show research panel
         setShowSystemMenu(false);
         setSystemMenuPos(null);
+        setRadialSystem(null);
+        setRadialGetScreenPos(null);
+      },
+      onRadialOpen: (system, getScreenPos) => {
+        setRadialSystem(system);
+        setRadialGetScreenPos(() => getScreenPos);
+        setState((prev) => ({ ...prev, selectedSystem: system }));
+      },
+      onRadialClose: () => {
+        setRadialSystem(null);
+        setRadialGetScreenPos(null);
       },
     }, genIdx);
 
@@ -1851,6 +1872,8 @@ export function App() {
   const handleCloseSystemMenu = useCallback(() => {
     setShowSystemMenu(false);
     setSystemMenuPos(null);
+    setRadialSystem(null);
+    setRadialGetScreenPos(null);
     setState((prev) => ({ ...prev, selectedSystem: null }));
     engineRef.current?.unfocusSystem();
   }, []);
@@ -1859,17 +1882,28 @@ export function App() {
     if (!state.selectedSystem) return;
     setShowSystemMenu(false);
     setSystemMenuPos(null);
-    engineRef.current?.unfocusSystem();
-    handleEnterSystem(state.selectedSystem);
+    setRadialSystem(null);
+    setRadialGetScreenPos(null);
+    // Start the multi-phase warp transition in PixiJS
+    const system = state.selectedSystem;
+    engineRef.current?.startGalaxyWarp(system.id, () => {
+      // Transition complete (frenzy+collapse+blackout done) — show hyperspace overlay + switch scene
+      setGalaxyWarpPhase('hyperspace');
+      handleEnterSystem(system);
+    });
   }, [state.selectedSystem, handleEnterSystem]);
 
   const handleSystemMenuCharacteristics = useCallback(() => {
     setShowSystemMenu(false);
+    setRadialSystem(null);
+    setRadialGetScreenPos(null);
     // Will show SystemInfoPanel (existing panel)
   }, []);
 
   const handleSystemMenuResearch = useCallback(() => {
     setShowSystemMenu(false);
+    setRadialSystem(null);
+    setRadialGetScreenPos(null);
     // Will show ResearchPanel (existing panel)
   }, []);
 
@@ -1893,9 +1927,11 @@ export function App() {
     if (!state.selectedSystem) return;
     setObjectsPanelSystem(state.selectedSystem);
     setShowObjectsPanel(true);
-    // Close the context menu
+    // Close the context menu / radial menu
     setShowSystemMenu(false);
     setSystemMenuPos(null);
+    setRadialSystem(null);
+    setRadialGetScreenPos(null);
     setState((prev) => ({ ...prev, selectedSystem: null }));
     engineRef.current?.unfocusSystem();
   }, [state.selectedSystem]);
@@ -1915,9 +1951,11 @@ export function App() {
       return;
     }
 
-    // Close menu and clear selected system to prevent PixiJS from re-opening it
+    // Close menu/radial and clear selected system to prevent PixiJS from re-opening it
     setShowSystemMenu(false);
     setSystemMenuPos(null);
+    setRadialSystem(null);
+    setRadialGetScreenPos(null);
     setState((prev) => ({ ...prev, selectedSystem: null }));
     engineRef.current?.unfocusSystem();
 
@@ -2718,6 +2756,38 @@ export function App() {
       return newXP;
     });
   };
+
+  // ── Keyboard navigation (galaxy arrows + Escape) ──────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Only handle in galaxy scene, when not warping
+      if (state.scene !== 'galaxy') return;
+
+      if (e.key === 'Escape') {
+        // Close radial menu + return to overview
+        setRadialSystem(null);
+        setRadialGetScreenPos(null);
+        setShowSystemMenu(false);
+        setSystemMenuPos(null);
+        setState((prev) => ({ ...prev, selectedSystem: null }));
+        engineRef.current?.unfocusSystem();
+        return;
+      }
+
+      const dirs: Record<string, [number, number]> = {
+        ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+        ArrowUp: [0, -1], ArrowDown: [0, 1],
+      };
+      const dir = dirs[e.key];
+      if (!dir) return;
+      e.preventDefault();
+
+      engineRef.current?.galaxyNavigateDirection(dir[0], dir[1]);
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [state.scene]);
 
   // ── Cross-platform game state sync ─────────────────────────────────────
   /** Build a full snapshot of current game state for server sync. */
@@ -3693,8 +3763,37 @@ export function App() {
           }}
         />
       )}
-      {/* System Context Menu (galaxy view) */}
-      {showSystemMenu && state.selectedSystem && systemMenuPos && state.scene === 'galaxy' && (
+      {/* Radial Menu (galaxy view — replaces old SystemContextMenu) */}
+      {radialSystem && state.scene === 'galaxy' && radialGetScreenPos && (
+        <RadialMenu
+          system={radialSystem}
+          getScreenPos={radialGetScreenPos}
+          isHome={radialSystem.ownerPlayerId !== null}
+          isResearched={isSystemFullyResearched(researchState, radialSystem.id)}
+          systemPhoto={systemPhotos.get(radialSystem.id) ?? null}
+          activeMission={systemMissions.get(radialSystem.id) ?? null}
+          quarks={quarks}
+          playerLevel={playerLevel}
+          onClose={handleCloseSystemMenu}
+          onEnterSystem={handleSystemMenuEnter}
+          onObjectsList={handleObjectsList}
+          onRename={handleSystemMenuRename}
+          onCharacteristics={handleSystemMenuCharacteristics}
+          onResearch={handleSystemMenuResearch}
+          onTelescopePhoto={handleTelescopePhoto}
+          onViewPhoto={handleViewSystemPhoto}
+          onSendMission={handleSendMission}
+          onViewVideo={handleViewMissionVideo}
+        />
+      )}
+
+      {/* Galaxy Warp Hyperspace Overlay */}
+      {galaxyWarpPhase === 'hyperspace' && (
+        <GalaxyWarpOverlay onComplete={() => setGalaxyWarpPhase('idle')} />
+      )}
+
+      {/* System Context Menu — kept as fallback (legacy, hidden when radial is active) */}
+      {showSystemMenu && !radialSystem && state.selectedSystem && systemMenuPos && state.scene === 'galaxy' && (
         <SystemContextMenu
           system={state.selectedSystem}
           screenPosition={systemMenuPos}
