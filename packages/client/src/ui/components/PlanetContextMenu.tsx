@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Planet, Star, ResourceGroup } from '@nebulife/core';
 import { ELEMENTS, RESOURCE_GROUPS, GROUP_NAMES, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
@@ -97,13 +97,23 @@ function MenuItem({ label, onClick, color, icon, right, disabled, title }: {
 }
 
 function TooltipHint({ text }: { text: string }) {
-  const [show, setShow] = useState(false);
+  const [tipPos, setTipPos] = useState<{ left: number; top: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const showTip = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setTipPos({ left: r.right - 200, top: r.bottom + 4 });
+    }
+  };
+
   return (
     <div style={{ position: 'relative', marginRight: 10, flexShrink: 0 }}>
       <button
-        onClick={(e) => { e.stopPropagation(); setShow(!show); }}
-        onMouseEnter={() => setShow(true)}
-        onMouseLeave={() => setShow(false)}
+        ref={btnRef}
+        onClick={(e) => { e.stopPropagation(); tipPos ? setTipPos(null) : showTip(); }}
+        onMouseEnter={showTip}
+        onMouseLeave={() => setTipPos(null)}
         style={{
           width: 18, height: 18, borderRadius: '50%',
           background: 'none',
@@ -118,10 +128,11 @@ function TooltipHint({ text }: { text: string }) {
       >
         ?
       </button>
-      {show && (
+      {tipPos && (
         <div style={{
-          position: 'absolute',
-          right: 0, top: 22,
+          position: 'fixed',
+          left: Math.max(4, tipPos.left),
+          top: tipPos.top,
           width: 200,
           padding: '8px 10px',
           background: 'rgba(8,12,22,0.97)',
@@ -131,7 +142,7 @@ function TooltipHint({ text }: { text: string }) {
           color: '#8899aa',
           lineHeight: 1.5,
           fontFamily: 'monospace',
-          zIndex: 30,
+          zIndex: 35,
           boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
           pointerEvents: 'none',
         }}>
@@ -204,7 +215,7 @@ function TabBar({ activeTab, onChange }: { activeTab: TabId; onChange: (t: TabId
   const tabs: { id: TabId; label: string; color?: string }[] = [
     { id: 'actions', label: 'Дії' },
     { id: 'resources', label: 'Ресурси' },
-    { id: 'premium', label: '⚛ Платні', color: '#886622' },
+    { id: 'premium', label: '⚛ Альфа', color: '#886622' },
   ];
 
   return (

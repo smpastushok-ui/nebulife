@@ -22,6 +22,8 @@ interface ButtonDef {
   action: string;
   dim?: boolean;
   isPremium?: boolean;
+  submenuLabel?: string;
+  hint?: string;
 }
 
 interface ArcPos {
@@ -89,18 +91,19 @@ function buildButtons(props: {
     });
   }
 
-  // Premium button — consolidates all paid tools (panorama active; missions in PremiumStubs.ts)
+  // Premium button — Альфа-рівень (telescope panorama + future tools)
   if (isResearched) {
     let premAction = 'none';
-    let premTip = `Панорама \u00B7 30\u269B`;
+    let premTip = '\u0420\u0456\u0432\u0435\u043d\u044c-\u0410\u043b\u044c\u0444\u0430'; // Рівень-Альфа
     let premDim = false;
+    const ALPHA_HINT = '\u041e\u0442\u0440\u0438\u043c\u0430\u0442\u0438 \u0444\u043e\u0442\u043e \u0437 \u0410\u043b\u044c\u0444\u0430 \u0442\u0435\u043b\u0435\u0441\u043a\u043e\u043f\u0430. \u0412\u0438\u043a\u043e\u0440\u0438\u0441\u0442\u043e\u0432\u0443\u0454 \u043a\u0432\u0430\u0440\u043a\u0438 \u0434\u043b\u044f \u043e\u0440\u0435\u043d\u0434\u0438 \u043d\u0430\u0434\u0441\u0443\u0447\u0430\u0441\u043d\u043e\u0433\u043e \u0442\u0435\u043b\u0435\u0441\u043a\u043e\u043f\u0430'; // Отримати фото з Альфа телескопа...
 
     if (hasPhoto) {
       premAction = 'viewPhoto';
-      premTip = 'Дивитися панораму';
+      premTip = '\u0414\u0438\u0432\u0438\u0442\u0438\u0441\u044f \u043f\u0430\u043d\u043e\u0440\u0430\u043c\u043e\u044e'; // Дивитися панораму
     } else if (photoGenerating) {
       premAction = 'none';
-      premTip = 'Обробка...';
+      premTip = '\u041e\u0431\u0440\u043e\u0431\u043a\u0430...'; // Обробка...
       premDim = true;
     } else {
       premAction = quarks >= 30 ? 'telescope' : 'none';
@@ -110,10 +113,12 @@ function buildButtons(props: {
     list.push({
       icon: '\u269B',   // ⚛
       tip: premTip,
-      color: '#7bb8ff', // blue quark symbol
+      color: '#7bb8ff',
       action: premAction,
       dim: premDim,
       isPremium: true,
+      submenuLabel: `\u0424\u043e\u0442\u043e-\u043f\u0430\u043d\u043e\u0440\u0430\u043c\u0430 \u0441\u0438\u0441\u0442\u0435\u043c\u0438 \u00B7 30\u269B`, // Фото-панорама системи · 30⚛
+      hint: ALPHA_HINT,
     });
   }
 
@@ -172,6 +177,7 @@ export function RadialMenu({
   const premSubRef = useRef<HTMLDivElement | null>(null);
   const [flashMsg, setFlashMsg] = useState<string | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [premHintVisible, setPremHintVisible] = useState(false);
 
   const showFlash = (msg: string) => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
@@ -465,43 +471,91 @@ export function RadialMenu({
         {premBtnIdx >= 0 && (() => {
           const pd = buttons[premBtnIdx];
           return (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!pd.dim) {
-                  handleAction(pd.action);
-                  setPremiumOpen(false);
-                }
-              }}
-              style={{
-                display: 'block',
-                background: pd.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)',
-                border: `1px solid ${pd.dim ? '#4a3810' : '#ddaa44'}`,
-                color: pd.dim ? '#55442a' : '#ddbb77',
-                fontFamily: 'monospace',
-                fontSize: 10,
-                padding: '9px 16px',
-                borderRadius: 3,
-                cursor: pd.dim ? 'default' : 'pointer',
-                whiteSpace: 'nowrap',
-                letterSpacing: '0.07em',
-                textAlign: 'left',
-                minWidth: 148,
-                boxShadow: pd.dim ? 'none' : '0 0 8px rgba(221,170,68,0.2)',
-              }}
-              onMouseEnter={(e) => {
-                if (!pd.dim) {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'rgba(80,52,10,0.97)';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 16px rgba(221,170,68,0.45)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = pd.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = pd.dim ? 'none' : '0 0 8px rgba(221,170,68,0.2)';
-              }}
-            >
-              {pd.tip}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!pd.dim) {
+                    handleAction(pd.action);
+                    setPremiumOpen(false);
+                  }
+                }}
+                style={{
+                  display: 'block',
+                  background: pd.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)',
+                  border: `1px solid ${pd.dim ? '#4a3810' : '#ddaa44'}`,
+                  borderRight: 'none',
+                  color: pd.dim ? '#55442a' : '#ddbb77',
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                  padding: '9px 16px',
+                  borderRadius: '3px 0 0 3px',
+                  cursor: pd.dim ? 'default' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  letterSpacing: '0.07em',
+                  textAlign: 'left',
+                  minWidth: 148,
+                  boxShadow: pd.dim ? 'none' : '0 0 8px rgba(221,170,68,0.2)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!pd.dim) {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'rgba(80,52,10,0.97)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 16px rgba(221,170,68,0.45)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = pd.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = pd.dim ? 'none' : '0 0 8px rgba(221,170,68,0.2)';
+                }}
+              >
+                {pd.submenuLabel ?? pd.tip}
+              </button>
+              {pd.hint && (
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseEnter={() => setPremHintVisible(true)}
+                    onMouseLeave={() => setPremHintVisible(false)}
+                    style={{
+                      width: 28, height: '100%', minHeight: 36,
+                      background: pd.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)',
+                      border: `1px solid ${pd.dim ? '#4a3810' : '#ddaa44'}`,
+                      color: '#556677',
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      cursor: 'default',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: 0,
+                      borderRadius: '0 3px 3px 0',
+                    }}
+                  >
+                    ?
+                  </button>
+                  {premHintVisible && (
+                    <div style={{
+                      position: 'absolute',
+                      right: 0,
+                      bottom: 'calc(100% + 6px)',
+                      width: 210,
+                      padding: '8px 10px',
+                      background: 'rgba(8,12,22,0.97)',
+                      border: '1px solid #334455',
+                      borderRadius: 4,
+                      fontSize: 9,
+                      color: '#8899aa',
+                      lineHeight: 1.5,
+                      fontFamily: 'monospace',
+                      zIndex: 50,
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+                      pointerEvents: 'none',
+                      letterSpacing: '0.04em',
+                    }}>
+                      {pd.hint}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })()}
       </div>
