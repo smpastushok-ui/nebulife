@@ -71,7 +71,7 @@ const SPECTRAL_PARTICLE_COLOR: Record<string, number> = {
 /* ── Layout constants ──────────────────────────────────────────── */
 
 /** Pixels per light-year for hex->screen conversion */
-const PX_PER_LY = 14;
+const PX_PER_LY = 18;
 
 /** Easing speed for alpha transitions */
 const ANIM_SPEED = 5;
@@ -228,8 +228,8 @@ export class GalaxyScene {
       let ty = (system.position.y - homeY) * PX_PER_LY;
       if (system.ownerPlayerId === null) {
         const jrng = new SeededRNG(system.seed);
-        tx += (jrng.next() - 0.5) * PX_PER_LY * 1.8;
-        ty += (jrng.next() - 0.5) * PX_PER_LY * 1.8;
+        tx += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
+        ty += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
       }
 
       if (system.ownerPlayerId !== null) {
@@ -394,12 +394,7 @@ export class GalaxyScene {
       if (this.cinematicMode) return;
       cc++;
       if (cc === 1) {
-        ct = setTimeout(() => {
-          if (cc === 1) {
-            this.expandSystem(sys.id);
-          }
-          cc = 0;
-        }, 300);
+        ct = setTimeout(() => { cc = 0; }, 300);
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
@@ -496,14 +491,7 @@ export class GalaxyScene {
       if (this.clickGuard?.()) return;
       cc++;
       if (cc === 1) {
-        ct = setTimeout(() => {
-          if (cc === 1) {
-            if (!this.clickGuard?.()) {
-              this.expandSystem(sys.id);
-            }
-          }
-          cc = 0;
-        }, 300);
+        ct = setTimeout(() => { cc = 0; }, 300);
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
@@ -1147,17 +1135,17 @@ export class GalaxyScene {
     /* ── Unexplored: radial glow + quantum shimmer (like prototype) ── */
     if (starState === 'unexplored') {
       const isR2 = node.ringIndex >= 2;
-      const maxR = isR2 ? 10 : 16;
-      const baseAlpha = isR2 ? 0.06 : 0.16;
-      const decay = isR2 ? 3.8 : 5.5;
+      const maxR = isR2 ? 14 : 22;
+      const baseAlpha = isR2 ? 0.10 : 0.18;
+      const decay = isR2 ? 4.5 : 5.0;
       const brt = 0.82 + 0.18 * Math.sin(t * 0.0006 + ph);
-      // Radial fill glow (filled circles, not stroked)
-      const numCircles = 16;
+      // Radial gradient glow (24 concentric circles for smooth falloff from center)
+      const numCircles = 24;
       for (let c = numCircles; c >= 1; c--) {
         const cf = c / numCircles;
         const cr = maxR * cf;
         const ca = baseAlpha * Math.exp(-cf * decay) * brt;
-        if (ca > 0.003) {
+        if (ca > 0.002) {
           g.circle(0, 0, cr);
           g.fill({ color: nebulaColor, alpha: ca });
         }
@@ -1185,9 +1173,18 @@ export class GalaxyScene {
     // Eased expansion factor (0=collapsed, 1=fully expanded)
     const ep = easeOutQuad(node.expandProgress);
 
-    /* ── Single subtle ambient glow ── */
-    g.circle(0, 0, coreR * 2.5);
-    g.fill({ color: nebulaColor, alpha: 0.038 * br * pulse });
+    /* ── Radial gradient glow (16 concentric circles simulating smooth radial gradient) ── */
+    const glowMaxR = coreR * 3.5;
+    const GN = 16;
+    for (let ci = GN; ci >= 1; ci--) {
+      const f = ci / GN;            // 1.0 = outer edge, 1/GN = inner
+      const r = glowMaxR * f;
+      const a = 0.06 * Math.exp(-f * 4.0) * pulse * br;
+      if (a > 0.002) {
+        g.circle(0, 0, r);
+        g.fill({ color: nebulaColor, alpha: a });
+      }
+    }
 
     /* ── Ambient particles — always orbit for all visible stars (matching prototype) ── */
     const isResearching = starState === 'researching';
@@ -1212,10 +1209,17 @@ export class GalaxyScene {
     g.circle(0, 0, coreR * 3.5);
     g.stroke({ width: 0.5, color: nebulaColor, alpha: 0.05 * pulse * br });
 
-    /* ── Star core — color matches spectral class ── */
-    // Soft inner glow ring (star color)
-    g.circle(0, 0, coreR * 1.7);
-    g.fill({ color: nebulaColor, alpha: 0.12 * pulse * br });
+    /* ── Inner gradient halo (tight ring around core, star color) ── */
+    const innerGN = 8;
+    for (let ci = innerGN; ci >= 1; ci--) {
+      const f = ci / innerGN;
+      const r = coreR * 2.0 * f;
+      const a = 0.18 * Math.exp(-f * 3.0) * pulse * br;
+      if (a > 0.003) {
+        g.circle(0, 0, r);
+        g.fill({ color: nebulaColor, alpha: a });
+      }
+    }
 
     // Bright core dot (white + tinted) — matches prototype alpha values
     g.circle(0, 0, coreR);
