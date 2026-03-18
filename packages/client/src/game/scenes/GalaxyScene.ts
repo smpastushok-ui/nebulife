@@ -177,6 +177,14 @@ export class GalaxyScene {
   /** Fake player markers for cinematic intro */
   private fakePlayerMarkers: Container[] = [];
 
+  /** Research gain floating labels (+N%) */
+  private researchGainLayer: Container = new Container();
+  private researchGainLabels: Array<{
+    text: Text; worldX: number; worldY: number; startTime: number;
+  }> = [];
+  /** Track previous progress per system to detect increments */
+  private prevProgress = new Map<string, number>();
+
   constructor(
     rings: GalaxyRing[],
     galaxySeed: number,
@@ -216,6 +224,7 @@ export class GalaxyScene {
     this.container.addChild(this.beamGfx);
     this.nodesLayer = new Container();
     this.container.addChild(this.nodesLayer);
+    this.container.addChild(this.researchGainLayer);
 
     /* Collect all systems with ring info */
     const all = rings.flatMap(r => r.starSystems.map(s => ({ system: s, ringIndex: r.ringIndex })));
@@ -444,12 +453,12 @@ export class GalaxyScene {
     dot.x = tx;
     dot.y = ty;
 
-    // Progress pie arc (only for 1-99%)
+    // Orbital probe tail (only for 1-99%)
     let progressRing: Graphics | null = null;
     if (state === 'researching' && progress > 0 && progress < 100) {
       progressRing = new Graphics();
       const coreRingR = Math.max(2.5, effectiveR * 0.42) * 1.8 + 5;
-      this.drawProgressPie(progressRing, coreRingR, progress / 100);
+      this.drawProbeTail(progressRing, coreRingR, progress / 100);
       dot.addChild(progressRing);
     }
 
@@ -734,18 +743,39 @@ export class GalaxyScene {
     this.beamAlpha = 0;
   }
 
-  /** Draw a progress arc: soft dot trail, no stroke border */
-  private drawProgressPie(g: Graphics, radius: number, fraction: number) {
+  /** Draw orbital probe tail: gold dots from start to progress angle, brightest at tip */
+  private drawProbeTail(g: Graphics, radius: number, fraction: number) {
     if (fraction <= 0.005) return;
     const startAngle = -Math.PI / 2;
     const endAngle = startAngle + fraction * Math.PI * 2;
-    const segments = 20;
-    for (let i = 0; i <= segments; i++) {
-      const a = startAngle + (endAngle - startAngle) * (i / segments);
-      const alpha = 0.08 + (i / segments) * 0.25;
-      g.circle(Math.cos(a) * radius, Math.sin(a) * radius, 1.0);
-      g.fill({ color: 0xddaa44, alpha });
+    const TRAIL_SEGS = 32;
+    for (let i = 0; i < TRAIL_SEGS; i++) {
+      const frac = i / TRAIL_SEGS;
+      const a = startAngle + frac * (endAngle - startAngle);
+      const ax = Math.cos(a) * radius;
+      const ay = Math.sin(a) * radius;
+      // Glow halo
+      g.circle(ax, ay, 2.8 * frac + 0.5);
+      g.fill({ color: 0xddaa44, alpha: frac * 0.22 });
+      // Core dot
+      g.circle(ax, ay, 0.9 + frac * 1.3);
+      g.fill({ color: 0xffdd66, alpha: frac * 0.65 });
     }
+  }
+
+  /** Spawn a floating "+N%" label above a star node */
+  private spawnResearchGainLabel(node: SystemNode, delta: number) {
+    const label = new Text({
+      text: `+${Math.round(delta)}%`,
+      style: { fontSize: 10, fill: 0xffdd66, fontFamily: 'monospace' },
+      resolution: 2,
+    });
+    label.anchor.set(0.5, 1);
+    label.x = node.tx;
+    label.y = node.ty - node.baseRadius - 10;
+    label.alpha = 0;
+    this.researchGainLayer.addChild(label);
+    this.researchGainLabels.push({ text: label, worldX: label.x, worldY: label.y, startTime: this.time });
   }
 
   get isFocused(): boolean {
@@ -815,11 +845,20 @@ export class GalaxyScene {
     if (state === 'researching') {
       node.starState = 'researching';
       node.baseAlpha = 0.75 + (prog / 100) * 0.25;
+
+      // Detect progress increment and spawn gain label
+      const oldProg = this.prevProgress.get(systemId);
+      if (oldProg !== undefined && prog > oldProg) {
+        const delta = prog - oldProg;
+        if (delta >= 0.5) this.spawnResearchGainLabel(node, delta);
+      }
+      this.prevProgress.set(systemId, prog);
+
       if (node.progressRing) {
         if (prog > 0 && prog < 100) {
           node.progressRing.clear();
           const coreRingR = Math.max(2.5, node.baseRadius * 0.42) * 1.8 + 5;
-          this.drawProgressPie(node.progressRing, coreRingR, prog / 100);
+          this.drawProbeTail(node.progressRing, coreRingR, prog / 100);
           node.progressRing.visible = true;
         } else {
           node.progressRing.visible = false;
@@ -917,22 +956,31 @@ export class GalaxyScene {
       animateExpand(node);
       this.animateStarBurn(node, t);
 
-      // Animate scan arc (spinning ring during active research)
+      // Animate orbital probe dot (active research only)
       if (node.scanArc) {
         const isActive = this.researchState.slots.some((s) => s.systemId === node.system.id);
         node.scanArc.visible = isActive;
         if (isActive) {
           node.scanArc.clear();
           const r = Math.max(2.5, node.baseRadius * 0.42) * 1.8 + 6;
-          const angle = (t * 0.003) % (Math.PI * 2);
-          const arcLen = Math.PI * 0.6;
-          const segments = 12;
-          for (let i = 0; i < segments; i++) {
-            const a = angle + (arcLen * i) / segments;
-            const alpha = 0.55 * (1 - i / segments);
-            node.scanArc.circle(Math.cos(a) * r, Math.sin(a) * r, 1.2);
-            node.scanArc.fill({ color: 0xddaa44, alpha });
+          const prog = getResearchProgress(this.researchState, node.system.id);
+          const baseAngle = -Math.PI / 2 + (prog / 100) * Math.PI * 2;
+          const probeAngle = baseAngle + (t * 0.0018) % (Math.PI * 2);
+          const pulse = 0.82 + 0.18 * Math.sin(t * 0.007);
+          const px = Math.cos(probeAngle) * r;
+          const py = Math.sin(probeAngle) * r;
+          // Glow layers
+          for (let gi = 5; gi >= 1; gi--) {
+            const f = gi / 5;
+            node.scanArc.circle(px, py, 3.5 * f * 2.0);
+            node.scanArc.fill({ color: 0xffdd66, alpha: (1 - f) * 0.4 * pulse });
           }
+          // Core bead
+          node.scanArc.circle(px, py, 3.2);
+          node.scanArc.fill({ color: 0xffee88, alpha: 0.92 * pulse });
+          // White highlight
+          node.scanArc.circle(px - 0.7, py - 0.7, 1.1);
+          node.scanArc.fill({ color: 0xffffff, alpha: 0.75 * pulse });
         }
       }
     }
@@ -984,6 +1032,29 @@ export class GalaxyScene {
     }
 
     this.beamGfx.clear(); // keep clear — beam removed from design
+
+    // Animate research gain labels (+N% floaters, 3s lifetime)
+    const GAIN_DURATION = 3000;
+    this.researchGainLabels = this.researchGainLabels.filter(lbl => {
+      const age = t - lbl.startTime;
+      if (age > GAIN_DURATION) {
+        this.researchGainLayer.removeChild(lbl.text);
+        lbl.text.destroy();
+        return false;
+      }
+      const t01 = age / GAIN_DURATION;
+      // Flash in quickly, hold briefly, fade out slowly
+      const alpha = t01 < 0.1
+        ? t01 / 0.1
+        : Math.pow(1 - t01, 1.4);
+      lbl.text.alpha = alpha;
+      // Drift upward
+      lbl.text.y = lbl.worldY - t01 * 30;
+      // Brief scale pop at start
+      const scale = t01 < 0.15 ? (1.35 - t01 / 0.15 * 0.35) : 1;
+      lbl.text.scale.set(scale);
+      return true;
+    });
 
     if (this.fakePlayerMarkers.length > 0) {
       this.updateFakePlayerMarkers(t, deltaMs);
