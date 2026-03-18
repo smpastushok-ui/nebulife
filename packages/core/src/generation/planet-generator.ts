@@ -166,7 +166,7 @@ export function generatePlanet(
   const magneticField = generateMagneticField(rng.child(1003), massEarth, type);
 
   // Resources
-  const resources = generateResources(rng.child(1004), type === 'rocky' || type === 'dwarf');
+  const resources = generateResources(rng.child(1004), type, zone, massEarth, surfaceTempK, atmosphere);
 
   // Habitability
   const habitability = calculateHabitability(surfaceTempK, atmosphere, hydrosphere, magneticField, gravity);

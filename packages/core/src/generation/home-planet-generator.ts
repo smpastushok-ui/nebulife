@@ -1,9 +1,32 @@
 import { SeededRNG } from '../math/rng.js';
 import { EARTH_MASS, EARTH_RADIUS, AU, SOLAR_RADIUS } from '../constants/physics.js';
-import { EARTH_CRUST_COMPOSITION, EARTH_ATMOSPHERE } from '../chemistry/elements.js';
+import { EARTH_CRUST_COMPOSITION, EARTH_ATMOSPHERE, ROCKY_PLANET_COMPOSITION } from '../chemistry/elements.js';
+import { computeGroupTotals } from '../chemistry/resource-groups.js';
 import { orbitalPeriodYears, orbitalPeriodDays } from '../physics/kepler.js';
 import type { Planet } from '../types/planet.js';
 import type { Star } from '../types/star.js';
+
+/** Compute totalResources for an Earth-like planet with given mass multiplier */
+function computeEarthLikeTotalResources(massMultiplier: number): {
+  minerals: number; volatiles: number; isotopes: number;
+  elements: Record<string, number>;
+} {
+  const planetMassKg = EARTH_MASS * massMultiplier;
+  const extractability = 0.01; // 1% accessible crust+upper mantle
+  const elements: Record<string, number> = {};
+
+  for (const [el, fraction] of Object.entries(ROCKY_PLANET_COMPOSITION)) {
+    elements[el] = planetMassKg * fraction * extractability;
+  }
+
+  const groupTotals = computeGroupTotals(elements);
+  return {
+    minerals: groupTotals.mineral,
+    volatiles: groupTotals.volatile,
+    isotopes: groupTotals.isotope,
+    elements,
+  };
+}
 
 /**
  * Generate the home planet — identical Earth-analog for all players.
@@ -76,6 +99,7 @@ export function generateHomePlanet(star: Star, systemSeed: number): Planet {
         { element: 'U', abundanceRelative: 0.3, depth: 'deep' },
         { element: 'Ni', abundanceRelative: 0.8, depth: 'deep' },
       ],
+      totalResources: computeEarthLikeTotalResources(1.0),
     },
 
     habitability: {
@@ -109,6 +133,112 @@ export function generateHomePlanet(star: Star, systemSeed: number): Planet {
 
     isHomePlanet: true,
     isColonizable: false,  // About to be destroyed
+    terraformDifficulty: 0,
+  };
+}
+
+/**
+ * Generate the "paradise" planet for Ring 1 — identical for all players.
+ * Earth-sized with water, ocean, land, glaciers, desert, abundant resources.
+ * Similar to home planet but isHomePlanet=false, isColonizable=true.
+ */
+export function generateParadisePlanet(star: Star, systemSeed: number, name: string): Planet {
+  const rng = new SeededRNG(systemSeed + 7777);
+
+  const hzMid = (star.habitableZone.innerConservativeAU + star.habitableZone.outerConservativeAU) / 2;
+
+  return {
+    id: `planet-paradise-${systemSeed}`,
+    seed: systemSeed + 7777,
+    name,
+    type: 'rocky',
+    zone: 'habitable',
+
+    massEarth: 1.0,
+    radiusEarth: 1.0,
+    densityGCm3: 5.48,
+    surfaceGravityG: 1.0,
+    escapeVelocityKmS: 11.15,
+
+    orbit: {
+      semiMajorAxisAU: hzMid,
+      eccentricity: 0.02,
+      inclinationDeg: 1.2,
+      longitudeOfAscendingNodeDeg: rng.nextFloat(0, 360),
+      argumentOfPeriapsisDeg: rng.nextFloat(0, 360),
+      meanAnomalyDeg: rng.nextFloat(0, 360),
+      periodYears: orbitalPeriodYears(hzMid, star.massSolar),
+      periodDays: orbitalPeriodDays(hzMid, star.massSolar),
+    },
+
+    equilibriumTempK: 252,
+    surfaceTempK: 285, // slightly cooler than Earth
+    albedo: 0.32,
+
+    atmosphere: {
+      surfacePressureAtm: 0.95,
+      composition: { N2: 0.77, O2: 0.22, CO2: 0.004, Ar: 0.009, H2O: 0.005 },
+      greenhouse: 0.9,
+      hasOzone: true,
+    },
+
+    hydrosphere: {
+      waterCoverageFraction: 0.65,
+      oceanDepthKm: 3.2,
+      iceCapFraction: 0.12, // glaciers
+      hasSubsurfaceOcean: false,
+    },
+
+    magneticField: {
+      strengthT: 4.5e-5,
+      hasMagnetosphere: true,
+    },
+
+    resources: {
+      crustComposition: { ...EARTH_CRUST_COMPOSITION },
+      deposits: [
+        { element: 'Fe', abundanceRelative: 1.2, depth: 'shallow' },
+        { element: 'Cu', abundanceRelative: 1.1, depth: 'shallow' },
+        { element: 'Al', abundanceRelative: 1.0, depth: 'surface' },
+        { element: 'Si', abundanceRelative: 1.2, depth: 'surface' },
+        { element: 'Ti', abundanceRelative: 0.9, depth: 'deep' },
+        { element: 'U', abundanceRelative: 0.4, depth: 'deep' },
+        { element: 'Ni', abundanceRelative: 0.9, depth: 'deep' },
+      ],
+      totalResources: computeEarthLikeTotalResources(1.0),
+    },
+
+    habitability: {
+      temperature: 0.95,
+      atmosphere: 0.96,
+      water: 0.94,
+      magneticField: 1.0,
+      gravity: 1.0,
+      overall: 0.95,
+    },
+
+    hasLife: true,
+    lifeComplexity: 'multicellular',
+
+    moons: [
+      {
+        id: `moon-paradise-${systemSeed}`,
+        seed: systemSeed + 7778,
+        name: 'Selene',
+        massKg: 3.8e22,
+        radiusKm: 1200,
+        densityGCm3: 3.2,
+        compositionType: 'rocky',
+        orbitalRadiusKm: 310000,
+        orbitalPeriodDays: 22.5,
+        surfaceTempK: 190,
+        hasAtmosphere: false,
+        tidallyLocked: true,
+      },
+    ],
+
+    isHomePlanet: false,
+    isColonizable: true,
     terraformDifficulty: 0,
   };
 }

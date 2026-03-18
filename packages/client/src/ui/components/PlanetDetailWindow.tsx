@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { StarSystem, Planet, Star, Moon } from '@nebulife/core';
-import { SeededRNG } from '@nebulife/core';
+import type { StarSystem, Planet, Star, Moon, ResourceGroup } from '@nebulife/core';
+import { SeededRNG, ELEMENTS, RESOURCE_GROUPS, GROUP_NAMES, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
 import {
   derivePlanetVisuals,
   planetVisualsToUniforms,
@@ -543,6 +543,102 @@ function NavBtn({
   );
 }
 
+// ─── Resources section for characteristics panel ─────────────────────────────
+
+function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: number }) {
+  const [expanded, setExpanded] = useState<ResourceGroup | null>(null);
+  const totalRes = planet.resources?.totalResources;
+  if (!totalRes) return null;
+
+  const hasAny = totalRes.minerals > 0 || totalRes.volatiles > 0 || totalRes.isotopes > 0;
+  if (!hasAny) return null;
+
+  const maxVal = Math.max(totalRes.minerals, totalRes.volatiles, totalRes.isotopes, 1);
+
+  return (
+    <>
+      <Section label="РЕСУРСИ" delay={baseDelay} />
+      {RESOURCE_GROUPS.map((group, gi) => {
+        const value = group === 'mineral' ? totalRes.minerals
+          : group === 'volatile' ? totalRes.volatiles
+          : totalRes.isotopes;
+        if (value <= 0) return null;
+
+        const color = GROUP_COLORS[group];
+        const isExpanded = expanded === group;
+        const barPct = Math.max(3, (value / maxVal) * 100);
+
+        return (
+          <div
+            key={group}
+            style={{ animation: `pdwSlide 0.3s ease-out ${baseDelay + 20 + gi * 30}ms both` }}
+          >
+            <div
+              onClick={() => setExpanded(isExpanded ? null : group)}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '5px 0', cursor: 'pointer',
+                borderBottom: '1px solid rgba(40,55,75,0.35)',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'monospace' }}>
+                <span style={{ color, fontSize: 9 }}>{isExpanded ? 'v' : '>'}</span>
+                <span style={{ color }}>{GROUP_NAMES[group]}</span>
+              </span>
+              <span style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace' }}>
+                {formatMassKg(value)}
+              </span>
+            </div>
+            {/* Bar */}
+            <div style={{ padding: '3px 0 2px 16px' }}>
+              <div style={{
+                height: 3, background: 'rgba(30,40,60,0.5)',
+                borderRadius: 2, overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${barPct}%`, height: '100%',
+                  background: color, borderRadius: 2, opacity: 0.6,
+                }} />
+              </div>
+            </div>
+            {/* Expanded elements */}
+            {isExpanded && (
+              <div style={{ padding: '2px 0 6px 16px' }}>
+                {getGroupElements(totalRes.elements, group)
+                  .slice(0, 10)
+                  .map(([sym, mass]) => {
+                    const elBarPct = Math.max(2, (mass / value) * 100);
+                    return (
+                      <div key={sym} style={{
+                        display: 'flex', alignItems: 'center',
+                        padding: '2px 0', fontSize: 10,
+                      }}>
+                        <span style={{ width: 24, color: '#667788', fontSize: 9, fontFamily: 'monospace' }}>{sym}</span>
+                        <div style={{
+                          flex: 1, height: 2, background: 'rgba(30,40,60,0.3)',
+                          borderRadius: 1, marginRight: 8, overflow: 'hidden',
+                        }}>
+                          <div style={{
+                            width: `${elBarPct}%`, height: '100%',
+                            background: color, borderRadius: 1, opacity: 0.4,
+                          }} />
+                        </div>
+                        <span style={{ fontSize: 9, color: '#556677', fontFamily: 'monospace' }}>
+                          {formatMassKg(mass)}
+                        </span>
+                      </div>
+                    );
+                  })
+                }
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export interface PlanetDetailWindowProps {
@@ -856,6 +952,11 @@ export function PlanetDetailWindow({
             <CharRow label="Ексцентриситет" value={p.orbit.eccentricity.toFixed(4)} delay={340} />
             <CharRow label="Нахил" value={`${p.orbit.inclinationDeg.toFixed(1)}°`} delay={360} />
             <CharRow label="Період" value={`${p.orbit.periodDays.toFixed(1)} дн`} delay={380} />
+
+            {/* Resources */}
+            {p.resources?.totalResources && (
+              <ResourcesSection planet={p} baseDelay={400} />
+            )}
 
             {/* Atmosphere */}
             {hasAtmo && (

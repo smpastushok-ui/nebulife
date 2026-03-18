@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import type { Planet, Star } from '@nebulife/core';
+import type { Planet, Star, ResourceGroup } from '@nebulife/core';
+import { ELEMENTS, RESOURCE_GROUPS, GROUP_NAMES, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
 
 // ---------------------------------------------------------------------------
@@ -241,6 +242,185 @@ function TabBar({ activeTab, onChange }: { activeTab: TabId; onChange: (t: TabId
   );
 }
 
+/* ────────── Resources tab ────────── */
+
+function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: {
+  planet: Planet;
+  playerLevel: number;
+  expandedGroup: ResourceGroup | null;
+  setExpandedGroup: (g: ResourceGroup | null) => void;
+}) {
+  const totalRes = planet.resources?.totalResources;
+  const hasAnyResources = totalRes && (totalRes.minerals > 0 || totalRes.volatiles > 0 || totalRes.isotopes > 0);
+  const [lockedTooltip, setLockedTooltip] = useState<ResourceGroup | null>(null);
+
+  // Compute max group value for proportional bars
+  const maxGroupValue = totalRes
+    ? Math.max(totalRes.minerals, totalRes.volatiles, totalRes.isotopes, 1)
+    : 1;
+
+  return (
+    <>
+      {/* Resource groups */}
+      {hasAnyResources && (
+        <>
+          <div style={{ padding: '6px 14px 3px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Ресурси
+          </div>
+          {RESOURCE_GROUPS.map((group) => {
+            const value = group === 'mineral' ? totalRes!.minerals
+              : group === 'volatile' ? totalRes!.volatiles
+              : totalRes!.isotopes;
+            if (value <= 0) return null;
+
+            const isExpanded = expandedGroup === group;
+            const color = GROUP_COLORS[group];
+            const barWidth = Math.max(4, (value / maxGroupValue) * 100);
+
+            return (
+              <div key={group}>
+                {/* Group row */}
+                <button
+                  onClick={() => {
+                    if (playerLevel >= 50) {
+                      setExpandedGroup(isExpanded ? null : group);
+                      setLockedTooltip(null);
+                    } else {
+                      setLockedTooltip(lockedTooltip === group ? null : group);
+                    }
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    width: '100%', padding: '6px 14px',
+                    background: isExpanded ? 'rgba(40,60,90,0.2)' : 'none',
+                    border: 'none', cursor: 'pointer',
+                    fontFamily: 'monospace', fontSize: 11, color: '#8899aa',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ color, fontSize: 9, width: 8, flexShrink: 0 }}>
+                    {isExpanded ? 'v' : '>'}
+                  </span>
+                  <span style={{ color, minWidth: 0, flex: 1 }}>
+                    {GROUP_NAMES[group]}
+                  </span>
+                  <span style={{ fontSize: 9, color: '#667788', flexShrink: 0 }}>
+                    {formatMassKg(value)}
+                  </span>
+                </button>
+
+                {/* Progress bar */}
+                <div style={{ padding: '0 14px 4px 28px' }}>
+                  <div style={{
+                    height: 3, background: 'rgba(30,40,60,0.6)',
+                    borderRadius: 2, overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      width: `${barWidth}%`, height: '100%',
+                      background: color, borderRadius: 2, opacity: 0.7,
+                    }} />
+                  </div>
+                </div>
+
+                {/* Locked tooltip */}
+                {lockedTooltip === group && playerLevel < 50 && (
+                  <div style={{
+                    padding: '4px 14px 6px 28px',
+                    fontSize: 9, color: '#556677', fontFamily: 'monospace',
+                  }}>
+                    Детальний аналіз доступний з 50+ рівня
+                  </div>
+                )}
+
+                {/* Expanded elements */}
+                {isExpanded && playerLevel >= 50 && totalRes && (
+                  <div style={{ padding: '2px 0 4px' }}>
+                    {getGroupElements(totalRes.elements, group)
+                      .slice(0, 8)
+                      .map(([sym, mass]) => {
+                        const el = ELEMENTS[sym];
+                        const elBarWidth = Math.max(2, (mass / value) * 100);
+                        return (
+                          <div key={sym} style={{
+                            display: 'flex', alignItems: 'center',
+                            padding: '2px 14px 2px 28px', fontSize: 10,
+                          }}>
+                            <span style={{ width: 22, color: '#667788', fontSize: 9 }}>{sym}</span>
+                            <div style={{
+                              flex: 1, height: 2, background: 'rgba(30,40,60,0.4)',
+                              borderRadius: 1, marginRight: 6, overflow: 'hidden',
+                            }}>
+                              <div style={{
+                                width: `${elBarWidth}%`, height: '100%',
+                                background: color, borderRadius: 1, opacity: 0.5,
+                              }} />
+                            </div>
+                            <span style={{ fontSize: 8, color: '#556677', flexShrink: 0 }}>
+                              {formatMassKg(mass)}
+                            </span>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* Hydrosphere summary */}
+      {planet.hydrosphere && planet.hydrosphere.waterCoverageFraction > 0 && (
+        <>
+          <div style={{ height: 1, background: 'rgba(50,65,85,0.3)', margin: '6px 0' }} />
+          <div style={{ padding: '4px 14px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Гідросфера
+          </div>
+          <div style={{ padding: '4px 14px', fontSize: 11, color: '#7799bb' }}>
+            Вода: {(planet.hydrosphere.waterCoverageFraction * 100).toFixed(0)}%
+            {planet.hydrosphere.iceCapFraction > 0.01 && (
+              <span style={{ color: '#8899aa', marginLeft: 8 }}>
+                Льод: {(planet.hydrosphere.iceCapFraction * 100).toFixed(0)}%
+              </span>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Atmosphere summary */}
+      {planet.atmosphere && (
+        <>
+          <div style={{ height: 1, background: 'rgba(50,65,85,0.3)', margin: '6px 0' }} />
+          <div style={{ padding: '4px 14px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Атмосфера
+          </div>
+          <div style={{ padding: '4px 14px', fontSize: 11, color: '#7799bb' }}>
+            {planet.atmosphere.surfacePressureAtm.toFixed(2)} atm
+            {planet.atmosphere.composition && (
+              <span style={{ color: '#667788', marginLeft: 8, fontSize: 10 }}>
+                {Object.entries(planet.atmosphere.composition)
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 2)
+                  .map(([g, v]) => `${g} ${(v * 100).toFixed(0)}%`)
+                  .join(', ')
+                }
+              </span>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* No resources fallback */}
+      {!hasAnyResources && !planet.hydrosphere && !planet.atmosphere && (
+        <div style={{ padding: '14px', color: '#445566', fontSize: 11 }}>
+          Дані про ресурси відсутні
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ────────── Main component ────────── */
 
 export function PlanetContextMenu({
@@ -268,6 +448,7 @@ export function PlanetContextMenu({
   playerLevel: number;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>('actions');
+  const [expandedGroup, setExpandedGroup] = useState<ResourceGroup | null>(null);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'dwarf';
 
@@ -356,86 +537,7 @@ export function PlanetContextMenu({
           )}
 
           {activeTab === 'resources' && (
-            <>
-              {/* Crust composition */}
-              {planet.resources?.crustComposition && (
-                <>
-                  <div style={{ padding: '6px 14px 3px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    Склад кори
-                  </div>
-                  {Object.entries(planet.resources.crustComposition)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 6)
-                    .map(([el, pct]) => (
-                      <div key={el} style={{
-                        display: 'flex', alignItems: 'center', padding: '4px 14px',
-                        fontSize: 11, color: '#8899aa',
-                      }}>
-                        <span style={{ width: 24, color: '#667788', fontSize: 10 }}>{el}</span>
-                        <div style={{
-                          flex: 1, height: 4, background: 'rgba(30,40,60,0.6)',
-                          borderRadius: 2, marginRight: 8, overflow: 'hidden',
-                        }}>
-                          <div style={{
-                            width: `${Math.min(pct * 2, 100)}%`, height: '100%',
-                            background: pct > 20 ? '#4488aa' : pct > 10 ? '#446688' : '#335566',
-                            borderRadius: 2,
-                          }} />
-                        </div>
-                        <span style={{ fontSize: 9, color: '#556677', width: 32, textAlign: 'right' }}>
-                          {pct.toFixed(1)}%
-                        </span>
-                      </div>
-                    ))
-                  }
-                </>
-              )}
-              {/* Hydrosphere summary */}
-              {planet.hydrosphere && planet.hydrosphere.waterCoverageFraction > 0 && (
-                <>
-                  <div style={{ height: 1, background: 'rgba(50,65,85,0.3)', margin: '6px 0' }} />
-                  <div style={{ padding: '4px 14px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    Гідросфера
-                  </div>
-                  <div style={{ padding: '4px 14px', fontSize: 11, color: '#7799bb' }}>
-                    Вода: {(planet.hydrosphere.waterCoverageFraction * 100).toFixed(0)}%
-                    {planet.hydrosphere.iceCapFraction > 0.01 && (
-                      <span style={{ color: '#8899aa', marginLeft: 8 }}>
-                        Льод: {(planet.hydrosphere.iceCapFraction * 100).toFixed(0)}%
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
-              {/* Atmosphere summary */}
-              {planet.atmosphere && (
-                <>
-                  <div style={{ height: 1, background: 'rgba(50,65,85,0.3)', margin: '6px 0' }} />
-                  <div style={{ padding: '4px 14px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    Атмосфера
-                  </div>
-                  <div style={{ padding: '4px 14px', fontSize: 11, color: '#7799bb' }}>
-                    {planet.atmosphere.surfacePressureAtm.toFixed(2)} atm
-                    {planet.atmosphere.composition && (
-                      <span style={{ color: '#667788', marginLeft: 8, fontSize: 10 }}>
-                        {Object.entries(planet.atmosphere.composition)
-                          .sort((a, b) => b[1] - a[1])
-                          .slice(0, 2)
-                          .map(([g, v]) => `${g} ${(v * 100).toFixed(0)}%`)
-                          .join(', ')
-                        }
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
-              {/* No resources fallback */}
-              {!planet.resources?.crustComposition && !planet.hydrosphere && !planet.atmosphere && (
-                <div style={{ padding: '14px', color: '#445566', fontSize: 11 }}>
-                  Дані про ресурси відсутні
-                </div>
-              )}
-            </>
+            <ResourcesTab planet={planet} playerLevel={playerLevel} expandedGroup={expandedGroup} setExpandedGroup={setExpandedGroup} />
           )}
 
           {activeTab === 'premium' && (
