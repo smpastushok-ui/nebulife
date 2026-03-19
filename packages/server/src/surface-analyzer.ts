@@ -89,7 +89,6 @@ async function getImageDimensions(
 ): Promise<{ width: number; height: number }> {
   try {
     // Try to use sharp if available
-    // @ts-expect-error sharp is optional dependency
     const sharp = await import('sharp').catch(() => null);
     if (sharp) {
       const metadata = await sharp.default(buffer).metadata();
