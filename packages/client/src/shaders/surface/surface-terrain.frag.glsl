@@ -35,7 +35,27 @@ uniform float uCAbundance;       // C  -> dark soil
 uniform float uSAbundance;       // S  -> yellow tint
 uniform float uAspect;           // viewport W/H — compensates for non-square screen
 
+// Shadow map — building shadows projected onto terrain
+uniform mat4      uLightVP;   // ShadowGenerator.getTransformMatrix() (updated per frame)
+uniform sampler2D uShadowMap; // raw depth from light's POV (usePoissonSampling mode)
+
 varying vec2 vUv;
+varying vec3 vWorldPos3D; // actual 3D world position from vertex shader
+
+// Returns 1.0 in lit areas, 0.5 in shadow.
+// Outside the shadow frustum → 1.0 (no shadow).
+float computeShadow() {
+  vec4 sc = uLightVP * vec4(vWorldPos3D, 1.0);
+  sc.xyz /= sc.w;                      // perspective divide (w≈1 for ortho light)
+  sc.xyz  = sc.xyz * 0.5 + 0.5;       // NDC [-1,1] → shadow UV [0,1]
+  // Terrain outside shadow frustum → no shadow
+  if (sc.x < 0.005 || sc.x > 0.995 ||
+      sc.y < 0.005 || sc.y > 0.995 ||
+      sc.z < 0.0   || sc.z > 1.0) return 1.0;
+  float mapDepth = texture2D(uShadowMap, sc.xy).r;
+  // bias = 0.01 avoids self-shadowing acne on flat terrain
+  return (sc.z > mapDepth + 0.01) ? 0.5 : 1.0;
+}
 
 // ---- Noise functions (hash-based, deterministic) ----
 
@@ -179,6 +199,7 @@ void main() {
     float edgeDist = length(vUv - 0.5);
     col *= 1.0 - edgeDist * 0.3;
 
+    col *= computeShadow();
     gl_FragColor = vec4(col, 1.0);
     return;
   }
@@ -267,6 +288,7 @@ void main() {
     // Edge darkening
     col *= 1.0 - length(vUv - 0.5) * 0.25;
 
+    col *= computeShadow();
     gl_FragColor = vec4(col, 1.0);
     return;
   }
@@ -328,6 +350,7 @@ void main() {
     // Edge darkening
     col *= 1.0 - length(vUv - 0.5) * 0.25;
 
+    col *= computeShadow();
     gl_FragColor = vec4(col, 1.0);
     return;
   }
@@ -381,6 +404,7 @@ void main() {
     // Edge darkening
     col *= 1.0 - length(vUv - 0.5) * 0.25;
 
+    col *= computeShadow();
     gl_FragColor = vec4(col, 1.0);
     return;
   }
@@ -583,5 +607,6 @@ void main() {
   float edgeDist = length(vUv - 0.5);
   biomeColor *= 1.0 - edgeDist * 0.25;
 
+  biomeColor *= computeShadow();
   gl_FragColor = vec4(biomeColor, 1.0);
 }

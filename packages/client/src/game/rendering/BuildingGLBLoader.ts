@@ -189,7 +189,9 @@ export class BuildingGLBLoader {
       const maxDim = Math.max(sizeX, sizeY, sizeZ);
 
       if (maxDim > 0) {
-        const scale = (cellSize * 1.2) / maxDim;
+        // 2.5× cell size: buildings are visually prominent on the terrain.
+        // Cells are ~1/64 world units wide — 1.2× was too small to see at default zoom.
+        const scale = (cellSize * 2.5) / maxDim;
         root.scaling.setAll(scale);
 
         // Position the root so the model's bottom sits exactly on the terrain (position.y).

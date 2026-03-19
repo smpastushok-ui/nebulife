@@ -13,7 +13,7 @@ import React, {
 } from 'react';
 import {
   Engine, Scene, ArcRotateCamera, Camera,
-  HemisphericLight, DirectionalLight, CascadedShadowGenerator,
+  HemisphericLight, DirectionalLight, ShadowGenerator,
   DefaultRenderingPipeline,
   Vector3, Vector2, Color3, Color4,
   MeshBuilder, Mesh, ShaderMaterial, DynamicTexture, StandardMaterial,
@@ -157,6 +157,35 @@ function cellSize(gridW: number, gridH: number): number {
   return Math.min(1 / gridW, 1 / gridH);
 }
 
+/**
+ * Contact shadow disc — a soft dark oval placed below each building.
+ * Visually "grounds" the GLB model by simulating ambient occlusion contact shadow.
+ * Sun direction: DirectionalLight(-1,-2,-0.8) → XZ projection normalized ≈ (-0.78,-0.62)
+ * Shadow falls in opposite direction → offset (+0.78, +0.62) * cs * 0.65
+ */
+function createContactShadowDisc(id: string, pos: Vector3, cs: number, scene: Scene): Mesh {
+  const disc = MeshBuilder.CreateDisc(
+    `csd_${id}`,
+    { radius: cs * 1.05, tessellation: 32 },
+    scene,
+  );
+  // Rotate flat onto the XZ plane (CreateDisc is in XY by default)
+  disc.rotation.x = Math.PI / 2;
+  disc.position.x  = pos.x + 0.78 * cs * 0.65;
+  disc.position.y  = pos.y + 0.004; // slightly above terrain to avoid z-fighting
+  disc.position.z  = pos.z + 0.62 * cs * 0.65;
+  disc.isPickable  = false;
+  disc.receiveShadows = false;
+
+  const mat = new StandardMaterial(`csdMat_${id}`, scene);
+  mat.diffuseColor   = new Color3(0, 0, 0);
+  mat.alpha          = 0.38;
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
+  disc.material = mat;
+  return disc;
+}
+
 function numToColor3(c: number): Color3 {
   return new Color3(
     ((c >> 16) & 0xff) / 255,
@@ -192,11 +221,12 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     const sceneRef = useRef<Scene | null>(null);
     const cameraRef = useRef<ArcRotateCamera | null>(null);
     const terrainMatRef = useRef<ShaderMaterial | null>(null);
-    const shadowGenRef = useRef<CascadedShadowGenerator | null>(null);
+    const shadowGenRef = useRef<ShadowGenerator | null>(null);
     const glbLoaderRef = useRef<BuildingGLBLoader | null>(null);
     const zoneTexRef = useRef<DynamicTexture | null>(null);
     const glbInstancesRef = useRef<Map<string, PlacedGLBInstance>>(new Map());
     const placeholderMeshesRef = useRef<Map<string, Mesh>>(new Map());
+    const shadowDiscsRef = useRef<Map<string, Mesh>>(new Map());
 
     // Navigation
     const orthoSizeRef = useRef(0.55);                                         // controls zoom level
@@ -304,26 +334,37 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     const rebuildBuildings = useCallback((newOrthoSize: number) => {
       const loader = glbLoaderRef.current;
       const shadowGen = shadowGenRef.current;
+      const scene = sceneRef.current;
       if (!loader) return;
 
       const instances = glbInstancesRef.current;
+      const shadowDiscs = shadowDiscsRef.current;
       const cs = cellSize(gridW, gridH);
 
-      // Dispose all current instances
+      // Dispose all current instances and their contact shadow discs
       for (const [id, inst] of instances) {
         loader.dispose(inst, shadowGen);
         instances.delete(id);
       }
+      for (const [id, disc] of shadowDiscs) {
+        disc.dispose();
+        shadowDiscs.delete(id);
+      }
 
-      // Re-instantiate with new LOD
+      // Re-instantiate with new LOD + recreate shadow discs
       for (const b of buildings) {
         const pos = gridToWorld(b.x, b.y, gridW, gridH, planet.seed);
         if (loader.has(b.type)) {
           const inst = loader.instantiate(b.type, b.id, pos, cs, shadowGen, newOrthoSize);
-          if (inst) instances.set(b.id, inst);
+          if (inst) {
+            instances.set(b.id, inst);
+            if (scene) {
+              shadowDiscs.set(b.id, createContactShadowDisc(b.id, pos, cs, scene));
+            }
+          }
         }
       }
-    }, [buildings, gridW, gridH]);
+    }, [buildings, gridW, gridH, planet.seed]);
 
     // ── Apply zoom + trigger LOD swap when threshold crossed ──────────────
 
@@ -406,12 +447,15 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       sun.specular  = new Color3(0.5, 0.45, 0.35);
       sun.position  = new Vector3(1, 3, 1);
 
-      // CascadedShadowGenerator — better quality for open-world ortho scenes
-      const shadows = new CascadedShadowGenerator(1024, sun);
-      shadows.autoCalcDepthBounds = true;
-      shadows.numCascades = 4;
-      shadows.lambda    = 0.5;    // even cascade split distribution
-      shadows.shadowMaxZ = 2.5;   // covers full terrain (unit square + margin)
+      // Standard ShadowGenerator — works correctly with orthographic cameras.
+      // CascadedShadowGenerator relies on perspective frustum cascade splits and
+      // does NOT render shadows on orthographic cameras (all meshes appear unlit).
+      // usePoissonSampling: stores raw depth in red channel — compatible with
+      // manual shadow map sampling in the ShaderMaterial fragment shader.
+      const shadows = new ShadowGenerator(2048, sun);
+      shadows.usePoissonSampling = true;
+      shadows.bias          = 0.005;
+      shadows.normalBias    = 0.01;
       shadowGenRef.current = shadows;
 
       // PBR environment — GLB models need an IBL texture for metallic reflections
@@ -459,7 +503,9 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
             'uHasLava', 'uVolc', 'uWind', 'uType',
             'uFeAbundance', 'uSiAbundance', 'uCAbundance', 'uSAbundance', 'uAspect',
             'uHeightScale', // vertex shader height displacement
+            'uLightVP',     // shadow generator light view-projection matrix
           ],
+          samplers: ['uShadowMap'], // shadow depth texture
         },
       );
 
@@ -488,6 +534,12 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       terrainMat.setFloat('uSAbundance', sAbund);
       terrainMat.setFloat('uAspect', 1.0); // UV tied to geometry, no aspect compensation
       terrainMat.setFloat('uHeightScale', TERRAIN_HEIGHT_SCALE);
+
+      // Shadow map integration — ShaderMaterial must manually sample the depth texture.
+      // uLightVP is updated every frame in the render loop (directional light frustum adapts).
+      terrainMat.setMatrix('uLightVP', shadows.getTransformMatrix());
+      const shadowMapTex = shadows.getShadowMap();
+      if (shadowMapTex) terrainMat.setTexture('uShadowMap', shadowMapTex);
 
       terrainMat.backFaceCulling = false;
       ground.material = terrainMat;
@@ -529,6 +581,8 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
         if (cancelled) return;
         animTimeRef.current = (performance.now() - startTime) * 0.001;
         terrainMat.setFloat('uTime', animTimeRef.current);
+        // Keep shadow light VP matrix in sync — directional light frustum adapts each frame
+        terrainMat.setMatrix('uLightVP', shadows.getTransformMatrix());
         scene.render();
       });
 
@@ -556,6 +610,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
         zoneTexRef.current = null;
         glbInstancesRef.current.clear();
         placeholderMeshesRef.current.clear();
+        shadowDiscsRef.current.clear();
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planet.seed]);
@@ -571,14 +626,17 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
 
       const instances = glbInstancesRef.current;
       const placeholders = placeholderMeshesRef.current;
+      const shadowDiscs = shadowDiscsRef.current;
       const currentIds = new Set(buildings.map((b) => b.id));
       const cs = cellSize(gridW, gridH);
 
-      // Remove stale instances and their placeholders
+      // Remove stale instances, shadow discs, and placeholders
       for (const [id, inst] of instances) {
         if (!currentIds.has(id)) {
           loader.dispose(inst, shadowGen);
           instances.delete(id);
+          const disc = shadowDiscs.get(id);
+          if (disc) { disc.dispose(); shadowDiscs.delete(id); }
         }
       }
       for (const [id, mesh] of placeholders) {
@@ -599,7 +657,13 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
 
           if (!instances.has(b.id)) {
             const inst = loader.instantiate(b.type, b.id, pos, cs, shadowGen, orthoSizeRef.current);
-            if (inst) instances.set(b.id, inst);
+            if (inst) {
+              instances.set(b.id, inst);
+              // Contact shadow disc — visually grounds the building on the terrain
+              if (!shadowDiscs.has(b.id)) {
+                shadowDiscs.set(b.id, createContactShadowDisc(b.id, pos, cs, scene));
+              }
+            }
           }
         } else if (!instances.has(b.id) && !placeholders.has(b.id)) {
           // GLB not loaded yet — show wireframe placeholder box so user sees something
@@ -700,7 +764,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       const onWheel = (e: WheelEvent) => {
         e.preventDefault();
         const factor = e.deltaY > 0 ? 1.12 : 0.88;
-        const newSize = Math.max(0.12, Math.min(1.6, orthoSizeRef.current * factor));
+        const newSize = Math.max(0.06, Math.min(1.6, orthoSizeRef.current * factor));
         applyZoom(newSize);
       };
       canvas.addEventListener('wheel', onWheel, { passive: false });

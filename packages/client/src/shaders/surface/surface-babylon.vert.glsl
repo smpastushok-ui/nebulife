@@ -14,6 +14,7 @@ uniform vec2  uPan;
 uniform float uZoom;
 
 varying vec2 vUv;
+varying vec3 vWorldPos3D; // actual 3D world position (for shadow map sampling)
 
 // ---- Inline noise (identical constants to fragment shader) ----
 
@@ -62,6 +63,9 @@ void main() {
 
   vec3 displaced  = position;
   displaced.y    += elev * uHeightScale;
+
+  // Ground mesh has no world transform → local position == world position
+  vWorldPos3D = displaced;
 
   gl_Position = worldViewProjection * vec4(displaced, 1.0);
 }
