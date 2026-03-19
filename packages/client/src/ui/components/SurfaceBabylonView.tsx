@@ -702,11 +702,14 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       const worldDX = (dx / canvas.clientWidth)  * orthoW;
       const worldDY = (dy / canvas.clientHeight) * orthoH;
 
-      // Pan in XZ: rotate screen delta by camera alpha angle
+      // Pan in XZ: project screen delta onto terrain plane via camera orientation.
+      // cameraRight = (cosA, 0, -sinA); horizontal pan is exact.
+      // Vertical: negate worldDY (screen Y vs world Y inversion in Babylon left-hand coords).
       const cosA = Math.cos(cam.alpha);
       const sinA = Math.sin(cam.alpha);
-      panTargetRef.current.x -= cosA * worldDX - sinA * worldDY;
-      panTargetRef.current.z -= sinA * worldDX + cosA * worldDY;
+      const cosB = Math.cos(cam.beta); // ~0.678 at beta=PI/3.8; compensates foreshortening
+      panTargetRef.current.x -= cosA * worldDX - (sinA / cosB) * worldDY;
+      panTargetRef.current.z -= -sinA * worldDX - (cosA / cosB) * worldDY;
       clampTarget();
     }, [clampTarget]);
 
@@ -802,8 +805,9 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
         const worldDY = (dy / canvas.clientHeight) * orthoH;
         const cosA = Math.cos(cam.alpha);
         const sinA = Math.sin(cam.alpha);
-        panTargetRef.current.x -= cosA * worldDX - sinA * worldDY;
-        panTargetRef.current.z -= sinA * worldDX + cosA * worldDY;
+        const cosB = Math.cos(cam.beta);
+        panTargetRef.current.x -= cosA * worldDX - (sinA / cosB) * worldDY;
+        panTargetRef.current.z -= -sinA * worldDX - (cosA / cosB) * worldDY;
         clampTarget();
       } else if (e.touches.length === 2 && pinchRef.current.active) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
