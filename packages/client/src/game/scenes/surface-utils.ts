@@ -11,13 +11,26 @@ import { derivePlanetVisuals } from '../rendering/PlanetVisuals.js';
 // ─── Tile constants ─────────────────────────────────────────────────────────
 
 /** Logical isometric diamond dimensions (game grid units, px at zoom=1). */
-export const TILE_W = 128;   // diamond width
-export const TILE_H = 64;    // diamond height  (2:1 ratio)
+export const TILE_W = 128;   // diamond width  (= FRAME_W * scale = 256 * 0.5)
+export const TILE_H = 98;    // diamond height (measured from o1.png: 196px * 0.5)
 
 /** Sprite atlas frame dimensions (256×256 RGBA, 8 cols × 8 rows). */
 export const FRAME_W = 256;
 export const FRAME_H = 256;
 export const ATLAS_COLS = 8;
+
+/**
+ * Anchor Y for terrain/feature sprites (anchor X is always 0.5).
+ * = bottom vertex row / frame height = 228 / 256 = 0.890625
+ * This aligns the sprite's diamond bottom vertex to the grid seam point.
+ */
+export const SPRITE_ANCHOR_Y = 228 / 256;  // 0.890625
+
+/**
+ * Tile sprite scale at zoom=1.
+ * 1.01× overdraw fills the 1-2px sub-pixel seam between adjacent diamonds.
+ */
+export const TILE_SCALE = (TILE_W / FRAME_W) * 1.01;  // ~0.505
 
 // ─── Atlas frame indices ─────────────────────────────────────────────────────
 

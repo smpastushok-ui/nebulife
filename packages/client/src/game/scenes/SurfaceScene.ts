@@ -27,6 +27,7 @@ import type { Planet, Star, PlacedBuilding, BuildingType } from '@nebulife/core'
 import { SeededRNG } from '@nebulife/core';
 import {
   TILE_W, TILE_H, FRAME_W, FRAME_H, ATLAS_COLS,
+  SPRITE_ANCHOR_Y, TILE_SCALE,
   TERRAIN_FRAME, FEATURE_FRAME,
   computeIsoGridSize,
   gridToScreen,
@@ -157,11 +158,11 @@ export class SurfaceScene {
         const baseY     = y + TILE_H / 2;
 
         if (tex) {
-          // Sprite tile: anchor at bottom-center, scale from 256→128px
+          // Sprite tile: anchor at diamond bottom-center, slight overdraw to fill seams
           const sp = new Sprite(tex);
-          sp.anchor.set(0.5, 1.0);
-          sp.scale.set(TILE_W / FRAME_W);   // 128/256 = 0.5
-          sp.position.set(x, baseY);
+          sp.anchor.set(0.5, SPRITE_ANCHOR_Y);
+          sp.scale.set(TILE_SCALE);
+          sp.position.set(Math.round(x), Math.round(baseY));
           this.groundLayer.addChild(sp);
         } else {
           // Fallback: colored diamond when atlas not available
@@ -208,9 +209,9 @@ export class SurfaceScene {
 
         if (tex) {
           const sp = new Sprite(tex);
-          sp.anchor.set(0.5, 1.0);
-          sp.scale.set(TILE_W / FRAME_W);
-          sp.position.set(x, baseY);
+          sp.anchor.set(0.5, SPRITE_ANCHOR_Y);
+          sp.scale.set(TILE_SCALE);
+          sp.position.set(Math.round(x), Math.round(baseY));
           sp.zIndex = baseY;
           items.push({ sp, zIdx: baseY });
         }
