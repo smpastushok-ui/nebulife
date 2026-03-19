@@ -15,7 +15,7 @@ import {
   Engine, Scene, ArcRotateCamera, Camera,
   HemisphericLight, DirectionalLight, ShadowGenerator,
   Vector3, Vector2, Color3, Color4,
-  MeshBuilder, ShaderMaterial, DynamicTexture, StandardMaterial,
+  MeshBuilder, Mesh, ShaderMaterial, DynamicTexture, StandardMaterial,
   Viewport,
 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
@@ -131,6 +131,8 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
     const [showBuildPanel, setShowBuildPanel] = useState(true);
     const [showMinimap, setShowMinimap] = useState(true);
+    // Increments when GLB preload completes → triggers building sync effect to re-run
+    const [glbVersion, setGlbVersion] = useState(0);
 
     // ── Refs ───────────────────────────────────────────────────────────────
 
@@ -143,6 +145,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     const glbLoaderRef = useRef<BuildingGLBLoader | null>(null);
     const zoneTexRef = useRef<DynamicTexture | null>(null);
     const glbInstancesRef = useRef<Map<string, PlacedGLBInstance>>(new Map());
+    const placeholderMeshesRef = useRef<Map<string, Mesh>>(new Map());
 
     // Navigation
     const orthoSizeRef = useRef(0.55);                                         // controls zoom level
@@ -410,8 +413,12 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       const zonePlane = MeshBuilder.CreateGround(
         'zones', { width: 1, height: 1, subdivisions: 1 }, scene,
       );
-      zonePlane.position.y = 0.002;
+      zonePlane.position.y = 0.005;    // higher than terrain to avoid z-fighting
       zonePlane.isPickable = false;
+      zonePlane.renderingGroupId = 1;  // render AFTER all group-0 objects (terrain, buildings)
+
+      // Group 1 should NOT clear the depth buffer — overlay renders on top, not occluded
+      scene.setRenderingAutoClearDepthStencil(1, false);
 
       const zoneTex = new DynamicTexture('zoneTex', { width: gridW, height: gridH }, scene);
       zoneTex.hasAlpha = true;
@@ -427,8 +434,10 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       const glbLoader = new BuildingGLBLoader();
       glbLoaderRef.current = glbLoader;
 
-      // Preload GLBs in background (non-blocking — buildings appear as GLBs become ready)
-      glbLoader.preloadAll(scene).catch(() => { /* silent — canvas fallback */ });
+      // Preload GLBs in background — when done, increment glbVersion to trigger building sync
+      glbLoader.preloadAll(scene)
+        .then(() => { if (!cancelled) setGlbVersion((v) => v + 1); })
+        .catch(() => { if (!cancelled) setGlbVersion((v) => v + 1); });
 
       // ── Render loop ──────────────────────────────────────────────────────
       const startTime = performance.now();
@@ -462,11 +471,13 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
         shadowGenRef.current = null;
         zoneTexRef.current = null;
         glbInstancesRef.current.clear();
+        placeholderMeshesRef.current.clear();
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planet.seed]);
 
     // ── Sync buildings → GLB instances ────────────────────────────────────
+    // glbVersion is incremented when preloadAll completes — ensures re-sync after GLBs load
 
     useEffect(() => {
       const scene = sceneRef.current;
@@ -475,29 +486,51 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       if (!scene || !loader) return;
 
       const instances = glbInstancesRef.current;
+      const placeholders = placeholderMeshesRef.current;
       const currentIds = new Set(buildings.map((b) => b.id));
+      const cs = cellSize(gridW, gridH);
 
-      // Remove stale instances
+      // Remove stale instances and their placeholders
       for (const [id, inst] of instances) {
         if (!currentIds.has(id)) {
           loader.dispose(inst, shadowGen);
           instances.delete(id);
         }
       }
-
-      // Add new buildings
-      const cs = cellSize(gridW, gridH);
-      for (const b of buildings) {
-        if (instances.has(b.id)) continue;
-
-        const pos = gridToWorld(b.x, b.y, gridW, gridH);
-        if (loader.has(b.type)) {
-          const inst = loader.instantiate(b.type, b.id, pos, cs, shadowGen, orthoSizeRef.current);
-          if (inst) instances.set(b.id, inst);
+      for (const [id, mesh] of placeholders) {
+        if (!currentIds.has(id)) {
+          mesh.dispose();
+          placeholders.delete(id);
         }
-        // If no GLB yet: loader will have it next time buildings state changes or on preload completion
       }
-    }, [buildings, gridW, gridH]);
+
+      // Add or upgrade buildings
+      for (const b of buildings) {
+        const pos = gridToWorld(b.x, b.y, gridW, gridH);
+
+        if (loader.has(b.type)) {
+          // GLB is ready — remove placeholder if any, instantiate real model
+          const ph = placeholders.get(b.id);
+          if (ph) { ph.dispose(); placeholders.delete(b.id); }
+
+          if (!instances.has(b.id)) {
+            const inst = loader.instantiate(b.type, b.id, pos, cs, shadowGen, orthoSizeRef.current);
+            if (inst) instances.set(b.id, inst);
+          }
+        } else if (!instances.has(b.id) && !placeholders.has(b.id)) {
+          // GLB not loaded yet — show wireframe placeholder box so user sees something
+          const ph = MeshBuilder.CreateBox(`ph_${b.id}`, { size: cs }, scene);
+          ph.position.copyFrom(pos);
+          ph.position.y = cs * 0.5;
+          const pm = new StandardMaterial(`phMat_${b.id}`, scene);
+          pm.diffuseColor = new Color3(0.27, 1.0, 0.53); // #44ff88
+          pm.wireframe = true;
+          pm.disableLighting = true;
+          ph.material = pm;
+          placeholders.set(b.id, ph);
+        }
+      }
+    }, [buildings, gridW, gridH, glbVersion]);
 
     // ── Place building handler ─────────────────────────────────────────────
 
