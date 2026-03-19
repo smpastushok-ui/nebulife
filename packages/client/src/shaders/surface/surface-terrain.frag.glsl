@@ -537,13 +537,16 @@ void main() {
   }
 
   // ---- Mountain snow (patchy) ----
-  if (uTempK < 350.0 && h > 0.35) {
-    float snowLine = 0.35 + lat * 0.12; // lower snowline near poles
+  // snowTempFactor: 0 at >=290K (above freezing), 1 at <=240K (cold world)
+  // At 288K (+15°C) → ~0.005 (no visible snow). At 260K (-13°C) → 0.65.
+  float snowTempFactor = smoothstep(290.0, 240.0, uTempK);
+  if (snowTempFactor > 0.02 && h > 0.50) {
+    float snowLine = 0.50 - snowTempFactor * 0.12 + lat * 0.10;
     float snowFade = clamp((h - snowLine) / 0.20, 0.0, 1.0);
     float snowPatch = noise2(warpedPos * 12.0 + seedOff + vec2(555.0, 666.0));
     snowFade *= smoothstep(0.25, 0.55, snowPatch); // patchy snow
     vec3 snowColor = mix(vec3(0.82, 0.87, 0.91), vec3(0.92, 0.94, 0.97), snowPatch);
-    biomeColor = mix(biomeColor, snowColor, snowFade * 0.7);
+    biomeColor = mix(biomeColor, snowColor, snowFade * snowTempFactor * 0.7);
   }
 
   // ---- Highland glaciers ----

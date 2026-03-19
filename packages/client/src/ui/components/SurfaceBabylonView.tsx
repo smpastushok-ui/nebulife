@@ -437,7 +437,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
 
       // ── Lighting ────────────────────────────────────────────────────────
       const hemi = new HemisphericLight('sky', new Vector3(0, 1, 0), scene);
-      hemi.intensity   = 0.6;
+      hemi.intensity   = 0.4; // reduced from 0.6 — lets directional sun create stronger contrast on buildings
       hemi.diffuse     = new Color3(0.75, 0.82, 1.0);
       hemi.groundColor = new Color3(0.10, 0.08, 0.06); // dark ground bounce
 
@@ -473,14 +473,14 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       // same orthographic camera → black models. Use only one pipeline per camera.
       const pipeline = new DefaultRenderingPipeline('default', true, scene, [camera]);
       pipeline.bloomEnabled          = true;
-      pipeline.bloomThreshold        = 0.8;
-      pipeline.bloomWeight           = 0.3;
+      pipeline.bloomThreshold        = 0.82; // above snow-white (0.82-0.97) still blooms but less
+      pipeline.bloomWeight           = 0.18; // reduced from 0.3 — prevents bright terrain from bleeding
       pipeline.bloomKernel           = 64;
       pipeline.bloomScale            = 0.5;
       pipeline.fxaaEnabled           = true;
       pipeline.imageProcessingEnabled = true;
       pipeline.imageProcessing.contrast = 1.1;
-      pipeline.imageProcessing.exposure = 1.05;
+      pipeline.imageProcessing.exposure = 1.0; // neutral — was 1.05 (slight over-exposure)
 
       // ── Terrain ground plane ─────────────────────────────────────────────
       // Unit square in XZ, UV 0→1 both axes (used by shader for noise lookup)
