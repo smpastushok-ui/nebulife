@@ -28,11 +28,11 @@ import { SeededRNG } from '@nebulife/core';
 import {
   TILE_W, TILE_H, FRAME_W, FRAME_H, ATLAS_COLS,
   SPRITE_ANCHOR_Y, TILE_SCALE,
-  TERRAIN_FRAME, FEATURE_FRAME,
+  FEATURE_FRAME,
   computeIsoGridSize,
   gridToScreen,
   classifyCellTerrain,
-  terrainToAtlasKey,
+  terrainToAtlasIndex,
   isLandTerrain,
   isWaterTerrain,
   isCellBuildable,
@@ -150,10 +150,9 @@ export class SurfaceScene {
       const colMax = Math.min(d, N - 1);
       for (let col = colMin; col <= colMax; col++) {
         const row = d - col;
-        const terrain   = classifyCellTerrain(col, row, seed, wl);
-        const atlasKey  = terrainToAtlasKey(terrain, col, row);
-        const frameIdx  = TERRAIN_FRAME[atlasKey] ?? TERRAIN_FRAME['ground_a'];
-        const tex       = this.getFrame(frameIdx);
+        const terrain  = classifyCellTerrain(col, row, seed, wl);
+        const frameIdx = terrainToAtlasIndex(terrain, col, row, seed);
+        const tex      = frameIdx !== null ? this.getFrame(frameIdx) : null;
         const { x, y }  = gridToScreen(col, row);
         const baseY     = y + TILE_H / 2;
 

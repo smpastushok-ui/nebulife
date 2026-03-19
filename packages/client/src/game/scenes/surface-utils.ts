@@ -127,8 +127,58 @@ export function classifyCellTerrain(
 }
 
 /**
- * Map TerrainType → atlas terrain key (used to look up TERRAIN_FRAME).
- * Handles terrain name differences between core types and atlas naming.
+ * Fast deterministic hash for a grid cell.
+ * Used to pick tile variants without external RNG state.
+ */
+function cellHash(col: number, row: number, seed: number): number {
+  let h = (col * 374761393 + row * 1234567891 + seed * 2654435761) | 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/**
+ * Map TerrainType + cell position → atlas frame index.
+ *
+ * Atlas layout (current):
+ *   0-3  : water variants (o1–o4)  ← 4-way random per cell
+ *   4-5  : ground_a / ground_b     ← checkerboard
+ *   6    : hills
+ *   7    : rock / mountains
+ *   8    : peaks
+ *   9    : special (volcano, ice, etc.)
+ *   16-23: feature decals
+ *
+ * Returns null if the frame slot is not yet populated (transparent → skip).
+ */
+export function terrainToAtlasIndex(
+  terrain: TerrainType,
+  col: number,
+  row: number,
+  seed: number,
+): number | null {
+  const h = cellHash(col, row, seed);
+  switch (terrain) {
+    case 'deep_ocean':
+    case 'ocean':
+    case 'coast':
+    case 'beach':
+      return h % 4;                              // picks variant 0, 1, 2 or 3
+    case 'lowland':
+    case 'plains':
+      return TERRAIN_FRAME['ground_a'] !== undefined
+        ? (col + row) % 2 === 0 ? 4 : 5
+        : null;                                  // null = no tile yet
+    case 'hills':      return 6;
+    case 'mountains':  return 7;
+    case 'peaks':      return 8;
+    default:           return null;
+  }
+}
+
+/**
+ * @deprecated — use terrainToAtlasIndex() instead.
+ * Kept for reference; no longer used by SurfaceScene.
  */
 export function terrainToAtlasKey(terrain: TerrainType, col: number, row: number): string {
   switch (terrain) {
