@@ -105,8 +105,10 @@ export class BuildingGLBLoader {
       const entry: LODContainers = this.containers.get(type) ?? { hi: null, mid: null, lo: null };
       entry[lod] = container;
       this.containers.set(type, entry);
-    } catch {
+      console.log(`[GLBLoader] Loaded: /buildings/${filename}`);
+    } catch (err) {
       // GLB not available — graceful fallback (hi-res used instead)
+      console.warn(`[GLBLoader] Failed to load /buildings/${filename}:`, (err as Error).message);
     }
   }
 
@@ -126,31 +128,53 @@ export class BuildingGLBLoader {
     orthoSize: number,
   ): PlacedGLBInstance | null {
     const entry = this.containers.get(type);
-    if (!entry) return null;
+    if (!entry) {
+      console.warn(`[GLBLoader] No container entry for type: ${type}`);
+      return null;
+    }
 
     const lod = getLODLevel(orthoSize);
     // Fallback chain: requested LOD → hi → mid → lo
     const container = entry[lod] ?? entry.hi ?? entry.mid ?? entry.lo;
-    if (!container) return null;
+    if (!container) {
+      console.warn(`[GLBLoader] No container for type: ${type}, lod: ${lod}`);
+      return null;
+    }
 
-    const entries = container.instantiateModelsToScene(
+    const instantiated = container.instantiateModelsToScene(
       (name) => `${instanceId}_${name}`,
       false,
     );
 
-    if (entries.rootNodes.length === 0) return null;
+    if (instantiated.rootNodes.length === 0) {
+      console.warn(`[GLBLoader] instantiateModelsToScene returned 0 rootNodes for type: ${type}`);
+      return null;
+    }
 
-    const root = entries.rootNodes[0] as TransformNode;
+    const root = instantiated.rootNodes[0] as TransformNode;
+
+    // Force all instantiated meshes visible — containers may carry isVisible=false
+    root.getChildMeshes(true).forEach((m) => {
+      m.isVisible = true;
+      m.setEnabled(true);
+    });
+    if (root instanceof AbstractMesh) {
+      root.isVisible = true;
+      root.setEnabled(true);
+    }
 
     // Normalize scale: fit largest dimension into cellSize * 1.2
+    // Bounding boxes are in world space with root at origin, scale=1 at this point
     const allMeshes: AbstractMesh[] = [];
     root.getChildMeshes(false).forEach((m) => allMeshes.push(m));
     if (root instanceof AbstractMesh) allMeshes.push(root);
 
+    let worldMinY = 0;
+
     if (allMeshes.length > 0) {
       const worldMinX = Math.min(...allMeshes.map((m) => m.getBoundingInfo().boundingBox.minimumWorld.x));
       const worldMaxX = Math.max(...allMeshes.map((m) => m.getBoundingInfo().boundingBox.maximumWorld.x));
-      const worldMinY = Math.min(...allMeshes.map((m) => m.getBoundingInfo().boundingBox.minimumWorld.y));
+      worldMinY       = Math.min(...allMeshes.map((m) => m.getBoundingInfo().boundingBox.minimumWorld.y));
       const worldMaxY = Math.max(...allMeshes.map((m) => m.getBoundingInfo().boundingBox.maximumWorld.y));
       const worldMinZ = Math.min(...allMeshes.map((m) => m.getBoundingInfo().boundingBox.minimumWorld.z));
       const worldMaxZ = Math.max(...allMeshes.map((m) => m.getBoundingInfo().boundingBox.maximumWorld.z));
@@ -161,20 +185,32 @@ export class BuildingGLBLoader {
       const maxDim = Math.max(sizeX, sizeY, sizeZ);
 
       if (maxDim > 0) {
-        root.scaling.setAll((cellSize * 1.2) / maxDim);
-      }
-    }
+        const scale = (cellSize * 1.2) / maxDim;
+        root.scaling.setAll(scale);
 
-    root.position.copyFrom(position);
+        // Position the root so the model's bottom sits exactly on the terrain (position.y).
+        // worldMinY is the pre-scale bottom relative to root at origin, so after scaling
+        // the bottom is at worldMinY * scale — offset root upward to cancel this out.
+        root.position.x = position.x;
+        root.position.z = position.z;
+        root.position.y = position.y - worldMinY * scale;
+      } else {
+        root.position.copyFrom(position);
+      }
+    } else {
+      root.position.copyFrom(position);
+    }
 
     // Collect meshes for shadow casting/receiving
     const rootMeshes: AbstractMesh[] = [];
     root.getChildMeshes(false).forEach((m) => {
       rootMeshes.push(m);
+      m.isVisible = true;
       m.receiveShadows = true;
       if (shadowGen) shadowGen.addShadowCaster(m, false);
     });
     if (root instanceof AbstractMesh) {
+      root.isVisible = true;
       root.receiveShadows = true;
       if (shadowGen) shadowGen.addShadowCaster(root, false);
       rootMeshes.push(root);
