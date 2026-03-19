@@ -13,7 +13,8 @@ import React, {
 } from 'react';
 import {
   Engine, Scene, ArcRotateCamera, Camera,
-  HemisphericLight, DirectionalLight, ShadowGenerator,
+  HemisphericLight, DirectionalLight, CascadedShadowGenerator,
+  DefaultRenderingPipeline, SSAO2RenderingPipeline,
   Vector3, Vector2, Color3, Color4,
   MeshBuilder, Mesh, ShaderMaterial, DynamicTexture, StandardMaterial,
   Viewport,
@@ -141,7 +142,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     const sceneRef = useRef<Scene | null>(null);
     const cameraRef = useRef<ArcRotateCamera | null>(null);
     const terrainMatRef = useRef<ShaderMaterial | null>(null);
-    const shadowGenRef = useRef<ShadowGenerator | null>(null);
+    const shadowGenRef = useRef<CascadedShadowGenerator | null>(null);
     const glbLoaderRef = useRef<BuildingGLBLoader | null>(null);
     const zoneTexRef = useRef<DynamicTexture | null>(null);
     const glbInstancesRef = useRef<Map<string, PlacedGLBInstance>>(new Map());
@@ -319,6 +320,9 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       );
       camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
       camera.inputs.clear(); // custom pan/zoom controls
+      // Prevent camera from going parallel to ground (would expose terrain edge)
+      camera.lowerBetaLimit = Math.PI / 6;   // min 30° from vertical
+      camera.upperBetaLimit = Math.PI / 2.2; // max ~82°
       cameraRef.current = camera;
       applyOrtho(orthoSizeRef.current, canvas);
 
@@ -342,23 +346,58 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
 
       // ── Lighting ────────────────────────────────────────────────────────
       const hemi = new HemisphericLight('sky', new Vector3(0, 1, 0), scene);
-      hemi.intensity = 0.55;
-      hemi.diffuse   = new Color3(0.75, 0.82, 1.0);
-      hemi.groundColor = new Color3(0.3, 0.25, 0.2);
+      hemi.intensity   = 0.6;
+      hemi.diffuse     = new Color3(0.75, 0.82, 1.0);
+      hemi.groundColor = new Color3(0.10, 0.08, 0.06); // dark ground bounce
 
       const sun = new DirectionalLight('sun', new Vector3(-1, -2, -0.8), scene);
-      sun.intensity = 1.1;
+      sun.intensity = 1.4;
       sun.diffuse   = new Color3(1.0, 0.95, 0.85);
+      sun.specular  = new Color3(0.5, 0.45, 0.35);
       sun.position  = new Vector3(1, 3, 1);
 
-      const shadows = new ShadowGenerator(512, sun);
-      shadows.useBlurExponentialShadowMap = true;
-      shadows.blurKernel = 8;
+      // CascadedShadowGenerator — better quality for open-world ortho scenes
+      const shadows = new CascadedShadowGenerator(1024, sun);
+      shadows.autoCalcDepthBounds = true;
+      shadows.numCascades = 4;
+      shadows.lambda    = 0.5;    // even cascade split distribution
+      shadows.shadowMaxZ = 2.5;   // covers full terrain (unit square + margin)
       shadowGenRef.current = shadows;
+
+      // PBR environment — GLB models need an IBL texture for metallic reflections
+      // createDefaultEnvironment with no ground/skybox just sets scene.environmentTexture
+      scene.createDefaultEnvironment({ createGround: false, createSkybox: false });
+      scene.environmentIntensity = 0.4; // subtle — directional light still dominates
+
+      // Atmospheric fog — hides terrain edge, adds depth
+      scene.fogMode    = Scene.FOGMODE_EXP2;
+      scene.fogDensity = 2.5;
+      scene.fogColor   = new Color3(0.02, 0.03, 0.05);
+
+      // SSAO2 — contact shadows: darkens where objects meet the ground surface
+      const ssao = new SSAO2RenderingPipeline('ssao', scene, {
+        ssaoRatio: 0.5,  // half resolution for performance
+        blurRatio: 1.0,
+      }, [camera]);
+      ssao.radius        = 0.02;
+      ssao.totalStrength = 1.5;
+      ssao.base          = 0.1;
+
+      // DefaultRenderingPipeline — bloom + fxaa + image processing
+      const pipeline = new DefaultRenderingPipeline('default', true, scene, [camera]);
+      pipeline.bloomEnabled          = true;
+      pipeline.bloomThreshold        = 0.8;
+      pipeline.bloomWeight           = 0.3;
+      pipeline.bloomKernel           = 64;
+      pipeline.bloomScale            = 0.5;
+      pipeline.fxaaEnabled           = true;
+      pipeline.imageProcessingEnabled = true;
+      pipeline.imageProcessing.contrast = 1.1;
+      pipeline.imageProcessing.exposure = 1.05;
 
       // ── Terrain ground plane ─────────────────────────────────────────────
       // Unit square in XZ, UV 0→1 both axes (used by shader for noise lookup)
-      const ground = MeshBuilder.CreateGround('terrain', { width: 1, height: 1, subdivisions: 1 }, scene);
+      const ground = MeshBuilder.CreateGround('terrain', { width: 1, height: 1, subdivisions: 64 }, scene);
       ground.receiveShadows = true;
       ground.isPickable = true;
 
