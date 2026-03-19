@@ -22,7 +22,7 @@ import '@babylonjs/loaders/glTF';
 import type { Planet, Star, PlacedBuilding, BuildingType, TerrainType } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
-import { BuildingGLBLoader, PlacedGLBInstance } from '../../game/rendering/BuildingGLBLoader.js';
+import { BuildingGLBLoader, PlacedGLBInstance, getLODLevel, type LODLevel } from '../../game/rendering/BuildingGLBLoader.js';
 import { SurfacePanel } from './SurfacePanel.js';
 import { getBuildings, placeBuilding } from '../../api/surface-api.js';
 
@@ -145,7 +145,8 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     const glbInstancesRef = useRef<Map<string, PlacedGLBInstance>>(new Map());
 
     // Navigation
-    const orthoSizeRef = useRef(0.55);          // controls zoom level
+    const orthoSizeRef = useRef(0.55);                                         // controls zoom level
+    const currentLODRef = useRef<LODLevel>(getLODLevel(0.55));                 // last applied LOD level
     const panTargetRef = useRef({ x: 0, z: 0 }); // camera look-at point in XZ
     const dragRef = useRef({ active: false, startX: 0, startY: 0 });
     const pinchRef = useRef({ active: false, dist: 0 });
@@ -242,6 +243,49 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     useEffect(() => {
       updateZoneOverlay(selectedBuilding);
     }, [selectedBuilding, updateZoneOverlay]);
+
+    // ── Rebuild all GLB instances at a new LOD level ───────────────────────
+    // Called only when orthoSize crosses a LOD threshold — not on every zoom tick.
+
+    const rebuildBuildings = useCallback((newOrthoSize: number) => {
+      const loader = glbLoaderRef.current;
+      const shadowGen = shadowGenRef.current;
+      if (!loader) return;
+
+      const instances = glbInstancesRef.current;
+      const cs = cellSize(gridW, gridH);
+
+      // Dispose all current instances
+      for (const [id, inst] of instances) {
+        loader.dispose(inst, shadowGen);
+        instances.delete(id);
+      }
+
+      // Re-instantiate with new LOD
+      for (const b of buildings) {
+        const pos = gridToWorld(b.x, b.y, gridW, gridH);
+        if (loader.has(b.type)) {
+          const inst = loader.instantiate(b.type, b.id, pos, cs, shadowGen, newOrthoSize);
+          if (inst) instances.set(b.id, inst);
+        }
+      }
+    }, [buildings, gridW, gridH]);
+
+    // ── Apply zoom + trigger LOD swap when threshold crossed ──────────────
+
+    const applyZoom = useCallback((newOrthoSize: number) => {
+      const canvas = canvasRef.current;
+      const prevLOD = currentLODRef.current;
+
+      orthoSizeRef.current = newOrthoSize;
+      if (canvas) applyOrtho(newOrthoSize, canvas);
+
+      const newLOD = getLODLevel(newOrthoSize);
+      if (newLOD !== prevLOD) {
+        currentLODRef.current = newLOD;
+        rebuildBuildings(newOrthoSize);
+      }
+    }, [applyOrtho, rebuildBuildings]);
 
     // ── Babylon.js initialization ──────────────────────────────────────────
 
@@ -448,7 +492,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
 
         const pos = gridToWorld(b.x, b.y, gridW, gridH);
         if (loader.has(b.type)) {
-          const inst = loader.instantiate(b.type, b.id, pos, cs, shadowGen);
+          const inst = loader.instantiate(b.type, b.id, pos, cs, shadowGen, orthoSizeRef.current);
           if (inst) instances.set(b.id, inst);
         }
         // If no GLB yet: loader will have it next time buildings state changes or on preload completion
@@ -539,12 +583,12 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       const onWheel = (e: WheelEvent) => {
         e.preventDefault();
         const factor = e.deltaY > 0 ? 1.12 : 0.88;
-        orthoSizeRef.current = Math.max(0.12, Math.min(1.6, orthoSizeRef.current * factor));
-        applyOrtho(orthoSizeRef.current, canvas);
+        const newSize = Math.max(0.12, Math.min(1.6, orthoSizeRef.current * factor));
+        applyZoom(newSize);
       };
       canvas.addEventListener('wheel', onWheel, { passive: false });
       return () => canvas.removeEventListener('wheel', onWheel);
-    }, [applyOrtho]);
+    }, [applyZoom]);
 
     // ── Touch pinch-zoom ───────────────────────────────────────────────────
 
@@ -585,12 +629,11 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const newDist = Math.hypot(dx, dy);
         const factor = pinchRef.current.dist / newDist;
-        orthoSizeRef.current = Math.max(0.12, Math.min(1.6, orthoSizeRef.current * factor));
+        const newSize = Math.max(0.12, Math.min(1.6, orthoSizeRef.current * factor));
         pinchRef.current.dist = newDist;
-        const canvas = canvasRef.current;
-        if (canvas) applyOrtho(orthoSizeRef.current, canvas);
+        applyZoom(newSize);
       }
-    }, [clampTarget, applyOrtho]);
+    }, [clampTarget, applyZoom]);
 
     const handleTouchEnd = useCallback(() => {
       dragRef.current.active = false;
@@ -613,20 +656,12 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     // ── Imperative handle (CommandBar zoom buttons) ────────────────────────
 
     useImperativeHandle(ref, () => ({
-      zoomIn: () => {
-        orthoSizeRef.current = Math.max(0.12, orthoSizeRef.current * 0.82);
-        const canvas = canvasRef.current;
-        if (canvas) applyOrtho(orthoSizeRef.current, canvas);
-      },
-      zoomOut: () => {
-        orthoSizeRef.current = Math.min(1.6, orthoSizeRef.current * 1.22);
-        const canvas = canvasRef.current;
-        if (canvas) applyOrtho(orthoSizeRef.current, canvas);
-      },
+      zoomIn:  () => applyZoom(Math.max(0.12, orthoSizeRef.current * 0.82)),
+      zoomOut: () => applyZoom(Math.min(1.6,  orthoSizeRef.current * 1.22)),
       startAIGeneration: () => { /* no-op: procedural terrain */ },
       toggleBuildPanel: () => setShowBuildPanel((prev) => !prev),
       toggleMinimap: () => setShowMinimap((prev) => !prev),
-    }), [applyOrtho]);
+    }), [applyZoom]);
 
     // ── Render ─────────────────────────────────────────────────────────────
 
