@@ -7,9 +7,9 @@ export type { GlobalResources, ColonyResources, ChemicalInventory, PlayerProfile
 export type { ObservedRange, SystemObservation, SystemResearchState, ResearchSlot, ResearchState } from './research.js';
 export type {
   TerrainType, BiomeType, SurfaceTile, SurfaceMap,
-  SurfaceResourceDeposit, BuildingType, BuildingDef,
+  SurfaceResourceDeposit, BuildingType, BuildingDef, AdjacencyBonus,
   PlacedBuilding, SurfaceState,
 } from './surface.js';
-export { BUILDING_DEFS, canPlaceBuilding } from './surface.js';
+export { BUILDING_DEFS, canPlaceBuilding, getActiveBonuses } from './surface.js';
 export type { CoreSystem, GalaxyGroupCore, GalaxyGroup } from './galaxy-group.js';
 export type { GalacticPosition, GalaxyGroupMeta, PlayerGalaxyAssignment } from './galaxy-map.js';

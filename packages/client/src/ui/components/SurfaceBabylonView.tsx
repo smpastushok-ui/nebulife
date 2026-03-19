@@ -158,6 +158,61 @@ function cellSize(gridW: number, gridH: number): number {
 }
 
 /**
+ * Monolith Rule: returns true if (gx, gz) is directly adjacent (4-dir) to any placed building.
+ * Used to enforce that new buildings must connect to the existing colony.
+ */
+function isAdjacentToCity(gx: number, gz: number, buildings: PlacedBuilding[]): boolean {
+  return buildings.some(
+    (b) =>
+      (Math.abs(b.x - gx) === 1 && b.y === gz) ||
+      (b.x === gx && Math.abs(b.y - gz) === 1),
+  );
+}
+
+/**
+ * Canonical key for a corridor between two adjacent grid cells.
+ * Sorted so (A→B) and (B→A) produce the same key → no duplicate corridors.
+ */
+function corridorKey(gx1: number, gz1: number, gx2: number, gz2: number): string {
+  if (gx1 > gx2 || (gx1 === gx2 && gz1 > gz2))
+    return `${gx2}_${gz2}_${gx1}_${gz1}`;
+  return `${gx1}_${gz1}_${gx2}_${gz2}`;
+}
+
+/**
+ * Smart Corridor: procedural flat-slab mesh connecting two adjacent buildings.
+ * Horizontal span (gz1===gz2) → oriented along X; vertical span → along Z.
+ */
+function createCorridor(
+  gx1: number, gz1: number,
+  gx2: number, gz2: number,
+  gridW: number, gridH: number,
+  seed: number, cs: number, scene: Scene,
+): Mesh {
+  const p1 = gridToWorld(gx1, gz1, gridW, gridH, seed);
+  const p2 = gridToWorld(gx2, gz2, gridW, gridH, seed);
+  const mid = Vector3.Lerp(p1, p2, 0.5);
+  const isHoriz = gz1 === gz2; // same row → corridor spans X axis
+
+  const key = corridorKey(gx1, gz1, gx2, gz2);
+  const box = MeshBuilder.CreateBox(`cor_${key}`, {
+    width:  isHoriz ? cs * 0.9 : cs * 0.28,  // long dim spans the cell, short = 28%
+    height: cs * 0.05,                         // thin flat slab
+    depth:  isHoriz ? cs * 0.28 : cs * 0.9,
+  }, scene);
+
+  box.position.copyFrom(mid);
+  box.position.y = Math.max(p1.y, p2.y) + cs * 0.04; // rest on terrain
+  box.isPickable = false;
+
+  const mat = new StandardMaterial(`corMat_${key}`, scene);
+  mat.diffuseColor  = new Color3(0.22, 0.38, 0.50);  // steel-blue
+  mat.specularColor = new Color3(0.25, 0.25, 0.25);
+  box.material = mat;
+  return box;
+}
+
+/**
  * Contact shadow disc — a soft dark oval placed below each building.
  * Visually "grounds" the GLB model by simulating ambient occlusion contact shadow.
  * Sun direction: DirectionalLight(-1,-2,-0.8) → XZ projection normalized ≈ (-0.78,-0.62)
@@ -227,6 +282,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     const glbInstancesRef = useRef<Map<string, PlacedGLBInstance>>(new Map());
     const placeholderMeshesRef = useRef<Map<string, Mesh>>(new Map());
     const shadowDiscsRef = useRef<Map<string, Mesh>>(new Map());
+    const corridorMeshesRef = useRef<Map<string, Mesh>>(new Map()); // Smart Corridors
 
     // Navigation
     const orthoSizeRef = useRef(0.55);                                         // controls zoom level
@@ -311,13 +367,15 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       const ctx = tex.getContext();
       ctx.clearRect(0, 0, gridW, gridH);
       if (selectedType) {
+        // Monolith Rule: when city exists, only highlight cells adjacent to existing buildings
+        const hasCity = buildings.length > 0;
         for (let gx = 0; gx < gridW; gx++) {
           for (let gy = 0; gy < gridH; gy++) {
-            if (isCellBuildableFor(gx, gy, planet.seed, waterCoverage, selectedType)) {
-              const occupied = buildings.some((b) => b.x === gx && b.y === gy);
-              ctx.fillStyle = occupied ? 'rgba(255,80,80,0.4)' : 'rgba(68,255,136,0.28)';
-              ctx.fillRect(gx, gy, 1, 1);
-            }
+            if (!isCellBuildableFor(gx, gy, planet.seed, waterCoverage, selectedType)) continue;
+            if (hasCity && !isAdjacentToCity(gx, gy, buildings)) continue;
+            const occupied = buildings.some((b) => b.x === gx && b.y === gy);
+            ctx.fillStyle = occupied ? 'rgba(255,80,80,0.4)' : 'rgba(68,255,136,0.28)';
+            ctx.fillRect(gx, gy, 1, 1);
           }
         }
       }
@@ -327,6 +385,47 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     useEffect(() => {
       updateZoneOverlay(selectedBuilding);
     }, [selectedBuilding, updateZoneOverlay]);
+
+    // ── Smart Corridors — sync procedural connection slabs between adjacent buildings ──
+
+    const syncCorridors = useCallback(() => {
+      const scene = sceneRef.current;
+      if (!scene) return;
+      const corridors = corridorMeshesRef.current;
+      const cs = cellSize(gridW, gridH);
+
+      // Build expected set: all adjacent (horizontal or vertical) building pairs
+      const expectedKeys = new Set<string>();
+      for (const b of buildings) {
+        for (const [dx, dz] of [[1, 0], [0, 1]] as [number, number][]) {
+          const nx = b.x + dx, nz = b.y + dz;
+          if (buildings.some((n) => n.x === nx && n.y === nz)) {
+            expectedKeys.add(corridorKey(b.x, b.y, nx, nz));
+          }
+        }
+      }
+
+      // Remove stale corridors
+      for (const [key, mesh] of corridors) {
+        if (!expectedKeys.has(key)) {
+          mesh.dispose();
+          corridors.delete(key);
+        }
+      }
+
+      // Spawn missing corridors
+      for (const key of expectedKeys) {
+        if (!corridors.has(key)) {
+          const [gx1, gz1, gx2, gz2] = key.split('_').map(Number);
+          corridors.set(
+            key,
+            createCorridor(gx1, gz1, gx2, gz2, gridW, gridH, planet.seed, cs, scene),
+          );
+        }
+      }
+    }, [buildings, gridW, gridH, planet.seed]);
+
+    useEffect(() => { syncCorridors(); }, [syncCorridors]);
 
     // ── Rebuild all GLB instances at a new LOD level ───────────────────────
     // Called only when orthoSize crosses a LOD threshold — not on every zoom tick.
@@ -611,6 +710,8 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
         glbInstancesRef.current.clear();
         placeholderMeshesRef.current.clear();
         shadowDiscsRef.current.clear();
+        corridorMeshesRef.current.forEach((m) => m.dispose());
+        corridorMeshesRef.current.clear();
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planet.seed]);
@@ -663,6 +764,18 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
               if (!shadowDiscs.has(b.id)) {
                 shadowDiscs.set(b.id, createContactShadowDisc(b.id, pos, cs, scene));
               }
+              // Nano-print animation: reveal building from bottom (scale Y: 0 → final) over 800ms
+              const root = inst.rootNode;
+              const finalY = root.scaling.y;
+              root.scaling.y = 0;
+              const t0 = performance.now();
+              const animateBuild = () => {
+                const t = Math.min(1, (performance.now() - t0) / 800);
+                const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+                root.scaling.y = finalY * eased;
+                if (t < 1) requestAnimationFrame(animateBuild);
+              };
+              requestAnimationFrame(animateBuild);
             }
           }
         } else if (!instances.has(b.id) && !placeholders.has(b.id)) {
@@ -740,6 +853,8 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       if (gx < 0 || gx >= gridW || gz < 0 || gz >= gridH) return;
       if (!isCellBuildableFor(gx, gz, planet.seed, waterCoverage, selectedBuilding)) return;
       if (buildings.some((b) => b.x === gx && b.y === gz)) return;
+      // Monolith Rule: all buildings after the first must connect to the existing colony
+      if (buildings.length > 0 && !isAdjacentToCity(gx, gz, buildings)) return;
 
       const newBuilding: PlacedBuilding = {
         id: `bld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,

@@ -18,6 +18,7 @@ import {
 } from '@babylonjs/core';
 import { DracoCompression } from '@babylonjs/core/Meshes/Compression/dracoCompression';
 import '@babylonjs/loaders/glTF';
+import { BUILDING_DEFS } from '@nebulife/core';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ export interface PlacedGLBInstance {
   type: string;
   lod: LODLevel;
   rootMeshes: AbstractMesh[];
+  rootNode: TransformNode;  // for animation (nano-print scale Y)
 }
 
 // ── Loader class ─────────────────────────────────────────────────────────────
@@ -189,9 +191,15 @@ export class BuildingGLBLoader {
       const maxDim = Math.max(sizeX, sizeY, sizeZ);
 
       if (maxDim > 0) {
-        // 2.5× cell size: buildings are visually prominent on the terrain.
-        // Cells are ~1/64 world units wide — 1.2× was too small to see at default zoom.
-        const scale = (cellSize * 2.5) / maxDim;
+        // XZ-fit scaling: fit the model's XZ footprint into its tile (sizeW × sizeH cells).
+        // Preserves aspect ratio — the shortest XZ dimension determines the scale factor.
+        // Falls back to 2.5× maxDim for flat/degenerate models (sizeX or sizeZ ≈ 0).
+        const def = BUILDING_DEFS[type as keyof typeof BUILDING_DEFS];
+        const tw = (def?.sizeW ?? 1) * cellSize;  // tile width in world units
+        const th = (def?.sizeH ?? 1) * cellSize;  // tile depth in world units
+        const scale = (sizeX > 0.0001 && sizeZ > 0.0001)
+          ? Math.min(tw / sizeX, th / sizeZ) * 0.92  // 8% margin around tile edges
+          : (cellSize * 2.5) / maxDim;
         root.scaling.setAll(scale);
 
         // Position the root so the model's bottom sits exactly on the terrain (position.y).
@@ -222,7 +230,7 @@ export class BuildingGLBLoader {
       rootMeshes.push(root);
     }
 
-    return { id: instanceId, type, lod, rootMeshes };
+    return { id: instanceId, type, lod, rootMeshes, rootNode: root };
   }
 
   // ── Remove an instantiated building ─────────────────────────────────────
