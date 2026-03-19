@@ -14,7 +14,7 @@ import React, {
 import {
   Engine, Scene, ArcRotateCamera, Camera,
   HemisphericLight, DirectionalLight, CascadedShadowGenerator,
-  DefaultRenderingPipeline, SSAO2RenderingPipeline,
+  DefaultRenderingPipeline,
   Vector3, Vector2, Color3, Color4,
   MeshBuilder, Mesh, ShaderMaterial, DynamicTexture, StandardMaterial,
   Viewport,
@@ -420,20 +420,15 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       scene.environmentIntensity = 0.4; // subtle — directional light still dominates
 
       // Atmospheric fog — hides terrain edge, adds depth
+      // EXP2 formula: factor = e^(-(density * dist)^2). terrain ≈ 1 unit wide;
+      // density 0.6 → ~30% fog at edges, good soft vignette effect
       scene.fogMode    = Scene.FOGMODE_EXP2;
-      scene.fogDensity = 2.5;
+      scene.fogDensity = 0.6;
       scene.fogColor   = new Color3(0.02, 0.03, 0.05);
 
-      // SSAO2 — contact shadows: darkens where objects meet the ground surface
-      const ssao = new SSAO2RenderingPipeline('ssao', scene, {
-        ssaoRatio: 0.5,  // half resolution for performance
-        blurRatio: 1.0,
-      }, [camera]);
-      ssao.radius        = 0.02;
-      ssao.totalStrength = 1.5;
-      ssao.base          = 0.1;
-
       // DefaultRenderingPipeline — bloom + fxaa + image processing
+      // Note: SSAO2RenderingPipeline conflicts with DefaultRenderingPipeline on the
+      // same orthographic camera → black models. Use only one pipeline per camera.
       const pipeline = new DefaultRenderingPipeline('default', true, scene, [camera]);
       pipeline.bloomEnabled          = true;
       pipeline.bloomThreshold        = 0.8;
