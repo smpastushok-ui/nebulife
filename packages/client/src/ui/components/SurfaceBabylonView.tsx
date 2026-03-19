@@ -93,13 +93,63 @@ function isCellBuildableFor(
   return BUILDING_DEFS[buildingType].requiresTerrain.includes(terrain);
 }
 
-/** Grid cell (gx, gz) → world XZ position (terrain is 1×1 in XZ, center at origin) */
-function gridToWorld(gx: number, gz: number, gridW: number, gridH: number): Vector3 {
-  return new Vector3(
-    (gx + 0.5) / gridW - 0.5,
-    0,
-    (gz + 0.5) / gridH - 0.5,
-  );
+// ── Terrain elevation helpers (JS mirror of vertex shader FBM) ──────────────
+
+const TERRAIN_HEIGHT_SCALE = 0.018; // must match terrainMat.setFloat('uHeightScale', ...)
+
+function _hash2JS(x: number, y: number): number {
+  let px = (x * 443.897) % 1;
+  let py = (y * 397.297) % 1;
+  if (px < 0) px += 1;
+  if (py < 0) py += 1;
+  const dot = px * py + px * 0.0001 + py * 0.0001; // approx dot(p, p.yx + 19.19)
+  px += dot; py += dot;
+  return Math.abs((px + py) * px) % 1;
+}
+
+function _noise2JS(px: number, py: number): number {
+  const ix = Math.floor(px), iy = Math.floor(py);
+  let fx = px - ix, fy = py - iy;
+  fx = fx * fx * (3 - 2 * fx);
+  fy = fy * fy * (3 - 2 * fy);
+  const a = _hash2JS(ix,     iy);
+  const b = _hash2JS(ix + 1, iy);
+  const c = _hash2JS(ix,     iy + 1);
+  const d = _hash2JS(ix + 1, iy + 1);
+  return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+}
+
+function _fbm2JS(px: number, py: number): number {
+  let v = 0, a = 0.5;
+  for (let i = 0; i < 5; i++) {
+    v += a * _noise2JS(px, py);
+    px *= 2; py *= 2; a *= 0.5;
+  }
+  return v;
+}
+
+function getTerrainElevationJS(u: number, v: number, seed: number): number {
+  const s1 = Math.abs(Math.sin(seed * 0.00001)         * 43758.5453) % 1;
+  const s2 = Math.abs(Math.sin(seed * 0.000013 + 7.31) * 24681.1357) % 1;
+  const sx = s1 * 50, sy = s2 * 50;
+  const wx = (u - 0.5) + sx, wz = (v - 0.5) + sy;
+  const elev      = _fbm2JS(wx * 3.0 + sx, wz * 3.0 + sy);
+  const continents = _fbm2JS(wx * 0.8 + sx * 3, wz * 0.8 + sy * 3);
+  return elev * 0.6 + continents * 0.4;
+}
+
+/** Grid cell (gx, gz) → world position with terrain height (terrain is 1×1 in XZ, center at origin) */
+function gridToWorld(
+  gx: number, gz: number,
+  gridW: number, gridH: number,
+  seed?: number,
+): Vector3 {
+  const u = (gx + 0.5) / gridW;
+  const v = (gz + 0.5) / gridH;
+  const y = seed !== undefined
+    ? getTerrainElevationJS(u, v, seed) * TERRAIN_HEIGHT_SCALE
+    : 0;
+  return new Vector3(u - 0.5, y, v - 0.5);
 }
 
 /** Minimum cell size for building scaling */
@@ -267,7 +317,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
 
       // Re-instantiate with new LOD
       for (const b of buildings) {
-        const pos = gridToWorld(b.x, b.y, gridW, gridH);
+        const pos = gridToWorld(b.x, b.y, gridW, gridH, planet.seed);
         if (loader.has(b.type)) {
           const inst = loader.instantiate(b.type, b.id, pos, cs, shadowGen, newOrthoSize);
           if (inst) instances.set(b.id, inst);
@@ -415,6 +465,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
             'uPan', 'uZoom', 'uTime',
             'uHasLava', 'uVolc', 'uWind', 'uType',
             'uFeAbundance', 'uSiAbundance', 'uCAbundance', 'uSAbundance', 'uAspect',
+            'uHeightScale', // vertex shader height displacement
           ],
         },
       );
@@ -443,6 +494,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       terrainMat.setFloat('uCAbundance', cAbund);
       terrainMat.setFloat('uSAbundance', sAbund);
       terrainMat.setFloat('uAspect', 1.0); // UV tied to geometry, no aspect compensation
+      terrainMat.setFloat('uHeightScale', TERRAIN_HEIGHT_SCALE);
 
       terrainMat.backFaceCulling = false;
       ground.material = terrainMat;
@@ -545,7 +597,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
 
       // Add or upgrade buildings
       for (const b of buildings) {
-        const pos = gridToWorld(b.x, b.y, gridW, gridH);
+        const pos = gridToWorld(b.x, b.y, gridW, gridH, planet.seed);
 
         if (loader.has(b.type)) {
           // GLB is ready — remove placeholder if any, instantiate real model
