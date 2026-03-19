@@ -419,12 +419,10 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       scene.createDefaultEnvironment({ createGround: false, createSkybox: false });
       scene.environmentIntensity = 0.4; // subtle — directional light still dominates
 
-      // Atmospheric fog — hides terrain edge, adds depth
-      // EXP2 formula: factor = e^(-(density * dist)^2). terrain ≈ 1 unit wide;
-      // density 0.6 → ~30% fog at edges, good soft vignette effect
-      scene.fogMode    = Scene.FOGMODE_EXP2;
-      scene.fogDensity = 0.6;
-      scene.fogColor   = new Color3(0.02, 0.03, 0.05);
+      // Fog is disabled: orthographic camera keeps all objects at the same distance
+      // (~5 units radius), so any EXP2 density thick enough to show at terrain edges
+      // also makes buildings black. Edge vignette is handled by the fragment shader.
+      scene.fogMode = Scene.FOGMODE_NONE;
 
       // DefaultRenderingPipeline — bloom + fxaa + image processing
       // Note: SSAO2RenderingPipeline conflicts with DefaultRenderingPipeline on the
