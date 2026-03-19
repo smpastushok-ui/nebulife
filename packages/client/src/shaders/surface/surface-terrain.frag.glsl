@@ -553,13 +553,17 @@ void main() {
     biomeColor = mix(biomeColor, sandColor, sandFactor * 0.6);
   }
 
-  // ---- Slope / Normal shading ----
+  // ---- Slope / Normal shading + micronormal roughness ----
   float eps = 0.008;
   float ex = fbm2((warpedPos + vec2(eps, 0.0)) * 3.0, 3);
   float ey = fbm2((warpedPos + vec2(0.0, eps)) * 3.0, 3);
   vec2 grad = vec2(elevation - ex, elevation - ey) / eps;
-  // Light from upper-left
-  float slopeShade = 0.80 + 0.20 * dot(normalize(vec2(-0.78, -0.62)), normalize(grad + vec2(0.001)));
+  // Micronormal: high-frequency noise perturbs the gradient — sand/rock grain detail
+  float microNx = noise2(warpedPos * 60.0 + seedOff)                   - 0.5;
+  float microNy = noise2(warpedPos * 60.0 + seedOff + vec2(31.7, 17.3)) - 0.5;
+  vec2 microGrad = grad + vec2(microNx, microNy) * 0.18;
+  // Light direction matches 3D sun: DirectionalLight(-1, -2, -0.8) projected on XZ
+  float slopeShade = 0.80 + 0.20 * dot(normalize(vec2(-0.78, -0.62)), normalize(microGrad + vec2(0.001)));
   biomeColor *= slopeShade;
 
   // ---- Wind streaks ----
