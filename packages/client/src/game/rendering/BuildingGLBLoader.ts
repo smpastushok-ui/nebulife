@@ -63,15 +63,19 @@ export class BuildingGLBLoader {
   private containers = new Map<string, LODContainers>();
   private static dracoConfigured = false;
 
-  // ── Draco decoder setup (CDN, one-time) ──────────────────────────────────
+  // ── Draco decoder setup (local files, one-time) ──────────────────────────
+  // Using local /draco/ paths instead of CDN — Babylon.js v8 Tools.js rewrites
+  // any URL starting with "https://cdn.babylonjs.com" into a versioned form like
+  // "https://cdn.babylonjs.com/v8.56.0/..." which does not exist on the CDN.
+  // Files copied from node_modules/@babylonjs/core/assets/Draco/ into public/draco/.
 
   private static configureDraco(): void {
     if (BuildingGLBLoader.dracoConfigured) return;
     DracoCompression.Configuration = {
       decoder: {
-        wasmUrl:       'https://cdn.babylonjs.com/babylon.draco.wasm.js',
-        wasmBinaryUrl: 'https://cdn.babylonjs.com/babylon.draco.wasm.wasm',
-        fallbackUrl:   'https://cdn.babylonjs.com/babylon.draco.js',
+        wasmUrl:       '/draco/draco_wasm_wrapper_gltf.js',
+        wasmBinaryUrl: '/draco/draco_decoder_gltf.wasm',
+        fallbackUrl:   '/draco/draco_decoder_gltf.js',
       },
     };
     BuildingGLBLoader.dracoConfigured = true;
