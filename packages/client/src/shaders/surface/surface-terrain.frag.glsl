@@ -261,7 +261,7 @@ void main() {
     float ex = fbm2((warpedPos + vec2(eps, 0.0)) * 5.0 + seedOff, 3);
     float ey = fbm2((warpedPos + vec2(0.0, eps)) * 5.0 + seedOff, 3);
     vec2 grad = vec2(iceNoise - ex, iceNoise - ey) / eps;
-    float shade = 0.85 + 0.15 * dot(normalize(vec2(-0.7, 0.5)), normalize(grad + vec2(0.001)));
+    float shade = 0.85 + 0.15 * dot(normalize(vec2(-0.78, -0.62)), normalize(grad + vec2(0.001)));
     col *= shade;
 
     // Edge darkening
@@ -318,7 +318,7 @@ void main() {
     float ex = fbm2((warpedPos + vec2(eps, 0.0)) * 4.0 + seedOff, 3);
     float ey = fbm2((warpedPos + vec2(0.0, eps)) * 4.0 + seedOff, 3);
     vec2 grad = vec2(crustNoise - ex, crustNoise - ey) / eps;
-    float shade = 0.80 + 0.20 * dot(normalize(vec2(-0.7, 0.5)), normalize(grad + vec2(0.001)));
+    float shade = 0.80 + 0.20 * dot(normalize(vec2(-0.78, -0.62)), normalize(grad + vec2(0.001)));
     col *= shade;
 
     // Heat haze (subtle color shift)
@@ -375,7 +375,7 @@ void main() {
     float ex = fbm2((warpedPos + vec2(eps, 0.0)) * 4.0 + seedOff, 3);
     float ey = fbm2((warpedPos + vec2(0.0, eps)) * 4.0 + seedOff, 3);
     vec2 grad = vec2(terrainNoise - ex, terrainNoise - ey) / eps;
-    float shade = 0.80 + 0.20 * dot(normalize(vec2(-0.7, 0.5)), normalize(grad + vec2(0.001)));
+    float shade = 0.80 + 0.20 * dot(normalize(vec2(-0.78, -0.62)), normalize(grad + vec2(0.001)));
     col *= shade;
 
     // Edge darkening
@@ -420,9 +420,7 @@ void main() {
       waterColor += vec3(0.02) * smoothstep(0.55, 0.75, windWave) * uWind;
     }
 
-    // Cloud shadows on water
-    float cloudSh = fbm2(worldPos * 1.5 + vec2(uTime * 0.02, uTime * 0.01), 3);
-    waterColor *= 0.90 + 0.10 * smoothstep(0.3, 0.6, cloudSh);
+    // (cloud shadow removed — on ground surface camera is below clouds)
 
     // Edge darkening
     waterColor *= 1.0 - length(vUv - 0.5) * 0.25;
@@ -561,7 +559,7 @@ void main() {
   float ey = fbm2((warpedPos + vec2(0.0, eps)) * 3.0, 3);
   vec2 grad = vec2(elevation - ex, elevation - ey) / eps;
   // Light from upper-left
-  float slopeShade = 0.80 + 0.20 * dot(normalize(vec2(-0.7, 0.5)), normalize(grad + vec2(0.001)));
+  float slopeShade = 0.80 + 0.20 * dot(normalize(vec2(-0.78, -0.62)), normalize(grad + vec2(0.001)));
   biomeColor *= slopeShade;
 
   // ---- Wind streaks ----
@@ -571,9 +569,7 @@ void main() {
     biomeColor += vec3(streakMask);
   }
 
-  // ---- Cloud shadows ----
-  float cloudShadow = fbm2(worldPos * 1.5 + vec2(uTime * 0.02, uTime * 0.01), 3);
-  biomeColor *= 0.88 + 0.12 * smoothstep(0.3, 0.6, cloudShadow);
+  // (cloud shadow removed — surface view camera is below clouds)
 
   // ---- Detail noise ----
   float detail = noise2(warpedPos * 30.0) * 0.05 - 0.025;
