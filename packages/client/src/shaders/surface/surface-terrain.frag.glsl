@@ -33,6 +33,7 @@ uniform float uFeAbundance;      // Fe -> rust-red
 uniform float uSiAbundance;      // Si -> pale sandy
 uniform float uCAbundance;       // C  -> dark soil
 uniform float uSAbundance;       // S  -> yellow tint
+uniform float uAspect;           // viewport W/H — compensates for non-square screen
 
 varying vec2 vUv;
 
@@ -128,6 +129,7 @@ void main() {
   float seedH2 = fract(sin(uSeed * 0.000013 + 7.31) * 24681.1357);
   vec2 seedOff = vec2(seedH1 * 50.0, seedH2 * 50.0);
   vec2 worldPos = (vUv - 0.5) / uZoom + uPan + seedOff;
+  worldPos.x *= uAspect; // compensate for non-square viewport so terrain features appear round
 
   // Latitude (0=equator, 1=poles) for biome selection
   // Noise-offset breaks horizontal band coherence for organic biome edges

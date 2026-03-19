@@ -392,12 +392,11 @@ function BuildingListContent({
 /* ─── Icon dock (right side) ───────────────────────────────────────────── */
 
 function IconDock({
-  mode, panelOpen, onToggle, onClose,
+  mode, panelOpen, onToggle,
 }: {
   mode: DockMode;
   panelOpen: boolean;
   onToggle: (m: DockMode) => void;
-  onClose: () => void;
 }) {
   const dockBtn = (
     active: boolean,
@@ -448,15 +447,6 @@ function IconDock({
           <line x1="2" y1="12" x2="14" y2="12" />
         </svg>,
         () => onToggle('colony'),
-      )}
-      <div style={{ height: 6 }} />
-      {dockBtn(
-        false, 'Сховати',
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <line x1="1" y1="1" x2="11" y2="11" />
-          <line x1="11" y1="1" x2="1" y2="11" />
-        </svg>,
-        onClose,
       )}
     </div>
   );
@@ -568,7 +558,6 @@ export function SurfacePanel({
         mode={mode}
         panelOpen={panelOpen}
         onToggle={handleDockToggle}
-        onClose={onClose}
       />
     </div>
   );

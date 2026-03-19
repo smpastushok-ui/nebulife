@@ -271,6 +271,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
           uSiAbundance: { value: siAbund },
           uCAbundance: { value: cAbund },
           uSAbundance: { value: sAbund },
+          uAspect: { value: w / h },
         },
       });
       materialRef.current = material;
@@ -393,6 +394,8 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
         const rw = mount.clientWidth;
         const rh = mount.clientHeight;
         renderer.setSize(rw, rh);
+        // Keep aspect ratio uniform in sync so terrain looks correct on resize
+        if (rh > 0) material.uniforms.uAspect.value = rw / rh;
       };
       window.addEventListener('resize', handleResize);
 
@@ -574,7 +577,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       dragRef.current.startX = e.clientX;
       dragRef.current.startY = e.clientY;
       panRef.current.x -= dx;
-      panRef.current.y -= dy;
+      panRef.current.y += dy; // +dy: drag down → terrain follows down (natural grab)
       clampPan();
       drawOverlay();
     }, [drawOverlay]);
@@ -597,7 +600,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       dragRef.current.startX = e.touches[0].clientX;
       dragRef.current.startY = e.touches[0].clientY;
       panRef.current.x -= dx;
-      panRef.current.y -= dy;
+      panRef.current.y += dy; // +dy: drag down → terrain follows down (natural grab)
       clampPan();
       drawOverlay();
     }, [clampPan, drawOverlay]);

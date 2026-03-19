@@ -86,10 +86,11 @@ export class BuildingRenderer {
     this.labelGroup.renderOrder = 3;
     scene.add(this.labelGroup);
 
-    // Shared geometries
-    const cellSize = this.getCellSize();
-    this.planeGeo = new THREE.PlaneGeometry(cellSize * 1.4, cellSize * 1.4);
-    this.shadowGeo = new THREE.PlaneGeometry(cellSize * 1.2, cellSize * 0.5);
+    // Shared geometries — use separate X/Y cell sizes so sprites appear square in pixels
+    const csX = this.getCellSizeX();
+    const csY = this.getCellSizeY();
+    this.planeGeo = new THREE.PlaneGeometry(csX * 1.4, csY * 1.4);
+    this.shadowGeo = new THREE.PlaneGeometry(csX * 1.2, csY * 0.5);
 
     // Shadow material
     this.shadowMat = new THREE.MeshBasicMaterial({
@@ -100,9 +101,11 @@ export class BuildingRenderer {
     });
   }
 
-  private getCellSize(): number {
-    return Math.max(1 / this.gridW, 1 / this.gridH);
-  }
+  /** Cell width in scene units (horizontal) */
+  private getCellSizeX(): number { return 1 / this.gridW; }
+
+  /** Cell height in scene units (vertical) */
+  private getCellSizeY(): number { return 1 / this.gridH; }
 
   /** Convert grid position to base scene coordinates */
   private gridToBase(gx: number, gy: number): { x: number; y: number } {
@@ -165,8 +168,7 @@ export class BuildingRenderer {
     });
 
     const sprite = new THREE.Sprite(material);
-    const cellSize = this.getCellSize();
-    sprite.scale.set(cellSize * 2.5, cellSize * 0.6, 1);
+    sprite.scale.set(this.getCellSizeX() * 2.5, this.getCellSizeY() * 0.6, 1);
 
     return sprite;
   }
@@ -183,17 +185,16 @@ export class BuildingRenderer {
 
     // Shadow mesh (offset lower-right to match terrain shader light: upper-left)
     const shadowMesh = new THREE.Mesh(this.shadowGeo, this.shadowMat);
-    const cellSize = this.getCellSize();
     shadowMesh.position.set(
-      pos.x + cellSize * 0.15,
-      pos.y - cellSize * 0.12,
+      pos.x + this.getCellSizeX() * 0.15,
+      pos.y - this.getCellSizeY() * 0.12,
       0.001,
     );
     this.shadowGroup.add(shadowMesh);
 
     // Label sprite
     const labelSprite = this.createLabelSprite(b.type, b.level);
-    labelSprite.position.set(pos.x, pos.y - cellSize * 0.8, 0.003);
+    labelSprite.position.set(pos.x, pos.y - this.getCellSizeY() * 0.8, 0.003);
     this.labelGroup.add(labelSprite);
 
     this.meshes.set(b.id, {
