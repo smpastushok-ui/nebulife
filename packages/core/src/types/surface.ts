@@ -121,7 +121,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     type: 'colony_hub',
     name: 'Центр колонії',
     description: 'Головна база управління колонією',
-    size: 1, sizeW: 1, sizeH: 1,
+    size: 4, sizeW: 4, sizeH: 4,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'Fe', amount: 50 }, { resource: 'Al', amount: 30 }],
     adjacencyBonuses: [
@@ -183,6 +183,50 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     requiresTerrain: ['hills', 'mountains'],
     cost: [{ resource: 'Ti', amount: 25 }, { resource: 'Si', amount: 20 }],
   },
+};
+
+// ---------------------------------------------------------------------------
+// Harvest / regrowth system
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Harvestable surface object types
+// ---------------------------------------------------------------------------
+
+/** Types of harvestable objects on the surface. */
+export type SurfaceObjectType = 'tree' | 'ore' | 'vent';
+
+/** Stage of a tree cell after being harvested. */
+export type CellHarvestState = 'stump' | 'grass' | 'tree-small';
+
+/** Stage of an ore deposit after being harvested. */
+export type OreHarvestState = 'depleted' | 'ore-small';
+
+/** Stage of a vent after being harvested. */
+export type VentHarvestState = 'dry' | 'vent-small';
+
+/**
+ * Override state for a grid cell that has been harvested.
+ * Stored in localStorage and used by SurfaceScene to override the default tile.
+ *
+ * Regrowth cycles:
+ *   tree: stump → grass → tree-small → tree (removed) — 1h per stage
+ *   ore:  depleted → ore-small → ore (removed)         — 1h per stage
+ *   vent: dry → vent-small → vent (removed)             — 2h per stage
+ */
+export interface HarvestedCell {
+  objectType?:  SurfaceObjectType;  // 'tree' if undefined (backward compat)
+  state:        CellHarvestState | OreHarvestState | VentHarvestState;
+  grassVariant: number;   // 0–2 → atlas frame 10/11/12 (deterministic per cell)
+  treeVariant:  number;   // 0–2 → atlas frame 13/14/15 (or ore 18-20, vent 21-23)
+  changedAt:    number;   // Date.now() ms — when state last changed
+}
+
+/** Regrowth duration per stage in milliseconds, keyed by object type. */
+export const REGROWTH_STAGE_MS: Record<SurfaceObjectType, number> = {
+  tree: 3_600_000,   // 1 hour per stage (3 stages = 3h total)
+  ore:  3_600_000,   // 1 hour per stage (2 stages = 2h total)
+  vent: 7_200_000,   // 2 hours per stage (2 stages = 4h total)
 };
 
 /** Check if a building can be placed on a given tile */

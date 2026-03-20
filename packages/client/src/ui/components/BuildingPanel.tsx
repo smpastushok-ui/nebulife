@@ -8,6 +8,13 @@ interface BuildingPanelProps {
   onClose: () => void;
 }
 
+/* ---- Building PNG previews (served from /buildings/) ---- */
+
+/** Buildings that have a real PNG preview image */
+const BUILDING_PREVIEW: Partial<Record<BuildingType, string>> = {
+  colony_hub: '/buildings/colony_hub.png',
+};
+
 /* ---- Building icon colors (no emojis per project rules) ---- */
 
 const BUILDING_COLORS: Record<BuildingType, string> = {
@@ -164,15 +171,14 @@ function BuildingCard({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const previewSrc = BUILDING_PREVIEW[type];
   return (
     <button
       onClick={onClick}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
+        display: 'block',
         width: '100%',
-        padding: '10px 14px',
+        padding: 0,
         background: isSelected ? 'rgba(40, 80, 120, 0.4)' : 'transparent',
         border: 'none',
         borderBottom: '1px solid rgba(40, 60, 80, 0.3)',
@@ -183,12 +189,52 @@ function BuildingCard({
         textAlign: 'left',
       }}
     >
-      <BuildingIcon type={type} size={28} />
-      <div>
-        <div style={{ fontWeight: isSelected ? 'bold' : 'normal', marginBottom: 2 }}>{def.name}</div>
-        <div style={{ fontSize: 10, color: '#667788' }}>{def.description}</div>
-        <div style={{ fontSize: 10, color: '#886644', marginTop: 2 }}>
-          {def.cost.map((c) => `${c.amount} ${c.resource}`).join(', ')}
+      {/* PNG preview (full-width) when available AND selected */}
+      {previewSrc && isSelected && (
+        <div style={{
+          width: '100%',
+          background: 'rgba(5,12,22,0.95)',
+          borderBottom: '1px solid rgba(60, 100, 160, 0.3)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '10px 0',
+        }}>
+          <img
+            src={previewSrc}
+            alt={def.name}
+            style={{
+              width: 160,
+              height: 160,
+              objectFit: 'contain',
+              imageRendering: 'pixelated',
+              filter: 'drop-shadow(0 0 8px rgba(68,136,170,0.5))',
+            }}
+          />
+        </div>
+      )}
+      {/* Row: icon + info */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+        {previewSrc ? (
+          <img
+            src={previewSrc}
+            alt={def.name}
+            style={{ width: 36, height: 36, objectFit: 'contain', imageRendering: 'pixelated', flexShrink: 0 }}
+          />
+        ) : (
+          <BuildingIcon type={type} size={28} />
+        )}
+        <div>
+          <div style={{ fontWeight: isSelected ? 'bold' : 'normal', marginBottom: 2 }}>{def.name}</div>
+          <div style={{ fontSize: 10, color: '#667788' }}>{def.description}</div>
+          <div style={{ fontSize: 10, color: '#886644', marginTop: 2 }}>
+            {def.cost.map((c) => `${c.amount} ${c.resource}`).join(', ')}
+          </div>
+          {(def.sizeW ?? 1) > 1 && (
+            <div style={{ fontSize: 9, color: '#445566', marginTop: 2 }}>
+              {def.sizeW}x{def.sizeH} клітинки
+            </div>
+          )}
         </div>
       </div>
     </button>

@@ -1048,6 +1048,10 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
             selectedBuilding={selectedBuilding}
             onSelectBuilding={setSelectedBuilding}
             onClose={() => setShowBuildPanel(false)}
+            harvestMode={false}
+            onToggleHarvest={() => {}}
+            roverMode={false}
+            onToggleRover={() => {}}
           />
         )}
       </div>

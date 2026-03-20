@@ -392,17 +392,22 @@ function BuildingListContent({
 /* ─── Icon dock (right side) ───────────────────────────────────────────── */
 
 function IconDock({
-  mode, panelOpen, onToggle,
+  mode, panelOpen, harvestMode, roverMode, onToggle, onToggleHarvest, onToggleRover,
 }: {
   mode: DockMode;
   panelOpen: boolean;
+  harvestMode: boolean;
+  roverMode: boolean;
   onToggle: (m: DockMode) => void;
+  onToggleHarvest: () => void;
+  onToggleRover: () => void;
 }) {
   const dockBtn = (
     active: boolean,
     title: string,
     icon: React.ReactNode,
     onClick: () => void,
+    accentColor?: string,
   ) => (
     <button
       key={title}
@@ -411,10 +416,10 @@ function IconDock({
       style={{
         width: 36, height: 36,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: active ? 'rgba(20,50,80,0.9)' : 'rgba(10,15,25,0.85)',
-        border: `1px solid ${active ? 'rgba(68,136,170,0.6)' : 'rgba(60,100,160,0.25)'}`,
+        background: active ? (accentColor ? `${accentColor}22` : 'rgba(20,50,80,0.9)') : 'rgba(10,15,25,0.85)',
+        border: `1px solid ${active ? (accentColor ?? 'rgba(68,136,170,0.6)') : 'rgba(60,100,160,0.25)'}`,
         borderRadius: 4, cursor: 'pointer',
-        color: active ? '#aaccee' : '#556677',
+        color: active ? (accentColor ?? '#aaccee') : '#556677',
         fontFamily: 'monospace', padding: 0,
         transition: 'background 0.15s, border-color 0.15s',
       }}
@@ -429,6 +434,38 @@ function IconDock({
       display: 'flex', flexDirection: 'column', gap: 6,
       pointerEvents: 'auto',
     }}>
+      {/* Rover mode toggle */}
+      {dockBtn(
+        roverMode, 'Ровер',
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+          {/* Isometric hovering platform */}
+          <polygon points="8,2 14,6 8,10 2,6" />
+          <line x1="2" y1="6" x2="2" y2="9" />
+          <line x1="14" y1="6" x2="14" y2="9" />
+          <polygon points="8,5 14,9 8,13 2,9" strokeDasharray="2,1" />
+          {/* Antenna dot */}
+          <circle cx="8" cy="2" r="1" fill="currentColor" stroke="none" />
+        </svg>,
+        onToggleRover,
+        '#44aaff',
+      )}
+
+      {/* Harvest mode toggle (pickaxe) */}
+      {dockBtn(
+        harvestMode, 'Добування',
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+          {/* Pickaxe icon */}
+          <line x1="3" y1="13" x2="10" y2="6" />
+          <path d="M10 6 L13 3 L14 4 L11 7 Z" />
+          <path d="M10 6 L8 4 L9 2 L12 5" />
+        </svg>,
+        onToggleHarvest,
+        '#ff8844',
+      )}
+
+      {/* Separator */}
+      <div style={{ height: 1, background: 'rgba(60,100,160,0.2)', margin: '2px 4px' }} />
+
       {dockBtn(
         panelOpen && mode === 'build', 'Будівлі',
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
@@ -460,6 +497,10 @@ interface SurfacePanelProps {
   selectedBuilding: BuildingType | null;
   onSelectBuilding: (type: BuildingType | null) => void;
   onClose: () => void;
+  harvestMode: boolean;
+  onToggleHarvest: () => void;
+  roverMode: boolean;
+  onToggleRover: () => void;
 }
 
 /* ─── Main panel ─────────────────────────────────────────────────────────── */
@@ -470,6 +511,10 @@ export function SurfacePanel({
   selectedBuilding,
   onSelectBuilding,
   onClose,
+  harvestMode,
+  onToggleHarvest,
+  roverMode,
+  onToggleRover,
 }: SurfacePanelProps) {
   const [mode, setMode] = useState<DockMode>('build');
   const [panelOpen, setPanelOpen] = useState(true);
@@ -553,11 +598,71 @@ export function SurfacePanel({
         </div>
       )}
 
+      {/* Rover mode hint — top-center when rover mode active */}
+      {roverMode && !selectedBuilding && (
+        <div style={{
+          position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(5,15,25,0.92)',
+          border: '1px solid rgba(68,170,255,0.3)',
+          borderRadius: 4, padding: '6px 14px',
+          fontFamily: 'monospace', fontSize: 11, color: '#4488aa',
+          display: 'flex', alignItems: 'center', gap: 10,
+          pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
+        }}>
+          <span style={{ color: '#44aaff', fontSize: 13, lineHeight: 1 }}>*</span>
+          <span style={{ color: '#aabbcc' }}>Ровер</span>
+          <span style={{ color: '#445566' }}>—</span>
+          <span style={{ color: '#556677' }}>натисніть на карту для переміщення</span>
+          <button
+            onClick={onToggleRover}
+            style={{
+              background: 'none', border: 'none', color: '#556677',
+              fontSize: 14, cursor: 'pointer', fontFamily: 'monospace',
+              padding: '0 2px', lineHeight: 1,
+            }}
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* Harvest mode hint — top-center when harvest mode active */}
+      {harvestMode && !selectedBuilding && (
+        <div style={{
+          position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(25,15,5,0.92)',
+          border: '1px solid rgba(255,136,68,0.3)',
+          borderRadius: 4, padding: '6px 14px',
+          fontFamily: 'monospace', fontSize: 11, color: '#cc8855',
+          display: 'flex', alignItems: 'center', gap: 10,
+          pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
+        }}>
+          <span style={{ color: '#ff8844', fontSize: 13, lineHeight: 1 }}>*</span>
+          <span style={{ color: '#aabbcc' }}>Режим добування</span>
+          <span style={{ color: '#445566' }}>—</span>
+          <span style={{ color: '#556677' }}>натисніть на ресурс</span>
+          <button
+            onClick={onToggleHarvest}
+            style={{
+              background: 'none', border: 'none', color: '#556677',
+              fontSize: 14, cursor: 'pointer', fontFamily: 'monospace',
+              padding: '0 2px', lineHeight: 1,
+            }}
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Icon dock — always visible right side */}
       <IconDock
         mode={mode}
         panelOpen={panelOpen}
+        harvestMode={harvestMode}
+        roverMode={roverMode}
         onToggle={handleDockToggle}
+        onToggleHarvest={onToggleHarvest}
+        onToggleRover={onToggleRover}
       />
     </div>
   );

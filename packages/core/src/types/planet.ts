@@ -6,7 +6,15 @@ import type { PlanetResources } from '../chemistry/minerals.js';
 import type { LifeComplexity } from '../biology/life-probability.js';
 
 export type PlanetType = 'rocky' | 'gas-giant' | 'ice-giant' | 'dwarf';
+export type PlanetSize = 'small' | 'medium' | 'large';
 export type MoonComposition = 'rocky' | 'icy' | 'metallic' | 'volcanic';
+
+/** Classify planet into size category based on radius. */
+export function getPlanetSize(radiusEarth: number): PlanetSize {
+  if (radiusEarth < 0.5) return 'small';
+  if (radiusEarth <= 1.25) return 'medium';
+  return 'large';
+}
 
 export interface Moon {
   id: string;

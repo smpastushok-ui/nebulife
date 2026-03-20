@@ -1,0 +1,287 @@
+/**
+ * FogLayer.ts
+ * Fog-of-war overlay for the isometric surface scene.
+ *
+ * Draws white fluffy cloud puffs over every unrevealed cell.
+ * Edge cells (adjacent to revealed) get softer half-puffs for a gradual boundary.
+ * Revealed cells are stored as "col,row" strings in a Set and
+ * persisted to localStorage under key `fog_<planetId>`.
+ *
+ * Usage:
+ *   const fog = new FogLayer(gridSize, planetId);
+ *   worldContainer.addChild(fog.container);   // topmost layer
+ *   fog.initFromBuildings(buildings);         // reveal hub area
+ *   fog.revealAround(col, row, radius);       // rover moves
+ *   fog.redraw();                             // after revealing
+ */
+
+import { Container, Graphics } from 'pixi.js';
+import type { PlacedBuilding } from '@nebulife/core';
+import { BUILDING_DEFS } from '@nebulife/core';
+import { gridToScreen, TILE_W, TILE_H } from './surface-utils.js';
+
+/** Radius (in tiles) revealed around the colony hub at game start. */
+const HUB_REVEAL_RADIUS = 5;
+
+/** Cloud puff seeds per cell — deterministic variation */
+const PUFF_SEED_MULT = 7919;
+
+export class FogLayer {
+  public readonly container: Container;
+
+  private readonly gfx: Graphics;
+  private revealedCells: Set<string> = new Set();
+  private readonly gridSize: number;
+  private readonly storageKey: string;
+
+  /** True when revealed set changed since last redraw. */
+  private dirty = true;
+
+  constructor(gridSize: number, planetId: string) {
+    this.gridSize   = gridSize;
+    this.storageKey = `fog_${planetId}`;
+
+    this.container = new Container();
+    this.gfx       = new Graphics();
+    this.container.addChild(this.gfx);
+
+    this.restore();
+  }
+
+  // ─── Public API ────────────────────────────────────────────────────────────
+
+  /** Reveal cells in a circular radius around (col, row). */
+  revealAround(col: number, row: number, radius: number): void {
+    const r   = Math.ceil(radius);
+    const r2  = radius * radius;
+    let changed = false;
+
+    for (let dc = -r; dc <= r; dc++) {
+      for (let dr = -r; dr <= r; dr++) {
+        if (dc * dc + dr * dr > r2) continue;
+        const c = Math.round(col) + dc;
+        const rr = Math.round(row) + dr;
+        if (c < 0 || c >= this.gridSize || rr < 0 || rr >= this.gridSize) continue;
+        const key = `${c},${rr}`;
+        if (!this.revealedCells.has(key)) {
+          this.revealedCells.add(key);
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      this.dirty = true;
+      this.persist();
+    }
+  }
+
+  /** Initialize fog by revealing area around the colony hub (called after init). */
+  initFromBuildings(buildings: PlacedBuilding[]): void {
+    const hub = buildings.find((b) => b.type === 'colony_hub');
+    if (hub) {
+      const def = BUILDING_DEFS[hub.type];
+      const sw  = def?.sizeW ?? 1;
+      const sh  = def?.sizeH ?? 1;
+      const cx  = hub.x + sw / 2 - 0.5;
+      const cy  = hub.y + sh / 2 - 0.5;
+      this.revealAround(cx, cy, HUB_REVEAL_RADIUS);
+    }
+    // Even if no hub yet, make sure we at least show grid origin
+    if (this.revealedCells.size === 0) {
+      this.revealAround(0, 0, HUB_REVEAL_RADIUS);
+    }
+    this.redraw();
+  }
+
+  /**
+   * Rebuild the fog graphics from the current revealedCells set.
+   * Only redraws when dirty to avoid per-frame GPU work.
+   */
+  redraw(): void {
+    if (!this.dirty) return;
+    this.dirty = false;
+
+    const gfx = this.gfx;
+    gfx.clear();
+
+    const N = this.gridSize;
+
+    // Draw in painter's order (diagonal bands) to avoid z-fighting
+    for (let d = 0; d < 2 * N - 1; d++) {
+      const colMin = Math.max(0, d - N + 1);
+      const colMax = Math.min(d, N - 1);
+      for (let col = colMin; col <= colMax; col++) {
+        const row = d - col;
+        if (this.revealedCells.has(`${col},${row}`)) continue;
+
+        // Check if this cell is on the edge (adjacent to a revealed cell)
+        const isEdge = this._hasRevealedNeighbour(col, row);
+        this._drawCloudPuff(gfx, col, row, isEdge);
+      }
+    }
+
+    // Draw permanent fog outside the map diamond
+    this._drawBorderFog(N);
+  }
+
+  /** Whether a given cell is currently revealed. */
+  isRevealed(col: number, row: number): boolean {
+    return this.revealedCells.has(`${col},${row}`);
+  }
+
+  /** Force a redraw on next call to redraw(). */
+  markDirty(): void {
+    this.dirty = true;
+  }
+
+  destroy(): void {
+    this.gfx.destroy();
+    this.container.destroy();
+  }
+
+  // ─── Persistence ──────────────────────────────────────────────────────────
+
+  private persist(): void {
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify([...this.revealedCells]));
+    } catch { /* quota exceeded — ignore */ }
+  }
+
+  private restore(): void {
+    try {
+      const saved = localStorage.getItem(this.storageKey);
+      if (saved) {
+        const arr = JSON.parse(saved) as string[];
+        this.revealedCells = new Set(arr);
+        this.dirty = true;
+      }
+    } catch { /* corrupted — start fresh */ }
+  }
+
+  // ─── Cloud puff drawing ───────────────────────────────────────────────────
+
+  /** Returns true if any of the 8 neighbours (or self) is revealed. */
+  private _hasRevealedNeighbour(col: number, row: number): boolean {
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (dc === 0 && dr === 0) continue;
+        if (this.revealedCells.has(`${col + dc},${row + dr}`)) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Draw a white fluffy cloud puff for one unrevealed cell.
+   * Edge cells (adjacent to revealed) get softer, slightly smaller puffs.
+   */
+  private _drawCloudPuff(gfx: Graphics, col: number, row: number, isEdge: boolean): void {
+    const { x, y } = gridToScreen(col, row);
+    // Screen centre of the isometric cell diamond
+    const cx = x;
+    const cy = y + TILE_H / 2;
+
+    const hw = TILE_W / 2;
+    const hh = TILE_H / 2;
+
+    // ── Solid isometric base to fully occlude the terrain ──────────────────
+    const baseAlpha = isEdge ? 0.72 : 0.96;
+    gfx.moveTo(cx,      cy - hh)
+       .lineTo(cx + hw, cy)
+       .lineTo(cx,      cy + hh)
+       .lineTo(cx - hw, cy)
+       .closePath()
+       .fill({ color: 0xffffff, alpha: baseAlpha });
+
+    // ── Fluffy cloud puffs on top for 3D cloud texture ─────────────────────
+    // Deterministic pseudo-random per cell
+    const seed = (col * PUFF_SEED_MULT + row * 1301) & 0x7fffffff;
+    const rng  = this._rng(seed);
+
+    const scale  = isEdge ? 0.72 : 1.0;
+    const alphaB = isEdge ? 0.35 : 0.55;
+
+    // Draw 4–6 overlapping puff circles
+    const count = isEdge ? 3 : 5 + (seed % 2);
+    for (let i = 0; i < count; i++) {
+      const ox = (rng() - 0.5) * TILE_W * 0.55 * scale;
+      const oy = (rng() - 0.5) * TILE_H * 0.55 * scale;
+      const r  = (10 + rng() * 12) * scale;
+      const a  = alphaB * (0.65 + rng() * 0.35);
+
+      gfx.ellipse(cx + ox, cy + oy, r, r * 0.72);
+      gfx.fill({ color: 0xffffff, alpha: a });
+    }
+  }
+
+  /** Simple seeded LCG returning floats in [0, 1). */
+  private _rng(seed: number): () => number {
+    let s = seed;
+    return () => {
+      s = (s * 1664525 + 1013904223) & 0x7fffffff;
+      return s / 0x7fffffff;
+    };
+  }
+
+  // ─── Border fog ───────────────────────────────────────────────────────────
+
+  /**
+   * Draw large white polygons that permanently cover the 4 "outside-diamond"
+   * corners and a generous margin beyond the map edges.
+   *
+   * The isometric diamond for an N×N grid has corners at:
+   *   Top:    screen (0, 0)                            ← (col=0, row=0)
+   *   Right:  screen ((N-1)*TILE_W/2, (N-1)*TILE_H/2) ← (col=N-1, row=0)
+   *   Bottom: screen (0, (N-1)*TILE_H)                ← (col=N-1, row=N-1)
+   *   Left:   screen (-(N-1)*TILE_W/2, (N-1)*TILE_H/2)← (col=0, row=N-1)
+   */
+  private _drawBorderFog(N: number): void {
+    const gfx    = this.gfx;
+    const pad    = 4096;  // large enough to cover any zoom/pan
+    const hw     = (N - 1) * (TILE_W / 2);
+    const hh     = (N - 1) * (TILE_H / 2);
+    // Diamond corners (screen coords)
+    const top    = { x: 0,    y: 0       };
+    const right  = { x: hw,   y: hh      };
+    const bottom = { x: 0,    y: hh * 2  };
+    const left   = { x: -hw,  y: hh      };
+
+    const fill = { color: 0xffffff as number, alpha: 0.92 };
+
+    // Top-right corner (between top, right, and outside)
+    gfx.moveTo(top.x,        top.y - pad)
+       .lineTo(right.x + pad, top.y - pad)
+       .lineTo(right.x + pad, right.y + pad)
+       .lineTo(right.x,       right.y)
+       .lineTo(top.x,         top.y)
+       .closePath()
+       .fill(fill);
+
+    // Bottom-right corner
+    gfx.moveTo(right.x,        right.y)
+       .lineTo(right.x + pad,  right.y - pad)
+       .lineTo(right.x + pad,  bottom.y + pad)
+       .lineTo(bottom.x,       bottom.y + pad)
+       .lineTo(bottom.x,       bottom.y)
+       .closePath()
+       .fill(fill);
+
+    // Bottom-left corner
+    gfx.moveTo(bottom.x,       bottom.y)
+       .lineTo(bottom.x,       bottom.y + pad)
+       .lineTo(left.x - pad,   bottom.y + pad)
+       .lineTo(left.x - pad,   left.y - pad)
+       .lineTo(left.x,         left.y)
+       .closePath()
+       .fill(fill);
+
+    // Top-left corner
+    gfx.moveTo(left.x,         left.y)
+       .lineTo(left.x - pad,   left.y - pad)
+       .lineTo(top.x,          top.y - pad)
+       .lineTo(top.x,          top.y)
+       .closePath()
+       .fill(fill);
+  }
+}

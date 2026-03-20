@@ -58,6 +58,7 @@ import {
   GAME_TOTAL_SECONDS,
   levelFromXP,
   XP_REWARDS,
+  HARVEST_YIELD,
   createTechTreeState,
   getTechNodeStatus,
   researchTech,
@@ -65,11 +66,16 @@ import {
   hasAvailableTech,
   ASTRONOMY_NODES,
 } from '@nebulife/core';
-import type { TechTreeState } from '@nebulife/core';
+import type { TechTreeState, SurfaceObjectType } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
 import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
+import { ResourceWidget } from './ui/components/ResourceWidget.js';
+import { ResourceFlyDot } from './ui/components/ResourceFlyDot.js';
+import { LevelUpBanner } from './ui/components/LevelUpBanner.js';
+import { ResearchToast } from './ui/components/ResearchToast.js';
+import type { ResearchToastItem } from './ui/components/ResearchToast.js';
 import { CutscenePlaceholder } from './ui/components/CutscenePlaceholder.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
@@ -253,6 +259,14 @@ export function App() {
     research: SystemResearchState;
   }[]>([]);
 
+  // Research toast notifications (slide-in from right)
+  const [researchToasts, setResearchToasts] = useState<ResearchToastItem[]>([]);
+
+  // Harvest fly-to-HUD animation queue
+  const [harvestFxQueue, setHarvestFxQueue] = useState<
+    Array<{ id: string; type: SurfaceObjectType; sx: number; sy: number }>
+  >([]);
+
   // Timer text per slot
   const [slotTimers, setSlotTimers] = useState<Record<number, string>>({});
 
@@ -365,6 +379,26 @@ export function App() {
   const awardXP = useCallback((amount: number, reason: string) => {
     awardXPRef.current(amount, reason);
   }, []);
+
+  /** Handle surface resource harvest → update colonyResources + award XP. */
+  const handleHarvest = useCallback((objectType: SurfaceObjectType) => {
+    const yield_ = HARVEST_YIELD[objectType];
+    const amount = yield_.base;
+    const key = yield_.group === 'mineral' ? 'minerals' as const
+              : yield_.group === 'volatile' ? 'volatiles' as const
+              : 'isotopes' as const;
+    setColonyResources((prev) => ({ ...prev, [key]: prev[key] + amount }));
+    const xpKey = objectType === 'tree' ? 'HARVEST_TREE' : objectType === 'ore' ? 'HARVEST_ORE' : 'HARVEST_VENT';
+    awardXP(XP_REWARDS[xpKey], `harvest_${objectType}`);
+  }, [awardXP]);
+
+  /** Handle fly-to-HUD animation for harvested resource. */
+  const handleHarvestFx = useCallback((type: SurfaceObjectType, sx: number, sy: number) => {
+    const id = Math.random().toString(36).slice(2);
+    setHarvestFxQueue((q) => [...q, { id, type, sx, sy }]);
+    setTimeout(() => setHarvestFxQueue((q) => q.filter((x) => x.id !== id)), 900);
+  }, []);
+
   /** Schedule a debounced game state sync to server (5s delay). */
   const scheduleSyncToServer = useCallback(() => {
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
@@ -1803,6 +1837,16 @@ export function App() {
     setTechTreeState(newState);
     awardXP(node.xpReward, 'tech_researched');
     addLogEntry('system', `Дослiджено технологiю: ${node.name}`);
+
+    // Show slide-in toast notification
+    setResearchToasts((q) => [
+      ...q,
+      {
+        id:       Math.random().toString(36).slice(2),
+        techName: node.name,
+        branch:   ((node as { branch?: string }).branch ?? 'astronomy') as ResearchToastItem['branch'],
+      },
+    ]);
 
     // Expand research slots if observatory/concurrent effects changed
     const extraSlots =
@@ -3545,29 +3589,11 @@ export function App() {
         />
       )}
 
-      {/* Level-up notification toast */}
-      {levelUpNotification !== null && (
-        <div style={{
-          position: 'fixed',
-          bottom: 60,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 9600,
-          background: 'rgba(10, 15, 25, 0.95)',
-          border: '1px solid #44ff88',
-          borderRadius: 4,
-          padding: '10px 24px',
-          fontFamily: 'monospace',
-          fontSize: 13,
-          color: '#44ff88',
-          letterSpacing: 1,
-          pointerEvents: 'none',
-          animation: 'cmdbar-fade-in 0.3s ease',
-          boxShadow: '0 0 20px rgba(68, 255, 136, 0.15)',
-        }}>
-          РIВЕНЬ {levelUpNotification}
-        </div>
-      )}
+      {/* Level-up banner */}
+      <LevelUpBanner
+        level={levelUpNotification}
+        onDone={() => setLevelUpNotification(null)}
+      />
 
       {/* Left-side scene controls — home-intro */}
       {state.scene === 'home-intro' && (
@@ -3842,6 +3868,12 @@ export function App() {
           onClose={() => setCompletedModalQueue(q => q.slice(1))}
         />
       )}
+      {/* Research technology toast notifications (slide-in from right) */}
+      <ResearchToast
+        items={researchToasts}
+        onDismiss={(id) => setResearchToasts((q) => q.filter((t) => t.id !== id))}
+        onNavigate={() => { /* TODO: open research terminal */ }}
+      />
       {/* Discovery choice panel (slide-in with 3 options) */}
       {pendingDiscovery && (
         <DiscoveryChoicePanel
@@ -3969,10 +4001,24 @@ export function App() {
           onClose={handleCloseSurface}
           onBuildingCountChange={setSurfaceBuildingCount}
           onBuildingPlaced={() => awardXP(XP_REWARDS.BUILDING_PLACED, 'building_placed')}
+          onHarvest={handleHarvest}
+          onHarvestFx={handleHarvestFx}
           onPhaseChange={setSurfacePhase}
           onBuildPanelChange={setSurfaceBuildPanelOpen}
         />
       )}
+      {/* ── Surface resource HUD ──────────────────────────────────────────── */}
+      {surfaceTarget && (
+        <ResourceWidget
+          minerals={colonyResources.minerals}
+          volatiles={colonyResources.volatiles}
+          isotopes={colonyResources.isotopes}
+        />
+      )}
+      {/* ── Fly-to-HUD resource dots ──────────────────────────────────────── */}
+      {harvestFxQueue.map((fx) => (
+        <ResourceFlyDot key={fx.id} type={fx.type} sx={fx.sx} sy={fx.sy} />
+      ))}
       {/* Player Page (profile, quarks, logout, reset) */}
       {showPlayerPage && (
         <PlayerPage

@@ -90,4 +90,8 @@ export const XP_REWARDS = {
   COLONY_FOUNDED: 500,
   /** 3D model generated */
   MODEL_3D_GENERATED: 25,
+  /** Surface resource harvesting */
+  HARVEST_TREE: 2,
+  HARVEST_ORE: 2,
+  HARVEST_VENT: 3,
 } as const;
