@@ -72,6 +72,7 @@ import { GuestRegistrationReminder } from './ui/components/GuestRegistrationRemi
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
 import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
 import { ResourceWidget } from './ui/components/ResourceWidget.js';
+import { BuildingQuest } from './ui/components/BuildingQuest.js';
 import { ResourceFlyDot } from './ui/components/ResourceFlyDot.js';
 import { LevelUpBanner } from './ui/components/LevelUpBanner.js';
 import { ResearchToast } from './ui/components/ResearchToast.js';
@@ -4017,6 +4018,13 @@ export function App() {
           minerals={colonyResources.minerals}
           volatiles={colonyResources.volatiles}
           isotopes={colonyResources.isotopes}
+        />
+      )}
+      {/* ── Building quest tutorial (surface only) ───────────────────────── */}
+      {surfaceTarget && (
+        <BuildingQuest
+          hubBuilt={surfaceBuildingCount > 0}
+          solarBuilt={surfaceBuildingCount > 1}
         />
       )}
       {/* ── Fly-to-HUD resource dots ──────────────────────────────────────── */}
