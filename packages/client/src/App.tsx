@@ -4290,8 +4290,8 @@ export function App() {
         />
       )}
 
-      {/* Cinematic intro (new players) */}
-      {needsOnboarding && !needsCallsign && homeInfo && (
+      {/* Cinematic intro (new players) — only after auth is resolved */}
+      {needsOnboarding && !needsCallsign && homeInfo && (!isFirebaseConfigured || !!firebaseUser) && (
         <CinematicIntro
           homeInfo={homeInfo}
           engineRef={engineRef}
