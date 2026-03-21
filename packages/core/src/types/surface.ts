@@ -223,7 +223,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   colony_hub: {
     type: 'colony_hub', category: 'infrastructure',
     name: 'Центр колонії',
-    description: 'Головна база управління колонією. Базове сховище та енергія.',
+    description: 'Головна база. Вбудована обсерваторія (+1 дані/год), 500 жителів, +5 енергії.',
     size: 4, sizeW: 4, sizeH: 4,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'Fe', amount: 50 }, { resource: 'Al', amount: 30 }],
@@ -232,9 +232,10 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     ],
     levelRequired: 1, techRequired: null, maxPerPlanet: 1,
     energyOutput: 5, energyConsumption: 0, energyStorageAdd: 0,
-    production: [], consumption: [],
+    production: [{ resource: 'researchData', amount: 1 }], // built-in observatory: 1 data per tick (1h)
+    consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
-    storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 16,
+    storageCapacityAdd: 0, populationCapacityAdd: 500, fogRevealRadius: 30,
   },
 
   resource_storage: {

@@ -341,7 +341,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         onBuildingPlaced?.();
         placeBuilding(playerId, planet.id, newBuilding).catch(console.error);
       } else if (roverMode) {
-        // Rover mode — send rover to clicked cell
+        // Drone explorer — send drone to clicked cell
         scene.setRoverTarget(col, row);
       } else if (harvestMode) {
         // Harvest mode — check if cell is harvestable, start progress ring

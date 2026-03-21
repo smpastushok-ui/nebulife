@@ -20,8 +20,9 @@ import type { PlacedBuilding } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 import { gridToScreen, TILE_W, TILE_H } from './surface-utils.js';
 
-/** Radius (in tiles) revealed around the colony hub at game start. */
-const HUB_REVEAL_RADIUS = 5;
+/** Radius (in tiles) revealed around the colony hub at game start.
+ *  Matches colony_hub.fogRevealRadius=30 in BUILDING_DEFS. */
+const HUB_REVEAL_RADIUS = 30;
 
 /** Cloud puff seeds per cell — deterministic variation */
 const PUFF_SEED_MULT = 7919;
@@ -87,9 +88,9 @@ export class FogLayer {
       const cy  = hub.y + sh / 2 - 0.5;
       this.revealAround(cx, cy, HUB_REVEAL_RADIUS);
     }
-    // Even if no hub yet, make sure we at least show grid origin
+    // No hub yet — reveal small landing zone (8-tile radius) so player sees where to build
     if (this.revealedCells.size === 0) {
-      this.revealAround(0, 0, HUB_REVEAL_RADIUS);
+      this.revealAround(0, 0, 8);
     }
     this.redraw();
   }

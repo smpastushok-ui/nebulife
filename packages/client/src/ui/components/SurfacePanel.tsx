@@ -461,9 +461,9 @@ function IconDock({
       display: 'flex', flexDirection: 'column', gap: 6,
       pointerEvents: 'auto',
     }}>
-      {/* Rover mode toggle */}
+      {/* Drone explorer toggle */}
       {dockBtn(
-        roverMode, 'Ровер',
+        roverMode, 'Дрон',
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
           {/* Isometric hovering platform */}
           <polygon points="8,2 14,6 8,10 2,6" />
@@ -625,7 +625,7 @@ export function SurfacePanel({
         </div>
       )}
 
-      {/* Rover mode hint — top-center when rover mode active */}
+      {/* Drone explorer hint — top-center when rover mode active */}
       {roverMode && !selectedBuilding && (
         <div style={{
           position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
@@ -637,9 +637,9 @@ export function SurfacePanel({
           pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
         }}>
           <span style={{ color: '#44aaff', fontSize: 13, lineHeight: 1 }}>*</span>
-          <span style={{ color: '#aabbcc' }}>Ровер</span>
+          <span style={{ color: '#aabbcc' }}>Дрон-дослідник</span>
           <span style={{ color: '#445566' }}>—</span>
-          <span style={{ color: '#556677' }}>натисніть на карту для переміщення</span>
+          <span style={{ color: '#556677' }}>натисніть на карту для розвідки</span>
           <button
             onClick={onToggleRover}
             style={{

@@ -1873,13 +1873,17 @@ export function App() {
   }, [completedModal, handleEnterSystem]);
 
   // ── Planet access checks ────────────────────────────────────────────
-  // Surface landing: home planet or level 50+
+  // Surface landing: blocked before first evacuation; after — home planet or level 50+
   const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string } => {
+    // Before first evacuation — surface unavailable everywhere
+    if (destroyedPlanetIdsSet.size === 0) {
+      return { allowed: false, reason: 'Поверхня доступна пiсля евакуацiї' };
+    }
     if (planet.isHomePlanet) return { allowed: true };
     if (homeInfo && planet.id === homeInfo.planet.id) return { allowed: true };
     if (playerLevel >= 50) return { allowed: true };
     return { allowed: false, reason: `Доступно з 50+ рiвня` };
-  }, [homeInfo, playerLevel]);
+  }, [homeInfo, playerLevel, destroyedPlanetIdsSet]);
 
   // Exosphere: always accessible if system is researched (menu only shows in researched systems)
   const handleViewPlanet = useCallback(() => {
