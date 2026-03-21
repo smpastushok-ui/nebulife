@@ -139,13 +139,15 @@ export class SurfaceScene {
   private baseTexture: Texture | null = null;
   /** Per-frame animation state for colony_hub effects. */
   private hubEffects: {
-    rings:       Graphics[];
-    scanner:     Graphics;
-    blink:       Graphics;
-    timeMs:      number;
-    hubScreenX:  number;  // world-local X of hub footprint center
-    hubScreenY:  number;  // world-local Y of hub footprint top-vertex
-    sizeW:       number;
+    rings:      Graphics[];   // 3 concentric iso-diamond rings (blue, pulsing)
+    hologram:   Graphics;     // slowly rotating ellipse ring above apex, blendMode='add'
+    sparks:     Array<{
+      g: Graphics; angle: number; speed: number; dist: number; phase: number;
+    }>;                       // 4 tiny info-sparks orbiting hub
+    timeMs:     number;
+    hubScreenX: number;
+    hubScreenY: number;
+    sizeW:      number;
   } | null = null;
 
   /** Harvest state overrides: key=`${col},${row}` → HarvestedCell */
@@ -187,6 +189,17 @@ export class SurfaceScene {
   private buildingAnims:  BuildingAnim[] = [];
   private animatedKeys:   Set<string>    = new Set();
   private screenShakeMs:  number         = 0;
+
+  // ─── Per-building idle animations ─────────────────────────────────────────
+  private bldgEffects = new Map<string, {
+    gs:     Graphics[];
+    timeMs: number;
+    extra:  Record<string, number>;
+    cx:     number;
+    cy:     number;
+    sW:     number;
+    type:   string;
+  }>();
 
   // ─── Ghost preview layer ─────────────────────────────────────────────────
   private ghostLayer: Container;
@@ -631,6 +644,9 @@ export class SurfaceScene {
     this.buildingLayer.removeChildren();
     this.effectLayer.removeChildren();
     this.hubEffects = null;
+    // Destroy all per-building idle effect graphics before clearing
+    for (const eff of this.bldgEffects.values()) for (const g of eff.gs) g.destroy();
+    this.bldgEffects.clear();
     this.drawCorridors(buildings);
     this._buildObstacleSet(buildings);
     this._rebuildBuildingShadows(buildings);
@@ -650,27 +666,45 @@ export class SurfaceScene {
         this.animatedKeys.add(key);
         this._startBuildingAnim(b, bldg);
       }
+      // Create idle animation for supported building types
+      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport') {
+        this._createBldgEffect(b);
+      }
     }
   }
 
   /** Create animated effect Graphics for a colony_hub building. */
   private createHubEffects(b: PlacedBuilding): void {
     const def   = BUILDING_DEFS[b.type];
-    const sizeW = def?.sizeW ?? 2;
+    const sW = def?.sizeW ?? 2;
 
-    // Screen coords: horizontal center of footprint, Y of top-left cell's diamond top
+    // Screen coords: horizontal centre of footprint, Y of top-left cell's diamond top
     const cx = (b.x - b.y) * (TILE_W / 2);
     const cy = gridToScreen(b.x, b.y).y + TILE_H / 2;
 
+    // 3 concentric pulsing iso-diamond rings
     const rings: Graphics[] = [new Graphics(), new Graphics(), new Graphics()];
-    const scanner = new Graphics();
-    const blink   = new Graphics();
-
     for (const r of rings) this.effectLayer.addChild(r);
-    this.effectLayer.addChild(scanner);
-    this.effectLayer.addChild(blink);
 
-    this.hubEffects = { rings, scanner, blink, timeMs: 0, hubScreenX: cx, hubScreenY: cy, sizeW };
+    // Slowly rotating hologram ellipse at apex (blendMode='add')
+    const hologram = new Graphics();
+    hologram.blendMode = 'add';
+    this.effectLayer.addChild(hologram);
+
+    // 4 tiny info-sparks orbiting the hub
+    const sparks = Array.from({ length: 4 }, (_, i) => {
+      const g = new Graphics();
+      this.effectLayer.addChild(g);
+      return {
+        g,
+        angle: (i / 4) * Math.PI * 2,
+        speed: 0.0008 + 0.0004 * i,
+        dist:  (sW / 2 + 1.2) * (TILE_W / 2),
+        phase: i * 1.5,
+      };
+    });
+
+    this.hubEffects = { rings, hologram, sparks, timeMs: 0, hubScreenX: cx, hubScreenY: cy, sizeW: sW };
   }
 
   /** Per-frame animation tick — called by PixiJS app.ticker in SurfacePixiView. */
@@ -702,6 +736,9 @@ export class SurfaceScene {
     // Building placement animations
     this._tickBuildingAnims(deltaMs);
 
+    // Per-building idle animations (resource_storage, landing_pad, spaceport)
+    this._tickBldgEffects(deltaMs);
+
     // Animate researcher bot + reveal fog only when crossing into a new cell
     if (this.bot) {
       const crossed = this.bot.update(deltaMs);
@@ -727,47 +764,47 @@ export class SurfaceScene {
     const cy = eff.hubScreenY;
     const sW = eff.sizeW;
 
-    // ── Pulsing iso-diamond rings (#4488aa) ────────────────────────────────
+    // ── Pulsing iso-diamond rings (blue neon, alpha 0.6→1.0, 3s cycle) ────
     const RING_PHASES = [0, Math.PI * 0.6, Math.PI * 1.2];
     for (let i = 0; i < eff.rings.length; i++) {
       const g  = eff.rings[i];
-      const n  = i + 1;   // 1, 2, 3 cells spacing from footprint edge
+      const n  = i + 1;
       const hW = (sW / 2 + n) * (TILE_W / 2);
       const hH = (sW / 2 + n) * (TILE_H / 2);
-      const a  = 0.1 + 0.5 * (0.5 + 0.5 * Math.sin((t / 2000) * Math.PI * 2 + RING_PHASES[i]));
+      const a  = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin((t / 3000) * Math.PI * 2 + RING_PHASES[i]));
       g.clear();
       g.poly([cx, cy - hH, cx + hW, cy, cx, cy + hH, cx - hW, cy]);
       g.stroke({ width: 1.5, color: 0x4488aa, alpha: a });
     }
 
-    // ── Rotating scanner arc (#44ff88) ─────────────────────────────────────
+    // ── Hologram: slowly rotating ellipse ring above apex (blendMode='add') ─
     {
-      const g       = eff.scanner;
-      const hWa     = (sW / 2 + 3.5) * (TILE_W / 2);
-      const hHa     = (sW / 2 + 3.5) * (TILE_H / 2);
-      const angle   = (t / 3000) * Math.PI * 2;
-      const arcSpan = Math.PI / 3;   // 60°
-      const segs    = 8;
-      g.clear();
-      for (let i = 0; i <= segs; i++) {
-        const th = angle + (i / segs) * arcSpan;
-        const px = cx + hWa * Math.cos(th);
-        const py = cy + hHa * Math.sin(th);
-        if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+      const hH_hub = (sW / 2) * (TILE_H / 2);
+      const apexY  = cy - hH_hub;
+      const hRW    = (sW / 2 + 0.8) * (TILE_W / 2);
+      const hRH    = hRW * 0.38;
+      const angle  = (t / 8000) * Math.PI * 2;
+      const pts: number[] = [];
+      for (let i = 0; i <= 20; i++) {
+        const th = angle + (i / 20) * Math.PI * 2;
+        pts.push(cx + hRW * Math.cos(th), apexY + hRH * Math.sin(th));
       }
-      g.stroke({ width: 2, color: 0x44ff88, alpha: 0.7 });
+      eff.hologram.clear();
+      eff.hologram.poly(pts);
+      eff.hologram.stroke({ width: 1.5, color: 0x4488ff, alpha: 0.5 + 0.2 * Math.sin(t / 2000) });
     }
 
-    // ── Blink dot at hub apex (#44ff88) ────────────────────────────────────
+    // ── Info-sparks: 4 tiny 2×2 dots orbiting hub ─────────────────────────
     {
-      const g      = eff.blink;
       const hH_hub = (sW / 2) * (TILE_H / 2);
-      const bW = 6, bH = 4;
-      const bAlpha = Math.round(0.5 + 0.5 * Math.sin((t / 1500) * Math.PI * 2));
-      g.clear();
-      if (bAlpha > 0) {
-        g.poly([cx, cy - hH_hub - bH, cx + bW, cy - hH_hub, cx, cy - hH_hub + bH, cx - bW, cy - hH_hub]);
-        g.fill({ color: 0x44ff88, alpha: 0.9 });
+      for (const sp of eff.sparks) {
+        sp.angle += sp.speed * deltaMs;
+        const sx2 = cx + sp.dist * Math.cos(sp.angle) * 0.7;
+        const sy2 = (cy - hH_hub * 0.6) + sp.dist * Math.sin(sp.angle) * 0.35;
+        const a   = 0.5 + 0.5 * Math.sin(t / 1200 + sp.phase);
+        sp.g.clear();
+        sp.g.rect(sx2 - 1, sy2 - 1, 2, 2);
+        sp.g.fill({ color: 0x88ccff, alpha: a });
       }
     }
   }
@@ -937,6 +974,15 @@ export class SurfaceScene {
         }
         if (tooClose) continue;
 
+        // Footprint must not cover any active transport unit
+        let hasTransport = false;
+        outer: for (let dc = 0; dc < sW; dc++) {
+          for (let dr = 0; dr < sH; dr++) {
+            if (this._isOccupiedByTransport(col + dc, row + dr)) { hasTransport = true; break outer; }
+          }
+        }
+        if (hasTransport) continue;
+
         // Must be reachable (1-cell gap away) from existing city
         if (hasCity && !isAdjacentToCity(col, row, sW, sH, buildings)) continue;
 
@@ -962,7 +1008,13 @@ export class SurfaceScene {
 
   // ─── Public accessors ─────────────────────────────────────────────────────
 
-  /** Check if a building footprint fits at (col,row): terrain + no overlap + adjacency. */
+  /** Returns true if any active transport unit (bot or harvester drone) occupies grid cell (c, r). */
+  private _isOccupiedByTransport(c: number, r: number): boolean {
+    if (this.bot && Math.round(this.bot.col) === c && Math.round(this.bot.row) === r) return true;
+    return this.harvesterDrones.some(d => Math.round(d.col) === c && Math.round(d.row) === r);
+  }
+
+  /** Check if a building footprint fits at (col,row): terrain + no overlap + adjacency + no transport. */
   public canBuildAt(
     col: number,
     row: number,
@@ -978,7 +1030,7 @@ export class SurfaceScene {
 
     if (col + sW > N || row + sH > N) return false;
 
-    // All footprint cells must have correct terrain, no live resources, and be revealed
+    // All footprint cells must have correct terrain, no live resources, no transport, and be revealed
     for (let dc = 0; dc < sW; dc++) {
       for (let dr = 0; dr < sH; dr++) {
         const c = col + dc; const r = row + dr;
@@ -988,6 +1040,7 @@ export class SurfaceScene {
         if (isOreCell(c, r, seed, N, wl)  && !this.harvestedCells.has(k)) return false;
         if (isVentCell(c, r, seed, N, wl) && !this.harvestedCells.has(k)) return false;
         if (this.fogLayer && !this.fogLayer.isRevealed(c, r)) return false;
+        if (this._isOccupiedByTransport(c, r)) return false;
       }
     }
 
@@ -1277,22 +1330,37 @@ export class SurfaceScene {
     const g = ring.graphics;
     g.clear();
 
-    // Background ring (dim)
-    g.circle(x, cy, radius);
-    g.stroke({ width: 3, color: 0x334455, alpha: 0.6 });
-
-    // Progress arc (bright green)
-    if (progress > 0) {
-      const startAngle = -Math.PI / 2;
-      const endAngle   = startAngle + Math.PI * 2 * progress;
-      g.arc(x, cy, radius, startAngle, endAngle);
-      g.stroke({ width: 3, color: 0x44ff88, alpha: 0.9 });
+    // ── 1. Laser impulse (first 350ms): bright vertical beam from above ──
+    if (ring.startMs < 350) {
+      const la = (1 - ring.startMs / 350) * 0.85;
+      g.moveTo(x, cy - 250); g.lineTo(x, cy);
+      g.stroke({ width: 6, color: 0x44aaff, alpha: la * 0.3 });
+      g.moveTo(x, cy - 250); g.lineTo(x, cy);
+      g.stroke({ width: 2, color: 0x88ffff, alpha: la });
     }
 
-    // Center dot (pulse)
-    const dotAlpha = 0.4 + 0.3 * Math.sin(ring.startMs / 200);
-    g.circle(x, cy, 3);
-    g.fill({ color: 0x44ff88, alpha: dotAlpha });
+    // ── 2. Progress arc (thin, cyan) ─────────────────────────────────────
+    if (progress > 0) {
+      g.arc(x, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      g.stroke({ width: 1.5, color: 0x44ffff, alpha: 0.55 });
+    }
+
+    // ── 3. Cyberpunk holographic sight — 4 L-bracket corners ─────────────
+    const contract = 1 - progress;
+    const d   = radius * 0.8 * contract + radius * 0.2;
+    const arm = 8;
+    for (const [sx2, sy2] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as Array<[number, number]>) {
+      const px = x  + d * sx2;
+      const py = cy + d * sy2 * 0.5;
+      g.moveTo(px, py); g.lineTo(px + sx2 * arm, py);
+      g.moveTo(px, py); g.lineTo(px, py + sy2 * arm * 0.5);
+    }
+    g.stroke({ width: 1.5, color: 0x44ffff, alpha: 0.9 });
+
+    // ── 4. Central pulsing diamond ────────────────────────────────────────
+    const ds = 2.5 + 1.5 * Math.sin(ring.startMs / 200);
+    g.poly([x, cy - ds, x + ds, cy, x, cy + ds, x - ds, cy]);
+    g.fill({ color: 0x44ffff, alpha: 0.85 });
 
     if (progress >= 1) {
       const cb = ring.onComplete;
@@ -1857,6 +1925,137 @@ export class SurfaceScene {
   /** No concrete pads or road tiles — buildings sit directly on terrain. */
   private _rebuildConcretePads(_buildings: PlacedBuilding[]): void {
     this.concreteLayer.removeChildren();
+  }
+
+  // ─── Per-building idle animations ─────────────────────────────────────────
+
+  private _createBldgEffect(b: PlacedBuilding): void {
+    const def  = BUILDING_DEFS[b.type];
+    const sW   = def?.sizeW ?? 1;
+    const sH   = def?.sizeH ?? 1;
+    // Centre of footprint in world-local screen coords
+    const topLeft  = gridToScreen(b.x, b.y);
+    const botRight = gridToScreen(b.x + sW, b.y + sH);
+    const cx = (topLeft.x + botRight.x) / 2;
+    const cy = (topLeft.y + botRight.y) / 2;
+    const key = `${b.x},${b.y}`;
+    const gs: Graphics[] = [];
+    const extra: Record<string, number> = {};
+
+    if (b.type === 'resource_storage') {
+      // 5 indicator dots + 1 steam graphics
+      for (let i = 0; i < 6; i++) {
+        const g = new Graphics(); this.effectLayer.addChild(g); gs.push(g);
+      }
+      extra['nextSteam'] = 5000 + Math.random() * 3000;
+      extra['steamT'] = -1;
+
+    } else if (b.type === 'landing_pad') {
+      // runway dots, corner pylon glow
+      const runway = new Graphics(); this.effectLayer.addChild(runway); gs.push(runway);
+      const pylons = new Graphics(); pylons.blendMode = 'screen'; this.effectLayer.addChild(pylons); gs.push(pylons);
+
+    } else if (b.type === 'spaceport') {
+      // aviation lights, plasma bay, cargo drones
+      const avia   = new Graphics(); this.effectLayer.addChild(avia);   gs.push(avia);
+      const plasma = new Graphics(); plasma.blendMode = 'add'; this.effectLayer.addChild(plasma); gs.push(plasma);
+      const drones = new Graphics(); this.effectLayer.addChild(drones); gs.push(drones);
+      for (let i = 0; i < 3; i++) {
+        extra[`d${i}_t`]     = Math.random();
+        extra[`d${i}_speed`] = 0.0003 + Math.random() * 0.0002;
+      }
+    }
+
+    this.bldgEffects.set(key, { gs, timeMs: 0, extra, cx, cy, sW, type: b.type });
+  }
+
+  private _tickBldgEffects(deltaMs: number): void {
+    for (const eff of this.bldgEffects.values()) {
+      eff.timeMs += deltaMs;
+      const t  = eff.timeMs;
+      const cx = eff.cx;
+      const cy = eff.cy;
+      const sW = eff.sW;
+
+      if (eff.type === 'resource_storage') {
+        // ── Blinking indicator lights (bottom→top, 1.5s cycle) ──────────
+        const CYCLE = 1500;
+        const phase = (t % CYCLE) / CYCLE;
+        for (let i = 0; i < 5; i++) {
+          const lit = phase > i / 5 && phase < (i + 1) / 5;
+          eff.gs[i].clear();
+          if (lit) {
+            eff.gs[i].circle(cx + (i - 2) * 9, cy - 6 - i * 5, 2.5);
+            eff.gs[i].fill({ color: 0xffcc44, alpha: 0.92 });
+          }
+        }
+        // ── Steam puff every 5–8 s ───────────────────────────────────────
+        eff.extra['nextSteam'] -= deltaMs;
+        if (eff.extra['nextSteam'] <= 0) {
+          eff.extra['nextSteam'] = 5000 + Math.random() * 3000;
+          eff.extra['steamT'] = 0;
+        }
+        if (eff.extra['steamT'] >= 0) {
+          eff.extra['steamT'] += deltaMs;
+          const st = eff.extra['steamT'];
+          if (st < 700) {
+            const prog  = st / 700;
+            const steam = eff.gs[5]; steam.clear();
+            for (let i = 0; i < 4; i++) {
+              const ang = (i / 4) * Math.PI * 2;
+              const r   = prog * 18;
+              steam.circle(cx + Math.cos(ang) * r, cy - 10 + Math.sin(ang) * r * 0.5, 3 + prog * 5);
+              steam.fill({ color: 0xdde8ff, alpha: (1 - prog) * 0.5 });
+            }
+          } else { eff.extra['steamT'] = -1; eff.gs[5].clear(); }
+        }
+
+      } else if (eff.type === 'landing_pad') {
+        // ── Running runway lights ───────────────────────────────────────
+        const runway = eff.gs[0]; runway.clear();
+        for (let i = 0; i < 8; i++) {
+          const lit = Math.floor(t / 200 + i) % 8 < 1;
+          runway.circle(cx + (i - 3.5) * 10, cy + 5, 2);
+          runway.fill({ color: 0xffffff, alpha: lit ? 0.92 : 0.1 });
+        }
+        // ── Corner pylon glow (drawn once) ──────────────────────────────
+        if (t < 150) {
+          const pylons = eff.gs[1]; pylons.clear();
+          const hw = (sW / 2) * (TILE_W / 2) * 0.9;
+          const hh = (sW / 2) * (TILE_H / 2) * 0.9;
+          for (const [sx2, sy2] of [[-1,-1],[1,-1],[1,1],[-1,1]] as Array<[number,number]>) {
+            pylons.circle(cx + hw * sx2, cy + hh * sy2, TILE_W * 0.18);
+            pylons.fill({ color: 0x6699bb, alpha: 0.3 });
+          }
+        }
+
+      } else if (eff.type === 'spaceport') {
+        // ── Aviation warning lights (2s flash) ─────────────────────────
+        const aviaOn = (t % 2000) < 120;
+        eff.gs[0].clear();
+        if (aviaOn) {
+          for (const [ox, oy] of [[-TILE_W * 0.3, -TILE_H * 0.85], [TILE_W * 0.3, -TILE_H * 0.85]] as Array<[number,number]>) {
+            eff.gs[0].circle(cx + ox, cy + oy, 3.5);
+            eff.gs[0].fill({ color: 0xff3322, alpha: 0.95 });
+          }
+        }
+        // ── Plasma bay: rapid shake ADD blend ──────────────────────────
+        const shake = (Math.random() - 0.5) * 4;
+        eff.gs[1].clear();
+        eff.gs[1].circle(cx + shake, cy + TILE_H * 0.32 + shake * 0.4, TILE_W * 0.27);
+        eff.gs[1].fill({ color: 0x88aaff, alpha: 0.22 + Math.random() * 0.3 });
+        // ── Cargo drones: Lissajous orbits ─────────────────────────────
+        eff.gs[2].clear();
+        for (let i = 0; i < 3; i++) {
+          eff.extra[`d${i}_t`] = (eff.extra[`d${i}_t`] + deltaMs * eff.extra[`d${i}_speed`]) % 1;
+          const t2 = eff.extra[`d${i}_t`];
+          const dx = cx + Math.cos(t2 * Math.PI * 2 + i * 2.1) * TILE_W * 0.65;
+          const dy = cy - TILE_H * 0.5 + Math.sin(t2 * Math.PI * 4 + i * 1.3) * TILE_H * 0.3;
+          eff.gs[2].rect(dx - 1, dy - 1, 2, 2);
+          eff.gs[2].fill({ color: 0xaaddff, alpha: 0.75 });
+        }
+      }
+    }
   }
 
   // ─── Legacy concrete-pad code kept below for reference (unreachable) ─────

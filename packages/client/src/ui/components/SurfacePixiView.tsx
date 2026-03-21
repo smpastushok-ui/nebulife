@@ -106,7 +106,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     }, []);
 
     const applyZoom = useCallback((z: number) => {
-      zoomRef.current = Math.max(0.15, Math.min(3.0, z));
+      // Limit zoom-in so at least 25 iso-diamonds are visible per row (TW2=64px per cell)
+      const maxZoom = (pixiAppRef.current?.screen.width ?? 1280) / 1600;
+      zoomRef.current = Math.max(0.15, Math.min(maxZoom, z));
       if (sceneRef.current) {
         sceneRef.current.worldContainer.scale.set(zoomRef.current);
         clampPan();
@@ -147,7 +149,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           const rawFactor  = Math.pow(0.999, e.deltaY);
           const safeFactor = Math.max(0.92, Math.min(1.08, rawFactor));
           const oldZ  = zoomRef.current;
-          const newZ  = Math.max(0.15, Math.min(3.0, oldZ * safeFactor));
+          const newZ  = Math.max(0.15, Math.min(app.screen.width / 1600, oldZ * safeFactor));
           if (newZ === oldZ) return;
 
           // Cursor position relative to container

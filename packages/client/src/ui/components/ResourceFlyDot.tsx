@@ -12,6 +12,8 @@ interface ResourceFlyDotProps {
   type: SurfaceObjectType;
   sx:   number;  // screen-space start X (page coords)
   sy:   number;  // screen-space start Y (page coords)
+  tx?:  number;  // explicit target X (centre of HUD icon)
+  ty?:  number;  // explicit target Y
 }
 
 const DOT_COLOR: Record<SurfaceObjectType, string> = {
@@ -24,13 +26,13 @@ const DOT_COLOR: Record<SurfaceObjectType, string> = {
 const TARGET_X = () => window.innerWidth  - 38;
 const TARGET_Y = () => 30;   // midpoint of the widget row
 
-export const ResourceFlyDot: React.FC<ResourceFlyDotProps> = ({ type, sx, sy }) => {
+export const ResourceFlyDot: React.FC<ResourceFlyDotProps> = ({ type, sx, sy, tx, ty }) => {
   const [pos, setPos] = useState({ x: sx, y: sy, opacity: 1 });
 
   useEffect(() => {
     // One frame delay so the initial position renders first, then transition fires
     const raf = requestAnimationFrame(() => {
-      setPos({ x: TARGET_X(), y: TARGET_Y(), opacity: 0 });
+      setPos({ x: tx ?? TARGET_X(), y: ty ?? TARGET_Y(), opacity: 0 });
     });
     return () => cancelAnimationFrame(raf);
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps

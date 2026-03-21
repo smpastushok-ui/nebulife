@@ -268,6 +268,11 @@ export function App() {
     Array<{ id: string; type: SurfaceObjectType; sx: number; sy: number }>
   >([]);
 
+  // DOMRects of resource HUD icons for precise fly-to targeting
+  const [resourceRects, setResourceRects] = useState<{
+    minerals: DOMRect; volatiles: DOMRect; isotopes: DOMRect;
+  } | null>(null);
+
   // Timer text per slot
   const [slotTimers, setSlotTimers] = useState<Record<number, string>>({});
 
@@ -4018,6 +4023,7 @@ export function App() {
           minerals={colonyResources.minerals}
           volatiles={colonyResources.volatiles}
           isotopes={colonyResources.isotopes}
+          onRefsReady={setResourceRects}
         />
       )}
       {/* ── Building quest tutorial (surface only) ───────────────────────── */}
@@ -4028,9 +4034,16 @@ export function App() {
         />
       )}
       {/* ── Fly-to-HUD resource dots ──────────────────────────────────────── */}
-      {harvestFxQueue.map((fx) => (
-        <ResourceFlyDot key={fx.id} type={fx.type} sx={fx.sx} sy={fx.sy} />
-      ))}
+      {harvestFxQueue.map((fx) => {
+        const rKey = fx.type === 'ore' ? 'minerals' : fx.type === 'vent' ? 'volatiles' : 'isotopes';
+        const rect = resourceRects?.[rKey];
+        return (
+          <ResourceFlyDot key={fx.id} type={fx.type} sx={fx.sx} sy={fx.sy}
+            tx={rect ? rect.left + rect.width  / 2 : undefined}
+            ty={rect ? rect.top  + rect.height / 2 : undefined}
+          />
+        );
+      })}
       {/* Player Page (profile, quarks, logout, reset) */}
       {showPlayerPage && (
         <PlayerPage
