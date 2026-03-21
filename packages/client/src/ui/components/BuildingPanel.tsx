@@ -17,14 +17,40 @@ const BUILDING_PREVIEW: Partial<Record<BuildingType, string>> = {
 
 /* ---- Building icon colors (no emojis per project rules) ---- */
 
-const BUILDING_COLORS: Record<BuildingType, string> = {
-  colony_hub: '#44ff88',
-  mine: '#ff8844',
-  solar_plant: '#ffcc44',
-  research_lab: '#4488ff',
-  water_extractor: '#44ccff',
-  greenhouse: '#88ff44',
-  observatory: '#cc88ff',
+const BUILDING_COLORS: Partial<Record<BuildingType, string>> = {
+  // Infrastructure
+  colony_hub:       '#44ff88',
+  resource_storage: '#66bb88',
+  landing_pad:      '#88ccaa',
+  spaceport:        '#aaccee',
+  // Energy
+  solar_plant:      '#ffcc44',
+  battery_station:  '#ffdd88',
+  wind_generator:   '#88ddff',
+  thermal_generator:'#ff8844',
+  fusion_reactor:   '#ff4466',
+  // Extraction
+  mine:             '#ff8844',
+  water_extractor:  '#44ccff',
+  atmo_extractor:   '#66aacc',
+  deep_drill:       '#cc8844',
+  orbital_collector:'#4466ff',
+  // Science
+  research_lab:     '#4488ff',
+  observatory:      '#cc88ff',
+  radar_tower:      '#88aaff',
+  orbital_telescope:'#aa66ff',
+  quantum_computer: '#dd44ff',
+  // Biosphere
+  greenhouse:       '#88ff44',
+  residential_dome: '#aaffaa',
+  atmo_shield:      '#44ddaa',
+  biome_dome:       '#66ff88',
+  // Chemistry
+  quantum_separator:'#ff44aa',
+  gas_fractionator: '#ff6688',
+  isotope_centrifuge:'#cc4488',
+  genesis_vault:    '#ff88cc',
 };
 
 /** Draw a procedural mini-icon onto a tiny canvas */

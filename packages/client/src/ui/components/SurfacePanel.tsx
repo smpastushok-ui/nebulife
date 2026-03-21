@@ -22,21 +22,48 @@ type DockMode = 'build' | 'colony';
 interface BuildingGroup { label: string; color: string; types: BuildingType[] }
 
 const BUILDING_GROUPS: BuildingGroup[] = [
-  { label: 'ІНФРАСТРУКТУРА', color: '#44ff88', types: ['colony_hub'] },
-  { label: 'ЕНЕРГЕТИКА',     color: '#ffcc44', types: ['solar_plant'] },
-  { label: 'ВИДОБУТОК',      color: '#ff8844', types: ['mine', 'water_extractor'] },
-  { label: 'НАУКА',          color: '#4488ff', types: ['research_lab', 'observatory'] },
-  { label: 'БІОСФЕРА',       color: '#88ff44', types: ['greenhouse'] },
+  { label: 'ІНФРАСТРУКТУРА', color: '#44ff88',  types: ['colony_hub', 'resource_storage', 'landing_pad', 'spaceport'] },
+  { label: 'ЕНЕРГЕТИКА',     color: '#ffcc44',  types: ['solar_plant', 'battery_station', 'wind_generator', 'thermal_generator', 'fusion_reactor'] },
+  { label: 'ВИДОБУТОК',      color: '#ff8844',  types: ['mine', 'water_extractor', 'atmo_extractor', 'deep_drill', 'orbital_collector'] },
+  { label: 'НАУКА',          color: '#4488ff',  types: ['research_lab', 'observatory', 'radar_tower', 'orbital_telescope', 'quantum_computer'] },
+  { label: 'БІОСФЕРА',       color: '#88ff44',  types: ['greenhouse', 'residential_dome', 'atmo_shield', 'biome_dome'] },
+  { label: 'ХІМІЯ',          color: '#ff44aa',  types: ['quantum_separator', 'gas_fractionator', 'isotope_centrifuge', 'genesis_vault'] },
 ];
 
-const BUILDING_COLORS: Record<BuildingType, string> = {
-  colony_hub:      '#44ff88',
-  mine:            '#ff8844',
-  solar_plant:     '#ffcc44',
-  research_lab:    '#4488ff',
-  water_extractor: '#44ccff',
-  greenhouse:      '#88ff44',
-  observatory:     '#cc88ff',
+const BUILDING_COLORS: Partial<Record<BuildingType, string>> = {
+  // Infrastructure
+  colony_hub:        '#44ff88',
+  resource_storage:  '#66bb88',
+  landing_pad:       '#88ccaa',
+  spaceport:         '#aaccee',
+  // Energy
+  solar_plant:       '#ffcc44',
+  battery_station:   '#ffdd88',
+  wind_generator:    '#88ddff',
+  thermal_generator: '#ff8844',
+  fusion_reactor:    '#ff4466',
+  // Extraction
+  mine:              '#ff8844',
+  water_extractor:   '#44ccff',
+  atmo_extractor:    '#66aacc',
+  deep_drill:        '#cc8844',
+  orbital_collector: '#4466ff',
+  // Science
+  research_lab:      '#4488ff',
+  observatory:       '#cc88ff',
+  radar_tower:       '#88aaff',
+  orbital_telescope: '#aa66ff',
+  quantum_computer:  '#dd44ff',
+  // Biosphere
+  greenhouse:        '#88ff44',
+  residential_dome:  '#aaffaa',
+  atmo_shield:       '#44ddaa',
+  biome_dome:        '#66ff88',
+  // Chemistry
+  quantum_separator: '#ff44aa',
+  gas_fractionator:  '#ff6688',
+  isotope_centrifuge:'#cc4488',
+  genesis_vault:     '#ff88cc',
 };
 
 const TERRAIN_UA: Record<string, string> = {
@@ -54,7 +81,7 @@ const TERRAIN_UA: Record<string, string> = {
 
 function drawIcon(ctx: CanvasRenderingContext2D, type: BuildingType, size: number) {
   const cx = size / 2, cy = size / 2, s = size * 0.35;
-  const col = BUILDING_COLORS[type];
+  const col = BUILDING_COLORS[type] ?? '#aabbcc';
   ctx.clearRect(0, 0, size, size);
   ctx.fillStyle = col;
   ctx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -130,7 +157,7 @@ function BuildingIcon({ type, size = 24 }: { type: BuildingType; size?: number }
 
 function BuildingSprite({ type, size = 34 }: { type: BuildingType; size?: number }) {
   const [imgError, setImgError] = useState(false);
-  const col = BUILDING_COLORS[type];
+  const col = BUILDING_COLORS[type] ?? '#aabbcc';
   return (
     <div style={{
       width: size, height: size, flexShrink: 0,
@@ -207,7 +234,7 @@ function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: Place
 
 function PlacementHint({ type, onCancel }: { type: BuildingType; onCancel: () => void }) {
   const def = BUILDING_DEFS[type];
-  const col = BUILDING_COLORS[type];
+  const col = BUILDING_COLORS[type] ?? '#aabbcc';
   return (
     <div style={{
       position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
@@ -278,7 +305,7 @@ function BuildingListContent({
 
               {isExpanded && group.types.map((type) => {
                 const def = BUILDING_DEFS[type];
-                const col = BUILDING_COLORS[type];
+                const col = BUILDING_COLORS[type] ?? '#aabbcc';
                 const isSelected = selectedBuilding === type;
                 const terrainList = def.requiresTerrain.map((t) => TERRAIN_UA[t] ?? t).join(', ');
                 return (
@@ -362,7 +389,7 @@ function BuildingListContent({
         </div>
       ) : buildings.map((b) => {
         const def = BUILDING_DEFS[b.type];
-        const col = BUILDING_COLORS[b.type];
+        const col = BUILDING_COLORS[b.type] ?? '#aabbcc';
         return (
           <div key={b.id} style={{
             display: 'flex', alignItems: 'center', gap: 8,
