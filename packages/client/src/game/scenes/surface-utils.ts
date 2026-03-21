@@ -585,8 +585,13 @@ export function isCellBuildable(
 // ─── Monolith Rule ────────────────────────────────────────────────────────────
 
 /**
- * Check if a building footprint (top-left gx,gy, size sW×sH) is orthogonally
- * adjacent (4-direction, no diagonal) to any placed building footprint.
+ * Check if a building footprint (top-left gx,gy, size sW×sH) is within a
+ * 1-cell orthogonal gap of any placed building footprint.
+ *
+ * "Adjacent" now means exactly 2 cells apart along one axis (with the
+ * other axis overlapping), matching the 1-cell spacing rule enforced by
+ * the placement gap check.  Diagonal proximity does NOT count.
+ *
  * Uses interval arithmetic: O(numBuildings) per check.
  */
 export function isAdjacentToCity(
@@ -603,13 +608,14 @@ export function isAdjacentToCity(
     const bx1  = b.x, bx2 = b.x + bSW - 1;
     const by1  = b.y, by2 = b.y + bSH - 1;
 
-    // Horizontal adjacency: X ranges overlap AND Y ranges are exactly 1 apart
+    // Horizontal path (same X band): X ranges overlap AND Y ranges are exactly 2 apart
+    // (1 empty cell between them — gap = 1)
     const xOverlap = Math.max(ax1, bx1) <= Math.min(ax2, bx2);
-    if (xOverlap && (ay2 + 1 === by1 || by2 + 1 === ay1)) return true;
+    if (xOverlap && (ay2 + 2 === by1 || by2 + 2 === ay1)) return true;
 
-    // Vertical adjacency: Y ranges overlap AND X ranges are exactly 1 apart
+    // Vertical path (same Y band): Y ranges overlap AND X ranges are exactly 2 apart
     const yOverlap = Math.max(ay1, by1) <= Math.min(ay2, by2);
-    if (yOverlap && (ax2 + 1 === bx1 || bx2 + 1 === ax1)) return true;
+    if (yOverlap && (ax2 + 2 === bx1 || bx2 + 2 === ax1)) return true;
   }
   return false;
 }

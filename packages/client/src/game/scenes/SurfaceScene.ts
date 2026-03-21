@@ -905,18 +905,18 @@ export class SurfaceScene {
         }
         if (!ok) continue;
 
-        // Footprint must not overlap any existing building
-        let overlaps = false;
+        // Footprint must not overlap or touch any existing building (enforces 1-cell gap)
+        let tooClose = false;
         for (const b of buildings) {
           const bSW = BUILDING_DEFS[b.type]?.sizeW ?? 1;
           const bSH = BUILDING_DEFS[b.type]?.sizeH ?? 1;
-          if (col < b.x + bSW && col + sW > b.x && row < b.y + bSH && row + sH > b.y) {
-            overlaps = true; break;
+          if (col <= b.x + bSW && col + sW >= b.x && row <= b.y + bSH && row + sH >= b.y) {
+            tooClose = true; break;
           }
         }
-        if (overlaps) continue;
+        if (tooClose) continue;
 
-        // Must be adjacent to existing city
+        // Must be reachable (1-cell gap away) from existing city
         if (hasCity && !isAdjacentToCity(col, row, sW, sH, buildings)) continue;
 
         // Draw footprint diamond (one per valid position)
@@ -970,14 +970,15 @@ export class SurfaceScene {
       }
     }
 
-    // Footprint must not overlap any existing building
+    // Footprint must not overlap or touch any existing building (enforces 1-cell gap).
+    // Uses inclusive bounds: col <= bx+bSW catches both overlap and 0-cell touching.
     for (const b of buildings) {
       const bSW = BUILDING_DEFS[b.type]?.sizeW ?? 1;
       const bSH = BUILDING_DEFS[b.type]?.sizeH ?? 1;
-      if (col < b.x + bSW && col + sW > b.x && row < b.y + bSH && row + sH > b.y) return false;
+      if (col <= b.x + bSW && col + sW >= b.x && row <= b.y + bSH && row + sH >= b.y) return false;
     }
 
-    // Must be adjacent to existing city (if colony exists)
+    // Must be reachable (1-cell gap away) from existing city
     if (buildings.length > 0 && !isAdjacentToCity(col, row, sW, sH, buildings)) return false;
     return true;
   }
@@ -1832,79 +1833,9 @@ export class SurfaceScene {
 
   // ─── Concrete pads under buildings (disabled) ────────────────────────────
 
-  /**
-   * Draw isometric road tiles (1-cell border) around every building footprint.
-   *
-   * Algorithm:
-   *   1. Collect the union of all footprint cells from all buildings.
-   *   2. For each footprint cell, expand by 1 in every grid direction → candidate road cells.
-   *   3. Road cells = candidates NOT in any footprint, NOT water/beach, within grid bounds.
-   *   4. Y-sort (col+row ascending = painter's algorithm back→front) then draw flat diamonds.
-   */
-  private _rebuildConcretePads(buildings: PlacedBuilding[]): void {
+  /** No concrete pads or road tiles — buildings sit directly on terrain. */
+  private _rebuildConcretePads(_buildings: PlacedBuilding[]): void {
     this.concreteLayer.removeChildren();
-    if (buildings.length === 0) return;
-
-    const N    = this.gridSize;
-    const seed = this.planet?.seed ?? 0;
-    const wl   = this.waterLevel;
-    const TW2  = TILE_W / 2;
-    const TH2  = TILE_H / 2;
-
-    // ── 1. Footprint set ────────────────────────────────────────────────────
-    const footprintSet = new Set<string>();
-    for (const b of buildings) {
-      const def = BUILDING_DEFS[b.type];
-      const sW  = def?.sizeW ?? 1;
-      const sH  = def?.sizeH ?? 1;
-      for (let dc = 0; dc < sW; dc++) {
-        for (let dr = 0; dr < sH; dr++) {
-          footprintSet.add(`${b.x + dc},${b.y + dr}`);
-        }
-      }
-    }
-
-    // ── 2+3. Road border set ────────────────────────────────────────────────
-    const roadSet = new Set<string>();
-    for (const b of buildings) {
-      const def = BUILDING_DEFS[b.type];
-      const sW  = def?.sizeW ?? 1;
-      const sH  = def?.sizeH ?? 1;
-      for (let dc = -1; dc <= sW; dc++) {
-        for (let dr = -1; dr <= sH; dr++) {
-          const col = b.x + dc;
-          const row = b.y + dr;
-          if (col < 0 || row < 0 || col >= N || row >= N) continue;
-          const key = `${col},${row}`;
-          if (!footprintSet.has(key)) roadSet.add(key);
-        }
-      }
-    }
-    if (roadSet.size === 0) return;
-
-    // ── 4. Y-sort + filter water ────────────────────────────────────────────
-    const cells = [...roadSet]
-      .map(k => { const [c, r] = k.split(',').map(Number); return { col: c, row: r }; })
-      .filter(({ col, row }) => {
-        const t = classifyCellTerrain(col, row, seed, wl, N);
-        return !isWaterTerrain(t) && t !== 'beach';
-      })
-      .sort((a, b) => (a.col + a.row) - (b.col + b.row)); // painter's algorithm
-
-    // ── 5. Draw ─────────────────────────────────────────────────────────────
-    const g = new Graphics();
-    for (const { col, row } of cells) {
-      const { x, y } = gridToScreen(col, row);
-      const baseY    = y + TILE_H / 2;
-      // Isometric diamond (same shape as a ground tile)
-      g.poly([x, baseY - TH2,  x + TW2, baseY,  x, baseY + TH2,  x - TW2, baseY]);
-      g.fill({ color: 0x8899aa, alpha: 0.55 });   // cool gray-blue road surface
-      g.poly([x, baseY - TH2,  x + TW2, baseY,  x, baseY + TH2,  x - TW2, baseY]);
-      g.stroke({ color: 0x445566, alpha: 0.40, width: 0.8 }); // subtle edge
-    }
-    // Raise 3 % of tile height so roads sit cleanly above terrain sprites
-    g.y = -Math.round(TILE_H * 0.03);
-    this.concreteLayer.addChild(g);
   }
 
   // ─── Legacy concrete-pad code kept below for reference (unreachable) ─────
