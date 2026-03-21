@@ -59,3 +59,49 @@ export const SURFACE_OBJECT_DENSITY = {
   ore:  0.10,   // 10% of plains/hills/mountains
   vent: 0.05,   // 5% of coast/beach/lowland
 } as const;
+
+// --- Colony Economy ---
+
+/** Interval between colony ticks in milliseconds. 60s for dev, 60_000 for prod. */
+export const COLONY_TICK_INTERVAL_MS = 60_000;
+
+/** Base storage capacity provided by Colony Hub. */
+export const BASE_STORAGE_CAPACITY = {
+  minerals: 500,
+  volatiles: 300,
+  isotopes: 200,
+} as const;
+
+/** Base energy storage (without battery stations). */
+export const BASE_ENERGY_STORAGE = 50;
+
+/** Building shutdown priority (lower = shut down first). */
+export const ENERGY_SHUTDOWN_PRIORITY: Record<string, number> = {
+  greenhouse: 1,
+  research_lab: 2,
+  atmo_extractor: 3,
+  mine: 4,
+  water_extractor: 5,
+  radar_tower: 6,
+  deep_drill: 7,
+  quantum_separator: 8,
+  gas_fractionator: 9,
+  isotope_centrifuge: 10,
+  residential_dome: 11,
+  orbital_telescope: 12,
+  quantum_computer: 13,
+  biome_dome: 14,
+  atmo_shield: 15,
+  landing_pad: 16,
+  spaceport: 17,
+  genesis_vault: 18,
+  fusion_reactor: 19,
+} as const;
+
+/** Max total buildings per planet type. */
+export const MAX_BUILDINGS_PER_PLANET = {
+  'rocky': 40,
+  'dwarf': 15,
+  'gas-giant': 5,
+  'ice-giant': 8,
+} as const;

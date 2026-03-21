@@ -8,10 +8,28 @@ export type { GlobalResources, ColonyResources, ChemicalInventory, PlayerProfile
 export type { ObservedRange, SystemObservation, SystemResearchState, ResearchSlot, ResearchState } from './research.js';
 export type {
   TerrainType, BiomeType, SurfaceTile, SurfaceMap,
-  SurfaceResourceDeposit, BuildingType, BuildingDef, AdjacencyBonus,
+  SurfaceResourceDeposit, UniquePlanetResource,
+  BuildingCategory, BuildingType, BuildingProduction, BuildingConsumption,
+  BuildingDef, AdjacencyBonus,
   PlacedBuilding, SurfaceState,
   SurfaceObjectType, CellHarvestState, OreHarvestState, VentHarvestState, HarvestedCell,
 } from './surface.js';
 export { BUILDING_DEFS, canPlaceBuilding, getActiveBonuses, REGROWTH_STAGE_MS } from './surface.js';
+export type {
+  PlanetEnergyState, StorageState, PopulationState, PlanetColonyState,
+} from './colony.js';
+export {
+  createEnergyState, createStorageState, getStorageCapacity,
+  createPopulationState, createPlanetColonyState,
+} from './colony.js';
+export type {
+  ProducibleType, ProducibleDef, ProductionQueueItem,
+  ShipStatus, DeployableUnit, CargoManifest, Ship,
+  TradeRoute, FleetState,
+} from './logistics.js';
+export {
+  PRODUCIBLE_DEFS, getProductionProgress, isProductionComplete,
+  createEmptyManifest, createFleetState,
+} from './logistics.js';
 export type { CoreSystem, GalaxyGroupCore, GalaxyGroup } from './galaxy-group.js';
 export type { GalacticPosition, GalaxyGroupMeta, PlayerGalaxyAssignment } from './galaxy-map.js';

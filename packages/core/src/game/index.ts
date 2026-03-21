@@ -64,6 +64,10 @@ export {
   getEffectValue,
   hasAvailableTech,
   ASTRONOMY_NODES,
+  PHYSICS_NODES,
+  CHEMISTRY_NODES,
+  BIOLOGY_NODES,
+  ALL_NODES,
 } from './tech-tree.js';
 export type {
   TechBranch,
@@ -73,3 +77,41 @@ export type {
   TechEffectType,
   TechTreeState,
 } from './tech-tree.js';
+
+// Planet building rules
+export {
+  canBuildOnPlanet,
+  getAvailableBuildings,
+  getTerrainBonus,
+  getSolarEnergyMultiplier,
+  getWindMultiplier,
+  getAtmoMultiplier,
+  planetHasAtmosphere,
+} from './planet-rules.js';
+export type { BuildingAvailability, TerrainBonus } from './planet-rules.js';
+
+// Energy system
+export {
+  computeEnergyBalance,
+  applyEnergyTick,
+  restoreShutdownBuildings,
+} from './energy.js';
+
+// Colony tick
+export { runColonyTicks } from './colony-tick.js';
+export type { ColonyTickResult } from './colony-tick.js';
+
+// Production system
+export { startProduction, tickProduction } from './production.js';
+export type { StartProductionResult, CompletedProduction } from './production.js';
+
+// Logistics
+export {
+  launchShip,
+  tickShipTravel,
+  loadCargo,
+  unloadCargo,
+  refuelShip,
+  createTradeRoute,
+} from './logistics.js';
+export type { LaunchResult, ArrivalEvent } from './logistics.js';
