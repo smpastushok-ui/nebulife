@@ -296,18 +296,33 @@ export class SurfaceScene {
     // Atmospheric clouds (TilingSprite)
     await this._initCloudSprites();
 
-    // Researcher bot — spawn one cell to the right of the hub footprint (outside obstacle zone)
+    // Drone explorer — only spawn if colony hub already exists
     const hub = buildings.find((b) => b.type === 'colony_hub');
-    const hubDef = hub ? BUILDING_DEFS[hub.type] : null;
-    const roverStartCol = hub
-      ? hub.x + (hubDef?.sizeW ?? 2) + 1
-      : Math.floor(this.gridSize / 2);
-    const roverStartRow = hub
-      ? hub.y + Math.floor((hubDef?.sizeH ?? 2) / 2)
-      : Math.floor(this.gridSize / 2);
-    if (this.botFlyTex && this.botIdleTex) {
-      this.bot = new ResearcherBot(roverStartCol, roverStartRow, this.botFlyTex, this.botIdleTex);
-      this.roverLayer.addChild(this.bot.container);
+    if (hub) {
+      this._spawnBotNearHub(hub);
+    }
+  }
+
+  /** Spawn a drone explorer next to a colony hub building. */
+  private _spawnBotNearHub(hub: PlacedBuilding): void {
+    if (this.bot || !this.botFlyTex || !this.botIdleTex) return;
+    const hubDef = BUILDING_DEFS[hub.type];
+    const col = hub.x + (hubDef?.sizeW ?? 2) + 1;
+    const row = hub.y + Math.floor((hubDef?.sizeH ?? 2) / 2);
+    this.bot = new ResearcherBot(col, row, this.botFlyTex, this.botIdleTex);
+    this.roverLayer.addChild(this.bot.container);
+  }
+
+  /** Public API: spawn drone when colony hub is built during gameplay. */
+  public spawnBotAtHub(hub: PlacedBuilding): void {
+    this._spawnBotNearHub(hub);
+    // Also reveal fog around the hub (30-tile radius)
+    if (this.fogLayer) {
+      const def = BUILDING_DEFS[hub.type];
+      const cx = hub.x + (def?.sizeW ?? 2) / 2 - 0.5;
+      const cy = hub.y + (def?.sizeH ?? 2) / 2 - 0.5;
+      this.fogLayer.revealAround(cx, cy, def?.fogRevealRadius ?? 30);
+      this.fogLayer.redraw();
     }
   }
 

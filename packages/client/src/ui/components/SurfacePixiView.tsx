@@ -340,6 +340,10 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         sceneRef.current?.clearGhost();
         onBuildingPlaced?.();
         placeBuilding(playerId, planet.id, newBuilding).catch(console.error);
+        // Colony Hub built — spawn drone explorer + reveal fog
+        if (newBuilding.type === 'colony_hub') {
+          sceneRef.current?.spawnBotAtHub(newBuilding);
+        }
       } else if (roverMode) {
         // Drone explorer — send drone to clicked cell
         scene.setRoverTarget(col, row);
