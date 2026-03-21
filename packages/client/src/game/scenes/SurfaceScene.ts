@@ -799,9 +799,13 @@ export class SurfaceScene {
     const hH       = TILE_H  * 0.40 * sizeH;
     const bH       = TILE_H  * 0.85;
 
+    // Use the same front-vertex Y as the sprite path so mixed sprite/procedural
+    // buildings at adjacent rows always sort correctly.
+    const footBotY_z = (b.x + sizeW + b.y + sizeH) * (TILE_H / 2);
+
     const colors = BUILDING_COLORS[b.type] ?? DEFAULT_BUILDING_COLORS;
     const g = new Graphics();
-    g.zIndex = baseY;
+    g.zIndex = footBotY_z;
 
     g.poly([x, baseY - bH - hH, x + hW, baseY - bH, x, baseY - bH + hH, x - hW, baseY - bH]);
     g.fill(colors.top);

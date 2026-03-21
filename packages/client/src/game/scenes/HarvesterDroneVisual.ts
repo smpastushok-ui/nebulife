@@ -22,8 +22,8 @@ import { TILE_W, TILE_H, gridToScreen } from './surface-utils.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Drone sprite scale so body fits ~1.5× tile width. */
-const DRONE_SCALE   = (TILE_W * 1.5) / 512;
+/** Drone sprite scale — same apparent size as the ResearcherBot (TILE_W / 1024 for 1024px = TILE_W / 512 for 512px). */
+const DRONE_SCALE   = TILE_W / 512;
 
 /** Sprite anchor: horizontal centre, bottom of drone hull. */
 const ANCHOR_X      = 0.5;

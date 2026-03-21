@@ -20,7 +20,7 @@ import { HARVEST_DURATION_MS, BUILDING_DEFS, XP_REWARDS, HARVEST_YIELD } from '@
 import { SurfaceScene }  from '../../game/scenes/SurfaceScene.js';
 import { SurfacePanel }  from './SurfacePanel.js';
 import { getBuildings, placeBuilding } from '../../api/surface-api.js';
-import { screenToGrid, TILE_H, gridToScreen, computeIsoGridSize, findMountainCell, findPlainGroundCellFarFrom } from '../../game/scenes/surface-utils.js';
+import { screenToGrid, TILE_H, gridToScreen } from '../../game/scenes/surface-utils.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -180,30 +180,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           loaded = await getBuildings(playerId, planet.id);
         } catch { /* ignore — start with empty */ }
 
-        // Test: place a showcase of buildings on the surface (5-cell gaps between 4×4 footprints)
-        if (loaded.length === 0) {
-          const N   = computeIsoGridSize(planet.radiusEarth * 6371);
-          const mtn = findMountainCell(planet.seed, N);
-          const pos = mtn
-            ? findPlainGroundCellFarFrom(planet.seed, N, mtn.col, mtn.row, 12)
-            : findPlainGroundCellFarFrom(planet.seed, N, Math.floor(N / 2), Math.floor(N / 2), 0);
-
-          // Base anchor — clamp so all buildings fit within the grid
-          const bx = Math.min(pos.col, N - 20);
-          const by = Math.min(pos.row, N - 20);
-          const ts = new Date().toISOString();
-
-          // Row 0: colony_hub | resource_storage | landing_pad
-          // Row 1: spaceport  | solar_plant      | alpha_harvester (drone spawns from it)
-          loaded = [
-            { id: 'test_hub',  type: 'colony_hub',       x: bx,      y: by,      level: 1, builtAt: ts },
-            { id: 'test_rs',   type: 'resource_storage',  x: bx + 5,  y: by,      level: 1, builtAt: ts },
-            { id: 'test_lp',   type: 'landing_pad',       x: bx + 10, y: by,      level: 1, builtAt: ts },
-            { id: 'test_sp',   type: 'spaceport',         x: bx,      y: by + 5,  level: 1, builtAt: ts },
-            { id: 'test_sol',  type: 'solar_plant',       x: bx + 5,  y: by + 5,  level: 1, builtAt: ts },
-            { id: 'test_ah',   type: 'alpha_harvester',   x: bx + 10, y: by + 5,  level: 1, builtAt: ts },
-          ];
-        }
+        // Start with no buildings — player builds their colony from scratch.
+        // (Server returns empty array for a fresh planet.)
 
         setBuildings(loaded);
 
