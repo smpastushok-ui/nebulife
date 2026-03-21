@@ -28,6 +28,7 @@ const BUILDING_GROUPS: BuildingGroup[] = [
   { label: 'НАУКА',          color: '#4488ff',  types: ['research_lab', 'observatory', 'radar_tower', 'orbital_telescope', 'quantum_computer'] },
   { label: 'БІОСФЕРА',       color: '#88ff44',  types: ['greenhouse', 'residential_dome', 'atmo_shield', 'biome_dome'] },
   { label: 'ХІМІЯ',          color: '#ff44aa',  types: ['quantum_separator', 'gas_fractionator', 'isotope_centrifuge', 'genesis_vault'] },
+  { label: 'ПРЕМІУМ',        color: '#ffcc44',  types: ['alpha_harvester'] },
 ];
 
 const BUILDING_COLORS: Partial<Record<BuildingType, string>> = {
@@ -64,6 +65,8 @@ const BUILDING_COLORS: Partial<Record<BuildingType, string>> = {
   gas_fractionator:  '#ff6688',
   isotope_centrifuge:'#cc4488',
   genesis_vault:     '#ff88cc',
+  // Premium
+  alpha_harvester:   '#ffcc44',
 };
 
 const TERRAIN_UA: Record<string, string> = {

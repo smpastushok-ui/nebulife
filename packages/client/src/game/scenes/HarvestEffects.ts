@@ -147,6 +147,11 @@ export class HarvestEffects {
         || '__fadeElapsed'     in sprite;
   }
 
+  /** Trigger screen shake externally (e.g. from HarvesterDrone absorption effect). */
+  public screenShake(amp = 2, durationMs = 250): void {
+    this._screenShake(amp, durationMs);
+  }
+
   destroy(): void {
     for (const p of this.particles) p.g.destroy();
     this.particles = [];

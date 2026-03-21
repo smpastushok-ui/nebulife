@@ -118,7 +118,9 @@ export type BuildingType =
   | 'quantum_separator'
   | 'gas_fractionator'
   | 'isotope_centrifuge'
-  | 'genesis_vault';
+  | 'genesis_vault'
+  // Premium (purchased with quarks)
+  | 'alpha_harvester';
 
 /** What resource a building produces per tick */
 export interface BuildingProduction {
@@ -662,6 +664,27 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     production: [{ resource: 'habitability', amount: 0.015 }],
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
+    storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PREMIUM (purchased with quarks — 1)
+  // ═══════════════════════════════════════════════════════════════════════════
+  alpha_harvester: {
+    type: 'alpha_harvester', category: 'extraction',
+    name: 'Альфа-добувач',
+    description: 'Преміум дрон-збирач. Автоматично збирає ресурси в радіусі 10 клітинок. Куплено за кварки.',
+    size: 2, sizeW: 2, sizeH: 2,
+    requiresTerrain: FLAT_LAND,
+    cost: [],   // Purchased with quarks via shop — not built with standard resources
+    levelRequired: 1, techRequired: null, maxPerPlanet: 1,
+    energyOutput: 0, energyConsumption: 5, energyStorageAdd: 0,
+    production: [
+      { resource: 'minerals', amount: 1 },
+      { resource: 'volatiles', amount: 1 },
+    ],
+    consumption: [],
+    allowedPlanetTypes: ALL_PLANETS, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
 };

@@ -32,6 +32,7 @@ import { FogLayer } from './FogLayer.js';
 import { RoverVisual, ROVER_REVEAL_RADIUS } from './RoverVisual.js';
 import { ResearcherBot, BOT_REVEAL_RADIUS } from './ResearcherBot.js';
 import { HarvestEffects, tickSpriteAnims, hasSpriteAnim } from './HarvestEffects.js';
+import { HarvesterDroneVisual } from './HarvesterDroneVisual.js';
 import {
   TILE_W, TILE_H, FRAME_W, FRAME_H, ATLAS_COLS,
   SPRITE_ANCHOR_Y, TILE_SCALE,
@@ -96,6 +97,7 @@ const BUILDING_COLORS: Record<string, IsoColors> = {
   water_extractor: { top: 0x44bbdd, right: 0x2299bb, left: 0x115566 },
   greenhouse:      { top: 0x55bb66, right: 0x339944, left: 0x1a5522 },
   observatory:     { top: 0x9988cc, right: 0x7766aa, left: 0x443366 },
+  alpha_harvester: { top: 0xddcc44, right: 0xaa9922, left: 0x776600 },  // gold landing pad
 };
 
 const DEFAULT_BUILDING_COLORS: IsoColors = { top: 0x778899, right: 0x556677, left: 0x334455 };
@@ -155,6 +157,10 @@ export class SurfaceScene {
   private bldgTextures: Partial<Record<string, Texture>> = {};
   /** mount.png texture for the 3×3 mountain overlay (test visual) */
   private mountTexture: Texture | null = null;
+
+  // ─── Premium harvester drones ─────────────────────────────────────────────
+  private harvesterDrones: HarvesterDroneVisual[] = [];
+  private harvesterTex:    Texture | null = null;
 
   // ─── Building contact shadows (below buildingLayer) ──────────────────────
   private buildingShadowGfx: Graphics | null = null;
@@ -279,6 +285,11 @@ export class SurfaceScene {
       ]);
     } catch { /* no bot textures — bot will not spawn */ }
 
+    // Load premium harvester drone texture
+    try {
+      this.harvesterTex = await Assets.load<Texture>('/tiles/machines/premium_harvester_drone.png');
+    } catch { /* no harvester texture — drones will not spawn */ }
+
     this.drawGroundLayer();
     this._buildNoiseOverlay();
     this._buildShorelineCells();
@@ -300,6 +311,11 @@ export class SurfaceScene {
     const hub = buildings.find((b) => b.type === 'colony_hub');
     if (hub) {
       this._spawnBotNearHub(hub);
+    }
+
+    // Premium harvester drones — spawn for each alpha_harvester building
+    for (const b of buildings) {
+      if (b.type === 'alpha_harvester') this._spawnHarvesterDrone(b);
     }
   }
 
@@ -324,6 +340,72 @@ export class SurfaceScene {
       this.fogLayer.revealAround(cx, cy, def?.fogRevealRadius ?? 30);
       this.fogLayer.redraw();
     }
+  }
+
+  // ─── Premium harvester drone ─────────────────────────────────────────────
+
+  /** Spawn a HarvesterDroneVisual for an alpha_harvester building. */
+  private _spawnHarvesterDrone(building: PlacedBuilding): void {
+    if (!this.harvesterTex) return;
+    // Drone hovers above centre of building footprint
+    const homeCol = building.x + 0.5;
+    const homeRow = building.y + 0.5;
+
+    const drone = new HarvesterDroneVisual(
+      homeCol,
+      homeRow,
+      this.harvesterTex,
+      () => this._findNearbyHarvestable(homeCol, homeRow, 10),
+      (col, row) => { this.harvestAt(col, row); },
+    );
+    this.roverLayer.addChild(drone.container);
+    this.harvesterDrones.push(drone);
+  }
+
+  /** Public API: spawn harvester drone when alpha_harvester is placed during gameplay. */
+  public spawnHarvesterDrone(building: PlacedBuilding): void {
+    this._spawnHarvesterDrone(building);
+  }
+
+  /**
+   * Find the nearest unharvestedresource cell within radius of (homeCol, homeRow).
+   * Returns Ukrainian resource label for UI feedback.
+   */
+  private _findNearbyHarvestable(
+    homeCol: number,
+    homeRow: number,
+    radius: number,
+  ): { col: number; row: number; label: string } | null {
+    const seed = this.planet?.seed ?? 0;
+    const wl   = this.waterLevel;
+    const N    = this.gridSize;
+
+    // Spiral outward from home position
+    let bestDist = Infinity;
+    let best: { col: number; row: number; label: string } | null = null;
+
+    for (let dc = -radius; dc <= radius; dc++) {
+      for (let dr = -radius; dr <= radius; dr++) {
+        const dist = Math.abs(dc) + Math.abs(dr);
+        if (dist > radius) continue;
+        const c = Math.round(homeCol) + dc;
+        const r = Math.round(homeRow) + dr;
+        if (c < 0 || c >= N || r < 0 || r >= N) continue;
+        const k = `${c},${r}`;
+        if (this.harvestedCells.has(k)) continue;   // already depleted
+
+        let label: string | null = null;
+        if (isTreeCell(c, r, seed, N, wl)) label = 'Деревина';
+        else if (isOreCell(c, r, seed, N, wl))  label = 'Руда';
+        else if (isVentCell(c, r, seed, N, wl)) label = 'Газ';
+
+        if (label && dist < bestDist) {
+          bestDist = dist;
+          best = { col: c, row: r, label };
+        }
+      }
+    }
+    return best;
   }
 
   // ─── Atlas helper ─────────────────────────────────────────────────────────
@@ -602,6 +684,14 @@ export class SurfaceScene {
       if (crossed && this.fogLayer) {
         this.fogLayer.revealAround(Math.round(this.bot.col), Math.round(this.bot.row), BOT_REVEAL_RADIUS);
         this.fogLayer.redraw();
+      }
+    }
+
+    // Animate premium harvester drones + trigger screen shake on absorption
+    for (const drone of this.harvesterDrones) {
+      drone.update(deltaMs);
+      if (drone.screenShakeRequested) {
+        this.harvestFx?.screenShake(2, 280);
       }
     }
 
@@ -1733,14 +1823,16 @@ export class SurfaceScene {
     }
   }
 
-  // ─── Concrete pads under buildings ───────────────────────────────────────
+  // ─── Concrete pads under buildings (disabled) ────────────────────────────
 
-  /**
-   * Draw ONE concrete footprint diamond per building — same shape as the zone overlay.
-   * The diamond's bottom vertex = the sprite's (0.5, 1.0) anchor position,
-   * so the building and its pad share the same coordinate origin.
-   */
-  private _rebuildConcretePads(buildings: PlacedBuilding[]): void {
+  /** Concrete pads removed per design update — buildings sit directly on terrain. */
+  private _rebuildConcretePads(_buildings: PlacedBuilding[]): void {
+    this.concreteLayer.removeChildren();
+  }
+
+  // ─── Legacy concrete-pad code kept below for reference (unreachable) ─────
+
+  private _legacyConcretePads(buildings: PlacedBuilding[]): void {
     this.concreteLayer.removeChildren();
     const seed = this.planet?.seed ?? 0;
     const TW2  = TILE_W / 2;

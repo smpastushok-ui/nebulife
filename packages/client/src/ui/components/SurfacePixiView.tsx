@@ -344,6 +344,10 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         if (newBuilding.type === 'colony_hub') {
           sceneRef.current?.spawnBotAtHub(newBuilding);
         }
+        // Alpha Harvester built — spawn premium harvester drone
+        if (newBuilding.type === 'alpha_harvester') {
+          sceneRef.current?.spawnHarvesterDrone(newBuilding);
+        }
       } else if (roverMode) {
         // Drone explorer — send drone to clicked cell
         scene.setRoverTarget(col, row);

@@ -51,6 +51,8 @@ const BUILDING_COLORS: Partial<Record<BuildingType, string>> = {
   gas_fractionator: '#ff6688',
   isotope_centrifuge:'#cc4488',
   genesis_vault:    '#ff88cc',
+  // Premium
+  alpha_harvester:  '#ffcc44',
 };
 
 /** Draw a procedural mini-icon onto a tiny canvas */
