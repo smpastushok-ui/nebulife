@@ -155,8 +155,6 @@ export class SurfaceScene {
 
   /** Pre-loaded building PNG textures: buildingType → Texture */
   private bldgTextures: Partial<Record<string, Texture>> = {};
-  /** mount.png texture for the 3×3 mountain overlay (test visual) */
-  private mountTexture: Texture | null = null;
 
   // ─── Premium harvester drones ─────────────────────────────────────────────
   private harvesterDrones: HarvesterDroneVisual[] = [];
@@ -274,11 +272,6 @@ export class SurfaceScene {
         } catch { /* no PNG for this building — use procedural */ }
       }),
     );
-
-    // Load mount.png for 7×7 mountain overlay (fail silently if not present)
-    try {
-      this.mountTexture = await Assets.load<Texture>('/tiles/mount.png');
-    } catch { /* no mount texture — skip overlay */ }
 
     // Load researcher bot textures
     try {
@@ -561,47 +554,75 @@ export class SurfaceScene {
     items.forEach(({ sp }) => this.featureLayer.addChild(sp));
   }
 
-  // ─── Mountain overlay (3×3 test sprite) ──────────────────────────────────
+  // ─── Mountain overlay (procedural layered slabs) ─────────────────────────
 
   /**
-   * Render mount.png as a 7×7 (49-cell) isometric sprite on featureLayer.
-   * Finds the nearest mountains/peaks cell to the centre; skips if texture missing.
-   *
-   * Geometry for an F×F footprint (F=7) with top-left at (col, row):
-   *   Bottom vertex = cell (col+F-1, row+F-1)
-   *   spriteX       = (col − row) * TILE_W/2
-   *   spriteBaseY   = (col + row + 2*(F-1) + 1) * TILE_H/2
-   *                 = (col + row + 13) * TILE_H/2   for F=7
-   *   scale         = F * TILE_W / tex.width = 7*128/512 = 1.75
+   * Render a procedural layered mountain on featureLayer.
+   * 4 isometric slab layers (7×7 → 5×5 → 3×3 → 1×1), forming a centered pyramid.
+   * Each slab draws 3 faces: SE wall (right), SW wall (left), top face.
+   * Colors: dark warm earth base → warm stone → cool gray rock → near-snow peak.
    */
   private placeMountOverlay(): void {
     this.featureLayer.removeChildren();
-    if (!this.mountTexture) return;
 
-    const N    = this.gridSize;
-    const seed = this.planet.seed;
-    const pos  = findMountainCell(seed, N);
+    const pos = findMountainCell(this.planet.seed, this.gridSize);
     if (!pos) return;
 
     const { col, row } = pos;
-    const F = 7;  // footprint side (7×7 = 49 cells)
+    const TW2 = TILE_W / 2;
+    const TH2 = TILE_H / 2;
 
-    const spriteX     = (col - row) * (TILE_W / 2);
-    const spriteBaseY = (col + row + 2 * (F - 1) + 1) * (TILE_H / 2);
+    // Grid cell → local-space screen position
+    const gts = (c: number, r: number) => ({ x: (c - r) * TW2, y: (c + r) * TH2 });
 
-    // Measured anchor from mount.png: bottom vertex at Y=414, frame H=512
-    const MOUNT_ANCHOR_Y = 414 / 512;  // 0.8086
+    interface SlabDef {
+      sW: number; sH: number; c0: number; r0: number;
+      h: number; top: number; se: number; sw: number;
+    }
 
-    const sp = new Sprite(this.mountTexture);
-    sp.anchor.set(0.5, MOUNT_ANCHOR_Y);
-    // Scale: sprite width → F × TILE_W screen pixels (7 × 128 = 896px → 896/512 = 1.75)
-    const scale = (F * TILE_W) / this.mountTexture.width;
-    sp.scale.set(scale);
-    sp.position.set(spriteX, spriteBaseY);
-    sp.zIndex = spriteBaseY;
+    // Layer colors: dark warm earth base → warm stone → cool gray rock → near-snow peak
+    const LAYERS: SlabDef[] = [
+      { sW:7, sH:7, c0:0, r0:0, h:68, top:0x4e3a28, se:0x362618, sw:0x221610 },
+      { sW:5, sH:5, c0:1, r0:1, h:88, top:0x7c6450, se:0x5a4a3c, sw:0x3e3028 },
+      { sW:3, sH:3, c0:2, r0:2, h:88, top:0xa09080, se:0x7e6e66, sw:0x5e5450 },
+      { sW:1, sH:1, c0:3, r0:3, h:76, top:0xd8d4ce, se:0xb6b0aa, sw:0x92908c },
+    ];
+
+    const g = new Graphics();
+    let hAccum = 0;
+
+    for (const layer of LAYERS) {
+      hAccum += layer.h;
+      const hTop = hAccum;
+      const hBot = hTop - layer.h;
+
+      const T  = gts(col + layer.c0,            row + layer.r0           );
+      const R  = gts(col + layer.c0 + layer.sW,  row + layer.r0           );
+      const B  = gts(col + layer.c0 + layer.sW,  row + layer.r0 + layer.sH);
+      const Lv = gts(col + layer.c0,             row + layer.r0 + layer.sH);
+
+      // SE wall (right-front face)
+      g.poly([R.x, R.y - hTop,  B.x, B.y - hTop,  B.x, B.y - hBot,  R.x, R.y - hBot]);
+      g.fill({ color: layer.se });
+      g.stroke({ width: 0.6, color: 0x000000, alpha: 0.18 });
+
+      // SW wall (left-front face)
+      g.poly([Lv.x, Lv.y - hTop,  B.x, B.y - hTop,  B.x, B.y - hBot,  Lv.x, Lv.y - hBot]);
+      g.fill({ color: layer.sw });
+      g.stroke({ width: 0.6, color: 0x000000, alpha: 0.18 });
+
+      // Top face
+      g.poly([T.x, T.y - hTop,  R.x, R.y - hTop,  B.x, B.y - hTop,  Lv.x, Lv.y - hTop]);
+      g.fill({ color: layer.top });
+      g.stroke({ width: 0.6, color: 0x000000, alpha: 0.12 });
+    }
+
+    // zIndex: front-bottom vertex of the base 7×7 layer
+    const frontBot = gts(col + 7, row + 7);
+    g.zIndex = frontBot.y;
 
     this.featureLayer.sortableChildren = true;
-    this.featureLayer.addChild(sp);
+    this.featureLayer.addChild(g);
   }
 
   // ─── Buildings (dynamic) ──────────────────────────────────────────────────
