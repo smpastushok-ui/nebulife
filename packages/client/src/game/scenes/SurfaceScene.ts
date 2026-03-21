@@ -261,7 +261,10 @@ export class SurfaceScene {
 
     // Pre-load building PNG textures (non-blocking — fail silently)
     const BUILDING_PNGS: Partial<Record<string, string>> = {
-      colony_hub: '/buildings/colony_hub.png',
+      colony_hub:       '/buildings/colony_hub.png',
+      resource_storage: '/tiles/machines/resource_storage.png',
+      landing_pad:      '/tiles/machines/landing_pad.png',
+      spaceport:        '/tiles/machines/spaceport.png',
     };
     await Promise.all(
       Object.entries(BUILDING_PNGS).map(async ([type, url]) => {
