@@ -70,6 +70,7 @@ const TERRAIN_UA: Record<string, string> = {
 const BLDG_PNG: Partial<Record<BuildingType, string>> = {
   colony_hub:       '/buildings/colony_hub.png',
   solar_plant:      '/buildings/solar_plant.png',
+  battery_station:  '/buildings/battery_station.png',
   resource_storage: '/tiles/machines/resource_storage.png',
   landing_pad:      '/tiles/machines/landing_pad.png',
   spaceport:        '/tiles/machines/spaceport.png',
