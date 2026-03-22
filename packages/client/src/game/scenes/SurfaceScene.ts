@@ -732,6 +732,12 @@ export class SurfaceScene {
   // ─── Buildings (dynamic) ──────────────────────────────────────────────────
 
   public rebuildBuildings(buildings: PlacedBuilding[]): void {
+    // Snapshot animation state before clearing so existing buildings continue mid-cycle
+    const savedAnim = new Map<string, { timeMs: number; extra: Record<string, number> }>();
+    for (const [key, eff] of this.bldgEffects.entries()) {
+      savedAnim.set(key, { timeMs: eff.timeMs, extra: { ...eff.extra } });
+    }
+
     this.buildingLayer.removeChildren();
     this.effectLayer.removeChildren();
     this.hubLayer.removeChildren();
@@ -764,6 +770,14 @@ export class SurfaceScene {
       // Create idle animation for supported building types
       if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport') {
         this._createBldgEffect(b);
+        // Restore previous animation state so existing buildings don't restart from zero
+        const key    = `${b.x},${b.y}`;
+        const saved  = savedAnim.get(key);
+        const newEff = this.bldgEffects.get(key);
+        if (saved && newEff) {
+          newEff.timeMs = saved.timeMs;
+          newEff.extra  = { ...saved.extra };
+        }
       }
     }
   }
@@ -1094,20 +1108,17 @@ export class SurfaceScene {
 
     for (let col = 0; col <= N - sW; col++) {
       for (let row = 0; row <= N - sH; row++) {
-        // All cells in footprint must be buildable terrain, no live resources, and revealed
+        // All cells in footprint must be buildable terrain, no resources, and revealed
         let ok = true;
         for (let dc = 0; dc < sW && ok; dc++) {
           for (let dr = 0; dr < sH && ok; dr++) {
             const c = col + dc; const r = row + dr;
             if (!isCellBuildable(c, r, seed, wl, selectedType)) { ok = false; break; }
-            const k = `${c},${r}`;
-            if (isTreeCell(c, r, seed, N, wl) && !this.harvestedCells.has(k)) { ok = false; break; }
-            if (isOreCell(c, r, seed, N, wl)  && !this.harvestedCells.has(k)) { ok = false; break; }
-            if (isVentCell(c, r, seed, N, wl) && !this.harvestedCells.has(k)) { ok = false; break; }
+            if (this._isCellResourceBlocked(c, r))              { ok = false; break; }
             if (this.fogLayer && !this.fogLayer.isRevealed(c, r)) { ok = false; break; }
           }
         }
-        // 1-cell buffer: border of footprint must not touch water / mountain / live resource
+        // 1-cell buffer: border of footprint must not touch water / mountain / resource
         outerBuf: for (let dc = -1; dc <= sW && ok; dc++) {
           for (let dr = -1; dr <= sH && ok; dr++) {
             if (dc >= 0 && dc < sW && dr >= 0 && dr < sH) continue;
@@ -1115,11 +1126,8 @@ export class SurfaceScene {
             if (bc < 0 || bc >= N || br < 0 || br >= N) continue;
             if (isMountainFootprint(bc, br, seed, N)) { ok = false; break outerBuf; }
             const bt = classifyCellTerrain(bc, br, seed, wl, N);
-            if (isWaterTerrain(bt)) { ok = false; break outerBuf; }
-            const bk = `${bc},${br}`;
-            if (isTreeCell(bc, br, seed, N, wl) && !this.harvestedCells.has(bk)) { ok = false; break outerBuf; }
-            if (isOreCell(bc, br, seed, N, wl)  && !this.harvestedCells.has(bk)) { ok = false; break outerBuf; }
-            if (isVentCell(bc, br, seed, N, wl) && !this.harvestedCells.has(bk)) { ok = false; break outerBuf; }
+            if (isWaterTerrain(bt))                   { ok = false; break outerBuf; }
+            if (this._isCellResourceBlocked(bc, br))  { ok = false; break outerBuf; }
           }
         }
         if (!ok) continue;
@@ -1169,6 +1177,24 @@ export class SurfaceScene {
 
   // ─── Public accessors ─────────────────────────────────────────────────────
 
+  /**
+   * True if the cell currently displays any harvestable resource (live or partially depleted).
+   * Uses the effective atlas frame so it catches all states: full tree/ore/vent, stump,
+   * tree-small, ore-small, vent-small — regardless of harvestedCells state machine.
+   * Allows ore-depleted (24) and vent-dry (26) — resources fully consumed.
+   */
+  private _isCellResourceBlocked(col: number, row: number): boolean {
+    const seed    = this.planet.seed;
+    const wl      = this.waterLevel;
+    const N       = this.gridSize;
+    const terrain = classifyCellTerrain(col, row, seed, wl, N);
+    const defFrm  = terrainToAtlasIndex(terrain, col, row, seed, N);
+    if (defFrm === null) return false;
+    const frm = this.getEffectiveFrame(col, row, defFrm);
+    // frames 13-23: trees + vents (full), 25: ore-small, 27: vent-small, 16-17: stump/tree-small
+    return (frm >= 13 && frm <= 23) || frm === 25 || frm === 27;
+  }
+
   /** Returns true if any active transport unit (bot or harvester drone) occupies grid cell (c, r). */
   private _isOccupiedByTransport(c: number, r: number): boolean {
     if (this.bot && Math.round(this.bot.col) === c && Math.round(this.bot.row) === r) return true;
@@ -1191,34 +1217,28 @@ export class SurfaceScene {
 
     if (col + sW > N || row + sH > N) return false;
 
-    // All footprint cells must have correct terrain, no live resources, no transport, and be revealed
+    // All footprint cells must have correct terrain, no resources, no transport, and be revealed
     for (let dc = 0; dc < sW; dc++) {
       for (let dr = 0; dr < sH; dr++) {
         const c = col + dc; const r = row + dr;
         if (isMountainFootprint(c, r, seed, N)) return false;
         if (!isCellBuildable(c, r, seed, wl, buildingType)) return false;
-        const k = `${c},${r}`;
-        if (isTreeCell(c, r, seed, N, wl) && !this.harvestedCells.has(k)) return false;
-        if (isOreCell(c, r, seed, N, wl)  && !this.harvestedCells.has(k)) return false;
-        if (isVentCell(c, r, seed, N, wl) && !this.harvestedCells.has(k)) return false;
+        if (this._isCellResourceBlocked(c, r)) return false;
         if (this.fogLayer && !this.fogLayer.isRevealed(c, r)) return false;
         if (this._isOccupiedByTransport(c, r)) return false;
       }
     }
 
-    // 1-cell buffer: every cell bordering the footprint must not be water / mountain / live resource
+    // 1-cell buffer: every cell bordering the footprint must not be water / mountain / resource
     for (let dc = -1; dc <= sW; dc++) {
       for (let dr = -1; dr <= sH; dr++) {
         if (dc >= 0 && dc < sW && dr >= 0 && dr < sH) continue; // skip interior
         const bc = col + dc; const br = row + dr;
-        if (bc < 0 || bc >= N || br < 0 || br >= N) continue;   // off-grid is ok
+        if (bc < 0 || bc >= N || br < 0 || br >= N) continue;
         if (isMountainFootprint(bc, br, seed, N)) return false;
         const bt = classifyCellTerrain(bc, br, seed, wl, N);
         if (isWaterTerrain(bt)) return false;
-        const bk = `${bc},${br}`;
-        if (isTreeCell(bc, br, seed, N, wl) && !this.harvestedCells.has(bk)) return false;
-        if (isOreCell(bc, br, seed, N, wl)  && !this.harvestedCells.has(bk)) return false;
-        if (isVentCell(bc, br, seed, N, wl) && !this.harvestedCells.has(bk)) return false;
+        if (this._isCellResourceBlocked(bc, br)) return false;
       }
     }
 
