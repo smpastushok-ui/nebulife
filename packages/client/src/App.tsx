@@ -3394,6 +3394,7 @@ export function App() {
 
   return (
     <>
+      <style>{`@keyframes nebu-planet-spin { to { transform: rotate(360deg); } }`}</style>
       <div ref={universeCanvasRef} id="universe-canvas" style={{ position: 'fixed', inset: 0, zIndex: 1, display: universeVisible ? 'block' : 'none' }} />
       <div ref={canvasRef} id="game-canvas" style={{ display: universeVisible ? 'none' : undefined }} />
 
@@ -3606,7 +3607,7 @@ export function App() {
       />
 
       {/* Left-side scene controls — home-intro */}
-      {state.scene === 'home-intro' && (
+      {state.scene === 'home-intro' && !surfaceTarget && (
         <SceneControlsPanel
           onBack={handleStartExploration}
           onZoomIn={() => globeRef.current?.zoomIn()}
@@ -3673,6 +3674,30 @@ export function App() {
               pulse: check.allowed,
             }];
           })() : undefined}
+        />
+      )}
+
+      {/* Left-side scene controls — surface */}
+      {surfaceTarget && (
+        <SceneControlsPanel
+          onBack={handleCloseSurface}
+          backLabel="Назад"
+          hidden={hideLeftPanel}
+          extraButtons={[{
+            title: 'Екзосфера',
+            icon: (
+              <svg
+                width="14" height="14" viewBox="0 0 16 16"
+                fill="none" stroke="currentColor" strokeWidth="1.2"
+                style={{ animation: 'nebu-planet-spin 5s linear infinite', transformOrigin: '50% 50%', display: 'block' }}
+              >
+                <circle cx="8" cy="8" r="5.5" />
+                <ellipse cx="8" cy="8" rx="5.5" ry="2.2" />
+                <line x1="2.5" y1="8" x2="13.5" y2="8" strokeWidth="0.8" strokeOpacity="0.5" />
+              </svg>
+            ),
+            onClick: handleCloseSurface,
+          }]}
         />
       )}
 
