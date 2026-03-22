@@ -2252,12 +2252,12 @@ export class SurfaceScene {
           rp = (lt - P_RETURN) / RETURN_DUR;
           bY = LP_Y - 38 - (1 - rp) * (1 - rp) * 420;
         } else if (lt < P_IDLE) {
-          // SETTLE: slow descent, quadratic ease-out
+          // SETTLE: slow descent, quadratic ease-out → ends at hover height LP_Y-12
           const p = (lt - P_SETTLE) / SETTLE_DUR;
-          bY = LP_Y - 38 * (1 - p) * (1 - p);
+          bY = LP_Y - 12 - 26 * (1 - p) * (1 - p);
         } else {
-          // IDLE HOVER: gently floating above surface
-          bY = LP_Y - 12 + Math.sin(lt / 700) * 2;
+          // IDLE HOVER: sine from LP_Y-12 using local time → no jump at transition
+          bY = LP_Y - 12 + Math.sin((lt - P_IDLE) / 700) * 2;
         }
 
         // ── Stripe blink period ──────────────────────────────────────────
