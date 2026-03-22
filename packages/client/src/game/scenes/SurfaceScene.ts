@@ -26,6 +26,8 @@ import {
   Texture,
   Rectangle,
 } from 'pixi.js';
+// In PixiJS v8, DisplayObject was removed; Sprite/Graphics both extend Container.
+type DisplayObject = Container | Sprite | Graphics;
 import type { Planet, Star, PlacedBuilding, BuildingType, HarvestedCell, SurfaceObjectType } from '@nebulife/core';
 import { SeededRNG, BUILDING_DEFS, REGROWTH_STAGE_MS } from '@nebulife/core';
 import { FogLayer } from './FogLayer.js';
@@ -84,6 +86,29 @@ interface BuildingAnim {
   shadowX?:      number;
   shadowBaseY?:  number;
   dustSpawned?:  boolean;
+}
+
+// ─── Demolish VFX types ───────────────────────────────────────────────────────
+
+interface DemolishParticle {
+  x: number; y: number; vx: number; vy: number;
+  alpha: number; color: number; size: number; life: number; maxLife: number;
+}
+
+interface DemolishEffect {
+  building:    PlacedBuilding;
+  sprite:      DisplayObject;   // reparented: buildingLayer → demolishLayer
+  overlayGfx:  Graphics;        // crack lines + flash
+  particleGfx: Graphics;        // smoke / fire dots
+  progressGfx: Graphics;        // red progress arc
+  burnGfx:     Graphics;        // burn mark after collapse
+  particles:   DemolishParticle[];
+  timeMs:      number;
+  cx:          number;
+  cy:          number;
+  sW:          number;
+  sH:          number;
+  onComplete:  () => void;
 }
 
 // ─── Building colors ──────────────────────────────────────────────────────────
@@ -206,6 +231,11 @@ export class SurfaceScene {
   private animatedKeys:   Set<string>    = new Set();
   private screenShakeMs:  number         = 0;
 
+  // ─── Demolish VFX ─────────────────────────────────────────────────────────
+  private demolishLayer: Container = new Container();
+  private demolishEffects = new Map<string, DemolishEffect>();
+  private buildingDisplayObjects = new Map<string, DisplayObject>();
+
   // ─── Per-building idle animations ─────────────────────────────────────────
   private bldgEffects = new Map<string, {
     gs:      Graphics[];
@@ -256,8 +286,9 @@ export class SurfaceScene {
       this.effectLayer,        // pulsing rings + scanner — above zone overlay, below buildings
       this.buildingShadowGfx!, // contact shadows — below building sprites
       this.buildingLayer,
-      this.hubLayer,      // hub orbit rings — above building sprite, below rover
-      this.roverLayer,    // rover — above buildings
+      this.hubLayer,         // hub orbit rings — above building sprite
+      this.demolishLayer,    // demolish VFX — above hub, below rover
+      this.roverLayer,       // rover — above demolish VFX
       this.ghostLayer,    // building placement ghost — above rover, below clouds
       // cloudBodySprite inserted above ghostLayer after texture load in init()
       // fogLayer is added last (topmost) after init
@@ -738,6 +769,11 @@ export class SurfaceScene {
       savedAnim.set(key, { timeMs: eff.timeMs, extra: { ...eff.extra } });
     }
 
+    // Clear buildingDisplayObjects but keep entries for actively demolishing buildings
+    for (const key of [...this.buildingDisplayObjects.keys()]) {
+      if (!this.demolishEffects.has(key)) this.buildingDisplayObjects.delete(key);
+    }
+
     this.buildingLayer.removeChildren();
     this.effectLayer.removeChildren();
     this.hubLayer.removeChildren();
@@ -759,10 +795,16 @@ export class SurfaceScene {
     });
 
     for (const b of sorted) {
+      const key = `${b.x},${b.y}`;
+      // Skip buildings that are currently being demolished (sprite lives in demolishLayer)
+      if (this.demolishEffects.has(key)) continue;
+
       if (b.type === 'colony_hub') this.createHubEffects(b);
       const bldg = this.makeIsoBuilding(b);
       this.buildingLayer.addChild(bldg);
-      const key = `${b.x},${b.y}`;
+      // Track display object reference for potential future demolish
+      this.buildingDisplayObjects.set(key, bldg);
+
       if (!this.animatedKeys.has(key)) {
         this.animatedKeys.add(key);
         this._startBuildingAnim(b, bldg);
@@ -771,7 +813,6 @@ export class SurfaceScene {
       if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport') {
         this._createBldgEffect(b);
         // Restore previous animation state so existing buildings don't restart from zero
-        const key    = `${b.x},${b.y}`;
         const saved  = savedAnim.get(key);
         const newEff = this.bldgEffects.get(key);
         if (saved && newEff) {
@@ -888,6 +929,9 @@ export class SurfaceScene {
 
     // Per-building idle animations (resource_storage, landing_pad, spaceport)
     this._tickBldgEffects(deltaMs);
+
+    // Demolish VFX animations
+    this._tickDemolishEffects(deltaMs);
 
     // Animate researcher bot + reveal fog only when crossing into a new cell
     if (this.bot) {
@@ -1249,7 +1293,246 @@ export class SurfaceScene {
       if (col <= b.x + bSW && col + sW >= b.x && row <= b.y + bSH && row + sH >= b.y) return false;
     }
 
+    // Demolishing buildings still block their footprint cells
+    for (const [, deff] of this.demolishEffects) {
+      const eb  = deff.building;
+      const eSW = BUILDING_DEFS[eb.type]?.sizeW ?? 1;
+      const eSH = BUILDING_DEFS[eb.type]?.sizeH ?? 1;
+      if (col <= eb.x + eSW && col + sW >= eb.x && row <= eb.y + eSH && row + sH >= eb.y) return false;
+    }
+
     return true;
+  }
+
+  // ─── Building click detection ─────────────────────────────────────────────
+
+  /**
+   * Returns the PlacedBuilding whose footprint contains the given world-space point,
+   * or null if no building is there. Also checks demolishing buildings.
+   */
+  public getBuildingAt(worldX: number, worldY: number, buildings: PlacedBuilding[]): PlacedBuilding | null {
+    const TW2 = TILE_W / 2;
+    const TH2 = TILE_H / 2;
+    const col = (worldX / TW2 + worldY / TH2) / 2;
+    const row = (worldY / TH2 - worldX / TW2) / 2;
+
+    // Check active buildings first
+    for (const b of buildings) {
+      const sW = BUILDING_DEFS[b.type]?.sizeW ?? 1;
+      const sH = BUILDING_DEFS[b.type]?.sizeH ?? 1;
+      if (col >= b.x && col < b.x + sW && row >= b.y && row < b.y + sH) return b;
+    }
+    // Also check demolishing buildings (they still exist visually)
+    for (const [, deff] of this.demolishEffects) {
+      const b  = deff.building;
+      const sW = BUILDING_DEFS[b.type]?.sizeW ?? 1;
+      const sH = BUILDING_DEFS[b.type]?.sizeH ?? 1;
+      if (col >= b.x && col < b.x + sW && row >= b.y && row < b.y + sH) return b;
+    }
+    return null;
+  }
+
+  // ─── Demolish ─────────────────────────────────────────────────────────────
+
+  /**
+   * Begin a 10-second demolish animation for the given building.
+   * The building sprite is reparented to demolishLayer and animated.
+   * `onComplete` is called after 10 s to trigger state cleanup.
+   */
+  public startDemolish(building: PlacedBuilding, onComplete: () => void): void {
+    const key  = `${building.x},${building.y}`;
+    const def  = BUILDING_DEFS[building.type];
+    const sW   = def?.sizeW ?? 1;
+    const sH   = def?.sizeH ?? 1;
+    const TW2  = TILE_W / 2;
+    const TH2  = TILE_H / 2;
+    // Isometric centre of the building footprint
+    const cx   = (building.x + sW / 2 - building.y - sH / 2) * TW2;
+    const cy   = (building.x + sW / 2 + building.y + sH / 2) * TH2;
+
+    // Reparent building sprite from buildingLayer → demolishLayer
+    const sprite = this.buildingDisplayObjects.get(key) ?? new Graphics();
+    if (sprite.parent) {
+      sprite.parent.removeChild(sprite);
+      this.demolishLayer.addChild(sprite);
+    }
+
+    const overlayGfx  = new Graphics(); this.demolishLayer.addChild(overlayGfx);
+    const particleGfx = new Graphics(); this.demolishLayer.addChild(particleGfx);
+    const progressGfx = new Graphics(); this.demolishLayer.addChild(progressGfx);
+    const burnGfx     = new Graphics(); this.demolishLayer.addChild(burnGfx);
+
+    // Stop idle animations for this building
+    this._removeBldgEffect(key);
+
+    this.demolishEffects.set(key, {
+      building,
+      sprite,
+      overlayGfx,
+      particleGfx,
+      progressGfx,
+      burnGfx,
+      particles: [],
+      timeMs: 0,
+      cx, cy, sW, sH,
+      onComplete,
+    });
+
+    // Short screen shake at start
+    this.screenShakeMs = 500;
+  }
+
+  /**
+   * Clean up demolish VFX for a building (call after onComplete fires).
+   */
+  public stopDemolish(buildingId: string): void {
+    for (const [key, deff] of this.demolishEffects) {
+      if (deff.building.id === buildingId) {
+        if (!deff.sprite.destroyed) deff.sprite.destroy();
+        deff.overlayGfx.destroy();
+        deff.particleGfx.destroy();
+        deff.progressGfx.destroy();
+        deff.burnGfx.destroy();
+        this.demolishEffects.delete(key);
+        this.buildingDisplayObjects.delete(key);
+        break;
+      }
+    }
+  }
+
+  /** Per-frame demolish VFX tick — called from update(). */
+  private _tickDemolishEffects(deltaMs: number): void {
+    const TOTAL = 10_000;
+    for (const [, eff] of this.demolishEffects) {
+      eff.timeMs += deltaMs;
+      const t = eff.timeMs;
+      const { cx, cy, sW } = eff;
+      const R = sW * (TILE_W / 2) * 0.6;
+
+      // ── Red progress arc (always visible) ─────────────────────────────────
+      const progress = Math.min(t / TOTAL, 1);
+      eff.progressGfx.clear();
+      if (progress < 1) {
+        eff.progressGfx.arc(cx, cy - sW * (TILE_H / 2) * 0.8, R * 0.45,
+          -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+        eff.progressGfx.stroke({ width: 3, color: 0xff2222, alpha: 0.9 });
+      }
+
+      // ── Phase 0–2 s: tint sprite darker ───────────────────────────────────
+      if (t < 2000) {
+        const d = t / 2000;
+        if ('tint' in eff.sprite) (eff.sprite as Sprite).tint = _demolishLerpColor(0xffffff, 0x777777, d);
+      }
+
+      // ── Emit smoke / fire particles ────────────────────────────────────────
+      if (t < 8500) {
+        const emitRate = t < 2000 ? 0.12 : t < 5000 ? 0.25 : 0.45;
+        if (Math.random() < emitRate) {
+          const isFire = t > 2000 && Math.random() < 0.35;
+          eff.particles.push({
+            x: cx + (Math.random() - 0.5) * R,
+            y: cy - sW * (TILE_H / 2) * 0.2,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: -0.35 - Math.random() * 0.4,
+            alpha: 0.65,
+            color: isFire ? 0xff6622 : 0x999aaa,
+            size: 3 + Math.random() * 6,
+            life: 900 + Math.random() * 800,
+            maxLife: 1700,
+          });
+        }
+      }
+
+      // ── Phase 2–8 s: crack overlay ────────────────────────────────────────
+      if (t >= 2000 && t < 8000) {
+        const crackAlpha = Math.min((t - 2000) / 3000, 1) * 0.75;
+        eff.overlayGfx.clear();
+        for (let i = 0; i < 8; i++) {
+          let px = cx + (_demolishPR(i * 7 + 1) * 2 - 1) * R * 0.8;
+          let py = cy - sW * (TILE_H / 2) * 0.6 + _demolishPR(i * 3) * sW * (TILE_H / 2) * 0.7;
+          eff.overlayGfx.moveTo(px, py);
+          for (let s = 0; s < 4; s++) {
+            px += (_demolishPR(i * 11 + s) * 2 - 1) * 14;
+            py += (_demolishPR(i * 5 + s) * 2 - 1) * 9;
+            eff.overlayGfx.lineTo(px, py);
+          }
+          eff.overlayGfx.stroke({ width: 1.2, color: 0x111111, alpha: crackAlpha });
+        }
+      }
+
+      // ── Phase 5–8 s: scale.y compress + white sparks ──────────────────────
+      if (t >= 5000 && t < 8000) {
+        const p = (t - 5000) / 3000;
+        eff.sprite.scale.y = 1.0 - 0.2 * p;
+        if (Math.random() < 0.07) {
+          eff.particles.push({
+            x: cx + (Math.random() - 0.5) * R * 0.7,
+            y: cy - sW * (TILE_H / 2) * 0.4 + (Math.random() - 0.5) * sW * (TILE_H / 2) * 0.5,
+            vx: (Math.random() - 0.5) * 1.8,
+            vy: -1.2 - Math.random() * 0.8,
+            alpha: 1,
+            color: 0xffffff,
+            size: 2,
+            life: 140,
+            maxLife: 140,
+          });
+        }
+      }
+
+      // ── Phase 8–9.5 s: big burst + building fades out ─────────────────────
+      if (t >= 8000 && t < 9500) {
+        const p = (t - 8000) / 1500;
+        eff.sprite.alpha = 1 - p;
+        if (t < 8200) {
+          for (let i = 0; i < 22; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 0.5 + Math.random() * 1.3;
+            eff.particles.push({
+              x: cx, y: cy - sW * (TILE_H / 2) * 0.3,
+              vx: Math.cos(ang) * spd,
+              vy: Math.sin(ang) * spd * 0.45 - 1.6,
+              alpha: 0.9,
+              color: Math.random() < 0.5 ? 0x999aaa : 0x554433,
+              size: 5 + Math.random() * 9,
+              life: 1300 + Math.random() * 700,
+              maxLife: 2000,
+            });
+          }
+        }
+      }
+
+      // ── Phase 9.5–10 s: burn mark on ground ───────────────────────────────
+      if (t >= 9500) {
+        eff.sprite.alpha = 0;
+        eff.overlayGfx.clear();
+        const ba = Math.min((t - 9500) / 300, 1) * Math.max(0, 1 - (t - 9700) / 300);
+        eff.burnGfx.clear();
+        eff.burnGfx.ellipse(cx, cy, R * 0.85, R * 0.42);
+        eff.burnGfx.fill({ color: 0x0a0804, alpha: ba * 0.8 });
+        eff.burnGfx.ellipse(cx, cy, R * 0.85, R * 0.42);
+        eff.burnGfx.stroke({ width: 2.5, color: 0x332211, alpha: ba * 0.5 });
+      }
+
+      // ── Tick particles ────────────────────────────────────────────────────
+      eff.particleGfx.clear();
+      for (let i = eff.particles.length - 1; i >= 0; i--) {
+        const p = eff.particles[i];
+        p.x  += p.vx * deltaMs;
+        p.y  += p.vy * deltaMs;
+        p.vy += 0.00028 * deltaMs;   // gravity
+        p.life -= deltaMs;
+        if (p.life <= 0) { eff.particles.splice(i, 1); continue; }
+        const a = p.alpha * (p.life / p.maxLife) * 0.8;
+        eff.particleGfx.circle(p.x, p.y, p.size * (p.life / p.maxLife));
+        eff.particleGfx.fill({ color: p.color, alpha: a });
+      }
+
+      // ── Complete ──────────────────────────────────────────────────────────
+      if (t >= 10_000) {
+        eff.burnGfx.clear();
+        eff.onComplete();
+      }
+    }
   }
 
   /** Deterministic terrain for a cell. */
@@ -2115,6 +2398,15 @@ export class SurfaceScene {
 
   // ─── Per-building idle animations ─────────────────────────────────────────
 
+  /** Destroy and remove idle animation for a single building key. */
+  private _removeBldgEffect(key: string): void {
+    const eff = this.bldgEffects.get(key);
+    if (!eff) return;
+    for (const g  of eff.gs)      g.destroy();
+    for (const sp of eff.sprites) sp.destroy();
+    this.bldgEffects.delete(key);
+  }
+
   private _createBldgEffect(b: PlacedBuilding): void {
     const def  = BUILDING_DEFS[b.type];
     const sW   = def?.sizeW ?? 1;
@@ -2907,3 +3199,18 @@ const FALLBACK_COLORS: Record<string, number> = {
   mountains:  0x4a4a3a,
   peaks:      0x5a5a4a,
 };
+
+// ─── Demolish VFX helpers (module-level, pure) ────────────────────────────────
+
+/** Deterministic pseudo-random in [0,1) from a seed integer. */
+function _demolishPR(n: number): number {
+  return (((n * 1_664_525 + 1_013_904_223) >>> 0) / 0xFFFF_FFFF);
+}
+
+/** Linear interpolate between two 0xRRGGBB colors. */
+function _demolishLerpColor(a: number, b: number, t: number): number {
+  const r  = ((a >> 16) & 0xff) * (1 - t) + ((b >> 16) & 0xff) * t;
+  const g  = ((a >>  8) & 0xff) * (1 - t) + ((b >>  8) & 0xff) * t;
+  const bl = ( a        & 0xff) * (1 - t) + ( b        & 0xff) * t;
+  return (((r & 0xff) << 16) | ((g & 0xff) << 8) | (bl & 0xff));
+}

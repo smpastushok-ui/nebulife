@@ -18,8 +18,9 @@ import { Application } from 'pixi.js';
 import type { Planet, Star, PlacedBuilding, BuildingType, SurfaceObjectType } from '@nebulife/core';
 import { HARVEST_DURATION_MS, BUILDING_DEFS, XP_REWARDS, HARVEST_YIELD } from '@nebulife/core';
 import { SurfaceScene }  from '../../game/scenes/SurfaceScene.js';
-import { SurfacePanel }  from './SurfacePanel.js';
-import { getBuildings, placeBuilding } from '../../api/surface-api.js';
+import { SurfacePanel }          from './SurfacePanel.js';
+import BuildingInspectPopup      from './BuildingInspectPopup.js';
+import { getBuildings, placeBuilding, removeBuilding } from '../../api/surface-api.js';
 import { screenToGrid, TILE_W, TILE_H, gridToScreen } from '../../game/scenes/surface-utils.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -79,6 +80,12 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     const [showBuildPanel, setShowBuildPanel]   = useState(true);
     const [harvestMode, setHarvestMode]         = useState(false);
     const [roverMode, setRoverMode]             = useState(false);
+
+    // ─── Building inspect + demolish state ───────────────────────────────────
+    const [inspectBuilding, setInspectBuilding]   = useState<PlacedBuilding | null>(null);
+    const [inspectPos, setInspectPos]             = useState({ x: 0, y: 0 });
+    const [demolishConfirm, setDemolishConfirm]   = useState<PlacedBuilding | null>(null);
+    const demolishingIds = useRef<Set<string>>(new Set());
 
     // ─── Pan / clamp ──────────────────────────────────────────────────────────
 
@@ -267,6 +274,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         oy: panRef.current.y,
       };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      // Close inspect popup when user starts dragging
+      setInspectBuilding(null);
       // NOTE: harvest ring is cancelled only when the pointer actually drags (see handlePointerMove).
       // A simple tap/click does NOT cancel an active harvest.
     };
@@ -385,8 +394,24 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
           onHarvest?.(harvested);
         });
+      } else {
+        // Inspect mode — check if click lands on a placed building
+        const hit = scene.getBuildingAt(wx, wy, buildings);
+        if (hit) {
+          const rect2 = containerRef.current?.getBoundingClientRect();
+          if (rect2) {
+            const TW2 = TILE_W / 2; const TH2 = TILE_H / 2;
+            const sW  = BUILDING_DEFS[hit.type]?.sizeW ?? 1;
+            const sH  = BUILDING_DEFS[hit.type]?.sizeH ?? 1;
+            const bWX = (hit.x + sW / 2 - hit.y - sH / 2) * TW2;
+            const bWY = (hit.x + sW / 2 + hit.y + sH / 2) * TH2;
+            const sx  = scene.worldContainer.x + bWX * z + rect2.left;
+            const sy  = scene.worldContainer.y + bWY * z + rect2.top;
+            setInspectPos({ x: sx, y: sy });
+            setInspectBuilding(hit);
+          }
+        }
       }
-      // else: no building selected, no rover/harvest mode → just pan/zoom
     }, [selectedBuilding, buildings, playerId, planet.id, onBuildingPlaced, roverMode, harvestMode, onHarvest, onHarvestFx]);
 
     // ─── Imperative handle (CommandBar buttons) ───────────────────────────────
@@ -404,6 +429,21 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         return !p;
       });
     }, []);
+
+    // ─── Demolish confirm ─────────────────────────────────────────────────────
+
+    const handleDemolishConfirm = useCallback(() => {
+      if (!demolishConfirm || !sceneRef.current) return;
+      const b = demolishConfirm;
+      demolishingIds.current.add(b.id);
+      setDemolishConfirm(null);
+      sceneRef.current.startDemolish(b, () => {
+        demolishingIds.current.delete(b.id);
+        sceneRef.current?.stopDemolish(b.id);
+        setBuildings((prev) => prev.filter((x) => x.id !== b.id));
+        removeBuilding(playerId, b.id).catch(console.error);
+      });
+    }, [demolishConfirm, playerId]);
 
     useImperativeHandle(ref, () => ({
       zoomIn:            () => applyZoom(zoomRef.current * 1.22),
@@ -456,6 +496,70 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
             roverMode={roverMode}
             onToggleRover={toggleRover}
           />
+        )}
+
+        {/* Building inspect popup */}
+        {inspectBuilding && (
+          <BuildingInspectPopup
+            building={inspectBuilding}
+            screenX={inspectPos.x}
+            screenY={inspectPos.y}
+            isDemolishing={demolishingIds.current.has(inspectBuilding.id)}
+            onClose={() => setInspectBuilding(null)}
+            onDemolish={() => {
+              setDemolishConfirm(inspectBuilding);
+              setInspectBuilding(null);
+            }}
+          />
+        )}
+
+        {/* Demolish confirmation modal */}
+        {demolishConfirm && (
+          <div
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)',
+              zIndex: 12000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onClick={() => setDemolishConfirm(null)}
+          >
+            <div
+              style={{
+                background: 'rgba(8,14,24,0.97)', border: '1px solid #cc2222',
+                borderRadius: 6, padding: '24px 28px', width: 340, fontFamily: 'monospace',
+              }}
+              onClick={(ev) => ev.stopPropagation()}
+            >
+              <div style={{ color: '#cc4444', fontSize: 13, marginBottom: 10, fontWeight: 'bold' }}>
+                Увага!
+              </div>
+              <div style={{ color: '#aabbcc', fontSize: 12, lineHeight: 1.65, marginBottom: 20 }}>
+                Ви впевнені, що хочете запустити демонтаж цієї споруди?{' '}
+                Процес незворотній, ресурси повернуто не буде.
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setDemolishConfirm(null)}
+                  style={{
+                    padding: '7px 16px', background: 'transparent',
+                    border: '1px solid #446688', borderRadius: 3,
+                    color: '#7bb8ff', fontFamily: 'monospace', cursor: 'pointer', fontSize: 11,
+                  }}
+                >
+                  Скасувати
+                </button>
+                <button
+                  onClick={handleDemolishConfirm}
+                  style={{
+                    padding: '7px 16px', background: 'rgba(180,20,20,0.9)',
+                    border: '1px solid #ff4444', borderRadius: 3,
+                    color: '#fff', fontFamily: 'monospace', cursor: 'pointer', fontSize: 11,
+                  }}
+                >
+                  Так, зруйнувати
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     );
