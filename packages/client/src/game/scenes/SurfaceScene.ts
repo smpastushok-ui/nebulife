@@ -208,6 +208,9 @@ export class SurfaceScene {
   // ─── Solar plant glow overlay texture ────────────────────────────────────
   private solarLightTex: Texture | null = null;
 
+  // ─── Battery station glow overlay texture ────────────────────────────────
+  private batteryGlowTex: Texture | null = null;
+
   // ─── Mountain PNG sprite ──────────────────────────────────────────────────
   private mountTex: Texture | null = null;
 
@@ -332,6 +335,7 @@ export class SurfaceScene {
     const BUILDING_PNGS: Partial<Record<string, string>> = {
       colony_hub:       '/buildings/colony_hub.png',
       solar_plant:      '/buildings/solar_plant.png',
+      battery_station:  '/buildings/battery_station.png',
       resource_storage: '/tiles/machines/resource_storage.png',
       landing_pad:      '/tiles/machines/landing_pad.png',
       spaceport:        '/tiles/machines/spaceport.png',
@@ -349,6 +353,11 @@ export class SurfaceScene {
     try {
       this.solarLightTex = await Assets.load<Texture>('/buildings/solar_plant_light.png');
     } catch { /* no glow texture — solar plant works without overlay */ }
+
+    // Load battery station glow overlay texture
+    try {
+      this.batteryGlowTex = await Assets.load<Texture>('/buildings/battery_station_on.png');
+    } catch { /* no glow texture — battery station works without overlay */ }
 
     // Load researcher bot textures
     try {
@@ -831,7 +840,7 @@ export class SurfaceScene {
         this._startBuildingAnim(b, bldg);
       }
       // Create idle animation for supported building types
-      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant') {
+      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant' || b.type === 'battery_station') {
         this._createBldgEffect(b);
         // Restore previous animation state so existing buildings don't restart from zero
         const saved  = savedAnim.get(key);
@@ -2576,6 +2585,23 @@ export class SurfaceScene {
       }
       // Random phase so multiple solar plants don't pulse in sync
       extra['phase'] = Math.random() * 3000;
+
+    } else if (b.type === 'battery_station') {
+      // Glow overlay sprite — green charge indicators breathing animation (blendMode: 'add')
+      if (this.batteryGlowTex && this.bldgTextures['battery_station']) {
+        const botRight = gridToScreen(b.x + sW, b.y + sH);
+        const baseTex  = this.bldgTextures['battery_station'];
+        const sp = new Sprite(this.batteryGlowTex);
+        sp.anchor.set(0.5, 1.0);
+        sp.scale.set((sW * TILE_W) / baseTex.width);
+        sp.position.set(botRight.x, botRight.y);
+        sp.blendMode = 'add';
+        sp.alpha = 0.4;
+        L.addChild(sp);
+        sprites.push(sp);
+      }
+      // Random phase so multiple battery stations breathe independently
+      extra['phase'] = Math.random() * 4000;
     }
 
     this.bldgEffects.set(key, { gs, sprites, timeMs: 0, extra, cx, cy, sW, type: b.type });
@@ -3043,6 +3069,15 @@ export class SurfaceScene {
           const PERIOD = 3000;
           const phase  = eff.extra['phase'] ?? 0;
           const alpha  = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(((t + phase) / PERIOD) * Math.PI * 2));
+          eff.sprites[0].alpha = alpha;
+        }
+
+      } else if (eff.type === 'battery_station') {
+        // ── Breathing glow — green charge indicators, alpha 0.4→1.0, 2000ms half-cycle ─────
+        if (eff.sprites.length > 0) {
+          const PERIOD = 4000; // full cycle = 4000ms → half-cycle = 2000ms
+          const phase  = eff.extra['phase'] ?? 0;
+          const alpha  = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(((t + phase) / PERIOD) * Math.PI * 2));
           eff.sprites[0].alpha = alpha;
         }
       }

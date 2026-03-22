@@ -309,7 +309,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     type: 'battery_station', category: 'energy',
     name: 'Акумуляторна',
     description: 'Зберігає надлишки енергії. +100 ємності енерго-сховища.',
-    size: 3, sizeW: 3, sizeH: 3,
+    size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'Cu', amount: 25 }, { resource: 'Si', amount: 15 }, { resource: 'Fe', amount: 10 }],
     levelRequired: 6, techRequired: 'phy-capacitor', maxPerPlanet: 4,
