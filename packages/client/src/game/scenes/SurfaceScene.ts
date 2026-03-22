@@ -2233,10 +2233,10 @@ export class SurfaceScene {
           // Waiting for first appearance — drone not yet visible
           droneVis = false;
         } else if (lt < P_HOVER) {
-          // RISE: slow up, ease-in-out
+          // RISE: from hover height LP_Y-12 up to LP_Y-38, ease-in-out
           const p    = lt / RISE_DUR;
           const ease = p < 0.5 ? 2*p*p : 1 - 2*(1-p)*(1-p);
-          bY = LP_Y - ease * 38;
+          bY = LP_Y - 12 - 26 * ease;  // LP_Y-12 → LP_Y-38, no jump from IDLE
         } else if (lt < P_LAUNCH) {
           // HOVER: bob + stripe acceleration
           bY = LP_Y - 38 + Math.sin((lt - P_HOVER) / 260) * 2.5;
