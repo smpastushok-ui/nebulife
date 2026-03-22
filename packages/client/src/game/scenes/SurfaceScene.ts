@@ -2596,22 +2596,21 @@ export class SurfaceScene {
       extra['phase'] = Math.random() * 3000;
 
     } else if (b.type === 'wind_generator') {
-      // Rotor sprites: main + 2 motion-blur trails (top-down disk squashed to isometric)
+      // Rotor sprites overlaid 1:1 on base. Pivot = measured hub (124,48) in 256×256 image.
       if (this.windRotorTex && this.bldgTextures['wind_generator']) {
         const baseTex   = this.bldgTextures['wind_generator'];
         const baseScale = (sW * TILE_W) / baseTex.width;
-        // Rotor shaft sits near the upper-centre of the building footprint
-        const rx = cx;
-        const ry = topLeft.y + (botRight.y - topLeft.y) * 0.20;
-        const rotorScaleX = baseScale * 0.72;  // slightly narrower than the base
-        const rotorScaleY = rotorScaleX * 0.50; // isometric squash: top-down → perspective
-        // trail2 (farthest behind) → trail1 → main rotor (front)
+        // Hub screen position: map image pixel (124,48) using same anchor(0.5,1.0) as base sprite
+        const HUB_X = 124, HUB_Y = 48;
+        const rx = botRight.x + (HUB_X - baseTex.width  * 0.5) * baseScale;
+        const ry = botRight.y + (HUB_Y - baseTex.height * 1.0) * baseScale;
+        // trail2 → trail1 → main (back to front)
         for (let i = 0; i < 3; i++) {
           const sp = new Sprite(this.windRotorTex);
-          sp.anchor.set(0.5, 0.5);
-          sp.scale.set(rotorScaleX, rotorScaleY);
+          sp.pivot.set(HUB_X, HUB_Y);   // rotation axis = hub center (no drift)
+          sp.scale.set(baseScale);       // 1:1 with base, perspective already baked in rotor PNG
           sp.position.set(rx, ry);
-          sp.alpha = i === 2 ? 1.0 : 0.30;  // trails are semi-transparent
+          sp.alpha = i === 2 ? 1.0 : 0.30;
           L.addChild(sp);
           sprites.push(sp);
         }
