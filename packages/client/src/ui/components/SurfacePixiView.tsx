@@ -355,6 +355,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       // Ignore clicks that were drags
       if (dragMoved.current) return;
 
+      // Close drone popup on any canvas click
+      setDronePopup(null);
+
       // Convert screen coords to world-container local space
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const z    = zoomRef.current;
@@ -534,6 +537,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
             selectedBuilding={selectedBuilding}
             onSelectBuilding={(type) => {
               setSelectedBuilding(type);
+              setDronePopup(null);
               if (type) { setHarvestMode(false); setRoverMode(false); }
             }}
             onClose={onClose}
