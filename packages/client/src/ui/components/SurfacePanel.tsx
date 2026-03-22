@@ -235,7 +235,7 @@ function BuildingCard({
         width: IMG_SIZE, height: IMG_SIZE, flexShrink: 0,
         border: `1px solid ${col}33`,
         borderRadius: 3, overflow: 'hidden',
-        background: 'rgb(4,8,18)',
+        background: '#ffffff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         {pngPath && !imgFailed ? (
