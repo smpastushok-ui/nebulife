@@ -271,9 +271,27 @@ function BuildingCard({
           />
         </div>
       )}
-      {/* Row: icon + info — always canvas for consistent visibility at small size */}
+      {/* Row: icon + info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
-        <BuildingIcon type={type} size={28} />
+        {previewSrc ? (
+          /* PNG thumbnail — dark box so transparent images have contrast */
+          <div style={{
+            width: 36, height: 36, flexShrink: 0,
+            background: 'rgba(20,35,60,0.9)',
+            border: '1px solid rgba(60,100,160,0.25)',
+            borderRadius: 2,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden',
+          }}>
+            <img
+              src={previewSrc}
+              alt={def.name}
+              style={{ width: 32, height: 32, objectFit: 'contain', imageRendering: 'pixelated', filter: 'brightness(4.0)' }}
+            />
+          </div>
+        ) : (
+          <BuildingIcon type={type} size={28} />
+        )}
         <div>
           <div style={{ fontWeight: isSelected ? 'bold' : 'normal', marginBottom: 2 }}>{def.name}</div>
           <div style={{ fontSize: 10, color: '#667788' }}>{def.description}</div>
