@@ -211,6 +211,9 @@ export class SurfaceScene {
   // ─── Battery station glow overlay texture ────────────────────────────────
   private batteryGlowTex: Texture | null = null;
 
+  // ─── Wind generator rotor texture ────────────────────────────────────────
+  private windRotorTex: Texture | null = null;
+
   // ─── Mountain PNG sprite ──────────────────────────────────────────────────
   private mountTex: Texture | null = null;
 
@@ -336,6 +339,7 @@ export class SurfaceScene {
       colony_hub:       '/buildings/colony_hub.png',
       solar_plant:      '/buildings/solar_plant.png',
       battery_station:  '/buildings/battery_station.png',
+      wind_generator:   '/buildings/wind_generator.png',
       resource_storage: '/tiles/machines/resource_storage.png',
       landing_pad:      '/tiles/machines/landing_pad.png',
       spaceport:        '/tiles/machines/spaceport.png',
@@ -358,6 +362,11 @@ export class SurfaceScene {
     try {
       this.batteryGlowTex = await Assets.load<Texture>('/buildings/battery_station_on.png');
     } catch { /* no glow texture — battery station works without overlay */ }
+
+    // Load wind generator rotor texture
+    try {
+      this.windRotorTex = await Assets.load<Texture>('/buildings/wind_generator_on.png');
+    } catch { /* no rotor texture — wind generator works without animation */ }
 
     // Load researcher bot textures
     try {
@@ -840,7 +849,7 @@ export class SurfaceScene {
         this._startBuildingAnim(b, bldg);
       }
       // Create idle animation for supported building types
-      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant' || b.type === 'battery_station') {
+      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant' || b.type === 'battery_station' || b.type === 'wind_generator') {
         this._createBldgEffect(b);
         // Restore previous animation state so existing buildings don't restart from zero
         const saved  = savedAnim.get(key);
@@ -2586,6 +2595,29 @@ export class SurfaceScene {
       // Random phase so multiple solar plants don't pulse in sync
       extra['phase'] = Math.random() * 3000;
 
+    } else if (b.type === 'wind_generator') {
+      // Rotor sprites: main + 2 motion-blur trails (top-down disk squashed to isometric)
+      if (this.windRotorTex && this.bldgTextures['wind_generator']) {
+        const baseTex   = this.bldgTextures['wind_generator'];
+        const baseScale = (sW * TILE_W) / baseTex.width;
+        // Rotor shaft sits near the upper-centre of the building footprint
+        const rx = cx;
+        const ry = topLeft.y + (botRight.y - topLeft.y) * 0.20;
+        const rotorScaleX = baseScale * 0.72;  // slightly narrower than the base
+        const rotorScaleY = rotorScaleX * 0.50; // isometric squash: top-down → perspective
+        // trail2 (farthest behind) → trail1 → main rotor (front)
+        for (let i = 0; i < 3; i++) {
+          const sp = new Sprite(this.windRotorTex);
+          sp.anchor.set(0.5, 0.5);
+          sp.scale.set(rotorScaleX, rotorScaleY);
+          sp.position.set(rx, ry);
+          sp.alpha = i === 2 ? 1.0 : 0.30;  // trails are semi-transparent
+          L.addChild(sp);
+          sprites.push(sp);
+        }
+      }
+      extra['rot'] = 0;
+
     } else if (b.type === 'battery_station') {
       // Glow overlay sprite — green charge indicators breathing animation (blendMode: 'add')
       if (this.batteryGlowTex && this.bldgTextures['battery_station']) {
@@ -3070,6 +3102,17 @@ export class SurfaceScene {
           const phase  = eff.extra['phase'] ?? 0;
           const alpha  = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(((t + phase) / PERIOD) * Math.PI * 2));
           eff.sprites[0].alpha = alpha;
+        }
+
+      } else if (eff.type === 'wind_generator') {
+        // ── Fast rotor with motion-blur trail: sprites[0]=trail2, [1]=trail1, [2]=main ──
+        if (eff.sprites.length >= 3) {
+          // 0.018 rad/ms ≈ 0.3 * 60fps — fast turbine spin
+          eff.extra['rot'] = ((eff.extra['rot'] ?? 0) + 0.018 * deltaMs) % (Math.PI * 2);
+          const rot = eff.extra['rot'];
+          eff.sprites[0].rotation = rot - 0.30; // trail2
+          eff.sprites[1].rotation = rot - 0.15; // trail1
+          eff.sprites[2].rotation = rot;         // main rotor
         }
 
       } else if (eff.type === 'battery_station') {
