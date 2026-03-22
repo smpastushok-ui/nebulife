@@ -1152,8 +1152,7 @@ export class SurfaceScene {
         }
         if (hasTransport) continue;
 
-        // Must be reachable (1-cell gap away) from existing city
-        if (hasCity && !isAdjacentToCity(col, row, sW, sH, buildings)) continue;
+
 
         // Draw footprint diamond (one per valid position)
         const TW2 = TILE_W / 2;
@@ -1250,8 +1249,6 @@ export class SurfaceScene {
       if (col <= b.x + bSW && col + sW >= b.x && row <= b.y + bSH && row + sH >= b.y) return false;
     }
 
-    // Must be reachable (1-cell gap away) from existing city
-    if (buildings.length > 0 && !isAdjacentToCity(col, row, sW, sH, buildings)) return false;
     return true;
   }
 
