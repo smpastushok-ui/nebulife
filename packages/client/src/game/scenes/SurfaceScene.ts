@@ -200,6 +200,11 @@ export class SurfaceScene {
   private harvesterTex:    Texture | null = null;
   private posDroneTex:     Texture | null = null;
 
+  // ─── Isotope fuel for drones ────────────────────────────────────────────
+  private currentIsotopes: number = 0;
+  private hasSolarPlant:   boolean = false;
+  private onConsumeIsotopes: ((amount: number) => boolean) | null = null;
+
   // ─── Mountain PNG sprite ──────────────────────────────────────────────────
   private mountTex: Texture | null = null;
 
@@ -399,6 +404,8 @@ export class SurfaceScene {
     const col = hub.x + (hubDef?.sizeW ?? 2) + 1;
     const row = hub.y + Math.floor((hubDef?.sizeH ?? 2) / 2);
     this.bot = new ResearcherBot(col, row, this.botFlyTex, this.botIdleTex);
+    // Wire isotope consumption callback
+    this.bot.onConsumeIsotopes = (amount) => this.onConsumeIsotopes ? this.onConsumeIsotopes(amount) : false;
     this.roverLayer.addChild(this.bot.container);
   }
 
@@ -431,6 +438,10 @@ export class SurfaceScene {
       () => this._findNearbyHarvestable(homeCol, homeRow, 10),
       (col, row) => { this.harvestAt(col, row); },
     );
+    // Wire isotope consumption callback
+    drone.onConsumeIsotopes = (amount) => this.onConsumeIsotopes ? this.onConsumeIsotopes(amount) : false;
+    drone.hasSolarPlant = this.hasSolarPlant;
+
     this.roverLayer.addChild(drone.container);
     this.harvesterDrones.push(drone);
   }
@@ -935,7 +946,7 @@ export class SurfaceScene {
 
     // Animate researcher bot + reveal fog only when crossing into a new cell
     if (this.bot) {
-      const crossed = this.bot.update(deltaMs);
+      const crossed = this.bot.update(deltaMs, this.currentIsotopes);
       if (crossed && this.fogLayer) {
         this.fogLayer.revealAround(Math.round(this.bot.col), Math.round(this.bot.row), BOT_REVEAL_RADIUS);
         this.fogLayer.redraw();
@@ -944,7 +955,8 @@ export class SurfaceScene {
 
     // Animate premium harvester drones + trigger screen shake on absorption
     for (const drone of this.harvesterDrones) {
-      drone.update(deltaMs);
+      drone.hasSolarPlant = this.hasSolarPlant;
+      drone.update(deltaMs, this.currentIsotopes);
       if (drone.screenShakeRequested) {
         this.harvestFx?.screenShake(2, 280);
       }
@@ -1538,6 +1550,26 @@ export class SurfaceScene {
   /** Deterministic terrain for a cell. */
   public terrainAt(col: number, row: number): string {
     return classifyCellTerrain(col, row, this.planet.seed, this.waterLevel, this.gridSize);
+  }
+
+  // ─── Isotope fuel for drones (public API) ────────────────────────────────
+
+  /** Update the current isotope count and solar plant availability. */
+  public setIsotopeState(isotopes: number, hasSolar: boolean): void {
+    this.currentIsotopes = isotopes;
+    this.hasSolarPlant   = hasSolar;
+  }
+
+  /** Register a callback that attempts to consume isotopes. Returns true if enough. */
+  public setConsumeIsotopesCallback(cb: (amount: number) => boolean): void {
+    this.onConsumeIsotopes = cb;
+    // Wire it into existing drones
+    if (this.bot) {
+      this.bot.onConsumeIsotopes = (amount) => this.onConsumeIsotopes ? this.onConsumeIsotopes(amount) : false;
+    }
+    for (const drone of this.harvesterDrones) {
+      drone.onConsumeIsotopes = (amount) => this.onConsumeIsotopes ? this.onConsumeIsotopes(amount) : false;
+    }
   }
 
   // ─── Harvest / regrowth ───────────────────────────────────────────────────

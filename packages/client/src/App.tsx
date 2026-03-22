@@ -4078,6 +4078,13 @@ export function App() {
           onHarvestFx={handleHarvestFx}
           onPhaseChange={setSurfacePhase}
           onBuildPanelChange={setSurfaceBuildPanelOpen}
+          isotopes={colonyResources.isotopes}
+          onConsumeIsotopes={(amount) => {
+            setColonyResources((prev) => ({
+              ...prev,
+              isotopes: Math.max(0, prev.isotopes - amount),
+            }));
+          }}
         />
       )}
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}

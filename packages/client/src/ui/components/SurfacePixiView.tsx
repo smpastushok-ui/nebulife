@@ -47,6 +47,10 @@ interface SurfacePixiViewProps {
   onHarvest?:               (objectType: SurfaceObjectType) => void;
   /** Screen-space (page coords) origin + resource type after ring completes. */
   onHarvestFx?:             (objectType: SurfaceObjectType, sx: number, sy: number) => void;
+  /** Current isotope count for drone fuel consumption. */
+  isotopes?:                number;
+  /** Callback to deduct isotopes (drone movement/harvest). */
+  onConsumeIsotopes?:       (amount: number) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -62,6 +66,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       onBuildPanelChange,
       onHarvest,
       onHarvestFx,
+      isotopes,
+      onConsumeIsotopes,
     },
     ref,
   ) {
@@ -86,6 +92,12 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     const [inspectPos, setInspectPos]             = useState({ x: 0, y: 0 });
     const [demolishConfirm, setDemolishConfirm]   = useState<PlacedBuilding | null>(null);
     const demolishingIds = useRef<Set<string>>(new Set());
+
+    // ─── Isotope fuel for drones ────────────────────────────────────────────
+    const isotopesRef      = useRef(isotopes ?? 0);
+    const consumeIsoRef    = useRef(onConsumeIsotopes);
+    isotopesRef.current    = isotopes ?? 0;
+    consumeIsoRef.current  = onConsumeIsotopes;
 
     // ─── Pan / clamp ──────────────────────────────────────────────────────────
 
@@ -208,6 +220,14 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
         await scene.init(planet, star, loaded);
 
+        // Wire isotope consumption callback for drone fuel
+        scene.setConsumeIsotopesCallback((amount) => {
+          if (isotopesRef.current < amount) return false;
+          consumeIsoRef.current?.(amount);
+          isotopesRef.current = Math.max(0, isotopesRef.current - amount);
+          return true;
+        });
+
         // Per-frame animation tick for building effects (rings, scanner, blink)
         app.ticker.add((ticker) => {
           if (sceneRef.current) sceneRef.current.update(ticker.deltaMS);
@@ -239,6 +259,14 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planet.id]);
+
+    // ─── Sync isotope state → scene ────────────────────────────────────────────
+
+    useEffect(() => {
+      if (!sceneRef.current) return;
+      const hasSolar = buildings.some((b) => b.type === 'solar_plant' && !b.shutdown);
+      sceneRef.current.setIsotopeState(isotopes ?? 0, hasSolar);
+    }, [isotopes, buildings]);
 
     // ─── Sync buildings → scene ───────────────────────────────────────────────
 

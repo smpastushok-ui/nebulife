@@ -51,6 +51,16 @@ const IDLE_MS    = 50_000;
 /** How often the "+1 [Resource]" label appears while harvesting (ms). */
 const TEXT_INTERVAL_MS = 2000;
 
+// ─── Fuel / isotope cost ─────────────────────────────────────────────────────
+
+/** Isotope cost per harvest cycle (without solar). Fractional — tracked as float. */
+export const DRONE_ISOTOPE_COST_BASE  = 0.5;
+/** Isotope cost per harvest cycle WITH solar plant (electric motor). */
+export const DRONE_ISOTOPE_COST_SOLAR = 0;
+
+const FUEL_BAR_W = 20;
+const FUEL_BAR_H = 3;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type DroneState = 'idle' | 'flying' | 'harvesting' | 'absorbing';
@@ -124,6 +134,13 @@ export class HarvesterDroneVisual {
   /** Trail emission timer. */
   private trailEmitMs = 0;
 
+  // ── Isotope fuel ─────────────────────────────────────────────────────────
+  /** Callback: attempts to consume `amount` isotopes. Returns true if sufficient. */
+  public onConsumeIsotopes: ((amount: number) => boolean) | null = null;
+  /** Whether the colony has an active solar_plant (electric motor = free harvests). */
+  public hasSolarPlant = false;
+  private fuelBarGfx: Graphics;
+
   // ── External callbacks ────────────────────────────────────────────────────
   private readonly findTarget?:  () => { col: number; row: number; label: string } | null;
   private readonly onHarvest?:   (col: number, row: number) => void;
@@ -159,11 +176,14 @@ export class HarvesterDroneVisual {
     this.bodySprite.anchor.set(ANCHOR_X, ANCHOR_Y);
     this.bodySprite.scale.set(DRONE_SCALE);
 
+    this.fuelBarGfx = new Graphics();
+
     this.container.addChild(this.shadow);
     this.container.addChild(this.trailGfx);
     this.container.addChild(this.laserGfx);
     this.container.addChild(this.bodySprite);
     this.container.addChild(this.textLayer);
+    this.container.addChild(this.fuelBarGfx);
 
     this._updatePosition();
   }
@@ -181,7 +201,7 @@ export class HarvesterDroneVisual {
   }
 
   /** Main tick — call every frame from SurfaceScene.update(). */
-  update(deltaMs: number): void {
+  update(deltaMs: number, isotopes: number = Infinity): void {
     this.timeMs  += deltaMs;
     this.stateMs += deltaMs;
     this.screenShakeRequested = false;
@@ -243,6 +263,7 @@ export class HarvesterDroneVisual {
     this._drawTrail();
     this._drawLaser();
     this._updatePosition();
+    this._drawFuelBar(isotopes);
   }
 
   destroy(): void {
@@ -254,6 +275,17 @@ export class HarvesterDroneVisual {
   // ─── State transitions ────────────────────────────────────────────────────
 
   private _pickNextTarget(): void {
+    // Check isotope fuel before starting a harvest cycle
+    const cost = this.hasSolarPlant ? DRONE_ISOTOPE_COST_SOLAR : DRONE_ISOTOPE_COST_BASE;
+    if (cost > 0 && this.onConsumeIsotopes) {
+      const ok = this.onConsumeIsotopes(cost);
+      if (!ok) {
+        // Not enough isotopes — stay idle, try again next cycle
+        this.stateMs = 0;
+        return;
+      }
+    }
+
     if (this.findTarget) {
       const res = this.findTarget();
       if (res) {
@@ -267,6 +299,36 @@ export class HarvesterDroneVisual {
     }
     // No resource nearby — stay idle for another cycle
     this.stateMs = 0;
+  }
+
+  // ─── Fuel bar ─────────────────────────────────────────────────────────────
+
+  private _drawFuelBar(isotopes: number): void {
+    this.fuelBarGfx.clear();
+    const cost = this.hasSolarPlant ? DRONE_ISOTOPE_COST_SOLAR : DRONE_ISOTOPE_COST_BASE;
+    // Hide when solar provides free power or isotopes are plentiful
+    if (cost === 0 || isotopes >= cost * 10) return;
+
+    const { x, y } = gridToScreen(this.col, this.row);
+    const barY = y + TILE_H / 2 + 4;
+    const barX = x - FUEL_BAR_W / 2;
+
+    // Background
+    this.fuelBarGfx.rect(barX, barY, FUEL_BAR_W, FUEL_BAR_H);
+    this.fuelBarGfx.fill({ color: 0x111122, alpha: 0.6 });
+
+    // Fill proportional to isotopes / (cost * 5)
+    const ratio = Math.min(1, isotopes / (cost * 5));
+    const fillW = ratio * FUEL_BAR_W;
+    const color = isotopes >= cost * 3 ? 0x44ff88
+                : isotopes >= cost     ? 0xff8844
+                :                        0xcc4444;
+    const pulseAlpha = isotopes < cost ? 0.5 + 0.4 * Math.sin(this.timeMs / 200) : 1;
+
+    if (fillW > 0) {
+      this.fuelBarGfx.rect(barX, barY, fillW, FUEL_BAR_H);
+      this.fuelBarGfx.fill({ color, alpha: 0.85 * pulseAlpha });
+    }
   }
 
   // ─── Movement ─────────────────────────────────────────────────────────────

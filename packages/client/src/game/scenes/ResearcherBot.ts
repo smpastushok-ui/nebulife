@@ -47,6 +47,15 @@ const SHUTDOWN_MS = 1500;
 /** How long the bot hovers in place before shutting engines off (ms). */
 const IDLE_COUNTDOWN_MS = 3000;
 
+// ─── Fuel / isotope cost ─────────────────────────────────────────────────────
+
+/** Isotope cost per grid cell crossed. */
+export const BOT_ISOTOPE_COST_PER_CELL = 4;
+
+/** Fuel bar visual dimensions (px). */
+const FUEL_BAR_W = 24;
+const FUEL_BAR_H = 3;
+
 /**
  * Engine pod screen offsets relative to sprite.position (in screen px at zoom=1).
  * Derived from sprite texture: engine pods at ~x=200,350,670,820  y=800 of 1024px image.
@@ -99,6 +108,11 @@ export class ResearcherBot {
   private bobY:          number = 0;   // smooth bob interpolation
   private bankAngle:     number = 0;   // smooth left/right tilt in radians
 
+  // ── Isotope fuel ──────────────────────────────────────────────────────────
+  /** Callback: attempts to consume `amount` isotopes. Returns true if sufficient. */
+  public onConsumeIsotopes: ((amount: number) => boolean) | null = null;
+  private fuelBarGfx: Graphics;
+
   // ── Pathfinding ────────────────────────────────────────────────────────────
   private path: Array<{ col: number; row: number }> = [];
 
@@ -128,11 +142,14 @@ export class ResearcherBot {
     this.bodySprite.anchor.set(ANCHOR_X, ANCHOR_Y);
     this.bodySprite.scale.set(BOT_SCALE);
 
+    this.fuelBarGfx = new Graphics();
+
     this.container.addChild(this.shadow);
     this.container.addChild(this.distortion);
     this.container.addChild(this.smoke);
     this.container.addChild(this.bodySprite);
     this.container.addChild(this.engineGlow);
+    this.container.addChild(this.fuelBarGfx);
 
     this._drawShadow();
     this._updatePosition();
@@ -172,7 +189,7 @@ export class ResearcherBot {
    * Advance all animations and movement.
    * Returns true when the bot crosses into a new grid cell (triggers fog reveal).
    */
-  update(deltaMs: number): boolean {
+  update(deltaMs: number, isotopes: number = Infinity): boolean {
     this.timeMs += deltaMs;
     let crossedCell = false;
 
@@ -247,6 +264,7 @@ export class ResearcherBot {
     this._drawEngineEffects();
     this._drawSmoke();
     this._updatePosition();
+    this._drawFuelBar(isotopes);
 
     return crossedCell;
   }
@@ -288,7 +306,18 @@ export class ResearcherBot {
       this.row += (dr / dist) * step;
     }
 
-    return Math.round(this.col) !== prevIntCol || Math.round(this.row) !== prevIntRow;
+    const crossed = Math.round(this.col) !== prevIntCol || Math.round(this.row) !== prevIntRow;
+
+    // Deduct isotopes when crossing into a new cell
+    if (crossed && this.onConsumeIsotopes) {
+      const ok = this.onConsumeIsotopes(BOT_ISOTOPE_COST_PER_CELL);
+      if (!ok) {
+        // Not enough isotopes — stop exploring
+        this.path = [];
+      }
+    }
+
+    return crossed;
   }
 
   // ─── Drawing ─────────────────────────────────────────────────────────────────
@@ -400,6 +429,35 @@ export class ResearcherBot {
     this.smoke.position.set(x, bodyY);
     this.engineGlow.position.set(x, bodyY);
     this.bodySprite.position.set(x, bodyY);
+  }
+
+  /** Draw a small isotope fuel bar below the drone sprite. */
+  private _drawFuelBar(isotopes: number): void {
+    this.fuelBarGfx.clear();
+    const cost = BOT_ISOTOPE_COST_PER_CELL;
+    // Hide bar when isotopes are plentiful and bot is idle
+    if (isotopes >= cost * 10 && this.state === 'idle') return;
+
+    const { x, y } = gridToScreen(this.col, this.row);
+    const barY = y + TILE_H / 2 + 4;   // just below ground shadow
+    const barX = x - FUEL_BAR_W / 2;
+
+    // Background
+    this.fuelBarGfx.rect(barX, barY, FUEL_BAR_W, FUEL_BAR_H);
+    this.fuelBarGfx.fill({ color: 0x111122, alpha: 0.6 });
+
+    // Fill proportional to isotopes / (cost * 5)
+    const ratio = Math.min(1, isotopes / (cost * 5));
+    const fillW = ratio * FUEL_BAR_W;
+    const color = isotopes >= cost * 3 ? 0x44ff88
+                : isotopes >= cost     ? 0xff8844
+                :                        0xcc4444;
+    const pulseAlpha = isotopes < cost ? 0.5 + 0.4 * Math.sin(this.timeMs / 200) : 1;
+
+    if (fillW > 0) {
+      this.fuelBarGfx.rect(barX, barY, fillW, FUEL_BAR_H);
+      this.fuelBarGfx.fill({ color, alpha: 0.85 * pulseAlpha });
+    }
   }
 
   // ─── A* Pathfinding ───────────────────────────────────────────────────────────
