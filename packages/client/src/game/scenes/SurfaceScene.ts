@@ -2607,8 +2607,8 @@ export class SurfaceScene {
         // trail2 → trail1 → main (back to front)
         for (let i = 0; i < 3; i++) {
           const sp = new Sprite(this.windRotorTex);
-          sp.pivot.set(HUB_X, HUB_Y);   // rotation axis = hub center (no drift)
-          sp.scale.set(baseScale);       // 1:1 with base, perspective already baked in rotor PNG
+          sp.pivot.set(HUB_X, HUB_Y);                      // rotation axis = hub center (no drift)
+          sp.scale.set(baseScale, baseScale * (TILE_H / TILE_W)); // isometric squash: 80/128 = 0.625
           sp.position.set(rx, ry);
           sp.alpha = i === 2 ? 1.0 : 0.30;
           L.addChild(sp);
