@@ -2230,8 +2230,8 @@ export class SurfaceScene {
         let rp        = 0;       // return phase 0→1
 
         if (lt < 0) {
-          // Waiting: on platform
-          bY = LP_Y;
+          // Waiting for first appearance — drone not yet visible
+          droneVis = false;
         } else if (lt < P_HOVER) {
           // RISE: slow up, ease-in-out
           const p    = lt / RISE_DUR;
