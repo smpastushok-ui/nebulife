@@ -9,6 +9,7 @@ import type { LogEntry } from './SystemLog';
 import type { DiscoveryData } from '../../../api/player-api';
 import { TechTreeView } from '../TechTree';
 import { TelescopeGallery } from './TelescopeGallery';
+import { ResourcesView } from './ResourcesView';
 import type { SystemPhotoData } from '../SystemContextMenu';
 
 // Hide scrollbar on tab bars for mobile swipe
@@ -129,6 +130,8 @@ export interface CosmicArchiveProps {
   onFavoritesChange?: (favorites: Set<string>) => void;
   /** Telescope photos for collection galleries */
   systemPhotos?: Map<string, SystemPhotoData>;
+  /** Colony resource totals (for Resources tab) */
+  colonyResources?: { minerals: number; volatiles: number; isotopes: number };
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +245,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   favoritePlanets: externalFavorites,
   onFavoritesChange,
   systemPhotos,
+  colonyResources,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
@@ -480,6 +484,17 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           playerLevel={playerLevel ?? 1}
           techState={techTreeState}
           onResearch={onResearchTech}
+        />
+      );
+    }
+
+    // Resources tab
+    if (mainTab === 'management' && currentSubTab === 'resources') {
+      return (
+        <ResourcesView
+          minerals={colonyResources?.minerals ?? 0}
+          volatiles={colonyResources?.volatiles ?? 0}
+          isotopes={colonyResources?.isotopes ?? 0}
         />
       );
     }

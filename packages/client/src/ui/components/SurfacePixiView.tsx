@@ -93,6 +93,12 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     const [demolishConfirm, setDemolishConfirm]   = useState<PlacedBuilding | null>(null);
     const demolishingIds = useRef<Set<string>>(new Set());
 
+    // ─── Drone control popup state ────────────────────────────────────────────
+    type DronePopupData =
+      | { type: 'bot'; screenX: number; screenY: number }
+      | { type: 'harvester'; index: number; screenX: number; screenY: number };
+    const [dronePopup, setDronePopup] = useState<DronePopupData | null>(null);
+
     // ─── Isotope fuel for drones ────────────────────────────────────────────
     const isotopesRef      = useRef(isotopes ?? 0);
     const consumeIsoRef    = useRef(onConsumeIsotopes);
@@ -302,8 +308,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         oy: panRef.current.y,
       };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      // Close inspect popup when user starts dragging
+      // Close inspect/drone popup when user starts dragging
       setInspectBuilding(null);
+      setDronePopup(null);
       // NOTE: harvest ring is cancelled only when the pointer actually drags (see handlePointerMove).
       // A simple tap/click does NOT cancel an active harvest.
     };
@@ -423,6 +430,23 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           onHarvest?.(harvested);
         });
       } else {
+        // Check drone/bot click first
+        const droneHit = scene.getClickedDrone(wx, wy);
+        if (droneHit) {
+          const rect2 = containerRef.current?.getBoundingClientRect();
+          if (rect2) {
+            const sx = scene.worldContainer.x + wx * z + rect2.left;
+            const sy = scene.worldContainer.y + wy * z + rect2.top;
+            if (droneHit.type === 'bot') {
+              setDronePopup({ type: 'bot', screenX: sx, screenY: sy });
+            } else {
+              setDronePopup({ type: 'harvester', index: droneHit.index, screenX: sx, screenY: sy });
+            }
+            setInspectBuilding(null);
+          }
+          return;
+        }
+
         // Inspect mode — check if click lands on a placed building
         const hit = scene.getBuildingAt(wx, wy, buildings);
         if (hit) {
@@ -437,6 +461,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
             const sy  = scene.worldContainer.y + bWY * z + rect2.top;
             setInspectPos({ x: sx, y: sy });
             setInspectBuilding(hit);
+            setDronePopup(null);
           }
         }
       }
@@ -447,13 +472,6 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     const toggleHarvest = useCallback(() => {
       setHarvestMode((p) => {
         if (!p) { setSelectedBuilding(null); setRoverMode(false); }
-        return !p;
-      });
-    }, []);
-
-    const toggleRover = useCallback(() => {
-      setRoverMode((p) => {
-        if (!p) { setSelectedBuilding(null); setHarvestMode(false); }
         return !p;
       });
     }, []);
@@ -521,8 +539,6 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
             onClose={onClose}
             harvestMode={harvestMode}
             onToggleHarvest={toggleHarvest}
-            roverMode={roverMode}
-            onToggleRover={toggleRover}
           />
         )}
 
@@ -539,6 +555,171 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
               setInspectBuilding(null);
             }}
           />
+        )}
+
+        {/* Drone control popup */}
+        {dronePopup && sceneRef.current && (() => {
+          const scene = sceneRef.current!;
+          const isBot = dronePopup.type === 'bot';
+          const isActive = isBot
+            ? scene.getBotActive()
+            : scene.getDroneActive((dronePopup as { index: number }).index);
+          const filter = !isBot
+            ? scene.getDroneResourceFilter((dronePopup as { index: number }).index)
+            : null;
+
+          const btnStyle: React.CSSProperties = {
+            width: '100%', padding: '6px 0',
+            borderRadius: 3, fontFamily: 'monospace', fontSize: 11,
+            cursor: 'pointer', textAlign: 'center',
+          };
+          const toggleFilter = (key: string) => {
+            if (!filter) return;
+            const idx = (dronePopup as { index: number }).index;
+            const next = new Set(filter);
+            if (next.has(key)) { if (next.size > 1) next.delete(key); } else next.add(key);
+            scene.setDroneResourceFilter(idx, next);
+            setDronePopup({ ...dronePopup } as DronePopupData);  // force re-render
+          };
+
+          return (
+            <div style={{
+              position: 'fixed',
+              left: Math.max(8, dronePopup.screenX - 100),
+              top: Math.max(8, dronePopup.screenY - 180),
+              width: 200,
+              background: 'rgba(8,14,24,0.96)',
+              border: '1px solid #334455',
+              borderRadius: 4,
+              fontFamily: 'monospace',
+              zIndex: 11500,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+            }}>
+              {/* Header */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '8px 10px 6px', borderBottom: '1px solid #1e2d3d',
+              }}>
+                <div style={{ color: '#aabbcc', fontSize: 11, fontWeight: 'bold' }}>
+                  {isBot ? 'Дрон-дослідник' : 'Збирач'}
+                </div>
+                <button
+                  onClick={() => setDronePopup(null)}
+                  style={{
+                    background: 'none', border: 'none', color: '#556677',
+                    cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 0 0 6px', fontFamily: 'monospace',
+                  }}
+                >x</button>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: '8px 10px' }}>
+                <div style={{ fontSize: 10, color: isActive ? '#44ff88' : '#cc4444', marginBottom: 8 }}>
+                  {isActive ? 'Активний' : 'Зупинений'}
+                </div>
+
+                {/* Toggle active */}
+                <button
+                  onClick={() => {
+                    if (isBot) scene.setBotActive(!isActive);
+                    else scene.setDroneActive((dronePopup as { index: number }).index, !isActive);
+                    setDronePopup({ ...dronePopup } as DronePopupData);
+                  }}
+                  style={{
+                    ...btnStyle, marginBottom: 6,
+                    background: isActive ? 'rgba(160,100,20,0.5)' : 'rgba(20,100,60,0.5)',
+                    border: `1px solid ${isActive ? '#ff8844' : '#44ff88'}`,
+                    color: isActive ? '#ffcc88' : '#88ffaa',
+                  }}
+                >
+                  {isActive ? 'Зупинити' : 'Запустити'}
+                </button>
+
+                {/* Bot: Send to location button */}
+                {isBot && isActive && (
+                  <button
+                    onClick={() => {
+                      setDronePopup(null);
+                      setRoverMode(true);
+                      setSelectedBuilding(null);
+                      setHarvestMode(false);
+                    }}
+                    style={{
+                      ...btnStyle,
+                      background: 'rgba(40,80,140,0.3)',
+                      border: '1px solid rgba(68,136,170,0.5)',
+                      color: '#aaccee',
+                    }}
+                  >
+                    Відправити на розвідку
+                  </button>
+                )}
+
+                {/* Harvester: resource filter */}
+                {!isBot && filter && (
+                  <>
+                    <div style={{
+                      fontSize: 9, color: '#556677', letterSpacing: '0.5px',
+                      marginTop: 8, marginBottom: 6, borderTop: '1px solid #1e2d3d', paddingTop: 8,
+                    }}>
+                      РЕСУРСИ
+                    </div>
+                    {[
+                      { key: 'tree', label: 'Деревина', color: '#88aa44' },
+                      { key: 'ore',  label: 'Руда',     color: '#aa8855' },
+                      { key: 'vent', label: 'Газ',      color: '#55aaaa' },
+                    ].map(({ key, label, color }) => (
+                      <button
+                        key={key}
+                        onClick={() => toggleFilter(key)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          width: '100%', padding: '4px 6px', marginBottom: 2,
+                          background: filter.has(key) ? 'rgba(30,50,40,0.5)' : 'transparent',
+                          border: `1px solid ${filter.has(key) ? color + '66' : '#1e2d3d'}`,
+                          borderRadius: 3, cursor: 'pointer', fontFamily: 'monospace',
+                          color: filter.has(key) ? color : '#334455', fontSize: 11,
+                        }}
+                      >
+                        <span style={{ width: 14, textAlign: 'center' }}>
+                          {filter.has(key) ? '+' : '-'}
+                        </span>
+                        {label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Rover mode HUD (activated from bot popup) */}
+        {roverMode && !selectedBuilding && (
+          <div style={{
+            position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(5,15,25,0.92)',
+            border: '1px solid rgba(68,170,255,0.3)',
+            borderRadius: 4, padding: '6px 14px',
+            fontFamily: 'monospace', fontSize: 11, color: '#4488aa',
+            display: 'flex', alignItems: 'center', gap: 10,
+            pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
+          }}>
+            <span style={{ color: '#44aaff', fontSize: 13, lineHeight: 1 }}>*</span>
+            <span style={{ color: '#aabbcc' }}>Дрон-дослідник</span>
+            <span style={{ color: '#445566' }}>---</span>
+            <span style={{ color: '#556677' }}>натисніть на карту для розвідки</span>
+            <button
+              onClick={() => setRoverMode(false)}
+              style={{
+                background: 'none', border: 'none', color: '#556677',
+                fontSize: 14, cursor: 'pointer', fontFamily: 'monospace',
+                padding: '0 2px', lineHeight: 1,
+              }}
+            >
+              x
+            </button>
+          </div>
         )}
 
         {/* Demolish confirmation modal */}

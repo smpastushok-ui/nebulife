@@ -108,6 +108,10 @@ export class ResearcherBot {
   private bobY:          number = 0;   // smooth bob interpolation
   private bankAngle:     number = 0;   // smooth left/right tilt in radians
 
+  // ── Player control ────────────────────────────────────────────────────────
+  /** Whether the bot is active (player can toggle via popup). */
+  public active = true;
+
   // ── Isotope fuel ──────────────────────────────────────────────────────────
   /** Callback: attempts to consume `amount` isotopes. Returns true if sufficient. */
   public onConsumeIsotopes: ((amount: number) => boolean) | null = null;
@@ -167,6 +171,8 @@ export class ResearcherBot {
     obstacleSet: Set<string>,
     gridSize: number,
   ): void {
+    if (!this.active) return;  // player paused bot — ignore commands
+
     const sc = Math.round(this.col);
     const sr = Math.round(this.row);
     const ec = Math.max(0, Math.min(gridSize - 1, col));
@@ -192,6 +198,13 @@ export class ResearcherBot {
   update(deltaMs: number, isotopes: number = Infinity): boolean {
     this.timeMs += deltaMs;
     let crossedCell = false;
+
+    // ── Player deactivation ──────────────────────────────────────────────────
+    if (!this.active && (this.state === 'flying' || this.state === 'startup')) {
+      this.path = [];
+      this.state = 'idle_countdown';
+      this.idleTimerMs = 0;
+    }
 
     // ── State machine ────────────────────────────────────────────────────────
 

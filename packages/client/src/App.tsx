@@ -4200,6 +4200,7 @@ export function App() {
           favoritePlanets={favoritePlanets}
           onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
           systemPhotos={systemPhotos}
+          colonyResources={colonyResources}
         />
       )}
 

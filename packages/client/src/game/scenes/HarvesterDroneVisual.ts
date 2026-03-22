@@ -139,10 +139,17 @@ export class HarvesterDroneVisual {
   public onConsumeIsotopes: ((amount: number) => boolean) | null = null;
   /** Whether the colony has an active solar_plant (electric motor = free harvests). */
   public hasSolarPlant = false;
+
+  // ── Player control ────────────────────────────────────────────────────────
+  /** Whether the drone is active (player can toggle via popup). */
+  public active = true;
+  /** Resource type filter — only harvest resources in this set. */
+  public resourceFilter: Set<string> = new Set(['tree', 'ore', 'vent']);
+
   private fuelBarGfx: Graphics;
 
   // ── External callbacks ────────────────────────────────────────────────────
-  private readonly findTarget?:  () => { col: number; row: number; label: string } | null;
+  private readonly findTarget?:  (filter?: Set<string>) => { col: number; row: number; label: string } | null;
   private readonly onHarvest?:   (col: number, row: number) => void;
 
   // ─── Constructor ──────────────────────────────────────────────────────────
@@ -152,7 +159,7 @@ export class HarvesterDroneVisual {
     startRow: number,
     texture: Texture,
     /** Optional: called every IDLE phase to discover the next resource cell. */
-    findTarget?: () => { col: number; row: number; label: string } | null,
+    findTarget?: (filter?: Set<string>) => { col: number; row: number; label: string } | null,
     /** Optional: called when the drone finishes absorbing a resource. */
     onHarvest?:  (col: number, row: number) => void,
   ) {
@@ -275,6 +282,9 @@ export class HarvesterDroneVisual {
   // ─── State transitions ────────────────────────────────────────────────────
 
   private _pickNextTarget(): void {
+    // Player paused the drone — stay idle
+    if (!this.active) { this.stateMs = 0; return; }
+
     // Check isotope fuel before starting a harvest cycle
     const cost = this.hasSolarPlant ? DRONE_ISOTOPE_COST_SOLAR : DRONE_ISOTOPE_COST_BASE;
     if (cost > 0 && this.onConsumeIsotopes) {
@@ -287,7 +297,7 @@ export class HarvesterDroneVisual {
     }
 
     if (this.findTarget) {
-      const res = this.findTarget();
+      const res = this.findTarget(this.resourceFilter);
       if (res) {
         this.targetCol    = res.col;
         this.targetRow    = res.row;

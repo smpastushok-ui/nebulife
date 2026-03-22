@@ -811,8 +811,6 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
             onClose={() => setShowBuildPanel(false)}
             harvestMode={false}
             onToggleHarvest={() => {}}
-            roverMode={false}
-            onToggleRover={() => {}}
           />
         )}
       </div>

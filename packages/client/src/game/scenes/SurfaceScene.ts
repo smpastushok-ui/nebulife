@@ -444,7 +444,7 @@ export class SurfaceScene {
       homeCol,
       homeRow,
       this.harvesterTex,
-      () => this._findNearbyHarvestable(homeCol, homeRow, 10),
+      (filter) => this._findNearbyHarvestable(homeCol, homeRow, 10, filter),
       (col, row) => { this.harvestAt(col, row); },
     );
     // Wire isotope consumption callback
@@ -468,6 +468,7 @@ export class SurfaceScene {
     homeCol: number,
     homeRow: number,
     radius: number,
+    filter?: Set<string>,
   ): { col: number; row: number; label: string } | null {
     const seed = this.planet?.seed ?? 0;
     const wl   = this.waterLevel;
@@ -488,9 +489,9 @@ export class SurfaceScene {
         if (this.harvestedCells.has(k)) continue;   // already depleted
 
         let label: string | null = null;
-        if (isTreeCell(c, r, seed, N, wl)) label = 'Деревина';
-        else if (isOreCell(c, r, seed, N, wl))  label = 'Руда';
-        else if (isVentCell(c, r, seed, N, wl)) label = 'Газ';
+        if (isTreeCell(c, r, seed, N, wl) && (!filter || filter.has('tree')))       label = 'Деревина';
+        else if (isOreCell(c, r, seed, N, wl) && (!filter || filter.has('ore')))     label = 'Руда';
+        else if (isVentCell(c, r, seed, N, wl) && (!filter || filter.has('vent')))   label = 'Газ';
 
         if (label && dist < bestDist) {
           bestDist = dist;
@@ -1351,6 +1352,57 @@ export class SurfaceScene {
       if (col >= b.x && col < b.x + sW && row >= b.y && row < b.y + sH) return b;
     }
     return null;
+  }
+
+  // ─── Drone click detection & control ──────────────────────────────────────
+
+  /** Check if a world-space click lands on a drone or bot. */
+  public getClickedDrone(worldX: number, worldY: number):
+    { type: 'bot' } | { type: 'harvester'; index: number } | null {
+    const TW2 = TILE_W / 2;
+    const TH2 = TILE_H / 2;
+    const col = (worldX / TW2 + worldY / TH2) / 2;
+    const row = (worldY / TH2 - worldX / TW2) / 2;
+
+    // Check researcher bot (within ~1.5 tile radius)
+    if (this.bot) {
+      const dc = col - this.bot.col;
+      const dr = row - this.bot.row;
+      if (dc * dc + dr * dr < 2.25) return { type: 'bot' };
+    }
+
+    // Check harvester drones
+    for (let i = 0; i < this.harvesterDrones.length; i++) {
+      const d = this.harvesterDrones[i];
+      const dc = col - d.col;
+      const dr = row - d.row;
+      if (dc * dc + dr * dr < 2.25) return { type: 'harvester', index: i };
+    }
+    return null;
+  }
+
+  public setBotActive(active: boolean): void {
+    if (this.bot) this.bot.active = active;
+  }
+
+  public getBotActive(): boolean {
+    return this.bot?.active ?? false;
+  }
+
+  public setDroneActive(index: number, active: boolean): void {
+    if (this.harvesterDrones[index]) this.harvesterDrones[index].active = active;
+  }
+
+  public getDroneActive(index: number): boolean {
+    return this.harvesterDrones[index]?.active ?? false;
+  }
+
+  public setDroneResourceFilter(index: number, filter: Set<string>): void {
+    if (this.harvesterDrones[index]) this.harvesterDrones[index].resourceFilter = filter;
+  }
+
+  public getDroneResourceFilter(index: number): Set<string> {
+    return this.harvesterDrones[index]?.resourceFilter ?? new Set(['tree', 'ore', 'vent']);
   }
 
   // ─── Demolish ─────────────────────────────────────────────────────────────
