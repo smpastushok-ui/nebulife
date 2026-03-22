@@ -2336,12 +2336,15 @@ export class SurfaceScene {
           }
         }
 
-        // ── Exhaust / steam (gs[5]) ──────────────────────────────────────
+        // ── Exhaust / steam (gs[5]) — blue-orange palette ────────────────
+        // Orange 0xff8833 = hot engine exhaust (near drone)
+        // Blue   0x44aaff = cooled gas / ion plume (expanding outward)
         const steamG = eff.gs[5]; steamG.clear();
         // Post-launch: lingering smoke disperses for 2800ms after drone leaves
         if (lt >= P_AWAY && lt < P_AWAY + 2800) {
-          const age = (lt - P_AWAY) / 2800;   // 0→1, quadratic fade
-          // 3 staggered expanding iso-rings
+          const age = (lt - P_AWAY) / 2800;
+          // 3 staggered expanding iso-rings: alternating orange / blue / orange
+          const RING_COLS = [0xff8833, 0x44aaff, 0xff8833];
           for (let ring = 0; ring < 3; ring++) {
             const delay = ring * 0.16;
             if (age < delay) continue;
@@ -2353,11 +2356,10 @@ export class SurfaceScene {
               pts.push(cx + Math.cos(a2) * rr, LP_Y + Math.sin(a2) * rr * 0.42);
             }
             steamG.poly(pts);
-            // quadratic alpha: stays dense long, then quickly dissipates
-            steamG.stroke({ width: 3 - ring * 0.8, color: 0xbbddee,
+            steamG.stroke({ width: 3 - ring * 0.8, color: RING_COLS[ring],
               alpha: (1 - ra) * (1 - ra) * 0.58 });
           }
-          // 8 radial drift particles — each offset in phase, slow outward
+          // 8 radial drift particles — orange and blue alternating
           const ISO_D_DRIFT: Array<[number,number]> = [
             [1,0],[-1,0],[0.7,0.45],[-0.7,0.45],[0.7,-0.45],[-0.7,-0.45],[0,0.9],[0,-0.9],
           ];
@@ -2371,24 +2373,24 @@ export class SurfaceScene {
             const a    = (1 - phase) * (1 - phase) * 0.42;
             if (a < 0.01) continue;
             steamG.circle(cx + dx2 * dist, LP_Y + dy2 * dist, r);
-            steamG.fill({ color: 0xaaccee, alpha: a });
+            steamG.fill({ color: i % 2 === 0 ? 0xff8833 : 0x44aaff, alpha: a });
           }
         }
         if (lt >= 0 && droneVis) {
-          const steamOriginY = bY;   // bottom of drone
+          const steamOriginY = bY;
 
-          // RISE or SETTLE: gentle particles drifting downward
+          // RISE or SETTLE: gentle particles — alternating orange / blue
           if ((lt < P_HOVER) || (lt >= P_SETTLE && lt < P_IDLE)) {
             const SCYCLE = 650;
             for (let i = 0; i < 4; i++) {
               const phase = ((t + i * (SCYCLE/4)) % SCYCLE) / SCYCLE;
               const ey    = steamOriginY + phase * (LP_Y - steamOriginY);
               steamG.circle(cx + (i%2===0?1:-1)*phase*5, ey, 2 + phase * 4.5);
-              steamG.fill({ color: 0xccddee, alpha: (1-phase)*0.35 });
+              steamG.fill({ color: i % 2 === 0 ? 0xff8833 : 0x44aaff, alpha: (1-phase)*0.35 });
             }
           }
 
-          // LAUNCH: dense column + radial splash
+          // LAUNCH: dense column (orange near engine, blue near platform) + radial splash
           else if (lp > 0) {
             const colH = LP_Y - steamOriginY;
             if (colH > 0) {
@@ -2397,11 +2399,14 @@ export class SurfaceScene {
                 const phase = ((t*1.6 + i*PCYCLE/8) % PCYCLE) / PCYCLE;
                 const ey    = steamOriginY + phase * colH;
                 if (ey < steamOriginY || ey > LP_Y) continue;
+                // near engine = orange, near platform = blue
+                const col = phase < 0.45 ? 0xff8833 : 0x44aaff;
                 steamG.circle(cx, ey, 2.5 + phase*(7 + lp*9));
-                steamG.fill({ color: 0xddeeff, alpha: (1-phase*0.5)*0.6 });
+                steamG.fill({ color: col, alpha: (1-phase*0.5)*0.6 });
               }
             }
             const elapsed = lt - P_LAUNCH;
+            // ring 0 = orange, ring 1 = blue
             for (let ring = 0; ring < 2; ring++) {
               const delay   = ring * 120;
               if (elapsed < delay) continue;
@@ -2413,7 +2418,8 @@ export class SurfaceScene {
                 pts.push(cx + Math.cos(a2)*rr, LP_Y + Math.sin(a2)*rr*0.45);
               }
               steamG.poly(pts);
-              steamG.stroke({ width: 2-ring*0.5, color: 0xaaccee, alpha: (1-ringAge)*0.72 });
+              steamG.stroke({ width: 2-ring*0.5, color: ring === 0 ? 0xff8833 : 0x44aaff,
+                alpha: (1-ringAge)*0.72 });
             }
             const ISO_D: Array<[number,number]> = [
               [1,0],[-1,0],[0.7,0.45],[-0.7,0.45],[0.7,-0.45],[-0.7,-0.45],[0,0.9],[0,-0.9],
@@ -2422,7 +2428,7 @@ export class SurfaceScene {
               const [dx2, dy2] = ISO_D[i];
               const phase = ((t + i*38) % 300) / 300;
               steamG.circle(cx + dx2*phase*78, LP_Y + dy2*phase*78, 1.5 + phase*4);
-              steamG.fill({ color: 0x99bbdd, alpha: (1-phase)*0.58 });
+              steamG.fill({ color: i % 2 === 0 ? 0xff8833 : 0x44aaff, alpha: (1-phase)*0.58 });
             }
           }
 
@@ -2435,8 +2441,9 @@ export class SurfaceScene {
                 const phase = ((t*1.6 + i*PCYCLE/8) % PCYCLE) / PCYCLE;
                 const ey    = steamOriginY + phase * colH;
                 if (ey < steamOriginY || ey > LP_Y) continue;
+                const col = phase < 0.45 ? 0xff8833 : 0x44aaff;
                 steamG.circle(cx, ey, 2.5 + phase*(7 + (1-rp)*9));
-                steamG.fill({ color: 0xddeeff, alpha: (1-phase*0.5)*0.6 });
+                steamG.fill({ color: col, alpha: (1-phase*0.5)*0.6 });
               }
             }
             if (rp > 0.7) {
@@ -2452,7 +2459,8 @@ export class SurfaceScene {
                   pts.push(cx + Math.cos(a2)*rr, LP_Y + Math.sin(a2)*rr*0.45);
                 }
                 steamG.poly(pts);
-                steamG.stroke({ width: 2-ring*0.5, color: 0xaaccee, alpha: (1-ringAge)*0.72 });
+                steamG.stroke({ width: 2-ring*0.5, color: ring === 0 ? 0xff8833 : 0x44aaff,
+                  alpha: (1-ringAge)*0.72 });
               }
             }
           }
