@@ -205,6 +205,9 @@ export class SurfaceScene {
   private hasSolarPlant:   boolean = false;
   private onConsumeIsotopes: ((amount: number) => boolean) | null = null;
 
+  // ─── Solar plant glow overlay texture ────────────────────────────────────
+  private solarLightTex: Texture | null = null;
+
   // ─── Mountain PNG sprite ──────────────────────────────────────────────────
   private mountTex: Texture | null = null;
 
@@ -328,6 +331,7 @@ export class SurfaceScene {
     // Pre-load building PNG textures (non-blocking — fail silently)
     const BUILDING_PNGS: Partial<Record<string, string>> = {
       colony_hub:       '/buildings/colony_hub.png',
+      solar_plant:      '/buildings/solar_plant.png',
       resource_storage: '/tiles/machines/resource_storage.png',
       landing_pad:      '/tiles/machines/landing_pad.png',
       spaceport:        '/tiles/machines/spaceport.png',
@@ -340,6 +344,11 @@ export class SurfaceScene {
         } catch { /* no PNG for this building — use procedural */ }
       }),
     );
+
+    // Load solar plant glow overlay texture
+    try {
+      this.solarLightTex = await Assets.load<Texture>('/buildings/solar_plant_light.png');
+    } catch { /* no glow texture — solar plant works without overlay */ }
 
     // Load researcher bot textures
     try {
@@ -821,7 +830,7 @@ export class SurfaceScene {
         this._startBuildingAnim(b, bldg);
       }
       // Create idle animation for supported building types
-      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport') {
+      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant') {
         this._createBldgEffect(b);
         // Restore previous animation state so existing buildings don't restart from zero
         const saved  = savedAnim.get(key);
@@ -2498,6 +2507,23 @@ export class SurfaceScene {
       extra['steamT2']    = -1;
       // Random phase offset per signal light so they blink independently
       for (let i = 0; i < 6; i++) extra[`sigPh${i}`] = Math.random() * 3000;
+
+    } else if (b.type === 'solar_plant') {
+      // Glow overlay sprite — pulsing energy-pulse animation (blendMode: 'add')
+      if (this.solarLightTex && this.bldgTextures['solar_plant']) {
+        const botRight = gridToScreen(b.x + sW, b.y + sH);
+        const baseTex  = this.bldgTextures['solar_plant'];
+        const sp = new Sprite(this.solarLightTex);
+        sp.anchor.set(0.5, 1.0);
+        sp.scale.set((sW * TILE_W) / baseTex.width);
+        sp.position.set(botRight.x, botRight.y);
+        sp.blendMode = 'add';
+        sp.alpha = 0.3;
+        L.addChild(sp);
+        sprites.push(sp);
+      }
+      // Random phase so multiple solar plants don't pulse in sync
+      extra['phase'] = Math.random() * 3000;
     }
 
     this.bldgEffects.set(key, { gs, sprites, timeMs: 0, extra, cx, cy, sW, type: b.type });
@@ -2958,6 +2984,15 @@ export class SurfaceScene {
         // Core dot
         cyanG.circle(plx, ply, 2.5);
         cyanG.fill({ color: 0x44eeff, alpha: 0.95 });
+
+      } else if (eff.type === 'solar_plant') {
+        // ── Pulsing glow overlay — alpha 0.3→1.0→0.3, 3s sine cycle ─────
+        if (eff.sprites.length > 0) {
+          const PERIOD = 3000;
+          const phase  = eff.extra['phase'] ?? 0;
+          const alpha  = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(((t + phase) / PERIOD) * Math.PI * 2));
+          eff.sprites[0].alpha = alpha;
+        }
       }
     }
   }

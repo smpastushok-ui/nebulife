@@ -12,7 +12,8 @@ interface BuildingPanelProps {
 
 /** Buildings that have a real PNG preview image */
 const BUILDING_PREVIEW: Partial<Record<BuildingType, string>> = {
-  colony_hub: '/buildings/colony_hub.png',
+  colony_hub:  '/buildings/colony_hub.png',
+  solar_plant: '/buildings/solar_plant.png',
 };
 
 /* ---- Building icon colors (no emojis per project rules) ---- */
