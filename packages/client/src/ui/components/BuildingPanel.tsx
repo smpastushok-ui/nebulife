@@ -12,8 +12,12 @@ interface BuildingPanelProps {
 
 /** Buildings that have a real PNG preview image */
 const BUILDING_PREVIEW: Partial<Record<BuildingType, string>> = {
-  colony_hub:  '/buildings/colony_hub.png',
-  solar_plant: '/buildings/solar_plant.png',
+  colony_hub:       '/buildings/colony_hub.png',
+  solar_plant:      '/buildings/solar_plant.png',
+  resource_storage: '/tiles/machines/resource_storage.png',
+  landing_pad:      '/tiles/machines/landing_pad.png',
+  spaceport:        '/tiles/machines/spaceport.png',
+  alpha_harvester:  '/tiles/machines/premium_harvester_drone.png',
 };
 
 /* ---- Building icon colors (no emojis per project rules) ---- */
@@ -266,7 +270,7 @@ function BuildingCard({
               height: 160,
               objectFit: 'contain',
               imageRendering: 'pixelated',
-              filter: 'brightness(3.0) contrast(1.1) drop-shadow(0 0 8px rgba(68,136,170,0.5))',
+              filter: 'brightness(5.0) contrast(1.1) drop-shadow(0 0 8px rgba(68,136,170,0.5))',
             }}
           />
         </div>
