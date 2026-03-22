@@ -222,7 +222,7 @@ function BuildingCard({
       {previewSrc && isSelected && (
         <div style={{
           width: '100%',
-          background: 'rgba(5,12,22,0.95)',
+          background: 'rgba(12,22,40,0.95)',
           borderBottom: '1px solid rgba(60, 100, 160, 0.3)',
           display: 'flex',
           justifyContent: 'center',
@@ -237,7 +237,7 @@ function BuildingCard({
               height: 160,
               objectFit: 'contain',
               imageRendering: 'pixelated',
-              filter: 'drop-shadow(0 0 8px rgba(68,136,170,0.5))',
+              filter: 'brightness(1.8) contrast(1.15) drop-shadow(0 0 8px rgba(68,136,170,0.5))',
             }}
           />
         </div>
@@ -248,7 +248,7 @@ function BuildingCard({
           <img
             src={previewSrc}
             alt={def.name}
-            style={{ width: 36, height: 36, objectFit: 'contain', imageRendering: 'pixelated', flexShrink: 0 }}
+            style={{ width: 36, height: 36, objectFit: 'contain', imageRendering: 'pixelated', flexShrink: 0, filter: 'brightness(1.8) contrast(1.15)' }}
           />
         ) : (
           <BuildingIcon type={type} size={28} />
