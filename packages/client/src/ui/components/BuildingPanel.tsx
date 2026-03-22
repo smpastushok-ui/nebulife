@@ -96,14 +96,43 @@ function drawMiniIcon(
       break;
     }
     case 'solar_plant': {
+      // 3×3 grid of solar panel cells
+      const cellW = s * 0.42;
+      const cellH = s * 0.28;
+      const gap   = s * 0.07;
+      const startX = cx - (cellW * 1.5 + gap);
+      const startY = cy - (cellH * 1.5 + gap);
+      for (let r = 0; r < 3; r++) {
+        for (let c2 = 0; c2 < 3; c2++) {
+          const rx = startX + c2 * (cellW + gap);
+          const ry = startY + r  * (cellH + gap);
+          ctx.fillStyle = col;
+          ctx.fillRect(rx, ry, cellW, cellH);
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.fillRect(rx + 1, ry + 1, cellW - 3, cellH * 0.45);
+        }
+      }
+      break;
+    }
+    case 'alpha_harvester': {
+      // Quadcopter drone: central body + 4 diagonal arms + rotor circles
       ctx.beginPath();
-      ctx.moveTo(cx, cy - s * 0.7);
-      ctx.lineTo(cx + s * 0.6, cy);
-      ctx.lineTo(cx, cy + s * 0.7);
-      ctx.lineTo(cx - s * 0.6, cy);
-      ctx.closePath();
+      ctx.arc(cx, cy, s * 0.28, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+      const armLen = s * 0.58;
+      ctx.lineWidth = 1.5;
+      for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as [number,number][]) {
+        ctx.strokeStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(cx + dx * s * 0.22, cy + dy * s * 0.22);
+        ctx.lineTo(cx + dx * armLen,   cy + dy * armLen);
+        ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(cx + dx * armLen, cy + dy * armLen, s * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+      }
       break;
     }
     case 'research_lab': {
@@ -237,22 +266,14 @@ function BuildingCard({
               height: 160,
               objectFit: 'contain',
               imageRendering: 'pixelated',
-              filter: 'brightness(1.8) contrast(1.15) drop-shadow(0 0 8px rgba(68,136,170,0.5))',
+              filter: 'brightness(3.0) contrast(1.1) drop-shadow(0 0 8px rgba(68,136,170,0.5))',
             }}
           />
         </div>
       )}
-      {/* Row: icon + info */}
+      {/* Row: icon + info — always canvas for consistent visibility at small size */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
-        {previewSrc ? (
-          <img
-            src={previewSrc}
-            alt={def.name}
-            style={{ width: 36, height: 36, objectFit: 'contain', imageRendering: 'pixelated', flexShrink: 0, filter: 'brightness(1.8) contrast(1.15)' }}
-          />
-        ) : (
-          <BuildingIcon type={type} size={28} />
-        )}
+        <BuildingIcon type={type} size={28} />
         <div>
           <div style={{ fontWeight: isSelected ? 'bold' : 'normal', marginBottom: 2 }}>{def.name}</div>
           <div style={{ fontSize: 10, color: '#667788' }}>{def.description}</div>
