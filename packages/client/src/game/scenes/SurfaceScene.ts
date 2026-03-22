@@ -1107,6 +1107,21 @@ export class SurfaceScene {
             if (this.fogLayer && !this.fogLayer.isRevealed(c, r)) { ok = false; break; }
           }
         }
+        // 1-cell buffer: border of footprint must not touch water / mountain / live resource
+        outerBuf: for (let dc = -1; dc <= sW && ok; dc++) {
+          for (let dr = -1; dr <= sH && ok; dr++) {
+            if (dc >= 0 && dc < sW && dr >= 0 && dr < sH) continue;
+            const bc = col + dc; const br = row + dr;
+            if (bc < 0 || bc >= N || br < 0 || br >= N) continue;
+            if (isMountainFootprint(bc, br, seed, N)) { ok = false; break outerBuf; }
+            const bt = classifyCellTerrain(bc, br, seed, wl, N);
+            if (isWaterTerrain(bt)) { ok = false; break outerBuf; }
+            const bk = `${bc},${br}`;
+            if (isTreeCell(bc, br, seed, N, wl) && !this.harvestedCells.has(bk)) { ok = false; break outerBuf; }
+            if (isOreCell(bc, br, seed, N, wl)  && !this.harvestedCells.has(bk)) { ok = false; break outerBuf; }
+            if (isVentCell(bc, br, seed, N, wl) && !this.harvestedCells.has(bk)) { ok = false; break outerBuf; }
+          }
+        }
         if (!ok) continue;
 
         // Footprint must not overlap or touch any existing building (enforces 1-cell gap)
@@ -1188,6 +1203,22 @@ export class SurfaceScene {
         if (isVentCell(c, r, seed, N, wl) && !this.harvestedCells.has(k)) return false;
         if (this.fogLayer && !this.fogLayer.isRevealed(c, r)) return false;
         if (this._isOccupiedByTransport(c, r)) return false;
+      }
+    }
+
+    // 1-cell buffer: every cell bordering the footprint must not be water / mountain / live resource
+    for (let dc = -1; dc <= sW; dc++) {
+      for (let dr = -1; dr <= sH; dr++) {
+        if (dc >= 0 && dc < sW && dr >= 0 && dr < sH) continue; // skip interior
+        const bc = col + dc; const br = row + dr;
+        if (bc < 0 || bc >= N || br < 0 || br >= N) continue;   // off-grid is ok
+        if (isMountainFootprint(bc, br, seed, N)) return false;
+        const bt = classifyCellTerrain(bc, br, seed, wl, N);
+        if (isWaterTerrain(bt)) return false;
+        const bk = `${bc},${br}`;
+        if (isTreeCell(bc, br, seed, N, wl) && !this.harvestedCells.has(bk)) return false;
+        if (isOreCell(bc, br, seed, N, wl)  && !this.harvestedCells.has(bk)) return false;
+        if (isVentCell(bc, br, seed, N, wl) && !this.harvestedCells.has(bk)) return false;
       }
     }
 
