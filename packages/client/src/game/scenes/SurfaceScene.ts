@@ -58,6 +58,7 @@ import {
   isTileHarvestable,
   getTileType,
   findMountainCell,
+  isMountainFootprint,
 } from './surface-utils.js';
 
 // ─── Building placement animation ────────────────────────────────────────────
@@ -117,6 +118,7 @@ export class SurfaceScene {
   private corridorLayer: Container;
   private overlayLayer:  Container;
   private effectLayer:   Container;
+  private hubLayer:      Container;   // hub orbit rings — above buildingLayer
   private buildingLayer: Container;
   private roverLayer:    Container;
 
@@ -137,17 +139,27 @@ export class SurfaceScene {
   private planet!: Planet;
   private waterLevel: number = 0.5;
   private baseTexture: Texture | null = null;
-  /** Per-frame animation state for colony_hub effects. */
+  /** Per-frame animation state for colony_hub effects (rendered on hubLayer). */
   private hubEffects: {
-    rings:      Graphics[];   // 3 concentric iso-diamond rings (blue, pulsing)
-    hologram:   Graphics;     // slowly rotating ellipse ring above apex, blendMode='add'
-    sparks:     Array<{
-      g: Graphics; angle: number; speed: number; dist: number; phase: number;
-    }>;                       // 4 tiny info-sparks orbiting hub
-    timeMs:     number;
-    hubScreenX: number;
-    hubScreenY: number;
-    sizeW:      number;
+    /** 5 iso-diamond outlines, one per ring level (pulsing, low alpha). */
+    diamonds: Graphics[];
+    /** 5 rotating orbit arcs — one per ring level with resource colours. */
+    orbits: Array<{
+      g:     Graphics;
+      angle: number;   // current head angle (radians)
+      speed: number;   // rad/ms (positive = CW, negative = CCW)
+      color: number;   // hex colour (blue / yellow / green)
+      cx:    number;   // ring screen-X centre
+      cy:    number;   // ring screen-Y centre
+      rW:    number;   // ellipse horizontal radius (px)
+      rH:    number;   // ellipse vertical radius  (px)
+    }>;
+    /** 4 tiny sparks orbiting the top ring. */
+    sparks: Array<{ g: Graphics; angle: number; speed: number; dist: number; phase: number }>;
+    timeMs:    number;
+    hubFootX:  number;   // footprint bottom-vertex X
+    hubFootY:  number;   // footprint bottom-vertex Y
+    sizeW:     number;
   } | null = null;
 
   /** Harvest state overrides: key=`${col},${row}` → HarvestedCell */
@@ -161,6 +173,10 @@ export class SurfaceScene {
   // ─── Premium harvester drones ─────────────────────────────────────────────
   private harvesterDrones: HarvesterDroneVisual[] = [];
   private harvesterTex:    Texture | null = null;
+  private posDroneTex:     Texture | null = null;
+
+  // ─── Mountain PNG sprite ──────────────────────────────────────────────────
+  private mountTex: Texture | null = null;
 
   // ─── Building contact shadows (below buildingLayer) ──────────────────────
   private buildingShadowGfx: Graphics | null = null;
@@ -192,13 +208,14 @@ export class SurfaceScene {
 
   // ─── Per-building idle animations ─────────────────────────────────────────
   private bldgEffects = new Map<string, {
-    gs:     Graphics[];
-    timeMs: number;
-    extra:  Record<string, number>;
-    cx:     number;
-    cy:     number;
-    sW:     number;
-    type:   string;
+    gs:      Graphics[];
+    sprites: Sprite[];
+    timeMs:  number;
+    extra:   Record<string, number>;
+    cx:      number;
+    cy:      number;
+    sW:      number;
+    type:    string;
   }>();
 
   // ─── Ghost preview layer ─────────────────────────────────────────────────
@@ -212,6 +229,7 @@ export class SurfaceScene {
     this.corridorLayer = new Container();
     this.overlayLayer  = new Container();
     this.effectLayer   = new Container();
+    this.hubLayer      = new Container();
     this.buildingLayer = new Container();
     this.roverLayer    = new Container();
     this.ghostLayer    = new Container();
@@ -238,6 +256,7 @@ export class SurfaceScene {
       this.effectLayer,        // pulsing rings + scanner — above zone overlay, below buildings
       this.buildingShadowGfx!, // contact shadows — below building sprites
       this.buildingLayer,
+      this.hubLayer,      // hub orbit rings — above building sprite, below rover
       this.roverLayer,    // rover — above buildings
       this.ghostLayer,    // building placement ghost — above rover, below clouds
       // cloudBodySprite inserted above ghostLayer after texture load in init()
@@ -299,10 +318,24 @@ export class SurfaceScene {
       this.harvesterTex = await Assets.load<Texture>('/tiles/machines/premium_harvester_drone.png');
     } catch { /* no harvester texture — drones will not spawn */ }
 
+    // Load pos drone texture (landing pad launch animation)
+    try {
+      this.posDroneTex = await Assets.load<Texture>('/tiles/machines/pos_drone.png');
+    } catch { /* no pos_drone texture — cube fallback used */ }
+
+    // Load mountain PNG sprite — variant chosen by planet surface type
+    const mountUrl =
+      atlasType === 'ice'      ? '/tiles/habitable/mount_ice.png'      :
+      atlasType === 'volcanic' ? '/tiles/habitable/mount_volcanic.png' :
+                                 '/tiles/habitable/mount_rugged.png';   // temperate / ocean / barren
+    try {
+      this.mountTex = await Assets.load<Texture>(mountUrl);
+    } catch { /* no mountain texture — voxel fallback will be used */ }
+
     this.drawGroundLayer();
     this._buildNoiseOverlay();
     this._buildShorelineCells();
-    this.placeMountOverlay();   // 3×3 mountain sprite on featureLayer (test visual)
+    this.placeMountOverlay();   // PNG-sprite stacking (or procedural voxel fallback)
 
     // Pre-mark existing buildings so they don't animate on scene load
     for (const b of buildings) this.animatedKeys.add(`${b.x},${b.y}`);
@@ -456,7 +489,7 @@ export class SurfaceScene {
         }
 
         // Lowland / plains / hills / mountains / peaks → sprite from atlas
-        const defaultFrame = terrainToAtlasIndex(terrain, col, row, seed);
+        const defaultFrame = terrainToAtlasIndex(terrain, col, row, seed, N);
         const frameIdx = defaultFrame !== null ? this.getEffectiveFrame(col, row, defaultFrame) : null;
         const tex      = frameIdx !== null ? this.getFrame(frameIdx) : null;
 
@@ -567,13 +600,11 @@ export class SurfaceScene {
     items.forEach(({ sp }) => this.featureLayer.addChild(sp));
   }
 
-  // ─── Mountain overlay (procedural layered slabs) ─────────────────────────
+  // ─── Mountain overlay ────────────────────────────────────────────────────────
 
   /**
-   * Render a procedural layered mountain on featureLayer.
-   * 4 isometric slab layers (7×7 → 5×5 → 3×3 → 1×1), forming a centered pyramid.
-   * Each slab draws 3 faces: SE wall (right), SW wall (left), top face.
-   * Colors: dark warm earth base → warm stone → cool gray rock → near-snow peak.
+   * Render mountain on featureLayer.
+   * Prefers PNG-sprite stacking when mountTex is loaded; falls back to procedural voxels.
    */
   private placeMountOverlay(): void {
     this.featureLayer.removeChildren();
@@ -581,61 +612,121 @@ export class SurfaceScene {
     const pos = findMountainCell(this.planet.seed, this.gridSize);
     if (!pos) return;
 
-    const { col, row } = pos;
-    const TW2 = TILE_W / 2;
-    const TH2 = TILE_H / 2;
-
-    // Grid cell → local-space screen position
-    const gts = (c: number, r: number) => ({ x: (c - r) * TW2, y: (c + r) * TH2 });
-
-    interface SlabDef {
-      sW: number; sH: number; c0: number; r0: number;
-      h: number; top: number; se: number; sw: number;
+    if (this.mountTex) {
+      this._buildMountSprites(pos.col, pos.row);
+    } else {
+      this._buildMountVoxels(pos.col, pos.row);
     }
+  }
 
-    // Layer colors: dark warm earth base → warm stone → cool gray rock → near-snow peak
-    const LAYERS: SlabDef[] = [
-      { sW:7, sH:7, c0:0, r0:0, h:68, top:0x4e3a28, se:0x362618, sw:0x221610 },
-      { sW:5, sH:5, c0:1, r0:1, h:88, top:0x7c6450, se:0x5a4a3c, sw:0x3e3028 },
-      { sW:3, sH:3, c0:2, r0:2, h:88, top:0xa09080, se:0x7e6e66, sw:0x5e5450 },
-      { sW:1, sH:1, c0:3, r0:3, h:76, top:0xd8d4ce, se:0xb6b0aa, sw:0x92908c },
+  /**
+   * PNG-sprite mountain: 5 stacked layers of mount_rugged.png at decreasing scale,
+   * with deterministic X jitter and Y squash for isometric perspective.
+   * Every other layer is flipped horizontally for silhouette variety.
+   * A two-ring Graphics snow cap finishes the summit.
+   */
+  private _buildMountSprites(col: number, row: number): void {
+    const tex  = this.mountTex!;
+    const seed = this.planet.seed;
+    const TW2  = TILE_W / 2;   // 64
+    const TH2  = TILE_H / 2;   // 40
+
+    // Deterministic jitter — abs(sin(…)) in [0, 1)
+    const rnd = (n: number): number => Math.abs(Math.sin(seed * 0.0137 + n * 97.317)) % 1;
+
+    // Horizontal centre of the 7×7 isometric footprint.
+    // Footprint origin = (col, row); centre = (col+3.5, row+3.5).
+    // gridToScreen(col+3.5, row+3.5) → x = (col-row)*TW2, y = (col+row+7)*TH2
+    const cx = (col - row) * TW2;
+    const cy = (col + row + 7) * TH2;
+
+    // Scale the base sprite so the mountain fills ~85 % of the 7-cell diamond width.
+    // Diamond width = 7 * TILE_W = 896 px.
+    const BASE_S = (7 * TW2 * 2 * 0.85) / tex.width;   // ≈ 1.49
+    const SY     = BASE_S * 0.78;                        // Y squash for iso perspective
+
+    // 5 layers — each progressively smaller and higher up the mountain.
+    // Column: [scaleX (negative = flip), scaleY, dx, dy, alpha]
+    const layers: [number, number, number, number, number][] = [
+      [ BASE_S,           SY,           (rnd(0) - 0.5) * 10,  0,              1.00 ],  // base
+      [-BASE_S * 0.72,    SY * 0.72,    (rnd(1) - 0.5) * 28, -BASE_S * 78,   0.93 ],  // mid (flipped)
+      [ BASE_S * 0.50,    SY * 0.50,    (rnd(2) - 0.5) * 38, -BASE_S * 143,  0.87 ],  // upper-mid
+      [-BASE_S * 0.32,    SY * 0.32,    (rnd(3) - 0.5) * 42, -BASE_S * 194,  0.82 ],  // near-peak (flipped)
+      [ BASE_S * 0.20,    SY * 0.20,    (rnd(4) - 0.5) * 28, -BASE_S * 232,  0.78 ],  // summit tip
     ];
 
-    const g = new Graphics();
-    let hAccum = 0;
+    for (const [sx, sy, dx, dy, alpha] of layers) {
+      const sp = new Sprite(tex);
+      sp.anchor.set(0.5, 0.87);   // anchor at mountain base (≈87 % down from sprite top)
+      sp.scale.set(sx, sy);
+      sp.x = cx + dx;
+      sp.y = cy + dy;
+      sp.alpha = alpha;
+      this.featureLayer.addChild(sp);
+    }
+  }
 
-    for (const layer of LAYERS) {
-      hAccum += layer.h;
-      const hTop = hAccum;
-      const hBot = hTop - layer.h;
+  /**
+   * Fallback: procedural voxel mountain used when mount_rugged.png is unavailable.
+   * 4 pyramid layers (7×7 → 5×5 → 3×3 → 1×1); painter's-sorted back→front.
+   */
+  private _buildMountVoxels(col: number, row: number): void {
+    const seed = this.planet.seed;
+    const TW2  = TILE_W / 2;
+    const TH2  = TILE_H / 2;
 
-      const T  = gts(col + layer.c0,            row + layer.r0           );
-      const R  = gts(col + layer.c0 + layer.sW,  row + layer.r0           );
-      const B  = gts(col + layer.c0 + layer.sW,  row + layer.r0 + layer.sH);
-      const Lv = gts(col + layer.c0,             row + layer.r0 + layer.sH);
+    const gts = (c: number, r: number) => ({ x: (c - r) * TW2, y: (c + r) * TH2 });
+    const noise = (gc: number, gr: number) =>
+      Math.abs(Math.sin(gc * 73.1 + gr * 127.3 + seed * 0.0137));
 
-      // SE wall (right-front face)
-      g.poly([R.x, R.y - hTop,  B.x, B.y - hTop,  B.x, B.y - hBot,  R.x, R.y - hBot]);
-      g.fill({ color: layer.se });
-      g.stroke({ width: 0.6, color: 0x000000, alpha: 0.18 });
-
-      // SW wall (left-front face)
-      g.poly([Lv.x, Lv.y - hTop,  B.x, B.y - hTop,  B.x, B.y - hBot,  Lv.x, Lv.y - hBot]);
-      g.fill({ color: layer.sw });
-      g.stroke({ width: 0.6, color: 0x000000, alpha: 0.18 });
-
-      // Top face
-      g.poly([T.x, T.y - hTop,  R.x, R.y - hTop,  B.x, B.y - hTop,  Lv.x, Lv.y - hTop]);
-      g.fill({ color: layer.top });
-      g.stroke({ width: 0.6, color: 0x000000, alpha: 0.12 });
+    interface LayerDef {
+      sW: number; sH: number; c0: number; r0: number;
+      hBase: number; hMin: number; hVar: number;
+      top: number; sw: number; se: number;
     }
 
-    // zIndex: front-bottom vertex of the base 7×7 layer
-    const frontBot = gts(col + 7, row + 7);
-    g.zIndex = frontBot.y;
+    const LAYERS: LayerDef[] = [
+      { sW:7, sH:7, c0:0, r0:0, hBase:  0, hMin:55, hVar:25, top:0x6b5040, sw:0x9a7860, se:0x362418 },
+      { sW:5, sH:5, c0:1, r0:1, hBase: 75, hMin:60, hVar:22, top:0x8a7560, sw:0xbaa080, se:0x544030 },
+      { sW:3, sH:3, c0:2, r0:2, hBase:148, hMin:60, hVar:18, top:0xa09488, sw:0xc8bcb0, se:0x686460 },
+      { sW:1, sH:1, c0:3, r0:3, hBase:218, hMin:62, hVar:14, top:0xcec8c4, sw:0xeeeae6, se:0x9a9490 },
+    ];
 
-    this.featureLayer.sortableChildren = true;
-    this.featureLayer.addChild(g);
+    interface Block { zKey: number; layerIdx: number; g: Graphics; }
+    const blocks: Block[] = [];
+
+    for (let li = 0; li < LAYERS.length; li++) {
+      const layer = LAYERS[li];
+      for (let dc = 0; dc < layer.sW; dc++) {
+        for (let dr = 0; dr < layer.sH; dr++) {
+          const gc = col + layer.c0 + dc;
+          const gr = row + layer.r0 + dr;
+
+          const cellH = layer.hMin + noise(gc, gr) * layer.hVar;
+          const hBot  = layer.hBase;
+          const hTop  = layer.hBase + cellH;
+
+          const T  = gts(gc,     gr    );
+          const R  = gts(gc + 1, gr    );
+          const B  = gts(gc + 1, gr + 1);
+          const Lv = gts(gc,     gr + 1);
+
+          const g = new Graphics();
+          g.poly([R.x,  R.y  - hTop,  B.x, B.y - hTop,  B.x, B.y - hBot,  R.x,  R.y  - hBot]);
+          g.fill({ color: layer.se });
+          g.poly([Lv.x, Lv.y - hTop,  B.x, B.y - hTop,  B.x, B.y - hBot,  Lv.x, Lv.y - hBot]);
+          g.fill({ color: layer.sw });
+          g.poly([T.x, T.y - hTop,  R.x, R.y - hTop,  B.x, B.y - hTop,  Lv.x, Lv.y - hTop]);
+          g.fill({ color: layer.top });
+
+          blocks.push({ zKey: gc + gr, layerIdx: li, g });
+        }
+      }
+    }
+
+    blocks.sort((a, b) => a.zKey !== b.zKey ? a.zKey - b.zKey : a.layerIdx - b.layerIdx);
+    this.featureLayer.sortableChildren = false;
+    for (const blk of blocks) this.featureLayer.addChild(blk.g);
   }
 
   // ─── Buildings (dynamic) ──────────────────────────────────────────────────
@@ -643,9 +734,13 @@ export class SurfaceScene {
   public rebuildBuildings(buildings: PlacedBuilding[]): void {
     this.buildingLayer.removeChildren();
     this.effectLayer.removeChildren();
+    this.hubLayer.removeChildren();
     this.hubEffects = null;
-    // Destroy all per-building idle effect graphics before clearing
-    for (const eff of this.bldgEffects.values()) for (const g of eff.gs) g.destroy();
+    // Destroy all per-building idle effect graphics + sprites before clearing
+    for (const eff of this.bldgEffects.values()) {
+      for (const g  of eff.gs)      g.destroy();
+      for (const sp of eff.sprites) sp.destroy();
+    }
     this.bldgEffects.clear();
     this.drawCorridors(buildings);
     this._buildObstacleSet(buildings);
@@ -673,38 +768,79 @@ export class SurfaceScene {
     }
   }
 
-  /** Create animated effect Graphics for a colony_hub building. */
+  /** Create animated effect Graphics for a colony_hub building (all on hubLayer). */
   private createHubEffects(b: PlacedBuilding): void {
-    const def   = BUILDING_DEFS[b.type];
-    const sW = def?.sizeW ?? 2;
+    const def = BUILDING_DEFS[b.type];
+    const sW  = def?.sizeW ?? 4;
+    const sH  = def?.sizeH ?? 4;
+    const TW2 = TILE_W / 2;  // 64
+    const TH2 = TILE_H / 2;  // 40
 
-    // Screen coords: horizontal centre of footprint, Y of top-left cell's diamond top
-    const cx = (b.x - b.y) * (TILE_W / 2);
-    const cy = gridToScreen(b.x, b.y).y + TILE_H / 2;
+    // Footprint bottom vertex = front / lowest visible point of building sprite.
+    const footBotX = (b.x + sW - b.y - sH) * TW2;
+    const footBotY = (b.x + sW + b.y + sH) * TH2;
 
-    // 3 concentric pulsing iso-diamond rings
-    const rings: Graphics[] = [new Graphics(), new Graphics(), new Graphics()];
-    for (const r of rings) this.effectLayer.addChild(r);
+    // Single shared center for all rings — raised to upper portion of the building sprite.
+    const cx = footBotX;
+    const cy = footBotY - sW * TH2 * 2.5;   // ~upper third of the building
 
-    // Slowly rotating hologram ellipse at apex (blendMode='add')
-    const hologram = new Graphics();
-    hologram.blendMode = 'add';
-    this.effectLayer.addChild(hologram);
+    // 5 rings sharing the same center, alternating CW/CCW, increasing radii.
+    // [rW multiplier (×TW2), hex colour, speed rad/ms (+CW, -CCW)]
+    const RINGS: [number, number, number][] = [
+      [1.0, 0xffcc44,  0.00105],   // 0: yellow, innermost,   CW  (fastest)
+      [1.7, 0x4499ff, -0.00082],   // 1: blue,                CCW
+      [2.5, 0x44ff88,  0.00063],   // 2: green,  mid,         CW
+      [3.3, 0x4499ff, -0.00047],   // 3: blue,                CCW
+      [4.1, 0xffcc44,  0.00034],   // 4: yellow, outermost,   CW  (slowest)
+    ];
 
-    // 4 tiny info-sparks orbiting the hub
+    const diamonds: Graphics[] = [];
+    const orbits: Array<{ g: Graphics; angle: number; speed: number; color: number; cx: number; cy: number; rW: number; rH: number }> = [];
+
+    for (let i = 0; i < RINGS.length; i++) {
+      const [rMult, color, speed] = RINGS[i];
+      const rW = rMult * TW2;
+      const rH = rW * (TILE_H / TILE_W);  // iso-correct vertical compression
+
+      const dg = new Graphics();
+      this.hubLayer.addChild(dg);
+      diamonds.push(dg);
+
+      const og = new Graphics();
+      og.blendMode = 'add';
+      this.hubLayer.addChild(og);
+      orbits.push({
+        g: og,
+        angle: (i / RINGS.length) * Math.PI * 2,
+        speed,
+        color,
+        cx,
+        cy,
+        rW,
+        rH,
+      });
+    }
+
+    // 4 sparks orbiting around the outermost ring — tiny 2×2 dots
     const sparks = Array.from({ length: 4 }, (_, i) => {
       const g = new Graphics();
-      this.effectLayer.addChild(g);
+      this.hubLayer.addChild(g);
       return {
         g,
         angle: (i / 4) * Math.PI * 2,
-        speed: 0.0008 + 0.0004 * i,
-        dist:  (sW / 2 + 1.2) * (TILE_W / 2),
+        speed: 0.0008 + 0.0003 * i,
+        dist:  RINGS[4][0] * TW2 * 0.65,   // 65% of outermost ring rW
         phase: i * 1.5,
       };
     });
 
-    this.hubEffects = { rings, hologram, sparks, timeMs: 0, hubScreenX: cx, hubScreenY: cy, sizeW: sW };
+    this.hubEffects = {
+      diamonds, orbits, sparks,
+      timeMs: 0,
+      hubFootX: footBotX,
+      hubFootY: footBotY,
+      sizeW:    sW,
+    };
   }
 
   /** Per-frame animation tick — called by PixiJS app.ticker in SurfacePixiView. */
@@ -759,51 +895,54 @@ export class SurfaceScene {
     if (!this.hubEffects) return;
     const eff = this.hubEffects;
     eff.timeMs += deltaMs;
-    const t  = eff.timeMs;
-    const cx = eff.hubScreenX;
-    const cy = eff.hubScreenY;
-    const sW = eff.sizeW;
+    const t   = eff.timeMs;
+    const TH2 = TILE_H / 2;
 
-    // ── Pulsing iso-diamond rings (blue neon, alpha 0.6→1.0, 3s cycle) ────
-    const RING_PHASES = [0, Math.PI * 0.6, Math.PI * 1.2];
-    for (let i = 0; i < eff.rings.length; i++) {
-      const g  = eff.rings[i];
-      const n  = i + 1;
-      const hW = (sW / 2 + n) * (TILE_W / 2);
-      const hH = (sW / 2 + n) * (TILE_H / 2);
-      const a  = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin((t / 3000) * Math.PI * 2 + RING_PHASES[i]));
+    // ── Pulsing iso-diamond outlines (very low alpha, resource colour) ───
+    for (let i = 0; i < eff.diamonds.length; i++) {
+      const orb   = eff.orbits[i];
+      const g     = eff.diamonds[i];
+      const phase = (i / eff.diamonds.length) * Math.PI * 2;
+      const a     = 0.10 + 0.07 * Math.sin((t / 2500) * Math.PI * 2 + phase);
       g.clear();
-      g.poly([cx, cy - hH, cx + hW, cy, cx, cy + hH, cx - hW, cy]);
-      g.stroke({ width: 1.5, color: 0x4488aa, alpha: a });
+      g.poly([orb.cx, orb.cy - orb.rH,
+              orb.cx + orb.rW, orb.cy,
+              orb.cx, orb.cy + orb.rH,
+              orb.cx - orb.rW, orb.cy]);
+      g.stroke({ width: 1.0, color: orb.color, alpha: a });
     }
 
-    // ── Hologram: slowly rotating ellipse ring above apex (blendMode='add') ─
-    {
-      const hH_hub = (sW / 2) * (TILE_H / 2);
-      const apexY  = cy - hH_hub;
-      const hRW    = (sW / 2 + 0.8) * (TILE_W / 2);
-      const hRH    = hRW * 0.38;
-      const angle  = (t / 8000) * Math.PI * 2;
-      const pts: number[] = [];
-      for (let i = 0; i <= 20; i++) {
-        const th = angle + (i / 20) * Math.PI * 2;
-        pts.push(cx + hRW * Math.cos(th), apexY + hRH * Math.sin(th));
+    // ── Rotating orbit arcs (blendMode='add', bright head dot) ───────────
+    const ARC_SPAN = 0.55;   // radians (~31°) — arc length
+    const N_PTS    = 14;     // polyline segments per arc
+    for (const orb of eff.orbits) {
+      orb.angle += orb.speed * deltaMs;
+      const g     = orb.g;
+      const a0    = orb.angle;
+      g.clear();
+      // Tail → head as open polyline
+      g.moveTo(orb.cx + orb.rW * Math.cos(a0), orb.cy + orb.rH * Math.sin(a0));
+      for (let j = 1; j <= N_PTS; j++) {
+        const a = a0 + (j / N_PTS) * ARC_SPAN;
+        g.lineTo(orb.cx + orb.rW * Math.cos(a), orb.cy + orb.rH * Math.sin(a));
       }
-      eff.hologram.clear();
-      eff.hologram.poly(pts);
-      eff.hologram.stroke({ width: 1.5, color: 0x4488ff, alpha: 0.5 + 0.2 * Math.sin(t / 2000) });
+      g.stroke({ width: 2.5, color: orb.color, alpha: 0.88 });
+      // Bright dot at arc head
+      const headA = a0 + ARC_SPAN;
+      g.circle(orb.cx + orb.rW * Math.cos(headA), orb.cy + orb.rH * Math.sin(headA), 3.0);
+      g.fill({ color: 0xffffff, alpha: 0.95 });
     }
 
-    // ── Info-sparks: 4 tiny 2×2 dots orbiting hub ─────────────────────────
+    // ── Sparks: 4 tiny 2×2 pixels orbiting top ring ───────────────────────
     {
-      const hH_hub = (sW / 2) * (TILE_H / 2);
+      const topOrb = eff.orbits[4];
       for (const sp of eff.sparks) {
         sp.angle += sp.speed * deltaMs;
-        const sx2 = cx + sp.dist * Math.cos(sp.angle) * 0.7;
-        const sy2 = (cy - hH_hub * 0.6) + sp.dist * Math.sin(sp.angle) * 0.35;
-        const a   = 0.5 + 0.5 * Math.sin(t / 1200 + sp.phase);
+        const sx = topOrb.cx + sp.dist * Math.cos(sp.angle);
+        const sy = topOrb.cy + sp.dist * Math.sin(sp.angle) * (TILE_H / TILE_W);
+        const a  = 0.5 + 0.5 * Math.sin(t / 1200 + sp.phase);
         sp.g.clear();
-        sp.g.rect(sx2 - 1, sy2 - 1, 2, 2);
+        sp.g.rect(sx - 1, sy - 1, 2, 2);
         sp.g.fill({ color: 0x88ccff, alpha: a });
       }
     }
@@ -820,6 +959,13 @@ export class SurfaceScene {
     const sizeW  = def?.sizeW ?? 1;
     const sizeH  = def?.sizeH ?? 1;
     const tex    = this.bldgTextures[b.type];
+
+    // alpha_harvester has no physical structure — the drone IS the visual.
+    if (b.type === 'alpha_harvester') {
+      const g = new Graphics();
+      g.zIndex = (b.x + sizeW + b.y + sizeH) * (TILE_H / 2);
+      return g;
+    }
 
     if (tex) {
       // PNG sprite — anchor at the bottom center of the sprite (ground contact point).
@@ -1034,6 +1180,7 @@ export class SurfaceScene {
     for (let dc = 0; dc < sW; dc++) {
       for (let dr = 0; dr < sH; dr++) {
         const c = col + dc; const r = row + dr;
+        if (isMountainFootprint(c, r, seed, N)) return false;
         if (!isCellBuildable(c, r, seed, wl, buildingType)) return false;
         const k = `${c},${r}`;
         if (isTreeCell(c, r, seed, N, wl) && !this.harvestedCells.has(k)) return false;
@@ -1099,7 +1246,7 @@ export class SurfaceScene {
     if (this.harvestedCells.has(key)) return;  // already cut
 
     const defaultFrame = terrainToAtlasIndex(
-      classifyCellTerrain(col, row, seed, wl, N), col, row, seed,
+      classifyCellTerrain(col, row, seed, wl, N), col, row, seed, N,
     ) ?? 13;
 
     this.harvestedCells.set(key, {
@@ -1127,7 +1274,7 @@ export class SurfaceScene {
     if (this.harvestedCells.has(key)) return;
 
     const defaultFrame = terrainToAtlasIndex(
-      classifyCellTerrain(col, row, seed, wl, N), col, row, seed,
+      classifyCellTerrain(col, row, seed, wl, N), col, row, seed, N,
     ) ?? 18;
 
     this.harvestedCells.set(key, {
@@ -1155,7 +1302,7 @@ export class SurfaceScene {
     if (this.harvestedCells.has(key)) return;
 
     const defaultFrame = terrainToAtlasIndex(
-      classifyCellTerrain(col, row, seed, wl, N), col, row, seed,
+      classifyCellTerrain(col, row, seed, wl, N), col, row, seed, N,
     ) ?? 21;
 
     this.harvestedCells.set(key, {
@@ -1424,12 +1571,20 @@ export class SurfaceScene {
     const wx = x;
     const wy = y + TILE_H / 2;   // sprite base (ground-level anchor)
 
-    const tex = this._getCellTexture(col, row);
-    const sp  = tex ? this._makeAnimSprite(tex, wx, wy) : null;
-
-    if (type === 'tree')  this.harvestFx?.triggerTree(sp, wx, wy);
-    else if (type === 'ore')  this.harvestFx?.triggerOre(wx, wy);
-    else if (type === 'vent') this.harvestFx?.triggerVent(sp, wx, wy);
+    // Only tree and vent use an animated sprite overlay.
+    // Ore only uses particles (triggerOre takes no sprite) — creating a sprite here would
+    // leave a ghost ore sprite on the effectLayer permanently covering the depleted pit.
+    if (type === 'tree') {
+      const tex = this._getCellTexture(col, row);
+      const sp  = tex ? this._makeAnimSprite(tex, wx, wy) : null;
+      this.harvestFx?.triggerTree(sp, wx, wy);
+    } else if (type === 'ore') {
+      this.harvestFx?.triggerOre(wx, wy);
+    } else if (type === 'vent') {
+      const tex = this._getCellTexture(col, row);
+      const sp  = tex ? this._makeAnimSprite(tex, wx, wy) : null;
+      this.harvestFx?.triggerVent(sp, wx, wy);
+    }
   }
 
   /** Show "+N XP" golden float text above the harvested cell. */
@@ -1448,7 +1603,7 @@ export class SurfaceScene {
     const wl      = this.waterLevel;
     const N       = this.gridSize;
     const terrain = classifyCellTerrain(col, row, seed, wl, N);
-    const defFrm  = terrainToAtlasIndex(terrain, col, row, seed);
+    const defFrm  = terrainToAtlasIndex(terrain, col, row, seed, N);
     if (defFrm === null) return null;
     const frm = this.getEffectiveFrame(col, row, defFrm);
     return this.getFrame(frm);
@@ -1684,7 +1839,7 @@ export class SurfaceScene {
     g.stroke({ width: 2, color, alpha: 0.75 });
     this.ghostLayer.addChild(g);
 
-    // ── Sprite ghost (if texture available) ──────────────────────────────
+    // ── Building image ghost (PNG sprite when available) ─────────────────
     // Use identical positioning to makeIsoBuilding so ghost and placed building
     // overlap exactly: anchor (0.5, 1.0) at the isometric footprint front vertex.
     const tex = this.bldgTextures[buildingType];
@@ -1697,29 +1852,12 @@ export class SurfaceScene {
       sp.anchor.set(0.5, 1.0);
       sp.scale.set(scale);
       sp.position.set(footBotX, footBotY);
-      sp.alpha = 0.55;
+      sp.alpha = 0.60;
       sp.tint  = color;
       this.ghostLayer.addChild(sp);
-    } else {
-      // Procedural iso-box ghost
-      const { x, y } = gridToScreen(col, row);
-      const baseY = y + TH2;
-      const hW    = TILE_W * 0.40 * sW;
-      const hH    = TILE_H * 0.40 * sH;
-      const bH    = TILE_H * 0.85;
-
-      const gb = new Graphics();
-      gb.poly([x, baseY - bH - hH, x + hW, baseY - bH, x, baseY - bH + hH, x - hW, baseY - bH]);
-      gb.fill({ color, alpha: 0.20 });
-      gb.stroke({ width: 1.5, color, alpha: 0.70 });
-      gb.poly([x + hW, baseY - bH, x + hW, baseY, x, baseY + hH, x, baseY - bH + hH]);
-      gb.fill({ color, alpha: 0.14 });
-      gb.stroke({ width: 1, color, alpha: 0.45 });
-      gb.poly([x, baseY - bH + hH, x, baseY + hH, x - hW, baseY, x - hW, baseY - bH]);
-      gb.fill({ color, alpha: 0.14 });
-      gb.stroke({ width: 1, color, alpha: 0.45 });
-      this.ghostLayer.addChild(gb);
     }
+    // No procedural 3D box fallback — footprint diamond outline is sufficient
+    // when no PNG is available yet for this building type.
   }
 
   public clearGhost(): void {
@@ -1940,33 +2078,57 @@ export class SurfaceScene {
     const cy = (topLeft.y + botRight.y) / 2;
     const key = `${b.x},${b.y}`;
     const gs: Graphics[] = [];
+    const sprites: Sprite[] = [];
     const extra: Record<string, number> = {};
+
+    // All bldg-effect Graphics go on hubLayer (above buildingLayer sprites).
+    const L = this.hubLayer;
 
     if (b.type === 'resource_storage') {
       // 5 indicator dots + 1 steam graphics
       for (let i = 0; i < 6; i++) {
-        const g = new Graphics(); this.effectLayer.addChild(g); gs.push(g);
+        const g = new Graphics(); L.addChild(g); gs.push(g);
       }
       extra['nextSteam'] = 5000 + Math.random() * 3000;
       extra['steamT'] = -1;
 
     } else if (b.type === 'landing_pad') {
-      // runway dots, corner pylon glow
-      const runway = new Graphics(); this.effectLayer.addChild(runway); gs.push(runway);
-      const pylons = new Graphics(); pylons.blendMode = 'screen'; this.effectLayer.addChild(pylons); gs.push(pylons);
+      // gs[0..3]=stripe glows (orange+blue), gs[4]=motion-blur Graphics, gs[5]=exhaust steam
+      // sprites[0]=drone sprite (pos_drone_on / pos_drone_off)
+      for (let i = 0; i < 6; i++) {
+        const g = new Graphics(); L.addChild(g); gs.push(g);
+      }
+      // Drone sprite — single pos_drone texture
+      if (this.posDroneTex) {
+        const sp = new Sprite(this.posDroneTex);
+        sp.anchor.set(0.5, 1.0);
+        sp.scale.set(TILE_W / this.posDroneTex.width);
+        L.addChild(sp);
+        sprites.push(sp);
+      }
+      extra['launchT']       = -1;
+      extra['nextLaunch']    = 2000;   // first appearance: 2s after build
+      extra['firstAppearance'] = 1;    // descend from sky on first cycle
 
     } else if (b.type === 'spaceport') {
-      // aviation lights, plasma bay, cargo drones
-      const avia   = new Graphics(); this.effectLayer.addChild(avia);   gs.push(avia);
-      const plasma = new Graphics(); plasma.blendMode = 'add'; this.effectLayer.addChild(plasma); gs.push(plasma);
-      const drones = new Graphics(); this.effectLayer.addChild(drones); gs.push(drones);
+      // gs[0]=red signal lights, gs[1]=gas vents, gs[2]=small drones, gs[3]=cyan platform light
+      const lights = new Graphics(); L.addChild(lights); gs.push(lights);
+      const gas    = new Graphics(); L.addChild(gas);    gs.push(gas);
+      const drones = new Graphics(); L.addChild(drones); gs.push(drones);
+      const cyan   = new Graphics(); L.addChild(cyan);   gs.push(cyan);
       for (let i = 0; i < 3; i++) {
         extra[`d${i}_t`]     = Math.random();
         extra[`d${i}_speed`] = 0.0003 + Math.random() * 0.0002;
       }
+      extra['nextSteam']  = 1200 + Math.random() * 1500;
+      extra['steamT']     = -1;
+      extra['nextSteam2'] = 2200 + Math.random() * 1500;
+      extra['steamT2']    = -1;
+      // Random phase offset per signal light so they blink independently
+      for (let i = 0; i < 6; i++) extra[`sigPh${i}`] = Math.random() * 3000;
     }
 
-    this.bldgEffects.set(key, { gs, timeMs: 0, extra, cx, cy, sW, type: b.type });
+    this.bldgEffects.set(key, { gs, sprites, timeMs: 0, extra, cx, cy, sW, type: b.type });
   }
 
   private _tickBldgEffects(deltaMs: number): void {
@@ -1997,54 +2159,392 @@ export class SurfaceScene {
         }
         if (eff.extra['steamT'] >= 0) {
           eff.extra['steamT'] += deltaMs;
-          const st = eff.extra['steamT'];
-          if (st < 700) {
-            const prog  = st / 700;
+          const st    = eff.extra['steamT'];
+          const DUR   = 900;
+          if (st < DUR) {
             const steam = eff.gs[5]; steam.clear();
+            // 4 puff particles launched in sequence, each drifting left-down
             for (let i = 0; i < 4; i++) {
-              const ang = (i / 4) * Math.PI * 2;
-              const r   = prog * 18;
-              steam.circle(cx + Math.cos(ang) * r, cy - 10 + Math.sin(ang) * r * 0.5, 3 + prog * 5);
-              steam.fill({ color: 0xdde8ff, alpha: (1 - prog) * 0.5 });
+              const launch = i * 0.18;                       // staggered start 0..0.54
+              const p = Math.max(0, (st / DUR - launch) / (1 - launch));
+              if (p <= 0) continue;
+              // Vent origin: slightly left of center, near top of building
+              const ox = cx - 6 + i * 2;
+              const oy = cy - 14 - i * 2;
+              // Drift: left (−X) and slightly down (+Y) in screen space
+              const dx = -p * (22 + i * 5);
+              const dy =  p * (6  + i * 2);
+              const r  = 3.5 + p * (5 + i * 1.5);
+              steam.circle(ox + dx, oy + dy, r);
+              steam.fill({ color: 0xddeeff, alpha: (1 - p) * 0.48 });
             }
           } else { eff.extra['steamT'] = -1; eff.gs[5].clear(); }
         }
 
       } else if (eff.type === 'landing_pad') {
-        // ── Running runway lights ───────────────────────────────────────
-        const runway = eff.gs[0]; runway.clear();
-        for (let i = 0; i < 8; i++) {
-          const lit = Math.floor(t / 200 + i) % 8 < 1;
-          runway.circle(cx + (i - 3.5) * 10, cy + 5, 2);
-          runway.fill({ color: 0xffffff, alpha: lit ? 0.92 : 0.1 });
+        const TW2_lp = TILE_W / 2;
+        const TH2_lp = TILE_H / 2;
+        const LP_Y   = cy - TILE_H * 1.25; // platform surface Y
+        const hw = 20, thC = 13, fh = 26;  // blur-ghost cube dims
+
+        // ── Phase boundaries ─────────────────────────────────────────────
+        const RISE_DUR   = 2_500;
+        const HOVER_DUR  = 2_000;
+        const LAUNCH_DUR = 550;
+        const AWAY_DUR   = 20_000;
+        const RETURN_DUR = 550;
+        const SETTLE_DUR = 2_500;
+        const IDLE_DUR   = 60_000;
+        const P_HOVER   = RISE_DUR;
+        const P_LAUNCH  = P_HOVER  + HOVER_DUR;
+        const P_AWAY    = P_LAUNCH + LAUNCH_DUR;
+        const P_RETURN  = P_AWAY   + AWAY_DUR;
+        const P_SETTLE  = P_RETURN + RETURN_DUR;
+        const P_IDLE    = P_SETTLE + SETTLE_DUR;
+        const TOTAL     = P_IDLE   + IDLE_DUR;
+
+        // ── Timing ──────────────────────────────────────────────────────
+        eff.extra['nextLaunch'] -= deltaMs;
+        if (eff.extra['launchT'] < 0 && eff.extra['nextLaunch'] <= 0) {
+          if (eff.extra['firstAppearance']) {
+            // First time: enter cycle at RETURN so drone descends from sky
+            eff.extra['launchT']       = P_RETURN;
+            eff.extra['firstAppearance'] = 0;
+          } else {
+            eff.extra['launchT'] = 0;   // normal: rise from platform
+          }
         }
-        // ── Corner pylon glow (drawn once) ──────────────────────────────
-        if (t < 150) {
-          const pylons = eff.gs[1]; pylons.clear();
-          const hw = (sW / 2) * (TILE_W / 2) * 0.9;
-          const hh = (sW / 2) * (TILE_H / 2) * 0.9;
-          for (const [sx2, sy2] of [[-1,-1],[1,-1],[1,1],[-1,1]] as Array<[number,number]>) {
-            pylons.circle(cx + hw * sx2, cy + hh * sy2, TILE_W * 0.18);
-            pylons.fill({ color: 0x6699bb, alpha: 0.3 });
+        if (eff.extra['launchT'] >= 0) {
+          eff.extra['launchT'] += deltaMs;
+          if (eff.extra['launchT'] >= TOTAL) {
+            eff.extra['launchT']    = 0;                            // loop normally
+            eff.extra['nextLaunch'] = 2000 + Math.random() * 3000; // reset inter-cycle delay
+          }
+        }
+        const lt = eff.extra['launchT'];
+
+        // ── Drone position + state ───────────────────────────────────────
+        let bY        = LP_Y;    // drone base Y (bottom of sprite)
+        let droneVis  = true;
+        let lp        = 0;       // launch phase 0→1
+        let rp        = 0;       // return phase 0→1
+
+        if (lt < 0) {
+          // Waiting: on platform
+          bY = LP_Y;
+        } else if (lt < P_HOVER) {
+          // RISE: slow up, ease-in-out
+          const p    = lt / RISE_DUR;
+          const ease = p < 0.5 ? 2*p*p : 1 - 2*(1-p)*(1-p);
+          bY = LP_Y - ease * 38;
+        } else if (lt < P_LAUNCH) {
+          // HOVER: bob + stripe acceleration
+          bY = LP_Y - 38 + Math.sin((lt - P_HOVER) / 260) * 2.5;
+        } else if (lt < P_AWAY) {
+          // LAUNCH: shoot up
+          lp = (lt - P_LAUNCH) / LAUNCH_DUR;
+          bY = LP_Y - 38 - lp * lp * 420;
+        } else if (lt < P_RETURN) {
+          // AWAY: drone hidden
+          droneVis = false;
+        } else if (lt < P_SETTLE) {
+          // RETURN: fall back (reverse launch, decelerate)
+          rp = (lt - P_RETURN) / RETURN_DUR;
+          bY = LP_Y - 38 - (1 - rp) * (1 - rp) * 420;
+        } else if (lt < P_IDLE) {
+          // SETTLE: slow descent, quadratic ease-out
+          const p = (lt - P_SETTLE) / SETTLE_DUR;
+          bY = LP_Y - 38 * (1 - p) * (1 - p);
+        } else {
+          // IDLE HOVER: gently floating above surface
+          bY = LP_Y - 12 + Math.sin(lt / 700) * 2;
+        }
+
+        // ── Stripe blink period ──────────────────────────────────────────
+        let period = 1400;
+        if (lt >= P_HOVER && lt < P_LAUNCH) {
+          period = 1400 - (lt - P_HOVER) / HOVER_DUR * 1250;  // 1400 → 150ms
+        } else if ((lt >= P_LAUNCH && lt < P_AWAY) || (lt >= P_RETURN && lt < P_IDLE)) {
+          period = 150;
+        }
+
+        // ── 4 iso-grid stripe glows ──────────────────────────────────────
+        const STRIPES: Array<[number,number,number,number,number]> = [
+          [cx - TW2_lp,   LP_Y - 2*TH2_lp, cx + 2*TW2_lp, LP_Y + TH2_lp,   0xff6622],
+          [cx - 2*TW2_lp, LP_Y - TH2_lp,   cx + TW2_lp,   LP_Y + 2*TH2_lp, 0xff6622],
+          [cx + TW2_lp,   LP_Y - 2*TH2_lp, cx - 2*TW2_lp, LP_Y + TH2_lp,   0x44aaff],
+          [cx + 2*TW2_lp, LP_Y - TH2_lp,   cx - TW2_lp,   LP_Y + 2*TH2_lp, 0x44aaff],
+        ];
+        const PHASES = [0, 600, 300, 900];
+        for (let i = 0; i < 4; i++) {
+          const [x1, y1, x2, y2, col] = STRIPES[i];
+          const a = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin((t + PHASES[i]) / period * Math.PI * 2));
+          const g = eff.gs[i]; g.clear();
+          g.moveTo(x1, y1); g.lineTo(x2, y2);
+          g.stroke({ width: 5, color: col, alpha: a * 0.3 });
+          g.moveTo(x1, y1); g.lineTo(x2, y2);
+          g.stroke({ width: 1.5, color: col, alpha: a });
+        }
+
+        // ── Motion-blur Graphics (gs[4]) — LAUNCH + RETURN ──────────────
+        const blurG = eff.gs[4]; blurG.clear();
+        if (lp > 0 || rp > 0) {
+          const phase    = lp > 0 ? lp : rp;
+          const dist     = (lp > 0 ? lp*lp : (1-rp)*(1-rp)) * 420;
+          const streakTop = bY - fh - dist * 0.85;
+          const streakH   = Math.max(0, (LP_Y - 38 - fh) - streakTop);
+          if (streakH > 2) {
+            blurG.rect(cx - hw * 0.6, streakTop, hw * 1.2, streakH);
+            blurG.fill({ color: 0x88aaff, alpha: 0.18 * (1 - phase) });
+            blurG.rect(cx - 2.5, streakTop, 5, streakH);
+            blurG.fill({ color: 0xaaddff, alpha: 0.65 * (1 - phase) });
+          }
+          for (let j = 1; j <= 4; j++) {
+            const ghostBY = bY - j * dist * 0.22;
+            const ga      = (1 - phase) * (1 - j * 0.22);
+            if (ga <= 0.02) continue;
+            blurG.poly([cx, ghostBY-fh-thC, cx+hw, ghostBY-fh, cx, ghostBY-fh+thC, cx-hw, ghostBY-fh]);
+            blurG.fill({ color: 0x88ccff, alpha: ga * 0.35 });
+          }
+        }
+
+        // ── Drone sprite ─────────────────────────────────────────────────
+        const droneSp = eff.sprites[0];
+        if (droneSp) {
+          droneSp.visible = droneVis;
+          if (droneVis) {
+            if (this.posDroneTex && droneSp.texture !== this.posDroneTex) {
+              droneSp.texture = this.posDroneTex;
+              droneSp.scale.set(TILE_W / this.posDroneTex.width);
+            }
+            // Shake during launch (first 70% of ascent) and return start
+            const shaking = (lp > 0 && lp < 0.7) || (rp > 0 && rp < 0.3);
+            const sx = shaking ? (Math.random() - 0.5) * 5 : 0;
+            const sy = shaking ? (Math.random() - 0.5) * 2 : 0;
+            droneSp.position.set(cx + sx, bY + sy);
+          }
+        } else if (droneVis) {
+          // Fallback iso-cube when no texture loaded
+          const fa = lp > 0 ? Math.max(0, 1-lp*1.5) : rp > 0 ? Math.max(0, 1-(1-rp)*1.5) : 1;
+          if (fa > 0.02) {
+            blurG.poly([cx, bY-fh-thC, cx+hw, bY-fh, cx, bY-fh+thC, cx-hw, bY-fh]);
+            blurG.fill({ color: 0x99bbcc, alpha: fa });
+            blurG.poly([cx-hw, bY-fh, cx, bY-fh+thC, cx, bY+thC, cx-hw, bY]);
+            blurG.fill({ color: 0x445566, alpha: fa });
+            blurG.poly([cx+hw, bY-fh, cx, bY-fh+thC, cx, bY+thC, cx+hw, bY]);
+            blurG.fill({ color: 0x556677, alpha: fa });
+          }
+        }
+
+        // ── Exhaust / steam (gs[5]) ──────────────────────────────────────
+        const steamG = eff.gs[5]; steamG.clear();
+        // Post-launch: lingering smoke disperses for 2800ms after drone leaves
+        if (lt >= P_AWAY && lt < P_AWAY + 2800) {
+          const age = (lt - P_AWAY) / 2800;   // 0→1, quadratic fade
+          // 3 staggered expanding iso-rings
+          for (let ring = 0; ring < 3; ring++) {
+            const delay = ring * 0.16;
+            if (age < delay) continue;
+            const ra  = Math.min(1, (age - delay) / (1 - delay));
+            const rr  = 55 + ra * 135;
+            const pts: number[] = [];
+            for (let i = 0; i <= 24; i++) {
+              const a2 = (i / 24) * Math.PI * 2;
+              pts.push(cx + Math.cos(a2) * rr, LP_Y + Math.sin(a2) * rr * 0.42);
+            }
+            steamG.poly(pts);
+            // quadratic alpha: stays dense long, then quickly dissipates
+            steamG.stroke({ width: 3 - ring * 0.8, color: 0xbbddee,
+              alpha: (1 - ra) * (1 - ra) * 0.58 });
+          }
+          // 8 radial drift particles — each offset in phase, slow outward
+          const ISO_D_DRIFT: Array<[number,number]> = [
+            [1,0],[-1,0],[0.7,0.45],[-0.7,0.45],[0.7,-0.45],[-0.7,-0.45],[0,0.9],[0,-0.9],
+          ];
+          for (let i = 0; i < 8; i++) {
+            const [dx2, dy2] = ISO_D_DRIFT[i];
+            const pOff  = (i / 8) * 0.1;
+            const phase = Math.min(1, Math.max(0, (age - pOff) / (1 - pOff)));
+            if (phase <= 0) continue;
+            const dist = phase * 115;
+            const r    = 3.5 + phase * 9;
+            const a    = (1 - phase) * (1 - phase) * 0.42;
+            if (a < 0.01) continue;
+            steamG.circle(cx + dx2 * dist, LP_Y + dy2 * dist, r);
+            steamG.fill({ color: 0xaaccee, alpha: a });
+          }
+        }
+        if (lt >= 0 && droneVis) {
+          const steamOriginY = bY;   // bottom of drone
+
+          // RISE or SETTLE: gentle particles drifting downward
+          if ((lt < P_HOVER) || (lt >= P_SETTLE && lt < P_IDLE)) {
+            const SCYCLE = 650;
+            for (let i = 0; i < 4; i++) {
+              const phase = ((t + i * (SCYCLE/4)) % SCYCLE) / SCYCLE;
+              const ey    = steamOriginY + phase * (LP_Y - steamOriginY);
+              steamG.circle(cx + (i%2===0?1:-1)*phase*5, ey, 2 + phase * 4.5);
+              steamG.fill({ color: 0xccddee, alpha: (1-phase)*0.35 });
+            }
+          }
+
+          // LAUNCH: dense column + radial splash
+          else if (lp > 0) {
+            const colH = LP_Y - steamOriginY;
+            if (colH > 0) {
+              const PCYCLE = Math.max(75, 210 - lp * 135);
+              for (let i = 0; i < 8; i++) {
+                const phase = ((t*1.6 + i*PCYCLE/8) % PCYCLE) / PCYCLE;
+                const ey    = steamOriginY + phase * colH;
+                if (ey < steamOriginY || ey > LP_Y) continue;
+                steamG.circle(cx, ey, 2.5 + phase*(7 + lp*9));
+                steamG.fill({ color: 0xddeeff, alpha: (1-phase*0.5)*0.6 });
+              }
+            }
+            const elapsed = lt - P_LAUNCH;
+            for (let ring = 0; ring < 2; ring++) {
+              const delay   = ring * 120;
+              if (elapsed < delay) continue;
+              const ringAge = Math.min(1, (elapsed-delay)/(LAUNCH_DUR*0.85));
+              const rr = ringAge * 82;
+              const pts: number[] = [];
+              for (let i = 0; i <= 20; i++) {
+                const a2 = (i/20)*Math.PI*2;
+                pts.push(cx + Math.cos(a2)*rr, LP_Y + Math.sin(a2)*rr*0.45);
+              }
+              steamG.poly(pts);
+              steamG.stroke({ width: 2-ring*0.5, color: 0xaaccee, alpha: (1-ringAge)*0.72 });
+            }
+            const ISO_D: Array<[number,number]> = [
+              [1,0],[-1,0],[0.7,0.45],[-0.7,0.45],[0.7,-0.45],[-0.7,-0.45],[0,0.9],[0,-0.9],
+            ];
+            for (let i = 0; i < 8; i++) {
+              const [dx2, dy2] = ISO_D[i];
+              const phase = ((t + i*38) % 300) / 300;
+              steamG.circle(cx + dx2*phase*78, LP_Y + dy2*phase*78, 1.5 + phase*4);
+              steamG.fill({ color: 0x99bbdd, alpha: (1-phase)*0.58 });
+            }
+          }
+
+          // RETURN: same heavy exhaust, radial splash at end (rp > 0.7)
+          else if (rp > 0) {
+            const colH = LP_Y - steamOriginY;
+            if (colH > 0) {
+              const PCYCLE = Math.max(75, 210 - (1-rp)*135);
+              for (let i = 0; i < 8; i++) {
+                const phase = ((t*1.6 + i*PCYCLE/8) % PCYCLE) / PCYCLE;
+                const ey    = steamOriginY + phase * colH;
+                if (ey < steamOriginY || ey > LP_Y) continue;
+                steamG.circle(cx, ey, 2.5 + phase*(7 + (1-rp)*9));
+                steamG.fill({ color: 0xddeeff, alpha: (1-phase*0.5)*0.6 });
+              }
+            }
+            if (rp > 0.7) {
+              const splashAge = (rp - 0.7) / 0.3;
+              for (let ring = 0; ring < 2; ring++) {
+                const delay   = ring * 0.15;
+                if (splashAge < delay) continue;
+                const ringAge = Math.min(1, (splashAge-delay)/0.85);
+                const rr = ringAge * 82;
+                const pts: number[] = [];
+                for (let i = 0; i <= 20; i++) {
+                  const a2 = (i/20)*Math.PI*2;
+                  pts.push(cx + Math.cos(a2)*rr, LP_Y + Math.sin(a2)*rr*0.45);
+                }
+                steamG.poly(pts);
+                steamG.stroke({ width: 2-ring*0.5, color: 0xaaccee, alpha: (1-ringAge)*0.72 });
+              }
+            }
           }
         }
 
       } else if (eff.type === 'spaceport') {
-        // ── Aviation warning lights (2s flash) ─────────────────────────
-        const aviaOn = (t % 2000) < 120;
+        // ── 6 independent signal lights on left tower face ──────────────
+        // Positions recalculated for sizeW=3 sprite (scale≈0.753 from 510px PNG).
+        // Left column  (x=-62): indices 0 and 4 — vertical line.
+        // Right column (x=-47): indices 2, 3, 5 — vertical line.
+        // Index 1 sits between the two columns.
+        const SIG: Array<[number, number]> = [
+          [ -62, -151],   // 0: upper-left  (aligned with lower-left #4)
+          [ -73, -115],   // 1: left-mid
+          [ -47, -125],   // 2: upper-right (reference)
+          [ -47,  -92],   // 3: right-mid   (aligned right +6 → same column as #2)
+          [ -62,  -75],   // 4: lower-left  (reference)
+          [ -47,  -48],   // 5: lower-right (aligned right +4 → same column as #2)
+        ];
+        // Each light: on 180ms / off every 1800–2800ms, independent phase
+        const PERIODS = [1900, 2300, 2100, 2600, 1800, 2500];
         eff.gs[0].clear();
-        if (aviaOn) {
-          for (const [ox, oy] of [[-TILE_W * 0.3, -TILE_H * 0.85], [TILE_W * 0.3, -TILE_H * 0.85]] as Array<[number,number]>) {
-            eff.gs[0].circle(cx + ox, cy + oy, 3.5);
-            eff.gs[0].fill({ color: 0xff3322, alpha: 0.95 });
+        for (let i = 0; i < SIG.length; i++) {
+          const [dx, dy] = SIG[i];
+          const phase    = eff.extra[`sigPh${i}`];
+          const lit      = (t + phase) % PERIODS[i] < 180;
+          const lx = cx + dx, ly = cy + dy;
+          if (lit) {
+            // Outer glow ring
+            eff.gs[0].circle(lx, ly, 5.5);
+            eff.gs[0].fill({ color: 0xff2200, alpha: 0.25 });
+            // Bright core
+            eff.gs[0].circle(lx, ly, 2.5);
+            eff.gs[0].fill({ color: 0xff3311, alpha: 0.97 });
+          } else {
+            eff.gs[0].circle(lx, ly, 2.0);
+            eff.gs[0].fill({ color: 0x661100, alpha: 0.12 });
           }
         }
-        // ── Plasma bay: rapid shake ADD blend ──────────────────────────
-        const shake = (Math.random() - 0.5) * 4;
-        eff.gs[1].clear();
-        eff.gs[1].circle(cx + shake, cy + TILE_H * 0.32 + shake * 0.4, TILE_W * 0.27);
-        eff.gs[1].fill({ color: 0x88aaff, alpha: 0.22 + Math.random() * 0.3 });
-        // ── Cargo drones: Lissajous orbits ─────────────────────────────
+
+        // ── 2 gas vents on left wall — drift left + down ────────────────
+        // Raised another 8px (total +16px); burst + 2s continuous hold
+        const VENTS = [
+          { tKey: 'steamT',  nKey: 'nextSteam',
+            ox: cx - 86, oy: cy - 77 },   // upper vent (same X as lower)
+          { tKey: 'steamT2', nKey: 'nextSteam2',
+            ox: cx - 86, oy: cy - 44 },   // lower vent
+        ];
+        const GAS_BURST = 600;    // initial sharp burst, ms
+        const GAS_HOLD  = 2000;   // continuous stream after burst, ms
+        const GAS_TOTAL = GAS_BURST + GAS_HOLD;
+        const gasG = eff.gs[1]; gasG.clear();
+        for (const v of VENTS) {
+          eff.extra[v.nKey] -= deltaMs;
+          if (eff.extra[v.nKey] <= 0) {
+            eff.extra[v.nKey] = 1500 + Math.random() * 1500;  // 1.5–3s pause
+            eff.extra[v.tKey] = 0;
+          }
+          if (eff.extra[v.tKey] >= 0) {
+            eff.extra[v.tKey] += deltaMs;
+            const st = eff.extra[v.tKey];
+            if (st < GAS_TOTAL) {
+              if (st < GAS_BURST) {
+                // ── Phase 1: sharp initial burst ──────────────────────
+                for (let i = 0; i < 5; i++) {
+                  const launch = i * 0.15;
+                  const p = Math.max(0, (st / GAS_BURST - launch) / (1 - launch));
+                  if (p <= 0) continue;
+                  const dx = -p * (40 + i * 12);
+                  const dy =  p * (10 + i * 4);
+                  gasG.circle(v.ox + dx, v.oy + dy, 3 + p * (5 + i * 1.5));
+                  gasG.fill({ color: 0xddeeff, alpha: (1 - p) * (1 - p) * 0.7 });
+                }
+              } else {
+                // ── Phase 2: continuous steady stream ─────────────────
+                // 6 particles cycling through drift path → looks like non-stop flow
+                const holdT  = st - GAS_BURST;
+                const PERIOD = 380;   // each particle cycles every 380ms
+                for (let i = 0; i < 6; i++) {
+                  const p = ((holdT + i * (PERIOD / 6)) % PERIOD) / PERIOD; // 0→1
+                  const dx = -p * 52;        // left
+                  const dy =  p * 14;        // down
+                  const r  = 2.8 + p * 6;
+                  gasG.circle(v.ox + dx, v.oy + dy, r);
+                  gasG.fill({ color: 0xddeeff, alpha: (1 - p) * 0.55 });
+                }
+              }
+            } else { eff.extra[v.tKey] = -1; }
+          }
+        }
+
+        // ── Small cargo drones (Lissajous orbit) ───────────────────────
         eff.gs[2].clear();
         for (let i = 0; i < 3; i++) {
           eff.extra[`d${i}_t`] = (eff.extra[`d${i}_t`] + deltaMs * eff.extra[`d${i}_speed`]) % 1;
@@ -2054,6 +2554,30 @@ export class SurfaceScene {
           eff.gs[2].rect(dx - 1, dy - 1, 2, 2);
           eff.gs[2].fill({ color: 0xaaddff, alpha: 0.75 });
         }
+
+        // ── Cyan neon platform signal light — V-path, 2s cycle ─────────
+        // Sweeps: left-edge → front-vertex → right-edge along the platform face
+        const VLX = cx - 56, VLY = cy + 28;   // left end
+        const VFX = cx,      VFY = cy + 56;   // front/bottom vertex
+        const VRX = cx + 56, VRY = cy + 28;   // right end
+        const frac = (t % 2000) / 2000;
+        let plx: number, ply: number;
+        if (frac < 0.5) {
+          const f2 = frac / 0.5;
+          plx = VLX + (VFX - VLX) * f2;
+          ply = VLY + (VFY - VLY) * f2;
+        } else {
+          const f2 = (frac - 0.5) / 0.5;
+          plx = VFX + (VRX - VFX) * f2;
+          ply = VFY + (VRY - VFY) * f2;
+        }
+        const cyanG = eff.gs[3]; cyanG.clear();
+        // Outer glow
+        cyanG.circle(plx, ply, 7);
+        cyanG.fill({ color: 0x44eeff, alpha: 0.18 });
+        // Core dot
+        cyanG.circle(plx, ply, 2.5);
+        cyanG.fill({ color: 0x44eeff, alpha: 0.95 });
       }
     }
   }

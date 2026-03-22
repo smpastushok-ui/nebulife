@@ -345,9 +345,31 @@ export function terrainToAtlasIndex(
   col: number,
   row: number,
   seed: number,
+  N?: number,
 ): number | null {
   // Water → programmatic rendering
   if (terrain === 'deep_ocean' || terrain === 'ocean') return null;
+
+  // Mountain footprint → always plain grass (suppress resources under the mountain overlay)
+  if (N !== undefined && isMountainFootprint(col, row, seed, N)) {
+    return 10 + variantChaotic(col, row, seed, 3, 1111);
+  }
+
+  // Mountain ring: ore ring around mountain (trees still have priority)
+  if (N !== undefined && isMountainRing(col, row, seed, N)) {
+    if (blockBlobZone(col, row, seed) || mountainTreeScatter(col, row, seed, N)) {
+      return 13 + variantChaotic(col, row, seed, 3, 2222);  // tree
+    }
+    if (mountainRingOre(col, row, seed)) {
+      return 18 + variantChaotic(col, row, seed, 3, 4444);  // ore
+    }
+    return 10 + variantChaotic(col, row, seed, 3, 1111);    // grass gap
+  }
+
+  // Mountain tree scatter (outside the ring, on mountain slopes)
+  if (N !== undefined && mountainTreeScatter(col, row, seed, N)) {
+    return 13 + variantChaotic(col, row, seed, 3, 2222);    // scattered tree
+  }
 
   // Coast/beach/lowland — can have vents or grass
   if (VENT_TERRAIN.has(terrain)) {
@@ -426,25 +448,47 @@ export function isTileHarvestable(frameIdx: number): boolean {
 
 /** True if the cell is a harvestable tree in its default (uncut) state. */
 export function isTreeCell(col: number, row: number, seed: number, N: number, waterLevel: number): boolean {
+  if (isMountainFootprint(col, row, seed, N)) return false;
   const terrain = classifyCellTerrain(col, row, seed, waterLevel, N);
-  return isLandTerrain(terrain) && blockBlobZone(col, row, seed);
+  if (!isLandTerrain(terrain)) return false;
+  // Forest blob zones (main source of trees)
+  if (blockBlobZone(col, row, seed)) return true;
+  // Scattered individual trees near the mountain slopes
+  if (mountainTreeScatter(col, row, seed, N)) return true;
+  return false;
 }
 
 /** True if the cell is an ore deposit in its default state. */
 export function isOreCell(col: number, row: number, seed: number, N: number, waterLevel: number): boolean {
+  if (isMountainFootprint(col, row, seed, N)) return false;
+
   const terrain = classifyCellTerrain(col, row, seed, waterLevel, N);
+
+  // Mountain ring: ore deposits ring the mountain (~55 % of ring cells on land)
+  if (isMountainRing(col, row, seed, N) && isLandTerrain(terrain)) {
+    // Trees always have priority (blob forests + scattered mountain trees)
+    if (blockBlobZone(col, row, seed) || mountainTreeScatter(col, row, seed, N)) return false;
+    return mountainRingOre(col, row, seed);
+  }
+
+  // Normal ore generation on plains / hills / mountains
   if (!ORE_TERRAIN.has(terrain)) return false;
-  // Priority: tree > ore
+  // Trees always have priority (forest blobs + mountain scatter)
   if (blockBlobZone(col, row, seed)) return false;
+  if (mountainTreeScatter(col, row, seed, N)) return false;
   return oreZone(col, row, seed);
 }
 
 /** True if the cell is a vent source in its default state. */
 export function isVentCell(col: number, row: number, seed: number, N: number, waterLevel: number): boolean {
+  if (isMountainFootprint(col, row, seed, N)) return false;
+  // Mountain ring is all ore, no vents
+  if (isMountainRing(col, row, seed, N)) return false;
   const terrain = classifyCellTerrain(col, row, seed, waterLevel, N);
   if (!VENT_TERRAIN.has(terrain)) return false;
-  // Priority: tree > vent
+  // Priority: tree > vent (forest blobs + mountain scatter)
   if (blockBlobZone(col, row, seed)) return false;
+  if (mountainTreeScatter(col, row, seed, N)) return false;
   return ventZone(col, row, seed);
 }
 
@@ -525,6 +569,63 @@ export function findMountainCell(seed: number, N: number): { col: number; row: n
     }
   }
   return null;
+}
+
+// Cached mountain position (avoids repeated spiral search per cell check)
+let _mtPosCache: { seed: number; N: number; pos: { col: number; row: number } | null } | null = null;
+
+function _getMountainPos(seed: number, N: number): { col: number; row: number } | null {
+  if (_mtPosCache && _mtPosCache.seed === seed && _mtPosCache.N === N) return _mtPosCache.pos;
+  const pos = findMountainCell(seed, N);
+  _mtPosCache = { seed, N, pos };
+  return pos;
+}
+
+/**
+ * True if the cell falls within the mountain exclusion zone.
+ * Uses a 9×9 area (7×7 voxel footprint + 1-cell border on each side) so that
+ * ore/tree sprites on adjacent 'mountains' terrain cells don't poke through the base.
+ */
+export function isMountainFootprint(col: number, row: number, seed: number, N: number): boolean {
+  const mt = _getMountainPos(seed, N);
+  if (!mt) return false;
+  return col >= mt.col - 1 && col <= mt.col + 7 && row >= mt.row - 1 && row <= mt.row + 7;
+}
+
+/**
+ * True if the cell is in the 1-cell-wide ore ring just outside the 9×9 exclusion zone.
+ * Ring = 11×11 area minus 9×9 interior = 40 border cells around the mountain.
+ */
+function isMountainRing(col: number, row: number, seed: number, N: number): boolean {
+  const mt = _getMountainPos(seed, N);
+  if (!mt) return false;
+  // Must be inside the 11×11 outer area …
+  if (col < mt.col - 2 || col > mt.col + 8 || row < mt.row - 2 || row > mt.row + 8) return false;
+  // … but NOT inside the 9×9 exclusion zone
+  if (col >= mt.col - 1 && col <= mt.col + 7 && row >= mt.row - 1 && row <= mt.row + 7) return false;
+  return true;
+}
+
+/**
+ * Deterministic per-cell check: ~55 % of mountain-ring cells are ore deposits.
+ * Seed offset 9999 chosen to avoid collision with smoothElevation octaves.
+ */
+function mountainRingOre(col: number, row: number, seed: number): boolean {
+  return cellHash(col, row, seed + 9191) < 0.55;
+}
+
+/**
+ * Scattered individual trees near the mountain (outside exclusion zone).
+ * Covers a 17×17 area (excl. zone + 4 cells around it); ~12 % chance per cell.
+ * Creates organic tree scatter on mountain slopes even outside forest blobs.
+ */
+function mountainTreeScatter(col: number, row: number, seed: number, N: number): boolean {
+  const mt = _getMountainPos(seed, N);
+  if (!mt) return false;
+  if (col < mt.col - 5 || col > mt.col + 11 || row < mt.row - 5 || row > mt.row + 11) return false;
+  // Not inside exclusion zone (those are always grass)
+  if (col >= mt.col - 1 && col <= mt.col + 7 && row >= mt.row - 1 && row <= mt.row + 7) return false;
+  return cellHash(col, row, seed + 7654) < 0.12;
 }
 
 /**

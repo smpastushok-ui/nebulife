@@ -20,7 +20,7 @@ import { HARVEST_DURATION_MS, BUILDING_DEFS, XP_REWARDS, HARVEST_YIELD } from '@
 import { SurfaceScene }  from '../../game/scenes/SurfaceScene.js';
 import { SurfacePanel }  from './SurfacePanel.js';
 import { getBuildings, placeBuilding } from '../../api/surface-api.js';
-import { screenToGrid, TILE_H, gridToScreen } from '../../game/scenes/surface-utils.js';
+import { screenToGrid, TILE_W, TILE_H, gridToScreen } from '../../game/scenes/surface-utils.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,17 +87,26 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       const app   = pixiAppRef.current;
       if (!scene || !app) return;
 
-      const z     = zoomRef.current;
-      const N     = scene.gridSize;
-      const cW    = app.screen.width;
-      const cH    = app.screen.height;
+      const z  = zoomRef.current;
+      const N  = scene.gridSize;
+      const cW = app.screen.width;
+      const cH = app.screen.height;
 
-      // Iso world extents (approximate bounding box)
-      const worldW = N * 128 * z;   // TILE_W * z
-      const worldH = N * 64  * z;   // TILE_H * z
+      // ── Iso diamond extents in screen pixels ──────────────────────────────
+      // X: diamond spans ±(N-1)*TW2 from origin (left/right vertices)
+      // Y: diamond spans 0 … 2*(N-1)*TH2 from origin (top vertex → bottom vertex)
+      const halfW = (N - 1) * (TILE_W / 2) * z;   // e.g. 63 * 64 * z
+      const gridH = 2 * (N - 1) * (TILE_H / 2) * z; // e.g. 2 * 63 * 40 * z
 
-      panRef.current.x = Math.max(-(worldW * 0.6), Math.min(worldW * 0.6, panRef.current.x));
-      panRef.current.y = Math.max(-(worldH * 0.6), Math.min(worldH * 0.6, panRef.current.y));
+      // X: half-screen padding so the map corner can be panned to the viewport centre
+      panRef.current.x = Math.max(-(halfW + cW * 0.5), Math.min(halfW + cW * 0.5, panRef.current.x));
+
+      // Y: worldContainer baseline is cH/4 (grid origin at screen y = cH/4 + panY).
+      //   panYMax: grid top at half-screen (most you'd ever pan down)
+      //   panYMin: grid bottom at ~50% of screen height (most you'd ever pan up)
+      const panYMax = cH * 0.5;
+      const panYMin = -(gridH - cH * 0.5);
+      panRef.current.y = Math.max(panYMin, Math.min(panYMax, panRef.current.y));
 
       scene.worldContainer.position.set(
         cW / 2 + panRef.current.x,
@@ -106,8 +115,10 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     }, []);
 
     const applyZoom = useCallback((z: number) => {
-      // Limit zoom-in so at least 25 iso-diamonds are visible per row (TW2=64px per cell)
-      const maxZoom = (pixiAppRef.current?.screen.width ?? 1280) / 1600;
+      // Limit zoom-in: desktop >= 25 tiles/row, mobile (<640px) >= 18 tiles/row; TW2=64px per tile
+      const cW2 = pixiAppRef.current?.screen.width ?? 1280;
+      const tileCount = cW2 < 640 ? 18 : 25;
+      const maxZoom = cW2 / (tileCount * 64);
       zoomRef.current = Math.max(0.15, Math.min(maxZoom, z));
       if (sceneRef.current) {
         sceneRef.current.worldContainer.scale.set(zoomRef.current);
@@ -149,7 +160,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           const rawFactor  = Math.pow(0.999, e.deltaY);
           const safeFactor = Math.max(0.92, Math.min(1.08, rawFactor));
           const oldZ  = zoomRef.current;
-          const newZ  = Math.max(0.15, Math.min(app.screen.width / 1600, oldZ * safeFactor));
+          const tileCount = app.screen.width < 640 ? 18 : 25;
+          const newZ  = Math.max(0.15, Math.min(app.screen.width / (tileCount * 64), oldZ * safeFactor));
           if (newZ === oldZ) return;
 
           // Cursor position relative to container
@@ -255,9 +267,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         oy: panRef.current.y,
       };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-
-      // Cancel any in-progress harvest ring on new pointer down
-      sceneRef.current?.cancelHarvestRing();
+      // NOTE: harvest ring is cancelled only when the pointer actually drags (see handlePointerMove).
+      // A simple tap/click does NOT cancel an active harvest.
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
