@@ -29,7 +29,8 @@ export default function BuildingInspectPopup({
   onClose,
   onDemolish,
 }: BuildingInspectPopupProps) {
-  const def = BUILDING_DEFS[building.type];
+  const def  = BUILDING_DEFS[building.type];
+  const isHQ = building.type === 'colony_hub';
 
   const styles: Record<string, React.CSSProperties> = {
     container: {
@@ -110,13 +111,19 @@ export default function BuildingInspectPopup({
         {isDemolishing && (
           <div style={styles.status}>Демонтаж...</div>
         )}
-        <button
-          style={styles.demolishBtn}
-          disabled={isDemolishing}
-          onClick={isDemolishing ? undefined : onDemolish}
-        >
-          {isDemolishing ? 'Демонтаж...' : 'Зруйнувати'}
-        </button>
+        {isHQ ? (
+          <div style={{ fontSize: 10, color: '#445566', textAlign: 'center' as const }}>
+            Неможливо зруйнувати
+          </div>
+        ) : (
+          <button
+            style={styles.demolishBtn}
+            disabled={isDemolishing}
+            onClick={isDemolishing ? undefined : onDemolish}
+          >
+            {isDemolishing ? 'Демонтаж...' : 'Зруйнувати'}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -64,9 +64,9 @@ import {
   researchTech,
   getEffectValue,
   hasAvailableTech,
-  ASTRONOMY_NODES,
+  ALL_NODES,
 } from '@nebulife/core';
-import type { TechTreeState, SurfaceObjectType } from '@nebulife/core';
+import type { TechTreeState, TechNode, SurfaceObjectType } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
@@ -1834,7 +1834,7 @@ export function App() {
 
   // --- Tech Tree: research a technology ---
   const handleResearchTech = useCallback((techId: string) => {
-    const node = ASTRONOMY_NODES.find((n) => n.id === techId);
+    const node = ALL_NODES.find((n) => n.id === techId);
     if (!node) return;
     const status = getTechNodeStatus(node, playerLevel, techTreeState);
     if (status !== 'available') return;
@@ -2799,9 +2799,47 @@ export function App() {
         setLevelUpNotification(newLevel);
         setTimeout(() => setLevelUpNotification(null), 4000);
         addLogEntry('system', `Рiвень пiдвищено до ${newLevel}!`);
-        // Check for newly available technologies
-        if (hasAvailableTech(newLevel, techTreeStateRef.current)) {
-          addLogEntry('system', 'Новi технологiї доступнi для дослiдження!');
+
+        // Auto-research all newly available technologies (cascade — new prereqs may unlock more)
+        let currentTech = techTreeStateRef.current;
+        const newlyResearched: TechNode[] = [];
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const nd of ALL_NODES) {
+            if (currentTech.researched[nd.id]) continue;
+            const st = getTechNodeStatus(nd, newLevel, currentTech);
+            if (st === 'available') {
+              currentTech = researchTech(currentTech, nd.id);
+              newlyResearched.push(nd);
+              changed = true;
+            }
+          }
+        }
+        if (newlyResearched.length > 0) {
+          setTechTreeState(currentTech);
+          techTreeStateRef.current = currentTech;
+          for (const nd of newlyResearched) {
+            addLogEntry('system', `Технологiю iнтегровано: ${nd.name}`);
+            setResearchToasts((q) => [...q, {
+              id:       Math.random().toString(36).slice(2),
+              techName: nd.name,
+              branch:   nd.branch as ResearchToastItem['branch'],
+            }]);
+          }
+          // Expand research slots if observatory/concurrent effects gained
+          const extraSlots =
+            getEffectValue(currentTech, 'observatory_count_add', 0) +
+            getEffectValue(currentTech, 'concurrent_research_add', 0);
+          const totalNeeded = HOME_OBSERVATORY_COUNT + extraSlots;
+          setResearchState((prev) => {
+            if (prev.slots.length >= totalNeeded) return prev;
+            const extended = [...prev.slots];
+            while (extended.length < totalNeeded) {
+              extended.push({ slotIndex: extended.length, systemId: null, startedAt: null });
+            }
+            return { ...prev, slots: extended };
+          });
         }
       }
 

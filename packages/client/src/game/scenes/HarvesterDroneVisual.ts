@@ -40,13 +40,13 @@ const BOB_PERIOD = 1600;
 const FLY_SPEED  = 1.4;
 
 /** Duration of laser-firing phase (ms). */
-const HARVEST_MS = 3200;
+const HARVEST_MS = 5000;
 
 /** Duration of absorption spark phase (ms). */
-const ABSORB_MS  = 700;
+const ABSORB_MS  = 1500;
 
-/** Idle hover time between harvests (ms). */
-const IDLE_MS    = 2000;
+/** Idle hover time between harvests (ms). Tuned so total cycle ≈ 60 s. */
+const IDLE_MS    = 50_000;
 
 /** How often the "+1 [Resource]" label appears while harvesting (ms). */
 const TEXT_INTERVAL_MS = 2000;

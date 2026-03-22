@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import type { StarSystem, CatalogEntry, Discovery, TechTreeState } from '@nebulife/core';
+import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch } from '@nebulife/core';
 import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
 import { PlanetsCatalog, FavoritesPlanetsList } from './PlanetsCatalog';
@@ -471,11 +471,12 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       );
     }
 
-    // Tech tree branches
-    if (mainTab === 'management' && currentSubTab === 'astronomy' && techTreeState && onResearchTech) {
+    // Tech tree branches (all four)
+    const techBranches = ['astronomy', 'physics', 'chemistry', 'biology'];
+    if (mainTab === 'management' && techBranches.includes(currentSubTab) && techTreeState && onResearchTech) {
       return (
         <TechTreeView
-          branch="astronomy"
+          branch={currentSubTab as TechBranch}
           playerLevel={playerLevel ?? 1}
           techState={techTreeState}
           onResearch={onResearchTech}
