@@ -1,7 +1,7 @@
-import React, { useRef, useEffect, useState } from 'react';
-import type { BuildingType, PlacedBuilding } from '@nebulife/core';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
+import type { BuildingType, PlacedBuilding, TechTreeState } from '@nebulife/core';
 import type { Planet } from '@nebulife/core';
-import { BUILDING_DEFS } from '@nebulife/core';
+import { BUILDING_DEFS, canBuildOnPlanet, createTechTreeState } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // SurfacePanel — Variant C (Floating HUD)
@@ -71,8 +71,9 @@ const BLDG_PNG: Partial<Record<BuildingType, string>> = {
   colony_hub:       '/buildings/colony_hub.png',
   solar_plant:      '/buildings/solar_plant.png',
   battery_station:  '/buildings/battery_station.png',
-  wind_generator:   '/buildings/wind_generator.png',
-  resource_storage: '/tiles/machines/resource_storage.png',
+  wind_generator:       '/buildings/wind_generator.png',
+  thermal_generator:    '/buildings/thermal_generator.png',
+  resource_storage:     '/tiles/machines/resource_storage.png',
   landing_pad:      '/tiles/machines/landing_pad.png',
   spaceport:        '/tiles/machines/spaceport.png',
   alpha_harvester:  '/tiles/machines/premium_harvester_drone.png',
@@ -173,6 +174,31 @@ function drawIcon(ctx: CanvasRenderingContext2D, type: BuildingType, size: numbe
       ctx.lineTo(cx - s * 0.3, cy + s * 0.5);
       ctx.lineTo(cx - s * 0.4, cy - s * 0.15);
       ctx.closePath(); ctx.fill(); ctx.stroke(); break;
+    case 'thermal_generator': {
+      // Base body
+      ctx.fillStyle = '#1a1008';
+      ctx.strokeStyle = col + '66';
+      ctx.lineWidth = 1;
+      ctx.fillRect(cx - s * 0.65, cy - s * 0.3, s * 1.3, s * 0.9);
+      ctx.strokeRect(cx - s * 0.65, cy - s * 0.3, s * 1.3, s * 0.9);
+      // Molten core glow (slightly above centre)
+      const coreY = cy - s * 0.1;
+      const g = ctx.createRadialGradient(cx, coreY, 0, cx, coreY, s * 0.55);
+      g.addColorStop(0,   'rgba(255,200,60,0.95)');
+      g.addColorStop(0.3, 'rgba(255,80,15,0.75)');
+      g.addColorStop(0.7, 'rgba(180,20,5,0.30)');
+      g.addColorStop(1,   'rgba(100,10,0,0)');
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, coreY, s * 0.55, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      // Solid core
+      ctx.fillStyle = '#ff5533';
+      ctx.beginPath(); ctx.arc(cx, coreY, s * 0.18, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffe8a0';
+      ctx.beginPath(); ctx.arc(cx - s * 0.05, coreY - s * 0.05, s * 0.07, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
     default: break;
   }
 }
@@ -204,13 +230,20 @@ function BuildingCard({
   type,
   selected,
   onClick,
+  locked,
+  lockReason,
+  currentCount,
 }: {
   type: BuildingType;
   selected: boolean;
   onClick: () => void;
+  locked?: boolean;
+  lockReason?: string;
+  currentCount?: number;
 }) {
   const [descOpen, setDescOpen] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const def        = BUILDING_DEFS[type];
   const col        = BUILDING_COLORS[type] ?? '#aabbcc';
@@ -218,121 +251,172 @@ function BuildingCard({
   const pngPath    = BLDG_PNG[type];
   const terrainStr = def.requiresTerrain.map((t) => TERRAIN_UA[t] ?? t).join(', ');
   const isPremium  = type === 'alpha_harvester';
+  const atLimit    = def.maxPerPlanet > 0 && (currentCount ?? 0) >= def.maxPerPlanet;
 
   return (
     <button
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
+        position: 'relative',
         display: 'flex', alignItems: 'flex-start', gap: 10,
         width: '100%', padding: '8px 10px',
         background: selected ? 'rgba(40,80,120,0.35)' : 'transparent',
         border: 'none',
         borderBottom: '1px solid rgba(40,60,80,0.25)',
-        borderLeft: `3px solid ${selected ? col : 'transparent'}`,
+        borderLeft: `3px solid ${locked ? '#1a2535' : selected ? col : 'transparent'}`,
         cursor: 'pointer', textAlign: 'left',
         fontFamily: 'monospace',
         transition: 'background 0.1s, border-color 0.1s',
       }}
     >
-      {/* ── Building photo / icon ─────────────────────────────────────── */}
+      {/* ── Content wrapper (dimmed when locked) ─────────────────────── */}
       <div style={{
-        width: IMG_SIZE, height: IMG_SIZE, flexShrink: 0,
-        border: `1px solid ${col}33`,
-        borderRadius: 3, overflow: 'hidden',
-        background: '#ffffff',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', alignItems: 'flex-start', gap: 10,
+        width: '100%',
+        opacity: locked ? (hovered ? 0.50 : 0.35) : 1,
+        transition: 'opacity 0.15s ease',
       }}>
-        {pngPath && !imgFailed ? (
-          <img
-            src={pngPath}
-            alt={type}
-            onError={() => setImgFailed(true)}
-            style={{
-              width: '100%', height: '100%', objectFit: 'contain', display: 'block',
-              mixBlendMode: 'multiply',
-            }}
-          />
-        ) : (
-          <BuildingIcon type={type} size={IMG_SIZE - 14} />
-        )}
-      </div>
-
-      {/* ── Name / cost / description ─────────────────────────────────── */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-
-        {/* Name row + ? button */}
+        {/* ── Building photo / icon ───────────────────────────────────── */}
         <div style={{
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', gap: 4,
-          marginBottom: 5,
+          width: IMG_SIZE, height: IMG_SIZE, flexShrink: 0,
+          border: `1px solid ${col}33`,
+          borderRadius: 3, overflow: 'hidden',
+          background: '#ffffff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{
-            color: selected ? '#cce8ff' : '#aabbcc',
-            fontSize: 12, lineHeight: 1.3,
-          }}>
-            {def.name}
-          </span>
-          {/* ? toggles description inline */}
-          <span
-            role="button"
-            onMouseEnter={() => setDescOpen(true)}
-            onMouseLeave={() => setDescOpen(false)}
-            onClick={(e) => { e.stopPropagation(); setDescOpen((p) => !p); }}
-            style={{
-              color: descOpen ? '#aabbcc' : '#334455',
-              fontSize: 9, cursor: 'pointer',
-              border: `1px solid ${descOpen ? '#445566' : '#2a3a4a'}`,
-              borderRadius: 2, padding: '1px 5px',
-              lineHeight: '13px', flexShrink: 0,
-              userSelect: 'none',
-              transition: 'color 0.1s, border-color 0.1s',
-            }}
-          >
-            ?
-          </span>
-        </div>
-
-        {/* Description — shown when ? is active */}
-        {descOpen && (
-          <div style={{ marginBottom: 6 }}>
-            <div style={{ color: '#667788', fontSize: 10, lineHeight: 1.5 }}>
-              {def.description}
-            </div>
-            <div style={{ color: '#3a4e5e', fontSize: 9, marginTop: 3 }}>
-              {terrainStr}&nbsp;&nbsp;{def.sizeW}&times;{def.sizeH}
-            </div>
-          </div>
-        )}
-
-        {/* Resource costs */}
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-          {isPremium ? (
-            <span style={{ color: '#ffcc44', fontSize: 10 }}>ПРЕМІУМ</span>
+          {pngPath && !imgFailed ? (
+            <img
+              src={pngPath}
+              alt={type}
+              onError={() => setImgFailed(true)}
+              style={{
+                width: '100%', height: '100%', objectFit: 'contain', display: 'block',
+                mixBlendMode: 'multiply',
+              }}
+            />
           ) : (
-            <>
-              {cost.m > 0 && (
-                <span style={{ color: '#6699bb', fontSize: 10 }}>
-                  М:{cost.m}
-                </span>
-              )}
-              {cost.v > 0 && (
-                <span style={{ color: '#44ccff', fontSize: 10 }}>
-                  Л:{cost.v}
-                </span>
-              )}
-              {cost.i > 0 && (
-                <span style={{ color: '#88ff44', fontSize: 10 }}>
-                  І:{cost.i}
-                </span>
-              )}
-              {cost.m === 0 && cost.v === 0 && cost.i === 0 && (
-                <span style={{ color: '#3a4e5e', fontSize: 10 }}>—</span>
-              )}
-            </>
+            <BuildingIcon type={type} size={IMG_SIZE - 14} />
           )}
         </div>
 
+        {/* ── Name / cost / description ─────────────────────────────── */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+
+          {/* Name row + ? button */}
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', gap: 4,
+            marginBottom: 5,
+          }}>
+            <span style={{
+              color: selected ? '#cce8ff' : '#aabbcc',
+              fontSize: 12, lineHeight: 1.3,
+            }}>
+              {def.name}
+            </span>
+            {/* ? toggles description inline */}
+            <span
+              role="button"
+              onMouseEnter={() => setDescOpen(true)}
+              onMouseLeave={() => setDescOpen(false)}
+              onClick={(e) => { e.stopPropagation(); setDescOpen((p) => !p); }}
+              style={{
+                color: descOpen ? '#aabbcc' : '#334455',
+                fontSize: 9, cursor: 'pointer',
+                border: `1px solid ${descOpen ? '#445566' : '#2a3a4a'}`,
+                borderRadius: 2, padding: '1px 5px',
+                lineHeight: '13px', flexShrink: 0,
+                userSelect: 'none',
+                transition: 'color 0.1s, border-color 0.1s',
+              }}
+            >
+              ?
+            </span>
+          </div>
+
+          {/* Description — shown when ? is active */}
+          {descOpen && (
+            <div style={{ marginBottom: 6 }}>
+              <div style={{ color: '#667788', fontSize: 10, lineHeight: 1.5 }}>
+                {def.description}
+              </div>
+              <div style={{ color: '#3a4e5e', fontSize: 9, marginTop: 3 }}>
+                {terrainStr}&nbsp;&nbsp;{def.sizeW}&times;{def.sizeH}
+              </div>
+            </div>
+          )}
+
+          {/* Resource costs + count/limit */}
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+            {isPremium ? (
+              <span style={{ color: '#ffcc44', fontSize: 10 }}>ПРЕМІУМ</span>
+            ) : (
+              <>
+                {cost.m > 0 && (
+                  <span style={{ color: '#6699bb', fontSize: 10 }}>
+                    М:{cost.m}
+                  </span>
+                )}
+                {cost.v > 0 && (
+                  <span style={{ color: '#44ccff', fontSize: 10 }}>
+                    Л:{cost.v}
+                  </span>
+                )}
+                {cost.i > 0 && (
+                  <span style={{ color: '#88ff44', fontSize: 10 }}>
+                    І:{cost.i}
+                  </span>
+                )}
+                {cost.m === 0 && cost.v === 0 && cost.i === 0 && (
+                  <span style={{ color: '#3a4e5e', fontSize: 10 }}>—</span>
+                )}
+              </>
+            )}
+            {/* Count / limit indicator */}
+            {def.maxPerPlanet > 0 && (
+              <span style={{
+                color: atLimit ? '#cc4444' : '#4a5e70',
+                fontSize: 9, marginLeft: 'auto',
+              }}>
+                {currentCount ?? 0}/{def.maxPerPlanet}
+              </span>
+            )}
+          </div>
+
+        </div>
       </div>
+
+      {/* ── Lock overlay (diagonal hatch + reason text) ────────────── */}
+      {locked && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: `repeating-linear-gradient(
+            -45deg,
+            rgba(10,15,25,0.80) 0px,
+            rgba(10,15,25,0.80) 2px,
+            rgba(20,30,50,0.45) 2px,
+            rgba(20,30,50,0.45) 6px
+          )`,
+          opacity: hovered ? 0.75 : 1,
+          transition: 'opacity 0.15s ease',
+          borderRadius: 0,
+          pointerEvents: 'none', // clicks pass through to button
+        }}>
+          {lockReason && (
+            <span style={{
+              color: '#667788', fontSize: 10,
+              fontFamily: 'monospace',
+              textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+              letterSpacing: '0.3px',
+            }}>
+              {lockReason}
+            </span>
+          )}
+        </div>
+      )}
     </button>
   );
 }
@@ -417,6 +501,7 @@ function BuildingListContent({
   mode, planet, buildings,
   selectedBuilding, onSelectBuilding,
   expandedGroups, toggleGroup,
+  playerLevel, techTreeState,
 }: {
   mode: DockMode;
   planet: Planet;
@@ -425,7 +510,19 @@ function BuildingListContent({
   onSelectBuilding: (t: BuildingType | null) => void;
   expandedGroups: Set<string>;
   toggleGroup: (label: string) => void;
+  playerLevel: number;
+  techTreeState?: TechTreeState;
 }) {
+  // Building counts for availability checks
+  const buildingCounts = useMemo(() =>
+    buildings.reduce<Record<string, number>>((acc, b) => {
+      acc[b.type] = (acc[b.type] ?? 0) + 1;
+      return acc;
+    }, {}),
+  [buildings]);
+
+  const techState = techTreeState ?? createTechTreeState();
+
   if (mode === 'build') {
     return (
       <>
@@ -451,14 +548,21 @@ function BuildingListContent({
                 </span>
               </button>
 
-              {isExpanded && group.types.map((type) => (
-                <BuildingCard
-                  key={type}
-                  type={type}
-                  selected={selectedBuilding === type}
-                  onClick={() => onSelectBuilding(selectedBuilding === type ? null : type)}
-                />
-              ))}
+              {isExpanded && group.types.map((type) => {
+                const avail = canBuildOnPlanet(type, planet, playerLevel, techState, buildingCounts);
+                const count = buildingCounts[type] ?? 0;
+                return (
+                  <BuildingCard
+                    key={type}
+                    type={type}
+                    selected={selectedBuilding === type}
+                    onClick={() => onSelectBuilding(selectedBuilding === type ? null : type)}
+                    locked={!avail.available}
+                    lockReason={avail.reason}
+                    currentCount={count}
+                  />
+                );
+              })}
             </div>
           );
         })}
@@ -622,6 +726,8 @@ interface SurfacePanelProps {
   onClose: () => void;
   harvestMode: boolean;
   onToggleHarvest: () => void;
+  playerLevel: number;
+  techTreeState?: TechTreeState;
 }
 
 /* ─── Main panel ─────────────────────────────────────────────────────────── */
@@ -634,6 +740,8 @@ export function SurfacePanel({
   onClose,
   harvestMode,
   onToggleHarvest,
+  playerLevel,
+  techTreeState,
 }: SurfacePanelProps) {
   const [mode, setMode] = useState<DockMode>('build');
   const [panelOpen, setPanelOpen] = useState(true);
@@ -708,6 +816,8 @@ export function SurfacePanel({
               onSelectBuilding={onSelectBuilding}
               expandedGroups={expandedGroups}
               toggleGroup={toggleGroup}
+              playerLevel={playerLevel}
+              techTreeState={techTreeState}
             />
           </div>
         </div>

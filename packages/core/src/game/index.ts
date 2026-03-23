@@ -19,6 +19,7 @@ export {
   calculateObservation,
   canStartResearch,
   findFreeSlot,
+  findBestSlotForSystem,
   getResearchProgress,
   isSystemFullyResearched,
   isRingFullyResearched,
@@ -104,6 +105,21 @@ export type { ColonyTickResult } from './colony-tick.js';
 // Production system
 export { startProduction, tickProduction } from './production.js';
 export type { StartProductionResult, CompletedProduction } from './production.js';
+
+// Proximity modifier system (ring-distance effects on all game mechanics)
+export {
+  computeProximityModifiers,
+  getProximityModifiers,
+} from './proximity.js';
+export type {
+  ProximityModifiers,
+  ResearchProximityMods,
+  TransportProximityMods,
+  RocketProximityMods,
+  MissionProximityMods,
+  ColonyProximityMods,
+  BuildingProximityMods,
+} from './proximity.js';
 
 // Logistics
 export {

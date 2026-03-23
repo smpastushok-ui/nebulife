@@ -131,7 +131,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     const [phase, setPhase] = useState<SurfacePhase>('ready');
     const [buildings, setBuildings] = useState<PlacedBuilding[]>([]);
     const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
-    const [showBuildPanel, setShowBuildPanel] = useState(true);
+    const [showBuildPanel, setShowBuildPanel] = useState(false);
     const [showMinimap, setShowMinimap] = useState(true);
 
     /* ---------- Refs ---------- */
@@ -811,6 +811,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
             onClose={() => setShowBuildPanel(false)}
             harvestMode={false}
             onToggleHarvest={() => {}}
+            playerLevel={1}
           />
         )}
       </div>

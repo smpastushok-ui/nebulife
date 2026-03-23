@@ -24,6 +24,8 @@ export interface GameCallbacks {
   onRadialOpen?: (system: StarSystem, getScreenPos: () => { x: number; y: number } | null) => void;
   /** Called when radial menu should close (collapse, unfocus, transition) */
   onRadialClose?: () => void;
+  /** Called when a star is hovered (systemId + researchProgress 0-100), null when unhovered */
+  onHoverSystem?: (systemId: string | null, progress: number) => void;
 }
 
 export class GameEngine {
@@ -154,6 +156,10 @@ export class GameEngine {
       // Radial menu close callback
       this.callbacks.onRadialClose ? () => {
         this.callbacks.onRadialClose!();
+      } : undefined,
+      // Hover system callback (for animated progress counter in UI)
+      this.callbacks.onHoverSystem ? (systemId: string | null, progress: number) => {
+        this.callbacks.onHoverSystem!(systemId, progress);
       } : undefined,
     );
 
@@ -382,6 +388,11 @@ export class GameEngine {
   /** Remove fake player markers */
   removeFakePlayerMarkers() {
     this.galaxyScene?.removeFakePlayerMarkers();
+  }
+
+  /** Toggle per-star research % labels on galaxy map */
+  setGalaxyResearchLabels(enabled: boolean) {
+    this.galaxyScene?.showResearchLabels(enabled);
   }
 
   destroy() {

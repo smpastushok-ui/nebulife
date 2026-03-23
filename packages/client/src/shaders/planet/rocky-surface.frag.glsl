@@ -765,25 +765,31 @@ void main() {
     float fx = noise3((n + vec3(eps2, 0.0, 0.0)) * noiseScale * 10.0 + seedOff);
     float fz = noise3((n + vec3(0.0, 0.0, eps2)) * noiseScale * 10.0 + seedOff);
     float fc = noise3(n * noiseScale * 10.0 + seedOff);
-    slopeNorm = normalize(slopeNorm + vec3((fc - fx) * 1.8, 0.0, (fc - fz) * 1.8));
+    // Secondary fine detail layer for extra crispness
+    float fx2 = noise3((n + vec3(eps2, 0.0, 0.0)) * noiseScale * 22.0 + seedOff + vec3(5000.0));
+    float fz2 = noise3((n + vec3(0.0, 0.0, eps2)) * noiseScale * 22.0 + seedOff + vec3(5000.0));
+    float fc2 = noise3(n * noiseScale * 22.0 + seedOff + vec3(5000.0));
+    slopeNorm = normalize(slopeNorm
+      + vec3((fc - fx) * 2.2, 0.0, (fc - fz) * 2.2)
+      + vec3((fc2 - fx2) * 1.0, 0.0, (fc2 - fz2) * 1.0));
 
     // Directional slope shadow: HIGH CONTRAST — dark shadows, bright faces
     float slopeDot = dot(slopeNorm, uStarDir);
-    float slopeShadow = smoothstep(-0.40, 0.30, slopeDot);
+    float slopeShadow = smoothstep(-0.50, 0.25, slopeDot);
     // Mountains: very strong shadows; lowlands: moderate
     float h_land = uHasOcean > 0.5 ? elevation - uLandThreshold : elevation + 0.5;
-    float shadowStrength = 0.40 + smoothstep(0.10, 0.40, h_land) * 0.25;
+    float shadowStrength = 0.50 + smoothstep(0.08, 0.35, h_land) * 0.30;
     color *= (1.0 - shadowStrength) + shadowStrength * slopeShadow;
 
     // Bright highlight on sun-facing ridges (strong specular-like)
-    if (slopeDot > 0.4 && h_land > 0.15) {
-      float ridgeHighlight = smoothstep(0.4, 0.80, slopeDot) * smoothstep(0.15, 0.45, h_land);
-      color = mix(color, color * 1.5, ridgeHighlight * 0.35);
+    if (slopeDot > 0.3 && h_land > 0.10) {
+      float ridgeHighlight = smoothstep(0.3, 0.75, slopeDot) * smoothstep(0.10, 0.40, h_land);
+      color = mix(color, color * 1.6, ridgeHighlight * 0.45);
     }
 
     // Crevice AO: DEEP valley darkening
     float curvature = (ex1 + ez1) * 0.5 - elevation * 0.5;
-    color *= 1.0 - clamp(-curvature * 8.0, 0.0, 0.40);
+    color *= 1.0 - clamp(-curvature * 10.0, 0.0, 0.50);
 
     // Self-shadow from nearby peaks
     float selfOcclusion = smoothstep(0.0, 0.12, h_land) * (1.0 - smoothstep(0.25, 0.55, h_land));
@@ -809,9 +815,9 @@ void main() {
     color = mix(color, color * vec3(0.95, 0.95, 1.05), altColorShift * 0.20); // cool blue shift at height
 
     // 4. Parallax-like depth: darken valleys relative to peaks nearby
-    float valleyDepth = smoothstep(0.30, 0.05, h_land);
-    float nearbyPeak = smoothstep(0.3, 0.5, elevation);
-    color *= 1.0 - valleyDepth * nearbyPeak * 0.15;
+    float valleyDepth = smoothstep(0.25, 0.03, h_land);
+    float nearbyPeak = smoothstep(0.25, 0.45, elevation);
+    color *= 1.0 - valleyDepth * nearbyPeak * 0.22;
 
     // 5. Atmospheric haze at low elevation: distant lowlands appear hazier
     if (uHasBiomes > 0.5 && h_land < 0.10) {
@@ -831,7 +837,7 @@ void main() {
     // Ocean: very dark deep saturated
     dayLight = vec3(1.0) * uStarIntensity * 0.30;
   } else {
-    dayLight = uStarColor * uStarIntensity * 0.48;
+    dayLight = uStarColor * uStarIntensity * 0.56;
   }
   vec3 lit = color * mix(ambientNight, dayLight, dayFactor);
 

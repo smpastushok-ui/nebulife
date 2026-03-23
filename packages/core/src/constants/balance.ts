@@ -14,6 +14,21 @@ export const RESEARCH_MIN_PROGRESS = 2;
 /** Maximum progress gained per research session (%). */
 export const RESEARCH_MAX_PROGRESS = 50;
 
+/**
+ * Ring-difference research progress bounds (min%, max% per session).
+ * Index = |sourcePlanetRing - targetSystemRing|.
+ * Closer observatory → less ring difference → better progress per session.
+ * Incentivises building colonies in rings adjacent to unexplored systems.
+ * Last entry is used for all differences beyond.
+ */
+export const RESEARCH_PROGRESS_BY_RING: Array<{ min: number; max: number }> = [
+  { min: 5, max: 80 },  // diff=0: same ring → avg ~42% → ~3 sessions  (colony bonus)
+  { min: 2, max: 50 },  // diff=1: 1 ring away → avg ~26% → ~4 sessions (home→ring1)
+  { min: 2, max: 15 },  // diff=2: 2 rings away → avg ~8.5% → ~12 sessions
+  { min: 2, max: 5  },  // diff=3: 3 rings away → avg ~3.5% → ~29 sessions
+  { min: 1, max: 1  },  // diff=4+: fixed 1% → 100 sessions
+];
+
 /** Number of observatories on the home planet. */
 export const HOME_OBSERVATORY_COUNT = 3;
 
@@ -29,6 +44,16 @@ export const INITIAL_RESEARCH_DATA = 50;
 
 /** Cost in research data units per scan session. */
 export const RESEARCH_DATA_COST = 1;
+
+/**
+ * Research data produced per colony tick per base building.
+ * At COLONY_TICK_INTERVAL_MS = 60 000 ms (1 min), this yields 1 unit/hour per building.
+ * Adjust to tune research economy:
+ *   1/60  ≈ 0.0167  → 1 data / hour   (current)
+ *   1/30  ≈ 0.0333  → 1 data / 30 min
+ *   1/10  = 0.1     → 1 data / 10 min
+ */
+export const RESEARCH_DATA_RATE = 1 / 60;
 
 // --- Surface Harvesting ---
 

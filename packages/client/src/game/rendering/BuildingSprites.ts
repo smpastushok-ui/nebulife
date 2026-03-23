@@ -20,6 +20,7 @@ export const BUILDING_COLORS: Record<string, string> = {
   water_extractor: '#44ccff',
   greenhouse: '#88ff44',
   observatory: '#cc88ff',
+  thermal_generator: '#ff5533',
 };
 
 /** Hex string → {r,g,b} 0-255 */
@@ -506,6 +507,103 @@ const drawObservatory: DrawFn = (ctx, s, level, accent) => {
   }
 };
 
+const drawThermalGenerator: DrawFn = (ctx, s, level, accent) => {
+  const cx = s / 2, cy = s / 2;
+  // Red core lives slightly above the building centre
+  const coreY = cy - 6 - level;
+
+  drawShadow(ctx, cx, cy + 6, 18 + level * 2, 7);
+
+  // ── Outer casing ────────────────────────────────────────────────
+  const bodyW = 28 + level * 4;
+  const bodyH = 34 + level * 3;
+  drawRect(ctx, cx - bodyW / 2, cy - bodyH / 2, bodyW, bodyH, '#0f1510', darken(accent, 0.4));
+
+  // Inner reactor chamber (upper 55%)
+  const chamberH = bodyH * 0.55;
+  drawRect(ctx, cx - bodyW / 2 + 2, cy - bodyH / 2 + 2, bodyW - 4, chamberH - 2, '#0a1008', darken(accent, 0.3));
+
+  // ── Molten core glow (red, slightly above centre) ───────────────
+  // Outermost heat bloom
+  const gradient = ctx.createRadialGradient(cx, coreY, 0, cx, coreY, 18 + level * 2);
+  gradient.addColorStop(0,   'rgba(255,80,20,0.55)');
+  gradient.addColorStop(0.4, 'rgba(200,30,10,0.20)');
+  gradient.addColorStop(1,   'rgba(120,20,5,0)');
+  ctx.fillStyle = gradient;
+  ctx.globalCompositeOperation = 'lighter'; // additive — mimics BLEND_MODES.ADD
+  ctx.beginPath();
+  ctx.arc(cx, coreY, 18 + level * 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Mid glow ring
+  const g2 = ctx.createRadialGradient(cx, coreY, 0, cx, coreY, 9 + level);
+  g2.addColorStop(0,   'rgba(255,160,40,0.7)');
+  g2.addColorStop(0.5, 'rgba(220,60,15,0.45)');
+  g2.addColorStop(1,   'rgba(180,20,5,0)');
+  ctx.fillStyle = g2;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.beginPath();
+  ctx.arc(cx, coreY, 9 + level, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Solid core
+  const coreR = 4 + level * 0.6;
+  ctx.fillStyle = '#ff6622';
+  ctx.beginPath();
+  ctx.arc(cx, coreY, coreR, 0, Math.PI * 2);
+  ctx.fill();
+  // Bright white-hot centre
+  ctx.fillStyle = '#ffe8c0';
+  ctx.beginPath();
+  ctx.arc(cx - coreR * 0.25, coreY - coreR * 0.25, coreR * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Heat pipe seams (horizontal, run from core to sides) ────────
+  const pipeY1 = coreY + coreR + 2;
+  const pipeY2 = cy + 2;
+  ctx.strokeStyle = darken(accent, 0.5);
+  ctx.lineWidth = 1.5;
+  for (const py of [pipeY1, pipeY2]) {
+    ctx.beginPath();
+    ctx.moveTo(cx - bodyW / 2 + 2, py);
+    ctx.lineTo(cx + bodyW / 2 - 2, py);
+    ctx.stroke();
+    // Orange heat dot at pipe junctions
+    drawGlowDot(ctx, cx - bodyW / 2 + 4, py, 1.2, accent);
+    drawGlowDot(ctx, cx + bodyW / 2 - 4, py, 1.2, accent);
+  }
+
+  // ── Radiator grilles (lower section) ────────────────────────────
+  const grilleTop = cy + bodyH / 2 - 12 - level;
+  const grilleBot = cy + bodyH / 2 - 3;
+  const grilleCount = 4 + level;
+  ctx.strokeStyle = darken(accent, 0.35);
+  ctx.lineWidth = 0.8;
+  for (let i = 0; i < grilleCount; i++) {
+    const gx = cx - bodyW / 2 + 4 + (i / (grilleCount - 1)) * (bodyW - 8);
+    ctx.beginPath();
+    ctx.moveTo(gx, grilleTop);
+    ctx.lineTo(gx, grilleBot);
+    ctx.stroke();
+  }
+  // Grille frame
+  drawRect(ctx, cx - bodyW / 2 + 3, grilleTop - 1, bodyW - 6, grilleBot - grilleTop + 2, 'transparent', darken(accent, 0.3));
+
+  // ── Exhaust stacks (top, level 2+) ──────────────────────────────
+  if (level >= 2) {
+    const stackCount = Math.min(3, 1 + Math.floor(level / 2));
+    for (let i = 0; i < stackCount; i++) {
+      const sx = cx - 6 * (stackCount - 1) / 2 + i * 6;
+      const stackH = 7 + level;
+      drawRect(ctx, sx - 2, cy - bodyH / 2 - stackH, 4, stackH, '#0f1a1a', darken(accent, 0.45));
+      // Smoke rim glow at top
+      drawGlowDot(ctx, sx, cy - bodyH / 2 - stackH, 1.5, accent);
+    }
+  }
+};
+
 // ── Registry ──
 
 const DRAW_REGISTRY: Record<string, DrawFn> = {
@@ -516,6 +614,7 @@ const DRAW_REGISTRY: Record<string, DrawFn> = {
   water_extractor: drawWaterExtractor,
   greenhouse: drawGreenhouse,
   observatory: drawObservatory,
+  thermal_generator: drawThermalGenerator,
 };
 
 // ── Texture cache ──

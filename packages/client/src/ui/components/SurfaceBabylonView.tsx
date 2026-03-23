@@ -1050,6 +1050,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
             onClose={() => setShowBuildPanel(false)}
             harvestMode={false}
             onToggleHarvest={() => {}}
+            playerLevel={1}
           />
         )}
       </div>

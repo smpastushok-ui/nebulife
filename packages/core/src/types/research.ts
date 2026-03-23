@@ -33,6 +33,8 @@ export interface ResearchSlot {
   systemId: string | null;
   /** Timestamp (Date.now()) when current session started. */
   startedAt: number | null;
+  /** Ring index of the planet whose observatory provides this slot (0 = home planet). */
+  sourcePlanetRing: number;
 }
 
 /** Full research state managed by the client. */

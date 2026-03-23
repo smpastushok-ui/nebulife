@@ -11,6 +11,7 @@ import { SeededRNG } from '../math/rng.js';
 import {
   RESEARCH_MIN_PROGRESS,
   RESEARCH_MAX_PROGRESS,
+  RESEARCH_PROGRESS_BY_RING,
   HOME_RESEARCH_MAX_RING,
   RESEARCH_DATA_COST,
 } from '../constants/balance.js';
@@ -189,10 +190,10 @@ export function calculateObservation(
 // ─── State management ──────────────────────────────────────────────────
 
 /** Create initial research state with the given number of observatory slots. */
-export function createResearchState(observatoryCount: number): ResearchState {
+export function createResearchState(observatoryCount: number, sourcePlanetRing: number = 0): ResearchState {
   const slots: ResearchSlot[] = [];
   for (let i = 0; i < observatoryCount; i++) {
-    slots.push({ slotIndex: i, systemId: null, startedAt: null });
+    slots.push({ slotIndex: i, systemId: null, startedAt: null, sourcePlanetRing });
   }
   return { slots, systems: {} };
 }
@@ -222,16 +223,41 @@ export function findFreeSlot(state: ResearchState): number {
   return slot ? slot.slotIndex : -1;
 }
 
+/**
+ * Find the best free slot for researching a system at the given ring.
+ * Prefers the slot whose observatory is closest to the target ring
+ * (smallest |sourcePlanetRing - targetRingIndex|) → better progress per session.
+ * Returns the slotIndex, or -1 if no free slot exists.
+ */
+export function findBestSlotForSystem(state: ResearchState, targetRingIndex: number): number {
+  const freeSlots = state.slots.filter((s) => s.systemId === null);
+  if (freeSlots.length === 0) return -1;
+  freeSlots.sort(
+    (a, b) =>
+      Math.abs(a.sourcePlanetRing - targetRingIndex) -
+      Math.abs(b.sourcePlanetRing - targetRingIndex),
+  );
+  return freeSlots[0]!.slotIndex;
+}
+
 /** Start researching a system in a given slot. Returns a new state (immutable). */
 export function startResearch(
   state: ResearchState,
   slotIndex: number,
   systemId: string,
   now: number = Date.now(),
+  sourcePlanetRing?: number,
 ): ResearchState {
-  const slots = state.slots.map((s) =>
-    s.slotIndex === slotIndex ? { ...s, systemId, startedAt: now } : s,
-  );
+  const slots = state.slots.map((s) => {
+    if (s.slotIndex !== slotIndex) return s;
+    return {
+      ...s,
+      systemId,
+      startedAt: now,
+      // Preserve existing sourcePlanetRing unless explicitly overridden
+      sourcePlanetRing: sourcePlanetRing ?? s.sourcePlanetRing,
+    };
+  });
 
   // Ensure system entry exists
   const systems = { ...state.systems };
@@ -284,9 +310,14 @@ export function completeResearchSession(
     return { state: { ...state, slots }, progressGained: 0, isNowComplete: false, discovery: null };
   }
 
-  // Random progress using system seed + current progress for determinism
+  // Random progress using system seed + current progress for determinism.
+  // Progress depends on ring difference between the observatory and the target system:
+  // closer observatory (diff=0) → better bounds → fewer sessions needed.
+  const ringDiff = Math.abs((slot.sourcePlanetRing ?? 0) - system.ringIndex);
+  const progressBounds = RESEARCH_PROGRESS_BY_RING[Math.min(ringDiff, RESEARCH_PROGRESS_BY_RING.length - 1)]
+    ?? { min: RESEARCH_MIN_PROGRESS, max: RESEARCH_MAX_PROGRESS };
   const rng = new SeededRNG(system.seed * 97 + prev.progress * 13 + slotIndex);
-  const gained = rng.nextInt(RESEARCH_MIN_PROGRESS, RESEARCH_MAX_PROGRESS);
+  const gained = rng.nextInt(progressBounds.min, progressBounds.max);
   const newProgress = Math.min(100, prev.progress + gained);
   const isNowComplete = newProgress >= 100;
 

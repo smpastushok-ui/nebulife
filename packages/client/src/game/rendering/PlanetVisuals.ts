@@ -207,12 +207,16 @@ function deriveBiomeColors(tempK: number, lifeComplexity: string): BiomeColors {
 }
 
 /** Derive land threshold from water coverage fraction.
- *  Higher water coverage → higher threshold (more land submerged) */
+ *  warpedFbm(7 octaves) has mean ~0.52, std ~0.08 (Gaussian-like).
+ *  Direct identity mapping over-estimates water because noise CDF != linear.
+ *  Calibration: map waterCoverage through approximate CDF of warpedFbm.
+ *  Median(warpedFbm) ≈ 0.52; we use linear stretch around median. */
 function deriveLandThreshold(waterCoverage: number): number {
-  // warpedFbm(7 octaves) + double warping has mean ~0.52, range ~0.2-0.8
-  // Threshold = waterCoverage directly maps to noise percentile
-  // Earth (0.71): threshold 0.71 → only highest 29% of terrain is land
-  return waterCoverage;
+  // Map [0..1] water coverage → actual noise percentile threshold
+  // At 0.5 coverage → threshold = median (0.52)
+  // Scale deviation by 0.7 to compress (noise has narrower range than [0,1])
+  const median = 0.52;
+  return median + (waterCoverage - 0.5) * 0.7;
 }
 
 /** Derive cloud color from atmosphere composition */

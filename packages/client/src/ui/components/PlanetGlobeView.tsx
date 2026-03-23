@@ -66,67 +66,296 @@ const DEEP_SPACE = 0x020510;
 // Starfield
 // ---------------------------------------------------------------------------
 
-function createStarfield(scene: THREE.Scene): {
+// Star vertex shader: per-vertex size, perspective scaling, pass varyings
+const STAR_VERT = `
+  attribute float size;
+  attribute float brightness;
+  attribute float twinkleSpeed;
+  attribute float twinklePhase;
+  varying vec3 vColor;
+  varying float vBrightness;
+  varying float vTwinkleSpeed;
+  varying float vTwinklePhase;
+  void main() {
+    vColor = color;
+    vBrightness = brightness;
+    vTwinkleSpeed = twinkleSpeed;
+    vTwinklePhase = twinklePhase;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = size * (280.0 / -mv.z);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+// Star fragment shader: radial glow + core, GPU twinkling
+const STAR_FRAG = `
+  uniform float uTime;
+  varying vec3 vColor;
+  varying float vBrightness;
+  varying float vTwinkleSpeed;
+  varying float vTwinklePhase;
+  void main() {
+    float d = length(gl_PointCoord - 0.5) * 2.0;
+    // Sharp bright core
+    float core = exp(-d * d * 10.0);
+    // Soft glow halo
+    float glow = exp(-d * d * 2.5) * 0.35;
+    float shape = core + glow;
+    // GPU twinkling: slow smooth fade
+    float twinkle = 0.82 + 0.18 * sin(uTime * vTwinkleSpeed + vTwinklePhase);
+    float alpha = shape * vBrightness * twinkle;
+    vec3 col = vColor * (core * 1.2 + glow * 0.8);
+    gl_FragColor = vec4(col, alpha);
+  }
+`;
+
+/** Spectral color from a 0-1 roll (HR diagram distribution) */
+function spectralColor(roll: number, rng: SeededRNG): [number, number, number, number] {
+  // Returns [r, g, b, sizeBias] — bluer stars are bigger
+  if (roll < 0.40) // M-type red dwarfs (most common, smallest)
+    return [1.0, 0.72 + rng.next() * 0.08, 0.50 + rng.next() * 0.1, 0.0];
+  if (roll < 0.60) // K-type orange
+    return [1.0, 0.85 + rng.next() * 0.05, 0.68 + rng.next() * 0.08, 0.15];
+  if (roll < 0.75) // G-type sun-like
+    return [1.0, 0.95 + rng.next() * 0.05, 0.85 + rng.next() * 0.1, 0.3];
+  if (roll < 0.85) // F-type white
+    return [0.95 + rng.next() * 0.05, 0.95 + rng.next() * 0.05, 1.0, 0.5];
+  if (roll < 0.95) // A-type blue-white
+    return [0.78 + rng.next() * 0.07, 0.85 + rng.next() * 0.05, 1.0, 0.7];
+  // B/O-type hot blue (rare, brightest)
+  return [0.62 + rng.next() * 0.08, 0.72 + rng.next() * 0.08, 1.0, 1.0];
+}
+
+function createStarfield(scene: THREE.Scene, systemSeed: number): {
   points: THREE.Points;
   twinkleIndices: number[];
   baseSizes: Float32Array;
+  timeUniform: { value: number };
 } {
-  const count = 2500;
-  const positions = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  const colors = new Float32Array(count * 3);
+  const rng = new SeededRNG(systemSeed * 7333 + 41);
+  // --- Star counts ---
+  const bgCount = 8000;     // tiny dust (denser background)
+  const medCount = 1200;    // medium
+  const brightCount = 200;  // bright prominent
+  const clusterCount = 8;   // cluster regions
+  const clusterStarsEach = 80;
+  const milkyWayCount = 1000; // Milky Way band
+  const totalCount = bgCount + medCount + brightCount
+    + clusterCount * clusterStarsEach + milkyWayCount;
 
-  for (let i = 0; i < count; i++) {
-    const i3 = i * 3;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    const r = 50 + Math.random() * 50;
+  const positions = new Float32Array(totalCount * 3);
+  const sizes = new Float32Array(totalCount);
+  const colors = new Float32Array(totalCount * 3);
+  const brightness = new Float32Array(totalCount);
+  const twinkleSpeed = new Float32Array(totalCount);
+  const twinklePhase = new Float32Array(totalCount);
 
+  let idx = 0;
+
+  function addStar(
+    theta: number, phi: number, r: number,
+    sz: number, cr: number, cg: number, cb: number, bright: number,
+  ) {
+    const i3 = idx * 3;
     positions[i3] = r * Math.sin(phi) * Math.cos(theta);
     positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
     positions[i3 + 2] = r * Math.cos(phi);
-
-    sizes[i] = 0.3 + Math.random() * 2.0;
-
-    // Star color distribution with subtle cosmic blue tint
-    const roll = Math.random();
-    let cr: number, cg: number, cb: number;
-    if (roll < 0.12) {
-      // Warm yellow-white (rare)
-      cr = 1.0; cg = 0.85 + Math.random() * 0.15; cb = 0.7 + Math.random() * 0.2;
-    } else if (roll < 0.45) {
-      // Cool blue-white (common)
-      cr = 0.6 + Math.random() * 0.2; cg = 0.7 + Math.random() * 0.2; cb = 1.0;
-    } else {
-      // White with blue tint
-      const w = 0.85 + Math.random() * 0.15;
-      cr = w * 0.85; cg = w * 0.92; cb = w;
-    }
+    sizes[idx] = sz;
     colors[i3] = cr; colors[i3 + 1] = cg; colors[i3 + 2] = cb;
+    brightness[idx] = bright;
+    // Dim stars twinkle more, bright stars are stable
+    twinkleSpeed[idx] = 0.4 + rng.next() * 1.8 * (1.0 - bright * 0.5);
+    twinklePhase[idx] = rng.next() * Math.PI * 2;
+    idx++;
+  }
+
+  // 1. Background dust (tiny, dim)
+  for (let i = 0; i < bgCount; i++) {
+    const theta = rng.next() * Math.PI * 2;
+    const phi = Math.acos(2 * rng.next() - 1);
+    const r = 55 + rng.next() * 45;
+    const sz = 0.12 + rng.next() * 0.25;
+    const [cr, cg, cb] = spectralColor(rng.next(), rng);
+    addStar(theta, phi, r, sz, cr, cg, cb, 0.30 + rng.next() * 0.35);
+  }
+
+  // 2. Medium stars (varied sizes, visible colors)
+  for (let i = 0; i < medCount; i++) {
+    const theta = rng.next() * Math.PI * 2;
+    const phi = Math.acos(2 * rng.next() - 1);
+    const r = 50 + rng.next() * 50;
+    const roll = rng.next();
+    const [cr, cg, cb, sizeBias] = spectralColor(roll, rng);
+    const sz = 0.5 + sizeBias * 1.0 + rng.next() * 0.6;
+    addStar(theta, phi, r, sz, cr, cg, cb, 0.45 + rng.next() * 0.35);
+  }
+
+  // 3. Bright prominent stars (power-law sizes)
+  for (let i = 0; i < brightCount; i++) {
+    const theta = rng.next() * Math.PI * 2;
+    const phi = Math.acos(2 * rng.next() - 1);
+    const r = 50 + rng.next() * 40;
+    const roll = 0.5 + rng.next() * 0.5; // bias toward hotter types
+    const [cr, cg, cb, sizeBias] = spectralColor(roll, rng);
+    const sz = 1.2 + sizeBias * 2.5 + rng.next() * 1.0;
+    addStar(theta, phi, r, sz, cr, cg, cb, 0.6 + rng.next() * 0.4);
+  }
+
+  // 4. Star clusters (Gaussian clumps)
+  for (let cl = 0; cl < clusterCount; cl++) {
+    const cTheta = rng.next() * Math.PI * 2;
+    const cPhi = Math.acos(2 * rng.next() - 1);
+    const cR = 60 + rng.next() * 30;
+    const sigma = (0.03 + rng.next() * 0.06); // angular spread (radians)
+
+    for (let s = 0; s < clusterStarsEach; s++) {
+      // Gaussian scatter around cluster center
+      const dTheta = (rng.next() + rng.next() + rng.next() - 1.5) * sigma * 2;
+      const dPhi = (rng.next() + rng.next() + rng.next() - 1.5) * sigma * 2;
+      const theta = cTheta + dTheta;
+      const phi = cPhi + dPhi;
+      const r = cR + (rng.next() - 0.5) * 8;
+      const sz = 0.15 + rng.next() * 0.5;
+      const [cr, cg, cb] = spectralColor(rng.next(), rng);
+      addStar(theta, phi, r, sz, cr, cg, cb, 0.25 + rng.next() * 0.4);
+    }
+  }
+
+  // 5. Milky Way band (dense strip along a great circle)
+  const mwTilt = 0.4 + rng.next() * 0.3; // tilt angle
+  for (let i = 0; i < milkyWayCount; i++) {
+    const along = rng.next() * Math.PI * 2;
+    // Gaussian scatter from band center
+    const spread = (rng.next() + rng.next() - 1.0) * 0.15;
+    const theta = along;
+    const phi = Math.PI / 2 + spread + Math.sin(along * 2) * mwTilt;
+    const r = 60 + rng.next() * 35;
+    const sz = 0.1 + rng.next() * 0.2;
+    const [cr, cg, cb] = spectralColor(rng.next(), rng);
+    addStar(theta, phi, r, sz, cr, cg, cb, 0.12 + rng.next() * 0.2);
   }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('brightness', new THREE.BufferAttribute(brightness, 1));
+  geo.setAttribute('twinkleSpeed', new THREE.BufferAttribute(twinkleSpeed, 1));
+  geo.setAttribute('twinklePhase', new THREE.BufferAttribute(twinklePhase, 1));
 
-  const mat = new THREE.PointsMaterial({
-    size: 0.18,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0.85,
+  const timeUniform = { value: 0 };
+
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: STAR_VERT,
+    fragmentShader: STAR_FRAG,
+    uniforms: { uTime: timeUniform },
     vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
   });
 
   const points = new THREE.Points(geo, mat);
   scene.add(points);
 
-  const twinkleIndices: number[] = [];
-  for (let i = 0; i < count && twinkleIndices.length < 200; i++) {
-    if (Math.random() < 0.08) twinkleIndices.push(i);
-  }
+  // --- Cosmic nebula glow sphere (unresolved star clusters + spectral gradients) ---
+  // Use system seed for unique nebula per system
+  const seedHash = ((systemSeed * 2654435761) >>> 0) / 4294967296; // Knuth hash → 0-1
+  const nebSeedX = seedHash * 500;
+  const nebSeedY = ((systemSeed * 1597334677) >>> 0) / 4294967296 * 500;
+  const nebSeedZ = ((systemSeed * 789456123) >>> 0) / 4294967296 * 500;
+  const nebulaVert = `
+    varying vec3 vPos;
+    void main() {
+      vPos = normalize(position);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+  const nebulaFrag = `
+    uniform vec3 uNebSeed;
+    varying vec3 vPos;
+    // Simple 3D hash
+    float h3(vec3 p) {
+      p = fract(p * vec3(443.897, 397.297, 491.187));
+      p += dot(p, p.yxz + 19.19);
+      return fract((p.x + p.y) * p.z);
+    }
+    float n3(vec3 p) {
+      vec3 i = floor(p); vec3 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(
+        mix(mix(h3(i), h3(i+vec3(1,0,0)), f.x),
+            mix(h3(i+vec3(0,1,0)), h3(i+vec3(1,1,0)), f.x), f.y),
+        mix(mix(h3(i+vec3(0,0,1)), h3(i+vec3(1,0,1)), f.x),
+            mix(h3(i+vec3(0,1,1)), h3(i+vec3(1,1,1)), f.x), f.y),
+        f.z);
+    }
+    float fbm4(vec3 p) {
+      float v = 0.0, a = 0.5;
+      for (int i = 0; i < 4; i++) { v += a * n3(p); p *= 2.03; a *= 0.48; }
+      return v;
+    }
+    void main() {
+      vec3 n = normalize(vPos);
+      vec3 s = uNebSeed;
+      // Domain warp for organic nebula shapes
+      vec3 wq = vec3(fbm4(n * 2.5 + s + vec3(50.0)), fbm4(n * 2.5 + s + vec3(55.0)), 0.0);
+      vec3 wn = n + wq * 0.08;
+      // Large-scale brightness variation (unresolved star clusters)
+      float cluster1 = fbm4(wn * 2.0 + s + vec3(100.0));
+      float cluster2 = fbm4(wn * 3.5 + s + vec3(200.0));
+      float cluster3 = fbm4(wn * 5.0 + s + vec3(250.0));
+      float density = smoothstep(0.38, 0.62, cluster1) * 0.5
+                    + smoothstep(0.42, 0.65, cluster2) * 0.3
+                    + smoothstep(0.45, 0.68, cluster3) * 0.2;
+      // Milky Way band (bright stripe, warped)
+      float bandPos = n.y * 0.8 + n.x * 0.3 + fbm4(n * 3.0 + s + vec3(600.0)) * 0.12 - 0.1;
+      float band = 1.0 - smoothstep(0.0, 0.22, abs(bandPos));
+      density += band * 0.4;
+      // Spectral color patches (each at different spatial frequency)
+      float warm   = fbm4(wn * 4.0 + s + vec3(300.0));
+      float cool   = fbm4(wn * 4.0 + s + vec3(400.0));
+      float pink   = fbm4(wn * 5.0 + s + vec3(500.0));
+      float teal   = fbm4(wn * 3.5 + s + vec3(700.0));
+      float violet = fbm4(wn * 6.0 + s + vec3(800.0));
+      float gold   = fbm4(wn * 4.5 + s + vec3(900.0));
+      // Base: deep space blue-black
+      vec3 col = vec3(0.015, 0.02, 0.045);
+      // Warm emission nebula (amber-orange)
+      col += vec3(0.14, 0.05, 0.01) * smoothstep(0.55, 0.72, warm) * density;
+      // Cool reflection nebula (deep blue)
+      col += vec3(0.02, 0.05, 0.14) * smoothstep(0.50, 0.68, cool) * density;
+      // H-alpha pink/magenta regions
+      col += vec3(0.10, 0.015, 0.08) * smoothstep(0.58, 0.76, pink) * density;
+      // Teal/cyan OIII emission
+      col += vec3(0.01, 0.09, 0.10) * smoothstep(0.56, 0.73, teal) * density;
+      // Violet/purple interstellar medium
+      col += vec3(0.06, 0.01, 0.12) * smoothstep(0.60, 0.78, violet) * density;
+      // Golden stellar nursery glow
+      col += vec3(0.10, 0.08, 0.02) * smoothstep(0.58, 0.75, gold) * density * band;
+      // White unresolved starlight
+      col += vec3(0.05, 0.05, 0.06) * density;
+      // Subtle — background atmosphere feel
+      float alpha = clamp(density * 0.22 + 0.02, 0.0, 0.18);
+      gl_FragColor = vec4(col, alpha);
+    }
+  `;
+  const nebulaSphere = new THREE.Mesh(
+    new THREE.SphereGeometry(98, 32, 24),
+    new THREE.ShaderMaterial({
+      vertexShader: nebulaVert,
+      fragmentShader: nebulaFrag,
+      uniforms: { uNebSeed: { value: new THREE.Vector3(nebSeedX, nebSeedY, nebSeedZ) } },
+      transparent: true,
+      depthWrite: false,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  nebulaSphere.renderOrder = -1;
+  scene.add(nebulaSphere);
 
-  return { points, twinkleIndices, baseSizes: new Float32Array(sizes) };
+  return { points, twinkleIndices: [], baseSizes: sizes, timeUniform };
 }
 
 // ---------------------------------------------------------------------------
@@ -951,7 +1180,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       controls.enableDamping = true;
       controls.dampingFactor = 0.05;
       controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.3;
+      controls.autoRotateSpeed = 0.15;
       controls.minDistance = 1.5;
       controls.maxDistance = 8;
       controls.enablePan = false;
@@ -964,7 +1193,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // --- Build scene layers ---
 
       // 1. Starfield
-      const starfield = createStarfield(scene);
+      const starfield = createStarfield(scene, system.seed);
 
       // 2. Distant star
       const starGroup = createDistantStar(scene, star, planet);
@@ -1028,14 +1257,14 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           const p = Math.min(1, (now - tr.startTime) / 2000);
           // easeInOutCubic
           const e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-          controls.autoRotateSpeed = 0.3 + e * 14.7;
+          controls.autoRotateSpeed = 0.15 + e * 14.85;
           const targetDist = controls.minDistance;
           const d = tr.startDist + (targetDist - tr.startDist) * e;
           camera.position.normalize().multiplyScalar(d);
           if (p >= 1) {
             const cb = tr.onComplete;
             transitionRef.current = null;
-            controls.autoRotateSpeed = 0.3;
+            controls.autoRotateSpeed = 0.15;
             controls.enabled = true;
             cb();
           }
@@ -1056,13 +1285,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         const starScale = 1.0 + (3.0 / camDist - 1.0) * 0.5;
         starGroup.scale.setScalar(starScale);
 
-        // Twinkle stars
-        const sizeAttr = starfield.points.geometry.getAttribute('size');
-        for (const idx of starfield.twinkleIndices) {
-          (sizeAttr.array as Float32Array)[idx] =
-            starfield.baseSizes[idx] * (0.5 + 0.5 * Math.sin(elapsed * 3 + idx * 1.7));
-        }
-        sizeAttr.needsUpdate = true;
+        // GPU-driven twinkling via uTime uniform
+        starfield.timeUniform.value = elapsed;
 
         // Moon orbits — 3D inclined elliptical
         for (const m of moonOrbits) {

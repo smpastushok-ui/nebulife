@@ -15,7 +15,7 @@ import React, {
   useCallback,
 } from 'react';
 import { Application } from 'pixi.js';
-import type { Planet, Star, PlacedBuilding, BuildingType, SurfaceObjectType } from '@nebulife/core';
+import type { Planet, Star, PlacedBuilding, BuildingType, SurfaceObjectType, TechTreeState } from '@nebulife/core';
 import { HARVEST_DURATION_MS, BUILDING_DEFS, XP_REWARDS, HARVEST_YIELD } from '@nebulife/core';
 import { SurfaceScene }  from '../../game/scenes/SurfaceScene.js';
 import { SurfacePanel }          from './SurfacePanel.js';
@@ -47,6 +47,10 @@ interface SurfacePixiViewProps {
   onHarvest?:               (objectType: SurfaceObjectType) => void;
   /** Screen-space (page coords) origin + resource type after ring completes. */
   onHarvestFx?:             (objectType: SurfaceObjectType, sx: number, sy: number) => void;
+  /** Player level for building availability gating. */
+  playerLevel?:             number;
+  /** Tech tree state for building availability gating. */
+  techTreeState?:           TechTreeState;
   /** Current isotope count for drone fuel consumption. */
   isotopes?:                number;
   /** Callback to deduct isotopes (drone movement/harvest). */
@@ -66,6 +70,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       onBuildPanelChange,
       onHarvest,
       onHarvestFx,
+      playerLevel,
+      techTreeState,
       isotopes,
       onConsumeIsotopes,
     },
@@ -296,6 +302,19 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       onBuildPanelChange?.(showBuildPanel);
     }, [showBuildPanel, onBuildPanelChange]);
 
+    // ─── Escape key → deselect building ──────────────────────────────────────
+
+    useEffect(() => {
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && selectedBuilding) {
+          setSelectedBuilding(null);
+          sceneRef.current?.clearGhost();
+        }
+      };
+      window.addEventListener('keydown', onKeyDown);
+      return () => window.removeEventListener('keydown', onKeyDown);
+    }, [selectedBuilding]);
+
     // ─── Pointer events (pan + drag) ──────────────────────────────────────────
 
     const handlePointerDown = (e: React.PointerEvent) => {
@@ -372,7 +391,12 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
       if (selectedBuilding) {
         // Place building mode
-        if (!scene.canBuildAt(col, row, selectedBuilding, buildings)) return;
+        if (!scene.canBuildAt(col, row, selectedBuilding, buildings)) {
+          // Invalid zone — deselect building
+          setSelectedBuilding(null);
+          sceneRef.current?.clearGhost();
+          return;
+        }
         const newBuilding: PlacedBuilding = {
           id:      `bld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           type:    selectedBuilding,
@@ -543,6 +567,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
             onClose={onClose}
             harvestMode={harvestMode}
             onToggleHarvest={toggleHarvest}
+            playerLevel={playerLevel ?? 1}
+            techTreeState={techTreeState}
           />
         )}
 

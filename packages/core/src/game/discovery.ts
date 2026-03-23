@@ -45,13 +45,18 @@ export const RARITY_COLORS: Record<DiscoveryRarity, string> = {
   legendary: '#cc4444',
 };
 
-/** Rarity drop weights (must sum to 100) */
+/**
+ * Rarity drop weights (must sum to 100).
+ * Tuned so a player with 2 data/hr (~17 500 sessions/year) collects:
+ *   commons in ~9 days, uncommons in ~4 months, rares in ~7 months,
+ *   epics in ~10 months, all legendaries in ~1 year.
+ */
 export const RARITY_WEIGHTS: Record<DiscoveryRarity, number> = {
-  common: 81,
+  common: 80,
   uncommon: 10,
   rare: 5,
   epic: 3,
-  legendary: 1,
+  legendary: 2,
 };
 
 /** Rarity display labels (Ukrainian) */
@@ -90,11 +95,16 @@ export interface Discovery {
  * min = standard chance (after early game), max = peak early-game chance.
  * Rings 3+ drop sharply to create meaningful progression.
  */
+/**
+ * Per-ring discovery chance ranges (min = standard, max = early-game boost).
+ * Tuned so Ring 1 at standard rate (20%) + legendary weight (2%)
+ * → all 19 legendaries collectible in ~1 year at 2 data/hr production.
+ */
 const RING_CHANCE: { min: number; max: number }[] = [
-  { min: 0.05, max: 0.60 },  // Ring 1: 5–60%
-  { min: 0.02, max: 0.15 },  // Ring 2: 2–15%
-  { min: 0.01, max: 0.05 },  // Ring 3: 1–5%
-  { min: 0.01, max: 0.02 },  // Ring 4+: 1–2%
+  { min: 0.20, max: 0.80 },  // Ring 1: 20–80%
+  { min: 0.08, max: 0.35 },  // Ring 2: 8–35%
+  { min: 0.03, max: 0.12 },  // Ring 3: 3–12%
+  { min: 0.01, max: 0.04 },  // Ring 4+: 1–4%
 ];
 
 /**
