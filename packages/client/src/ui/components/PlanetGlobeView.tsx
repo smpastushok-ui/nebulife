@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import type { Planet, Star, StarSystem, Moon } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import {
@@ -271,29 +275,55 @@ function createCloudLayer(
 function createAtmosphereShell(
   scene: THREE.Scene,
   planet: Planet,
-): THREE.Mesh | null {
+  star: Star,
+): { front: THREE.Mesh; back: THREE.Mesh; uniforms: Record<string, THREE.IUniform> } | null {
   if (!planet.atmosphere) return null;
   const params = getAtmosphereParams(planet.atmosphere, planet.type);
   if (!params) return null;
 
-  const geometry = new THREE.SphereGeometry(params.scale, 32, 32);
-  const material = new THREE.ShaderMaterial({
+  const starDir = STAR_SPRITE_POSITION.clone().normalize().negate();
+  const pressure = planet.atmosphere.surfacePressureAtm;
+
+  const sharedUniforms: Record<string, THREE.IUniform> = {
+    uColor: { value: params.color },
+    uIntensity: { value: params.intensity },
+    uPower: { value: params.power },
+    uStarDir: { value: starDir },
+    uPressure: { value: Math.min(pressure, 100) },
+  };
+
+  // --- Front-facing atmosphere (primary glow, visible from day side) ---
+  const geoFront = new THREE.SphereGeometry(params.scale, 48, 48);
+  const matFront = new THREE.ShaderMaterial({
     vertexShader: planetVertSrc,
     fragmentShader: atmosphereFrag,
-    uniforms: {
-      uColor: { value: params.color },
-      uIntensity: { value: params.intensity },
-      uPower: { value: params.power },
-    },
+    uniforms: sharedUniforms,
     transparent: true,
     side: THREE.FrontSide,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
+  const front = new THREE.Mesh(geoFront, matFront);
+  scene.add(front);
 
-  const mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
-  return mesh;
+  // --- Back-facing atmosphere (haze ring visible behind planet silhouette) ---
+  const geoBack = new THREE.SphereGeometry(params.scale * 1.015, 48, 48);
+  const matBack = new THREE.ShaderMaterial({
+    vertexShader: planetVertSrc,
+    fragmentShader: atmosphereFrag,
+    uniforms: {
+      ...sharedUniforms,
+      uIntensity: { value: params.intensity * 0.35 },
+    },
+    transparent: true,
+    side: THREE.BackSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const back = new THREE.Mesh(geoBack, matBack);
+  scene.add(back);
+
+  return { front, back, uniforms: sharedUniforms };
 }
 
 // ---------------------------------------------------------------------------
@@ -943,8 +973,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // 4. Cloud layer
       const cloudResult = createCloudLayer(scene, planet);
 
-      // 5. Atmosphere
-      createAtmosphereShell(scene, planet);
+      // 5. Atmosphere (front + back glow with Rayleigh scattering)
+      createAtmosphereShell(scene, planet, star);
 
       // 6. Ring (if applicable)
       createRing(scene, planet);
@@ -968,6 +998,18 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // --- Ambient light (very subtle fill) ---
       const ambient = new THREE.AmbientLight(0x112233, 0.15);
       scene.add(ambient);
+
+      // --- Post-processing: bloom for atmosphere glow ---
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(container.clientWidth, container.clientHeight),
+        0.35,   // strength: subtle bloom (not overwhelming)
+        0.6,    // radius: soft spread
+        0.7,    // threshold: only bright elements bloom (atmosphere glow, star)
+      );
+      composer.addPass(bloomPass);
+      composer.addPass(new OutputPass());
 
       // --- Animation ---
       let lastTime = performance.now();
@@ -1081,7 +1123,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           (ss.line.material as THREE.LineBasicMaterial).opacity = ss.maxOpacity * (1 - t * 0.7);
         }
 
-        renderer.render(scene, camera);
+        composer.render();
       };
 
       animate();
@@ -1094,6 +1136,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h);
+        composer.setSize(w, h);
       };
       window.addEventListener('resize', onResize);
 
