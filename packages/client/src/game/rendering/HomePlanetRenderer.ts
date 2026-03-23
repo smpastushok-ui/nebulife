@@ -116,6 +116,9 @@ export function renderPlanetCloseup(
     // Base color used as darkening target for limb effect
     const darkBase = visuals.hasOcean ? visuals.oceanDeep : visuals.surfaceBaseColor;
 
+    // Crater noise (separate seed, created once outside loop)
+    const craterNoise = visuals.hasCraters ? new SimplexNoise(seed + 777) : null;
+
     // Ice cap: convert area fraction → latitude threshold using spherical geometry
     // On a sphere, area fraction f maps to latitude threshold asin(1-f)/(π/2)
     const iceLatThreshold = visuals.iceCapFraction > 0
@@ -187,11 +190,11 @@ export function renderPlanetCloseup(
               // Transition zone: blend ice over whatever biome/ocean is below
               let baseColor: number;
               if (visuals.hasOcean && elevation < visuals.landThreshold) {
-                // Water → ice transition (frozen shore)
-                baseColor = lerpColor(darkBase, 0x4a6a8a, 0.3 + limbFactor * 0.5);
+                // Water → ice transition (frozen shore): neutral blue-gray
+                baseColor = lerpColor(darkBase, 0x5a6a7a, 0.3 + limbFactor * 0.5);
               } else {
-                // Land → ice: use tundra tint
-                baseColor = lerpColor(darkBase, visuals.biomeColors.tundra, 0.3 + limbFactor * 0.5);
+                // Land → ice: neutral gray-brown (avoid green/purple artifacts)
+                baseColor = lerpColor(darkBase, 0x707068, 0.3 + limbFactor * 0.5);
               }
               dotColor = lerpColor(baseColor, fullIce, iceBlend);
             }
@@ -219,10 +222,21 @@ export function renderPlanetCloseup(
         // --- Ocean ---
         if (visuals.hasOcean && elevation < visuals.landThreshold) {
           const depth = clamp((visuals.landThreshold - elevation) / 0.6, 0, 1);
+          const isShore = elevation > visuals.landThreshold - 0.03;
           const isCoastal = elevation > visuals.landThreshold - 0.08;
-          const oceanColor = isCoastal
-            ? lerpColor(visuals.oceanShallow, visuals.oceanDeep, depth * 0.3)
-            : lerpColor(visuals.oceanShallow, visuals.oceanDeep, depth);
+          let oceanColor: number;
+          if (isShore) {
+            // Rocky shoreline: blend of land and shallow water
+            const shoreDetail = noise.fbm3D(sx * 12, sy * 12, sz * 12, 2);
+            oceanColor = lerpColor(visuals.surfaceBaseColor, visuals.oceanShallow, 0.5 + shoreDetail * 0.3);
+          } else if (isCoastal) {
+            oceanColor = lerpColor(visuals.oceanShallow, visuals.oceanDeep, depth * 0.3);
+          } else {
+            // Deep ocean: add trench variation
+            const trenchNoise = noise.fbm3D(sx * 3, sy * 3, sz * 3, 2);
+            const trenchDepth = clamp(depth + trenchNoise * 0.2, 0, 1);
+            oceanColor = lerpColor(visuals.oceanShallow, visuals.oceanDeep, trenchDepth);
+          }
           const brightness = 0.3 + limbFactor * 0.6;
           dotColor = lerpColor(darkBase, oceanColor, brightness);
           surfaceGfx.circle(px, py, dotSize);
@@ -232,7 +246,15 @@ export function renderPlanetCloseup(
 
         // --- Land ---
         if (elevation >= visuals.landThreshold || !visuals.hasOcean) {
-          const h = visuals.hasOcean ? elevation - visuals.landThreshold : elevation + 0.5;
+          let h = visuals.hasOcean ? elevation - visuals.landThreshold : elevation + 0.5;
+
+          // Mountain ridge enhancement: secondary noise amplifies high areas
+          if (h > 0.2) {
+            const ridge = noise.fbm3D(sx * 6, sy * 6, sz * 6, 3);
+            const ridgeBoost = clamp(ridge * 0.18, -0.05, 0.18);
+            h = h + ridgeBoost * clamp((h - 0.2) / 0.3, 0, 1);
+          }
+
           let color: number;
 
           if (visuals.hasBiomes) {
@@ -245,6 +267,30 @@ export function renderPlanetCloseup(
           if (h > 0.5 && planet.surfaceTempK < 350) {
             const snowFade = clamp((h - 0.5) / 0.3, 0, 1);
             color = lerpColor(color, 0xccdde8, snowFade * 0.6);
+          }
+
+          // Crater overlay for airless worlds
+          if (craterNoise) {
+            const cLarge = craterNoise.fbm3D(sx * 4, sy * 4, sz * 4, 3);
+            const cMedium = craterNoise.fbm3D(sx * 8, sy * 8, sz * 8, 2);
+
+            // Large craters: floor darkening + rim highlight
+            if (cLarge > 0.45) {
+              const craterT = clamp((cLarge - 0.45) / 0.25, 0, 1);
+              color = lerpColor(color, visuals.craterColor, 0.5 + craterT * 0.25);
+            } else if (cLarge > 0.38) {
+              const rimT = (cLarge - 0.38) / 0.07;
+              color = lerpColor(color, visuals.craterRimColor, rimT * 0.5);
+            }
+
+            // Medium craters (pockmarks)
+            if (cMedium > 0.50) {
+              const craterT = clamp((cMedium - 0.50) / 0.25, 0, 1);
+              color = lerpColor(color, visuals.craterColor, 0.3 + craterT * 0.15);
+            } else if (cMedium > 0.44) {
+              const rimT = (cMedium - 0.44) / 0.06;
+              color = lerpColor(color, visuals.craterRimColor, rimT * 0.3);
+            }
           }
 
           const brightness = 0.3 + limbFactor * 0.7;

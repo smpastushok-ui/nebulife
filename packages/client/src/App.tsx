@@ -39,6 +39,7 @@ import {
   startResearch,
   completeResearchSession,
   findFreeSlot,
+  findBestSlotForSystem,
   canStartResearch,
   isSystemFullyResearched,
   getResearchProgress,
@@ -203,7 +204,14 @@ export function App() {
         const parsed = JSON.parse(saved) as ResearchState;
         // Validate structure minimally
         if (parsed && Array.isArray(parsed.slots) && typeof parsed.systems === 'object') {
-          return parsed;
+          // Migrate: ensure sourcePlanetRing exists on all slots (old saves lack it)
+          return {
+            ...parsed,
+            slots: parsed.slots.map((s) => ({
+              ...s,
+              sourcePlanetRing: (s.sourcePlanetRing as number | undefined) ?? 0,
+            })),
+          };
         }
       }
     } catch { /* ignore parse errors */ }
@@ -875,6 +883,16 @@ export function App() {
   // Radial menu state (replaces SystemContextMenu in galaxy view)
   const [radialSystem, setRadialSystem] = useState<StarSystem | null>(null);
   const [radialGetScreenPos, setRadialGetScreenPos] = useState<(() => { x: number; y: number } | null) | null>(null);
+
+  // Galaxy: hovered star progress counter
+  const [hoveredStarInfo, setHoveredStarInfo] = useState<{ systemId: string; progress: number } | null>(null);
+  const [hoverLabelPos, setHoverLabelPos] = useState<{ x: number; y: number } | null>(null);
+  const [displayedProgress, setDisplayedProgress] = useState(0);
+  const progressAnimRef = useRef<number | null>(null);
+  const progressAnimStartRef = useRef<{ from: number; to: number; startTime: number } | null>(null);
+
+  // Galaxy: research labels toggle (show % above each star)
+  const [researchLabelsMode, setResearchLabelsMode] = useState(false);
   // Galaxy warp overlay state
   const [galaxyWarpPhase, setGalaxyWarpPhase] = useState<'idle' | 'hyperspace'>('idle');
   const [systemPhotos, setSystemPhotos] = useState<Map<string, SystemPhotoData>>(new Map());
@@ -1526,6 +1544,43 @@ export function App() {
     engineRef.current?.setResearchState(researchState);
   }, [researchState]);
 
+  // Animated counter: count up to hoveredStarInfo.progress over ~900ms
+  useEffect(() => {
+    if (progressAnimRef.current !== null) {
+      cancelAnimationFrame(progressAnimRef.current);
+      progressAnimRef.current = null;
+    }
+    if (!hoveredStarInfo) {
+      setDisplayedProgress(0);
+      progressAnimStartRef.current = null;
+      return;
+    }
+    const target = hoveredStarInfo.progress;
+    progressAnimStartRef.current = { from: 0, to: target, startTime: performance.now() };
+    const DURATION = 900;
+    const animate = (now: number) => {
+      const s = progressAnimStartRef.current;
+      if (!s) return;
+      const elapsed = now - s.startTime;
+      const t = Math.min(1, elapsed / DURATION);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplayedProgress(Math.round(s.from + (s.to - s.from) * eased));
+      if (t < 1) {
+        progressAnimRef.current = requestAnimationFrame(animate);
+      }
+    };
+    progressAnimRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (progressAnimRef.current !== null) cancelAnimationFrame(progressAnimRef.current);
+    };
+  }, [hoveredStarInfo]);
+
+  // Sync research labels mode to engine
+  useEffect(() => {
+    engineRef.current?.setGalaxyResearchLabels(researchLabelsMode);
+  }, [researchLabelsMode]);
+
   useEffect(() => {
     if (!canvasRef.current || engineRef.current) return;
 
@@ -1589,6 +1644,16 @@ export function App() {
         setRadialSystem(null);
         setRadialGetScreenPos(null);
         setState(prev => ({ ...prev, selectedSystem: null }));
+      },
+      onHoverSystem: (systemId, progress) => {
+        if (!systemId || progress >= 100) {
+          setHoveredStarInfo(null);
+          setHoverLabelPos(null);
+        } else {
+          setHoveredStarInfo({ systemId, progress });
+          const pos = engineRef.current?.getSystemScreenPosition(systemId) ?? null;
+          setHoverLabelPos(pos);
+        }
       },
     }, genIdx);
 
@@ -1798,11 +1863,14 @@ export function App() {
     if (!hasResearchData(researchData)) return;
     // Block if no observatories or no free slots
     if (researchState.slots.length === 0) return;
-    const slotIdx = findFreeSlot(researchState);
+    // Resolve the target system's ring to find the closest observatory slot
+    const targetSystem = engineRef.current?.getAllSystems()?.find((s) => s.id === systemId);
+    const targetRing = targetSystem?.ringIndex ?? 1;
+    const slotIdx = findBestSlotForSystem(researchState, targetRing);
     if (slotIdx < 0) return;
     setResearchData((prev) => prev - RESEARCH_DATA_COST);
     setResearchState((prev) => {
-      const slotIndex = findFreeSlot(prev);
+      const slotIndex = findBestSlotForSystem(prev, targetRing);
       if (slotIndex < 0) return prev;
       const next = startResearch(prev, slotIndex, systemId);
       engineRef.current?.updateSystemResearchVisual(systemId, next);
@@ -1863,7 +1931,7 @@ export function App() {
       if (prev.slots.length >= totalNeeded) return prev;
       const extended = [...prev.slots];
       while (extended.length < totalNeeded) {
-        extended.push({ slotIndex: extended.length, systemId: null, startedAt: null });
+        extended.push({ slotIndex: extended.length, systemId: null, startedAt: null, sourcePlanetRing: 0 });
       }
       return { ...prev, slots: extended };
     });
@@ -2836,7 +2904,7 @@ export function App() {
             if (prev.slots.length >= totalNeeded) return prev;
             const extended = [...prev.slots];
             while (extended.length < totalNeeded) {
-              extended.push({ slotIndex: extended.length, systemId: null, startedAt: null });
+              extended.push({ slotIndex: extended.length, systemId: null, startedAt: null, sourcePlanetRing: 0 });
             }
             return { ...prev, slots: extended };
           });
@@ -3356,7 +3424,7 @@ export function App() {
     }
 
     case 'galaxy': {
-      // Zoom moved to SceneControlsPanel (left side)
+      // Zoom moved to SceneControlsPanel (left side); research toggle also there
       break;
     }
 
@@ -3675,6 +3743,14 @@ export function App() {
           showCenter
           showZoom
           hidden={hideLeftPanel}
+          researchPanel={{
+            labelsEnabled: researchLabelsMode,
+            onToggle: () => {
+              const next = !researchLabelsMode;
+              setResearchLabelsMode(next);
+              engineRef.current?.setGalaxyResearchLabels(next);
+            },
+          }}
         />
       )}
 
@@ -3862,6 +3938,10 @@ export function App() {
           activeMission={systemMissions.get(radialSystem.id) ?? null}
           quarks={quarks}
           playerLevel={playerLevel}
+          researchProgress={(() => {
+            const prog = getResearchProgress(researchState, radialSystem.id);
+            return (prog > 0 && prog < 100) ? prog : undefined;
+          })()}
           researchBlockReason={
             researchState.slots.length === 0 ? 'Немає обсерваторій' :
             findFreeSlot(researchState) < 0 ? 'Усі обсерваторії зайняті' :
@@ -3878,6 +3958,27 @@ export function App() {
           onSendMission={handleSendMission}
           onViewVideo={handleViewMissionVideo}
         />
+      )}
+
+      {/* Hover star research % — floating label above hovered star (no radial menu open) */}
+      {hoveredStarInfo && hoverLabelPos && !radialSystem && state.scene === 'galaxy' && (
+        <div
+          style={{
+            position: 'fixed',
+            left: hoverLabelPos.x,
+            top: hoverLabelPos.y - 28,
+            transform: 'translateX(-50%)',
+            pointerEvents: 'none',
+            zIndex: 24,
+            fontFamily: 'monospace',
+            fontSize: 10,
+            color: '#ffdd66',
+            textShadow: '0 0 8px rgba(255,210,60,0.5)',
+            letterSpacing: '0.06em',
+          }}
+        >
+          {displayedProgress}%
+        </div>
       )}
 
       {/* Galaxy Warp Hyperspace Overlay */}
@@ -4078,6 +4179,8 @@ export function App() {
           onHarvestFx={handleHarvestFx}
           onPhaseChange={setSurfacePhase}
           onBuildPanelChange={setSurfaceBuildPanelOpen}
+          playerLevel={playerLevel}
+          techTreeState={techTreeState}
           isotopes={colonyResources.isotopes}
           onConsumeIsotopes={(amount) => {
             setColonyResources((prev) => ({

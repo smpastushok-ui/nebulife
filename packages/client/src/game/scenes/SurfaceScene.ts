@@ -10,7 +10,7 @@
  *   buildingLayer  — procedural iso-box buildings, Y-sorted (rebuilt on change)
  *
  * Rules:
- *   - No blur filters, no textures (buildings are Graphics)
+ *   - No textures (buildings are Graphics)
  *   - Deterministic from planet.seed
  *   - 60fps: static layers drawn once, dynamic layers rebuilt only on state change
  */
@@ -22,7 +22,6 @@ import {
   Sprite,
   TilingSprite,
   ColorMatrixFilter,
-  BlurFilter,
   Assets,
   Texture,
   Rectangle,
@@ -123,8 +122,9 @@ const BUILDING_COLORS: Record<string, IsoColors> = {
   research_lab:    { top: 0x44aacc, right: 0x2288aa, left: 0x115566 },
   water_extractor: { top: 0x44bbdd, right: 0x2299bb, left: 0x115566 },
   greenhouse:      { top: 0x55bb66, right: 0x339944, left: 0x1a5522 },
-  observatory:     { top: 0x9988cc, right: 0x7766aa, left: 0x443366 },
-  alpha_harvester: { top: 0xddcc44, right: 0xaa9922, left: 0x776600 },  // gold landing pad
+  observatory:       { top: 0x9988cc, right: 0x7766aa, left: 0x443366 },
+  alpha_harvester:   { top: 0xddcc44, right: 0xaa9922, left: 0x776600 },  // gold landing pad
+  thermal_generator: { top: 0x993322, right: 0x6e2010, left: 0x400d06 },  // hot red-charcoal
 };
 
 const DEFAULT_BUILDING_COLORS: IsoColors = { top: 0x778899, right: 0x556677, left: 0x334455 };
@@ -337,13 +337,14 @@ export class SurfaceScene {
 
     // Pre-load building PNG textures (non-blocking — fail silently)
     const BUILDING_PNGS: Partial<Record<string, string>> = {
-      colony_hub:       '/buildings/colony_hub.png',
-      solar_plant:      '/buildings/solar_plant.png',
-      battery_station:  '/buildings/battery_station.png',
-      wind_generator:   '/buildings/wind_generator.png',
-      resource_storage: '/tiles/machines/resource_storage.png',
-      landing_pad:      '/tiles/machines/landing_pad.png',
-      spaceport:        '/tiles/machines/spaceport.png',
+      colony_hub:        '/buildings/colony_hub.png',
+      solar_plant:       '/buildings/solar_plant.png',
+      battery_station:   '/buildings/battery_station.png',
+      wind_generator:    '/buildings/wind_generator.png',
+      resource_storage:  '/tiles/machines/resource_storage.png',
+      landing_pad:       '/tiles/machines/landing_pad.png',
+      spaceport:         '/tiles/machines/spaceport.png',
+      thermal_generator: '/buildings/thermal_generator.png',
     };
     await Promise.all(
       Object.entries(BUILDING_PNGS).map(async ([type, url]) => {
@@ -850,7 +851,7 @@ export class SurfaceScene {
         this._startBuildingAnim(b, bldg);
       }
       // Create idle animation for supported building types
-      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant' || b.type === 'battery_station' || b.type === 'wind_generator') {
+      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant' || b.type === 'battery_station' || b.type === 'wind_generator' || b.type === 'thermal_generator') {
         this._createBldgEffect(b);
         // Restore previous animation state so existing buildings don't restart from zero
         const saved  = savedAnim.get(key);
@@ -2597,29 +2598,29 @@ export class SurfaceScene {
       extra['phase'] = Math.random() * 3000;
 
     } else if (b.type === 'wind_generator') {
-      // Rotor sprites overlaid 1:1 on base. Pivot = measured hub (124,48) in 256×256 image.
+      // gs[0] = blue energy streams (rising from below to base center, additive blend)
+      const energyGfx = new Graphics(); energyGfx.blendMode = 'add'; L.addChild(energyGfx); gs.push(energyGfx);
+
+      // Single rotor sprite — sway + levitation bob only, NO rotation
       if (this.windRotorTex && this.bldgTextures['wind_generator']) {
         const baseTex   = this.bldgTextures['wind_generator'];
         const baseScale = (sW * TILE_W) / baseTex.width;
-        // Hub screen position: map image pixel (124,48) using same anchor(0.5,1.0) as base sprite
         const HUB_X = 124, HUB_Y = 48;
         const rx = botRight.x + (HUB_X - baseTex.width  * 0.5) * baseScale;
         const ry = botRight.y + (HUB_Y - baseTex.height * 1.0) * baseScale;
-        // trail2 → trail1 → main (back to front)
-        for (let i = 0; i < 3; i++) {
-          const sp = new Sprite(this.windRotorTex);
-          sp.pivot.set(HUB_X, HUB_Y);              // rotation axis = hub center (no drift)
-          sp.scale.set(baseScale, baseScale * 0.5); // isometric squash: scaleY=0.5 (top-down → isometric)
-          sp.position.set(rx, ry);
-          sp.alpha = i === 0 ? 0.15 : i === 1 ? 0.40 : 1.0; // trail2 / trail1 / main
-          // Motion blur via BlurFilter (trail2: 3px, trail1: 1px, main: no blur)
-          if (i === 0) sp.filters = [new BlurFilter({ strength: 3 })];
-          else if (i === 1) sp.filters = [new BlurFilter({ strength: 1 })];
-          L.addChild(sp);
-          sprites.push(sp);
-        }
+        const sp = new Sprite(this.windRotorTex);
+        sp.pivot.set(HUB_X, HUB_Y);
+        sp.scale.set(baseScale, baseScale * 0.5); // isometric squash
+        sp.position.set(rx, ry);
+        sp.alpha = 1.0;
+        L.addChild(sp);
+        sprites.push(sp);
+        extra['hubX'] = rx;
+        extra['hubY'] = ry;
       }
-      extra['rot'] = 0;
+      extra['swayPhase']  = Math.random() * Math.PI * 2; // desync multiple generators
+      extra['bobPhase']   = Math.random() * Math.PI * 2;
+      extra['streamSeed'] = Math.random() * 100;         // unique speed chaos per building
 
     } else if (b.type === 'battery_station') {
       // Glow overlay sprite — green charge indicators breathing animation (blendMode: 'add')
@@ -2637,6 +2638,20 @@ export class SurfaceScene {
       }
       // Random phase so multiple battery stations breathe independently
       extra['phase'] = Math.random() * 4000;
+
+    } else if (b.type === 'thermal_generator') {
+      // gs[0] = spinning lava vortex inside a 10px oval (additive blend)
+      const g = new Graphics(); g.blendMode = 'add'; L.addChild(g); gs.push(g);
+      // Pre-seed 10 chaotic particles with independent speeds / phases / sizes
+      const N = 10;
+      for (let i = 0; i < N; i++) {
+        // ~30% counter-rotation for chaos
+        extra[`p${i}_spd`] = (0.0018 + Math.random() * 0.0028) * (Math.random() < 0.3 ? -1 : 1);
+        extra[`p${i}_ph`]  = Math.random() * Math.PI * 2;  // initial angle offset
+        extra[`p${i}_r`]   = 0.22 + Math.random() * 0.76; // normalized orbit radius (0.22–0.98)
+        extra[`p${i}_sf`]  = 0.0022 + Math.random() * 0.0048; // size oscillation frequency
+        extra[`p${i}_sp`]  = Math.random() * Math.PI * 2;  // size phase
+      }
     }
 
     this.bldgEffects.set(key, { gs, sprites, timeMs: 0, extra, cx, cy, sW, type: b.type });
@@ -3108,14 +3123,122 @@ export class SurfaceScene {
         }
 
       } else if (eff.type === 'wind_generator') {
-        // ── Fast rotor with motion-blur trail: sprites[0]=trail2, [1]=trail1, [2]=main ──
-        if (eff.sprites.length >= 3) {
-          // 3.5 deg/frame @60fps = 210 deg/s = 0.003665 rad/ms (matches HTML reference)
-          eff.extra['rot'] = ((eff.extra['rot'] ?? 0) + 0.003665 * deltaMs) % (Math.PI * 2);
-          const rot = eff.extra['rot'];
-          eff.sprites[0].rotation = rot - 0.305; // trail2 (speed*5 frames = 17.5deg)
-          eff.sprites[1].rotation = rot - 0.153; // trail1 (speed*2.5 frames = 8.75deg)
-          eff.sprites[2].rotation = rot;          // main rotor
+        // ── Sway + levitation bob ─────────────────────────────────────────
+        const swayX = Math.sin((t / 4500) * Math.PI * 2 + (eff.extra['swayPhase'] ?? 0)) * 4;
+        const bobY  = Math.sin((t / 3200) * Math.PI * 2 + (eff.extra['bobPhase']  ?? 0)) * 3;
+
+        // Current fan position (moves with sway + bob)
+        const fanX = (eff.extra['hubX'] ?? cx) + swayX;
+        const fanY = (eff.extra['hubY'] ?? cy) + bobY;
+
+        // Building base center (footprint center, minimal sway follow)
+        const baseX = cx + swayX * 0.15;
+        const baseY = cy + sW * TILE_H * 0.35;
+
+        // Apply to rotor sprite (NO rotation)
+        if (eff.sprites.length >= 1) {
+          eff.sprites[0].x = fanX;
+          eff.sprites[0].y = fanY;
+        }
+
+        if (eff.gs.length >= 1) {
+          const eg = eff.gs[0];
+          eg.clear();
+
+          // ── 16 streams rising from below → converge at CONV (fan + 3px down) ──
+          const convX = fanX;
+          const convY = fanY + 8; // collector center lowered 8px (3+5)
+
+          const NUM_STREAMS = 16;
+          const SPREAD_X    = sW * TILE_W * 0.38;
+          const BELOW_Y     = sW * TILE_H * 0.15;
+          const BASE_PERIOD = 1600;
+          const TRAIL_LEN   = 0.32;
+          const N_SEGS      = 10;
+
+          // Per-stream speed: deterministic chaos, period varies ±100% (800–3200ms)
+          const sSeed = eff.extra['streamSeed'] ?? 0;
+
+          for (let i = 0; i < NUM_STREAMS; i++) {
+            // Unique speed for each stream: hash → 800–3200ms range
+            const h      = Math.abs(Math.sin(i * 127.1 + sSeed * 3.7));
+            const period = BASE_PERIOD * (0.5 + h * 1.5); // 800 … 3200 ms
+
+            const frac = i / (NUM_STREAMS - 1) - 0.5;
+            const ox   = convX + frac * SPREAD_X * 2;
+            const oy   = convY + BELOW_Y + Math.abs(frac) * BELOW_Y * 0.5;
+
+            const progress   = ((t / period + i / NUM_STREAMS) % 1);
+            const trailEnd   = progress;
+            const trailStart = Math.max(0, trailEnd - TRAIL_LEN);
+
+            for (let s = 0; s < N_SEGS; s++) {
+              const p1 = trailStart + (s       / N_SEGS) * (trailEnd - trailStart);
+              const p2 = trailStart + ((s + 1) / N_SEGS) * (trailEnd - trailStart);
+              const x1 = ox + (convX - ox) * p1;  const y1 = oy + (convY - oy) * p1;
+              const x2 = ox + (convX - ox) * p2;  const y2 = oy + (convY - oy) * p2;
+              const segFrac = (s + 1) / N_SEGS;
+              const arrival = Math.max(0, (trailEnd - 0.88) / 0.12);
+              eg.moveTo(x1, y1); eg.lineTo(x2, y2);
+              eg.stroke({ width: 1.2 + segFrac * 0.8, color: 0x3399ff,
+                alpha: Math.max(segFrac * 0.45 * (1 - arrival), 0) });
+            }
+            const arrDot = Math.max(0, (trailEnd - 0.85) / 0.15);
+            if (trailEnd > 0.03 && arrDot < 1) {
+              eg.circle(ox + (convX - ox) * trailEnd, oy + (convY - oy) * trailEnd, 1.8);
+              eg.fill({ color: 0x88ddff, alpha: (1 - arrDot) * 0.75 });
+            }
+          }
+
+          // Glow at collector center (convX/convY)
+          const gp = 0.5 + 0.5 * Math.sin((t / 650) * Math.PI * 2);
+          eg.circle(convX, convY, 2.5 + gp * 2.5);
+          eg.fill({ color: 0xaaddff, alpha: 0.45 + gp * 0.35 });
+
+          // ── Electric column: FAN → MID only (half length) ───────────────
+          // Column starts at convY (collector center), ends halfway to base
+          const midX = convX + (baseX - convX) * 0.5;
+          const midY = convY + (baseY - convY) * 0.5;
+
+          // Dim continuous base line (conv → mid only)
+          eg.moveTo(convX, convY);
+          eg.lineTo(midX, midY);
+          eg.stroke({ width: 1.2, color: 0x55aaff, alpha: 0.18 });
+
+          // 3 overlapping energy pulses flowing down the half-column
+          const COL_PERIOD  = 420;
+          const PULSE_LEN   = 0.30;
+          const PULSE_SEGS  = 8;
+          for (let p = 0; p < 3; p++) {
+            const head = ((t / COL_PERIOD + p / 3) % 1);
+            const tail = Math.max(0, head - PULSE_LEN);
+            for (let s = 0; s < PULSE_SEGS; s++) {
+              const p1 = tail + (s       / PULSE_SEGS) * (head - tail);
+              const p2 = tail + ((s + 1) / PULSE_SEGS) * (head - tail);
+              const x1 = convX + (midX - convX) * p1;
+              const y1 = convY + (midY - convY) * p1;
+              const x2 = convX + (midX - convX) * p2;
+              const y2 = convY + (midY - convY) * p2;
+              const sf = (s + 1) / PULSE_SEGS;
+              eg.moveTo(x1, y1); eg.lineTo(x2, y2);
+              eg.stroke({ width: 1.0 + sf * 1.0, color: 0x88ccff, alpha: sf * 0.60 });
+            }
+          }
+
+          // ── Spread at column tip: energy fans out a few px to each side ──
+          // 3 short diverging rays from midY: left, centre, right
+          const SPREAD = 4; // px each side
+          const RAY_LEN = 3;
+          const spreadAlpha = 0.28 + 0.18 * Math.sin((t / COL_PERIOD) * Math.PI * 2);
+          for (let r = -1; r <= 1; r++) {
+            const ex = midX + r * SPREAD;
+            const ey = midY + RAY_LEN;
+            eg.moveTo(midX, midY);
+            eg.lineTo(ex, ey);
+            // fade to 0 at the tip — centre ray slightly brighter
+            eg.stroke({ width: 1.0, color: 0x88ccff,
+              alpha: spreadAlpha * (1 - Math.abs(r) * 0.35) });
+          }
         }
 
       } else if (eff.type === 'battery_station') {
@@ -3125,6 +3248,64 @@ export class SurfaceScene {
           const phase  = eff.extra['phase'] ?? 0;
           const alpha  = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(((t + phase) / PERIOD) * Math.PI * 2));
           eff.sprites[0].alpha = alpha;
+        }
+
+      } else if (eff.type === 'thermal_generator') {
+        // ── Spinning lava vortex — 15×6 px oval, +10 px higher, 7 px glow ─────────────────
+        const glowCY = cy - TILE_H * 0.82 - 10; // 10 px higher
+        const OVAL_A = 15; // semi-major
+        const OVAL_B = 6;  // semi-minor
+
+        if (eff.gs.length > 0) {
+          eff.gs[0].clear();
+
+          // ── Radial glow rim: 4 layers fading within 7 px from oval edge ────────────────
+          const GLOW_N = 20;
+          const rimLayers: [number, number, number][] = [
+            [1.5, 1.5, 0.16],
+            [3.0, 3.0, 0.10],
+            [5.0, 5.0, 0.05],
+            [7.0, 7.0, 0.020],
+          ];
+          for (const [eA, eB, rimA] of rimLayers) {
+            for (let si = 0; si < GLOW_N; si++) {
+              const a = (si / GLOW_N) * Math.PI * 2;
+              eff.gs[0].circle(cx + Math.cos(a) * (OVAL_A + eA), glowCY + Math.sin(a) * (OVAL_B + eB), 1.4);
+              eff.gs[0].fill({ color: 0xff2200, alpha: rimA });
+            }
+          }
+
+          // Faint dashed oval outline
+          const ODOTS = 16;
+          for (let si = 0; si < ODOTS; si++) {
+            if (si % 2 !== 0) continue;
+            const a = (si / ODOTS) * Math.PI * 2;
+            eff.gs[0].circle(cx + Math.cos(a) * OVAL_A, glowCY + Math.sin(a) * OVAL_B, 0.5);
+            eff.gs[0].fill({ color: 0xff2200, alpha: 0.22 });
+          }
+
+          // 10 chaotic particles orbiting inside the oval
+          for (let i = 0; i < 10; i++) {
+            const spd = eff.extra[`p${i}_spd`] as number;
+            const ph  = eff.extra[`p${i}_ph`]  as number;
+            const rN  = eff.extra[`p${i}_r`]   as number;
+            const sf  = eff.extra[`p${i}_sf`]  as number;
+            const sp  = eff.extra[`p${i}_sp`]  as number;
+
+            const angle = t * spd + ph;
+            const rr    = rN * (0.58 + 0.42 * Math.sin(t * 0.0021 + sp));
+            const ex    = Math.cos(angle) * OVAL_A * rr;
+            const ey    = Math.sin(angle) * OVAL_B * rr;
+            const dotR  = 0.5 + 2.0 * (0.5 + 0.5 * Math.sin(t * sf + sp));
+            const heat  = 1 - rr;
+            const color = heat > 0.45 ? 0xff7733 : heat > 0.22 ? 0xff4411 : 0xff1100;
+            const alpha = 0.42 + 0.52 * (1 - rr * 0.35);
+
+            eff.gs[0].circle(cx + ex, glowCY + ey, dotR * 2.2);
+            eff.gs[0].fill({ color, alpha: alpha * 0.22 });
+            eff.gs[0].circle(cx + ex, glowCY + ey, dotR);
+            eff.gs[0].fill({ color: 0xff9955, alpha: alpha * 0.92 });
+          }
         }
       }
     }

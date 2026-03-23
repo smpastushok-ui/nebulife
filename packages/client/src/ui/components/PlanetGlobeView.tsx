@@ -169,8 +169,8 @@ function createDistantStar(
   const coreSize = Math.max(0.15, Math.min(8.0, raw * 1.8));
 
   // Dim core & halo for distant/faint stars
-  const coreOpacity = Math.max(0.3, Math.min(0.95, brightness * 0.8));
-  const haloOpacity = Math.max(0.03, Math.min(0.2, brightness * 0.15));
+  const coreOpacity = Math.max(0.25, Math.min(0.85, brightness * 0.65));
+  const haloOpacity = Math.max(0.02, Math.min(0.10, brightness * 0.08));
 
   const starColor = new THREE.Color(star.colorHex);
   const starTex = makeStarTexture();
@@ -196,7 +196,7 @@ function createDistantStar(
     blending: THREE.AdditiveBlending,
   });
   const halo = new THREE.Sprite(haloMat);
-  halo.scale.setScalar(coreSize * 3.5);
+  halo.scale.setScalar(coreSize * 2.2);
   group.add(halo);
 
   // Position: top-left area of the sky (synced with STAR_SPRITE_POSITION)
@@ -221,7 +221,7 @@ function createPlanetSphere(
   const isGas = planet.type === 'gas-giant' || planet.type === 'ice-giant';
   const fragShader = isGas ? gasGiantFrag : rockySurfaceFrag;
 
-  const geometry = new THREE.SphereGeometry(1, 128, 128);
+  const geometry = new THREE.SphereGeometry(1, 192, 192);
   const material = new THREE.ShaderMaterial({
     vertexShader: planetVertSrc,
     fragmentShader: fragShader,
@@ -308,7 +308,7 @@ function createAtmosphereShell(
   scene.add(front);
 
   // --- Back-facing atmosphere (haze ring visible behind planet silhouette) ---
-  const geoBack = new THREE.SphereGeometry(params.scale * 1.015, 48, 48);
+  const geoBack = new THREE.SphereGeometry(params.scale * 1.008, 48, 48);
   const matBack = new THREE.ShaderMaterial({
     vertexShader: planetVertSrc,
     fragmentShader: atmosphereFrag,
@@ -931,7 +931,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         0.1,
         200,
       );
-      camera.position.set(0, 0, 3);
+      // Camera on the STAR side: star is at (-8, 6, -15), so camera on that side
+      camera.position.set(-1.4, 1.0, -2.2); // same quadrant as star position
 
       // --- Renderer ---
       const renderer = new THREE.WebGLRenderer({
@@ -940,7 +941,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       });
       renderer.setSize(container.clientWidth, container.clientHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMapping = THREE.LinearToneMapping;
       renderer.toneMappingExposure = 1.0;
       container.appendChild(renderer.domElement);
       rendererRef.current = renderer;
@@ -1005,9 +1006,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       composer.addPass(new RenderPass(scene, camera));
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(container.clientWidth, container.clientHeight),
-        0.35,   // strength: subtle bloom (not overwhelming)
-        0.6,    // radius: soft spread
-        0.7,    // threshold: only bright elements bloom (atmosphere glow, star)
+        0.18, 0.35, 0.85,
       );
       composer.addPass(bloomPass);
       composer.addPass(new OutputPass());

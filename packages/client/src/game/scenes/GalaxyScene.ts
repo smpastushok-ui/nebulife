@@ -86,9 +86,11 @@ interface SystemNode {
   container: Container;
   system: StarSystem;
   nameLabel: Text;
-  progressLabel: Text | null;
-  progressRing: Graphics | null;
   scanArc: Graphics | null;
+  /** Atom orbital animation — visible at 0% (no probe tail yet) */
+  atomOrbit: Graphics | null;
+  /** Research label shown in research-mode overlay (% progress or ◉ for 100%) */
+  researchLabel: Text | null;
   glowOuter: Graphics;  // kept for transition compat (empty)
   glowMid: Graphics;    // kept for transition compat (empty)
   corona: Graphics;     // kept for transition compat (empty)
@@ -184,6 +186,10 @@ export class GalaxyScene {
   }> = [];
   /** Track previous progress per system to detect increments */
   private prevProgress = new Map<string, number>();
+  /** Whether research-mode labels (% / ◉) are visible above all stars */
+  private researchLabelsEnabled = false;
+  /** Systems that already received a completion "Досліджено!" label — no double-spawn */
+  private completedSystems = new Set<string>();
 
   constructor(
     rings: GalaxyRing[],
@@ -198,6 +204,8 @@ export class GalaxyScene {
     private onExpandSystem?: (system: StarSystem) => void,
     private onRadialOpen?: (system: StarSystem, getScreenPos: () => { x: number; y: number } | null) => void,
     private onRadialClose?: () => void,
+  /** Called when pointer enters/leaves a researching star — for animated progress HUD */
+  private onHoverSystem?: (systemId: string | null, progress: number) => void,
   ) {
     this.container = new Container();
     this.researchState = researchState;
@@ -421,7 +429,7 @@ export class GalaxyScene {
 
     this.homeNode = {
       container: dot, system: sys, nameLabel: nl,
-      progressLabel: null, progressRing: null, scanArc: null,
+      scanArc: null, atomOrbit: null, researchLabel: null,
       glowOuter, glowMid, corona, core, particleGfx,
       starState: 'home', planetCount: sys.planets.length,
       nebulaColor, particleCount: 72,
@@ -453,20 +461,18 @@ export class GalaxyScene {
     dot.x = tx;
     dot.y = ty;
 
-    // Orbital probe tail (only for 1-99%)
-    let progressRing: Graphics | null = null;
-    if (state === 'researching' && progress > 0 && progress < 100) {
-      progressRing = new Graphics();
-      const coreRingR = Math.max(2.5, effectiveR * 0.42) * 1.8 + 5;
-      this.drawProbeTail(progressRing, coreRingR, progress / 100);
-      dot.addChild(progressRing);
-    }
-
     // Scanning arc (spinning arc for actively researching systems)
     let scanArc: Graphics | null = null;
     if (state === 'researching') {
       scanArc = new Graphics();
       dot.addChild(scanArc);
+    }
+
+    // Atom orbital animation — 2 tilted electron rings, shown at 0% progress
+    let atomOrbit: Graphics | null = null;
+    if (state === 'researching') {
+      atomOrbit = new Graphics();
+      dot.addChild(atomOrbit);
     }
 
     // Name label
@@ -494,8 +500,15 @@ export class GalaxyScene {
     const hitR = effectiveR + 8;
     dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < hitR * hitR };
 
-    dot.on('pointerover', () => { nameLabel.visible = true; dot.scale.set(1.12); });
-    dot.on('pointerout', () => { nameLabel.visible = false; dot.scale.set(1.0); });
+    dot.on('pointerover', () => {
+      nameLabel.visible = true; dot.scale.set(1.12);
+      const hProg = getResearchProgress(this.researchState, sys.id);
+      if (hProg > 0 && hProg < 100) this.onHoverSystem?.(sys.id, hProg);
+    });
+    dot.on('pointerout', () => {
+      nameLabel.visible = false; dot.scale.set(1.0);
+      this.onHoverSystem?.(null, 0);
+    });
 
     let cc = 0;
     let ct: ReturnType<typeof setTimeout> | null = null;
@@ -532,7 +545,7 @@ export class GalaxyScene {
 
     return {
       container: dot, system: sys, nameLabel,
-      progressLabel: null, progressRing, scanArc,
+      scanArc, atomOrbit, researchLabel: null,
       glowOuter, glowMid, corona, core, particleGfx,
       starState, planetCount: sys.planets.length,
       nebulaColor, particleCount,
@@ -743,26 +756,6 @@ export class GalaxyScene {
     this.beamAlpha = 0;
   }
 
-  /** Draw orbital probe tail: gold dots from start to progress angle, brightest at tip */
-  private drawProbeTail(g: Graphics, radius: number, fraction: number) {
-    if (fraction <= 0.005) return;
-    const startAngle = -Math.PI / 2;
-    const endAngle = startAngle + fraction * Math.PI * 2;
-    const TRAIL_SEGS = 32;
-    for (let i = 0; i < TRAIL_SEGS; i++) {
-      const frac = i / TRAIL_SEGS;
-      const a = startAngle + frac * (endAngle - startAngle);
-      const ax = Math.cos(a) * radius;
-      const ay = Math.sin(a) * radius;
-      // Glow halo
-      g.circle(ax, ay, 2.8 * frac + 0.5);
-      g.fill({ color: 0xddaa44, alpha: frac * 0.22 });
-      // Core dot
-      g.circle(ax, ay, 0.9 + frac * 1.3);
-      g.fill({ color: 0xffdd66, alpha: frac * 0.65 });
-    }
-  }
-
   /** Spawn a floating "+N%" label above a star node */
   private spawnResearchGainLabel(node: SystemNode, delta: number) {
     const label = new Text({
@@ -854,29 +847,40 @@ export class GalaxyScene {
       }
       this.prevProgress.set(systemId, prog);
 
-      if (node.progressRing) {
-        if (prog > 0 && prog < 100) {
-          node.progressRing.clear();
-          const coreRingR = Math.max(2.5, node.baseRadius * 0.42) * 1.8 + 5;
-          this.drawProbeTail(node.progressRing, coreRingR, prog / 100);
-          node.progressRing.visible = true;
-        } else {
-          node.progressRing.visible = false;
-        }
-      }
       if (!node.scanArc) {
         node.scanArc = new Graphics();
         node.container.addChild(node.scanArc);
+      }
+
+      // Create atom orbit if missing (lazy — handles systems that were already researching on load)
+      if (!node.atomOrbit) {
+        node.atomOrbit = new Graphics();
+        node.container.addChild(node.atomOrbit);
+      }
+
+      // Keep research label in sync
+      if (this.researchLabelsEnabled && node.researchLabel) {
+        node.researchLabel.text = `${Math.round(prog)}%`;
       }
     }
 
     if (state === 'researched') {
       node.starState = 'researched';
       node.baseAlpha = 1;
-      if (node.progressRing) node.progressRing.visible = false;
       if (node.scanArc) node.scanArc.visible = false;
+      if (node.atomOrbit) node.atomOrbit.visible = false;
       node.nameLabel.text = node.system.name;
       node.nameLabel.style.fill = 0x8899aa;
+      // First-time completion: spawn achievement label
+      if (!this.completedSystems.has(systemId)) {
+        this.completedSystems.add(systemId);
+        this.spawnCompletionLabel(node);
+      }
+      // Update research mode label to eye symbol
+      if (this.researchLabelsEnabled && node.researchLabel) {
+        node.researchLabel.text = '◉';
+        node.researchLabel.style.fill = 0x44ff88;
+      }
     }
   }
 
@@ -959,11 +963,11 @@ export class GalaxyScene {
       // Animate orbital probe dot (active research only)
       if (node.scanArc) {
         const isActive = this.researchState.slots.some((s) => s.systemId === node.system.id);
-        node.scanArc.visible = isActive;
-        if (isActive) {
+        const prog = getResearchProgress(this.researchState, node.system.id);
+        node.scanArc.visible = isActive && prog > 0;
+        if (isActive && prog > 0) {
           node.scanArc.clear();
           const r = Math.max(2.5, node.baseRadius * 0.42) * 1.8 + 6;
-          const prog = getResearchProgress(this.researchState, node.system.id);
           const baseAngle = -Math.PI / 2 + (prog / 100) * Math.PI * 2;
           const probeAngle = baseAngle + (t * 0.0018) % (Math.PI * 2);
           const pulse = 0.82 + 0.18 * Math.sin(t * 0.007);
@@ -981,6 +985,59 @@ export class GalaxyScene {
           // White highlight
           node.scanArc.circle(px - 0.7, py - 0.7, 1.1);
           node.scanArc.fill({ color: 0xffffff, alpha: 0.75 * pulse });
+        }
+      }
+
+      // Atom orbital animation — 4 colored electrons on different tilted orbits
+      // Visible throughout the entire research process (not just at 0%)
+      if (node.atomOrbit) {
+        const isActive = this.researchState.slots.some((s) => s.systemId === node.system.id);
+        node.atomOrbit.visible = isActive;
+        if (isActive) {
+          node.atomOrbit.clear();
+          const baseR = Math.max(2.5, node.baseRadius * 0.42) * 1.6 + 4;
+          const pulse = 0.75 + 0.25 * Math.sin(t * 0.0045);
+
+          // 4 electrons: white / gold / red / blue — each on a distinct tilted orbit
+          const ORBITS = [
+            { rMult: 1.10, bMult: 0.32, speed: +0.0020, phase0: 0,               tilt: 0,               color: 0xddeeff, dot: 1.3 }, // white — nearly horizontal
+            { rMult: 1.45, bMult: 0.46, speed: -0.0015, phase0: Math.PI * 0.70,  tilt: Math.PI * 0.38,  color: 0xffdd44, dot: 1.2 }, // gold — tilted 68°
+            { rMult: 1.80, bMult: 0.33, speed: +0.0011, phase0: Math.PI * 1.35,  tilt: Math.PI * 0.14,  color: 0xff5533, dot: 1.2 }, // red — slight tilt
+            { rMult: 2.15, bMult: 0.20, speed: -0.0008, phase0: Math.PI * 1.82,  tilt: Math.PI * 0.58,  color: 0x44aaff, dot: 1.1 }, // blue — steep tilt
+          ] as const;
+
+          for (const orb of ORBITS) {
+            const orbitR = baseR * orb.rMult;
+            const orbitB = orbitR * orb.bMult;
+            const cosT = Math.cos(orb.tilt);
+            const sinT = Math.sin(orb.tilt);
+
+            // Faint dashed orbit ring (10 dots, every other one)
+            for (let si = 0; si < 10; si++) {
+              if (si % 2 !== 0) continue;
+              const a = (si / 10) * Math.PI * 2;
+              const rx = Math.cos(a) * orbitR;
+              const ry = Math.sin(a) * orbitB;
+              node.atomOrbit.circle(rx * cosT - ry * sinT, rx * sinT + ry * cosT, 0.4);
+              node.atomOrbit.fill({ color: orb.color, alpha: 0.12 });
+            }
+
+            // Electron position on its orbit
+            const angle = (t * orb.speed + orb.phase0) % (Math.PI * 2);
+            const ex = Math.cos(angle) * orbitR;
+            const ey = Math.sin(angle) * orbitB;
+            const ex2 = ex * cosT - ey * sinT;
+            const ey2 = ex * sinT + ey * cosT;
+
+            // Glow halo
+            node.atomOrbit.circle(ex2, ey2, orb.dot * 2.8);
+            node.atomOrbit.fill({ color: orb.color, alpha: 0.10 * pulse });
+            node.atomOrbit.circle(ex2, ey2, orb.dot * 1.7);
+            node.atomOrbit.fill({ color: orb.color, alpha: 0.32 * pulse });
+            // Core bead
+            node.atomOrbit.circle(ex2, ey2, orb.dot);
+            node.atomOrbit.fill({ color: orb.color, alpha: 0.95 * pulse });
+          }
         }
       }
     }
@@ -1150,7 +1207,6 @@ export class GalaxyScene {
         node.container.alpha = Math.min(1, node.baseAlpha + collapseEase * 0.5);
         node.container.scale.set(1 + growP);
         node.nameLabel.visible = false;
-        if (node.progressRing) node.progressRing.visible = false;
         // Force orbits visible + accelerating spin
         const savedEP = node.expandProgress;
         node.expandProgress = 1;
@@ -1168,7 +1224,6 @@ export class GalaxyScene {
           ? 1 + collapseEase * 0.5
           : Math.max(0, (1 - collapseP) / 0.3));
         node.nameLabel.visible = false;
-        if (node.progressRing) node.progressRing.visible = false;
         this.animateStarBurn(node, t, spinBoost);
       }
     };
@@ -1256,6 +1311,15 @@ export class GalaxyScene {
       // Bright core dot
       g.circle(0, 0, Math.max(1, coreR * 0.6));
       g.fill({ color: nebulaColor, alpha: 0.4 * brt });
+      // Electron orbital dots — 2 particles circling unexplored stars like electrons
+      const eOrbitR = coreR + 5;
+      const ePulse = 0.45 + 0.55 * Math.sin(t * 0.0007 + ph);
+      for (let i = 0; i < 2; i++) {
+        const dir = i === 0 ? 0.0009 : -0.0013;
+        const angle = (t * dir + i * Math.PI + ph) % (Math.PI * 2);
+        g.circle(Math.cos(angle) * eOrbitR, Math.sin(angle) * eOrbitR * 0.45, 0.85);
+        g.fill({ color: nebulaColor, alpha: 0.32 * ePulse });
+      }
       return;
     }
 
@@ -1381,6 +1445,59 @@ export class GalaxyScene {
       m.x += Math.sin(t * 0.001 + i * 2.3) * dt * 0.004;
       m.y += Math.cos(t * 0.0012 + i * 3.1) * dt * 0.003;
     }
+  }
+
+  /* ── Research labels mode ──────────────────────────────────── */
+
+  /** Toggle per-star research labels (% text or ◉ for 100% researched) */
+  showResearchLabels(enabled: boolean) {
+    this.researchLabelsEnabled = enabled;
+    const allNodes: SystemNode[] = [
+      ...(this.homeNode ? [this.homeNode] : []),
+      ...this.systemNodes.values(),
+    ];
+    for (const node of allNodes) {
+      const isHome = node.system.ownerPlayerId !== null;
+      const isFull = isHome || isSystemFullyResearched(this.researchState, node.system.id);
+      const prog = isFull ? 100 : Math.round(getResearchProgress(this.researchState, node.system.id));
+
+      if (enabled) {
+        const text = isFull ? '◉' : prog > 0 ? `${prog}%` : '·';
+        const color = isFull ? 0x44ff88 : prog > 0 ? 0x8899aa : 0x3a4d5a;
+
+        if (!node.researchLabel) {
+          node.researchLabel = new Text({
+            text,
+            style: { fontSize: isFull ? 9 : 7, fill: color, fontFamily: 'monospace' },
+            resolution: 2,
+          });
+          node.researchLabel.anchor.set(0.5, 1);
+          node.researchLabel.y = -node.baseRadius - 4;
+          node.container.addChild(node.researchLabel);
+        } else {
+          node.researchLabel.text = text;
+          node.researchLabel.style.fill = color;
+          node.researchLabel.visible = true;
+        }
+      } else {
+        if (node.researchLabel) node.researchLabel.visible = false;
+      }
+    }
+  }
+
+  /** Spawn a "Досліджено!" achievement label floating above a star */
+  private spawnCompletionLabel(node: SystemNode) {
+    const label = new Text({
+      text: 'Досліджено!',
+      style: { fontSize: 11, fill: 0x44ff88, fontFamily: 'monospace' },
+      resolution: 2,
+    });
+    label.anchor.set(0.5, 1);
+    label.x = node.tx;
+    label.y = node.ty - node.baseRadius - 16;
+    label.alpha = 0;
+    this.researchGainLayer.addChild(label);
+    this.researchGainLabels.push({ text: label, worldX: label.x, worldY: label.y, startTime: this.time });
   }
 
   /* ── Cleanup ───────────────────────────────────────────────── */

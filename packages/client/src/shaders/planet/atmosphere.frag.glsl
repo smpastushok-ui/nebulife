@@ -28,19 +28,16 @@ void main() {
   float NdotL = dot(N, L);
   float VdotL = max(dot(V, L), 0.0);
 
-  // ---- 1. Multi-layer Fresnel (core glow) ----
+  // ---- 1. Fresnel glow — concentrated at the limb ONLY ----
   float limb = max(1.0 - NdotV, 0.0);
 
-  // Primary: sharp edge glow
+  // Primary: sharp edge glow (thin bright line at rim)
   float fresnel1 = pow(limb, uPower);
-  // Secondary: broader haze extending inward
-  float fresnel2 = pow(limb, max(uPower * 0.45, 1.0));
-  // Tertiary: very broad faint halo (exosphere)
-  float fresnel3 = pow(limb, max(uPower * 0.25, 0.6));
+  // Secondary: slightly broader (but still edge-only)
+  float fresnel2 = pow(limb, max(uPower * 0.65, 2.0));
 
   float baseAlpha = fresnel1 * uIntensity
-                  + fresnel2 * uIntensity * 0.35
-                  + fresnel3 * uIntensity * 0.08; // faint outer halo
+                  + fresnel2 * uIntensity * 0.25;
 
   // ---- 2. Rayleigh scattering ----
   vec3 scatterColor = uColor;
@@ -63,9 +60,9 @@ void main() {
   float miePhase = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5);
   miePhase = miePhase / (4.0 * 3.14159);
 
-  // Mie only visible at the limb (where atmosphere is dense)
-  float mieMask = pow(limb, max(uPower * 0.5, 1.0));
-  float mieGlow = mieMask * miePhase * 0.3;
+  // Mie only visible at the limb (strictly edge)
+  float mieMask = pow(limb, max(uPower * 0.7, 2.0));
+  float mieGlow = mieMask * miePhase * 0.2;
 
   // Mie color: warmer than Rayleigh (larger particles scatter all wavelengths)
   vec3 mieColor = uColor * vec3(1.15, 1.05, 0.95);
@@ -77,9 +74,9 @@ void main() {
   terminatorGlow *= pow(limb, max(uPower * 0.6, 1.2));
   baseAlpha += terminatorGlow * uIntensity * 0.6;
 
-  // ---- 5. Back-lit haze (light wrapping) ----
-  float backLitFactor = smoothstep(-0.35, -0.05, NdotL) * pow(limb, max(uPower * 0.5, 1.0));
-  baseAlpha += backLitFactor * uIntensity * 0.25;
+  // ---- 5. Back-lit haze (light wrapping — edge only) ----
+  float backLitFactor = smoothstep(-0.35, -0.05, NdotL) * pow(limb, max(uPower * 0.7, 2.0));
+  baseAlpha += backLitFactor * uIntensity * 0.15;
 
   vec3 backLitColor = uColor * vec3(1.2, 0.85, 0.6);
   scatterColor = mix(scatterColor, backLitColor, backLitFactor * 0.4);
@@ -88,16 +85,15 @@ void main() {
   float dayBoost = smoothstep(-0.1, 0.5, NdotL);
   baseAlpha *= 0.55 + dayBoost * 0.45;
 
-  // ---- 7. Airglow (faint night-side emission) ----
-  // Real phenomenon: O2/OH chemiluminescence creates faint green/red glow
+  // ---- 7. Airglow (faint night-side emission — edge only) ----
   float nightSide = smoothstep(0.0, -0.3, NdotL);
-  float airglow = nightSide * pow(limb, max(uPower * 0.7, 1.5)) * 0.06;
+  float airglow = nightSide * pow(limb, max(uPower * 0.85, 2.5)) * 0.03;
   vec3 airglowColor = vec3(0.3, 0.8, 0.4); // green oxygen emission
   scatterColor = mix(scatterColor, airglowColor, airglow * 0.3);
   baseAlpha += airglow * uIntensity;
 
   // ---- 8. Pressure-dependent density ----
-  float densityMul = 0.7 + clamp(uPressure, 0.0, 5.0) * 0.12;
+  float densityMul = 0.6 + clamp(uPressure, 0.0, 5.0) * 0.08;
   baseAlpha *= densityMul;
 
   baseAlpha = clamp(baseAlpha, 0.0, 0.85);

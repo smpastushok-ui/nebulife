@@ -61,6 +61,11 @@ export interface PlanetVisualConfig {
   windIntensity: number;   // 0..1 atmospheric wind strength
   surfaceType: number;     // 0=temperate, 1=gas, 2=ice, 3=lava, 4=barren
 
+  // Craters (airless rocky/dwarf worlds)
+  hasCraters: boolean;
+  craterColor: number;     // darker shade for crater interior
+  craterRimColor: number;  // lighter shade for raised rims
+
   // Gas giant specifics
   bandColor1: number;
   bandColor2: number;
@@ -119,19 +124,22 @@ function deriveAtmosColor(composition: Record<string, number>): number {
   return 0x667788;
 }
 
-/** Derive atmosphere opacity from surface pressure */
+/** Derive atmosphere opacity from surface pressure.
+ *  Thinner → nearly invisible; thicker → clearly visible haze. */
 function deriveAtmosOpacity(pressureAtm: number): number {
-  if (pressureAtm > 50) return 0.25;
-  if (pressureAtm >= 1) return 0.04 + (pressureAtm - 1) / 49 * 0.11;
-  if (pressureAtm >= 0.1) return 0.01 + (pressureAtm - 0.1) / 0.9 * 0.03;
-  return 0.005;
+  if (pressureAtm < 0.01) return 0;                                         // invisible
+  if (pressureAtm > 80) return 0.38;                                        // very dense (Venus+)
+  if (pressureAtm >= 10) return 0.18 + (pressureAtm - 10) / 70 * 0.20;     // 0.18..0.38
+  if (pressureAtm >= 1)  return 0.06 + (pressureAtm - 1)  / 9  * 0.12;     // 0.06..0.18
+  if (pressureAtm >= 0.1) return 0.015 + (pressureAtm - 0.1) / 0.9 * 0.045; // 0.015..0.06
+  return 0.003 + pressureAtm / 0.1 * 0.012;                                  // 0.003..0.015
 }
 
 /** Derive surface base color from temperature (for rocky/dwarf planets without life) */
 function deriveSurfaceBaseColor(tempK: number): number {
   if (tempK > 1200) return 0x1a0a00;    // lava world
-  if (tempK > 600) return 0xaa5533;      // hot Venus-like
-  if (tempK > 373) return 0xbb9966;      // warm desert
+  if (tempK > 600) return 0x884030;      // hot scorched — dark red-brown
+  if (tempK > 373) return 0xccaa55;      // warm desert — bright sandy-gold
   if (tempK > 273) return 0x887766;      // temperate rock
   if (tempK > 200) return 0x6699bb;      // cold frosted — blue-gray
   if (tempK > 120) return 0x6699cc;      // frozen — clear blue
@@ -141,15 +149,15 @@ function deriveSurfaceBaseColor(tempK: number): number {
 /** Derive surface high elevation color */
 function deriveSurfaceHighColor(tempK: number): number {
   if (tempK > 1200) return 0x331500;
-  if (tempK > 600) return 0x664433;
-  if (tempK > 373) return 0x8a7755;
+  if (tempK > 600) return 0x553025;      // dark mountain ridges
+  if (tempK > 373) return 0xaa8840;      // sandy-gold peaks
   if (tempK > 273) return 0x6a5a4a;
   if (tempK > 200) return 0x5588aa;      // cold frosted peaks — blue
   if (tempK > 120) return 0x5588bb;      // frozen blue peaks
   return 0x6699cc;                        // deeply frozen blue peaks
 }
 
-/** Derive ocean colors from depth */
+/** Derive ocean colors from depth — vivid saturated blues */
 function deriveOceanColors(depthKm: number, tempK: number): { shallow: number; deep: number } {
   if (tempK > 373) {
     // Super-hot water → murky / boiling
@@ -159,23 +167,23 @@ function deriveOceanColors(depthKm: number, tempK: number): { shallow: number; d
     // Frozen — subsurface ocean is dark
     return { shallow: 0x3a4a6a, deep: 0x1a2a4a };
   }
-  // Normal liquid water
+  // Normal liquid water — dark saturated navy (target: ~RGB(15,30,60) after shader)
   const depthFactor = clamp(depthKm / 10, 0, 1);
-  const shallow = lerpColor(0x2a6a8a, 0x1a4a7a, depthFactor);
-  const deep = lerpColor(0x1a3a5a, 0x0a1a3a, depthFactor);
+  const shallow = lerpColor(0x1050a0, 0x0c4590, depthFactor);  // dark blue
+  const deep = lerpColor(0x082a68, 0x051a48, depthFactor);     // very dark navy
   return { shallow, deep };
 }
 
 /** Derive biome colors based on temperature and life complexity */
 function deriveBiomeColors(tempK: number, lifeComplexity: string): BiomeColors {
   if (lifeComplexity === 'intelligent' || lifeComplexity === 'multicellular') {
-    // Full biomes
+    // Full biomes — natural Earth-like tones (dark greens, warm browns)
     return {
-      tropical: 0x1a6a2a,    // deep green
-      temperate: 0x2a6a2a,   // forest green
-      boreal: 0x3a5a2a,      // dark green
-      desert: 0xc4a55a,      // sandy
-      tundra: 0x5a6a4a,      // muted green-brown
+      tropical: 0x2a7a30,    // dark forest green (not neon)
+      temperate: 0x3a7838,   // medium olive-forest green
+      boreal: 0x3a6830,      // dark conifer green
+      desert: 0xc8a858,      // warm sandy beige
+      tundra: 0x888078,      // cool neutral gray-brown
     };
   }
   if (lifeComplexity === 'unicellular') {
@@ -185,7 +193,7 @@ function deriveBiomeColors(tempK: number, lifeComplexity: string): BiomeColors {
       temperate: 0x5a7a5a,
       boreal: 0x5a6a4a,
       desert: 0xaa9a6a,
-      tundra: 0x6a6a5a,
+      tundra: 0x686660,      // neutral gray-brown
     };
   }
   // microbial / moss — very subtle
@@ -194,18 +202,17 @@ function deriveBiomeColors(tempK: number, lifeComplexity: string): BiomeColors {
     temperate: 0x6a7a5a,
     boreal: 0x6a6a5a,
     desert: 0x9a8a6a,
-    tundra: 0x6a6a5a,
+    tundra: 0x686660,        // neutral gray-brown
   };
 }
 
 /** Derive land threshold from water coverage fraction.
  *  Higher water coverage → higher threshold (more land submerged) */
 function deriveLandThreshold(waterCoverage: number): number {
-  // Earth: waterCoverage=0.71, noise threshold ~0.05
-  // Maps 0..1 water coverage to -0.4..0.35 threshold
-  // At 0 water, threshold is very low (almost everything is land)
-  // At 1 water, threshold is very high (everything submerged)
-  return -0.4 + waterCoverage * 0.75;
+  // warpedFbm(7 octaves) + double warping has mean ~0.52, range ~0.2-0.8
+  // Threshold = waterCoverage directly maps to noise percentile
+  // Earth (0.71): threshold 0.71 → only highest 29% of terrain is land
+  return waterCoverage;
 }
 
 /** Derive cloud color from atmosphere composition */
@@ -268,7 +275,9 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   const hasAtmosphere = atmo !== null;
   const atmosColor = hasAtmosphere ? deriveAtmosColor(atmo.composition) : 0x667788;
   const atmosOpacity = hasAtmosphere ? deriveAtmosOpacity(atmo.surfacePressureAtm) : 0;
-  const atmosRingCount = hasAtmosphere ? (atmo.surfacePressureAtm > 1 ? 10 : atmo.surfacePressureAtm > 0.1 ? 6 : 3) : 0;
+  const atmosRingCount = hasAtmosphere
+    ? (atmo.surfacePressureAtm < 0.01 ? 0 : atmo.surfacePressureAtm > 1 ? 10 : atmo.surfacePressureAtm > 0.1 ? 6 : 3)
+    : 0;
   const limbColor = hasAtmosphere ? lerpColor(atmosColor, 0xffffff, 0.3) : 0x667788;
 
   // --- Ocean ---
@@ -305,6 +314,12 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
 
   // --- Special ---
   const hasLavaFlows = tempK > 1200 && (planet.type === 'rocky' || planet.type === 'dwarf');
+
+  // --- Craters (airless rocky/dwarf worlds without active lava) ---
+  const hasCraters = !hasAtmosphere && !hasLavaFlows
+    && (planet.type === 'rocky' || planet.type === 'dwarf');
+  const craterColor = lerpColor(surfaceBaseColor, 0x000000, 0.35);
+  const craterRimColor = lerpColor(surfaceBaseColor, 0xffffff, 0.15);
 
   // Rivers: liquid water planets with both land and ocean
   const hasRivers = hasOcean && waterCoverage > 0.1 && waterCoverage < 0.95
@@ -360,6 +375,9 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
     hasLavaFlows,
     lavaColor: 0xff4400,
     hasRivers,
+    hasCraters,
+    craterColor,
+    craterRimColor,
     isGasGiant: isGas,
     isIceGiant: isIce,
 
@@ -403,35 +421,35 @@ export function getAtmosphereParams(
   const pressure = atmo.surfacePressureAtm;
 
   if (planetType === 'gas-giant') {
-    return { color: new THREE.Color(0.85, 0.75, 0.55), intensity: 0.5, power: 2.5, scale: 1.08 };
+    return { color: new THREE.Color(0.85, 0.75, 0.55), intensity: 0.25, power: 4.0, scale: 1.035 };
   }
   if (planetType === 'ice-giant') {
-    return { color: new THREE.Color(0.4, 0.75, 0.9), intensity: 0.5, power: 2.5, scale: 1.07 };
+    return { color: new THREE.Color(0.4, 0.75, 0.9), intensity: 0.25, power: 4.0, scale: 1.03 };
   }
   if ((comp['CO2'] ?? 0) > 0.4) {
     return {
       color: new THREE.Color(0.9, 0.6, 0.3),
-      intensity: Math.min(0.55, 0.25 + pressure * 0.06),
-      power: 2.5,
-      scale: 1.07 + Math.min(pressure * 0.008, 0.06),
+      intensity: Math.min(0.30, 0.12 + pressure * 0.04),
+      power: 4.0,
+      scale: 1.025 + Math.min(pressure * 0.004, 0.025),
     };
   }
   if ((comp['N2'] ?? 0) > 0.5 || (comp['O2'] ?? 0) > 0.1) {
     return {
-      color: new THREE.Color(0.4, 0.65, 1.0),
-      intensity: Math.min(0.5, 0.20 + pressure * 0.12),
-      power: 4.0,
-      scale: 1.06 + Math.min(pressure * 0.012, 0.06),
+      color: new THREE.Color(0.03, 0.25, 0.9),  // ZERO red, pure blue
+      intensity: Math.min(0.15, 0.06 + pressure * 0.04),
+      power: 7.0,
+      scale: 1.018 + Math.min(pressure * 0.005, 0.020),
     };
   }
   if ((comp['H2'] ?? 0) > 0.3 || (comp['He'] ?? 0) > 0.2) {
-    return { color: new THREE.Color(0.8, 0.85, 1.0), intensity: 0.45, power: 2.5, scale: 1.07 };
+    return { color: new THREE.Color(0.8, 0.85, 1.0), intensity: 0.22, power: 4.0, scale: 1.03 };
   }
   return {
     color: new THREE.Color(0.5, 0.6, 0.8),
-    intensity: Math.min(0.4, 0.20 + pressure * 0.12),
-    power: 3.5,
-    scale: 1.06,
+    intensity: Math.min(0.22, 0.10 + pressure * 0.06),
+    power: 5.0,
+    scale: 1.02,
   };
 }
 
@@ -466,8 +484,8 @@ export function getCloudParams(
   if ((atmo.composition['N2'] ?? 0) > 0.5 || (atmo.composition['O2'] ?? 0) > 0.1) {
     return {
       color: new THREE.Color(1.0, 1.0, 1.0),
-      coverage: Math.min(0.35, 0.12 + pressure * 0.1),
-      scale: 1.008,
+      coverage: Math.min(0.40, 0.18 + pressure * 0.12),  // Earth ~0.30-0.40
+      scale: 1.006,
     };
   }
   return {

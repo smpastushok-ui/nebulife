@@ -30,7 +30,15 @@ export function generateAtmosphere(
   const massEarth = massKg / EARTH_MASS;
 
   // Very small bodies can't hold atmosphere
-  if (massEarth < 0.05) return null;
+  if (massEarth < 0.08) return null;
+
+  // Inner zone: hot small planets lose atmosphere via solar wind stripping
+  if (zone === 'inner') {
+    if (massEarth < 0.4) return null;              // Mercury-like: too small & hot
+    if (massEarth < 0.8 && rng.nextBool(0.4)) return null; // probabilistic stripping
+  }
+  // Habitable zone: very small bodies are airless
+  if (zone === 'habitable' && massEarth < 0.15) return null;
 
   // Check which gases the planet can retain
   const retainsN2 = canRetainGas(vEsc, surfaceTempK, MOLECULAR_MASS.N2);
@@ -51,6 +59,8 @@ export function generateAtmosphere(
     // Hot inner planets: thick CO2 atmosphere (Venus-like)
     composition = { ...VENUS_ATMOSPHERE };
     pressure = rng.nextFloat(0.1, 90); // Venus is ~92 atm
+    // Smaller inner planets have thinner atmospheres
+    if (massEarth < 1.5) pressure *= 0.5;
     greenhouse = pressure > 10 ? rng.nextFloat(5, 15) : rng.nextFloat(1, 5);
   } else if (zone === 'habitable') {
     if (hasLife) {

@@ -148,6 +148,8 @@ export interface RadialMenuProps {
   quarks: number;
   playerLevel: number;
   researchBlockReason: string | null;
+  /** Research progress 0-100 for this system; shown inside arc when 0 < x < 100 */
+  researchProgress?: number;
   onClose: () => void;
   onEnterSystem: () => void;
   onObjectsList: () => void;
@@ -163,13 +165,14 @@ export interface RadialMenuProps {
 export function RadialMenu({
   system, getScreenPos,
   isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel,
-  researchBlockReason,
+  researchBlockReason, researchProgress,
   onClose, onEnterSystem, onObjectsList, onRename, onCharacteristics,
   onResearch, onTelescopePhoto, onViewPhoto, onSendMission, onViewVideo,
 }: RadialMenuProps) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const chipRef = useRef<HTMLDivElement>(null);
+  const progressChipRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const rafRef = useRef<number>(0);
   const [revealed, setRevealed] = useState<boolean[]>([]);
@@ -253,6 +256,10 @@ export function RadialMenu({
           chipRef.current.style.left = pos.x + 'px';
           chipRef.current.style.top  = (pos.y - ARC_RADIUS - 36) + 'px';
         }
+        if (progressChipRef.current) {
+          progressChipRef.current.style.left = pos.x + 'px';
+          progressChipRef.current.style.top  = (pos.y + 20) + 'px';
+        }
       }
       rafRef.current = requestAnimationFrame(loop);
     };
@@ -318,6 +325,30 @@ export function RadialMenu({
           }
         </div>
       </div>
+
+      {/* Research progress % — centered inside the arc (below star center) */}
+      {researchProgress !== undefined && researchProgress > 0 && researchProgress < 100 && (
+        <div
+          ref={progressChipRef}
+          style={{
+            position: 'fixed',
+            transform: 'translateX(-50%)',
+            pointerEvents: 'none',
+            zIndex: 25,
+            fontFamily: 'monospace',
+            fontSize: 10,
+            color: '#ffdd66',
+            textShadow: '0 0 8px rgba(255,210,60,0.5)',
+            letterSpacing: '0.06em',
+            left: initPos?.x ?? -9999,
+            top: initPos ? initPos.y + 20 : -9999,
+            opacity: revealed.some(Boolean) ? 1 : 0,
+            transition: 'opacity 0.25s',
+          }}
+        >
+          {researchProgress}%
+        </div>
+      )}
 
       {/* Radial buttons container */}
       <div ref={containerRef} style={{ position: 'fixed', top: 0, left: 0, width: 0, height: 0, zIndex: 25 }}>

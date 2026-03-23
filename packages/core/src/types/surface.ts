@@ -6,6 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import type { PlanetType } from './planet.js';
+import { RESEARCH_DATA_RATE } from '../constants/balance.js';
 
 /** Terrain type determined by elevation noise sampling */
 export type TerrainType =
@@ -234,7 +235,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     ],
     levelRequired: 1, techRequired: null, maxPerPlanet: 1,
     energyOutput: 5, energyConsumption: 0, energyStorageAdd: 0,
-    production: [{ resource: 'researchData', amount: 1 }], // built-in observatory: 1 data per tick (1h)
+    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE }], // 1 data/hour
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 500, fogRevealRadius: 30,
@@ -337,7 +338,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     type: 'thermal_generator', category: 'energy',
     name: 'Термогенератор',
     description: 'Стабільна енергія з геотермальних джерел. Бонус на вулканах.',
-    size: 3, sizeW: 3, sizeH: 3,
+    size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: VOLCANIC_HIGH,
     cost: [{ resource: 'Ti', amount: 20 }, { resource: 'Fe', amount: 30 }, { resource: 'Cu', amount: 15 }],
     levelRequired: 10, techRequired: 'phy-thermo-1', maxPerPlanet: 4,
@@ -459,7 +460,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     ],
     levelRequired: 5, techRequired: null, maxPerPlanet: 4,
     energyOutput: 0, energyConsumption: 3, energyStorageAdd: 0,
-    production: [{ resource: 'researchData', amount: 1 }],
+    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE }], // 1 data/hour
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
@@ -506,7 +507,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     ],
     levelRequired: 28, techRequired: 'ast-deep-radar', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 6, energyStorageAdd: 0,
-    production: [{ resource: 'researchData', amount: 3 }],
+    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 3 }], // 3 data/hour
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
@@ -524,7 +525,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     ],
     levelRequired: 38, techRequired: 'phy-quantum', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 10, energyStorageAdd: 0,
-    production: [{ resource: 'researchData', amount: 5 }],
+    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 5 }], // 5 data/hour
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,

@@ -13,6 +13,12 @@ interface ExtraButton {
   pulse?: boolean;
 }
 
+interface ResearchPanelInfo {
+  /** Eye button active (research labels shown on map) */
+  labelsEnabled: boolean;
+  onToggle: () => void;
+}
+
 interface SceneControlsPanelProps {
   onBack: () => void;
   onCenter?: () => void;
@@ -25,6 +31,8 @@ interface SceneControlsPanelProps {
   extraButtons?: ExtraButton[];
   /** When true, panel slides off-screen to the left */
   hidden?: boolean;
+  /** Galaxy research: eye toggle + hover % counter */
+  researchPanel?: ResearchPanelInfo;
 }
 
 const NEON_STYLE_ID = 'scp-neon-pulse';
@@ -56,11 +64,13 @@ function ControlButton({
   title,
   children,
   pulse,
+  active,
 }: {
   onClick: () => void;
   title: string;
   children: React.ReactNode;
   pulse?: boolean;
+  active?: boolean;
 }) {
   const [hover, setHover] = useState(false);
   return (
@@ -69,8 +79,15 @@ function ControlButton({
       title={title}
       style={{
         ...btnStyle,
-        borderColor: hover ? 'rgba(120,160,255,0.5)' : pulse ? undefined : 'rgba(68,102,136,0.4)',
-        color: hover ? '#aabbcc' : pulse ? '#88bbff' : '#8899aa',
+        borderColor: hover
+          ? 'rgba(120,160,255,0.5)'
+          : active
+            ? 'rgba(68,136,180,0.75)'
+            : pulse
+              ? undefined
+              : 'rgba(68,102,136,0.4)',
+        color: hover ? '#aabbcc' : active ? '#7bbcdd' : pulse ? '#88bbff' : '#8899aa',
+        background: active ? 'rgba(20,40,65,0.90)' : btnStyle.background,
         ...(pulse ? { animation: 'scp-neon-pulse 2s ease-in-out infinite' } : {}),
       }}
       onMouseEnter={() => setHover(true)}
@@ -91,6 +108,7 @@ export function SceneControlsPanel({
   showZoom = false,
   extraButtons,
   hidden = false,
+  researchPanel,
 }: SceneControlsPanelProps) {
   // Inject neon pulse keyframes once
   const injected = useRef(false);
@@ -154,6 +172,23 @@ export function SceneControlsPanel({
         <ControlButton onClick={onZoomOut} title="Віддалити">
           {'\u2212'}
         </ControlButton>
+      )}
+
+      {/* Research: eye toggle + hover % counter */}
+      {researchPanel && (
+        <>
+          <ControlButton
+            onClick={researchPanel.onToggle}
+            title={researchPanel.labelsEnabled ? 'Сховати % дослiдженостi' : 'Показати % дослiдженостi'}
+            active={researchPanel.labelsEnabled}
+          >
+            {/* Eye icon */}
+            <svg width="14" height="11" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+              <path d="M1 6 C4 1, 12 1, 15 6 C12 11, 4 11, 1 6Z" />
+              <circle cx="8" cy="6" r="2.2" fill="currentColor" stroke="none" />
+            </svg>
+          </ControlButton>
+        </>
       )}
 
       {/* Extra buttons */}
