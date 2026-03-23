@@ -100,6 +100,25 @@ export async function searchPlayers(
   return res.json();
 }
 
+/** Report a message for Gemini moderation. */
+export async function reportMessage(
+  messageId: string,
+  reportedId: string,
+  content: string,
+  channel: string,
+): Promise<void> {
+  const res = await authFetch(`${API_BASE}/messages/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messageId, reportedId, content, channel }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `Report failed: ${res.status}`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

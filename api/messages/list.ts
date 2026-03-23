@@ -20,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const after = req.query.after as string | undefined;
 
     // Validate channel format
-    if (channel !== 'global' && !channel.startsWith('dm:')) {
+    if (channel !== 'global' && !channel.startsWith('dm:') && !channel.startsWith('system:') && !channel.startsWith('astra:')) {
       return res.status(400).json({ error: 'Invalid channel format' });
     }
 
@@ -29,6 +29,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const parts = channel.split(':');
       if (parts.length !== 3 || (parts[1] !== auth.playerId && parts[2] !== auth.playerId)) {
         return res.status(403).json({ error: 'Not a participant of this channel' });
+      }
+    }
+
+    // For system channels, verify ownership
+    if (channel.startsWith('system:')) {
+      const ownerId = channel.slice('system:'.length);
+      if (ownerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Not authorized to read this channel' });
+      }
+    }
+
+    // For astra channels, verify ownership
+    if (channel.startsWith('astra:')) {
+      const ownerId = channel.slice('astra:'.length);
+      if (ownerId !== auth.playerId) {
+        return res.status(403).json({ error: 'Not authorized to read this channel' });
       }
     }
 

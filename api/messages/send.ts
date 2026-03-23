@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { saveMessage, getPlayer } from '../../packages/server/src/db.js';
+import { saveMessage, getPlayer, isChatBanned } from '../../packages/server/src/db.js';
+import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 
 /**
  * POST /api/messages/send
@@ -15,6 +16,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const auth = await authenticate(req, res);
     if (!auth) return;
+
+    if (!RATE_LIMITS.chat(auth.playerId)) {
+      return res.status(429).json({ error: 'Занадто багато повідомлень. Зачекайте хвилину.' });
+    }
 
     const { channel, content } = req.body ?? {};
 
@@ -39,6 +44,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (parts.length !== 3 || (parts[1] !== auth.playerId && parts[2] !== auth.playerId)) {
         return res.status(403).json({ error: 'Not a participant of this channel' });
       }
+    }
+
+    // Check chat ban
+    if (await isChatBanned(auth.playerId, channel)) {
+      return res.status(403).json({ error: 'Вас тимчасово заблоковано в чаті. Спробуйте пізніше.' });
     }
 
     // Get sender name

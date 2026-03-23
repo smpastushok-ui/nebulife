@@ -199,7 +199,7 @@ export interface SurfaceState {
 // Terrain helpers
 // ---------------------------------------------------------------------------
 
-const LAND_TERRAIN: TerrainType[] = ['lowland', 'plains', 'hills', 'beach'];
+const LAND_TERRAIN: TerrainType[] = ['lowland', 'plains', 'beach'];
 const FLAT_LAND: TerrainType[]    = ['lowland', 'plains'];
 const WATER_TERRAIN: TerrainType[] = ['coast', 'ocean'];
 const HIGH_TERRAIN: TerrainType[] = ['hills', 'mountains'];
@@ -325,7 +325,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     name: 'Вітрогенератор',
     description: 'Енергія з вітру. Потребує атмосферу. Вихід залежить від тиску.',
     size: 3, sizeW: 3, sizeH: 3,
-    requiresTerrain: ['lowland', 'plains', 'hills', 'beach', 'mountains'],
+    requiresTerrain: ['lowland', 'plains', 'beach'],
     cost: [{ resource: 'Al', amount: 20 }, { resource: 'Cu', amount: 10 }, { resource: 'Fe', amount: 15 }],
     levelRequired: 8, techRequired: 'phy-aero', maxPerPlanet: 8,
     energyOutput: 6, energyConsumption: 0, energyStorageAdd: 0,

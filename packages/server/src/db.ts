@@ -1158,3 +1158,267 @@ export async function getTotalPlayerCount(): Promise<number> {
   const rows = await sql`SELECT COUNT(*)::int AS count FROM players`;
   return (rows[0] as { count: number }).count;
 }
+
+// ---------------------------------------------------------------------------
+// Reports & Chat Bans
+// ---------------------------------------------------------------------------
+
+export interface ReportRow {
+  id: number;
+  reporter_id: string;
+  reported_id: string;
+  message_id: string | null;
+  message_content: string;
+  channel: string;
+  context_json: string | null;
+  status: string; // pending|warned|blocked|severe|dismissed
+  gemini_verdict: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+}
+
+export async function saveReport(
+  reporterId: string,
+  reportedId: string,
+  messageId: string | null,
+  content: string,
+  channel: string,
+  contextJson: string,
+): Promise<ReportRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO reports (reporter_id, reported_id, message_id, message_content, channel, context_json)
+    VALUES (${reporterId}, ${reportedId}, ${messageId}, ${content}, ${channel}, ${contextJson})
+    ON CONFLICT (reporter_id, message_id) WHERE message_id IS NOT NULL DO NOTHING
+    RETURNING *
+  `;
+  if (rows[0]) return rows[0] as ReportRow;
+  // Duplicate — fetch existing
+  const existing = await sql`
+    SELECT * FROM reports WHERE reporter_id = ${reporterId} AND message_id = ${messageId} LIMIT 1
+  `;
+  return existing[0] as ReportRow;
+}
+
+export async function getPendingReports(limit: number = 10): Promise<ReportRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM reports WHERE status = 'pending' ORDER BY created_at ASC LIMIT ${limit}
+  `) as ReportRow[];
+}
+
+export async function updateReport(
+  id: number,
+  status: string,
+  verdict: string,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE reports
+    SET status = ${status}, gemini_verdict = ${verdict}, reviewed_at = NOW()
+    WHERE id = ${id}
+  `;
+}
+
+export async function chatBanPlayer(
+  playerId: string,
+  channel: string,
+  expiresAt: Date,
+  reason: string,
+  bannedBy: string = 'gemini',
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO chat_bans (player_id, channel, banned_by, reason, expires_at)
+    VALUES (${playerId}, ${channel}, ${bannedBy}, ${reason}, ${expiresAt.toISOString()})
+    ON CONFLICT (player_id, channel) DO UPDATE
+      SET reason = ${reason}, banned_by = ${bannedBy}, expires_at = ${expiresAt.toISOString()}, created_at = NOW()
+  `;
+}
+
+export async function isChatBanned(playerId: string, channel: string): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT 1 FROM chat_bans
+    WHERE player_id = ${playerId}
+      AND (channel = ${channel} OR channel = 'all')
+      AND expires_at > NOW()
+    LIMIT 1
+  `;
+  return rows.length > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Daily Content (quiz & fun facts)
+// ---------------------------------------------------------------------------
+
+export async function getAllPlayerIds(): Promise<string[]> {
+  const sql = getSQL();
+  const rows = await sql`SELECT id FROM players`;
+  return rows.map((r) => (r as { id: string }).id);
+}
+
+export async function getDailyContent(
+  contentType: string,
+  date?: string,
+): Promise<{ content_json: string } | null> {
+  const sql = getSQL();
+  const d = date ?? new Date().toISOString().slice(0, 10);
+  const rows = await sql`
+    SELECT content_json FROM daily_content
+    WHERE content_type = ${contentType} AND content_date = ${d}
+    LIMIT 1
+  `;
+  return (rows[0] as { content_json: string }) ?? null;
+}
+
+export async function saveDailyContent(
+  contentType: string,
+  contentJson: string,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO daily_content (content_type, content_json)
+    VALUES (${contentType}, ${contentJson})
+    ON CONFLICT (content_type, content_date) DO NOTHING
+  `;
+}
+
+// ---------------------------------------------------------------------------
+// A.S.T.R.A. Token Tracking
+// ---------------------------------------------------------------------------
+
+export interface AstraUsageRow {
+  tokens_used: number;
+  tokens_purchased: number;
+}
+
+/** Get today's A.S.T.R.A. token usage for a player. */
+export async function getAstraUsage(playerId: string): Promise<AstraUsageRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT tokens_used, tokens_purchased FROM astra_tokens
+    WHERE player_id = ${playerId} AND usage_date = CURRENT_DATE
+    LIMIT 1
+  `;
+  if (rows.length === 0) return { tokens_used: 0, tokens_purchased: 0 };
+  const r = rows[0] as { tokens_used: number; tokens_purchased: number };
+  return { tokens_used: r.tokens_used, tokens_purchased: r.tokens_purchased };
+}
+
+/** Add used tokens to today's counter. */
+export async function addAstraUsage(playerId: string, tokens: number): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO astra_tokens (player_id, tokens_used)
+    VALUES (${playerId}, ${tokens})
+    ON CONFLICT (player_id, usage_date)
+    DO UPDATE SET tokens_used = astra_tokens.tokens_used + ${tokens}
+  `;
+}
+
+/** Add purchased tokens to today's counter. */
+export async function addAstraPurchasedTokens(playerId: string, tokens: number): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO astra_tokens (player_id, tokens_purchased)
+    VALUES (${playerId}, ${tokens})
+    ON CONFLICT (player_id, usage_date)
+    DO UPDATE SET tokens_purchased = astra_tokens.tokens_purchased + ${tokens}
+  `;
+}
+
+// ---------------------------------------------------------------------------
+// Weekly Digest
+// ---------------------------------------------------------------------------
+
+export interface WeeklyDigestRow {
+  id: number;
+  week_date: string;
+  news_json: string | null;
+  status: string;
+  images_generated: number;
+  images_json: string | null;
+  created_at: string;
+}
+
+export async function getWeeklyDigest(weekDate: string): Promise<WeeklyDigestRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM weekly_digest WHERE week_date = ${weekDate} LIMIT 1
+  `;
+  return (rows[0] as WeeklyDigestRow) ?? null;
+}
+
+export async function saveWeeklyDigest(weekDate: string, newsJson: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO weekly_digest (week_date, news_json, status)
+    VALUES (${weekDate}, ${newsJson}, 'generating_images')
+    ON CONFLICT (week_date) DO NOTHING
+  `;
+}
+
+export async function getPendingDigest(): Promise<WeeklyDigestRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM weekly_digest
+    WHERE status = 'generating_images' AND images_generated < 10
+    ORDER BY created_at DESC LIMIT 1
+  `;
+  return (rows[0] as WeeklyDigestRow) ?? null;
+}
+
+export async function updateDigestImage(
+  weekDate: string,
+  imagesJson: string,
+  newCount: number,
+): Promise<void> {
+  const sql = getSQL();
+  const status = newCount >= 10 ? 'complete' : 'generating_images';
+  await sql`
+    UPDATE weekly_digest
+    SET images_json = ${imagesJson}, images_generated = ${newCount}, status = ${status}
+    WHERE week_date = ${weekDate}
+  `;
+}
+
+export async function getLatestCompleteDigest(): Promise<WeeklyDigestRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM weekly_digest WHERE status = 'complete'
+    ORDER BY week_date DESC LIMIT 1
+  `;
+  return (rows[0] as WeeklyDigestRow) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Ad Rewards
+// ---------------------------------------------------------------------------
+
+const AD_DAILY_LIMIT = 10;
+
+export async function getAdRewardCount(playerId: string): Promise<number> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT views_count FROM ad_rewards
+    WHERE player_id = ${playerId} AND reward_date = CURRENT_DATE
+    LIMIT 1
+  `;
+  if (rows.length === 0) return 0;
+  return (rows[0] as { views_count: number }).views_count;
+}
+
+export async function addAdReward(playerId: string, adsWatched: number): Promise<boolean> {
+  const current = await getAdRewardCount(playerId);
+  if (current + adsWatched > AD_DAILY_LIMIT) return false;
+
+  const sql = getSQL();
+  await sql`
+    INSERT INTO ad_rewards (player_id, views_count)
+    VALUES (${playerId}, ${adsWatched})
+    ON CONFLICT (player_id, reward_date)
+    DO UPDATE SET views_count = ad_rewards.views_count + ${adsWatched}
+  `;
+  return true;
+}

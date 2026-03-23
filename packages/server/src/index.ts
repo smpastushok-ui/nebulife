@@ -72,6 +72,29 @@ export {
   searchPlayers,
   // Universe
   getTotalPlayerCount,
+  // Reports & Chat Bans
+  saveReport,
+  getPendingReports,
+  updateReport,
+  chatBanPlayer,
+  isChatBanned,
+  // Daily Content
+  getAllPlayerIds,
+  getDailyContent,
+  saveDailyContent,
+  // A.S.T.R.A. Tokens
+  getAstraUsage,
+  addAstraUsage,
+  addAstraPurchasedTokens,
+  // Weekly Digest
+  getWeeklyDigest,
+  saveWeeklyDigest,
+  getPendingDigest,
+  updateDigestImage,
+  getLatestCompleteDigest,
+  // Ad Rewards
+  getAdRewardCount,
+  addAdReward,
 } from './db.js';
 
 export type {
@@ -88,7 +111,13 @@ export type {
   SystemMissionRow,
   MessageRow,
   DMChannelInfo,
+  ReportRow,
+  WeeklyDigestRow,
 } from './db.js';
+
+// Weekly Digest Generator
+export { generateWeeklyNewsText, generateDigestImage, getCurrentWeekMonday } from './digest-generator.js';
+export type { DigestNewsItem } from './digest-generator.js';
 
 export {
   generateImage,
@@ -125,9 +154,12 @@ export { buildPlanetModelPrompt } from './planet-model-prompt-builder.js';
 // System photo/mission prompt builder
 export { buildSystemPhotoPrompt, buildMissionVideoPrompt, buildGeminiSystemPhotoPrompt } from './system-photo-prompt-builder.js';
 
-// Gemini AI image generation
-export { generateImageWithGemini, computeAspectRatio } from './gemini-client.js';
-export type { GeminiGenerateImageRequest, GeminiGenerateImageResult } from './gemini-client.js';
+// Gemini AI image generation + moderation + A.S.T.R.A. chat + daily content
+export { generateImageWithGemini, computeAspectRatio, moderateMessage, chatWithAstra, generateDailyQuiz, generateDailyFunFact } from './gemini-client.js';
+export type { GeminiGenerateImageRequest, GeminiGenerateImageResult, ModerationResult, ModerationVerdict, AstraMessage, AstraChatResult } from './gemini-client.js';
+
+// A.S.T.R.A. system prompt
+export { ASTRA_SYSTEM_PROMPT } from './astra-prompt.js';
 
 // Surface photo analyzer
 export { analyzePhotoForZones } from './surface-analyzer.js';
@@ -136,3 +168,6 @@ export { analyzePhotoForZones } from './surface-analyzer.js';
 export { verifyFirebaseToken } from './firebase-admin.js';
 export { authenticate, authenticateToken } from './auth-middleware.js';
 export type { AuthResult } from './auth-middleware.js';
+
+// Rate limiter
+export { checkRateLimit, RATE_LIMITS, getClientIP } from './rate-limiter.js';

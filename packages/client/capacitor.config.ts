@@ -8,6 +8,11 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 0,
     },
+    AdMob: {
+      // Test AdMob App ID — replace with real IDs from AdMob dashboard
+      appIdAndroid: 'ca-app-pub-3940256099942544~3347511713',
+      appIdIos: 'ca-app-pub-3940256099942544~1458002511',
+    },
   },
   ios: {
     contentInset: 'automatic',

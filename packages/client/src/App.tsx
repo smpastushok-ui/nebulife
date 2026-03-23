@@ -92,6 +92,7 @@ import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
 import { CinematicIntro } from './ui/components/CinematicIntro.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
+import { DigestModal } from './ui/components/DigestModal.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
 import type { CosmicArchiveHandle } from './ui/components/CosmicArchive/CosmicArchive.js';
@@ -100,6 +101,7 @@ import { TutorialOverlay, FreeTaskHUD, TUTORIAL_STEPS } from './ui/components/Tu
 import type { User } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import { initAds } from './services/ads-service.js';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
   generateSystemMission, pollMissionStatus,
@@ -907,6 +909,10 @@ export function App() {
     photoKey: string;
   } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // ── Digest modal state ──────────────────────────────────────────────
+  const [digestModalImages, setDigestModalImages] = useState<string[] | null>(null);
+  const [digestModalWeekDate, setDigestModalWeekDate] = useState('');
 
   // ── System objects panel state ────────────────────────────────────────
   const [showObjectsPanel, setShowObjectsPanel] = useState(false);
@@ -2855,6 +2861,28 @@ export function App() {
     ]);
   }, []);
 
+  // ── Digest modal event listener ──
+  useEffect(() => {
+    const handleOpenDigest = async (e: Event) => {
+      try {
+        const res = await fetch('/api/digest/latest', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('nebulife_firebase_token') ?? ''}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.digest) return;
+        // Default to UK, fallback to EN
+        const images = data.digest.images?.uk ?? data.digest.images?.en ?? [];
+        if (images.length > 0) {
+          setDigestModalImages(images);
+          setDigestModalWeekDate(data.digest.weekDate);
+        }
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('nebulife:open-digest', handleOpenDigest);
+    return () => window.removeEventListener('nebulife:open-digest', handleOpenDigest);
+  }, []);
+
   // ── Award XP & level-up detection (assign to ref for stable callbacks) ──
   awardXPRef.current = (amount: number, _reason: string) => {
     setPlayerXP((prevXP) => {
@@ -3037,6 +3065,11 @@ export function App() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [hydrateGameStateFromServer]);
+
+  // ── Initialize AdMob on native platforms ────────────────────────────────
+  useEffect(() => {
+    initAds().catch(() => { /* AdMob init failed — non-critical */ });
+  }, []);
 
   // ── Android hardware back button ────────────────────────────────────────
   useEffect(() => {
@@ -4317,6 +4350,15 @@ export function App() {
           onSaveToCollection={handleTelescopeSaveToCollection}
           onShare={handleTelescopeShare}
           onClose={() => setTelescopeOverlay(null)}
+        />
+      )}
+
+      {/* Digest modal */}
+      {digestModalImages && (
+        <DigestModal
+          images={digestModalImages}
+          weekDate={digestModalWeekDate}
+          onClose={() => setDigestModalImages(null)}
         />
       )}
 

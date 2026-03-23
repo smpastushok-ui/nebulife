@@ -155,3 +155,216 @@ export async function generateImageWithGemini(
 
   throw lastError ?? new Error('Gemini generation failed');
 }
+
+// ---------------------------------------------------------------------------
+// A.S.T.R.A. Chat
+// ---------------------------------------------------------------------------
+
+import { ASTRA_SYSTEM_PROMPT } from './astra-prompt.js';
+
+const ASTRA_MODEL = 'gemini-3.1-flash-lite-preview';
+
+export interface AstraMessage {
+  role: 'user' | 'model';
+  text: string;
+}
+
+export interface AstraChatResult {
+  text: string;
+  totalTokens: number;
+}
+
+/**
+ * Send a message to A.S.T.R.A. and get a response.
+ * Returns raw text (may be plain text or JSON quiz) + token count.
+ * Never throws — returns an in-character error string on failure.
+ */
+export async function chatWithAstra(
+  message: string,
+  history: AstraMessage[] = [],
+): Promise<AstraChatResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { text: 'A.S.T.R.A. offline. API key missing.', totalTokens: 0 };
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+
+    // Build conversation history
+    const contents = [
+      ...history.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }],
+      })),
+      {
+        role: 'user' as const,
+        parts: [{ text: message }],
+      },
+    ];
+
+    const response = await ai.models.generateContent({
+      model: ASTRA_MODEL,
+      contents,
+      config: {
+        systemInstruction: ASTRA_SYSTEM_PROMPT,
+        thinkingConfig: { thinkingBudget: 512 },
+      },
+    });
+
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const usage = response.usageMetadata;
+    const totalTokens = usage?.totalTokenCount ?? 0;
+
+    return { text: text.trim(), totalTokens };
+  } catch {
+    return { text: 'A.S.T.R.A. offline. Спробуйте пізніше, Командоре.', totalTokens: 0 };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Gemini Text Moderation
+// ---------------------------------------------------------------------------
+
+const MODERATION_MODEL = 'gemini-2.0-flash';
+
+export type ModerationVerdict = 'SAFE' | 'WARN' | 'BLOCK' | 'SEVERE';
+
+export interface ModerationResult {
+  verdict: ModerationVerdict;
+  category: string;
+  reason: string;
+  confidence: number;
+}
+
+/**
+ * Moderate a chat message using Gemini.
+ * Returns SAFE on any parse/API failure — never false-bans.
+ */
+export async function moderateMessage(opts: {
+  content: string;
+  contextMessages: Array<{ senderName: string; content: string }>;
+  senderName: string;
+}): Promise<ModerationResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+
+  const contextText = opts.contextMessages.length > 0
+    ? opts.contextMessages.map(m => `${m.senderName}: ${m.content}`).join('\n')
+    : '(немає контексту)';
+
+  const prompt = `Ти модератор гри Nebulife. Оціни повідомлення гравця в чаті.
+
+Гравець "${opts.senderName}" написав:
+"${opts.content}"
+
+Контекст (останні повідомлення):
+${contextText}
+
+Категорії порушень: SPAM | HARASSMENT | OFFENSIVE_LANGUAGE | FLOOD | SAFE
+
+Рівні покарання:
+- SAFE — без порушень
+- WARN — легке порушення (5 хвилин мовчанки)
+- BLOCK — серйозне порушення (1-24 години)
+- SEVERE — дуже грубе порушення (7-30 днів)
+
+Відповідай ТІЛЬКИ JSON (без markdown, без пояснень):
+{"verdict":"SAFE","category":"SAFE","reason":"...","confidence":0.0}
+
+Будь поблажливим. SEVERE лише для найгрубіших випадків.`;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: MODERATION_MODEL,
+      contents: prompt,
+      config: { thinkingConfig: { thinkingBudget: 0 } },
+    });
+
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    // Strip markdown code fences if present
+    const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned) as ModerationResult;
+
+    const valid: ModerationVerdict[] = ['SAFE', 'WARN', 'BLOCK', 'SEVERE'];
+    if (!valid.includes(parsed.verdict)) return { verdict: 'SAFE', category: 'SAFE', reason: 'parse error', confidence: 0 };
+
+    return parsed;
+  } catch {
+    // Fail open — never false-ban
+    return { verdict: 'SAFE', category: 'SAFE', reason: 'moderation unavailable', confidence: 0 };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Daily Quiz & Fun Fact Generation
+// ---------------------------------------------------------------------------
+
+const DAILY_MODEL = 'gemini-3.1-flash-lite-preview';
+
+/**
+ * Generate a daily quiz about space/astrophysics.
+ * Returns validated quiz JSON string.
+ */
+export async function generateDailyQuiz(): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+
+  const prompt = `Ти генератор щоденних вікторин для гри Nebulife — космічного симулятора.
+Створи одне оригінальне запитання про космос, астрофізику, планетологію або зоряну навігацію.
+Запитання мають бути різноманітними: від легких до складних, іноді жартівливі.
+Мова: Українська.
+
+Відповідай ТІЛЬКИ чистим JSON (без markdown, без пояснень):
+{"type":"quiz","data":{"question":"...","options":["A","B","C","D"],"correctIndex":0,"explanation":"...","xpReward":50}}
+
+Правила:
+- 4 варіанти відповіді (перемішай порядок)
+- correctIndex: індекс правильної відповіді (0-3)
+- explanation: коротке (1-2 речення) пояснення правильної відповіді
+- xpReward: завжди 50
+- Одна правильна, одна правдоподібна помилка, одна смішна, одна абсурдна`;
+
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: DAILY_MODEL,
+    contents: prompt,
+    config: { thinkingConfig: { thinkingBudget: 256 } },
+  });
+
+  const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+
+  // Validate JSON structure
+  const parsed = JSON.parse(cleaned);
+  if (parsed?.type !== 'quiz' || !parsed?.data?.question || !Array.isArray(parsed?.data?.options)) {
+    throw new Error('Invalid quiz JSON structure');
+  }
+
+  return cleaned;
+}
+
+/**
+ * Generate a daily fun fact about space.
+ * Returns a short fact string in Ukrainian.
+ */
+export async function generateDailyFunFact(): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+
+  const prompt = `Ти A.S.T.R.A. — бортовий ШІ космічної гри Nebulife.
+Згенеруй один короткий цікавий факт про космос, астрофізику, зірки, планети або Всесвіт.
+Формат: "Командоре, а ви знали, що [факт]?"
+Мова: Українська. Максимум 2-3 речення. Без емодзі. Науково достовірно.
+Кожен факт має бути унікальним і неочікуваним.
+Відповідай ТІЛЬКИ текстом факту, без зайвих пояснень.`;
+
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: DAILY_MODEL,
+    contents: prompt,
+    config: { thinkingConfig: { thinkingBudget: 128 } },
+  });
+
+  const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  return text.trim();
+}

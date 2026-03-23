@@ -8,6 +8,7 @@ import {
   getPlanetModelByPayment,
   getPlanetModel,
   updatePlanetModel,
+  addAstraPurchasedTokens,
 } from '../../packages/server/src/db.js';
 import { generateImage } from '../../packages/server/src/kling-client.js';
 import { buildPlanetModelPrompt } from '../../packages/server/src/planet-model-prompt-builder.js';
@@ -199,6 +200,13 @@ async function handleIntentSuccess(
     // Surface generation purchase — just credit quarks (surface endpoint handles the rest)
     console.log(`Surface purchase top-up completed: ${intent.player_id} +${intent.amount_quarks} quarks`);
     return res.status(200).json({ status: 'ok', type: 'purchase_surface' });
+  }
+
+  if (intent.purpose === 'astra_tokens') {
+    // A.S.T.R.A. Alpha — credit 10000 tokens
+    await addAstraPurchasedTokens(intent.player_id, 10000);
+    console.log(`ASTRA tokens purchased: ${intent.player_id} +10000 tokens`);
+    return res.status(200).json({ status: 'ok', type: 'astra_tokens' });
   }
 
   return res.status(200).json({ status: 'ok' });
