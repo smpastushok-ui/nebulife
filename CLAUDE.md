@@ -14,7 +14,6 @@
 - **Мова інтерфейсу**: Українська
 - **Детермінізм**: один seed → ідентичний результат (SeededRNG)
 - **60fps**: статична геометрія рендериться раз, per-frame тільки позиції та alpha
-- **Blur filters заборонені** — використовувати concentric circles
 - **Parallax backgrounds заборонені** — конфліктує з CameraController
 
 ---

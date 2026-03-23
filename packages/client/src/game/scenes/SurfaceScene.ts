@@ -22,6 +22,7 @@ import {
   Sprite,
   TilingSprite,
   ColorMatrixFilter,
+  BlurFilter,
   Assets,
   Texture,
   Rectangle,
@@ -2607,10 +2608,13 @@ export class SurfaceScene {
         // trail2 → trail1 → main (back to front)
         for (let i = 0; i < 3; i++) {
           const sp = new Sprite(this.windRotorTex);
-          sp.pivot.set(HUB_X, HUB_Y);                      // rotation axis = hub center (no drift)
-          sp.scale.set(baseScale, baseScale * (TILE_H / TILE_W)); // isometric squash: 80/128 = 0.625
+          sp.pivot.set(HUB_X, HUB_Y);              // rotation axis = hub center (no drift)
+          sp.scale.set(baseScale, baseScale * 0.5); // isometric squash: scaleY=0.5 (top-down → isometric)
           sp.position.set(rx, ry);
-          sp.alpha = i === 2 ? 1.0 : 0.30;
+          sp.alpha = i === 0 ? 0.15 : i === 1 ? 0.40 : 1.0; // trail2 / trail1 / main
+          // Motion blur via BlurFilter (trail2: 3px, trail1: 1px, main: no blur)
+          if (i === 0) sp.filters = [new BlurFilter({ strength: 3 })];
+          else if (i === 1) sp.filters = [new BlurFilter({ strength: 1 })];
           L.addChild(sp);
           sprites.push(sp);
         }
@@ -3106,12 +3110,12 @@ export class SurfaceScene {
       } else if (eff.type === 'wind_generator') {
         // ── Fast rotor with motion-blur trail: sprites[0]=trail2, [1]=trail1, [2]=main ──
         if (eff.sprites.length >= 3) {
-          // 0.018 rad/ms ≈ 0.3 * 60fps — fast turbine spin
-          eff.extra['rot'] = ((eff.extra['rot'] ?? 0) + 0.018 * deltaMs) % (Math.PI * 2);
+          // 3.5 deg/frame @60fps = 210 deg/s = 0.003665 rad/ms (matches HTML reference)
+          eff.extra['rot'] = ((eff.extra['rot'] ?? 0) + 0.003665 * deltaMs) % (Math.PI * 2);
           const rot = eff.extra['rot'];
-          eff.sprites[0].rotation = rot - 0.30; // trail2
-          eff.sprites[1].rotation = rot - 0.15; // trail1
-          eff.sprites[2].rotation = rot;         // main rotor
+          eff.sprites[0].rotation = rot - 0.305; // trail2 (speed*5 frames = 17.5deg)
+          eff.sprites[1].rotation = rot - 0.153; // trail1 (speed*2.5 frames = 8.75deg)
+          eff.sprites[2].rotation = rot;          // main rotor
         }
 
       } else if (eff.type === 'battery_station') {
