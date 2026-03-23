@@ -256,6 +256,7 @@ function createCloudLayer(
       uCoverage: { value: params.coverage },
       uTime: timeUniform,
       uSeed: { value: planet.seed },
+      uStarDir: { value: STAR_SPRITE_POSITION.clone().normalize().negate() },
     },
     transparent: true,
     side: THREE.FrontSide,
