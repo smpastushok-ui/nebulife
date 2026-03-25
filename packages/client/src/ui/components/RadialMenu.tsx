@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 import type { SystemPhotoData, SystemMissionData } from './SystemContextMenu.js';
 
@@ -61,8 +62,9 @@ function buildButtons(props: {
   quarks: number;
   playerLevel: number;
   researchBlockReason: string | null;
+  t: (key: string) => string;
 }): ButtonDef[] {
-  const { isHome, isResearched, systemPhoto, quarks, researchBlockReason } = props;
+  const { isHome, isResearched, systemPhoto, quarks, researchBlockReason, t } = props;
   const canEnter = isHome || isResearched;
   const hasPhoto = systemPhoto?.status === 'succeed' && !!systemPhoto.photoUrl;
   const photoGenerating = systemPhoto?.status === 'generating';
@@ -71,43 +73,43 @@ function buildButtons(props: {
 
   // Navigation
   if (canEnter) {
-    list.push({ icon: '\u2192', tip: 'До системи',      color: '#88ccaa', action: 'enter'   });
-    list.push({ icon: '\u25CB', tip: "Об'єкти системи",  color: '#7799bb', action: 'objects' });
+    list.push({ icon: '\u2192', tip: t('radial.enter_system'), color: '#88ccaa', action: 'enter'   });
+    list.push({ icon: '\u25CB', tip: t('radial.objects'),       color: '#7799bb', action: 'objects' });
   }
 
   // General
-  list.push({ icon: '\u2261', tip: 'Характеристики', color: '#8899aa', action: 'chars'  });
-  list.push({ icon: '\u270E', tip: 'Перейменувати',  color: '#8899aa', action: 'rename' });
+  list.push({ icon: '\u2261', tip: t('radial.characteristics'), color: '#8899aa', action: 'chars'  });
+  list.push({ icon: '\u270E', tip: t('common.rename'),           color: '#8899aa', action: 'rename' });
 
   // Research
   if (!isResearched && !isHome) {
     const blocked = researchBlockReason !== null;
     list.push({
       icon: '\u25CE',
-      tip: blocked ? researchBlockReason! : 'Дослідити',
+      tip: blocked ? researchBlockReason! : t('radial.research'),
       color: '#4488aa',
       action: 'research',
       dim: blocked,
     });
   }
 
-  // Premium button — Альфа-рівень (telescope panorama + future tools)
+  // Premium button — Alpha level (telescope panorama + future tools)
   if (isResearched) {
     let premAction = 'none';
-    let premTip = '\u0420\u0456\u0432\u0435\u043d\u044c-\u0410\u043b\u044c\u0444\u0430'; // Рівень-Альфа
+    let premTip = t('radial.alpha_level');
     let premDim = false;
-    const ALPHA_HINT = '\u041e\u0442\u0440\u0438\u043c\u0430\u0442\u0438 \u0444\u043e\u0442\u043e \u0437 \u0410\u043b\u044c\u0444\u0430 \u0442\u0435\u043b\u0435\u0441\u043a\u043e\u043f\u0430. \u0412\u0438\u043a\u043e\u0440\u0438\u0441\u0442\u043e\u0432\u0443\u0454 \u043a\u0432\u0430\u0440\u043a\u0438 \u0434\u043b\u044f \u043e\u0440\u0435\u043d\u0434\u0438 \u043d\u0430\u0434\u0441\u0443\u0447\u0430\u0441\u043d\u043e\u0433\u043e \u0442\u0435\u043b\u0435\u0441\u043a\u043e\u043f\u0430'; // Отримати фото з Альфа телескопа...
+    const ALPHA_HINT = t('radial.alpha_hint');
 
     if (hasPhoto) {
       premAction = 'viewPhoto';
-      premTip = '\u0414\u0438\u0432\u0438\u0442\u0438\u0441\u044f \u043f\u0430\u043d\u043e\u0440\u0430\u043c\u043e\u044e'; // Дивитися панораму
+      premTip = t('radial.view_panorama');
     } else if (photoGenerating) {
       premAction = 'none';
-      premTip = '\u041e\u0431\u0440\u043e\u0431\u043a\u0430...'; // Обробка...
+      premTip = t('radial.processing');
       premDim = true;
     } else {
-      premAction = quarks >= 30 ? 'telescope' : 'none';
-      premDim = quarks < 30;
+      premAction = quarks >= 100 ? 'telescope' : 'none';
+      premDim = quarks < 100;
     }
 
     list.push({
@@ -117,7 +119,7 @@ function buildButtons(props: {
       action: premAction,
       dim: premDim,
       isPremium: true,
-      submenuLabel: `\u0424\u043e\u0442\u043e-\u043f\u0430\u043d\u043e\u0440\u0430\u043c\u0430 \u0441\u0438\u0441\u0442\u0435\u043c\u0438 \u00B7 30\u269B`, // Фото-панорама системи · 30⚛
+      submenuLabel: t('radial.panorama_cost'),
       hint: ALPHA_HINT,
     });
   }
@@ -129,10 +131,7 @@ function buildButtons(props: {
 // Spectral type labels
 // ---------------------------------------------------------------------------
 
-const SP_NAMES: Record<string, string> = {
-  O: 'O-тип', B: 'B-тип', A: 'A-тип', F: 'F-тип',
-  G: 'G-тип', K: 'K-тип', M: 'M-тип',
-};
+const SP_CLASSES = ['O', 'B', 'A', 'F', 'G', 'K', 'M'] as const;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -169,6 +168,7 @@ export function RadialMenu({
   onClose, onEnterSystem, onObjectsList, onRename, onCharacteristics,
   onResearch, onTelescopePhoto, onViewPhoto, onSendMission, onViewVideo,
 }: RadialMenuProps) {
+  const { t } = useTranslation();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const chipRef = useRef<HTMLDivElement>(null);
@@ -190,8 +190,9 @@ export function RadialMenu({
 
   // Build button definitions
   const buttons = useMemo(
-    () => buildButtons({ isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel, researchBlockReason }),
-    [isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel, researchBlockReason],
+    () => buildButtons({ isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel, researchBlockReason, t }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isHome, isResearched, systemPhoto, activeMission, quarks, playerLevel, researchBlockReason, t],
   );
   const premBtnIdx = useMemo(() => buttons.findIndex(b => b.isPremium), [buttons]);
 
@@ -247,9 +248,13 @@ export function RadialMenu({
           if (premSubRef.current && premBtnIdx >= 0 && positions[premBtnIdx]) {
             const pp = positions[premBtnIdx];
             premSubRef.current.style.top = pp.top + 'px';
-            premSubRef.current.style.left = pp.cosA < -0.15
-              ? (pp.left - 8 - 155) + 'px'
-              : (pp.left + BTN_SIZE + 8) + 'px';
+            const subW = premSubRef.current.offsetWidth || 190;
+            const desiredLeft = pp.cosA < -0.15
+              ? pp.left - 8 - subW
+              : pp.left + BTN_SIZE + 8;
+            // Clamp so submenu never exits the right or left edge
+            const clampedLeft = Math.max(8, Math.min(desiredLeft, window.innerWidth - subW - 8));
+            premSubRef.current.style.left = clampedLeft + 'px';
           }
         }
         if (chipRef.current) {
@@ -278,8 +283,11 @@ export function RadialMenu({
 
   // Planet count label
   const planetsCount = system.planets.length;
-  const planetWord = planetsCount === 1 ? 'планета' : planetsCount < 5 ? 'планети' : 'планет';
-  const spLabel = SP_NAMES[system.star.spectralClass] ?? system.star.spectralClass;
+  const planetWord = planetsCount === 1 ? t('radial.planet_one') : planetsCount < 5 ? t('radial.planet_few') : t('radial.planet_many');
+  const spClass = system.star.spectralClass;
+  const spLabel = SP_CLASSES.includes(spClass as typeof SP_CLASSES[number])
+    ? t(`radial.star_${spClass.toLowerCase()}`)
+    : spClass;
 
   // Initial positions (will be overwritten by rAF, but avoids flash)
   const initPos = getScreenPos();
@@ -321,7 +329,7 @@ export function RadialMenu({
         <div style={{ fontSize: 8, color: '#445566', marginTop: 3, letterSpacing: '0.1em' }}>
           {isHome || isResearched
             ? `${spLabel} \u00B7 ${planetsCount} ${planetWord}`
-            : `? \u00B7 ? планет`
+            : t('radial.unknown_planets')
           }
         </div>
       </div>

@@ -2,11 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
 import { deductQuarks, creditQuarks, saveSystemPhoto } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
+import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { buildGeminiSystemPhotoPrompt, buildGeminiPlanetPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
+import { verifyPhotoToken } from '../../packages/server/src/photo-token.js';
 import type { StarSystem } from '@nebulife/core';
 
-const SYSTEM_PHOTO_COST = 10;
-const PLANET_PHOTO_COST = 10;
+const SYSTEM_PHOTO_COST = 100;
+const PLANET_PHOTO_COST = 25;
 
 // Allow up to 60s for Gemini image generation + blob upload
 export const config = {
@@ -32,8 +34,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = await authenticate(req, res);
   if (!auth) return;
 
+  if (!await RATE_LIMITS.generation(auth.playerId)) {
+    return res.status(429).json({ error: 'Зачекайте перед наступною генерацією.' });
+  }
+
   try {
-    const { playerId, systemId, systemData, screenWidth, screenHeight, planetId } = req.body;
+    const { playerId, systemId, systemData, screenWidth, screenHeight, planetId, adPhotoToken } = req.body;
 
     if (!playerId || !systemId || !systemData) {
       return res.status(400).json({ error: 'Missing required fields: playerId, systemId, systemData' });
@@ -44,14 +50,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
 
-    // Determine cost: planet telescope photo = 10, system photo = 30
     const isPlanetPhoto = !!planetId;
     const cost = isPlanetPhoto ? PLANET_PHOTO_COST : SYSTEM_PHOTO_COST;
 
-    // 1. Deduct quarks
-    const player = await deductQuarks(playerId, cost);
-    if (!player) {
-      return res.status(402).json({ error: 'Insufficient quarks', required: cost });
+    // Check if this generation is funded by a valid ad-reward token.
+    // The token is HMAC-signed server-side after the player watched the required ads —
+    // the client cannot forge it without knowing PHOTO_HMAC_SECRET.
+    const expectedTokenType = isPlanetPhoto ? 'planet_photo' : 'panorama_photo';
+    const paidWithAds = typeof adPhotoToken === 'string' &&
+      verifyPhotoToken(adPhotoToken, playerId, expectedTokenType);
+
+    // 1. Deduct quarks (only if not ad-funded)
+    let player: { quarks: number } | null = null;
+    if (!paidWithAds) {
+      player = await deductQuarks(playerId, cost);
+      if (!player) {
+        return res.status(402).json({ error: 'Insufficient quarks', required: cost });
+      }
     }
 
     // 2. Build cinematic prompt
@@ -60,8 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (isPlanetPhoto) {
       const planet = sys.planets.find(p => p.id === planetId);
       if (!planet) {
-        // Refund and return error
-        await creditQuarks(playerId, cost);
+        // Refund quarks only if they were deducted
+        if (!paidWithAds) await creditQuarks(playerId, cost);
         return res.status(400).json({ error: 'Planet not found in system data' });
       }
       prompt = buildGeminiPlanetPhotoPrompt(sys, planet);
@@ -91,16 +106,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       photoId,
       status: 'succeed',
       photoUrl: result.imageUrl,
-      quarksRemaining: player.quarks,
+      quarksRemaining: player?.quarks ?? null,
     });
   } catch (err) {
     console.error('System photo generate error:', err);
 
-    // Refund quarks on generation failure (player already paid)
+    // Refund quarks on generation failure — only if the player paid with quarks (not ads)
     try {
-      const { playerId, planetId: pid } = req.body;
-      const refundAmount = pid ? PLANET_PHOTO_COST : SYSTEM_PHOTO_COST;
-      if (playerId) {
+      const { playerId, planetId: pid, adPhotoToken: apt } = req.body;
+      const isPlanet = !!pid;
+      const expectedType = isPlanet ? 'planet_photo' : 'panorama_photo';
+      const wasAdFunded = typeof apt === 'string' && verifyPhotoToken(apt, playerId, expectedType);
+
+      if (playerId && !wasAdFunded) {
+        const refundAmount = isPlanet ? PLANET_PHOTO_COST : SYSTEM_PHOTO_COST;
         const refunded = await creditQuarks(playerId, refundAmount);
         console.log(`[Refund] Credited ${refundAmount} quarks back to ${playerId}, new balance: ${refunded.quarks}`);
         return res.status(500).json({

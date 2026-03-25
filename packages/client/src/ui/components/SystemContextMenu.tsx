@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
+import { AdProgressButton } from './AdProgressButton.js';
 
 // ---------------------------------------------------------------------------
 // SystemContextMenu — context popup for a star system in the galaxy view
@@ -161,8 +163,9 @@ export function SystemContextMenu({
   system, screenPosition, isHome, isResearched,
   systemPhoto, activeMission, quarks, playerLevel,
   onClose, onEnterSystem, onObjectsList, onRename, onCharacteristics,
-  onResearch, onTelescopePhoto, onViewPhoto,
+  onResearch, onTelescopePhoto, onAdTelescopePhoto, onViewPhoto,
   onSendMission, onViewVideo,
+  canShowAds,
 }: {
   system: StarSystem;
   screenPosition: { x: number; y: number };
@@ -179,10 +182,14 @@ export function SystemContextMenu({
   onCharacteristics: () => void;
   onResearch: () => void;
   onTelescopePhoto: () => void;
+  onAdTelescopePhoto?: (photoToken: string) => void;
   onViewPhoto: () => void;
   onSendMission: (dur: 'short' | 'long') => void;
   onViewVideo: () => void;
+  canShowAds?: boolean;
 }) {
+  const { t } = useTranslation();
+
   // Clamp menu position to viewport
   const maxX = window.innerWidth - MENU_WIDTH - 16;
   const maxY = window.innerHeight - MENU_HEIGHT_APPROX - 16;
@@ -201,7 +208,7 @@ export function SystemContextMenu({
 
   const canMission = hasPhoto && !missionGenerating && !missionComplete;
 
-  const PHOTO_COST = 30;
+  const PHOTO_COST = 100;
 
   const starTag = `${system.star.spectralClass}${system.star.subType}`;
   const planetsCount = system.planets.length;
@@ -229,59 +236,72 @@ export function SystemContextMenu({
         <div style={subHeaderStyle}>
           {isHome || isResearched
             ? <>{starTag} &nbsp;|&nbsp; {planetsCount}{' '}
-                {planetsCount === 1 ? 'планета' : planetsCount < 5 ? 'планети' : 'планет'}</>
-            : <>? &nbsp;|&nbsp; ? планет</>
+                {planetsCount === 1 ? t('radial.planet_one') : planetsCount < 5 ? t('radial.planet_few') : t('radial.planet_many')}</>
+            : <>? &nbsp;|&nbsp; {t('radial.unknown_planets')}</>
           }
         </div>
 
         {/* Navigation */}
         {canEnter && (
           <>
-            <MenuItem label="До системи" onClick={onEnterSystem} color="#88ccaa" />
-            <MenuItem label="Об'єкти системи" onClick={onObjectsList} color="#7799bb" />
+            <MenuItem label={t('radial.enter_system')} onClick={onEnterSystem} color="#88ccaa" />
+            <MenuItem label={t('radial.objects')} onClick={onObjectsList} color="#7799bb" />
           </>
         )}
 
         {/* General */}
-        <MenuItem label="Перейменувати" onClick={onRename} />
-        <MenuItem label="Характеристики" onClick={onCharacteristics} />
+        <MenuItem label={t('common.rename')} onClick={onRename} />
+        <MenuItem label={t('radial.characteristics')} onClick={onCharacteristics} />
 
         {/* Research action (if not yet researched) */}
         {!isResearched && !isHome && (
-          <MenuItem label="Дослідити" onClick={onResearch} color="#4488aa" />
+          <MenuItem label={t('radial.research')} onClick={onResearch} color="#4488aa" />
         )}
 
-        {/* ── Дослідження group ── */}
+        {/* Research group */}
         {(isResearched || isHome) && (
           <>
             <div style={separatorStyle} />
-            <div style={groupLabelStyle}>ДОСЛІДЖЕННЯ</div>
+            <div style={groupLabelStyle}>{t('context_menu.research_group')}</div>
 
             {/* Telescope photo */}
             {canPhoto && (
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ flex: 1 }}>
                   <MenuItem
-                    label={`Панорама системи — ${PHOTO_COST} ⚛`}
+                    label={t('context_menu.panorama_cost', { cost: PHOTO_COST })}
                     onClick={onTelescopePhoto}
                     color={quarks >= PHOTO_COST ? '#ddaa44' : '#445566'}
                     disabled={quarks < PHOTO_COST}
                   />
                 </div>
-                <TooltipHint text="Оренда потужностей супертелескопа, який зробить неперевершену унікальну панораму обраної зоряної системи. Таке зображення буде лише у вас." />
+                <TooltipHint text={t('context_menu.panorama_tooltip')} />
+              </div>
+            )}
+            {/* Ad-funded system panorama (native only) */}
+            {canPhoto && canShowAds && onAdTelescopePhoto && !photoGenerating && (
+              <div style={{ padding: '4px 8px' }}>
+                <AdProgressButton
+                  label={t('context_menu.panorama_ad_label')}
+                  progressLabel={t('context_menu.panorama_ad_progress', { done: '{done}', total: '{total}' })}
+                  requiredAds={5}
+                  adRewardType="panorama_photo"
+                  onComplete={onAdTelescopePhoto}
+                  variant="menu"
+                />
               </div>
             )}
             {photoGenerating && (
-              <MenuItem label="Обробка панорами..." onClick={() => {}} disabled />
+              <MenuItem label={t('context_menu.panorama_processing')} onClick={() => {}} disabled />
             )}
             {hasPhoto && (
-              <MenuItem label="Дивитися панораму системи" onClick={onViewPhoto} color="#7bb8ff" />
+              <MenuItem label={t('context_menu.view_panorama')} onClick={onViewPhoto} color="#7bb8ff" />
             )}
 
             {/* Probe — available from level 50+, costs data research */}
             {playerLevel >= 50 ? (
               <MenuItem
-                label="Вiдправити зонд"
+                label={t('context_menu.send_probe')}
                 onClick={() => {}}
                 color="#88ccaa"
                 disabled
@@ -289,10 +309,10 @@ export function SystemContextMenu({
             ) : (
               <div
                 style={disabledItemStyle}
-                title={`Доступно з 50+ рiвня (зараз: ${playerLevel})`}
+                title={t('planet.available_from_level', { level: 50, current: playerLevel })}
               >
-                Вiдправити зонд
-                <span style={{ marginLeft: 6, fontSize: 9, color: '#445566' }}>рiвень 50+</span>
+                {t('context_menu.send_probe')}
+                <span style={{ marginLeft: 6, fontSize: 9, color: '#445566' }}>{t('context_menu.level_50_plus')}</span>
               </div>
             )}
 
@@ -300,15 +320,15 @@ export function SystemContextMenu({
             {canMission && (
               <>
                 <div style={separatorStyle} />
-                <div style={groupLabelStyle}>МІСІЇ</div>
+                <div style={groupLabelStyle}>{t('context_menu.missions_group')}</div>
                 <MenuItem
-                  label={`Коротка місія 5с — 30 ⚛`}
+                  label={t('context_menu.mission_short')}
                   onClick={() => onSendMission('short')}
                   color={quarks >= 30 ? '#ddaa44' : '#445566'}
                   disabled={quarks < 30}
                 />
                 <MenuItem
-                  label={`Довга місія 10с — 60 ⚛`}
+                  label={t('context_menu.mission_long')}
                   onClick={() => onSendMission('long')}
                   color={quarks >= 60 ? '#ddaa44' : '#445566'}
                   disabled={quarks < 60}
@@ -316,10 +336,10 @@ export function SystemContextMenu({
               </>
             )}
             {missionGenerating && (
-              <MenuItem label="Місія — в процесі..." onClick={() => {}} disabled />
+              <MenuItem label={t('context_menu.mission_processing')} onClick={() => {}} disabled />
             )}
             {missionComplete && (
-              <MenuItem label="Дивитися відео місії" onClick={onViewVideo} color="#7bb8ff" />
+              <MenuItem label={t('context_menu.view_mission_video')} onClick={onViewVideo} color="#7bb8ff" />
             )}
           </>
         )}

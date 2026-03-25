@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateImage } from '../../packages/server/src/kling-client.js';
 import { saveKlingTask, saveDiscovery, deductQuarks } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
+import { verifyPhotoToken } from '../../packages/server/src/photo-token.js';
 
 /**
  * POST /api/kling/generate
@@ -45,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       aspectRatio,
       scientificReport,
       cost,
+      adPhotoToken,
     } = req.body;
 
     if (!playerId || !discoveryId || !objectType || !prompt) {
@@ -56,10 +58,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
 
-    // Deduct quarks if cost > 0
+    // Check if funded by a valid ad-reward photo token (HMAC-signed by server after watching ads).
+    // The client cannot forge this token — it must be obtained from POST /api/ads/reward.
+    const paidWithAds = typeof adPhotoToken === 'string' &&
+      verifyPhotoToken(adPhotoToken, playerId, 'discovery_photo');
+
+    // Deduct quarks if cost > 0 and not funded by ads
     let quarksRemaining: number | undefined;
     const quarkCost = typeof cost === 'number' && cost > 0 ? cost : 0;
-    if (quarkCost > 0) {
+    if (quarkCost > 0 && !paidWithAds) {
       const player = await deductQuarks(playerId, quarkCost);
       if (!player) {
         return res.status(402).json({ error: 'Insufficient quarks' });

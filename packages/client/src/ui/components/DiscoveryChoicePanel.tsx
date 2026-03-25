@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Discovery, StarSystem, DiscoveryRarity } from '@nebulife/core';
-import { RARITY_COLORS, RARITY_LABELS, getCatalogEntry } from '@nebulife/core';
+import { RARITY_COLORS, getCatalogEntry } from '@nebulife/core';
 import type { CatalogEntry } from '@nebulife/core';
+import { AdProgressButton } from './AdProgressButton.js';
 
 // ---------------------------------------------------------------------------
 // DiscoveryChoicePanel — Centered modal with 3 choices when a discovery is made
@@ -12,13 +14,6 @@ import type { CatalogEntry } from '@nebulife/core';
 //   3. Пропустити (dismiss)
 // ---------------------------------------------------------------------------
 
-const CATEGORY_LABELS: Record<string, string> = {
-  cosmos: 'Космос',
-  flora: 'Флора',
-  fauna: 'Фауна',
-  anomalies: 'Аномалії',
-  landscapes: 'Ландшафти',
-};
 
 interface DiscoveryChoicePanelProps {
   discovery: Discovery;
@@ -26,8 +21,10 @@ interface DiscoveryChoicePanelProps {
   isFirstDiscovery: boolean;
   isLuckyFree: boolean;
   playerQuarks: number;
+  canShowAds: boolean;
   onTelemetry: () => void;
   onQuantumFocus: () => void;
+  onAdQuantumFocus?: (photoToken: string) => void;
   onSkip: () => void;
 }
 
@@ -37,22 +34,25 @@ export function DiscoveryChoicePanel({
   isFirstDiscovery,
   isLuckyFree,
   playerQuarks,
+  canShowAds,
   onTelemetry,
   onQuantumFocus,
+  onAdQuantumFocus,
   onSkip,
 }: DiscoveryChoicePanelProps) {
+  const { t, i18n } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
   const catalog = getCatalogEntry(discovery.type) as CatalogEntry | undefined;
   const color = RARITY_COLORS[discovery.rarity];
-  const rarityLabel = RARITY_LABELS[discovery.rarity];
-  const categoryLabel = CATEGORY_LABELS[discovery.galleryCategory] ?? discovery.galleryCategory;
-  const name = catalog?.nameUk ?? discovery.type;
+  const rarityLabel = t(`rarity.${discovery.rarity}`);
+  const categoryLabel = t(`discovery_notification.category_${discovery.galleryCategory}`, { defaultValue: discovery.galleryCategory });
+  const name = (i18n.language === 'en' ? catalog?.nameEn : catalog?.nameUk) ?? catalog?.nameUk ?? discovery.type;
 
   const isFreeQuantum = isFirstDiscovery || isLuckyFree;
-  const quantumCost = isFreeQuantum ? 0 : 3;
-  const canAffordQuantum = isFreeQuantum || playerQuarks >= 3;
+  const quantumCost = isFreeQuantum ? 0 : 25;
+  const canAffordQuantum = isFreeQuantum || playerQuarks >= 25;
 
   const isEpicOrAbove = discovery.rarity === 'epic' || discovery.rarity === 'legendary';
 
@@ -79,6 +79,7 @@ export function DiscoveryChoicePanel({
           backdropFilter: 'blur(4px)',
           opacity: visible && !exiting ? 1 : 0,
           transition: 'opacity 0.4s ease',
+          pointerEvents: visible && !exiting ? 'auto' : 'none',
         }}
         /* No backdrop dismiss — prevent accidental loss of discovery */
       />
@@ -103,6 +104,7 @@ export function DiscoveryChoicePanel({
             ? 'translate(-50%, -50%) scale(1)'
             : 'translate(-50%, -50%) scale(0.92)',
           opacity: visible && !exiting ? 1 : 0,
+          pointerEvents: visible && !exiting ? 'auto' : 'none',
           transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease',
           boxShadow: `0 0 60px rgba(0,0,0,0.6), 0 0 20px ${color}15`,
           overflow: 'hidden',
@@ -141,11 +143,7 @@ export function DiscoveryChoicePanel({
               color: '#778899',
             }}
           >
-            Командоре, глибоке сканування системи{' '}
-            <span style={{ color: '#aabbcc' }}>{system.name}</span>{' '}
-            виявило аномалію:{' '}
-            <span style={{ color: '#ddeeff', fontWeight: 'bold' }}>{name}</span>.{' '}
-            Сигнал слабкий, маємо запит на виділення додаткових ресурсів телескопа.
+            {t('research.signal_weak', { system: system.name, name })}
           </div>
 
           {/* Rarity + Category badges */}
@@ -202,7 +200,7 @@ export function DiscoveryChoicePanel({
               textAlign: 'center',
             }}
           >
-            Система: {system.name}
+            {t('discovery.system_label')}: {system.name}
           </div>
 
           {/* Divider */}
@@ -216,13 +214,13 @@ export function DiscoveryChoicePanel({
               textAlign: 'center',
             }}
           >
-            Оберіть метод дослідження:
+            {t('discovery.choose_method')}
           </div>
 
           {/* Choice 1: Telemetry (free) */}
           <ChoiceButton
-            title="Базова телеметрія"
-            subtitle="Безкоштовно"
+            title={t('discovery.choice_telemetry')}
+            subtitle={t('discovery.choice_telemetry_free')}
             borderColor="#445566"
             hoverBorderColor="#667788"
             textColor="#8899aa"
@@ -239,17 +237,17 @@ export function DiscoveryChoicePanel({
           {/* Choice 2: Quantum Focus (3⚛ or free) */}
           <ChoiceButton
             tutorialId="quantum-focus-btn"
-            title="Квантове фокусування"
+            title={t('discovery.choice_quantum')}
             subtitle={
               isFreeQuantum
                 ? isFirstDiscovery
-                  ? 'Перше відкриття безкоштовно!'
-                  : 'Отримано додаткові енергоквоти'
+                  ? t('research.first_free')
+                  : t('research.lucky_free')
                 : (
                   <span>
-                    {'Разовий доступ до супертелескопа.\u00a0'}
-                    <span style={{ color: canAffordQuantum ? '#4488ff' : '#995544' }}>3 &#9883;</span>
-                    {!canAffordQuantum && <span style={{ color: '#885555' }}> — недостатньо</span>}
+                    {t('discovery.quantum_cost') + '\u00a0'}
+                    <span style={{ color: canAffordQuantum ? '#4488ff' : '#995544' }}>25 &#9883;</span>
+                    {!canAffordQuantum && <span style={{ color: '#885555' }}> {t('discovery.quantum_insufficient')}</span>}
                   </span>
                 )
             }
@@ -273,7 +271,31 @@ export function DiscoveryChoicePanel({
             }
           />
 
-          {/* Choice 3: Skip */}
+          {/* Choice 3: Ad-funded quantum focus (native only) */}
+          {canShowAds && onAdQuantumFocus && (
+            <AdProgressButton
+              label={t('discovery.choice_calibration')}
+              progressLabel={t('discovery.choice_calibration_progress', { done: '{done}', total: '{total}' })}
+              requiredAds={3}
+              adRewardType="discovery_photo"
+              onComplete={(photoToken) => exit(() => onAdQuantumFocus(photoToken))}
+              variant="choice"
+              borderColor="#336655"
+              hoverBorderColor="#448866"
+              icon={
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <circle cx="8" cy="8" r="6" />
+                  <circle cx="8" cy="8" r="2.5" />
+                  <line x1="8" y1="2" x2="8" y2="4.5" />
+                  <line x1="8" y1="11.5" x2="8" y2="14" />
+                  <line x1="2" y1="8" x2="4.5" y2="8" />
+                  <line x1="11.5" y1="8" x2="14" y2="8" />
+                </svg>
+              }
+            />
+          )}
+
+          {/* Choice 4: Skip */}
           <button
             onClick={() => exit(onSkip)}
             style={{
@@ -291,7 +313,7 @@ export function DiscoveryChoicePanel({
             onMouseEnter={(e) => { (e.target as HTMLElement).style.color = '#778899'; }}
             onMouseLeave={(e) => { (e.target as HTMLElement).style.color = '#445566'; }}
           >
-            Пропустити
+            {t('discovery.choice_skip')}
           </button>
         </div>
       </div>

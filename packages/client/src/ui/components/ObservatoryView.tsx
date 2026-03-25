@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Discovery, CatalogEntry, StarSystem } from '@nebulife/core';
 import {
   RARITY_COLORS,
@@ -38,6 +39,7 @@ export function ObservatoryView({
   onClose,
   onSaveToGallery,
   cost = 0,
+  adPhotoToken,
 }: {
   discovery: Discovery;
   system: StarSystem;
@@ -45,7 +47,9 @@ export function ObservatoryView({
   onClose: () => void;
   onSaveToGallery?: (discoveryId: string, imageUrl: string) => void;
   cost?: number;
+  adPhotoToken?: string;
 }) {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState<Phase>('submitting');
   const [klingStatus, setKlingStatus] = useState<string>('pending');
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
@@ -90,6 +94,7 @@ export function ObservatoryView({
           aspectRatio,
           scientificReport: reportText || undefined,
           cost,
+          ...(adPhotoToken ? { adPhotoToken } : {}),
         });
 
         if (cancelled) return;
@@ -196,7 +201,7 @@ export function ObservatoryView({
               opacity: 0.6,
             }}
           >
-            Обсерваторія Nebulife
+            {t('observatory.title')}
           </div>
 
           {/* Object info */}
@@ -232,10 +237,10 @@ export function ObservatoryView({
             }}
           >
             {phase === 'submitting'
-              ? 'Налаштування обсерваторії...'
+              ? t('observatory.setting_up')
               : klingStatus === 'processing'
-                ? 'Обробка сигналу...'
-                : 'Очікування сигналу з глибокого космосу...'}
+                ? t('observatory.processing_signal')
+                : t('observatory.awaiting_signal')}
           </div>
 
           {/* Animated dots */}
@@ -271,7 +276,7 @@ export function ObservatoryView({
               cursor: 'pointer',
             }}
           >
-            Скасувати
+            {t('common.cancel')}
           </button>
         </div>
       )}
@@ -305,7 +310,7 @@ export function ObservatoryView({
           >
             <div>
               <div style={{ fontSize: 12, color: '#44ff88', marginBottom: 2 }}>
-                Сигнал отримано! Обробка зображення...
+                {t('observatory.signal_received')}
               </div>
               <div style={{ fontSize: 10, color: '#556677' }}>
                 {objectName} &middot; {(revealProgress * 100).toFixed(0)}%
@@ -324,7 +329,7 @@ export function ObservatoryView({
                 cursor: 'pointer',
               }}
             >
-              Пропустити &raquo;
+              {t('common.skip')} &raquo;
             </button>
           </div>
         </div>
@@ -391,7 +396,7 @@ export function ObservatoryView({
           }}
         >
           <div style={{ fontSize: 14, color: '#ff4444' }}>
-            Помилка обсерваторії
+            {t('observatory.error')}
           </div>
           <div style={{ fontSize: 12, color: '#885544', maxWidth: 400, textAlign: 'center' }}>
             {error}
@@ -410,7 +415,7 @@ export function ObservatoryView({
               cursor: 'pointer',
             }}
           >
-            Закрити
+            {t('common.close')}
           </button>
         </div>
       )}

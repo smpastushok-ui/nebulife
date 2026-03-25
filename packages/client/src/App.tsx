@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameEngine } from './game/GameEngine.js';
 import { UniverseEngine } from './game/UniverseEngine.js';
 import { WarpTransition } from './ui/components/WarpTransition.js';
@@ -45,6 +46,7 @@ import {
   getResearchProgress,
   hasResearchData,
   findColonizablePlanet,
+  findParadisePlanet,
   completeSystemResearchInstantly,
   HOME_OBSERVATORY_COUNT,
   RESEARCH_DURATION_MS,
@@ -81,8 +83,9 @@ import type { ResearchToastItem } from './ui/components/ResearchToast.js';
 import { CutscenePlaceholder } from './ui/components/CutscenePlaceholder.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
-import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, fetchUniverseInfo } from './api/player-api.js';
+import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, fetchUniverseInfo } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
+import { requestPushPermission, startForegroundListener } from './notifications/push-service.js';
 import { onAuthChange, signOut } from './auth/auth-service.js';
 import { authFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
@@ -101,7 +104,7 @@ import { TutorialOverlay, FreeTaskHUD, TUTORIAL_STEPS } from './ui/components/Tu
 import type { User } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import { initAds } from './services/ads-service.js';
+import { initAds, canShowAd, isNativePlatform } from './services/ads-service.js';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
   generateSystemMission, pollMissionStatus,
@@ -117,7 +120,7 @@ interface SyncedGameState {
   level: number;
   // Research
   research_state: unknown;
-  player_stats: { totalCompletedSessions: number; totalDiscoveries: number };
+  player_stats: { totalCompletedSessions: number; totalDiscoveries: number; lastDiscoverySession: number };
   research_data: number;
   // Colony
   colony_resources: { minerals: number; volatiles: number; isotopes: number };
@@ -164,6 +167,7 @@ export interface GameState {
 }
 
 export function App() {
+  const { t, i18n } = useTranslation();
   const canvasRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const universeCanvasRef = useRef<HTMLDivElement>(null);
@@ -308,15 +312,15 @@ export function App() {
   const playerId = useRef<string>('');
 
   /** Player stats for discovery hook & loyalty mechanics */
-  const [playerStats, setPlayerStats] = useState<{ totalCompletedSessions: number; totalDiscoveries: number }>(() => {
+  const [playerStats, setPlayerStats] = useState<{ totalCompletedSessions: number; totalDiscoveries: number; lastDiscoverySession: number }>(() => {
     try {
       const saved = localStorage.getItem('nebulife_player_stats');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.totalCompletedSessions === 'number') return parsed;
+        if (parsed && typeof parsed.totalCompletedSessions === 'number') return { lastDiscoverySession: 0, ...parsed };
       }
     } catch { /* ignore */ }
-    return { totalCompletedSessions: 0, totalDiscoveries: 0 };
+    return { totalCompletedSessions: 0, totalDiscoveries: 0, lastDiscoverySession: 0 };
   });
 
   // Persist player stats
@@ -345,7 +349,7 @@ export function App() {
       const saved = localStorage.getItem('nebulife_colony_resources');
       if (saved) return JSON.parse(saved);
     } catch { /* ignore */ }
-    return { minerals: 0, volatiles: 0, isotopes: 0 };
+    return { minerals: 0, volatiles: 0, isotopes: 100 };
   });
 
   useEffect(() => {
@@ -616,6 +620,7 @@ export function App() {
     discovery: Discovery;
     system: StarSystem;
     cost: number;
+    adPhotoToken?: string;
   } | null>(null);
 
   /** Telemetry view (when player clicks "Basic Telemetry") */
@@ -700,31 +705,13 @@ export function App() {
       if (evacuationTargetRef.current) return; // Already have a target
       timerExpiredHandledRef.current = true;
 
-      // Time's up — find ANY habitable planet across all systems
+      // Time's up — ALWAYS evacuate to the paradise planet in Ring 1
       const engine = engineRef.current;
       if (!engine) return;
       const allSystems = engine.getAllSystems();
-      let target: { system: StarSystem; planet: Planet } | null = null;
 
-      // First pass: look for planets with habitability > 30%
-      for (const sys of allSystems) {
-        const planet = findColonizablePlanet(sys, 0.3);
-        if (planet) { target = { system: sys, planet }; break; }
-      }
-      // Second pass: lower threshold to 10%
-      if (!target) {
-        for (const sys of allSystems) {
-          const planet = findColonizablePlanet(sys, 0.1);
-          if (planet) { target = { system: sys, planet }; break; }
-        }
-      }
-      // Last resort: pick ANY planet that isn't the home planet
-      if (!target) {
-        for (const sys of allSystems) {
-          const p = sys.planets.find(pl => pl.id !== homeInfo?.planet?.id);
-          if (p) { target = { system: sys, planet: p }; break; }
-        }
-      }
+      // Find the paradise planet (isColonizable === true, the only one)
+      const target = findParadisePlanet(allSystems);
 
       if (target) {
         setForcedEvacuation(true);
@@ -913,6 +900,13 @@ export function App() {
   // ── Digest modal state ──────────────────────────────────────────────
   const [digestModalImages, setDigestModalImages] = useState<string[] | null>(null);
   const [digestModalWeekDate, setDigestModalWeekDate] = useState('');
+  const [lastDigestSeen, setLastDigestSeen] = useState<string | null>(null);
+  const [latestDigestWeekDate, setLatestDigestWeekDate] = useState<string | null>(null);
+
+  // ── Player notification preferences (from DB) ─────────────────────────
+  const [playerEmail, setPlayerEmail] = useState<string | null>(null);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(true);
 
   // ── System objects panel state ────────────────────────────────────────
   const [showObjectsPanel, setShowObjectsPanel] = useState(false);
@@ -948,6 +942,27 @@ export function App() {
   const handleLogout = useCallback(async () => {
     await signOut();
     window.location.reload();
+  }, []);
+
+  /** Delete account: permanently remove all data + Firebase account */
+  const handleDeleteAccount = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/player/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmDelete: true }),
+      });
+      if (!res.ok) {
+        console.error('Delete failed:', await res.text());
+        return;
+      }
+      // Clear all local data
+      localStorage.clear();
+      await signOut();
+      window.location.reload();
+    } catch (err) {
+      console.error('Delete account error:', err);
+    }
   }, []);
 
   /** Start over: full server reset, clear localStorage, generate new systems, reload */
@@ -1275,6 +1290,18 @@ export function App() {
       pendingHomeRef.current = { systemId: finalHomeSystemId, planetId: finalHomePlanetId };
     }
 
+    // Player meta (notification prefs, language, digest seen)
+    if (player.email !== undefined) setPlayerEmail(player.email ?? null);
+    if (typeof player.email_notifications === 'boolean') setEmailNotifications(player.email_notifications);
+    if (typeof player.push_notifications === 'boolean') setPushNotifications(player.push_notifications);
+    if (player.last_digest_seen !== undefined) setLastDigestSeen(player.last_digest_seen ?? null);
+    // Language sync: server → client (only on first load, not on every re-sync)
+    if (player.preferred_language && typeof player.preferred_language === 'string') {
+      if (i18n.language !== player.preferred_language) {
+        i18n.changeLanguage(player.preferred_language);
+      }
+    }
+
     setServerHydrated(true);
   }, []);
 
@@ -1470,7 +1497,7 @@ export function App() {
               // Session complete — find the system object
               const system = engine.getAllSystems().find((s) => s.id === slot.systemId);
               if (system) {
-                const result = completeResearchSession(current, slot.slotIndex, system, playerStats.totalCompletedSessions, playerStats.totalDiscoveries);
+                const result = completeResearchSession(current, slot.slotIndex, system, playerStats.totalCompletedSessions, playerStats.totalDiscoveries, playerStats.lastDiscoverySession);
                 current = result.state;
                 changed = true;
 
@@ -1478,6 +1505,7 @@ export function App() {
                 setPlayerStats((ps) => ({
                   totalCompletedSessions: ps.totalCompletedSessions + 1,
                   totalDiscoveries: ps.totalDiscoveries + (result.discovery ? 1 : 0),
+                  lastDiscoverySession: result.discovery ? ps.totalCompletedSessions + 1 : ps.lastDiscoverySession,
                 }));
 
                 // Update galaxy visual
@@ -1508,9 +1536,10 @@ export function App() {
                   }
                 }
 
-                // Check for colonizable planet at 30%+ — trigger evacuation + speed-up twist
+                // Check if researching a system with the paradise planet — trigger evacuation
                 const newProgress = current.systems[system.id]?.progress ?? 0;
                 if (isExodusPhaseRef.current && !evacuationTargetRef.current && !speedUpAppliedRef.current && newProgress >= 30) {
+                  // Only trigger if THIS system contains the paradise planet
                   const colonizable = findColonizablePlanet(system);
                   if (colonizable) {
                     setEvacuationTarget({ system, planet: colonizable });
@@ -1955,14 +1984,15 @@ export function App() {
   // ── Planet access checks ────────────────────────────────────────────
   // Surface landing: blocked before first evacuation; after — home planet or level 50+
   const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string } => {
-    // Before first evacuation — surface unavailable everywhere
-    if (destroyedPlanetIdsSet.size === 0) {
-      return { allowed: false, reason: 'Поверхня доступна пiсля евакуацiї' };
-    }
+    // Home planet — always accessible
     if (planet.isHomePlanet) return { allowed: true };
     if (homeInfo && planet.id === homeInfo.planet.id) return { allowed: true };
+    // Before first evacuation — surface unavailable for non-home planets
+    if (destroyedPlanetIdsSet.size === 0) {
+      return { allowed: false, reason: t('errors.surfaceAfterEvac') };
+    }
     if (playerLevel >= 50) return { allowed: true };
-    return { allowed: false, reason: `Доступно з 50+ рiвня` };
+    return { allowed: false, reason: t('errors.level50Required') };
   }, [homeInfo, playerLevel, destroyedPlanetIdsSet]);
 
   // Exosphere: always accessible if system is researched (menu only shows in researched systems)
@@ -2071,11 +2101,11 @@ export function App() {
   }, [state.selectedSystem]);
 
   /** Telescope photo generation — accepts system directly (for both menu and galaxy icon) */
-  const handleTelescopePhotoForSystem = useCallback((sys: StarSystem) => {
+  const handleTelescopePhotoForSystem = useCallback((sys: StarSystem, adPhotoToken?: string) => {
     const sysId = sys.id;
 
-    // Check quark balance
-    if (quarks < 30) {
+    // Check quark balance (skip if funded by ad token)
+    if (!adPhotoToken && quarks < 100) {
       if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
       return;
     }
@@ -2126,9 +2156,9 @@ export function App() {
     };
 
     // Call API
-    generateSystemPhoto(playerId.current, sysId, sys)
+    generateSystemPhoto(playerId.current, sysId, sys, undefined, undefined, undefined, adPhotoToken)
       .then(({ photoId, quarksRemaining, photoUrl }) => {
-        setQuarks(quarksRemaining);
+        if (quarksRemaining !== null && quarksRemaining !== undefined) setQuarks(quarksRemaining);
         if (photoUrl) {
           // Synchronous result (Gemini)
           setSystemPhotos(prev => {
@@ -2174,16 +2204,16 @@ export function App() {
       });
   }, [quarks, aliases]);
 
-  /** Planet telescope photo — close-up shot of a planet via super telescope (10 quarks) */
-  const handlePlanetTelescopePhoto = useCallback(() => {
+  /** Planet telescope photo — close-up shot of a planet via super telescope (25 quarks or ad token) */
+  const handlePlanetTelescopePhoto = useCallback((adPhotoToken?: string) => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
     const planet = state.selectedPlanet;
     const sys = state.selectedSystem;
     const sysId = sys.id;
     const photoKey = `planet-${planet.id}`;
 
-    // Check quark balance
-    if (quarks < 10) {
+    // Check quark balance (skip if funded by ad token)
+    if (!adPhotoToken && quarks < 25) {
       if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
       return;
     }
@@ -2228,9 +2258,9 @@ export function App() {
     };
 
     // Call API with planetId
-    generateSystemPhoto(playerId.current, sysId, sys, undefined, undefined, planet.id)
+    generateSystemPhoto(playerId.current, sysId, sys, undefined, undefined, planet.id, adPhotoToken)
       .then(({ photoId, quarksRemaining, photoUrl }) => {
-        setQuarks(quarksRemaining);
+        if (quarksRemaining !== null && quarksRemaining !== undefined) setQuarks(quarksRemaining);
         if (photoUrl) {
           // Gemini — synchronous, photo already available
           setSystemPhotos(prev => {
@@ -2439,16 +2469,25 @@ export function App() {
     if (pendingDiscovery) {
       const isFree = playerStats.totalDiscoveries <= 1
         || (playerStats.totalDiscoveries >= 3 && (pendingDiscovery.discovery.timestamp % 50) === 0);
-      if (!isFree && quarks < 3) {
+      if (!isFree && quarks < 25) {
         if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
         return;
       }
-      setObservatoryTarget({ ...pendingDiscovery, cost: isFree ? 0 : 3 });
+      setObservatoryTarget({ ...pendingDiscovery, cost: isFree ? 0 : 25 });
       setDiscoveryQueue(q => q.slice(1));
       setShowCosmicArchive(false); // Close archive so observatory view is visible
       awardXP(XP_REWARDS.OBSERVATORY_SCAN, 'observatory');
     }
   }, [pendingDiscovery, playerStats, quarks, isGuest]);
+
+  /** Ad-funded quantum focus — called with photoToken from AdProgressButton */
+  const handleAdQuantumFocus = useCallback((photoToken: string) => {
+    if (!pendingDiscovery) return;
+    setObservatoryTarget({ ...pendingDiscovery, cost: 0, adPhotoToken: photoToken });
+    setDiscoveryQueue(q => q.slice(1));
+    setShowCosmicArchive(false);
+    awardXP(XP_REWARDS.OBSERVATORY_SCAN, 'observatory');
+  }, [pendingDiscovery]);
 
   const handleSkipDiscovery = useCallback(() => {
     setDiscoveryQueue(q => q.slice(1));
@@ -2675,6 +2714,12 @@ export function App() {
     setTimeout(() => syncGameStateRef.current(), 100);
   }, [evacuationTarget]);
 
+  // Forced evacuation: skip prompt, auto-start immediately
+  useEffect(() => {
+    if (!forcedEvacuation || !evacuationTarget || evacuationPhase !== 'idle') return;
+    handleStartEvacuation();
+  }, [forcedEvacuation, evacuationTarget, evacuationPhase, handleStartEvacuation]);
+
   // Stage 0 complete → switch to system scene, start ship flight
   const handleStage0Complete = useCallback(() => {
     if (!evacuationTarget) return;
@@ -2863,7 +2908,7 @@ export function App() {
 
   // ── Digest modal event listener ──
   useEffect(() => {
-    const handleOpenDigest = async (e: Event) => {
+    const handleOpenDigest = async (_e: Event) => {
       try {
         const res = await fetch('/api/digest/latest', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('nebulife_firebase_token') ?? ''}` },
@@ -2871,16 +2916,79 @@ export function App() {
         if (!res.ok) return;
         const data = await res.json();
         if (!data.digest) return;
-        // Default to UK, fallback to EN
-        const images = data.digest.images?.uk ?? data.digest.images?.en ?? [];
+        // Use player's preferred language, fallback to other
+        const lang = i18n.language === 'en' ? 'en' : 'uk';
+        const images = data.digest.images?.[lang] ?? data.digest.images?.uk ?? data.digest.images?.en ?? [];
         if (images.length > 0) {
           setDigestModalImages(images);
           setDigestModalWeekDate(data.digest.weekDate);
+          // Mark digest as seen
+          const weekDate = data.digest.weekDate as string;
+          setLastDigestSeen(weekDate);
+          const pid = playerId.current;
+          if (pid) updatePlayer(pid, { last_digest_seen: weekDate }).catch(() => {});
         }
       } catch { /* ignore */ }
     };
     window.addEventListener('nebulife:open-digest', handleOpenDigest);
     return () => window.removeEventListener('nebulife:open-digest', handleOpenDigest);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.language]);
+
+  // ── Language change → sync to server ─────────────────────────────────
+  useEffect(() => {
+    const handleLangChange = (lng: string) => {
+      const pid = playerId.current;
+      if (!pid) return;
+      updatePlayer(pid, { preferred_language: lng }).catch(() => {});
+    };
+    i18n.on('languageChanged', handleLangChange);
+    return () => { i18n.off('languageChanged', handleLangChange); };
+  }, [i18n]);
+
+  // ── URL param: ?action=open-digest (from push notification click) ─────
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('action') === 'open-digest') {
+        window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
+        url.searchParams.delete('action');
+        url.searchParams.delete('weekDate');
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // ── SW message listener (foreground push click from background SW) ────
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const handleSwMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'open-digest') {
+        window.dispatchEvent(new CustomEvent('nebulife:open-digest', {
+          detail: { weekDate: e.data.weekDate },
+        }));
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    // Start foreground FCM message listener
+    const unsubForeground = startForegroundListener();
+    window.addEventListener('nebulife:push-digest', () => {
+      window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
+    });
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      unsubForeground?.();
+    };
+  }, []);
+
+  // ── Fetch latest digest (for new-digest indicator) ────────────────────
+  useEffect(() => {
+    fetch('/api/digest/latest')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.digest?.weekDate) setLatestDigestWeekDate(data.digest.weekDate as string);
+      })
+      .catch(() => {});
   }, []);
 
   // ── Award XP & level-up detection (assign to ref for stable callbacks) ──
@@ -3020,6 +3128,30 @@ export function App() {
       synced_at: Date.now(),
     };
   };
+
+  // ── Notification preference toggles ─────────────────────────────────
+
+  const handleToggleEmailNotif = useCallback((val: boolean) => {
+    setEmailNotifications(val);
+    const pid = playerId.current;
+    if (pid) updatePlayer(pid, { email_notifications: val }).catch(() => {});
+  }, []);
+
+  const handleTogglePushNotif = useCallback(async (val: boolean) => {
+    const pid = playerId.current;
+    if (!pid) return;
+    if (val) {
+      const token = await requestPushPermission();
+      if (!token) return; // Permission denied
+      await updateFcmToken(pid, token);
+      setPushNotifications(true);
+      updatePlayer(pid, { push_notifications: true }).catch(() => {});
+    } else {
+      setPushNotifications(false);
+      updatePlayer(pid, { push_notifications: false }).catch(() => {});
+      await updateFcmToken(pid, null);
+    }
+  }, []);
 
   /** Sync full game state to server (fire-and-forget). */
   syncGameStateRef.current = () => {
@@ -3394,19 +3526,19 @@ export function App() {
   // Build unified navigation menu items
   const navigationItems: NavigationMenuItem[] = [
     {
-      id: 'universe', label: 'Всесвiт', scene: 'universe',
+      id: 'universe', label: t('nav.universe'), scene: 'universe',
       icon: universeIcon,
       active: effectiveScene === 'universe',
       disabled: false,
     },
     {
-      id: 'cluster', label: 'Зоряне скупчення', scene: 'cluster',
+      id: 'cluster', label: t('nav.cluster'), scene: 'cluster',
       icon: clusterIcon,
       active: effectiveScene === 'cluster',
       disabled: false,
     },
     {
-      id: 'galaxy', label: 'Зоряні сектори', scene: 'galaxy',
+      id: 'galaxy', label: t('nav.galaxy'), scene: 'galaxy',
       icon: galaxyIcon,
       active: effectiveScene === 'galaxy',
       disabled: false,
@@ -3416,7 +3548,7 @@ export function App() {
       id: 'system',
       label: state.selectedSystem
         ? (aliases[state.selectedSystem.id] || state.selectedSystem.star.name)
-        : 'Зоряна система',
+        : t('nav.system'),
       scene: 'system',
       icon: starIcon,
       active: effectiveScene === 'system',
@@ -3424,7 +3556,7 @@ export function App() {
     },
     {
       id: 'planet-view',
-      label: state.selectedPlanet?.name ?? 'Екзосфера',
+      label: state.selectedPlanet?.name ?? t('nav.exosphere'),
       scene: 'planet-view',
       icon: planetIcon,
       active: effectiveScene === 'planet-view' || effectiveScene === 'surface',
@@ -3640,7 +3772,7 @@ export function App() {
               e.currentTarget.style.borderColor = 'rgba(68,255,136,0.5)';
             }}
           >
-            Евакуація
+            {t('event.evacuation')}
           </button>
         </div>
       )}
@@ -3686,15 +3818,13 @@ export function App() {
                 background: 'rgba(5,10,20,0.5)',
               }}
             >
-              {'[ ТЕРМIНОВЕ ВIДЕО-ПОВIДОМЛЕННЯ ]'}
+              {t('event.urgent_broadcast')}
             </div>
             <div style={{ color: '#cc4444', fontSize: 13, fontWeight: 'bold', marginBottom: 12, letterSpacing: 1 }}>
-              УВАГА: ТРАЄКТОРIЯ ОНОВЛЕНА
+              {t('event.trajectory_updated')}
             </div>
             <div style={{ color: '#aabbcc', fontSize: 12, lineHeight: 1.6, marginBottom: 24 }}>
-              Командоре, розрахунки траєкторiї астероїда оновилися. Часу лишилося критично мало...
-              Але є й гарна новина. Здається, в цiй системi є те, що ми так довго шукали.
-              Потрiбно поспiшати!
+              {t('event.trajectory_body')}
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); handleSpeedUpDismiss(); }}
@@ -3711,7 +3841,7 @@ export function App() {
                 fontWeight: 'bold',
               }}
             >
-              ЗРОЗУМIЛО
+              {t('common.understood')}
             </button>
           </div>
         </div>
@@ -3751,12 +3881,12 @@ export function App() {
           onBack={handleStartExploration}
           onZoomIn={() => globeRef.current?.zoomIn()}
           onZoomOut={() => globeRef.current?.zoomOut()}
-          backLabel="Галактика"
+          backLabel={t('nav.galaxy')}
           showZoom
           hidden={hideLeftPanel}
           extraButtons={[
             {
-              title: 'Поверхня',
+              title: t('nav.surface'),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleGoToHomeSurface,
               pulse: true,
@@ -3772,7 +3902,7 @@ export function App() {
           onCenter={() => engineRef.current?.galaxyCenterOnOrigin()}
           onZoomIn={() => engineRef.current?.galaxyZoomIn()}
           onZoomOut={() => engineRef.current?.galaxyZoomOut()}
-          backLabel="Домівка"
+          backLabel={t('nav.home')}
           showCenter
           showZoom
           hidden={hideLeftPanel}
@@ -3794,7 +3924,7 @@ export function App() {
           onCenter={() => engineRef.current?.systemCenterOnOrigin()}
           onZoomIn={() => engineRef.current?.systemZoomIn()}
           onZoomOut={() => engineRef.current?.systemZoomOut()}
-          backLabel="Галактика"
+          backLabel={t('nav.galaxy')}
           showCenter
           showZoom
           hidden={hideLeftPanel}
@@ -3808,13 +3938,13 @@ export function App() {
           onCenter={() => {}}
           onZoomIn={() => globeRef.current?.zoomIn()}
           onZoomOut={() => globeRef.current?.zoomOut()}
-          backLabel="Система"
+          backLabel={t('nav.system')}
           showZoom
           hidden={hideLeftPanel}
-          extraButtons={state.selectedPlanet && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'dwarf') ? (() => {
+          extraButtons={state.selectedPlanet && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'terrestrial' || state.selectedPlanet.type === 'dwarf') ? (() => {
             const check = canLandOnPlanet(state.selectedPlanet!);
             return [{
-              title: check.allowed ? 'На поверхню' : (check.reason || 'Недоступно'),
+              title: check.allowed ? t('nav.surface_btn') : (check.reason || t('common.unavailable')),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleOpenSurface,
               disabled: !check.allowed,
@@ -3828,10 +3958,10 @@ export function App() {
       {surfaceTarget && (
         <SceneControlsPanel
           onBack={handleCloseSurface}
-          backLabel="Назад"
+          backLabel={t('common.back')}
           hidden={hideLeftPanel}
           extraButtons={[{
-            title: 'Екзосфера',
+            title: t('nav.exosphere'),
             icon: (
               <svg
                 width="14" height="14" viewBox="0 0 16 16"
@@ -4037,9 +4167,11 @@ export function App() {
           onCharacteristics={handleSystemMenuCharacteristics}
           onResearch={handleSystemMenuResearch}
           onTelescopePhoto={handleTelescopePhoto}
+          onAdTelescopePhoto={(photoToken) => handleTelescopePhotoForSystem(state.selectedSystem!, photoToken)}
           onViewPhoto={handleViewSystemPhoto}
           onSendMission={handleSendMission}
           onViewVideo={handleViewMissionVideo}
+          canShowAds={isNativePlatform() && canShowAd()}
         />
       )}
       {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -4056,7 +4188,9 @@ export function App() {
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
           onTelescopePhoto={handlePlanetTelescopePhoto}
+          onAdTelescopePhoto={(photoToken) => handlePlanetTelescopePhoto(photoToken)}
           isPhotoGenerating={systemPhotos.get(`planet-${state.selectedPlanet.id}`)?.status === 'generating'}
+          canShowAds={isNativePlatform() && canShowAd()}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -4089,8 +4223,10 @@ export function App() {
           isFirstDiscovery={isFirstDiscovery}
           isLuckyFree={isLuckyFree}
           playerQuarks={quarks}
+          canShowAds={isNativePlatform() && canShowAd()}
           onTelemetry={handleTelemetry}
           onQuantumFocus={handleQuantumFocus}
+          onAdQuantumFocus={handleAdQuantumFocus}
           onSkip={handleSkipDiscovery}
         />
       )}
@@ -4103,7 +4239,7 @@ export function App() {
           onSaveToArchive={handleSaveToGallery}
         />
       )}
-      {/* Observatory view (AI Kling — paid with quarks) */}
+      {/* Observatory view (AI Kling — paid with quarks or ad token) */}
       {observatoryTarget && (
         <ObservatoryView
           discovery={observatoryTarget.discovery}
@@ -4112,6 +4248,7 @@ export function App() {
           onClose={handleCloseObservatory}
           onSaveToGallery={handleSaveToGallery}
           cost={observatoryTarget.cost}
+          adPhotoToken={observatoryTarget.adPhotoToken}
         />
       )}
       {/* Gallery compare modal (when cell is occupied) */}
@@ -4126,8 +4263,8 @@ export function App() {
           onKeepOld={handleGalleryKeepOld}
         />
       )}
-      {/* Evacuation Prompt — shown when habitable planet found or timer expired */}
-      {evacuationTarget && evacuationPhase === 'idle' && !evacuationPromptDismissed && (
+      {/* Evacuation Prompt — shown when habitable planet found (not forced) */}
+      {evacuationTarget && evacuationPhase === 'idle' && !evacuationPromptDismissed && !forcedEvacuation && (
         <EvacuationPrompt
           system={evacuationTarget.system}
           planet={evacuationTarget.planet}
@@ -4140,7 +4277,7 @@ export function App() {
       {evacuationPhase === 'stage0-launch' && (
         <CutscenePlaceholder
           label={forcedEvacuation
-            ? 'Термiнова евакуацiя. Вибору немає.'
+            ? 'Часу не лишилося, ми вирушаємо.'
             : 'Запуск евакуацiйного корабля'}
           duration={forcedEvacuation ? 5 : 4}
           onComplete={handleStage0Complete}
@@ -4262,8 +4399,14 @@ export function App() {
           onClose={() => setShowPlayerPage(false)}
           onLogout={handleLogout}
           onStartOver={handleStartOver}
+          onDeleteAccount={handleDeleteAccount}
           onOpenTopUp={() => { setShowPlayerPage(false); setShowTopUpModal(true); }}
           onLinkAccount={() => { setShowPlayerPage(false); setShowLinkModal(true); }}
+          hasEmail={!!playerEmail}
+          emailNotifications={emailNotifications}
+          pushNotifications={pushNotifications}
+          onToggleEmailNotif={handleToggleEmailNotif}
+          onTogglePushNotif={handleTogglePushNotif}
         />
       )}
 
@@ -4494,6 +4637,9 @@ export function App() {
               setState((prev) => ({ ...prev, scene: 'planet-view' as const, selectedSystem: sys, selectedPlanet: planet }));
             }
           }}
+          lastDigestSeen={lastDigestSeen}
+          latestDigestWeekDate={latestDigestWeekDate}
+          preferredLanguage={i18n.language}
         />
       )}
 
@@ -4505,7 +4651,7 @@ export function App() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: 'monospace', color: '#556677', fontSize: 12,
         }}>
-          Завантаження...
+          {t('common.loading')}
         </div>
       )}
 

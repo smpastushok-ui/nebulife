@@ -21,6 +21,8 @@ export interface GenerateRequest {
   aspectRatio?: string;
   scientificReport?: string;
   cost?: number;
+  /** Server-signed token from POST /api/ads/reward — skips quark deduction when valid. */
+  adPhotoToken?: string;
 }
 
 export interface GenerateResponse {

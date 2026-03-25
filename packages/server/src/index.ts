@@ -92,9 +92,21 @@ export {
   getPendingDigest,
   updateDigestImage,
   getLatestCompleteDigest,
+  getDigestPendingEmails,
+  getDigestPendingPushes,
+  getDigestEmailRecipients,
+  getDigestPushRecipients,
+  markDigestEmailsSent,
+  markDigestPushesSent,
+  updateFcmToken,
   // Ad Rewards
   getAdRewardCount,
   addAdReward,
+  // Idempotency
+  acquireIdempotencyKey,
+  completeIdempotencyKey,
+  // Account Deletion
+  deletePlayerData,
 } from './db.js';
 
 export type {
@@ -118,6 +130,14 @@ export type {
 // Weekly Digest Generator
 export { generateWeeklyNewsText, generateDigestImage, getCurrentWeekMonday } from './digest-generator.js';
 export type { DigestNewsItem } from './digest-generator.js';
+
+// Push notifications
+export { sendDigestPush } from './push-client.js';
+export type { DigestPushPayload } from './push-client.js';
+
+// Email
+export { sendDigestEmail } from './email-client.js';
+export type { DigestEmailPayload } from './email-client.js';
 
 export {
   generateImage,
@@ -165,9 +185,12 @@ export { ASTRA_SYSTEM_PROMPT } from './astra-prompt.js';
 export { analyzePhotoForZones } from './surface-analyzer.js';
 
 // Firebase Auth
-export { verifyFirebaseToken } from './firebase-admin.js';
+export { verifyFirebaseToken, deleteFirebaseUser } from './firebase-admin.js';
 export { authenticate, authenticateToken } from './auth-middleware.js';
 export type { AuthResult } from './auth-middleware.js';
 
 // Rate limiter
 export { checkRateLimit, RATE_LIMITS, getClientIP } from './rate-limiter.js';
+
+// Photo tokens (HMAC-signed tokens for ad-rewarded photo generation)
+export { generatePhotoToken, verifyPhotoToken } from './photo-token.js';

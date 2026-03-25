@@ -37,8 +37,9 @@ export interface SystemPhotoListItem {
 }
 
 /**
- * Generate a telescope photo for a star system (costs 30 quarks)
- * or a close-up planet photo (costs 10 quarks, when planetId is provided).
+ * Generate a telescope photo for a star system (costs 100 quarks)
+ * or a close-up planet photo (costs 25 quarks, when planetId is provided).
+ * Pass adPhotoToken to skip quark deduction (obtained after watching ads).
  * Uses Gemini AI — synchronous, returns the image URL directly.
  * Passes screen dimensions for optimal aspect ratio.
  */
@@ -49,6 +50,7 @@ export async function generateSystemPhoto(
   screenWidth?: number,
   screenHeight?: number,
   planetId?: string,
+  adPhotoToken?: string,
 ): Promise<SystemPhotoGenerateResponse> {
   const res = await authFetch(`${API_BASE}/system-photo/generate`, {
     method: 'POST',
@@ -60,6 +62,7 @@ export async function generateSystemPhoto(
       screenWidth: screenWidth ?? window.innerWidth,
       screenHeight: screenHeight ?? window.innerHeight,
       ...(planetId ? { planetId } : {}),
+      ...(adPhotoToken ? { adPhotoToken } : {}),
     }),
   });
 
