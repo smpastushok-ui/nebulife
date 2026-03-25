@@ -76,8 +76,8 @@ const PX_PER_LY = 18;
 /** Easing speed for alpha transitions */
 const ANIM_SPEED = 5;
 
-/** Orbit expand: 700ms forward, 400ms reverse */
-const EXPAND_DURATION = 700;
+/** Orbit expand: 450ms forward, 400ms reverse (faster for mobile responsiveness) */
+const EXPAND_DURATION = 450;
 const COLLAPSE_DURATION = 400;
 
 /* ── Interfaces ────────────────────────────────────────────────── */
@@ -403,7 +403,7 @@ export class GalaxyScene {
 
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
-    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < (baseR + 10) * (baseR + 10) };
+    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < (baseR + 22) * (baseR + 22) };
 
     dot.on('pointerover', () => { nl.visible = true; dot.scale.set(1.12); });
     dot.on('pointerout', () => { nl.visible = false; dot.scale.set(1.0); });
@@ -497,7 +497,7 @@ export class GalaxyScene {
     // Interactivity
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
-    const hitR = effectiveR + 8;
+    const hitR = effectiveR + 22;  // +22 for finger-friendly mobile tap targets
     dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < hitR * hitR };
 
     dot.on('pointerover', () => {

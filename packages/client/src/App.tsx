@@ -748,6 +748,7 @@ export function App() {
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showPlayerPage, setShowPlayerPage] = useState(false);
+  const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   const cosmicArchiveRef = useRef<CosmicArchiveHandle>(null);
   const [highlightedGalleryType, setHighlightedGalleryType] = useState<string | null>(null);
@@ -1983,17 +1984,17 @@ export function App() {
 
   // ── Planet access checks ────────────────────────────────────────────
   // Surface landing: blocked before first evacuation; after — home planet or level 50+
-  const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string } => {
-    // Home planet — always accessible
+  const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string; chaos?: boolean } => {
+    // Before evacuation starts — ALL surface access blocked with chaos popup
+    if (evacuationPhase === 'idle') {
+      return { allowed: false, chaos: true };
+    }
+    // Home planet — always accessible once evacuation has begun
     if (planet.isHomePlanet) return { allowed: true };
     if (homeInfo && planet.id === homeInfo.planet.id) return { allowed: true };
-    // Before first evacuation — surface unavailable for non-home planets
-    if (destroyedPlanetIdsSet.size === 0) {
-      return { allowed: false, reason: t('errors.surfaceAfterEvac') };
-    }
     if (playerLevel >= 50) return { allowed: true };
     return { allowed: false, reason: t('errors.level50Required') };
-  }, [homeInfo, playerLevel, destroyedPlanetIdsSet]);
+  }, [homeInfo, playerLevel, evacuationPhase, t]);
 
   // Exosphere: always accessible if system is researched (menu only shows in researched systems)
   const handleViewPlanet = useCallback(() => {
@@ -3253,7 +3254,10 @@ export function App() {
   const handleOpenSurface = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
     const check = canLandOnPlanet(state.selectedPlanet);
-    if (!check.allowed) return;
+    if (!check.allowed) {
+      if (check.chaos) setShowChaosModal(true);
+      return;
+    }
     setSurfaceTarget({
       planet: state.selectedPlanet,
       star: state.selectedSystem.star,
@@ -4408,6 +4412,49 @@ export function App() {
           onToggleEmailNotif={handleToggleEmailNotif}
           onTogglePushNotif={handleTogglePushNotif}
         />
+      )}
+
+      {/* Surface Chaos Modal — blocks surface before evacuation */}
+      {showChaosModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(2,5,16,0.88)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'rgba(10,15,25,0.97)',
+            border: '1px solid #cc4444',
+            borderRadius: 6,
+            padding: '28px 32px',
+            maxWidth: 340,
+            textAlign: 'center',
+            fontFamily: 'monospace',
+            boxShadow: '0 0 40px rgba(180,40,40,0.25)',
+          }}>
+            <div style={{ fontSize: 13, color: '#ee6655', marginBottom: 12, letterSpacing: '0.08em' }}>
+              {t('errors.surfaceChaosTitle')}
+            </div>
+            <div style={{ fontSize: 11, color: '#8899aa', lineHeight: 1.7, marginBottom: 22 }}>
+              {t('errors.surfaceChaosBody')}
+            </div>
+            <button
+              onClick={() => setShowChaosModal(false)}
+              style={{
+                background: 'rgba(30,12,12,0.9)',
+                border: '1px solid #cc4444',
+                color: '#ee6655',
+                fontFamily: 'monospace',
+                fontSize: 11,
+                padding: '8px 28px',
+                borderRadius: 3,
+                cursor: 'pointer',
+                letterSpacing: '0.08em',
+              }}
+            >
+              {t('errors.surfaceChaosBtn')}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Quark Top-Up Modal */}

@@ -21,7 +21,6 @@ import {
   Polygon,
   Sprite,
   TilingSprite,
-  ColorMatrixFilter,
   Assets,
   Texture,
   Rectangle,
@@ -238,9 +237,8 @@ export class SurfaceScene {
   // ─── Concrete pads under buildings ───────────────────────────────────────
   private concreteLayer: Container;
 
-  // ─── Clouds (TilingSprite) ────────────────────────────────────────────────
-  private cloudShadowSprite: TilingSprite | null = null;
-  private cloudBodySprite:   TilingSprite | null = null;
+  // ─── Clouds (TilingSprite, static semi-transparent overlay) ─────────────
+  private cloudBodySprite: TilingSprite | null = null;
 
   // ─── Harvest visual effects ───────────────────────────────────────────────
   private harvestFx:       HarvestEffects | null = null;
@@ -299,8 +297,7 @@ export class SurfaceScene {
       this.groundLayer,
       this.concreteLayer,   // concrete pads under buildings — above terrain, below noise
       this.noiseOverlayGfx, // macro-relief tint — just above ground tiles
-      this.foamGfx,         // shoreline foam — on top of terrain, under cloud shadows
-      // cloudShadowSprite inserted here (index 4) after texture load in init()
+      this.foamGfx,         // shoreline foam — on top of terrain
       this.featureLayer,
       this.corridorLayer,
       this.overlayLayer,
@@ -310,8 +307,8 @@ export class SurfaceScene {
       this.hubLayer,         // hub orbit rings — above building sprite
       this.demolishLayer,    // demolish VFX — above hub, below rover
       this.roverLayer,       // rover — above demolish VFX
-      this.ghostLayer,    // building placement ghost — above rover, below clouds
-      // cloudBodySprite inserted above ghostLayer after texture load in init()
+      this.ghostLayer,    // building placement ghost — above rover, below cloud overlay
+      // cloudBodySprite (static overlay) inserted above ghostLayer after texture load in init()
       // fogLayer is added last (topmost) after init
     );
   }
@@ -991,8 +988,7 @@ export class SurfaceScene {
     // Animate shoreline foam
     this._updateFoam(deltaMs);
 
-    // Animate atmospheric clouds
-    this._updateCloudSprites(deltaMs);
+    // Cloud overlay is static — no per-frame update needed
 
     // Building placement animations
     this._tickBuildingAnims(deltaMs);
@@ -4184,7 +4180,7 @@ export class SurfaceScene {
     }
   }
 
-  // ─── Clouds (TilingSprite) ────────────────────────────────────────────────
+  // ─── Clouds (static semi-transparent PNG overlay) ────────────────────────
 
   private async _initCloudSprites(): Promise<void> {
     let cloudTex: Texture;
@@ -4195,50 +4191,19 @@ export class SurfaceScene {
     }
 
     const N = this.gridSize;
-    // Full bounding rectangle of the NxN isometric grid:
-    //   x range: -N*TILE_W/2 .. N*TILE_W/2   (diamond left/right vertices)
-    //   y range: 0 .. N*TILE_H               (diamond top/bottom vertices)
-    // Add 2× padding so scrolling never exposes an edge.
     const PAD  = 2;
     const mapW = (N + PAD * 2) * TILE_W;
     const mapH = (N + PAD * 2) * TILE_H;
     const posX = -(N / 2 + PAD) * TILE_W;
     const posY = -PAD * TILE_H;
 
-    // ── Cloud shadow (MULTIPLY, inverted texture, below featureLayer) ──────
-    const shadowSprite = new TilingSprite({ texture: cloudTex, width: mapW, height: mapH });
-    shadowSprite.tileScale.set(2);
-    shadowSprite.alpha = 0.18;
-    shadowSprite.blendMode = 'multiply';
-    const invertFilter = new ColorMatrixFilter();
-    invertFilter.negative(false);
-    shadowSprite.filters = [invertFilter];
-    shadowSprite.position.set(posX, posY);
-    this.cloudShadowSprite = shadowSprite;
-    // Index 4: after groundLayer[0], concreteLayer[1], noiseOverlay[2], foamGfx[3]
-    this.worldContainer.addChildAt(shadowSprite, 4);
-
-    // ── Cloud body (SCREEN, above roverLayer) ─────────────────────────────
+    // ── Static cloud overlay (no blend mode, no animation — mobile-friendly) ─
     const bodySprite = new TilingSprite({ texture: cloudTex, width: mapW, height: mapH });
     bodySprite.tileScale.set(2);
-    bodySprite.alpha = 0.10;
-    bodySprite.blendMode = 'screen';
+    bodySprite.alpha = 0.06;
     bodySprite.position.set(posX, posY);
     this.cloudBodySprite = bodySprite;
     this.worldContainer.addChild(bodySprite);
-  }
-
-  private _updateCloudSprites(deltaMs: number): void {
-    if (this.cloudShadowSprite) {
-      // Shadow drifts slower (parallax)
-      this.cloudShadowSprite.tilePosition.x -= 0.15 * deltaMs / 16;
-      this.cloudShadowSprite.tilePosition.y += 0.05 * deltaMs / 16;
-    }
-    if (this.cloudBodySprite) {
-      // Body drifts faster
-      this.cloudBodySprite.tilePosition.x -= 0.30 * deltaMs / 16;
-      this.cloudBodySprite.tilePosition.y += 0.10 * deltaMs / 16;
-    }
   }
 
   // ─── Destroy ─────────────────────────────────────────────────────────────
@@ -4255,9 +4220,7 @@ export class SurfaceScene {
     this.bot = null;
     this.fogLayer?.destroy();
     this.fogLayer = null;
-    this.cloudShadowSprite?.destroy();
     this.cloudBodySprite?.destroy();
-    this.cloudShadowSprite = null;
     this.cloudBodySprite = null;
     for (const a of this.buildingAnims) {
       a.maskGfx?.destroy();
