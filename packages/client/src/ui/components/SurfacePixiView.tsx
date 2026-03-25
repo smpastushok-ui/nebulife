@@ -22,6 +22,7 @@ import { SurfacePanel }          from './SurfacePanel.js';
 import { BuildingMenu }           from './BuildingMenu/index.js';
 import { getBuildings, placeBuilding, removeBuilding } from '../../api/surface-api.js';
 import { screenToGrid, TILE_W, TILE_H, gridToScreen } from '../../game/scenes/surface-utils.js';
+import { useColony } from '../contexts/ColonyContext.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,6 +89,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     const dragMoved     = useRef(false);
 
     const [buildings, setBuildings]             = useState<PlacedBuilding[]>([]);
+    const { reportBuildings } = useColony();
     const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
     const [showBuildPanel, setShowBuildPanel]   = useState(true);
     const [harvestMode, setHarvestMode]         = useState(false);
@@ -287,6 +289,12 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       sceneRef.current.rebuildBuildings(buildings);
       onBuildingCountChange?.(buildings.length);
     }, [buildings, onBuildingCountChange]);
+
+    // ─── Report buildings to ColonyContext (quantum_computer bonus etc.) ──────
+
+    useEffect(() => {
+      reportBuildings?.(buildings);
+    }, [buildings, reportBuildings]);
 
     // ─── Sync selection → overlay + ghost ────────────────────────────────────
 
