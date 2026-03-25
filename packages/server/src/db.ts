@@ -1422,3 +1422,120 @@ export async function addAdReward(playerId: string, adsWatched: number): Promise
   `;
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// Academy: Education Progress + Lesson Cache
+// ---------------------------------------------------------------------------
+
+export interface AcademyProgressRow {
+  player_id: string;
+  difficulty: string;
+  selected_topics: string[];
+  completed_lessons: Record<string, string>;
+  active_quest: unknown;
+  quest_streak: number;
+  longest_streak: number;
+  last_quest_date: string | null;
+  total_quests_completed: number;
+  total_quizzes_correct: number;
+  total_quizzes_answered: number;
+  category_progress: Record<string, unknown>;
+  onboarded: boolean;
+}
+
+export interface AcademyLessonRow {
+  id: number;
+  lesson_date: string;
+  topic_id: string;
+  difficulty: string;
+  lesson_content: string;
+  lesson_image_url: string | null;
+  quest_data: unknown;
+  quiz_data: unknown;
+}
+
+export async function getAcademyProgress(playerId: string): Promise<AcademyProgressRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM academy_progress WHERE player_id = ${playerId} LIMIT 1
+  `;
+  return (rows[0] as AcademyProgressRow) ?? null;
+}
+
+export async function createAcademyProgress(
+  playerId: string,
+  difficulty: string,
+  selectedTopics: string[],
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO academy_progress (player_id, difficulty, selected_topics, onboarded)
+    VALUES (${playerId}, ${difficulty}, ${selectedTopics}, true)
+    ON CONFLICT (player_id) DO UPDATE SET
+      difficulty = ${difficulty},
+      selected_topics = ${selectedTopics},
+      onboarded = true,
+      updated_at = NOW()
+  `;
+}
+
+export async function updateAcademyProgress(
+  playerId: string,
+  fields: Record<string, unknown>,
+): Promise<void> {
+  const sql = getSQL();
+  // Build update dynamically for each field
+  for (const [key, value] of Object.entries(fields)) {
+    if (key === 'completed_lessons' || key === 'active_quest' || key === 'category_progress') {
+      const jsonVal = value !== null ? JSON.stringify(value) : null;
+      await sql`
+        UPDATE academy_progress
+        SET ${sql(key)} = ${jsonVal}::jsonb, updated_at = NOW()
+        WHERE player_id = ${playerId}
+      `;
+    } else {
+      await sql`
+        UPDATE academy_progress
+        SET ${sql(key)} = ${value as string | number | boolean | null}, updated_at = NOW()
+        WHERE player_id = ${playerId}
+      `;
+    }
+  }
+}
+
+export async function getCachedLesson(
+  date: string,
+  topicId: string,
+  difficulty: string,
+): Promise<AcademyLessonRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM academy_lessons
+    WHERE lesson_date = ${date} AND topic_id = ${topicId} AND difficulty = ${difficulty}
+    LIMIT 1
+  `;
+  return (rows[0] as AcademyLessonRow) ?? null;
+}
+
+export async function saveCachedLesson(
+  date: string,
+  topicId: string,
+  difficulty: string,
+  lessonContent: string,
+  lessonImageUrl: string | null,
+  questData: unknown,
+  quizData: unknown,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO academy_lessons (lesson_date, topic_id, difficulty, lesson_content, lesson_image_url, quest_data, quiz_data)
+    VALUES (${date}, ${topicId}, ${difficulty}, ${lessonContent}, ${lessonImageUrl}, ${JSON.stringify(questData)}::jsonb, ${JSON.stringify(quizData)}::jsonb)
+    ON CONFLICT (lesson_date, topic_id, difficulty) DO NOTHING
+  `;
+}
+
+export async function getOnboardedPlayerIds(): Promise<string[]> {
+  const sql = getSQL();
+  const rows = await sql`SELECT player_id FROM academy_progress WHERE onboarded = true`;
+  return rows.map((r) => (r as { player_id: string }).player_id);
+}
