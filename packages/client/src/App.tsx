@@ -43,6 +43,7 @@ import {
   findBestSlotForSystem,
   canStartResearch,
   isSystemFullyResearched,
+  isRingFullyResearched,
   getResearchProgress,
   hasResearchData,
   findColonizablePlanet,
@@ -610,10 +611,16 @@ export function App() {
     discovery: Discovery;
     system: StarSystem;
   }[]>([]);
-  /** Derived: first pending discovery (shown when no completedModal is blocking) */
-  const pendingDiscovery = discoveryQueue.length > 0 && completedModalQueue.length === 0 ? discoveryQueue[0] : null;
-  /** Derived: first completed modal (shown first, before discoveries) */
-  const completedModal = completedModalQueue.length > 0 ? completedModalQueue[0] : null;
+
+  /** Popup queue gate — true while telemetry/observatory is active; cleared with delay after close */
+  const [popupQueueBlocked, setPopupQueueBlocked] = useState(false);
+  const popupBlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Schedule unblock: blocked immediately → unblocked after delayMs (5s for save, 2s for close) */
+  const unblockPopupQueue = useCallback((delayMs: number) => {
+    if (popupBlockTimerRef.current) clearTimeout(popupBlockTimerRef.current);
+    setPopupQueueBlocked(true);
+    popupBlockTimerRef.current = setTimeout(() => setPopupQueueBlocked(false), delayMs);
+  }, []);
 
   /** Observatory view (when player clicks "Quantum Focus") */
   const [observatoryTarget, setObservatoryTarget] = useState<{
@@ -628,6 +635,30 @@ export function App() {
     discovery: Discovery;
     system: StarSystem;
   } | null>(null);
+
+  /**
+   * Derived: first pending discovery.
+   * Blocked when: telemetry/observatory active, completedModal active, or popup queue gated.
+   * pendingDiscovery has higher priority than completedModal (anomaly before evacuation blocks
+   * research-complete modals until the player acknowledges the discovery).
+   */
+  const pendingDiscovery = discoveryQueue.length > 0
+    && completedModalQueue.length === 0
+    && !telemetryTarget
+    && !observatoryTarget
+    && !popupQueueBlocked
+    ? discoveryQueue[0] : null;
+
+  /**
+   * Derived: first completed-research modal.
+   * Blocked when: telemetry/observatory active, popup queue gated, or a discovery is pending.
+   */
+  const completedModal = completedModalQueue.length > 0
+    && !telemetryTarget
+    && !observatoryTarget
+    && !pendingDiscovery
+    && !popupQueueBlocked
+    ? completedModalQueue[0] : null;
 
   /** Gallery: map object_type → existing DiscoveryData (with photo) for duplicate check */
   const [galleryMap, setGalleryMap] = useState<Map<string, DiscoveryData>>(new Map());
@@ -1902,6 +1933,11 @@ export function App() {
     // Resolve the target system's ring to find the closest observatory slot
     const targetSystem = engineRef.current?.getAllSystems()?.find((s) => s.id === systemId);
     const targetRing = targetSystem?.ringIndex ?? 1;
+    // Block ring N if ring N-1 is not fully researched
+    if (targetRing > 1) {
+      const allSystems = engineRef.current?.getAllSystems() ?? [];
+      if (!isRingFullyResearched(researchState, allSystems, targetRing - 1)) return;
+    }
     const slotIdx = findBestSlotForSystem(researchState, targetRing);
     if (slotIdx < 0) return;
     setResearchData((prev) => prev - RESEARCH_DATA_COST);
@@ -2504,11 +2540,13 @@ export function App() {
 
   const handleCloseObservatory = useCallback(() => {
     setObservatoryTarget(null);
-  }, []);
+    unblockPopupQueue(2000); // Show next popup 2s after closing observatory
+  }, [unblockPopupQueue]);
 
   const handleCloseTelemetry = useCallback(() => {
     setTelemetryTarget(null);
-  }, []);
+    unblockPopupQueue(2000); // Show next popup 2s after closing telemetry
+  }, [unblockPopupQueue]);
 
   // ── Tutorial advance handler ─────────────────────────────────────────
   const handleTutorialAdvance = useCallback(() => {
@@ -2657,6 +2695,8 @@ export function App() {
       setObservatoryTarget(null);
       setHighlightedGalleryType(objectType);
       setShowCosmicArchive(true);
+      // Show next queued popup 5s after "в колекцію"
+      unblockPopupQueue(5000);
       // Clear highlight after animation
       setTimeout(() => setHighlightedGalleryType(null), 3000);
       // Advance tutorial step 11 → 12 (save photo to gallery)
@@ -2664,7 +2704,7 @@ export function App() {
         handleTutorialAdvance();
       }
     }
-  }, [observatoryTarget, telemetryTarget, galleryMap, tutorialStep, handleTutorialAdvance]);
+  }, [observatoryTarget, telemetryTarget, galleryMap, tutorialStep, handleTutorialAdvance, unblockPopupQueue]);
 
   /** Replace existing gallery entry with new one */
   const handleGalleryReplace = useCallback(() => {
@@ -4109,11 +4149,16 @@ export function App() {
             const prog = getResearchProgress(researchState, radialSystem.id);
             return (prog > 0 && prog < 100) ? prog : undefined;
           })()}
-          researchBlockReason={
-            researchState.slots.length === 0 ? 'Немає обсерваторій' :
-            findFreeSlot(researchState) < 0 ? 'Усі обсерваторії зайняті' :
-            null
-          }
+          researchBlockReason={(() => {
+            if (researchState.slots.length === 0) return t('errors.noObservatories');
+            if (findFreeSlot(researchState) < 0) return t('errors.allSlotsOccupied');
+            if (radialSystem.ringIndex > 1) {
+              const allSys = engineRef.current?.getAllSystems() ?? [];
+              if (!isRingFullyResearched(researchState, allSys, radialSystem.ringIndex - 1))
+                return t('research.panel_ring_locked', { ring: radialSystem.ringIndex - 1 });
+            }
+            return null;
+          })()}
           onClose={handleCloseSystemMenu}
           onEnterSystem={handleSystemMenuEnter}
           onObjectsList={handleObjectsList}

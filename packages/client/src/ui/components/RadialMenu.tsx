@@ -179,13 +179,17 @@ export function RadialMenu({
   const [premiumOpen, setPremiumOpen] = useState(false);
   const premSubRef = useRef<HTMLDivElement | null>(null);
   const [flashMsg, setFlashMsg] = useState<string | null>(null);
+  const [flashVisible, setFlashVisible] = useState(false);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [premHintVisible, setPremHintVisible] = useState(false);
 
   const showFlash = (msg: string) => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     setFlashMsg(msg);
-    flashTimerRef.current = setTimeout(() => setFlashMsg(null), 2500);
+    setFlashVisible(true);
+    // Fade out at 1600ms, unmount at 2000ms
+    flashTimerRef.current = setTimeout(() => setFlashVisible(false), 1600);
+    setTimeout(() => setFlashMsg(null), 2000);
   };
 
   // Build button definitions
@@ -370,6 +374,7 @@ export function RadialMenu({
             <button
               key={`${def.action}-${i}`}
               ref={(el) => { btnRefs.current[i] = el; }}
+              title={def.dim ? def.tip : undefined}
               onClick={(e) => {
                 e.stopPropagation();
                 if (def.isPremium) {
@@ -456,8 +461,8 @@ export function RadialMenu({
               }}
             >
               {def.icon}
-              {/* Tooltip — hidden when premium submenu is open */}
-              {!isActivePremium && (
+              {/* Tooltip — hidden for dim buttons (flashMsg is the notification) and when premium is open */}
+              {!isActivePremium && !def.dim && (
                 <div
                   data-tip="1"
                   style={{
@@ -599,7 +604,7 @@ export function RadialMenu({
         })()}
       </div>
 
-      {/* Flash message for blocked actions */}
+      {/* Flash message for blocked actions — single notification, fades out */}
       {flashMsg && (
         <div style={{
           position: 'fixed',
@@ -617,6 +622,8 @@ export function RadialMenu({
           letterSpacing: '0.08em',
           pointerEvents: 'none',
           whiteSpace: 'nowrap',
+          opacity: flashVisible ? 1 : 0,
+          transition: 'opacity 0.4s',
         }}>
           {flashMsg}
         </div>

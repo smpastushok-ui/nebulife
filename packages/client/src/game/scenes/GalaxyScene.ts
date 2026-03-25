@@ -960,33 +960,8 @@ export class GalaxyScene {
       animateExpand(node);
       this.animateStarBurn(node, t);
 
-      // Animate orbital probe dot (active research only)
-      if (node.scanArc) {
-        const isActive = this.researchState.slots.some((s) => s.systemId === node.system.id);
-        const prog = getResearchProgress(this.researchState, node.system.id);
-        node.scanArc.visible = isActive && prog > 0;
-        if (isActive && prog > 0) {
-          node.scanArc.clear();
-          const r = Math.max(2.5, node.baseRadius * 0.42) * 1.8 + 6;
-          const baseAngle = -Math.PI / 2 + (prog / 100) * Math.PI * 2;
-          const probeAngle = baseAngle + (t * 0.0018) % (Math.PI * 2);
-          const pulse = 0.82 + 0.18 * Math.sin(t * 0.007);
-          const px = Math.cos(probeAngle) * r;
-          const py = Math.sin(probeAngle) * r;
-          // Glow layers
-          for (let gi = 5; gi >= 1; gi--) {
-            const f = gi / 5;
-            node.scanArc.circle(px, py, 3.5 * f * 2.0);
-            node.scanArc.fill({ color: 0xffdd66, alpha: (1 - f) * 0.4 * pulse });
-          }
-          // Core bead
-          node.scanArc.circle(px, py, 3.2);
-          node.scanArc.fill({ color: 0xffee88, alpha: 0.92 * pulse });
-          // White highlight
-          node.scanArc.circle(px - 0.7, py - 0.7, 1.1);
-          node.scanArc.fill({ color: 0xffffff, alpha: 0.75 * pulse });
-        }
-      }
+      // Scan arc probe dot removed — only atom orbit animation shown
+      if (node.scanArc) node.scanArc.visible = false;
 
       // Atom orbital animation — 4 colored electrons on different tilted orbits
       // Visible throughout the entire research process (not just at 0%)
@@ -1012,15 +987,19 @@ export class GalaxyScene {
             const cosT = Math.cos(orb.tilt);
             const sinT = Math.sin(orb.tilt);
 
-            // Faint dashed orbit ring (10 dots, every other one)
-            for (let si = 0; si < 10; si++) {
-              if (si % 2 !== 0) continue;
-              const a = (si / 10) * Math.PI * 2;
-              const rx = Math.cos(a) * orbitR;
-              const ry = Math.sin(a) * orbitB;
-              node.atomOrbit.circle(rx * cosT - ry * sinT, rx * sinT + ry * cosT, 0.4);
-              node.atomOrbit.fill({ color: orb.color, alpha: 0.12 });
+            // ── Phantom orbit trail: full ghost ellipse (barely visible) ──────
+            const STEPS = 32;
+            for (let si = 0; si <= STEPS; si++) {
+              const phi = (si / STEPS) * Math.PI * 2;
+              const ox = Math.cos(phi) * orbitR;
+              const oy = Math.sin(phi) * orbitB;
+              const sx = ox * cosT - oy * sinT;
+              const sy = ox * sinT + oy * cosT;
+              if (si === 0) node.atomOrbit.moveTo(sx, sy);
+              else node.atomOrbit.lineTo(sx, sy);
             }
+            node.atomOrbit.closePath();
+            node.atomOrbit.stroke({ color: orb.color, alpha: 0.055 * pulse, width: 0.5 });
 
             // Electron position on its orbit
             const angle = (t * orb.speed + orb.phase0) % (Math.PI * 2);
@@ -1029,12 +1008,24 @@ export class GalaxyScene {
             const ex2 = ex * cosT - ey * sinT;
             const ey2 = ex * sinT + ey * cosT;
 
-            // Glow halo
+            // ── Trailing arc: gradient dots behind electron (~150° arc) ───────
+            const TRAIL = 16;
+            const TRAIL_ARC = Math.PI * 0.85;
+            const dir = orb.speed > 0 ? -1 : 1;
+            for (let ti = 0; ti < TRAIL; ti++) {
+              const frac = ti / TRAIL; // 0 = tail end, 1 = near electron
+              const tAngle = angle + dir * TRAIL_ARC * (1 - frac);
+              const tx = Math.cos(tAngle) * orbitR;
+              const ty = Math.sin(tAngle) * orbitB;
+              node.atomOrbit.circle(tx * cosT - ty * sinT, tx * sinT + ty * cosT, orb.dot * 0.45);
+              node.atomOrbit.fill({ color: orb.color, alpha: (0.015 + 0.145 * frac) * pulse });
+            }
+
+            // ── Electron: glow halo + core bead ───────────────────────────────
             node.atomOrbit.circle(ex2, ey2, orb.dot * 1.8);
             node.atomOrbit.fill({ color: orb.color, alpha: 0.10 * pulse });
             node.atomOrbit.circle(ex2, ey2, orb.dot * 1.2);
             node.atomOrbit.fill({ color: orb.color, alpha: 0.28 * pulse });
-            // Core bead
             node.atomOrbit.circle(ex2, ey2, orb.dot);
             node.atomOrbit.fill({ color: orb.color, alpha: 0.95 * pulse });
           }
