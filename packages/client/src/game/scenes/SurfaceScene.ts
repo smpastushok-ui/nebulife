@@ -21,7 +21,6 @@ import {
   Polygon,
   Sprite,
   TilingSprite,
-  ColorMatrixFilter,
   Assets,
   Texture,
   Rectangle,
@@ -167,9 +166,11 @@ export class SurfaceScene {
   private baseTexture: Texture | null = null;
   /** Per-frame animation state for colony_hub effects (rendered on hubLayer). */
   private hubEffects: {
-    /** 5 iso-diamond outlines, one per ring level (pulsing, low alpha). */
-    diamonds: Graphics[];
-    /** 5 rotating orbit arcs — one per ring level with resource colours. */
+    /** Single batched Graphics for all 5 diamond outlines (1 clear/frame). */
+    diamondGfx: Graphics;
+    /** Per-ring data for diamond drawing. */
+    diamondData: Array<{ cx: number; cy: number; rW: number; rH: number; color: number }>;
+    /** 5 rotating orbit arcs — kept separate (blendMode='add' breaks batching). */
     orbits: Array<{
       g:     Graphics;
       angle: number;   // current head angle (radians)
@@ -180,8 +181,10 @@ export class SurfaceScene {
       rW:    number;   // ellipse horizontal radius (px)
       rH:    number;   // ellipse vertical radius  (px)
     }>;
-    /** 4 tiny sparks orbiting the top ring. */
-    sparks: Array<{ g: Graphics; angle: number; speed: number; dist: number; phase: number }>;
+    /** Single batched Graphics for all 4 sparks (1 clear/frame). */
+    sparkGfx: Graphics;
+    /** Per-spark positional data (no individual Graphics). */
+    sparks: Array<{ angle: number; speed: number; dist: number; phase: number }>;
     timeMs:    number;
     hubFootX:  number;   // footprint bottom-vertex X
     hubFootY:  number;   // footprint bottom-vertex Y
@@ -235,6 +238,15 @@ export class SurfaceScene {
   // ─── Clouds (TilingSprite) ────────────────────────────────────────────────
   private cloudShadowSprite: TilingSprite | null = null;
   private cloudBodySprite:   TilingSprite | null = null;
+
+  // ─── Performance: foam frame throttle ────────────────────────────────────
+  /** Counts frames; foam redraws every FOAM_SKIP_FRAMES to save GPU uploads. */
+  private _foamFrameCount = 0;
+
+  // ─── Performance: floating text driven by update() — no per-anim RAF ─────
+  private _floatAnims: Array<{
+    g: Graphics; x: number; cy: number; color: number; elapsedMs: number;
+  }> = [];
 
   // ─── Harvest visual effects ───────────────────────────────────────────────
   private harvestFx:       HarvestEffects | null = null;
@@ -544,19 +556,32 @@ export class SurfaceScene {
     const N    = this.gridSize;
     const seed = this.planet.seed;
     const wl   = this.waterLevel;
+    const hW   = TILE_W / 2;
+    const hH   = TILE_H / 2;
 
     for (let d = 0; d < 2 * N - 1; d++) {
       const colMin = Math.max(0, d - N + 1);
       const colMax = Math.min(d, N - 1);
+
+      // One batched Graphics per diagonal band for all water/beach cells — reduces
+      // Container children from ~1 228 Graphics to ~127, cutting addChild overhead.
+      let bandWaterGfx: Graphics | null = null;
+
       for (let col = colMin; col <= colMax; col++) {
         const row = d - col;
         const terrain   = classifyCellTerrain(col, row, seed, wl, N);
         const { x, y }  = gridToScreen(col, row);
-        const baseY     = y + TILE_H / 2;
+        const baseY     = y + hH;
 
-        // Water → always drawn programmatically (no sprite seam artefacts)
+        // Water → batch all cells in this band into one Graphics (painter's order preserved)
         if (isWaterTerrain(terrain) || terrain === 'beach') {
-          this.groundLayer.addChild(this.makeWaterDiamond(x, baseY, terrain));
+          if (!bandWaterGfx) {
+            bandWaterGfx = new Graphics();
+            this.groundLayer.addChild(bandWaterGfx);
+          }
+          const color = WATER_COLORS[terrain] ?? 0x0d1f35;
+          bandWaterGfx.poly([x, baseY - hH, x + hW, baseY, x, baseY + hH, x - hW, baseY]);
+          bandWaterGfx.fill({ color });
           continue;
         }
 
@@ -890,7 +915,11 @@ export class SurfaceScene {
       [4.1, 0xffcc44,  0.00034],   // 4: yellow, outermost,   CW  (slowest)
     ];
 
-    const diamonds: Graphics[] = [];
+    // Single Graphics for all 5 diamond outlines (1 clear/frame instead of 5)
+    const diamondGfx = new Graphics();
+    this.hubLayer.addChild(diamondGfx);
+
+    const diamondData: Array<{ cx: number; cy: number; rW: number; rH: number; color: number }> = [];
     const orbits: Array<{ g: Graphics; angle: number; speed: number; color: number; cx: number; cy: number; rW: number; rH: number }> = [];
 
     for (let i = 0; i < RINGS.length; i++) {
@@ -898,9 +927,7 @@ export class SurfaceScene {
       const rW = rMult * TW2;
       const rH = rW * (TILE_H / TILE_W);  // iso-correct vertical compression
 
-      const dg = new Graphics();
-      this.hubLayer.addChild(dg);
-      diamonds.push(dg);
+      diamondData.push({ cx, cy, rW, rH, color });
 
       const og = new Graphics();
       og.blendMode = 'add';
@@ -917,21 +944,20 @@ export class SurfaceScene {
       });
     }
 
-    // 4 sparks orbiting around the outermost ring — tiny 2×2 dots
-    const sparks = Array.from({ length: 4 }, (_, i) => {
-      const g = new Graphics();
-      this.hubLayer.addChild(g);
-      return {
-        g,
-        angle: (i / 4) * Math.PI * 2,
-        speed: 0.0008 + 0.0003 * i,
-        dist:  RINGS[4][0] * TW2 * 0.65,   // 65% of outermost ring rW
-        phase: i * 1.5,
-      };
-    });
+    // Single Graphics for all 4 sparks (1 clear/frame instead of 4)
+    const sparkGfx = new Graphics();
+    this.hubLayer.addChild(sparkGfx);
+
+    // Spark positional data (no individual Graphics per spark)
+    const sparks = Array.from({ length: 4 }, (_, i) => ({
+      angle: (i / 4) * Math.PI * 2,
+      speed: 0.0008 + 0.0003 * i,
+      dist:  RINGS[4][0] * TW2 * 0.65,   // 65% of outermost ring rW
+      phase: i * 1.5,
+    }));
 
     this.hubEffects = {
-      diamonds, orbits, sparks,
+      diamondGfx, diamondData, orbits, sparkGfx, sparks,
       timeMs: 0,
       hubFootX: footBotX,
       hubFootY: footBotY,
@@ -956,11 +982,33 @@ export class SurfaceScene {
       if (!hasSpriteAnim(sp)) this.animatedSprites.splice(i, 1);
     }
 
+    // Tick floating-text animations (driven here — no separate requestAnimationFrame loop)
+    const FLOAT_DURATION = 1200;
+    for (let i = this._floatAnims.length - 1; i >= 0; i--) {
+      const fa = this._floatAnims[i];
+      fa.elapsedMs += deltaMs;
+      const t     = Math.min(1, fa.elapsedMs / FLOAT_DURATION);
+      const alpha = 1 - t;
+      if (alpha <= 0) {
+        fa.g.destroy();
+        this._floatAnims.splice(i, 1);
+        continue;
+      }
+      const offsetY = -30 * t;
+      fa.g.clear();
+      fa.g.circle(fa.x, fa.cy + offsetY, 4 * (1 - t));
+      fa.g.fill({ color: fa.color, alpha });
+    }
+
     // Animate harvest progress ring
     this.drawHarvestRing(deltaMs);
 
-    // Animate shoreline foam
-    this._updateFoam(deltaMs);
+    // Animate shoreline foam — throttled to every 4 frames (~15 fps redraw on 60 fps).
+    // Pass deltaMs*4 so foamTimeMs accumulates the same total time as every-frame calls.
+    this._foamFrameCount++;
+    if (this._foamFrameCount % 4 === 0) {
+      this._updateFoam(deltaMs * 4);
+    }
 
     // Animate atmospheric clouds
     this._updateCloudSprites(deltaMs);
@@ -998,21 +1046,17 @@ export class SurfaceScene {
     const t   = eff.timeMs;
     const TH2 = TILE_H / 2;
 
-    // ── Pulsing iso-diamond outlines (very low alpha, resource colour) ───
-    for (let i = 0; i < eff.diamonds.length; i++) {
-      const orb   = eff.orbits[i];
-      const g     = eff.diamonds[i];
-      const phase = (i / eff.diamonds.length) * Math.PI * 2;
+    // ── Pulsing diamond outlines — all 5 in ONE Graphics.clear() ────────
+    eff.diamondGfx.clear();
+    for (let i = 0; i < eff.diamondData.length; i++) {
+      const d     = eff.diamondData[i];
+      const phase = (i / eff.diamondData.length) * Math.PI * 2;
       const a     = 0.10 + 0.07 * Math.sin((t / 2500) * Math.PI * 2 + phase);
-      g.clear();
-      g.poly([orb.cx, orb.cy - orb.rH,
-              orb.cx + orb.rW, orb.cy,
-              orb.cx, orb.cy + orb.rH,
-              orb.cx - orb.rW, orb.cy]);
-      g.stroke({ width: 1.0, color: orb.color, alpha: a });
+      eff.diamondGfx.poly([d.cx, d.cy - d.rH, d.cx + d.rW, d.cy, d.cx, d.cy + d.rH, d.cx - d.rW, d.cy]);
+      eff.diamondGfx.stroke({ width: 1.0, color: d.color, alpha: a });
     }
 
-    // ── Rotating orbit arcs (blendMode='add', bright head dot) ───────────
+    // ── Rotating orbit arcs (blendMode='add' — must stay separate) ───────
     const ARC_SPAN = 0.55;   // radians (~31°) — arc length
     const N_PTS    = 14;     // polyline segments per arc
     for (const orb of eff.orbits) {
@@ -1033,17 +1077,17 @@ export class SurfaceScene {
       g.fill({ color: 0xffffff, alpha: 0.95 });
     }
 
-    // ── Sparks: 4 tiny 2×2 pixels orbiting top ring ───────────────────────
+    // ── Sparks — all 4 in ONE Graphics.clear() ────────────────────────────
     {
       const topOrb = eff.orbits[4];
+      eff.sparkGfx.clear();
       for (const sp of eff.sparks) {
         sp.angle += sp.speed * deltaMs;
         const sx = topOrb.cx + sp.dist * Math.cos(sp.angle);
         const sy = topOrb.cy + sp.dist * Math.sin(sp.angle) * (TILE_H / TILE_W);
         const a  = 0.5 + 0.5 * Math.sin(t / 1200 + sp.phase);
-        sp.g.clear();
-        sp.g.rect(sx - 1, sy - 1, 2, 2);
-        sp.g.fill({ color: 0x88ccff, alpha: a });
+        eff.sparkGfx.rect(sx - 1, sy - 1, 2, 2);
+        eff.sparkGfx.fill({ color: 0x88ccff, alpha: a });
       }
     }
   }
@@ -1964,7 +2008,8 @@ export class SurfaceScene {
 
   /**
    * Show floating "+N resource" text at a grid cell.
-   * The text drifts upward and fades out over ~1 second.
+   * The dot drifts upward and fades out over ~1.2 s.
+   * Driven by update() to avoid spawning a separate requestAnimationFrame loop.
    */
   public showFloatingText(
     col: number,
@@ -1974,34 +2019,9 @@ export class SurfaceScene {
   ): void {
     const { x, y } = gridToScreen(col, row);
     const cy = y + TILE_H / 2 - 20;  // start above tile
-
-    const g = new Graphics();
-    // Use a simple approach: draw text as a small container
-    // Since we can't use pixi Text without font setup, use effect layer approach
-    const startTime = Date.now();
-    const duration  = 1200;
-
-    const animate = (): void => {
-      const elapsed = Date.now() - startTime;
-      const t       = Math.min(1, elapsed / duration);
-      const alpha   = 1 - t;
-      const offsetY = -30 * t;  // drift upward 30px
-
-      g.clear();
-      if (alpha <= 0) {
-        g.destroy();
-        return;
-      }
-
-      // Draw a small diamond-shaped flash
-      g.circle(x, cy + offsetY, 4 * (1 - t));
-      g.fill({ color, alpha });
-
-      requestAnimationFrame(animate);
-    };
-
+    const g  = new Graphics();
     this.effectLayer.addChild(g);
-    animate();
+    this._floatAnims.push({ g, x, cy, color, elapsedMs: 0 });
   }
 
   // ─── Harvest destruction effects ──────────────────────────────────────────
@@ -3454,9 +3474,6 @@ export class SurfaceScene {
     shadowSprite.tileScale.set(2);
     shadowSprite.alpha = 0.18;
     shadowSprite.blendMode = 'multiply';
-    const invertFilter = new ColorMatrixFilter();
-    invertFilter.negative(false);
-    shadowSprite.filters = [invertFilter];
     shadowSprite.position.set(posX, posY);
     this.cloudShadowSprite = shadowSprite;
     // Index 4: after groundLayer[0], concreteLayer[1], noiseOverlay[2], foamGfx[3]
