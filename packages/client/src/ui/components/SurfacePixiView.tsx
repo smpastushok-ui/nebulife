@@ -107,6 +107,14 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       | { type: 'harvester'; index: number; screenX: number; screenY: number };
     const [dronePopup, setDronePopup] = useState<DronePopupData | null>(null);
 
+    // ─── Mobile detection + ghost-drag state ─────────────────────────────────
+    const isMobile         = useRef(typeof window !== 'undefined' && 'ontouchstart' in window);
+    const isGhostDragging  = useRef(false);
+    const mobileGhostCol   = useRef(-1);
+    const mobileGhostRow   = useRef(-1);
+    const [mobileGhostValid, setMobileGhostValid]   = useState(false);
+    const [mobileConfirming, setMobileConfirming]   = useState(false);
+
     // ─── Isotope fuel for drones ────────────────────────────────────────────
     const isotopesRef      = useRef(isotopes ?? 0);
     const consumeIsoRef    = useRef(onConsumeIsotopes);
@@ -253,7 +261,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         const hubCol = hubBuilding ? hubBuilding.x + Math.floor((hubDef?.sizeW ?? 2) / 2) : Math.floor(scene.gridSize / 2);
         const hubRow = hubBuilding ? hubBuilding.y + Math.floor((hubDef?.sizeH ?? 2) / 2) : Math.floor(scene.gridSize / 2);
         const { x: hubWX, y: hubWY } = gridToScreen(hubCol, hubRow);
-        const z0 = 0.6;
+        const z0 = 0.15; // max zoom-out — загальний огляд при вході
         const cW0 = app.screen.width;
         const cH0 = app.screen.height;
         panRef.current.x = -(hubWX * z0);
@@ -323,9 +331,39 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       return () => window.removeEventListener('keydown', onKeyDown);
     }, [selectedBuilding]);
 
+    // ─── Mobile: ініціалізувати ghost в центрі екрану при виборі будівлі ──────
+
+    useEffect(() => {
+      if (!selectedBuilding || !isMobile.current) return;
+      const scene = sceneRef.current;
+      const app   = pixiAppRef.current;
+      if (!scene || !app) return;
+      isGhostDragging.current = false;
+      setMobileConfirming(false);
+      const cx = app.screen.width  / 2;
+      const cy = app.screen.height / 2;
+      const z  = zoomRef.current;
+      const wx = (cx - scene.worldContainer.x) / z;
+      const wy = (cy - scene.worldContainer.y) / z;
+      const { col, row } = screenToGrid(wx, wy);
+      const valid = scene.canBuildAt(col, row, selectedBuilding, buildings);
+      scene.updateGhost(col, row, selectedBuilding, valid);
+      mobileGhostCol.current = col;
+      mobileGhostRow.current = row;
+      setMobileGhostValid(valid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedBuilding]);
+
     // ─── Pointer events (pan + drag) ──────────────────────────────────────────
 
     const handlePointerDown = (e: React.PointerEvent) => {
+      // Mobile building mode: починаємо drag ghost, НЕ пануємо карту
+      if (selectedBuilding && isMobile.current) {
+        isGhostDragging.current = true;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        return;
+      }
+
       isDragging.current = true;
       dragMoved.current  = false;
       dragStart.current  = {
@@ -343,7 +381,23 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
-      // Ghost preview on hover (no drag required)
+      // Mobile ghost drag — переміщення ghost будівлі пальцем
+      if (isGhostDragging.current && selectedBuilding && sceneRef.current) {
+        const scene = sceneRef.current;
+        const rect  = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const z     = zoomRef.current;
+        const wx    = (e.clientX - rect.left - scene.worldContainer.x) / z;
+        const wy    = (e.clientY - rect.top  - scene.worldContainer.y) / z;
+        const { col, row } = screenToGrid(wx, wy);
+        const valid = scene.canBuildAt(col, row, selectedBuilding, buildings);
+        scene.updateGhost(col, row, selectedBuilding, valid);
+        mobileGhostCol.current = col;
+        mobileGhostRow.current = row;
+        setMobileGhostValid(valid);
+        return;
+      }
+
+      // Desktop ghost preview on hover (no drag required)
       if (selectedBuilding && sceneRef.current && !isDragging.current) {
         const scene = sceneRef.current;
         const rect  = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -370,6 +424,14 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     };
 
     const handlePointerUp = () => {
+      // Mobile ghost drag end — показати confirm/cancel якщо позиція валідна
+      if (isGhostDragging.current) {
+        isGhostDragging.current = false;
+        if (mobileGhostValid) {
+          setMobileConfirming(true);
+        }
+        return;
+      }
       isDragging.current = false;
     };
 
@@ -378,6 +440,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     const handleClick = useCallback((e: React.MouseEvent) => {
       const scene = sceneRef.current;
       if (!scene) return;
+
+      // Mobile building mode — клік обробляється через pointer events, не тут
+      if (isMobile.current && selectedBuilding) return;
 
       // Ignore clicks that were drags
       if (dragMoved.current) return;
@@ -526,6 +591,40 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       });
     }, [demolishConfirm, playerId]);
 
+    // ─── Mobile confirm / cancel ──────────────────────────────────────────────
+
+    const handleMobileConfirm = useCallback(() => {
+      const col = mobileGhostCol.current;
+      const row = mobileGhostRow.current;
+      if (col < 0 || !selectedBuilding || !sceneRef.current) return;
+      if (!sceneRef.current.canBuildAt(col, row, selectedBuilding, buildings)) return;
+
+      const newBuilding: PlacedBuilding = {
+        id:      `bld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        type:    selectedBuilding,
+        x:       col,
+        y:       row,
+        level:   1,
+        builtAt: new Date().toISOString(),
+      };
+      setBuildings((prev) => [...prev, newBuilding]);
+      setSelectedBuilding(null);
+      setMobileConfirming(false);
+      isGhostDragging.current = false;
+      sceneRef.current.clearGhost();
+      onBuildingPlaced?.();
+      placeBuilding(playerId, planet.id, newBuilding).catch(console.error);
+      if (newBuilding.type === 'colony_hub') sceneRef.current.spawnBotAtHub(newBuilding);
+      if (newBuilding.type === 'alpha_harvester') sceneRef.current.spawnHarvesterDrone(newBuilding);
+    }, [selectedBuilding, buildings, playerId, planet.id, onBuildingPlaced]);
+
+    const handleMobileCancel = useCallback(() => {
+      setSelectedBuilding(null);
+      setMobileConfirming(false);
+      isGhostDragging.current = false;
+      sceneRef.current?.clearGhost();
+    }, []);
+
     useImperativeHandle(ref, () => ({
       zoomIn:            () => applyZoom(zoomRef.current * 1.22),
       zoomOut:           () => applyZoom(zoomRef.current * 0.82),
@@ -596,6 +695,45 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
               setInspectBuilding(updated);
             }}
           />
+        )}
+
+        {/* Mobile building confirm/cancel overlay */}
+        {mobileConfirming && selectedBuilding && (
+          <>
+            {/* Скасувати — зліва */}
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={handleMobileCancel}
+              style={{
+                position: 'fixed', left: 20, bottom: 150,
+                width: 56, height: 56, borderRadius: '50%',
+                background: 'rgba(160,20,20,0.92)', border: '2px solid #ff4444',
+                color: '#fff', fontSize: 28, lineHeight: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', fontFamily: 'monospace',
+                boxShadow: '0 0 12px rgba(255,50,50,0.4)', zIndex: 10500,
+              }}
+            >
+              &times;
+            </button>
+            {/* Підтвердити — справа */}
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={handleMobileConfirm}
+              style={{
+                position: 'fixed', right: 20, bottom: 150,
+                width: 56, height: 56, borderRadius: '50%',
+                background: mobileGhostValid ? 'rgba(20,140,70,0.92)' : 'rgba(40,40,40,0.7)',
+                border: `2px solid ${mobileGhostValid ? '#44ff88' : '#334455'}`,
+                color: mobileGhostValid ? '#fff' : '#556677', fontSize: 24, lineHeight: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: mobileGhostValid ? 'pointer' : 'default', fontFamily: 'monospace',
+                boxShadow: mobileGhostValid ? '0 0 14px rgba(50,255,120,0.4)' : 'none', zIndex: 10500,
+              }}
+            >
+              &#10003;
+            </button>
+          </>
         )}
 
         {/* Drone control popup */}
