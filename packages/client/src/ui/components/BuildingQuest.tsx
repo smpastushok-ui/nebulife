@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // BuildingQuest — Step-by-step building tutorial on the Surface view
@@ -16,44 +17,22 @@ import React, { useState, useEffect, useCallback } from 'react';
 // ---------------------------------------------------------------------------
 
 const LS_KEY = 'nebulife_building_quest_step';
+const STEP_COUNT = 5;
 
 interface QuestStep {
-  title: string;
-  text: string;
+  titleKey: string;
+  textKey: string;
   /** 'auto' = auto-advance after delay; 'condition' = waits for external trigger */
   type: 'condition' | 'auto';
   autoDelayMs?: number;
 }
 
 const STEPS: QuestStep[] = [
-  {
-    title: 'Центр колонії',
-    text: 'Оберiть "Центр колонії" у панелi будiвель та поставте на вiдкрiту зону.',
-    type: 'condition',
-  },
-  {
-    title: 'Дрон-дослiдник',
-    text: 'Центр колонiї побудовано! Ваш перший дрон-дослiдник активовано. Вiн розкриває туман вiйни та дослiджує поверхню.',
-    type: 'auto',
-    autoDelayMs: 5000,
-  },
-  {
-    title: 'Розвiдка',
-    text: 'Натиснiть кнопку дрона на бiчнiй панелi, а потiм — на карту, щоб вiдправити дрон на розвiдку.',
-    type: 'auto',
-    autoDelayMs: 8000,
-  },
-  {
-    title: 'Туман вiйни',
-    text: 'Дрон розкриває новi зони при русi. Центр колонiї генерує 1 одиницю даних дослiджень щогодини та має 500 жителiв.',
-    type: 'auto',
-    autoDelayMs: 6000,
-  },
-  {
-    title: 'Енергія',
-    text: 'Побудуйте Сонячну станцiю для виробництва енергiї. Без енергiї будiвлi не працюють!',
-    type: 'condition',
-  },
+  { titleKey: 'quest.step0_title', textKey: 'quest.step0_desc', type: 'condition' },
+  { titleKey: 'quest.step1_title', textKey: 'quest.step1_desc', type: 'auto', autoDelayMs: 6000 },
+  { titleKey: 'quest.step2_title', textKey: 'quest.step2_desc', type: 'auto', autoDelayMs: 7000 },
+  { titleKey: 'quest.step3_title', textKey: 'quest.step3_desc', type: 'auto', autoDelayMs: 6000 },
+  { titleKey: 'quest.step4_title', textKey: 'quest.step4_desc', type: 'condition' },
 ];
 
 interface BuildingQuestProps {
@@ -63,6 +42,7 @@ interface BuildingQuestProps {
 }
 
 export function BuildingQuest({ hubBuilt, solarBuilt }: BuildingQuestProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<number>(() => {
     try {
       const saved = localStorage.getItem(LS_KEY);
@@ -79,8 +59,8 @@ export function BuildingQuest({ hubBuilt, solarBuilt }: BuildingQuestProps) {
 
   // Fade-in animation
   useEffect(() => {
-    const t = setTimeout(() => setFadeIn(true), 100);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setFadeIn(true), 100);
+    return () => clearTimeout(timer);
   }, [step]);
 
   // Auto-advance for 'auto' steps
@@ -88,8 +68,8 @@ export function BuildingQuest({ hubBuilt, solarBuilt }: BuildingQuestProps) {
     if (step >= STEPS.length) return;
     const s = STEPS[step];
     if (s.type !== 'auto') return;
-    const t = setTimeout(() => advance(), s.autoDelayMs ?? 4000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => advance(), s.autoDelayMs ?? 4000);
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
@@ -150,12 +130,8 @@ export function BuildingQuest({ hubBuilt, solarBuilt }: BuildingQuestProps) {
           gap: 8,
           marginBottom: 6,
         }}>
-          <span style={{
-            color: '#44ff88',
-            fontSize: 9,
-            letterSpacing: '0.6px',
-          }}>
-            КВЕСТ {step + 1}/{STEPS.length}
+          <span style={{ color: '#44ff88', fontSize: 9, letterSpacing: '0.6px' }}>
+            {t('quest.counter', { step: step + 1, total: STEP_COUNT })}
           </span>
           <span style={{ flex: 1 }} />
           {/* Progress dots */}
@@ -171,30 +147,17 @@ export function BuildingQuest({ hubBuilt, solarBuilt }: BuildingQuestProps) {
         </div>
 
         {/* Title */}
-        <div style={{
-          color: '#aaccee',
-          fontSize: 12,
-          fontWeight: 'bold',
-          marginBottom: 4,
-        }}>
-          {s.title}
+        <div style={{ color: '#aaccee', fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>
+          {t(s.titleKey)}
         </div>
 
         {/* Description */}
-        <div style={{
-          color: '#778899',
-          fontSize: 10,
-          lineHeight: 1.5,
-        }}>
-          {s.text}
+        <div style={{ color: '#778899', fontSize: 10, lineHeight: 1.5 }}>
+          {t(s.textKey)}
         </div>
 
         {/* Skip button */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginTop: 6,
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
           <button
             onClick={() => {
               setStep(STEPS.length);
@@ -211,7 +174,7 @@ export function BuildingQuest({ hubBuilt, solarBuilt }: BuildingQuestProps) {
               padding: '2px 6px',
             }}
           >
-            Пропустити
+            {t('quest.skip')}
           </button>
         </div>
       </div>

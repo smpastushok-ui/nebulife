@@ -9,6 +9,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface LevelUpBannerProps {
   level:  number | null;
@@ -53,6 +54,7 @@ function injectStyles(): void {
 }
 
 export const LevelUpBanner: React.FC<LevelUpBannerProps> = ({ level, onDone }) => {
+  const { t } = useTranslation();
   const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
 
@@ -150,7 +152,7 @@ export const LevelUpBanner: React.FC<LevelUpBannerProps> = ({ level, onDone }) =
             textTransform: 'uppercase',
           }}
         >
-          СИСТЕМНЕ ОНОВЛЕННЯ
+          {t('player.level_up_system_update')}
         </p>
 
         {/* Main level text with glitch */}
@@ -168,7 +170,7 @@ export const LevelUpBanner: React.FC<LevelUpBannerProps> = ({ level, onDone }) =
             zIndex:        2,
           }}
         >
-          ДОСЯГНУТО РІВЕНЬ&nbsp;[&nbsp;{level}&nbsp;]
+          {t('player.level_up_reached', { level })}
         </p>
 
         {/* Sub-text */}
@@ -181,7 +183,7 @@ export const LevelUpBanner: React.FC<LevelUpBannerProps> = ({ level, onDone }) =
             letterSpacing: 1,
           }}
         >
-          Відкрито нові вузли у Терміналі Досліджень
+          {t('player.level_up_nodes_unlocked')}
         </p>
       </div>
     </div>

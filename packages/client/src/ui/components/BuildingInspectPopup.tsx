@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PlacedBuilding } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 
@@ -11,15 +12,6 @@ interface BuildingInspectPopupProps {
   onDemolish:    () => void;
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-  infrastructure: 'Інфраструктура',
-  energy:         'Енергетика',
-  extraction:     'Видобуток',
-  science:        'Наука',
-  biosphere:      'Біосфера',
-  chemistry:      'Хімія',
-  premium:        'Преміум',
-};
 
 export default function BuildingInspectPopup({
   building,
@@ -29,6 +21,7 @@ export default function BuildingInspectPopup({
   onClose,
   onDemolish,
 }: BuildingInspectPopupProps) {
+  const { t } = useTranslation();
   const def  = BUILDING_DEFS[building.type];
   const isHQ = building.type === 'colony_hub';
 
@@ -100,20 +93,20 @@ export default function BuildingInspectPopup({
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={styles.name}>{def?.name ?? building.type}</div>
+        <div style={styles.name}>{t(`building.${building.type}.name`)}</div>
         <button style={styles.closeBtn} onClick={onClose}>×</button>
       </div>
       <div style={styles.body}>
         <div style={styles.meta}>
-          {CATEGORY_LABEL[def?.category ?? ''] ?? def?.category}&nbsp;&nbsp;|&nbsp;&nbsp;
-          Рівень {building.level}
+          {t(`surface.category_${def?.category ?? 'unknown'}`)}&nbsp;&nbsp;|&nbsp;&nbsp;
+          {t('surface.building_level', { level: building.level })}
         </div>
         {isDemolishing && (
-          <div style={styles.status}>Демонтаж...</div>
+          <div style={styles.status}>{t('surface.demolishing')}</div>
         )}
         {isHQ ? (
           <div style={{ fontSize: 10, color: '#445566', textAlign: 'center' as const }}>
-            Неможливо зруйнувати
+            {t('surface.cannot_demolish')}
           </div>
         ) : (
           <button
@@ -121,7 +114,7 @@ export default function BuildingInspectPopup({
             disabled={isDemolishing}
             onClick={isDemolishing ? undefined : onDemolish}
           >
-            {isDemolishing ? 'Демонтаж...' : 'Зруйнувати'}
+            {isDemolishing ? t('surface.demolishing') : t('surface.demolish_btn')}
           </button>
         )}
       </div>

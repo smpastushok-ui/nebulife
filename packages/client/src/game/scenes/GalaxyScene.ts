@@ -268,7 +268,7 @@ export class GalaxyScene {
   private getState(sys: StarSystem): 'home' | 'researched' | 'researching' | 'unexplored' {
     if (sys.ownerPlayerId !== null) return 'home';
     if (isSystemFullyResearched(this.researchState, sys.id)) return 'researched';
-    if (getResearchProgress(this.researchState, sys.id) > 0) return 'researching';
+    if (this.researchState.slots.some(s => s.systemId === sys.id)) return 'researching';
     return 'unexplored';
   }
 
@@ -998,12 +998,12 @@ export class GalaxyScene {
           const baseR = Math.max(2.5, node.baseRadius * 0.42) * 1.6 + 4;
           const pulse = 0.75 + 0.25 * Math.sin(t * 0.0045);
 
-          // 4 electrons: white / gold / red / blue — each on a distinct tilted orbit
+          // 4 electrons: all cyan/blue tones — each on a distinct tilted orbit
           const ORBITS = [
-            { rMult: 1.10, bMult: 0.32, speed: +0.0020, phase0: 0,               tilt: 0,               color: 0xddeeff, dot: 1.3 }, // white — nearly horizontal
-            { rMult: 1.45, bMult: 0.46, speed: -0.0015, phase0: Math.PI * 0.70,  tilt: Math.PI * 0.38,  color: 0xffdd44, dot: 1.2 }, // gold — tilted 68°
-            { rMult: 1.80, bMult: 0.33, speed: +0.0011, phase0: Math.PI * 1.35,  tilt: Math.PI * 0.14,  color: 0xff5533, dot: 1.2 }, // red — slight tilt
-            { rMult: 2.15, bMult: 0.20, speed: -0.0008, phase0: Math.PI * 1.82,  tilt: Math.PI * 0.58,  color: 0x44aaff, dot: 1.1 }, // blue — steep tilt
+            { rMult: 1.10, bMult: 0.32, speed: +0.0020, phase0: 0,               tilt: 0,               color: 0x88ddff, dot: 0.9 }, // cyan light
+            { rMult: 1.45, bMult: 0.46, speed: -0.0015, phase0: Math.PI * 0.70,  tilt: Math.PI * 0.38,  color: 0x44aaff, dot: 0.8 }, // blue-cyan
+            { rMult: 1.80, bMult: 0.33, speed: +0.0011, phase0: Math.PI * 1.35,  tilt: Math.PI * 0.14,  color: 0x2277cc, dot: 0.8 }, // deep blue
+            { rMult: 2.15, bMult: 0.20, speed: -0.0008, phase0: Math.PI * 1.82,  tilt: Math.PI * 0.58,  color: 0x55bbee, dot: 0.7 }, // soft cyan
           ] as const;
 
           for (const orb of ORBITS) {
@@ -1030,10 +1030,10 @@ export class GalaxyScene {
             const ey2 = ex * sinT + ey * cosT;
 
             // Glow halo
-            node.atomOrbit.circle(ex2, ey2, orb.dot * 2.8);
+            node.atomOrbit.circle(ex2, ey2, orb.dot * 1.8);
             node.atomOrbit.fill({ color: orb.color, alpha: 0.10 * pulse });
-            node.atomOrbit.circle(ex2, ey2, orb.dot * 1.7);
-            node.atomOrbit.fill({ color: orb.color, alpha: 0.32 * pulse });
+            node.atomOrbit.circle(ex2, ey2, orb.dot * 1.2);
+            node.atomOrbit.fill({ color: orb.color, alpha: 0.28 * pulse });
             // Core bead
             node.atomOrbit.circle(ex2, ey2, orb.dot);
             node.atomOrbit.fill({ color: orb.color, alpha: 0.95 * pulse });

@@ -68,6 +68,7 @@ export function generateResources(
 
   switch (planetType) {
     case 'rocky':
+    case 'terrestrial':
     case 'dwarf':
       return generateRockyResources(rng, zone, planetMassKg, surfaceTempK);
     case 'gas-giant':

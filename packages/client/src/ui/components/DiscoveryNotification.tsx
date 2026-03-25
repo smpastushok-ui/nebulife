@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Discovery, CatalogEntry, DiscoveryRarity } from '@nebulife/core';
 import { RARITY_COLORS, getCatalogEntry } from '@nebulife/core';
 
@@ -6,20 +7,20 @@ import { RARITY_COLORS, getCatalogEntry } from '@nebulife/core';
 // Toast notification that appears when a cosmic discovery is made
 // ---------------------------------------------------------------------------
 
-const RARITY_LABELS: Record<DiscoveryRarity, string> = {
-  common: 'Звичайне',
-  uncommon: 'Незвичайне',
-  rare: 'Рідкісне',
-  epic: 'Епічне',
-  legendary: 'Легендарне',
+const RARITY_KEYS: Record<DiscoveryRarity, string> = {
+  common:    'discovery_notification.rarity_common',
+  uncommon:  'discovery_notification.rarity_uncommon',
+  rare:      'discovery_notification.rarity_rare',
+  epic:      'discovery_notification.rarity_epic',
+  legendary: 'discovery_notification.rarity_legendary',
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  cosmos: 'Космос',
-  flora: 'Флора',
-  fauna: 'Фауна',
-  anomalies: 'Аномалії',
-  landscapes: 'Ландшафти',
+const CATEGORY_KEYS: Record<string, string> = {
+  cosmos:     'discovery_notification.category_cosmos',
+  flora:      'discovery_notification.category_flora',
+  fauna:      'discovery_notification.category_fauna',
+  anomalies:  'discovery_notification.category_anomalies',
+  landscapes: 'discovery_notification.category_landscapes',
 };
 
 const AUTO_HIDE_MS = 12_000;
@@ -36,10 +37,13 @@ export function DiscoveryNotification({
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
+  const { t } = useTranslation();
   const catalog = getCatalogEntry(discovery.type) as CatalogEntry | undefined;
   const color = RARITY_COLORS[discovery.rarity];
-  const rarityLabel = RARITY_LABELS[discovery.rarity];
-  const categoryLabel = CATEGORY_LABELS[discovery.galleryCategory] ?? discovery.galleryCategory;
+  const rarityLabel = t(RARITY_KEYS[discovery.rarity]);
+  const categoryLabel = CATEGORY_KEYS[discovery.galleryCategory]
+    ? t(CATEGORY_KEYS[discovery.galleryCategory])
+    : discovery.galleryCategory;
   const name = catalog?.nameUk ?? discovery.type;
 
   // Entrance animation
@@ -137,7 +141,7 @@ export function DiscoveryNotification({
             marginBottom: 8,
           }}
         >
-          Нове відкриття!
+          {t('discovery_notification.new_discovery')}
         </div>
 
         {/* Object name */}
@@ -226,7 +230,7 @@ export function DiscoveryNotification({
             e.currentTarget.style.boxShadow = 'none';
           }}
         >
-          Дослідити через обсерваторію &rarr;
+          {t('discovery_notification.investigate_btn')} &rarr;
         </button>
       </div>
 

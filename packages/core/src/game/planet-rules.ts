@@ -184,6 +184,7 @@ export function getAtmoMultiplier(atmospherePressureAtm: number): number {
 function getPlanetTypeLabel(type: PlanetType): string {
   switch (type) {
     case 'rocky': return 'скелястій планеті';
+    case 'terrestrial': return 'планеті земного типу';
     case 'dwarf': return 'карликовій планеті';
     case 'gas-giant': return 'газовому гіганті';
     case 'ice-giant': return 'крижаному гіганті';

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // FloatingInfoButton — Slowly blinking "i" icon button
@@ -12,6 +13,7 @@ interface FloatingInfoButtonProps {
 }
 
 export function FloatingInfoButton({ onClick }: FloatingInfoButtonProps) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
 
   return (
@@ -46,7 +48,7 @@ export function FloatingInfoButton({ onClick }: FloatingInfoButtonProps) {
           animation: 'info-btn-pulse 3s ease-in-out infinite',
           pointerEvents: 'auto',
         }}
-        title="Характеристики планети"
+        title={t('planet.characteristics')}
       >
         i
       </button>

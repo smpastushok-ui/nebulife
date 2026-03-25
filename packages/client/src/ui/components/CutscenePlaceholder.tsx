@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // CutscenePlaceholder — fullscreen video placeholder with auto-advance
@@ -12,6 +13,7 @@ interface CutscenePlaceholderProps {
 }
 
 export function CutscenePlaceholder({ label, duration = 5, onComplete }: CutscenePlaceholderProps) {
+  const { t } = useTranslation();
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -117,12 +119,12 @@ export function CutscenePlaceholder({ label, duration = 5, onComplete }: Cutscen
           (e.currentTarget as HTMLElement).style.borderColor = '#334455';
         }}
       >
-        Пропустити
+        {t('common.skip')}
       </button>
 
       {/* Subtitle text */}
       <div style={{ marginTop: 12, fontSize: 10, color: '#334455' }}>
-        Скоро тут буде відео...
+        {t('cutscene.coming_soon')}
       </div>
     </div>
   );

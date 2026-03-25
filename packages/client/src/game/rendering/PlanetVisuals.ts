@@ -298,7 +298,7 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   const surfaceHighColor = deriveSurfaceHighColor(tempK);
 
   // --- Biomes (only for planets with life) ---
-  const hasBiomes = planet.hasLife && (planet.type === 'rocky' || planet.type === 'dwarf');
+  const hasBiomes = planet.hasLife && (planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf');
   const biomeColors = hasBiomes
     ? deriveBiomeColors(tempK, planet.lifeComplexity)
     : { tropical: surfaceBaseColor, temperate: surfaceBaseColor, boreal: surfaceBaseColor, desert: surfaceBaseColor, tundra: surfaceBaseColor };
@@ -317,11 +317,11 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   const cloudColor = hasAtmosphere ? deriveCloudColor(atmo.composition) : 0xdde0e4;
 
   // --- Special ---
-  const hasLavaFlows = tempK > 1200 && (planet.type === 'rocky' || planet.type === 'dwarf');
+  const hasLavaFlows = tempK > 1200 && (planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf');
 
   // --- Craters (airless rocky/dwarf worlds without active lava) ---
   const hasCraters = !hasAtmosphere && !hasLavaFlows
-    && (planet.type === 'rocky' || planet.type === 'dwarf');
+    && (planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf');
   const craterColor = lerpColor(surfaceBaseColor, 0x000000, 0.35);
   const craterRimColor = lerpColor(surfaceBaseColor, 0xffffff, 0.15);
 

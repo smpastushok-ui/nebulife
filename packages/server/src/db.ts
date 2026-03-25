@@ -34,6 +34,12 @@ export interface PlayerRow {
   callsign_set_at: string | null;
   linked_at: string | null;
   global_index: number | null;
+  // Notification preferences
+  preferred_language: string;
+  email_notifications: boolean;
+  push_notifications: boolean;
+  fcm_token: string | null;
+  last_digest_seen: string | null;
 }
 
 export async function createPlayer(player: {
@@ -74,38 +80,16 @@ export async function updatePlayer(
     quarks: number;
     home_system_id: string;
     home_planet_id: string;
+    preferred_language: string;
+    email_notifications: boolean;
+    push_notifications: boolean;
+    last_digest_seen: string;
   }>,
 ): Promise<PlayerRow | null> {
   const sql = getSQL();
-  // Build SET clause dynamically
-  const sets: string[] = [];
-  const values: unknown[] = [];
-  let idx = 1;
 
-  if (updates.game_phase !== undefined) {
-    sets.push(`game_phase = $${idx++}`);
-    values.push(updates.game_phase);
-  }
-  if (updates.science_points !== undefined) {
-    sets.push(`science_points = $${idx++}`);
-    values.push(updates.science_points);
-  }
-  if (updates.login_streak !== undefined) {
-    sets.push(`login_streak = $${idx++}`);
-    values.push(updates.login_streak);
-  }
-  if (updates.last_login !== undefined) {
-    sets.push(`last_login = $${idx++}`);
-    values.push(updates.last_login);
-  }
-  if (updates.game_state !== undefined) {
-    sets.push(`game_state = $${idx++}`);
-    values.push(JSON.stringify(updates.game_state));
-  }
+  if (Object.keys(updates).length === 0) return getPlayer(playerId);
 
-  if (sets.length === 0) return getPlayer(playerId);
-
-  // Use tagged template for simple updates
   const rows = await sql`
     UPDATE players
     SET game_phase = COALESCE(${updates.game_phase ?? null}, game_phase),
@@ -115,7 +99,11 @@ export async function updatePlayer(
         game_state = COALESCE(${updates.game_state ? JSON.stringify(updates.game_state) : null}::jsonb, game_state),
         quarks = COALESCE(${updates.quarks ?? null}, quarks),
         home_system_id = COALESCE(${updates.home_system_id ?? null}, home_system_id),
-        home_planet_id = COALESCE(${updates.home_planet_id ?? null}, home_planet_id)
+        home_planet_id = COALESCE(${updates.home_planet_id ?? null}, home_planet_id),
+        preferred_language = COALESCE(${updates.preferred_language ?? null}, preferred_language),
+        email_notifications = COALESCE(${updates.email_notifications !== undefined ? updates.email_notifications : null}, email_notifications),
+        push_notifications = COALESCE(${updates.push_notifications !== undefined ? updates.push_notifications : null}, push_notifications),
+        last_digest_seen = COALESCE(${updates.last_digest_seen ?? null}, last_digest_seen)
     WHERE id = ${playerId}
     RETURNING *
   `;
@@ -1340,6 +1328,8 @@ export interface WeeklyDigestRow {
   images_generated: number;
   images_json: string | null;
   created_at: string;
+  emails_sent: boolean;
+  pushes_sent: boolean;
 }
 
 export async function getWeeklyDigest(weekDate: string): Promise<WeeklyDigestRow | null> {
@@ -1373,9 +1363,10 @@ export async function updateDigestImage(
   weekDate: string,
   imagesJson: string,
   newCount: number,
+  totalImages = 10,
 ): Promise<void> {
   const sql = getSQL();
-  const status = newCount >= 10 ? 'complete' : 'generating_images';
+  const status = newCount >= totalImages ? 'complete' : 'generating_images';
   await sql`
     UPDATE weekly_digest
     SET images_json = ${imagesJson}, images_generated = ${newCount}, status = ${status}
@@ -1390,6 +1381,76 @@ export async function getLatestCompleteDigest(): Promise<WeeklyDigestRow | null>
     ORDER BY week_date DESC LIMIT 1
   `;
   return (rows[0] as WeeklyDigestRow) ?? null;
+}
+
+/** Returns complete digest that has not yet had emails sent. */
+export async function getDigestPendingEmails(): Promise<WeeklyDigestRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM weekly_digest
+    WHERE status = 'complete' AND emails_sent = FALSE
+    ORDER BY week_date DESC LIMIT 1
+  `;
+  return (rows[0] as WeeklyDigestRow) ?? null;
+}
+
+/** Returns complete digest that has not yet had pushes sent. */
+export async function getDigestPendingPushes(): Promise<WeeklyDigestRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM weekly_digest
+    WHERE status = 'complete' AND pushes_sent = FALSE
+    ORDER BY week_date DESC LIMIT 1
+  `;
+  return (rows[0] as WeeklyDigestRow) ?? null;
+}
+
+/** Players with email + email notifications enabled for the given language. */
+export async function getDigestEmailRecipients(lang: string): Promise<PlayerRow[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM players
+    WHERE preferred_language = ${lang}
+      AND email IS NOT NULL
+      AND email_notifications = TRUE
+  `;
+  return rows as PlayerRow[];
+}
+
+/** Players with FCM token + push notifications enabled for the given language. */
+export async function getDigestPushRecipients(lang: string): Promise<PlayerRow[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM players
+    WHERE preferred_language = ${lang}
+      AND fcm_token IS NOT NULL
+      AND push_notifications = TRUE
+  `;
+  return rows as PlayerRow[];
+}
+
+/** Mark a digest as having had emails sent. */
+export async function markDigestEmailsSent(weekDate: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE weekly_digest SET emails_sent = TRUE WHERE week_date = ${weekDate}
+  `;
+}
+
+/** Mark a digest as having had pushes sent. */
+export async function markDigestPushesSent(weekDate: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE weekly_digest SET pushes_sent = TRUE WHERE week_date = ${weekDate}
+  `;
+}
+
+/** Store or clear the player's FCM registration token. */
+export async function updateFcmToken(playerId: string, token: string | null): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE players SET fcm_token = ${token} WHERE id = ${playerId}
+  `;
 }
 
 // ---------------------------------------------------------------------------
@@ -1409,16 +1470,120 @@ export async function getAdRewardCount(playerId: string): Promise<number> {
   return (rows[0] as { views_count: number }).views_count;
 }
 
-export async function addAdReward(playerId: string, adsWatched: number): Promise<boolean> {
-  const current = await getAdRewardCount(playerId);
-  if (current + adsWatched > AD_DAILY_LIMIT) return false;
+// ---------------------------------------------------------------------------
+// Idempotency Keys
+// ---------------------------------------------------------------------------
 
+export interface IdempotencyRecord {
+  key: string;
+  player_id: string;
+  endpoint: string;
+  response_status: number | null;
+  response_body: Record<string, unknown> | null;
+  completed_at: string | null;
+}
+
+type AcquireResult =
+  | { acquired: true }
+  | { acquired: false; record: IdempotencyRecord }
+  | { acquired: false; pending: true };
+
+export async function acquireIdempotencyKey(
+  key: string,
+  playerId: string,
+  endpoint: string,
+): Promise<AcquireResult> {
+  const sql = getSQL();
+
+  // Atomic INSERT — if conflict, key already exists
+  const rows = await sql`
+    INSERT INTO idempotency_keys (key, player_id, endpoint)
+    VALUES (${key}, ${playerId}, ${endpoint})
+    ON CONFLICT (key) DO NOTHING
+    RETURNING key
+  `;
+
+  if (rows.length > 0) return { acquired: true };
+
+  // Key exists — fetch it
+  const existing = await sql`
+    SELECT * FROM idempotency_keys WHERE key = ${key} AND player_id = ${playerId}
+  `;
+
+  if (existing.length === 0) {
+    return { acquired: false, pending: true }; // Different player's key
+  }
+
+  const record = existing[0] as IdempotencyRecord;
+  if (record.completed_at) {
+    return { acquired: false, record };
+  }
+
+  return { acquired: false, pending: true };
+}
+
+export async function completeIdempotencyKey(
+  key: string,
+  status: number,
+  body: Record<string, unknown>,
+): Promise<void> {
   const sql = getSQL();
   await sql`
+    UPDATE idempotency_keys
+    SET response_status = ${status},
+        response_body = ${JSON.stringify(body)}::jsonb,
+        completed_at = NOW()
+    WHERE key = ${key}
+  `;
+}
+
+/** Atomic add — prevents TOCTOU race via WHERE clause. */
+export async function addAdReward(playerId: string, adsWatched: number): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`
     INSERT INTO ad_rewards (player_id, views_count)
     VALUES (${playerId}, ${adsWatched})
     ON CONFLICT (player_id, reward_date)
     DO UPDATE SET views_count = ad_rewards.views_count + ${adsWatched}
+    WHERE ad_rewards.views_count + ${adsWatched} <= ${AD_DAILY_LIMIT}
+    RETURNING views_count
   `;
-  return true;
+  return rows.length > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Account Deletion (GDPR / Apple requirement)
+// ---------------------------------------------------------------------------
+
+/**
+ * Permanently delete all player data from the database.
+ * Order: dependent tables first, then the player record.
+ */
+export async function deletePlayerData(playerId: string): Promise<void> {
+  const sql = getSQL();
+
+  // Tables with CASCADE or manual FK — delete dependent data first
+  await sql`DELETE FROM discoveries WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM planet_models WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM player_aliases WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM surface_buildings WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM surface_maps WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM system_photos WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM system_missions WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM expeditions WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM kling_tasks WHERE player_id = ${playerId}`;
+
+  // Tables without FK — manual delete
+  await sql`DELETE FROM chat_bans WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM astra_tokens WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM ad_rewards WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM payment_intents WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM idempotency_keys WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM used_ad_sessions WHERE player_id = ${playerId}`;
+
+  // Messages: anonymize sender (keep for chat history integrity)
+  await sql`UPDATE messages SET sender_id = 'deleted', sender_name = 'Видалений' WHERE sender_id = ${playerId}`;
+
+  // Finally delete the player record
+  await sql`DELETE FROM players WHERE id = ${playerId}`;
 }

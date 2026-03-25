@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Planet } from '@nebulife/core';
 
 const panelStyle: React.CSSProperties = {
@@ -57,6 +58,7 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
   onSurface?: () => void;
   surfaceDisabledReason?: string;
 }) {
+  const { t } = useTranslation();
   const hab = planet.habitability;
   const typeLabel = planet.type.replace('-', ' ');
 
@@ -72,39 +74,39 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
 
       {/* --- Group 1: Physical --- */}
       <div style={groupStyle}>
-        <div style={groupTitleStyle}>Physical</div>
-        <div style={rowStyle}><span>Type</span><span style={{ textTransform: 'capitalize' }}>{typeLabel}</span></div>
-        <div style={rowStyle}><span>Mass</span><span>{planet.massEarth} M&#x2295;</span></div>
-        <div style={rowStyle}><span>Radius</span><span>{planet.radiusEarth} R&#x2295;</span></div>
-        <div style={rowStyle}><span>Density</span><span>{planet.densityGCm3} g/cm&sup3;</span></div>
-        <div style={rowStyle}><span>Gravity</span><span>{planet.surfaceGravityG}g</span></div>
-        <div style={rowStyle}><span>Escape vel.</span><span>{planet.escapeVelocityKmS} km/s</span></div>
+        <div style={groupTitleStyle}>{t('planet_info.group_physical')}</div>
+        <div style={rowStyle}><span>{t('planet_info.type')}</span><span style={{ textTransform: 'capitalize' }}>{typeLabel}</span></div>
+        <div style={rowStyle}><span>{t('planet_info.mass')}</span><span>{planet.massEarth} M&#x2295;</span></div>
+        <div style={rowStyle}><span>{t('planet_info.radius')}</span><span>{planet.radiusEarth} R&#x2295;</span></div>
+        <div style={rowStyle}><span>{t('planet_info.density')}</span><span>{planet.densityGCm3} g/cm&sup3;</span></div>
+        <div style={rowStyle}><span>{t('planet_info.gravity')}</span><span>{planet.surfaceGravityG}g</span></div>
+        <div style={rowStyle}><span>{t('planet_info.escape_vel')}</span><span>{planet.escapeVelocityKmS} km/s</span></div>
       </div>
 
       {/* --- Group 2: Orbital --- */}
       <div style={groupStyle}>
-        <div style={groupTitleStyle}>Orbital</div>
-        <div style={rowStyle}><span>Distance</span><span>{planet.orbit.semiMajorAxisAU.toFixed(3)} AU</span></div>
-        <div style={rowStyle}><span>Period</span><span>{planet.orbit.periodDays.toFixed(1)} days</span></div>
-        <div style={rowStyle}><span>Eccentricity</span><span>{planet.orbit.eccentricity.toFixed(3)}</span></div>
-        <div style={rowStyle}><span>Zone</span><span style={{ color: planet.zone === 'habitable' ? '#44aa66' : '#889999' }}>{planet.zone}</span></div>
+        <div style={groupTitleStyle}>{t('planet_info.group_orbital')}</div>
+        <div style={rowStyle}><span>{t('planet_info.distance')}</span><span>{planet.orbit.semiMajorAxisAU.toFixed(3)} AU</span></div>
+        <div style={rowStyle}><span>{t('planet_info.period')}</span><span>{planet.orbit.periodDays.toFixed(1)} {t('planet_info.days')}</span></div>
+        <div style={rowStyle}><span>{t('planet_info.eccentricity')}</span><span>{planet.orbit.eccentricity.toFixed(3)}</span></div>
+        <div style={rowStyle}><span>{t('planet_info.zone')}</span><span style={{ color: planet.zone === 'habitable' ? '#44aa66' : '#889999' }}>{planet.zone}</span></div>
       </div>
 
       {/* --- Group 3: Climate --- */}
       <div style={groupStyle}>
-        <div style={groupTitleStyle}>Climate</div>
+        <div style={groupTitleStyle}>{t('planet_info.group_climate')}</div>
 
-        <div style={subSectionStyle}>Temperature</div>
-        <div style={rowStyle}><span>Equilibrium</span><span>{planet.equilibriumTempK} K</span></div>
-        <div style={rowStyle}><span>Surface</span><span>{planet.surfaceTempK} K ({(planet.surfaceTempK - 273.15).toFixed(0)}&deg;C)</span></div>
-        <div style={rowStyle}><span>Albedo</span><span>{planet.albedo}</span></div>
+        <div style={subSectionStyle}>{t('planet_info.temperature')}</div>
+        <div style={rowStyle}><span>{t('planet_info.equilibrium')}</span><span>{planet.equilibriumTempK} K</span></div>
+        <div style={rowStyle}><span>{t('planet_info.surface_temp')}</span><span>{planet.surfaceTempK} K ({(planet.surfaceTempK - 273.15).toFixed(0)}&deg;C)</span></div>
+        <div style={rowStyle}><span>{t('planet_info.albedo')}</span><span>{planet.albedo}</span></div>
 
         {planet.atmosphere && (
           <>
-            <div style={subSectionStyle}>Atmosphere</div>
-            <div style={rowStyle}><span>Pressure</span><span>{planet.atmosphere.surfacePressureAtm} atm</span></div>
+            <div style={subSectionStyle}>{t('planet_info.atmosphere')}</div>
+            <div style={rowStyle}><span>{t('planet_info.pressure')}</span><span>{planet.atmosphere.surfacePressureAtm} atm</span></div>
             <div style={rowStyle}>
-              <span>Composition</span>
+              <span>{t('planet_info.composition')}</span>
               <span style={{ fontSize: 9, textAlign: 'right' }}>
                 {Object.entries(planet.atmosphere.composition)
                   .filter(([, v]) => v > 0.001)
@@ -114,44 +116,44 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
               </span>
             </div>
             {planet.atmosphere.hasOzone && (
-              <div style={rowStyle}><span>Ozone layer</span><span style={{ color: '#44aa66' }}>Yes</span></div>
+              <div style={rowStyle}><span>{t('planet_info.ozone')}</span><span style={{ color: '#44aa66' }}>{t('planet_info.yes')}</span></div>
             )}
           </>
         )}
 
         {planet.hydrosphere && (
           <>
-            <div style={subSectionStyle}>Hydrosphere</div>
-            <div style={rowStyle}><span>Coverage</span><span>{(planet.hydrosphere.waterCoverageFraction * 100).toFixed(1)}%</span></div>
-            <div style={rowStyle}><span>Ocean depth</span><span>{planet.hydrosphere.oceanDepthKm.toFixed(1)} km</span></div>
-            <div style={rowStyle}><span>Ice caps</span><span>{(planet.hydrosphere.iceCapFraction * 100).toFixed(1)}%</span></div>
+            <div style={subSectionStyle}>{t('planet_info.hydrosphere')}</div>
+            <div style={rowStyle}><span>{t('planet_info.coverage')}</span><span>{(planet.hydrosphere.waterCoverageFraction * 100).toFixed(1)}%</span></div>
+            <div style={rowStyle}><span>{t('planet_info.ocean_depth')}</span><span>{planet.hydrosphere.oceanDepthKm.toFixed(1)} km</span></div>
+            <div style={rowStyle}><span>{t('planet_info.ice_caps')}</span><span>{(planet.hydrosphere.iceCapFraction * 100).toFixed(1)}%</span></div>
           </>
         )}
       </div>
 
       {/* --- Group 4: Biology --- */}
       <div style={groupStyle}>
-        <div style={groupTitleStyle}>Biology</div>
+        <div style={groupTitleStyle}>{t('planet_info.group_biology')}</div>
         <div style={rowStyle}>
-          <span>Life</span>
+          <span>{t('planet_info.life')}</span>
           <span style={{ color: planet.hasLife ? '#44ff88' : '#667788' }}>
-            {planet.hasLife ? planet.lifeComplexity : 'None'}
+            {planet.hasLife ? planet.lifeComplexity : t('planet_info.none')}
           </span>
         </div>
 
-        <div style={subSectionStyle}>Habitability</div>
-        <div style={rowStyle}><span>Overall</span><Bar value={hab.overall} color={hab.overall > 0.7 ? '#44ff88' : hab.overall > 0.3 ? '#ccaa44' : '#cc4444'} /></div>
-        <div style={rowStyle}><span>Temperature</span><Bar value={hab.temperature} /></div>
-        <div style={rowStyle}><span>Atmosphere</span><Bar value={hab.atmosphere} /></div>
-        <div style={rowStyle}><span>Water</span><Bar value={hab.water} /></div>
-        <div style={rowStyle}><span>Magnetic field</span><Bar value={hab.magneticField} /></div>
-        <div style={rowStyle}><span>Gravity</span><Bar value={hab.gravity} /></div>
+        <div style={subSectionStyle}>{t('planet_info.habitability')}</div>
+        <div style={rowStyle}><span>{t('planet_info.hab_overall')}</span><Bar value={hab.overall} color={hab.overall > 0.7 ? '#44ff88' : hab.overall > 0.3 ? '#ccaa44' : '#cc4444'} /></div>
+        <div style={rowStyle}><span>{t('planet_info.hab_temperature')}</span><Bar value={hab.temperature} /></div>
+        <div style={rowStyle}><span>{t('planet_info.hab_atmosphere')}</span><Bar value={hab.atmosphere} /></div>
+        <div style={rowStyle}><span>{t('planet_info.hab_water')}</span><Bar value={hab.water} /></div>
+        <div style={rowStyle}><span>{t('planet_info.hab_magnetic')}</span><Bar value={hab.magneticField} /></div>
+        <div style={rowStyle}><span>{t('planet_info.hab_gravity')}</span><Bar value={hab.gravity} /></div>
       </div>
 
       {/* --- Group 5: Moons --- */}
       {planet.moons.length > 0 && (
         <div style={groupStyle}>
-          <div style={groupTitleStyle}>Moons ({planet.moons.length})</div>
+          <div style={groupTitleStyle}>{t('planet_info.group_moons', { count: planet.moons.length })}</div>
           {planet.moons.map(moon => (
             <div key={moon.id} style={rowStyle}>
               <span>{moon.name}</span>
@@ -163,15 +165,15 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
 
       {/* --- Group 6: Colonization --- */}
       <div style={groupStyle}>
-        <div style={groupTitleStyle}>Colonization</div>
+        <div style={groupTitleStyle}>{t('planet_info.group_colonization')}</div>
         <div style={rowStyle}>
-          <span>Terraform difficulty</span>
+          <span>{t('planet_info.terraform_difficulty')}</span>
           <span>{(planet.terraformDifficulty * 100).toFixed(0)}%</span>
         </div>
         <div style={rowStyle}>
-          <span>Colonizable</span>
+          <span>{t('planet_info.colonizable')}</span>
           <span style={{ color: planet.isColonizable ? '#44aa66' : '#cc4444' }}>
-            {planet.isColonizable ? 'Yes' : 'No'}
+            {planet.isColonizable ? t('planet_info.yes') : t('planet_info.no')}
           </span>
         </div>
       </div>
@@ -199,7 +201,9 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
               gap: 8,
             }}
           >
-            {surfaceDisabledReason ? `На поверхню — ${surfaceDisabledReason}` : 'Спуститися на поверхню'}
+            {surfaceDisabledReason
+              ? t('planet_info.surface_disabled', { reason: surfaceDisabledReason })
+              : t('planet_info.go_to_surface')}
           </button>
         </div>
       )}

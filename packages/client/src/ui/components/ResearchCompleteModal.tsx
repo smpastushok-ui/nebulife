@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem, SystemResearchState } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -82,23 +83,18 @@ function playHabitableBeep() {
   setTimeout(() => playBeep(1319, 0.10, 0.10, 'sine'), 100);
 }
 
-function getPlanetTypeLabel(type: string): string {
-  switch (type) {
-    case 'rocky':     return "Кам'яниста";
-    case 'dwarf':     return 'Карликова';
-    case 'gas-giant': return 'Газовий гігант';
-    case 'ice-giant': return 'Крижаний гігант';
-    default:          return type;
-  }
+function planetTypeKey(type: string): string {
+  return type.replace('-', '_');
 }
 
 function getPlanetDotColor(type: string): string {
   switch (type) {
-    case 'rocky':     return '#7a6a58';
-    case 'dwarf':     return '#5a5552';
-    case 'gas-giant': return '#5a7a9a';
-    case 'ice-giant': return '#4a8494';
-    default:          return '#667788';
+    case 'rocky':       return '#7a6a58';
+    case 'terrestrial': return '#44aa66';
+    case 'dwarf':       return '#5a5552';
+    case 'gas-giant':   return '#5a7a9a';
+    case 'ice-giant':   return '#4a8494';
+    default:            return '#667788';
   }
 }
 
@@ -130,12 +126,13 @@ export function ResearchCompleteModal({
   onViewSystem: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [revealedCount, setRevealedCount] = useState(0);
 
   // Scramble targets
-  const systemNameDisplay = useScramble(`СИСТЕМА  ${system.name.toUpperCase()}`, 80, 800);
+  const systemNameDisplay = useScramble(`${t('research.system_prefix')}  ${system.name.toUpperCase()}`, 80, 800);
   const starClassDisplay   = useScramble(
     `${system.star.spectralClass}${system.star.subType}V`,
     500, 600,
@@ -190,6 +187,7 @@ export function ResearchCompleteModal({
           backdropFilter: 'blur(4px)',
           opacity: visible && !exiting ? 1 : 0,
           transition: 'opacity 0.3s ease',
+          pointerEvents: visible && !exiting ? 'auto' : 'none',
         }}
         onClick={() => exit(onClose)}
       />
@@ -203,6 +201,7 @@ export function ResearchCompleteModal({
             ? 'translate(-50%, -50%) scale(1)'
             : 'translate(-50%, -50%) scale(0.88)',
           opacity: visible && !exiting ? 1 : 0,
+          pointerEvents: visible && !exiting ? 'auto' : 'none',
           transition: 'transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease',
           background: 'rgba(10,15,25,0.96)',
           border: '1px solid #334455',
@@ -220,12 +219,12 @@ export function ResearchCompleteModal({
           textTransform: 'uppercase', marginBottom: 6,
           animation: 'rcm-pulse 2s ease-in-out infinite',
         }}>
-          {hasHabitable ? '⚠ Телеметрія отримана — виявлено придатну планету' : 'Телеметрія отримана'}
+          {hasHabitable ? t('research.telemetry_habitable') : t('research.telemetry_received')}
         </div>
 
         {/* ── System name ── */}
         <div style={{ fontSize: 18, color: '#ccddee', marginBottom: 16, letterSpacing: '0.05em' }}>
-          {systemNameDisplay || `СИСТЕМА  ${system.name.toUpperCase()}`}
+          {systemNameDisplay || `${t('research.system_prefix')}  ${system.name.toUpperCase()}`}
         </div>
 
         <Divider />
@@ -233,12 +232,12 @@ export function ResearchCompleteModal({
         {/* ── Data grid ── */}
         <div style={{ marginBottom: 4 }}>
           <DataRow
-            label="Тип зорі"
+            label={t('research.star_type')}
             value={starClassDisplay || `${system.star.spectralClass}${system.star.subType}V`}
             valueColor={system.star.colorHex}
           />
           <DataRow
-            label="Виявлено тіл"
+            label={t('research.bodies_found')}
             value={String(planets.length)}
           />
         </div>
@@ -247,7 +246,7 @@ export function ResearchCompleteModal({
 
         {/* ── Planet list ── */}
         <div style={{ fontSize: 10, color: '#667788', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.15em' }}>
-          Виявлені планети:
+          {t('research.planets_found')}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -286,7 +285,7 @@ export function ResearchCompleteModal({
                     color: isHab ? '#44ff88' : '#aabbcc',
                     fontWeight: isHab ? 'bold' : 'normal',
                   }}>
-                    {isHab ? '[!] ПРИДАТНА' : getPlanetTypeLabel(planet.type)}
+                    {isHab ? t('research.habitable_label') : t(`planet.${planetTypeKey(planet.type)}`)}
                   </span>
                 </div>
 
@@ -295,7 +294,7 @@ export function ResearchCompleteModal({
                   fontSize: 11, color: getHabColor(hab),
                   animation: isHab ? 'rcm-pulse 1.8s ease-in-out infinite' : 'none',
                 }}>
-                  Hab: {habPct}%
+                  {t('research.hab_metric', { pct: habPct })}
                 </span>
               </div>
             );
@@ -316,7 +315,7 @@ export function ResearchCompleteModal({
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(30,60,80,0.6)'; }}
           onClick={() => exit(onViewSystem)}
         >
-          ОГЛЯНУТИ СИСТЕМУ
+          {t('research.view_system')}
         </button>
 
         <button
@@ -330,7 +329,7 @@ export function ResearchCompleteModal({
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#667788'; }}
           onClick={() => exit(onClose)}
         >
-          Закрити
+          {t('research.close')}
         </button>
       </div>
 

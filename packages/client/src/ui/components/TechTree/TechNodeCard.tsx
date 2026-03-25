@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TechNode, TechNodeStatus } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,7 @@ export function TechNodeCard({
   prerequisiteName,
   onResearch,
 }: TechNodeCardProps) {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const [btnHovered, setBtnHovered] = useState(false);
 
@@ -38,12 +40,15 @@ export function TechNodeCard({
   const isAvailable = status === 'available';
   const isResearched = status === 'researched';
 
+  const techName = t(`tech.${node.id}.name`);
+  const techDesc = t(`tech.${node.id}.desc`);
+
   // Determine why it's locked
   const lockedReason = (() => {
     if (!isLocked) return null;
-    if (playerLevel < node.levelRequired) return `Потрібно: Рiв. ${node.levelRequired}`;
-    if (node.prerequisiteId && prerequisiteName) return `Потрібно: ${prerequisiteName}`;
-    return 'Заблоковано';
+    if (playerLevel < node.levelRequired) return t('tech_tree.needs_level', { level: node.levelRequired });
+    if (node.prerequisiteId && prerequisiteName) return t('tech_tree.needs_tech', { tech: prerequisiteName });
+    return t('tech_tree.locked');
   })();
 
   const bg = isResearched ? researchedBg : isAvailable ? availableBg : lockedBg;
@@ -80,13 +85,13 @@ export function TechNodeCard({
           {isResearched ? '\u2713' : node.iconSymbol}
         </span>
         <span style={{ fontSize: 12, color: nameColor, fontWeight: 600 }}>
-          {node.name}
+          {techName}
         </span>
       </div>
 
       {/* Description */}
       <div style={{ fontSize: 11, color: textColor, lineHeight: 1.6, marginBottom: 8 }}>
-        {node.description}
+        {techDesc}
       </div>
 
       {/* Meta: level + XP */}
@@ -100,7 +105,7 @@ export function TechNodeCard({
           marginBottom: isAvailable ? 10 : 0,
         }}
       >
-        <span>Рiвень {node.levelRequired}</span>
+        <span>{t('tech_tree.level_label')} {node.levelRequired}</span>
         <span style={{ color: isLocked ? '#1a2233' : '#334455' }}>|</span>
         <span>XP: +{node.xpReward}</span>
       </div>
@@ -135,7 +140,7 @@ export function TechNodeCard({
             transition: 'background 0.15s, border-color 0.15s',
           }}
         >
-          Дослiдити
+          {t('tech_tree.research_btn')}
         </button>
       )}
     </div>

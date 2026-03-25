@@ -9,6 +9,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -33,11 +34,11 @@ const BRANCH_COLOR: Record<ResearchToastItem['branch'], string> = {
   chemistry: '#8844ff',
 };
 
-const BRANCH_LABEL: Record<ResearchToastItem['branch'], string> = {
-  biology:   'БІО',
-  physics:   'ФІЗ',
-  astronomy: 'АСТ',
-  chemistry: 'ХІМ',
+const BRANCH_LABEL_KEY: Record<ResearchToastItem['branch'], string> = {
+  biology:   'toast.branch_bio',
+  physics:   'toast.branch_phy',
+  astronomy: 'toast.branch_ast',
+  chemistry: 'toast.branch_chem',
 };
 
 // ── Dimensions ─────────────────────────────────────────────────────────────
@@ -47,28 +48,31 @@ const TOAST_H = 74;
 
 // ── CSS Injection ──────────────────────────────────────────────────────────
 
-const STYLE_ID = 'nebu-toast-styles-v3';
+const STYLE_ID = 'nebu-toast-styles-v4';
 
 function injectStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
+  // Remove any older version
+  document.getElementById('nebu-toast-styles-v3')?.remove();
+  document.getElementById('nebu-toast-styles-v2')?.remove();
+  document.getElementById('nebu-toast-styles-v1')?.remove();
   const s = document.createElement('style');
   s.id = STYLE_ID;
   s.textContent = `
 /* ── Biology: organic fade + scale ── */
 @keyframes bio-toast-in {
-  from { transform: translateX(320px) scale(0.9); opacity: 0; }
-  to   { transform: translateX(0)     scale(1);   opacity: 1; }
+  from { transform: scale(0.90); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
 }
 
 /* ── Physics: sharp bounce snap ── */
 @keyframes phy-toast-in {
-  0%   { transform: translateX(320px); opacity: 0; }
+  0%   { transform: scale(0.88); opacity: 0; }
   10%  { opacity: 1; }
-  60%  { transform: translateX(-10px); }
-  75%  { transform: translateX(5px);   }
-  87%  { transform: translateX(-3px);  }
-  94%  { transform: translateX(1px);   }
-  100% { transform: translateX(0);     }
+  60%  { transform: scale(1.04); }
+  80%  { transform: scale(0.98); }
+  94%  { transform: scale(1.01); }
+  100% { transform: scale(1);    }
 }
 
 /* Physics glitch overlay — one-shot electric flicker after snap */
@@ -83,25 +87,25 @@ function injectStyles(): void {
 
 /* ── Astronomy: slow blur-to-clear drift ── */
 @keyframes ast-toast-in {
-  from { transform: translateX(320px); filter: blur(8px); opacity: 0; }
-  to   { transform: translateX(0);     filter: blur(0);   opacity: 1; }
+  from { transform: scale(0.90); filter: blur(6px); opacity: 0; }
+  to   { transform: scale(1);    filter: blur(0);   opacity: 1; }
 }
 @keyframes ast-toast-out {
-  from { transform: translateX(0);     filter: blur(0);   opacity: 1; }
-  to   { transform: translateX(320px); filter: blur(5px); opacity: 0; }
+  from { transform: scale(1);    filter: blur(0);   opacity: 1; }
+  to   { transform: scale(0.90); filter: blur(4px); opacity: 0; }
 }
 
-/* ── Chemistry: slide in, then liquid fill from bottom ── */
+/* ── Chemistry: liquid fill from bottom ── */
 @keyframes chem-toast-in {
-  0%   { transform: translateX(320px); clip-path: inset(100% 0 0 0); opacity: 1; }
-  32%  { transform: translateX(0);     clip-path: inset(100% 0 0 0); opacity: 1; }
-  100% { transform: translateX(0);     clip-path: inset(0%   0 0 0); opacity: 1; }
+  0%   { transform: scale(0.95); clip-path: inset(100% 0 0 0); opacity: 1; }
+  40%  { transform: scale(1);    clip-path: inset(100% 0 0 0); opacity: 1; }
+  100% { transform: scale(1);    clip-path: inset(0%   0 0 0); opacity: 1; }
 }
 
 /* ── Generic exit ── */
 @keyframes toast-out-slide {
-  from { transform: translateX(0);     opacity: 1; }
-  to   { transform: translateX(320px); opacity: 0; }
+  from { transform: scale(1);    opacity: 1; }
+  to   { transform: scale(0.88); opacity: 0; }
 }
   `;
   document.head.appendChild(s);
@@ -383,6 +387,7 @@ const ToastItem: React.FC<{
   onDismiss:  (id: string) => void;
   onNavigate: (branch: ResearchToastItem['branch']) => void;
 }> = ({ item, onDismiss, onNavigate }) => {
+  const { t } = useTranslation();
   const [leaving, setLeaving] = useState(false);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const rafRef     = useRef<number>(0);
@@ -487,7 +492,7 @@ const ToastItem: React.FC<{
             opacity:         0.90,
           }}
         >
-          [ {BRANCH_LABEL[item.branch]} ] ТЕХНОЛОГІЯ
+          [ {t(BRANCH_LABEL_KEY[item.branch])} ] {t('toast.technology')}
         </div>
 
         {/* Label */}
@@ -498,7 +503,7 @@ const ToastItem: React.FC<{
             color:      '#556677',
           }}
         >
-          Інтегровано:
+          {t('toast.integrated')}
         </div>
 
         {/* Tech name */}
@@ -530,11 +535,13 @@ export const ResearchToast: React.FC<ResearchToastProps> = ({
     <div
       style={{
         position:      'fixed',
-        right:          14,
-        top:            60,
+        left:           '50%',
+        top:            '50%',
+        transform:      'translate(-50%, -50%)',
         zIndex:         8500,
         display:        'flex',
         flexDirection:  'column',
+        alignItems:     'center',
         gap:             8,
         pointerEvents:  'all',
       }}

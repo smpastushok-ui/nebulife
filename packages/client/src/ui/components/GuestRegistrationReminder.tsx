@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { signInWithGoogle, linkGoogleToAnonymous, getCurrentUser } from '../../auth/auth-service.js';
 
 // ---------------------------------------------------------------------------
@@ -19,6 +20,7 @@ export function GuestRegistrationReminder({
   onOpenEmailAuth,
   onLinked,
 }: GuestRegistrationReminderProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,9 +40,9 @@ export function GuestRegistrationReminder({
       if (code === 'auth/popup-closed-by-user') {
         setError(null);
       } else if (code === 'auth/credential-already-in-use') {
-        setError('Цей Google акаунт вже використовується');
+        setError(t('guest.error_google_in_use'));
       } else {
-        setError('Помилка авторизації');
+        setError(t('guest.error_auth'));
       }
     } finally {
       setLoading(false);
@@ -90,15 +92,15 @@ export function GuestRegistrationReminder({
             textAlign: 'center',
           }}
         >
-          Шановний Президенте, щоб зберегти ваш прогрес в освоєнні космосу —
-          <span style={{ color: '#7bb8ff' }}> зареєструйтесь</span>.
+          {t('guest.reminder_prefix')}
+          <span style={{ color: '#7bb8ff' }}> {t('guest.reminder_register')}</span>.
         </div>
 
         {/* Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Google */}
           <AuthButton
-            label="Google"
+            label={t('guest.btn_google')}
             color="#4488cc"
             borderColor="#336699"
             onClick={handleGoogle}
@@ -107,7 +109,7 @@ export function GuestRegistrationReminder({
 
           {/* Email */}
           <AuthButton
-            label="Email / Пароль"
+            label={t('guest.btn_email')}
             color="#8899aa"
             borderColor="#445566"
             onClick={onOpenEmailAuth}
@@ -141,7 +143,7 @@ export function GuestRegistrationReminder({
             onMouseEnter={(e) => { (e.target as HTMLElement).style.color = '#8899aa'; }}
             onMouseLeave={(e) => { (e.target as HTMLElement).style.color = '#556677'; }}
           >
-            Пізніше
+            {t('guest.btn_later')}
           </button>
         </div>
 

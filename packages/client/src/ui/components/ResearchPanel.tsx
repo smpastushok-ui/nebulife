@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem, ResearchState, ResearchSlot, SystemResearchState, ObservedRange } from '@nebulife/core';
 import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched, isRingFullyResearched, RESEARCH_DATA_COST } from '@nebulife/core';
 
@@ -61,6 +62,7 @@ function formatInt(r: ObservedRange | null): string {
 
 /** Research slots indicator */
 function SlotsIndicator({ slots, allSystems }: { slots: ResearchSlot[]; allSystems: StarSystem[] }) {
+  const { t } = useTranslation();
   const systemMap = new Map(allSystems.map((s) => [s.id, s]));
 
   return (
@@ -80,7 +82,7 @@ function SlotsIndicator({ slots, allSystems }: { slots: ResearchSlot[]; allSyste
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}
           >
-            {active ? (sys?.name ?? slot.systemId) : 'вільно'}
+            {active ? (sys?.name ?? slot.systemId) : t('research.panel_slot_free')}
           </div>
         );
       })}
@@ -122,6 +124,7 @@ export function ResearchPanel({
   onStartResearch: (systemId: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const progress = getResearchProgress(researchState, system.id);
   const research = getSystemResearch(researchState, system.id);
   const obs = research?.observation;
@@ -136,7 +139,7 @@ export function ResearchPanel({
   return (
     <div style={panelStyle}>
       <div style={headerStyle}>
-        <span>{progress > 0 ? system.name : 'Невідома система'}</span>
+        <span>{progress > 0 ? system.name : t('research.panel_unknown_system')}</span>
         <button style={closeBtnStyle} onClick={onClose}>&times;</button>
       </div>
 
@@ -145,7 +148,7 @@ export function ResearchPanel({
 
       {/* Progress */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 10 }}>
-        <span style={{ color: '#778899' }}>ДОСЛІДЖЕННЯ</span>
+        <span style={{ color: '#778899' }}>{t('research.panel_research_label')}</span>
         <span style={{ color: progress >= 100 ? '#44ff88' : '#4488aa' }}>{progress}%</span>
       </div>
       <ProgressBar progress={progress} />
@@ -161,26 +164,26 @@ export function ResearchPanel({
       {progress > 0 && obs && (
         <>
           <div style={{ marginBottom: 4, marginTop: 8, color: '#778899', fontSize: 10 }}>
-            ВІДОМІ ДАНІ
+            {t('research.panel_known_data')}
           </div>
           {obs.starClass && (
-            <div style={rowStyle}><span>Тип зірки</span><span>{obs.starClass}</span></div>
+            <div style={rowStyle}><span>{t('research.star_type')}</span><span>{obs.starClass}</span></div>
           )}
           {obs.planetCount && (
-            <div style={rowStyle}><span>Планет</span><span>{formatInt(obs.planetCount)}</span></div>
+            <div style={rowStyle}><span>{t('research.panel_planets')}</span><span>{formatInt(obs.planetCount)}</span></div>
           )}
           {obs.waterCoverage && (
-            <div style={rowStyle}><span>Вода</span><span>{formatPercent(obs.waterCoverage)}</span></div>
+            <div style={rowStyle}><span>{t('research.panel_water')}</span><span>{formatPercent(obs.waterCoverage)}</span></div>
           )}
           {obs.temperature && (
-            <div style={rowStyle}><span>Температура</span><span>{formatRange(obs.temperature, ' K', 0)}</span></div>
+            <div style={rowStyle}><span>{t('research.panel_temperature')}</span><span>{formatRange(obs.temperature, ' K', 0)}</span></div>
           )}
           {obs.distanceAU && (
-            <div style={rowStyle}><span>Відстань до зірки</span><span>{formatRange(obs.distanceAU, ' AU')}</span></div>
+            <div style={rowStyle}><span>{t('research.panel_distance')}</span><span>{formatRange(obs.distanceAU, ' AU')}</span></div>
           )}
           {obs.habitability && (
             <div style={rowStyle}>
-              <span>Придатність</span>
+              <span>{t('research.panel_habitability')}</span>
               <span style={{ color: obs.habitability.exact !== undefined
                 ? (obs.habitability.exact > 0.5 ? '#44ff88' : '#ff8844')
                 : '#aabbcc'
@@ -195,7 +198,7 @@ export function ResearchPanel({
       {/* Research data balance */}
       {!isComplete && !isResearching && (
         <div style={{ fontSize: 10, color: '#667788', marginTop: 8, textAlign: 'right' }}>
-          Дослідницькі дані: <span style={{ color: hasData ? '#4488aa' : '#cc4444' }}>{researchData}</span>
+          {t('research.panel_research_data')}: <span style={{ color: hasData ? '#4488aa' : '#cc4444' }}>{researchData}</span>
         </div>
       )}
 
@@ -211,7 +214,7 @@ export function ResearchPanel({
         >
           {canStart
             ? <>
-                Сканувати
+                {t('research.panel_scan_btn')}
                 <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ verticalAlign: 'middle' }}>
                   <circle cx="8" cy="8" r="6" />
                   <circle cx="8" cy="8" r="2" />
@@ -223,16 +226,16 @@ export function ResearchPanel({
                 {RESEARCH_DATA_COST}
               </>
             : !hasData
-              ? 'Недостатньо дослідницьких даних'
+              ? t('research.panel_insufficient_data')
               : ringLocked
-                ? `Спершу дослідіть Кільце ${system.ringIndex - 1}`
-                : 'Немає вільних обсерваторій'}
+                ? t('research.panel_ring_locked', { ring: system.ringIndex - 1 })
+                : t('research.panel_no_slots')}
         </button>
       )}
 
       {isResearching && (
         <button style={{ ...btnStyle, background: 'rgba(40,80,120,0.3)', cursor: 'default' }} disabled>
-          Дослідження...
+          {t('research.overlay_in_progress')}
         </button>
       )}
     </div>

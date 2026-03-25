@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { levelProgress, MAX_PLAYER_LEVEL } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -17,6 +18,13 @@ interface PlayerPageProps {
   onStartOver: () => void;
   onOpenTopUp: () => void;
   onLinkAccount: () => void;
+  onDeleteAccount: () => void;
+  // Notification preferences
+  hasEmail?: boolean;
+  emailNotifications?: boolean;
+  pushNotifications?: boolean;
+  onToggleEmailNotif?: (val: boolean) => void;
+  onTogglePushNotif?: (val: boolean) => void;
 }
 
 // ── Avatar SVG ────────────────────────────────────────────────────────────
@@ -72,9 +80,21 @@ export function PlayerPage({
   onStartOver,
   onOpenTopUp,
   onLinkAccount,
+  onDeleteAccount,
+  hasEmail = false,
+  emailNotifications = true,
+  pushNotifications = true,
+  onToggleEmailNotif,
+  onTogglePushNotif,
 }: PlayerPageProps) {
+  const { t, i18n } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [nativeTopUpMsg, setNativeTopUpMsg] = useState(false);
+
+  const toggleLang = () => {
+    i18n.changeLanguage(i18n.language === 'en' ? 'uk' : 'en');
+  };
 
   const progress = levelProgress(playerXP);
   const isMaxLevel = playerLevel >= MAX_PLAYER_LEVEL;
@@ -115,6 +135,37 @@ export function PlayerPage({
         overflowY: 'auto',
       }}
     >
+      {/* Language toggle */}
+      <button
+        onClick={toggleLang}
+        style={{
+          position: 'absolute',
+          top: 14,
+          left: 14,
+          background: 'none',
+          border: '1px solid rgba(51,68,85,0.3)',
+          borderRadius: 3,
+          color: '#556677',
+          fontFamily: 'monospace',
+          fontSize: 11,
+          padding: '4px 10px',
+          cursor: 'pointer',
+          letterSpacing: 1,
+          transition: 'color 0.15s, border-color 0.15s',
+          zIndex: 1,
+        }}
+        onMouseEnter={(e) => {
+          (e.target as HTMLElement).style.color = '#aabbcc';
+          (e.target as HTMLElement).style.borderColor = '#556677';
+        }}
+        onMouseLeave={(e) => {
+          (e.target as HTMLElement).style.color = '#556677';
+          (e.target as HTMLElement).style.borderColor = 'rgba(51,68,85,0.3)';
+        }}
+      >
+        {i18n.language === 'en' ? 'EN' : 'UK'}
+      </button>
+
       {/* Close button */}
       <button
         onClick={onClose}
@@ -142,7 +193,7 @@ export function PlayerPage({
           (e.target as HTMLElement).style.borderColor = 'rgba(51,68,85,0.3)';
         }}
       >
-        Закрити
+        {t('common.close')}
       </button>
 
       {/* Content card */}
@@ -180,7 +231,7 @@ export function PlayerPage({
             color: accentColor,
             letterSpacing: 0.5,
           }}>
-            Рiвень {playerLevel}
+            {t('player.level')} {playerLevel}
           </div>
           {/* XP bar */}
           <div style={{
@@ -233,7 +284,7 @@ export function PlayerPage({
               color: '#aabbcc',
             }}>
               <QuarkIcon />
-              <span>Кварки</span>
+              <span>{t('player.quarks')}</span>
             </div>
             <span style={{
               fontSize: 14,
@@ -265,18 +316,18 @@ export function PlayerPage({
               (e.target as HTMLElement).style.background = 'rgba(68,102,136,0.15)';
             }}
           >
-            Поповнити кварки
+            {t('player.top_up_quarks')}
           </button>
 
           {nativeTopUpMsg && (
             <div style={{ fontSize: 10, color: '#cc8844', textAlign: 'center' }}>
-              Поповнення доступне лише через веб-версiю
+              {t('player.web_only_topup')}
             </div>
           )}
 
           {isGuest && (
             <div style={{ fontSize: 10, color: '#556677', textAlign: 'center' }}>
-              Для покупки кваркiв потрiбна реєстрацiя
+              {t('player.guest_topup_note')}
             </div>
           )}
         </div>
@@ -308,8 +359,95 @@ export function PlayerPage({
             (e.target as HTMLElement).style.color = '#8899aa';
           }}
         >
-          Вихiд з акаунту
+          {t('player.logout')}
         </button>
+
+        {/* Notification preferences */}
+        {(onToggleEmailNotif || onTogglePushNotif) && (
+          <>
+            <div style={{ width: '100%', height: 1, background: 'rgba(51,68,85,0.3)' }} />
+            <div style={{
+              width: '100%',
+              padding: '14px 16px',
+              background: 'rgba(10,15,25,0.6)',
+              border: '1px solid rgba(51,68,85,0.2)',
+              borderRadius: 4,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}>
+              <div style={{ fontSize: 10, color: '#556677', letterSpacing: 0.5 }}>
+                {i18n.language === 'en' ? 'NOTIFICATIONS' : 'СПОВІЩЕННЯ'}
+              </div>
+
+              {/* Email notifications toggle */}
+              {hasEmail && onToggleEmailNotif && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, color: '#8899aa' }}>
+                    {i18n.language === 'en' ? 'Email digest' : 'Email-дайджест'}
+                  </span>
+                  <button
+                    onClick={() => onToggleEmailNotif(!emailNotifications)}
+                    style={{
+                      width: 36,
+                      height: 20,
+                      borderRadius: 10,
+                      border: 'none',
+                      background: emailNotifications ? 'rgba(68,255,136,0.3)' : 'rgba(51,68,85,0.3)',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute',
+                      top: 3,
+                      left: emailNotifications ? 18 : 3,
+                      width: 14,
+                      height: 14,
+                      borderRadius: '50%',
+                      background: emailNotifications ? '#44ff88' : '#667788',
+                      transition: 'left 0.2s, background 0.2s',
+                    }} />
+                  </button>
+                </div>
+              )}
+
+              {/* Push notifications toggle */}
+              {onTogglePushNotif && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, color: '#8899aa' }}>
+                    {i18n.language === 'en' ? 'Push notifications' : 'Push-сповіщення'}
+                  </span>
+                  <button
+                    onClick={() => onTogglePushNotif(!pushNotifications)}
+                    style={{
+                      width: 36,
+                      height: 20,
+                      borderRadius: 10,
+                      border: 'none',
+                      background: pushNotifications ? 'rgba(68,255,136,0.3)' : 'rgba(51,68,85,0.3)',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute',
+                      top: 3,
+                      left: pushNotifications ? 18 : 3,
+                      width: 14,
+                      height: 14,
+                      borderRadius: '50%',
+                      background: pushNotifications ? '#44ff88' : '#667788',
+                      transition: 'left 0.2s, background 0.2s',
+                    }} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Start over — danger zone */}
         <div style={{
@@ -346,7 +484,7 @@ export function PlayerPage({
               }
             }}
           >
-            {confirmReset ? 'Пiдтвердити скидання' : 'Почати спочатку'}
+            {confirmReset ? t('player.confirm_reset') : t('player.start_over')}
           </button>
 
           {confirmReset && (
@@ -356,7 +494,7 @@ export function PlayerPage({
               textAlign: 'center',
               lineHeight: 1.5,
             }}>
-              Цю дiю неможливо скасувати. Весь прогрес буде втрачено.
+              {t('player.reset_warning')}
               <br />
               <button
                 onClick={() => setConfirmReset(false)}
@@ -372,10 +510,58 @@ export function PlayerPage({
                   padding: 0,
                 }}
               >
-                Скасувати
+                {t('common.cancel')}
               </button>
             </div>
           )}
+
+          {/* Delete Account */}
+          <div style={{ borderTop: '1px solid rgba(204,68,68,0.15)', paddingTop: 12, marginTop: 8 }}>
+            <button
+              onClick={() => {
+                if (confirmDelete) {
+                  onDeleteAccount();
+                } else {
+                  setConfirmDelete(true);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '8px 16px',
+                background: confirmDelete ? 'rgba(204,68,68,0.15)' : 'transparent',
+                border: `1px solid ${confirmDelete ? 'rgba(204,68,68,0.5)' : 'rgba(68,51,51,0.2)'}`,
+                borderRadius: 3,
+                color: confirmDelete ? '#cc4444' : '#443333',
+                fontFamily: 'monospace',
+                fontSize: 10,
+                cursor: 'pointer',
+              }}
+            >
+              {confirmDelete ? t('player.confirm_delete') : t('player.delete_account')}
+            </button>
+            {confirmDelete && (
+              <div style={{ fontSize: 9, color: '#884444', textAlign: 'center', lineHeight: 1.5, marginTop: 6 }}>
+                {t('player.delete_warning')}
+                <br />
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#556677',
+                    fontFamily: 'monospace',
+                    fontSize: 9,
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    marginTop: 3,
+                    padding: 0,
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

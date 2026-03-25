@@ -241,10 +241,20 @@ export function classifyCellTerrain(
   col: number,
   row: number,
   seed: number,
-  _waterLevel: number,  // kept for API compat; coverage fixed at 30% for playability
+  waterLevel: number,
   N = 64,
 ): TerrainType {
   const e = smoothElevation(col, row, seed, N);
+
+  // Dry planets (no hydrosphere) — no water tiles at all
+  if (waterLevel <= 0) {
+    if (e < 0.30) return 'lowland';
+    if (e < 0.55) return 'plains';
+    if (e < 0.75) return 'hills';
+    if (e < 0.90) return 'mountains';
+    return 'peaks';
+  }
+
   // Thresholds calibrated for bilinear bell-curve distribution + island mask.
   // The mask shifts the centre up by ~0.28 and edges stay at noise-level (~0.5 mean).
   // Result: ~30% water concentrated at grid edges; land forms a central island.
@@ -547,6 +557,68 @@ export function findPlainGroundCellFarFrom(
     }
   }
   return findPlainGroundCell(seed, N);  // fallback if minDist can't be satisfied
+}
+
+/**
+ * Find a good starting land cell for first-time surface entry (no colony hub yet).
+ * Requirements:
+ *   - lowland or plains terrain (not forest/mountain)
+ *   - at least 5×5 neighbours are also buildable land
+ *   - resources (tree/ore/vent) exist within 12-cell radius
+ * Uses actual waterLevel so water cells are correctly excluded.
+ */
+export function findStartingLandCell(
+  seed: number,
+  waterLevel: number,
+  N: number,
+): { col: number; row: number } {
+  const cx = Math.floor(N / 2);
+
+  for (let r = 0; r < Math.ceil(N / 2); r++) {
+    for (let dc = -r; dc <= r; dc++) {
+      for (let dr = -r; dr <= r; dr++) {
+        if (Math.abs(dc) !== r && Math.abs(dr) !== r) continue; // shell only
+        const col = cx + dc;
+        const row = cx + dr;
+        if (col < 2 || row < 2 || col >= N - 2 || row >= N - 2) continue;
+
+        const terrain = classifyCellTerrain(col, row, seed, waterLevel, N);
+        if (terrain !== 'lowland' && terrain !== 'plains') continue;
+        if (blockBlobZone(col, row, seed)) continue;
+
+        // Check 5×5 area is all buildable land
+        let clearArea = true;
+        for (let ddx = -2; ddx <= 2 && clearArea; ddx++) {
+          for (let ddy = -2; ddy <= 2 && clearArea; ddy++) {
+            const t = classifyCellTerrain(col + ddx, row + ddy, seed, waterLevel, N);
+            if (!isLandTerrain(t)) clearArea = false;
+          }
+        }
+        if (!clearArea) continue;
+
+        // Check for nearby resources within 12-cell radius
+        let hasResource = false;
+        for (let rdx = -12; rdx <= 12 && !hasResource; rdx++) {
+          for (let rdy = -12; rdy <= 12 && !hasResource; rdy++) {
+            const rc = col + rdx, rr = row + rdy;
+            if (rc < 0 || rr < 0 || rc >= N || rr >= N) continue;
+            if (rdx * rdx + rdy * rdy > 144) continue; // radius check
+            if (isTreeCell(rc, rr, seed, N, waterLevel) ||
+                isOreCell(rc, rr, seed, N, waterLevel) ||
+                isVentCell(rc, rr, seed, N, waterLevel)) {
+              hasResource = true;
+            }
+          }
+        }
+        if (!hasResource) continue;
+
+        return { col, row };
+      }
+    }
+  }
+
+  // Fallback: use plain ground cell
+  return findPlainGroundCell(seed, N);
 }
 
 /**

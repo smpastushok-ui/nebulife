@@ -5,7 +5,7 @@ import type { MagneticField, HabitabilityFactors } from '../biology/habitability
 import type { PlanetResources } from '../chemistry/minerals.js';
 import type { LifeComplexity } from '../biology/life-probability.js';
 
-export type PlanetType = 'rocky' | 'gas-giant' | 'ice-giant' | 'dwarf';
+export type PlanetType = 'rocky' | 'terrestrial' | 'gas-giant' | 'ice-giant' | 'dwarf';
 export type PlanetSize = 'small' | 'medium' | 'large';
 export type MoonComposition = 'rocky' | 'icy' | 'metallic' | 'volcanic';
 

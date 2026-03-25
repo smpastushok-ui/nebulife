@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   signInAsGuest,
   signInWithGoogle,
@@ -20,6 +21,7 @@ interface AuthScreenProps {
 type Screen = 'landing' | 'email-login' | 'email-register';
 
 export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
+  const { t } = useTranslation();
   const [screen, setScreen] = useState<Screen>('landing');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,14 +38,14 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       const user = await authFn();
       onAuthenticated(user, isNew);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Помилка авторизації';
+      const msg = err instanceof Error ? err.message : t('errors.authError');
       // Firebase error messages are in English — translate common ones
-      if (msg.includes('email-already-in-use')) setError('Ця пошта вже зареєстрована');
-      else if (msg.includes('wrong-password') || msg.includes('invalid-credential')) setError('Невірний пароль');
-      else if (msg.includes('user-not-found')) setError('Користувача не знайдено');
-      else if (msg.includes('weak-password')) setError('Пароль занадто короткий (мін. 6 символів)');
-      else if (msg.includes('invalid-email')) setError('Невірний формат пошти');
-      else if (msg.includes('popup-closed')) setError('Вікно авторизації було закрите');
+      if (msg.includes('email-already-in-use')) setError(t('errors.emailRegistered'));
+      else if (msg.includes('wrong-password') || msg.includes('invalid-credential')) setError(t('errors.wrongPassword'));
+      else if (msg.includes('user-not-found')) setError(t('errors.userNotFound'));
+      else if (msg.includes('weak-password')) setError(t('errors.weakPassword'));
+      else if (msg.includes('invalid-email')) setError(t('errors.invalidEmail'));
+      else if (msg.includes('popup-closed')) setError(t('errors.authClosed'));
       else setError(msg);
     } finally {
       setLoading(false);
@@ -54,14 +56,14 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const handleGoogle = () => handleAuth(() => signInWithGoogle(), true);
 
   const handleEmailLogin = () => {
-    if (!email || !password) { setError('Заповніть всі поля'); return; }
+    if (!email || !password) { setError(t('errors.fillAllFields')); return; }
     handleAuth(() => signInWithEmail(email, password), false);
   };
 
   const handleEmailRegister = () => {
-    if (!email || !password || !confirmPassword) { setError('Заповніть всі поля'); return; }
-    if (password !== confirmPassword) { setError('Паролі не співпадають'); return; }
-    if (password.length < 6) { setError('Пароль занадто короткий (мін. 6 символів)'); return; }
+    if (!email || !password || !confirmPassword) { setError(t('errors.fillAllFields')); return; }
+    if (password !== confirmPassword) { setError(t('errors.passwordMismatch')); return; }
+    if (password.length < 6) { setError(t('errors.weakPassword')); return; }
     handleAuth(() => registerWithEmail(email, password), true);
   };
 
@@ -70,12 +72,12 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       <div style={cardStyle}>
         {/* Title */}
         <div style={titleStyle}>N E B U L I F E</div>
-        <div style={subtitleStyle}>дослідження всесвіту</div>
+        <div style={subtitleStyle}>{t('auth.subtitle')}</div>
 
         {/* Legacy player banner */}
         {hasLegacyPlayer && screen === 'landing' && (
           <div style={bannerStyle}>
-            У вас є збережений прогрес. Увійдіть щоб зберегти його.
+            {t('auth.legacy_progress')}
           </div>
         )}
 
@@ -92,7 +94,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               onMouseEnter={hoverIn}
               onMouseLeave={hoverOut}
             >
-              {loading ? 'Завантаження...' : 'Увiйти з Google'}
+              {loading ? t('auth.loading') : t('auth.google_login')}
             </button>
 
             <button
@@ -102,12 +104,12 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               onMouseEnter={hoverIn}
               onMouseLeave={hoverOut}
             >
-              Email / Пароль
+              {t('auth.email_password_btn')}
             </button>
 
             <div style={dividerStyle}>
               <span style={dividerLineStyle} />
-              <span style={dividerTextStyle}>або</span>
+              <span style={dividerTextStyle}>{t('auth.or_divider')}</span>
               <span style={dividerLineStyle} />
             </div>
 
@@ -118,10 +120,10 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               onMouseEnter={hoverIn}
               onMouseLeave={hoverOut}
             >
-              Грати як гість
+              {t('auth.guest_btn')}
             </button>
             <div style={guestNoteStyle}>
-              Гостьовий режим: прогрес зберігається, покупка кварків недоступна
+              {t('auth.guest_note')}
             </div>
           </>
         )}
@@ -140,7 +142,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
             <input
               style={inputStyle}
               type="password"
-              placeholder="Пароль"
+              placeholder={t('auth.password_placeholder')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleEmailLogin()}
@@ -152,19 +154,19 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               onMouseEnter={hoverIn}
               onMouseLeave={hoverOut}
             >
-              {loading ? 'Завантаження...' : 'Увійти'}
+              {loading ? t('auth.loading') : t('auth.login_btn')}
             </button>
             <button
               style={linkBtnStyle}
               onClick={() => { setScreen('email-register'); setError(''); }}
             >
-              Немає акаунту? Зареєструватись
+              {t('auth.no_account_register')}
             </button>
             <button
               style={linkBtnStyle}
               onClick={() => { setScreen('landing'); setError(''); }}
             >
-              Назад
+              {t('common.back')}
             </button>
           </>
         )}
@@ -183,14 +185,14 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
             <input
               style={inputStyle}
               type="password"
-              placeholder="Пароль (мін. 6 символів)"
+              placeholder={t('auth.password_min_placeholder')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
             <input
               style={inputStyle}
               type="password"
-              placeholder="Підтвердіть пароль"
+              placeholder={t('auth.confirm_password_placeholder')}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleEmailRegister()}
@@ -202,19 +204,19 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               onMouseEnter={hoverIn}
               onMouseLeave={hoverOut}
             >
-              {loading ? 'Завантаження...' : 'Зареєструватись'}
+              {loading ? t('auth.loading') : t('auth.register_btn')}
             </button>
             <button
               style={linkBtnStyle}
               onClick={() => { setScreen('email-login'); setError(''); }}
             >
-              Вже є акаунт? Увійти
+              {t('auth.has_account_login')}
             </button>
             <button
               style={linkBtnStyle}
               onClick={() => { setScreen('landing'); setError(''); }}
             >
-              Назад
+              {t('common.back')}
             </button>
           </>
         )}

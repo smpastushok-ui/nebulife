@@ -8,6 +8,7 @@ import {
   generateImage,
   buildSurfacePrompt,
   authenticate,
+  RATE_LIMITS,
 } from '@nebulife/server';
 
 const SURFACE_GENERATION_COST = 10; // quarks
@@ -34,6 +35,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Verify Firebase auth token
   const auth = await authenticate(req, res);
   if (!auth) return;
+
+  if (!await RATE_LIMITS.generation(auth.playerId)) {
+    return res.status(429).json({ error: 'Зачекайте перед наступною генерацією.' });
+  }
 
   try {
     const { playerId, planetId, systemId, planetData, starData } = req.body;

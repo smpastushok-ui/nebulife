@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getPlayer, updatePlayer } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
+import { SUPPORTED_LANGUAGES } from '@nebulife/core';
 
 /**
  * GET  /api/player/:playerId — Get player data (auth required)
@@ -36,7 +37,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-      const player = await updatePlayer(playerId, req.body);
+      // Whitelist: only these fields are client-settable
+      // quarks and science_points are NEVER settable via API —
+      // they change only through deductQuarks()/creditQuarks()
+      const ALLOWED_FIELDS = new Set([
+        'game_state', 'game_phase', 'home_system_id', 'home_planet_id',
+        'login_streak', 'last_login',
+        'preferred_language', 'email_notifications', 'push_notifications', 'last_digest_seen',
+      ]);
+
+      const VALID_GAME_PHASES = new Set([
+        'onboarding', 'exploring', 'researching', 'colonizing',
+      ]);
+
+      const sanitized: Record<string, unknown> = {};
+      for (const key of Object.keys(req.body ?? {})) {
+        if (ALLOWED_FIELDS.has(key)) {
+          sanitized[key] = req.body[key];
+        }
+      }
+
+      if (Object.keys(sanitized).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+
+      // Validate game_phase enum
+      if (sanitized.game_phase !== undefined && !VALID_GAME_PHASES.has(sanitized.game_phase as string)) {
+        return res.status(400).json({ error: 'Invalid game_phase' });
+      }
+
+      // Validate preferred_language
+      if (sanitized.preferred_language !== undefined &&
+          !SUPPORTED_LANGUAGES.includes(sanitized.preferred_language as never)) {
+        return res.status(400).json({ error: 'Invalid preferred_language' });
+      }
+
+      const player = await updatePlayer(playerId, sanitized);
       if (!player) {
         return res.status(404).json({ error: 'Player not found' });
       }

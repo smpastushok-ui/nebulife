@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 
 // Tooltip that appears BELOW the icon (so it's not clipped by top menu)
@@ -92,6 +93,7 @@ export function SystemsList({
   researchData = 0,
   researchDataCost = 1,
 }: SystemsListProps) {
+  const { t } = useTranslation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [insufficientDataId, setInsufficientDataId] = useState<string | null>(null);
   const insufficientTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -154,7 +156,7 @@ export function SystemsList({
   if (sorted.length === 0) {
     return (
       <div style={{ fontSize: 12, color: '#556677', textAlign: 'center', padding: 40 }}>
-        Досліджених систем поки немає
+        {t('archive.no_systems')}
       </div>
     );
   }
@@ -191,9 +193,9 @@ export function SystemsList({
           marginBottom: 4,
         }}
       >
-        <span style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1 }}>Назва</span>
+        <span style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1 }}>{t('archive.col_name')}</span>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderIcon tooltip="Спектральний клас зірки">
+          <HeaderIcon tooltip={t('archive.tooltip_spectral_class')}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
               <circle cx="8" cy="8" r="4" />
               <line x1="8" y1="0.5" x2="8" y2="3" />
@@ -205,7 +207,7 @@ export function SystemsList({
         </div>
         {!isMobile && (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <HeaderIcon tooltip="Координати у галактиці">
+            <HeaderIcon tooltip={t('archive.tooltip_coordinates')}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
                 <circle cx="8" cy="8" r="1.5" />
                 <line x1="8" y1="1" x2="8" y2="15" />
@@ -215,7 +217,7 @@ export function SystemsList({
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderIcon tooltip="Кількість планет">
+          <HeaderIcon tooltip={t('archive.tooltip_planet_count')}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
               <circle cx="8" cy="8" r="5" />
               <ellipse cx="8" cy="8" rx="7.5" ry="2.5" transform="rotate(-30 8 8)" />
@@ -223,7 +225,7 @@ export function SystemsList({
           </HeaderIcon>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderIcon tooltip="Кільце від домівки">
+          <HeaderIcon tooltip={t('archive.tooltip_ring')}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
               <circle cx="8" cy="8" r="3" />
               <circle cx="8" cy="8" r="6" strokeDasharray="2 2" />
@@ -232,7 +234,7 @@ export function SystemsList({
         </div>
         {hasResearchCol && (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <HeaderIcon tooltip="Дії дослідження">
+            <HeaderIcon tooltip={t('archive.tooltip_research_actions')}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
                 <circle cx="6.5" cy="6.5" r="4.5" />
                 <line x1="10" y1="10" x2="14" y2="14" />
@@ -246,8 +248,8 @@ export function SystemsList({
       {ringGroups.map((group) => {
         const locked = isRingLocked?.(group.ringIndex) ?? false;
         const ringLabel = group.ringIndex === 0
-          ? 'Домашня система'
-          : `Кiльце ${group.ringIndex}`;
+          ? t('archive.home_system')
+          : t('archive.ring_label', { ring: group.ringIndex });
 
         return (
           <React.Fragment key={`ring-${group.ringIndex}`}>
@@ -270,7 +272,7 @@ export function SystemsList({
                 <span>{ringLabel}</span>
                 {locked && (
                   <span style={{ fontSize: 9, color: '#556677', fontStyle: 'italic', textTransform: 'none', letterSpacing: 0 }}>
-                    — дослiдiть усi системи попереднього кiльця
+                    — {t('archive.ring_locked_hint')}
                   </span>
                 )}
               </div>
@@ -403,7 +405,7 @@ export function SystemsList({
                               zIndex: 10,
                               pointerEvents: 'none',
                             }}>
-                              Недостатньо даних
+                              {t('research.panel_insufficient_data')}
                             </div>
                           )}
                         </div>
@@ -428,6 +430,7 @@ export function SystemsList({
 
 /** Green "Досліджено" button — links to system navigation */
 function ResearchedButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -446,13 +449,14 @@ function ResearchedButton({ onClick }: { onClick: () => void }) {
         transition: 'background 0.15s, border-color 0.15s',
       }}
     >
-      Дослiджено
+      {t('archive.researched_btn')}
     </button>
   );
 }
 
 /** Animated "Дослідж." button — shown during active research (background sweep only) */
 function ResearchingButton() {
+  const { t } = useTranslation();
   return (
     <span
       style={{
@@ -471,7 +475,7 @@ function ResearchingButton() {
         overflow: 'hidden',
       }}
     >
-      Дослідж.
+      {t('archive.researching_btn')}
     </span>
   );
 }
@@ -484,6 +488,7 @@ function ResearchButton({
   tutorialId?: string;
   onClick: (e: React.MouseEvent) => void;
 }) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -503,7 +508,7 @@ function ResearchButton({
         transition: 'background 0.15s, border-color 0.15s',
       }}
     >
-      Дослідити
+      {t('archive.research_btn')}
     </button>
   );
 }

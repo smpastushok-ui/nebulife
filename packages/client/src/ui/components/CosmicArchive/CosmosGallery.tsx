@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   COSMIC_CATALOG,
   RARITY_COLORS,
@@ -29,17 +30,17 @@ const CATEGORY_ORDER = [
   'rogues',
 ] as const;
 
-const CATEGORY_LABELS: Record<string, string> = {
-  nebulae: 'Туманності',
-  stars: 'Зорі',
-  galaxies: 'Галактики',
-  phenomena: 'Явища',
-  'exotic-planets': 'Екзотичні планети',
-  'dark-objects': 'Темні обєкти',
-  'star-forming': 'Зореутворення',
-  binaries: 'Подвійні системи',
-  'small-bodies': 'Малі тіла',
-  rogues: 'Блукачі',
+const CATEGORY_I18N_KEYS: Record<string, string> = {
+  nebulae: 'gallery.cat_nebulae',
+  stars: 'gallery.cat_stars',
+  galaxies: 'gallery.cat_galaxies',
+  phenomena: 'gallery.cat_phenomena',
+  'exotic-planets': 'gallery.cat_exotic_planets',
+  'dark-objects': 'gallery.cat_dark_objects',
+  'star-forming': 'gallery.cat_star_forming',
+  binaries: 'gallery.cat_binaries',
+  'small-bodies': 'gallery.cat_small_bodies',
+  rogues: 'gallery.cat_rogues',
 };
 
 // Rarity sort order (for within-category sorting)
@@ -59,6 +60,7 @@ interface CosmosGalleryProps {
 }
 
 export function CosmosGallery({ playerId, highlightedType, localEntries }: CosmosGalleryProps) {
+  const { t } = useTranslation();
   const [discoveries, setDiscoveries] = useState<DiscoveryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [photoModal, setPhotoModal] = useState<{
@@ -165,9 +167,10 @@ export function CosmosGallery({ playerId, highlightedType, localEntries }: Cosmo
     let current: (typeof groups)[0] | null = null;
     for (const entry of sortedCatalog) {
       if (!current || current.category !== entry.category) {
+        const i18nKey = CATEGORY_I18N_KEYS[entry.category];
         current = {
           category: entry.category,
-          label: CATEGORY_LABELS[entry.category] ?? entry.category,
+          label: i18nKey ? t(i18nKey) : entry.category,
           entries: [],
         };
         groups.push(current);
@@ -188,7 +191,7 @@ export function CosmosGallery({ playerId, highlightedType, localEntries }: Cosmo
           letterSpacing: 0.5,
         }}
       >
-        Відкрито: {loading ? '...' : discoveredCount} / {totalCount}
+        {loading ? '...' : t('gallery.discovered_count', { count: discoveredCount, total: totalCount })}
       </div>
 
       {/* Category groups */}

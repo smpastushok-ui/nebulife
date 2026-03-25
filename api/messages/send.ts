@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const auth = await authenticate(req, res);
     if (!auth) return;
 
-    if (!RATE_LIMITS.chat(auth.playerId)) {
+    if (!await RATE_LIMITS.chat(auth.playerId)) {
       return res.status(429).json({ error: 'Занадто багато повідомлень. Зачекайте хвилину.' });
     }
 

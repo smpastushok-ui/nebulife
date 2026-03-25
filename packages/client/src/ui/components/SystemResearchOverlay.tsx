@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // SystemResearchOverlay — blur overlay for unresearched star systems
@@ -26,6 +27,7 @@ export function SystemResearchOverlay({
   isResearching = false,
   onStartResearch,
 }: SystemResearchOverlayProps) {
+  const { t } = useTranslation();
   if (progress >= 100) return null;
 
   // 0% -> 25px blur, 90% -> 3px, 100% -> 0px
@@ -63,7 +65,7 @@ export function SystemResearchOverlay({
           textTransform: 'uppercase',
         }}
       >
-        {`Досліджено ${Math.round(progress)}%`}
+        {t('research.overlay_progress', { pct: Math.round(progress) })}
       </div>
 
       {/* Thin progress bar */}
@@ -98,7 +100,7 @@ export function SystemResearchOverlay({
             opacity: 0.7,
           }}
         >
-          Дослiдження в процесi...
+          {t('research.overlay_in_progress')}
         </div>
       ) : (
         <button
@@ -125,7 +127,7 @@ export function SystemResearchOverlay({
             if (canResearch) e.currentTarget.style.background = 'rgba(68,136,170,0.15)';
           }}
         >
-          Дослiдити
+          {t('research.overlay_start_btn')}
         </button>
       )}
     </div>

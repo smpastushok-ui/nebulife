@@ -11,6 +11,7 @@ import React, {
   useEffect, useRef, useState, useCallback, useMemo,
   forwardRef, useImperativeHandle,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Engine, Scene, ArcRotateCamera, Camera,
   HemisphericLight, DirectionalLight, ShadowGenerator,
@@ -259,6 +260,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     },
     ref,
   ) {
+    const { t } = useTranslation();
     // ── State ──────────────────────────────────────────────────────────────
 
     const [phase] = useState<SurfacePhase>('ready');
@@ -1010,7 +1012,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
         {/* Minimap toggle button */}
         <button
           onClick={() => setShowMinimap((prev) => !prev)}
-          title={showMinimap ? 'Сховати мапу' : 'Показати мапу'}
+          title={showMinimap ? t('surface.hide_minimap') : t('surface.show_minimap')}
           style={{
             position: 'absolute',
             bottom: showMinimap ? 208 : 60,

@@ -1,11 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getPendingDigest, updateDigestImage, saveMessage } from '../../packages/server/src/db.js';
 import { generateDigestImage, type DigestNewsItem } from '../../packages/server/src/digest-generator.js';
-import type { Language } from '@nebulife/core';
+import { DIGEST_LANGUAGES, DIGEST_IMAGES_PER_LANG } from '@nebulife/core';
 
-const LANGUAGES: Language[] = ['uk', 'en'];
-const IMAGES_PER_LANG = 5;
 const ITEMS_PER_IMAGE = 3;
+const TOTAL_IMAGES = DIGEST_LANGUAGES.length * DIGEST_IMAGES_PER_LANG;
 
 /**
  * GET /api/cron/digest-images
@@ -34,10 +33,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const count = digest.images_generated;
 
     // Determine which image to generate next
-    // 0-4: uk images, 5-9: en images
-    const langIndex = Math.floor(count / IMAGES_PER_LANG);
-    const pageIndex = count % IMAGES_PER_LANG;
-    const lang = LANGUAGES[langIndex];
+    const langIndex = Math.floor(count / DIGEST_IMAGES_PER_LANG);
+    const pageIndex = count % DIGEST_IMAGES_PER_LANG;
+    const lang = DIGEST_LANGUAGES[langIndex];
 
     if (!lang) {
       return res.status(200).json({ processed: 0, reason: 'all_done' });
@@ -63,10 +61,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     currentImages[lang].push(imageUrl);
 
     const newCount = count + 1;
-    await updateDigestImage(digest.week_date, JSON.stringify(currentImages), newCount);
+    await updateDigestImage(digest.week_date, JSON.stringify(currentImages), newCount, TOTAL_IMAGES);
 
     // If all done, post notification to global chat
-    if (newCount >= LANGUAGES.length * IMAGES_PER_LANG) {
+    if (newCount >= TOTAL_IMAGES) {
       const digestMsg = JSON.stringify({
         type: 'digest',
         weekDate: digest.week_date,
@@ -75,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`[digest-images] Digest complete for ${digest.week_date}`);
     }
 
-    console.log(`[digest-images] Generated ${lang} page ${pageIndex} (${newCount}/${LANGUAGES.length * IMAGES_PER_LANG})`);
+    console.log(`[digest-images] Generated ${lang} page ${pageIndex} (${newCount}/${TOTAL_IMAGES})`);
     return res.status(200).json({ processed: 1, lang, pageIndex, total: newCount });
   } catch (err) {
     console.error('[digest-images] Failed:', err);

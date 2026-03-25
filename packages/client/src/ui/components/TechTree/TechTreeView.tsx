@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TechBranch, TechTreeState } from '@nebulife/core';
 import { getBranchNodes, getTechNodeStatus } from '@nebulife/core';
 import { TechNodeCard } from './TechNodeCard';
@@ -26,10 +27,10 @@ function ensureStyles() {
   document.head.appendChild(style);
 }
 
-const EPOCH_LABELS: Record<number, string> = {
-  1: 'Eпоха I: Рiвнi 1\u201315',
-  2: 'Eпоха II: Рiвнi 16\u201334',
-  3: 'Eпоха III: Рiвнi 35\u201350',
+const EPOCH_LABEL_KEYS: Record<number, string> = {
+  1: 'tech_tree.epoch_1',
+  2: 'tech_tree.epoch_2',
+  3: 'tech_tree.epoch_3',
 };
 
 interface TechTreeViewProps {
@@ -40,6 +41,8 @@ interface TechTreeViewProps {
 }
 
 export function TechTreeView({ branch, playerLevel, techState, onResearch }: TechTreeViewProps) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     ensureStyles();
   }, []);
@@ -60,14 +63,14 @@ export function TechTreeView({ branch, playerLevel, techState, onResearch }: Tec
           textAlign: 'center',
         }}
       >
-        Дерево технологiй ще не доступне
+        {t('tech_tree.not_available')}
       </div>
     );
   }
 
-  // Build a lookup map for prerequisite names
+  // Build a lookup map for prerequisite names (using i18n tech names)
   const nameMap: Record<string, string> = {};
-  for (const n of nodes) nameMap[n.id] = n.name;
+  for (const n of nodes) nameMap[n.id] = t(`tech.${n.id}.name`);
 
   // Group by epoch
   const epochs = new Map<number, typeof nodes>();
@@ -104,7 +107,7 @@ export function TechTreeView({ branch, playerLevel, techState, onResearch }: Tec
               borderBottom: '1px solid rgba(51,68,85,0.3)',
             }}
           >
-            {EPOCH_LABELS[epoch] ?? `Eпоха ${epoch}`}
+            {EPOCH_LABEL_KEYS[epoch] ? t(EPOCH_LABEL_KEYS[epoch]) : t('tech_tree.epoch_fallback', { epoch })}
           </div>
 
           {/* Nodes chain */}

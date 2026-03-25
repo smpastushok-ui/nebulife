@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Discovery, CatalogEntry } from '@nebulife/core';
 import { RARITY_COLORS, RARITY_LABELS, getCatalogEntry } from '@nebulife/core';
 
@@ -100,6 +101,7 @@ export function PhotoModal({
   onSaveToGallery?: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const catalog = getCatalogEntry(discovery.type) as CatalogEntry | undefined;
   const color = RARITY_COLORS[discovery.rarity];
   const name = catalog?.nameUk ?? discovery.type;
@@ -288,13 +290,13 @@ export function PhotoModal({
                 bgColor={saved ? 'rgba(40, 80, 50, 0.4)' : 'rgba(20, 60, 40, 0.6)'}
                 borderColor={saved ? '#44ff8866' : '#44ff88'}
                 textColor={saved ? '#44ff8888' : '#44ff88'}
-                label={saved ? 'Збережено' : 'До колекцiї'}
+                label={saved ? t('photo.saved') : t('photo.save_to_collection')}
               />
             </div>
           )}
           <IconButton
             onClick={handleShare}
-            title={shared ? 'Скопiйовано' : 'Подiлитися'}
+            title={shared ? t('photo.copied') : t('photo.share')}
             bgColor={shared ? 'rgba(40, 60, 80, 0.4)' : 'rgba(20, 40, 60, 0.6)'}
             borderColor={shared ? '#4488aa66' : '#4488aa'}
             iconColor={shared ? '#4488aa88' : '#4488aa'}
@@ -310,7 +312,7 @@ export function PhotoModal({
           </IconButton>
           <IconButton
             onClick={handleDownload}
-            title="Завантажити"
+            title={t('photo.download')}
             bgColor="rgba(30, 35, 50, 0.6)"
             borderColor="#556677"
             iconColor="#8899aa"
@@ -324,7 +326,7 @@ export function PhotoModal({
           </IconButton>
           <IconButton
             onClick={onClose}
-            title="Закрити"
+            title={t('photo.close')}
             bgColor="rgba(30, 35, 45, 0.6)"
             borderColor="#445566"
             iconColor="#778899"

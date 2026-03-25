@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // FreeTaskHUD — Floating counter for free-task tutorial step
@@ -13,6 +14,7 @@ interface FreeTaskHUDProps {
 }
 
 export function FreeTaskHUD({ current, total }: FreeTaskHUDProps) {
+  const { t } = useTranslation();
   const isComplete = current >= total;
 
   return (
@@ -53,10 +55,10 @@ export function FreeTaskHUD({ current, total }: FreeTaskHUDProps) {
         <line x1="11" y1="8" x2="14" y2="8" />
       </svg>
       <span>
-        Дослiдження: <span style={{ fontWeight: 'bold' }}>{current}</span>/{total}
+        {t('tutorial.research_progress', { current, total })}
       </span>
       {isComplete && (
-        <span style={{ fontSize: 10, color: '#44ff88' }}>Готово!</span>
+        <span style={{ fontSize: 10, color: '#44ff88' }}>{t('tutorial.done')}</span>
       )}
     </div>
   );

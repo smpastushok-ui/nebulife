@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { startTopUpFlow } from '../../api/payment-api.js';
 
 const PRESETS = [50, 100, 200, 500];
@@ -10,6 +11,7 @@ interface QuarkTopUpModalProps {
 }
 
 export function QuarkTopUpModal({ playerId, currentBalance, onClose }: QuarkTopUpModalProps) {
+  const { t } = useTranslation();
   const [selectedAmount, setSelectedAmount] = useState<number>(100);
   const [customAmount, setCustomAmount] = useState('');
   const [isCustom, setIsCustom] = useState(false);
@@ -27,7 +29,7 @@ export function QuarkTopUpModal({ playerId, currentBalance, onClose }: QuarkTopU
       // MonoPay window opened — close modal
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка');
+      setError(err instanceof Error ? err.message : t('common.error'));
       setLoading(false);
     }
   };
@@ -37,12 +39,12 @@ export function QuarkTopUpModal({ playerId, currentBalance, onClose }: QuarkTopU
       <div style={styles.backdrop} onClick={onClose} />
       <div style={styles.modal}>
         <div style={styles.header}>
-          <span style={styles.title}>⚛ Поповнення кварків</span>
+          <span style={styles.title}>{t('topup.title')}</span>
           <button style={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
 
         <div style={styles.balance}>
-          Поточний баланс: <span style={styles.balanceValue}>{currentBalance} ⚛</span>
+          {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} ⚛</span>
         </div>
 
         <div style={styles.presets}>
@@ -65,7 +67,7 @@ export function QuarkTopUpModal({ playerId, currentBalance, onClose }: QuarkTopU
             }}
             onClick={() => setIsCustom(true)}
           >
-            Інше
+            {t('topup.other_amount')}
           </button>
         </div>
 
@@ -75,7 +77,7 @@ export function QuarkTopUpModal({ playerId, currentBalance, onClose }: QuarkTopU
             type="number"
             min="1"
             max="10000"
-            placeholder="Кількість кварків"
+            placeholder={t('topup.quark_amount_placeholder')}
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
             autoFocus
@@ -83,8 +85,8 @@ export function QuarkTopUpModal({ playerId, currentBalance, onClose }: QuarkTopU
         )}
 
         <div style={styles.summary}>
-          <span>До оплати:</span>
-          <span style={styles.summaryPrice}>{amount} грн</span>
+          <span>{t('topup.to_pay')}:</span>
+          <span style={styles.summaryPrice}>{amount} {t('topup.currency')}</span>
         </div>
 
         {error && <div style={styles.error}>{error}</div>}
@@ -97,10 +99,10 @@ export function QuarkTopUpModal({ playerId, currentBalance, onClose }: QuarkTopU
           onClick={handleTopUp}
           disabled={amount < 1 || loading}
         >
-          {loading ? 'Створення платежу...' : `Поповнити ${amount} ⚛ за ${amount} грн`}
+          {loading ? t('topup.creating_payment') : t('topup.pay_btn', { amount })}
         </button>
 
-        <div style={styles.note}>1 кварк = 1 грн · Оплата через Monobank</div>
+        <div style={styles.note}>{t('topup.note')}</div>
       </div>
     </>
   );

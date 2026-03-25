@@ -215,6 +215,12 @@ export class SurfaceScene {
   // ─── Wind generator rotor texture ────────────────────────────────────────
   private windRotorTex: Texture | null = null;
 
+  // ─── Mine drill overlay texture ───────────────────────────────────────────
+  private mineDrillTex: Texture | null = null;
+
+  // ─── Water extractor frost overlay texture ────────────────────────────────
+  private waterFrostTex: Texture | null = null;
+
   // ─── Mountain PNG sprite ──────────────────────────────────────────────────
   private mountTex: Texture | null = null;
 
@@ -345,6 +351,11 @@ export class SurfaceScene {
       landing_pad:       '/tiles/machines/landing_pad.png',
       spaceport:         '/tiles/machines/spaceport.png',
       thermal_generator: '/buildings/thermal_generator.png',
+      mine:              '/buildings/mine.png',
+      fusion_reactor:    '/buildings/fusion_reactor.png',
+      water_extractor:   '/buildings/water_extractor.png',
+      atmo_extractor:    '/buildings/atmo_extractor.png',
+      deep_drill:        '/buildings/deep_drill.png',
     };
     await Promise.all(
       Object.entries(BUILDING_PNGS).map(async ([type, url]) => {
@@ -369,6 +380,16 @@ export class SurfaceScene {
     try {
       this.windRotorTex = await Assets.load<Texture>('/buildings/wind_generator_on.png');
     } catch { /* no rotor texture — wind generator works without animation */ }
+
+    // Load mine drill overlay texture
+    try {
+      this.mineDrillTex = await Assets.load<Texture>('/buildings/mine_on.png');
+    } catch { /* no drill texture — mine works without animation */ }
+
+    // Load water extractor frost overlay texture
+    try {
+      this.waterFrostTex = await Assets.load<Texture>('/buildings/water_extractor_on.png');
+    } catch { /* no frost texture — water extractor works without overlay */ }
 
     // Load researcher bot textures
     try {
@@ -423,6 +444,14 @@ export class SurfaceScene {
     // Premium harvester drones — spawn for each alpha_harvester building
     for (const b of buildings) {
       if (b.type === 'alpha_harvester') this._spawnHarvesterDrone(b);
+    }
+  }
+
+  /** Reveal fog around a starting cell (first visit, no hub yet). */
+  public revealStartingArea(col: number, row: number, radius: number): void {
+    if (this.fogLayer) {
+      this.fogLayer.revealAround(col, row, radius);
+      this.fogLayer.redraw();
     }
   }
 
@@ -851,7 +880,7 @@ export class SurfaceScene {
         this._startBuildingAnim(b, bldg);
       }
       // Create idle animation for supported building types
-      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant' || b.type === 'battery_station' || b.type === 'wind_generator' || b.type === 'thermal_generator') {
+      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant' || b.type === 'battery_station' || b.type === 'wind_generator' || b.type === 'thermal_generator' || b.type === 'mine' || b.type === 'fusion_reactor' || b.type === 'water_extractor' || b.type === 'atmo_extractor' || b.type === 'deep_drill') {
         this._createBldgEffect(b);
         // Restore previous animation state so existing buildings don't restart from zero
         const saved  = savedAnim.get(key);
@@ -1191,6 +1220,7 @@ export class SurfaceScene {
     const wl     = this.waterLevel;
     const hasCity = buildings.length > 0;
     const g      = new Graphics();
+    const isWaterBldg = BUILDING_DEFS[selectedType]?.requiresTerrain.some(t => isWaterTerrain(t)) ?? false;
 
     for (let col = 0; col <= N - sW; col++) {
       for (let row = 0; row <= N - sH; row++) {
@@ -1204,7 +1234,8 @@ export class SurfaceScene {
             if (this.fogLayer && !this.fogLayer.isRevealed(c, r)) { ok = false; break; }
           }
         }
-        // 1-cell buffer: border of footprint must not touch water / mountain / resource
+        // 1-cell buffer: border of footprint must not touch mountain / resource.
+        // Water-terrain buildings are allowed to have water neighbours.
         outerBuf: for (let dc = -1; dc <= sW && ok; dc++) {
           for (let dr = -1; dr <= sH && ok; dr++) {
             if (dc >= 0 && dc < sW && dr >= 0 && dr < sH) continue;
@@ -1212,7 +1243,7 @@ export class SurfaceScene {
             if (bc < 0 || bc >= N || br < 0 || br >= N) continue;
             if (isMountainFootprint(bc, br, seed, N)) { ok = false; break outerBuf; }
             const bt = classifyCellTerrain(bc, br, seed, wl, N);
-            if (isWaterTerrain(bt))                   { ok = false; break outerBuf; }
+            if (!isWaterBldg && isWaterTerrain(bt))   { ok = false; break outerBuf; }
             if (this._isCellResourceBlocked(bc, br))  { ok = false; break outerBuf; }
           }
         }
@@ -1299,6 +1330,7 @@ export class SurfaceScene {
     const N    = this.gridSize;
     const seed = this.planet.seed;
     const wl   = this.waterLevel;
+    const isWaterBldg = def?.requiresTerrain.some(t => isWaterTerrain(t)) ?? false;
 
     if (col + sW > N || row + sH > N) return false;
 
@@ -1314,7 +1346,8 @@ export class SurfaceScene {
       }
     }
 
-    // 1-cell buffer: every cell bordering the footprint must not be water / mountain / resource
+    // 1-cell buffer: every cell bordering the footprint must not be mountain / resource.
+    // Water-terrain buildings are allowed to have water neighbours.
     for (let dc = -1; dc <= sW; dc++) {
       for (let dr = -1; dr <= sH; dr++) {
         if (dc >= 0 && dc < sW && dr >= 0 && dr < sH) continue; // skip interior
@@ -1322,7 +1355,7 @@ export class SurfaceScene {
         if (bc < 0 || bc >= N || br < 0 || br >= N) continue;
         if (isMountainFootprint(bc, br, seed, N)) return false;
         const bt = classifyCellTerrain(bc, br, seed, wl, N);
-        if (isWaterTerrain(bt)) return false;
+        if (!isWaterBldg && isWaterTerrain(bt)) return false;
         if (this._isCellResourceBlocked(bc, br)) return false;
       }
     }
@@ -2652,6 +2685,169 @@ export class SurfaceScene {
         extra[`p${i}_sf`]  = 0.0022 + Math.random() * 0.0048; // size oscillation frequency
         extra[`p${i}_sp`]  = Math.random() * Math.PI * 2;  // size phase
       }
+
+    } else if (b.type === 'mine') {
+      // gs[0] = vortex streaks (continuous upward air-displacement spirals)
+      const vortexGfx = new Graphics(); L.addChild(vortexGfx); gs.push(vortexGfx);
+      // gs[1] = laser flash (red beam, blendMode ADD, brief apex strike)
+      const laserGfx = new Graphics(); laserGfx.blendMode = 'add'; L.addChild(laserGfx); gs.push(laserGfx);
+      // gs[2] = impact sparks (one-shot burst on landing)
+      const sparksGfx = new Graphics(); L.addChild(sparksGfx); gs.push(sparksGfx);
+
+      if (this.mineDrillTex && this.bldgTextures['mine']) {
+        const baseTex   = this.bldgTextures['mine'];
+        const baseScale = (sW * TILE_W) / baseTex.width;
+        const sp = new Sprite(this.mineDrillTex);
+        sp.anchor.set(0.5, 1.0);
+        sp.scale.set(baseScale);
+        sp.position.set(botRight.x, botRight.y);
+        sp.alpha = 0.4;
+        L.addChild(sp);
+        sprites.push(sp);
+      }
+
+      // Phase: 0=rise 1=laser 2=drop 3=impact 4=wait
+      extra['drillPhase'] = 0;
+      extra['phaseMs']    = 0;
+      extra['drillBaseY'] = botRight.y; // sprite anchor Y at rest position
+      extra['shakeMs']    = 0;
+
+    } else if (b.type === 'fusion_reactor') {
+      // gs[0] = steam puffs from side vents
+      const steamGfx    = new Graphics(); L.addChild(steamGfx);    gs.push(steamGfx);
+      // gs[1] = purple orbital streams at reactor core (additive blend)
+      const purpleGfx   = new Graphics(); purpleGfx.blendMode   = 'add'; L.addChild(purpleGfx);   gs.push(purpleGfx);
+      // gs[2] = purple lightning bolts shooting from core (additive blend)
+      const lightningGfx = new Graphics(); lightningGfx.blendMode = 'add'; L.addChild(lightningGfx); gs.push(lightningGfx);
+
+      const baseTex = this.bldgTextures['fusion_reactor'];
+      const scale   = baseTex ? (sW * TILE_W) / baseTex.width : 0.9375;
+      const bx = botRight.x, by = botRight.y;
+
+      // Steam vent positions (image 256×256, sprite anchor=bottom-center at botRight)
+      extra['sv0x'] = bx + (65  - 128) * scale;  extra['sv0y'] = by - (256 - 155) * scale;
+      extra['sv1x'] = bx + (192 - 128) * scale;  extra['sv1y'] = by - (256 - 155) * scale;
+      extra['sv2x'] = bx + (95  - 128) * scale;  extra['sv2y'] = by - (256 - 205) * scale;
+      extra['sv3x'] = bx + (160 - 128) * scale;  extra['sv3y'] = by - (256 - 205) * scale;
+      // Exit directions per vent (screen dx/dy per ms) — diagonally outward from each face
+      extra['sv0dx'] = -0.035;  extra['sv0dy'] =  0.018;  // left side → exit left-forward
+      extra['sv1dx'] = +0.035;  extra['sv1dy'] =  0.018;  // right side → exit right-forward
+      extra['sv2dx'] = -0.018;  extra['sv2dy'] =  0.033;  // front-left → exit forward-left
+      extra['sv3dx'] = +0.018;  extra['sv3dy'] =  0.033;  // front-right → exit forward-right
+
+      // Purple reactor core center ~(128,65) in the image
+      extra['pcx'] = bx;
+      extra['pcy'] = by - (256 - 65) * scale;
+      extra['pcr'] = 25 * scale;
+
+      // Steam vent timers — 4 vents with independent random intervals
+      for (let v = 0; v < 4; v++) {
+        extra[`sv${v}_next`]   = 800 + Math.random() * 3500;
+        extra[`sv${v}_active`] = 0;
+      }
+      // Steam particle pool: 6 particles per vent
+      for (let v = 0; v < 4; v++) {
+        for (let p = 0; p < 6; p++) {
+          extra[`sv${v}_p${p}_life`] = 0;
+          extra[`sv${v}_p${p}_x`]   = 0;
+          extra[`sv${v}_p${p}_y`]   = 0;
+        }
+      }
+      // Purple streams are time-based (no stored state needed)
+      // Lightning slots: 3 independent bolts firing randomly
+      for (let i = 0; i < 3; i++) {
+        extra[`lt${i}_next`]   = 300 + Math.random() * 1000;
+        extra[`lt${i}_active`] = 0;
+        extra[`lt${i}_age`]    = 0;
+      }
+
+    } else if (b.type === 'water_extractor') {
+      // gs[0] = frost crystals / steam particles / glints
+      const fxGfx = new Graphics(); L.addChild(fxGfx); gs.push(fxGfx);
+
+      // sprites[0] = frost overlay (water_extractor_on.png), alpha animated
+      if (this.waterFrostTex && this.bldgTextures['water_extractor']) {
+        const baseTex  = this.bldgTextures['water_extractor'];
+        const baseScale = (sW * TILE_W) / baseTex.width;
+        const sp = new Sprite(this.waterFrostTex);
+        sp.anchor.set(0.5, 1.0);
+        sp.scale.set(baseScale);
+        sp.position.set(botRight.x, botRight.y);
+        sp.alpha = 0;
+        L.addChild(sp);
+        sprites.push(sp);
+      }
+
+      // Phase 0=WATER 1=FREEZING 2=FROZEN 3=THAWING
+      extra['wxPhase'] = 0;
+      extra['wxPhMs']  = Math.random() * 2500; // stagger start
+
+      // Cylinder top emit positions (image ~256×256, anchor=bottom-center at botRight)
+      const baseTex = this.bldgTextures['water_extractor'];
+      const sc = baseTex ? (sW * TILE_W) / baseTex.width : 0.9375;
+      extra['cyl0x'] = botRight.x + (80  - 128) * sc;  extra['cyl0y'] = botRight.y - (256 - 55) * sc;
+      extra['cyl1x'] = botRight.x;                      extra['cyl1y'] = botRight.y - (256 - 40) * sc;
+      extra['cyl2x'] = botRight.x + (178 - 128) * sc;  extra['cyl2y'] = botRight.y - (256 - 55) * sc;
+      // Side vent positions — left and right faces of the building
+      extra['sx0x'] = botRight.x + (22  - 128) * sc;   extra['sx0y'] = botRight.y - (256 - 115) * sc;
+      extra['sx1x'] = botRight.x + (234 - 128) * sc;   extra['sx1y'] = botRight.y - (256 - 115) * sc;
+
+      // Particle pools — reused for bubbles (phase 0), frost (phase 1), steam (phase 3)
+      for (let p = 0; p < 10; p++) {
+        extra[`fp${p}_x`] = 0; extra[`fp${p}_y`] = 0;
+        extra[`fp${p}_vx`] = 0; extra[`fp${p}_vy`] = 0;
+        extra[`fp${p}_life`] = 0;
+      }
+      // Glint pool for frozen phase
+      for (let p = 0; p < 5; p++) {
+        extra[`gl${p}_x`] = 0; extra[`gl${p}_y`] = 0;
+        extra[`gl${p}_age`]  = 9999;
+        extra[`gl${p}_next`] = 200 + Math.random() * 800;
+      }
+
+    } else if (b.type === 'atmo_extractor') {
+      // gs[0] = smoke puffs from 3 top pipes
+      const smokeGfx = new Graphics(); L.addChild(smokeGfx); gs.push(smokeGfx);
+
+      // Pipe emit positions — based on 256×256 image, anchor bottom-center at botRight
+      const tex = this.bldgTextures['atmo_extractor'];
+      const sc  = tex ? (sW * TILE_W) / tex.width : 1.0;
+      extra['p0x'] = botRight.x + (100 - 128) * sc;  extra['p0y'] = botRight.y - (256 - 68) * sc - 20;
+      extra['p1x'] = botRight.x + (128 - 128) * sc;  extra['p1y'] = botRight.y - (256 - 52) * sc - 20;
+      extra['p2x'] = botRight.x + (194 - 128) * sc;  extra['p2y'] = botRight.y - (256 - 68) * sc - 20;
+
+      // 15 smoke particles (5 per pipe), pooled
+      for (let p = 0; p < 15; p++) {
+        extra[`sm${p}_x`] = 0; extra[`sm${p}_y`] = 0;
+        extra[`sm${p}_vx`] = 0; extra[`sm${p}_vy`] = 0;
+        extra[`sm${p}_ox`] = 0; extra[`sm${p}_oy`] = 0;
+        extra[`sm${p}_life`] = 0;
+      }
+
+    } else if (b.type === 'deep_drill') {
+      // gs[0] = glow pulse, gs[1] = sparks (additive), gs[2] = pebbles
+      const glowGfx   = new Graphics(); L.addChild(glowGfx);   gs.push(glowGfx);
+      const sparkGfx  = new Graphics(); L.addChild(sparkGfx);  gs.push(sparkGfx);
+      sparkGfx.blendMode = 'add';
+      const pebbleGfx = new Graphics(); L.addChild(pebbleGfx); gs.push(pebbleGfx);
+
+      // Red core position: center x, ~56px from bottom in 256px image
+      const tex = this.bldgTextures['deep_drill'];
+      const sc  = tex ? (sW * TILE_W) / tex.width : 1.0;
+      extra['corex'] = botRight.x + (128 - 128) * sc;
+      extra['corey'] = botRight.y - 56 * sc;
+
+      // 20 sparks, 8 pebbles — pooled
+      for (let p = 0; p < 20; p++) {
+        extra[`sp${p}_x`] = 0; extra[`sp${p}_y`] = 0;
+        extra[`sp${p}_vx`] = 0; extra[`sp${p}_vy`] = 0;
+        extra[`sp${p}_life`] = 0;
+      }
+      for (let p = 0; p < 8; p++) {
+        extra[`pb${p}_x`] = 0; extra[`pb${p}_y`] = 0;
+        extra[`pb${p}_vx`] = 0; extra[`pb${p}_vy`] = 0;
+        extra[`pb${p}_life`] = 0;
+      }
     }
 
     this.bldgEffects.set(key, { gs, sprites, timeMs: 0, extra, cx, cy, sW, type: b.type });
@@ -3305,6 +3501,566 @@ export class SurfaceScene {
             eff.gs[0].fill({ color, alpha: alpha * 0.22 });
             eff.gs[0].circle(cx + ex, glowCY + ey, dotR);
             eff.gs[0].fill({ color: 0xff9955, alpha: alpha * 0.92 });
+          }
+        }
+
+      } else if (eff.type === 'mine') {
+        // ── Mine drill: Rise → Laser → Drop → Impact → Wait → loop ───────
+        const drillSprite = eff.sprites[0];
+        const vortexGfx   = eff.gs[0];
+        const laserGfx    = eff.gs[1];
+        const sparksGfx   = eff.gs[2];
+        if (!drillSprite || !vortexGfx || !laserGfx || !sparksGfx) return;
+
+        const baseY  = eff.extra['drillBaseY'];
+        const riseH  = TILE_H;  // 80px drill travel distance
+        let   phase  = eff.extra['drillPhase'];
+        let   phMs   = (eff.extra['phaseMs'] ?? 0) + deltaMs;
+
+        // Fixed anchor: bottom point of the laser never moves (raised 120px above baseY)
+        const laserBottomY = baseY - 120;
+        const laserBottomX = drillSprite.x;
+
+        // ── State machine ─────────────────────────────────────────────────
+        if (phase === 0) {
+          // Rise: 3000ms linear ascent — drill fully opaque, continuous beam
+          const p = Math.min(1, phMs / 3000);
+          drillSprite.y     = baseY - p * riseH;
+          drillSprite.alpha = 1;
+
+          // Continuous beam: bottom fixed at laserBottomY, top follows drill (raised 130px above sprite)
+          laserGfx.clear();
+          if (p > 0.05) {
+            const beamTopY = drillSprite.y - 130;
+            const beamAlpha = Math.min(1, p * 2);
+            // Only draw if drill is above beam bottom
+            if (beamTopY < laserBottomY) {
+              laserGfx.moveTo(laserBottomX, beamTopY); laserGfx.lineTo(laserBottomX, laserBottomY);
+              laserGfx.stroke({ color: 0xff1100, width: 8, alpha: beamAlpha * 0.15 });
+              laserGfx.moveTo(laserBottomX, beamTopY); laserGfx.lineTo(laserBottomX, laserBottomY);
+              laserGfx.stroke({ color: 0xff5533, width: 2, alpha: beamAlpha * 0.7 });
+            }
+          }
+          if (p >= 1) { phase = 1; phMs = 0; }
+
+        } else if (phase === 1) {
+          // Laser flash: 120ms bright flash before drop
+          const p     = Math.min(1, phMs / 120);
+          const alpha = 1.0 - p;
+          const dY    = drillSprite.y - 130;
+          laserGfx.clear();
+          if (dY < laserBottomY) {
+            laserGfx.moveTo(laserBottomX, dY); laserGfx.lineTo(laserBottomX, laserBottomY);
+            laserGfx.stroke({ color: 0xff1100, width: 10, alpha: alpha * 0.35 });
+            laserGfx.moveTo(laserBottomX, dY); laserGfx.lineTo(laserBottomX, laserBottomY);
+            laserGfx.stroke({ color: 0xff5533, width: 3, alpha });
+          }
+          if (p >= 1) { laserGfx.clear(); phase = 2; phMs = 0; }
+
+        } else if (phase === 2) {
+          // Drop: 130ms cubic ease-in — abrupt downward strike
+          const p    = Math.min(1, phMs / 130);
+          const ease = p * p * p; // power3.in
+          drillSprite.y     = (baseY - riseH) + ease * riseH;
+          drillSprite.alpha = 1;
+          if (p >= 1) {
+            drillSprite.y     = baseY;
+            // Spawn 12 spark particles at laser bottom point
+            for (let i = 0; i < 12; i++) {
+              const angle = (i / 12) * Math.PI * 2;
+              const speed = 0.05 + Math.random() * 0.08;
+              eff.extra[`spk${i}_x`]    = laserBottomX;
+              eff.extra[`spk${i}_y`]    = laserBottomY;
+              eff.extra[`spk${i}_vx`]   = Math.cos(angle) * speed;
+              eff.extra[`spk${i}_vy`]   = Math.sin(angle) * speed - 0.07;
+              eff.extra[`spk${i}_life`] = 1;
+            }
+            // Spawn 8 diagonal sparks — fly up-left and up-right
+            for (let i = 0; i < 8; i++) {
+              const side = (i % 2 === 0) ? -1 : 1;
+              const spreadAngle = -Math.PI / 2 + side * (0.4 + Math.random() * 0.6);
+              const spd = 0.12 + Math.random() * 0.16;
+              eff.extra[`dspk${i}_x`]    = laserBottomX;
+              eff.extra[`dspk${i}_y`]    = laserBottomY;
+              eff.extra[`dspk${i}_vx`]   = Math.cos(spreadAngle) * spd;
+              eff.extra[`dspk${i}_vy`]   = Math.sin(spreadAngle) * spd;
+              eff.extra[`dspk${i}_life`] = 1;
+            }
+            eff.extra['shakeMs'] = 0;
+            phase = 3; phMs = 0;
+          }
+
+        } else if (phase === 3) {
+          // Impact: 500ms — red flash + sparks + shake mine sprite
+          sparksGfx.clear();
+          const shake = eff.extra['shakeMs'] + deltaMs;
+          eff.extra['shakeMs'] = shake;
+          if (shake < 100) {
+            const amp = 1.5 * (1 - shake / 100);
+            drillSprite.x = laserBottomX + (Math.random() * 2 - 1) * amp;
+            drillSprite.y = baseY + (Math.random() * 2 - 1) * amp;
+          } else {
+            drillSprite.x = laserBottomX;
+            drillSprite.y = baseY;
+          }
+          // Red impact flash — bright glow at laser bottom, fades over 200ms
+          const flashP = Math.min(1, phMs / 200);
+          const flashAlpha = (1 - flashP) * 0.8;
+          if (flashAlpha > 0.01) {
+            sparksGfx.circle(laserBottomX, laserBottomY, 18 * (1 - flashP * 0.5));
+            sparksGfx.fill({ color: 0xff2200, alpha: flashAlpha * 0.4 });
+            sparksGfx.circle(laserBottomX, laserBottomY, 8);
+            sparksGfx.fill({ color: 0xff4422, alpha: flashAlpha });
+          }
+          // Tick + draw center sparks
+          for (let i = 0; i < 12; i++) {
+            const life = eff.extra[`spk${i}_life`];
+            if (life <= 0) continue;
+            eff.extra[`spk${i}_x`]    += eff.extra[`spk${i}_vx`] * deltaMs;
+            eff.extra[`spk${i}_y`]    += eff.extra[`spk${i}_vy`] * deltaMs;
+            eff.extra[`spk${i}_vy`]   += 0.00009 * deltaMs; // gravity
+            eff.extra[`spk${i}_life`] -= 0.0022 * deltaMs;
+            const newLife = eff.extra[`spk${i}_life`];
+            if (newLife <= 0) continue;
+            const color = (i % 3 === 0) ? 0xff8844 : (i % 3 === 1) ? 0xff4422 : 0xffaa66;
+            sparksGfx.circle(eff.extra[`spk${i}_x`], eff.extra[`spk${i}_y`], 1.2 + newLife * 1.8);
+            sparksGfx.fill({ color, alpha: Math.max(0, newLife * 0.9) });
+          }
+          // Diagonal sparks — fly up-left and up-right
+          for (let i = 0; i < 8; i++) {
+            const life = eff.extra[`dspk${i}_life`] ?? 0;
+            if (life <= 0) continue;
+            eff.extra[`dspk${i}_x`]    += eff.extra[`dspk${i}_vx`] * deltaMs;
+            eff.extra[`dspk${i}_y`]    += eff.extra[`dspk${i}_vy`] * deltaMs;
+            eff.extra[`dspk${i}_vy`]   += 0.00003 * deltaMs;
+            eff.extra[`dspk${i}_life`] -= 0.0012 * deltaMs;
+            const dl = eff.extra[`dspk${i}_life`];
+            if (dl <= 0) continue;
+            const dc = (i % 2 === 0) ? 0xff6633 : 0xff3311;
+            sparksGfx.circle(eff.extra[`dspk${i}_x`], eff.extra[`dspk${i}_y`], 0.8 + dl * 1.2);
+            sparksGfx.fill({ color: dc, alpha: Math.max(0, dl * 0.85) });
+          }
+          if (phMs >= 500) { sparksGfx.clear(); phase = 4; phMs = 0; }
+
+        } else {
+          // Wait: 500ms pause before next cycle
+          drillSprite.alpha = 1;
+          if (phMs >= 500) { phase = 0; phMs = 0; }
+        }
+
+        eff.extra['drillPhase'] = phase;
+        eff.extra['phaseMs']    = phMs;
+
+        // ── Vortex: thin white/gray spiraling streaks always around drill ─
+        vortexGfx.clear();
+        const N_VTX = 8;
+        for (let i = 0; i < N_VTX; i++) {
+          const baseAngle = ((t / 2200) * Math.PI * 2 + (i / N_VTX) * Math.PI * 2) % (Math.PI * 2);
+          const dist = 5 + 3 * Math.sin(baseAngle * 1.5 + t / 600);
+          const sx   = drillSprite.x + Math.cos(baseAngle) * dist;
+          const sy   = drillSprite.y + Math.sin(baseAngle) * dist * 0.45;
+          const ex_v = drillSprite.x + Math.cos(baseAngle + 0.55) * dist * 0.5;
+          const ey_v = drillSprite.y - 9 + Math.sin(baseAngle + 0.55) * dist * 0.22;
+          const va   = 0.07 + 0.09 * (0.5 + 0.5 * Math.sin((t / 700 + i) * Math.PI));
+          vortexGfx.moveTo(sx, sy);
+          vortexGfx.lineTo(ex_v, ey_v);
+          vortexGfx.stroke({ color: 0xccddee, width: 1.0, alpha: va });
+        }
+
+      } else if (eff.type === 'fusion_reactor') {
+        // ── Fusion reactor: steam vents + purple core microparticles ──────
+        const steamGfx  = eff.gs[0];
+        const purpleGfx = eff.gs[1];
+        if (!steamGfx || !purpleGfx) return;
+
+        steamGfx.clear();
+        purpleGfx.clear();
+
+        // ── Steam: 4 vents, exit diagonally outward ───────────────────────
+        for (let v = 0; v < 4; v++) {
+          eff.extra[`sv${v}_next`] -= deltaMs;
+          if (!eff.extra[`sv${v}_active`] && eff.extra[`sv${v}_next`] <= 0) {
+            eff.extra[`sv${v}_active`] = 1;
+            eff.extra[`sv${v}_next`]   = 1200 + Math.random() * 3000;
+            const ox = eff.extra[`sv${v}x`];
+            const oy = eff.extra[`sv${v}y`];
+            // Perpendicular spread direction: horizontal for left/right vents, vertical for front vents
+            for (let p = 0; p < 6; p++) {
+              const spread = (Math.random() - 0.5) * 4;
+              eff.extra[`sv${v}_p${p}_life`] = 1;
+              eff.extra[`sv${v}_p${p}_x`]   = ox + (v < 2 ? 0 : spread);
+              eff.extra[`sv${v}_p${p}_y`]   = oy + (v < 2 ? spread : 0);
+            }
+          }
+          if (eff.extra[`sv${v}_active`]) {
+            const ddx = eff.extra[`sv${v}dx`];
+            const ddy = eff.extra[`sv${v}dy`];
+            let anyAlive = false;
+            for (let p = 0; p < 6; p++) {
+              let life = eff.extra[`sv${v}_p${p}_life`];
+              if (life <= 0) continue;
+              anyAlive = true;
+              eff.extra[`sv${v}_p${p}_x`] += (ddx + (Math.random() - 0.5) * 0.007) * deltaMs;
+              eff.extra[`sv${v}_p${p}_y`] += (ddy + (Math.random() - 0.5) * 0.007) * deltaMs;
+              life -= 0.00085 * deltaMs;
+              eff.extra[`sv${v}_p${p}_life`] = life;
+              if (life <= 0) continue;
+              const r     = 2.5 + (1 - life) * 8;
+              const alpha = life * 0.40;
+              steamGfx.circle(eff.extra[`sv${v}_p${p}_x`], eff.extra[`sv${v}_p${p}_y`], r);
+              steamGfx.fill({ color: 0xddeeff, alpha });
+            }
+            if (!anyAlive) eff.extra[`sv${v}_active`] = 0;
+          }
+        }
+
+        // ── Purple orbital streams: 3 rings rotating at core ─────────────
+        const pcx = eff.extra['pcx'];
+        const pcy = eff.extra['pcy'];
+        const pcr = eff.extra['pcr'];
+        // [radius, angularSpeed, dotCount, color] — radii ×3, counts sparse
+        const STREAMS: [number, number, number, number][] = [
+          [pcr * 1.05,  0.0025, 3, 0xee44ff],
+          [pcr * 1.86, -0.0018, 4, 0xaa33ff],
+          [pcr * 2.70,  0.0012, 3, 0x7722cc],
+        ];
+        for (const [r, speed, count, color] of STREAMS) {
+          const headAngle = (t * speed) % (Math.PI * 2);
+          for (let i = 0; i < count; i++) {
+            const angle = headAngle + (i / count) * Math.PI * 2;
+            const fade  = 1 - i / count;
+            const px    = pcx + Math.cos(angle) * r;
+            const py    = pcy + Math.sin(angle) * r * 0.45;
+            const dotR  = 1.0 + fade * 1.4;
+            purpleGfx.circle(px, py, dotR);
+            purpleGfx.fill({ color, alpha: fade * 0.65 });
+          }
+        }
+
+        // ── Purple lightning bolts: random bursts from core outward ───────
+        const lightningGfx = eff.gs[2];
+        if (lightningGfx) {
+          lightningGfx.clear();
+          const LT_DUR = 150; // ms per bolt
+          for (let i = 0; i < 3; i++) {
+            eff.extra[`lt${i}_next`] -= deltaMs;
+            // Fire new bolt
+            if (!eff.extra[`lt${i}_active`] && eff.extra[`lt${i}_next`] <= 0) {
+              eff.extra[`lt${i}_active`] = 1;
+              eff.extra[`lt${i}_age`]    = 0;
+              eff.extra[`lt${i}_next`]   = 400 + Math.random() * 1100;
+              const angle = Math.random() * Math.PI * 2;
+              // Varied lengths: short to very long (1.8×–5.5× radius)
+              const len   = pcr * (1.8 + Math.random() * 3.7);
+              const cosA  = Math.cos(angle), sinA = Math.sin(angle);
+              const cosP  = Math.cos(angle + Math.PI / 2), sinP = Math.sin(angle + Math.PI / 2);
+              // 4 jagged control points; Y squash 0.65 so downward bolts are visible
+              for (let s = 0; s < 4; s++) {
+                const frac   = (s + 1) / 5;
+                const jitter = (Math.random() - 0.5) * len * 0.5;
+                eff.extra[`lt${i}_p${s}x`] = pcx + cosA * len * frac + cosP * jitter;
+                eff.extra[`lt${i}_p${s}y`] = pcy + (sinA * len * frac + sinP * jitter) * 0.65;
+              }
+              eff.extra[`lt${i}_ex`] = pcx + cosA * len;
+              eff.extra[`lt${i}_ey`] = pcy + sinA * len * 0.65;
+            }
+            if (eff.extra[`lt${i}_active`]) {
+              eff.extra[`lt${i}_age`] += deltaMs;
+              const age = eff.extra[`lt${i}_age`];
+              if (age >= LT_DUR) {
+                eff.extra[`lt${i}_active`] = 0;
+              } else {
+                const alpha = (1 - age / LT_DUR) * 0.9;
+                // Helper: draw the jagged path
+                const drawPath = () => {
+                  lightningGfx.moveTo(pcx, pcy);
+                  for (let s = 0; s < 4; s++) {
+                    lightningGfx.lineTo(eff.extra[`lt${i}_p${s}x`], eff.extra[`lt${i}_p${s}y`]);
+                  }
+                  lightningGfx.lineTo(eff.extra[`lt${i}_ex`], eff.extra[`lt${i}_ey`]);
+                };
+                // Outer glow
+                drawPath();
+                lightningGfx.stroke({ width: 4, color: 0x9900ff, alpha: alpha * 0.30 });
+                // Core beam
+                drawPath();
+                lightningGfx.stroke({ width: 1.2, color: 0xee55ff, alpha });
+              }
+            }
+          }
+        }
+
+      } else if (eff.type === 'water_extractor') {
+        // ── Water extractor: freeze-thaw cycle ────────────────────────────
+        const fxGfx   = eff.gs[0];
+        const frostSp = eff.sprites[0];
+        if (!fxGfx) return;
+        fxGfx.clear();
+
+        const DUR_WATER  = 2500;
+        const DUR_FREEZE = 1500;
+        const DUR_FROZEN = 2500;
+        const DUR_THAW   = 1500;
+
+        let wxPhase = eff.extra['wxPhase'];
+        let wxPhMs  = (eff.extra['wxPhMs'] ?? 0) + deltaMs;
+        const wxDur = wxPhase === 0 ? DUR_WATER : wxPhase === 1 ? DUR_FREEZE : wxPhase === 2 ? DUR_FROZEN : DUR_THAW;
+
+        const c0x = eff.extra['cyl0x'], c0y = eff.extra['cyl0y'];
+        const c1x = eff.extra['cyl1x'], c1y = eff.extra['cyl1y'];
+        const c2x = eff.extra['cyl2x'], c2y = eff.extra['cyl2y'];
+
+        // ── Frost overlay alpha ─────────────────────────────────────────
+        if (frostSp) {
+          if      (wxPhase === 0) frostSp.alpha = 0;
+          else if (wxPhase === 1) frostSp.alpha = Math.min(1, wxPhMs / DUR_FREEZE);
+          else if (wxPhase === 2) frostSp.alpha = 1;
+          else                    frostSp.alpha = Math.max(0, 1 - wxPhMs / DUR_THAW);
+        }
+
+        const cylX = (i: number) => i === 0 ? c0x : i === 1 ? c1x : c2x;
+        const cylY = (i: number) => i === 0 ? c0y : i === 1 ? c1y : c2y;
+
+        if (wxPhase === 0) {
+          // ── WATER: blue bubbles rise from cylinder tops ─────────────
+          for (let p = 0; p < 10; p++) {
+            if (eff.extra[`fp${p}_life`] > 0) {
+              eff.extra[`fp${p}_y`]    -= 0.015 * deltaMs;
+              eff.extra[`fp${p}_life`] -= 0.001 * deltaMs;
+              const life = eff.extra[`fp${p}_life`];
+              if (life > 0) {
+                fxGfx.circle(eff.extra[`fp${p}_x`], eff.extra[`fp${p}_y`], 1.2 + (1 - life) * 1.5);
+                fxGfx.fill({ color: 0x44bbff, alpha: life * 0.55 });
+              }
+            } else if (Math.random() < 0.003 * deltaMs) {
+              const c = Math.floor(Math.random() * 3);
+              eff.extra[`fp${p}_x`]    = cylX(c) + (Math.random() - 0.5) * 8;
+              eff.extra[`fp${p}_y`]    = cylY(c);
+              eff.extra[`fp${p}_life`] = 0.6 + Math.random() * 0.4;
+            }
+          }
+
+        } else if (wxPhase === 1) {
+          // ── FREEZING: ice crystal shards drift down ─────────────────
+          for (let p = 0; p < 10; p++) {
+            if (eff.extra[`fp${p}_life`] > 0) {
+              eff.extra[`fp${p}_x`]  += eff.extra[`fp${p}_vx`] * deltaMs;
+              eff.extra[`fp${p}_y`]  += eff.extra[`fp${p}_vy`] * deltaMs;
+              eff.extra[`fp${p}_vy`] += 0.00003 * deltaMs;
+              eff.extra[`fp${p}_life`] -= 0.0007 * deltaMs;
+              const life = eff.extra[`fp${p}_life`];
+              if (life > 0) {
+                const x = eff.extra[`fp${p}_x`], y = eff.extra[`fp${p}_y`];
+                const sz = 1.2 + life * 2.0;
+                // Diamond shard shape
+                fxGfx.poly([x, y - sz, x + sz * 0.55, y, x, y + sz * 0.5, x - sz * 0.55, y]);
+                fxGfx.fill({ color: 0xaaddff, alpha: life * 0.80 });
+              }
+            } else if (Math.random() < 0.009 * deltaMs) {
+              const c = Math.floor(Math.random() * 3);
+              eff.extra[`fp${p}_x`]    = cylX(c) + (Math.random() - 0.5) * 14;
+              eff.extra[`fp${p}_y`]    = cylY(c) + Math.random() * 10;
+              eff.extra[`fp${p}_vx`]   = (Math.random() - 0.5) * 0.014;
+              eff.extra[`fp${p}_vy`]   = 0.008 + Math.random() * 0.018;
+              eff.extra[`fp${p}_life`] = 0.7 + Math.random() * 0.3;
+            }
+          }
+
+        } else if (wxPhase === 2) {
+          // ── FROZEN: ice crystal glints flash on the frost overlay ───
+          for (let p = 0; p < 5; p++) {
+            eff.extra[`gl${p}_next`] -= deltaMs;
+            if (eff.extra[`gl${p}_age`] > 180 && eff.extra[`gl${p}_next`] <= 0) {
+              eff.extra[`gl${p}_age`]  = 0;
+              eff.extra[`gl${p}_next`] = 500 + Math.random() * 1200;
+              const c = Math.floor(Math.random() * 3);
+              eff.extra[`gl${p}_x`] = cylX(c) + (Math.random() - 0.5) * 30;
+              eff.extra[`gl${p}_y`] = cylY(c) + (Math.random() - 0.5) * 25;
+            }
+            if (eff.extra[`gl${p}_age`] < 180) {
+              eff.extra[`gl${p}_age`] += deltaMs;
+              const glA = Math.sin((eff.extra[`gl${p}_age`] / 180) * Math.PI) * 0.95;
+              const glR = 1.5 + Math.sin((eff.extra[`gl${p}_age`] / 180) * Math.PI) * 3.0;
+              fxGfx.circle(eff.extra[`gl${p}_x`], eff.extra[`gl${p}_y`], glR);
+              fxGfx.fill({ color: 0xeef8ff, alpha: glA });
+            }
+          }
+
+        } else {
+          // ── THAWING: soft diffuse steam from tops + sides ────────────
+          const sx0x = eff.extra['sx0x'], sx0y = eff.extra['sx0y'];
+          const sx1x = eff.extra['sx1x'], sx1y = eff.extra['sx1y'];
+          for (let p = 0; p < 10; p++) {
+            if (eff.extra[`fp${p}_life`] > 0.02) {
+              eff.extra[`fp${p}_x`]    += (eff.extra[`fp${p}_vx`] + (Math.random() - 0.5) * 0.005) * deltaMs;
+              eff.extra[`fp${p}_y`]    += (eff.extra[`fp${p}_vy`] + (Math.random() - 0.5) * 0.005) * deltaMs;
+              eff.extra[`fp${p}_life`] -= 0.00040 * deltaMs;
+              const life = eff.extra[`fp${p}_life`];
+              if (life > 0.02) {
+                const age    = 1 - life;               // 0=fresh → 1=old
+                const grow   = 5 + age * 24;           // expands 5→29px
+                const fadeIn = Math.min(1, age * 7);   // fully opaque after ~14% life
+                const fadeOut = Math.pow(life, 0.6);   // smooth power-curve tail
+                const px = eff.extra[`fp${p}_x`], py = eff.extra[`fp${p}_y`];
+                const ox = eff.extra[`fp${p}_ox`], oy = eff.extra[`fp${p}_oy`];
+                const dist = Math.sqrt((px - ox) * (px - ox) + (py - oy) * (py - oy));
+                const distFade = 1 / (1 + dist * 0.045);
+                const a = fadeIn * fadeOut * distFade;
+                // Outer diffuse halo (very faint)
+                fxGfx.circle(px, py, grow * 1.6);
+                fxGfx.fill({ color: 0xddeeff, alpha: a * 0.048 });
+                // Mid cloud
+                fxGfx.circle(px, py, grow);
+                fxGfx.fill({ color: 0xe8f4ff, alpha: a * 0.085 });
+                // Bright soft core
+                fxGfx.circle(px, py, grow * 0.42);
+                fxGfx.fill({ color: 0xffffff, alpha: a * 0.10 });
+              }
+            } else if (Math.random() < 0.022 * deltaMs) {
+              if (Math.random() < 0.40) {
+                // Side vent — exits sideways
+                const left = Math.random() < 0.5;
+                eff.extra[`fp${p}_x`]  = (left ? sx0x : sx1x);
+                eff.extra[`fp${p}_y`]  = (left ? sx0y : sx1y) + (Math.random() - 0.5) * 12;
+                eff.extra[`fp${p}_vx`] = (left ? -0.028 : 0.028) + (Math.random() - 0.5) * 0.007;
+                eff.extra[`fp${p}_vy`] = -0.003 + (Math.random() - 0.5) * 0.004;
+              } else {
+                // Top cylinder — exits upward
+                const c = Math.floor(Math.random() * 3);
+                eff.extra[`fp${p}_x`]  = cylX(c) + (Math.random() - 0.5) * 8;
+                eff.extra[`fp${p}_y`]  = cylY(c);
+                eff.extra[`fp${p}_vx`] = (Math.random() - 0.5) * 0.008;
+                eff.extra[`fp${p}_vy`] = -0.016 - Math.random() * 0.007;
+              }
+              eff.extra[`fp${p}_ox`]   = eff.extra[`fp${p}_x`];
+              eff.extra[`fp${p}_oy`]   = eff.extra[`fp${p}_y`];
+              eff.extra[`fp${p}_life`] = 0.60 + Math.random() * 0.40;
+            }
+          }
+        }
+
+        if (wxPhMs >= wxDur) {
+          // Reset particles when phase changes
+          for (let p = 0; p < 10; p++) eff.extra[`fp${p}_life`] = 0;
+          wxPhase = (wxPhase + 1) % 4;
+          wxPhMs  = 0;
+        }
+        eff.extra['wxPhase'] = wxPhase;
+        eff.extra['wxPhMs']  = wxPhMs;
+
+      } else if (eff.type === 'deep_drill') {
+        // ── Deep drill: pulsing red core + sparks + flying pebbles ────────
+        const glowGfx   = eff.gs[0];
+        const sparkGfx  = eff.gs[1];
+        const pebbleGfx = eff.gs[2];
+        glowGfx.clear(); sparkGfx.clear(); pebbleGfx.clear();
+
+        const corex = eff.extra['corex'];
+        const corey = eff.extra['corey'];
+
+        // ── Pulsing glow ──────────────────────────────────────────────────
+        const pulse = 0.72 + Math.sin(t * 0.0055) * 0.28;
+        glowGfx.circle(corex, corey, 18 * pulse);
+        glowGfx.fill({ color: 0xff2200, alpha: 0.18 * pulse });
+        glowGfx.circle(corex, corey, 10 * pulse);
+        glowGfx.fill({ color: 0xff6600, alpha: 0.30 * pulse });
+        glowGfx.circle(corex, corey, 5);
+        glowGfx.fill({ color: 0xffcc44, alpha: 0.70 });
+
+        // ── Sparks ────────────────────────────────────────────────────────
+        for (let p = 0; p < 20; p++) {
+          if (eff.extra[`sp${p}_life`] > 0) {
+            eff.extra[`sp${p}_x`]    += eff.extra[`sp${p}_vx`] * deltaMs;
+            eff.extra[`sp${p}_y`]    += eff.extra[`sp${p}_vy`] * deltaMs;
+            eff.extra[`sp${p}_vy`]   += 0.00012 * deltaMs; // gravity
+            eff.extra[`sp${p}_life`] -= 0.0028 * deltaMs;
+            const sl = eff.extra[`sp${p}_life`];
+            if (sl > 0) {
+              const sa = sl * sl;
+              const col = Math.random() < 0.5 ? 0xff6600 : 0xffcc22;
+              sparkGfx.circle(eff.extra[`sp${p}_x`], eff.extra[`sp${p}_y`], 1.2 + sl * 1.5);
+              sparkGfx.fill({ color: col, alpha: sa * 0.95 });
+            }
+          } else if (Math.random() < 0.055 * deltaMs) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.045 + Math.random() * 0.085;
+            eff.extra[`sp${p}_x`]    = corex + (Math.random() - 0.5) * 4;
+            eff.extra[`sp${p}_y`]    = corey + (Math.random() - 0.5) * 4;
+            eff.extra[`sp${p}_vx`]   = Math.cos(angle) * speed;
+            eff.extra[`sp${p}_vy`]   = Math.sin(angle) * speed - 0.055;
+            eff.extra[`sp${p}_life`] = 0.30 + Math.random() * 0.50;
+          }
+        }
+
+        // ── Pebbles ───────────────────────────────────────────────────────
+        for (let p = 0; p < 8; p++) {
+          if (eff.extra[`pb${p}_life`] > 0) {
+            eff.extra[`pb${p}_x`]    += eff.extra[`pb${p}_vx`] * deltaMs;
+            eff.extra[`pb${p}_y`]    += eff.extra[`pb${p}_vy`] * deltaMs;
+            eff.extra[`pb${p}_vy`]   += 0.00022 * deltaMs; // heavier gravity
+            eff.extra[`pb${p}_life`] -= 0.0014 * deltaMs;
+            const pl = eff.extra[`pb${p}_life`];
+            if (pl > 0) {
+              pebbleGfx.circle(eff.extra[`pb${p}_x`], eff.extra[`pb${p}_y`], 1.8 + (1 - pl) * 0.5);
+              pebbleGfx.fill({ color: 0x778899, alpha: Math.min(1, pl * 2) * 0.85 });
+            }
+          } else if (Math.random() < 0.008 * deltaMs) {
+            const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * Math.PI * 1.4;
+            const speed = 0.025 + Math.random() * 0.045;
+            eff.extra[`pb${p}_x`]    = corex + (Math.random() - 0.5) * 8;
+            eff.extra[`pb${p}_y`]    = corey;
+            eff.extra[`pb${p}_vx`]   = Math.cos(angle) * speed;
+            eff.extra[`pb${p}_vy`]   = Math.sin(angle) * speed - 0.030;
+            eff.extra[`pb${p}_life`] = 0.50 + Math.random() * 0.50;
+          }
+        }
+
+      } else if (eff.type === 'atmo_extractor') {
+        // ── Atmo extractor: slow grey smoke from 3 top pipes ───────────
+        const smokeGfx = eff.gs[0];
+        smokeGfx.clear();
+
+        const pipeX = [eff.extra['p0x'], eff.extra['p1x'], eff.extra['p2x']];
+        const pipeY = [eff.extra['p0y'], eff.extra['p1y'], eff.extra['p2y']];
+
+        for (let p = 0; p < 15; p++) {
+          if (eff.extra[`sm${p}_life`] > 0.02) {
+            eff.extra[`sm${p}_x`]    += (eff.extra[`sm${p}_vx`] + (Math.random() - 0.5) * 0.004) * deltaMs;
+            eff.extra[`sm${p}_y`]    += (eff.extra[`sm${p}_vy`] + (Math.random() - 0.5) * 0.002) * deltaMs;
+            eff.extra[`sm${p}_life`] -= 0.00022 * deltaMs;
+            const life = eff.extra[`sm${p}_life`];
+            if (life > 0.02) {
+              const age     = 1 - life;
+              const grow    = 6 + age * 32;
+              const fadeIn  = Math.min(1, age * 5);
+              const fadeOut = Math.pow(life, 0.55);
+              const px = eff.extra[`sm${p}_x`];
+              const py = eff.extra[`sm${p}_y`];
+              const ox = eff.extra[`sm${p}_ox`];
+              const oy = eff.extra[`sm${p}_oy`];
+              const dist = Math.sqrt((px - ox) * (px - ox) + (py - oy) * (py - oy));
+              const distFade = 1 / (1 + dist * 0.035);
+              const a = fadeIn * fadeOut * distFade;
+              // Outer wispy halo
+              smokeGfx.circle(px, py, grow * 1.7);
+              smokeGfx.fill({ color: 0x8899aa, alpha: a * 0.038 });
+              // Mid smoke body
+              smokeGfx.circle(px, py, grow);
+              smokeGfx.fill({ color: 0x99aabb, alpha: a * 0.070 });
+              // Bright soft core
+              smokeGfx.circle(px, py, grow * 0.45);
+              smokeGfx.fill({ color: 0xbbccdd, alpha: a * 0.085 });
+            }
+          } else if (Math.random() < 0.010 * deltaMs) {
+            // Spawn from one of the 3 pipes, cycling
+            const pipe = p % 3;
+            eff.extra[`sm${p}_x`]    = pipeX[pipe] + (Math.random() - 0.5) * 6;
+            eff.extra[`sm${p}_y`]    = pipeY[pipe];
+            eff.extra[`sm${p}_ox`]   = eff.extra[`sm${p}_x`];
+            eff.extra[`sm${p}_oy`]   = eff.extra[`sm${p}_y`];
+            eff.extra[`sm${p}_vx`]   = (Math.random() - 0.5) * 0.006;
+            eff.extra[`sm${p}_vy`]   = -0.009 - Math.random() * 0.005;
+            eff.extra[`sm${p}_life`] = 0.55 + Math.random() * 0.45;
           }
         }
       }

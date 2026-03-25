@@ -210,10 +210,10 @@ const ALL_TERRAIN: TerrainType[] = [
   'plains', 'hills', 'mountains', 'peaks', 'volcano',
 ];
 
-const ROCKY_DWARF: PlanetType[] = ['rocky', 'dwarf'];
-const ROCKY_ONLY: PlanetType[] = ['rocky'];
+const ROCKY_DWARF: PlanetType[] = ['rocky', 'terrestrial', 'dwarf'];
+const ROCKY_ONLY: PlanetType[] = ['rocky', 'terrestrial'];
 const GAS_ICE: PlanetType[] = ['gas-giant', 'ice-giant'];
-const ALL_PLANETS: PlanetType[] = ['rocky', 'dwarf', 'gas-giant', 'ice-giant'];
+const ALL_PLANETS: PlanetType[] = ['rocky', 'terrestrial', 'dwarf', 'gas-giant', 'ice-giant'];
 
 // ---------------------------------------------------------------------------
 // Building definitions (static catalog) — 27 buildings
@@ -373,7 +373,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     type: 'mine', category: 'extraction',
     name: 'Шахта',
     description: 'Видобуток базових мінералів з поверхневих покладів.',
-    size: 3, sizeW: 3, sizeH: 3,
+    size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'Fe', amount: 20 }],
     levelRequired: 1, techRequired: null, maxPerPlanet: 10,
@@ -388,7 +388,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     type: 'water_extractor', category: 'extraction',
     name: 'Водозбірник',
     description: 'Видобуток летючих речовин з океану та узбережжя.',
-    size: 3, sizeW: 3, sizeH: 3,
+    size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: WATER_TERRAIN,
     cost: [{ resource: 'Fe', amount: 15 }, { resource: 'Cu', amount: 10 }],
     levelRequired: 1, techRequired: null, maxPerPlanet: 6,
@@ -403,7 +403,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     type: 'atmo_extractor', category: 'extraction',
     name: 'Атмосферний конденсатор',
     description: 'Збір летючих з атмосфери. Вихід залежить від тиску.',
-    size: 3, sizeW: 3, sizeH: 3,
+    size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'Al', amount: 25 }, { resource: 'Cu', amount: 15 }, { resource: 'Ti', amount: 10 }],
     levelRequired: 12, techRequired: 'chem-gas-sep', maxPerPlanet: 4,
@@ -418,7 +418,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     type: 'deep_drill', category: 'extraction',
     name: 'Глибинний бур',
     description: 'Доступ до глибоких покладів. Шанс рідкісних елементів.',
-    size: 3, sizeW: 3, sizeH: 3,
+    size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: HIGH_TERRAIN,
     cost: [{ resource: 'Ti', amount: 35 }, { resource: 'Fe', amount: 40 }, { resource: 'Cu', amount: 20 }],
     levelRequired: 20, techRequired: 'phy-drill', maxPerPlanet: 3,

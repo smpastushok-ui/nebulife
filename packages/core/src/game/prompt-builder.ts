@@ -265,7 +265,12 @@ function deriveSkyColor(planet: Planet): string {
 function describeTerrain(planet: Planet, rng: SeededRNG): string {
   const terrains = [];
 
-  if (planet.type === 'rocky') {
+  if (planet.type === 'terrestrial') {
+    terrains.push('lush green valleys with rivers winding through hills');
+    terrains.push('Earth-like coastline with turquoise ocean and sandy beaches');
+    terrains.push('temperate forest with mountains in the background');
+    terrains.push('wide river delta with fertile plains and distant peaks');
+  } else if (planet.type === 'rocky') {
     terrains.push('rocky terrain with craters and canyons');
     terrains.push('vast desert plains with distant mountains');
     terrains.push('volcanic landscape with lava rivers');

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch } from '@nebulife/core';
 import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
@@ -36,55 +37,57 @@ interface TabDef {
   subTabs: { id: SubTab; label: string }[];
 }
 
-const TABS: TabDef[] = [
-  {
-    id: 'collections',
-    label: 'Колекції',
-    subTabs: [
-      { id: 'cosmos', label: 'Космос' },
-      { id: 'star-systems', label: 'Зоряні системи' },
-      { id: 'planets-photos', label: 'Планети' },
-      { id: 'surface', label: 'Поверхня' },
-      { id: 'life', label: 'Життя' },
-    ],
-  },
-  {
-    id: 'management',
-    label: 'Управління та Наука',
-    subTabs: [
-      { id: 'astronomy', label: 'Астрономія' },
-      { id: 'physics', label: 'Фізика' },
-      { id: 'chemistry', label: 'Хімія' },
-      { id: 'biology', label: 'Біологія' },
-      { id: 'resources', label: 'Ресурси' },
-    ],
-  },
-  {
-    id: 'navigation',
-    label: 'Навігація',
-    subTabs: [
-      { id: 'planets', label: 'Планети' },
-      { id: 'systems', label: 'Системи' },
-      { id: 'favorites', label: 'Обрані' },
-    ],
-  },
-  {
-    id: 'interaction',
-    label: 'Взаємодія',
-    subTabs: [
-      { id: 'diplomacy', label: 'Дипломатія' },
-      { id: 'trade', label: 'Торгівля' },
-      { id: 'quests', label: 'Квести' },
-    ],
-  },
-  {
-    id: 'log',
-    label: 'Журнал',
-    subTabs: [
-      { id: 'all-events', label: 'Бортовий журнал' },
-    ],
-  },
-];
+function buildTabs(t: (key: string) => string): TabDef[] {
+  return [
+    {
+      id: 'collections',
+      label: t('archive.tab_collections'),
+      subTabs: [
+        { id: 'cosmos', label: t('archive.sub_cosmos') },
+        { id: 'star-systems', label: t('archive.sub_star_systems') },
+        { id: 'planets-photos', label: t('archive.sub_planets_photos') },
+        { id: 'surface', label: t('archive.sub_surface') },
+        { id: 'life', label: t('archive.sub_life') },
+      ],
+    },
+    {
+      id: 'management',
+      label: t('archive.tab_management'),
+      subTabs: [
+        { id: 'astronomy', label: t('archive.sub_astronomy') },
+        { id: 'physics', label: t('archive.sub_physics') },
+        { id: 'chemistry', label: t('archive.sub_chemistry') },
+        { id: 'biology', label: t('archive.sub_biology') },
+        { id: 'resources', label: t('archive.sub_resources') },
+      ],
+    },
+    {
+      id: 'navigation',
+      label: t('archive.tab_navigation'),
+      subTabs: [
+        { id: 'planets', label: t('archive.sub_planets') },
+        { id: 'systems', label: t('archive.sub_systems') },
+        { id: 'favorites', label: t('archive.sub_favorites') },
+      ],
+    },
+    {
+      id: 'interaction',
+      label: t('archive.tab_interaction'),
+      subTabs: [
+        { id: 'diplomacy', label: t('archive.sub_diplomacy') },
+        { id: 'trade', label: t('archive.sub_trade') },
+        { id: 'quests', label: t('archive.sub_quests') },
+      ],
+    },
+    {
+      id: 'log',
+      label: t('archive.tab_log'),
+      subTabs: [
+        { id: 'all-events', label: t('archive.sub_log') },
+      ],
+    },
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -247,6 +250,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   systemPhotos,
   colonyResources,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
+  const { t } = useTranslation();
+  const TABS = buildTabs(t);
+
   // Auto-switch to collections/cosmos tab when highlighting a new save
   const [mainTab, setMainTab] = useState<MainTab>(highlightedType ? 'collections' : 'navigation');
   const [subTabMap, setSubTabMap] = useState<Record<MainTab, SubTab>>({
@@ -408,11 +414,11 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
             height: '100%', minHeight: 300, fontFamily: 'monospace',
             fontSize: 12, color: '#445566', textAlign: 'center', lineHeight: 1.7,
           }}>
-            Доступно з 50 рівня екіпажу
+            {t('archive.locked_level_50')}
           </div>
         );
       }
-      return <PlaceholderTab label={currentSubTab === 'surface' ? 'Поверхня' : 'Життя'} />;
+      return <PlaceholderTab label={currentSubTab === 'surface' ? t('archive.sub_surface') : t('archive.sub_life')} />;
     }
     if (mainTab === 'navigation' && currentSubTab === 'planets') {
       return (
@@ -516,7 +522,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
             lineHeight: 1.7,
           }}
         >
-          У вас немає доступних ресурсів для місій на iншi планети
+          {t('archive.no_mission_resources')}
         </div>
       );
     }
@@ -544,7 +550,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           <button
             onClick={handleBack}
             style={headerIconBtnStyle}
-            title="Назад"
+            title={t('common.back')}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = '#aabbcc';
               e.currentTarget.style.borderColor = '#667788';
@@ -561,14 +567,14 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
 
           {/* Title */}
           <span style={{ fontSize: 15, color: '#ccddee', letterSpacing: 1 }}>
-            Центр управлiння
+            {t('archive.title')}
           </span>
 
           {/* Quick nav: home */}
           <button
             onClick={handleGoHome}
             style={headerIconBtnStyle}
-            title="Домівка"
+            title={t('nav.home')}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = '#44ff88';
               e.currentTarget.style.borderColor = '#44ff88';
@@ -588,7 +594,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           <button
             onClick={handleGoGalaxy}
             style={headerIconBtnStyle}
-            title="Галактика"
+            title={t('nav.back_galaxy')}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = '#aabbcc';
               e.currentTarget.style.borderColor = '#667788';
@@ -653,7 +659,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           return (
             <TabButton
               key={sub.id}
-              label={isLocked ? `${sub.label} [locked]` : sub.label}
+              label={isLocked ? `${sub.label} [${t('tech_tree.locked')}]` : sub.label}
               active={currentSubTab === sub.id}
               onClick={() => selectSubTab(sub.id)}
               small

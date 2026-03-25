@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -17,6 +18,7 @@ interface EvacuationPromptProps {
 }
 
 export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, onDismiss }: EvacuationPromptProps) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState<'evacuate' | null>(null);
   const habitabilityPct = Math.round(planet.habitability.overall * 100);
 
@@ -58,7 +60,7 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, on
             marginBottom: 6,
           }}
         >
-          {forced ? 'КРИТИЧНА СИТУАЦIЯ' : 'СИГНАЛ ВИЯВЛЕННЯ'}
+          {forced ? t('evacuation.header_critical') : t('evacuation.header_signal')}
         </div>
         <div
           style={{
@@ -68,7 +70,7 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, on
             marginBottom: forced ? 12 : 16,
           }}
         >
-          {forced ? 'Час вичерпано' : 'Виявлено придатну планету'}
+          {forced ? t('evacuation.title_forced') : t('evacuation.title_found')}
         </div>
 
         {/* Forced: desperate message */}
@@ -85,9 +87,7 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, on
               borderRadius: 4,
             }}
           >
-            Астероїд на фiнальнiй траєкторiї. Ми не встигли знайти iдеальну планету,
-            але вибору немає. Евакуацiйний корабель готовий. Летимо i будемо надiятися,
-            що цей свiт стане нашим новим домом.
+            {t('evacuation.forced_message')}
           </div>
         )}
 
@@ -102,15 +102,15 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, on
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ color: '#667788', fontSize: 10 }}>СИСТЕМА</span>
+            <span style={{ color: '#667788', fontSize: 10 }}>{t('evacuation.label_system')}</span>
             <span style={{ color: '#aabbcc', fontSize: 11 }}>{system.name}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ color: '#667788', fontSize: 10 }}>ПЛАНЕТА</span>
+            <span style={{ color: '#667788', fontSize: 10 }}>{t('evacuation.label_planet')}</span>
             <span style={{ color: '#aabbcc', fontSize: 11 }}>{planet.name}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ color: '#667788', fontSize: 10 }}>ПРИДАТНIСТЬ</span>
+            <span style={{ color: '#667788', fontSize: 10 }}>{t('evacuation.label_habitability')}</span>
             <span style={{
               color: habitabilityPct >= 30 ? '#44ff88' : habitabilityPct >= 10 ? '#ff8844' : '#cc4444',
               fontSize: 11,
@@ -120,13 +120,13 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, on
             </span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ color: '#667788', fontSize: 10 }}>ТИП</span>
+            <span style={{ color: '#667788', fontSize: 10 }}>{t('evacuation.label_type')}</span>
             <span style={{ color: '#aabbcc', fontSize: 11 }}>{planet.type}</span>
           </div>
           {planet.atmosphere && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#667788', fontSize: 10 }}>АТМОСФЕРА</span>
-              <span style={{ color: '#aabbcc', fontSize: 11 }}>Наявна</span>
+              <span style={{ color: '#667788', fontSize: 10 }}>{t('evacuation.label_atmosphere')}</span>
+              <span style={{ color: '#aabbcc', fontSize: 11 }}>{t('evacuation.atmosphere_present')}</span>
             </div>
           )}
         </div>
@@ -154,7 +154,7 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, on
             transition: 'background 0.2s',
           }}
         >
-          {forced ? 'ТЕРМIНОВА ЕВАКУАЦIЯ' : 'ПОЧАТИ ЕВАКУАЦIЮ'}
+          {forced ? t('evacuation.btn_emergency') : t('evacuation.btn_start')}
         </button>
 
         {/* Dismiss button — hide prompt, reopen via timer button */}
@@ -177,7 +177,7 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, on
             onMouseEnter={(e) => { (e.target as HTMLElement).style.color = '#8899aa'; }}
             onMouseLeave={(e) => { (e.target as HTMLElement).style.color = '#556677'; }}
           >
-            Пізніше
+            {t('evacuation.btn_later')}
           </button>
         )}
       </div>

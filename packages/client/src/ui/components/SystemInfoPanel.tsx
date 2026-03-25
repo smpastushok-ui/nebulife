@@ -1,24 +1,29 @@
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // Tooltips for star parameters (hover desktop / tap mobile)
+// Keys are i18n translation keys for the label
 // ---------------------------------------------------------------------------
 
-const STAR_TIPS: Record<string, string> = {
-  'Клас':        'Спектральний клас: визначає колір, температуру та тип зірки',
-  'Температура': 'Температура поверхні в Кельвінах (K). Сонце ≈ 5778 K',
-  'Маса':        'Маса відносно Сонця. M☉ = 1.99×10³⁰ кг',
-  'Світність':   'Потужність випромінювання відносно Сонця. L☉ ≈ 3.83×10²⁶ Вт',
-  'Вік':         'Вік зірки в мільярдах років. Gyr = 10⁹ років',
+const STAR_TIP_KEYS: Record<string, string> = {
+  'system_info.star_class':       'system_info.tip_class',
+  'system_info.star_temperature': 'system_info.tip_temperature',
+  'system_info.star_mass':        'system_info.tip_mass',
+  'system_info.star_luminosity':  'system_info.tip_luminosity',
+  'system_info.star_age':         'system_info.tip_age',
 };
 
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function LabelWithTip({ label }: { label: string }) {
-  const tip = STAR_TIPS[label];
+function LabelWithTip({ labelKey }: { labelKey: string }) {
+  const { t } = useTranslation();
+  const tipKey = STAR_TIP_KEYS[labelKey];
+  const label = t(labelKey);
+  const tip = tipKey ? t(tipKey) : undefined;
   const [open, setOpen] = useState(false);
 
   const toggle = useCallback(() => setOpen(v => !v), []);
@@ -35,7 +40,7 @@ function LabelWithTip({ label }: { label: string }) {
         onMouseLeave={hide}
         onClick={toggle}
       >
-        {label}
+        {t(labelKey)}
       </span>
       {open && (
         <span style={{
@@ -67,14 +72,16 @@ function LabelWithTip({ label }: { label: string }) {
 // ---------------------------------------------------------------------------
 
 function AnimRow({
-  label, value, delay, valueColor, isSystem,
+  labelKey, value, delay, valueColor, plain,
 }: {
-  label: string;
+  labelKey: string;
   value: React.ReactNode;
   delay: number;
   valueColor?: string;
-  isSystem?: boolean;
+  /** When true, renders label as plain translated text (no tooltip). Default: uses LabelWithTip */
+  plain?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div style={{
       display: 'flex',
@@ -86,7 +93,7 @@ function AnimRow({
       animation: `sip-slide-in 0.22s ${delay}ms both`,
     }}>
       <span style={{ color: '#778899' }}>
-        {isSystem ? label : <LabelWithTip label={label} />}
+        {plain ? t(labelKey) : <LabelWithTip labelKey={labelKey} />}
       </span>
       <span style={{ color: valueColor ?? '#aabbcc' }}>{value}</span>
     </div>
@@ -168,6 +175,7 @@ export function SystemInfoPanel({ system, onEnterSystem, onClose, displayName, o
   displayName?: string;
   onRename?: (newName: string) => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(displayName ?? system.name);
 
@@ -182,7 +190,7 @@ export function SystemInfoPanel({ system, onEnterSystem, onClose, displayName, o
     setEditing(false);
   };
 
-  const plural = (n: number) => n === 1 ? 'планета' : n < 5 ? 'планети' : 'планет';
+  const plural = (n: number) => n === 1 ? t('radial.planet_one') : n < 5 ? t('radial.planet_few') : t('radial.planet_many');
 
   return (
     <div style={panelStyle}>
@@ -206,7 +214,7 @@ export function SystemInfoPanel({ system, onEnterSystem, onClose, displayName, o
             )}
             {onRename && (
               <button style={renameBtnStyle} onClick={() => { setEditValue(name); setEditing(true); }}>
-                [rename]
+                [{t('common.rename')}]
               </button>
             )}
           </span>
@@ -215,28 +223,28 @@ export function SystemInfoPanel({ system, onEnterSystem, onClose, displayName, o
       </div>
 
       {/* Star section */}
-      <div style={sectionStyle(50)}>ЗІРКА</div>
-      <AnimRow label="Клас"        value={<span style={{ color: star.colorHex }}>{star.spectralClass}{star.subType}V</span>} delay={100} />
-      <AnimRow label="Температура" value={`${star.temperatureK} K`}       delay={170} />
-      <AnimRow label="Маса"        value={<>{ star.massSolar } M&#x2609;</>}            delay={240} />
-      <AnimRow label="Світність"   value={<>{star.luminositySolar} L&#x2609;</>}        delay={310} />
-      <AnimRow label="Вік"         value={`${star.ageGyr} Gyr`}            delay={380} />
+      <div style={sectionStyle(50)}>{t('system_info.section_star')}</div>
+      <AnimRow labelKey="system_info.star_class"       value={<span style={{ color: star.colorHex }}>{star.spectralClass}{star.subType}V</span>} delay={100} />
+      <AnimRow labelKey="system_info.star_temperature" value={`${star.temperatureK} K`}                       delay={170} />
+      <AnimRow labelKey="system_info.star_mass"        value={<>{ star.massSolar } M&#x2609;</>}               delay={240} />
+      <AnimRow labelKey="system_info.star_luminosity"  value={<>{star.luminositySolar} L&#x2609;</>}           delay={310} />
+      <AnimRow labelKey="system_info.star_age"         value={`${star.ageGyr} Gyr`}                           delay={380} />
 
       {/* System section */}
-      <div style={sectionStyle(460)}>СИСТЕМА</div>
-      <AnimRow label="Планет"            value={system.planets.length}                                           delay={520} isSystem />
-      <AnimRow label="Зона придатності"  value={`${habitablePlanets.length} ${plural(habitablePlanets.length)}`} delay={590} isSystem />
+      <div style={sectionStyle(460)}>{t('system_info.section_system')}</div>
+      <AnimRow labelKey="system_info.planets"          value={system.planets.length}                                           delay={520} plain />
+      <AnimRow labelKey="system_info.habitable_zone"   value={`${habitablePlanets.length} ${plural(habitablePlanets.length)}`} delay={590} plain />
       <AnimRow
-        label="Виявлене життя"
-        value={lifeCount > 0 ? `${lifeCount} ${plural(lifeCount)}` : 'Немає'}
+        labelKey="system_info.life_detected"
+        value={lifeCount > 0 ? `${lifeCount} ${plural(lifeCount)}` : t('system_info.no_life')}
         valueColor={lifeCount > 0 ? '#44ff88' : '#445566'}
         delay={660}
-        isSystem
+        plain
       />
-      <AnimRow label="Відстань від дому" value={`${system.ringIndex} кільце`}                                   delay={730} isSystem />
+      <AnimRow labelKey="system_info.distance_home"   value={t('system_info.ring_value', { ring: system.ringIndex })}        delay={730} plain />
 
       <button style={btnStyle} onClick={onEnterSystem}>
-        Увійти до системи &rarr;
+        {t('system_info.enter_system')} &rarr;
       </button>
     </div>
   );

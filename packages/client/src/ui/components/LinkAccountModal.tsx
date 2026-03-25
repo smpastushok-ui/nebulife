@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   linkGoogleToAnonymous,
   linkEmailToAnonymous,
@@ -17,6 +18,7 @@ interface LinkAccountModalProps {
 type Screen = 'choice' | 'email-form';
 
 export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
+  const { t } = useTranslation();
   const [screen, setScreen] = useState<Screen>('choice');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,9 +46,9 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
       await notifyServer();
       onLinked();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Помилка';
-      if (msg.includes('popup-closed')) setError('Вікно авторизації було закрите');
-      else if (msg.includes('credential-already-in-use')) setError('Цей Google акаунт вже використовується');
+      const msg = err instanceof Error ? err.message : t('common.error');
+      if (msg.includes('popup-closed')) setError(t('errors.authClosed'));
+      else if (msg.includes('credential-already-in-use')) setError(t('link_account.error_google_in_use'));
       else setError(msg);
     } finally {
       setLoading(false);
@@ -54,9 +56,9 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
   };
 
   const handleEmail = async () => {
-    if (!email || !password || !confirmPassword) { setError('Заповніть всі поля'); return; }
-    if (password !== confirmPassword) { setError('Паролі не співпадають'); return; }
-    if (password.length < 6) { setError('Мін. 6 символів'); return; }
+    if (!email || !password || !confirmPassword) { setError(t('errors.fillAllFields')); return; }
+    if (password !== confirmPassword) { setError(t('errors.passwordMismatch')); return; }
+    if (password.length < 6) { setError(t('link_account.min_6_chars')); return; }
 
     setError('');
     setLoading(true);
@@ -65,10 +67,10 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
       await notifyServer();
       onLinked();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Помилка';
-      if (msg.includes('email-already-in-use')) setError('Ця пошта вже зареєстрована');
-      else if (msg.includes('weak-password')) setError('Пароль занадто короткий');
-      else if (msg.includes('invalid-email')) setError('Невірний формат пошти');
+      const msg = err instanceof Error ? err.message : t('common.error');
+      if (msg.includes('email-already-in-use')) setError(t('errors.emailRegistered'));
+      else if (msg.includes('weak-password')) setError(t('errors.weakPassword'));
+      else if (msg.includes('invalid-email')) setError(t('errors.invalidEmail'));
       else setError(msg);
     } finally {
       setLoading(false);
@@ -79,9 +81,9 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
     <>
       <div style={backdropStyle} onClick={onClose} />
       <div style={cardStyle}>
-        <div style={titleStyle}>Прив'язати акаунт</div>
+        <div style={titleStyle}>{t('link_account.title')}</div>
         <div style={hintStyle}>
-          Для покупки кварків та збереження прогресу між пристроями прив'яжіть акаунт
+          {t('link_account.hint')}
         </div>
 
         {error && <div style={errorStyle}>{error}</div>}
@@ -89,17 +91,17 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
         {screen === 'choice' && (
           <>
             <button style={googleBtnStyle} onClick={handleGoogle} disabled={loading}>
-              {loading ? 'Завантаження...' : 'Google'}
+              {loading ? t('common.loading') : 'Google'}
             </button>
             <button
               style={btnStyle}
               onClick={() => { setScreen('email-form'); setError(''); }}
               disabled={loading}
             >
-              Email / Пароль
+              {t('link_account.email_password_btn')}
             </button>
             <button style={closeBtnStyle} onClick={onClose}>
-              Пізніше
+              {t('link_account.later_btn')}
             </button>
           </>
         )}
@@ -117,23 +119,23 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
             <input
               style={inputStyle}
               type="password"
-              placeholder="Пароль (мін. 6 символів)"
+              placeholder={t('auth.password_min_placeholder')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
             <input
               style={inputStyle}
               type="password"
-              placeholder="Підтвердіть пароль"
+              placeholder={t('auth.confirm_password_placeholder')}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleEmail()}
             />
             <button style={btnStyle} onClick={handleEmail} disabled={loading}>
-              {loading ? 'Завантаження...' : 'Прив\'язати'}
+              {loading ? t('common.loading') : t('link_account.link_btn')}
             </button>
             <button style={closeBtnStyle} onClick={() => { setScreen('choice'); setError(''); }}>
-              Назад
+              {t('common.back')}
             </button>
           </>
         )}

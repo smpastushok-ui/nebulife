@@ -34,3 +34,11 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
     provider: decoded.firebase.sign_in_provider, // 'google.com' | 'password' | 'anonymous'
   };
 }
+
+/**
+ * Delete a Firebase user by UID. Used for account deletion (GDPR/Apple requirement).
+ */
+export async function deleteFirebaseUser(uid: string): Promise<void> {
+  const auth = getFirebaseAdmin();
+  await auth.deleteUser(uid);
+}

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { BuildingType, PlacedBuilding, TechTreeState } from '@nebulife/core';
 import type { Planet } from '@nebulife/core';
 import { BUILDING_DEFS, canBuildOnPlanet, createTechTreeState } from '@nebulife/core';
@@ -14,13 +15,13 @@ type DockMode = 'build' | 'colony';
 interface BuildingGroup { label: string; color: string; types: BuildingType[] }
 
 const BUILDING_GROUPS: BuildingGroup[] = [
-  { label: 'ІНФРАСТРУКТУРА', color: '#44ff88',  types: ['colony_hub', 'resource_storage', 'landing_pad', 'spaceport'] },
-  { label: 'ЕНЕРГЕТИКА',     color: '#ffcc44',  types: ['solar_plant', 'battery_station', 'wind_generator', 'thermal_generator', 'fusion_reactor'] },
-  { label: 'ВИДОБУТОК',      color: '#ff8844',  types: ['mine', 'water_extractor', 'atmo_extractor', 'deep_drill', 'orbital_collector'] },
-  { label: 'НАУКА',          color: '#4488ff',  types: ['research_lab', 'observatory', 'radar_tower', 'orbital_telescope', 'quantum_computer'] },
-  { label: 'БІОСФЕРА',       color: '#88ff44',  types: ['greenhouse', 'residential_dome', 'atmo_shield', 'biome_dome'] },
-  { label: 'ХІМІЯ',          color: '#ff44aa',  types: ['quantum_separator', 'gas_fractionator', 'isotope_centrifuge', 'genesis_vault'] },
-  { label: 'ПРЕМІУМ',        color: '#ffcc44',  types: ['alpha_harvester'] },
+  { label: 'infrastructure', color: '#44ff88',  types: ['colony_hub', 'resource_storage', 'landing_pad', 'spaceport'] },
+  { label: 'energy',         color: '#ffcc44',  types: ['solar_plant', 'battery_station', 'wind_generator', 'thermal_generator', 'fusion_reactor'] },
+  { label: 'extraction',     color: '#ff8844',  types: ['mine', 'water_extractor', 'atmo_extractor', 'deep_drill', 'orbital_collector'] },
+  { label: 'science',        color: '#4488ff',  types: ['research_lab', 'observatory', 'radar_tower', 'orbital_telescope', 'quantum_computer'] },
+  { label: 'biosphere',      color: '#88ff44',  types: ['greenhouse', 'residential_dome', 'atmo_shield', 'biome_dome'] },
+  { label: 'chemistry',      color: '#ff44aa',  types: ['quantum_separator', 'gas_fractionator', 'isotope_centrifuge', 'genesis_vault'] },
+  { label: 'premium',        color: '#ffcc44',  types: ['alpha_harvester'] },
 ];
 
 const BUILDING_COLORS: Partial<Record<BuildingType, string>> = {
@@ -54,15 +55,15 @@ const BUILDING_COLORS: Partial<Record<BuildingType, string>> = {
   alpha_harvester:   '#ffcc44',
 };
 
-const TERRAIN_UA: Record<string, string> = {
-  lowland:   'низовина',
-  plains:    'рівнина',
-  hills:     'пагорби',
-  beach:     'пляж',
-  coast:     'узбережжя',
-  ocean:     'океан',
-  mountains: 'гори',
-  peaks:     'вершини',
+const TERRAIN_KEYS: Record<string, string> = {
+  lowland:   'surface_panel.terrain_lowland',
+  plains:    'surface_panel.terrain_plains',
+  hills:     'surface_panel.terrain_hills',
+  beach:     'surface_panel.terrain_beach',
+  coast:     'surface_panel.terrain_coast',
+  ocean:     'surface_panel.terrain_ocean',
+  mountains: 'surface_panel.terrain_mountains',
+  peaks:     'surface_panel.terrain_peaks',
 };
 
 /* ─── PNG photo paths (where available) ────────────────────────────────── */
@@ -77,6 +78,11 @@ const BLDG_PNG: Partial<Record<BuildingType, string>> = {
   landing_pad:      '/tiles/machines/landing_pad.png',
   spaceport:        '/tiles/machines/spaceport.png',
   alpha_harvester:  '/tiles/machines/premium_harvester_drone.png',
+  mine:             '/buildings/mine.png',
+  fusion_reactor:   '/buildings/fusion_reactor.png',
+  water_extractor:  '/buildings/water_extractor.png',
+  atmo_extractor:   '/buildings/atmo_extractor.png',
+  deep_drill:       '/buildings/deep_drill.png',
 };
 
 /* ─── 3-resource cost display (МІН / ЛЕТ / ІЗО) ───────────────────────── */
@@ -241,6 +247,7 @@ function BuildingCard({
   lockReason?: string;
   currentCount?: number;
 }) {
+  const { t } = useTranslation();
   const [descOpen, setDescOpen] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -249,7 +256,7 @@ function BuildingCard({
   const col        = BUILDING_COLORS[type] ?? '#aabbcc';
   const cost       = BLDG_COSTS[type];
   const pngPath    = BLDG_PNG[type];
-  const terrainStr = def.requiresTerrain.map((t) => TERRAIN_UA[t] ?? t).join(', ');
+  const terrainStr = def.requiresTerrain.map((terrain) => t(TERRAIN_KEYS[terrain] ?? terrain)).join(', ');
   const isPremium  = type === 'alpha_harvester';
   const atLimit    = def.maxPerPlanet > 0 && (currentCount ?? 0) >= def.maxPerPlanet;
 
@@ -275,7 +282,7 @@ function BuildingCard({
       <div style={{
         display: 'flex', alignItems: 'flex-start', gap: 10,
         width: '100%',
-        opacity: locked ? (hovered ? 0.50 : 0.35) : 1,
+        opacity: locked ? 0.10 : 1,
         transition: 'opacity 0.15s ease',
       }}>
         {/* ── Building photo / icon ───────────────────────────────────── */}
@@ -287,15 +294,28 @@ function BuildingCard({
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {pngPath && !imgFailed ? (
-            <img
-              src={pngPath}
-              alt={type}
-              onError={() => setImgFailed(true)}
-              style={{
-                width: '100%', height: '100%', objectFit: 'contain', display: 'block',
-                mixBlendMode: 'multiply',
-              }}
-            />
+            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+              <img
+                src={pngPath}
+                alt={type}
+                onError={() => setImgFailed(true)}
+                style={{
+                  width: '100%', height: '100%', objectFit: 'contain', display: 'block',
+                  mixBlendMode: 'multiply',
+                }}
+              />
+              {type === 'mine' && (
+                <img
+                  src="/buildings/mine_on.png"
+                  alt=""
+                  style={{
+                    position: 'absolute', inset: 0,
+                    width: '100%', height: '100%', objectFit: 'contain',
+                    mixBlendMode: 'multiply',
+                  }}
+                />
+              )}
+            </div>
           ) : (
             <BuildingIcon type={type} size={IMG_SIZE - 14} />
           )}
@@ -351,7 +371,7 @@ function BuildingCard({
           {/* Resource costs + count/limit */}
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
             {isPremium ? (
-              <span style={{ color: '#ffcc44', fontSize: 10 }}>ПРЕМІУМ</span>
+              <span style={{ color: '#ffcc44', fontSize: 10 }}>{t('surface_panel.premium')}</span>
             ) : (
               <>
                 {cost.m > 0 && (
@@ -395,12 +415,11 @@ function BuildingCard({
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: `repeating-linear-gradient(
             -45deg,
-            rgba(10,15,25,0.80) 0px,
-            rgba(10,15,25,0.80) 2px,
-            rgba(20,30,50,0.45) 2px,
-            rgba(20,30,50,0.45) 6px
+            rgba(8,12,22,0.92) 0px,
+            rgba(8,12,22,0.92) 2px,
+            rgba(15,25,45,0.78) 2px,
+            rgba(15,25,45,0.78) 6px
           )`,
-          opacity: hovered ? 0.75 : 1,
           transition: 'opacity 0.15s ease',
           borderRadius: 0,
           pointerEvents: 'none', // clicks pass through to button
@@ -424,6 +443,7 @@ function BuildingCard({
 /* ─── Planet info HUD (top-left, always visible) ───────────────────────── */
 
 function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: PlacedBuilding[] }) {
+  const { t } = useTranslation();
   const tempC = Math.round(planet.surfaceTempK - 273);
   const tempColor = tempC > -10 && tempC < 50 ? '#44ff88' : tempC < -40 || tempC > 80 ? '#ff8844' : '#ffcc44';
   const habPct = Math.round((planet.habitability?.overall ?? 0) * 100);
@@ -431,13 +451,13 @@ function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: Place
   const gravColor = Math.abs(planet.surfaceGravityG - 1) < 0.3 ? '#44ff88' : '#ffcc44';
 
   const rows: { k: string; v: string; c: string }[] = [
-    { k: 'Температура', v: `${tempC > 0 ? '+' : ''}${tempC}°C`, c: tempColor },
-    { k: 'Гравітація',  v: `${planet.surfaceGravityG.toFixed(2)} g`, c: gravColor },
+    { k: t('surface_panel.temperature'), v: `${tempC > 0 ? '+' : ''}${tempC}°C`, c: tempColor },
+    { k: t('surface_panel.gravity'),     v: `${planet.surfaceGravityG.toFixed(2)} g`, c: gravColor },
     ...(planet.atmosphere
-      ? [{ k: 'Атмосфера', v: `${planet.atmosphere.surfacePressureAtm.toFixed(1)} атм`, c: '#aabbcc' }]
+      ? [{ k: t('surface_panel.atmosphere'), v: `${planet.atmosphere.surfacePressureAtm.toFixed(1)} atm`, c: '#aabbcc' }]
       : []),
-    { k: 'Придатність', v: `${habPct}%`, c: habColor },
-    { k: 'Споруд',      v: String(buildings.length), c: '#aabbcc' },
+    { k: t('surface_panel.habitability'), v: `${habPct}%`, c: habColor },
+    { k: t('surface_panel.buildings'),    v: String(buildings.length), c: '#aabbcc' },
   ];
 
   return (
@@ -465,6 +485,7 @@ function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: Place
 /* ─── Placement hint (top-center, when building selected) ──────────────── */
 
 function PlacementHint({ type, onCancel }: { type: BuildingType; onCancel: () => void }) {
+  const { t } = useTranslation();
   const def = BUILDING_DEFS[type];
   const col = BUILDING_COLORS[type] ?? '#aabbcc';
   return (
@@ -480,7 +501,7 @@ function PlacementHint({ type, onCancel }: { type: BuildingType; onCancel: () =>
       <span style={{ color: col, fontSize: 13, lineHeight: 1 }}>+</span>
       <span style={{ color: '#aabbcc' }}>{def.name}</span>
       <span style={{ color: '#445566' }}>—</span>
-      <span style={{ color: '#556677' }}>оберіть клітинку на карті</span>
+      <span style={{ color: '#556677' }}>{t('surface_panel.select_cell')}</span>
       <button
         onClick={onCancel}
         style={{
@@ -513,6 +534,7 @@ function BuildingListContent({
   playerLevel: number;
   techTreeState?: TechTreeState;
 }) {
+  const { t } = useTranslation();
   // Building counts for availability checks
   const buildingCounts = useMemo(() =>
     buildings.reduce<Record<string, number>>((acc, b) => {
@@ -542,7 +564,7 @@ function BuildingListContent({
                   textAlign: 'left',
                 }}
               >
-                <span style={{ flex: 1 }}>{group.label}</span>
+                <span style={{ flex: 1 }}>{t(`surface.category_${group.label}`)}</span>
                 <span style={{ color: '#334455', fontSize: 12 }}>
                   {isExpanded ? '−' : '+'}
                 </span>
@@ -578,13 +600,13 @@ function BuildingListContent({
   return (
     <div>
       {[
-        { k: 'Температура', v: `${tempC > 0 ? '+' : ''}${tempC}°C` },
-        { k: 'Гравітація',  v: `${planet.surfaceGravityG.toFixed(2)} g` },
+        { k: t('surface_panel.temperature'), v: `${tempC > 0 ? '+' : ''}${tempC}°C` },
+        { k: t('surface_panel.gravity'),     v: `${planet.surfaceGravityG.toFixed(2)} g` },
         ...(planet.atmosphere
-          ? [{ k: 'Атмосфера', v: `${planet.atmosphere.surfacePressureAtm.toFixed(1)} атм` }]
+          ? [{ k: t('surface_panel.atmosphere'), v: `${planet.atmosphere.surfacePressureAtm.toFixed(1)} atm` }]
           : []),
-        { k: 'Придатність', v: `${habPct}%`, c: habColor },
-        { k: 'Споруд', v: String(buildings.length) },
+        { k: t('surface_panel.habitability'), v: `${habPct}%`, c: habColor },
+        { k: t('surface_panel.buildings'), v: String(buildings.length) },
       ].map(({ k, v, c }) => (
         <div key={k} style={{
           display: 'flex', justifyContent: 'space-between', gap: 16,
@@ -600,13 +622,13 @@ function BuildingListContent({
         color: '#4488aa', fontSize: 9, letterSpacing: '0.7px',
         marginTop: 4,
       }}>
-        РОЗМІЩЕНІ СПОРУДИ
+        {t('surface_panel.placed_buildings')}
       </div>
 
       {buildings.length === 0 ? (
         <div style={{ padding: '10px 12px', color: '#3a4e5e', fontSize: 10, lineHeight: 1.7 }}>
-          Жодної споруди не зведено.<br />
-          Оберіть тип у вкладці БУДІВЛІ.
+          {t('surface_panel.no_buildings_line1')}<br />
+          {t('surface_panel.no_buildings_line2')}
         </div>
       ) : buildings.map((b) => {
         const def = BUILDING_DEFS[b.type];
@@ -648,6 +670,7 @@ function IconDock({
   onToggle: (m: DockMode) => void;
   onToggleHarvest: () => void;
 }) {
+  const { t } = useTranslation();
   const dockBtn = (
     active: boolean,
     title: string,
@@ -681,7 +704,7 @@ function IconDock({
       pointerEvents: 'auto',
     }}>
       {dockBtn(
-        harvestMode, 'Добування',
+        harvestMode, t('surface_panel.harvest_mode'),
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
           <line x1="3" y1="13" x2="10" y2="6" />
           <path d="M10 6 L13 3 L14 4 L11 7 Z" />
@@ -694,7 +717,7 @@ function IconDock({
       <div style={{ height: 1, background: 'rgba(60,100,160,0.2)', margin: '2px 4px' }} />
 
       {dockBtn(
-        panelOpen && mode === 'build', 'Будівлі',
+        panelOpen && mode === 'build', t('surface_panel.buildings_tab'),
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
           <rect x="1" y="1" width="6" height="6" rx="1" />
           <rect x="9" y="1" width="6" height="6" rx="1" />
@@ -704,7 +727,7 @@ function IconDock({
         () => onToggle('build'),
       )}
       {dockBtn(
-        panelOpen && mode === 'colony', 'Колонія',
+        panelOpen && mode === 'colony', t('surface_panel.colony_tab'),
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
           <line x1="2" y1="4" x2="14" y2="4" />
           <line x1="2" y1="8" x2="14" y2="8" />
@@ -743,8 +766,9 @@ export function SurfacePanel({
   playerLevel,
   techTreeState,
 }: SurfacePanelProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<DockMode>('build');
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(BUILDING_GROUPS.map((g) => g.label)),
   );
@@ -805,7 +829,7 @@ export function SurfacePanel({
             color: '#4488aa', fontSize: 9, letterSpacing: '0.8px',
             flexShrink: 0,
           }}>
-            {mode === 'build' ? 'БУДІВЛІ' : 'КОЛОНІЯ'}
+            {mode === 'build' ? t('surface_panel.panel_header_build') : t('surface_panel.panel_header_colony')}
           </div>
           <div style={{ overflowY: 'auto', flex: 1 }}>
             <BuildingListContent
@@ -834,9 +858,9 @@ export function SurfacePanel({
           pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
         }}>
           <span style={{ color: '#ff8844', fontSize: 13, lineHeight: 1 }}>*</span>
-          <span style={{ color: '#aabbcc' }}>Режим добування</span>
+          <span style={{ color: '#aabbcc' }}>{t('surface_panel.harvest_mode')}</span>
           <span style={{ color: '#445566' }}>—</span>
-          <span style={{ color: '#556677' }}>натисніть на ресурс</span>
+          <span style={{ color: '#556677' }}>{t('surface_panel.click_resource')}</span>
           <button
             onClick={onToggleHarvest}
             style={{

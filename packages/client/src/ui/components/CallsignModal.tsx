@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { authFetch } from '../../auth/api-client.js';
 
 // ---------------------------------------------------------------------------
@@ -13,6 +14,7 @@ interface CallsignModalProps {
 }
 
 export function CallsignModal({ onComplete }: CallsignModalProps) {
+  const { t } = useTranslation();
   const [value, setValue] = useState('');
   const [available, setAvailable] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
@@ -41,7 +43,7 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
       setAvailable(data.available);
       if (data.error) setError(data.error);
     } catch {
-      setError('Помилка перевірки');
+      setError(t('callsign.check_error'));
     } finally {
       setChecking(false);
     }
@@ -63,11 +65,11 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
 
   const handleSubmit = async () => {
     if (!CALLSIGN_RE.test(value)) {
-      setError('Позивний має бути 3-20 символів (латиниця, цифри, _ або -)');
+      setError(t('callsign.invalid_format'));
       return;
     }
     if (available === false) {
-      setError('Позивний вже зайнятий');
+      setError(t('callsign.taken'));
       return;
     }
 
@@ -81,14 +83,14 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: 'Помилка' }));
+        const data = await res.json().catch(() => ({ error: t('common.error') }));
         setError(data.error ?? `HTTP ${res.status}`);
         return;
       }
 
       onComplete(value);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка');
+      setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setSubmitting(false);
     }
@@ -100,9 +102,9 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
   return (
     <div style={overlayStyle}>
       <div style={cardStyle}>
-        <div style={titleStyle}>Оберіть позивний</div>
+        <div style={titleStyle}>{t('callsign.title')}</div>
         <div style={hintStyle}>
-          Ваше унікальне ім'я у всесвіті Nebulife
+          {t('callsign.hint')}
         </div>
 
         <input
@@ -119,16 +121,16 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
         {/* Validation feedback */}
         <div style={{ minHeight: 18 }}>
           {value.length > 0 && value.length < 3 && (
-            <div style={feedbackStyle('#667788')}>Мінімум 3 символи</div>
+            <div style={feedbackStyle('#667788')}>{t('callsign.min_3_chars')}</div>
           )}
           {checking && (
-            <div style={feedbackStyle('#4488aa')}>Перевірка...</div>
+            <div style={feedbackStyle('#4488aa')}>{t('callsign.checking')}</div>
           )}
           {!checking && available === true && (
-            <div style={feedbackStyle('#44ff88')}>Позивний вільний</div>
+            <div style={feedbackStyle('#44ff88')}>{t('callsign.available')}</div>
           )}
           {!checking && available === false && (
-            <div style={feedbackStyle('#cc4444')}>Позивний зайнятий</div>
+            <div style={feedbackStyle('#cc4444')}>{t('callsign.taken')}</div>
           )}
           {error && (
             <div style={feedbackStyle('#cc4444')}>{error}</div>
@@ -144,11 +146,11 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
           onClick={handleSubmit}
           disabled={!canSubmit}
         >
-          {submitting ? 'Збереження...' : 'Підтвердити'}
+          {submitting ? t('callsign.saving') : t('common.confirm')}
         </button>
 
         <div style={rulesStyle}>
-          Латиниця, цифри, _ або - (3-20 символів)
+          {t('callsign.rules')}
         </div>
       </div>
     </div>

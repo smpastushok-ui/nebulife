@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet, Star } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -132,6 +133,7 @@ export function PlanetsCatalog({
   onRenameSystem,
   isSystemResearching,
 }: PlanetsCatalogProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pinned, setPinned] = useState<Set<string>>(() => {
     try {
@@ -367,7 +369,7 @@ export function PlanetsCatalog({
   if (sortedSystems.length === 0) {
     return (
       <div style={{ fontSize: 12, color: '#556677', textAlign: 'center', padding: 40 }}>
-        Досліджених систем поки немає
+        {t('archive.no_systems')}
       </div>
     );
   }
@@ -387,10 +389,10 @@ export function PlanetsCatalog({
         }}
       >
         <div style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1 }}>
-          Назва
+          {t('archive.col_name')}
         </div>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderIcon tooltip="Спектральний клас зірки">
+          <HeaderIcon tooltip={t('archive.tooltip_spectral_class')}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
               <circle cx="8" cy="8" r="4" />
               <line x1="8" y1="0.5" x2="8" y2="3" />
@@ -405,7 +407,7 @@ export function PlanetsCatalog({
           </HeaderIcon>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderIcon tooltip="Кількість планет у системі">
+          <HeaderIcon tooltip={t('archive.tooltip_planet_count_system')}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
               <circle cx="8" cy="8" r="5" />
               <ellipse cx="8" cy="8" rx="7.5" ry="2.5" transform="rotate(-30 8 8)" />
@@ -413,7 +415,7 @@ export function PlanetsCatalog({
           </HeaderIcon>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderIcon tooltip="Прогрес дослідження системи">
+          <HeaderIcon tooltip={t('archive.tooltip_research_progress')}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
               <circle cx="8" cy="8" r="6" />
               <path d="M8 4v4l3 2" strokeLinecap="round" />
@@ -540,7 +542,7 @@ export function PlanetsCatalog({
                   >
                     {name}
                     {isResearching && (
-                      <span style={{ color: '#4488ff', fontSize: 9, marginLeft: 6, animation: 'nebulife-scan-pulse 1.5s ease-in-out infinite' }}>сканування...</span>
+                      <span style={{ color: '#4488ff', fontSize: 9, marginLeft: 6, animation: 'nebulife-scan-pulse 1.5s ease-in-out infinite' }}>{t("archive.scanning")}</span>
                     )}
                   </span>
                 )}
@@ -573,9 +575,9 @@ export function PlanetsCatalog({
                 }}
                 title={
                   isComplete
-                    ? 'Дослiджено'
+                    ? t('archive.researched_tooltip')
                     : canStartResearch?.(system.id)
-                      ? `${Math.round(progress)}% — натисніть для дослідження`
+                      ? `${Math.round(progress)}% — ${t("archive.click_to_research")}`
                       : `${Math.round(progress)}%`
                 }
               >
@@ -592,7 +594,7 @@ export function PlanetsCatalog({
               <div
                 style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                 onClick={(e) => togglePin(system.id, e)}
-                title={isPinned ? 'Відкріпити' : 'Закріпити'}
+                title={isPinned ? t('archive.unpin') : t('archive.pin')}
               >
                 <svg
                   width="12"
@@ -661,7 +663,7 @@ export function PlanetsCatalog({
                           transition: 'color 0.15s, border-color 0.15s',
                         }}
                       >
-                        {favorites.has(planet.id) ? 'В обраних' : 'В обранi'}
+                        {favorites.has(planet.id) ? t('archive.in_favorites') : t('archive.add_to_favorites')}
                       </button>
                     )}
                   </div>
@@ -727,6 +729,7 @@ function PlanetContextMenuPopup({
   onView: () => void;
   onRename?: () => void;
 }) {
+  const { t } = useTranslation();
   const menuItemStyle: React.CSSProperties = {
     display: 'block',
     width: '100%',
@@ -770,7 +773,7 @@ function PlanetContextMenuPopup({
           e.currentTarget.style.color = '#aabbcc';
         }}
       >
-        {isFavorite ? 'Видалити з обраних' : 'В обрані'}
+        {isFavorite ? t('archive.remove_from_favorites') : t('archive.add_to_favorites')}
       </button>
       <button
         style={menuItemStyle}
@@ -784,7 +787,7 @@ function PlanetContextMenuPopup({
           e.currentTarget.style.color = '#aabbcc';
         }}
       >
-        Переглянути
+        {t('archive.view_btn')}
       </button>
       {onRename && (
         <button
@@ -799,7 +802,7 @@ function PlanetContextMenuPopup({
             e.currentTarget.style.color = '#aabbcc';
           }}
         >
-          Перейменувати
+          {t('common.rename')}
         </button>
       )}
     </div>
@@ -1021,6 +1024,7 @@ export function FavoritesPlanetsList({
   onToggleFavorite: (planetId: string) => void;
   onViewPlanet: (system: StarSystem, planetId: string) => void;
 }) {
+  const { t } = useTranslation();
   // Resolve favorite planets to their system + planet objects
   const favoritePlanets = useMemo(() => {
     const result: { system: StarSystem; planet: Planet }[] = [];
@@ -1047,9 +1051,9 @@ export function FavoritesPlanetsList({
         <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="#334455" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 8l4 4 6-8" />
         </svg>
-        Немає обраних планет
+        {t("archive.no_favorites")}
         <div style={{ fontSize: 10, color: '#445566' }}>
-          Клікніть на планету в розділі "Планети" та оберіть "В обрані"
+          {t('archive.no_favorites_hint')}
         </div>
       </div>
     );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Discovery, CatalogEntry } from '@nebulife/core';
 import { RARITY_COLORS, RARITY_LABELS, getCatalogEntry } from '@nebulife/core';
 
@@ -32,6 +33,7 @@ export function GalleryCompareModal({
   onReplace,
   onKeepOld,
 }: GalleryCompareModalProps) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
@@ -120,7 +122,7 @@ export function GalleryCompareModal({
             {objectName}
           </div>
           <div style={{ fontSize: 10, color: '#667788' }}>
-            В архіві вже є знімок цього обєкта. Замінити?
+            {t('photo.replace_question')}
           </div>
           <span
             style={{
@@ -151,7 +153,7 @@ export function GalleryCompareModal({
         >
           {/* OLD — left side */}
           <CompareCard
-            label="Поточний"
+            label={t('photo.current_label')}
             imageUrl={existingImageUrl}
             date={oldDate}
             borderColor="#445566"
@@ -170,7 +172,7 @@ export function GalleryCompareModal({
 
           {/* NEW — right side */}
           <CompareCard
-            label="Новий"
+            label={t('photo.new_label')}
             imageUrl={newImageUrl}
             date={newDate}
             borderColor={color}
@@ -190,14 +192,14 @@ export function GalleryCompareModal({
           }}
         >
           <CompareActionButton
-            label="Замінити на новий"
+            label={t('photo.replace_btn')}
             bgColor="rgba(15, 40, 25, 0.6)"
             borderColor="#44ff88"
             textColor="#44ff88"
             onClick={() => exit(onReplace)}
           />
           <CompareActionButton
-            label="Залишити старий"
+            label={t('photo.keep_old_btn')}
             bgColor="rgba(20, 25, 35, 0.6)"
             borderColor="#556677"
             textColor="#8899aa"

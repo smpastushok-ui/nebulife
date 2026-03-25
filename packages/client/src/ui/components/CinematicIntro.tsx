@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet } from '@nebulife/core';
 import type { GameEngine } from '../../game/GameEngine.js';
 
@@ -343,6 +344,7 @@ function TerminalTypewriter({
   lines: string[];
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const [done, setDone] = useState(false);
@@ -394,7 +396,7 @@ function TerminalTypewriter({
           </div>
         );
       })}
-      {!done && <div style={{ color: '#445566', fontSize: 10, marginTop: 16, textAlign: 'center' }}>натиснiть щоб пропустити</div>}
+      {!done && <div style={{ color: '#445566', fontSize: 10, marginTop: 16, textAlign: 'center' }}>{t('cinematic.click_to_skip')}</div>}
     </div>
   );
 }
@@ -415,21 +417,23 @@ function OnboardingSlides({
   planet: { name: string };
   onComplete: () => void;
 }) {
+  const { t } = useTranslation();
   const [slide, setSlide] = useState<OnboardingSlide>(0);
   const [typewriterDone, setTypewriterDone] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
 
   const { star } = system;
 
-  const terminalLines = [
-    `> СИСТЕМА: ${star.name}`,
-    `> ЗОРЯНИЙ КЛАС: ${star.spectralClass}${star.subType} | ${Math.round(star.temperatureK).toLocaleString()} K`,
-    `> ПЛАНЕТА: ${planet.name}`,
-    `> ВИЯВЛЕНО ЗАГРОЗУ: астероїд класу Omega`,
-    `> ТРАЄКТОРІЯ: зіткнення з домашньою планетою`,
-    `> ЧАС ДО УДАРУ: 1 доба`,
-    `> СТАТУС: активовано протокол евакуації`,
-  ];
+  const terminalLines = useMemo(() => [
+    `> ${t('cinematic.system_label')}: ${star.name}`,
+    `> ${t('cinematic.star_class_label')}: ${star.spectralClass}${star.subType} | ${Math.round(star.temperatureK).toLocaleString()} K`,
+    `> ${t('cinematic.planet_label')}: ${planet.name}`,
+    `> ${t('cinematic.threat_detected')}`,
+    `> ${t('cinematic.trajectory_label')}`,
+    `> ${t('cinematic.time_to_impact')}`,
+    `> ${t('cinematic.status_evac')}`,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, star.name, star.spectralClass, star.subType, star.temperatureK, planet.name]);
 
   const handleNext = () => {
     if (slide < 3) {
@@ -480,8 +484,7 @@ function OnboardingSlides({
           <>
             <VideoPlaceholder label="CATASTROPHE_VIDEO" />
             <p style={{ color: '#8899aa', fontSize: 13, textAlign: 'center', lineHeight: '1.6', maxWidth: 500, margin: 0 }}>
-              Ваша цивілізація існувала тисячі років серед зірок.
-              Але час добігає кінця.
+              {t('cinematic.civilization_intro')}
             </p>
           </>
         )}
@@ -494,7 +497,7 @@ function OnboardingSlides({
             borderRadius: 6, padding: '24px 20px', overflow: 'hidden',
           }}>
             <div style={{ color: '#556677', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16 }}>
-              ЦЕНТР УПРАВЛІННЯ МІСІЯМИ
+              {t('cinematic.mission_control')}
             </div>
             <TerminalTypewriter lines={terminalLines} onDone={() => setTypewriterDone(true)} />
           </div>
@@ -506,13 +509,13 @@ function OnboardingSlides({
             <VideoPlaceholder label="BRIEFING_VIDEO" />
             <div style={{ color: '#aabbcc', fontSize: 13, lineHeight: '1.8', maxWidth: 500, textAlign: 'left' }}>
               <div style={{ color: '#556677', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>
-                ДИРЕКТИВА ЕВАКУАЦІЇ
+                {t('cinematic.evacuation_directive')}
               </div>
-              <div>Ваша мета:</div>
+              <div>{t('cinematic.your_mission')}</div>
               <div style={{ paddingLeft: 16, marginTop: 4 }}>
-                <div style={{ color: '#44ff88' }}>{'>'} Дослідити сусідні зоряні системи</div>
-                <div style={{ color: '#44ff88' }}>{'>'} Знайти придатну для колонізації планету</div>
-                <div style={{ color: '#44ff88' }}>{'>'} Запустити Корабель Порятунку з 10 000 пасажирів</div>
+                <div style={{ color: '#44ff88' }}>{t('cinematic.goal_research')}</div>
+                <div style={{ color: '#44ff88' }}>{t('cinematic.goal_find')}</div>
+                <div style={{ color: '#44ff88' }}>{t('cinematic.goal_launch')}</div>
               </div>
             </div>
           </>
@@ -522,10 +525,10 @@ function OnboardingSlides({
         {slide === 3 && (
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
             <div style={{ color: '#aabbcc', fontSize: 16, lineHeight: '1.6', maxWidth: 400 }}>
-              Доля вашого народу — у ваших руках.
+              {t('cinematic.fate_line')}
             </div>
             <div style={{ color: '#667788', fontSize: 12, lineHeight: '1.6', maxWidth: 400 }}>
-              Ви маєте 1 добу. Кожна хвилина на рахунку.
+              {t('cinematic.time_limit')}
             </div>
           </div>
         )}
@@ -545,7 +548,7 @@ function OnboardingSlides({
             onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(40,80,110,0.7)'; e.currentTarget.style.borderColor = '#558899'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(30,60,80,0.6)'; e.currentTarget.style.borderColor = '#446688'; }}
           >
-            Далі
+            {t('cinematic.next')}
           </button>
         )}
         {slide === 3 && (
@@ -560,7 +563,7 @@ function OnboardingSlides({
             onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(34,170,68,0.35)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(34,170,68,0.2)'; }}
           >
-            Почати мiсію
+            {t('cinematic.start_mission')}
           </button>
         )}
       </div>
@@ -568,12 +571,7 @@ function OnboardingSlides({
   );
 }
 
-// Stable reference — never recreated on re-render
-const SUBTITLE_LINES = [
-  'Мільйони командорів у єдиному просторі.',
-  'Галактика Nebulife -- лише піщинка на мапі світобудови.',
-  'Чи готовий ти до захоплення всесвіту?',
-];
+// SUBTITLE_LINES are now computed inside the component using t() — see CinematicIntro body
 
 // ---------------------------------------------------------------------------
 // Main component — 5-stage state machine
@@ -588,6 +586,12 @@ export function CinematicIntro({
   onRequestSystemScene,
   onRequestHomeScene,
 }: CinematicIntroProps) {
+  const { t } = useTranslation();
+  const subtitleLines = useMemo(() => [
+    t('cinematic.subtitle_1'),
+    t('cinematic.subtitle_2'),
+    t('cinematic.subtitle_3'),
+  ], [t]);
   const [stage, setStage] = useState<Stage>(0);
   const [subtitlesDone, setSubtitlesDone] = useState(false);
   const [startClicked, setStartClicked] = useState(false);
@@ -711,7 +715,7 @@ export function CinematicIntro({
           {/* Subtitles */}
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 600, padding: '0 20px' }}>
             <CinematicTypewriter
-              lines={SUBTITLE_LINES}
+              lines={subtitleLines}
               charDelay={35}
               lineDelay={800}
               onDone={() => setSubtitlesDone(true)}
@@ -750,7 +754,7 @@ export function CinematicIntro({
                   e.currentTarget.style.borderColor = '#4488aa';
                 }}
               >
-                ПОЧАТИ ГРУ
+                {t('cinematic.start_game')}
               </button>
             </div>
           )}
@@ -767,7 +771,7 @@ export function CinematicIntro({
               textTransform: 'uppercase',
               animation: 'cin-pulse 2s ease-in-out infinite',
             }}>
-              [ СИНХРОНІЗАЦІЯ З МАТРИЦЕЮ КООРДИНАТ... ]
+              {t('cinematic.syncing')}
             </div>
           )}
         </div>

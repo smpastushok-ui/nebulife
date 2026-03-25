@@ -2,6 +2,7 @@ import React, {
   useEffect, useRef, useState, useCallback, useMemo,
   forwardRef, useImperativeHandle,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import type {
   Planet, Star, PlacedBuilding, BuildingType, TerrainType,
@@ -127,6 +128,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     },
     ref,
   ) {
+    const { t } = useTranslation();
     /* ---------- State ---------- */
     const [phase, setPhase] = useState<SurfacePhase>('ready');
     const [buildings, setBuildings] = useState<PlacedBuilding[]>([]);
@@ -771,7 +773,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
         {/* Minimap toggle button (left side, below scene controls) */}
         <button
           onClick={() => setShowMinimap((prev) => !prev)}
-          title={showMinimap ? 'Сховати мапу' : 'Показати мапу'}
+          title={showMinimap ? t('surface.hide_minimap') : t('surface.show_minimap')}
           style={{
             position: 'absolute',
             bottom: showMinimap ? 218 : 60,

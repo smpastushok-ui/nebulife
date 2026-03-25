@@ -29,6 +29,12 @@ export interface PlayerData {
   email: string | null;
   callsign: string | null;
   global_index: number | null;
+  // Notification preferences
+  preferred_language: string;
+  email_notifications: boolean;
+  push_notifications: boolean;
+  fcm_token: string | null;
+  last_digest_seen: string | null;
 }
 
 /**
@@ -83,6 +89,10 @@ export async function updatePlayer(
     game_state: Record<string, unknown>;
     home_system_id: string;
     home_planet_id: string;
+    preferred_language: string;
+    email_notifications: boolean;
+    push_notifications: boolean;
+    last_digest_seen: string;
   }>,
 ): Promise<PlayerData> {
   const res = await authFetch(`${API_BASE}/player/${playerId}`, {
@@ -97,6 +107,17 @@ export async function updatePlayer(
   }
 
   return res.json();
+}
+
+/**
+ * Register or clear the player's FCM push token.
+ */
+export async function updateFcmToken(playerId: string, token: string | null): Promise<void> {
+  await authFetch(`${API_BASE}/player/${playerId}/fcm-token`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fcm_token: token }),
+  }).catch(() => {});
 }
 
 // ---------------------------------------------------------------------------

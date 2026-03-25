@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Discovery, StarSystem } from '@nebulife/core';
 import {
   RARITY_COLORS,
@@ -930,6 +931,7 @@ export function TelemetryView({
   onClose: () => void;
   onSaveToArchive?: (discoveryId: string, canvasDataUrl: string) => void;
 }) {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState<Phase>('scanning');
   const [scanProgress, setScanProgress] = useState(0);
   const [saved, setSaved] = useState(false);
@@ -1068,7 +1070,7 @@ export function TelemetryView({
             }}
           >
             <div style={{ fontSize: 10, color: '#44ff88', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 4 }}>
-              Базова телеметрія
+              {t('discovery.choice_telemetry')}
             </div>
             <div style={{ fontSize: 12, color: '#8899aa' }}>
               {objectName} — {(scanProgress * 100).toFixed(0)}%
@@ -1104,7 +1106,7 @@ export function TelemetryView({
               zIndex: 2,
             }}
           >
-            Скасувати
+            {t('common.cancel')}
           </button>
 
           {/* Data readout panel (bottom-left) */}
@@ -1214,7 +1216,7 @@ export function TelemetryView({
                   color: '#667788', letterSpacing: 1,
                 }}
               >
-                Телеметрія
+                {t('research.telemetry')}
               </span>
             </div>
           </div>
@@ -1237,7 +1239,7 @@ export function TelemetryView({
                   opacity: saved ? 0.6 : 1,
                 }}
               >
-                {saved ? 'В колекції' : 'В колекцію'}
+                {saved ? t('telemetry.in_collection') : t('telemetry.add_to_collection')}
               </button>
             )}
             <button
@@ -1253,7 +1255,7 @@ export function TelemetryView({
                 cursor: 'pointer',
               }}
             >
-              Закрити
+              {t('common.close')}
             </button>
           </div>
         </div>

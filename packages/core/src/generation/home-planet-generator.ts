@@ -151,14 +151,14 @@ export function generateParadisePlanet(star: Star, systemSeed: number, name: str
     id: `planet-paradise-${systemSeed}`,
     seed: systemSeed + 7777,
     name,
-    type: 'rocky',
+    type: 'terrestrial',
     zone: 'habitable',
 
     massEarth: 1.0,
     radiusEarth: 1.0,
-    densityGCm3: 5.48,
+    densityGCm3: 5.51,
     surfaceGravityG: 1.0,
-    escapeVelocityKmS: 11.15,
+    escapeVelocityKmS: 11.19,
 
     orbit: {
       semiMajorAxisAU: hzMid,
@@ -176,16 +176,16 @@ export function generateParadisePlanet(star: Star, systemSeed: number, name: str
     albedo: 0.30,
 
     atmosphere: {
-      surfacePressureAtm: 0.95,
-      composition: { N2: 0.77, O2: 0.21, CO2: 0.005, Ar: 0.009, H2O: 0.006 },
-      greenhouse: 0.95,
+      surfacePressureAtm: 1.0,
+      composition: { ...EARTH_ATMOSPHERE },
+      greenhouse: 1.0,
       hasOzone: true,
     },
 
     hydrosphere: {
-      waterCoverageFraction: 0.55, // 45% land — plenty of room for colony
-      oceanDepthKm: 3.0,
-      iceCapFraction: 0.05, // minimal ice caps
+      waterCoverageFraction: 0.65, // 35% land — plenty of room for colony
+      oceanDepthKm: 3.5,
+      iceCapFraction: 0.04, // minimal ice caps
       hasSubsurfaceOcean: false,
     },
 
@@ -209,12 +209,12 @@ export function generateParadisePlanet(star: Star, systemSeed: number, name: str
     },
 
     habitability: {
-      temperature: 1.0,  // 288K = Earth average
-      atmosphere: 0.95,
-      water: 0.90,  // 55% water — good but below Earth's 71%
+      temperature: 1.0,
+      atmosphere: 1.0,
+      water: 1.0,
       magneticField: 1.0,
       gravity: 1.0,
-      overall: 0.96,
+      overall: 1.0,  // perfect — ideal new home
     },
 
     hasLife: true,

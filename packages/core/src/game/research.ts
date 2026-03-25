@@ -28,9 +28,9 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/** Pick the "best" (most habitable) rocky planet, or first planet. */
+/** Pick the "best" (most habitable) rocky/terrestrial planet, or first planet. */
 function bestPlanet(system: StarSystem) {
-  const rocky = system.planets.filter((p) => p.type === 'rocky');
+  const rocky = system.planets.filter((p) => p.type === 'rocky' || p.type === 'terrestrial');
   if (rocky.length === 0) return system.planets[0] ?? null;
   return rocky.reduce((a, b) =>
     b.habitability.overall > a.habitability.overall ? b : a,
@@ -294,6 +294,7 @@ export function completeResearchSession(
   system: StarSystem,
   totalCompletedSessions: number = 0,
   totalDiscoveries: number = 0,
+  lastDiscoverySession: number = 0,
 ): { state: ResearchState; progressGained: number; isNowComplete: boolean; discovery: Discovery | null } {
   const slot = state.slots[slotIndex];
   if (!slot || !slot.systemId) {
@@ -337,6 +338,7 @@ export function completeResearchSession(
     system.ringIndex,
     totalCompletedSessions + 1,
     totalDiscoveries,
+    lastDiscoverySession,
   );
 
   // Patch discovery with the real system ID
@@ -425,12 +427,28 @@ export function hasResearchData(researchData: number): boolean {
 
 // ─── Colonization helpers ──────────────────────────────────────────────
 
-/** Find first planet with habitability above threshold. */
+/** Find the paradise planet (isColonizable === true) in a single system. */
 export function findColonizablePlanet(
   system: StarSystem,
-  threshold: number = 0.3,
+  _threshold: number = 0.3,
 ): Planet | null {
-  return system.planets.find((p) => p.habitability.overall > threshold) ?? null;
+  // Only return the paradise planet — the single designated evacuation target
+  return system.planets.find((p) => p.isColonizable === true && !p.isHomePlanet) ?? null;
+}
+
+/**
+ * Find the paradise planet across ALL systems.
+ * Evacuation ALWAYS targets this planet regardless of what the player explored.
+ * Returns null only if galaxy was generated without a paradise planet (legacy data).
+ */
+export function findParadisePlanet(
+  allSystems: StarSystem[],
+): { system: StarSystem; planet: Planet } | null {
+  for (const sys of allSystems) {
+    const planet = sys.planets.find((p) => p.isColonizable === true && !p.isHomePlanet);
+    if (planet) return { system: sys, planet };
+  }
+  return null;
 }
 
 /** Instantly complete research for a system (used during evacuation). */

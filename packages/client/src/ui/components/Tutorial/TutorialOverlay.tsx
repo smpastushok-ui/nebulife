@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TutorialStepConfig } from './tutorialSteps';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ interface TutorialOverlayProps {
 }
 
 export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: TutorialOverlayProps) {
+  const { t } = useTranslation();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const rafRef = useRef<number>(0);
@@ -269,7 +271,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
             letterSpacing: 1,
           }}
         >
-          Крок {step.id === 'terminal' ? 1 : parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1} / 13
+          {t('tutorial.step_counter', { step: step.id === 'terminal' ? 1 : parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: 13 })}
         </div>
 
         {/* Text */}

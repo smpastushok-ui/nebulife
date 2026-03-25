@@ -191,6 +191,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   // === Label ===
   const typeName = planet.type === 'gas-giant' ? 'Gas'
     : planet.type === 'ice-giant' ? 'Ice'
+    : planet.type === 'terrestrial' ? 'Terra'
     : planet.type === 'rocky' ? 'Rocky' : 'Dwarf';
   const moonStr = planet.moons.length > 0 ? ` ${planet.moons.length}m` : '';
   const nameStr = planet.name.split(' ').pop() ?? '';

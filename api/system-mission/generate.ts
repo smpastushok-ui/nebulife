@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateVideo } from '../../packages/server/src/kling-client.js';
 import { deductQuarks, getSystemPhotoById, saveSystemMission } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
+import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { buildMissionVideoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
 import type { StarSystem } from '@nebulife/core';
 
@@ -23,6 +24,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Verify Firebase auth token
   const auth = await authenticate(req, res);
   if (!auth) return;
+
+  if (!await RATE_LIMITS.generation(auth.playerId)) {
+    return res.status(429).json({ error: 'Зачекайте перед наступною генерацією.' });
+  }
 
   try {
     const { playerId, systemId, photoId, durationType, systemData } = req.body;

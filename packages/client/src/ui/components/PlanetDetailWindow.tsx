@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { StarSystem, Planet, Star, Moon, ResourceGroup } from '@nebulife/core';
@@ -75,12 +76,13 @@ function getPlanetDisplayRadius(
   return minDisplayR + logT * (maxDisplayR - minDisplayR);
 }
 
-function planetTypeName(t: Planet['type']): string {
-  switch (t) {
-    case 'rocky':     return 'Скелясте';
-    case 'gas-giant': return 'Газовий гігант';
-    case 'ice-giant': return 'Крижаний гігант';
-    case 'dwarf':     return 'Карликова';
+function planetTypeKey(type: Planet['type']): string {
+  switch (type) {
+    case 'rocky':       return 'planet.rocky';
+    case 'terrestrial': return 'planet.terrestrial';
+    case 'gas-giant':   return 'planet.gas_giant';
+    case 'ice-giant':   return 'planet.ice_giant';
+    case 'dwarf':       return 'planet.dwarf';
   }
 }
 
@@ -546,6 +548,7 @@ function NavBtn({
 // ─── Resources section for characteristics panel ─────────────────────────────
 
 function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: number }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState<ResourceGroup | null>(null);
   const totalRes = planet.resources?.totalResources;
   if (!totalRes) return null;
@@ -557,7 +560,7 @@ function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: nu
 
   return (
     <>
-      <Section label="РЕСУРСИ" delay={baseDelay} />
+      <Section label={t('planet_detail.section_resources')} delay={baseDelay} />
       {RESOURCE_GROUPS.map((group, gi) => {
         const value = group === 'mineral' ? totalRes.minerals
           : group === 'volatile' ? totalRes.volatiles
@@ -658,6 +661,7 @@ export function PlanetDetailWindow({
   destroyedPlanetIds,
 }: PlanetDetailWindowProps) {
   ensureStyles();
+  const { t } = useTranslation();
 
   const sortedPlanets = [...system.planets].sort(
     (a, b) => a.orbit.semiMajorAxisAU - b.orbit.semiMajorAxisAU,
@@ -717,10 +721,10 @@ export function PlanetDetailWindow({
 
   // Life description
   const lifeDesc = p.hasLife
-    ? p.lifeComplexity === 'intelligent' ? 'Розумне життя'
-      : p.lifeComplexity === 'multicellular' ? 'Складне (багатоклітинне)'
-      : 'Мікробне'
-    : 'Немає';
+    ? p.lifeComplexity === 'intelligent' ? t('planet_detail.life_intelligent')
+      : p.lifeComplexity === 'multicellular' ? t('planet_detail.life_multicellular')
+      : t('planet_detail.life_microbial')
+    : t('planet_detail.life_none');
 
   return (
     <>
@@ -776,7 +780,7 @@ export function PlanetDetailWindow({
             </span>
             {destroyedPlanetIds?.has(p.id) ? (
               <span style={{ color: '#884422', fontSize: 9, border: '1px solid #88442255', padding: '1px 5px', borderRadius: 2, flexShrink: 0 }}>
-                ЗРУЙНОВАНО
+                {t('planet.destroyed_label')}
               </span>
             ) : p.isHomePlanet && (
               <span style={{ color: '#44ff88', fontSize: 9, border: '1px solid #44ff8855', padding: '1px 5px', borderRadius: 2, flexShrink: 0 }}>
@@ -852,7 +856,7 @@ export function PlanetDetailWindow({
                 animation: 'pdwSlide 0.3s ease-out 100ms both',
               }}
             >
-              <span>{planetTypeName(p.type).toUpperCase()}</span>
+              <span>{t(planetTypeKey(p.type)).toUpperCase()}</span>
               <span style={{ color: '#334455' }}>|</span>
               <span>{p.orbit.semiMajorAxisAU.toFixed(3)} AU</span>
               <span style={{ color: '#334455' }}>|</span>
@@ -929,29 +933,29 @@ export function PlanetDetailWindow({
                 animation: 'pdwSlide 0.3s ease-out 80ms both',
               }}
             >
-              {planetTypeName(p.type).toUpperCase()} &nbsp;·&nbsp; {p.zone?.toUpperCase() ?? ''}
+              {t(planetTypeKey(p.type)).toUpperCase()} &nbsp;·&nbsp; {p.zone?.toUpperCase() ?? ''}
             </div>
 
             {/* Physical */}
-            <Section label="ФІЗИЧНІ ПАРАМЕТРИ" delay={100} />
-            <CharRow label="Радіус" value={`${p.radiusEarth.toFixed(3)} R⊕`} delay={120} />
-            <CharRow label="Маса" value={`${p.massEarth.toFixed(4)} M⊕`} delay={140} />
-            <CharRow label="Гравітація" value={`${p.surfaceGravityG.toFixed(2)} g`} delay={160} />
-            <CharRow label="Щільність" value={`${p.densityGCm3.toFixed(2)} г/см³`} delay={180} />
-            <CharRow label="V втечі" value={`${p.escapeVelocityKmS.toFixed(2)} км/с`} delay={200} />
+            <Section label={t('planet_detail.section_physical')} delay={100} />
+            <CharRow label={t('planet_detail.radius')} value={`${p.radiusEarth.toFixed(3)} R⊕`} delay={120} />
+            <CharRow label={t('planet_detail.mass')} value={`${p.massEarth.toFixed(4)} M⊕`} delay={140} />
+            <CharRow label={t('planet_detail.gravity')} value={`${p.surfaceGravityG.toFixed(2)} g`} delay={160} />
+            <CharRow label={t('planet_detail.density')} value={`${p.densityGCm3.toFixed(2)} g/cm³`} delay={180} />
+            <CharRow label={t('planet_detail.escape_vel')} value={`${p.escapeVelocityKmS.toFixed(2)} km/s`} delay={200} />
 
             {/* Thermal */}
-            <Section label="ТЕМПЕРАТУРА" delay={220} />
-            <CharRow label="Поверхня" value={formatTemp(p.surfaceTempK)} delay={240} />
-            <CharRow label="Рівноважна" value={formatTemp(p.equilibriumTempK)} delay={260} />
-            <CharRow label="Альбедо" value={p.albedo.toFixed(3)} delay={280} />
+            <Section label={t('planet_detail.section_temperature')} delay={220} />
+            <CharRow label={t('planet_detail.surface_temp')} value={formatTemp(p.surfaceTempK)} delay={240} />
+            <CharRow label={t('planet_detail.equilibrium_temp')} value={formatTemp(p.equilibriumTempK)} delay={260} />
+            <CharRow label={t('planet_detail.albedo')} value={p.albedo.toFixed(3)} delay={280} />
 
             {/* Orbital */}
-            <Section label="ОРБІТА" delay={300} />
-            <CharRow label="Велика піввісь" value={`${p.orbit.semiMajorAxisAU.toFixed(4)} AU`} delay={320} />
-            <CharRow label="Ексцентриситет" value={p.orbit.eccentricity.toFixed(4)} delay={340} />
-            <CharRow label="Нахил" value={`${p.orbit.inclinationDeg.toFixed(1)}°`} delay={360} />
-            <CharRow label="Період" value={`${p.orbit.periodDays.toFixed(1)} дн`} delay={380} />
+            <Section label={t('planet_detail.section_orbit')} delay={300} />
+            <CharRow label={t('planet_detail.semi_major_axis')} value={`${p.orbit.semiMajorAxisAU.toFixed(4)} AU`} delay={320} />
+            <CharRow label={t('planet_detail.eccentricity')} value={p.orbit.eccentricity.toFixed(4)} delay={340} />
+            <CharRow label={t('planet_detail.inclination')} value={`${p.orbit.inclinationDeg.toFixed(1)}°`} delay={360} />
+            <CharRow label={t('planet_detail.period')} value={`${p.orbit.periodDays.toFixed(1)} ${t('planet_detail.days')}`} delay={380} />
 
             {/* Resources */}
             {p.resources?.totalResources && (
@@ -961,18 +965,18 @@ export function PlanetDetailWindow({
             {/* Atmosphere */}
             {hasAtmo && (
               <>
-                <Section label="АТМОСФЕРА" delay={400} />
+                <Section label={t('planet_detail.section_atmosphere')} delay={400} />
                 <CharRow
-                  label="Тиск"
-                  value={`${p.atmosphere!.surfacePressureAtm.toFixed(3)} атм`}
+                  label={t('planet_detail.pressure')}
+                  value={`${p.atmosphere!.surfacePressureAtm.toFixed(3)} atm`}
                   delay={420}
                 />
                 {p.atmosphere!.hasOzone && (
-                  <CharRow label="Озоновий шар" value="є" color="#44ff88" delay={440} />
+                  <CharRow label={t('planet_detail.ozone')} value={t('planet_detail.present')} color="#44ff88" delay={440} />
                 )}
                 {p.atmosphere!.composition && Object.keys(p.atmosphere!.composition).length > 0 && (
                   <CharRow
-                    label="Склад"
+                    label={t('planet_detail.composition')}
                     value={Object.entries(p.atmosphere!.composition).slice(0, 3).map(
                       ([mol, frac]) => `${mol} ${((frac as number) * 100).toFixed(1)}%`,
                     ).join(', ')}
@@ -985,9 +989,9 @@ export function PlanetDetailWindow({
             {/* Hydrosphere */}
             {hasWater && p.hydrosphere!.waterCoverageFraction > 0 && (
               <>
-                <Section label="ГІДРОСФЕРА" delay={480} />
+                <Section label={t('planet_detail.section_hydrosphere')} delay={480} />
                 <CharRow
-                  label="Покриття водою"
+                  label={t('planet_detail.water_coverage')}
                   value={`${(p.hydrosphere!.waterCoverageFraction * 100).toFixed(1)}%`}
                   color="#4488aa"
                   delay={500}
@@ -996,22 +1000,22 @@ export function PlanetDetailWindow({
             )}
 
             {/* Habitability */}
-            <Section label="ПРИДАТНІСТЬ ДО ЖИТТЯ" delay={520} />
+            <Section label={t('planet_detail.section_habitability')} delay={520} />
             <CharRow
-              label="Загальна"
+              label={t('planet_detail.hab_overall')}
               value={habitabilityPercent(h.overall)}
               color={habitabilityColor(h.overall)}
               delay={540}
             />
-            <CharRow label="Температура" value={habitabilityPercent(h.temperature)} delay={560} />
-            <CharRow label="Атмосфера" value={habitabilityPercent(h.atmosphere)} delay={580} />
-            <CharRow label="Вода" value={habitabilityPercent(h.water)} delay={600} />
-            <CharRow label="Магн. поле" value={habitabilityPercent(h.magneticField)} delay={620} />
+            <CharRow label={t('planet_detail.hab_temperature')} value={habitabilityPercent(h.temperature)} delay={560} />
+            <CharRow label={t('planet_detail.hab_atmosphere')} value={habitabilityPercent(h.atmosphere)} delay={580} />
+            <CharRow label={t('planet_detail.hab_water')} value={habitabilityPercent(h.water)} delay={600} />
+            <CharRow label={t('planet_detail.hab_magnetic')} value={habitabilityPercent(h.magneticField)} delay={620} />
 
             {/* Life */}
-            <Section label="БІОЛОГІЯ" delay={640} />
+            <Section label={t('planet_detail.section_biology')} delay={640} />
             <CharRow
-              label="Життя"
+              label={t('planet_detail.life')}
               value={lifeDesc}
               color={p.hasLife ? '#44ff88' : '#445566'}
               delay={660}
@@ -1020,12 +1024,12 @@ export function PlanetDetailWindow({
             {/* Moons */}
             {p.moons.length > 0 && (
               <>
-                <Section label={`СУПУТНИКИ (${p.moons.length})`} delay={680} />
+                <Section label={t('planet_detail.section_moons', { count: p.moons.length })} delay={680} />
                 {p.moons.map((m, mi) => (
                   <CharRow
                     key={m.id}
                     label={m.name}
-                    value={`${m.compositionType} · ${Math.round(m.radiusKm)}km · ${m.orbitalPeriodDays.toFixed(1)} дн`}
+                    value={`${m.compositionType} · ${Math.round(m.radiusKm)}km · ${m.orbitalPeriodDays.toFixed(1)} ${t('planet_detail.days')}`}
                     delay={700 + mi * 30}
                   />
                 ))}

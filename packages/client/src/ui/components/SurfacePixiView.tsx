@@ -14,6 +14,7 @@ import React, {
   useState,
   useCallback,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Application } from 'pixi.js';
 import type { Planet, Star, PlacedBuilding, BuildingType, SurfaceObjectType, TechTreeState } from '@nebulife/core';
 import { HARVEST_DURATION_MS, BUILDING_DEFS, XP_REWARDS, HARVEST_YIELD } from '@nebulife/core';
@@ -21,7 +22,7 @@ import { SurfaceScene }  from '../../game/scenes/SurfaceScene.js';
 import { SurfacePanel }          from './SurfacePanel.js';
 import BuildingInspectPopup      from './BuildingInspectPopup.js';
 import { getBuildings, placeBuilding, removeBuilding } from '../../api/surface-api.js';
-import { screenToGrid, TILE_W, TILE_H, gridToScreen } from '../../game/scenes/surface-utils.js';
+import { screenToGrid, TILE_W, TILE_H, gridToScreen, findStartingLandCell } from '../../game/scenes/surface-utils.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     },
     ref,
   ) {
+    const { t } = useTranslation();
     const containerRef  = useRef<HTMLDivElement>(null);
     const pixiAppRef    = useRef<Application | null>(null);
     const sceneRef      = useRef<SurfaceScene | null>(null);
@@ -245,11 +247,22 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           if (sceneRef.current) sceneRef.current.update(ticker.deltaMS);
         });
 
-        // Initial zoom centered on the colony hub (or map center if no hub)
+        // Initial zoom centered on the colony hub, or on best starting land cell
         const hubBuilding = loaded.find((b) => b.type === 'colony_hub');
         const hubDef      = hubBuilding ? BUILDING_DEFS[hubBuilding.type] : null;
-        const hubCol = hubBuilding ? hubBuilding.x + Math.floor((hubDef?.sizeW ?? 2) / 2) : Math.floor(scene.gridSize / 2);
-        const hubRow = hubBuilding ? hubBuilding.y + Math.floor((hubDef?.sizeH ?? 2) / 2) : Math.floor(scene.gridSize / 2);
+        let hubCol: number, hubRow: number;
+        if (hubBuilding) {
+          hubCol = hubBuilding.x + Math.floor((hubDef?.sizeW ?? 2) / 2);
+          hubRow = hubBuilding.y + Math.floor((hubDef?.sizeH ?? 2) / 2);
+        } else {
+          // First visit: center on buildable land with nearby resources
+          const wl = planet.hydrosphere?.waterCoverageFraction ?? 0;
+          const start = findStartingLandCell(planet.seed, wl, scene.gridSize);
+          hubCol = start.col;
+          hubRow = start.row;
+          // Reveal fog around starting area (15-cell radius) via scene
+          scene.revealStartingArea(start.col, start.row, 15);
+        }
         const { x: hubWX, y: hubWY } = gridToScreen(hubCol, hubRow);
         const z0 = 0.6;
         const cW0 = app.screen.width;
@@ -631,7 +644,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
                 padding: '8px 10px 6px', borderBottom: '1px solid #1e2d3d',
               }}>
                 <div style={{ color: '#aabbcc', fontSize: 11, fontWeight: 'bold' }}>
-                  {isBot ? 'Дрон-дослідник' : 'Збирач'}
+                  {isBot ? t('surface.drone_explorer') : t('surface.harvester')}
                 </div>
                 <button
                   onClick={() => setDronePopup(null)}
@@ -645,7 +658,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
               {/* Body */}
               <div style={{ padding: '8px 10px' }}>
                 <div style={{ fontSize: 10, color: isActive ? '#44ff88' : '#cc4444', marginBottom: 8 }}>
-                  {isActive ? 'Активний' : 'Зупинений'}
+                  {isActive ? t('surface.drone_active') : t('surface.drone_stopped')}
                 </div>
 
                 {/* Toggle active */}
@@ -662,7 +675,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
                     color: isActive ? '#ffcc88' : '#88ffaa',
                   }}
                 >
-                  {isActive ? 'Зупинити' : 'Запустити'}
+                  {isActive ? t('surface.drone_stop') : t('surface.drone_start')}
                 </button>
 
                 {/* Bot: Send to location button */}
@@ -681,7 +694,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
                       color: '#aaccee',
                     }}
                   >
-                    Відправити на розвідку
+                    {t('surface.drone_send_scout')}
                   </button>
                 )}
 
@@ -692,12 +705,12 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
                       fontSize: 9, color: '#556677', letterSpacing: '0.5px',
                       marginTop: 8, marginBottom: 6, borderTop: '1px solid #1e2d3d', paddingTop: 8,
                     }}>
-                      РЕСУРСИ
+                      {t('surface.resources').toUpperCase()}
                     </div>
                     {[
-                      { key: 'tree', label: 'Деревина', color: '#88aa44' },
-                      { key: 'ore',  label: 'Руда',     color: '#aa8855' },
-                      { key: 'vent', label: 'Газ',      color: '#55aaaa' },
+                      { key: 'tree', label: t('surface.resource_tree'), color: '#88aa44' },
+                      { key: 'ore',  label: t('surface.resource_ore'),  color: '#aa8855' },
+                      { key: 'vent', label: t('surface.resource_vent'), color: '#55aaaa' },
                     ].map(({ key, label, color }) => (
                       <button
                         key={key}
@@ -736,9 +749,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
             pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
           }}>
             <span style={{ color: '#44aaff', fontSize: 13, lineHeight: 1 }}>*</span>
-            <span style={{ color: '#aabbcc' }}>Дрон-дослідник</span>
+            <span style={{ color: '#aabbcc' }}>{t('surface.drone_explorer')}</span>
             <span style={{ color: '#445566' }}>---</span>
-            <span style={{ color: '#556677' }}>натисніть на карту для розвідки</span>
+            <span style={{ color: '#556677' }}>{t('surface.rover_mode_hint')}</span>
             <button
               onClick={() => setRoverMode(false)}
               style={{
@@ -769,11 +782,10 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
               onClick={(ev) => ev.stopPropagation()}
             >
               <div style={{ color: '#cc4444', fontSize: 13, marginBottom: 10, fontWeight: 'bold' }}>
-                Увага!
+                {t('surface.demolish_warning_title')}
               </div>
               <div style={{ color: '#aabbcc', fontSize: 12, lineHeight: 1.65, marginBottom: 20 }}>
-                Ви впевнені, що хочете запустити демонтаж цієї споруди?{' '}
-                Процес незворотній, ресурси повернуто не буде.
+                {t('surface.demolish_warning_body')}
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button
@@ -784,7 +796,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
                     color: '#7bb8ff', fontFamily: 'monospace', cursor: 'pointer', fontSize: 11,
                   }}
                 >
-                  Скасувати
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleDemolishConfirm}
@@ -794,7 +806,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
                     color: '#fff', fontFamily: 'monospace', cursor: 'pointer', fontSize: 11,
                   }}
                 >
-                  Так, зруйнувати
+                  {t('surface.demolish_confirm_btn')}
                 </button>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -61,6 +62,7 @@ export function SystemNavHeader({
   isPhotoGenerating,
   getSystemProgress,
 }: SystemNavHeaderProps) {
+  const { t } = useTranslation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -242,7 +244,7 @@ export function SystemNavHeader({
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="пошук системи..."
+              placeholder={t('nav_header.search_placeholder')}
               style={{
                 width: '100%',
                 background: 'none',
@@ -260,7 +262,7 @@ export function SystemNavHeader({
           <div style={{ maxHeight: 200, overflowY: 'auto' }}>
             {filtered.length === 0 ? (
               <div style={{ padding: '8px 12px', color: '#445566', fontSize: 11 }}>
-                нічого не знайдено
+                {t('nav_header.no_results')}
               </div>
             ) : (
               filtered.map((s) => {
@@ -330,6 +332,7 @@ function SearchResultItem({
 }
 
 function TelescopeButton({ onClick, generating }: { onClick: () => void; generating?: boolean }) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -364,7 +367,7 @@ function TelescopeButton({ onClick, generating }: { onClick: () => void; generat
         <line x1="2" y1="11" x2="0.5" y2="15" />
         <line x1="2" y1="11" x2="4" y2="15" />
       </svg>
-      <span>{generating ? 'Обробка панорами...' : 'Панорама 30⚛'}</span>
+      <span>{generating ? t('telescope.processing_panorama') : t('telescope.panorama_cost')}</span>
     </button>
   );
 }

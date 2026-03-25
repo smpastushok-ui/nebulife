@@ -4,8 +4,11 @@ import {
   deductQuarks,
   savePlanetModel,
   savePaymentIntent,
+  acquireIdempotencyKey,
+  completeIdempotencyKey,
 } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
+import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { buildPlanetModelPrompt } from '../../packages/server/src/planet-model-prompt-builder.js';
 import type { Planet, Star } from '@nebulife/core';
 
@@ -35,7 +38,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = await authenticate(req, res);
   if (!auth) return;
 
+  if (!await RATE_LIMITS.payment(auth.playerId)) {
+    return res.status(429).json({ error: 'Забагато запитів. Спробуйте пізніше.' });
+  }
+
   try {
+    // Idempotency: prevent double-charge on retry
+    const idemKey = req.headers['x-idempotency-key'] as string | undefined;
+    if (idemKey) {
+      const idem = await acquireIdempotencyKey(idemKey, auth.playerId, 'payment/create');
+      if (!idem.acquired) {
+        if ('record' in idem) {
+          return res.status(idem.record.response_status ?? 200).json(idem.record.response_body);
+        }
+        return res.status(409).json({ error: 'Request is still being processed' });
+      }
+    }
+
     const { playerId, planetId, systemId, planetData, starData } = req.body;
 
     if (!playerId || !planetId || !systemId) {

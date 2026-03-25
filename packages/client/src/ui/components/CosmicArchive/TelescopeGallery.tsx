@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 import type { SystemPhotoData } from '../SystemContextMenu';
 
@@ -26,6 +27,7 @@ function resolvePhotoMeta(
   key: string,
   allSystems: StarSystem[],
   aliases: Record<string, string>,
+  tFn: (key: string, opts?: Record<string, unknown>) => string,
 ): { name: string; sublabel: string } {
   if (key.startsWith('planet-')) {
     const planetId = key.slice(7);
@@ -45,7 +47,7 @@ function resolvePhotoMeta(
     if (sys) {
       return {
         name: aliases[sys.id] || sys.star.name,
-        sublabel: `${sys.planets.length} планет`,
+        sublabel: tFn('gallery.planets_count', { count: sys.planets.length }),
       };
     }
     return { name: key, sublabel: '' };
@@ -63,6 +65,7 @@ function formatDate(iso?: string): string {
 }
 
 export function TelescopeGallery({ photos, type, allSystems, aliases }: TelescopeGalleryProps) {
+  const { t } = useTranslation();
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [viewingPhoto, setViewingPhoto] = useState<PhotoEntry | null>(null);
 
@@ -84,7 +87,7 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
       // Only show completed photos
       if (data.status !== 'succeed' || !data.photoUrl) continue;
 
-      const meta = resolvePhotoMeta(key, allSystems, aliases);
+      const meta = resolvePhotoMeta(key, allSystems, aliases, t);
       result.push({
         key,
         data,
@@ -120,7 +123,7 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
     }
   }, []);
 
-  const typeLabel = type === 'system' ? 'Зоряні системи' : 'Планети';
+  const typeLabel = type === 'system' ? t('archive.sub_star_systems') : t('archive.sub_planets_photos');
 
   if (entries.length === 0) {
     return (
@@ -135,9 +138,9 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
         <div style={{ fontSize: 13, color: '#556677', marginBottom: 8 }}>
           {typeLabel}
         </div>
-        Ще немає знімків.
+        {t('gallery.no_photos_yet')}
         <br />
-        Використовуйте Супертелескоп у меню зоряної системи або планети.
+        {t('gallery.use_supertelescope')}
       </div>
     );
   }
@@ -148,7 +151,7 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
       <div style={{
         fontSize: 11, color: '#667788', marginBottom: 16, letterSpacing: 0.5,
       }}>
-        {typeLabel}: {entries.length} знімків
+        {t('gallery.photos_count', { label: typeLabel, count: entries.length })}
       </div>
 
       {/* Grid */}
@@ -260,6 +263,7 @@ function PhotoViewer({ entry, onClose, onShare }: {
   onClose: () => void;
   onShare: () => void;
 }) {
+  const { t } = useTranslation();
   const imgRef = useRef<HTMLImageElement>(null);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -333,7 +337,7 @@ function PhotoViewer({ entry, onClose, onShare }: {
             letterSpacing: 1,
           }}
         >
-          Поділитися
+          {t('gallery.share')}
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onClose(); }}
@@ -348,7 +352,7 @@ function PhotoViewer({ entry, onClose, onShare }: {
             cursor: 'pointer',
           }}
         >
-          Закрити
+          {t('common.close')}
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ELEMENTS,
   ELEMENT_GROUP,
@@ -33,6 +34,7 @@ function getGroupElementsSorted(group: ResourceGroup) {
 }
 
 export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewProps) {
+  const { t } = useTranslation();
   const totals = { minerals, volatiles, isotopes };
   const [collapsed, setCollapsed] = useState<Set<ResourceGroup>>(new Set());
 
@@ -102,7 +104,7 @@ export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewPr
 
               {/* Element count */}
               <span style={{ color: '#556677', fontSize: 10 }}>
-                {elements.length} елементів
+                {t('gallery.elements_count', { count: elements.length })}
               </span>
 
               {/* Total value */}
@@ -128,9 +130,9 @@ export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewPr
                   }}
                 >
                   <span>SYM</span>
-                  <span>НАЗВА</span>
+                  <span>{t('gallery.col_name')}</span>
                   <span style={{ textAlign: 'right' }}>Z</span>
-                  <span style={{ textAlign: 'right' }}>МАСА</span>
+                  <span style={{ textAlign: 'right' }}>{t('gallery.col_mass')}</span>
                 </div>
 
                 {/* Element rows */}

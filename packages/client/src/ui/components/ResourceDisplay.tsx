@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // ResourceDisplay -- two HUD elements:
@@ -136,6 +137,7 @@ export function ResourceDisplay({
   countdownText, countdownUrgent = false, onTimerClick,
   observatoryUsed = 0, observatoryTotal = 0,
 }: ResourceDisplayProps) {
+  const { t } = useTranslation();
   const [hoverResources, setHoverResources] = useState(false);
   const [hoverTimer, setHoverTimer] = useState(false);
 
@@ -186,7 +188,7 @@ export function ResourceDisplay({
         {/* Observatories */}
         {observatoryTotal > 0 && (
           <>
-            <div style={itemStyle} data-tutorial-id="resource-observatories" title="Обсерваторiї — дослiдницькi станцiї">
+            <div style={itemStyle} data-tutorial-id="resource-observatories" title={t('resource_display.observatories_title')}>
               <ObservatoryIcon />
               <span style={{ color: observatoryUsed >= observatoryTotal ? '#cc4444' : '#7bb8ff' }}>
                 {observatoryUsed}/{observatoryTotal}
@@ -197,7 +199,7 @@ export function ResourceDisplay({
         )}
 
         {/* Research Data -- always visible */}
-        <div style={itemStyle} data-tutorial-id="resource-data" title="Данi дослiджень — ресурс для сканування систем">
+        <div style={itemStyle} data-tutorial-id="resource-data" title={t("resource_display.research_data_title")}>
           <ResearchDataIcon />
           <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{researchData}</span>
         </div>
@@ -206,17 +208,17 @@ export function ResourceDisplay({
         {/* Colony resources (Phase 2+) */}
         {!isExodusPhase && (
           <>
-            <div style={itemStyle} title="Мiнерали — будiвельний ресурс">
+            <div style={itemStyle} title={t("resource_display.minerals_title")}>
               <MineralsIcon />
               <span style={{ color: '#aa8855' }}>{minerals}</span>
             </div>
             <div style={dividerStyle} />
-            <div style={itemStyle} title="Леткi речовини — паливо та хiмiя">
+            <div style={itemStyle} title={t("resource_display.volatiles_title")}>
               <VolatilesIcon />
               <span style={{ color: '#55aaaa' }}>{volatiles}</span>
             </div>
             <div style={dividerStyle} />
-            <div style={itemStyle} title="Iзотопи — енергетичний ресурс">
+            <div style={itemStyle} title={t("resource_display.isotopes_title")}>
               <IsotopesIcon />
               <span style={{ color: '#88aa44' }}>{isotopes}</span>
             </div>
@@ -224,7 +226,7 @@ export function ResourceDisplay({
           </>
         )}
 
-        <div style={itemStyle} title="Кварки — унiверсальна валюта">
+        <div style={itemStyle} title={t("resource_display.quarks_title")}>
           <QuarksIcon />
           <span>{quarks}</span>
         </div>

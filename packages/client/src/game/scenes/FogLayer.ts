@@ -88,10 +88,7 @@ export class FogLayer {
       const cy  = hub.y + sh / 2 - 0.5;
       this.revealAround(cx, cy, HUB_REVEAL_RADIUS);
     }
-    // No hub yet — reveal small landing zone (8-tile radius) so player sees where to build
-    if (this.revealedCells.size === 0) {
-      this.revealAround(0, 0, 8);
-    }
+    // No hub yet — SurfacePixiView calls revealStartingArea() for first-visit fog reveal
     this.redraw();
   }
 

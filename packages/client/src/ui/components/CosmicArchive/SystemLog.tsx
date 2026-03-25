@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Discovery } from '@nebulife/core';
 import type { DiscoveryData } from '../../../api/player-api';
 
@@ -22,11 +23,11 @@ export interface LogEntry {
   discoveryRef?: Discovery;
 }
 
-const CATEGORY_LABELS: Record<LogCategory, string> = {
-  economy: 'ЕКОНОМІКА',
-  science: 'НАУКА',
-  expedition: 'ЕКСПЕДИЦІЯ',
-  system: 'СИСТЕМА',
+const CATEGORY_I18N_KEYS: Record<LogCategory, string> = {
+  economy: 'log.cat_economy',
+  science: 'log.cat_science',
+  expedition: 'log.cat_expedition',
+  system: 'log.cat_system',
 };
 
 const CATEGORY_COLORS: Record<LogCategory, string> = {
@@ -45,6 +46,7 @@ interface SystemLogProps {
 }
 
 export function SystemLog({ entries, galleryMap, onOpenDiscovery }: SystemLogProps) {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState<LogCategory | 'all'>('all');
 
   const filtered = useMemo(() => {
@@ -54,11 +56,11 @@ export function SystemLog({ entries, galleryMap, onOpenDiscovery }: SystemLogPro
   }, [entries, filter]);
 
   const filters: { id: LogCategory | 'all'; label: string }[] = [
-    { id: 'all', label: 'Всі' },
-    { id: 'economy', label: 'Економіка' },
-    { id: 'science', label: 'Наука' },
-    { id: 'expedition', label: 'Експедиції' },
-    { id: 'system', label: 'Системні' },
+    { id: 'all', label: t('log.filter_all') },
+    { id: 'economy', label: t('log.filter_economy') },
+    { id: 'science', label: t('log.filter_science') },
+    { id: 'expedition', label: t('log.filter_expeditions') },
+    { id: 'system', label: t('log.filter_system') },
   ];
 
   return (
@@ -95,10 +97,10 @@ export function SystemLog({ entries, galleryMap, onOpenDiscovery }: SystemLogPro
           alignItems: 'center',
         }}>
           <span style={{ fontSize: 10, color: '#445566', letterSpacing: 1.5 }}>
-            БОРТОВИЙ ЖУРНАЛ
+            {t('log.ship_log')}
           </span>
           <span style={{ fontSize: 9, color: '#334455' }}>
-            {entries.length} записів
+            {t('log.entries_count', { count: entries.length })}
           </span>
         </div>
 
@@ -110,8 +112,8 @@ export function SystemLog({ entries, galleryMap, onOpenDiscovery }: SystemLogPro
             fontSize: 11,
           }}>
             {filter === 'all'
-              ? 'Журнал порожній. Події будуть з\'являтися тут.'
-              : 'Немає записів у цій категорії.'}
+              ? t('log.empty_all')
+              : t('log.empty_filtered')}
           </div>
         ) : (
           filtered.map((entry) => {
@@ -154,6 +156,7 @@ function LogEntryRow({
   completed?: boolean;
   onClick?: () => void;
 }) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
   const time = new Date(entry.timestamp).toLocaleString('uk-UA', {
     hour: '2-digit',
@@ -163,7 +166,7 @@ function LogEntryRow({
   });
 
   const catColor = CATEGORY_COLORS[entry.category];
-  const catLabel = CATEGORY_LABELS[entry.category];
+  const catLabel = t(CATEGORY_I18N_KEYS[entry.category]);
 
   return (
     <div
@@ -222,7 +225,7 @@ function LogEntryRow({
             fontSize: 9,
             marginLeft: 6,
           }}>
-            [відкрити]
+            {t('log.open')}
           </span>
         )}
         {completed && (
@@ -232,7 +235,7 @@ function LogEntryRow({
             marginLeft: 6,
             opacity: 0.7,
           }}>
-            [знято]
+            {t('log.captured')}
           </span>
         )}
       </span>

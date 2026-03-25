@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // TelescopeOverlay — cinematic full-screen overlay for AI photo generation
@@ -18,22 +19,21 @@ interface TelescopeOverlayProps {
   onClose: () => void;
 }
 
-// Planet-mode status messages
-const PLANET_STATUS_MESSAGES = [
-  'КАЛІБРУВАННЯ ОПТИКИ...',
-  'ЗБІР ФОТОНІВ...',
-  'СТАБІЛІЗАЦІЯ МАТРИЦІ...',
-  'КВАНТОВА ОБРОБКА ДАНИХ...',
-  'АНАЛІЗ СПЕКТРАЛЬНИХ ЛІНІЙ...',
+// Status message i18n keys (computed inside the component using t())
+const PLANET_STATUS_KEYS = [
+  'telescope.planet_status_1',
+  'telescope.planet_status_2',
+  'telescope.planet_status_3',
+  'telescope.planet_status_4',
+  'telescope.planet_status_5',
 ];
 
-// System panorama status messages
-const SYSTEM_STATUS_MESSAGES = [
-  'АНАЛІЗ ОРБІТАЛЬНИХ ТРАЄКТОРІЙ...',
-  'СИНХРОНІЗАЦІЯ ПАНОРАМНОЇ МАТРИЦІ...',
-  'ЕКСТРАПОЛЯЦІЯ ДАЛЬНЬОГО СВІТЛА...',
-  'КВАНТОВА ОБРОБКА ДАНИХ...',
-  'КОМПІЛЯЦІЯ ПАНОРАМИ...',
+const SYSTEM_STATUS_KEYS = [
+  'telescope.system_status_1',
+  'telescope.system_status_2',
+  'telescope.system_status_3',
+  'telescope.system_status_4',
+  'telescope.system_status_5',
 ];
 
 // Noise grain SVG for reveal phase
@@ -48,8 +48,9 @@ export function TelescopeOverlay({
   onShare,
   onClose,
 }: TelescopeOverlayProps) {
+  const { t } = useTranslation();
   const isSystem = targetType === 'system';
-  const statusMessages = isSystem ? SYSTEM_STATUS_MESSAGES : PLANET_STATUS_MESSAGES;
+  const statusKeys = isSystem ? SYSTEM_STATUS_KEYS : PLANET_STATUS_KEYS;
 
   // -- Animation state --
   const [scanY, setScanY] = useState(0);
@@ -103,10 +104,10 @@ export function TelescopeOverlay({
   useEffect(() => {
     if (phase !== 'capture') return;
     const interval = setInterval(() => {
-      setStatusIdx(prev => (prev + 1) % statusMessages.length);
+      setStatusIdx(prev => (prev + 1) % statusKeys.length);
     }, 4500);
     return () => clearInterval(interval);
-  }, [phase, statusMessages.length]);
+  }, [phase, statusKeys.length]);
 
   // Reveal phase: flash + grain fade
   useEffect(() => {
@@ -161,7 +162,7 @@ export function TelescopeOverlay({
     }
   }, [phase, onClose]);
 
-  const targetLabel = isSystem ? 'Зоряна система' : 'Планета';
+  const targetLabel = isSystem ? t('telescope.target_system') : t('telescope.target_planet');
 
   // Letterbox bar height for system mode (creates 16:9 cinematic frame)
   // If viewport is 16:9, bars are minimal; if taller, bars grow
@@ -371,7 +372,7 @@ export function TelescopeOverlay({
             letterSpacing: 3, textTransform: 'uppercase',
             opacity: 0.7,
           }}>
-            [ {statusMessages[statusIdx]} ]
+            [ {t(statusKeys[statusIdx])} ]
           </div>
         </>
       )}
@@ -444,7 +445,7 @@ export function TelescopeOverlay({
             opacity: 0.7,
             zIndex: 5,
           }}>
-            [ {statusMessages[statusIdx]} ]
+            [ {t(statusKeys[statusIdx])} ]
           </div>
         </>
       )}
@@ -534,7 +535,7 @@ export function TelescopeOverlay({
                     letterSpacing: 1,
                   }}
                 >
-                  Поділитися
+                  {t('telescope.share_btn')}
                 </button>
                 <button
                   onClick={handleSave}
@@ -550,7 +551,7 @@ export function TelescopeOverlay({
                     letterSpacing: 1,
                   }}
                 >
-                  Зберегти в Колекцію
+                  {t('telescope.save_btn')}
                 </button>
                 <button
                   onClick={onClose}

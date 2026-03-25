@@ -101,9 +101,9 @@ export interface Discovery {
  * → all 19 legendaries collectible in ~1 year at 2 data/hr production.
  */
 const RING_CHANCE: { min: number; max: number }[] = [
-  { min: 0.20, max: 0.80 },  // Ring 1: 20–80%
-  { min: 0.08, max: 0.35 },  // Ring 2: 8–35%
-  { min: 0.03, max: 0.12 },  // Ring 3: 3–12%
+  { min: 0.12, max: 0.40 },  // Ring 1: 12–40% (was 20–80%, reduced to avoid spam)
+  { min: 0.06, max: 0.25 },  // Ring 2: 6–25%
+  { min: 0.03, max: 0.10 },  // Ring 3: 3–10%
   { min: 0.01, max: 0.04 },  // Ring 4+: 1–4%
 ];
 
@@ -125,10 +125,11 @@ export function getDiscoveryChance(
   const idx = Math.min(Math.max(ringIndex - 1, 0), RING_CHANCE.length - 1);
   const { min, max } = RING_CHANCE[idx];
 
-  // Early game: linearly decay from max → min over 7 sessions
-  const isEarlyGame = totalCompletedSessions <= 7 && totalDiscoveries < 2;
+  // Early game: linearly decay from max → min over first 5 sessions
+  // Stops immediately after player gets their first discovery (engagement confirmed)
+  const isEarlyGame = totalCompletedSessions <= 5 && totalDiscoveries < 1;
   if (isEarlyGame) {
-    const t = totalCompletedSessions / 7; // 0 → 1
+    const t = totalCompletedSessions / 5; // 0 → 1
     return min + (max - min) * (1 - t);
   }
 
@@ -160,6 +161,9 @@ export function shouldForceDiscovery(totalCompletedSessions: number): boolean {
  * @param totalDiscoveries        Player's total discoveries made so far.
  * @returns A Discovery or null.
  */
+/** Minimum sessions between discoveries to avoid spam (cooldown). */
+const DISCOVERY_COOLDOWN_SESSIONS = 3;
+
 export function rollForDiscovery(
   systemSeed: number,
   progress: number,
@@ -169,10 +173,16 @@ export function rollForDiscovery(
   ringIndex: number = 1,
   totalCompletedSessions: number = 0,
   totalDiscoveries: number = 0,
+  /** Session number when last discovery was made (0 if none yet). */
+  lastDiscoverySession: number = 0,
 ): Discovery | null {
   const rng = new SeededRNG(systemSeed * 113 + progress * 7);
 
   if (!forceCommon) {
+    // Cooldown: skip if a discovery was made within the last N sessions
+    if (lastDiscoverySession > 0 && totalCompletedSessions - lastDiscoverySession < DISCOVERY_COOLDOWN_SESSIONS) {
+      return null;
+    }
     // Check if a discovery happens at all
     const chance = getDiscoveryChance(totalCompletedSessions, totalDiscoveries, ringIndex);
     if (rng.next() > chance) return null;

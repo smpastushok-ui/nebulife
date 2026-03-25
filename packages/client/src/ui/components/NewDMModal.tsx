@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { searchPlayers } from '../../api/messages-api.js';
 
 // ---------------------------------------------------------------------------
@@ -11,6 +12,7 @@ interface NewDMModalProps {
 }
 
 export function NewDMModal({ onSelect, onClose }: NewDMModalProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Array<{ id: string; callsign: string }>>([]);
   const [searching, setSearching] = useState(false);
@@ -67,7 +69,7 @@ export function NewDMModal({ onSelect, onClose }: NewDMModalProps) {
           alignItems: 'center',
           marginBottom: 12,
         }}>
-          <span style={{ color: '#ccddee', fontSize: 12 }}>Нова бесіда</span>
+          <span style={{ color: '#ccddee', fontSize: 12 }}>{t('chat.new_conversation')}</span>
           <button
             onClick={onClose}
             style={{
@@ -86,7 +88,7 @@ export function NewDMModal({ onSelect, onClose }: NewDMModalProps) {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Пошук за позивним..."
+          placeholder={t('chat.search_callsign')}
           autoFocus
           style={{
             width: '100%',
@@ -105,12 +107,12 @@ export function NewDMModal({ onSelect, onClose }: NewDMModalProps) {
         <div style={{ marginTop: 8, maxHeight: 200, overflowY: 'auto' }}>
           {searching && (
             <div style={{ color: '#556677', fontSize: 10, padding: 8, textAlign: 'center' }}>
-              Пошук...
+              {t('common.loading')}
             </div>
           )}
           {!searching && query.length >= 2 && results.length === 0 && (
             <div style={{ color: '#556677', fontSize: 10, padding: 8, textAlign: 'center' }}>
-              Нікого не знайдено
+              {t('chat.no_results')}
             </div>
           )}
           {results.map((player) => (

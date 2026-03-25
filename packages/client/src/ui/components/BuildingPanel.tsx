@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { BuildingType, BuildingDef } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 
@@ -227,13 +228,17 @@ function BuildingCard({
   type,
   isSelected,
   onClick,
+  t,
 }: {
   def: BuildingDef;
   type: BuildingType;
   isSelected: boolean;
   onClick: () => void;
+  t: (key: string) => string;
 }) {
   const previewSrc = BUILDING_PREVIEW[type];
+  const name = t(`building.${type}.name`);
+  const desc = t(`building.${type}.desc`);
   return (
     <button
       onClick={onClick}
@@ -264,7 +269,7 @@ function BuildingCard({
         }}>
           <img
             src={previewSrc}
-            alt={def.name}
+            alt={name}
             style={{
               width: 160,
               height: 160,
@@ -279,14 +284,14 @@ function BuildingCard({
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
         <BuildingIcon type={type} size={28} />
         <div>
-          <div style={{ fontWeight: isSelected ? 'bold' : 'normal', marginBottom: 2 }}>{def.name}</div>
-          <div style={{ fontSize: 10, color: '#667788' }}>{def.description}</div>
+          <div style={{ fontWeight: isSelected ? 'bold' : 'normal', marginBottom: 2 }}>{name}</div>
+          <div style={{ fontSize: 10, color: '#667788' }}>{desc}</div>
           <div style={{ fontSize: 10, color: '#886644', marginTop: 2 }}>
             {def.cost.map((c) => `${c.amount} ${c.resource}`).join(', ')}
           </div>
           {(def.sizeW ?? 1) > 1 && (
             <div style={{ fontSize: 9, color: '#445566', marginTop: 2 }}>
-              {def.sizeW}x{def.sizeH} клітинки
+              {def.sizeW}x{def.sizeH} {t('surface.cells')}
             </div>
           )}
         </div>
@@ -296,6 +301,7 @@ function BuildingCard({
 }
 
 export function BuildingPanel({ selectedBuilding, onSelectBuilding, onClose }: BuildingPanelProps) {
+  const { t } = useTranslation();
   const buildingTypes = Object.keys(BUILDING_DEFS) as BuildingType[];
 
   return (
@@ -309,7 +315,7 @@ export function BuildingPanel({ selectedBuilding, onSelectBuilding, onClose }: B
         borderBottom: '1px solid rgba(60, 100, 160, 0.3)',
         marginBottom: 4,
       }}>
-        <span style={{ color: '#aaccee', fontSize: 13 }}>Будівлі</span>
+        <span style={{ color: '#aaccee', fontSize: 13 }}>{t('surface.build_panel')}</span>
         <button
           onClick={onClose}
           style={{
@@ -334,7 +340,7 @@ export function BuildingPanel({ selectedBuilding, onSelectBuilding, onClose }: B
           fontSize: 11,
           borderBottom: '1px solid rgba(40, 60, 80, 0.3)',
         }}>
-          Натисніть на карту, щоб поставити будівлю
+          {t('surface.build_place_hint')}
         </div>
       )}
 
@@ -346,6 +352,7 @@ export function BuildingPanel({ selectedBuilding, onSelectBuilding, onClose }: B
           type={type}
           isSelected={selectedBuilding === type}
           onClick={() => onSelectBuilding(selectedBuilding === type ? null : type)}
+          t={t}
         />
       ))}
 
@@ -365,7 +372,7 @@ export function BuildingPanel({ selectedBuilding, onSelectBuilding, onClose }: B
             cursor: 'pointer',
           }}
         >
-          Скасувати вибір
+          {t('surface.cancel_selection')}
         </button>
       )}
     </div>

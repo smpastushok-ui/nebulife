@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DiscoveryRarity } from '@nebulife/core';
 import { RARITY_COLORS } from '@nebulife/core';
 
@@ -6,13 +7,6 @@ import { RARITY_COLORS } from '@nebulife/core';
 // ScientificReport — typewriter-styled scientific report for the president
 // ---------------------------------------------------------------------------
 
-const RARITY_LABELS: Record<DiscoveryRarity, string> = {
-  common: 'Звичайне',
-  uncommon: 'Незвичайне',
-  rare: 'Рідкісне',
-  epic: 'Епічне',
-  legendary: 'Легендарне',
-};
 
 const CHARS_PER_TICK = 2;
 const TICK_INTERVAL = 30;
@@ -28,6 +22,7 @@ export function ScientificReport({
   rarity: DiscoveryRarity;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [displayedChars, setDisplayedChars] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -94,7 +89,7 @@ export function ScientificReport({
           paddingBottom: 8,
         }}
       >
-        Наукова доповідь для Президента
+        {t('scientific_report.title')}
       </div>
 
       {/* Object name + rarity */}
@@ -114,7 +109,7 @@ export function ScientificReport({
             letterSpacing: 1,
           }}
         >
-          {RARITY_LABELS[rarity]}
+          {t(`discovery_notification.rarity_${rarity}`)}
         </span>
       </div>
 
@@ -173,7 +168,7 @@ export function ScientificReport({
               cursor: 'pointer',
             }}
           >
-            Пропустити &raquo;
+            {t('common.skip')} &raquo;
           </button>
         ) : (
           <div />
@@ -192,7 +187,7 @@ export function ScientificReport({
             transition: 'all 0.3s',
           }}
         >
-          {isComplete ? 'Продовжити' : 'Закрити'}
+          {isComplete ? t('common.proceed') : t('common.close')}
         </button>
       </div>
 

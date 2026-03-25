@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // SceneControlsPanel — Left-side vertical controls (back, center, zoom)
@@ -110,6 +111,7 @@ export function SceneControlsPanel({
   hidden = false,
   researchPanel,
 }: SceneControlsPanelProps) {
+  const { t } = useTranslation();
   // Inject neon pulse keyframes once
   const injected = useRef(false);
   useEffect(() => {
@@ -140,7 +142,7 @@ export function SceneControlsPanel({
       }}
     >
       {/* Back */}
-      <ControlButton onClick={onBack} title={backLabel || 'Назад'}>
+      <ControlButton onClick={onBack} title={backLabel || t('common.back')}>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
           <path d="M10 3L5 8l5 5" />
         </svg>
@@ -148,7 +150,7 @@ export function SceneControlsPanel({
 
       {/* Center */}
       {showCenter && onCenter && (
-        <ControlButton onClick={onCenter} title="Центрувати">
+        <ControlButton onClick={onCenter} title={t('scene_controls.center')}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <circle cx="8" cy="8" r="6" />
             <line x1="8" y1="2" x2="8" y2="5" />
@@ -162,14 +164,14 @@ export function SceneControlsPanel({
 
       {/* Zoom in */}
       {showZoom && onZoomIn && (
-        <ControlButton onClick={onZoomIn} title="Наблизити">
+        <ControlButton onClick={onZoomIn} title={t('scene_controls.zoom_in')}>
           +
         </ControlButton>
       )}
 
       {/* Zoom out */}
       {showZoom && onZoomOut && (
-        <ControlButton onClick={onZoomOut} title="Віддалити">
+        <ControlButton onClick={onZoomOut} title={t('scene_controls.zoom_out')}>
           {'\u2212'}
         </ControlButton>
       )}
@@ -179,7 +181,7 @@ export function SceneControlsPanel({
         <>
           <ControlButton
             onClick={researchPanel.onToggle}
-            title={researchPanel.labelsEnabled ? 'Сховати % дослiдженостi' : 'Показати % дослiдженостi'}
+            title={researchPanel.labelsEnabled ? t('scene_controls.hide_research_pct') : t('scene_controls.show_research_pct')}
             active={researchPanel.labelsEnabled}
           >
             {/* Eye icon */}

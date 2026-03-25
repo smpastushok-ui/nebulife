@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet, Moon, PlanetType } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -64,21 +65,22 @@ function getMoonColor(m: Moon): string {
   }
 }
 
-function planetTypeName(t: PlanetType): string {
-  switch (t) {
-    case 'rocky':     return 'скелясте';
-    case 'gas-giant': return 'газ. гіг.';
-    case 'ice-giant': return 'крижаний';
-    case 'dwarf':     return 'карлик';
+function planetTypeName(type: PlanetType, t: (k: string) => string): string {
+  switch (type) {
+    case 'rocky':       return t('system.type_rocky');
+    case 'terrestrial': return t('system.type_terrestrial');
+    case 'gas-giant':   return t('system.type_gas_giant');
+    case 'ice-giant':   return t('system.type_ice_giant');
+    case 'dwarf':       return t('system.type_dwarf');
   }
 }
 
-function moonCompositionName(c: string): string {
+function moonCompositionName(c: string, t: (k: string) => string): string {
   switch (c) {
-    case 'rocky':    return 'скелястий';
-    case 'icy':      return 'крижаний';
-    case 'metallic': return 'металевий';
-    case 'volcanic': return 'вулканічний';
+    case 'rocky':    return t('system.moon_rocky');
+    case 'icy':      return t('system.moon_icy');
+    case 'metallic': return t('system.moon_metallic');
+    case 'volcanic': return t('system.moon_volcanic');
     default:         return c;
   }
 }
@@ -90,18 +92,18 @@ function habitabilityColor(score: number): string {
   return '#cc5544';
 }
 
-function habitabilityLabel(p: Planet): string {
+function habitabilityLabel(p: Planet, t: (k: string) => string): string {
   if (p.hasLife) {
     const life = p.lifeComplexity;
-    if (life === 'intelligent') return 'розумне';
-    if (life === 'multicellular') return 'складне';
-    return 'мiкробне';
+    if (life === 'intelligent') return t('system.life_intelligent');
+    if (life === 'multicellular') return t('system.life_complex');
+    return t('system.life_microbial');
   }
   const s = p.habitability.overall;
-  if (s >= 0.70) return 'придатна';
-  if (s >= 0.45) return 'потенц.';
-  if (s >= 0.15) return 'мало';
-  return 'мертва';
+  if (s >= 0.70) return t('system.hab_suitable');
+  if (s >= 0.45) return t('system.hab_potential');
+  if (s >= 0.15) return t('system.hab_low');
+  return t('system.hab_dead');
 }
 
 // ─── Habitability bar ─────────────────────────────────────────────────────────
@@ -139,7 +141,7 @@ const DESKTOP_COLS = '22px 1fr 72px 56px 80px 1fr 36px';
 
 // ─── Moon row ─────────────────────────────────────────────────────────────────
 
-function MoonRow({ moon, moonIdx, isMobile }: { moon: Moon; moonIdx: number; isMobile: boolean }) {
+function MoonRow({ moon, moonIdx, isMobile, t }: { moon: Moon; moonIdx: number; isMobile: boolean; t: (k: string) => string }) {
   const [on, setOn] = useState(false);
 
   useEffect(() => {
@@ -166,7 +168,7 @@ function MoonRow({ moon, moonIdx, isMobile }: { moon: Moon; moonIdx: number; isM
           <span style={{ width: 4, height: 4, borderRadius: '50%', background: getMoonColor(moon), flexShrink: 0 }} />
           {moon.name}
         </span>
-        <span style={{ color: '#445566' }}>{moonCompositionName(moon.compositionType)}</span>
+        <span style={{ color: '#445566' }}>{moonCompositionName(moon.compositionType, t)}</span>
         <span />
         <span />
         <span />
@@ -192,7 +194,7 @@ function MoonRow({ moon, moonIdx, isMobile }: { moon: Moon; moonIdx: number; isM
         <span style={{ width: 5, height: 5, borderRadius: '50%', background: getMoonColor(moon), boxShadow: `0 0 3px ${getMoonColor(moon)}77` }} />
       </span>
       <span style={{ color: '#667788', minWidth: 88, fontSize: 10 }}>{moon.name}</span>
-      <span style={{ color: '#445566', minWidth: 70, fontSize: 9 }}>{moonCompositionName(moon.compositionType)}</span>
+      <span style={{ color: '#445566', minWidth: 70, fontSize: 9 }}>{moonCompositionName(moon.compositionType, t)}</span>
       <span style={{ color: '#3a5066', fontSize: 9 }}>{moon.orbitalRadiusKm.toLocaleString('uk-UA', { maximumFractionDigits: 0 })} km</span>
     </div>
   );
@@ -208,9 +210,10 @@ interface PlanetRowProps {
   onEnterPlanet: () => void;
   isDestroyed?: boolean;
   isMobile: boolean;
+  t: (k: string) => string;
 }
 
-function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet, isDestroyed, isMobile }: PlanetRowProps) {
+function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet, isDestroyed, isMobile, t }: PlanetRowProps) {
   const color = isDestroyed ? '#884422' : getPlanetColor(planet);
   const hScore = planet.habitability.overall;
   const hColor = isDestroyed ? '#553322' : habitabilityColor(hScore);
@@ -261,7 +264,7 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet, isD
         </span>
 
         {/* Type */}
-        <span style={{ color: isDestroyed ? '#443322' : '#556677', fontSize: 9 }}>{isDestroyed ? 'уламки' : planetTypeName(planet.type)}</span>
+        <span style={{ color: isDestroyed ? '#443322' : '#556677', fontSize: 9 }}>{isDestroyed ? t('system.debris') : planetTypeName(planet.type, t)}</span>
 
         {/* Orbit */}
         <span style={{ color: isDestroyed ? '#443322' : '#4477aa', fontSize: 9 }}>{planet.orbit.semiMajorAxisAU.toFixed(2)}</span>
@@ -272,7 +275,7 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet, isD
             <span style={{ color: '#553322', fontSize: 9 }}>--</span>
           ) : (
             <>
-              <span style={{ color: hColor, fontSize: 9 }}>{habitabilityLabel(planet)}</span>
+              <span style={{ color: hColor, fontSize: 9 }}>{habitabilityLabel(planet, t)}</span>
               <HabitBar score={hScore} delay={baseDelay + 280} color={hColor} />
             </>
           )}
@@ -331,17 +334,17 @@ function PlanetRow({ planet, baseDelay, isExpanded, onToggle, onEnterPlanet, isD
         onMouseLeave={isDestroyed ? undefined : () => setNameHovered(false)}
       >
         {planet.name}
-        {isDestroyed && <span style={{ color: '#884422', fontSize: 7, opacity: 0.8 }}>зруйновано</span>}
+        {isDestroyed && <span style={{ color: '#884422', fontSize: 7, opacity: 0.8 }}>{t('system.destroyed_label')}</span>}
         {isHome && !isDestroyed && <span style={{ color: '#44ff88', fontSize: 7, opacity: 0.8 }}>HOME</span>}
       </span>
-      <span style={{ color: isDestroyed ? '#443322' : '#556677', fontSize: 9, minWidth: 72, animation: d(110) }}>{isDestroyed ? 'уламки' : planetTypeName(planet.type)}</span>
+      <span style={{ color: isDestroyed ? '#443322' : '#556677', fontSize: 9, minWidth: 72, animation: d(110) }}>{isDestroyed ? t('system.debris') : planetTypeName(planet.type, t)}</span>
       <span style={{ color: isDestroyed ? '#443322' : '#4477aa', fontSize: 9, minWidth: 54, animation: d(160) }}>{planet.orbit.semiMajorAxisAU.toFixed(2)} AU</span>
       <div style={{ flexDirection: 'column', alignItems: 'flex-start', display: 'flex', minWidth: 70, animation: d(215) }}>
         {isDestroyed ? (
           <span style={{ color: '#553322', fontSize: 9 }}>--</span>
         ) : (
           <>
-            <span style={{ color: hColor, fontSize: 9 }}>{habitabilityLabel(planet)}</span>
+            <span style={{ color: hColor, fontSize: 9 }}>{habitabilityLabel(planet, t)}</span>
             <HabitBar score={hScore} delay={baseDelay + 280} color={hColor} />
           </>
         )}
@@ -429,6 +432,7 @@ export function SystemObjectsPanel({
   destroyedPlanetIds,
 }: SystemObjectsPanelProps) {
   ensureStyles();
+  const { t } = useTranslation();
 
   const [expandedPlanets, setExpandedPlanets] = useState<Record<string, boolean>>({});
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -496,8 +500,8 @@ export function SystemObjectsPanel({
         >
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div style={{ fontSize: 9, color: '#445566', letterSpacing: '0.04em' }}>
-              {planetsCount} {planetsCount === 1 ? 'планета' : planetsCount < 5 ? 'планети' : 'планет'}
-              &nbsp;·&nbsp; {moonsCount} супутників
+              {planetsCount} {t('system.planets_count', { count: planetsCount })}
+              &nbsp;·&nbsp; {moonsCount} {t('system.moons_count', { count: moonsCount })}
             </div>
           </div>
           <button
@@ -546,10 +550,10 @@ export function SystemObjectsPanel({
                 textTransform: 'uppercase',
               }}
             >
-              <span>ОБ'ЄКТ</span>
-              <span>ТИП</span>
+              <span>{t('system.col_object')}</span>
+              <span>{t('system.col_type')}</span>
               <span>AU</span>
-              <span>СТАН</span>
+              <span>{t('system.col_status')}</span>
               <span />
             </div>
           ) : (
@@ -566,12 +570,12 @@ export function SystemObjectsPanel({
               }}
             >
               <span style={{ width: 22, display: 'flex', justifyContent: 'center', flexShrink: 0 }} />
-              <span style={{ minWidth: 90 }}>ОБ'ЄКТ</span>
-              <span style={{ minWidth: 72 }}>ТИП</span>
-              <span style={{ minWidth: 54 }}>ОРБІТА</span>
-              <span style={{ minWidth: 70 }}>ПРИДАТНІСТЬ</span>
+              <span style={{ minWidth: 90 }}>{t('system.col_object')}</span>
+              <span style={{ minWidth: 72 }}>{t('system.col_type')}</span>
+              <span style={{ minWidth: 54 }}>{t('system.col_orbit')}</span>
+              <span style={{ minWidth: 70 }}>{t('system.col_habitability')}</span>
               <span style={{ flex: 1 }} />
-              <span style={{ flexShrink: 0, paddingRight: 4 }}>СУП</span>
+              <span style={{ flexShrink: 0, paddingRight: 4 }}>{t('system.col_moons_short')}</span>
             </div>
           )}
 
@@ -590,16 +594,17 @@ export function SystemObjectsPanel({
                   onEnterPlanet={() => onViewPlanet(pi)}
                   isDestroyed={destroyedPlanetIds?.has(planet.id)}
                   isMobile={isMobile}
+                  t={t}
                 />
 
                 {expanded && (
                   <div>
                     {planet.moons.map((moon, mi) => (
-                      <MoonRow key={moon.id} moon={moon} moonIdx={mi} isMobile={isMobile} />
+                      <MoonRow key={moon.id} moon={moon} moonIdx={mi} isMobile={isMobile} t={t} />
                     ))}
                     {planet.moons.length === 0 && (
                       <div style={{ padding: '3px 14px 4px 34px', fontSize: 9, color: '#334455' }}>
-                        супутників немає
+                        {t('system.no_moons')}
                       </div>
                     )}
                   </div>

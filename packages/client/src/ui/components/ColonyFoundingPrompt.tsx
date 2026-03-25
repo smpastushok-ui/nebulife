@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Planet } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -11,6 +12,7 @@ interface ColonyFoundingPromptProps {
 }
 
 export function ColonyFoundingPrompt({ planet, onFoundColony }: ColonyFoundingPromptProps) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
 
   return (
@@ -48,7 +50,7 @@ export function ColonyFoundingPrompt({ planet, onFoundColony }: ColonyFoundingPr
             marginBottom: 6,
           }}
         >
-          НАВIГАЦIЙНА СИСТЕМА
+          {t('colony.nav_system_header')}
         </div>
         <div
           style={{
@@ -58,7 +60,7 @@ export function ColonyFoundingPrompt({ planet, onFoundColony }: ColonyFoundingPr
             marginBottom: 8,
           }}
         >
-          Орбітальна позиція досягнута
+          {t('colony.orbital_position_reached')}
         </div>
         <div
           style={{
@@ -68,8 +70,7 @@ export function ColonyFoundingPrompt({ planet, onFoundColony }: ColonyFoundingPr
             lineHeight: '1.5',
           }}
         >
-          Корабель вийшов на стабільну орбіту навколо планети {planet.name}.
-          Усі системи готові до посадки.
+          {t('colony.ship_in_orbit', { planet: planet.name })}
         </div>
 
         {/* Planet quick stats */}
@@ -85,17 +86,17 @@ export function ColonyFoundingPrompt({ planet, onFoundColony }: ColonyFoundingPr
           }}
         >
           <div>
-            <div style={{ fontSize: 9, color: '#556677', marginBottom: 3 }}>ПРИДАТНIСТЬ</div>
+            <div style={{ fontSize: 9, color: '#556677', marginBottom: 3 }}>{t('colony.label_habitability')}</div>
             <div style={{ fontSize: 14, color: '#44ff88', fontWeight: 'bold' }}>
               {Math.round(planet.habitability.overall * 100)}%
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 9, color: '#556677', marginBottom: 3 }}>ТИП</div>
+            <div style={{ fontSize: 9, color: '#556677', marginBottom: 3 }}>{t('colony.label_type')}</div>
             <div style={{ fontSize: 12, color: '#aabbcc' }}>{planet.type}</div>
           </div>
           <div>
-            <div style={{ fontSize: 9, color: '#556677', marginBottom: 3 }}>ТЕМПЕРАТУРА</div>
+            <div style={{ fontSize: 9, color: '#556677', marginBottom: 3 }}>{t('colony.label_temperature')}</div>
             <div style={{ fontSize: 12, color: '#aabbcc' }}>
               {Math.round(planet.surfaceTempK)} K
               <span style={{ fontSize: 10, color: '#778899', marginLeft: 4 }}>
@@ -126,7 +127,7 @@ export function ColonyFoundingPrompt({ planet, onFoundColony }: ColonyFoundingPr
             transition: 'background 0.2s',
           }}
         >
-          ЗАСНУВАТИ КОЛОНIЮ
+          {t('colony.found_colony_btn')}
         </button>
       </div>
     </div>

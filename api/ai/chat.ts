@@ -20,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const auth = await authenticate(req, res);
     if (!auth) return;
 
-    if (!RATE_LIMITS.aiChat(auth.playerId)) {
+    if (!await RATE_LIMITS.aiChat(auth.playerId)) {
       return res.status(429).json({ error: 'A.S.T.R.A. перевантажена. Зачекайте хвилину.' });
     }
 
