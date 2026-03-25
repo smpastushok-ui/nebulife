@@ -100,6 +100,8 @@ import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { DigestModal } from './ui/components/DigestModal.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
+import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
+import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
 import type { CosmicArchiveHandle } from './ui/components/CosmicArchive/CosmicArchive.js';
 import type { LogEntry, LogCategory } from './ui/components/CosmicArchive/SystemLog.js';
@@ -802,6 +804,31 @@ export function App() {
   const [showPlayerPage, setShowPlayerPage] = useState(false);
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
+  const [showAcademy, setShowAcademy] = useState(false);
+  const [sharedLessonInfo, setSharedLessonInfo] = useState<SharedLessonInfo | null>(() => {
+    // Read share params from URL on first load
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const lesson = params.get('share_lesson');
+      const from = params.get('from');
+      const title = params.get('title');
+      if (lesson && from) {
+        // Clean params from URL without a page reload
+        params.delete('share_lesson');
+        params.delete('from');
+        params.delete('title');
+        const clean = params.toString() ? `?${params.toString()}` : window.location.pathname;
+        window.history.replaceState({}, '', clean);
+        return { fromPlayerName: from, title: title ?? lesson };
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
+
+  // Auto-open Academy when arriving via a shared lesson link
+  useEffect(() => {
+    if (sharedLessonInfo) setShowAcademy(true);
+  }, [sharedLessonInfo]);
   const cosmicArchiveRef = useRef<CosmicArchiveHandle>(null);
   const [highlightedGalleryType, setHighlightedGalleryType] = useState<string | null>(null);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
@@ -3737,6 +3764,20 @@ export function App() {
     }],
   });
 
+  // Academy button — visible only after colonization
+  if (evacuationPhase === 'surface') {
+    toolGroups.push({
+      type: 'buttons',
+      items: [{
+        id: 'academy',
+        label: 'АКАДЕМІЯ',
+        variant: 'terminal' as const,
+        tooltip: 'Космічна Академія',
+        onClick: () => setShowAcademy(true),
+      }],
+    });
+  }
+
 
 
   if (state.error) {
@@ -4628,6 +4669,19 @@ export function App() {
           onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
           systemPhotos={systemPhotos}
           colonyResources={colonyResources}
+        />
+      )}
+
+      {/* Academy Dashboard */}
+      {showAcademy && (
+        <AcademyDashboard
+          onClose={() => setShowAcademy(false)}
+          onNavigateToGalaxy={() => {
+            setShowAcademy(false);
+            handleStartExploration();
+          }}
+          playerName={state.playerName}
+          sharedLessonInfo={sharedLessonInfo}
         />
       )}
 

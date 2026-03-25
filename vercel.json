@@ -22,6 +22,7 @@
     { "path": "/api/cron/weekly-digest", "schedule": "0 8 * * 1" },
     { "path": "/api/cron/digest-images", "schedule": "* * * * *" },
     { "path": "/api/cron/digest-emails", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/digest-pushes", "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/digest-pushes", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/daily-lesson", "schedule": "0 11 * * *" }
   ]
 }

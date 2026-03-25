@@ -83,6 +83,18 @@ function planetTypeKey(type: Planet['type']): string {
     case 'gas-giant':   return 'planet.gas_giant';
     case 'ice-giant':   return 'planet.ice_giant';
     case 'dwarf':       return 'planet.dwarf';
+    default:            return type;
+  }
+}
+
+function planetTypeName(t: Planet['type']): string {
+  switch (t) {
+    case 'rocky':       return 'Скелясте';
+    case 'terrestrial': return 'Земноподібне';
+    case 'gas-giant':   return 'Газовий гігант';
+    case 'ice-giant':   return 'Крижаний гігант';
+    case 'dwarf':       return 'Карликова';
+    default:            return t;
   }
 }
 

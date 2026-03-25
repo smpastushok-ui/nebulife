@@ -173,7 +173,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         background:      0x020510,
         antialias:       false,
         autoDensity:     true,
-        resolution:      window.devicePixelRatio || 1,
+        resolution:      Math.min(window.devicePixelRatio || 1, 1.5),
         preference:      'webgl',
       }).then(async () => {
         container.appendChild(app.canvas);

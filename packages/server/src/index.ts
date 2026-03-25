@@ -107,6 +107,13 @@ export {
   completeIdempotencyKey,
   // Account Deletion
   deletePlayerData,
+  // Academy
+  getAcademyProgress,
+  createAcademyProgress,
+  updateAcademyProgress,
+  getCachedLesson,
+  saveCachedLesson,
+  getOnboardedPlayerIds,
 } from './db.js';
 
 export type {
@@ -125,6 +132,8 @@ export type {
   DMChannelInfo,
   ReportRow,
   WeeklyDigestRow,
+  AcademyProgressRow,
+  AcademyLessonRow,
 } from './db.js';
 
 // Weekly Digest Generator
@@ -180,6 +189,10 @@ export type { GeminiGenerateImageRequest, GeminiGenerateImageResult, ModerationR
 
 // A.S.T.R.A. system prompt
 export { ASTRA_SYSTEM_PROMPT } from './astra-prompt.js';
+
+// Education generator
+export { generateEducationPackage, generateLessonImage } from './education-generator.js';
+export type { GeneratedLesson } from './education-generator.js';
 
 // Surface photo analyzer
 export { analyzePhotoForZones } from './surface-analyzer.js';

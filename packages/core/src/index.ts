@@ -8,3 +8,4 @@ export * from './biology/index.js';
 export * from './generation/index.js';
 export * from './game/index.js';
 export * from './utils/index.js';
+export * from './education/index.js';

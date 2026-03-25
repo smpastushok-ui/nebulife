@@ -38,6 +38,9 @@ export class FogLayer {
   /** True when revealed set changed since last redraw. */
   private dirty = true;
 
+  /** Debounce timer handle — persist() writes to localStorage at most once per 2 s. */
+  private _persistTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(gridSize: number, planetId: string) {
     this.gridSize   = gridSize;
     this.storageKey = `fog_${planetId}`;
@@ -141,9 +144,16 @@ export class FogLayer {
   // ─── Persistence ──────────────────────────────────────────────────────────
 
   private persist(): void {
-    try {
-      localStorage.setItem(this.storageKey, JSON.stringify([...this.revealedCells]));
-    } catch { /* quota exceeded — ignore */ }
+    // Debounce: write to localStorage at most once every 2 seconds.
+    // The rover moves cell-by-cell, triggering many rapid reveals — batching
+    // prevents repeated JSON serialisation + localStorage writes each frame.
+    if (this._persistTimer !== null) return;
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      try {
+        localStorage.setItem(this.storageKey, JSON.stringify([...this.revealedCells]));
+      } catch { /* quota exceeded — ignore */ }
+    }, 2000);
   }
 
   private restore(): void {

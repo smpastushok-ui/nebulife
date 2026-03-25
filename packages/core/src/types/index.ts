@@ -33,3 +33,10 @@ export {
 } from './logistics.js';
 export type { CoreSystem, GalaxyGroupCore, GalaxyGroup } from './galaxy-group.js';
 export type { GalacticPosition, GalaxyGroupMeta, PlayerGalaxyAssignment } from './galaxy-map.js';
+export type {
+  TopicCategoryId, DifficultyTier, QuestType,
+  TopicCategory, TopicSubcategory, TopicLesson,
+  QuestCriteria, EducationQuest, EducationQuiz,
+  DailyEducationPackage, ActiveQuest,
+  CategoryProgressEntry, AcademyProgress,
+} from './education.js';

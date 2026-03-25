@@ -57,7 +57,7 @@ export class GameEngine {
       background: 0x020510,
       resizeTo: this.container,
       antialias: true,
-      resolution: window.devicePixelRatio || 1,
+      resolution: Math.min(window.devicePixelRatio || 1, 1.5),
       autoDensity: true,
     });
 

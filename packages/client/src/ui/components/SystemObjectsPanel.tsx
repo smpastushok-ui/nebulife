@@ -72,6 +72,7 @@ function planetTypeName(type: PlanetType, t: (k: string) => string): string {
     case 'gas-giant':   return t('system.type_gas_giant');
     case 'ice-giant':   return t('system.type_ice_giant');
     case 'dwarf':       return t('system.type_dwarf');
+    default:            return type;
   }
 }
 
