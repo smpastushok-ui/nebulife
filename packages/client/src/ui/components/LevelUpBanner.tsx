@@ -57,6 +57,10 @@ export const LevelUpBanner: React.FC<LevelUpBannerProps> = ({ level, onDone }) =
   const { t } = useTranslation();
   const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
+  // Use a ref for onDone to avoid resetting the timer on every re-render.
+  // Only the `level` change should restart the 3-second countdown.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => { injectStyles(); }, []);
 
@@ -65,12 +69,12 @@ export const LevelUpBanner: React.FC<LevelUpBannerProps> = ({ level, onDone }) =
     // Clear any pending timer
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      onDone();
-    }, 3400);
+      onDoneRef.current();
+    }, 3000);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [level, onDone]);
+  }, [level]); // Only reset when level changes, NOT when onDone reference changes
 
   if (level === null) return null;
 

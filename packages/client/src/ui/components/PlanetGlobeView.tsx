@@ -1161,7 +1161,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         200,
       );
       // Camera on the STAR side: star is at (-8, 6, -15), so camera on that side
-      camera.position.set(-1.4, 1.0, -2.2); // same quadrant as star position
+      // Start at max zoom-out (~7.5 units = near maxDistance 8) so planet is small on entry
+      camera.position.set(-3.76, 2.68, -5.90); // same direction as (-1.4, 1.0, -2.2) but at ~7.5 distance
 
       // --- Renderer ---
       const renderer = new THREE.WebGLRenderer({

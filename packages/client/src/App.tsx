@@ -75,6 +75,7 @@ import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js'
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
 import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
+import { ResourceDescriptionModal, type ResourceType } from './ui/components/ResourceDescriptionModal.js';
 import { ResourceWidget } from './ui/components/ResourceWidget.js';
 import { BuildingQuest } from './ui/components/BuildingQuest.js';
 import { ResourceFlyDot } from './ui/components/ResourceFlyDot.js';
@@ -390,6 +391,8 @@ export function App() {
   });
 
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
+  // Queue of pending level-up levels (shown one at a time, no overlap with major modals)
+  const [levelUpQueue, setLevelUpQueue] = useState<number[]>([]);
   const gameStateRef = useRef<Record<string, unknown>>({});
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncGameStateRef = useRef<() => void>(() => {});
@@ -660,6 +663,19 @@ export function App() {
     && !popupQueueBlocked
     ? completedModalQueue[0] : null;
 
+  /**
+   * Dequeue level-up notifications one at a time.
+   * Only show when no major modals are blocking (telemetry, observatory, discovery, completedModal).
+   */
+  useEffect(() => {
+    if (levelUpNotification !== null) return; // Already showing one
+    if (levelUpQueue.length === 0) return;
+    if (telemetryTarget || observatoryTarget || pendingDiscovery || completedModal || popupQueueBlocked) return;
+    const [next, ...rest] = levelUpQueue;
+    setLevelUpNotification(next);
+    setLevelUpQueue(rest);
+  }, [levelUpNotification, levelUpQueue, telemetryTarget, observatoryTarget, pendingDiscovery, completedModal, popupQueueBlocked]);
+
   /** Gallery: map object_type → existing DiscoveryData (with photo) for duplicate check */
   const [galleryMap, setGalleryMap] = useState<Map<string, DiscoveryData>>(new Map());
 
@@ -734,9 +750,10 @@ export function App() {
       );
       if (gameSecs > 0) return; // Not expired yet
       if (evacuationTargetRef.current) return; // Already have a target
-      timerExpiredHandledRef.current = true;
+      if (timerExpiredHandledRef.current) return; // Already triggered
 
       // Time's up — ALWAYS evacuate to the paradise planet in Ring 1
+      // Wait for engine to be ready (don't mark handled yet — retry next tick if needed)
       const engine = engineRef.current;
       if (!engine) return;
       const allSystems = engine.getAllSystems();
@@ -745,6 +762,8 @@ export function App() {
       const target = findParadisePlanet(allSystems);
 
       if (target) {
+        // Mark handled ONLY after successful trigger (so we don't lock out retries on early engine check)
+        timerExpiredHandledRef.current = true;
         setForcedEvacuation(true);
         setEvacuationTarget(target);
         // Auto-complete research for evacuation target system
@@ -778,6 +797,7 @@ export function App() {
   /** Quarks (in-game currency) */
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showResourceModal, setShowResourceModal] = useState<ResourceType | null>(null);
   const [showPlayerPage, setShowPlayerPage] = useState(false);
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
@@ -3041,8 +3061,7 @@ export function App() {
 
       if (newLevel > oldLevel) {
         setPlayerLevel(newLevel);
-        setLevelUpNotification(newLevel);
-        setTimeout(() => setLevelUpNotification(null), 4000);
+        setLevelUpQueue(q => [...q, newLevel]);
         addLogEntry('system', `Рiвень пiдвищено до ${newLevel}!`);
 
         // Auto-research all newly available technologies (cascade — new prereqs may unlock more)
@@ -3722,6 +3741,12 @@ export function App() {
         volatiles={colonyResources.volatiles}
         isotopes={colonyResources.isotopes}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
+        onObservatoriesClick={() => setShowResourceModal('observatories')}
+        onResearchDataClick={() => setShowResourceModal('research_data')}
+        onMineralsClick={() => setShowResourceModal('minerals')}
+        onVolatilesClick={() => setShowResourceModal('volatiles')}
+        onIsotopesClick={() => setShowResourceModal('isotopes')}
+        onQuarksClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
         countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && evacuationPhase === 'idle' ? countdownText : undefined}
         countdownUrgent={countdownUrgent}
         onTimerClick={evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed ? () => setEvacuationPromptDismissed(false) : undefined}
@@ -4508,6 +4533,14 @@ export function App() {
           playerId={playerId.current}
           currentBalance={quarks}
           onClose={() => setShowTopUpModal(false)}
+        />
+      )}
+
+      {/* Resource description modal */}
+      {showResourceModal && (
+        <ResourceDescriptionModal
+          resource={showResourceModal}
+          onClose={() => setShowResourceModal(null)}
         />
       )}
 

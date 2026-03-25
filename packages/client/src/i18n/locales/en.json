@@ -717,7 +717,22 @@
     "minerals_title": "Minerals — building resource",
     "volatiles_title": "Volatiles — fuel and chemistry",
     "isotopes_title": "Isotopes — energy resource",
-    "quarks_title": "Quarks — universal currency"
+    "quarks_title": "Quarks — universal currency",
+    "desc": {
+      "observatories_name": "Observatories",
+      "observatories_desc": "Active research stations in stellar orbits. Each observatory scans a star system, collects spectral data, and detects anomalies.",
+      "research_data_name": "Research Data",
+      "research_data_desc": "Accumulated results of telescopic observation and spectral analysis. Consumed when launching research of new star systems.",
+      "research_data_elements": "Electromagnetic spectrum, radio waves, gravitational mapping, neutrino flux",
+      "minerals_name": "Minerals",
+      "minerals_desc": "Solid rock and metals extracted from the planet's crust. The primary building resource for colonial structures.",
+      "volatiles_name": "Volatiles",
+      "volatiles_desc": "Liquids and gases from the surface and atmosphere. Used as fuel, chemical feedstock, and for life support systems.",
+      "isotopes_name": "Isotopes",
+      "isotopes_desc": "Radioactive and rare isotopes from the planet's mantle and core. The primary energy source for reactors and warp drives.",
+      "quarks_name": "Quarks",
+      "quarks_desc": "The in-game currency unit. Used to expand the fleet, generate AI images, and unlock premium features."
+    }
   },
 
   "scientific_report": {
