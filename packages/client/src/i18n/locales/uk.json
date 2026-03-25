@@ -241,7 +241,8 @@
     "panel_scan_btn": "Сканувати",
     "panel_insufficient_data": "Недостатньо дослідницьких даних",
     "panel_ring_locked": "Спершу дослідіть Кільце {{ring}}",
-    "panel_no_slots": "Немає вільних обсерваторій"
+    "panel_no_slots": "Немає вільних обсерваторій",
+    "actions_unavailable": "Дії недоступні"
   },
 
   "surface": {

@@ -241,7 +241,8 @@
     "panel_scan_btn": "Scan",
     "panel_insufficient_data": "Insufficient research data",
     "panel_ring_locked": "Research Ring {{ring}} first",
-    "panel_no_slots": "No free observatories"
+    "panel_no_slots": "No free observatories",
+    "actions_unavailable": "Actions unavailable"
   },
 
   "surface": {

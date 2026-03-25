@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet } from '@nebulife/core';
 
 const panelStyle: React.CSSProperties = {
-  position: 'absolute', right: 16, top: 48, width: 300,
+  position: 'absolute', right: 16, top: '20%', width: 300,
   background: 'rgba(10,15,25,0.92)', border: '1px solid #334455',
   borderRadius: 4, padding: 16, fontFamily: 'monospace', color: '#aabbcc',
-  fontSize: 11, pointerEvents: 'auto', maxHeight: 'calc(100vh - 100px)',
+  fontSize: 11, pointerEvents: 'auto', maxHeight: '60vh',
   overflowY: 'auto',
 };
 
@@ -16,14 +16,23 @@ const headerStyle: React.CSSProperties = {
 };
 
 const groupStyle: React.CSSProperties = {
-  marginBottom: 12, paddingBottom: 8,
+  marginBottom: 0, paddingBottom: 0,
   borderBottom: '1px solid rgba(50,60,80,0.3)',
 };
 
 const groupTitleStyle: React.CSSProperties = {
-  marginBottom: 6, color: '#667788', fontSize: 10,
+  marginBottom: 0, color: '#667788', fontSize: 10,
   textTransform: 'uppercase' as const, letterSpacing: 1.5,
+  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+  cursor: 'pointer', padding: '8px 0',
+  userSelect: 'none',
 };
+
+const chevronStyle = (open: boolean): React.CSSProperties => ({
+  fontSize: 9, color: '#556677',
+  transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+  transition: 'transform 0.15s',
+});
 
 const subSectionStyle: React.CSSProperties = {
   marginTop: 6, marginBottom: 3, color: '#556677', fontSize: 9,
@@ -52,6 +61,20 @@ const closeBtnStyle: React.CSSProperties = {
   color: '#667788', fontSize: 16, fontFamily: 'monospace',
 };
 
+/** Collapsible section wrapper */
+function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={groupStyle}>
+      <div style={groupTitleStyle} onClick={() => setOpen(o => !o)}>
+        <span>{title}</span>
+        <span style={chevronStyle(open)}>&#x25B6;</span>
+      </div>
+      {open && <div style={{ paddingBottom: 8 }}>{children}</div>}
+    </div>
+  );
+}
+
 export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledReason }: {
   planet: Planet;
   onClose: () => void;
@@ -73,29 +96,25 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
       </div>
 
       {/* --- Group 1: Physical --- */}
-      <div style={groupStyle}>
-        <div style={groupTitleStyle}>{t('planet_info.group_physical')}</div>
+      <Section title={t('planet_info.group_physical')}>
         <div style={rowStyle}><span>{t('planet_info.type')}</span><span style={{ textTransform: 'capitalize' }}>{typeLabel}</span></div>
         <div style={rowStyle}><span>{t('planet_info.mass')}</span><span>{planet.massEarth} M&#x2295;</span></div>
         <div style={rowStyle}><span>{t('planet_info.radius')}</span><span>{planet.radiusEarth} R&#x2295;</span></div>
         <div style={rowStyle}><span>{t('planet_info.density')}</span><span>{planet.densityGCm3} g/cm&sup3;</span></div>
         <div style={rowStyle}><span>{t('planet_info.gravity')}</span><span>{planet.surfaceGravityG}g</span></div>
         <div style={rowStyle}><span>{t('planet_info.escape_vel')}</span><span>{planet.escapeVelocityKmS} km/s</span></div>
-      </div>
+      </Section>
 
       {/* --- Group 2: Orbital --- */}
-      <div style={groupStyle}>
-        <div style={groupTitleStyle}>{t('planet_info.group_orbital')}</div>
+      <Section title={t('planet_info.group_orbital')}>
         <div style={rowStyle}><span>{t('planet_info.distance')}</span><span>{planet.orbit.semiMajorAxisAU.toFixed(3)} AU</span></div>
         <div style={rowStyle}><span>{t('planet_info.period')}</span><span>{planet.orbit.periodDays.toFixed(1)} {t('planet_info.days')}</span></div>
         <div style={rowStyle}><span>{t('planet_info.eccentricity')}</span><span>{planet.orbit.eccentricity.toFixed(3)}</span></div>
         <div style={rowStyle}><span>{t('planet_info.zone')}</span><span style={{ color: planet.zone === 'habitable' ? '#44aa66' : '#889999' }}>{planet.zone}</span></div>
-      </div>
+      </Section>
 
       {/* --- Group 3: Climate --- */}
-      <div style={groupStyle}>
-        <div style={groupTitleStyle}>{t('planet_info.group_climate')}</div>
-
+      <Section title={t('planet_info.group_climate')}>
         <div style={subSectionStyle}>{t('planet_info.temperature')}</div>
         <div style={rowStyle}><span>{t('planet_info.equilibrium')}</span><span>{planet.equilibriumTempK} K</span></div>
         <div style={rowStyle}><span>{t('planet_info.surface_temp')}</span><span>{planet.surfaceTempK} K ({(planet.surfaceTempK - 273.15).toFixed(0)}&deg;C)</span></div>
@@ -129,11 +148,10 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
             <div style={rowStyle}><span>{t('planet_info.ice_caps')}</span><span>{(planet.hydrosphere.iceCapFraction * 100).toFixed(1)}%</span></div>
           </>
         )}
-      </div>
+      </Section>
 
       {/* --- Group 4: Biology --- */}
-      <div style={groupStyle}>
-        <div style={groupTitleStyle}>{t('planet_info.group_biology')}</div>
+      <Section title={t('planet_info.group_biology')}>
         <div style={rowStyle}>
           <span>{t('planet_info.life')}</span>
           <span style={{ color: planet.hasLife ? '#44ff88' : '#667788' }}>
@@ -148,24 +166,22 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
         <div style={rowStyle}><span>{t('planet_info.hab_water')}</span><Bar value={hab.water} /></div>
         <div style={rowStyle}><span>{t('planet_info.hab_magnetic')}</span><Bar value={hab.magneticField} /></div>
         <div style={rowStyle}><span>{t('planet_info.hab_gravity')}</span><Bar value={hab.gravity} /></div>
-      </div>
+      </Section>
 
       {/* --- Group 5: Moons --- */}
       {planet.moons.length > 0 && (
-        <div style={groupStyle}>
-          <div style={groupTitleStyle}>{t('planet_info.group_moons', { count: planet.moons.length })}</div>
+        <Section title={t('planet_info.group_moons', { count: planet.moons.length })}>
           {planet.moons.map(moon => (
             <div key={moon.id} style={rowStyle}>
               <span>{moon.name}</span>
               <span>{moon.radiusKm.toFixed(0)} km</span>
             </div>
           ))}
-        </div>
+        </Section>
       )}
 
       {/* --- Group 6: Colonization --- */}
-      <div style={groupStyle}>
-        <div style={groupTitleStyle}>{t('planet_info.group_colonization')}</div>
+      <Section title={t('planet_info.group_colonization')}>
         <div style={rowStyle}>
           <span>{t('planet_info.terraform_difficulty')}</span>
           <span>{(planet.terraformDifficulty * 100).toFixed(0)}%</span>
@@ -176,7 +192,7 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
             {planet.isColonizable ? t('planet_info.yes') : t('planet_info.no')}
           </span>
         </div>
-      </div>
+      </Section>
 
       {/* --- Surface button (home planet / colonized) --- */}
       {onSurface && (planet.isHomePlanet || planet.isColonizable) && (

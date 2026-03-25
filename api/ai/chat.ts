@@ -55,10 +55,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Load conversation history from DB
     const channel = `astra:${auth.playerId}`;
     const dbMessages = await getMessages(channel, 20);
-    const history: AstraMessage[] = dbMessages.map(m => ({
+
+    // Build history — filter out consecutive same-role messages
+    // (can happen if previous request saved user msg but Gemini response save failed)
+    const rawHistory: AstraMessage[] = dbMessages.map(m => ({
       role: (m.sender_id === 'astra' ? 'model' : 'user') as 'user' | 'model',
       text: m.content,
     }));
+    const history: AstraMessage[] = [];
+    for (const msg of rawHistory) {
+      if (history.length > 0 && history[history.length - 1].role === msg.role) {
+        // Skip consecutive same-role — keep only the latest
+        history[history.length - 1] = msg;
+      } else {
+        history.push(msg);
+      }
+    }
+    // Ensure history ends with 'model' if it ends with 'user' (avoid double user messages with the new one)
+    if (history.length > 0 && history[history.length - 1].role === 'user') {
+      history.pop();
+    }
 
     // Get player callsign
     const player = await getPlayer(auth.playerId);
@@ -68,15 +84,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const trimmed = message.trim();
     await saveMessage(auth.playerId, callsign, channel, trimmed);
 
-    // Call Gemini with context (this can take 5-25s)
+    // Call Gemini with context (this can take 5-25s; never throws)
     const result = await chatWithAstra(trimmed, history);
 
-    // Save A.S.T.R.A. response
-    await saveMessage('astra', 'A.S.T.R.A.', channel, result.text);
+    // Save A.S.T.R.A. response (even if it's a fallback error text)
+    try {
+      await saveMessage('astra', 'A.S.T.R.A.', channel, result.text);
+    } catch (saveErr) {
+      console.error('[AI chat] Failed to save A.S.T.R.A. response:', saveErr);
+      // Still return the response to the client even if DB save fails
+    }
 
     // Track token usage
     if (result.totalTokens > 0) {
-      await addAstraUsage(auth.playerId, result.totalTokens);
+      try {
+        await addAstraUsage(auth.playerId, result.totalTokens);
+      } catch (usageErr) {
+        console.error('[AI chat] Failed to track token usage:', usageErr);
+      }
     }
 
     const newRemaining = Math.max(0, remaining - result.totalTokens);
@@ -88,7 +113,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       limitReached: newRemaining <= 0,
     });
   } catch (err) {
-    console.error('AI chat error:', err);
-    return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
+    console.error('[AI chat] Unhandled error:', err);
+    // Return the Astra fallback as 200 instead of cryptic 500
+    return res.status(200).json({
+      text: 'A.S.T.R.A. offline. Спробуйте пізніше, Командоре.',
+      tokensUsed: 0,
+      tokensRemaining: 0,
+      limitReached: false,
+    });
   }
 }
