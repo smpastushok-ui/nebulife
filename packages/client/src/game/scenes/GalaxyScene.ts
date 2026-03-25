@@ -835,17 +835,19 @@ export class GalaxyScene {
     const state = this.getState(node.system);
     const prog = getResearchProgress(researchState, systemId);
 
+    // Detect progress increment — must be outside 'researching' guard so the
+    // gain label fires immediately when the session ends (slot is freed, state
+    // transitions to 'unexplored'), not on the NEXT session start.
+    const oldProg = this.prevProgress.get(systemId);
+    if (oldProg !== undefined && prog > oldProg) {
+      const delta = prog - oldProg;
+      if (delta >= 0.5) this.spawnResearchGainLabel(node, delta);
+    }
+    this.prevProgress.set(systemId, prog);
+
     if (state === 'researching') {
       node.starState = 'researching';
       node.baseAlpha = 0.75 + (prog / 100) * 0.25;
-
-      // Detect progress increment and spawn gain label
-      const oldProg = this.prevProgress.get(systemId);
-      if (oldProg !== undefined && prog > oldProg) {
-        const delta = prog - oldProg;
-        if (delta >= 0.5) this.spawnResearchGainLabel(node, delta);
-      }
-      this.prevProgress.set(systemId, prog);
 
       if (!node.scanArc) {
         node.scanArc = new Graphics();
