@@ -2043,17 +2043,36 @@ export function App() {
 
   // ── Planet access checks ────────────────────────────────────────────
   // Surface landing: blocked before first evacuation; after — home planet or level 50+
-  const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string; chaos?: boolean } => {
-    // Before evacuation starts — ALL surface access blocked with chaos popup
-    if (evacuationPhase === 'idle') {
+  const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string; chaos?: boolean; hidden?: boolean } => {
+    const isHome = planet.isHomePlanet || (homeInfo != null && planet.id === homeInfo.planet.id);
+
+    // Level 50+ can access any planet's surface
+    if (playerLevel >= 50) {
+      // But home planet during pre-evacuation chaos is still blocked
+      if (isHome && isExodusPhase && evacuationPhase === 'idle') {
+        return { allowed: false, chaos: true };
+      }
+      return { allowed: true };
+    }
+
+    // Before level 50: only home planet (or colonizable after evacuation) shows the surface button
+    if (!isHome && !planet.isColonizable) {
+      return { allowed: false, hidden: true };
+    }
+
+    // Home planet during exodus-phase chaos — blocked but show chaos modal
+    if (isHome && isExodusPhase && evacuationPhase === 'idle') {
       return { allowed: false, chaos: true };
     }
-    // Home planet — always accessible once evacuation has begun
-    if (planet.isHomePlanet) return { allowed: true };
-    if (homeInfo && planet.id === homeInfo.planet.id) return { allowed: true };
-    if (playerLevel >= 50) return { allowed: true };
-    return { allowed: false, reason: t('errors.level50Required') };
-  }, [homeInfo, playerLevel, evacuationPhase, t]);
+
+    // Home planet in non-exodus phase — surface accessible
+    if (isHome) return { allowed: true };
+
+    // Colonizable planet — accessible only after evacuation is done
+    if (planet.isColonizable && evacuationPhase !== 'idle') return { allowed: true };
+
+    return { allowed: false, hidden: true };
+  }, [homeInfo, playerLevel, isExodusPhase, evacuationPhase]);
 
   // Exosphere: always accessible if system is researched (menu only shows in researched systems)
   const handleViewPlanet = useCallback(() => {
@@ -4261,7 +4280,7 @@ export function App() {
           onViewPlanet={handleViewPlanet}
           onShowCharacteristics={handleShowCharacteristics}
           onClose={handleClosePlanetMenu}
-          onSurface={handleOpenSurface}
+          onSurface={canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
           onTelescopePhoto={handlePlanetTelescopePhoto}
@@ -4274,7 +4293,7 @@ export function App() {
         <PlanetInfoPanel
           planet={state.selectedPlanet}
           onClose={() => setState((prev) => ({ ...prev, showPlanetInfo: false, selectedPlanet: null }))}
-          onSurface={handleOpenSurface}
+          onSurface={canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
         />
       )}

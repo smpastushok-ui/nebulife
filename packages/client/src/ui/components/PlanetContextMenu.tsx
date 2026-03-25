@@ -543,7 +543,7 @@ export function PlanetContextMenu({
           {activeTab === 'actions' && (
             <>
               <MenuItem icon="◎" label={t('nav.exosphere')} onClick={onViewPlanet} color="#88ccaa" />
-              {isSurfacePlanet && (
+              {isSurfacePlanet && onSurface && (
                 surfaceDisabledReason
                   ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
                   : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={onSurface} color="#88ccaa" />
