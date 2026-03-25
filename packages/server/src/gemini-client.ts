@@ -201,7 +201,8 @@ export async function chatWithAstra(
       },
     ];
 
-    const response = await ai.models.generateContent({
+    // Race the Gemini call against a 20-second timeout to avoid Vercel function hang
+    const geminiPromise = ai.models.generateContent({
       model: ASTRA_MODEL,
       contents,
       config: {
@@ -209,13 +210,18 @@ export async function chatWithAstra(
         thinkingConfig: { thinkingBudget: 512 },
       },
     });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Gemini timeout')), 20_000),
+    );
+    const response = await Promise.race([geminiPromise, timeoutPromise]);
 
     const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
     const usage = response.usageMetadata;
     const totalTokens = usage?.totalTokenCount ?? 0;
 
     return { text: text.trim(), totalTokens };
-  } catch {
+  } catch (err) {
+    console.error('[ASTRA] Gemini error:', err instanceof Error ? err.message : err);
     return { text: 'A.S.T.R.A. offline. Спробуйте пізніше, Командоре.', totalTokens: 0 };
   }
 }

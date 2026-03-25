@@ -270,7 +270,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     openDM(ch, peerCallsign);
   };
 
-  // A.S.T.R.A. send
+  // A.S.T.R.A. send (with optimistic update for instant feedback)
   const handleAstraSend = async () => {
     const text = astraInput.trim();
     if (!text || astraLoading || astraLimitReached) return;
@@ -278,17 +278,47 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     setAstraInput('');
     setAstraLoading(true);
 
+    // Show user message immediately (optimistic update)
+    const now = new Date().toISOString();
+    const userMsg: MessageData = {
+      id: `tmp_${Date.now()}`,
+      sender_id: playerId,
+      sender_name: playerName,
+      channel: `astra:${playerId}`,
+      content: text,
+      created_at: now,
+    };
+    setAstraMessages(prev => [...prev, userMsg]);
+
     try {
       const resp = await askAstra(text);
       setAstraTokensRemaining(resp.tokensRemaining);
       if (resp.limitReached) {
         setAstraLimitReached(true);
       }
-      // Refresh messages from DB
-      const msgs = await getMessages(`astra:${playerId}`, 40);
-      setAstraMessages(msgs);
+      // Show Astra response immediately (optimistic)
+      const astraMsg: MessageData = {
+        id: `tmp_${Date.now() + 1}`,
+        sender_id: 'astra',
+        sender_name: 'A.S.T.R.A.',
+        channel: `astra:${playerId}`,
+        content: resp.text,
+        created_at: new Date().toISOString(),
+      };
+      setAstraMessages(prev => [...prev, astraMsg]);
+      // Background sync with DB to get real IDs
+      getMessages(`astra:${playerId}`, 40).then(msgs => setAstraMessages(msgs)).catch(() => {});
     } catch {
-      // Show error inline (not persisted)
+      // Show error as Astra message so user sees feedback
+      const errMsg: MessageData = {
+        id: `tmp_${Date.now() + 1}`,
+        sender_id: 'astra',
+        sender_name: 'A.S.T.R.A.',
+        channel: `astra:${playerId}`,
+        content: 'A.S.T.R.A. offline. Помилка зв\'язку з сервером.',
+        created_at: new Date().toISOString(),
+      };
+      setAstraMessages(prev => [...prev, errMsg]);
     } finally {
       setAstraLoading(false);
     }

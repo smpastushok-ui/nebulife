@@ -4,6 +4,11 @@ import { chatWithAstra, type AstraMessage } from '../../packages/server/src/gemi
 import { getMessages, saveMessage, getAstraUsage, addAstraUsage, getPlayer } from '../../packages/server/src/db.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 
+// Increase Vercel serverless timeout (Gemini can take 10-25s to respond)
+export const config = {
+  maxDuration: 30,
+};
+
 const FREE_DAILY_TOKENS = 1000;
 
 /**
@@ -55,16 +60,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       text: m.content,
     }));
 
-    // Call Gemini with context
-    const trimmed = message.trim();
-    const result = await chatWithAstra(trimmed, history);
-
-    // Get player callsign for saving message
+    // Get player callsign
     const player = await getPlayer(auth.playerId);
     const callsign = player?.callsign || 'Commander';
 
-    // Persist both messages to DB
+    // Save USER message FIRST (so it appears in chat even if Gemini times out)
+    const trimmed = message.trim();
     await saveMessage(auth.playerId, callsign, channel, trimmed);
+
+    // Call Gemini with context (this can take 5-25s)
+    const result = await chatWithAstra(trimmed, history);
+
+    // Save A.S.T.R.A. response
     await saveMessage('astra', 'A.S.T.R.A.', channel, result.text);
 
     // Track token usage
