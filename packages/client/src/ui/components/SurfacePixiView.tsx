@@ -19,7 +19,7 @@ import type { Planet, Star, PlacedBuilding, BuildingType, SurfaceObjectType, Tec
 import { HARVEST_DURATION_MS, BUILDING_DEFS, XP_REWARDS, HARVEST_YIELD } from '@nebulife/core';
 import { SurfaceScene }  from '../../game/scenes/SurfaceScene.js';
 import { SurfacePanel }          from './SurfacePanel.js';
-import BuildingInspectPopup      from './BuildingInspectPopup.js';
+import { BuildingMenu }           from './BuildingMenu/index.js';
 import { getBuildings, placeBuilding, removeBuilding } from '../../api/surface-api.js';
 import { screenToGrid, TILE_W, TILE_H, gridToScreen } from '../../game/scenes/surface-utils.js';
 
@@ -572,17 +572,20 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           />
         )}
 
-        {/* Building inspect popup */}
+        {/* Building menu (right panel) */}
         {inspectBuilding && (
-          <BuildingInspectPopup
+          <BuildingMenu
             building={inspectBuilding}
-            screenX={inspectPos.x}
-            screenY={inspectPos.y}
+            allBuildings={buildings}
             isDemolishing={demolishingIds.current.has(inspectBuilding.id)}
             onClose={() => setInspectBuilding(null)}
             onDemolish={() => {
               setDemolishConfirm(inspectBuilding);
               setInspectBuilding(null);
+            }}
+            onBuildingUpdated={(updated) => {
+              setBuildings(prev => prev.map(b => b.id === updated.id ? updated : b));
+              setInspectBuilding(updated);
             }}
           />
         )}

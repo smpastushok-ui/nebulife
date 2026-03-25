@@ -20,6 +20,8 @@ import PlanetGlobeView from './ui/components/PlanetGlobeView.js';
 import type { PlanetGlobeViewHandle } from './ui/components/PlanetGlobeView.js';
 import { SurfacePixiView as SurfaceShaderView } from './ui/components/SurfacePixiView.js';
 import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfacePixiView.js';
+import { ColonyProvider } from './ui/contexts/ColonyContext.js';
+import { upgradeBuilding as upgradeBuildingAPI } from './api/surface-api.js';
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
 import { SystemNavHeader } from './ui/components/SystemNavHeader.js';
 import { PlanetNavHeader } from './ui/components/PlanetNavHeader.js';
@@ -3132,6 +3134,21 @@ export function App() {
     setSurfaceTarget(null);
   }, []);
 
+  // Colony context value for BuildingMenu (reads resources directly via Context, avoids PixiJS re-renders)
+  const colonyContextValue = useMemo(() => ({
+    resources: colonyResources,
+    setResources: setColonyResources,
+    upgradeBuilding: async (buildingId: string) => {
+      try {
+        const result = await upgradeBuildingAPI(playerId.current, buildingId);
+        return result;
+      } catch (err) {
+        console.error('Upgrade building error:', err);
+        return null;
+      }
+    },
+  }), [colonyResources, setColonyResources]);
+
   // ── Home planet navigation handlers ─────────────────────────────────
   const handleGoToExosphere = useCallback(() => {
     if (!homeInfo) return;
@@ -4200,28 +4217,30 @@ export function App() {
       )}
       {/* Surface View (biosphere level) */}
       {surfaceTarget && (
-        <SurfaceShaderView
-          ref={surfaceViewRef}
-          planet={surfaceTarget.planet}
-          star={surfaceTarget.star}
-          playerId={playerId.current}
-          onClose={handleCloseSurface}
-          onBuildingCountChange={setSurfaceBuildingCount}
-          onBuildingPlaced={() => awardXP(XP_REWARDS.BUILDING_PLACED, 'building_placed')}
-          onHarvest={handleHarvest}
-          onHarvestFx={handleHarvestFx}
-          onPhaseChange={setSurfacePhase}
-          onBuildPanelChange={setSurfaceBuildPanelOpen}
-          playerLevel={playerLevel}
-          techTreeState={techTreeState}
-          isotopes={colonyResources.isotopes}
-          onConsumeIsotopes={(amount) => {
-            setColonyResources((prev) => ({
-              ...prev,
-              isotopes: Math.max(0, prev.isotopes - amount),
-            }));
-          }}
-        />
+        <ColonyProvider value={colonyContextValue}>
+          <SurfaceShaderView
+            ref={surfaceViewRef}
+            planet={surfaceTarget.planet}
+            star={surfaceTarget.star}
+            playerId={playerId.current}
+            onClose={handleCloseSurface}
+            onBuildingCountChange={setSurfaceBuildingCount}
+            onBuildingPlaced={() => awardXP(XP_REWARDS.BUILDING_PLACED, 'building_placed')}
+            onHarvest={handleHarvest}
+            onHarvestFx={handleHarvestFx}
+            onPhaseChange={setSurfacePhase}
+            onBuildPanelChange={setSurfaceBuildPanelOpen}
+            playerLevel={playerLevel}
+            techTreeState={techTreeState}
+            isotopes={colonyResources.isotopes}
+            onConsumeIsotopes={(amount) => {
+              setColonyResources((prev) => ({
+                ...prev,
+                isotopes: Math.max(0, prev.isotopes - amount),
+              }));
+            }}
+          />
+        </ColonyProvider>
       )}
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}
       {surfaceTarget && (
