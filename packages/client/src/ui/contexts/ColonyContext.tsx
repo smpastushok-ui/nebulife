@@ -13,6 +13,8 @@ export interface ColonyContextValue {
   upgradeBuilding: (buildingId: string) => Promise<PlacedBuilding | null>;
   /** Update storage slot type for resource_storage building */
   updateStorageType?: (buildingId: string, slotType: 'minerals' | 'volatiles' | 'isotopes') => void;
+  /** Report current buildings list so App can track quantum_computer presence */
+  reportBuildings?: (buildings: Array<{ type: string; shutdown?: boolean }>) => void;
 }
 
 const ColonyContext = createContext<ColonyContextValue | null>(null);

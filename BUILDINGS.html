@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Nebulife — Каталог будівель</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: monospace;
+  background: #020510;
+  color: #aabbcc;
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+h1 {
+  color: #7bb8ff;
+  font-size: 18px;
+  border-bottom: 1px solid #334455;
+  padding-bottom: 10px;
+  margin-bottom: 28px;
+}
+h2 {
+  color: #4488aa;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-left: 3px solid #4488aa;
+  padding-left: 10px;
+  margin: 36px 0 14px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 10px;
+}
+.card {
+  background: #0a0f19;
+  border: 1px solid #1e2e3e;
+  border-radius: 4px;
+  padding: 14px 16px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.name { color: #aabbcc; font-size: 13px; font-weight: bold; }
+.code { color: #445566; font-size: 10px; }
+.desc { color: #556677; font-size: 11px; margin-bottom: 10px; line-height: 1.4; }
+.tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+.tab {
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  background: #0d1828;
+  color: #7bb8ff;
+  border: 1px solid #1e3050;
+}
+.tab.extra { background: #0a1e18; color: #44ff88; border-color: #1a4030; }
+.tab.storage { background: #1e1008; color: #ff9944; border-color: #402010; }
+.stats { display: flex; flex-direction: column; gap: 4px; }
+.row { display: flex; justify-content: space-between; font-size: 11px; }
+.row .label { color: #667788; }
+.green { color: #44ff88; }
+.blue  { color: #7bb8ff; }
+.orange { color: #ff8844; }
+.red   { color: #cc4444; }
+.muted { color: #445566; }
+.divider { border: none; border-top: 1px solid #1a2535; margin: 8px 0; }
+.lv-row { font-size: 10px; color: #445566; margin-top: 8px; }
+.lv-row span { color: #667788; }
+.warn-box {
+  background: #180808;
+  border: 1px solid #401010;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 10px;
+  color: #cc4444;
+  margin-top: 6px;
+}
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  margin-right: 4px;
+}
+.badge-muted { background: #0d1525; color: #556677; border: 1px solid #1a2535; }
+.badge-blue  { background: #0a1828; color: #4488aa; border: 1px solid #1a3050; }
+.note {
+  background: #0a0f19;
+  border: 1px solid #334455;
+  border-radius: 4px;
+  padding: 14px 16px;
+  font-size: 12px;
+  color: #8899aa;
+  line-height: 2;
+  margin-top: 12px;
+}
+.note .issue { color: #cc4444; }
+</style>
+</head>
+<body>
+
+<h1>Nebulife — Каталог будівель &amp; меню (28 будівель)</h1>
+
+<!-- ═══════════════ INFRASTRUCTURE ═══════════════ -->
+<h2>Infrastructure</h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Центр колонії</span>
+      <span class="code">colony_hub</span>
+    </div>
+    <div class="desc">Головна база. Вбудована обсерваторія, туман у радіусі 30 кл.</div>
+    <div class="tabs">
+      <span class="tab">Стат.</span>
+      <span class="tab">Покращ.</span>
+    </div>
+    <div class="stats">
+      <div class="row"><span class="label">Енергія</span><span class="blue">+5/тік</span></div>
+      <div class="row"><span class="label">Дані дослідж.</span><span class="blue">+1/год</span></div>
+      <div class="row"><span class="label">Населення</span><span class="green">+500</span></div>
+      <div class="row"><span class="label">Туман</span><span class="blue">32 кл.</span></div>
+      <div class="row"><span class="label">Бонус (greenhouse поруч)</span><span class="green">+10% харч.</span></div>
+    </div>
+    <div class="lv-row">Покращ. lv1→5: <span>+20%/рівень до дослідж.</span></div>
+    <div class="warn-box">Зруйнувати — заблоковано</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 1</span><span class="badge badge-muted">lv 1</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Ресурсний модуль</span>
+      <span class="code">resource_storage</span>
+    </div>
+    <div class="desc">Розширює ємність сховища на +200 для обраного типу ресурсу.</div>
+    <div class="tabs">
+      <span class="tab">Стат.</span>
+      <span class="tab">Покращ.</span>
+      <span class="tab storage">Сховище</span>
+    </div>
+    <div class="stats">
+      <div class="row"><span class="label">Ємність (вибраний тип)</span><span class="green">+200</span></div>
+    </div>
+    <div class="lv-row">Сховище: radio мінерали / летючі / ізотопи</div>
+    <div class="lv-row">Покращ: lv1→<span>200</span> | lv2→<span>240</span> | lv3→<span>280</span> | lv4→<span>320</span> | lv5→<span>360</span></div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 6</span><span class="badge badge-muted">lv 3</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Посадковий майданчик</span>
+      <span class="code">landing_pad</span>
+    </div>
+    <div class="desc">Прийом малих кораблів, дронів. Виробництво юнітів.</div>
+    <div class="tabs">
+      <span class="tab">Стат.</span>
+      <span class="tab">Покращ.</span>
+      <span class="tab extra">Виробн.</span>
+    </div>
+    <div class="stats">
+      <div class="row"><span class="label">Споживання</span><span class="orange">-2 E/тік</span></div>
+    </div>
+    <hr class="divider">
+    <div class="stats">
+      <div class="row"><span class="label">scout_drone</span><span class="muted">розвідник</span></div>
+      <div class="row"><span class="label">mining_drone</span><span class="muted">дрон-добувач</span></div>
+      <div class="row"><span class="label">orbital_telescope_unit</span><span class="muted">орб. телескоп</span></div>
+    </div>
+    <div class="lv-row">Черга до 5 юнітів, прогрес-бар (timestamp-based)</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 2</span><span class="badge badge-muted">lv 18</span><span class="badge badge-blue">phy-thrust-1</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Космопорт</span>
+      <span class="code">spaceport</span>
+    </div>
+    <div class="desc">Будівництво та запуск кораблів. Потребує посадковий майданчик.</div>
+    <div class="tabs">
+      <span class="tab">Стат.</span>
+      <span class="tab">Покращ.</span>
+      <span class="tab extra">Виробн.</span>
+    </div>
+    <div class="stats">
+      <div class="row"><span class="label">Споживання</span><span class="orange">-8 E/тік</span></div>
+    </div>
+    <hr class="divider">
+    <div class="stats">
+      <div class="row"><span class="label">research_station_kit</span><span class="muted">станція досл.</span></div>
+      <div class="row"><span class="label">transport_small</span><span class="muted">малий транспорт</span></div>
+      <div class="row"><span class="label">transport_large</span><span class="muted">великий транспорт</span></div>
+      <div class="row"><span class="label">colony_ship</span><span class="muted">колоніальний корабель</span></div>
+    </div>
+    <div class="lv-row">Черга до 5 кораблів, прогрес-бар</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 1</span><span class="badge badge-muted">lv 35</span><span class="badge badge-blue">phy-orbital-mech</span></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ ENERGY ═══════════════ -->
+<h2>Energy</h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Сонячна станція</span>
+      <span class="code">solar_plant</span>
+    </div>
+    <div class="desc">Генерація від зірки. Ефективність залежить від відстані.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Генерація</span><span class="blue">+8 E/тік</span></div>
+      <div class="row"><span class="label">Бонус (mine поруч)</span><span class="green">+15% видобутку</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+8</span> | lv2→<span>+9.6</span> | lv3→<span>+11.2</span> | lv4→<span>+12.8</span> | lv5→<span>+14.4</span> E</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 12</span><span class="badge badge-muted">lv 1</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Акумуляторна</span>
+      <span class="code">battery_station</span>
+    </div>
+    <div class="desc">Зберігає надлишки енергії. Не генерує — лише ємність.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Ємність енергосховища</span><span class="green">+100</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>100</span> | lv2→<span>120</span> | lv3→<span>140</span> | lv4→<span>160</span> | lv5→<span>180</span></div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 4</span><span class="badge badge-muted">lv 6</span><span class="badge badge-blue">phy-capacitor</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Вітрогенератор</span>
+      <span class="code">wind_generator</span>
+    </div>
+    <div class="desc">Енергія з вітру. Вихід залежить від тиску атмосфери.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Генерація (базова)</span><span class="blue">+6 E/тік</span></div>
+      <div class="row"><span class="label">Поправка</span><span class="muted">× тиск атм.</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+6</span> | lv2→<span>+7.2</span> | lv3→<span>+8.4</span> | lv4→<span>+9.6</span> | lv5→<span>+10.8</span> E</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 8</span><span class="badge badge-muted">lv 8</span><span class="badge badge-blue">phy-aero + атмосфера</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Термогенератор</span>
+      <span class="code">thermal_generator</span>
+    </div>
+    <div class="desc">Геотермальна енергія. Бонус на вулканах та горах.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Генерація</span><span class="blue">+15 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+15</span> | lv2→<span>+18</span> | lv3→<span>+21</span> | lv4→<span>+24</span> | lv5→<span>+27</span> E</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 4</span><span class="badge badge-muted">lv 10</span><span class="badge badge-blue">phy-thermo-1 + volcano/гори</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Синтезатор плазми</span>
+      <span class="code">fusion_reactor</span>
+    </div>
+    <div class="desc">Термоядерна енергія. Критично залежить від запасу ізотопів.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Генерація</span><span class="blue">+50 E/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-0.1 ізотопи/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+50</span> | lv2→<span>+60</span> | lv3→<span>+70</span> | lv4→<span>+80</span> | lv5→<span>+90</span> E</div>
+    <div class="warn-box">TODO: попередження при ізотопи = 0 → автоматичний shutdown</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 2</span><span class="badge badge-muted">lv 42</span><span class="badge badge-blue">phy-fusion</span></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ EXTRACTION ═══════════════ -->
+<h2>Extraction</h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Шахта</span>
+      <span class="code">mine</span>
+    </div>
+    <div class="desc">Видобуток мінералів з поверхневих покладів.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Мінерали</span><span class="green">+2/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-3 E/тік</span></div>
+      <div class="row"><span class="label">Бонус (solar поруч)</span><span class="green">+15% видобутку</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+2</span> | lv2→<span>+2.4</span> | lv3→<span>+2.8</span> | lv4→<span>+3.2</span> | lv5→<span>+3.6</span></div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 10</span><span class="badge badge-muted">lv 1</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Водозбірник</span>
+      <span class="code">water_extractor</span>
+    </div>
+    <div class="desc">Видобуток летючих з океану та берегової лінії.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Летючі</span><span class="green">+1/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-2 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+1</span> | lv2→<span>+1.2</span> | lv3→<span>+1.4</span> | lv4→<span>+1.6</span> | lv5→<span>+1.8</span></div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 6</span><span class="badge badge-muted">lv 1</span><span class="badge badge-blue">coast/ocean</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Атмосферний конденсатор</span>
+      <span class="code">atmo_extractor</span>
+    </div>
+    <div class="desc">Збір летючих з атмосфери. Вихід залежить від тиску.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Летючі</span><span class="green">+2/тік × тиск</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-4 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+2</span> | lv2→<span>+2.4</span> | lv3→<span>+2.8</span> | lv4→<span>+3.2</span> | lv5→<span>+3.6</span></div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 4</span><span class="badge badge-muted">lv 12</span><span class="badge badge-blue">chem-gas-sep + атмосфера</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Глибинний бур</span>
+      <span class="code">deep_drill</span>
+    </div>
+    <div class="desc">Доступ до глибоких покладів. Шанс рідкісних унікальних ресурсів.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Мінерали</span><span class="green">+3/тік</span></div>
+      <div class="row"><span class="label">Унікальні ресурси</span><span class="blue">Au, Pt, W, Pu…</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-6 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+3</span> | lv2→<span>+3.6</span> | lv3→<span>+4.2</span> | lv4→<span>+4.8</span> | lv5→<span>+5.4</span></div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 3</span><span class="badge badge-muted">lv 20</span><span class="badge badge-blue">phy-drill + гори</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Орбітальний збирач</span>
+      <span class="code">orbital_collector</span>
+    </div>
+    <div class="desc">Єдиний видобуток для газових/крижаних гігантів.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Летючі</span><span class="green">+4/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-5 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+4</span> | lv2→<span>+4.8</span> | lv3→<span>+5.6</span> | lv4→<span>+6.4</span> | lv5→<span>+7.2</span></div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 2</span><span class="badge badge-muted">lv 30</span><span class="badge badge-blue">chem-orbital | gas/ice only</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Альфа-добувач ⚛</span>
+      <span class="code">alpha_harvester</span>
+    </div>
+    <div class="desc">Преміум дрон-збирач. Авто-збір в радіусі 10 кл. Куплено за кварки.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Мінерали</span><span class="green">+1/тік</span></div>
+      <div class="row"><span class="label">Летючі</span><span class="green">+1/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-5 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv5: <span>+1.8 мін + 1.8 лет/тік</span></div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 1</span><span class="badge badge-blue">купується за ⚛</span></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ SCIENCE ═══════════════ -->
+<h2>Science &amp; Recon</h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Лабораторія</span>
+      <span class="code">research_lab</span>
+    </div>
+    <div class="desc">Наукові дослідження. Синергія з обсерваторією та теплицею.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Дані дослідж.</span><span class="blue">+1/год</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-3 E/тік</span></div>
+      <div class="row"><span class="label">Бонус (observatory поруч)</span><span class="green">+20% дослідж.</span></div>
+      <div class="row"><span class="label">Бонус (greenhouse поруч)</span><span class="green">+10% біо</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+1</span> | lv2→<span>+1.2</span> | lv3→<span>+1.4</span> | lv4→<span>+1.6</span> | lv5→<span>+1.8</span> дані/год</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 4</span><span class="badge badge-muted">lv 5</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Обсерваторія</span>
+      <span class="code">observatory</span>
+    </div>
+    <div class="desc">Слоти для сесій досліджень. Підсилює лабораторії поруч.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Сесії досліджень</span><span class="blue">слоти (не/тік)</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-2 E/тік</span></div>
+      <div class="row"><span class="label">Дає бонус (lab поруч)</span><span class="green">+20% дослідж.</span></div>
+    </div>
+    <div class="warn-box">TODO: скейлінг слотів за рівнем не визначений</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 5</span><span class="badge badge-muted">lv 2</span><span class="badge badge-blue">ast-radio-1</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Радарна вежа</span>
+      <span class="code">radar_tower</span>
+    </div>
+    <div class="desc">Розсіює туман війни. Виявляє приховані поклади ресурсів.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Радіус видимості</span><span class="blue">32 кл.</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-4 E/тік</span></div>
+    </div>
+    <div class="warn-box">TODO: скейлінг радіусу за рівнем не підключений до colony-tick</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 2</span><span class="badge badge-muted">lv 14</span><span class="badge badge-blue">phy-em-field + піки</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Орбітальний телескоп</span>
+      <span class="code">orbital_telescope</span>
+    </div>
+    <div class="desc">3x дані / год. +10% до відкриттів у системі.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Дані дослідж.</span><span class="blue">+3/год</span></div>
+      <div class="row"><span class="label">Відкриття в системі</span><span class="green">+10%</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-6 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+3</span> | lv2→<span>+3.6</span> | lv3→<span>+4.2</span> | lv4→<span>+4.8</span> | lv5→<span>+5.4</span> дані/год</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 1</span><span class="badge badge-muted">lv 28</span><span class="badge badge-blue">ast-deep-radar</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Квантовий комп'ютер</span>
+      <span class="code">quantum_computer</span>
+    </div>
+    <div class="desc">5x дані / год. -20% час усіх досліджень планети.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Дані дослідж.</span><span class="blue">+5/год</span></div>
+      <div class="row"><span class="label">Час досліджень</span><span class="green">-20%</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-10 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>+5</span> | lv2→<span>+6</span> | lv3→<span>+7</span> | lv4→<span>+8</span> | lv5→<span>+9</span> дані/год</div>
+    <div class="warn-box">TODO: -20% час досліджень показується, але не застосовується в research engine</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 1</span><span class="badge badge-muted">lv 38</span><span class="badge badge-blue">phy-quantum</span></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ BIOSPHERE ═══════════════ -->
+<h2>Biosphere &amp; Defense</h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Теплиця</span>
+      <span class="code">greenhouse</span>
+    </div>
+    <div class="desc">Вирощування їжі. Підвищує придатність для життя.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Придатність</span><span class="green">+0.005/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-2 E/тік</span></div>
+      <div class="row"><span class="label">Дає бонус (colony_hub)</span><span class="green">+10% харч.</span></div>
+      <div class="row"><span class="label">Дає бонус (research_lab)</span><span class="green">+10% біо</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>0.005</span> | lv5→<span>0.009</span> придатн./тік</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 8</span><span class="badge badge-muted">lv 3</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Житловий купол</span>
+      <span class="code">residential_dome</span>
+    </div>
+    <div class="desc">Житлові модулі для екіпажу колонії.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Населення</span><span class="green">+500</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-4 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>500</span> | lv2→<span>600</span> | lv3→<span>700</span> | lv4→<span>800</span> | lv5→<span>900</span></div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 4</span><span class="badge badge-muted">lv 15</span><span class="badge badge-blue">bio-life-support</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Атмосферний щит</span>
+      <span class="code">atmo_shield</span>
+    </div>
+    <div class="desc">Захист колонії від ворожої атмосфери та метеоритів.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Статус захисту</span><span class="green">активний / неактивний</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-8 E/тік</span></div>
+    </div>
+    <div class="lv-row">Пасивний. Покращ. lv1→5 масштабує ефект захисту.</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 1</span><span class="badge badge-muted">lv 25</span><span class="badge badge-blue">bio-terraforming</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Біосферний купол</span>
+      <span class="code">biome_dome</span>
+    </div>
+    <div class="desc">Самодостатня біосфера. Еквівалент 3 теплиць.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Придатність</span><span class="green">+0.015/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-6 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>0.015</span> | lv5→<span>0.027</span> придатн./тік</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 2</span><span class="badge badge-muted">lv 32</span><span class="badge badge-blue">bio-biome-eng</span></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ CHEMISTRY ═══════════════ -->
+<h2>Chemistry &amp; Synthesis</h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Квантовий сепаратор</span>
+      <span class="code">quantum_separator</span>
+    </div>
+    <div class="desc">Розщеплення мінералів на хімічні елементи.</div>
+    <div class="tabs">
+      <span class="tab">Стат.</span>
+      <span class="tab">Покращ.</span>
+      <span class="tab extra">Переробка</span>
+    </div>
+    <div class="stats">
+      <div class="row"><span class="label">Вхід</span><span class="red">-2 мінерали/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-5 E/тік</span></div>
+      <div class="row"><span class="label">Вихід</span><span class="blue">Fe / Cu / Ti / Al / Si / Ni</span></div>
+    </div>
+    <div class="lv-row">1 випадковий елемент з 6 за batch. lv5 → throughput ×1.8</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 2</span><span class="badge badge-muted">lv 22</span><span class="badge badge-blue">chem-q-sep</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Газовий фракціонатор</span>
+      <span class="code">gas_fractionator</span>
+    </div>
+    <div class="desc">Переробка летючих на хімічні елементи.</div>
+    <div class="tabs">
+      <span class="tab">Стат.</span>
+      <span class="tab">Покращ.</span>
+      <span class="tab extra">Переробка</span>
+    </div>
+    <div class="stats">
+      <div class="row"><span class="label">Вхід</span><span class="red">-2 летючі/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-6 E/тік</span></div>
+      <div class="row"><span class="label">Вихід</span><span class="blue">H / He / N / O / C / S</span></div>
+    </div>
+    <div class="lv-row">1 випадковий елемент з 6 за batch</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 2</span><span class="badge badge-muted">lv 26</span><span class="badge badge-blue">chem-fraction</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Ізотопна центрифуга</span>
+      <span class="code">isotope_centrifuge</span>
+    </div>
+    <div class="desc">Збагачення ізотопів → уран. Критично для термояду.</div>
+    <div class="tabs">
+      <span class="tab">Стат.</span>
+      <span class="tab">Покращ.</span>
+      <span class="tab extra">Переробка</span>
+    </div>
+    <div class="stats">
+      <div class="row"><span class="label">Вхід</span><span class="red">-1 ізотоп/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-8 E/тік</span></div>
+      <div class="row"><span class="label">Вихід</span><span class="blue">U (40% шанс/тік)</span></div>
+    </div>
+    <div class="lv-row">lv5 не змінює шанс, але збільшує throughput</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 2</span><span class="badge badge-muted">lv 36</span><span class="badge badge-blue">chem-isotope</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="name">Ковчег Генезису</span>
+      <span class="code">genesis_vault</span>
+    </div>
+    <div class="desc">Мегаструктура. ДНК-архів + терраформування планети.</div>
+    <div class="tabs"><span class="tab">Стат.</span><span class="tab">Покращ.</span></div>
+    <div class="stats">
+      <div class="row"><span class="label">Придатність</span><span class="green">+0.015/тік</span></div>
+      <div class="row"><span class="label">Споживання</span><span class="orange">-15 E/тік</span></div>
+    </div>
+    <div class="lv-row">lv1→<span>0.015</span> | lv5→<span>0.027</span> придатн./тік</div>
+    <div style="margin-top:8px"><span class="badge badge-muted">макс. 1</span><span class="badge badge-muted">lv 48</span><span class="badge badge-blue">bio-genesis</span></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ СИСТЕМА АПГРЕЙДІВ ═══════════════ -->
+<h2>Система апгрейдів</h2>
+<div class="note">
+  <strong style="color:#aabbcc">Вартість:</strong> baseCost × 1.5<sup>currentLevel</sup>
+  &nbsp;→&nbsp; lv1→2: ×1.5 &nbsp;|&nbsp; lv2→3: ×2.25 &nbsp;|&nbsp; lv3→4: ×3.38 &nbsp;|&nbsp; lv4→5: ×5.06 від бази<br>
+  <strong style="color:#aabbcc">Бонус продукт.:</strong> base × (1 + 0.2 × (level − 1))
+  &nbsp;→&nbsp; lv1: 100% &nbsp;|&nbsp; lv2: +20% &nbsp;|&nbsp; lv3: +40% &nbsp;|&nbsp; lv4: +60% &nbsp;|&nbsp; lv5: +80%<br>
+  <strong style="color:#aabbcc">Валюта:</strong> мінерали / летючі / ізотопи. З рівня 50+ — елементи Менделєєва.
+</div>
+
+<!-- ═══════════════ KNOWN ISSUES ═══════════════ -->
+<h2>Відомі прогалини</h2>
+<div class="note">
+  <span class="issue">1.</span> <code>fusion_reactor</code> — немає UI-попередження при ізотопи = 0 (shutdown не візуалізований в меню)<br>
+  <span class="issue">2.</span> <code>radar_tower</code> — скейлінг радіусу за рівнем не підключений до colony-tick<br>
+  <span class="issue">3.</span> <code>observatory</code> — скейлінг слотів досліджень за рівнем не визначений<br>
+  <span class="issue">4.</span> <code>quantum_computer</code> — -20% час досліджень показується в Стат., але не застосовується в research engine<br>
+  <span class="issue">5.</span> Хімічні елементи у вартості апгрейду (lv 50+) не реалізовані
+</div>
+
+</body>
+</html>

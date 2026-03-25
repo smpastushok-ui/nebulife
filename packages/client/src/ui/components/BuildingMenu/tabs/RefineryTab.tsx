@@ -3,37 +3,43 @@ import type { PlacedBuilding } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 import { C, sectionTitle, statRow } from '../building-menu-styles.js';
 import { MineralIcon, VolatileIcon, IsotopeIcon } from '../BuildingIcons.js';
+import { MAX_BUILDING_LEVEL } from '../building-menu-utils.js';
+
+/** Base refinery cycle = 5 ticks. Level reduces cycle: floor(5 / (1 + 0.2*(level-1))) */
+function getRefineryCycleTicks(level: number): number {
+  return Math.max(1, Math.floor(5 / (1 + 0.20 * (level - 1))));
+}
 
 const REFINERY_INFO: Record<string, {
   inputLabel: string;
-  inputAmount: string;
+  inputPerTick: number;
   inputIcon: React.FC<{ size?: number }>;
   outputLabel: string;
-  outputAmount: string;
+  outputChance: number; // 1.0 = 100%
   elements: string[];
 }> = {
   quantum_separator: {
     inputLabel: 'Мінерали',
-    inputAmount: '-2/тік',
+    inputPerTick: 2,
     inputIcon: MineralIcon,
     outputLabel: 'Випадковий елемент',
-    outputAmount: '+1/тік',
+    outputChance: 1.0,
     elements: ['Fe', 'Cu', 'Ti', 'Al', 'Si', 'Ni'],
   },
   gas_fractionator: {
     inputLabel: 'Летючі',
-    inputAmount: '-2/тік',
+    inputPerTick: 2,
     inputIcon: VolatileIcon,
     outputLabel: 'Випадковий елемент',
-    outputAmount: '+1/тік',
+    outputChance: 1.0,
     elements: ['H', 'He', 'N', 'O', 'C', 'S'],
   },
   isotope_centrifuge: {
     inputLabel: 'Ізотопи',
-    inputAmount: '-1/тік',
+    inputPerTick: 1,
     inputIcon: IsotopeIcon,
     outputLabel: 'Уран (U)',
-    outputAmount: '~0.4/тік (40%)',
+    outputChance: 0.4,
     elements: ['U'],
   },
 };
@@ -56,6 +62,10 @@ export default function RefineryTab({ building }: Props) {
   }
 
   const InputIcon = info.inputIcon;
+  const cycleTicks = getRefineryCycleTicks(building.level);
+  const outputStr = info.outputChance < 1
+    ? `~${info.outputChance}/цикл (${Math.round(info.outputChance * 100)}%)`
+    : `+1/цикл`;
 
   return (
     <div>
@@ -80,7 +90,7 @@ export default function RefineryTab({ building }: Props) {
           <InputIcon size={16} />
           <span style={{ color: C.textSecondary, fontSize: 11 }}>{info.inputLabel}</span>
           <span style={{ color: C.orange, fontSize: 11, marginLeft: 'auto', fontWeight: 'bold' }}>
-            {info.inputAmount}
+            -{info.inputPerTick}/тік
           </span>
         </div>
 
@@ -99,13 +109,30 @@ export default function RefineryTab({ building }: Props) {
           </svg>
           <span style={{ color: C.textSecondary, fontSize: 11 }}>{info.outputLabel}</span>
           <span style={{ color: C.green, fontSize: 11, marginLeft: 'auto', fontWeight: 'bold' }}>
-            {info.outputAmount}
+            {outputStr}
           </span>
         </div>
       </div>
 
+      {/* Speed / cycle info */}
+      <div style={sectionTitle}>Швидкість</div>
+      <div style={{ ...statRow, marginBottom: 2 }}>
+        <span style={{ color: C.textSecondary, fontSize: 11 }}>Цикл переробки</span>
+        <span style={{ color: C.accentBlueBright, fontSize: 11, fontWeight: 'bold' }}>
+          {cycleTicks} {cycleTicks === 1 ? 'тік' : 'тіки'}
+        </span>
+      </div>
+      {building.level < MAX_BUILDING_LEVEL && (
+        <div style={{ ...statRow, marginBottom: 2 }}>
+          <span style={{ color: C.textMuted, fontSize: 10 }}>Наступний рівень</span>
+          <span style={{ color: C.green, fontSize: 10 }}>
+            {getRefineryCycleTicks(building.level + 1)} {getRefineryCycleTicks(building.level + 1) === 1 ? 'тік' : 'тіки'}
+          </span>
+        </div>
+      )}
+
       {/* Possible elements */}
-      <div style={sectionTitle}>Можливі елементи</div>
+      <div style={{ ...sectionTitle, marginTop: 10 }}>Можливі елементи</div>
       <div style={{
         display: 'flex',
         flexWrap: 'wrap',

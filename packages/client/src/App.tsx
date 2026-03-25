@@ -1460,9 +1460,10 @@ export function App() {
         let changed = false;
         const newTimers: Record<number, string> = {};
 
-        // Apply tech tree speed multiplier to research duration
+        // Apply tech tree speed multiplier + quantum_computer bonus to research duration
         const speedMult = getEffectValue(techTreeStateRef.current, 'research_speed_mult', 1.0);
-        const effectiveDuration = Math.round(RESEARCH_DURATION_MS * speedMult);
+        const qcMult = hasQuantumComputerRef.current ? 0.8 : 1.0;
+        const effectiveDuration = Math.round(RESEARCH_DURATION_MS * speedMult * qcMult);
 
         for (const slot of current.slots) {
           if (slot.systemId && slot.startedAt) {
@@ -3134,6 +3135,9 @@ export function App() {
     setSurfaceTarget(null);
   }, []);
 
+  // Track whether an active quantum_computer exists on any colony planet (for -20% research time)
+  const hasQuantumComputerRef = useRef(false);
+
   // Colony context value for BuildingMenu (reads resources directly via Context, avoids PixiJS re-renders)
   const colonyContextValue = useMemo(() => ({
     resources: colonyResources,
@@ -3146,6 +3150,12 @@ export function App() {
         console.error('Upgrade building error:', err);
         return null;
       }
+    },
+    /** Called by SurfacePixiView when buildings change, to update quantum_computer flag */
+    reportBuildings: (buildings: Array<{ type: string; shutdown?: boolean }>) => {
+      hasQuantumComputerRef.current = buildings.some(
+        b => b.type === 'quantum_computer' && !b.shutdown,
+      );
     },
   }), [colonyResources, setColonyResources]);
 

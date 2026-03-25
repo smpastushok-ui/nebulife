@@ -652,7 +652,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   genesis_vault: {
     type: 'genesis_vault', category: 'chemistry',
     name: 'Ковчег Генезису',
-    description: 'Мегаструктура для зберігання ДНК та терраформування. +0.15 придатність.',
+    description: 'Мегаструктура для зберігання ДНК та терраформування. +0.030 придатність, захист біорізноманіття.',
     size: 3, sizeW: 3, sizeH: 3,
     requiresTerrain: LAND_TERRAIN,
     cost: [
@@ -662,7 +662,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     ],
     levelRequired: 48, techRequired: 'bio-genesis', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 15, energyStorageAdd: 0,
-    production: [{ resource: 'habitability', amount: 0.015 }],
+    production: [{ resource: 'habitability', amount: 0.030 }],
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,

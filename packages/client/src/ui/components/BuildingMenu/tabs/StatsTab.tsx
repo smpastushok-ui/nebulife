@@ -4,6 +4,7 @@ import { BUILDING_DEFS, getActiveBonuses } from '@nebulife/core';
 import { C, sectionTitle, statRow } from '../building-menu-styles.js';
 import { getScaledProduction } from '../building-menu-utils.js';
 import { MineralIcon, VolatileIcon, IsotopeIcon, EnergyIcon } from '../BuildingIcons.js';
+import { useColony } from '../../../contexts/ColonyContext.js';
 
 const RESOURCE_LABEL: Record<string, string> = {
   minerals:      'Мінерали',
@@ -38,11 +39,19 @@ interface Props {
   allBuildings: PlacedBuilding[];
 }
 
+/** Observatory research slots by level: lv1-2=1, lv3-4=2, lv5=3 */
+function getObservatorySlots(level: number): number {
+  if (level >= 5) return 3;
+  if (level >= 3) return 2;
+  return 1;
+}
+
 export default function StatsTab({ building, allBuildings }: Props) {
   const def = BUILDING_DEFS[building.type];
   const level = building.level;
   const bonusMap = getActiveBonuses(allBuildings);
   const activeBonuses = bonusMap.get(building.id) ?? [];
+  const { resources } = useColony();
 
   const hasProduction = def.production.length > 0;
   const hasConsumption = def.consumption.length > 0;
@@ -50,6 +59,11 @@ export default function StatsTab({ building, allBuildings }: Props) {
   const hasStorage = def.storageCapacityAdd > 0 || def.energyStorageAdd > 0;
   const hasPopulation = def.populationCapacityAdd > 0;
   const hasFog = def.fogRevealRadius > 0;
+
+  // Fuel warning for fusion_reactor
+  const needsFuelWarning = building.type === 'fusion_reactor'
+    && def.consumption.some(c => c.resource === 'isotopes')
+    && resources.isotopes < 1;
 
   return (
     <div>
@@ -156,6 +170,72 @@ export default function StatsTab({ building, allBuildings }: Props) {
             </div>
           )}
         </>
+      )}
+
+      {/* Observatory research slots */}
+      {building.type === 'observatory' && (
+        <>
+          <div style={sectionTitle}>Слоти досліджень</div>
+          <div style={statRow}>
+            <span>Активні слоти</span>
+            <span style={{ color: C.accentBlueBright, fontWeight: 'bold' }}>
+              {getObservatorySlots(level)}
+            </span>
+          </div>
+          {level < 5 && (
+            <div style={{ color: C.textMuted, fontSize: 9, marginTop: 2 }}>
+              lv3: 2 слоти | lv5: 3 слоти
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Quantum computer research bonus */}
+      {building.type === 'quantum_computer' && !building.shutdown && (
+        <>
+          <div style={sectionTitle}>Пасивний бонус</div>
+          <div style={statRow}>
+            <span>Час досліджень</span>
+            <span style={{ color: C.green, fontWeight: 'bold' }}>-20%</span>
+          </div>
+        </>
+      )}
+
+      {/* Genesis vault DNA storage bonus */}
+      {building.type === 'genesis_vault' && (
+        <>
+          <div style={sectionTitle}>Пасивний бонус</div>
+          <div style={statRow}>
+            <span>Захист біорізноманіття</span>
+            <span style={{ color: C.green }}>Активний</span>
+          </div>
+          <div style={{ color: C.textMuted, fontSize: 9, marginTop: 2 }}>
+            Зберігає ДНК всіх видів планети. Запобігає вимиранню при терраформуванні.
+          </div>
+        </>
+      )}
+
+      {/* Fuel warning for fusion_reactor */}
+      {needsFuelWarning && (
+        <div style={{
+          background: 'rgba(200,60,60,0.15)',
+          border: `1px solid ${C.red}`,
+          borderRadius: 3,
+          padding: '6px 10px',
+          marginTop: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}>
+          <svg width={14} height={14} viewBox="0 0 14 14">
+            <path d="M7 1L1 13h12L7 1z" fill="none" stroke={C.red} strokeWidth={1.2} />
+            <line x1="7" y1="5" x2="7" y2="9" stroke={C.red} strokeWidth={1.2} />
+            <circle cx="7" cy="11" r="0.8" fill={C.red} />
+          </svg>
+          <span style={{ color: C.red, fontSize: 10, fontWeight: 'bold' }}>
+            Немає палива (ізотопи = 0)
+          </span>
+        </div>
       )}
 
       {/* Adjacency bonuses */}

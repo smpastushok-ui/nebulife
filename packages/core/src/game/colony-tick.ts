@@ -207,26 +207,53 @@ function runSingleTick(
 const MINERAL_ELEMENTS = ['Fe', 'Cu', 'Ti', 'Al', 'Si', 'Ni'];
 const VOLATILE_ELEMENTS = ['H', 'He', 'N', 'O', 'C', 'S'];
 
+/**
+ * Refinery cycle period in ticks (base). Higher level = fewer ticks per batch.
+ * Level 1: every 5 ticks, Level 5: every 3 ticks (floor(5 / (1 + 0.2*(level-1))))
+ */
+const REFINERY_BASE_CYCLE_TICKS = 5;
+
+function getRefineryCycleTicks(level: number): number {
+  return Math.max(1, Math.floor(REFINERY_BASE_CYCLE_TICKS / (1 + 0.20 * (level - 1))));
+}
+
+/** Track refinery tick counters per building (reset on page load is fine — catch-up handles it) */
+const refineryCounters = new Map<string, number>();
+
 function processRefineryBuilding(
   b: PlacedBuilding,
   colony: PlanetColonyState,
 ): Record<string, number> {
   const produced: Record<string, number> = {};
+  const isRefinery = b.type === 'quantum_separator' || b.type === 'gas_fractionator' || b.type === 'isotope_centrifuge';
+  if (!isRefinery) return produced;
+
+  // Accumulate ticks, produce only on cycle completion
+  const counter = (refineryCounters.get(b.id) ?? 0) + 1;
+  const cycleTicks = getRefineryCycleTicks(b.level);
+
+  if (counter < cycleTicks) {
+    refineryCounters.set(b.id, counter);
+    return produced;
+  }
+
+  // Cycle complete — reset counter and produce
+  refineryCounters.set(b.id, 0);
 
   if (b.type === 'quantum_separator') {
-    // 2 minerals/tick consumed (from def.consumption), produce 1 random element
+    // Consumed 2 minerals/tick from def.consumption over cycle, produce 1 random element
     const pool = MINERAL_ELEMENTS;
     const el = pool[Math.floor(Math.random() * pool.length)];
     colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
     produced[el] = (produced[el] ?? 0) + 1;
   } else if (b.type === 'gas_fractionator') {
-    // 2 volatiles/tick consumed, produce 1 random element
+    // Consumed 2 volatiles/tick, produce 1 random element
     const pool = VOLATILE_ELEMENTS;
     const el = pool[Math.floor(Math.random() * pool.length)];
     colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
     produced[el] = (produced[el] ?? 0) + 1;
   } else if (b.type === 'isotope_centrifuge') {
-    // 1 isotope/tick consumed, produce 0.4 U on average
+    // Consumed 1 isotope/tick, produce U with 40% chance
     if (Math.random() < 0.4) {
       colony.chemicalInventory['U'] = (colony.chemicalInventory['U'] ?? 0) + 1;
       produced['U'] = (produced['U'] ?? 0) + 1;

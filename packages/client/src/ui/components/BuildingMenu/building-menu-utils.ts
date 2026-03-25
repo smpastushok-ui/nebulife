@@ -48,6 +48,8 @@ export function getUpgradeCost(
   currentLevel: number,
 ): ResCost {
   if (currentLevel >= MAX_BUILDING_LEVEL) return { m: 0, v: 0, i: 0 };
+  // TODO: Level 50+ — switch to chemical elements (Fe, Cu, Ti, Al, Si, U...)
+  // if (currentLevel >= 50) return requireAdvancedElements(buildingType, currentLevel);
   const base = BLDG_COSTS[buildingType];
   const mult = Math.pow(UPGRADE_COST_MULTIPLIER, currentLevel);
   return {
@@ -75,6 +77,25 @@ export function getLevelMultiplier(level: number): number {
 /** Format production rate with level multiplier applied */
 export function getScaledProduction(baseAmount: number, level: number): number {
   return baseAmount * getLevelMultiplier(level);
+}
+
+// ── Refinery speed scaling ───────────────────────────────────────────────────
+// Refinery buildings get faster cycles (fewer ticks) instead of more output.
+// Base cycle = 5 ticks. Higher level = fewer ticks per batch.
+
+const REFINERY_BASE_CYCLE_TICKS = 5;
+
+export function getRefineryCycleTicks(level: number): number {
+  return Math.max(1, Math.floor(REFINERY_BASE_CYCLE_TICKS / (1 + LEVEL_BONUS_PER_LEVEL * (level - 1))));
+}
+
+// ── Observatory slot scaling ────────────────────────────────────────────────
+// lv1-2 = 1 slot, lv3-4 = 2 slots, lv5 = 3 slots
+
+export function getObservatorySlots(level: number): number {
+  if (level >= 5) return 3;
+  if (level >= 3) return 2;
+  return 1;
 }
 
 // ── Time formatting ──────────────────────────────────────────────────────────

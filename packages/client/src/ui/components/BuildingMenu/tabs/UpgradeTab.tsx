@@ -28,6 +28,7 @@ export default function UpgradeTab({ building, onUpgraded }: Props) {
   const cost = getUpgradeCost(building.type, building.level);
   const canAfford = canAffordUpgrade(cost, resources);
   const isPremium = building.type === 'alpha_harvester';
+  const isRefinery = building.type === 'quantum_separator' || building.type === 'gas_fractionator' || building.type === 'isotope_centrifuge';
 
   const handleUpgrade = useCallback(async () => {
     if (isMaxLevel || !canAfford || upgrading || isPremium) return;
@@ -121,26 +122,45 @@ export default function UpgradeTab({ building, onUpgraded }: Props) {
 
       {/* Improvements preview */}
       <div style={sectionTitle}>Покращення дає</div>
-      {def.production.map((p, i) => {
-        const current = getScaledProduction(p.amount, building.level);
-        const next = getScaledProduction(p.amount, nextLevel);
-        return (
-          <div key={i} style={{
-            ...costRow,
-            color: C.textSecondary,
-          }}>
-            <span>{p.resource === 'researchData' ? 'Дані дослідж.' : p.resource === 'habitability' ? 'Придатність' : p.resource}</span>
-            <span>
-              <span style={{ color: C.textMuted }}>{current < 0.1 ? current.toFixed(3) : current.toFixed(1)}</span>
-              {' -> '}
-              <span style={{ color: C.green }}>{next < 0.1 ? next.toFixed(3) : next.toFixed(1)}</span>
-              <span style={{ color: C.textMuted, fontSize: 9, marginLeft: 4 }}>
-                (+{Math.round((getLevelMultiplier(nextLevel) / getLevelMultiplier(building.level) - 1) * 100)}%)
-              </span>
+      {isRefinery ? (
+        /* Refinery: show speed improvement (fewer ticks per cycle) */
+        <div style={{ ...costRow, color: C.textSecondary }}>
+          <span>Цикл переробки</span>
+          <span>
+            <span style={{ color: C.textMuted }}>
+              {Math.max(1, Math.floor(5 / (1 + 0.20 * (building.level - 1))))} тіки
             </span>
-          </div>
-        );
-      })}
+            {' -> '}
+            <span style={{ color: C.green }}>
+              {Math.max(1, Math.floor(5 / (1 + 0.20 * (nextLevel - 1))))} тіки
+            </span>
+          </span>
+        </div>
+      ) : (
+        /* Normal buildings: show production scaling */
+        <>
+          {def.production.map((p, i) => {
+            const current = getScaledProduction(p.amount, building.level);
+            const next = getScaledProduction(p.amount, nextLevel);
+            return (
+              <div key={i} style={{
+                ...costRow,
+                color: C.textSecondary,
+              }}>
+                <span>{p.resource === 'researchData' ? 'Дані дослідж.' : p.resource === 'habitability' ? 'Придатність' : p.resource}</span>
+                <span>
+                  <span style={{ color: C.textMuted }}>{current < 0.1 ? current.toFixed(3) : current.toFixed(1)}</span>
+                  {' -> '}
+                  <span style={{ color: C.green }}>{next < 0.1 ? next.toFixed(3) : next.toFixed(1)}</span>
+                  <span style={{ color: C.textMuted, fontSize: 9, marginLeft: 4 }}>
+                    (+{Math.round((getLevelMultiplier(nextLevel) / getLevelMultiplier(building.level) - 1) * 100)}%)
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </>
+      )}
       {def.energyOutput > 0 && (
         <div style={{ ...costRow, color: C.textSecondary }}>
           <span>Енергія</span>

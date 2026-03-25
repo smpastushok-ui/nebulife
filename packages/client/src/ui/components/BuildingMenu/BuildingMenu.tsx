@@ -26,9 +26,11 @@ const TABS_BASE: TabDef[] = [
 const PRODUCTION_TYPES = new Set(['spaceport', 'landing_pad']);
 const REFINERY_TYPES = new Set(['quantum_separator', 'gas_fractionator', 'isotope_centrifuge']);
 const STORAGE_TYPES = new Set(['resource_storage']);
+const NO_UPGRADE_TYPES = new Set(['alpha_harvester']);
 
 function getTabsForBuilding(buildingType: string): TabDef[] {
-  const tabs = [...TABS_BASE];
+  const tabs: TabDef[] = [{ id: 'stats', label: 'Стат.' }];
+  if (!NO_UPGRADE_TYPES.has(buildingType)) tabs.push({ id: 'upgrade', label: 'Покращ.' });
   if (PRODUCTION_TYPES.has(buildingType)) tabs.push({ id: 'production', label: 'Виробн.' });
   if (REFINERY_TYPES.has(buildingType))   tabs.push({ id: 'refinery',   label: 'Переробка' });
   if (STORAGE_TYPES.has(buildingType))    tabs.push({ id: 'storage',    label: 'Сховище' });
