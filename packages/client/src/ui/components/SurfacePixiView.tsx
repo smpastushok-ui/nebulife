@@ -87,6 +87,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     const isDragging    = useRef(false);
     const dragStart     = useRef({ px: 0, py: 0, ox: 0, oy: 0 });
     const dragMoved     = useRef(false);
+    const isPinching    = useRef(false);
 
     const [buildings, setBuildings]             = useState<PlacedBuilding[]>([]);
     const { reportBuildings } = useColony();
@@ -229,6 +230,61 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           }
         }, { passive: false });
 
+        // ── Pinch-to-zoom (native touch listeners) ────────────────────────
+        let pinchStartDist = 0;
+        let pinchStartZoom = 0;
+
+        container.addEventListener('touchstart', (e) => {
+          if (e.touches.length === 2) {
+            e.preventDefault();
+            isPinching.current = true;
+            isDragging.current = false;
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            pinchStartDist = Math.hypot(dx, dy);
+            pinchStartZoom = zoomRef.current;
+          }
+        }, { passive: false });
+
+        container.addEventListener('touchmove', (e) => {
+          if (e.touches.length === 2 && isPinching.current) {
+            e.preventDefault();
+            const app = pixiAppRef.current;
+            if (!app || !pinchStartDist) return;
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const dist = Math.hypot(dx, dy);
+            const factor = dist / pinchStartDist;
+            const tileCount = app.screen.width < 640 ? 18 : 25;
+            const maxZ = app.screen.width / (tileCount * 64);
+            const newZ = Math.max(0.15, Math.min(maxZ, pinchStartZoom * factor));
+            const oldZ = zoomRef.current;
+            if (newZ === oldZ) return;
+            // Zoom toward midpoint of two fingers
+            const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            const rect = container.getBoundingClientRect();
+            const cx = mx - rect.left;
+            const cy = my - rect.top;
+            const cW = app.screen.width;
+            const cH = app.screen.height;
+            const originX = cW / 2 + panRef.current.x;
+            const originY = cH / 4 + panRef.current.y;
+            panRef.current.x = cx - (cx - originX) / oldZ * newZ - cW / 2;
+            panRef.current.y = cy - (cy - originY) / oldZ * newZ - cH / 4;
+            zoomRef.current = newZ;
+            sceneRef.current?.worldContainer.scale.set(newZ);
+            clampPan();
+          }
+        }, { passive: false });
+
+        container.addEventListener('touchend', () => {
+          if (isPinching.current) {
+            isPinching.current = false;
+            pinchStartDist = 0;
+          }
+        }, { passive: true });
+
         // Load buildings from API
         let loaded: PlacedBuilding[] = [];
         try {
@@ -357,6 +413,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     // ─── Pointer events (pan + drag) ──────────────────────────────────────────
 
     const handlePointerDown = (e: React.PointerEvent) => {
+      // Block pointer pan during active pinch gesture
+      if (isPinching.current) return;
       // Mobile building mode: починаємо drag ghost, НЕ пануємо карту
       if (selectedBuilding && isMobile.current) {
         isGhostDragging.current = true;

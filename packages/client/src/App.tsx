@@ -21,6 +21,7 @@ import type { PlanetGlobeViewHandle } from './ui/components/PlanetGlobeView.js';
 import { SurfacePixiView as SurfaceShaderView } from './ui/components/SurfacePixiView.js';
 import type { SurfaceViewHandle, SurfacePhase } from './ui/components/SurfacePixiView.js';
 import { ColonyProvider } from './ui/contexts/ColonyContext.js';
+import { getObservatorySlots } from './ui/components/BuildingMenu/building-menu-utils.js';
 import { upgradeBuilding as upgradeBuildingAPI } from './api/surface-api.js';
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
 import { SystemNavHeader } from './ui/components/SystemNavHeader.js';
@@ -1935,7 +1936,7 @@ export function App() {
     const extraSlots =
       getEffectValue(newState, 'observatory_count_add', 0) +
       getEffectValue(newState, 'concurrent_research_add', 0);
-    const totalNeeded = HOME_OBSERVATORY_COUNT + extraSlots;
+    const totalNeeded = baseObsSlotsRef.current + extraSlots;
     setResearchState((prev) => {
       if (prev.slots.length >= totalNeeded) return prev;
       const extended = [...prev.slots];
@@ -2796,6 +2797,9 @@ export function App() {
 
     // Transition to colonization
     setIsExodusPhase(false);
+    setCountdownText('');       // safety net: clear evacuation timer display
+    setCountdownUrgent(false);
+    baseObsSlotsRef.current = 0; // new planet has no observatories yet
     setEvacuationPhase('idle');
     setEvacuationTarget(null);
     setForcedEvacuation(false);
@@ -2930,7 +2934,7 @@ export function App() {
           const extraSlots =
             getEffectValue(currentTech, 'observatory_count_add', 0) +
             getEffectValue(currentTech, 'concurrent_research_add', 0);
-          const totalNeeded = HOME_OBSERVATORY_COUNT + extraSlots;
+          const totalNeeded = baseObsSlotsRef.current + extraSlots;
           setResearchState((prev) => {
             if (prev.slots.length >= totalNeeded) return prev;
             const extended = [...prev.slots];
@@ -3137,6 +3141,8 @@ export function App() {
 
   // Track whether an active quantum_computer exists on any colony planet (for -20% research time)
   const hasQuantumComputerRef = useRef(false);
+  // Base observatory slots: derived from actual built observatories (or HOME_OBSERVATORY_COUNT before any buildings load)
+  const baseObsSlotsRef = useRef(HOME_OBSERVATORY_COUNT);
 
   // Colony context value for BuildingMenu (reads resources directly via Context, avoids PixiJS re-renders)
   const colonyContextValue = useMemo(() => ({
@@ -3151,11 +3157,17 @@ export function App() {
         return null;
       }
     },
-    /** Called by SurfacePixiView when buildings change, to update quantum_computer flag */
-    reportBuildings: (buildings: Array<{ type: string; shutdown?: boolean }>) => {
+    /** Called by SurfacePixiView when buildings change, to update quantum_computer flag + observatory slots */
+    reportBuildings: (buildings: Array<{ type: string; shutdown?: boolean; level?: number }>) => {
       hasQuantumComputerRef.current = buildings.some(
         b => b.type === 'quantum_computer' && !b.shutdown,
       );
+      // Count slots from active observatories; fall back to HOME_OBSERVATORY_COUNT if no buildings loaded yet
+      const obsSlots = buildings
+        .filter(b => b.type === 'observatory' && !b.shutdown)
+        .reduce((sum, b) => sum + getObservatorySlots(b.level ?? 1), 0);
+      baseObsSlotsRef.current = obsSlots > 0 ? obsSlots
+        : (buildings.length === 0 ? HOME_OBSERVATORY_COUNT : 0);
     },
   }), [colonyResources, setColonyResources]);
 

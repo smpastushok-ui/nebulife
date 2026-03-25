@@ -705,14 +705,42 @@ function BuildingCard({
 /* ─── Planet info HUD (top-left, always visible) ───────────────────────── */
 
 function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: PlacedBuilding[] }) {
+  const [expanded, setExpanded] = useState(false);
+
   const tempC = Math.round(planet.surfaceTempK - 273);
   const tempColor = tempC > -10 && tempC < 50 ? '#44ff88' : tempC < -40 || tempC > 80 ? '#ff8844' : '#ffcc44';
   const habPct = Math.round((planet.habitability?.overall ?? 0) * 100);
   const habColor = habPct > 70 ? '#44ff88' : habPct > 40 ? '#ffcc44' : '#ff8844';
   const gravColor = Math.abs(planet.surfaceGravityG - 1) < 0.3 ? '#44ff88' : '#ffcc44';
+  const tempStr = `${tempC > 0 ? '+' : ''}${tempC}°C`;
 
+  // ── Collapsed bar ──────────────────────────────────────────────────────
+  if (!expanded) {
+    return (
+      <div
+        onClick={() => setExpanded(true)}
+        style={{
+          position: 'absolute', top: 14, left: 14,
+          background: 'rgba(5,10,25,0.88)',
+          border: '1px solid rgba(60,100,160,0.3)',
+          borderRadius: 4, padding: '5px 10px',
+          display: 'flex', alignItems: 'center', gap: 10,
+          fontFamily: 'monospace', cursor: 'pointer', pointerEvents: 'auto',
+          userSelect: 'none',
+        }}
+      >
+        <span style={{ color: '#aaccee', fontSize: 11, letterSpacing: '0.5px' }}>
+          {planet.name.toUpperCase()}
+        </span>
+        <span style={{ color: tempColor, fontSize: 11 }}>{tempStr}</span>
+        <span style={{ color: '#4a5e70', fontSize: 10 }}>&#9658;</span>
+      </div>
+    );
+  }
+
+  // ── Expanded panel ─────────────────────────────────────────────────────
   const rows: { k: string; v: string; c: string }[] = [
-    { k: 'Температура', v: `${tempC > 0 ? '+' : ''}${tempC}°C`, c: tempColor },
+    { k: 'Температура', v: tempStr, c: tempColor },
     { k: 'Гравітація',  v: `${planet.surfaceGravityG.toFixed(2)} g`, c: gravColor },
     ...(planet.atmosphere
       ? [{ k: 'Атмосфера', v: `${planet.atmosphere.surfacePressureAtm.toFixed(1)} атм`, c: '#aabbcc' }]
@@ -730,8 +758,20 @@ function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: Place
       fontFamily: 'monospace', pointerEvents: 'auto',
       minWidth: 175,
     }}>
-      <div style={{ color: '#aaccee', fontSize: 11, letterSpacing: '0.7px', marginBottom: 6 }}>
-        {planet.name.toUpperCase()}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ color: '#aaccee', fontSize: 11, letterSpacing: '0.7px' }}>
+          {planet.name.toUpperCase()}
+        </span>
+        <button
+          onClick={() => setExpanded(false)}
+          style={{
+            background: 'none', border: 'none', color: '#4a5e70',
+            fontSize: 10, cursor: 'pointer', fontFamily: 'monospace',
+            padding: '0 0 0 8px', lineHeight: 1,
+          }}
+        >
+          &#9660;
+        </button>
       </div>
       {rows.map(({ k, v, c }) => (
         <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 2 }}>
