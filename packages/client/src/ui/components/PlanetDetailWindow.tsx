@@ -81,6 +81,7 @@ function planetTypeName(t: Planet['type']): string {
     case 'gas-giant': return 'Газовий гігант';
     case 'ice-giant': return 'Крижаний гігант';
     case 'dwarf':     return 'Карликова';
+    default:          return t;
   }
 }
 

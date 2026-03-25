@@ -70,6 +70,7 @@ function planetTypeName(t: PlanetType): string {
     case 'gas-giant': return 'газ. гіг.';
     case 'ice-giant': return 'крижаний';
     case 'dwarf':     return 'карлик';
+    default:          return t;
   }
 }
 

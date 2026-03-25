@@ -765,11 +765,6 @@ export function App() {
   const [showPlayerPage, setShowPlayerPage] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   const [showAcademy, setShowAcademy] = useState(false);
-
-  // Auto-open Academy when arriving via a shared lesson link
-  useEffect(() => {
-    if (sharedLessonInfo) setShowAcademy(true);
-  }, [sharedLessonInfo]);
   const [sharedLessonInfo, setSharedLessonInfo] = useState<SharedLessonInfo | null>(() => {
     // Read share params from URL on first load
     try {
@@ -789,6 +784,11 @@ export function App() {
     } catch { /* ignore */ }
     return null;
   });
+
+  // Auto-open Academy when arriving via a shared lesson link
+  useEffect(() => {
+    if (sharedLessonInfo) setShowAcademy(true);
+  }, [sharedLessonInfo]);
   const cosmicArchiveRef = useRef<CosmicArchiveHandle>(null);
   const [highlightedGalleryType, setHighlightedGalleryType] = useState<string | null>(null);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
