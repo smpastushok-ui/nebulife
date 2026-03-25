@@ -698,7 +698,15 @@
     "currency": "грн",
     "creating_payment": "Створення платежу...",
     "pay_btn": "Поповнити {{amount}} ⚛ за {{amount}} грн",
-    "note": "1 кварк = 1 грн · Оплата через Monobank"
+    "note": "1 кварк = 1 грн · Оплата через Monobank",
+    "iap_title": "Набори кварків",
+    "iap_loading": "Завантаження...",
+    "iap_buy": "Придбати за {{price}}",
+    "iap_buying": "Обробка...",
+    "iap_success": "Отримано {{quarks}} ⚛",
+    "iap_error": "Помилка покупки. Спробуйте ще раз.",
+    "iap_cancelled": "Покупку скасовано.",
+    "iap_note": "Покупки підтверджуються через App Store / Google Play"
   },
 
   "scene_controls": {

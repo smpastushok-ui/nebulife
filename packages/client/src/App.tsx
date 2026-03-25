@@ -34,6 +34,7 @@ import type {
 } from '@nebulife/core';
 import { getCatalogEntry } from '@nebulife/core';
 import { startPaymentFlow } from './api/payment-api.js';
+import { initIAP } from './api/iap-service.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
 import {
   createResearchState,
@@ -1396,6 +1397,8 @@ export function App() {
             try { localStorage.setItem('nebulife_generation_index', String(existing.science_points ?? 0)); } catch { /* ignore */ }
             hydrateGameStateFromServer(existing);
             setState((prev) => ({ ...prev, playerName: existing.callsign || existing.name || 'Explorer' }));
+            // Initialize RevenueCat IAP (no-op on web)
+            initIAP(id!).catch(() => { /* non-critical */ });
           }
           // Fetch universe info for group count
           fetchUniverseInfo().then(info => {
@@ -4533,6 +4536,7 @@ export function App() {
           playerId={playerId.current}
           currentBalance={quarks}
           onClose={() => setShowTopUpModal(false)}
+          onQuarksGranted={(granted) => setQuarks(q => q + granted)}
         />
       )}
 

@@ -700,7 +700,15 @@
     "currency": "UAH",
     "creating_payment": "Creating payment...",
     "pay_btn": "Top up {{amount}} ⚛ for {{amount}} UAH",
-    "note": "1 quark = 1 UAH · Payment via Monobank"
+    "note": "1 quark = 1 UAH · Payment via Monobank",
+    "iap_title": "Quark Packs",
+    "iap_loading": "Loading...",
+    "iap_buy": "Buy for {{price}}",
+    "iap_buying": "Processing...",
+    "iap_success": "Received {{quarks}} ⚛",
+    "iap_error": "Purchase failed. Please try again.",
+    "iap_cancelled": "Purchase cancelled.",
+    "iap_note": "Purchases confirmed via App Store / Google Play"
   },
 
   "scene_controls": {
