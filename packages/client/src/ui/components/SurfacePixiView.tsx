@@ -42,7 +42,7 @@ interface SurfacePixiViewProps {
   playerId:                 string;
   onClose:                  () => void;
   onBuildingCountChange?:   (count: number) => void;
-  onBuildingPlaced?:        () => void;
+  onBuildingPlaced?:        (type: BuildingType) => void;
   onPhaseChange?:           (phase: SurfacePhase) => void;
   onBuildPanelChange?:      (open: boolean) => void;
   onHarvest?:               (objectType: SurfaceObjectType) => void;
@@ -83,7 +83,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     const pixiAppRef    = useRef<Application | null>(null);
     const sceneRef      = useRef<SurfaceScene | null>(null);
 
-    const zoomRef       = useRef(0.6);
+    const zoomRef       = useRef(0.15); // start at max zoom-out (full overview)
     const panRef        = useRef({ x: 0, y: 0 });
     const isDragging    = useRef(false);
     const dragStart     = useRef({ px: 0, py: 0, ox: 0, oy: 0 });
@@ -264,7 +264,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           scene.revealStartingArea(start.col, start.row, 15);
         }
         const { x: hubWX, y: hubWY } = gridToScreen(hubCol, hubRow);
-        const z0 = 0.6;
+        const z0 = 0.15; // start at max zoom-out (full planet overview)
         const cW0 = app.screen.width;
         const cH0 = app.screen.height;
         panRef.current.x = -(hubWX * z0);
@@ -421,7 +421,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         setBuildings((prev) => [...prev, newBuilding]);
         setSelectedBuilding(null);
         sceneRef.current?.clearGhost();
-        onBuildingPlaced?.();
+        onBuildingPlaced?.(newBuilding.type);
         placeBuilding(playerId, planet.id, newBuilding).catch(console.error);
         // Colony Hub built — spawn drone explorer + reveal fog
         if (newBuilding.type === 'colony_hub') {

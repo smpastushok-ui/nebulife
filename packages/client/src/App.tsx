@@ -74,7 +74,7 @@ import {
   hasAvailableTech,
   ALL_NODES,
 } from '@nebulife/core';
-import type { TechTreeState, TechNode, SurfaceObjectType } from '@nebulife/core';
+import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
@@ -2061,8 +2061,11 @@ export function App() {
     const extraSlots =
       getEffectValue(newState, 'observatory_count_add', 0) +
       getEffectValue(newState, 'concurrent_research_add', 0);
-    const totalNeeded = HOME_OBSERVATORY_COUNT + extraSlots;
+    // During exodus phase, base = HOME_OBSERVATORY_COUNT (built-in observatories on home planet).
+    // After evacuation+colonization, base = current slot count (observatories built by player).
     setResearchState((prev) => {
+      const baseCount = isExodusPhase ? HOME_OBSERVATORY_COUNT : prev.slots.length;
+      const totalNeeded = baseCount + extraSlots;
       if (prev.slots.length >= totalNeeded) return prev;
       const extended = [...prev.slots];
       while (extended.length < totalNeeded) {
@@ -2072,7 +2075,7 @@ export function App() {
     });
 
     scheduleSyncToServer();
-  }, [playerLevel, techTreeState, awardXP, scheduleSyncToServer]);
+  }, [playerLevel, techTreeState, awardXP, isExodusPhase, scheduleSyncToServer]);
 
   const handleViewResearchedSystem = useCallback(() => {
     if (!completedModal) return;
@@ -3157,8 +3160,11 @@ export function App() {
           const extraSlots =
             getEffectValue(currentTech, 'observatory_count_add', 0) +
             getEffectValue(currentTech, 'concurrent_research_add', 0);
-          const totalNeeded = HOME_OBSERVATORY_COUNT + extraSlots;
+          // During exodus phase, base = HOME_OBSERVATORY_COUNT (built-in observatories).
+          // After evacuation+colonization, base = current slot count (player-built observatories).
           setResearchState((prev) => {
+            const baseCount = isExodusPhaseRef.current ? HOME_OBSERVATORY_COUNT : prev.slots.length;
+            const totalNeeded = baseCount + extraSlots;
             if (prev.slots.length >= totalNeeded) return prev;
             const extended = [...prev.slots];
             while (extended.length < totalNeeded) {
@@ -4494,7 +4500,18 @@ export function App() {
           playerId={playerId.current}
           onClose={handleCloseSurface}
           onBuildingCountChange={setSurfaceBuildingCount}
-          onBuildingPlaced={() => awardXP(XP_REWARDS.BUILDING_PLACED, 'building_placed')}
+          onBuildingPlaced={(type?: BuildingType) => {
+            // After evacuation, each colony_hub or observatory adds 1 research slot
+            if (!isExodusPhase && (type === 'colony_hub' || type === 'observatory')) {
+              setResearchState((prev) => {
+                const newSlot = { slotIndex: prev.slots.length, systemId: null, startedAt: null, sourcePlanetRing: 0 };
+                const updated = { ...prev, slots: [...prev.slots, newSlot] };
+                try { localStorage.setItem('nebulife_research_state', JSON.stringify(updated)); } catch { /* ignore */ }
+                return updated;
+              });
+            }
+            awardXP(XP_REWARDS.BUILDING_PLACED, 'building_placed');
+          }}
           onHarvest={handleHarvest}
           onHarvestFx={handleHarvestFx}
           onPhaseChange={setSurfacePhase}

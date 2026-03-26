@@ -43,7 +43,7 @@ interface SurfaceShaderViewProps {
   playerId: string;
   onClose: () => void;
   onBuildingCountChange?: (count: number) => void;
-  onBuildingPlaced?: () => void;
+  onBuildingPlaced?: (type: BuildingType) => void;
   onPhaseChange?: (phase: SurfacePhase) => void;
   onBuildPanelChange?: (open: boolean) => void;
 }
@@ -153,7 +153,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
 
     // Pan state (zoom is fixed — scaling breaks building↔terrain alignment)
     const panRef = useRef({ x: 0, y: 0 });
-    const zoomRef = useRef(2.0); // fixed zoom; buildings stay in sync
+    const zoomRef = useRef(1.0); // fixed zoom=1 → full planet overview on entry
     const dragRef = useRef({ active: false, startX: 0, startY: 0 });
 
     /* ================================================================ */
@@ -673,7 +673,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
 
       setBuildings((prev) => [...prev, newBuilding]);
       setSelectedBuilding(null);
-      onBuildingPlaced?.();
+      onBuildingPlaced?.(newBuilding.type);
 
       placeBuilding(playerId, planet.id, newBuilding).catch((err) => {
         console.error('Failed to save building:', err);
