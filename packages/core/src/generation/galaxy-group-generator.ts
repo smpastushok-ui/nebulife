@@ -6,6 +6,8 @@ import {
   type StellarClassData,
 } from '../constants/stellar.js';
 import type { CoreSystem, GalaxyGroupCore } from '../types/galaxy-group.js';
+import { generateStarSystem } from './star-system-generator.js';
+import type { StarSystem } from '../types/universe.js';
 import {
   hexToPixel,
   hexNeighbor,
@@ -232,4 +234,16 @@ export function generateGalaxyGroupCore(galaxySeed: number): GalaxyGroupCore {
   }
 
   return { systems, entryIds };
+}
+
+/**
+ * Generate a full StarSystem from a CoreSystem metadata.
+ * ringIndex = 3 + min(depth, 9) — determines research difficulty.
+ * ID uses core- prefix to avoid collision with personal system-${seed} IDs.
+ */
+export function generateCoreStarSystem(coreSys: CoreSystem): StarSystem {
+  const ringIndex = 3 + Math.min(coreSys.depth, 9);
+  const system = generateStarSystem(coreSys.seed, coreSys.position, ringIndex);
+  system.id = `core-${coreSys.id}-${coreSys.seed}`;
+  return system;
 }

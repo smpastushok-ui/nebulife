@@ -21,7 +21,8 @@ export {
   isInCoreZone,
   isInExpansionZone,
 } from './galaxy-topology.js';
-export { generateGalaxyGroupCore } from './galaxy-group-generator.js';
+export { generateGalaxyGroupCore, generateCoreStarSystem } from './galaxy-group-generator.js';
+export { delaunayEdges, type Point2D } from './delaunay.js';
 export {
   deriveGroupSeed,
   derivePlayerSeed,

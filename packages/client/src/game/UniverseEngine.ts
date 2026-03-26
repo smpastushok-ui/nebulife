@@ -36,6 +36,7 @@ import {
   EXPANSION_START_RADIUS,
 } from '@nebulife/core';
 import type { GalaxyGroupMeta } from '@nebulife/core';
+import { delaunayEdges } from '@nebulife/core';
 
 // ══════════════════════════════════════════════════════════════
 // Types
@@ -421,11 +422,15 @@ function generateClusterDetail(groupSeed: number): ClusterDetail {
     });
   }
 
-  // 11 nearest neighbors
-  for (const p of players) {
-    p.neighbors = players.filter(o => o.index !== p.index)
-      .map(o => ({ index: o.index, dist: dist2d(p.homePos, o.homePos) }))
-      .sort((a, b) => a.dist - b.dist).slice(0, 11).map(o => o.index);
+  // Compute Delaunay triangulation for player positions
+  const playerPoints = players.map(p => ({ x: p.homePos.x, y: p.homePos.y }));
+  const dEdges = delaunayEdges(playerPoints);
+  // Initialize empty neighbor arrays
+  for (const p of players) p.neighbors = [];
+  // Populate from Delaunay edges
+  for (const [i, j] of dEdges) {
+    players[i].neighbors.push(j);
+    players[j].neighbors.push(i);
   }
 
   // Core systems (500)
