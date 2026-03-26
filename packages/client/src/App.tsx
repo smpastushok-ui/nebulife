@@ -4713,6 +4713,7 @@ export function App() {
           }}
           playerName={state.playerName}
           sharedLessonInfo={sharedLessonInfo}
+          onAwardXP={awardXP}
         />
       )}
 
@@ -4861,6 +4862,7 @@ export function App() {
           onSystemNotifRead={(id) =>
             setSystemNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
           }
+          onAwardXP={awardXP}
           onNavigateToPlanet={(systemId, planetId) => {
             const allSystems = engineRef.current?.getAllSystems() ?? [];
             const sys = allSystems.find((s) => s.id === systemId);

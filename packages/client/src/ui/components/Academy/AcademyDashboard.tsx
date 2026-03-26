@@ -19,6 +19,7 @@ interface AcademyDashboardProps {
   onNavigateToGalaxy?: () => void;
   playerName?: string;
   sharedLessonInfo?: SharedLessonInfo | null;
+  onAwardXP?: (amount: number, reason: string) => void;
 }
 
 const TAB_LABELS: Record<AcademyTab, string> = {
@@ -43,7 +44,7 @@ function getCountdown(): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, sharedLessonInfo }: AcademyDashboardProps) {
+export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, sharedLessonInfo, onAwardXP }: AcademyDashboardProps) {
   const [tab, setTab] = useState<AcademyTab>('lesson');
   const [progress, setProgress] = useState<AcademyProgress | null>(null);
   const [lesson, setLesson] = useState<DailyLesson | null>(null);
@@ -161,6 +162,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
                 <QuizView
                   lesson={lesson}
                   onRefresh={handleRefresh}
+                  onAwardXP={onAwardXP}
                 />
               )}
               {tab === 'news' && (

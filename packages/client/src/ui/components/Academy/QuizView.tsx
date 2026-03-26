@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { DailyLesson } from '../../../api/academy-api.js';
 import { answerQuiz } from '../../../api/academy-api.js';
+
+// Inject XP float keyframes once
+const QUIZ_XP_STYLE_ID = 'quiz-xp-float-style';
+function injectXpKeyframes() {
+  if (document.getElementById(QUIZ_XP_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = QUIZ_XP_STYLE_ID;
+  style.textContent = `@keyframes quizXpFloat { 0% { opacity:1; transform:translateY(0); } 100% { opacity:0; transform:translateY(-32px); } }`;
+  document.head.appendChild(style);
+}
 
 interface QuizViewProps {
   lesson: DailyLesson | null;
   onRefresh: () => void;
+  onAwardXP?: (amount: number, reason: string) => void;
 }
 
-export function QuizView({ lesson, onRefresh }: QuizViewProps) {
+export function QuizView({ lesson, onRefresh, onAwardXP }: QuizViewProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [result, setResult] = useState<{
     correct: boolean;
@@ -17,6 +28,12 @@ export function QuizView({ lesson, onRefresh }: QuizViewProps) {
     quarksAwarded: number;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showXP, setShowXP] = useState(false);
+  const injectedRef = useRef(false);
+
+  useEffect(() => {
+    if (!injectedRef.current) { injectXpKeyframes(); injectedRef.current = true; }
+  }, []);
 
   if (!lesson) {
     return <div style={styles.empty}>Немає вікторини на сьогодні.</div>;
@@ -31,6 +48,12 @@ export function QuizView({ lesson, onRefresh }: QuizViewProps) {
     try {
       const res = await answerQuiz(lesson.lessonId, index);
       setResult(res);
+      // Award XP locally for animation + show float
+      if (res.correct && res.xpAwarded > 0 && onAwardXP) {
+        onAwardXP(res.xpAwarded, 'quiz_correct');
+        setShowXP(true);
+        setTimeout(() => setShowXP(false), 2000);
+      }
       onRefresh();
     } catch (err) {
       console.error('Quiz answer error:', err);
@@ -40,7 +63,7 @@ export function QuizView({ lesson, onRefresh }: QuizViewProps) {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, position: 'relative' as const }}>
       <h2 style={styles.title}>Вікторина дня</h2>
       <p style={styles.question}>{quiz.question}</p>
 
@@ -83,6 +106,22 @@ export function QuizView({ lesson, onRefresh }: QuizViewProps) {
               : 'Неправильно'}
           </div>
           <p style={styles.explanation}>{result.explanation}</p>
+        </div>
+      )}
+      {showXP && result && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          right: 16,
+          color: '#44ff88',
+          fontSize: 20,
+          fontFamily: 'monospace',
+          fontWeight: 'bold',
+          textShadow: '0 0 12px rgba(68,255,136,0.6)',
+          animation: 'quizXpFloat 2s ease-out forwards',
+          pointerEvents: 'none',
+        }}>
+          +{result.xpAwarded} XP
         </div>
       )}
     </div>

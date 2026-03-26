@@ -40,6 +40,8 @@ interface ChatWidgetProps {
   latestDigestWeekDate?: string | null;
   /** Player's preferred language for ASTRA digest message */
   preferredLanguage?: string;
+  /** Callback to award XP (e.g. for quiz correct answers) */
+  onAwardXP?: (amount: number, reason: string) => void;
 }
 
 type Tab = 'global' | 'dm-list' | 'dm-chat' | 'system' | 'astra';
@@ -53,9 +55,13 @@ const CHAT_PULSE_KEYFRAMES = `
 @keyframes chat-neon-pulse {
   0%, 100% { box-shadow: 0 0 4px rgba(68,136,255,0.25); border-color: rgba(68,136,255,0.35); }
   50%       { box-shadow: 0 0 14px rgba(68,136,255,0.55), 0 0 4px rgba(68,136,255,0.3) inset; border-color: rgba(68,136,255,0.65); }
+}
+@keyframes quizXpFloat {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-28px); }
 }`;
 
-export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage }: ChatWidgetProps) {
+export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [tab, setTab] = useState<Tab>('global');
@@ -524,6 +530,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                   isOwn={msg.sender_id === playerId}
                   channel={activeChannel}
                   onReported={() => {}}
+                  onAwardXP={onAwardXP}
                 />
               ))}
               <div ref={messagesEndRef} />
@@ -800,7 +807,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 </div>
               )}
               {astraMessages.map((msg) => (
-                <AstraMessageItem key={msg.id} msg={{ role: msg.sender_id === 'astra' ? 'model' : 'user', text: msg.content }} />
+                <AstraMessageItem key={msg.id} msg={{ role: msg.sender_id === 'astra' ? 'model' : 'user', text: msg.content }} messageId={msg.id} onAwardXP={onAwardXP} />
               ))}
               {astraLoading && (
                 <div style={{ color: '#44ffaa', fontSize: 10, fontFamily: 'monospace', opacity: 0.6 }}>
@@ -991,11 +998,13 @@ function MessageItem({
   isOwn,
   channel,
   onReported,
+  onAwardXP,
 }: {
   message: MessageData;
   isOwn: boolean;
   channel: string;
   onReported: () => void;
+  onAwardXP?: (amount: number, reason: string) => void;
 }) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
@@ -1031,7 +1040,7 @@ function MessageItem({
               </span>
               <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{time}</span>
             </div>
-            <QuizCard data={parsed.data as QuizData} />
+            <QuizCard data={parsed.data as QuizData} messageId={message.id} onAwardXP={onAwardXP} />
           </div>
         );
       }
@@ -1185,9 +1194,29 @@ interface QuizData {
   xpReward: number;
 }
 
-function QuizCard({ data }: { data: QuizData }) {
-  const [selected, setSelected] = useState<number | null>(null);
+function QuizCard({ data, messageId, onAwardXP }: { data: QuizData; messageId: string; onAwardXP?: (amount: number, reason: string) => void }) {
+  // Persist answer per message in localStorage
+  const storageKey = `nebulife_quiz_${messageId}`;
+  const [selected, setSelected] = useState<number | null>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved !== null ? Number(saved) : null;
+    } catch { return null; }
+  });
+  const [showXP, setShowXP] = useState(false);
   const revealed = selected !== null;
+
+  const handleAnswer = (i: number) => {
+    if (revealed) return;
+    setSelected(i);
+    try { localStorage.setItem(storageKey, String(i)); } catch { /* ignore */ }
+    // Award XP for correct answer
+    if (i === data.correctIndex && onAwardXP) {
+      onAwardXP(data.xpReward, 'quiz_correct');
+      setShowXP(true);
+      setTimeout(() => setShowXP(false), 2000);
+    }
+  };
 
   return (
     <div style={{
@@ -1198,6 +1227,7 @@ function QuizCard({ data }: { data: QuizData }) {
       display: 'flex',
       flexDirection: 'column',
       gap: 6,
+      position: 'relative',
     }}>
       <div style={{ color: '#44ffaa', fontSize: 10, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
         ВІКТОРИНА +{data.xpReward} XP
@@ -1217,7 +1247,7 @@ function QuizCard({ data }: { data: QuizData }) {
           return (
             <button
               key={i}
-              onClick={() => !revealed && setSelected(i)}
+              onClick={() => handleAnswer(i)}
               disabled={revealed}
               style={{
                 background: bg,
@@ -1239,14 +1269,32 @@ function QuizCard({ data }: { data: QuizData }) {
       </div>
       {revealed && (
         <div style={{ color: '#8899aa', fontSize: 10, fontFamily: 'monospace', lineHeight: '1.4', borderTop: '1px solid #223344', paddingTop: 5 }}>
-          {data.explanation}
+          {selected === data.correctIndex ? `Правильно! +${data.xpReward} XP` : 'Неправильно.'}
+          {' '}{data.explanation}
+        </div>
+      )}
+      {/* XP float animation */}
+      {showXP && (
+        <div style={{
+          position: 'absolute',
+          top: -8,
+          right: 8,
+          color: '#44ff88',
+          fontSize: 14,
+          fontFamily: 'monospace',
+          fontWeight: 'bold',
+          textShadow: '0 0 8px rgba(68,255,136,0.6)',
+          animation: 'quizXpFloat 2s ease-out forwards',
+          pointerEvents: 'none',
+        }}>
+          +{data.xpReward} XP
         </div>
       )}
     </div>
   );
 }
 
-function AstraMessageItem({ msg }: { msg: AstraMessage }) {
+function AstraMessageItem({ msg, messageId, onAwardXP }: { msg: AstraMessage; messageId: string; onAwardXP?: (amount: number, reason: string) => void }) {
   const { t } = useTranslation();
   const isUser = msg.role === 'user';
 
@@ -1255,7 +1303,7 @@ function AstraMessageItem({ msg }: { msg: AstraMessage }) {
     try {
       const parsed = JSON.parse(msg.text);
       if (parsed?.type === 'quiz' && parsed?.data) {
-        return <QuizCard data={parsed.data as QuizData} />;
+        return <QuizCard data={parsed.data as QuizData} messageId={messageId} onAwardXP={onAwardXP} />;
       }
     } catch { /* not JSON, render as text */ }
   }
