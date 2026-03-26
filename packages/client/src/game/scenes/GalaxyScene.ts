@@ -99,6 +99,8 @@ interface SystemNode {
   particleGfx: Graphics;
   /** Visual state for rendering */
   starState: 'home' | 'researched' | 'researching' | 'unexplored';
+  /** Node type: personal (own rings), neighbor (adjacent player Ring 2), core (galactic core) */
+  nodeType: 'personal' | 'neighbor' | 'core';
   /** Number of planets */
   planetCount: number;
   /** Nebula tint color (from star.colorHex) */
@@ -197,8 +199,11 @@ export class GalaxyScene {
     playerCenterX: number,
     playerCenterY: number,
     researchState: ResearchState,
-    private onSelect: (system: StarSystem, screenPos?: { x: number; y: number }) => void,
-    private onDoubleClick: (system: StarSystem) => void,
+    neighborSystems?: Array<{ system: StarSystem; ownerIndex: number }>,
+    coreSystems?: Array<{ system: StarSystem; coreId: number; depth: number }>,
+    expandedVisible?: boolean,
+    private onSelect?: (system: StarSystem, screenPos?: { x: number; y: number }) => void,
+    private onDoubleClick?: (system: StarSystem) => void,
     private onTelescopeClick?: (system: StarSystem) => void,
     private clickGuard?: () => boolean,
     private onExpandSystem?: (system: StarSystem) => void,
@@ -256,6 +261,50 @@ export class GalaxyScene {
         this.buildHomeNode(system);
       } else {
         const node = this.buildSysNode(system, tx, ty, ringIndex);
+        this.systemNodes.set(system.id, node);
+      }
+    }
+
+    /* ── Neighbor systems (adjacent players' Ring 2) ── */
+    if (neighborSystems) {
+      for (const { system } of neighborSystems) {
+        // Skip if already present (personal rings may overlap)
+        if (this.systemNodes.has(system.id)) continue;
+
+        let tx = (system.position.x - homeX) * PX_PER_LY;
+        let ty = (system.position.y - homeY) * PX_PER_LY;
+        const jrng = new SeededRNG(system.seed);
+        tx += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
+        ty += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
+
+        const node = this.buildSysNode(system, tx, ty, 2);
+        node.nodeType = 'neighbor';
+        node.baseAlpha = expandedVisible ? 0.45 : 0;
+        node.baseRadius *= 0.7;
+        node.nameLabel.style.fill = 0x445566;
+        node.container.alpha = node.baseAlpha;
+        this.systemNodes.set(system.id, node);
+      }
+    }
+
+    /* ── Core systems (galactic core mesh, BFS up to depth 3) ── */
+    if (coreSystems) {
+      for (const { system } of coreSystems) {
+        // Skip if already present
+        if (this.systemNodes.has(system.id)) continue;
+
+        let tx = (system.position.x - homeX) * PX_PER_LY;
+        let ty = (system.position.y - homeY) * PX_PER_LY;
+        const jrng = new SeededRNG(system.seed);
+        tx += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
+        ty += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
+
+        const node = this.buildSysNode(system, tx, ty, 3);
+        node.nodeType = 'core';
+        node.baseAlpha = expandedVisible ? 0.35 : 0;
+        node.baseRadius *= 0.6;
+        node.nameLabel.style.fill = 0x554433;
+        node.container.alpha = node.baseAlpha;
         this.systemNodes.set(system.id, node);
       }
     }
@@ -331,6 +380,56 @@ export class GalaxyScene {
         }
         if (added === 0) addEdge(i, cands[0].j);
       }
+    }
+
+    /* ── Edges from neighbor/core nodes to nearest personal Ring 2 node ── */
+    // Collect personal Ring 2 node indices
+    const ring2Indices: number[] = [];
+    for (let i = 1; i < nodeKeysList.length; i++) {
+      const id = nodeKeysList[i];
+      const node = this.systemNodes.get(id);
+      if (node && node.nodeType === 'personal' && node.ringIndex >= 2) {
+        ring2Indices.push(i);
+      }
+    }
+
+    // For each neighbor node, connect to nearest personal Ring 2 node
+    for (let i = 1; i < nodeKeysList.length; i++) {
+      const id = nodeKeysList[i];
+      const node = this.systemNodes.get(id);
+      if (!node || node.nodeType !== 'neighbor') continue;
+
+      let bestJ = -1;
+      let bestD = Infinity;
+      for (const j of ring2Indices) {
+        const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
+        if (d < bestD) { bestD = d; bestJ = j; }
+      }
+      if (bestJ >= 0) addEdge(i, bestJ);
+    }
+
+    // For each core node, connect to nearest personal Ring 2 node (or nearest core node)
+    for (let i = 1; i < nodeKeysList.length; i++) {
+      const id = nodeKeysList[i];
+      const node = this.systemNodes.get(id);
+      if (!node || node.nodeType !== 'core') continue;
+
+      // Try nearest Ring 2 personal node first
+      let bestJ = -1;
+      let bestD = Infinity;
+      for (const j of ring2Indices) {
+        const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
+        if (d < bestD) { bestD = d; bestJ = j; }
+      }
+      // Also try nearest other core node
+      for (let j = 1; j < nodeKeysList.length; j++) {
+        if (j === i) continue;
+        const jNode = this.systemNodes.get(nodeKeysList[j]);
+        if (!jNode || jNode.nodeType !== 'core') continue;
+        const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
+        if (d < bestD) { bestD = d; bestJ = j; }
+      }
+      if (bestJ >= 0) addEdge(i, bestJ);
     }
 
     this.connectionEdges = edges;
@@ -419,7 +518,7 @@ export class GalaxyScene {
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
-        this.onDoubleClick(sys);
+        this.onDoubleClick?.(sys);
       }
     });
 
@@ -432,6 +531,7 @@ export class GalaxyScene {
       scanArc: null, atomOrbit: null, researchLabel: null,
       glowOuter, glowMid, corona, core, particleGfx,
       starState: 'home', planetCount: sys.planets.length,
+      nodeType: 'personal' as const,
       nebulaColor, particleCount: 72,
       phaseOffset: phase, speed: 0.8 + (phase / (Math.PI * 2)) * 0.7,
       baseRadius: baseR, baseAlpha: 1,
@@ -522,7 +622,7 @@ export class GalaxyScene {
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
         cc = 0;
-        if (!this.clickGuard?.()) this.onDoubleClick(sys);
+        if (!this.clickGuard?.()) this.onDoubleClick?.(sys);
       }
     });
 
@@ -548,6 +648,7 @@ export class GalaxyScene {
       scanArc, atomOrbit, researchLabel: null,
       glowOuter, glowMid, corona, core, particleGfx,
       starState, planetCount: sys.planets.length,
+      nodeType: 'personal' as const,
       nebulaColor, particleCount,
       phaseOffset: phase, speed, baseRadius: effectiveR,
       baseAlpha, tx, ty, ringIndex,
@@ -777,6 +878,18 @@ export class GalaxyScene {
 
   get isTransitioning(): boolean {
     return this.transitionActive;
+  }
+
+  /** Show or hide neighbor and core system nodes (for galaxy expansion UI) */
+  setNeighborCoreVisible(visible: boolean): void {
+    for (const [, node] of this.systemNodes) {
+      if (node.nodeType === 'neighbor') {
+        node.baseAlpha = visible ? 0.45 : 0;
+      }
+      if (node.nodeType === 'core') {
+        node.baseAlpha = visible ? 0.35 : 0;
+      }
+    }
   }
 
   /** Get world position of a system relative to galaxy container origin (HOME = 0,0) */

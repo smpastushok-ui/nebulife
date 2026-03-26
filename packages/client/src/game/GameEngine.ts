@@ -3,6 +3,10 @@ import {
   generatePlayerRings,
   assignPlayerPosition,
   isSystemFullyResearched,
+  delaunayEdges,
+  PLAYERS_PER_GROUP,
+  generateGalaxyGroupCore,
+  generateCoreStarSystem,
   type StarSystem,
   type Planet,
   type GalaxyRing,
@@ -43,6 +47,8 @@ export class GameEngine {
   private rings: GalaxyRing[] = [];
   private playerPos = { x: 0, y: 0 };
   private researchState: ResearchState = { slots: [], systems: {} };
+  private _neighborSystems: Array<{ system: StarSystem; ownerIndex: number }> = [];
+  private _coreSystems: Array<{ system: StarSystem; coreId: number; depth: number }> = [];
 
   constructor(container: HTMLElement, callbacks: GameCallbacks, playerIndex = 0, galaxySeed = 42) {
     this.container = container;
@@ -102,12 +108,18 @@ export class GameEngine {
   showGalaxyScene() {
     this.clearScenes();
 
+    this._neighborSystems = this.computeNeighborSystems();
+    this._coreSystems = this.computeCoreSystems();
+
     this.galaxyScene = new GalaxyScene(
       this.rings,
       this.galaxySeed,
       this.playerPos.x,
       this.playerPos.y,
       this.researchState,
+      this._neighborSystems,
+      this._coreSystems,
+      false, // expandedVisible: neighbor/core hidden by default
       (system, screenPos) => {
         // New directional layout — no camera animation needed
         this.callbacks.onSystemSelect(system, screenPos);
@@ -307,9 +319,13 @@ export class GameEngine {
     });
   }
 
-  /** Get all systems from all rings. */
+  /** Get all systems from all rings, plus neighbor and core systems. */
   getAllSystems(): StarSystem[] {
-    return this.rings.flatMap((r) => r.starSystems);
+    return [
+      ...this.rings.flatMap((r) => r.starSystems),
+      ...this._neighborSystems.map(n => n.system),
+      ...this._coreSystems.map(c => c.system),
+    ];
   }
 
   /**
@@ -335,6 +351,86 @@ export class GameEngine {
     newSys.ownerPlayerId = 'player-0';
     const newPlanet = newSys.planets.find((p) => p.id === newPlanetId);
     if (newPlanet) newPlanet.isHomePlanet = true;
+  }
+
+  private computeNeighborSystems(): Array<{ system: StarSystem; ownerIndex: number }> {
+    const result: Array<{ system: StarSystem; ownerIndex: number }> = [];
+
+    // Get positions of all players in the cluster
+    const positions: Array<{ x: number; y: number; idx: number }> = [];
+    for (let i = 0; i < PLAYERS_PER_GROUP; i++) {
+      const pos = assignPlayerPosition(this.galaxySeed, i);
+      positions.push({ x: pos.x, y: pos.y, idx: i });
+    }
+
+    // Use Delaunay to find natural neighbors of this player
+    const points = positions.map(p => ({ x: p.x, y: p.y }));
+    const edges = delaunayEdges(points);
+
+    // Find which positions are neighbors of this.playerIndex
+    const myNeighborIndices = new Set<number>();
+    for (const [a, b] of edges) {
+      if (a === this.playerIndex) myNeighborIndices.add(b);
+      if (b === this.playerIndex) myNeighborIndices.add(a);
+    }
+
+    // For each neighbor, generate their Ring 2 systems
+    for (const ni of myNeighborIndices) {
+      const neighborPos = positions[ni];
+      const neighborRings = generatePlayerRings(
+        this.galaxySeed, neighborPos.x, neighborPos.y, `player-${ni}`,
+      );
+      // Take only Ring 2 (outermost ring, index 2)
+      const ring2 = neighborRings.find(r => r.ringIndex === 2);
+      if (ring2) {
+        for (const sys of ring2.starSystems) {
+          // Skip if already in personal systems (overlapping positions)
+          if (!this.rings.some(r => r.starSystems.some(s => s.id === sys.id))) {
+            result.push({ system: sys, ownerIndex: ni });
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  private computeCoreSystems(): Array<{ system: StarSystem; coreId: number; depth: number }> {
+    const core = generateGalaxyGroupCore(this.galaxySeed);
+
+    // Find this player's entry star
+    const entryStar = core.systems.find(s => s.entryForPlayerIndex === this.playerIndex);
+    if (!entryStar) return [];
+
+    // BFS from entry star, max depth 3
+    const visited = new Set<number>();
+    const queue: Array<{ id: number; bfsDepth: number }> = [{ id: entryStar.id, bfsDepth: 0 }];
+    visited.add(entryStar.id);
+
+    const result: Array<{ system: StarSystem; coreId: number; depth: number }> = [];
+
+    while (queue.length > 0) {
+      const { id, bfsDepth } = queue.shift()!;
+      const coreSys = core.systems[id];
+      if (!coreSys) continue;
+
+      result.push({
+        system: generateCoreStarSystem(coreSys),
+        coreId: id,
+        depth: coreSys.depth,
+      });
+
+      if (bfsDepth < 3) {
+        for (const nid of coreSys.neighbors) {
+          if (!visited.has(nid)) {
+            visited.add(nid);
+            queue.push({ id: nid, bfsDepth: bfsDepth + 1 });
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   private clearScenes() {
@@ -393,6 +489,11 @@ export class GameEngine {
   /** Toggle per-star research % labels on galaxy map */
   setGalaxyResearchLabels(enabled: boolean) {
     this.galaxyScene?.showResearchLabels(enabled);
+  }
+
+  /** Show or hide neighbor and core system nodes on the galaxy map */
+  setNeighborCoreVisible(visible: boolean) {
+    this.galaxyScene?.setNeighborCoreVisible(visible);
   }
 
   destroy() {
