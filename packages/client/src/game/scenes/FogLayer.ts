@@ -24,9 +24,6 @@ import { gridToScreen, TILE_W, TILE_H } from './surface-utils.js';
  *  Matches colony_hub.fogRevealRadius=30 in BUILDING_DEFS. */
 const HUB_REVEAL_RADIUS = 30;
 
-/** Cloud puff seeds per cell — deterministic variation */
-const PUFF_SEED_MULT = 7919;
-
 export class FogLayer {
   public readonly container: Container;
 
@@ -181,20 +178,20 @@ export class FogLayer {
   }
 
   /**
-   * Draw a white fluffy cloud puff for one unrevealed cell.
-   * Edge cells (adjacent to revealed) get softer, slightly smaller puffs.
+   * Draw two semi-transparent white diamond layers for one unrevealed cell.
+   * Edge cells (adjacent to revealed) get softer alpha for a gradual boundary.
+   * No cloud puffs — lightweight for mobile devices.
    */
   private _drawCloudPuff(gfx: Graphics, col: number, row: number, isEdge: boolean): void {
     const { x, y } = gridToScreen(col, row);
-    // Screen centre of the isometric cell diamond
     const cx = x;
     const cy = y + TILE_H / 2;
 
     const hw = TILE_W / 2;
     const hh = TILE_H / 2;
 
-    // ── Solid isometric base to fully occlude the terrain ──────────────────
-    const baseAlpha = isEdge ? 0.72 : 0.96;
+    // Layer 1 — solid base to occlude terrain
+    const baseAlpha = isEdge ? 0.65 : 0.92;
     gfx.moveTo(cx,      cy - hh)
        .lineTo(cx + hw, cy)
        .lineTo(cx,      cy + hh)
@@ -202,34 +199,14 @@ export class FogLayer {
        .closePath()
        .fill({ color: 0xffffff, alpha: baseAlpha });
 
-    // ── Fluffy cloud puffs on top for 3D cloud texture ─────────────────────
-    // Deterministic pseudo-random per cell
-    const seed = (col * PUFF_SEED_MULT + row * 1301) & 0x7fffffff;
-    const rng  = this._rng(seed);
-
-    const scale  = isEdge ? 0.72 : 1.0;
-    const alphaB = isEdge ? 0.35 : 0.55;
-
-    // Draw 4–6 overlapping puff circles
-    const count = isEdge ? 3 : 5 + (seed % 2);
-    for (let i = 0; i < count; i++) {
-      const ox = (rng() - 0.5) * TILE_W * 0.55 * scale;
-      const oy = (rng() - 0.5) * TILE_H * 0.55 * scale;
-      const r  = (10 + rng() * 12) * scale;
-      const a  = alphaB * (0.65 + rng() * 0.35);
-
-      gfx.ellipse(cx + ox, cy + oy, r, r * 0.72);
-      gfx.fill({ color: 0xffffff, alpha: a });
-    }
-  }
-
-  /** Simple seeded LCG returning floats in [0, 1). */
-  private _rng(seed: number): () => number {
-    let s = seed;
-    return () => {
-      s = (s * 1664525 + 1013904223) & 0x7fffffff;
-      return s / 0x7fffffff;
-    };
+    // Layer 2 — lighter overlay for depth
+    const topAlpha = isEdge ? 0.15 : 0.30;
+    gfx.moveTo(cx,      cy - hh)
+       .lineTo(cx + hw, cy)
+       .lineTo(cx,      cy + hh)
+       .lineTo(cx - hw, cy)
+       .closePath()
+       .fill({ color: 0xffffff, alpha: topAlpha });
   }
 
   // ─── Border fog ───────────────────────────────────────────────────────────

@@ -417,7 +417,7 @@ const ToastItem: React.FC<{
     timerRef.current = setTimeout(() => {
       setLeaving(true);
       setTimeout(() => onDismiss(item.id), EXIT_MS[item.branch]);
-    }, 5200);
+    }, 3000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [item.id, item.branch, onDismiss]);
 
@@ -529,7 +529,9 @@ export const ResearchToast: React.FC<ResearchToastProps> = ({
   onDismiss,
   onNavigate,
 }) => {
+  // Show only one toast at a time (first in queue)
   if (items.length === 0) return null;
+  const current = items[0];
 
   return (
     <div
@@ -542,18 +544,15 @@ export const ResearchToast: React.FC<ResearchToastProps> = ({
         display:        'flex',
         flexDirection:  'column',
         alignItems:     'center',
-        gap:             8,
         pointerEvents:  'all',
       }}
     >
-      {items.map((item) => (
-        <ToastItem
-          key={item.id}
-          item={item}
-          onDismiss={onDismiss}
-          onNavigate={onNavigate}
-        />
-      ))}
+      <ToastItem
+        key={current.id}
+        item={current}
+        onDismiss={onDismiss}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 };

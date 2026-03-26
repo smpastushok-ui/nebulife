@@ -282,8 +282,9 @@ export function App() {
     research: SystemResearchState;
   }[]>([]);
 
-  // Research toast notifications (slide-in from right)
+  // Research toast notifications — shown one at a time, delayed after level-up banner
   const [researchToasts, setResearchToasts] = useState<ResearchToastItem[]>([]);
+  const [pendingResearchToasts, setPendingResearchToasts] = useState<ResearchToastItem[]>([]);
 
   // Harvest fly-to-HUD animation queue
   const [harvestFxQueue, setHarvestFxQueue] = useState<
@@ -681,6 +682,25 @@ export function App() {
     setLevelUpNotification(next);
     setLevelUpQueue(rest);
   }, [levelUpNotification, levelUpQueue, telemetryTarget, observatoryTarget, pendingDiscovery, completedModal, popupQueueBlocked]);
+
+  // Flush pending research toasts one at a time.
+  // Wait 3 s after level-up banner disappears, then show first pending toast.
+  // Subsequent toasts appear after the current one is dismissed.
+  useEffect(() => {
+    if (pendingResearchToasts.length === 0) return;
+    if (researchToasts.length > 0) return; // current toast still visible — wait
+    if (levelUpNotification !== null) return; // level-up banner still visible — wait
+
+    const timer = setTimeout(() => {
+      setPendingResearchToasts((pending) => {
+        if (pending.length === 0) return pending;
+        const [first, ...rest] = pending;
+        setResearchToasts((q) => [...q, first]);
+        return rest;
+      });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [pendingResearchToasts, researchToasts, levelUpNotification]);
 
   /** Gallery: map object_type → existing DiscoveryData (with photo) for duplicate check */
   const [galleryMap, setGalleryMap] = useState<Map<string, DiscoveryData>>(new Map());
@@ -2047,8 +2067,8 @@ export function App() {
     awardXP(node.xpReward, 'tech_researched');
     addLogEntry('system', `Дослiджено технологiю: ${node.name}`);
 
-    // Show slide-in toast notification
-    setResearchToasts((q) => [
+    // Queue toast notification (will appear after any active level-up banner)
+    setPendingResearchToasts((q) => [
       ...q,
       {
         id:       Math.random().toString(36).slice(2),
@@ -3150,7 +3170,7 @@ export function App() {
           techTreeStateRef.current = currentTech;
           for (const nd of newlyResearched) {
             addLogEntry('system', `Технологiю iнтегровано: ${nd.name}`);
-            setResearchToasts((q) => [...q, {
+            setPendingResearchToasts((q) => [...q, {
               id:       Math.random().toString(36).slice(2),
               techName: nd.name,
               branch:   nd.branch as ResearchToastItem['branch'],
