@@ -114,6 +114,17 @@ export {
   getCachedLesson,
   saveCachedLesson,
   getOnboardedPlayerIds,
+  // Clusters (low-level DB)
+  findAvailableCluster,
+  createCluster,
+  incrementClusterPlayerCount,
+  decrementClusterPlayerCount,
+  getClusterById,
+  getClusterByGroupIndex,
+  getClusterPlayers,
+  setPlayerCluster,
+  getClusterCount,
+  updateClusterPosition,
 } from './db.js';
 
 export type {
@@ -134,6 +145,7 @@ export type {
   WeeklyDigestRow,
   AcademyProgressRow,
   AcademyLessonRow,
+  ClusterRow,
 } from './db.js';
 
 // Weekly Digest Generator
@@ -207,3 +219,14 @@ export { checkRateLimit, RATE_LIMITS, getClientIP } from './rate-limiter.js';
 
 // Photo tokens (HMAC-signed tokens for ad-rewarded photo generation)
 export { generatePhotoToken, verifyPhotoToken } from './photo-token.js';
+
+// Cluster Manager
+export {
+  findOrCreateClusterForPlayer,
+  assignPlayerToCluster,
+  removePlayerFromCluster,
+  getClusterForPlayer,
+  getClusterMembers,
+  getClusterStats,
+} from './cluster-manager.js';
+export type { ClusterInfo, ClusterMemberInfo } from './cluster-manager.js';

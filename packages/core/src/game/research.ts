@@ -198,14 +198,23 @@ export function createResearchState(observatoryCount: number, sourcePlanetRing: 
   return { slots, systems: {} };
 }
 
-/** Check if a research slot is available and the system is researchable. */
+/**
+ * Check if a research slot is available and the system is researchable.
+ *
+ * @param maxRingOverride  Optional effective max ring (e.g. HOME_RESEARCH_MAX_RING +
+ *                         total max_ring_add from the player's tech tree). When omitted,
+ *                         falls back to the constant HOME_RESEARCH_MAX_RING.
+ */
 export function canStartResearch(
   state: ResearchState,
   systemId: string,
   ringIndex: number,
+  maxRingOverride?: number,
 ): boolean {
-  // Only Ring 1 (or configured max) from home
-  if (ringIndex > HOME_RESEARCH_MAX_RING) return false;
+  // Effective max ring: base constant + any tech-tree additions
+  const effectiveMaxRing = maxRingOverride !== undefined ? maxRingOverride : HOME_RESEARCH_MAX_RING;
+  // Only rings within effective max
+  if (ringIndex > effectiveMaxRing) return false;
   // No observatories at all?
   if (state.slots.length === 0) return false;
   // Already fully researched?

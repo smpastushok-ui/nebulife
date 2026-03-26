@@ -10,7 +10,7 @@ export const MAX_PLAYER_LEVEL = 99;
 // ── XP curve ────────────────────────────────────────────────────────────────
 
 const XP_CURVE_BASE = 100;
-const XP_CURVE_EXPONENT = 1.8;
+const XP_CURVE_EXPONENT = 1.3;
 
 /**
  * XP required to advance FROM level `level` TO `level + 1`.
@@ -95,3 +95,22 @@ export const XP_REWARDS = {
   HARVEST_ORE: 2,
   HARVEST_VENT: 3,
 } as const;
+
+// ── Ring-based XP rewards ────────────────────────────────────────────────────
+
+/**
+ * XP reward for completing research on a system, scaled by zone.
+ * Key matches zone name used at call sites.
+ */
+export const RING_XP_REWARD: Record<string, number> = {
+  'ring0-1': 30,     // Personal Ring 0-1
+  'ring2': 50,       // Personal Ring 2
+  'neighbor': 100,   // Neighbor player systems
+  'core-0': 200,     // Core entry (depth 0)
+  'core-1-4': 300,   // Shallow core
+  'core-5-8': 400,   // Mid core
+  'core-9-12': 500,  // Deep core
+};
+
+/** XP awarded per research session (regardless of completion). */
+export const SESSION_XP = 5;

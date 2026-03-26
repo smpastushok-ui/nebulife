@@ -24,7 +24,7 @@ export const RESEARCH_MAX_PROGRESS = 50;
 export const RESEARCH_PROGRESS_BY_RING: Array<{ min: number; max: number }> = [
   { min: 5, max: 80 },  // diff=0: same ring → avg ~42% → ~3 sessions  (colony bonus)
   { min: 2, max: 50 },  // diff=1: 1 ring away → avg ~26% → ~4 sessions (home→ring1)
-  { min: 2, max: 15 },  // diff=2: 2 rings away → avg ~8.5% → ~12 sessions
+  { min: 4, max: 15 },  // diff=2: 2 rings away → avg ~9.5% → ~11 sessions
   { min: 2, max: 5  },  // diff=3: 3 rings away → avg ~3.5% → ~29 sessions
   { min: 1, max: 1  },  // diff=4+: fixed 1% → 100 sessions
 ];
@@ -40,7 +40,7 @@ export const HOME_RESEARCH_MAX_RING = 2;
 
 // --- Research Data ---
 /** Starting research data charges for new players. */
-export const INITIAL_RESEARCH_DATA = 50;
+export const INITIAL_RESEARCH_DATA = 100;
 
 /** Cost in research data units per scan session. */
 export const RESEARCH_DATA_COST = 1;

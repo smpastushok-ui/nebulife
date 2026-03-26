@@ -51,6 +51,7 @@ import {
   findParadisePlanet,
   completeSystemResearchInstantly,
   HOME_OBSERVATORY_COUNT,
+  HOME_RESEARCH_MAX_RING,
   RESEARCH_DURATION_MS,
   INITIAL_RESEARCH_DATA,
   RESEARCH_DATA_COST,
@@ -63,6 +64,8 @@ import {
   GAME_TOTAL_SECONDS,
   levelFromXP,
   XP_REWARDS,
+  RING_XP_REWARD,
+  SESSION_XP,
   HARVEST_YIELD,
   createTechTreeState,
   getTechNodeStatus,
@@ -1609,12 +1612,22 @@ export function App() {
                   awardXP(XP_REWARDS.DISCOVERY_BASE + rarityBonus, 'discovery');
                 }
 
-                // Show modal if just completed
+                // Award SESSION_XP on every completed session
+                awardXP(SESSION_XP, 'research_session');
+
+                // Show modal if just completed — award ring-scaled XP
                 if (result.isNowComplete) {
                   const research = current.systems[system.id];
                   if (research) {
                     setCompletedModalQueue(q => [...q, { system, research }]);
-                    awardXP(XP_REWARDS.RESEARCH_COMPLETE, 'research_complete');
+                    // Determine zone key from system.ringIndex
+                    const ri = system.ringIndex ?? 0;
+                    const zoneKey =
+                      ri <= 1 ? 'ring0-1' :
+                      ri === 2 ? 'ring2' :
+                      'neighbor';
+                    const completionXP = RING_XP_REWARD[zoneKey] ?? XP_REWARDS.RESEARCH_COMPLETE;
+                    awardXP(completionXP, 'research_complete');
                   }
                 }
 
@@ -4643,7 +4656,8 @@ export function App() {
           canStartResearch={(sysId: string) => {
             const sys = (engineRef.current?.getAllSystems() ?? []).find(s => s.id === sysId);
             if (!sys) return false;
-            return canStartResearch(researchState, sysId, sys.ringIndex);
+            const maxRingAdd = getEffectValue(techTreeStateRef.current, 'max_ring_add', 0);
+            return canStartResearch(researchState, sysId, sys.ringIndex, HOME_RESEARCH_MAX_RING + maxRingAdd);
           }}
           onRenameSystem={(sysId: string, newName: string) => {
             setAlias({
