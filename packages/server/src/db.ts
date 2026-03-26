@@ -34,6 +34,7 @@ export interface PlayerRow {
   callsign_set_at: string | null;
   linked_at: string | null;
   global_index: number | null;
+  cluster_id: string | null;
 }
 
 export async function createPlayer(player: {
@@ -1538,4 +1539,133 @@ export async function getOnboardedPlayerIds(): Promise<string[]> {
   const sql = getSQL();
   const rows = await sql`SELECT player_id FROM academy_progress WHERE onboarded = true`;
   return rows.map((r) => (r as { player_id: string }).player_id);
+}
+
+// ---------------------------------------------------------------------------
+// Clusters: player groups of 50 sharing 500 core systems
+// ---------------------------------------------------------------------------
+
+export interface ClusterRow {
+  id: string;
+  group_index: number;
+  center_x: number;
+  center_y: number;
+  center_z: number;
+  player_count: number;
+  is_full: boolean;
+  group_seed: number;
+  created_at: string;
+}
+
+/** Find a cluster that still has open player slots (<50). */
+export async function findAvailableCluster(): Promise<ClusterRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM clusters
+    WHERE is_full = false
+    ORDER BY group_index ASC
+    LIMIT 1
+  `;
+  return (rows[0] as ClusterRow) ?? null;
+}
+
+/** Create a new cluster row. */
+export async function createCluster(
+  groupIndex: number,
+  centerX: number,
+  centerY: number,
+  centerZ: number,
+  groupSeed: number,
+): Promise<ClusterRow> {
+  const sql = getSQL();
+  const id = `cluster_${groupIndex}`;
+  const rows = await sql`
+    INSERT INTO clusters (id, group_index, center_x, center_y, center_z, group_seed)
+    VALUES (${id}, ${groupIndex}, ${centerX}, ${centerY}, ${centerZ}, ${groupSeed})
+    ON CONFLICT (id) DO NOTHING
+    RETURNING *
+  `;
+  if (rows[0]) return rows[0] as ClusterRow;
+  // Already exists — fetch it
+  const existing = await sql`SELECT * FROM clusters WHERE id = ${id}`;
+  return existing[0] as ClusterRow;
+}
+
+/** Atomically increment player_count and set is_full when reaching 50. */
+export async function incrementClusterPlayerCount(clusterId: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE clusters
+    SET player_count = player_count + 1,
+        is_full = (player_count + 1 >= 50)
+    WHERE id = ${clusterId}
+  `;
+}
+
+/** Atomically decrement player_count (e.g. on account deletion). */
+export async function decrementClusterPlayerCount(clusterId: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE clusters
+    SET player_count = GREATEST(player_count - 1, 0),
+        is_full = false
+    WHERE id = ${clusterId}
+  `;
+}
+
+/** Get a cluster by its ID. */
+export async function getClusterById(clusterId: string): Promise<ClusterRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM clusters WHERE id = ${clusterId}`;
+  return (rows[0] as ClusterRow) ?? null;
+}
+
+/** Get a cluster by group_index. */
+export async function getClusterByGroupIndex(groupIndex: number): Promise<ClusterRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM clusters WHERE group_index = ${groupIndex}`;
+  return (rows[0] as ClusterRow) ?? null;
+}
+
+/** Get all players in a cluster (basic info). */
+export async function getClusterPlayers(clusterId: string): Promise<Pick<PlayerRow, 'id' | 'name' | 'callsign' | 'global_index'>[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT id, name, callsign, global_index
+    FROM players
+    WHERE cluster_id = ${clusterId}
+    ORDER BY global_index ASC
+  `;
+  return rows as Pick<PlayerRow, 'id' | 'name' | 'callsign' | 'global_index'>[];
+}
+
+/** Set a player's cluster_id. */
+export async function setPlayerCluster(playerId: string, clusterId: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE players SET cluster_id = ${clusterId} WHERE id = ${playerId}
+  `;
+}
+
+/** Get the total number of clusters. */
+export async function getClusterCount(): Promise<number> {
+  const sql = getSQL();
+  const rows = await sql`SELECT COUNT(*)::int AS count FROM clusters`;
+  return (rows[0] as { count: number }).count;
+}
+
+/** Update cluster center coordinates and seed (for backfill fixup). */
+export async function updateClusterPosition(
+  clusterId: string,
+  centerX: number,
+  centerY: number,
+  centerZ: number,
+  groupSeed: number,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE clusters
+    SET center_x = ${centerX}, center_y = ${centerY}, center_z = ${centerZ}, group_seed = ${groupSeed}
+    WHERE id = ${clusterId}
+  `;
 }
