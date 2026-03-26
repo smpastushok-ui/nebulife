@@ -97,6 +97,7 @@ import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { DigestModal } from './ui/components/DigestModal.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
+import { BuildingShowcase } from './ui/components/BuildingShowcase.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
 import type { CosmicArchiveHandle } from './ui/components/CosmicArchive/CosmicArchive.js';
 import type { LogEntry, LogCategory } from './ui/components/CosmicArchive/SystemLog.js';
@@ -167,6 +168,11 @@ export interface GameState {
 }
 
 export function App() {
+  // Dev showcase: ?dev=buildings
+  if (typeof window !== 'undefined' && window.location.search.includes('dev=buildings')) {
+    return <BuildingShowcase />;
+  }
+
   const canvasRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const universeCanvasRef = useRef<HTMLDivElement>(null);
