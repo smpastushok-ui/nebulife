@@ -21,6 +21,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Guard against double-delivery — skip if already sent today
+    const alreadySent = await getDailyContent('fun_fact_sent');
+    if (alreadySent) {
+      return res.status(200).json({ skipped: true, reason: 'already delivered today' });
+    }
+
     // Get or generate today's fun fact
     let factText: string;
     const existing = await getDailyContent('fun_fact');
@@ -48,6 +54,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }),
       );
     }
+
+    // Mark delivery done for today — prevents re-delivery on cron retries
+    await saveDailyContent('fun_fact_sent', new Date().toISOString());
 
     return res.status(200).json({ processed: delivered, total: allPlayerIds.length });
   } catch (err) {

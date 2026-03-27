@@ -2072,6 +2072,7 @@ export function App() {
       ...q,
       {
         id:       Math.random().toString(36).slice(2),
+        techId:   node.id,
         techName: node.name,
         branch:   ((node as { branch?: string }).branch ?? 'astronomy') as ResearchToastItem['branch'],
       },
@@ -3172,6 +3173,7 @@ export function App() {
             addLogEntry('system', `Технологiю iнтегровано: ${nd.name}`);
             setPendingResearchToasts((q) => [...q, {
               id:       Math.random().toString(36).slice(2),
+              techId:   nd.id,
               techName: nd.name,
               branch:   nd.branch as ResearchToastItem['branch'],
             }]);

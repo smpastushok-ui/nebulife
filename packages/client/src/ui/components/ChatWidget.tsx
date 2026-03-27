@@ -14,6 +14,23 @@ import { isNativePlatform, canShowAd, showMultipleRewardedAds, claimAdReward } f
 import { NewDMModal } from './NewDMModal.js';
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Format a timestamp for display: time-only if today, "D Mon HH:MM" otherwise */
+function fmtTime(value: string | number): string {
+  const d = typeof value === 'number' ? new Date(value) : new Date(value);
+  const now = new Date();
+  const isToday = d.getFullYear() === now.getFullYear()
+    && d.getMonth() === now.getMonth()
+    && d.getDate() === now.getDate();
+  const timePart = d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return timePart;
+  const datePart = d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+  return `${datePart} ${timePart}`;
+}
+
+// ---------------------------------------------------------------------------
 // ChatWidget — minimized messenger at bottom-right
 // ---------------------------------------------------------------------------
 
@@ -602,7 +619,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
           <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* DB system messages (fun facts, moderation notices) */}
             {systemMessages.map((msg) => {
-              const msgTime = new Date(msg.created_at).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+              const msgTime = fmtTime(msg.created_at);
               return (
                 <div key={msg.id} style={{
                   background: 'rgba(0,30,20,0.3)',
@@ -628,7 +645,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
 
             {/* In-memory system notifs (research complete, etc.) */}
             {[...systemNotifs].reverse().map((notif) => {
-              const notifTime = new Date(notif.timestamp).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+              const notifTime = fmtTime(notif.timestamp);
               return (
                 <div key={notif.id} style={{
                   background: notif.read ? 'rgba(10,20,35,0.4)' : 'rgba(20,40,70,0.6)',
@@ -1011,10 +1028,7 @@ function MessageItem({
   const [confirmReport, setConfirmReport] = useState(false);
   const [reported, setReported] = useState(false);
 
-  const time = new Date(message.created_at).toLocaleTimeString('uk-UA', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const time = fmtTime(message.created_at);
 
   const handleReport = async () => {
     try {

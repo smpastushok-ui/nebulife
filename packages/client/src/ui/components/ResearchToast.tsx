@@ -15,7 +15,8 @@ import { useTranslation } from 'react-i18next';
 
 export interface ResearchToastItem {
   id:       string;
-  techName: string;
+  techId:   string;   // node.id — used for i18n key 'tech.{techId}.name'
+  techName: string;   // fallback display name
   branch:   'biology' | 'physics' | 'astronomy' | 'chemistry';
 }
 
@@ -506,7 +507,7 @@ const ToastItem: React.FC<{
           {t('toast.integrated')}
         </div>
 
-        {/* Tech name */}
+        {/* Tech name — translated via 'tech.{id}.name', fallback to raw name */}
         <div
           style={{
             fontFamily:    'monospace',
@@ -515,7 +516,7 @@ const ToastItem: React.FC<{
             letterSpacing:  0.3,
           }}
         >
-          &gt; {item.techName}
+          &gt; {t(`tech.${item.techId}.name`, { defaultValue: item.techName })}
         </div>
       </div>
     </div>
