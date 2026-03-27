@@ -24,11 +24,11 @@ export const ELEMENT_GROUP: Record<string, ResourceGroup> = {
   U: 'isotope', Th: 'isotope', Pu: 'isotope', Ra: 'isotope',
 };
 
-/** Ukrainian display names for resource groups */
+/** English display names for resource groups (i18n-translated in UI components) */
 export const GROUP_NAMES: Record<ResourceGroup, string> = {
-  mineral: 'Мінерали',
-  volatile: 'Леткі речовини',
-  isotope: 'Ізотопи',
+  mineral: 'Minerals',
+  volatile: 'Volatiles',
+  isotope:  'Isotopes',
 };
 
 /** Group accent colors — consistent with ResourceDisplay HUD */

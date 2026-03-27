@@ -3,7 +3,14 @@ import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { StarSystem, Planet, Star, Moon, ResourceGroup } from '@nebulife/core';
-import { SeededRNG, ELEMENTS, RESOURCE_GROUPS, GROUP_NAMES, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
+import { SeededRNG, ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
+
+/** i18n key for each resource group label */
+const GROUP_T_KEY: Record<ResourceGroup, string> = {
+  mineral:  'resource_display.desc.minerals_name',
+  volatile: 'resource_display.desc.volatiles_name',
+  isotope:  'resource_display.desc.isotopes_name',
+};
 import {
   derivePlanetVisuals,
   planetVisualsToUniforms,
@@ -598,7 +605,7 @@ function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: nu
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'monospace' }}>
                 <span style={{ color, fontSize: 9 }}>{isExpanded ? 'v' : '>'}</span>
-                <span style={{ color }}>{GROUP_NAMES[group]}</span>
+                <span style={{ color }}>{t(GROUP_T_KEY[group])}</span>
               </span>
               <span style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace' }}>
                 {formatMassKg(value)}

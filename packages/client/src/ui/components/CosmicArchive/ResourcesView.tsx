@@ -3,11 +3,17 @@ import { useTranslation } from 'react-i18next';
 import {
   ELEMENTS,
   ELEMENT_GROUP,
-  GROUP_NAMES,
   GROUP_COLORS,
   RESOURCE_GROUPS,
 } from '@nebulife/core';
 import type { ResourceGroup } from '@nebulife/core';
+
+/** i18n key for each resource group label */
+const GROUP_T_KEY: Record<ResourceGroup, string> = {
+  mineral:  'resource_display.desc.minerals_name',
+  volatile: 'resource_display.desc.volatiles_name',
+  isotope:  'resource_display.desc.isotopes_name',
+};
 
 // ---------------------------------------------------------------------------
 // ResourcesView -- Colony resource inventory with periodic table breakdown
@@ -58,7 +64,7 @@ export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewPr
     >
       {RESOURCE_GROUPS.map((group) => {
         const color    = GROUP_COLORS[group];
-        const label    = GROUP_NAMES[group];
+        const label    = t(GROUP_T_KEY[group]);
         const total    = totals[GROUP_KEY[group]];
         const elements = getGroupElementsSorted(group);
         const isOpen   = !collapsed.has(group);

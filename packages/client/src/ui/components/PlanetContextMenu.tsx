@@ -1,7 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet, Star, ResourceGroup } from '@nebulife/core';
-import { ELEMENTS, RESOURCE_GROUPS, GROUP_NAMES, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
+import { ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
+
+/** i18n key for each resource group label */
+const GROUP_T_KEY: Record<ResourceGroup, string> = {
+  mineral:  'resource_display.desc.minerals_name',
+  volatile: 'resource_display.desc.volatiles_name',
+  isotope:  'resource_display.desc.isotopes_name',
+};
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
 import { AdProgressButton } from './AdProgressButton.js';
 
@@ -317,7 +324,7 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: 
                     {isExpanded ? 'v' : '>'}
                   </span>
                   <span style={{ color, minWidth: 0, flex: 1 }}>
-                    {GROUP_NAMES[group]}
+                    {t(GROUP_T_KEY[group])}
                   </span>
                   <span style={{ fontSize: 9, color: '#667788', flexShrink: 0 }}>
                     {formatMassKg(value)}
