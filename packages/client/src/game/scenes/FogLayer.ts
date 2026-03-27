@@ -86,7 +86,9 @@ export class FogLayer {
       const sh  = def?.sizeH ?? 1;
       const cx  = hub.x + sw / 2 - 0.5;
       const cy  = hub.y + sh / 2 - 0.5;
-      this.revealAround(cx, cy, HUB_REVEAL_RADIUS);
+      // Scale reveal radius to grid size so small grids aren't fully revealed
+      const hubRadius = Math.min(HUB_REVEAL_RADIUS, Math.floor(this.gridSize * 0.25));
+      this.revealAround(cx, cy, hubRadius);
     }
     // No hub yet — SurfacePixiView calls revealStartingArea() for first-visit fog reveal
     this.redraw();
@@ -232,7 +234,8 @@ export class FogLayer {
     const bottom = { x: 0,    y: hh * 2  };
     const left   = { x: -hw,  y: hh      };
 
-    const fill = { color: 0xffffff as number, alpha: 0.92 };
+    // Deep space color matches canvas background — invisible when panning beyond map edges
+    const fill = { color: 0x020510 as number, alpha: 1.0 };
 
     // Top-right corner (between top, right, and outside)
     gfx.moveTo(top.x,        top.y - pad)

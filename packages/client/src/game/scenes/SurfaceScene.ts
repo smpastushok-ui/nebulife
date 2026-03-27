@@ -58,6 +58,7 @@ import {
   isVentCell,
   isTileHarvestable,
   getTileType,
+  isMobileDevice,
   findMountainCell,
   isMountainFootprint,
 } from './surface-utils.js';
@@ -245,9 +246,13 @@ export class SurfaceScene {
   private cloudShadowSprite: TilingSprite | null = null;
   private cloudBodySprite: TilingSprite | null = null;
 
-  // ─── Performance: foam frame throttle ────────────────────────────────────
-  /** Counts frames; foam redraws every FOAM_SKIP_FRAMES to save GPU uploads. */
+  // ─── Performance: frame throttles ───────────────────────────────────────
+  /** Counts frames; foam redraws every N frames to save GPU uploads. */
   private _foamFrameCount = 0;
+  /** Mobile: throttle hub effects (every 3rd frame) and building effects (every 2nd frame). */
+  private _hubFrameCount = 0;
+  private _bldgEffectFrame = 0;
+  private readonly _isMobile = isMobileDevice();
 
   // ─── Performance: floating text driven by update() — no per-anim RAF ─────
   private _floatAnims: Array<{
@@ -481,13 +486,17 @@ export class SurfaceScene {
   /** Public API: spawn drone when colony hub is built during gameplay. */
   public spawnBotAtHub(hub: PlacedBuilding): void {
     this._spawnBotNearHub(hub);
-    // Also reveal fog around the hub (30-tile radius)
+    // Also reveal fog around the hub — scaled to grid size
     if (this.fogLayer) {
       const def = BUILDING_DEFS[hub.type];
       const cx = hub.x + (def?.sizeW ?? 2) / 2 - 0.5;
       const cy = hub.y + (def?.sizeH ?? 2) / 2 - 0.5;
-      this.fogLayer.revealAround(cx, cy, def?.fogRevealRadius ?? 30);
+      const rawRadius = def?.fogRevealRadius ?? 30;
+      const hubRadius = Math.min(rawRadius, Math.floor(this.gridSize * 0.25));
+      this.fogLayer.revealAround(cx, cy, hubRadius);
       this.fogLayer.redraw();
+      // Rebuild ground to show revealed tiles (tiles under fog are skipped)
+      this.drawGroundLayer();
     }
   }
 
@@ -597,6 +606,10 @@ export class SurfaceScene {
 
       for (let col = colMin; col <= colMax; col++) {
         const row = d - col;
+
+        // Skip tiles hidden under fog — reduces sprite count dramatically on first visit
+        if (this.fogLayer && !this.fogLayer.isRevealed(col, row)) continue;
+
         const terrain   = classifyCellTerrain(col, row, seed, wl, N);
         const { x, y }  = gridToScreen(col, row);
         const baseY     = y + hH;
@@ -1031,11 +1044,13 @@ export class SurfaceScene {
     // Animate harvest progress ring
     this.drawHarvestRing(deltaMs);
 
-    // Animate shoreline foam — throttled to every 4 frames (~15 fps redraw on 60 fps).
-    // Pass deltaMs*4 so foamTimeMs accumulates the same total time as every-frame calls.
-    this._foamFrameCount++;
-    if (this._foamFrameCount % 4 === 0) {
-      this._updateFoam(deltaMs * 4);
+    // Animate shoreline foam — skip entirely on mobile (expensive GPU work).
+    // Desktop: throttled to every 4 frames (~15 fps redraw on 60 fps).
+    if (!this._isMobile) {
+      this._foamFrameCount++;
+      if (this._foamFrameCount % 4 === 0) {
+        this._updateFoam(deltaMs * 4);
+      }
     }
 
     // Cloud overlay is static — no per-frame update needed
@@ -1043,8 +1058,11 @@ export class SurfaceScene {
     // Building placement animations
     this._tickBuildingAnims(deltaMs);
 
-    // Per-building idle animations (resource_storage, landing_pad, spaceport)
-    this._tickBldgEffects(deltaMs);
+    // Per-building idle animations — throttle to every 2nd frame on mobile
+    this._bldgEffectFrame++;
+    if (!this._isMobile || this._bldgEffectFrame % 2 === 0) {
+      this._tickBldgEffects(this._isMobile ? deltaMs * 2 : deltaMs);
+    }
 
     // Demolish VFX animations
     this._tickDemolishEffects(deltaMs);
@@ -1055,6 +1073,8 @@ export class SurfaceScene {
       if (crossed && this.fogLayer) {
         this.fogLayer.revealAround(Math.round(this.bot.col), Math.round(this.bot.row), BOT_REVEAL_RADIUS);
         this.fogLayer.redraw();
+        // Rebuild ground to render newly-revealed tiles (fog-hidden tiles are skipped)
+        this.drawGroundLayer();
       }
     }
 
@@ -1068,6 +1088,9 @@ export class SurfaceScene {
     }
 
     if (!this.hubEffects) return;
+    // Throttle hub effects to every 3rd frame on mobile (7 Graphics.clear() per frame)
+    this._hubFrameCount++;
+    if (this._isMobile && this._hubFrameCount % 3 !== 0) return;
     const eff = this.hubEffects;
     eff.timeMs += deltaMs;
     const t   = eff.timeMs;

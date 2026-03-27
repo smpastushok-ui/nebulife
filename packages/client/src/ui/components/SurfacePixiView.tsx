@@ -22,7 +22,7 @@ import { SurfaceScene }  from '../../game/scenes/SurfaceScene.js';
 import { SurfacePanel }          from './SurfacePanel.js';
 import BuildingInspectPopup      from './BuildingInspectPopup.js';
 import { getBuildings, placeBuilding, removeBuilding } from '../../api/surface-api.js';
-import { screenToGrid, TILE_W, TILE_H, gridToScreen, findStartingLandCell } from '../../game/scenes/surface-utils.js';
+import { screenToGrid, TILE_W, TILE_H, gridToScreen, findStartingLandCell, computeIsoGridSize, isMobileDevice } from '../../game/scenes/surface-utils.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,6 +95,11 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     const [harvestMode, setHarvestMode]         = useState(false);
     const [roverMode, setRoverMode]             = useState(false);
 
+    // ─── 2-step building placement (mobile) ──────────────────────────────────
+    const [pendingPlacement, setPendingPlacement] = useState<{
+      type: BuildingType; col: number; row: number; moving: boolean;
+    } | null>(null);
+
     // ─── Building inspect + demolish state ───────────────────────────────────
     const [inspectBuilding, setInspectBuilding]   = useState<PlacedBuilding | null>(null);
     const [inspectPos, setInspectPos]             = useState({ x: 0, y: 0 });
@@ -131,14 +136,14 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       const halfW = (N - 1) * (TILE_W / 2) * z;   // e.g. 63 * 64 * z
       const gridH = 2 * (N - 1) * (TILE_H / 2) * z; // e.g. 2 * 63 * 40 * z
 
-      // X: half-screen padding so the map corner can be panned to the viewport centre
-      panRef.current.x = Math.max(-(halfW + cW * 0.5), Math.min(halfW + cW * 0.5, panRef.current.x));
+      // X: 10% padding beyond map edge (tighter than 50% to prevent seeing white/dark void)
+      const padX = cW * 0.1;
+      panRef.current.x = Math.max(-(halfW + padX), Math.min(halfW + padX, panRef.current.x));
 
       // Y: worldContainer baseline is cH/4 (grid origin at screen y = cH/4 + panY).
-      //   panYMax: grid top at half-screen (most you'd ever pan down)
-      //   panYMin: grid bottom at ~50% of screen height (most you'd ever pan up)
-      const panYMax = cH * 0.5;
-      const panYMin = -(gridH - cH * 0.5);
+      const padY = cH * 0.1;
+      const panYMax = padY;
+      const panYMin = -(gridH - cH + padY);
       panRef.current.y = Math.max(panYMin, Math.min(panYMax, panRef.current.y));
 
       scene.worldContainer.position.set(
@@ -168,12 +173,13 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       const app = new Application();
       pixiAppRef.current = app;
 
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       app.init({
         resizeTo:        container,
         background:      0x020510,
         antialias:       false,
         autoDensity:     true,
-        resolution:      Math.min(window.devicePixelRatio || 1, 1.5),
+        resolution:      Math.min(window.devicePixelRatio || 1, isTouchDevice ? 1.0 : 1.5),
         preference:      'webgl',
       }).then(async () => {
         container.appendChild(app.canvas);
@@ -181,6 +187,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         const scene = new SurfaceScene();
         sceneRef.current = scene;
         app.stage.addChild(scene.worldContainer);
+
+        // Hide until zoom/pan are set to prevent close-up flash on entry
+        scene.worldContainer.visible = false;
 
         // Scroll-to-zoom towards the cursor position.
         // Math.pow(0.999, deltaY): mouse wheel (deltaY≈100) → ~10% per click; trackpad (deltaY≈3) → ~0.3%.
@@ -227,8 +236,22 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           loaded = await getBuildings(playerId, planet.id);
         } catch { /* ignore — start with empty */ }
 
-        // Start with no buildings — player builds their colony from scratch.
-        // (Server returns empty array for a fresh planet.)
+        // First visit: auto-place Colony Hub so the player starts with a base + drone
+        if (loaded.length === 0) {
+          const wl = planet.hydrosphere?.waterCoverageFraction ?? 0;
+          const gridN = computeIsoGridSize(planet.radiusEarth * 6371);
+          const start = findStartingLandCell(planet.seed, wl, gridN);
+          const autoHub: PlacedBuilding = {
+            id:      `bld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            type:    'colony_hub',
+            x:       start.col,
+            y:       start.row,
+            level:   1,
+            builtAt: new Date().toISOString(),
+          };
+          loaded = [autoHub];
+          placeBuilding(playerId, planet.id, autoHub).catch(console.error);
+        }
 
         setBuildings(loaded);
 
@@ -247,7 +270,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           if (sceneRef.current) sceneRef.current.update(ticker.deltaMS);
         });
 
-        // Initial zoom centered on the colony hub, or on best starting land cell
+        // Initial zoom centered on the colony hub (hub always exists — auto-placed above if first visit)
         const hubBuilding = loaded.find((b) => b.type === 'colony_hub');
         const hubDef      = hubBuilding ? BUILDING_DEFS[hubBuilding.type] : null;
         let hubCol: number, hubRow: number;
@@ -255,12 +278,11 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           hubCol = hubBuilding.x + Math.floor((hubDef?.sizeW ?? 2) / 2);
           hubRow = hubBuilding.y + Math.floor((hubDef?.sizeH ?? 2) / 2);
         } else {
-          // First visit: center on buildable land with nearby resources
+          // Fallback (should not happen — hub is auto-placed above)
           const wl = planet.hydrosphere?.waterCoverageFraction ?? 0;
           const start = findStartingLandCell(planet.seed, wl, scene.gridSize);
           hubCol = start.col;
           hubRow = start.row;
-          // Reveal fog around starting area (15-cell radius) via scene
           scene.revealStartingArea(start.col, start.row, 15);
         }
         const { x: hubWX, y: hubWY } = gridToScreen(hubCol, hubRow);
@@ -270,6 +292,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         panRef.current.x = -(hubWX * z0);
         panRef.current.y = cH0 / 4 - hubWY * z0;
         applyZoom(z0);
+
+        // Show after zoom/pan are set — prevents close-up flash
+        scene.worldContainer.visible = true;
 
         onPhaseChange?.('ready');
       }).catch(() => {
@@ -319,14 +344,20 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
     useEffect(() => {
       const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape' && selectedBuilding) {
-          setSelectedBuilding(null);
-          sceneRef.current?.clearGhost();
+        if (e.key === 'Escape') {
+          if (pendingPlacement) {
+            setPendingPlacement(null);
+            setSelectedBuilding(null);
+            sceneRef.current?.clearGhost();
+          } else if (selectedBuilding) {
+            setSelectedBuilding(null);
+            sceneRef.current?.clearGhost();
+          }
         }
       };
       window.addEventListener('keydown', onKeyDown);
       return () => window.removeEventListener('keydown', onKeyDown);
-    }, [selectedBuilding]);
+    }, [selectedBuilding, pendingPlacement]);
 
     // ─── Pointer events (pan + drag) ──────────────────────────────────────────
 
@@ -348,8 +379,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
-      // Ghost preview on hover (no drag required)
-      if (selectedBuilding && sceneRef.current && !isDragging.current) {
+      // Ghost preview on hover — skip when pending placement is fixed (not in move mode)
+      if (selectedBuilding && sceneRef.current && !isDragging.current && !pendingPlacement) {
         const scene = sceneRef.current;
         const rect  = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const z     = zoomRef.current;
@@ -358,6 +389,17 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         const { col, row } = screenToGrid(wx, wy);
         const valid = scene.canBuildAt(col, row, selectedBuilding, buildings);
         scene.updateGhost(col, row, selectedBuilding, valid);
+      }
+      // Move mode — ghost follows pointer across valid zones
+      if (pendingPlacement?.moving && sceneRef.current && !isDragging.current) {
+        const scene = sceneRef.current;
+        const rect  = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const z     = zoomRef.current;
+        const wx    = (e.clientX - rect.left - scene.worldContainer.x) / z;
+        const wy    = (e.clientY - rect.top  - scene.worldContainer.y) / z;
+        const { col, row } = screenToGrid(wx, wy);
+        const valid = scene.canBuildAt(col, row, pendingPlacement.type, buildings);
+        scene.updateGhost(col, row, pendingPlacement.type, valid);
       }
 
       if (!isDragging.current) return;
@@ -402,35 +444,27 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       const N = scene.gridSize;
       if (col < 0 || col >= N || row < 0 || row >= N) return;
 
+      if (pendingPlacement?.moving) {
+        // Moving scaffold — relocate to new valid position
+        if (scene.canBuildAt(col, row, pendingPlacement.type, buildings)) {
+          setPendingPlacement({ ...pendingPlacement, col, row, moving: false });
+          scene.updateGhost(col, row, pendingPlacement.type, true);
+        }
+        return;
+      }
+
       if (selectedBuilding) {
-        // Place building mode
+        // Place building mode — 2-step: first click → show scaffold + buttons
         if (!scene.canBuildAt(col, row, selectedBuilding, buildings)) {
           // Invalid zone — deselect building
           setSelectedBuilding(null);
+          setPendingPlacement(null);
           sceneRef.current?.clearGhost();
           return;
         }
-        const newBuilding: PlacedBuilding = {
-          id:      `bld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          type:    selectedBuilding,
-          x:       col,
-          y:       row,
-          level:   1,
-          builtAt: new Date().toISOString(),
-        };
-        setBuildings((prev) => [...prev, newBuilding]);
-        setSelectedBuilding(null);
-        sceneRef.current?.clearGhost();
-        onBuildingPlaced?.(newBuilding.type);
-        placeBuilding(playerId, planet.id, newBuilding).catch(console.error);
-        // Colony Hub built — spawn drone explorer + reveal fog
-        if (newBuilding.type === 'colony_hub') {
-          sceneRef.current?.spawnBotAtHub(newBuilding);
-        }
-        // Alpha Harvester built — spawn premium harvester drone
-        if (newBuilding.type === 'alpha_harvester') {
-          sceneRef.current?.spawnHarvesterDrone(newBuilding);
-        }
+        // Fix ghost at this position and show confirm/move buttons
+        scene.updateGhost(col, row, selectedBuilding, true);
+        setPendingPlacement({ type: selectedBuilding, col, row, moving: false });
       } else if (roverMode) {
         // Drone explorer — send drone to clicked cell
         scene.setRoverTarget(col, row);
@@ -505,7 +539,41 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           }
         }
       }
-    }, [selectedBuilding, buildings, playerId, planet.id, onBuildingPlaced, roverMode, harvestMode, onHarvest, onHarvestFx]);
+    }, [selectedBuilding, buildings, playerId, planet.id, onBuildingPlaced, roverMode, harvestMode, onHarvest, onHarvestFx, pendingPlacement]);
+
+    // ─── Placement confirm / cancel / move ──────────────────────────────────
+
+    const handleConfirmPlacement = useCallback(() => {
+      if (!pendingPlacement || !sceneRef.current) return;
+      const { type, col, row } = pendingPlacement;
+      const newBuilding: PlacedBuilding = {
+        id:      `bld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        type,
+        x:       col,
+        y:       row,
+        level:   1,
+        builtAt: new Date().toISOString(),
+      };
+      setBuildings((prev) => [...prev, newBuilding]);
+      setSelectedBuilding(null);
+      setPendingPlacement(null);
+      sceneRef.current?.clearGhost();
+      onBuildingPlaced?.(newBuilding.type);
+      placeBuilding(playerId, planet.id, newBuilding).catch(console.error);
+      if (newBuilding.type === 'colony_hub') sceneRef.current?.spawnBotAtHub(newBuilding);
+      if (newBuilding.type === 'alpha_harvester') sceneRef.current?.spawnHarvesterDrone(newBuilding);
+    }, [pendingPlacement, playerId, planet.id, onBuildingPlaced]);
+
+    const handleCancelPlacement = useCallback(() => {
+      setPendingPlacement(null);
+      setSelectedBuilding(null);
+      sceneRef.current?.clearGhost();
+    }, []);
+
+    const handleMovePlacement = useCallback(() => {
+      if (!pendingPlacement) return;
+      setPendingPlacement({ ...pendingPlacement, moving: true });
+    }, [pendingPlacement]);
 
     // ─── Imperative handle (CommandBar buttons) ───────────────────────────────
 
@@ -566,6 +634,86 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           onPointerLeave={() => { handlePointerUp(); sceneRef.current?.clearGhost(); }}
         />
 
+        {/* 2-step placement: confirm / move / cancel buttons near scaffold */}
+        {pendingPlacement && !pendingPlacement.moving && sceneRef.current && (() => {
+          const scene = sceneRef.current!;
+          const z = zoomRef.current;
+          const { x: wx, y: wy } = gridToScreen(pendingPlacement.col, pendingPlacement.row);
+          const sx = scene.worldContainer.x + wx * z;
+          const sy = scene.worldContainer.y + (wy + TILE_H / 2) * z;
+          const btnBase: React.CSSProperties = {
+            padding: '8px 16px', borderRadius: 3, fontFamily: 'monospace',
+            fontSize: 12, cursor: 'pointer', fontWeight: 'bold', border: 'none',
+          };
+          return (
+            <div style={{
+              position: 'absolute', left: sx, top: sy + 8,
+              transform: 'translateX(-50%)',
+              display: 'flex', gap: 6, zIndex: 11000, pointerEvents: 'auto',
+            }}>
+              <button
+                onClick={handleMovePlacement}
+                style={{
+                  ...btnBase,
+                  background: 'rgba(8,14,24,0.94)',
+                  border: '1px solid #446688',
+                  color: '#7bb8ff',
+                }}
+              >
+                {t('surface.placement_move', 'Рухати')}
+              </button>
+              <button
+                onClick={handleConfirmPlacement}
+                style={{
+                  ...btnBase,
+                  background: 'rgba(20,60,30,0.9)',
+                  border: '1px solid #44ff88',
+                  color: '#88ffaa',
+                }}
+              >
+                {t('surface.placement_confirm', 'Будувати')}
+              </button>
+              <button
+                onClick={handleCancelPlacement}
+                style={{
+                  ...btnBase,
+                  background: 'rgba(8,14,24,0.94)',
+                  border: '1px solid #556677',
+                  color: '#556677',
+                  padding: '8px 10px',
+                }}
+              >
+                x
+              </button>
+            </div>
+          );
+        })()}
+
+        {/* Moving mode hint */}
+        {pendingPlacement?.moving && (
+          <div style={{
+            position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(5,15,25,0.92)',
+            border: '1px solid rgba(68,136,170,0.4)',
+            borderRadius: 4, padding: '6px 14px',
+            fontFamily: 'monospace', fontSize: 11, color: '#7bb8ff',
+            display: 'flex', alignItems: 'center', gap: 10,
+            pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 11000,
+          }}>
+            <span style={{ color: '#aabbcc' }}>{t('surface.placement_move_hint', 'Виберiть нову позицiю')}</span>
+            <button
+              onClick={handleCancelPlacement}
+              style={{
+                background: 'none', border: 'none', color: '#556677',
+                fontSize: 14, cursor: 'pointer', fontFamily: 'monospace',
+                padding: '0 2px', lineHeight: 1,
+              }}
+            >
+              x
+            </button>
+          </div>
+        )}
+
         {/* Building panel */}
         {showBuildPanel && (
           <SurfacePanel
@@ -574,6 +722,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
             selectedBuilding={selectedBuilding}
             onSelectBuilding={(type) => {
               setSelectedBuilding(type);
+              setPendingPlacement(null);
               setDronePopup(null);
               if (type) { setHarvestMode(false); setRoverMode(false); }
             }}

@@ -128,10 +128,15 @@ export const FEATURE_FRAME: Record<string, number> = {
  * Compute square isometric grid size (N×N) from planet radius.
  * Small planet (<4000 km) → 32, medium → 64, large → 128.
  */
+/** Detect mobile/tablet devices using touch capability (covers large-screen phones like Samsung Ultra). */
+export function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
+
 export function computeIsoGridSize(radiusKm: number): number {
-  // On mobile (narrow viewport) cap to smaller grids to limit object count
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  if (isMobile) {
+  // On mobile/tablet cap to smaller grids to limit object count + GPU load
+  if (isMobileDevice()) {
     if (radiusKm < 8000) return 32;   // small + medium → 32 (1 K objects vs 4 K)
     return 64;                         // large → 64 instead of 128 (4 K vs 16 K)
   }
