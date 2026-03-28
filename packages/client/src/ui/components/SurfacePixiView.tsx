@@ -231,8 +231,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           }
         }, { passive: false });
 
-        // Start texture preload IMMEDIATELY (runs in parallel with API call below)
-        const texturePreload = scene.preloadTextures(planet, star);
+        // TEMP: skip texture preload for performance test (green background mode)
+        // const texturePreload = scene.preloadTextures(planet, star);
+        const texturePreload = Promise.resolve(new Array(24).fill(null) as (null)[]);
 
         // Load buildings from API (texture download happens concurrently)
         let loaded: PlacedBuilding[] = [];
@@ -254,7 +255,10 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
             builtAt: new Date().toISOString(),
           };
           loaded = [autoHub];
-          placeBuilding(playerId, planet.id, autoHub).catch(console.error);
+          // Save to DB with retry on failure
+          placeBuilding(playerId, planet.id, autoHub).catch(() => {
+            setTimeout(() => placeBuilding(playerId, planet.id, autoHub).catch(console.error), 2000);
+          });
         }
 
         setBuildings(loaded);
@@ -563,7 +567,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       setPendingPlacement(null);
       sceneRef.current?.clearGhost();
       onBuildingPlaced?.(newBuilding.type);
-      placeBuilding(playerId, planet.id, newBuilding).catch(console.error);
+      placeBuilding(playerId, planet.id, newBuilding).catch(() => {
+        setTimeout(() => placeBuilding(playerId, planet.id, newBuilding).catch(console.error), 2000);
+      });
       if (newBuilding.type === 'colony_hub') sceneRef.current?.spawnBotAtHub(newBuilding);
       if (newBuilding.type === 'alpha_harvester') sceneRef.current?.spawnHarvesterDrone(newBuilding);
     }, [pendingPlacement, playerId, planet.id, onBuildingPlaced]);

@@ -430,16 +430,15 @@ export class SurfaceScene {
     } catch { /* ignore parse errors */ }
     this.advanceRegrowth();
 
-    // ── Load ALL textures in parallel ──────────────────────────────────────
-    // If preloaded (started before API call), just await the already-running promise.
-    // Otherwise start loading now (still parallel via Promise.all, but not overlapping with API).
-    const textures = await (preloadedTextures ?? this.preloadTextures(planet, star));
-    this._applyPreloadedTextures(textures);
+    // ── TEMPORARY: skip all texture loading for performance test ──────────
+    // TODO: restore after confirming textures are the bottleneck
+    // const textures = await (preloadedTextures ?? this.preloadTextures(planet, star));
+    // this._applyPreloadedTextures(textures);
 
     this.drawGroundLayer();
-    this._buildNoiseOverlay();
-    this._buildShorelineCells();
-    this.placeMountOverlay();   // PNG-sprite stacking (or procedural voxel fallback)
+    // this._buildNoiseOverlay();   // TEMP SKIP — perf test
+    // this._buildShorelineCells(); // TEMP SKIP — perf test
+    // this.placeMountOverlay();    // TEMP SKIP — perf test
 
     // Pre-mark existing buildings so they don't animate on scene load
     for (const b of buildings) this.animatedKeys.add(`${b.x},${b.y}`);
@@ -450,8 +449,8 @@ export class SurfaceScene {
     this.worldContainer.addChild(this.fogLayer.container);  // topmost
     this.fogLayer.initFromBuildings(buildings);
 
-    // Atmospheric clouds (TilingSprite)
-    await this._initCloudSprites();
+    // Atmospheric clouds (TilingSprite) — TEMP SKIP for perf test
+    // await this._initCloudSprites();
 
     // Drone explorer — only spawn if colony hub already exists
     const hub = buildings.find((b) => b.type === 'colony_hub');
@@ -636,12 +635,18 @@ export class SurfaceScene {
           continue;
         }
 
-        // Land → individual sprite (tracked in groundCellMap for incremental updates)
-        const child = this._createGroundCellFromTerrain(col, row, terrain, d);
-        if (child) {
-          this.groundLayer.addChild(child);
-          this.groundCellMap.set(`${col},${row}`, child);
+        // TEMP: simple colored diamond instead of texture sprites (perf test)
+        const { x, y } = gridToScreen(col, row);
+        const baseY = y + hH;
+        const landColor = terrain === 'mountains' || terrain === 'peaks' ? 0x445544
+          : terrain === 'hills' ? 0x336633 : 0x225533;
+        if (!bandWaterGfx) {
+          bandWaterGfx = new Graphics();
+          bandWaterGfx.zIndex = d;
+          this.groundLayer.addChild(bandWaterGfx);
         }
+        bandWaterGfx.poly([x, baseY - hH, x + hW, baseY, x, baseY + hH, x - hW, baseY]);
+        bandWaterGfx.fill({ color: landColor });
       }
     }
   }

@@ -597,12 +597,12 @@ export function findStartingLandCell(
         if (terrain !== 'lowland' && terrain !== 'plains') continue;
         if (blockBlobZone(col, row, seed)) continue;
 
-        // Check 5×5 area is all buildable land
+        // Check 5×5 area is all buildable flat land (no mountains/peaks/water)
         let clearArea = true;
         for (let ddx = -2; ddx <= 2 && clearArea; ddx++) {
           for (let ddy = -2; ddy <= 2 && clearArea; ddy++) {
             const t = classifyCellTerrain(col + ddx, row + ddy, seed, waterLevel, N);
-            if (!isLandTerrain(t)) clearArea = false;
+            if (t !== 'lowland' && t !== 'plains' && t !== 'hills') clearArea = false;
           }
         }
         if (!clearArea) continue;
