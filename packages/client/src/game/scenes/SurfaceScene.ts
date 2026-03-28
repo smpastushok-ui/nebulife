@@ -27,7 +27,7 @@ import {
 } from 'pixi.js';
 // In PixiJS v8, DisplayObject was removed; Sprite/Graphics both extend Container.
 type DisplayObject = Container | Sprite | Graphics;
-import type { Planet, Star, PlacedBuilding, BuildingType, HarvestedCell, SurfaceObjectType } from '@nebulife/core';
+import type { Planet, Star, PlacedBuilding, BuildingType, HarvestedCell, SurfaceObjectType, TerrainType } from '@nebulife/core';
 import { SeededRNG, BUILDING_DEFS, REGROWTH_STAGE_MS } from '@nebulife/core';
 import { FogLayer } from './FogLayer.js';
 import { RoverVisual, ROVER_REVEAL_RADIUS } from './RoverVisual.js';
@@ -334,7 +334,90 @@ export class SurfaceScene {
 
   // ─── Init ─────────────────────────────────────────────────────────────────
 
-  async init(planet: Planet, star: Star, buildings: PlacedBuilding[]): Promise<void> {
+  // ─── Texture preloading (can run in parallel with API calls) ───────────────
+
+  private static readonly BUILDING_PNGS: [string, string][] = [
+    ['colony_hub',        '/buildings/colony_hub.png'],
+    ['solar_plant',       '/buildings/solar_plant.png'],
+    ['battery_station',   '/buildings/battery_station.png'],
+    ['wind_generator',    '/buildings/wind_generator.png'],
+    ['resource_storage',  '/tiles/machines/resource_storage.png'],
+    ['landing_pad',       '/tiles/machines/landing_pad.png'],
+    ['spaceport',         '/tiles/machines/spaceport.png'],
+    ['thermal_generator', '/buildings/thermal_generator.png'],
+    ['mine',              '/buildings/mine.png'],
+    ['fusion_reactor',    '/buildings/fusion_reactor.png'],
+    ['water_extractor',   '/buildings/water_extractor.png'],
+    ['atmo_extractor',    '/buildings/atmo_extractor.png'],
+    ['deep_drill',        '/buildings/deep_drill.png'],
+  ];
+
+  /**
+   * Start loading ALL textures in parallel. Call this BEFORE awaiting API calls
+   * so network requests overlap. Pass the returned promise to init().
+   * If not called, init() will load textures itself (but sequentially with API).
+   */
+  preloadTextures(planet: Planet, star: Star): Promise<(Texture | null)[]> {
+    const atlasType = derivePlanetAtlasType(planet, star);
+    const atlasUrl  = `/tiles/tiles_${atlasType}.png`;
+    const mountUrl  =
+      atlasType === 'ice'      ? '/tiles/habitable/mount_ice.png'      :
+      atlasType === 'volcanic' ? '/tiles/habitable/mount_volcanic.png' :
+                                 '/tiles/habitable/mount_rugged.png';
+
+    const safeLoad = (url: string) => Assets.load<Texture>(url).catch(() => null);
+
+    return Promise.all([
+      safeLoad(atlasUrl),
+      safeLoad('/buildings/solar_plant_light.png'),
+      safeLoad('/buildings/battery_station_on.png'),
+      safeLoad('/buildings/wind_generator_on.png'),
+      safeLoad('/buildings/mine_on.png'),
+      safeLoad('/buildings/water_extractor_on.png'),
+      safeLoad('/tiles/machines/bot_resercher.png'),
+      safeLoad('/tiles/machines/bot_resercher_off.png'),
+      safeLoad('/tiles/machines/premium_harvester_drone.png'),
+      safeLoad('/tiles/machines/pos_drone.png'),
+      safeLoad(mountUrl),
+      ...SurfaceScene.BUILDING_PNGS.map(([, url]) => safeLoad(url)),
+    ]);
+  }
+
+  private _applyPreloadedTextures(textures: (Texture | null)[]): void {
+    const [
+      atlasTex, solarLight, batteryGlow, windRotor, mineDrill, waterFrost,
+      botFly, botIdle, harvester, posDrone, mountTex,
+      ...bldgTexArr
+    ] = textures;
+
+    this.baseTexture    = atlasTex;
+    this.solarLightTex  = solarLight;
+    this.batteryGlowTex = batteryGlow;
+    this.windRotorTex   = windRotor;
+    this.mineDrillTex   = mineDrill;
+    this.waterFrostTex  = waterFrost;
+    this.botFlyTex      = botFly;
+    this.botIdleTex     = botIdle;
+    this.harvesterTex   = harvester;
+    this.posDroneTex    = posDrone;
+    this.mountTex       = mountTex;
+
+    for (let i = 0; i < SurfaceScene.BUILDING_PNGS.length; i++) {
+      const tex = bldgTexArr[i];
+      if (tex) this.bldgTextures[SurfaceScene.BUILDING_PNGS[i][0]] = tex;
+    }
+  }
+
+  // ─── Init ─────────────────────────────────────────────────────────────────
+
+  /**
+   * @param preloadedTextures — optional promise from preloadTextures() started
+   *        earlier (runs in parallel with API calls). If omitted, textures load inline.
+   */
+  async init(
+    planet: Planet, star: Star, buildings: PlacedBuilding[],
+    preloadedTextures?: Promise<(Texture | null)[]>,
+  ): Promise<void> {
     this.planet     = planet;
     this.planetId   = planet.id;
     this.gridSize   = computeIsoGridSize(planet.radiusEarth * 6371);
@@ -347,92 +430,11 @@ export class SurfaceScene {
     } catch { /* ignore parse errors */ }
     this.advanceRegrowth();
 
-    const atlasType = derivePlanetAtlasType(planet, star);
-    const atlasUrl  = `/tiles/tiles_${atlasType}.png`;
-
-    try {
-      this.baseTexture = await Assets.load<Texture>(atlasUrl);
-    } catch {
-      // Atlas not available yet — render without sprites (fallback: colored diamonds)
-      this.baseTexture = null;
-    }
-
-    // Pre-load building PNG textures (non-blocking — fail silently)
-    const BUILDING_PNGS: Partial<Record<string, string>> = {
-      colony_hub:        '/buildings/colony_hub.png',
-      solar_plant:       '/buildings/solar_plant.png',
-      battery_station:   '/buildings/battery_station.png',
-      wind_generator:    '/buildings/wind_generator.png',
-      resource_storage:  '/tiles/machines/resource_storage.png',
-      landing_pad:       '/tiles/machines/landing_pad.png',
-      spaceport:         '/tiles/machines/spaceport.png',
-      thermal_generator: '/buildings/thermal_generator.png',
-      mine:              '/buildings/mine.png',
-      fusion_reactor:    '/buildings/fusion_reactor.png',
-      water_extractor:   '/buildings/water_extractor.png',
-      atmo_extractor:    '/buildings/atmo_extractor.png',
-      deep_drill:        '/buildings/deep_drill.png',
-    };
-    await Promise.all(
-      Object.entries(BUILDING_PNGS).map(async ([type, url]) => {
-        if (!url) return;
-        try {
-          this.bldgTextures[type] = await Assets.load<Texture>(url);
-        } catch { /* no PNG for this building — use procedural */ }
-      }),
-    );
-
-    // Load solar plant glow overlay texture
-    try {
-      this.solarLightTex = await Assets.load<Texture>('/buildings/solar_plant_light.png');
-    } catch { /* no glow texture — solar plant works without overlay */ }
-
-    // Load battery station glow overlay texture
-    try {
-      this.batteryGlowTex = await Assets.load<Texture>('/buildings/battery_station_on.png');
-    } catch { /* no glow texture — battery station works without overlay */ }
-
-    // Load wind generator rotor texture
-    try {
-      this.windRotorTex = await Assets.load<Texture>('/buildings/wind_generator_on.png');
-    } catch { /* no rotor texture — wind generator works without animation */ }
-
-    // Load mine drill overlay texture
-    try {
-      this.mineDrillTex = await Assets.load<Texture>('/buildings/mine_on.png');
-    } catch { /* no drill texture — mine works without animation */ }
-
-    // Load water extractor frost overlay texture
-    try {
-      this.waterFrostTex = await Assets.load<Texture>('/buildings/water_extractor_on.png');
-    } catch { /* no frost texture — water extractor works without overlay */ }
-
-    // Load researcher bot textures
-    try {
-      [this.botFlyTex, this.botIdleTex] = await Promise.all([
-        Assets.load<Texture>('/tiles/machines/bot_resercher.png'),
-        Assets.load<Texture>('/tiles/machines/bot_resercher_off.png'),
-      ]);
-    } catch { /* no bot textures — bot will not spawn */ }
-
-    // Load premium harvester drone texture
-    try {
-      this.harvesterTex = await Assets.load<Texture>('/tiles/machines/premium_harvester_drone.png');
-    } catch { /* no harvester texture — drones will not spawn */ }
-
-    // Load pos drone texture (landing pad launch animation)
-    try {
-      this.posDroneTex = await Assets.load<Texture>('/tiles/machines/pos_drone.png');
-    } catch { /* no pos_drone texture — cube fallback used */ }
-
-    // Load mountain PNG sprite — variant chosen by planet surface type
-    const mountUrl =
-      atlasType === 'ice'      ? '/tiles/habitable/mount_ice.png'      :
-      atlasType === 'volcanic' ? '/tiles/habitable/mount_volcanic.png' :
-                                 '/tiles/habitable/mount_rugged.png';   // temperate / ocean / barren
-    try {
-      this.mountTex = await Assets.load<Texture>(mountUrl);
-    } catch { /* no mountain texture — voxel fallback will be used */ }
+    // ── Load ALL textures in parallel ──────────────────────────────────────
+    // If preloaded (started before API call), just await the already-running promise.
+    // Otherwise start loading now (still parallel via Promise.all, but not overlapping with API).
+    const textures = await (preloadedTextures ?? this.preloadTextures(planet, star));
+    this._applyPreloadedTextures(textures);
 
     this.drawGroundLayer();
     this._buildNoiseOverlay();
@@ -493,10 +495,10 @@ export class SurfaceScene {
       const cy = hub.y + (def?.sizeH ?? 2) / 2 - 0.5;
       const rawRadius = def?.fogRevealRadius ?? 30;
       const hubRadius = Math.min(rawRadius, Math.floor(this.gridSize * 0.25));
-      this.fogLayer.revealAround(cx, cy, hubRadius);
+      const newCells = this.fogLayer.revealAround(cx, cy, hubRadius);
       this.fogLayer.redraw();
-      // Rebuild ground to show revealed tiles (tiles under fog are skipped)
-      this.drawGroundLayer();
+      // Incrementally add newly revealed tiles (instead of full ground rebuild)
+      this.revealGroundCells(newCells);
     }
   }
 
@@ -588,8 +590,13 @@ export class SurfaceScene {
 
   // ─── Ground layer (Painter's Algorithm) ───────────────────────────────────
 
+  /** Map of "col,row" → DisplayObject for incremental cell updates. */
+  private groundCellMap = new Map<string, Container>();
+
   private drawGroundLayer(): void {
     this.groundLayer.removeChildren();
+    this.groundCellMap.clear();
+    this.groundLayer.sortableChildren = true;
     const N    = this.gridSize;
     const seed = this.planet.seed;
     const wl   = this.waterLevel;
@@ -610,14 +617,15 @@ export class SurfaceScene {
         // Skip tiles hidden under fog — reduces sprite count dramatically on first visit
         if (this.fogLayer && !this.fogLayer.isRevealed(col, row)) continue;
 
-        const terrain   = classifyCellTerrain(col, row, seed, wl, N);
-        const { x, y }  = gridToScreen(col, row);
-        const baseY     = y + hH;
+        const terrain = classifyCellTerrain(col, row, seed, wl, N);
 
-        // Water → batch all cells in this band into one Graphics (painter's order preserved)
+        // Water/beach → batch into a single Graphics per diagonal band
         if (isWaterTerrain(terrain) || terrain === 'beach') {
+          const { x, y } = gridToScreen(col, row);
+          const baseY = y + hH;
           if (!bandWaterGfx) {
             bandWaterGfx = new Graphics();
+            bandWaterGfx.zIndex = d;
             this.groundLayer.addChild(bandWaterGfx);
           }
           const color = WATER_COLORS[terrain] ?? 0x0d1f35;
@@ -626,22 +634,99 @@ export class SurfaceScene {
           continue;
         }
 
-        // Lowland / plains / hills / mountains / peaks → sprite from atlas
-        const defaultFrame = terrainToAtlasIndex(terrain, col, row, seed, N);
-        const frameIdx = defaultFrame !== null ? this.getEffectiveFrame(col, row, defaultFrame) : null;
-        const tex      = frameIdx !== null ? this.getFrame(frameIdx) : null;
-
-        if (tex) {
-          const sp = new Sprite(tex);
-          sp.anchor.set(0.5, SPRITE_ANCHOR_Y);
-          sp.scale.set(TILE_SCALE, TILE_SCALE);
-          sp.position.set(x, baseY);  // integer TILE_H/2=41 → x,y already integers; no rounding needed
-          this.groundLayer.addChild(sp);
-        } else {
-          // Fallback: colored diamond when atlas not available
-          this.groundLayer.addChild(this.makeFallbackDiamond(x, baseY, terrain));
+        // Land → individual sprite (tracked in groundCellMap for incremental updates)
+        const child = this._createGroundCellFromTerrain(col, row, terrain, d);
+        if (child) {
+          this.groundLayer.addChild(child);
+          this.groundCellMap.set(`${col},${row}`, child);
         }
       }
+    }
+  }
+
+  /**
+   * Create a single ground tile (sprite or fallback diamond) for a LAND cell.
+   * Terrain must be pre-classified (not water/beach).
+   * Sets zIndex = col+row for painter's algorithm sorting.
+   */
+  private _createGroundCellFromTerrain(
+    col: number, row: number, terrain: TerrainType, d?: number,
+  ): Container | null {
+    const seed = this.planet.seed;
+    const N    = this.gridSize;
+    const hH   = TILE_H / 2;
+    const { x, y } = gridToScreen(col, row);
+    const baseY    = y + hH;
+    const zIdx     = d ?? (col + row);
+
+    const defaultFrame = terrainToAtlasIndex(terrain, col, row, seed, N);
+    const frameIdx = defaultFrame !== null ? this.getEffectiveFrame(col, row, defaultFrame) : null;
+    const tex      = frameIdx !== null ? this.getFrame(frameIdx) : null;
+
+    if (tex) {
+      const sp = new Sprite(tex);
+      sp.anchor.set(0.5, SPRITE_ANCHOR_Y);
+      sp.scale.set(TILE_SCALE, TILE_SCALE);
+      sp.position.set(x, baseY);
+      sp.zIndex = zIdx;
+      return sp;
+    }
+    const fb = this.makeFallbackDiamond(x, baseY, terrain);
+    fb.zIndex = zIdx;
+    return fb;
+  }
+
+  /**
+   * Incrementally reveal ground cells (used by fog reveal instead of full redraw).
+   * Only adds tiles for cells that aren't already in the ground layer.
+   */
+  revealGroundCells(cells: { col: number; row: number }[]): void {
+    const hH = TILE_H / 2;
+    for (const { col, row } of cells) {
+      const key = `${col},${row}`;
+      if (this.groundCellMap.has(key)) continue;
+
+      const terrain = classifyCellTerrain(col, row, this.planet.seed, this.waterLevel, this.gridSize);
+
+      // Water/beach — add individual small Graphics (z-sorted)
+      if (isWaterTerrain(terrain) || terrain === 'beach') {
+        const { x, y } = gridToScreen(col, row);
+        const baseY = y + hH;
+        const hW = TILE_W / 2;
+        const g = new Graphics();
+        g.zIndex = col + row;
+        const color = WATER_COLORS[terrain] ?? 0x0d1f35;
+        g.poly([x, baseY - hH, x + hW, baseY, x, baseY + hH, x - hW, baseY]);
+        g.fill({ color });
+        this.groundLayer.addChild(g);
+        this.groundCellMap.set(key, g);
+        continue;
+      }
+
+      const child = this._createGroundCellFromTerrain(col, row, terrain);
+      if (child) {
+        this.groundLayer.addChild(child);
+        this.groundCellMap.set(key, child);
+      }
+    }
+  }
+
+  /**
+   * Replace a single ground cell (used after harvest — update one tile instead of full redraw).
+   */
+  private _replaceGroundCell(col: number, row: number): void {
+    const key = `${col},${row}`;
+    const old = this.groundCellMap.get(key);
+    if (old) {
+      this.groundLayer.removeChild(old);
+      old.destroy();
+    }
+    const terrain = classifyCellTerrain(col, row, this.planet.seed, this.waterLevel, this.gridSize);
+    if (isWaterTerrain(terrain) || terrain === 'beach') return; // water cells not tracked individually
+    const child = this._createGroundCellFromTerrain(col, row, terrain);
+    if (child) {
+      this.groundLayer.addChild(child);
+      this.groundCellMap.set(key, child);
     }
   }
 
@@ -1071,10 +1156,10 @@ export class SurfaceScene {
     if (this.bot) {
       const crossed = this.bot.update(deltaMs, this.currentIsotopes);
       if (crossed && this.fogLayer) {
-        this.fogLayer.revealAround(Math.round(this.bot.col), Math.round(this.bot.row), BOT_REVEAL_RADIUS);
+        const newCells = this.fogLayer.revealAround(Math.round(this.bot.col), Math.round(this.bot.row), BOT_REVEAL_RADIUS);
         this.fogLayer.redraw();
-        // Rebuild ground to render newly-revealed tiles (fog-hidden tiles are skipped)
-        this.drawGroundLayer();
+        // Incrementally add only newly-revealed tiles (instead of full N^2 ground rebuild)
+        this.revealGroundCells(newCells);
       }
     }
 
@@ -1799,7 +1884,7 @@ export class SurfaceScene {
       changedAt:    Date.now(),
     });
     this.saveHarvested();
-    this.drawGroundLayer();
+    this._replaceGroundCell(col, row);
   }
 
   /**
@@ -1827,7 +1912,7 @@ export class SurfaceScene {
       changedAt:    Date.now(),
     });
     this.saveHarvested();
-    this.drawGroundLayer();
+    this._replaceGroundCell(col, row);
   }
 
   /**
@@ -1855,7 +1940,7 @@ export class SurfaceScene {
       changedAt:    Date.now(),
     });
     this.saveHarvested();
-    this.drawGroundLayer();
+    this._replaceGroundCell(col, row);
   }
 
   /**
@@ -1943,6 +2028,8 @@ export class SurfaceScene {
 
     if (changed) {
       this.saveHarvested();
+      // Regrowth changes many scattered cells — full redraw is fine here
+      // (happens once on init, not per-frame)
       this.drawGroundLayer();
     }
   }

@@ -51,11 +51,11 @@ export class FogLayer {
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
-  /** Reveal cells in a circular radius around (col, row). */
-  revealAround(col: number, row: number, radius: number): void {
+  /** Reveal cells in a circular radius around (col, row). Returns newly revealed cells. */
+  revealAround(col: number, row: number, radius: number): { col: number; row: number }[] {
     const r   = Math.ceil(radius);
     const r2  = radius * radius;
-    let changed = false;
+    const newCells: { col: number; row: number }[] = [];
 
     for (let dc = -r; dc <= r; dc++) {
       for (let dr = -r; dr <= r; dr++) {
@@ -66,15 +66,17 @@ export class FogLayer {
         const key = `${c},${rr}`;
         if (!this.revealedCells.has(key)) {
           this.revealedCells.add(key);
-          changed = true;
+          newCells.push({ col: c, row: rr });
         }
       }
     }
 
-    if (changed) {
+    if (newCells.length > 0) {
       this.dirty = true;
       this.persist();
     }
+
+    return newCells;
   }
 
   /** Initialize fog by revealing area around the colony hub (called after init). */

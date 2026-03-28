@@ -141,9 +141,10 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       panRef.current.x = Math.max(-(halfW + padX), Math.min(halfW + padX, panRef.current.x));
 
       // Y: worldContainer baseline is cH/4 (grid origin at screen y = cH/4 + panY).
-      const padY = cH * 0.1;
+      // Use 35% padding — guarantees panYMin ≤ panYMax (simplifies to -gridH ≤ 0).
+      const padY = cH * 0.35;
       const panYMax = padY;
-      const panYMin = -(gridH - cH + padY);
+      const panYMin = -(gridH - cH * 0.35);
       panRef.current.y = Math.max(panYMin, Math.min(panYMax, panRef.current.y));
 
       scene.worldContainer.position.set(
@@ -230,7 +231,10 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           }
         }, { passive: false });
 
-        // Load buildings from API
+        // Start texture preload IMMEDIATELY (runs in parallel with API call below)
+        const texturePreload = scene.preloadTextures(planet, star);
+
+        // Load buildings from API (texture download happens concurrently)
         let loaded: PlacedBuilding[] = [];
         try {
           loaded = await getBuildings(playerId, planet.id);
@@ -255,7 +259,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
         setBuildings(loaded);
 
-        await scene.init(planet, star, loaded);
+        await scene.init(planet, star, loaded, texturePreload);
 
         // Wire isotope consumption callback for drone fuel
         scene.setConsumeIsotopesCallback((amount) => {
