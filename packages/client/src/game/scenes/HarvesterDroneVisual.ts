@@ -140,6 +140,9 @@ export class HarvesterDroneVisual {
   /** Whether the colony has an active solar_plant (electric motor = free harvests). */
   public hasSolarPlant = false;
 
+  /** Mobile mode — skip heavy visual effects (trail, laser glow, shadow). */
+  public isMobile = false;
+
   // ── Player control ────────────────────────────────────────────────────────
   /** Whether the drone is active (player can toggle via popup). */
   public active = true;
@@ -266,11 +269,24 @@ export class HarvesterDroneVisual {
     this._tickLabels(deltaMs);
 
     // ── Draw animated layers ──────────────────────────────────────────────
-    this._drawShadow();
-    this._drawTrail();
-    this._drawLaser();
+    if (!this.isMobile) {
+      this._drawShadow();
+      this._drawTrail();
+      this._drawLaser();
+      this._drawFuelBar(isotopes);
+    } else {
+      // Mobile: only laser core (1 clear, 1 stroke) — skip shadow, trail, fuel bar
+      this.laserGfx.clear();
+      if (this.state === 'harvesting') {
+        const { x, y } = gridToScreen(this.col, this.row);
+        const bodyY = y - FLOAT_HEIGHT + this.bobY;
+        const groundY = y + TILE_H / 2;
+        this.laserGfx.moveTo(x, bodyY + 6);
+        this.laserGfx.lineTo(x, groundY);
+        this.laserGfx.stroke({ color: 0xfff0aa, width: 1.5, alpha: 0.7 });
+      }
+    }
     this._updatePosition();
-    this._drawFuelBar(isotopes);
   }
 
   destroy(): void {

@@ -480,6 +480,7 @@ export class SurfaceScene {
     const col = hub.x + (hubDef?.sizeW ?? 2) + 1;
     const row = hub.y + Math.floor((hubDef?.sizeH ?? 2) / 2);
     this.bot = new ResearcherBot(col, row, this.botFlyTex, this.botIdleTex);
+    this.bot.isMobile = this._isMobile;
     // Wire isotope consumption callback
     this.bot.onConsumeIsotopes = (amount) => this.onConsumeIsotopes ? this.onConsumeIsotopes(amount) : false;
     this.roverLayer.addChild(this.bot.container);
@@ -521,6 +522,7 @@ export class SurfaceScene {
     // Wire isotope consumption callback
     drone.onConsumeIsotopes = (amount) => this.onConsumeIsotopes ? this.onConsumeIsotopes(amount) : false;
     drone.hasSolarPlant = this.hasSolarPlant;
+    drone.isMobile = this._isMobile;
 
     this.roverLayer.addChild(drone.container);
     this.harvesterDrones.push(drone);
@@ -1143,10 +1145,10 @@ export class SurfaceScene {
     // Building placement animations
     this._tickBuildingAnims(deltaMs);
 
-    // Per-building idle animations — throttle to every 2nd frame on mobile
-    this._bldgEffectFrame++;
-    if (!this._isMobile || this._bldgEffectFrame % 2 === 0) {
-      this._tickBldgEffects(this._isMobile ? deltaMs * 2 : deltaMs);
+    // Per-building idle animations — skip entirely on mobile (20+ Graphics.clear() per tick)
+    if (!this._isMobile) {
+      this._bldgEffectFrame++;
+      this._tickBldgEffects(deltaMs);
     }
 
     // Demolish VFX animations
@@ -1173,9 +1175,9 @@ export class SurfaceScene {
     }
 
     if (!this.hubEffects) return;
-    // Throttle hub effects to every 3rd frame on mobile (7 Graphics.clear() per frame)
+    // Skip hub effects entirely on mobile — 7 Graphics.clear() per tick is too heavy for mobile GPU
+    if (this._isMobile) return;
     this._hubFrameCount++;
-    if (this._isMobile && this._hubFrameCount % 3 !== 0) return;
     const eff = this.hubEffects;
     eff.timeMs += deltaMs;
     const t   = eff.timeMs;
@@ -2682,6 +2684,8 @@ export class SurfaceScene {
   }
 
   private _createBldgEffect(b: PlacedBuilding): void {
+    // Skip idle effects entirely on mobile — saves 3-6 Graphics objects per building
+    if (this._isMobile) return;
     const def  = BUILDING_DEFS[b.type];
     const sW   = def?.sizeW ?? 1;
     const sH   = def?.sizeH ?? 1;

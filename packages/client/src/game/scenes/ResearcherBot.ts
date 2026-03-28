@@ -117,6 +117,9 @@ export class ResearcherBot {
   public onConsumeIsotopes: ((amount: number) => boolean) | null = null;
   private fuelBarGfx: Graphics;
 
+  /** Mobile mode — skip heavy visual effects (distortion, bloom, smoke). */
+  public isMobile = false;
+
   // ── Pathfinding ────────────────────────────────────────────────────────────
   private path: Array<{ col: number; row: number }> = [];
 
@@ -348,6 +351,8 @@ export class ResearcherBot {
   private _drawSmoke(): void {
     this.smoke.clear();
     if (this.engineAlpha < 0.1) return;
+    // Skip smoke entirely on mobile — 16 circle fills per frame
+    if (this.isMobile) return;
 
     const a     = this.engineAlpha;
     const t     = this.timeMs;
@@ -391,12 +396,21 @@ export class ResearcherBot {
     const a = this.engineAlpha;
     const t = this.timeMs;
 
+    // ── Mobile: minimal glow only (skip distortion + bloom rings entirely) ──
+    if (this.isMobile) {
+      for (const off of ENGINE_OFFSETS) {
+        this.engineGlow.circle(off.x, off.y, 5 * a);
+        this.engineGlow.fill({ color: 0xff8800, alpha: 0.15 * a });
+      }
+      return;
+    }
+
+    // ── Desktop: full effects ───────────────────────────────────────────────
     // Slow heat shimmer: 3 s period — simulates thermal bloom around the sprite's own glow
     const shimmer = 0.7 + 0.3 * Math.sin((t / 3000) * Math.PI * 2);
 
     for (const off of ENGINE_OFFSETS) {
       // Heat bloom: 6 concentric translucent rings diffusing the engine glow outward.
-      // No bright hard centers — just a soft "blurred" halo around the sprite's built-in fire.
       const maxR = 7 * a;
       for (let i = 0; i < 6; i++) {
         const r     = maxR * (i + 1) / 6;
@@ -416,11 +430,9 @@ export class ResearcherBot {
     }
 
     // Central mirage zone — translucent wavy rings simulating heat shimmer on the ground.
-    // Many thin white/pale stroked ellipses slightly offset by a slow sine wave = mirage look.
     const NRINGS = 10;
     for (let i = 0; i < NRINGS; i++) {
       const baseR  = 12 + i * 7;
-      // Each ring breathes at a slightly different phase → ripple effect
       const wave   = Math.sin((t / 1200) * Math.PI * 2 + i * 0.6) * 2;
       const r      = (baseR + wave) * a;
       const alpha  = (0.10 - i * 0.008) * a * shimmer;
@@ -447,6 +459,7 @@ export class ResearcherBot {
   /** Draw a small isotope fuel bar below the drone sprite. */
   private _drawFuelBar(isotopes: number): void {
     this.fuelBarGfx.clear();
+    if (this.isMobile) return; // Skip fuel bar on mobile
     const cost = BOT_ISOTOPE_COST_PER_CELL;
     // Hide bar when isotopes are plentiful and bot is idle
     if (isotopes >= cost * 10 && this.state === 'idle') return;
