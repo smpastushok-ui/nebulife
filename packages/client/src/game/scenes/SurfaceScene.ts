@@ -456,12 +456,16 @@ export class SurfaceScene {
     const hub = buildings.find((b) => b.type === 'colony_hub');
     if (hub) {
       this._spawnBotNearHub(hub);
+      // Restore saved bot position (if returning to planet, not first visit)
+      this._restoreBotPosition();
     }
 
     // Premium harvester drones — spawn for each alpha_harvester building
     for (const b of buildings) {
       if (b.type === 'alpha_harvester') this._spawnHarvesterDrone(b);
     }
+    // Restore saved drone positions
+    this._restoreDronePositions();
   }
 
   /** Reveal fog around a starting cell (first visit, no hub yet). */
@@ -530,6 +534,58 @@ export class SurfaceScene {
   /** Public API: spawn harvester drone when alpha_harvester is placed during gameplay. */
   public spawnHarvesterDrone(building: PlacedBuilding): void {
     this._spawnHarvesterDrone(building);
+  }
+
+  // ─── Bot/Drone position persistence (localStorage) ─────────────────────────
+
+  /** Save bot position to localStorage (called when bot crosses a cell). */
+  private _saveBotPosition(): void {
+    if (!this.bot) return;
+    try {
+      localStorage.setItem(`explorer_${this.planetId}`, JSON.stringify({
+        col: this.bot.col,
+        row: this.bot.row,
+        active: this.bot.active,
+      }));
+    } catch { /* quota exceeded — ignore */ }
+  }
+
+  /** Restore bot position from localStorage (called after spawn). */
+  private _restoreBotPosition(): void {
+    if (!this.bot) return;
+    try {
+      const saved = localStorage.getItem(`explorer_${this.planetId}`);
+      if (!saved) return;
+      const data = JSON.parse(saved) as { col: number; row: number; active: boolean };
+      this.bot.col = data.col;
+      this.bot.row = data.row;
+      this.bot.active = data.active;
+    } catch { /* ignore parse errors */ }
+  }
+
+  /** Save all harvester drone positions to localStorage. */
+  private _saveDronePositions(): void {
+    if (this.harvesterDrones.length === 0) return;
+    try {
+      const data = this.harvesterDrones.map((d) => ({
+        col: d.col, row: d.row,
+      }));
+      localStorage.setItem(`harvesters_${this.planetId}`, JSON.stringify(data));
+    } catch { /* quota exceeded — ignore */ }
+  }
+
+  /** Restore harvester drone positions from localStorage (called after spawn). */
+  private _restoreDronePositions(): void {
+    try {
+      const saved = localStorage.getItem(`harvesters_${this.planetId}`);
+      if (!saved) return;
+      const data = JSON.parse(saved) as { col: number; row: number }[];
+      // Match saved positions to spawned drones by index
+      for (let i = 0; i < Math.min(data.length, this.harvesterDrones.length); i++) {
+        this.harvesterDrones[i].col = data[i].col;
+        this.harvesterDrones[i].row = data[i].row;
+      }
+    } catch { /* ignore parse errors */ }
   }
 
   /**
@@ -1162,22 +1218,30 @@ export class SurfaceScene {
     // Animate researcher bot + reveal fog only when crossing into a new cell
     if (this.bot) {
       const crossed = this.bot.update(deltaMs, this.currentIsotopes);
-      if (crossed && this.fogLayer) {
-        const newCells = this.fogLayer.revealAround(Math.round(this.bot.col), Math.round(this.bot.row), BOT_REVEAL_RADIUS);
-        this.fogLayer.redraw();
-        // Incrementally add only newly-revealed tiles (instead of full N^2 ground rebuild)
-        this.revealGroundCells(newCells);
+      if (crossed) {
+        // Save bot position to localStorage on each cell cross
+        this._saveBotPosition();
+        if (this.fogLayer) {
+          const newCells = this.fogLayer.revealAround(Math.round(this.bot.col), Math.round(this.bot.row), BOT_REVEAL_RADIUS);
+          this.fogLayer.redraw();
+          this.revealGroundCells(newCells);
+        }
       }
     }
 
     // Animate premium harvester drones + trigger screen shake on absorption
+    let droneMoved = false;
     for (const drone of this.harvesterDrones) {
       drone.hasSolarPlant = this.hasSolarPlant;
+      const prevCol = Math.round(drone.col);
+      const prevRow = Math.round(drone.row);
       drone.update(deltaMs, this.currentIsotopes);
+      if (Math.round(drone.col) !== prevCol || Math.round(drone.row) !== prevRow) droneMoved = true;
       if (drone.screenShakeRequested) {
         this.harvestFx?.screenShake(2, 280);
       }
     }
+    if (droneMoved) this._saveDronePositions();
 
     if (!this.hubEffects) return;
     // Skip hub effects entirely on mobile — 7 Graphics.clear() per tick is too heavy for mobile GPU
