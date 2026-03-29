@@ -19,9 +19,10 @@ import { Application } from 'pixi.js';
 import type { Planet, Star, PlacedBuilding, BuildingType, SurfaceObjectType, TechTreeState } from '@nebulife/core';
 import { HARVEST_DURATION_MS, BUILDING_DEFS, XP_REWARDS, HARVEST_YIELD } from '@nebulife/core';
 import { SurfaceScene }  from '../../game/scenes/SurfaceScene.js';
+import { SurfacePerfMonitor } from '../../game/scenes/SurfacePerfMonitor.js';
 import { SurfacePanel }          from './SurfacePanel.js';
 import BuildingInspectPopup      from './BuildingInspectPopup.js';
-import { getBuildings, placeBuilding, removeBuilding } from '../../api/surface-api.js';
+import { getBuildings, placeBuilding, removeBuilding, getSurfaceState, saveSurfaceState } from '../../api/surface-api.js';
 import { screenToGrid, TILE_W, TILE_H, gridToScreen, findStartingLandCell, computeIsoGridSize, isMobileDevice } from '../../game/scenes/surface-utils.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -171,10 +172,12 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       const container = containerRef.current;
       if (!container) return;
 
+      const perf = new SurfacePerfMonitor();
       const app = new Application();
       pixiAppRef.current = app;
 
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      perf.markStart('pixijs-init');
       app.init({
         resizeTo:        container,
         background:      0x020510,
@@ -183,11 +186,15 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         resolution:      Math.min(window.devicePixelRatio || 1, isTouchDevice ? 1.0 : 1.5),
         preference:      'webgl',
       }).then(async () => {
+        perf.markEnd('pixijs-init');
+        perf.markStart('total-init');
         container.appendChild(app.canvas);
 
         const scene = new SurfaceScene();
+        scene.perf = perf;
         sceneRef.current = scene;
         app.stage.addChild(scene.worldContainer);
+        perf.setApp(app);
 
         // Hide until zoom/pan are set to prevent close-up flash on entry
         scene.worldContainer.visible = false;
@@ -233,13 +240,17 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
         // TEMP: skip texture preload for performance test (green background mode)
         // const texturePreload = scene.preloadTextures(planet, star);
+        perf.markSkip('texture-load');
         const texturePreload = Promise.resolve(new Array(24).fill(null) as (null)[]);
 
-        // Load buildings from API (texture download happens concurrently)
-        let loaded: PlacedBuilding[] = [];
-        try {
-          loaded = await getBuildings(playerId, planet.id);
-        } catch { /* ignore — start with empty */ }
+        // Load buildings + surface state from API in parallel
+        perf.markStart('api-load');
+        const [loadedBuildings, surfaceState] = await Promise.all([
+          getBuildings(playerId, planet.id).catch(() => [] as PlacedBuilding[]),
+          getSurfaceState(playerId, planet.id),
+        ]);
+        perf.markEnd('api-load');
+        let loaded = loadedBuildings;
 
         // First visit: auto-place Colony Hub so the player starts with a base + drone
         if (loaded.length === 0) {
@@ -263,7 +274,10 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
         setBuildings(loaded);
 
-        await scene.init(planet, star, loaded, texturePreload);
+        // Pass surface state (fog, harvests, bot, drones) loaded from DB
+        scene.setPlayerId(playerId);
+        scene.setSaveSurfaceState((data) => saveSurfaceState(playerId, planet.id, data));
+        await scene.init(planet, star, loaded, texturePreload, surfaceState);
 
         // Wire isotope consumption callback for drone fuel
         scene.setConsumeIsotopesCallback((amount) => {
@@ -303,6 +317,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
         // Show after zoom/pan are set — prevents close-up flash
         scene.worldContainer.visible = true;
+        perf.markEnd('total-init');
+        perf.mount(container);
 
         onPhaseChange?.('ready');
       }).catch(() => {
@@ -310,6 +326,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       });
 
       return () => {
+        perf.destroy();
         sceneRef.current?.destroy();
         sceneRef.current = null;
         app.destroy(true, { children: true });

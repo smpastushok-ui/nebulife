@@ -192,6 +192,10 @@ export class SurfaceScene {
     sizeW:     number;
   } | null = null;
 
+  /** Performance monitor (set by SurfacePixiView, active only when ?perf=1). */
+  public perf: { markStart(l: string): void; markEnd(l: string): number; markSkip(l: string): void;
+    frameStart(): void; frameEnd(): void; sectionStart(l: string): void; sectionEnd(l: string): void; sectionSkip(l: string): void } | null = null;
+
   /** Harvest state overrides: key=`${col},${row}` → HarvestedCell */
   private harvestedCells: Map<string, HarvestedCell> = new Map();
   private planetId:        string  = '';
@@ -465,16 +469,21 @@ export class SurfaceScene {
     // const textures = await (preloadedTextures ?? this.preloadTextures(planet, star));
     // this._applyPreloadedTextures(textures);
 
+    this.perf?.markStart('ground-layer');
     this.drawGroundLayer();
+    this.perf?.markEnd('ground-layer');
     // this._buildNoiseOverlay();   // TEMP SKIP — perf test
     // this._buildShorelineCells(); // TEMP SKIP — perf test
     // this.placeMountOverlay();    // TEMP SKIP — perf test
 
     // Pre-mark existing buildings so they don't animate on scene load
     for (const b of buildings) this.animatedKeys.add(`${b.x},${b.y}`);
+    this.perf?.markStart('bldg-rebuild');
     this.rebuildBuildings(buildings);
+    this.perf?.markEnd('bldg-rebuild');
 
     // Fog of war — init with DB data if available, fallback to localStorage
+    this.perf?.markStart('fog-init');
     this.fogLayer = new FogLayer(this.gridSize, planet.id);
     this.fogLayer.setSaveCallback((cells) => this._scheduleSave('revealedCells', cells));
     this.worldContainer.addChild(this.fogLayer.container);  // topmost
@@ -482,11 +491,13 @@ export class SurfaceScene {
       this.fogLayer.restoreFromArray(surfaceState.revealedCells);
     }
     this.fogLayer.initFromBuildings(buildings);
+    this.perf?.markEnd('fog-init');
 
     // Atmospheric clouds (TilingSprite) — TEMP SKIP for perf test
     // await this._initCloudSprites();
 
     // Drone explorer — only spawn if colony hub already exists
+    this.perf?.markStart('bot-spawn');
     const hub = buildings.find((b) => b.type === 'colony_hub');
     if (hub) {
       this._spawnBotNearHub(hub);
@@ -513,6 +524,7 @@ export class SurfaceScene {
     } else {
       this._restoreDronePositions(); // localStorage fallback
     }
+    this.perf?.markEnd('bot-spawn');
   }
 
   /** Reveal fog around a starting cell (first visit, no hub yet). */
@@ -1196,6 +1208,7 @@ export class SurfaceScene {
 
   /** Per-frame animation tick — called by PixiJS app.ticker in SurfacePixiView. */
   public update(deltaMs: number): void {
+    this.perf?.frameStart();
     // Check regrowth every minute (not every frame)
     this.regrowthCheckMs += deltaMs;
     if (this.regrowthCheckMs > 60_000) {
@@ -1248,14 +1261,19 @@ export class SurfaceScene {
 
     // Per-building idle animations — skip entirely on mobile (20+ Graphics.clear() per tick)
     if (!this._isMobile) {
+      this.perf?.sectionStart('bldg-fx');
       this._bldgEffectFrame++;
       this._tickBldgEffects(deltaMs);
+      this.perf?.sectionEnd('bldg-fx');
+    } else {
+      this.perf?.sectionSkip('bldg-fx');
     }
 
     // Demolish VFX animations
     this._tickDemolishEffects(deltaMs);
 
     // Animate researcher bot + reveal fog only when crossing into a new cell
+    this.perf?.sectionStart('bot');
     if (this.bot) {
       const crossed = this.bot.update(deltaMs, this.currentIsotopes);
       if (crossed) {
@@ -1282,10 +1300,12 @@ export class SurfaceScene {
       }
     }
     if (droneMoved) this._saveDronePositions();
+    this.perf?.sectionEnd('bot');
 
-    if (!this.hubEffects) return;
+    if (!this.hubEffects) { this.perf?.sectionSkip('hub-fx'); this.perf?.frameEnd(); return; }
     // Skip hub effects entirely on mobile — 7 Graphics.clear() per tick is too heavy for mobile GPU
-    if (this._isMobile) return;
+    if (this._isMobile) { this.perf?.sectionSkip('hub-fx'); this.perf?.frameEnd(); return; }
+    this.perf?.sectionStart('hub-fx');
     this._hubFrameCount++;
     const eff = this.hubEffects;
     eff.timeMs += deltaMs;
@@ -1336,6 +1356,8 @@ export class SurfaceScene {
         eff.sparkGfx.fill({ color: 0x88ccff, alpha: a });
       }
     }
+    this.perf?.sectionEnd('hub-fx');
+    this.perf?.frameEnd();
   }
 
   /**
