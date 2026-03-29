@@ -37,6 +37,9 @@ export {
   getSurfaceBuildings,
   removeSurfaceBuilding,
   upgradeSurfaceBuilding,
+  // Surface State (fog, harvested cells, bot/drone positions)
+  getSurfaceState,
+  saveSurfaceState,
   // Surface Maps (AI-generated planet photos)
   saveSurfaceMap,
   getSurfaceMap,
@@ -135,6 +138,7 @@ export type {
   PlanetModelRow,
   SurfaceBuildingRow,
   SurfaceMapRow,
+  SurfaceStateRow,
   PaymentIntentRow,
   PlayerAliasRow,
   SystemPhotoRow,

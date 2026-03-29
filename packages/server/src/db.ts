@@ -1819,6 +1819,67 @@ export async function getClusterCount(): Promise<number> {
   return (rows[0] as { count: number }).count;
 }
 
+// ---------------------------------------------------------------------------
+// Surface State (fog, harvested cells, bot/drone positions)
+// ---------------------------------------------------------------------------
+
+export interface SurfaceStateRow {
+  player_id: string;
+  planet_id: string;
+  revealed_cells: unknown;  // JSONB — string[] of "col,row"
+  harvested_cells: unknown; // JSONB — [string, HarvestedCell][]
+  bot: unknown;             // JSONB — { col, row, active } | null
+  harvesters: unknown;      // JSONB — { col, row }[]
+  updated_at: string;
+}
+
+export async function getSurfaceState(
+  playerId: string,
+  planetId: string,
+): Promise<SurfaceStateRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM surface_state
+    WHERE player_id = ${playerId} AND planet_id = ${planetId}
+  `;
+  return (rows[0] as SurfaceStateRow) ?? null;
+}
+
+export async function saveSurfaceState(
+  playerId: string,
+  planetId: string,
+  data: {
+    revealedCells?: unknown;
+    harvestedCells?: unknown;
+    bot?: unknown;
+    harvesters?: unknown;
+  },
+): Promise<void> {
+  const sql = getSQL();
+  const rc = data.revealedCells !== undefined ? JSON.stringify(data.revealedCells) : null;
+  const hc = data.harvestedCells !== undefined ? JSON.stringify(data.harvestedCells) : null;
+  const bt = data.bot !== undefined ? JSON.stringify(data.bot) : null;
+  const hr = data.harvesters !== undefined ? JSON.stringify(data.harvesters) : null;
+
+  await sql`
+    INSERT INTO surface_state (player_id, planet_id, revealed_cells, harvested_cells, bot, harvesters, updated_at)
+    VALUES (
+      ${playerId}, ${planetId},
+      COALESCE(${rc}::jsonb, '[]'::jsonb),
+      COALESCE(${hc}::jsonb, '[]'::jsonb),
+      ${bt}::jsonb,
+      COALESCE(${hr}::jsonb, '[]'::jsonb),
+      NOW()
+    )
+    ON CONFLICT (player_id, planet_id) DO UPDATE SET
+      revealed_cells  = COALESCE(${rc}::jsonb,  surface_state.revealed_cells),
+      harvested_cells = COALESCE(${hc}::jsonb,  surface_state.harvested_cells),
+      bot             = COALESCE(${bt}::jsonb,  surface_state.bot),
+      harvesters      = COALESCE(${hr}::jsonb,  surface_state.harvesters),
+      updated_at      = NOW()
+  `;
+}
+
 /** Update cluster center coordinates and seed (for backfill fixup). */
 export async function updateClusterPosition(
   clusterId: string,

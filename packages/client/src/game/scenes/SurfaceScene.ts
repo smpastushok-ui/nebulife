@@ -195,7 +195,31 @@ export class SurfaceScene {
   /** Harvest state overrides: key=`${col},${row}` → HarvestedCell */
   private harvestedCells: Map<string, HarvestedCell> = new Map();
   private planetId:        string  = '';
+  private playerId:        string  = '';
   private regrowthCheckMs: number  = 0;
+
+  /** Callback to save surface state to DB (set by SurfacePixiView). */
+  private _saveToDB: ((data: Record<string, unknown>) => void) | null = null;
+  private _saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  public setPlayerId(id: string): void { this.playerId = id; }
+  public setSaveSurfaceState(fn: (data: Record<string, unknown>) => void): void { this._saveToDB = fn; }
+
+  /** Debounced save to DB — coalesces rapid updates into one API call. */
+  private _scheduleSave(field: string, value: unknown): void {
+    if (!this._saveToDB) return;
+    // Store pending fields
+    if (!this._pendingSave) this._pendingSave = {};
+    this._pendingSave[field] = value;
+    if (this._saveDebounceTimer) clearTimeout(this._saveDebounceTimer);
+    this._saveDebounceTimer = setTimeout(() => {
+      if (this._pendingSave && this._saveToDB) {
+        this._saveToDB(this._pendingSave);
+        this._pendingSave = null;
+      }
+    }, 2000); // 2 second debounce (same as fog)
+  }
+  private _pendingSave: Record<string, unknown> | null = null;
 
   /** Pre-loaded building PNG textures: buildingType → Texture */
   private bldgTextures: Partial<Record<string, Texture>> = {};
@@ -413,21 +437,27 @@ export class SurfaceScene {
   /**
    * @param preloadedTextures — optional promise from preloadTextures() started
    *        earlier (runs in parallel with API calls). If omitted, textures load inline.
+   * @param surfaceState — fog, harvested cells, bot/drone positions loaded from DB.
    */
   async init(
     planet: Planet, star: Star, buildings: PlacedBuilding[],
     preloadedTextures?: Promise<(Texture | null)[]>,
+    surfaceState?: { revealedCells?: string[]; harvestedCells?: [string, unknown][]; bot?: { col: number; row: number; active: boolean } | null; harvesters?: { col: number; row: number }[] },
   ): Promise<void> {
     this.planet     = planet;
     this.planetId   = planet.id;
     this.gridSize   = computeIsoGridSize(planet.radiusEarth * 6371);
     this.waterLevel = planet.hydrosphere?.waterCoverageFraction ?? 0;
 
-    // Restore harvested cells from localStorage and advance any pending regrowth
-    try {
-      const saved = localStorage.getItem(`harvest_${planet.id}`);
-      if (saved) this.harvestedCells = new Map(JSON.parse(saved) as [string, HarvestedCell][]);
-    } catch { /* ignore parse errors */ }
+    // Restore harvested cells — prefer DB data, fallback to localStorage
+    if (surfaceState?.harvestedCells && surfaceState.harvestedCells.length > 0) {
+      this.harvestedCells = new Map(surfaceState.harvestedCells as [string, HarvestedCell][]);
+    } else {
+      try {
+        const saved = localStorage.getItem(`harvest_${planet.id}`);
+        if (saved) this.harvestedCells = new Map(JSON.parse(saved) as [string, HarvestedCell][]);
+      } catch { /* ignore parse errors */ }
+    }
     this.advanceRegrowth();
 
     // ── TEMPORARY: skip all texture loading for performance test ──────────
@@ -444,9 +474,13 @@ export class SurfaceScene {
     for (const b of buildings) this.animatedKeys.add(`${b.x},${b.y}`);
     this.rebuildBuildings(buildings);
 
-    // Fog of war — init after buildings so hub position is known
+    // Fog of war — init with DB data if available, fallback to localStorage
     this.fogLayer = new FogLayer(this.gridSize, planet.id);
+    this.fogLayer.setSaveCallback((cells) => this._scheduleSave('revealedCells', cells));
     this.worldContainer.addChild(this.fogLayer.container);  // topmost
+    if (surfaceState?.revealedCells && surfaceState.revealedCells.length > 0) {
+      this.fogLayer.restoreFromArray(surfaceState.revealedCells);
+    }
     this.fogLayer.initFromBuildings(buildings);
 
     // Atmospheric clouds (TilingSprite) — TEMP SKIP for perf test
@@ -456,16 +490,29 @@ export class SurfaceScene {
     const hub = buildings.find((b) => b.type === 'colony_hub');
     if (hub) {
       this._spawnBotNearHub(hub);
-      // Restore saved bot position (if returning to planet, not first visit)
-      this._restoreBotPosition();
+      // Restore saved bot position — prefer DB, fallback to localStorage
+      if (surfaceState?.bot) {
+        this.bot!.col = surfaceState.bot.col;
+        this.bot!.row = surfaceState.bot.row;
+        this.bot!.active = surfaceState.bot.active;
+      } else {
+        this._restoreBotPosition(); // localStorage fallback
+      }
     }
 
     // Premium harvester drones — spawn for each alpha_harvester building
     for (const b of buildings) {
       if (b.type === 'alpha_harvester') this._spawnHarvesterDrone(b);
     }
-    // Restore saved drone positions
-    this._restoreDronePositions();
+    // Restore drone positions — prefer DB, fallback to localStorage
+    if (surfaceState?.harvesters && surfaceState.harvesters.length > 0) {
+      for (let i = 0; i < Math.min(surfaceState.harvesters.length, this.harvesterDrones.length); i++) {
+        this.harvesterDrones[i].col = surfaceState.harvesters[i].col;
+        this.harvesterDrones[i].row = surfaceState.harvesters[i].row;
+      }
+    } else {
+      this._restoreDronePositions(); // localStorage fallback
+    }
   }
 
   /** Reveal fog around a starting cell (first visit, no hub yet). */
@@ -538,16 +585,12 @@ export class SurfaceScene {
 
   // ─── Bot/Drone position persistence (localStorage) ─────────────────────────
 
-  /** Save bot position to localStorage (called when bot crosses a cell). */
+  /** Save bot position to localStorage + DB (called when bot crosses a cell). */
   private _saveBotPosition(): void {
     if (!this.bot) return;
-    try {
-      localStorage.setItem(`explorer_${this.planetId}`, JSON.stringify({
-        col: this.bot.col,
-        row: this.bot.row,
-        active: this.bot.active,
-      }));
-    } catch { /* quota exceeded — ignore */ }
+    const botData = { col: this.bot.col, row: this.bot.row, active: this.bot.active };
+    try { localStorage.setItem(`explorer_${this.planetId}`, JSON.stringify(botData)); } catch { /* */ }
+    this._scheduleSave('bot', botData);
   }
 
   /** Restore bot position from localStorage (called after spawn). */
@@ -563,15 +606,12 @@ export class SurfaceScene {
     } catch { /* ignore parse errors */ }
   }
 
-  /** Save all harvester drone positions to localStorage. */
+  /** Save all harvester drone positions to localStorage + DB. */
   private _saveDronePositions(): void {
     if (this.harvesterDrones.length === 0) return;
-    try {
-      const data = this.harvesterDrones.map((d) => ({
-        col: d.col, row: d.row,
-      }));
-      localStorage.setItem(`harvesters_${this.planetId}`, JSON.stringify(data));
-    } catch { /* quota exceeded — ignore */ }
+    const data = this.harvesterDrones.map((d) => ({ col: d.col, row: d.row }));
+    try { localStorage.setItem(`harvesters_${this.planetId}`, JSON.stringify(data)); } catch { /* */ }
+    this._scheduleSave('harvesters', data);
   }
 
   /** Restore harvester drone positions from localStorage (called after spawn). */
@@ -2106,9 +2146,9 @@ export class SurfaceScene {
   }
 
   private saveHarvested(): void {
-    try {
-      localStorage.setItem(`harvest_${this.planetId}`, JSON.stringify([...this.harvestedCells]));
-    } catch { /* quota exceeded — ignore */ }
+    const data = [...this.harvestedCells];
+    try { localStorage.setItem(`harvest_${this.planetId}`, JSON.stringify(data)); } catch { /* */ }
+    this._scheduleSave('harvestedCells', data);
   }
 
   // ─── Harvest progress ring animation ─────────────────────────────────────

@@ -144,16 +144,30 @@ export class FogLayer {
 
   // ─── Persistence ──────────────────────────────────────────────────────────
 
+  /** Callback to save fog state to DB (set by SurfaceScene). */
+  private _saveToDB: ((cells: string[]) => void) | null = null;
+
+  public setSaveCallback(fn: (cells: string[]) => void): void { this._saveToDB = fn; }
+
+  /** Restore revealed cells from a pre-loaded array (from DB). */
+  public restoreFromArray(cells: string[]): void {
+    for (const key of cells) this.revealedCells.add(key);
+    this.dirty = true;
+  }
+
+  /** Get all revealed cells as array (for saving to DB). */
+  public getRevealedArray(): string[] {
+    return [...this.revealedCells];
+  }
+
   private persist(): void {
-    // Debounce: write to localStorage at most once every 2 seconds.
-    // The rover moves cell-by-cell, triggering many rapid reveals — batching
-    // prevents repeated JSON serialisation + localStorage writes each frame.
+    // Debounce: write to localStorage + DB at most once every 2 seconds.
     if (this._persistTimer !== null) return;
     this._persistTimer = setTimeout(() => {
       this._persistTimer = null;
-      try {
-        localStorage.setItem(this.storageKey, JSON.stringify([...this.revealedCells]));
-      } catch { /* quota exceeded — ignore */ }
+      const arr = [...this.revealedCells];
+      try { localStorage.setItem(this.storageKey, JSON.stringify(arr)); } catch { /* */ }
+      this._saveToDB?.(arr);
     }, 2000);
   }
 

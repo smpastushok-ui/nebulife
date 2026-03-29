@@ -92,6 +92,45 @@ export async function removeBuilding(
 }
 
 // ---------------------------------------------------------------------------
+// Surface State — fog, harvested cells, bot/drone positions (persisted in DB)
+// ---------------------------------------------------------------------------
+
+export interface SurfaceStateData {
+  revealedCells: string[];
+  harvestedCells: [string, unknown][];
+  bot: { col: number; row: number; active: boolean } | null;
+  harvesters: { col: number; row: number }[];
+}
+
+/**
+ * Load surface state (fog, harvests, bot, drones) from DB.
+ */
+export async function getSurfaceState(playerId: string, planetId: string): Promise<SurfaceStateData> {
+  const res = await authFetch(
+    `${API_BASE}/surface/state?playerId=${encodeURIComponent(playerId)}&planetId=${encodeURIComponent(planetId)}`,
+  );
+  if (!res.ok) {
+    return { revealedCells: [], harvestedCells: [], bot: null, harvesters: [] };
+  }
+  return res.json();
+}
+
+/**
+ * Save surface state to DB (partial update — only provided fields overwritten).
+ */
+export async function saveSurfaceState(
+  playerId: string,
+  planetId: string,
+  data: Partial<SurfaceStateData>,
+): Promise<void> {
+  authFetch(`${API_BASE}/surface/state`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId, planetId, ...data }),
+  }).catch(() => { /* fire-and-forget, retry on next save */ });
+}
+
+// ---------------------------------------------------------------------------
 // Surface Generation — AI satellite photo generation
 // ---------------------------------------------------------------------------
 
