@@ -617,23 +617,44 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           style={{
             width:       '100%',
             height:      '100%',
-            cursor:      selectedBuilding ? 'crosshair' : harvestMode ? 'cell' : roverMode ? 'crosshair' : 'default',
-            touchAction: 'auto',
+            cursor:      selectedBuilding ? 'crosshair' : harvestMode ? 'cell' : roverMode ? 'crosshair' : isDragging.current ? 'grabbing' : 'grab',
+            touchAction: 'none',
           }}
           onClick={handleClick}
-          onMouseMove={(e: React.MouseEvent) => {
+          onPointerDown={(e: React.PointerEvent) => {
+            isDragging.current = true;
+            dragMoved.current  = false;
+            dragStart.current  = { px: e.clientX, py: e.clientY, ox: panRef.current.x, oy: panRef.current.y };
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            setInspectBuilding(null);
+            setDronePopup(null);
+          }}
+          onPointerMove={(e: React.PointerEvent) => {
+            // Ghost preview for building placement (hover/touch)
             const inPlacementMode = !!(selectedBuilding && !pendingPlacement) || !!(pendingPlacement?.moving);
             const buildingType = pendingPlacement?.moving ? pendingPlacement.type : selectedBuilding;
-            if (!inPlacementMode || !sceneRef.current || !buildingType) return;
-            const scene = sceneRef.current;
-            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            const z = zoomRef.current;
-            const wx = (e.clientX - rect.left - scene.worldContainer.x) / z;
-            const wy = (e.clientY - rect.top - scene.worldContainer.y) / z;
-            const { col, row } = screenToGrid(wx, wy);
-            const valid = scene.canBuildAt(col, row, buildingType, buildings);
-            scene.updateGhost(col, row, buildingType, valid);
+            if (inPlacementMode && sceneRef.current && buildingType) {
+              const scene = sceneRef.current;
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const z = zoomRef.current;
+              const wx = (e.clientX - rect.left - scene.worldContainer.x) / z;
+              const wy = (e.clientY - rect.top - scene.worldContainer.y) / z;
+              const { col, row } = screenToGrid(wx, wy);
+              const valid = scene.canBuildAt(col, row, buildingType, buildings);
+              scene.updateGhost(col, row, buildingType, valid);
+            }
+            if (!isDragging.current) return;
+            if (inPlacementMode) return; // ghost follows finger, don't pan
+            const dx = e.clientX - dragStart.current.px;
+            const dy = e.clientY - dragStart.current.py;
+            if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved.current = true;
+            panRef.current.x = dragStart.current.ox + dx;
+            panRef.current.y = dragStart.current.oy + dy;
+            clampPan();
+            if (dragMoved.current) sceneRef.current?.cancelHarvestRing();
           }}
+          onPointerUp={() => { isDragging.current = false; }}
+          onPointerLeave={() => { isDragging.current = false; sceneRef.current?.clearGhost(); }}
         />
 
         {/* 2-step placement: confirm / move / cancel buttons near scaffold */}
@@ -716,13 +737,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           </div>
         )}
 
-        {/* D-pad camera controls */}
+        {/* Zoom controls */}
         <SurfaceDPad
-          onPan={(dx, dy) => {
-            panRef.current.x += dx;
-            panRef.current.y += dy;
-            clampPan();
-          }}
           onZoomIn={() => applyZoom(zoomRef.current * 1.22)}
           onZoomOut={() => applyZoom(zoomRef.current * 0.82)}
         />
