@@ -1105,8 +1105,15 @@ function AppInner() {
       'nebulife_home_system_id', 'nebulife_home_planet_id', 'nebulife_generation_index',
       'nebulife_evac_system_id', 'nebulife_evac_planet_id', 'nebulife_evac_forced',
       'nebulife_evac_phase',
+      // Language + chat — reset to fresh start
+      'nebulife_lang_chosen',
+      'nebulife_chat_last_read_global',
+      'nebulife_chat_last_read_system',
+      'nebulife_last_digest_seen',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
+    // Also remove all quiz answer keys
+    Object.keys(localStorage).filter(k => k.startsWith('nebulife_quiz_')).forEach(k => localStorage.removeItem(k));
 
     // 2b. Clear React state to prevent effects from re-persisting to localStorage
     setEvacuationPhase('idle');
