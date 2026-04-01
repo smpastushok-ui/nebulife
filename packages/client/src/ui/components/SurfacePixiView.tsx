@@ -34,6 +34,8 @@ export interface SurfaceViewHandle {
   zoomIn:             () => void;
   zoomOut:            () => void;
   panBy:              (dx: number, dy: number) => void;
+  pause:              () => void;
+  resume:             () => void;
   startAIGeneration:  () => void;
   toggleBuildPanel:   () => void;
   toggleMinimap:      () => void;
@@ -590,6 +592,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         panRef.current.y += dy;
         clampPan();
       },
+      pause:             () => { pixiAppRef.current?.ticker.stop(); },
+      resume:            () => { pixiAppRef.current?.ticker.start(); },
       startAIGeneration: () => { /* future */ },
       toggleBuildPanel:  () => setShowBuildPanel((p) => !p),
       toggleMinimap:     () => { /* future */ },

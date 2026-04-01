@@ -3109,6 +3109,17 @@ function AppInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
 
+  // ── Pause/resume PixiJS when CosmicArchive (Terminal) is open ─────────
+  useEffect(() => {
+    if (showCosmicArchive) {
+      engineRef.current?.pause();
+      surfaceViewRef.current?.pause();
+    } else {
+      engineRef.current?.resume();
+      surfaceViewRef.current?.resume();
+    }
+  }, [showCosmicArchive]);
+
   // ── Language change → sync to server ─────────────────────────────────
   useEffect(() => {
     const pid = playerId.current;
