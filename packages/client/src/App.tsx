@@ -3195,13 +3195,15 @@ function AppInner() {
           techTreeStateRef.current = currentTech;
           for (const nd of newlyResearched) {
             addLogEntry('system', t('app.log.tech_integrated').replace('{name}', nd.name));
-            setPendingResearchToasts((q) => [...q, {
-              id:       Math.random().toString(36).slice(2),
-              techId:   nd.id,
-              techName: nd.name,
-              branch:   nd.branch as ResearchToastItem['branch'],
-            }]);
           }
+          // Show only ONE toast for the last researched tech (avoid 5+ stacked toasts)
+          const last = newlyResearched[newlyResearched.length - 1];
+          setPendingResearchToasts((q) => [...q, {
+            id:       Math.random().toString(36).slice(2),
+            techId:   last.id,
+            techName: last.name,
+            branch:   last.branch as ResearchToastItem['branch'],
+          }]);
           // Expand research slots if observatory/concurrent effects gained
           const extraSlots =
             getEffectValue(currentTech, 'observatory_count_add', 0) +
