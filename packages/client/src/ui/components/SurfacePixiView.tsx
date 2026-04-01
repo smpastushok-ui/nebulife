@@ -490,16 +490,22 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         // Check drone/bot click first
         const droneHit = scene.getClickedDrone(wx, wy);
         if (droneHit) {
-          const rect2 = containerRef.current?.getBoundingClientRect();
-          if (rect2) {
-            const sx = scene.worldContainer.x + wx * z + rect2.left;
-            const sy = scene.worldContainer.y + wy * z + rect2.top;
-            if (droneHit.type === 'bot') {
-              setDronePopup({ type: 'bot', screenX: sx, screenY: sy });
-            } else {
-              setDronePopup({ type: 'harvester', index: droneHit.index, screenX: sx, screenY: sy });
-            }
+          if (droneHit.type === 'bot') {
+            // Click on researcher bot → directly enter rover send mode (no popup)
+            setRoverMode(true);
+            setSelectedBuilding(null);
+            setHarvestMode(false);
+            setDronePopup(null);
             setInspectBuilding(null);
+          } else {
+            // Harvester drone → show popup with controls
+            const rect2 = containerRef.current?.getBoundingClientRect();
+            if (rect2) {
+              const sx = scene.worldContainer.x + wx * z + rect2.left;
+              const sy = scene.worldContainer.y + wy * z + rect2.top;
+              setDronePopup({ type: 'harvester', index: droneHit.index, screenX: sx, screenY: sy });
+              setInspectBuilding(null);
+            }
           }
           return;
         }
@@ -915,33 +921,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           );
         })()}
 
-        {/* Rover mode HUD (activated from bot popup) */}
-        {roverMode && !selectedBuilding && (
-          <div style={{
-            position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(5,15,25,0.92)',
-            border: '1px solid rgba(68,170,255,0.3)',
-            borderRadius: 4, padding: '6px 14px',
-            fontFamily: 'monospace', fontSize: 11, color: '#4488aa',
-            display: 'flex', alignItems: 'center', gap: 10,
-            pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
-          }}>
-            <span style={{ color: '#44aaff', fontSize: 13, lineHeight: 1 }}>*</span>
-            <span style={{ color: '#aabbcc' }}>{t('surface.drone_explorer')}</span>
-            <span style={{ color: '#445566' }}>---</span>
-            <span style={{ color: '#556677' }}>{t('surface.rover_mode_hint')}</span>
-            <button
-              onClick={() => setRoverMode(false)}
-              style={{
-                background: 'none', border: 'none', color: '#556677',
-                fontSize: 14, cursor: 'pointer', fontFamily: 'monospace',
-                padding: '0 2px', lineHeight: 1,
-              }}
-            >
-              x
-            </button>
-          </div>
-        )}
+        {/* Rover mode: no popup — click bot then click destination */}
 
         {/* Demolish confirmation modal */}
         {demolishConfirm && (
