@@ -452,6 +452,10 @@ if (typeof document !== 'undefined' && !document.getElementById(NEON_SPIN_ID)) {
       10%  { opacity: 1; }
       100% { transform: rotateX(0deg); filter: blur(0px); opacity: 1; }
     }
+    @keyframes nebuSlideIn {
+      0%   { transform: translateX(100%); opacity: 0; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
   `;
   document.head.appendChild(s);
 }
@@ -486,39 +490,56 @@ function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: Place
 
   return (
     <div key={animKey} style={{
-      position: 'absolute', top: 48, right: 14,
+      position: 'absolute', top: 48, right: 0,
       fontFamily: 'monospace', pointerEvents: 'auto',
       display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
       zIndex: 5,
     }}>
-      {/* Neon spin name */}
-      <div style={{ display: 'flex', perspective: 800 }}>
-        {nameLetters.map((ch, i) => {
-          const dur = 0.5 + (i / Math.max(nameLetters.length - 1, 1)) * 2.5;
-          return (
-            <span key={i} style={{
-              display: 'inline-block',
-              color: '#aaccee',
-              fontSize: 14,
-              fontWeight: 'bold',
-              letterSpacing: '0.5px',
-              textShadow: '0 0 5px rgba(68,136,170,0.7), 0 0 12px rgba(68,136,170,0.4)',
-              animation: `nebuNeonSpin ${dur}s cubic-bezier(0.1,0.9,0.2,1) forwards`,
-              whiteSpace: 'pre',
-            }}>
-              {ch}
-            </span>
-          );
-        })}
+      {/* Name block — slides in from right, then letters spin */}
+      <div style={{
+        background: 'rgba(10,15,25,0.85)',
+        border: '1px solid rgba(68,102,136,0.4)',
+        borderRight: 'none',
+        borderRadius: '4px 0 0 4px',
+        padding: '6px 14px 6px 12px',
+        animation: 'nebuSlideIn 0.5s ease-out forwards',
+      }}>
+        <div style={{ display: 'flex', perspective: 800 }}>
+          {nameLetters.map((ch, i) => {
+            const dur = 0.8 + (i / Math.max(nameLetters.length - 1, 1)) * 2.2;
+            return (
+              <span key={i} style={{
+                display: 'inline-block',
+                color: '#aaccee',
+                fontSize: 13,
+                fontWeight: 'bold',
+                letterSpacing: '0.5px',
+                textShadow: '0 0 5px rgba(68,136,170,0.7), 0 0 12px rgba(68,136,170,0.4)',
+                animation: `nebuNeonSpin ${dur}s cubic-bezier(0.1,0.9,0.2,1) 0.4s forwards`,
+                opacity: 0,
+                whiteSpace: 'pre',
+              }}>
+                {ch}
+              </span>
+            );
+          })}
+        </div>
       </div>
 
       {/* Subtitle: temperature, clickable to expand */}
       <div
         onClick={() => setExpanded(e => !e)}
         style={{
-          display: 'flex', alignItems: 'center', gap: 6, marginTop: 2,
-          cursor: 'pointer', opacity: 0.8,
-          animation: 'nebuNeonSpin 3s cubic-bezier(0.1,0.9,0.2,1) forwards',
+          background: 'rgba(10,15,25,0.85)',
+          border: '1px solid rgba(68,102,136,0.4)',
+          borderRight: 'none',
+          borderRadius: '4px 0 0 4px',
+          padding: '4px 14px 4px 12px',
+          marginTop: 2,
+          display: 'flex', alignItems: 'center', gap: 6,
+          cursor: 'pointer',
+          animation: 'nebuSlideIn 0.6s ease-out 0.2s forwards',
+          opacity: 0,
         }}
       >
         <span style={{ color: tempColor, fontSize: 10 }}>
