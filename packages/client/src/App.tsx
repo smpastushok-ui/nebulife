@@ -3130,7 +3130,8 @@ export function App() {
 
   // ── Fetch latest digest (for new-digest indicator) ────────────────────
   useEffect(() => {
-    fetch('/api/digest/latest')
+    const token = localStorage.getItem('nebulife_firebase_token') ?? '';
+    fetch('/api/digest/latest', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.digest?.weekDate) setLatestDigestWeekDate(data.digest.weekDate as string);

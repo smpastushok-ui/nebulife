@@ -111,6 +111,8 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
   const astraEndRef = useRef<HTMLDivElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
   const lastReadRef = useRef<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const authFailedRef = useRef(false);
@@ -241,9 +243,11 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     }
   }, [collapsed, tab, systemNotifs, onSystemNotifRead]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom only when user is already at bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   // Mark global as read when viewing
@@ -527,14 +531,21 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
         {(tab === 'global' || tab === 'dm-chat') && (
           <>
             {/* Messages */}
-            <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '8px 12px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-            }}>
+            <div
+              ref={messagesScrollRef}
+              onScroll={() => {
+                const el = messagesScrollRef.current;
+                if (!el) return;
+                isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+              }}
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '8px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+              }}>
               {messages.length === 0 && (
                 <div style={{ color: '#445566', fontSize: 10, textAlign: 'center', marginTop: 40 }}>
                   {tab === 'global' ? t('chat.empty_global') : t('chat.empty_dm')}
