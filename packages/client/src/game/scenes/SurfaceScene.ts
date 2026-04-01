@@ -913,16 +913,14 @@ export class SurfaceScene {
       }
     }
 
-    // 1-cell buffer: every cell bordering the footprint must not be mountain / resource.
-    // Water-terrain buildings are allowed to have water neighbours.
+    // 1-cell buffer: bordering cells must not be mountain or resource.
+    // Water neighbours are OK for all buildings (allows building near coastline).
     for (let dc = -1; dc <= sW; dc++) {
       for (let dr = -1; dr <= sH; dr++) {
         if (dc >= 0 && dc < sW && dr >= 0 && dr < sH) continue; // skip interior
         const bc = col + dc; const br = row + dr;
         if (bc < 0 || bc >= N || br < 0 || br >= N) continue;
         if (isMountainFootprint(bc, br, seed, N)) return false;
-        const bt = classifyCellTerrain(bc, br, seed, wl, N);
-        if (!isWaterBldg && isWaterTerrain(bt)) return false;
         if (this._isCellResourceBlocked(bc, br)) return false;
       }
     }
