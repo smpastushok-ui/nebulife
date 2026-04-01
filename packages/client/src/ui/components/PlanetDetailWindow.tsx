@@ -422,8 +422,11 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
     }
 
     // --- Ambient light ---
-    const ambient = new THREE.AmbientLight(0x112233, 0.15);
+    const ambient = new THREE.AmbientLight(0x223344, 0.35);
     scene.add(ambient);
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 0.6);
+    dirLight.position.copy(STAR_SPRITE_POSITION);
+    scene.add(dirLight);
 
     // --- Animation ---
     let lastTime = performance.now();

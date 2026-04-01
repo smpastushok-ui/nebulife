@@ -763,20 +763,6 @@ function PlanetContextMenuPopup({
     >
       <button
         style={menuItemStyle}
-        onClick={onToggleFavorite}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(30, 50, 70, 0.5)';
-          e.currentTarget.style.color = isFavorite ? '#cc4444' : '#44ff88';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'none';
-          e.currentTarget.style.color = '#aabbcc';
-        }}
-      >
-        {isFavorite ? t('archive.remove_from_favorites') : t('archive.add_to_favorites')}
-      </button>
-      <button
-        style={menuItemStyle}
         onClick={onView}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'rgba(30, 50, 70, 0.5)';
@@ -788,6 +774,20 @@ function PlanetContextMenuPopup({
         }}
       >
         {t('archive.view_btn')}
+      </button>
+      <button
+        style={menuItemStyle}
+        onClick={onToggleFavorite}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(30, 50, 70, 0.5)';
+          e.currentTarget.style.color = isFavorite ? '#cc4444' : '#44ff88';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'none';
+          e.currentTarget.style.color = '#aabbcc';
+        }}
+      >
+        {isFavorite ? t('archive.remove_from_favorites') : t('archive.add_to_favorites')}
       </button>
       {onRename && (
         <button
