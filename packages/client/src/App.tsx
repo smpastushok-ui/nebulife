@@ -3789,7 +3789,8 @@ function AppInner() {
 
   // Home button on non-home scenes (also hide when viewing home planet in planet-view)
   if (state.scene !== 'home-intro'
-      && !(state.scene === 'planet-view' && state.selectedPlanet?.isHomePlanet)) {
+      && !(state.scene === 'planet-view' && state.selectedPlanet?.isHomePlanet)
+      && !(surfaceTarget && surfaceTarget.planet.isHomePlanet)) {
     toolGroups.push({
       type: 'buttons',
       items: [{
@@ -4141,30 +4142,6 @@ function AppInner() {
               pulse: check.allowed,
             }];
           })() : undefined}
-        />
-      )}
-
-      {/* Left-side scene controls — surface */}
-      {surfaceTarget && (
-        <SceneControlsPanel
-          onBack={handleCloseSurface}
-          backLabel={t('common.back')}
-          hidden={hideLeftPanel}
-          extraButtons={[{
-            title: t('nav.exosphere'),
-            icon: (
-              <svg
-                width="14" height="14" viewBox="0 0 16 16"
-                fill="none" stroke="currentColor" strokeWidth="1.2"
-                style={{ animation: 'nebu-planet-spin 5s linear infinite', transformOrigin: '50% 50%', display: 'block' }}
-              >
-                <circle cx="8" cy="8" r="5.5" />
-                <ellipse cx="8" cy="8" rx="5.5" ry="2.2" />
-                <line x1="2.5" y1="8" x2="13.5" y2="8" strokeWidth="0.8" strokeOpacity="0.5" />
-              </svg>
-            ),
-            onClick: handleCloseSurface,
-          }]}
         />
       )}
 

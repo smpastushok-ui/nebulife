@@ -440,10 +440,12 @@ function BuildingCard({
   );
 }
 
-/* ─── Planet info HUD (top-left, always visible) ───────────────────────── */
+/* ─── Planet info HUD (top-left, collapsible) ──────────────────────────── */
 
 function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: PlacedBuilding[] }) {
   const { t } = useTranslation();
+  const [expanded, setExpanded] = React.useState<boolean>(false);
+
   const tempC = Math.round(planet.surfaceTempK - 273);
   const tempColor = tempC > -10 && tempC < 50 ? '#44ff88' : tempC < -40 || tempC > 80 ? '#ff8844' : '#ffcc44';
   const habPct = Math.round((planet.habitability?.overall ?? 0) * 100);
@@ -465,19 +467,38 @@ function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: Place
       position: 'absolute', top: 14, left: 14,
       background: 'rgba(5,10,25,0.88)',
       border: '1px solid rgba(60,100,160,0.3)',
-      borderRadius: 4, padding: '8px 12px',
+      borderRadius: 4,
       fontFamily: 'monospace', pointerEvents: 'auto',
       minWidth: 175,
     }}>
-      <div style={{ color: '#aaccee', fontSize: 11, letterSpacing: '0.7px', marginBottom: 6 }}>
-        {planet.name.toUpperCase()}
+      <div
+        onClick={() => setExpanded(e => !e)}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '6px 12px', cursor: 'pointer', gap: 10,
+          height: 32, boxSizing: 'border-box',
+        }}
+      >
+        <span style={{ color: '#aaccee', fontSize: 11, letterSpacing: '0.7px' }}>
+          {planet.name.toUpperCase()}
+        </span>
+        <span style={{ color: tempColor, fontSize: 10, flexShrink: 0 }}>
+          {`${tempC > 0 ? '+' : ''}${tempC}°C`}
+        </span>
+        <span style={{ color: '#556677', fontSize: 9, flexShrink: 0 }}>
+          {expanded ? '\u25B2' : '\u25BC'}
+        </span>
       </div>
-      {rows.map(({ k, v, c }) => (
-        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 2 }}>
-          <span style={{ color: '#4a5e70', fontSize: 10 }}>{k}</span>
-          <span style={{ color: c, fontSize: 10 }}>{v}</span>
+      {expanded && (
+        <div style={{ padding: '0 12px 8px 12px', borderTop: '1px solid rgba(60,100,160,0.2)' }}>
+          {rows.map(({ k, v, c }) => (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginTop: 4 }}>
+              <span style={{ color: '#4a5e70', fontSize: 10 }}>{k}</span>
+              <span style={{ color: c, fontSize: 10 }}>{v}</span>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -847,32 +868,6 @@ export function SurfacePanel({
         </div>
       )}
 
-      {harvestMode && !selectedBuilding && (
-        <div style={{
-          position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(25,15,5,0.92)',
-          border: '1px solid rgba(255,136,68,0.3)',
-          borderRadius: 4, padding: '6px 14px',
-          fontFamily: 'monospace', fontSize: 11, color: '#cc8855',
-          display: 'flex', alignItems: 'center', gap: 10,
-          pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
-        }}>
-          <span style={{ color: '#ff8844', fontSize: 13, lineHeight: 1 }}>*</span>
-          <span style={{ color: '#aabbcc' }}>{t('surface_panel.harvest_mode')}</span>
-          <span style={{ color: '#445566' }}>—</span>
-          <span style={{ color: '#556677' }}>{t('surface_panel.click_resource')}</span>
-          <button
-            onClick={onToggleHarvest}
-            style={{
-              background: 'none', border: 'none', color: '#556677',
-              fontSize: 14, cursor: 'pointer', fontFamily: 'monospace',
-              padding: '0 2px', lineHeight: 1,
-            }}
-          >
-            &times;
-          </button>
-        </div>
-      )}
 
       <IconDock
         mode={mode}

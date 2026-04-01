@@ -237,6 +237,72 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           }
         }, { passive: false });
 
+        // Pinch-to-zoom
+        let lastPinchDist = 0;
+        let lastPinchCenter = { x: 0, y: 0 };
+
+        container.addEventListener('touchstart', (e) => {
+          if (e.touches.length === 2) {
+            e.preventDefault();
+            const t0 = e.touches[0], t1 = e.touches[1];
+            lastPinchDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+            lastPinchCenter = {
+              x: (t0.clientX + t1.clientX) / 2,
+              y: (t0.clientY + t1.clientY) / 2,
+            };
+          }
+        }, { passive: false });
+
+        container.addEventListener('touchmove', (e) => {
+          if (e.touches.length === 2) {
+            e.preventDefault();
+            const app = pixiAppRef.current;
+            if (!app) return;
+
+            const t0 = e.touches[0], t1 = e.touches[1];
+            const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+            const center = {
+              x: (t0.clientX + t1.clientX) / 2,
+              y: (t0.clientY + t1.clientY) / 2,
+            };
+
+            if (lastPinchDist > 0) {
+              const factor = dist / lastPinchDist;
+              const safeFactor = Math.max(0.92, Math.min(1.08, factor));
+              const oldZ = zoomRef.current;
+              const tileCount = app.screen.width < 640 ? 18 : 25;
+              const newZ = Math.max(0.15, Math.min(app.screen.width / (tileCount * 64), oldZ * safeFactor));
+
+              if (newZ !== oldZ) {
+                const rect = container.getBoundingClientRect();
+                const mx = center.x - rect.left;
+                const my = center.y - rect.top;
+                const cW = app.screen.width;
+                const cH = app.screen.height;
+                const originX = cW / 2 + panRef.current.x;
+                const originY = cH / 4 + panRef.current.y;
+                panRef.current.x = mx - (mx - originX) / oldZ * newZ - cW / 2;
+                panRef.current.y = my - (my - originY) / oldZ * newZ - cH / 4;
+
+                zoomRef.current = newZ;
+                if (sceneRef.current) {
+                  sceneRef.current.worldContainer.scale.set(newZ);
+                  clampPan();
+                }
+              }
+            }
+
+            lastPinchDist = dist;
+            lastPinchCenter = center;
+          }
+        }, { passive: false });
+
+        container.addEventListener('touchend', (e) => {
+          if (e.touches.length < 2) {
+            lastPinchDist = 0;
+          }
+        }, { passive: false });
+
         // Load buildings + surface state from API in parallel
         perf.markStart('api-load');
         const [loadedBuildings, surfaceState] = await Promise.all([
@@ -264,6 +330,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           placeBuilding(playerId, planet.id, autoHub).catch(() => {
             setTimeout(() => placeBuilding(playerId, planet.id, autoHub).catch(console.error), 2000);
           });
+          // Notify parent so research slot is added (colony_hub = 1 observatory after evacuation)
+          onBuildingPlaced?.('colony_hub');
         }
 
         setBuildings(loaded);
@@ -644,9 +712,10 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         <div
           ref={containerRef}
           style={{
-            width:   '100%',
-            height:  '100%',
-            cursor:  selectedBuilding ? 'crosshair' : harvestMode ? 'cell' : roverMode ? 'crosshair' : isDragging.current ? 'grabbing' : 'grab',
+            width:       '100%',
+            height:      '100%',
+            cursor:      selectedBuilding ? 'crosshair' : harvestMode ? 'cell' : roverMode ? 'crosshair' : isDragging.current ? 'grabbing' : 'grab',
+            touchAction: 'none',
           }}
           onClick={handleClick}
           onPointerDown={handlePointerDown}
