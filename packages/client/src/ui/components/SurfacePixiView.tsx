@@ -24,6 +24,7 @@ import { SurfacePanel }          from './SurfacePanel.js';
 import BuildingInspectPopup      from './BuildingInspectPopup.js';
 import { getBuildings, placeBuilding, removeBuilding, getSurfaceState, saveSurfaceState } from '../../api/surface-api.js';
 import { screenToGrid, TILE_W, TILE_H, gridToScreen, findStartingLandCell, computeIsoGridSize, isMobileDevice } from '../../game/scenes/surface-utils.js';
+import { SurfaceDPad } from './SurfaceDPad.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ export type SurfacePhase = 'ready' | 'error';
 export interface SurfaceViewHandle {
   zoomIn:             () => void;
   zoomOut:            () => void;
+  panBy:              (dx: number, dy: number) => void;
   startAIGeneration:  () => void;
   toggleBuildPanel:   () => void;
   toggleMinimap:      () => void;
@@ -197,111 +199,6 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
         // Hide until zoom/pan are set to prevent close-up flash on entry
         scene.worldContainer.visible = false;
-
-        // Scroll-to-zoom towards the cursor position.
-        // Math.pow(0.999, deltaY): mouse wheel (deltaY≈100) → ~10% per click; trackpad (deltaY≈3) → ~0.3%.
-        // Clamped to ±8% per event so it never jumps from min to max in one tick.
-        container.addEventListener('wheel', (e) => {
-          e.preventDefault();
-          const app = pixiAppRef.current;
-          if (!app) return;
-
-          const rawFactor  = Math.pow(0.999, e.deltaY);
-          const safeFactor = Math.max(0.92, Math.min(1.08, rawFactor));
-          const oldZ  = zoomRef.current;
-          const tileCount = app.screen.width < 640 ? 6 : 8;
-          const newZ  = Math.max(0.15, Math.min(app.screen.width / (tileCount * 64), oldZ * safeFactor));
-          if (newZ === oldZ) return;
-
-          // Cursor position relative to container
-          const rect  = container.getBoundingClientRect();
-          const mx    = e.clientX - rect.left;
-          const my    = e.clientY - rect.top;
-
-          // World-space origin is rendered at (cW/2 + panX, cH/4 + panY).
-          // The world point under the cursor must stay at (mx, my) after zoom.
-          // mx = originX + worldPt.x * newZ  →  worldPt.x = (mx - originX) / oldZ
-          // newOriginX = mx - worldPt.x * newZ
-          // newPanX = newOriginX - cW/2
-          const cW    = app.screen.width;
-          const cH    = app.screen.height;
-          const originX = cW / 2 + panRef.current.x;
-          const originY = cH / 4 + panRef.current.y;
-          panRef.current.x = mx - (mx - originX) / oldZ * newZ - cW / 2;
-          panRef.current.y = my - (my - originY) / oldZ * newZ - cH / 4;
-
-          zoomRef.current = newZ;
-          if (sceneRef.current) {
-            sceneRef.current.worldContainer.scale.set(newZ);
-            clampPan();
-          }
-        }, { passive: false });
-
-        // Pinch-to-zoom
-        let lastPinchDist = 0;
-        let lastPinchCenter = { x: 0, y: 0 };
-
-        container.addEventListener('touchstart', (e) => {
-          if (e.touches.length === 2) {
-            e.preventDefault();
-            const t0 = e.touches[0], t1 = e.touches[1];
-            lastPinchDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
-            lastPinchCenter = {
-              x: (t0.clientX + t1.clientX) / 2,
-              y: (t0.clientY + t1.clientY) / 2,
-            };
-          }
-        }, { passive: false });
-
-        container.addEventListener('touchmove', (e) => {
-          if (e.touches.length === 2) {
-            e.preventDefault();
-            const app = pixiAppRef.current;
-            if (!app) return;
-
-            const t0 = e.touches[0], t1 = e.touches[1];
-            const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
-            const center = {
-              x: (t0.clientX + t1.clientX) / 2,
-              y: (t0.clientY + t1.clientY) / 2,
-            };
-
-            if (lastPinchDist > 0) {
-              const factor = dist / lastPinchDist;
-              const safeFactor = Math.max(0.92, Math.min(1.08, factor));
-              const oldZ = zoomRef.current;
-              const tileCount = app.screen.width < 640 ? 6 : 8;
-              const newZ = Math.max(0.15, Math.min(app.screen.width / (tileCount * 64), oldZ * safeFactor));
-
-              if (newZ !== oldZ) {
-                const rect = container.getBoundingClientRect();
-                const mx = center.x - rect.left;
-                const my = center.y - rect.top;
-                const cW = app.screen.width;
-                const cH = app.screen.height;
-                const originX = cW / 2 + panRef.current.x;
-                const originY = cH / 4 + panRef.current.y;
-                panRef.current.x = mx - (mx - originX) / oldZ * newZ - cW / 2;
-                panRef.current.y = my - (my - originY) / oldZ * newZ - cH / 4;
-
-                zoomRef.current = newZ;
-                if (sceneRef.current) {
-                  sceneRef.current.worldContainer.scale.set(newZ);
-                  clampPan();
-                }
-              }
-            }
-
-            lastPinchDist = dist;
-            lastPinchCenter = center;
-          }
-        }, { passive: false });
-
-        container.addEventListener('touchend', (e) => {
-          if (e.touches.length < 2) {
-            lastPinchDist = 0;
-          }
-        }, { passive: false });
 
         // Load buildings + surface state from API in parallel
         perf.markStart('api-load');
@@ -688,10 +585,15 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     useImperativeHandle(ref, () => ({
       zoomIn:            () => applyZoom(zoomRef.current * 1.22),
       zoomOut:           () => applyZoom(zoomRef.current * 0.82),
+      panBy: (dx: number, dy: number) => {
+        panRef.current.x += dx;
+        panRef.current.y += dy;
+        clampPan();
+      },
       startAIGeneration: () => { /* future */ },
       toggleBuildPanel:  () => setShowBuildPanel((p) => !p),
       toggleMinimap:     () => { /* future */ },
-    }), [applyZoom]);
+    }), [applyZoom, clampPan]);
 
     // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -711,14 +613,23 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           style={{
             width:       '100%',
             height:      '100%',
-            cursor:      selectedBuilding ? 'crosshair' : harvestMode ? 'cell' : roverMode ? 'crosshair' : isDragging.current ? 'grabbing' : 'grab',
-            touchAction: 'none',
+            cursor:      selectedBuilding ? 'crosshair' : harvestMode ? 'cell' : roverMode ? 'crosshair' : 'default',
+            touchAction: 'auto',
           }}
           onClick={handleClick}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={() => { handlePointerUp(); sceneRef.current?.clearGhost(); }}
+          onMouseMove={(e: React.MouseEvent) => {
+            const inPlacementMode = !!(selectedBuilding && !pendingPlacement) || !!(pendingPlacement?.moving);
+            const buildingType = pendingPlacement?.moving ? pendingPlacement.type : selectedBuilding;
+            if (!inPlacementMode || !sceneRef.current || !buildingType) return;
+            const scene = sceneRef.current;
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            const z = zoomRef.current;
+            const wx = (e.clientX - rect.left - scene.worldContainer.x) / z;
+            const wy = (e.clientY - rect.top - scene.worldContainer.y) / z;
+            const { col, row } = screenToGrid(wx, wy);
+            const valid = scene.canBuildAt(col, row, buildingType, buildings);
+            scene.updateGhost(col, row, buildingType, valid);
+          }}
         />
 
         {/* 2-step placement: confirm / move / cancel buttons near scaffold */}
@@ -800,6 +711,17 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
             </button>
           </div>
         )}
+
+        {/* D-pad camera controls */}
+        <SurfaceDPad
+          onPan={(dx, dy) => {
+            panRef.current.x += dx;
+            panRef.current.y += dy;
+            clampPan();
+          }}
+          onZoomIn={() => applyZoom(zoomRef.current * 1.22)}
+          onZoomOut={() => applyZoom(zoomRef.current * 0.82)}
+        />
 
         {/* Building panel */}
         {showBuildPanel && (

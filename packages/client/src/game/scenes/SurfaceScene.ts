@@ -1398,6 +1398,7 @@ export class SurfaceScene {
   public isHarvestableAt(col: number, row: number): SurfaceObjectType | null {
     const key = `${col},${row}`;
     if (this.harvestedCells.has(key)) return null;
+    if (this.fogLayer && !this.fogLayer.isRevealed(col, row)) return null;
 
     const N    = this.gridSize;
     const seed = this.planet.seed;

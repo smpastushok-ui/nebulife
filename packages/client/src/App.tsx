@@ -3783,15 +3783,7 @@ function AppInner() {
     }
 
     case 'surface': {
-      if (surfacePhase === 'ready') {
-        toolGroups.push({
-          type: 'zoom',
-          items: [
-            { id: 'zoom-in', label: '+', onClick: () => surfaceViewRef.current?.zoomIn() },
-            { id: 'zoom-out', label: '\u2212', onClick: () => surfaceViewRef.current?.zoomOut() },
-          ],
-        });
-      }
+      // Zoom moved to D-pad overlay
       break;
     }
   }
