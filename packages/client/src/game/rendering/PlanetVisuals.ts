@@ -7,7 +7,7 @@ import * as THREE from 'three';
  * Shared between PlanetGlobeView and PlanetDetailWindow so that
  * the star visual position matches the lighting direction (uStarDir).
  */
-export const STAR_SPRITE_POSITION = new THREE.Vector3(-8, 6, -15);
+export const STAR_SPRITE_POSITION = new THREE.Vector3(-10, 4, 12);
 
 export interface BiomeColors {
   tropical: number;
