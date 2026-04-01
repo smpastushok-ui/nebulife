@@ -205,8 +205,9 @@ export class SurfaceScene {
   private readonly _isMobile = isMobileDevice();
 
   // ─── Performance: floating text driven by update() — no per-anim RAF ─────
+  // Circle is drawn once on creation; per-frame only alpha + position.y are updated.
   private _floatAnims: Array<{
-    g: Graphics; x: number; cy: number; color: number; elapsedMs: number;
+    g: Graphics; cy: number; elapsedMs: number;
   }> = [];
 
   // ─── Harvest visual effects ───────────────────────────────────────────────
@@ -604,7 +605,8 @@ export class SurfaceScene {
     // Animate harvest visual effects (particles)
     this.harvestFx?.update(deltaMs);
 
-    // Tick floating-text animations
+    // Tick floating-text animations — circle drawn once on creation, only
+    // alpha and position.y are mutated per frame (no clear/redraw).
     const FLOAT_DURATION = 1200;
     for (let i = this._floatAnims.length - 1; i >= 0; i--) {
       const fa = this._floatAnims[i];
@@ -616,10 +618,8 @@ export class SurfaceScene {
         this._floatAnims.splice(i, 1);
         continue;
       }
-      const offsetY = -30 * t;
-      fa.g.clear();
-      fa.g.circle(fa.x, fa.cy + offsetY, 4 * (1 - t));
-      fa.g.fill({ color: fa.color, alpha });
+      fa.g.alpha      = alpha;
+      fa.g.position.y = fa.cy + (-30 * t);
     }
 
     // Animate harvest progress ring
@@ -1241,6 +1241,11 @@ export class SurfaceScene {
     this.hasSolarPlant   = hasSolar;
   }
 
+  /** Sync isotope count only (called from consume callback to keep scene in sync). */
+  public syncIsotopes(isotopes: number): void {
+    this.currentIsotopes = isotopes;
+  }
+
   /** Register a callback that attempts to consume isotopes. Returns true if enough. */
   public setConsumeIsotopesCallback(cb: (amount: number) => boolean): void {
     this.onConsumeIsotopes = cb;
@@ -1575,8 +1580,12 @@ export class SurfaceScene {
     const { x, y } = gridToScreen(col, row);
     const cy = y + TILE_H / 2 - 20;  // start above tile
     const g  = new Graphics();
+    // Draw the circle once at the local origin; position.y drives the drift.
+    g.circle(0, 0, 4);
+    g.fill({ color, alpha: 1 });
+    g.position.set(x, cy);
     this.effectLayer.addChild(g);
-    this._floatAnims.push({ g, x, cy, color, elapsedMs: 0 });
+    this._floatAnims.push({ g, cy, elapsedMs: 0 });
   }
 
   // ─── Harvest destruction effects ──────────────────────────────────────────

@@ -346,6 +346,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           if (isotopesRef.current < amount) return false;
           consumeIsoRef.current?.(amount);
           isotopesRef.current = Math.max(0, isotopesRef.current - amount);
+          // Sync consumed value back to scene immediately (fixes stale fuel check)
+          sceneRef.current?.syncIsotopes(isotopesRef.current);
           return true;
         });
 

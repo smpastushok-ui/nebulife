@@ -393,44 +393,36 @@ export class ResearcherBot {
 
     if (this.engineAlpha < 0.02) return;
 
+    // ── Mobile: skip engine effects entirely ────────────────────────────────
+    if (this.isMobile) return;
+
     const a = this.engineAlpha;
     const t = this.timeMs;
 
-    // ── Mobile: minimal glow only (skip distortion + bloom rings entirely) ──
-    if (this.isMobile) {
-      for (const off of ENGINE_OFFSETS) {
-        this.engineGlow.circle(off.x, off.y, 5 * a);
-        this.engineGlow.fill({ color: 0xff8800, alpha: 0.15 * a });
-      }
-      return;
-    }
-
-    // ── Desktop: full effects ───────────────────────────────────────────────
+    // ── Desktop: reduced effects ─────────────────────────────────────────────
     // Slow heat shimmer: 3 s period — simulates thermal bloom around the sprite's own glow
     const shimmer = 0.7 + 0.3 * Math.sin((t / 3000) * Math.PI * 2);
 
     for (const off of ENGINE_OFFSETS) {
-      // Heat bloom: 6 concentric translucent rings diffusing the engine glow outward.
+      // Heat bloom: 2 concentric rings (reduced from 6) — 4×2 = 8 circles total
       const maxR = 7 * a;
-      for (let i = 0; i < 6; i++) {
-        const r     = maxR * (i + 1) / 6;
+      for (let i = 0; i < 2; i++) {
+        const r     = maxR * (i + 1) / 2;
         const alpha = (0.09 - i * 0.013) * a * shimmer;
         this.engineGlow.circle(off.x, off.y, r);
         this.engineGlow.fill({ color: 0xff8800, alpha });
       }
 
-      // Per-engine small mirage rings expanding outward
-      for (let i = 0; i < 2; i++) {
-        const phase     = ((t / 2200) + i * 0.5) % 1;
-        const ringR     = (4 + i * 5) * phase * a;
-        const ringAlpha = (1 - phase) * 0.06 * a * shimmer;
-        this.distortion.ellipse(off.x, 0, ringR * 2.2, ringR * 0.7);
-        this.distortion.stroke({ color: 0xffffff, width: 1, alpha: ringAlpha });
-      }
+      // Per-engine mirage: 1 ring (reduced from 2) — 4×1 = 4 ellipses total
+      const phase     = ((t / 2200)) % 1;
+      const ringR     = 4 * phase * a;
+      const ringAlpha = (1 - phase) * 0.06 * a * shimmer;
+      this.distortion.ellipse(off.x, 0, ringR * 2.2, ringR * 0.7);
+      this.distortion.stroke({ color: 0xffffff, width: 1, alpha: ringAlpha });
     }
 
-    // Central mirage zone — translucent wavy rings simulating heat shimmer on the ground.
-    const NRINGS = 10;
+    // Central mirage zone — 3 rings (reduced from 10)
+    const NRINGS = 3;
     for (let i = 0; i < NRINGS; i++) {
       const baseR  = 12 + i * 7;
       const wave   = Math.sin((t / 1200) * Math.PI * 2 + i * 0.6) * 2;

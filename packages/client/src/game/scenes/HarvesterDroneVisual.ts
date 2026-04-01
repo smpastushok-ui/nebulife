@@ -382,13 +382,22 @@ export class HarvesterDroneVisual {
 
   // ─── Trail plasma rings ───────────────────────────────────────────────────
 
+  /** Max number of trail particles — capped to bound GPU fill calls per frame. */
+  private static readonly MAX_TRAIL = 10;
+
   private _emitTrail(): void {
+    // Skip emission on mobile; trail is not drawn there anyway
+    if (this.isMobile) return;
+    // Enforce particle cap — drop oldest if necessary
+    if (this.trailRings.length >= HarvesterDroneVisual.MAX_TRAIL) return;
+
     const { x, y } = gridToScreen(this.col, this.row);
     const bodyY = y - FLOAT_HEIGHT + this.bobY;
 
     // Alternate gold and violet
     const colors = [0xffcc44, 0xaa44ff];
     for (const color of colors) {
+      if (this.trailRings.length >= HarvesterDroneVisual.MAX_TRAIL) break;
       this.trailRings.push({
         x: x + (Math.random() - 0.5) * 8,
         y: bodyY + FLOAT_HEIGHT * 0.4 + (Math.random() - 0.5) * 4,  // near undercarriage
@@ -521,19 +530,19 @@ export class HarvesterDroneVisual {
     this.shadow.fill({ color: 0x000000, alpha: 0.25 });
   }
 
-  /** Draw the trail plasma rings (concentric, expanding, fading). */
+  /** Draw the trail plasma rings (1 ring per particle for performance). */
   private _drawTrail(): void {
+    // Mobile: skip trail entirely
+    if (this.isMobile) {
+      this.trailGfx.clear();
+      return;
+    }
     this.trailGfx.clear();
     for (const p of this.trailRings) {
       if (p.alpha <= 0) continue;
-      // 3 rings per particle for soft glow appearance
-      for (let i = 0; i < 3; i++) {
-        const r = p.r * (i + 1) / 3;
-        const a = p.alpha * (0.55 - i * 0.15);
-        if (a <= 0) continue;
-        this.trailGfx.circle(p.x, p.y, r);
-        this.trailGfx.fill({ color: p.color, alpha: a });
-      }
+      // 1 ring per particle (reduced from 3 to cut GPU calls by ~66%)
+      this.trailGfx.circle(p.x, p.y, p.r);
+      this.trailGfx.fill({ color: p.color, alpha: p.alpha * 0.55 });
     }
   }
 
