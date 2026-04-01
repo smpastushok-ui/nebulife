@@ -440,11 +440,31 @@ function BuildingCard({
   );
 }
 
-/* ─── Planet info HUD (top-left, collapsible) ──────────────────────────── */
+/* ─── Neon spin keyframes (injected once) ──────────────────────────────── */
+
+const NEON_SPIN_ID = 'nebu-neon-spin';
+if (typeof document !== 'undefined' && !document.getElementById(NEON_SPIN_ID)) {
+  const s = document.createElement('style');
+  s.id = NEON_SPIN_ID;
+  s.textContent = `
+    @keyframes nebuNeonSpin {
+      0%   { transform: rotateX(-1440deg); filter: blur(10px); opacity: 0; }
+      10%  { opacity: 1; }
+      100% { transform: rotateX(0deg); filter: blur(0px); opacity: 1; }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
+/* ─── Planet info HUD (top-right, under resources, neon spin) ──────────── */
 
 function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: PlacedBuilding[] }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = React.useState<boolean>(false);
+  const [animKey, setAnimKey] = React.useState(0);
+
+  // Re-trigger animation when planet changes
+  React.useEffect(() => { setAnimKey(k => k + 1); }, [planet.id]);
 
   const tempC = Math.round(planet.surfaceTempK - 273);
   const tempColor = tempC > -10 && tempC < 50 ? '#44ff88' : tempC < -40 || tempC > 80 ? '#ff8844' : '#ffcc44';
@@ -462,37 +482,65 @@ function PlanetInfoHUD({ planet, buildings }: { planet: Planet; buildings: Place
     { k: t('surface_panel.buildings'),    v: String(buildings.length), c: '#aabbcc' },
   ];
 
+  const nameLetters = planet.name.toUpperCase().split('');
+
   return (
-    <div style={{
-      position: 'absolute', top: 14, left: 14,
-      background: 'rgba(5,10,25,0.88)',
-      border: '1px solid rgba(60,100,160,0.3)',
-      borderRadius: 4,
+    <div key={animKey} style={{
+      position: 'absolute', top: 48, right: 14,
       fontFamily: 'monospace', pointerEvents: 'auto',
-      minWidth: 175,
+      display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+      zIndex: 5,
     }}>
+      {/* Neon spin name */}
+      <div style={{ display: 'flex', perspective: 800 }}>
+        {nameLetters.map((ch, i) => {
+          const dur = 0.5 + (i / Math.max(nameLetters.length - 1, 1)) * 2.5;
+          return (
+            <span key={i} style={{
+              display: 'inline-block',
+              color: '#aaccee',
+              fontSize: 14,
+              fontWeight: 'bold',
+              letterSpacing: '0.5px',
+              textShadow: '0 0 5px rgba(68,136,170,0.7), 0 0 12px rgba(68,136,170,0.4)',
+              animation: `nebuNeonSpin ${dur}s cubic-bezier(0.1,0.9,0.2,1) forwards`,
+              whiteSpace: 'pre',
+            }}>
+              {ch}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* Subtitle: temperature, clickable to expand */}
       <div
         onClick={() => setExpanded(e => !e)}
         style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '6px 12px', cursor: 'pointer', gap: 10,
-          height: 32, boxSizing: 'border-box',
+          display: 'flex', alignItems: 'center', gap: 6, marginTop: 2,
+          cursor: 'pointer', opacity: 0.8,
+          animation: 'nebuNeonSpin 3s cubic-bezier(0.1,0.9,0.2,1) forwards',
         }}
       >
-        <span style={{ color: '#aaccee', fontSize: 11, letterSpacing: '0.7px' }}>
-          {planet.name.toUpperCase()}
-        </span>
-        <span style={{ color: tempColor, fontSize: 10, flexShrink: 0 }}>
+        <span style={{ color: tempColor, fontSize: 10 }}>
           {`${tempC > 0 ? '+' : ''}${tempC}°C`}
         </span>
-        <span style={{ color: '#556677', fontSize: 9, flexShrink: 0 }}>
+        <span style={{ color: '#556677', fontSize: 9 }}>
           {expanded ? '\u25B2' : '\u25BC'}
         </span>
       </div>
+
+      {/* Expanded details */}
       {expanded && (
-        <div style={{ padding: '0 12px 8px 12px', borderTop: '1px solid rgba(60,100,160,0.2)' }}>
+        <div style={{
+          marginTop: 4,
+          background: 'rgba(5,10,25,0.88)',
+          border: '1px solid rgba(60,100,160,0.3)',
+          borderRadius: 4,
+          padding: '6px 10px',
+          minWidth: 160,
+        }}>
           {rows.map(({ k, v, c }) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginTop: 4 }}>
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 14, marginBottom: 2 }}>
               <span style={{ color: '#4a5e70', fontSize: 10 }}>{k}</span>
               <span style={{ color: c, fontSize: 10 }}>{v}</span>
             </div>
