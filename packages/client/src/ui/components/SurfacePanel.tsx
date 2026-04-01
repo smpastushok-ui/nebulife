@@ -69,20 +69,20 @@ const TERRAIN_KEYS: Record<string, string> = {
 /* ─── PNG photo paths (where available) ────────────────────────────────── */
 
 const BLDG_PNG: Partial<Record<BuildingType, string>> = {
-  colony_hub:       '/buildings/colony_hub.png',
-  solar_plant:      '/buildings/solar_plant.png',
-  battery_station:  '/buildings/battery_station.png',
-  wind_generator:       '/buildings/wind_generator.png',
-  thermal_generator:    '/buildings/thermal_generator.png',
-  resource_storage:     '/tiles/machines/resource_storage.png',
-  landing_pad:      '/tiles/machines/landing_pad.png',
-  spaceport:        '/tiles/machines/spaceport.png',
-  alpha_harvester:  '/tiles/machines/premium_harvester_drone.png',
-  mine:             '/buildings/mine.png',
-  fusion_reactor:   '/buildings/fusion_reactor.png',
-  water_extractor:  '/buildings/water_extractor.png',
-  atmo_extractor:   '/buildings/atmo_extractor.png',
-  deep_drill:       '/buildings/deep_drill.png',
+  colony_hub:       '/buildings/colony_hub.webp',
+  solar_plant:      '/buildings/solar_plant.webp',
+  battery_station:  '/buildings/battery_station.webp',
+  wind_generator:       '/buildings/wind_generator.webp',
+  thermal_generator:    '/buildings/thermal_generator.webp',
+  resource_storage:     '/tiles/machines/resource_storage.webp',
+  landing_pad:      '/tiles/machines/landing_pad.webp',
+  spaceport:        '/tiles/machines/spaceport.webp',
+  alpha_harvester:  '/tiles/machines/premium_harvester_drone.webp',
+  mine:             '/buildings/mine.webp',
+  fusion_reactor:   '/buildings/fusion_reactor.webp',
+  water_extractor:  '/buildings/water_extractor.webp',
+  atmo_extractor:   '/buildings/atmo_extractor.webp',
+  deep_drill:       '/buildings/deep_drill.webp',
 };
 
 /* ─── 3-resource cost display (МІН / ЛЕТ / ІЗО) ───────────────────────── */
@@ -306,7 +306,7 @@ function BuildingCard({
               />
               {type === 'mine' && (
                 <img
-                  src="/buildings/mine_on.png"
+                  src="/buildings/mine_on.webp"
                   alt=""
                   style={{
                     position: 'absolute', inset: 0,

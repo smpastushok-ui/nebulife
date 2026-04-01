@@ -13,12 +13,12 @@ interface BuildingPanelProps {
 
 /** Buildings that have a real PNG preview image */
 const BUILDING_PREVIEW: Partial<Record<BuildingType, string>> = {
-  colony_hub:       '/buildings/colony_hub.png',
-  solar_plant:      '/buildings/solar_plant.png',
-  resource_storage: '/tiles/machines/resource_storage.png',
-  landing_pad:      '/tiles/machines/landing_pad.png',
-  spaceport:        '/tiles/machines/spaceport.png',
-  alpha_harvester:  '/tiles/machines/premium_harvester_drone.png',
+  colony_hub:       '/buildings/colony_hub.webp',
+  solar_plant:      '/buildings/solar_plant.webp',
+  resource_storage: '/tiles/machines/resource_storage.webp',
+  landing_pad:      '/tiles/machines/landing_pad.webp',
+  spaceport:        '/tiles/machines/spaceport.webp',
+  alpha_harvester:  '/tiles/machines/premium_harvester_drone.webp',
 };
 
 /* ---- Building icon colors (no emojis per project rules) ---- */

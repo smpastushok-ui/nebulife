@@ -381,19 +381,19 @@ export class SurfaceScene {
   // ─── Texture preloading (can run in parallel with API calls) ───────────────
 
   private static readonly BUILDING_PNGS: [string, string][] = [
-    ['colony_hub',        '/buildings/colony_hub.png'],
-    ['solar_plant',       '/buildings/solar_plant.png'],
-    ['battery_station',   '/buildings/battery_station.png'],
-    ['wind_generator',    '/buildings/wind_generator.png'],
-    ['resource_storage',  '/tiles/machines/resource_storage.png'],
-    ['landing_pad',       '/tiles/machines/landing_pad.png'],
-    ['spaceport',         '/tiles/machines/spaceport.png'],
-    ['thermal_generator', '/buildings/thermal_generator.png'],
-    ['mine',              '/buildings/mine.png'],
-    ['fusion_reactor',    '/buildings/fusion_reactor.png'],
-    ['water_extractor',   '/buildings/water_extractor.png'],
-    ['atmo_extractor',    '/buildings/atmo_extractor.png'],
-    ['deep_drill',        '/buildings/deep_drill.png'],
+    ['colony_hub',        '/buildings/colony_hub.webp'],
+    ['solar_plant',       '/buildings/solar_plant.webp'],
+    ['battery_station',   '/buildings/battery_station.webp'],
+    ['wind_generator',    '/buildings/wind_generator.webp'],
+    ['resource_storage',  '/tiles/machines/resource_storage.webp'],
+    ['landing_pad',       '/tiles/machines/landing_pad.webp'],
+    ['spaceport',         '/tiles/machines/spaceport.webp'],
+    ['thermal_generator', '/buildings/thermal_generator.webp'],
+    ['mine',              '/buildings/mine.webp'],
+    ['fusion_reactor',    '/buildings/fusion_reactor.webp'],
+    ['water_extractor',   '/buildings/water_extractor.webp'],
+    ['atmo_extractor',    '/buildings/atmo_extractor.webp'],
+    ['deep_drill',        '/buildings/deep_drill.webp'],
   ];
 
   /**
@@ -403,25 +403,25 @@ export class SurfaceScene {
    */
   preloadTextures(planet: Planet, star: Star): Promise<(Texture | null)[]> {
     const atlasType = derivePlanetAtlasType(planet, star);
-    const atlasUrl  = `/tiles/tiles_${atlasType}.png`;
+    const atlasUrl  = `/tiles/tiles_${atlasType}.webp`;
     const mountUrl  =
-      atlasType === 'ice'      ? '/tiles/habitable/mount_ice.png'      :
-      atlasType === 'volcanic' ? '/tiles/habitable/mount_volcanic.png' :
-                                 '/tiles/habitable/mount_rugged.png';
+      atlasType === 'ice'      ? '/tiles/habitable/mount_ice.webp'      :
+      atlasType === 'volcanic' ? '/tiles/habitable/mount_volcanic.webp' :
+                                 '/tiles/habitable/mount_rugged.webp';
 
     const safeLoad = (url: string) => Assets.load<Texture>(url).catch(() => null);
 
     return Promise.all([
       safeLoad(atlasUrl),
-      safeLoad('/buildings/solar_plant_light.png'),
-      safeLoad('/buildings/battery_station_on.png'),
-      safeLoad('/buildings/wind_generator_on.png'),
-      safeLoad('/buildings/mine_on.png'),
-      safeLoad('/buildings/water_extractor_on.png'),
-      safeLoad('/tiles/machines/bot_resercher.png'),
-      safeLoad('/tiles/machines/bot_resercher_off.png'),
-      safeLoad('/tiles/machines/premium_harvester_drone.png'),
-      safeLoad('/tiles/machines/pos_drone.png'),
+      safeLoad('/buildings/solar_plant_light.webp'),
+      safeLoad('/buildings/battery_station_on.webp'),
+      safeLoad('/buildings/wind_generator_on.webp'),
+      safeLoad('/buildings/mine_on.webp'),
+      safeLoad('/buildings/water_extractor_on.webp'),
+      safeLoad('/tiles/machines/bot_resercher.webp'),
+      safeLoad('/tiles/machines/bot_resercher_off.webp'),
+      safeLoad('/tiles/machines/premium_harvester_drone.webp'),
+      safeLoad('/tiles/machines/pos_drone.webp'),
       safeLoad(mountUrl),
       ...SurfaceScene.BUILDING_PNGS.map(([, url]) => safeLoad(url)),
     ]);
@@ -4650,7 +4650,7 @@ export class SurfaceScene {
   private async _initCloudSprites(): Promise<void> {
     let cloudTex: Texture;
     try {
-      cloudTex = await Assets.load<Texture>('/tiles/clouds.jpg');
+      cloudTex = await Assets.load<Texture>('/tiles/clouds.webp');
     } catch {
       return; // No texture — skip clouds
     }
