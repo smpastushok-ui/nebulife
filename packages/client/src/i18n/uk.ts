@@ -288,6 +288,22 @@ export const uk = {
   'app.planet_collision':   'Зiткнення. Рiдна планета знищена.',
   'app.landing':            'Посадка на нову планету',
 
+  // ─── Common (used by main-branch t() calls) ───────────────────────────────
+  'nav.surface_btn':        'На поверхню',
+  'common.unavailable':     'Недоступно',
+  'common.understood':      'ЗРОЗУМIЛО',
+  'common.loading':         'Завантаження...',
+  'common.back':            'Назад',
+  'errors.allSlotsOccupied': 'Усі обсерваторії зайняті',
+  'errors.noObservatories': 'Немає обсерваторій',
+  'errors.surfaceChaosTitle': 'Планета в хаосі',
+  'errors.surfaceChaosBody': 'На планеті хаос, зараз не час для цього — шукайте новий дім.',
+  'errors.surfaceChaosBtn': 'Зрозуміло',
+  'event.evacuation':       'Евакуація',
+  'event.trajectory_updated': 'УВАГА: ТРАЄКТОРIЯ ОНОВЛЕНА',
+  'event.urgent_broadcast': '[ ТЕРМIНОВЕ ВIДЕО-ПОВIДОМЛЕННЯ ]',
+  'event.trajectory_body':  'Командоре, розрахунки траєкторiї астероїда оновилися. Часу лишилося критично мало... Але є й гарна новина. Здається, в цiй системi є те, що ми так довго шукали. Потрiбно поспiшати!',
+
   // ─── Language ─────────────────────────────────────────────────────────────
   'lang.select_title': 'Select Language / Оберіть мову',
   'lang.ukrainian':    'Українська',

@@ -290,6 +290,22 @@ export const en: Record<TranslationKey, string> = {
   'app.planet_collision':   'Collision. Home planet destroyed.',
   'app.landing':            'Landing on new planet',
 
+  // ─── Common (used by main-branch t() calls) ───────────────────────────────
+  'nav.surface_btn':        'To Surface',
+  'common.unavailable':     'Unavailable',
+  'common.understood':      'UNDERSTOOD',
+  'common.loading':         'Loading...',
+  'common.back':            'Back',
+  'errors.allSlotsOccupied': 'All observatories occupied',
+  'errors.noObservatories': 'No observatories',
+  'errors.surfaceChaosTitle': 'Planet in Chaos',
+  'errors.surfaceChaosBody': 'The planet is in chaos — now is not the time for this. Find a new home.',
+  'errors.surfaceChaosBtn': 'Understood',
+  'event.evacuation':       'Evacuation',
+  'event.trajectory_updated': 'ALERT: TRAJECTORY UPDATED',
+  'event.urgent_broadcast': '[ URGENT VIDEO MESSAGE ]',
+  'event.trajectory_body':  'Commander, asteroid trajectory calculations have been updated. Time is critically short. But there is good news — it seems this system has what we have been searching for. We must hurry!',
+
   // ─── Language ─────────────────────────────────────────────────────────────
   'lang.select_title': 'Select Language / Оберіть мову',
   'lang.ukrainian':    'Українська',
