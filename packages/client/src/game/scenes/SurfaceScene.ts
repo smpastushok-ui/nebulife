@@ -24,7 +24,13 @@ import {
   Assets,
   Texture,
   Rectangle,
+  Filter,
+  GlProgram,
+  UniformGroup,
+  BufferImageSource,
+  defaultFilterVert,
 } from 'pixi.js';
+import isoTerrainFrag from '../../shaders/surface/iso-terrain.frag.glsl?raw';
 // In PixiJS v8, DisplayObject was removed; Sprite/Graphics both extend Container.
 type DisplayObject = Container | Sprite | Graphics;
 import type { Planet, Star, PlacedBuilding, BuildingType, HarvestedCell, SurfaceObjectType, TerrainType } from '@nebulife/core';
@@ -262,6 +268,16 @@ export class SurfaceScene {
   // ─── Noise overlay ────────────────────────────────────────────────────────
   private noiseOverlayGfx: Graphics | null = null;
 
+  // ─── WebGL iso-terrain shader (1 draw call replaces ~127 Graphics) ────────
+  private _terrainFilter:    Filter            | null = null;
+  /** Screen-space sprite with terrain filter. Caller (SurfacePixiView) must add to stage. */
+  public  terrainSprite:     Sprite            | null = null;
+  private _terrainUniforms:  UniformGroup      | null = null;
+  private _fogImageSource:   BufferImageSource | null = null;
+  private _fogData:          Uint8Array        | null = null;
+  /** Elapsed time in ms for shader animation (wave shimmer etc.). */
+  private _shaderTimeMs:     number = 0;
+
   // ─── Shoreline foam ───────────────────────────────────────────────────────
   private foamGfx:    Graphics | null = null;
   private foamTimeMs: number = 0;
@@ -469,12 +485,15 @@ export class SurfaceScene {
     // const textures = await (preloadedTextures ?? this.preloadTextures(planet, star));
     // this._applyPreloadedTextures(textures);
 
+    // ── Ground layer — choose between shader (1 draw call) and legacy Graphics ──
     this.perf?.markStart('ground-layer');
-    this.drawGroundLayer();
-    this.perf?.markEnd('ground-layer');
+    // drawGroundLayer() is kept for fallback / incremental fog reveals but is no
+    // longer called on init — the WebGL shader replaces it.
+    // this.drawGroundLayer(); // REPLACED by _initTerrainShader() below
     // this._buildNoiseOverlay();   // TEMP SKIP — perf test
     // this._buildShorelineCells(); // TEMP SKIP — perf test
     // this.placeMountOverlay();    // TEMP SKIP — perf test
+    this.perf?.markEnd('ground-layer');
 
     // Pre-mark existing buildings so they don't animate on scene load
     for (const b of buildings) this.animatedKeys.add(`${b.x},${b.y}`);
@@ -492,6 +511,18 @@ export class SurfaceScene {
     }
     this.fogLayer.initFromBuildings(buildings);
     this.perf?.markEnd('fog-init');
+
+    // WebGL terrain shader — init AFTER fogLayer so fog data can be synced.
+    this.perf?.markStart('terrain-shader');
+    try {
+      this._initTerrainShader();
+      // Wire fog reveal hook so texture updates incrementally
+      this.fogLayer.setRevealCellHook((c, r) => this.revealFogTexCell(c, r));
+    } catch (e) {
+      console.warn('[SurfaceScene] Terrain shader init failed, falling back to Graphics:', e);
+      this.drawGroundLayer();
+    }
+    this.perf?.markEnd('terrain-shader');
 
     // Atmospheric clouds (TilingSprite) — TEMP SKIP for perf test
     // await this._initCloudSprites();
@@ -757,6 +788,165 @@ export class SurfaceScene {
         bandWaterGfx.fill({ color: landColor });
       }
     }
+  }
+
+  // ─── WebGL terrain shader (1 draw call) ─────────────────────────────────
+
+  /**
+   * Initialise the WebGL iso-terrain filter.
+   * Creates: fog DataTexture (N×N), UniformGroup, GlProgram, Filter, fullscreen Sprite.
+   * The sprite is added at index 0 of worldContainer (below everything else).
+   *
+   * Call AFTER fogLayer is initialised so the fog data can be synced immediately.
+   */
+  private _initTerrainShader(): void {
+    const N    = this.gridSize;
+    const wl   = this.waterLevel;
+    const seed = this.planet.seed;
+
+    // ── Fog DataTexture ──────────────────────────────────────────────────────
+    // N×N RGBA Uint8Array; R channel = 255 (revealed) or 0 (hidden)
+    this._fogData = new Uint8Array(N * N * 4);
+    // Sync already-revealed cells from fogLayer (populated before this call)
+    if (this.fogLayer) {
+      for (let c = 0; c < N; c++) {
+        for (let r = 0; r < N; r++) {
+          if (this.fogLayer.isRevealed(c, r)) {
+            const idx = (r * N + c) * 4;
+            this._fogData[idx]     = 255; // R
+            this._fogData[idx + 1] = 0;   // G
+            this._fogData[idx + 2] = 0;   // B
+            this._fogData[idx + 3] = 255; // A
+          }
+        }
+      }
+    }
+
+    this._fogImageSource = new BufferImageSource({
+      resource: this._fogData,
+      width:    N,
+      height:   N,
+      format:   'rgba8unorm',
+    });
+
+    // ── Color palette (hex → normalised vec3) ────────────────────────────────
+    const hex3 = (h: number): Float32Array => new Float32Array([
+      ((h >> 16) & 0xff) / 255,
+      ((h >>  8) & 0xff) / 255,
+      ( h        & 0xff) / 255,
+    ]);
+
+    // ── UniformGroup (name "isoUniforms" matches resource key in Filter) ──────
+    this._terrainUniforms = new UniformGroup({
+      uSeed:         { value: seed,              type: 'f32' },
+      uWaterLevel:   { value: wl,                type: 'f32' },
+      uGridSize:     { value: N,                 type: 'f32' },
+      uTime:         { value: 0.0,               type: 'f32' },
+      uResolution:   { value: new Float32Array([800, 600]), type: 'vec2<f32>' },
+      uContainerPos: { value: new Float32Array([0, 0]),     type: 'vec2<f32>' },
+      uZoom:         { value: 0.15,              type: 'f32' },
+      // Color palette
+      uDeepOcean:    { value: hex3(0x071318),    type: 'vec3<f32>' },
+      uOcean:        { value: hex3(0x0c1d2c),    type: 'vec3<f32>' },
+      uCoast:        { value: hex3(0x112535),    type: 'vec3<f32>' },
+      uBeach:        { value: hex3(0x172e40),    type: 'vec3<f32>' },
+      uLowland:      { value: hex3(0x1e3a1a),    type: 'vec3<f32>' },
+      uPlains:       { value: hex3(0x255520),    type: 'vec3<f32>' },
+      uHills:        { value: hex3(0x2f4a28),    type: 'vec3<f32>' },
+      uMountains:    { value: hex3(0x3a3a2a),    type: 'vec3<f32>' },
+      uPeaks:        { value: hex3(0x4a4540),    type: 'vec3<f32>' },
+      uFogColor:     { value: hex3(0x020510),    type: 'vec3<f32>' },
+    });
+
+    // ── GlProgram ─────────────────────────────────────────────────────────────
+    const glProgram = GlProgram.from({
+      vertex:   defaultFilterVert,
+      fragment: isoTerrainFrag,
+      name:     'iso-terrain-filter',
+    });
+
+    // ── Filter ────────────────────────────────────────────────────────────────
+    this._terrainFilter = new Filter({
+      glProgram,
+      resources: {
+        isoUniforms: this._terrainUniforms,
+        uFogTex:     this._fogImageSource,
+      },
+    });
+
+    // ── Fullscreen sprite ─────────────────────────────────────────────────────
+    // The sprite lives at the STAGE level (not inside worldContainer) so the
+    // filter area exactly equals the screen rectangle — giving predictable
+    // screen-space coordinates via vTextureCoord.
+    //
+    // SurfacePixiView must insert this into app.stage at index 0 (below worldContainer).
+    // The sprite width/height must be updated on screen resize — see resizeTerrainSprite().
+    this.terrainSprite = new Sprite(Texture.WHITE);
+    this.terrainSprite.width  = 1280; // updated by resizeTerrainSprite()
+    this.terrainSprite.height = 720;
+    this.terrainSprite.position.set(0, 0);
+    this.terrainSprite.filters = [this._terrainFilter!];
+    // NOTE: terrainSprite is NOT added here — caller (SurfacePixiView) adds it to app.stage.
+  }
+
+  /**
+   * Resize the terrain shader sprite to match the screen size.
+   * Must be called on init and on every resize.
+   */
+  public resizeTerrainSprite(screenW: number, screenH: number): void {
+    if (!this.terrainSprite) return;
+    this.terrainSprite.width  = screenW;
+    this.terrainSprite.height = screenH;
+  }
+
+  /**
+   * Update fog DataTexture for a single cell.
+   * Called by FogLayer.revealCell() hook after reveal.
+   */
+  public revealFogTexCell(col: number, row: number): void {
+    const N = this.gridSize;
+    if (!this._fogData || !this._fogImageSource) return;
+    const idx = (row * N + col) * 4;
+    this._fogData[idx]     = 255;
+    this._fogData[idx + 1] = 0;
+    this._fogData[idx + 2] = 0;
+    this._fogData[idx + 3] = 255;
+    this._fogImageSource.update();
+  }
+
+  /**
+   * Sync entire fog DataTexture from current FogLayer revealed set.
+   * Called once after init to ensure both are in sync.
+   */
+  public syncFogTexture(): void {
+    const N = this.gridSize;
+    if (!this._fogData || !this._fogImageSource || !this.fogLayer) return;
+    this._fogData.fill(0);
+    for (let c = 0; c < N; c++) {
+      for (let r = 0; r < N; r++) {
+        if (this.fogLayer.isRevealed(c, r)) {
+          const idx = (r * N + c) * 4;
+          this._fogData[idx]     = 255;
+          this._fogData[idx + 3] = 255;
+        }
+      }
+    }
+    this._fogImageSource.update();
+  }
+
+  /**
+   * Update camera-dependent shader uniforms (must be called each frame or after pan/zoom).
+   * @param containerX worldContainer.position.x
+   * @param containerY worldContainer.position.y
+   * @param zoom       worldContainer.scale.x
+   */
+  public updateShaderCamera(containerX: number, containerY: number, zoom: number): void {
+    if (!this._terrainUniforms) return;
+    const u = this._terrainUniforms.uniforms;
+    (u.uContainerPos as Float32Array)[0] = containerX;
+    (u.uContainerPos as Float32Array)[1] = containerY;
+    u.uZoom = zoom;
+    this._terrainUniforms.update();
   }
 
   /**
@@ -1209,6 +1399,14 @@ export class SurfaceScene {
   /** Per-frame animation tick — called by PixiJS app.ticker in SurfacePixiView. */
   public update(deltaMs: number): void {
     this.perf?.frameStart();
+
+    // Update shader time uniform for water wave animation
+    if (this._terrainUniforms) {
+      this._shaderTimeMs += deltaMs;
+      this._terrainUniforms.uniforms.uTime = this._shaderTimeMs;
+      this._terrainUniforms.update();
+    }
+
     // Check regrowth every minute (not every frame)
     this.regrowthCheckMs += deltaMs;
     if (this.regrowthCheckMs > 60_000) {

@@ -148,10 +148,11 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       const panYMin = -(gridH - cH * 0.35);
       panRef.current.y = Math.max(panYMin, Math.min(panYMax, panRef.current.y));
 
-      scene.worldContainer.position.set(
-        cW / 2 + panRef.current.x,
-        cH / 4 + panRef.current.y,
-      );
+      const posX = cW / 2 + panRef.current.x;
+      const posY = cH / 4 + panRef.current.y;
+      scene.worldContainer.position.set(posX, posY);
+      // Update shader camera uniforms (filter renders in screen space)
+      scene.updateShaderCamera(posX, posY, zoomRef.current);
     }, []);
 
     const applyZoom = useCallback((z: number) => {
@@ -162,7 +163,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       zoomRef.current = Math.max(0.15, Math.min(maxZoom, z));
       if (sceneRef.current) {
         sceneRef.current.worldContainer.scale.set(zoomRef.current);
-        clampPan();
+        clampPan(); // clampPan also calls updateShaderCamera
       }
     }, [clampPan]);
 
@@ -278,6 +279,16 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         scene.setPlayerId(playerId);
         scene.setSaveSurfaceState((data) => saveSurfaceState(playerId, planet.id, data));
         await scene.init(planet, star, loaded, texturePreload, surfaceState);
+
+        // Insert terrain shader sprite below worldContainer (stage index 0)
+        if (scene.terrainSprite) {
+          scene.resizeTerrainSprite(app.screen.width, app.screen.height);
+          app.stage.addChildAt(scene.terrainSprite, 0);
+          // Resize on canvas resize
+          app.renderer.on('resize', (w: number, h: number) => {
+            scene.resizeTerrainSprite(w, h);
+          });
+        }
 
         // Wire isotope consumption callback for drone fuel
         scene.setConsumeIsotopesCallback((amount) => {

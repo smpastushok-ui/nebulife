@@ -38,6 +38,13 @@ export class FogLayer {
   /** Debounce timer handle — persist() writes to localStorage at most once per 2 s. */
   private _persistTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /** Optional hook called for each newly revealed cell (used by shader fog texture). */
+  private _revealCellHook: ((col: number, row: number) => void) | null = null;
+
+  public setRevealCellHook(fn: (col: number, row: number) => void): void {
+    this._revealCellHook = fn;
+  }
+
   constructor(gridSize: number, planetId: string) {
     this.gridSize   = gridSize;
     this.storageKey = `fog_${planetId}`;
@@ -74,6 +81,12 @@ export class FogLayer {
     if (newCells.length > 0) {
       this.dirty = true;
       this.persist();
+      // Notify shader fog texture about each newly revealed cell
+      if (this._revealCellHook) {
+        for (const { col: c, row: r } of newCells) {
+          this._revealCellHook(c, r);
+        }
+      }
     }
 
     return newCells;
@@ -151,7 +164,14 @@ export class FogLayer {
 
   /** Restore revealed cells from a pre-loaded array (from DB). */
   public restoreFromArray(cells: string[]): void {
-    for (const key of cells) this.revealedCells.add(key);
+    for (const key of cells) {
+      this.revealedCells.add(key);
+      // Notify shader fog texture for each restored cell
+      if (this._revealCellHook) {
+        const [c, r] = key.split(',').map(Number);
+        this._revealCellHook(c, r);
+      }
+    }
     this.dirty = true;
   }
 
