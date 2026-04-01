@@ -1052,28 +1052,11 @@ function MessageItem({
     }
   };
 
-  // Detect quiz/digest JSON from system messages
-  if (message.sender_id === 'system') {
+  // Skip quiz/digest system messages in global tab (they now go to A.S.T.R.A.)
+  if (message.sender_id === 'system' && channel === 'global') {
     try {
       const parsed = JSON.parse(message.content);
-      if (parsed?.type === 'quiz' && parsed?.data) {
-        return (
-          <div style={{ padding: '3px 0' }}>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginBottom: 4 }}>
-              <span style={{ color: '#44ffaa', fontSize: 9, fontWeight: 'bold', fontFamily: 'monospace' }}>
-                {message.sender_name}
-              </span>
-              <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{time}</span>
-            </div>
-            <QuizCard data={parsed.data as QuizData} messageId={message.id} onAwardXP={onAwardXP} />
-          </div>
-        );
-      }
-      if (parsed?.type === 'digest') {
-        return (
-          <DigestCard time={time} parsed={parsed} />
-        );
-      }
+      if (parsed?.type === 'quiz' || parsed?.type === 'digest') return null;
     } catch { /* not JSON, render normally */ }
   }
 

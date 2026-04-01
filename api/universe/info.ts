@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getTotalPlayerCount, getClusterCount } from '../../packages/server/src/db.js';
+import { getTotalPlayerCount } from '../../packages/server/src/db.js';
+import { PLAYERS_PER_GROUP } from '@nebulife/core';
 
 /**
  * GET /api/universe/info
@@ -15,10 +16,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const [totalPlayers, groupCount] = await Promise.all([
-      getTotalPlayerCount(),
-      getClusterCount(),
-    ]);
+    const totalPlayers = await getTotalPlayerCount();
+    // Calculate cluster count from player count (clusters table may have fewer rows
+    // because clusters are created on-demand during player registration)
+    const groupCount = Math.max(1, Math.ceil(totalPlayers / PLAYERS_PER_GROUP));
 
     // Cache for 60 seconds — player count changes infrequently
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
