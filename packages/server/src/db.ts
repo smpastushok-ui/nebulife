@@ -198,7 +198,7 @@ export async function deletePlayerDiscoveries(playerId: string): Promise<void> {
 export async function resetPlayerData(playerId: string): Promise<PlayerRow | null> {
   const sql = getSQL();
 
-  // Delete all player-owned data in parallel
+  // Delete all player-owned data in parallel (keep quarks)
   await Promise.all([
     sql`DELETE FROM discoveries WHERE player_id = ${playerId}`,
     sql`DELETE FROM planet_models WHERE player_id = ${playerId}`,
@@ -209,6 +209,13 @@ export async function resetPlayerData(playerId: string): Promise<PlayerRow | nul
     sql`DELETE FROM system_missions WHERE player_id = ${playerId}`,
     sql`DELETE FROM expeditions WHERE player_id = ${playerId}`,
     sql`DELETE FROM kling_tasks WHERE player_id = ${playerId}`,
+    // Clear all chat channels owned by this player (A.S.T.R.A., system, DMs, sent messages)
+    sql`DELETE FROM messages WHERE sender_id = ${playerId}
+        OR channel = ${'astra:' + playerId}
+        OR channel = ${'system:' + playerId}
+        OR (channel LIKE 'dm:%' AND channel LIKE ${'%' + playerId + '%'})`,
+    // Clear academy progress
+    sql`DELETE FROM academy_progress WHERE player_id = ${playerId}`,
   ]);
 
   // Reset player: increment generation_index (science_points), clear game state, keep quarks

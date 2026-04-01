@@ -174,6 +174,12 @@ export function ResearchCompleteModal({
     setTimeout(cb, 350);
   }, []);
 
+  // Auto-dismiss after animations complete (~8s)
+  useEffect(() => {
+    const timer = setTimeout(() => exit(onClose), 8000);
+    return () => clearTimeout(timer);
+  }, [exit, onClose]);
+
   const planets = system.planets;
   const hasHabitable = planets.some(p => p.habitability.overall >= 0.70);
 
