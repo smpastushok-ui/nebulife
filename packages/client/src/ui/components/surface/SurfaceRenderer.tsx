@@ -3,6 +3,9 @@
  * Pure SVG renderer for the isometric surface.
  * Receives all state as props and returns SVG elements.
  * No PixiJS, no side effects — pure render function.
+ *
+ * Only discovered tiles are rendered (no full grid, no fog layer).
+ * Background is handled by the parent container (white).
  */
 
 import React, { useMemo } from 'react';
@@ -10,7 +13,6 @@ import type { Planet, PlacedBuilding, BuildingType, HarvestedCell } from '@nebul
 import { BUILDING_DEFS } from '@nebulife/core';
 import { TerrainCell } from './TerrainCell';
 import { IsoBuilding } from './IsoBuildingComposites';
-import { SvgFogLayer } from './SvgFogLayer';
 import { SvgBot } from './SvgBot';
 import { SvgDrone } from './SvgDrone';
 import { IsoBlock } from './IsoBlock';
@@ -30,7 +32,8 @@ interface SurfaceRendererProps {
   buildings: PlacedBuilding[];
   viewBox: { x: number; y: number; w: number; h: number };
   harvestedCells: Map<string, HarvestedCell>;
-  revealedCells: Set<string>;
+  /** Set of "col,row" keys for tiles that have been discovered and should be rendered. */
+  discoveredTiles: Set<string>;
   selectedBuilding: BuildingType | null;
   ghostPosition: { col: number; row: number } | null;
   ghostValid: boolean;
@@ -113,7 +116,7 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
   buildings,
   viewBox,
   harvestedCells,
-  revealedCells,
+  discoveredTiles,
   selectedBuilding,
   ghostPosition,
   ghostValid,
@@ -134,24 +137,28 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
     [viewBox, gridSize],
   );
 
-  // ── Terrain cells — Z-sorted by col+row ───────────────────────────────────
+  // ── Terrain cells — only discovered tiles, Z-sorted by col+row ───────────
   const terrainCells = useMemo(() => {
     const cells: React.ReactNode[] = [];
-    // Collect all visible cells in Z-order (ascending col+row = back to front)
-    const pairs: Array<{ col: number; row: number }> = [];
+
+    // Collect only discovered cells within the visible viewport
+    const pairs: Array<{ col: number; row: number; discKey: string }> = [];
     for (let row = minRow; row <= maxRow; row++) {
       for (let col = minCol; col <= maxCol; col++) {
-        pairs.push({ col, row });
+        const key = `${col},${row}`;
+        if (!discoveredTiles.has(key)) continue;
+        pairs.push({ col, row, discKey: key });
       }
     }
-    // Sort by Z depth (col+row ascending)
+
+    // Sort by Z depth (col+row ascending = back to front)
     pairs.sort((a, b) => (a.col + a.row) - (b.col + b.row));
 
     for (const { col, row } of pairs) {
       const hc = harvestedCells.get(`${col},${row}`);
       const harvested = hc?.state ?? undefined;
 
-      // Emerge delay proportional to distance from hub
+      // Emerge delay proportional to distance from hub (for initial load wave effect)
       const dist = Math.abs(col - hubCol) + Math.abs(row - hubRow);
       const delay = Math.min(dist * 0.02, 1.2);
 
@@ -169,7 +176,13 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
       );
     }
     return cells;
-  }, [minCol, maxCol, minRow, maxRow, seed, waterLevel, gridSize, harvestedCells, hubCol, hubRow]);
+  }, [
+    minCol, maxCol, minRow, maxRow,
+    discoveredTiles,
+    seed, waterLevel, gridSize,
+    harvestedCells,
+    hubCol, hubRow,
+  ]);
 
   // ── Zone overlay — visible when placing a building ────────────────────────
   const zoneOverlay = useMemo(() => {
@@ -178,7 +191,8 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
 
     for (let row = minRow; row <= maxRow; row++) {
       for (let col = minCol; col <= maxCol; col++) {
-        if (!revealedCells.has(`${col},${row}`)) continue;
+        // Only show zone overlay on discovered tiles
+        if (!discoveredTiles.has(`${col},${row}`)) continue;
         const valid = canBuildAt(col, row, selectedBuilding, buildings);
         const { x, y } = gridToSvg(col, row);
         overlayNodes.push(
@@ -187,7 +201,7 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
       }
     }
     return <g>{overlayNodes}</g>;
-  }, [selectedBuilding, minCol, maxCol, minRow, maxRow, revealedCells, canBuildAt, buildings]);
+  }, [selectedBuilding, minCol, maxCol, minRow, maxRow, discoveredTiles, canBuildAt, buildings]);
 
   // ── Buildings — Z-sorted by col+row ──────────────────────────────────────
   const buildingNodes = useMemo(() => {
@@ -267,7 +281,7 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
 
   return (
     <>
-      {/* Layer 1: Terrain */}
+      {/* Layer 1: Terrain (discovered tiles only) */}
       <g>{terrainCells}</g>
 
       {/* Layer 2: Zone overlay */}
@@ -287,13 +301,6 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
 
       {/* Layer 7: Harvest ring */}
       {harvestRingNode}
-
-      {/* Layer 8: Fog (topmost) */}
-      <SvgFogLayer
-        gridSize={gridSize}
-        revealedCells={revealedCells}
-        viewBox={viewBox}
-      />
     </>
   );
 });

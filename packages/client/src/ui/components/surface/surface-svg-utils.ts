@@ -68,18 +68,18 @@ export function computeVisibleRange(
   return { minCol, maxCol, minRow, maxRow };
 }
 
-// ─── Terrain colors (dark cosmic palette) ────────────────────────────────────
+// ─── Terrain colors (light palette) ──────────────────────────────────────────
 
 export const TERRAIN_COLORS: Record<string, { top: string; left: string; right: string }> = {
-  deep_ocean: { top: '#0a1428', left: '#081020', right: '#060c18' },
-  ocean:      { top: '#0d1f35', left: '#0a1828', right: '#081420' },
-  coast:      { top: '#163050', left: '#102540', right: '#0c1e35' },
-  beach:      { top: '#3a5533', left: '#2d4428', right: '#264020' },
-  lowland:    { top: '#3d6b3d', left: '#2d4f2d', right: '#254525' },
-  plains:     { top: '#4a7a3f', left: '#3a5e30', right: '#305028' },
-  hills:      { top: '#6b8c5a', left: '#4f6d40', right: '#456035' },
-  mountains:  { top: '#8a9988', left: '#667766', right: '#5a6a5a' },
-  peaks:      { top: '#a0aaa0', left: '#778877', right: '#6a7a6a' },
+  deep_ocean: { top: '#0ea5e9', left: '#0284c7', right: '#0369a1' },
+  ocean:      { top: '#38bdf8', left: '#0ea5e9', right: '#0284c7' },
+  coast:      { top: '#7dd3fc', left: '#38bdf8', right: '#0ea5e9' },
+  beach:      { top: '#e2e8f0', left: '#cbd5e1', right: '#94a3b8' },
+  lowland:    { top: '#f8fafc', left: '#e2e8f0', right: '#cbd5e1' },
+  plains:     { top: '#f1f5f9', left: '#e2e8f0', right: '#cbd5e1' },
+  hills:      { top: '#e2e8f0', left: '#cbd5e1', right: '#94a3b8' },
+  mountains:  { top: '#94a3b8', left: '#64748b', right: '#475569' },
+  peaks:      { top: '#64748b', left: '#475569', right: '#334155' },
 };
 
 // ─── Terrain block depth ─────────────────────────────────────────────────────

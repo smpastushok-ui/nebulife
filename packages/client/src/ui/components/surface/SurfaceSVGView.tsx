@@ -126,7 +126,7 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
       buildings,
       setBuildings,
       harvestedCells,
-      revealedCells,
+      discoveredTiles,
       botState,
       droneStates,
       harvestRing,
@@ -700,7 +700,7 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
           position:   'fixed',
           inset:      0,
           zIndex:     9000,
-          background: '#020510',
+          background: '#FFFFFF',
           overflow:   'hidden',
         }}
       >
@@ -730,7 +730,7 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
               buildings={buildings}
               viewBox={viewBox}
               harvestedCells={harvestedCells}
-              revealedCells={revealedCells}
+              discoveredTiles={discoveredTiles}
               selectedBuilding={selectedBuilding}
               ghostPosition={ghostPosition}
               ghostValid={ghostValid}

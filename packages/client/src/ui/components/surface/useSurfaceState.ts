@@ -5,7 +5,7 @@
  * Replaces all game logic from SurfaceScene.ts:
  *   - Building placement validation (canBuildAt)
  *   - Harvest logic (isHarvestableAt, harvestAt)
- *   - Fog-of-war management (revealCells, revealedCells set)
+ *   - Discovered tiles management (discoveredTiles set) — replaces Fog of War
  *   - Bot A* pathfinding (setRoverTarget, botState)
  *   - Drone state (droneStates)
  *   - Initial load: getBuildings + getSurfaceState, auto-place colony_hub
@@ -15,6 +15,7 @@
  *   - All geometry helpers imported from surface-utils.ts (deterministic, seed-based)
  *   - DB persistence fire-and-forget with debounce
  *   - Bot movement driven by requestAnimationFrame, exposed as BotAnimState for SVG rendering
+ *   - NO Fog of War — only discovered tiles are rendered
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -53,8 +54,8 @@ import {
 /** Bot movement speed in grid cells per second (matches ResearcherBot.BOT_SPEED). */
 const BOT_SPEED = 1.5;
 
-/** Fog reveal radius when the bot crosses into a new cell (matches BOT_REVEAL_RADIUS). */
-const BOT_REVEAL_RADIUS = 3;
+/** Discovery radius when the bot crosses into a new cell. */
+const BOT_DISCOVER_RADIUS = 3;
 
 /** Debounce delay (ms) before persisting surface state to DB. */
 const SAVE_DEBOUNCE_MS = 3000;
@@ -97,7 +98,8 @@ export interface SurfaceStateResult {
   buildings: PlacedBuilding[];
   setBuildings: React.Dispatch<React.SetStateAction<PlacedBuilding[]>>;
   harvestedCells: Map<string, HarvestedCell>;
-  revealedCells: Set<string>;
+  /** Set of "col,row" keys for tiles that have been discovered and should be rendered. */
+  discoveredTiles: Set<string>;
   botState: BotAnimState | null;
   droneStates: DroneAnimState[];
   harvestRing: HarvestRingState | null;
@@ -113,7 +115,6 @@ export interface SurfaceStateResult {
   cancelHarvestRing: () => void;
   setRoverTarget: (col: number, row: number) => void;
   setBotActive: (active: boolean) => void;
-  revealCells: (centerCol: number, centerRow: number, radius: number) => void;
   getBuildingAt: (col: number, row: number, buildings: PlacedBuilding[]) => PlacedBuilding | null;
 
   // Isotopes
@@ -245,20 +246,7 @@ function buildObstacleSet(
   return set;
 }
 
-// ─── _isCellResourceBlocked (mirrors SurfaceScene._isCellResourceBlocked) ────
-//
-// The original in SurfaceScene checks tile atlas frames (13–23, 25, 27) derived
-// from getEffectiveFrame(). Here we replicate the same semantic without the
-// atlas: a cell is "resource-blocked" if it contains a live/partially-depleted
-// resource that can't be built over.
-//
-// Blocked conditions:
-//   tree: isTreeCell true AND NOT harvested to completion (any harvest state)
-//   ore:  isOreCell true AND NOT depleted completely (any harvest state)
-//   vent: isVentCell true AND NOT exhausted completely (any harvest state)
-//
-// This mirrors frames 13-23 (full resources), 25 (ore-small), 27 (vent-small)
-// from the atlas — all states except fully consumed (ore-depleted, vent-dry).
+// ─── _isCellResourceBlocked ───────────────────────────────────────────────────
 
 function isCellResourceBlocked(
   col: number,
@@ -268,38 +256,37 @@ function isCellResourceBlocked(
   waterLevel: number,
   N: number,
 ): boolean {
-  // Frame equivalents 13-23 = full live resources → check source functions
   if (isTreeCell(col, row, seed, N, waterLevel)) {
     const hc = harvestedCells.get(`${col},${row}`);
-    if (!hc) return true; // full live tree (frames 13-15)
-    // stump (16) and tree-small (17) are still visually present → blocked
+    if (!hc) return true;
     if (hc.objectType === 'tree' && (hc.state === 'stump' || hc.state === 'tree-small')) return true;
-    // grass (no frame equivalent for tree → unblocked)
     return false;
   }
 
   if (isOreCell(col, row, seed, N, waterLevel)) {
     const hc = harvestedCells.get(`${col},${row}`);
-    if (!hc) return true; // full ore (frames 18-20)
-    if (hc.objectType === 'ore' && hc.state === 'ore-small') return true; // frame 25
-    // depleted (24) = passable
+    if (!hc) return true;
+    if (hc.objectType === 'ore' && hc.state === 'ore-small') return true;
     return false;
   }
 
   if (isVentCell(col, row, seed, N, waterLevel)) {
     const hc = harvestedCells.get(`${col},${row}`);
-    if (!hc) return true; // full vent (frames 21-23)
-    if (hc.objectType === 'vent' && hc.state === 'vent-small') return true; // frame 27
-    // dry (26) = passable
+    if (!hc) return true;
+    if (hc.objectType === 'vent' && hc.state === 'vent-small') return true;
     return false;
   }
 
   return false;
 }
 
-// ─── Fog helpers ──────────────────────────────────────────────────────────────
+// ─── Discovery helpers ────────────────────────────────────────────────────────
 
-function revealCellsInRadius(
+/**
+ * Add all cells within radius of center to the discovered set.
+ * Returns a new Set (immutable update pattern).
+ */
+function discoverCellsInRadius(
   prev: Set<string>,
   centerCol: number,
   centerRow: number,
@@ -321,7 +308,10 @@ function revealCellsInRadius(
   return next;
 }
 
-function revealAroundBuildings(
+/**
+ * Compute initial discovered tiles from all buildings using their fogRevealRadius.
+ */
+function discoverAroundBuildings(
   buildings: PlacedBuilding[],
   N: number,
 ): Set<string> {
@@ -364,10 +354,10 @@ export function useSurfaceState(
   const planetId    = planet.id;
 
   // ── Core state ────────────────────────────────────────────────────────────
-  const [buildings,     setBuildings]     = useState<PlacedBuilding[]>([]);
-  const [harvestedCells, setHarvestedCells] = useState<Map<string, HarvestedCell>>(new Map());
-  const [revealedCells,  setRevealedCells]  = useState<Set<string>>(new Set());
-  const [loading,        setLoading]        = useState(true);
+  const [buildings,       setBuildings]       = useState<PlacedBuilding[]>([]);
+  const [harvestedCells,  setHarvestedCells]  = useState<Map<string, HarvestedCell>>(new Map());
+  const [discoveredTiles, setDiscoveredTiles] = useState<Set<string>>(new Set());
+  const [loading,         setLoading]         = useState(true);
 
   // ── Bot state ─────────────────────────────────────────────────────────────
   const [botState, setBotState] = useState<BotAnimState | null>(null);
@@ -404,16 +394,16 @@ export function useSurfaceState(
     );
   }, [buildings, harvestedCells, planetSeed, waterLevel, gridSize]);
 
-  // ── Persist surface state (fog + harvests) to DB ──────────────────────────
+  // ── Persist surface state (discovered tiles + harvests) to DB ─────────────
   const scheduleSave = useCallback((
-    revealed: Set<string>,
+    discovered: Set<string>,
     harvested: Map<string, HarvestedCell>,
     bot: BotAnimState | null,
   ) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       saveSurfaceState(playerId, planetId, {
-        revealedCells:  [...revealed],
+        revealedCells:  [...discovered],
         harvestedCells: [...harvested],
         bot: bot ? { col: bot.col, row: bot.row, active: bot.active } : null,
         harvesters: [],
@@ -424,7 +414,7 @@ export function useSurfaceState(
   // ── Persist harvested cells to localStorage + schedule DB save ────────────
   const saveHarvested = useCallback((
     harvested: Map<string, HarvestedCell>,
-    revealed: Set<string>,
+    discovered: Set<string>,
     bot: BotAnimState | null,
   ) => {
     try {
@@ -432,7 +422,7 @@ export function useSurfaceState(
     } catch { /* ignore */ }
     if (harvestTimerRef.current) clearTimeout(harvestTimerRef.current);
     harvestTimerRef.current = setTimeout(() => {
-      scheduleSave(revealed, harvested, bot);
+      scheduleSave(discovered, harvested, bot);
     }, 500);
   }, [planetId, scheduleSave]);
 
@@ -519,14 +509,14 @@ export function useSurfaceState(
         });
       }
 
-      // Restore fog — prefer DB data, then init from buildings
-      let revealed = new Set<string>();
+      // Restore discovered tiles — prefer DB data (stored in revealedCells field), then init from buildings
+      let discovered = new Set<string>();
       if (surfaceState.revealedCells && surfaceState.revealedCells.length > 0) {
-        for (const k of surfaceState.revealedCells) revealed.add(k);
+        for (const k of surfaceState.revealedCells) discovered.add(k);
       }
-      // Always include fog revealed by building fogRevealRadius (additive)
-      const fromBuildings = revealAroundBuildings(finalBuildings, gridSize);
-      for (const k of fromBuildings) revealed.add(k);
+      // Always include tiles discovered by buildings (additive)
+      const fromBuildings = discoverAroundBuildings(finalBuildings, gridSize);
+      for (const k of fromBuildings) discovered.add(k);
 
       // Bot state — restore position + active from DB
       const hub = finalBuildings.find((b) => b.type === 'colony_hub');
@@ -552,7 +542,7 @@ export function useSurfaceState(
 
       if (cancelled) return;
       setHarvestedCells(new Map(harvested));
-      setRevealedCells(new Set(revealed));
+      setDiscoveredTiles(new Set(discovered));
       setBuildings(finalBuildings);
       setBotState(initialBot);
       setLoading(false);
@@ -574,7 +564,6 @@ export function useSurfaceState(
       lastBotTsRef.current = ts;
 
       if (!prev.active || prev.path.length === 0) {
-        // Nothing to animate — reschedule and keep idle state
         botRafRef.current = requestAnimationFrame(tick);
         return;
       }
@@ -615,7 +604,6 @@ export function useSurfaceState(
         if (crossedCell) {
           const cost = 4; // BOT_ISOTOPE_COST_PER_CELL
           if (isotopesRef.current < cost) {
-            // Out of fuel — stop path
             path.length = 0;
           } else {
             isotopesRef.current = Math.max(0, isotopesRef.current - cost);
@@ -637,12 +625,11 @@ export function useSurfaceState(
       botStateRef.current = newState;
       setBotState(newState);
 
-      // Reveal fog when bot crosses a new cell
+      // Discover new tiles when bot crosses a new cell
       if (crossedCell) {
-        setRevealedCells((prev) => {
-          const next = revealCellsInRadius(prev, col, row, BOT_REVEAL_RADIUS, gridSize);
-          return next;
-        });
+        setDiscoveredTiles((prev) =>
+          discoverCellsInRadius(prev, col, row, BOT_DISCOVER_RADIUS, gridSize),
+        );
       }
 
       botRafRef.current = requestAnimationFrame(tick);
@@ -655,7 +642,7 @@ export function useSurfaceState(
       lastBotTsRef.current = 0;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botState !== null, gridSize]); // restart RAF only when bot goes from null → exists or gridSize changes
+  }, [botState !== null, gridSize]);
 
   // ── canBuildAt — exact port of SurfaceScene.canBuildAt ───────────────────
   const canBuildAt = useCallback((
@@ -674,7 +661,7 @@ export function useSurfaceState(
     if (col + sW > N || row + sH > N) return false;
     if (col < 0 || row < 0) return false;
 
-    // All footprint cells must pass terrain check, no resources, no transport, revealed
+    // All footprint cells must pass terrain check, no resources, must be discovered
     for (let dc = 0; dc < sW; dc++) {
       for (let dr = 0; dr < sH; dr++) {
         const c = col + dc;
@@ -682,17 +669,16 @@ export function useSurfaceState(
         if (isMountainFootprint(c, r, seed, N)) return false;
         if (!isCellBuildable(c, r, seed, wl, buildingType)) return false;
         if (isCellResourceBlocked(c, r, harvestedCells, seed, wl, N)) return false;
-        if (!revealedCells.has(`${c},${r}`)) return false;
+        if (!discoveredTiles.has(`${c},${r}`)) return false;
         // Bot position check (transport occupancy)
         if (botState && Math.round(botState.col) === c && Math.round(botState.row) === r) return false;
       }
     }
 
     // 1-cell buffer: bordering cells must not be mountain or resource.
-    // Water neighbours are OK (allows building near coastline).
     for (let dc = -1; dc <= sW; dc++) {
       for (let dr = -1; dr <= sH; dr++) {
-        if (dc >= 0 && dc < sW && dr >= 0 && dr < sH) continue; // skip interior
+        if (dc >= 0 && dc < sW && dr >= 0 && dr < sH) continue;
         const bc = col + dc;
         const br = row + dr;
         if (bc < 0 || bc >= N || br < 0 || br >= N) continue;
@@ -702,7 +688,6 @@ export function useSurfaceState(
     }
 
     // Footprint must not overlap or touch any existing building (enforces 1-cell gap).
-    // Inclusive bounds: col <= bx+bSW catches both overlap and 0-cell touching.
     for (const b of blds) {
       const bSW = BUILDING_DEFS[b.type]?.sizeW ?? 1;
       const bSH = BUILDING_DEFS[b.type]?.sizeH ?? 1;
@@ -710,13 +695,14 @@ export function useSurfaceState(
     }
 
     return true;
-  }, [gridSize, planetSeed, waterLevel, harvestedCells, revealedCells, botState]);
+  }, [gridSize, planetSeed, waterLevel, harvestedCells, discoveredTiles, botState]);
 
-  // ── isHarvestableAt — exact port of SurfaceScene.isHarvestableAt ──────────
+  // ── isHarvestableAt ───────────────────────────────────────────────────────
   const isHarvestableAt = useCallback((col: number, row: number): SurfaceObjectType | null => {
     const key = `${col},${row}`;
     if (harvestedCells.has(key)) return null;
-    if (!revealedCells.has(key)) return null;
+    // Only discovered tiles are harvestable
+    if (!discoveredTiles.has(key)) return null;
 
     const N    = gridSize;
     const seed = planetSeed;
@@ -726,7 +712,7 @@ export function useSurfaceState(
     if (isOreCell(col, row, seed, N, wl))  return 'ore';
     if (isVentCell(col, row, seed, N, wl)) return 'vent';
     return null;
-  }, [harvestedCells, revealedCells, gridSize, planetSeed, waterLevel]);
+  }, [harvestedCells, discoveredTiles, gridSize, planetSeed, waterLevel]);
 
   // ── harvestAt — execute harvest and persist ───────────────────────────────
   const harvestAt = useCallback((col: number, row: number): SurfaceObjectType | null => {
@@ -742,8 +728,6 @@ export function useSurfaceState(
 
     if (isTreeCell(col, row, seed, N, wl)) {
       result = 'tree';
-      // treeVariant 0-2 matches SurfaceScene.harvestTree's (defaultFrame - 13) pattern.
-      // Use a separate hash offset (seed+9999) for variant to match the original logic.
       const variant = Math.round(cellHash(col, row, seed + 9999) * 3) % 3;
       newCell = {
         objectType:   'tree',
@@ -780,20 +764,18 @@ export function useSurfaceState(
     setHarvestedCells((prev) => {
       const next = new Map(prev);
       next.set(key, cell);
-      // Persist after state update via callback — schedule outside render
       return next;
     });
 
-    // Schedule persistence (cannot call in setState callback — defer)
     setTimeout(() => {
       setHarvestedCells((current) => {
-        saveHarvested(current, revealedCells, botStateRef.current);
-        return current; // no change — pure side-effect
+        saveHarvested(current, discoveredTiles, botStateRef.current);
+        return current;
       });
     }, 0);
 
     return result;
-  }, [harvestedCells, gridSize, planetSeed, waterLevel, saveHarvested, revealedCells]);
+  }, [harvestedCells, gridSize, planetSeed, waterLevel, saveHarvested, discoveredTiles]);
 
   // ── startHarvestRing ──────────────────────────────────────────────────────
   const startHarvestRing = useCallback((
@@ -840,39 +822,6 @@ export function useSurfaceState(
     });
   }, []);
 
-  // ── revealCells ───────────────────────────────────────────────────────────
-  const revealCells = useCallback((
-    centerCol: number,
-    centerRow: number,
-    radius: number,
-  ) => {
-    setRevealedCells((prev) => {
-      const next = revealCellsInRadius(prev, centerCol, centerRow, radius, gridSize);
-      // Persist fog to localStorage immediately
-      try {
-        localStorage.setItem(`fog_${planetId}`, JSON.stringify([...next]));
-      } catch { /* ignore */ }
-      // Schedule DB save
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
-        setHarvestedCells((hc) => {
-          saveSurfaceState(playerId, planetId, {
-            revealedCells:  [...next],
-            harvestedCells: [...hc],
-            bot: botStateRef.current ? {
-              col:    botStateRef.current.col,
-              row:    botStateRef.current.row,
-              active: botStateRef.current.active,
-            } : null,
-            harvesters: [],
-          });
-          return hc;
-        });
-      }, SAVE_DEBOUNCE_MS);
-      return next;
-    });
-  }, [gridSize, planetId, playerId]);
-
   // ── getBuildingAt — by grid cell ──────────────────────────────────────────
   const getBuildingAt = useCallback((
     col: number,
@@ -892,14 +841,14 @@ export function useSurfaceState(
     isotopesRef.current = amount;
   }, []);
 
-  // ── Persist revealed cells when they change (after initial load) ──────────
+  // ── Persist discovered tiles when they change (after initial load) ─────────
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     if (loading) return;
-    scheduleSave(revealedCells, harvestedCells, botStateRef.current);
+    scheduleSave(discoveredTiles, harvestedCells, botStateRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealedCells]);
+  }, [discoveredTiles]);
 
   // ── Cleanup on unmount ────────────────────────────────────────────────────
   useEffect(() => {
@@ -918,7 +867,7 @@ export function useSurfaceState(
     buildings,
     setBuildings,
     harvestedCells,
-    revealedCells,
+    discoveredTiles,
     botState,
     droneStates,
     harvestRing,
@@ -932,7 +881,6 @@ export function useSurfaceState(
     cancelHarvestRing,
     setRoverTarget,
     setBotActive,
-    revealCells,
     getBuildingAt,
 
     syncIsotopes,
