@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { getAcademyProgress, getCachedLesson, saveCachedLesson } from '../../packages/server/src/db.js';
+import { getAcademyProgress, getCachedLesson, saveCachedLesson, getPlayer } from '../../packages/server/src/db.js';
 import { generateEducationPackage, generateLessonImage } from '../../packages/server/src/education-generator.js';
 
 // Use topic-catalog functions directly since @nebulife/core dist may not be up to date in worktree
@@ -25,6 +25,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ lesson: null, needsOnboarding: true });
     }
 
+    // Resolve player language for bilingual lesson generation and caching
+    const player = await getPlayer(auth.playerId);
+    const language = player?.language ?? 'uk';
+
     const today = new Date().toISOString().slice(0, 10);
     const selectedTopics = (progress.selected_topics ?? []) as TopicCategoryId[];
     const completedLessons = (progress.completed_lessons ?? {}) as Record<string, string>;
@@ -42,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Try to get from cache first (lazy caching)
-    const cached = await getCachedLesson(today, nextLesson.id, progress.difficulty);
+    const cached = await getCachedLesson(today, nextLesson.id, progress.difficulty, language);
     if (cached) {
       return res.status(200).json({
         lesson: {
@@ -60,12 +64,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Generate via Gemini (first request for this topicId + difficulty today)
+    // Generate via Gemini (first request for this topicId + difficulty + language today)
     const generated = await generateEducationPackage(
       nextLesson.id,
       nextLesson.nameUk,
       lessonInfo.category.nameUk,
       progress.difficulty as 'explorer' | 'scientist',
+      language,
     );
 
     // Generate lesson image via Gemini image model (non-blocking — null on failure)
@@ -78,6 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       today,
       nextLesson.id,
       progress.difficulty,
+      language,
       generated.lessonContent,
       lessonImageUrl,
       generated.quest,

@@ -6,6 +6,7 @@ export {
   createPlayerWithAuth,
   getPlayer,
   updatePlayer,
+  updatePlayerLanguage,
   // Auth
   getPlayerByFirebaseUid,
   linkFirebaseToPlayer,

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useT } from '../../../i18n/index.js';
+import type { TranslationKey } from '../../../i18n/index.js';
 import { academyOnboard } from '../../../api/academy-api.js';
 
 interface TopicSelectionModalProps {
@@ -6,17 +8,18 @@ interface TopicSelectionModalProps {
   onClose: () => void;
 }
 
-const CATEGORIES = [
-  { id: 'astro', name: 'Астрономія', count: 42 },
-  { id: 'astrophys', name: 'Астрофізика', count: 35 },
-  { id: 'plansci', name: 'Планетологія', count: 38 },
-  { id: 'astrobio', name: 'Астробіологія', count: 22 },
-  { id: 'spacetech', name: 'Космічні технології', count: 25 },
-  { id: 'cosmo', name: 'Космологія', count: 20 },
-  { id: 'physfund', name: 'Основи фізики', count: 18 },
+const CATEGORIES: { id: string; nameKey: TranslationKey; count: number }[] = [
+  { id: 'astro',     nameKey: 'academy.cat.astro',     count: 42 },
+  { id: 'astrophys', nameKey: 'academy.cat.astrophys',  count: 35 },
+  { id: 'plansci',   nameKey: 'academy.cat.plansci',    count: 38 },
+  { id: 'astrobio',  nameKey: 'academy.cat.astrobio',   count: 22 },
+  { id: 'spacetech', nameKey: 'academy.cat.spacetech',  count: 25 },
+  { id: 'cosmo',     nameKey: 'academy.cat.cosmo',      count: 20 },
+  { id: 'physfund',  nameKey: 'academy.cat.physfund',   count: 18 },
 ];
 
 export function TopicSelectionModal({ onComplete, onClose }: TopicSelectionModalProps) {
+  const { t } = useT();
   const [selected, setSelected] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState<'explorer' | 'scientist'>('explorer');
   const [saving, setSaving] = useState(false);
@@ -25,7 +28,7 @@ export function TopicSelectionModal({ onComplete, onClose }: TopicSelectionModal
 
   const toggleTopic = (id: string) => {
     setSelected((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -44,9 +47,9 @@ export function TopicSelectionModal({ onComplete, onClose }: TopicSelectionModal
   return (
     <div style={styles.backdrop}>
       <div style={styles.modal}>
-        <h2 style={styles.title}>Космічна Академія</h2>
+        <h2 style={styles.title}>{t('academy.onboard.title')}</h2>
         <p style={styles.subtitle}>
-          Оберіть теми для щоденного навчання
+          {t('academy.onboard.subtitle')}
         </p>
 
         {/* All topics toggle */}
@@ -54,7 +57,7 @@ export function TopicSelectionModal({ onComplete, onClose }: TopicSelectionModal
           style={allSelected ? styles.allActive : styles.allButton}
           onClick={() => setSelected([])}
         >
-          Усі теми (200 уроків)
+          {t('academy.onboard.all_topics')}
         </button>
 
         {/* Category grid */}
@@ -69,29 +72,29 @@ export function TopicSelectionModal({ onComplete, onClose }: TopicSelectionModal
               }
               onClick={() => toggleTopic(cat.id)}
             >
-              <div style={styles.catName}>{cat.name}</div>
-              <div style={styles.catCount}>{cat.count} уроків</div>
+              <div style={styles.catName}>{t(cat.nameKey)}</div>
+              <div style={styles.catCount}>{cat.count} {t('academy.onboard.count')}</div>
             </button>
           ))}
         </div>
 
         {/* Difficulty */}
         <div style={styles.diffSection}>
-          <span style={styles.label}>Складність:</span>
+          <span style={styles.label}>{t('academy.onboard.difficulty')}</span>
           <div style={styles.diffRow}>
             <button
               style={difficulty === 'explorer' ? styles.diffActive : styles.diffButton}
               onClick={() => setDifficulty('explorer')}
             >
-              <div style={styles.diffName}>Дослідник</div>
-              <div style={styles.diffDesc}>Простіша мова, аналогії</div>
+              <div style={styles.diffName}>{t('academy.onboard.explorer')}</div>
+              <div style={styles.diffDesc}>{t('academy.onboard.explorer_desc')}</div>
             </button>
             <button
               style={difficulty === 'scientist' ? styles.diffActive : styles.diffButton}
               onClick={() => setDifficulty('scientist')}
             >
-              <div style={styles.diffName}>Науковець</div>
-              <div style={styles.diffDesc}>Формули, технічні деталі</div>
+              <div style={styles.diffName}>{t('academy.onboard.scientist')}</div>
+              <div style={styles.diffDesc}>{t('academy.onboard.scientist_desc')}</div>
             </button>
           </div>
         </div>
@@ -99,10 +102,10 @@ export function TopicSelectionModal({ onComplete, onClose }: TopicSelectionModal
         {/* Actions */}
         <div style={styles.actions}>
           <button style={styles.startButton} onClick={handleStart} disabled={saving}>
-            {saving ? 'Зберігаю...' : 'Почати навчання'}
+            {saving ? t('academy.onboard.saving') : t('academy.onboard.start')}
           </button>
           <button style={styles.skipButton} onClick={onClose}>
-            Пізніше
+            {t('academy.onboard.later')}
           </button>
         </div>
       </div>

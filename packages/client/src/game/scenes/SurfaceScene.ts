@@ -61,6 +61,7 @@ import {
   findMountainCell,
   isMountainFootprint,
 } from './surface-utils.js';
+import { tStatic } from '../../i18n/index.js';
 
 // ─── Building placement animation ────────────────────────────────────────────
 
@@ -521,9 +522,9 @@ export class SurfaceScene {
         if (this.harvestedCells.has(k)) continue;   // already depleted
 
         let label: string | null = null;
-        if (isTreeCell(c, r, seed, N, wl) && (!filter || filter.has('tree')))       label = 'Деревина';
-        else if (isOreCell(c, r, seed, N, wl) && (!filter || filter.has('ore')))     label = 'Руда';
-        else if (isVentCell(c, r, seed, N, wl) && (!filter || filter.has('vent')))   label = 'Газ';
+        if (isTreeCell(c, r, seed, N, wl) && (!filter || filter.has('tree')))       label = tStatic('pixi.wood');
+        else if (isOreCell(c, r, seed, N, wl) && (!filter || filter.has('ore')))     label = tStatic('pixi.ore');
+        else if (isVentCell(c, r, seed, N, wl) && (!filter || filter.has('vent')))   label = tStatic('pixi.gas');
 
         if (label && dist < bestDist) {
           bestDist = dist;

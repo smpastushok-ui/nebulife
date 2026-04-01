@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useT } from '../../../i18n/index.js';
 import type { DailyLesson } from '../../../api/academy-api.js';
 import { answerQuiz } from '../../../api/academy-api.js';
 
@@ -8,6 +9,7 @@ interface QuizViewProps {
 }
 
 export function QuizView({ lesson, onRefresh }: QuizViewProps) {
+  const { t } = useT();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [result, setResult] = useState<{
     correct: boolean;
@@ -19,7 +21,7 @@ export function QuizView({ lesson, onRefresh }: QuizViewProps) {
   const [submitting, setSubmitting] = useState(false);
 
   if (!lesson) {
-    return <div style={styles.empty}>Немає вікторини на сьогодні.</div>;
+    return <div style={styles.empty}>{t('quiz.no_quiz')}</div>;
   }
 
   const quiz = lesson.quiz;
@@ -41,7 +43,7 @@ export function QuizView({ lesson, onRefresh }: QuizViewProps) {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>Вікторина дня</h2>
+      <h2 style={styles.title}>{t('quiz.title')}</h2>
       <p style={styles.question}>{quiz.question}</p>
 
       <div style={styles.optionsGrid}>
@@ -79,8 +81,10 @@ export function QuizView({ lesson, onRefresh }: QuizViewProps) {
         <div style={styles.resultBlock}>
           <div style={result.correct ? styles.resultCorrect : styles.resultWrong}>
             {result.correct
-              ? `Правильно! +${result.quarksAwarded} кварків, +${result.xpAwarded} XP`
-              : 'Неправильно'}
+              ? t('quiz.correct')
+                  .replace('{quarks}', String(result.quarksAwarded))
+                  .replace('{xp}', String(result.xpAwarded))
+              : t('quiz.wrong')}
           </div>
           <p style={styles.explanation}>{result.explanation}</p>
         </div>

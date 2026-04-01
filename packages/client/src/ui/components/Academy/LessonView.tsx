@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useT } from '../../../i18n/index.js';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { completeLesson } from '../../../api/academy-api.js';
 
@@ -10,6 +11,7 @@ interface LessonViewProps {
 }
 
 export function LessonView({ lesson, progress, onRefresh, playerName }: LessonViewProps) {
+  const { t } = useT();
   const [marking, setMarking] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -23,7 +25,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
   };
 
   if (!lesson) {
-    return <div style={styles.empty}>Немає доступного уроку на сьогодні.</div>;
+    return <div style={styles.empty}>{t('lesson.no_lesson')}</div>;
   }
 
   const isCompleted = progress?.completed_lessons?.[lesson.lessonId];
@@ -47,7 +49,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
         <span style={styles.categoryBadge}>{lesson.categoryNameUk}</span>
         <h2 style={styles.title}>{lesson.lessonNameUk}</h2>
         <span style={styles.difficulty}>
-          {lesson.difficulty === 'explorer' ? 'Дослідник' : 'Науковець'}
+          {lesson.difficulty === 'explorer' ? t('lesson.explorer') : t('lesson.scientist')}
         </span>
       </div>
 
@@ -71,19 +73,19 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
       <div style={styles.bottomBar}>
         <div style={styles.bottomLeft}>
           {isCompleted ? (
-            <span style={styles.completedBadge}>Прочитано</span>
+            <span style={styles.completedBadge}>{t('lesson.completed')}</span>
           ) : (
             <button
               style={styles.readButton}
               onClick={handleMarkRead}
               disabled={marking}
             >
-              {marking ? 'Зберігаю...' : 'Прочитано (+1 кварк, +10 XP)'}
+              {marking ? t('lesson.saving') : t('lesson.mark_read')}
             </button>
           )}
         </div>
         <button style={styles.shareButton} onClick={handleShare} disabled={!lesson}>
-          {copied ? 'Скопійовано!' : 'Поділитися'}
+          {copied ? t('lesson.copied') : t('lesson.share')}
         </button>
       </div>
     </div>

@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import {
   ELEMENTS,
   ELEMENT_GROUP,
-  GROUP_NAMES,
   GROUP_COLORS,
   RESOURCE_GROUPS,
 } from '@nebulife/core';
 import type { ResourceGroup } from '@nebulife/core';
+import { useT } from '../../../i18n';
+import type { TranslationKey } from '../../../i18n';
 
 // ---------------------------------------------------------------------------
 // ResourcesView -- Colony resource inventory with periodic table breakdown
@@ -25,6 +26,13 @@ const GROUP_KEY: Record<ResourceGroup, 'minerals' | 'volatiles' | 'isotopes'> = 
   isotope:  'isotopes',
 };
 
+/** Map resource group to i18n key */
+const GROUP_I18N_KEY: Record<ResourceGroup, TranslationKey> = {
+  mineral:  'resource.group.mineral',
+  volatile: 'resource.group.volatile',
+  isotope:  'resource.group.isotope',
+};
+
 /** Get all elements belonging to a group, sorted by atomic number */
 function getGroupElementsSorted(group: ResourceGroup) {
   return Object.values(ELEMENTS)
@@ -33,8 +41,20 @@ function getGroupElementsSorted(group: ResourceGroup) {
 }
 
 export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewProps) {
+  const { t } = useT();
   const totals = { minerals, volatiles, isotopes };
   const [collapsed, setCollapsed] = useState<Set<ResourceGroup>>(new Set());
+
+  /** Translate element symbol to localized name, fallback to English name from ELEMENTS */
+  const elementName = (symbol: string): string => {
+    const key = `element.${symbol}` as TranslationKey;
+    const translated = t(key);
+    // If key is not found (returns the key itself), fall back to English name
+    if (translated === key) {
+      return ELEMENTS[symbol]?.name ?? symbol;
+    }
+    return translated;
+  };
 
   const toggle = (g: ResourceGroup) => {
     setCollapsed((prev) => {
@@ -56,7 +76,7 @@ export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewPr
     >
       {RESOURCE_GROUPS.map((group) => {
         const color    = GROUP_COLORS[group];
-        const label    = GROUP_NAMES[group];
+        const label    = t(GROUP_I18N_KEY[group]);
         const total    = totals[GROUP_KEY[group]];
         const elements = getGroupElementsSorted(group);
         const isOpen   = !collapsed.has(group);
@@ -102,7 +122,7 @@ export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewPr
 
               {/* Element count */}
               <span style={{ color: '#556677', fontSize: 10 }}>
-                {elements.length} елементів
+                {elements.length} {t('resource.elements_count')}
               </span>
 
               {/* Total value */}
@@ -128,9 +148,9 @@ export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewPr
                   }}
                 >
                   <span>SYM</span>
-                  <span>НАЗВА</span>
+                  <span>{t('resource.col.name')}</span>
                   <span style={{ textAlign: 'right' }}>Z</span>
-                  <span style={{ textAlign: 'right' }}>МАСА</span>
+                  <span style={{ textAlign: 'right' }}>{t('resource.col.mass')}</span>
                 </div>
 
                 {/* Element rows */}
@@ -152,7 +172,7 @@ export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewPr
 
                     {/* Name */}
                     <span style={{ color: '#8899aa' }}>
-                      {el.name}
+                      {elementName(el.symbol)}
                     </span>
 
                     {/* Atomic number */}

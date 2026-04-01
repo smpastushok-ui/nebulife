@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useT } from '../../i18n/index.js';
+import type { TranslationKey } from '../../i18n/index.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { StarSystem, Planet, Star, Moon, ResourceGroup } from '@nebulife/core';
@@ -75,13 +77,13 @@ function getPlanetDisplayRadius(
   return minDisplayR + logT * (maxDisplayR - minDisplayR);
 }
 
-function planetTypeName(t: Planet['type']): string {
-  switch (t) {
-    case 'rocky':     return 'Скелясте';
-    case 'gas-giant': return 'Газовий гігант';
-    case 'ice-giant': return 'Крижаний гігант';
-    case 'dwarf':     return 'Карликова';
-    default:          return t;
+function planetTypeKey(type: Planet['type']): TranslationKey {
+  switch (type) {
+    case 'rocky':     return 'planet.type.rocky';
+    case 'gas-giant': return 'planet.type.gas_giant';
+    case 'ice-giant': return 'planet.type.ice_giant';
+    case 'dwarf':     return 'planet.type.dwarf';
+    default:          return 'planet.type.rocky';
   }
 }
 
@@ -546,7 +548,11 @@ function NavBtn({
 
 // ─── Resources section for characteristics panel ─────────────────────────────
 
-function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: number }) {
+function ResourcesSection({ planet, baseDelay, t }: {
+  planet: Planet;
+  baseDelay: number;
+  t: (key: TranslationKey) => string;
+}) {
   const [expanded, setExpanded] = useState<ResourceGroup | null>(null);
   const totalRes = planet.resources?.totalResources;
   if (!totalRes) return null;
@@ -558,7 +564,7 @@ function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: nu
 
   return (
     <>
-      <Section label="РЕСУРСИ" delay={baseDelay} />
+      <Section label={t('pdw.section.resources')} delay={baseDelay} />
       {RESOURCE_GROUPS.map((group, gi) => {
         const value = group === 'mineral' ? totalRes.minerals
           : group === 'volatile' ? totalRes.volatiles
@@ -659,6 +665,7 @@ export function PlanetDetailWindow({
   destroyedPlanetIds,
 }: PlanetDetailWindowProps) {
   ensureStyles();
+  const { t } = useT();
 
   const sortedPlanets = [...system.planets].sort(
     (a, b) => a.orbit.semiMajorAxisAU - b.orbit.semiMajorAxisAU,
@@ -718,10 +725,10 @@ export function PlanetDetailWindow({
 
   // Life description
   const lifeDesc = p.hasLife
-    ? p.lifeComplexity === 'intelligent' ? 'Розумне життя'
-      : p.lifeComplexity === 'multicellular' ? 'Складне (багатоклітинне)'
-      : 'Мікробне'
-    : 'Немає';
+    ? p.lifeComplexity === 'intelligent' ? t('pdw.life.intelligent')
+      : p.lifeComplexity === 'multicellular' ? t('pdw.life.multicellular')
+      : t('pdw.life.microbial')
+    : t('pdw.life.none');
 
   return (
     <>
@@ -777,7 +784,7 @@ export function PlanetDetailWindow({
             </span>
             {destroyedPlanetIds?.has(p.id) ? (
               <span style={{ color: '#884422', fontSize: 9, border: '1px solid #88442255', padding: '1px 5px', borderRadius: 2, flexShrink: 0 }}>
-                ЗРУЙНОВАНО
+                {t('context.planet.destroyed')}
               </span>
             ) : p.isHomePlanet && (
               <span style={{ color: '#44ff88', fontSize: 9, border: '1px solid #44ff8855', padding: '1px 5px', borderRadius: 2, flexShrink: 0 }}>
@@ -853,7 +860,7 @@ export function PlanetDetailWindow({
                 animation: 'pdwSlide 0.3s ease-out 100ms both',
               }}
             >
-              <span>{planetTypeName(p.type).toUpperCase()}</span>
+              <span>{t(planetTypeKey(p.type)).toUpperCase()}</span>
               <span style={{ color: '#334455' }}>|</span>
               <span>{p.orbit.semiMajorAxisAU.toFixed(3)} AU</span>
               <span style={{ color: '#334455' }}>|</span>

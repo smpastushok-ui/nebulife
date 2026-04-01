@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { saveMessage, getOnboardedPlayerIds } from '../../packages/server/src/db.js';
+import { saveMessage, getOnboardedPlayersWithLanguage } from '../../packages/server/src/db.js';
 
 const BATCH_SIZE = 200;
 
@@ -19,26 +19,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const playerIds = await getOnboardedPlayerIds();
+    const players = await getOnboardedPlayersWithLanguage();
     let delivered = 0;
 
-    const notifText = 'Новий урок Космічної Академії доступний. Відкрийте Академію для навчання.';
-
-    for (let i = 0; i < playerIds.length; i += BATCH_SIZE) {
-      const batch = playerIds.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < players.length; i += BATCH_SIZE) {
+      const batch = players.slice(i, i + BATCH_SIZE);
       await Promise.all(
-        batch.map(async (pid) => {
+        batch.map(async ({ player_id, language }) => {
           try {
-            await saveMessage('system', 'A.S.T.R.A.', `system:${pid}`, notifText);
+            const notifText = language === 'en'
+              ? 'New Cosmic Academy lesson available. Open the Academy to learn.'
+              : 'Новий урок Космічної Академії доступний. Відкрийте Академію для навчання.';
+            await saveMessage('system', 'A.S.T.R.A.', `system:${player_id}`, notifText);
             delivered++;
           } catch (err) {
-            console.warn(`[daily-lesson] Failed for ${pid}:`, err);
+            console.warn(`[daily-lesson] Failed for ${player_id}:`, err);
           }
         }),
       );
     }
 
-    return res.status(200).json({ processed: delivered, total: playerIds.length });
+    return res.status(200).json({ processed: delivered, total: players.length });
   } catch (err) {
     console.error('[daily-lesson] Failed:', err);
     return res.status(200).json({ processed: 0, error: err instanceof Error ? err.message : 'Unknown' });

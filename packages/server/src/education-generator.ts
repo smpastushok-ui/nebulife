@@ -32,9 +32,12 @@ export async function generateEducationPackage(
   topicNameUk: string,
   categoryNameUk: string,
   difficulty: 'explorer' | 'scientist',
+  language: string = 'uk',
 ): Promise<GeneratedLesson> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+
+  const langLabel = language === 'en' ? 'English' : 'Українська';
 
   const difficultyDesc = difficulty === 'explorer'
     ? 'Дослідник (простий, з аналогіями та порівняннями, зрозумілий підліткам 12+)'
@@ -43,7 +46,7 @@ export async function generateEducationPackage(
   const prompt = `Ти A.S.T.R.A. — бортовий ШІ космічної гри Nebulife.
 Сьогоднішній урок: "${topicNameUk}" (категорія: ${categoryNameUk})
 Рівень складності: ${difficultyDesc}
-Мова: Українська
+Мова: ${langLabel}
 
 Згенеруй навчальний пакет у форматі JSON:
 {

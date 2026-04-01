@@ -1,3 +1,5 @@
+export type Language = 'uk' | 'en';
+
 export type GamePhase =
   | 'exploring'        // First 1 day, exploring surroundings
   | 'ship-launched'    // Doomsday ship sent

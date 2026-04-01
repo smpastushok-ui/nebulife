@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { TutorialStepConfig } from './tutorialSteps';
+import { useT } from '../../../i18n';
 
 // ---------------------------------------------------------------------------
 // TutorialOverlay — Spotlight + tooltip overlay for interactive tutorial
@@ -36,6 +37,7 @@ interface TutorialOverlayProps {
 }
 
 export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: TutorialOverlayProps) {
+  const { t } = useT();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const rafRef = useRef<number>(0);
@@ -311,7 +313,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
         {/* Click hint for click steps */}
         {step.type === 'click' && targetRect && (
           <div style={{ fontSize: 10, color: '#556677', marginTop: 8 }}>
-            Натиснiть на видiлений елемент
+            {t('tutorial.click_element')}
           </div>
         )}
 
@@ -343,7 +345,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
               (e.target as HTMLElement).style.background = 'rgba(68, 102, 136, 0.2)';
             }}
           >
-            Далi
+            {t('tutorial.next')}
           </button>
         )}
       </div>
@@ -379,7 +381,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
           (e.target as HTMLElement).style.borderColor = 'rgba(51, 68, 85, 0.3)';
         }}
       >
-        Пропустити туторiал
+        {t('tutorial.skip')}
       </button>
     </>
   );

@@ -35,6 +35,7 @@ export interface PlayerRow {
   linked_at: string | null;
   global_index: number | null;
   cluster_id: string | null;
+  language: string | null;
 }
 
 export async function createPlayer(player: {
@@ -117,6 +118,17 @@ export async function updatePlayer(
         quarks = COALESCE(${updates.quarks ?? null}, quarks),
         home_system_id = COALESCE(${updates.home_system_id ?? null}, home_system_id),
         home_planet_id = COALESCE(${updates.home_planet_id ?? null}, home_planet_id)
+    WHERE id = ${playerId}
+    RETURNING *
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+export async function updatePlayerLanguage(playerId: string, language: string): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET language = ${language}
     WHERE id = ${playerId}
     RETURNING *
   `;
@@ -1508,11 +1520,12 @@ export async function getCachedLesson(
   date: string,
   topicId: string,
   difficulty: string,
+  language: string = 'uk',
 ): Promise<AcademyLessonRow | null> {
   const sql = getSQL();
   const rows = await sql`
     SELECT * FROM academy_lessons
-    WHERE lesson_date = ${date} AND topic_id = ${topicId} AND difficulty = ${difficulty}
+    WHERE lesson_date = ${date} AND topic_id = ${topicId} AND difficulty = ${difficulty} AND language = ${language}
     LIMIT 1
   `;
   return (rows[0] as AcademyLessonRow) ?? null;
@@ -1522,6 +1535,7 @@ export async function saveCachedLesson(
   date: string,
   topicId: string,
   difficulty: string,
+  language: string = 'uk',
   lessonContent: string,
   lessonImageUrl: string | null,
   questData: unknown,
@@ -1529,9 +1543,9 @@ export async function saveCachedLesson(
 ): Promise<void> {
   const sql = getSQL();
   await sql`
-    INSERT INTO academy_lessons (lesson_date, topic_id, difficulty, lesson_content, lesson_image_url, quest_data, quiz_data)
-    VALUES (${date}, ${topicId}, ${difficulty}, ${lessonContent}, ${lessonImageUrl}, ${JSON.stringify(questData)}::jsonb, ${JSON.stringify(quizData)}::jsonb)
-    ON CONFLICT (lesson_date, topic_id, difficulty) DO NOTHING
+    INSERT INTO academy_lessons (lesson_date, topic_id, difficulty, language, lesson_content, lesson_image_url, quest_data, quiz_data)
+    VALUES (${date}, ${topicId}, ${difficulty}, ${language}, ${lessonContent}, ${lessonImageUrl}, ${JSON.stringify(questData)}::jsonb, ${JSON.stringify(quizData)}::jsonb)
+    ON CONFLICT (lesson_date, topic_id, difficulty, language) DO NOTHING
   `;
 }
 
@@ -1539,6 +1553,17 @@ export async function getOnboardedPlayerIds(): Promise<string[]> {
   const sql = getSQL();
   const rows = await sql`SELECT player_id FROM academy_progress WHERE onboarded = true`;
   return rows.map((r) => (r as { player_id: string }).player_id);
+}
+
+export async function getOnboardedPlayersWithLanguage(): Promise<Array<{ player_id: string; language: string }>> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT ap.player_id, COALESCE(p.language, 'uk') AS language
+    FROM academy_progress ap
+    LEFT JOIN players p ON p.id = ap.player_id
+    WHERE ap.onboarded = true
+  `;
+  return rows as Array<{ player_id: string; language: string }>;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useT } from '../../../i18n/index.js';
 import { getAcademyProgress, getTodayLesson, shareNotify } from '../../../api/academy-api.js';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { LessonView } from './LessonView.js';
@@ -21,12 +22,12 @@ interface AcademyDashboardProps {
   sharedLessonInfo?: SharedLessonInfo | null;
 }
 
-const TAB_LABELS: Record<AcademyTab, string> = {
-  lesson: 'Урок',
-  quest: 'Квест',
-  quiz: 'Тести',
-  news: 'Новини',
-  profile: 'Профіль',
+const TAB_KEYS: Record<AcademyTab, 'academy.tab.lesson' | 'academy.tab.quest' | 'academy.tab.quiz' | 'academy.tab.news' | 'academy.tab.profile'> = {
+  lesson: 'academy.tab.lesson',
+  quest:  'academy.tab.quest',
+  quiz:   'academy.tab.quiz',
+  news:   'academy.tab.news',
+  profile: 'academy.tab.profile',
 };
 
 const NEXT_LESSON_HOUR_UTC = 11; // 11:00 UTC
@@ -44,6 +45,7 @@ function getCountdown(): string {
 }
 
 export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, sharedLessonInfo }: AcademyDashboardProps) {
+  const { t } = useT();
   const [tab, setTab] = useState<AcademyTab>('lesson');
   const [progress, setProgress] = useState<AcademyProgress | null>(null);
   const [lesson, setLesson] = useState<DailyLesson | null>(null);
@@ -85,7 +87,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
   useEffect(() => {
     if (!sharedLessonInfo || notifyCalledRef.current) return;
     notifyCalledRef.current = true;
-    setShareBanner(`Гравець ${sharedLessonInfo.fromPlayerName} поділився уроком "${sharedLessonInfo.title}"`);
+    setShareBanner(t('academy.share.banner').replace('{name}', sharedLessonInfo.fromPlayerName).replace('{title}', sharedLessonInfo.title));
     shareNotify(sharedLessonInfo.fromPlayerName, sharedLessonInfo.title);
   }, [sharedLessonInfo]);
 
@@ -112,16 +114,16 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
       <div style={styles.container}>
         {/* Sidebar tabs */}
         <div style={styles.sidebar}>
-          {(Object.keys(TAB_LABELS) as AcademyTab[]).map((t) => (
+          {(Object.keys(TAB_KEYS) as AcademyTab[]).map((tabKey) => (
             <button
-              key={t}
+              key={tabKey}
               style={{
                 ...styles.tabButton,
-                ...(tab === t ? styles.tabActive : {}),
+                ...(tab === tabKey ? styles.tabActive : {}),
               }}
-              onClick={() => setTab(t)}
+              onClick={() => setTab(tabKey)}
             >
-              {TAB_LABELS[t]}
+              {t(TAB_KEYS[tabKey])}
             </button>
           ))}
         </div>
@@ -135,7 +137,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
             </div>
           )}
           {loading ? (
-            <div style={styles.loadingText}>Завантаження...</div>
+            <div style={styles.loadingText}>{t('academy.loading')}</div>
           ) : (
             <>
               {tab === 'lesson' && (
@@ -165,10 +167,10 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
               )}
               {tab === 'news' && (
                 <div style={styles.placeholder}>
-                  Космічні новини (Weekly Digest)
+                  {t('academy.news.title')}
                   <br />
                   <span style={{ color: '#667788', fontSize: 12 }}>
-                    Інтеграція з існуючим DigestModal
+                    {t('academy.news.subtitle')}
                   </span>
                 </div>
               )}
@@ -186,14 +188,14 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
       {/* Footer */}
       <div style={styles.footer}>
         <button style={styles.closeButton} onClick={onClose}>
-          X Закрити
+          {t('academy.close')}
         </button>
         <span style={styles.countdownText}>
-          Наступний урок через: {countdown}
+          {t('academy.next_lesson')} {countdown}
         </span>
         {progress && (
           <span style={styles.streakBadge}>
-            {progress.quest_streak} дн.
+            {progress.quest_streak} {t('academy.streak')}
           </span>
         )}
       </div>

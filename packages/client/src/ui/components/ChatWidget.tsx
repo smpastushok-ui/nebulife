@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useT } from '../../i18n/index.js';
 import {
   sendMessage,
   getMessages,
@@ -38,6 +39,7 @@ interface ChatWidgetProps {
 type Tab = 'global' | 'dm-list' | 'dm-chat' | 'system' | 'astra';
 
 export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet }: ChatWidgetProps) {
+  const { t } = useT();
   const [collapsed, setCollapsed] = useState(true);
   const [tab, setTab] = useState<Tab>('global');
   const [messages, setMessages] = useState<MessageData[]>([]);
@@ -323,7 +325,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
           gap: 6,
         }}
       >
-        Чат
+        {t('chat.title')}
         {totalUnread > 0 && (
           <span style={{
             background: unreadSystem > 0 ? '#4488aa' : '#44ff88',
@@ -377,17 +379,17 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
             <TabButton
               active={tab === 'global'}
               onClick={() => { setTab('global'); setActiveDM(null); }}
-              label="Загальний"
+              label={t('chat.tab.global')}
             />
             <TabButton
               active={tab === 'dm-list' || tab === 'dm-chat'}
               onClick={() => { setTab('dm-list'); setActiveDM(null); }}
-              label="DM"
+              label={t('chat.tab.dm')}
             />
             <TabButton
               active={tab === 'system'}
               onClick={() => { setTab('system'); setActiveDM(null); }}
-              label="Система"
+              label={t('chat.tab.system')}
               badge={unreadSystem > 0 ? unreadSystem : undefined}
             />
           </div>
@@ -402,7 +404,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
               cursor: 'pointer',
               padding: '0 4px',
             }}
-            title="Згорнути"
+            title={t('chat.collapse')}
           >
             _
           </button>
@@ -451,7 +453,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
             }}>
               {messages.length === 0 && (
                 <div style={{ color: '#445566', fontSize: 10, textAlign: 'center', marginTop: 40 }}>
-                  {tab === 'global' ? 'Поки що тихо...' : 'Почніть розмову'}
+                  {tab === 'global' ? t('chat.quiet') : t('chat.start')}
                 </div>
               )}
               {messages.map((msg) => (
@@ -477,7 +479,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 fontSize: 10,
                 textAlign: 'center',
               }}>
-                Вас тимчасово заблоковано в чаті.
+                {t('chat.blocked')}
               </div>
             )}
 
@@ -492,7 +494,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 value={input}
                 onChange={(e) => { setInput(e.target.value); if (bannedError) setBannedError(false); }}
                 onKeyDown={handleKeyDown}
-                placeholder="Повідомлення..."
+                placeholder={t('chat.placeholder')}
                 maxLength={500}
                 disabled={bannedError}
                 style={{
@@ -571,7 +573,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={{ color: '#4488aa', fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                      СИСТЕМА
+                      {t('chat.system_label')}
                     </span>
                     <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{notifTime}</span>
                   </div>
@@ -597,7 +599,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                         cursor: 'pointer',
                       }}
                     >
-                      Перейти до планети
+                      {t('chat.go_to_planet')}
                     </button>
                   )}
                 </div>
@@ -606,7 +608,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
 
             {systemMessages.length === 0 && systemNotifs.length === 0 && (
               <div style={{ color: '#445566', fontSize: 10, textAlign: 'center', marginTop: 40, fontFamily: 'monospace' }}>
-                Немає системних сповіщень
+                {t('chat.no_notifications')}
               </div>
             )}
           </div>
@@ -630,11 +632,11 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 marginBottom: 8,
               }}
             >
-              + Нова бесіда
+              {t('chat.new_thread')}
             </button>
             {dmChannels.length === 0 && (
               <div style={{ color: '#445566', fontSize: 10, textAlign: 'center', marginTop: 20 }}>
-                Немає бесід
+                {t('chat.no_threads')}
               </div>
             )}
             {dmChannels.map((ch) => (
@@ -698,7 +700,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
             }}>
               {astraMessages.length === 0 && !astraLoading && (
                 <div style={{ color: '#44ffaa', fontSize: 10, textAlign: 'center', marginTop: 30, fontFamily: 'monospace', opacity: 0.7 }}>
-                  A.S.T.R.A. online. Задайте питання, Командоре.
+                  {t('chat.astra.online')}
                 </div>
               )}
               {astraMessages.map((msg) => (
@@ -723,7 +725,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 gap: 6,
               }}>
                 <span style={{ color: '#ff8844', fontSize: 10, fontFamily: 'monospace' }}>
-                  Асистент розряджений
+                  {t('chat.astra.discharged')}
                 </span>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {isNativePlatform() && canShowAd() && (
@@ -740,7 +742,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                         cursor: 'pointer',
                       }}
                     >
-                      Зарядити асистента
+                      {t('chat.astra.recharge')}
                     </button>
                   )}
                   <button
@@ -756,7 +758,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                       cursor: 'pointer',
                     }}
                   >
-                    Розблокувати ($1)
+                    {t('chat.astra.unlock')}
                   </button>
                 </div>
               </div>
@@ -772,7 +774,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 value={astraInput}
                 onChange={(e) => setAstraInput(e.target.value)}
                 onKeyDown={handleAstraKeyDown}
-                placeholder={astraLimitReached ? 'A.S.T.R.A. розряджена...' : 'Запит до A.S.T.R.A....'}
+                placeholder={astraLimitReached ? t('chat.astra.discharged_placeholder') : t('chat.astra.placeholder')}
                 maxLength={1000}
                 disabled={astraLoading || astraLimitReached}
                 style={{
@@ -872,6 +874,7 @@ function MessageItem({
   channel: string;
   onReported: () => void;
 }) {
+  const { t } = useT();
   const [hovered, setHovered] = useState(false);
   const [confirmReport, setConfirmReport] = useState(false);
   const [reported, setReported] = useState(false);
@@ -924,7 +927,7 @@ function MessageItem({
               <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{time}</span>
             </div>
             <div style={{ color: '#aabbcc', fontSize: 10, fontFamily: 'monospace', marginBottom: 6 }}>
-              Тижневий космічний дайджест доступний
+              {t('chat.digest.available')}
             </div>
             <button
               onClick={() => {
@@ -941,7 +944,7 @@ function MessageItem({
                 cursor: 'pointer',
               }}
             >
-              Відкрити дайджест
+              {t('chat.digest.open')}
             </button>
           </div>
         );
@@ -966,7 +969,7 @@ function MessageItem({
           fontSize: 10,
           fontWeight: 'bold',
         }}>
-          {isOwn ? 'Ви' : message.sender_name}
+          {isOwn ? t('chat.you') : message.sender_name}
         </span>
         <span style={{ color: '#445566', fontSize: 9 }}>{time}</span>
 
@@ -976,7 +979,7 @@ function MessageItem({
             {!confirmReport && !reported && (
               <button
                 onClick={() => setConfirmReport(true)}
-                title="Поскаржитися"
+                title={t('chat.report')}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -993,7 +996,7 @@ function MessageItem({
             )}
             {confirmReport && (
               <>
-                <span style={{ color: '#8899aa', fontSize: 9 }}>Поскаржитися?</span>
+                <span style={{ color: '#8899aa', fontSize: 9 }}>{t('chat.report_confirm')}</span>
                 <button
                   onClick={handleReport}
                   style={{
@@ -1007,7 +1010,7 @@ function MessageItem({
                     padding: '1px 5px',
                   }}
                 >
-                  Так
+                  {t('chat.report_yes')}
                 </button>
                 <button
                   onClick={() => setConfirmReport(false)}
@@ -1022,12 +1025,12 @@ function MessageItem({
                     padding: '1px 5px',
                   }}
                 >
-                  Ні
+                  {t('chat.report_no')}
                 </button>
               </>
             )}
             {reported && (
-              <span style={{ color: '#44ff88', fontSize: 9 }}>прийнято</span>
+              <span style={{ color: '#44ff88', fontSize: 9 }}>{t('chat.reported')}</span>
             )}
           </span>
         )}
@@ -1066,7 +1069,7 @@ function QuizCard({ data }: { data: QuizData }) {
       gap: 6,
     }}>
       <div style={{ color: '#44ffaa', fontSize: 10, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-        ВІКТОРИНА +{data.xpReward} XP
+        {t('chat.quiz_label')} +{data.xpReward} XP
       </div>
       <div style={{ color: '#ccddee', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4' }}>
         {data.question}
@@ -1113,6 +1116,7 @@ function QuizCard({ data }: { data: QuizData }) {
 }
 
 function AstraMessageItem({ msg }: { msg: AstraMessage }) {
+  const { t } = useT();
   const isUser = msg.role === 'user';
 
   // Try to parse quiz JSON
@@ -1139,7 +1143,7 @@ function AstraMessageItem({ msg }: { msg: AstraMessage }) {
         fontWeight: 'bold',
         marginBottom: 2,
       }}>
-        {isUser ? 'Ви' : 'A.S.T.R.A.'}
+        {isUser ? t('chat.you') : 'A.S.T.R.A.'}
       </div>
       <div style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
         {msg.text}

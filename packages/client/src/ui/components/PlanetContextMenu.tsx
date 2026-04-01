@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useT } from '../../i18n/index.js';
 import type { Planet, Star, ResourceGroup } from '@nebulife/core';
 import { ELEMENTS, RESOURCE_GROUPS, GROUP_NAMES, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
@@ -211,11 +212,15 @@ function PlanetGlobe({ planet, star }: { planet: Planet; star: Star }) {
 
 /* ────────── Tab bar ────────── */
 
-function TabBar({ activeTab, onChange }: { activeTab: TabId; onChange: (t: TabId) => void }) {
-  const tabs: { id: TabId; label: string; color?: string }[] = [
-    { id: 'actions', label: 'Дії' },
-    { id: 'resources', label: 'Ресурси' },
-    { id: 'premium', label: '⚛ Альфа', color: '#886622' },
+function TabBar({ activeTab, onChange, t }: {
+  activeTab: TabId;
+  onChange: (tab: TabId) => void;
+  t: (key: string) => string;
+}) {
+  const tabs: { id: TabId; labelKey: string; color?: string }[] = [
+    { id: 'actions',   labelKey: 'context.tab.actions' },
+    { id: 'resources', labelKey: 'context.tab.resources' },
+    { id: 'premium',   labelKey: 'context.tab.premium', color: '#886622' },
   ];
 
   return (
@@ -245,7 +250,7 @@ function TabBar({ activeTab, onChange }: { activeTab: TabId; onChange: (t: TabId
               transition: 'color 0.12s, background 0.12s',
             }}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         );
       })}
@@ -255,11 +260,12 @@ function TabBar({ activeTab, onChange }: { activeTab: TabId; onChange: (t: TabId
 
 /* ────────── Resources tab ────────── */
 
-function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: {
+function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup, t }: {
   planet: Planet;
   playerLevel: number;
   expandedGroup: ResourceGroup | null;
   setExpandedGroup: (g: ResourceGroup | null) => void;
+  t: (key: string) => string;
 }) {
   const totalRes = planet.resources?.totalResources;
   const hasAnyResources = totalRes && (totalRes.minerals > 0 || totalRes.volatiles > 0 || totalRes.isotopes > 0);
@@ -276,7 +282,7 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: 
       {hasAnyResources && (
         <>
           <div style={{ padding: '6px 14px 3px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            Ресурси
+            {t('context.resources.title')}
           </div>
           {RESOURCE_GROUPS.map((group) => {
             const value = group === 'mineral' ? totalRes!.minerals
@@ -339,7 +345,7 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: 
                     padding: '4px 14px 6px 28px',
                     fontSize: 9, color: '#556677', fontFamily: 'monospace',
                   }}>
-                    Детальний аналіз доступний з 50+ рівня
+                    {t('context.resources.locked')}
                   </div>
                 )}
 
@@ -386,13 +392,13 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: 
         <>
           <div style={{ height: 1, background: 'rgba(50,65,85,0.3)', margin: '6px 0' }} />
           <div style={{ padding: '4px 14px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            Гідросфера
+            {t('context.hydro.title')}
           </div>
           <div style={{ padding: '4px 14px', fontSize: 11, color: '#7799bb' }}>
-            Вода: {(planet.hydrosphere.waterCoverageFraction * 100).toFixed(0)}%
+            {t('context.hydro.water')} {(planet.hydrosphere.waterCoverageFraction * 100).toFixed(0)}%
             {planet.hydrosphere.iceCapFraction > 0.01 && (
               <span style={{ color: '#8899aa', marginLeft: 8 }}>
-                Льод: {(planet.hydrosphere.iceCapFraction * 100).toFixed(0)}%
+                {t('context.hydro.ice')} {(planet.hydrosphere.iceCapFraction * 100).toFixed(0)}%
               </span>
             )}
           </div>
@@ -404,7 +410,7 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: 
         <>
           <div style={{ height: 1, background: 'rgba(50,65,85,0.3)', margin: '6px 0' }} />
           <div style={{ padding: '4px 14px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            Атмосфера
+            {t('context.atmos.title')}
           </div>
           <div style={{ padding: '4px 14px', fontSize: 11, color: '#7799bb' }}>
             {planet.atmosphere.surfacePressureAtm.toFixed(2)} atm
@@ -425,7 +431,7 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: 
       {/* No resources fallback */}
       {!hasAnyResources && !planet.hydrosphere && !planet.atmosphere && (
         <div style={{ padding: '14px', color: '#445566', fontSize: 11 }}>
-          Дані про ресурси відсутні
+          {t('context.resources.none')}
         </div>
       )}
     </>
@@ -458,14 +464,15 @@ export function PlanetContextMenu({
   isPhotoGenerating?: boolean;
   playerLevel: number;
 }) {
+  const { t } = useT();
   const [activeTab, setActiveTab] = useState<TabId>('actions');
   const [expandedGroup, setExpandedGroup] = useState<ResourceGroup | null>(null);
   // Delay backdrop activation to prevent the touch "click" event (fired after
   // the pointerdown that opened the menu) from immediately closing it on mobile.
   const [backdropActive, setBackdropActive] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setBackdropActive(true), 150);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setBackdropActive(true), 150);
+    return () => clearTimeout(timer);
   }, []);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'dwarf';
@@ -485,10 +492,10 @@ export function PlanetContextMenu({
             borderBottom: '1px solid rgba(50,60,80,0.4)',
           }}>
             {planet.name}
-            <span style={{ color: '#884422', marginLeft: 8, fontSize: 10 }}>ЗРУЙНОВАНО</span>
+            <span style={{ color: '#884422', marginLeft: 8, fontSize: 10 }}>{t('context.planet.destroyed')}</span>
           </div>
           <div style={{ padding: '14px', color: '#553322', fontSize: 11, fontFamily: 'monospace' }}>
-            Планета зруйнована. Залишились лише уламки.
+            {t('context.planet.debris')}
           </div>
         </div>
       </>
@@ -527,35 +534,35 @@ export function PlanetContextMenu({
         {isSurfacePlanet && <PlanetGlobe planet={planet} star={star} />}
 
         {/* ── Tab bar ── */}
-        <TabBar activeTab={activeTab} onChange={setActiveTab} />
+        <TabBar activeTab={activeTab} onChange={setActiveTab} t={t} />
 
         {/* ── Tab content ── */}
         <div style={{ padding: '4px 0', minHeight: 80 }}>
           {activeTab === 'actions' && (
             <>
-              <MenuItem icon="◎" label="Екзосфера" onClick={onViewPlanet} color="#88ccaa" />
+              <MenuItem icon="◎" label={t('context.actions.exosphere')} onClick={onViewPlanet} color="#88ccaa" />
               {isSurfacePlanet && (
                 surfaceDisabledReason
-                  ? <MenuItem icon="▲" label="На поверхню" disabled title={surfaceDisabledReason} right="50+" />
-                  : <MenuItem icon="▲" label="На поверхню" onClick={onSurface} color="#88ccaa" />
+                  ? <MenuItem icon="▲" label={t('context.actions.surface')} disabled title={surfaceDisabledReason} right="50+" />
+                  : <MenuItem icon="▲" label={t('context.actions.surface')} onClick={onSurface} color="#88ccaa" />
               )}
               <div style={{ height: 1, background: 'rgba(50,65,85,0.4)', margin: '4px 0' }} />
-              <MenuItem icon="☰" label="Характеристики" onClick={onShowCharacteristics} right="›" />
+              <MenuItem icon="☰" label={t('context.actions.chars')} onClick={onShowCharacteristics} right="›" />
               {playerLevel < 30 ? (
-                <MenuItem icon="⊙" label="Відправити зонд" disabled title={`Доступно з 30+ рівня (зараз: ${playerLevel})`} right="30+" />
+                <MenuItem icon="⊙" label={t('context.actions.probe')} disabled title={`${t('app.surface_level')} (${playerLevel})`} right="30+" />
               ) : (
-                <MenuItem icon="⊙" label="Відправити зонд" disabled right="скоро" />
+                <MenuItem icon="⊙" label={t('context.actions.probe')} disabled right="скоро" />
               )}
               {playerLevel < 40 ? (
-                <MenuItem icon="▶" label="Місія" disabled title={`Доступно з 40+ рівня (зараз: ${playerLevel})`} right="40+" />
+                <MenuItem icon="▶" label={t('context.actions.mission')} disabled title={`${t('app.surface_level')} (${playerLevel})`} right="40+" />
               ) : (
-                <MenuItem icon="▶" label="Місія" disabled right="скоро" />
+                <MenuItem icon="▶" label={t('context.actions.mission')} disabled right="скоро" />
               )}
             </>
           )}
 
           {activeTab === 'resources' && (
-            <ResourcesTab planet={planet} playerLevel={playerLevel} expandedGroup={expandedGroup} setExpandedGroup={setExpandedGroup} />
+            <ResourcesTab planet={planet} playerLevel={playerLevel} expandedGroup={expandedGroup} setExpandedGroup={setExpandedGroup} t={t} />
           )}
 
           {activeTab === 'premium' && (
@@ -564,7 +571,7 @@ export function PlanetContextMenu({
               minHeight: 80,
             }}>
               <div style={{ padding: '8px 14px 3px', fontSize: 8, color: '#886622', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                Преміум інструменти
+                {t('context.premium.title')}
               </div>
               {/* Telescope photo */}
               {onTelescopePhoto && !isPhotoGenerating && (
@@ -572,21 +579,21 @@ export function PlanetContextMenu({
                   <div style={{ flex: 1 }}>
                     <MenuItem
                       icon="◉"
-                      label={`Фото планети — ${PHOTO_COST} ⚛`}
+                      label={`${t('context.photo.label')} — ${PHOTO_COST} ⚛`}
                       onClick={canAffordPhoto ? onTelescopePhoto : undefined}
                       color={canAffordPhoto ? '#ddaa44' : '#445566'}
                       disabled={!canAffordPhoto}
                     />
                   </div>
-                  <TooltipHint text="Оренда потужностей супертелескопа, який зробить неперевершене унікальне зображення обраної планети. Таке зображення буде лише у вас." />
+                  <TooltipHint text={t('radial.alpha_hint')} />
                 </div>
               )}
               {onTelescopePhoto && isPhotoGenerating && (
                 <MenuItem
                   icon="◉"
-                  label="Фото планети"
+                  label={t('context.photo.label')}
                   disabled
-                  right={<span style={{ color: '#4488aa', fontSize: 9 }}>генерується...</span>}
+                  right={<span style={{ color: '#4488aa', fontSize: 9 }}>{t('context.photo.generating')}</span>}
                 />
               )}
               {/* Future premium tools will go here */}

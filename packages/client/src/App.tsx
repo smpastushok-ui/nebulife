@@ -1,4 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { LanguageProvider, useT } from './i18n/index.js';
+import type { Language } from '@nebulife/core';
+import { LanguageSelectScreen } from './ui/components/LanguageSelectScreen.js';
 import { GameEngine } from './game/GameEngine.js';
 import { UniverseEngine } from './game/UniverseEngine.js';
 import { WarpTransition } from './ui/components/WarpTransition.js';
@@ -168,7 +171,8 @@ export interface GameState {
   error: string | null;
 }
 
-export function App() {
+function AppInner() {
+  const { t } = useT();
   const canvasRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const universeCanvasRef = useRef<HTMLDivElement>(null);
@@ -1521,7 +1525,7 @@ export function App() {
                   const discEntry = getCatalogEntry(result.discovery.type) as CatalogEntry | undefined;
                   const discName = discEntry?.nameUk ?? result.discovery.type;
                   addLogEntry('science',
-                    `Обсерваторiя зафiксувала сигнал: ${discName} в системi ${system.name}. Очiкує рiшення оператора.`,
+                    t('app.log.observatory_signal').replace('{name}', discName).replace('{system}', system.name),
                     { systemId: system.id, objectType: result.discovery.type, discoveryRef: result.discovery },
                   );
                   // Award XP for discovery (base + rarity bonus)
@@ -1956,7 +1960,7 @@ export function App() {
     const newState = researchTech(techTreeState, techId);
     setTechTreeState(newState);
     awardXP(node.xpReward, 'tech_researched');
-    addLogEntry('system', `Дослiджено технологiю: ${node.name}`);
+    addLogEntry('system', t('app.log.tech_researched').replace('{name}', node.name));
 
     // Show slide-in toast notification
     setResearchToasts((q) => [
@@ -1997,12 +2001,12 @@ export function App() {
   const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string } => {
     // Before first evacuation — surface unavailable everywhere
     if (destroyedPlanetIdsSet.size === 0) {
-      return { allowed: false, reason: 'Поверхня доступна пiсля евакуацiї' };
+      return { allowed: false, reason: t('app.surface_disabled') };
     }
     if (planet.isHomePlanet) return { allowed: true };
     if (homeInfo && planet.id === homeInfo.planet.id) return { allowed: true };
     if (playerLevel >= 50) return { allowed: true };
-    return { allowed: false, reason: `Доступно з 50+ рiвня` };
+    return { allowed: false, reason: t('app.surface_level') };
   }, [homeInfo, playerLevel, destroyedPlanetIdsSet]);
 
   // Exosphere: always accessible if system is researched (menu only shows in researched systems)
@@ -2078,7 +2082,7 @@ export function App() {
 
   const handleSystemMenuRename = useCallback(() => {
     if (!state.selectedSystem) return;
-    const newName = prompt('Нова назва системи:', state.selectedSystem.name);
+    const newName = prompt(t('app.rename_prompt'), state.selectedSystem.name);
     if (newName && newName.trim()) {
       const sys = state.selectedSystem;
       setAlias({
@@ -2361,7 +2365,7 @@ export function App() {
   const handleTelescopeSaveToCollection = useCallback(() => {
     // Photo is already in systemPhotos map — just close overlay with animation
     // The fly-away animation is handled inside TelescopeOverlay
-    setToastMessage('Дані успішно архівовано');
+    setToastMessage(t('app.toast.archived'));
     setTimeout(() => setTelescopeOverlay(null), 800);
     // Auto-dismiss toast
     setTimeout(() => setToastMessage(null), 3500);
@@ -2873,7 +2877,7 @@ export function App() {
       ...prev,
       {
         id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        text: `Квантовий синтез ${planetName} завершено`,
+        text: t('app.notif.quantum_synth').replace('{planet}', planetName),
         planetName,
         systemId,
         planetId,
@@ -2903,21 +2907,32 @@ export function App() {
 
   // ── Digest modal event listener ──
   useEffect(() => {
-    const handleOpenDigest = async (e: Event) => {
+    const handleOpenDigest = async (_e: Event) => {
       try {
         const res = await fetch('/api/digest/latest', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('nebulife_firebase_token') ?? ''}` },
         });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!data.digest) return;
-        // Default to UK, fallback to EN
-        const images = data.digest.images?.uk ?? data.digest.images?.en ?? [];
-        if (images.length > 0) {
-          setDigestModalImages(images);
-          setDigestModalWeekDate(data.digest.weekDate);
+        if (!res.ok) {
+          setToastMessage('Дайджест поки недоступний');
+          return;
         }
-      } catch { /* ignore */ }
+        const data = await res.json();
+        if (!data.digest) {
+          setToastMessage('Дайджест поки недоступний');
+          return;
+        }
+        const playerLang = localStorage.getItem('nebulife_language') || 'uk';
+        const images = data.digest.images?.[playerLang] ?? data.digest.images?.uk ?? [];
+        if (images.length === 0) {
+          setToastMessage('Дайджест поки недоступний');
+          return;
+        }
+        setDigestModalImages(images);
+        setDigestModalWeekDate(data.digest.weekDate);
+      } catch (err) {
+        console.warn('[digest] Failed to load:', err);
+        setToastMessage('Дайджест поки недоступний');
+      }
     };
     window.addEventListener('nebulife:open-digest', handleOpenDigest);
     return () => window.removeEventListener('nebulife:open-digest', handleOpenDigest);
@@ -2934,7 +2949,7 @@ export function App() {
         setPlayerLevel(newLevel);
         setLevelUpNotification(newLevel);
         setTimeout(() => setLevelUpNotification(null), 4000);
-        addLogEntry('system', `Рiвень пiдвищено до ${newLevel}!`);
+        addLogEntry('system', t('app.log.level_up').replace('{level}', String(newLevel)));
 
         // Auto-research all newly available technologies (cascade — new prereqs may unlock more)
         let currentTech = techTreeStateRef.current;
@@ -2956,7 +2971,7 @@ export function App() {
           setTechTreeState(currentTech);
           techTreeStateRef.current = currentTech;
           for (const nd of newlyResearched) {
-            addLogEntry('system', `Технологiю iнтегровано: ${nd.name}`);
+            addLogEntry('system', t('app.log.tech_integrated').replace('{name}', nd.name));
             setResearchToasts((q) => [...q, {
               id:       Math.random().toString(36).slice(2),
               techName: nd.name,
@@ -3434,19 +3449,19 @@ export function App() {
   // Build unified navigation menu items
   const navigationItems: NavigationMenuItem[] = [
     {
-      id: 'universe', label: 'Всесвiт', scene: 'universe',
+      id: 'universe', label: t('nav.universe'), scene: 'universe',
       icon: universeIcon,
       active: effectiveScene === 'universe',
       disabled: false,
     },
     {
-      id: 'cluster', label: 'Зоряне скупчення', scene: 'cluster',
+      id: 'cluster', label: t('nav.cluster'), scene: 'cluster',
       icon: clusterIcon,
       active: effectiveScene === 'cluster',
       disabled: false,
     },
     {
-      id: 'galaxy', label: 'Зоряні сектори', scene: 'galaxy',
+      id: 'galaxy', label: t('nav.sectors'), scene: 'galaxy',
       icon: galaxyIcon,
       active: effectiveScene === 'galaxy',
       disabled: false,
@@ -3456,7 +3471,7 @@ export function App() {
       id: 'system',
       label: state.selectedSystem
         ? (aliases[state.selectedSystem.id] || state.selectedSystem.star.name)
-        : 'Зоряна система',
+        : t('nav.system'),
       scene: 'system',
       icon: starIcon,
       active: effectiveScene === 'system',
@@ -3464,7 +3479,7 @@ export function App() {
     },
     {
       id: 'planet-view',
-      label: state.selectedPlanet?.name ?? 'Екзосфера',
+      label: state.selectedPlanet?.name ?? t('nav.exosphere'),
       scene: 'planet-view',
       icon: planetIcon,
       active: effectiveScene === 'planet-view' || effectiveScene === 'surface',
@@ -3541,7 +3556,7 @@ export function App() {
           // House body
           React.createElement('path', { d: 'M6 9V11.5H10V9' }),
         ),
-        tooltip: 'Домiвка',
+        tooltip: t('cmd.home_tooltip'),
         onClick: handleGoToHomePlanet,
       }],
     });
@@ -3552,9 +3567,9 @@ export function App() {
     type: 'buttons',
     items: [{
       id: 'command-center',
-      label: 'ТЕРМІНАЛ',
+      label: t('cmd.terminal'),
       variant: 'terminal' as const,
-      tooltip: 'Центр управлiння',
+      tooltip: t('cmd.control_center'),
       tutorialId: 'terminal-btn',
       onClick: () => setShowCosmicArchive(true),
     }],
@@ -3566,9 +3581,9 @@ export function App() {
       type: 'buttons',
       items: [{
         id: 'academy',
-        label: 'АКАДЕМІЯ',
+        label: t('cmd.academy'),
         variant: 'terminal' as const,
-        tooltip: 'Космічна Академія',
+        tooltip: t('cmd.academy_tooltip'),
         onClick: () => setShowAcademy(true),
       }],
     });
@@ -3630,7 +3645,7 @@ export function App() {
             whiteSpace: 'nowrap',
           }}
         >
-          {'> СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ...'}
+          {t('app.exodus.syncing')}
         </div>
       )}
       {/* Phase 2: Glitch effect */}
@@ -3694,7 +3709,7 @@ export function App() {
               e.currentTarget.style.borderColor = 'rgba(68,255,136,0.5)';
             }}
           >
-            Евакуація
+            {t('app.exodus.evacuation')}
           </button>
         </div>
       )}
@@ -3740,15 +3755,13 @@ export function App() {
                 background: 'rgba(5,10,20,0.5)',
               }}
             >
-              {'[ ТЕРМIНОВЕ ВIДЕО-ПОВIДОМЛЕННЯ ]'}
+              {t('app.urgent_message')}
             </div>
             <div style={{ color: '#cc4444', fontSize: 13, fontWeight: 'bold', marginBottom: 12, letterSpacing: 1 }}>
-              УВАГА: ТРАЄКТОРIЯ ОНОВЛЕНА
+              {t('app.trajectory_updated')}
             </div>
             <div style={{ color: '#aabbcc', fontSize: 12, lineHeight: 1.6, marginBottom: 24 }}>
-              Командоре, розрахунки траєкторiї астероїда оновилися. Часу лишилося критично мало...
-              Але є й гарна новина. Здається, в цiй системi є те, що ми так довго шукали.
-              Потрiбно поспiшати!
+              {t('app.trajectory_text')}
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); handleSpeedUpDismiss(); }}
@@ -3765,7 +3778,7 @@ export function App() {
                 fontWeight: 'bold',
               }}
             >
-              ЗРОЗУМIЛО
+              {t('app.understood')}
             </button>
           </div>
         </div>
@@ -3805,12 +3818,12 @@ export function App() {
           onBack={handleStartExploration}
           onZoomIn={() => globeRef.current?.zoomIn()}
           onZoomOut={() => globeRef.current?.zoomOut()}
-          backLabel="Галактика"
+          backLabel={t('nav.galaxy')}
           showZoom
           hidden={hideLeftPanel}
           extraButtons={[
             {
-              title: 'Поверхня',
+              title: t('cmd.surface_title'),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleGoToHomeSurface,
               pulse: true,
@@ -3826,7 +3839,7 @@ export function App() {
           onCenter={() => engineRef.current?.galaxyCenterOnOrigin()}
           onZoomIn={() => engineRef.current?.galaxyZoomIn()}
           onZoomOut={() => engineRef.current?.galaxyZoomOut()}
-          backLabel="Домівка"
+          backLabel={t('nav.home')}
           showCenter
           showZoom
           hidden={hideLeftPanel}
@@ -3848,7 +3861,7 @@ export function App() {
           onCenter={() => engineRef.current?.systemCenterOnOrigin()}
           onZoomIn={() => engineRef.current?.systemZoomIn()}
           onZoomOut={() => engineRef.current?.systemZoomOut()}
-          backLabel="Галактика"
+          backLabel={t('nav.galaxy')}
           showCenter
           showZoom
           hidden={hideLeftPanel}
@@ -3862,13 +3875,13 @@ export function App() {
           onCenter={() => {}}
           onZoomIn={() => globeRef.current?.zoomIn()}
           onZoomOut={() => globeRef.current?.zoomOut()}
-          backLabel="Система"
+          backLabel={t('nav.system')}
           showZoom
           hidden={hideLeftPanel}
           extraButtons={state.selectedPlanet && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'dwarf') ? (() => {
             const check = canLandOnPlanet(state.selectedPlanet!);
             return [{
-              title: check.allowed ? 'На поверхню' : (check.reason || 'Недоступно'),
+              title: check.allowed ? t('cmd.surface') : (check.reason || t('cmd.surface')),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleOpenSurface,
               disabled: !check.allowed,
@@ -3882,10 +3895,10 @@ export function App() {
       {surfaceTarget && (
         <SceneControlsPanel
           onBack={handleCloseSurface}
-          backLabel="Назад"
+          backLabel={t('nav.back')}
           hidden={hideLeftPanel}
           extraButtons={[{
-            title: 'Екзосфера',
+            title: t('nav.exosphere'),
             icon: (
               <svg
                 width="14" height="14" viewBox="0 0 16 16"
@@ -3908,17 +3921,17 @@ export function App() {
           onBack={handleGoToHomePlanet}
           onZoomIn={() => universeEngineRef.current?.zoomIn()}
           onZoomOut={() => universeEngineRef.current?.zoomOut()}
-          backLabel="Домiвка"
+          backLabel={t('cmd.home_tooltip')}
           showZoom
           hidden={hideLeftPanel}
           extraButtons={[
             {
-              title: 'Полетiти до мого скупчення',
+              title: t('cmd.fly_cluster'),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="3" /><path d="M8 1v3M8 12v3M1 8h3M12 8h3" /></svg>,
               onClick: () => universeEngineRef.current?.flyToMyCluster(),
             },
             {
-              title: 'Полетiти до центру галактики',
+              title: t('cmd.fly_center'),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="6" /><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" /></svg>,
               onClick: () => universeEngineRef.current?.flyToCenter(),
             },
@@ -3932,12 +3945,12 @@ export function App() {
           onBack={handleGoToHomePlanet}
           onZoomIn={() => universeEngineRef.current?.zoomIn()}
           onZoomOut={() => universeEngineRef.current?.zoomOut()}
-          backLabel="Домiвка"
+          backLabel={t('cmd.home_tooltip')}
           showZoom
           hidden={hideLeftPanel}
           extraButtons={[
             {
-              title: 'Полетiти до моєї зiрки',
+              title: t('cmd.fly_star'),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="3" /><path d="M8 1v3M8 12v3M1 8h3M12 8h3" /></svg>,
               onClick: () => universeEngineRef.current?.flyToMyCluster(),
             },
@@ -4030,8 +4043,8 @@ export function App() {
             return (prog > 0 && prog < 100) ? prog : undefined;
           })()}
           researchBlockReason={
-            researchState.slots.length === 0 ? 'Немає обсерваторій' :
-            findFreeSlot(researchState) < 0 ? 'Усі обсерваторії зайняті' :
+            researchState.slots.length === 0 ? t('radial.no_observatories') :
+            findFreeSlot(researchState) < 0 ? t('radial.all_busy') :
             null
           }
           onClose={handleCloseSystemMenu}
@@ -4194,8 +4207,8 @@ export function App() {
       {evacuationPhase === 'stage0-launch' && (
         <CutscenePlaceholder
           label={forcedEvacuation
-            ? 'Термiнова евакуацiя. Вибору немає.'
-            : 'Запуск евакуацiйного корабля'}
+            ? t('app.forced_evacuation')
+            : t('app.launch_evacuation')}
           duration={forcedEvacuation ? 5 : 4}
           onComplete={handleStage0Complete}
         />
@@ -4205,8 +4218,8 @@ export function App() {
       {evacuationPhase === 'stage2-explosion' && (
         <CutscenePlaceholder
           label={forcedEvacuation
-            ? 'Зiткнення. Рiдна планета знищена.'
-            : 'Загибель рiдної планети'}
+            ? t('app.planet_collision')
+            : t('app.planet_destroyed')}
           duration={6}
           onComplete={handleStage2Complete}
         />
@@ -4222,7 +4235,7 @@ export function App() {
       {/* Cutscene: Landing on new planet (5s) */}
       {evacuationPhase === 'cutscene-landing' && (
         <CutscenePlaceholder
-          label="Посадка на нову планету"
+          label={t('app.landing')}
           duration={5}
           onComplete={handleCutsceneLandingComplete}
         />
@@ -4573,7 +4586,7 @@ export function App() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: 'monospace', color: '#556677', fontSize: 12,
         }}>
-          Завантаження...
+          {t('app.loading')}
         </div>
       )}
 
@@ -4663,5 +4676,41 @@ export function App() {
         />
       )}
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Root export — wraps AppInner with LanguageProvider + language selection
+// ---------------------------------------------------------------------------
+
+export function App() {
+  const [languageSelected, setLanguageSelected] = useState(
+    () => !!localStorage.getItem('nebulife_language'),
+  );
+  const [savedLang] = useState<Language>(
+    () => (localStorage.getItem('nebulife_language') as Language) || 'uk',
+  );
+
+  const handleLanguageChange = useCallback((lang: Language) => {
+    localStorage.setItem('nebulife_language', lang);
+  }, []);
+
+  if (!languageSelected) {
+    return (
+      <LanguageProvider initial="uk">
+        <LanguageSelectScreen
+          onSelect={(lang) => {
+            localStorage.setItem('nebulife_language', lang);
+            setLanguageSelected(true);
+          }}
+        />
+      </LanguageProvider>
+    );
+  }
+
+  return (
+    <LanguageProvider initial={savedLang} onLanguageChange={handleLanguageChange}>
+      <AppInner />
+    </LanguageProvider>
   );
 }

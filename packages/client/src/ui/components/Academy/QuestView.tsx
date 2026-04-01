@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useT } from '../../../i18n/index.js';
+import type { TranslationKey } from '../../../i18n/index.js';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { completeQuest } from '../../../api/academy-api.js';
 
@@ -9,21 +11,22 @@ interface QuestViewProps {
   onNavigateToGalaxy: () => void;
 }
 
-const QUEST_TYPE_LABELS: Record<string, string> = {
-  knowledge: 'Знання',
-  observation: 'Спостереження',
-  exploration: 'Дослідження',
-  calculation: 'Обчислення',
-  photo: 'Телеметрія',
+const QUEST_TYPE_KEYS: Record<string, TranslationKey> = {
+  knowledge:   'quest.type.knowledge',
+  observation: 'quest.type.observation',
+  exploration: 'quest.type.exploration',
+  calculation: 'quest.type.calculation',
+  photo:       'quest.type.photo',
 };
 
 export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: QuestViewProps) {
+  const { t } = useT();
   const [answer, setAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   if (!lesson) {
-    return <div style={styles.empty}>Немає активного квесту.</div>;
+    return <div style={styles.empty}>{t('quest.no_quest')}</div>;
   }
 
   const quest = lesson.quest;
@@ -39,10 +42,14 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
     try {
       const result = await completeQuest(lesson.lessonId, num);
       if (result.correct) {
-        setFeedback(`Правильно! +${result.quarksAwarded} кварків, +${result.xpAwarded} XP`);
+        setFeedback(
+          t('quiz.correct')
+            .replace('{quarks}', String(result.quarksAwarded))
+            .replace('{xp}', String(result.xpAwarded)),
+        );
         onRefresh();
       } else {
-        setFeedback(result.message ?? 'Неправильно, спробуйте ще.');
+        setFeedback(result.message ?? t('quiz.wrong'));
       }
     } catch (err) {
       console.error('Quest submit error:', err);
@@ -55,7 +62,9 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
     <div style={styles.container}>
       <div style={styles.header}>
         <span style={styles.typeBadge}>
-          {QUEST_TYPE_LABELS[quest.type] ?? quest.type}
+          {QUEST_TYPE_KEYS[quest.type]
+            ? t(QUEST_TYPE_KEYS[quest.type] as TranslationKey)
+            : quest.type}
         </span>
         <h2 style={styles.title}>{quest.titleUk}</h2>
       </div>
@@ -63,7 +72,7 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
       <p style={styles.description}>{quest.descriptionUk}</p>
 
       <div style={styles.rewardRow}>
-        <span style={styles.reward}>+{quest.quarkReward} кварків</span>
+        <span style={styles.reward}>+{quest.quarkReward} {t('quest.quarks_unit')}</span>
         <span style={styles.reward}>+{quest.xpReward} XP</span>
       </div>
 
@@ -75,7 +84,7 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
               type="number"
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Ваша відповідь..."
+              placeholder={t('quest.answer_placeholder')}
               style={styles.input}
             />
             <button
@@ -83,26 +92,26 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
               onClick={handleSubmitCalculation}
               disabled={submitting || !answer}
             >
-              {submitting ? '...' : 'Відправити'}
+              {submitting ? '...' : t('quest.submit')}
             </button>
           </div>
         )}
 
         {(quest.type === 'observation' || quest.type === 'exploration') && (
           <button style={styles.navButton} onClick={onNavigateToGalaxy}>
-            Перейти в галактику
+            {t('quest.go_galaxy')}
           </button>
         )}
 
         {quest.type === 'photo' && (
           <button style={styles.navButton} onClick={onNavigateToGalaxy}>
-            Перейти до телескопа
+            {t('quest.go_telescope')}
           </button>
         )}
 
         {quest.type === 'knowledge' && (
           <span style={styles.hint}>
-            Прочитайте урок та натисніть "Прочитано" у вкладці Урок
+            {t('quest.knowledge_hint')}
           </span>
         )}
       </div>
@@ -112,7 +121,7 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
       )}
 
       {isCompleted && (
-        <div style={styles.completedBadge}>Квест виконано</div>
+        <div style={styles.completedBadge}>{t('quest.completed')}</div>
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { StarSystem } from '@nebulife/core';
+import { useT } from '../../../i18n';
 
 // Tooltip that appears BELOW the icon (so it's not clipped by top menu)
 function HeaderIcon({ children, tooltip }: { children: React.ReactNode; tooltip: string }) {
@@ -428,6 +429,7 @@ export function SystemsList({
 
 /** Green "Досліджено" button — links to system navigation */
 function ResearchedButton({ onClick }: { onClick: () => void }) {
+  const { t } = useT();
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -446,13 +448,14 @@ function ResearchedButton({ onClick }: { onClick: () => void }) {
         transition: 'background 0.15s, border-color 0.15s',
       }}
     >
-      Дослiджено
+      {t('archive.researched')}
     </button>
   );
 }
 
 /** Animated "Дослідж." button — shown during active research (background sweep only) */
 function ResearchingButton() {
+  const { t } = useT();
   return (
     <span
       style={{
@@ -471,7 +474,7 @@ function ResearchingButton() {
         overflow: 'hidden',
       }}
     >
-      Дослідж.
+      {t('archive.researching')}
     </span>
   );
 }
@@ -484,6 +487,7 @@ function ResearchButton({
   tutorialId?: string;
   onClick: (e: React.MouseEvent) => void;
 }) {
+  const { t } = useT();
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -503,7 +507,7 @@ function ResearchButton({
         transition: 'background 0.15s, border-color 0.15s',
       }}
     >
-      Дослідити
+      {t('archive.research')}
     </button>
   );
 }

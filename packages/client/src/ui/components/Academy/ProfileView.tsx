@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useT } from '../../../i18n/index.js';
+import type { TranslationKey } from '../../../i18n/index.js';
 import type { AcademyProgress } from '../../../api/academy-api.js';
 import { updatePreferences } from '../../../api/academy-api.js';
 
@@ -7,17 +9,18 @@ interface ProfileViewProps {
   onRefresh: () => void;
 }
 
-const CATEGORIES = [
-  { id: 'astro', name: 'Астрономія', total: 42 },
-  { id: 'astrophys', name: 'Астрофізика', total: 35 },
-  { id: 'plansci', name: 'Планетологія', total: 38 },
-  { id: 'astrobio', name: 'Астробіологія', total: 22 },
-  { id: 'spacetech', name: 'Космічні технології', total: 25 },
-  { id: 'cosmo', name: 'Космологія', total: 20 },
-  { id: 'physfund', name: 'Основи фізики', total: 18 },
+const CATEGORIES: { id: string; nameKey: TranslationKey; total: number }[] = [
+  { id: 'astro',     nameKey: 'academy.cat.astro',     total: 42 },
+  { id: 'astrophys', nameKey: 'academy.cat.astrophys',  total: 35 },
+  { id: 'plansci',   nameKey: 'academy.cat.plansci',    total: 38 },
+  { id: 'astrobio',  nameKey: 'academy.cat.astrobio',   total: 22 },
+  { id: 'spacetech', nameKey: 'academy.cat.spacetech',  total: 25 },
+  { id: 'cosmo',     nameKey: 'academy.cat.cosmo',      total: 20 },
+  { id: 'physfund',  nameKey: 'academy.cat.physfund',   total: 18 },
 ];
 
 export function ProfileView({ progress, onRefresh }: ProfileViewProps) {
+  const { t } = useT();
   const [editing, setEditing] = useState(false);
   const [selectedTopics, setSelectedTopics] = useState<string[]>(
     progress?.selected_topics ?? [],
@@ -28,7 +31,7 @@ export function ProfileView({ progress, onRefresh }: ProfileViewProps) {
   const [saving, setSaving] = useState(false);
 
   if (!progress) {
-    return <div style={styles.empty}>Профіль не знайдено.</div>;
+    return <div style={styles.empty}>{t('profile.not_found')}</div>;
   }
 
   const completed = progress.completed_lessons ?? {};
@@ -49,44 +52,44 @@ export function ProfileView({ progress, onRefresh }: ProfileViewProps) {
 
   const toggleTopic = (id: string) => {
     setSelectedTopics((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>Профіль навчання</h2>
+      <h2 style={styles.title}>{t('profile.title')}</h2>
 
       {/* Stats */}
       <div style={styles.statsRow}>
         <div style={styles.stat}>
           <div style={styles.statValue}>{totalCompleted}</div>
-          <div style={styles.statLabel}>Уроків</div>
+          <div style={styles.statLabel}>{t('profile.stat.lessons')}</div>
         </div>
         <div style={styles.stat}>
           <div style={styles.statValue}>{progress.total_quests_completed}</div>
-          <div style={styles.statLabel}>Квестів</div>
+          <div style={styles.statLabel}>{t('profile.stat.quests')}</div>
         </div>
         <div style={styles.stat}>
           <div style={styles.statValue}>
             {progress.total_quizzes_correct}/{progress.total_quizzes_answered}
           </div>
-          <div style={styles.statLabel}>Вікторин</div>
+          <div style={styles.statLabel}>{t('profile.stat.quizzes')}</div>
         </div>
         <div style={styles.stat}>
           <div style={{ ...styles.statValue, color: '#44ff88' }}>
             {progress.quest_streak}
           </div>
-          <div style={styles.statLabel}>Стрік</div>
+          <div style={styles.statLabel}>{t('profile.stat.streak')}</div>
         </div>
         <div style={styles.stat}>
           <div style={styles.statValue}>{progress.longest_streak}</div>
-          <div style={styles.statLabel}>Макс. стрік</div>
+          <div style={styles.statLabel}>{t('profile.stat.max_streak')}</div>
         </div>
       </div>
 
       {/* Category progress */}
-      <h3 style={styles.sectionTitle}>Прогрес по категоріях</h3>
+      <h3 style={styles.sectionTitle}>{t('profile.section.categories')}</h3>
       <div style={styles.categoryList}>
         {CATEGORIES.map((cat) => {
           const catCompleted = Object.keys(completed).filter((id) =>
@@ -96,7 +99,7 @@ export function ProfileView({ progress, onRefresh }: ProfileViewProps) {
 
           return (
             <div key={cat.id} style={styles.categoryRow}>
-              <span style={styles.categoryName}>{cat.name}</span>
+              <span style={styles.categoryName}>{t(cat.nameKey)}</span>
               <div style={styles.progressBar}>
                 <div
                   style={{
@@ -115,10 +118,10 @@ export function ProfileView({ progress, onRefresh }: ProfileViewProps) {
 
       {/* Settings */}
       <h3 style={styles.sectionTitle}>
-        Налаштування
+        {t('profile.section.settings')}
         {!editing && (
           <button style={styles.editButton} onClick={() => setEditing(true)}>
-            Змінити
+            {t('profile.edit')}
           </button>
         )}
       </h3>
@@ -126,18 +129,18 @@ export function ProfileView({ progress, onRefresh }: ProfileViewProps) {
       {editing ? (
         <div style={styles.settingsEdit}>
           <div style={styles.difficultyRow}>
-            <span style={styles.label}>Складність:</span>
+            <span style={styles.label}>{t('profile.difficulty')}</span>
             <button
               style={difficulty === 'explorer' ? styles.diffActive : styles.diffButton}
               onClick={() => setDifficulty('explorer')}
             >
-              Дослідник
+              {t('profile.explorer')}
             </button>
             <button
               style={difficulty === 'scientist' ? styles.diffActive : styles.diffButton}
               onClick={() => setDifficulty('scientist')}
             >
-              Науковець
+              {t('profile.scientist')}
             </button>
           </div>
 
@@ -146,7 +149,7 @@ export function ProfileView({ progress, onRefresh }: ProfileViewProps) {
               style={selectedTopics.length === 0 ? styles.topicActive : styles.topicButton}
               onClick={() => setSelectedTopics([])}
             >
-              Усі теми
+              {t('profile.all_topics')}
             </button>
             {CATEGORIES.map((cat) => (
               <button
@@ -158,33 +161,33 @@ export function ProfileView({ progress, onRefresh }: ProfileViewProps) {
                 }
                 onClick={() => toggleTopic(cat.id)}
               >
-                {cat.name}
+                {t(cat.nameKey)}
               </button>
             ))}
           </div>
 
           <div style={styles.editActions}>
             <button style={styles.saveButton} onClick={handleSave} disabled={saving}>
-              {saving ? 'Зберігаю...' : 'Зберегти'}
+              {saving ? t('profile.saving') : t('profile.save')}
             </button>
             <button style={styles.cancelButton} onClick={() => setEditing(false)}>
-              Скасувати
+              {t('profile.cancel')}
             </button>
           </div>
         </div>
       ) : (
         <div style={styles.settingsDisplay}>
           <div>
-            <span style={styles.label}>Складність: </span>
+            <span style={styles.label}>{t('profile.difficulty')} </span>
             <span style={styles.value}>
-              {progress.difficulty === 'explorer' ? 'Дослідник' : 'Науковець'}
+              {progress.difficulty === 'explorer' ? t('profile.explorer') : t('profile.scientist')}
             </span>
           </div>
           <div>
-            <span style={styles.label}>Теми: </span>
+            <span style={styles.label}>{t('profile.topics')} </span>
             <span style={styles.value}>
               {progress.selected_topics.length === 0
-                ? 'Усі теми'
+                ? t('profile.all_topics')
                 : progress.selected_topics.join(', ')}
             </span>
           </div>
