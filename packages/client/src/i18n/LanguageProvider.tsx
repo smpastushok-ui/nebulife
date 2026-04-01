@@ -58,7 +58,7 @@ export function LanguageProvider({
   onLanguageChange,
 }: LanguageProviderProps) {
   const [lang, setLangState] = useState<Language>(() => {
-    const stored = localStorage.getItem('nebulife_language');
+    const stored = localStorage.getItem('nebulife_lang');
     if (stored === 'uk' || stored === 'en') return stored;
     return initial;
   });
@@ -71,7 +71,7 @@ export function LanguageProvider({
     setLangState(newLang);
     currentLang = newLang;
     currentBundle = bundles[newLang];
-    localStorage.setItem('nebulife_language', newLang);
+    localStorage.setItem('nebulife_lang', newLang);
     onLanguageChange?.(newLang);
   }, [onLanguageChange]);
 
