@@ -16,6 +16,7 @@
  */
 
 import {
+  Application,
   Container,
   Graphics,
   Polygon,
@@ -24,13 +25,8 @@ import {
   Assets,
   Texture,
   Rectangle,
-  Filter,
-  GlProgram,
-  UniformGroup,
-  BufferImageSource,
-  defaultFilterVert,
 } from 'pixi.js';
-import isoTerrainFrag from '../../shaders/surface/iso-terrain.frag.glsl?raw';
+import { bakeTerrain, patchBakedCell, type BakeResult } from './SurfaceBaker.js';
 // In PixiJS v8, DisplayObject was removed; Sprite/Graphics both extend Container.
 type DisplayObject = Container | Sprite | Graphics;
 import type { Planet, Star, PlacedBuilding, BuildingType, HarvestedCell, SurfaceObjectType, TerrainType } from '@nebulife/core';
@@ -268,15 +264,11 @@ export class SurfaceScene {
   // ─── Noise overlay ────────────────────────────────────────────────────────
   private noiseOverlayGfx: Graphics | null = null;
 
-  // ─── WebGL iso-terrain shader (1 draw call replaces ~127 Graphics) ────────
-  private _terrainFilter:    Filter            | null = null;
-  /** Screen-space sprite with terrain filter. Caller (SurfacePixiView) must add to stage. */
-  public  terrainSprite:     Sprite            | null = null;
-  private _terrainUniforms:  UniformGroup      | null = null;
-  private _fogImageSource:   BufferImageSource | null = null;
-  private _fogData:          Uint8Array        | null = null;
-  /** Elapsed time in ms for shader animation (wave shimmer etc.). */
-  private _shaderTimeMs:     number = 0;
+  // ─── Baked terrain (1 RenderTexture replaces all ground+feature sprites) ────
+  /** Bake result: sprite + metadata. Set after bakeTerrain() in init(). */
+  private _bakeResult: BakeResult | null = null;
+  /** PixiJS Application reference — needed for patchBakedCell(). */
+  private _app: Application | null = null;
 
   // ─── Shoreline foam ───────────────────────────────────────────────────────
   private foamGfx:    Graphics | null = null;
@@ -396,35 +388,9 @@ export class SurfaceScene {
     ['deep_drill',        '/buildings/deep_drill.webp'],
   ];
 
-  /**
-   * Start loading ALL textures in parallel. Call this BEFORE awaiting API calls
-   * so network requests overlap. Pass the returned promise to init().
-   * If not called, init() will load textures itself (but sequentially with API).
-   */
-  preloadTextures(planet: Planet, star: Star): Promise<(Texture | null)[]> {
-    const atlasType = derivePlanetAtlasType(planet, star);
-    const atlasUrl  = `/tiles/tiles_${atlasType}.webp`;
-    const mountUrl  =
-      atlasType === 'ice'      ? '/tiles/habitable/mount_ice.webp'      :
-      atlasType === 'volcanic' ? '/tiles/habitable/mount_volcanic.webp' :
-                                 '/tiles/habitable/mount_rugged.webp';
-
-    const safeLoad = (url: string) => Assets.load<Texture>(url).catch(() => null);
-
-    return Promise.all([
-      safeLoad(atlasUrl),
-      safeLoad('/buildings/solar_plant_light.webp'),
-      safeLoad('/buildings/battery_station_on.webp'),
-      safeLoad('/buildings/wind_generator_on.webp'),
-      safeLoad('/buildings/mine_on.webp'),
-      safeLoad('/buildings/water_extractor_on.webp'),
-      safeLoad('/tiles/machines/bot_resercher.webp'),
-      safeLoad('/tiles/machines/bot_resercher_off.webp'),
-      safeLoad('/tiles/machines/premium_harvester_drone.webp'),
-      safeLoad('/tiles/machines/pos_drone.webp'),
-      safeLoad(mountUrl),
-      ...SurfaceScene.BUILDING_PNGS.map(([, url]) => safeLoad(url)),
-    ]);
+  /** @deprecated Use init() which loads textures internally. */
+  preloadTextures(_planet: Planet, _star: Star): Promise<(Texture | null)[]> {
+    return Promise.resolve(new Array(24).fill(null));
   }
 
   private _applyPreloadedTextures(textures: (Texture | null)[]): void {
@@ -455,19 +421,19 @@ export class SurfaceScene {
   // ─── Init ─────────────────────────────────────────────────────────────────
 
   /**
-   * @param preloadedTextures — optional promise from preloadTextures() started
-   *        earlier (runs in parallel with API calls). If omitted, textures load inline.
+   * @param app PixiJS Application — needed for RenderTexture baking.
    * @param surfaceState — fog, harvested cells, bot/drone positions loaded from DB.
    */
   async init(
+    app: Application,
     planet: Planet, star: Star, buildings: PlacedBuilding[],
-    preloadedTextures?: Promise<(Texture | null)[]>,
     surfaceState?: { revealedCells?: string[]; harvestedCells?: [string, unknown][]; bot?: { col: number; row: number; active: boolean } | null; harvesters?: { col: number; row: number }[] },
   ): Promise<void> {
-    this.planet     = planet;
-    this.planetId   = planet.id;
-    this.gridSize   = computeIsoGridSize(planet.radiusEarth * 6371);
-    this.waterLevel = planet.hydrosphere?.waterCoverageFraction ?? 0;
+    this._app       = app;
+    this.planet      = planet;
+    this.planetId    = planet.id;
+    this.gridSize    = computeIsoGridSize(planet.radiusEarth * 6371);
+    this.waterLevel  = planet.hydrosphere?.waterCoverageFraction ?? 0;
 
     // Restore harvested cells — prefer DB data, fallback to localStorage
     if (surfaceState?.harvestedCells && surfaceState.harvestedCells.length > 0) {
@@ -480,20 +446,23 @@ export class SurfaceScene {
     }
     this.advanceRegrowth();
 
-    // ── TEMPORARY: skip all texture loading for performance test ──────────
-    // TODO: restore after confirming textures are the bottleneck
-    // const textures = await (preloadedTextures ?? this.preloadTextures(planet, star));
-    // this._applyPreloadedTextures(textures);
-
-    // ── Ground layer — choose between shader (1 draw call) and legacy Graphics ──
+    // ── Bake terrain into RenderTexture (1 draw call) ────────────────────
     this.perf?.markStart('ground-layer');
-    // drawGroundLayer() is kept for fallback / incremental fog reveals but is no
-    // longer called on init — the WebGL shader replaces it.
-    // this.drawGroundLayer(); // REPLACED by _initTerrainShader() below
-    // this._buildNoiseOverlay();   // TEMP SKIP — perf test
-    // this._buildShorelineCells(); // TEMP SKIP — perf test
-    // this.placeMountOverlay();    // TEMP SKIP — perf test
+    // Load building textures in parallel with bake
+    const texturePromise = this._loadBuildingTextures(planet, star);
+    this._bakeResult = await bakeTerrain(app, planet, star, this.harvestedCells);
+    this.worldContainer.addChildAt(this._bakeResult.sprite, 0);
     this.perf?.markEnd('ground-layer');
+
+    // Wait for building textures
+    this.perf?.markStart('texture-load');
+    await texturePromise;
+    this.perf?.markEnd('texture-load');
+
+    // Mountain overlay (large PNG sprite on top of baked terrain)
+    if (this._bakeResult.mountPos && this._bakeResult.mountTex) {
+      this._placeMountOverlayFromBake(this._bakeResult.mountPos, this._bakeResult.mountTex);
+    }
 
     // Pre-mark existing buildings so they don't animate on scene load
     for (const b of buildings) this.animatedKeys.add(`${b.x},${b.y}`);
@@ -511,21 +480,6 @@ export class SurfaceScene {
     }
     this.fogLayer.initFromBuildings(buildings);
     this.perf?.markEnd('fog-init');
-
-    // WebGL terrain shader — init AFTER fogLayer so fog data can be synced.
-    this.perf?.markStart('terrain-shader');
-    try {
-      this._initTerrainShader();
-      // Wire fog reveal hook so texture updates incrementally
-      this.fogLayer.setRevealCellHook((c, r) => this.revealFogTexCell(c, r));
-    } catch (e) {
-      console.warn('[SurfaceScene] Terrain shader init failed, falling back to Graphics:', e);
-      this.drawGroundLayer();
-    }
-    this.perf?.markEnd('terrain-shader');
-
-    // Atmospheric clouds (TilingSprite) — TEMP SKIP for perf test
-    // await this._initCloudSprites();
 
     // Drone explorer — only spawn if colony hub already exists
     this.perf?.markStart('bot-spawn');
@@ -556,6 +510,60 @@ export class SurfaceScene {
       this._restoreDronePositions(); // localStorage fallback
     }
     this.perf?.markEnd('bot-spawn');
+  }
+
+  /** Load building PNG textures + bot/drone textures in parallel. */
+  private async _loadBuildingTextures(planet: Planet, star: Star): Promise<void> {
+    const safeLoad = (url: string) => Assets.load<Texture>(url).catch(() => null);
+    const [
+      solarLight, batteryGlow, windRotor, mineDrill, waterFrost,
+      botFly, botIdle, harvester, posDrone,
+      ...bldgTexArr
+    ] = await Promise.all([
+      safeLoad('/buildings/solar_plant_light.webp'),
+      safeLoad('/buildings/battery_station_on.webp'),
+      safeLoad('/buildings/wind_generator_on.webp'),
+      safeLoad('/buildings/mine_on.webp'),
+      safeLoad('/buildings/water_extractor_on.webp'),
+      safeLoad('/tiles/machines/bot_resercher.webp'),
+      safeLoad('/tiles/machines/bot_resercher_off.webp'),
+      safeLoad('/tiles/machines/premium_harvester_drone.webp'),
+      safeLoad('/tiles/machines/pos_drone.webp'),
+      ...SurfaceScene.BUILDING_PNGS.map(([, url]) => safeLoad(url)),
+    ]);
+    this.solarLightTex  = solarLight;
+    this.batteryGlowTex = batteryGlow;
+    this.windRotorTex   = windRotor;
+    this.mineDrillTex   = mineDrill;
+    this.waterFrostTex  = waterFrost;
+    this.botFlyTex      = botFly;
+    this.botIdleTex     = botIdle;
+    this.harvesterTex   = harvester;
+    this.posDroneTex    = posDrone;
+    for (let i = 0; i < SurfaceScene.BUILDING_PNGS.length; i++) {
+      const tex = bldgTexArr[i];
+      if (tex) this.bldgTextures[SurfaceScene.BUILDING_PNGS[i][0]] = tex;
+    }
+  }
+
+  /** Place mountain PNG overlay using bake result position. */
+  private _placeMountOverlayFromBake(
+    mountPos: { col: number; row: number },
+    mountTex: Texture,
+  ): void {
+    const sizeW = 7;
+    const TW2 = TILE_W / 2;
+    const TH2 = TILE_H / 2;
+    const footBotX = (mountPos.col + sizeW - mountPos.row - sizeW) * TW2;
+    const footBotY = (mountPos.col + sizeW + mountPos.row + sizeW) * TH2;
+    const sp = new Sprite(mountTex);
+    sp.anchor.set(0.5, 1.0);
+    const scale = (sizeW * TILE_W) / mountTex.width;
+    sp.scale.set(scale);
+    sp.position.set(footBotX, footBotY);
+    sp.zIndex = footBotY;
+    // Insert above ground layer but below buildings
+    this.featureLayer.addChild(sp);
   }
 
   /** Reveal fog around a starting cell (first visit, no hub yet). */
@@ -589,10 +597,8 @@ export class SurfaceScene {
       const cy = hub.y + (def?.sizeH ?? 2) / 2 - 0.5;
       const rawRadius = def?.fogRevealRadius ?? 30;
       const hubRadius = Math.min(rawRadius, Math.floor(this.gridSize * 0.25));
-      const newCells = this.fogLayer.revealAround(cx, cy, hubRadius);
+      this.fogLayer.revealAround(cx, cy, hubRadius);
       this.fogLayer.redraw();
-      // Incrementally add newly revealed tiles (instead of full ground rebuild)
-      this.revealGroundCells(newCells);
     }
   }
 
@@ -792,162 +798,17 @@ export class SurfaceScene {
 
   // ─── WebGL terrain shader (1 draw call) ─────────────────────────────────
 
-  /**
-   * Initialise the WebGL iso-terrain filter.
-   * Creates: fog DataTexture (N×N), UniformGroup, GlProgram, Filter, fullscreen Sprite.
-   * The sprite is added at index 0 of worldContainer (below everything else).
-   *
-   * Call AFTER fogLayer is initialised so the fog data can be synced immediately.
-   */
-  private _initTerrainShader(): void {
-    const N    = this.gridSize;
-    const wl   = this.waterLevel;
-    const seed = this.planet.seed;
+  /** @deprecated No longer needed — baked sprite lives in worldContainer. */
+  public resizeTerrainSprite(_screenW: number, _screenH: number): void {}
 
-    // ── Fog DataTexture ──────────────────────────────────────────────────────
-    // N×N RGBA Uint8Array; R channel = 255 (revealed) or 0 (hidden)
-    this._fogData = new Uint8Array(N * N * 4);
-    // Sync already-revealed cells from fogLayer (populated before this call)
-    if (this.fogLayer) {
-      for (let c = 0; c < N; c++) {
-        for (let r = 0; r < N; r++) {
-          if (this.fogLayer.isRevealed(c, r)) {
-            const idx = (r * N + c) * 4;
-            this._fogData[idx]     = 255; // R
-            this._fogData[idx + 1] = 0;   // G
-            this._fogData[idx + 2] = 0;   // B
-            this._fogData[idx + 3] = 255; // A
-          }
-        }
-      }
-    }
+  /** @deprecated Shader removed — fog handled by FogLayer Graphics. */
+  public revealFogTexCell(_col: number, _row: number): void {}
 
-    this._fogImageSource = new BufferImageSource({
-      resource: this._fogData,
-      width:    N,
-      height:   N,
-      format:   'rgba8unorm',
-    });
+  /** @deprecated Shader removed. */
+  public syncFogTexture(): void {}
 
-    // ── Color palette (hex → normalised vec3) ────────────────────────────────
-    const hex3 = (h: number): Float32Array => new Float32Array([
-      ((h >> 16) & 0xff) / 255,
-      ((h >>  8) & 0xff) / 255,
-      ( h        & 0xff) / 255,
-    ]);
-
-    // ── UniformGroup (name "isoUniforms" matches resource key in Filter) ──────
-    this._terrainUniforms = new UniformGroup({
-      uSeed:         { value: seed,              type: 'f32' },
-      uWaterLevel:   { value: wl,                type: 'f32' },
-      uGridSize:     { value: N,                 type: 'f32' },
-      uTime:         { value: 0.0,               type: 'f32' },
-      uResolution:   { value: new Float32Array([800, 600]), type: 'vec2<f32>' },
-      uContainerPos: { value: new Float32Array([0, 0]),     type: 'vec2<f32>' },
-      uZoom:         { value: 0.15,              type: 'f32' },
-      // Color palette
-      uDeepOcean:    { value: hex3(0x071318),    type: 'vec3<f32>' },
-      uOcean:        { value: hex3(0x0c1d2c),    type: 'vec3<f32>' },
-      uCoast:        { value: hex3(0x112535),    type: 'vec3<f32>' },
-      uBeach:        { value: hex3(0x172e40),    type: 'vec3<f32>' },
-      uLowland:      { value: hex3(0x1e3a1a),    type: 'vec3<f32>' },
-      uPlains:       { value: hex3(0x255520),    type: 'vec3<f32>' },
-      uHills:        { value: hex3(0x2f4a28),    type: 'vec3<f32>' },
-      uMountains:    { value: hex3(0x3a3a2a),    type: 'vec3<f32>' },
-      uPeaks:        { value: hex3(0x4a4540),    type: 'vec3<f32>' },
-      uFogColor:     { value: hex3(0x020510),    type: 'vec3<f32>' },
-    });
-
-    // ── GlProgram ─────────────────────────────────────────────────────────────
-    const glProgram = GlProgram.from({
-      vertex:   defaultFilterVert,
-      fragment: isoTerrainFrag,
-      name:     'iso-terrain-filter',
-    });
-
-    // ── Filter ────────────────────────────────────────────────────────────────
-    this._terrainFilter = new Filter({
-      glProgram,
-      resources: {
-        isoUniforms: this._terrainUniforms,
-        uFogTex:     this._fogImageSource,
-      },
-    });
-
-    // ── Fullscreen sprite ─────────────────────────────────────────────────────
-    // The sprite lives at the STAGE level (not inside worldContainer) so the
-    // filter area exactly equals the screen rectangle — giving predictable
-    // screen-space coordinates via vTextureCoord.
-    //
-    // SurfacePixiView must insert this into app.stage at index 0 (below worldContainer).
-    // The sprite width/height must be updated on screen resize — see resizeTerrainSprite().
-    this.terrainSprite = new Sprite(Texture.WHITE);
-    this.terrainSprite.width  = 1280; // updated by resizeTerrainSprite()
-    this.terrainSprite.height = 720;
-    this.terrainSprite.position.set(0, 0);
-    this.terrainSprite.filters = [this._terrainFilter!];
-    // NOTE: terrainSprite is NOT added here — caller (SurfacePixiView) adds it to app.stage.
-  }
-
-  /**
-   * Resize the terrain shader sprite to match the screen size.
-   * Must be called on init and on every resize.
-   */
-  public resizeTerrainSprite(screenW: number, screenH: number): void {
-    if (!this.terrainSprite) return;
-    this.terrainSprite.width  = screenW;
-    this.terrainSprite.height = screenH;
-  }
-
-  /**
-   * Update fog DataTexture for a single cell.
-   * Called by FogLayer.revealCell() hook after reveal.
-   */
-  public revealFogTexCell(col: number, row: number): void {
-    const N = this.gridSize;
-    if (!this._fogData || !this._fogImageSource) return;
-    const idx = (row * N + col) * 4;
-    this._fogData[idx]     = 255;
-    this._fogData[idx + 1] = 0;
-    this._fogData[idx + 2] = 0;
-    this._fogData[idx + 3] = 255;
-    this._fogImageSource.update();
-  }
-
-  /**
-   * Sync entire fog DataTexture from current FogLayer revealed set.
-   * Called once after init to ensure both are in sync.
-   */
-  public syncFogTexture(): void {
-    const N = this.gridSize;
-    if (!this._fogData || !this._fogImageSource || !this.fogLayer) return;
-    this._fogData.fill(0);
-    for (let c = 0; c < N; c++) {
-      for (let r = 0; r < N; r++) {
-        if (this.fogLayer.isRevealed(c, r)) {
-          const idx = (r * N + c) * 4;
-          this._fogData[idx]     = 255;
-          this._fogData[idx + 3] = 255;
-        }
-      }
-    }
-    this._fogImageSource.update();
-  }
-
-  /**
-   * Update camera-dependent shader uniforms (must be called each frame or after pan/zoom).
-   * @param containerX worldContainer.position.x
-   * @param containerY worldContainer.position.y
-   * @param zoom       worldContainer.scale.x
-   */
-  public updateShaderCamera(containerX: number, containerY: number, zoom: number): void {
-    if (!this._terrainUniforms) return;
-    const u = this._terrainUniforms.uniforms;
-    (u.uContainerPos as Float32Array)[0] = containerX;
-    (u.uContainerPos as Float32Array)[1] = containerY;
-    u.uZoom = zoom;
-    this._terrainUniforms.update();
-  }
+  /** @deprecated Shader removed — baked sprite lives in worldContainer (transforms automatically). */
+  public updateShaderCamera(_containerX: number, _containerY: number, _zoom: number): void {}
 
   /**
    * Create a single ground tile (sprite or fallback diamond) for a LAND cell.
@@ -985,54 +846,24 @@ export class SurfaceScene {
    * Incrementally reveal ground cells (used by fog reveal instead of full redraw).
    * Only adds tiles for cells that aren't already in the ground layer.
    */
-  revealGroundCells(cells: { col: number; row: number }[]): void {
-    const hH = TILE_H / 2;
-    for (const { col, row } of cells) {
-      const key = `${col},${row}`;
-      if (this.groundCellMap.has(key)) continue;
-
-      const terrain = classifyCellTerrain(col, row, this.planet.seed, this.waterLevel, this.gridSize);
-
-      // Water/beach — add individual small Graphics (z-sorted)
-      if (isWaterTerrain(terrain) || terrain === 'beach') {
-        const { x, y } = gridToScreen(col, row);
-        const baseY = y + hH;
-        const hW = TILE_W / 2;
-        const g = new Graphics();
-        g.zIndex = col + row;
-        const color = WATER_COLORS[terrain] ?? 0x0d1f35;
-        g.poly([x, baseY - hH, x + hW, baseY, x, baseY + hH, x - hW, baseY]);
-        g.fill({ color });
-        this.groundLayer.addChild(g);
-        this.groundCellMap.set(key, g);
-        continue;
-      }
-
-      const child = this._createGroundCellFromTerrain(col, row, terrain);
-      if (child) {
-        this.groundLayer.addChild(child);
-        this.groundCellMap.set(key, child);
-      }
-    }
-  }
+  /** No-op — baked sprite already contains all cells (fog hides unrevealed). */
+  revealGroundCells(_cells: { col: number; row: number }[]): void {}
 
   /**
-   * Replace a single ground cell (used after harvest — update one tile instead of full redraw).
+   * Patch a single cell in the baked RenderTexture (after harvest).
    */
   private _replaceGroundCell(col: number, row: number): void {
-    const key = `${col},${row}`;
-    const old = this.groundCellMap.get(key);
-    if (old) {
-      this.groundLayer.removeChild(old);
-      old.destroy();
-    }
+    if (!this._app || !this._bakeResult?.atlasTexture || !this._bakeResult?.sprite) return;
     const terrain = classifyCellTerrain(col, row, this.planet.seed, this.waterLevel, this.gridSize);
-    if (isWaterTerrain(terrain) || terrain === 'beach') return; // water cells not tracked individually
-    const child = this._createGroundCellFromTerrain(col, row, terrain);
-    if (child) {
-      this.groundLayer.addChild(child);
-      this.groundCellMap.set(key, child);
-    }
+    if (isWaterTerrain(terrain) || terrain === 'beach') return;
+    const defFrame = terrainToAtlasIndex(terrain, col, row, this.planet.seed, this.gridSize);
+    if (defFrame === null) return;
+    const frameIdx = this.getEffectiveFrame(col, row, defFrame);
+    patchBakedCell(
+      this._app, this._bakeResult.sprite, this._bakeResult.atlasTexture,
+      col, row, frameIdx, this.planet.seed, this.gridSize,
+    );
+    this._bakeResult.tileFrames.set(`${col},${row}`, frameIdx);
   }
 
   /**
@@ -1306,17 +1137,7 @@ export class SurfaceScene {
         this.animatedKeys.add(key);
         this._startBuildingAnim(b, bldg);
       }
-      // Create idle animation for supported building types
-      if (b.type === 'resource_storage' || b.type === 'landing_pad' || b.type === 'spaceport' || b.type === 'solar_plant' || b.type === 'battery_station' || b.type === 'wind_generator' || b.type === 'thermal_generator' || b.type === 'mine' || b.type === 'fusion_reactor' || b.type === 'water_extractor' || b.type === 'atmo_extractor' || b.type === 'deep_drill') {
-        this._createBldgEffect(b);
-        // Restore previous animation state so existing buildings don't restart from zero
-        const saved  = savedAnim.get(key);
-        const newEff = this.bldgEffects.get(key);
-        if (saved && newEff) {
-          newEff.timeMs = saved.timeMs;
-          newEff.extra  = { ...saved.extra };
-        }
-      }
+      // Building idle effects REMOVED — they were 20+ Graphics.clear() per tick
     }
   }
 
@@ -1400,13 +1221,6 @@ export class SurfaceScene {
   public update(deltaMs: number): void {
     this.perf?.frameStart();
 
-    // Update shader time uniform for water wave animation
-    if (this._terrainUniforms) {
-      this._shaderTimeMs += deltaMs;
-      this._terrainUniforms.uniforms.uTime = this._shaderTimeMs;
-      this._terrainUniforms.update();
-    }
-
     // Check regrowth every minute (not every frame)
     this.regrowthCheckMs += deltaMs;
     if (this.regrowthCheckMs > 60_000) {
@@ -1422,7 +1236,7 @@ export class SurfaceScene {
       if (!hasSpriteAnim(sp)) this.animatedSprites.splice(i, 1);
     }
 
-    // Tick floating-text animations (driven here — no separate requestAnimationFrame loop)
+    // Tick floating-text animations
     const FLOAT_DURATION = 1200;
     for (let i = this._floatAnims.length - 1; i >= 0; i--) {
       const fa = this._floatAnims[i];
@@ -1443,29 +1257,11 @@ export class SurfaceScene {
     // Animate harvest progress ring
     this.drawHarvestRing(deltaMs);
 
-    // Animate shoreline foam — skip entirely on mobile (expensive GPU work).
-    // Desktop: throttled to every 4 frames (~15 fps redraw on 60 fps).
-    if (!this._isMobile) {
-      this._foamFrameCount++;
-      if (this._foamFrameCount % 4 === 0) {
-        this._updateFoam(deltaMs * 4);
-      }
-    }
-
-    // Cloud overlay is static — no per-frame update needed
-
     // Building placement animations
     this._tickBuildingAnims(deltaMs);
 
-    // Per-building idle animations — skip entirely on mobile (20+ Graphics.clear() per tick)
-    if (!this._isMobile) {
-      this.perf?.sectionStart('bldg-fx');
-      this._bldgEffectFrame++;
-      this._tickBldgEffects(deltaMs);
-      this.perf?.sectionEnd('bldg-fx');
-    } else {
-      this.perf?.sectionSkip('bldg-fx');
-    }
+    // Building idle effects — REMOVED (was 20+ Graphics.clear() per tick)
+    this.perf?.sectionSkip('bldg-fx');
 
     // Demolish VFX animations
     this._tickDemolishEffects(deltaMs);
@@ -1475,12 +1271,10 @@ export class SurfaceScene {
     if (this.bot) {
       const crossed = this.bot.update(deltaMs, this.currentIsotopes);
       if (crossed) {
-        // Save bot position to localStorage on each cell cross
         this._saveBotPosition();
         if (this.fogLayer) {
           const newCells = this.fogLayer.revealAround(Math.round(this.bot.col), Math.round(this.bot.row), BOT_REVEAL_RADIUS);
           this.fogLayer.redraw();
-          this.revealGroundCells(newCells);
         }
       }
     }
@@ -1500,61 +1294,8 @@ export class SurfaceScene {
     if (droneMoved) this._saveDronePositions();
     this.perf?.sectionEnd('bot');
 
-    if (!this.hubEffects) { this.perf?.sectionSkip('hub-fx'); this.perf?.frameEnd(); return; }
-    // Skip hub effects entirely on mobile — 7 Graphics.clear() per tick is too heavy for mobile GPU
-    if (this._isMobile) { this.perf?.sectionSkip('hub-fx'); this.perf?.frameEnd(); return; }
-    this.perf?.sectionStart('hub-fx');
-    this._hubFrameCount++;
-    const eff = this.hubEffects;
-    eff.timeMs += deltaMs;
-    const t   = eff.timeMs;
-    const TH2 = TILE_H / 2;
-
-    // ── Pulsing diamond outlines — all 5 in ONE Graphics.clear() ────────
-    eff.diamondGfx.clear();
-    for (let i = 0; i < eff.diamondData.length; i++) {
-      const d     = eff.diamondData[i];
-      const phase = (i / eff.diamondData.length) * Math.PI * 2;
-      const a     = 0.10 + 0.07 * Math.sin((t / 2500) * Math.PI * 2 + phase);
-      eff.diamondGfx.poly([d.cx, d.cy - d.rH, d.cx + d.rW, d.cy, d.cx, d.cy + d.rH, d.cx - d.rW, d.cy]);
-      eff.diamondGfx.stroke({ width: 1.0, color: d.color, alpha: a });
-    }
-
-    // ── Rotating orbit arcs (blendMode='add' — must stay separate) ───────
-    const ARC_SPAN = 0.55;   // radians (~31°) — arc length
-    const N_PTS    = 14;     // polyline segments per arc
-    for (const orb of eff.orbits) {
-      orb.angle += orb.speed * deltaMs;
-      const g     = orb.g;
-      const a0    = orb.angle;
-      g.clear();
-      // Tail → head as open polyline
-      g.moveTo(orb.cx + orb.rW * Math.cos(a0), orb.cy + orb.rH * Math.sin(a0));
-      for (let j = 1; j <= N_PTS; j++) {
-        const a = a0 + (j / N_PTS) * ARC_SPAN;
-        g.lineTo(orb.cx + orb.rW * Math.cos(a), orb.cy + orb.rH * Math.sin(a));
-      }
-      g.stroke({ width: 2.5, color: orb.color, alpha: 0.88 });
-      // Bright dot at arc head
-      const headA = a0 + ARC_SPAN;
-      g.circle(orb.cx + orb.rW * Math.cos(headA), orb.cy + orb.rH * Math.sin(headA), 3.0);
-      g.fill({ color: 0xffffff, alpha: 0.95 });
-    }
-
-    // ── Sparks — all 4 in ONE Graphics.clear() ────────────────────────────
-    {
-      const topOrb = eff.orbits[4];
-      eff.sparkGfx.clear();
-      for (const sp of eff.sparks) {
-        sp.angle += sp.speed * deltaMs;
-        const sx = topOrb.cx + sp.dist * Math.cos(sp.angle);
-        const sy = topOrb.cy + sp.dist * Math.sin(sp.angle) * (TILE_H / TILE_W);
-        const a  = 0.5 + 0.5 * Math.sin(t / 1200 + sp.phase);
-        eff.sparkGfx.rect(sx - 1, sy - 1, 2, 2);
-        eff.sparkGfx.fill({ color: 0x88ccff, alpha: a });
-      }
-    }
-    this.perf?.sectionEnd('hub-fx');
+    // Hub effects — REMOVED (was 7 Graphics.clear() per tick)
+    this.perf?.sectionSkip('hub-fx');
     this.perf?.frameEnd();
   }
 

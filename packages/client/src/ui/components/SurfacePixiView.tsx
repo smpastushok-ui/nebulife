@@ -151,8 +151,6 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       const posX = cW / 2 + panRef.current.x;
       const posY = cH / 4 + panRef.current.y;
       scene.worldContainer.position.set(posX, posY);
-      // Update shader camera uniforms (filter renders in screen space)
-      scene.updateShaderCamera(posX, posY, zoomRef.current);
     }, []);
 
     const applyZoom = useCallback((z: number) => {
@@ -163,7 +161,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       zoomRef.current = Math.max(0.15, Math.min(maxZoom, z));
       if (sceneRef.current) {
         sceneRef.current.worldContainer.scale.set(zoomRef.current);
-        clampPan(); // clampPan also calls updateShaderCamera
+        clampPan();
       }
     }, [clampPan]);
 
@@ -239,11 +237,6 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           }
         }, { passive: false });
 
-        // TEMP: skip texture preload for performance test (green background mode)
-        // const texturePreload = scene.preloadTextures(planet, star);
-        perf.markSkip('texture-load');
-        const texturePreload = Promise.resolve(new Array(24).fill(null) as (null)[]);
-
         // Load buildings + surface state from API in parallel
         perf.markStart('api-load');
         const [loadedBuildings, surfaceState] = await Promise.all([
@@ -278,17 +271,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         // Pass surface state (fog, harvests, bot, drones) loaded from DB
         scene.setPlayerId(playerId);
         scene.setSaveSurfaceState((data) => saveSurfaceState(playerId, planet.id, data));
-        await scene.init(planet, star, loaded, texturePreload, surfaceState);
-
-        // Insert terrain shader sprite below worldContainer (stage index 0)
-        if (scene.terrainSprite) {
-          scene.resizeTerrainSprite(app.screen.width, app.screen.height);
-          app.stage.addChildAt(scene.terrainSprite, 0);
-          // Resize on canvas resize
-          app.renderer.on('resize', (w: number, h: number) => {
-            scene.resizeTerrainSprite(w, h);
-          });
-        }
+        await scene.init(app, planet, star, loaded, surfaceState);
 
         // Wire isotope consumption callback for drone fuel
         scene.setConsumeIsotopesCallback((amount) => {
