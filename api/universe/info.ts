@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getTotalPlayerCount } from '../../packages/server/src/db.js';
-import { PLAYERS_PER_GROUP } from '../../packages/core/src/constants/galaxy.js';
+import { getTotalPlayerCount, getClusterCount } from '../../packages/server/src/db.js';
 
 /**
  * GET /api/universe/info
@@ -16,8 +15,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const totalPlayers = await getTotalPlayerCount();
-    const groupCount = Math.max(1, Math.ceil(totalPlayers / PLAYERS_PER_GROUP));
+    const [totalPlayers, groupCount] = await Promise.all([
+      getTotalPlayerCount(),
+      getClusterCount(),
+    ]);
 
     // Cache for 60 seconds — player count changes infrequently
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');

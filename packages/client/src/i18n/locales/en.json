@@ -892,7 +892,28 @@
   "tutorial": {
     "research_progress": "Research: {{current}}/{{total}}",
     "done": "Done!",
-    "step_counter": "Step {{step}} / {{total}}"
+    "step_counter": "Step {{step}} / {{total}}",
+    "next": "Next",
+    "skip": "Skip tutorial",
+    "click_hint": "Click on the highlighted element",
+    "step_terminal_text": "Commander, your control center awaits. Click TERMINAL to open the Control Center.",
+    "step_nav_planets_text": "All information about your mission is gathered here. Navigate to the Planets tab.",
+    "step_expand_star_text": "Expand your home star to see the planets in the system.",
+    "step_add_fav_text": "Add your home planet to Favorites for quick access.",
+    "step_check_fav_text": "Check the Favorites tab — your planet is now there.",
+    "step_go_systems_text": "Navigate to the Systems tab to review your star systems.",
+    "step_first_research_text": "Launch your first research! Observatories will scan the system.",
+    "step_hud_obs_text": "Observatories — shows how many telescopes are busy vs. available.",
+    "step_hud_obs_next": "Next",
+    "step_hud_data_next": "Got it",
+    "step_hud_data_text": "Research data — each scan consumes one unit. Data replenishes over time.",
+    "step_free_task_text": "Launch 2 more research sessions on any systems.",
+    "step_anomaly_text": "Commander! The observatory has detected an anomalous signal. Research revealed an unknown object...",
+    "step_anomaly_next": "Investigate",
+    "step_quantum_text": "Choose Quantum Focus for detailed analysis. First discovery is free!",
+    "step_save_gallery_text": "Save the discovery photo to the Gallery for your collection.",
+    "step_gallery_final_text": "Congratulations, Commander! Your first discovery has been saved to the Archive. Keep exploring the cosmos!",
+    "step_gallery_final_next": "Finish"
   },
 
   "log": {

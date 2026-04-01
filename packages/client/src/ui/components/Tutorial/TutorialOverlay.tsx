@@ -276,7 +276,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 
         {/* Text */}
         <div style={{ marginBottom: isInfoStep || isAutoStep ? 14 : 0 }}>
-          {currentText}
+          {t(currentText)}
         </div>
 
         {/* "Next" button for info steps */}
@@ -306,14 +306,14 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
               (e.target as HTMLElement).style.background = 'rgba(68, 102, 136, 0.2)';
             }}
           >
-            {currentNextLabel}
+            {t(currentNextLabel)}
           </button>
         )}
 
         {/* Click hint for click steps */}
         {step.type === 'click' && targetRect && (
           <div style={{ fontSize: 10, color: '#556677', marginTop: 8 }}>
-            Натиснiть на видiлений елемент
+            {t('tutorial.click_hint')}
           </div>
         )}
 
@@ -345,7 +345,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
               (e.target as HTMLElement).style.background = 'rgba(68, 102, 136, 0.2)';
             }}
           >
-            Далi
+            {t('tutorial.next')}
           </button>
         )}
       </div>
@@ -381,7 +381,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
           (e.target as HTMLElement).style.borderColor = 'rgba(51, 68, 85, 0.3)';
         }}
       >
-        Пропустити туторiал
+        {t('tutorial.skip')}
       </button>
     </>
   );
