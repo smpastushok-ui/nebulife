@@ -246,12 +246,12 @@ export class SurfaceScene {
     this.worldContainer.addChild(
       this.featureLayer,
       this.corridorLayer,
-      this.overlayLayer,
       this.effectLayer,
       this.buildingLayer,
       this.demolishLayer,    // demolish VFX — above buildings, below rover
       this.roverLayer,       // rover — above demolish VFX
-      this.ghostLayer,       // building placement ghost — above rover
+      this.overlayLayer,     // zone overlay — above buildings so green zones visible
+      this.ghostLayer,       // building placement ghost — topmost before fog
       // fogLayer is added last (topmost) after init
     );
   }

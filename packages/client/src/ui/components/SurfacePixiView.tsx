@@ -468,30 +468,26 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
-      // Ghost preview on hover — skip when pending placement is fixed (not in move mode)
-      if (selectedBuilding && sceneRef.current && !isDragging.current && !pendingPlacement) {
+      const inPlacementMode = !!(selectedBuilding && !pendingPlacement) || !!(pendingPlacement?.moving);
+      const buildingType = pendingPlacement?.moving ? pendingPlacement.type : selectedBuilding;
+
+      // Ghost preview — follows pointer (hover on desktop, drag on touch)
+      if (inPlacementMode && sceneRef.current && buildingType) {
         const scene = sceneRef.current;
         const rect  = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const z     = zoomRef.current;
         const wx    = (e.clientX - rect.left - scene.worldContainer.x) / z;
         const wy    = (e.clientY - rect.top  - scene.worldContainer.y) / z;
         const { col, row } = screenToGrid(wx, wy);
-        const valid = scene.canBuildAt(col, row, selectedBuilding, buildings);
-        scene.updateGhost(col, row, selectedBuilding, valid);
-      }
-      // Move mode — ghost follows pointer across valid zones
-      if (pendingPlacement?.moving && sceneRef.current && !isDragging.current) {
-        const scene = sceneRef.current;
-        const rect  = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        const z     = zoomRef.current;
-        const wx    = (e.clientX - rect.left - scene.worldContainer.x) / z;
-        const wy    = (e.clientY - rect.top  - scene.worldContainer.y) / z;
-        const { col, row } = screenToGrid(wx, wy);
-        const valid = scene.canBuildAt(col, row, pendingPlacement.type, buildings);
-        scene.updateGhost(col, row, pendingPlacement.type, valid);
+        const valid = scene.canBuildAt(col, row, buildingType, buildings);
+        scene.updateGhost(col, row, buildingType, valid);
       }
 
       if (!isDragging.current) return;
+
+      // In placement mode, don't pan — ghost follows finger instead
+      if (inPlacementMode) return;
+
       const dx = e.clientX - dragStart.current.px;
       const dy = e.clientY - dragStart.current.py;
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved.current = true;
@@ -501,7 +497,6 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
       if (dragMoved.current) {
         sceneRef.current?.cancelHarvestRing();
-        sceneRef.current?.clearGhost();
       }
     };
 
