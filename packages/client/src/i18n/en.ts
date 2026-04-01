@@ -114,6 +114,7 @@ export const en: Record<TranslationKey, string> = {
   'research.planet_habitable':   '[!] HABITABLE',
   'research.view_system':        'VIEW SYSTEM',
   'research.close':              'Close',
+  'research.panel_ring_locked':  'Research Ring {ring} first',
   'research.type.rocky':         'Rocky',
   'research.type.dwarf':         'Dwarf',
   'research.type.gas_giant':     'Gas Giant',

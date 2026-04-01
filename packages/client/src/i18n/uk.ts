@@ -112,6 +112,7 @@ export const uk = {
   'research.planet_habitable':   '[!] ПРИДАТНА',
   'research.view_system':        'ОГЛЯНУТИ СИСТЕМУ',
   'research.close':              'Закрити',
+  'research.panel_ring_locked':  'Спершу дослідіть Кільце {ring}',
   'research.type.rocky':         "Кам'яниста",
   'research.type.dwarf':         'Карликова',
   'research.type.gas_giant':     'Газовий гігант',

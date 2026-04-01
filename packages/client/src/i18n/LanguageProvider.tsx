@@ -7,7 +7,7 @@ import type { Language } from '@nebulife/core';
 // Types
 // ---------------------------------------------------------------------------
 
-type Translations = typeof uk;
+type Translations = Record<keyof typeof uk, string>;
 
 const bundles: Record<Language, Translations> = { uk, en };
 
