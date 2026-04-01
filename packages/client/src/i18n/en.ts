@@ -301,6 +301,10 @@ export const en: Record<TranslationKey, string> = {
   'errors.surfaceChaosTitle': 'Planet in Chaos',
   'errors.surfaceChaosBody': 'The planet is in chaos — now is not the time for this. Find a new home.',
   'errors.surfaceChaosBtn': 'Understood',
+
+  // ─── Digest ───────────────────────────────────────────────────────────────
+  'digest.load_error':   'Failed to load digest',
+  'digest.not_available': 'Digest not yet available',
   'event.evacuation':       'Evacuation',
   'event.trajectory_updated': 'ALERT: TRAJECTORY UPDATED',
   'event.urgent_broadcast': '[ URGENT VIDEO MESSAGE ]',

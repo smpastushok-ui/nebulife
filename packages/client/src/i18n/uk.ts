@@ -299,6 +299,10 @@ export const uk = {
   'errors.surfaceChaosTitle': 'Планета в хаосі',
   'errors.surfaceChaosBody': 'На планеті хаос, зараз не час для цього — шукайте новий дім.',
   'errors.surfaceChaosBtn': 'Зрозуміло',
+
+  // ─── Digest ───────────────────────────────────────────────────────────────
+  'digest.load_error':   'Помилка завантаження дайджесту',
+  'digest.not_available': 'Дайджест ще не готовий',
   'event.evacuation':       'Евакуація',
   'event.trajectory_updated': 'УВАГА: ТРАЄКТОРIЯ ОНОВЛЕНА',
   'event.urgent_broadcast': '[ ТЕРМIНОВЕ ВIДЕО-ПОВIДОМЛЕННЯ ]',

@@ -3062,9 +3062,19 @@ function AppInner() {
         const res = await fetch('/api/digest/latest', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('nebulife_firebase_token') ?? ''}` },
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.warn('[digest] API response not ok:', res.status, res.statusText);
+          setToastMessage(t('digest.load_error'));
+          setTimeout(() => setToastMessage(null), 3500);
+          return;
+        }
         const data = await res.json();
-        if (!data.digest) return;
+        if (!data.digest) {
+          console.warn('[digest] No digest in response:', data);
+          setToastMessage(t('digest.not_available'));
+          setTimeout(() => setToastMessage(null), 3500);
+          return;
+        }
         // Use player's preferred language, fallback to other
         const digestLang = lang === 'en' ? 'en' : 'uk';
         const images = data.digest.images?.[digestLang] ?? data.digest.images?.uk ?? data.digest.images?.en ?? [];
@@ -3076,8 +3086,16 @@ function AppInner() {
           setLastDigestSeen(weekDate);
           const pid = playerId.current;
           if (pid) updatePlayer(pid, { last_digest_seen: weekDate }).catch(() => {});
+        } else {
+          console.warn('[digest] No images found for lang:', digestLang, data.digest.images);
+          setToastMessage(t('digest.not_available'));
+          setTimeout(() => setToastMessage(null), 3500);
         }
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.warn('[digest] Network or parse error:', err);
+        setToastMessage(t('digest.load_error'));
+        setTimeout(() => setToastMessage(null), 3500);
+      }
     };
     window.addEventListener('nebulife:open-digest', handleOpenDigest);
     return () => window.removeEventListener('nebulife:open-digest', handleOpenDigest);
