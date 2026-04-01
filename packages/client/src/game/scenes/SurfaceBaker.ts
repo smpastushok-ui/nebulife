@@ -254,7 +254,8 @@ export async function bakeTerrain(
 
 /**
  * Patch a single cell in the baked sprite after harvest.
- * Draws over the old cell with the new frame (or stump/depleted).
+ * Clears the old sprite area with a grass tile, then draws the new frame
+ * (stump/depleted/dry) on top.
  *
  * @param app PixiJS application
  * @param bakedSprite the baked terrain sprite
@@ -287,18 +288,22 @@ export function patchBakedCell(
   const cx    = x + offsetX;
   const baseY = y + hH + offsetY;
 
-  // Create a small container with the new sprite
   const patchContainer = new Container();
 
-  // First draw a background diamond to cover the old sprite
-  const bg = new Graphics();
-  const terrain = classifyCellTerrain(col, row, seed, 0, N);
-  // For now use a grass-like color as underlay (the sprite will cover it)
-  bg.poly([cx, baseY - hH, cx + hW, baseY, cx, baseY + hH, cx - hW, baseY]);
-  bg.fill({ color: 0x225533 });
-  patchContainer.addChild(bg);
+  // Step 1: Draw a grass base sprite to cover the old tree/ore/vent sprite.
+  // Grass frames are 10-12; pick a deterministic variant for this cell.
+  const grassFrameIdx = 10 + Math.floor(
+    ((Math.sin(col * 127.1 + row * 311.7 + (seed + 1111) * 0.1) * 43758.5453) % 1 + 1) % 1 * 3,
+  );
+  const grassTex = getAtlasFrame(atlas, grassFrameIdx);
+  const grassSp  = new Sprite(grassTex);
+  grassSp.anchor.set(0.5, SPRITE_ANCHOR_Y);
+  grassSp.scale.set(TILE_SCALE);
+  grassSp.position.set(Math.round(cx), Math.round(baseY));
+  if (cellMirrorVariant(col, row, seed)) grassSp.scale.x = -TILE_SCALE;
+  patchContainer.addChild(grassSp);
 
-  // Draw the new frame sprite
+  // Step 2: Draw the new harvest-state sprite on top (stump, depleted, dry, etc.)
   const tex = getAtlasFrame(atlas, newFrameIdx);
   const sp  = new Sprite(tex);
   sp.anchor.set(0.5, SPRITE_ANCHOR_Y);
@@ -307,12 +312,12 @@ export function patchBakedCell(
   if (cellMirrorVariant(col, row, seed)) sp.scale.x = -TILE_SCALE;
   patchContainer.addChild(sp);
 
-  // Render patch onto the existing RenderTexture
+  // Render patch onto the existing RenderTexture (overlay mode)
   const rt = bakedSprite.texture as RenderTexture;
   app.renderer.render({
     container: patchContainer,
     target: rt,
-    clear: false,  // don't clear — overlay on existing
+    clear: false,
   });
 
   patchContainer.destroy({ children: true });

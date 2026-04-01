@@ -459,10 +459,7 @@ export class SurfaceScene {
     await texturePromise;
     this.perf?.markEnd('texture-load');
 
-    // Mountain overlay (large PNG sprite on top of baked terrain)
-    if (this._bakeResult.mountPos && this._bakeResult.mountTex) {
-      this._placeMountOverlayFromBake(this._bakeResult.mountPos, this._bakeResult.mountTex);
-    }
+    // Mountain overlay — DISABLED (too large visually, buildings clip through it)
 
     // Pre-mark existing buildings so they don't animate on scene load
     for (const b of buildings) this.animatedKeys.add(`${b.x},${b.y}`);
