@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { LanguageProvider, useT } from './i18n/index.js';
+import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
 import { LanguageSelectScreen } from './ui/components/LanguageSelectScreen.js';
 import { GameEngine } from './game/GameEngine.js';
@@ -5006,14 +5006,15 @@ function AppInner() {
 
 export function App() {
   const [languageSelected, setLanguageSelected] = useState(
-    () => !!localStorage.getItem('nebulife_language'),
+    () => localStorage.getItem('nebulife_lang_chosen') === '1',
   );
   const [savedLang] = useState<Language>(
-    () => (localStorage.getItem('nebulife_language') as Language) || 'uk',
+    () => (localStorage.getItem('nebulife_lang') as Language) || 'uk',
   );
 
   const handleLanguageChange = useCallback((lang: Language) => {
-    localStorage.setItem('nebulife_language', lang);
+    localStorage.setItem('nebulife_lang', lang);
+    i18n.changeLanguage(lang);
   }, []);
 
   if (!languageSelected) {
@@ -5021,7 +5022,9 @@ export function App() {
       <LanguageProvider initial="uk">
         <LanguageSelectScreen
           onSelect={(lang) => {
-            localStorage.setItem('nebulife_language', lang);
+            localStorage.setItem('nebulife_lang', lang);
+            localStorage.setItem('nebulife_lang_chosen', '1');
+            i18n.changeLanguage(lang);
             setLanguageSelected(true);
           }}
         />
