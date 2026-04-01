@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await Promise.all(
         batch.map(async (pid) => {
           try {
-            await saveMessage('system', 'A.S.T.R.A.', `system:${pid}`, factText);
+            await saveMessage('system', 'A.S.T.R.A.', `astra:${pid}`, factText);
             delivered++;
           } catch (err) {
             console.warn(`[daily-fact] Failed for ${pid}:`, err);

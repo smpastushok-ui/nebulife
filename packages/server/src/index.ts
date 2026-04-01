@@ -83,6 +83,7 @@ export {
   isChatBanned,
   // Daily Content
   getAllPlayerIds,
+  getPlayersRegisteredBefore,
   getDailyContent,
   saveDailyContent,
   // A.S.T.R.A. Tokens

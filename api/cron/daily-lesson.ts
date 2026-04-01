@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await Promise.all(
         batch.map(async (pid) => {
           try {
-            await saveMessage('system', 'A.S.T.R.A.', `system:${pid}`, notifText);
+            await saveMessage('system', 'A.S.T.R.A.', `astra:${pid}`, notifText);
             delivered++;
           } catch (err) {
             console.warn(`[daily-lesson] Failed for ${pid}:`, err);

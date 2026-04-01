@@ -1243,7 +1243,13 @@ export async function isChatBanned(playerId: string, channel: string): Promise<b
 
 export async function getAllPlayerIds(): Promise<string[]> {
   const sql = getSQL();
-  const rows = await sql`SELECT id FROM players`;
+  const rows = await sql`SELECT id FROM players ORDER BY created_at`;
+  return rows.map((r) => (r as { id: string }).id);
+}
+
+export async function getPlayersRegisteredBefore(date: string): Promise<string[]> {
+  const sql = getSQL();
+  const rows = await sql`SELECT id FROM players WHERE created_at < ${date}::timestamptz ORDER BY created_at`;
   return rows.map((r) => (r as { id: string }).id);
 }
 

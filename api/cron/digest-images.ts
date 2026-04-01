@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getPendingDigest, updateDigestImage, saveMessage } from '../../packages/server/src/db.js';
+import { getPendingDigest, updateDigestImage, saveMessage, getPlayersRegisteredBefore } from '../../packages/server/src/db.js';
 import { generateDigestImage, type DigestNewsItem } from '../../packages/server/src/digest-generator.js';
 import { DIGEST_LANGUAGES, DIGEST_IMAGES_PER_LANG } from '@nebulife/core';
 
 const ITEMS_PER_IMAGE = 3;
 const TOTAL_IMAGES = DIGEST_LANGUAGES.length * DIGEST_IMAGES_PER_LANG;
+const BATCH_SIZE = 200;
 
 /**
  * GET /api/cron/digest-images
@@ -63,14 +64,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const newCount = count + 1;
     await updateDigestImage(digest.week_date, JSON.stringify(currentImages), newCount, TOTAL_IMAGES);
 
-    // If all done, post notification to global chat
+    // If all done, notify each player registered before this digest via their astra channel
     if (newCount >= TOTAL_IMAGES) {
       const digestMsg = JSON.stringify({
         type: 'digest',
         weekDate: digest.week_date,
       });
-      await saveMessage('system', 'NEBULIFE', 'global', digestMsg);
-      console.log(`[digest-images] Digest complete for ${digest.week_date}`);
+      const playerIds = await getPlayersRegisteredBefore(digest.created_at);
+      for (let i = 0; i < playerIds.length; i += BATCH_SIZE) {
+        const batch = playerIds.slice(i, i + BATCH_SIZE);
+        await Promise.allSettled(
+          batch.map(async (pid) => {
+            try {
+              await saveMessage('system', 'NEBULIFE', `astra:${pid}`, digestMsg);
+            } catch (err) {
+              console.warn(`[digest-images] Failed notify for ${pid}:`, err);
+            }
+          }),
+        );
+      }
+      console.log(`[digest-images] Digest complete for ${digest.week_date}, notified ${playerIds.length} players`);
     }
 
     console.log(`[digest-images] Generated ${lang} page ${pageIndex} (${newCount}/${TOTAL_IMAGES})`);

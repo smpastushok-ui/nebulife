@@ -154,9 +154,9 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
     }, []);
 
     const applyZoom = useCallback((z: number) => {
-      // Limit zoom-in: desktop >= 25 tiles/row, mobile (<640px) >= 18 tiles/row; TW2=64px per tile
+      // Limit zoom-in: desktop >= 8 tiles/row, mobile (<640px) >= 6 tiles/row; TW2=64px per tile
       const cW2 = pixiAppRef.current?.screen.width ?? 1280;
-      const tileCount = cW2 < 640 ? 18 : 25;
+      const tileCount = cW2 < 640 ? 6 : 8;
       const maxZoom = cW2 / (tileCount * 64);
       zoomRef.current = Math.max(0.15, Math.min(maxZoom, z));
       if (sceneRef.current) {
@@ -179,7 +179,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       perf.markStart('pixijs-init');
       app.init({
         resizeTo:        container,
-        background:      0x020510,
+        background:      0xFFFFFF,
         antialias:       false,
         autoDensity:     true,
         resolution:      Math.min(window.devicePixelRatio || 1, isTouchDevice ? 1.0 : 1.5),
@@ -209,7 +209,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           const rawFactor  = Math.pow(0.999, e.deltaY);
           const safeFactor = Math.max(0.92, Math.min(1.08, rawFactor));
           const oldZ  = zoomRef.current;
-          const tileCount = app.screen.width < 640 ? 18 : 25;
+          const tileCount = app.screen.width < 640 ? 6 : 8;
           const newZ  = Math.max(0.15, Math.min(app.screen.width / (tileCount * 64), oldZ * safeFactor));
           if (newZ === oldZ) return;
 
@@ -270,7 +270,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
               const factor = dist / lastPinchDist;
               const safeFactor = Math.max(0.92, Math.min(1.08, factor));
               const oldZ = zoomRef.current;
-              const tileCount = app.screen.width < 640 ? 18 : 25;
+              const tileCount = app.screen.width < 640 ? 6 : 8;
               const newZ = Math.max(0.15, Math.min(app.screen.width / (tileCount * 64), oldZ * safeFactor));
 
               if (newZ !== oldZ) {

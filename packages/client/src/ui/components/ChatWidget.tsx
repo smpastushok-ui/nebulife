@@ -1323,14 +1323,26 @@ function AstraMessageItem({ msg, messageId, onAwardXP }: { msg: AstraMessage; me
   const { t } = useTranslation();
   const isUser = msg.role === 'user';
 
-  // Try to parse quiz JSON
-  if (!isUser) {
+  // Detect quiz/digest JSON from system/astra messages
+  if (msg.role === 'model') {
     try {
       const parsed = JSON.parse(msg.text);
       if (parsed?.type === 'quiz' && parsed?.data) {
-        return <QuizCard data={parsed.data as QuizData} messageId={messageId} onAwardXP={onAwardXP} />;
+        return (
+          <div style={{ padding: '3px 0' }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginBottom: 4 }}>
+              <span style={{ color: '#44ffaa', fontSize: 9, fontWeight: 'bold', fontFamily: 'monospace' }}>
+                A.S.T.R.A.
+              </span>
+            </div>
+            <QuizCard data={parsed.data as QuizData} messageId={messageId} onAwardXP={onAwardXP} />
+          </div>
+        );
       }
-    } catch { /* not JSON, render as text */ }
+      if (parsed?.type === 'digest') {
+        return <DigestCard time="" parsed={parsed} />;
+      }
+    } catch { /* not JSON, render normally */ }
   }
 
   return (

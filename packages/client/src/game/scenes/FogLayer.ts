@@ -271,7 +271,7 @@ export class FogLayer {
     const left   = { x: -hw,  y: hh      };
 
     // Deep space color matches canvas background — invisible when panning beyond map edges
-    const fill = { color: 0x020510 as number, alpha: 1.0 };
+    const fill = { color: 0xFFFFFF as number, alpha: 1.0 };
 
     // Top-right corner (between top, right, and outside)
     gfx.moveTo(top.x,        top.y - pad)
