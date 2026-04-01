@@ -25,3 +25,8 @@ i18n
 
 export default i18n;
 export type { TFunction } from 'i18next';
+
+export { LanguageProvider, useT, useLanguage, tStatic, getCurrentLanguage } from './LanguageProvider.js';
+export { uk } from './uk.js';
+export { en } from './en.js';
+export type { TranslationKey } from './uk.js';
