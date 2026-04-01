@@ -75,18 +75,37 @@ interface SurfaceSVGViewProps {
 
 // ─── ViewBox helpers ──────────────────────────────────────────────────────────
 
+/** Compute the bounding box of all discovered tiles in SVG coordinates. */
+function computeDiscoveredBounds(
+  discoveredTiles: Set<string>,
+  gridToSvgFn: (col: number, row: number) => { x: number; y: number },
+  cellW: number,
+  cellH: number,
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const key of discoveredTiles) {
+    const [col, row] = key.split(',').map(Number);
+    const { x, y } = gridToSvgFn(col, row);
+    if (x - cellW < minX) minX = x - cellW;
+    if (x + cellW > maxX) maxX = x + cellW;
+    if (y - cellH < minY) minY = y - cellH;
+    if (y + cellH > maxY) maxY = y + cellH;
+  }
+  if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 100; maxY = 100; }
+  return { minX, minY, maxX, maxY };
+}
+
 function clampViewBox(
   vb: { x: number; y: number; w: number; h: number },
-  totalW: number,
-  totalH: number,
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
 ): { x: number; y: number; w: number; h: number } {
-  // Allow 20% overshoot so edges of the map stay reachable
+  // Allow 20% overshoot so edges of the discovered area stay reachable
   const padX = vb.w * 0.2;
   const padY = vb.h * 0.2;
-  const minX = -padX;
-  const maxX = totalW - vb.w + padX;
-  const minY = -CELL_H - padY;
-  const maxY = totalH - vb.h + padY;
+  const minX = bounds.minX - padX;
+  const maxX = bounds.maxX - vb.w + padX;
+  const minY = bounds.minY - padY;
+  const maxY = bounds.maxY - vb.h + padY;
   return {
     ...vb,
     x: Math.max(minX, Math.min(maxX, vb.x)),
@@ -143,9 +162,17 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
 
     // ── ViewBox ────────────────────────────────────────────────────────────────
     const N = gridSize;
-    // Total SVG coordinate span of the iso diamond grid
+    // Total SVG coordinate span of the iso diamond grid (used for zoom limits)
     const totalW = useMemo(() => N * CELL_W * 2, [N]);
     const totalH = useMemo(() => N * CELL_H * 2, [N]);
+
+    // Bounding box of discovered tiles — drives clampViewBox
+    const discoveredBounds = useMemo(
+      () => computeDiscoveredBounds(discoveredTiles, gridToSvg, CELL_W, CELL_H),
+      // recompute whenever the discovered set size changes (tiles are added but never removed)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [discoveredTiles.size],
+    );
 
     const [viewBox, setViewBox] = useState(() => ({
       x: -totalW / 2,
@@ -198,15 +225,16 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
     const hubCol = hub ? hub.x + Math.floor((hubDef?.sizeW ?? 2) / 2) : Math.floor(N / 2);
     const hubRow = hub ? hub.y + Math.floor((hubDef?.sizeH ?? 2) / 2) : Math.floor(N / 2);
 
-    // ── Center viewBox on hub when loading completes ──────────────────────────
+    // ── Center viewBox on discovered tiles when loading completes ────────────
     useEffect(() => {
       if (loading) return;
-      const { x: hx, y: hy } = gridToSvg(hubCol, hubRow);
+      const bounds = computeDiscoveredBounds(surface.discoveredTiles, gridToSvg, CELL_W, CELL_H);
+      const PAD = 20;
       setViewBox({
-        x: hx - totalW / 2,
-        y: hy - totalH / 2,
-        w: totalW,
-        h: totalH,
+        x: bounds.minX - PAD,
+        y: bounds.minY - PAD,
+        w: bounds.maxX - bounds.minX + PAD * 2,
+        h: bounds.maxY - bounds.minY + PAD * 2,
       });
       onPhaseChange?.('ready');
     // only run once when loading finishes
@@ -267,19 +295,21 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
         const cy = vb.y + vb.h / 2;
         const nw = vb.w * 0.82;
         const nh = vb.h * 0.82;
-        return clampViewBox({ x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh }, totalW, totalH);
+        return clampViewBox({ x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh }, discoveredBounds);
       });
-    }, [totalW, totalH]);
+    }, [discoveredBounds]);
 
     const zoomOut = useCallback(() => {
       setViewBox((vb) => {
         const cx = vb.x + vb.w / 2;
         const cy = vb.y + vb.h / 2;
-        const nw = Math.min(vb.w / 0.82, totalW * 1.5);
-        const nh = Math.min(vb.h / 0.82, totalH * 1.5);
-        return clampViewBox({ x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh }, totalW, totalH);
+        const boundsW = discoveredBounds.maxX - discoveredBounds.minX;
+        const boundsH = discoveredBounds.maxY - discoveredBounds.minY;
+        const nw = Math.min(vb.w / 0.82, boundsW * 1.5);
+        const nh = Math.min(vb.h / 0.82, boundsH * 1.5);
+        return clampViewBox({ x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh }, discoveredBounds);
       });
-    }, [totalW, totalH]);
+    }, [discoveredBounds]);
 
     const panBy = useCallback(
       (dx: number, dy: number) => {
@@ -287,12 +317,11 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
           const scale = svgRef.current ? vb.w / svgRef.current.clientWidth : 1;
           return clampViewBox(
             { ...vb, x: vb.x - dx * scale, y: vb.y - dy * scale },
-            totalW,
-            totalH,
+            discoveredBounds,
           );
         });
       },
-      [totalW, totalH],
+      [discoveredBounds],
     );
 
     // ── Pointer drag state ────────────────────────────────────────────────────
@@ -353,13 +382,12 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
                 x: dragStart.current.vx - dx * scale,
                 y: dragStart.current.vy - dy * scale,
               },
-              totalW,
-              totalH,
+              discoveredBounds,
             );
           });
         }
       },
-      [selectedBuilding, pendingPlacement, canBuildAt, buildings, cancelHarvestRing, totalW, totalH],
+      [selectedBuilding, pendingPlacement, canBuildAt, buildings, cancelHarvestRing, discoveredBounds],
     );
 
     const handlePointerUp = useCallback(() => {
@@ -381,12 +409,14 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
         setViewBox((vb) => {
           const cx = vb.x + vb.w / 2;
           const cy = vb.y + vb.h / 2;
-          const nw = Math.min(vb.w * factor, totalW * 1.5);
-          const nh = Math.min(vb.h * factor, totalH * 1.5);
-          return clampViewBox({ x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh }, totalW, totalH);
+          const boundsW = discoveredBounds.maxX - discoveredBounds.minX;
+          const boundsH = discoveredBounds.maxY - discoveredBounds.minY;
+          const nw = Math.min(vb.w * factor, boundsW * 1.5);
+          const nh = Math.min(vb.h * factor, boundsH * 1.5);
+          return clampViewBox({ x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh }, discoveredBounds);
         });
       },
-      [totalW, totalH],
+      [discoveredBounds],
     );
 
     // ── Click → convert to SVG grid coords ────────────────────────────────────
@@ -492,7 +522,7 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
             if (ctm) {
               const sp3 = pt3.matrixTransform(ctm.inverse());
               const distX = sp3.x - bx;
-              const distY = sp3.y - (by - 14); // bot is levitated 14px above ground
+              const distY = sp3.y - (by - 6); // bot is levitated 6px above ground
               const botHitRadius = 18;
               if (distX * distX + distY * distY < botHitRadius * botHitRadius) {
                 setRoverMode(true);

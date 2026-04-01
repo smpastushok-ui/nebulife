@@ -13,6 +13,7 @@ import {
   isTreeCell,
   isOreCell,
   isVentCell,
+  cellHash,
 } from '../../../game/scenes/surface-utils.js';
 
 interface TerrainCellProps {
@@ -25,13 +26,22 @@ interface TerrainCellProps {
   harvested?: string;
 }
 
+const TREE_LEAVES = [
+  { top: '#22c55e', left: '#16a34a', right: '#15803d' }, // classic green
+  { top: '#10b981', left: '#059669', right: '#047857' }, // emerald
+  { top: '#f59e0b', left: '#d97706', right: '#b45309' }, // autumn orange
+  { top: '#84cc16', left: '#65a30d', right: '#4d7c0f' }, // lime
+  { top: '#06b6d4', left: '#0891b2', right: '#0e7490' }, // cyan alien
+];
+
 // Стильне блочне дерево (стакані IsoBlock кубики)
-function TreeOverlay({ x, y }: { x: number; y: number }) {
+function TreeOverlay({ x, y, variant }: { x: number; y: number; variant: number }) {
+  const leaves = TREE_LEAVES[variant % TREE_LEAVES.length];
   return (
     <g>
       <IsoBlock x={x} y={y} w={3} h={2} depth={8} topColor="#78350f" leftColor="#581c87" rightColor="#451a03" />
-      <IsoBlock x={x} y={y - 8} w={10} h={5} depth={10} topColor="#22c55e" leftColor="#16a34a" rightColor="#15803d" />
-      <IsoBlock x={x} y={y - 18} w={6} h={3} depth={6} topColor="#22c55e" leftColor="#16a34a" rightColor="#15803d" />
+      <IsoBlock x={x} y={y - 8} w={10} h={5} depth={10} topColor={leaves.top} leftColor={leaves.left} rightColor={leaves.right} />
+      <IsoBlock x={x} y={y - 18} w={6} h={3} depth={6} topColor={leaves.top} leftColor={leaves.left} rightColor={leaves.right} />
     </g>
   );
 }
@@ -77,6 +87,8 @@ export const TerrainCell = React.memo(function TerrainCell({
   const hasOre  = !harvested && !isWater && isOreCell(col, row, seed, gridSize, waterLevel);
   const hasVent = !harvested && !isWater && isVentCell(col, row, seed, gridSize, waterLevel);
 
+  const treeVariant = hasTree ? Math.floor(cellHash(col, row, seed + 7777) * TREE_LEAVES.length) : 0;
+
   return (
     <g className={isWater ? 'svg-water' : ''}>
       <g className="svg-emerge" style={{ animationDelay: `${delay}s` }}>
@@ -91,7 +103,7 @@ export const TerrainCell = React.memo(function TerrainCell({
           rightColor={colors.right}
         />
         {/* Декорації на рівні землі (віднімаємо depth) */}
-        {hasTree && <TreeOverlay x={x} y={y - depth} />}
+        {hasTree && <TreeOverlay x={x} y={y - depth} variant={treeVariant} />}
         {hasOre  && <OreOverlay  x={x} y={y - depth} />}
         {hasVent && <VentOverlay x={x} y={y - depth} />}
       </g>

@@ -31,8 +31,8 @@ export const SvgBot = React.memo(function SvgBot({
   state: BotAnimState;
 }) {
   const { x, y } = gridToSvg(state.col, state.row);
-  // Levitate above the tile surface
-  const screenY = y - 14;
+  // Levitate slightly above the tile surface
+  const screenY = y - 6;
 
   return (
     <g
@@ -49,15 +49,6 @@ export const SvgBot = React.memo(function SvgBot({
         rx={14} ry={6}
         fill="rgba(0,0,0,0.2)"
       />
-
-      {/* Scanner beam — visible only when flying */}
-      {state.state === 'flying' && (
-        <path
-          d="M0,6 L-8,16 L8,16 Z"
-          fill="rgba(34,211,238,0.12)"
-          className="svg-scan-pulse"
-        />
-      )}
 
       {/* Work indicator — pulsing ring when working */}
       {state.state === 'working' && (
