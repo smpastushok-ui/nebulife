@@ -1,5 +1,6 @@
 import React from 'react';
 import { gridToSvg } from './surface-svg-utils';
+import { IsoBlock } from './IsoBlock';
 
 // ---------------------------------------------------------------------------
 // BotAnimState — animation state for the researcher bot
@@ -21,8 +22,7 @@ export interface BotAnimState {
 // ---------------------------------------------------------------------------
 // SvgBot — isometric researcher bot rendered in SVG
 // ---------------------------------------------------------------------------
-// Shape: diamond body (top-down isometric view), engine dots, antenna.
-// Movement uses CSS transform transition for smooth 0.65s path flight.
+// Blocky aesthetic using IsoBlock. Looks like a scout ship with a cockpit.
 // ---------------------------------------------------------------------------
 
 export const SvgBot = React.memo(function SvgBot({
@@ -31,8 +31,8 @@ export const SvgBot = React.memo(function SvgBot({
   state: BotAnimState;
 }) {
   const { x, y } = gridToSvg(state.col, state.row);
-  // Levitate slightly above the tile surface
-  const screenY = y - 6;
+  // Levitate above the tile surface
+  const screenY = y - 14;
 
   return (
     <g
@@ -50,91 +50,53 @@ export const SvgBot = React.memo(function SvgBot({
         fill="rgba(0,0,0,0.2)"
       />
 
-      {/* Work indicator — pulsing ring when working */}
+      {/* Scanner beam — visible only when flying */}
+      {state.state === 'flying' && (
+        <path
+          d="M0,0 L-10,16 L10,16 Z"
+          fill="rgba(34,211,238,0.12)"
+          className="svg-scan-pulse"
+        />
+      )}
+
+      {/* Work indicator — pulsing ring on the ground when working */}
       {state.state === 'working' && (
-        <circle
-          cx={0} cy={0}
-          r={16}
+        <ellipse
+          cx={0} cy={14}
+          rx={16} ry={8}
           fill="none"
           stroke="#44ff88"
-          strokeWidth="1"
-          strokeOpacity="0.5"
+          strokeWidth="1.5"
+          strokeOpacity="0.6"
           className="svg-engine-glow"
         />
       )}
 
-      {/* Body — isometric diamond (top face) */}
-      <polygon
-        points="0,-10 12,0 0,4 -12,0"
-        fill="#446688"
-        stroke="#5599bb"
-        strokeWidth="0.8"
-      />
-      {/* Body — upper highlight face */}
-      <polygon
-        points="0,-10 12,0 0,-4"
-        fill="#5599bb"
-      />
-      {/* Body — lower shade face */}
-      <polygon
-        points="0,4 12,0 0,-4"
-        fill="#2d4a66"
+      {/* Main Body (Block) */}
+      <IsoBlock
+        x={0} y={0}
+        w={10} h={5}
+        depth={4}
+        topColor="#f1f5f9"
+        leftColor="#cbd5e1"
+        rightColor="#94a3b8"
       />
 
-      {/* Engine thruster — left */}
-      <ellipse
-        cx={-6} cy={3}
-        rx={2} ry={1}
-        fill="#223344"
-        stroke="#334455"
-        strokeWidth="0.5"
-      />
-      <circle
-        cx={-6} cy={3}
-        r={1.5}
-        fill="#ffaa44"
-        className="svg-engine-glow"
+      {/* Cockpit / Cabin (Smaller block on top) */}
+      <IsoBlock
+        x={1.5} y={-4}
+        w={5} h={2.5}
+        depth={3}
+        topColor="#1e293b"
+        leftColor="#0f172a"
+        rightColor="#020617"
+        windowColor="#22d3ee"
       />
 
-      {/* Engine thruster — right */}
-      <ellipse
-        cx={6} cy={3}
-        rx={2} ry={1}
-        fill="#223344"
-        stroke="#334455"
-        strokeWidth="0.5"
-      />
-      <circle
-        cx={6} cy={3}
-        r={1.5}
-        fill="#ffaa44"
-        className="svg-engine-glow"
-      />
-
-      {/* Antenna mast */}
-      <line
-        x1={0} y1={-10}
-        x2={0} y2={-15}
-        stroke="#88bbdd"
-        strokeWidth="0.8"
-      />
-      {/* Antenna beacon */}
-      <circle
-        cx={0} cy={-15}
-        r={1.2}
-        fill="#44ffaa"
-        className="svg-engine-glow"
-      />
-
-      {/* Sensor strip — horizontal line on body top */}
-      <line
-        x1={-5} y1={-7}
-        x2={5}  y2={-3}
-        stroke="#22ccee"
-        strokeWidth="0.6"
-        strokeOpacity="0.6"
-        strokeDasharray="1.5 1.5"
-      />
+      {/* Engine glow dots */}
+      <circle cx={-6} cy={0} r={1.5} fill="#38bdf8" className="svg-engine-glow" />
+      <circle cx={6} cy={0} r={1.5} fill="#38bdf8" className="svg-engine-glow" />
+      <circle cx={0} cy={2} r={1.5} fill="#38bdf8" className="svg-engine-glow" />
     </g>
   );
 });
