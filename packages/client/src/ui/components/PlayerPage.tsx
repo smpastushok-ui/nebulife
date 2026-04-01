@@ -92,10 +92,6 @@ export function PlayerPage({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [nativeTopUpMsg, setNativeTopUpMsg] = useState(false);
 
-  const toggleLang = () => {
-    i18n.changeLanguage(i18n.language === 'en' ? 'uk' : 'en');
-  };
-
   const progress = levelProgress(playerXP);
   const isMaxLevel = playerLevel >= MAX_PLAYER_LEVEL;
   const accentColor = isMaxLevel ? '#44ff88' : '#4488aa';
@@ -135,37 +131,6 @@ export function PlayerPage({
         overflowY: 'auto',
       }}
     >
-      {/* Language toggle */}
-      <button
-        onClick={toggleLang}
-        style={{
-          position: 'absolute',
-          top: 14,
-          left: 14,
-          background: 'none',
-          border: '1px solid rgba(51,68,85,0.3)',
-          borderRadius: 3,
-          color: '#556677',
-          fontFamily: 'monospace',
-          fontSize: 11,
-          padding: '4px 10px',
-          cursor: 'pointer',
-          letterSpacing: 1,
-          transition: 'color 0.15s, border-color 0.15s',
-          zIndex: 1,
-        }}
-        onMouseEnter={(e) => {
-          (e.target as HTMLElement).style.color = '#aabbcc';
-          (e.target as HTMLElement).style.borderColor = '#556677';
-        }}
-        onMouseLeave={(e) => {
-          (e.target as HTMLElement).style.color = '#556677';
-          (e.target as HTMLElement).style.borderColor = 'rgba(51,68,85,0.3)';
-        }}
-      >
-        {i18n.language === 'en' ? 'EN' : 'UK'}
-      </button>
-
       {/* Close button */}
       <button
         onClick={onClose}

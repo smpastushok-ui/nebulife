@@ -1407,11 +1407,11 @@ function AppInner() {
     if (typeof player.email_notifications === 'boolean') setEmailNotifications(player.email_notifications);
     if (typeof player.push_notifications === 'boolean') setPushNotifications(player.push_notifications);
     if (player.last_digest_seen !== undefined) setLastDigestSeen(player.last_digest_seen ?? null);
-    // Language sync: server → client (only on first load, not on every re-sync)
-    if (player.preferred_language && typeof player.preferred_language === 'string') {
-      if (lang !== player.preferred_language) {
-        setLanguage(player.preferred_language as Language);
-      }
+    // Language sync: server → client ONLY if user hasn't explicitly chosen yet.
+    // localStorage 'nebulife_lang_chosen' is the single source of truth for user preference.
+    const langChosen = localStorage.getItem('nebulife_lang_chosen') === '1';
+    if (!langChosen && player.preferred_language && typeof player.preferred_language === 'string') {
+      setLanguage(player.preferred_language as Language);
     }
 
     setServerHydrated(true);
