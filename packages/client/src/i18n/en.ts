@@ -3,12 +3,12 @@ import type { TranslationKey } from './uk.js';
 
 export const en: Record<TranslationKey, string> = {
   // ─── Navigation / Breadcrumbs ─────────────────────────────────────────────
-  'nav.universe':   'Universe',
+  'nav.universe':   'Galaxy',
   'nav.cluster':    'Star Cluster',
   'nav.sectors':    'Star Sectors',
   'nav.system':     'Star System',
   'nav.home':       'Home',
-  'nav.galaxy':     'Galaxy',
+  'nav.galaxy':     'Star Group',
   'nav.back':       'Back',
   'nav.surface':    'Surface',
   'nav.exosphere':  'Exosphere',

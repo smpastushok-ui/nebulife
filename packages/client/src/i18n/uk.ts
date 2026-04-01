@@ -1,12 +1,12 @@
 // Ukrainian translations — all UI strings for Nebulife
 export const uk = {
   // ─── Navigation / Breadcrumbs ─────────────────────────────────────────────
-  'nav.universe':   'Всесвiт',
+  'nav.universe':   'Галактика',
   'nav.cluster':    'Зоряне скупчення',
   'nav.sectors':    'Зоряні сектори',
   'nav.system':     'Зоряна система',
   'nav.home':       'Домівка',
-  'nav.galaxy':     'Галактика',
+  'nav.galaxy':     'Зоряна група',
   'nav.back':       'Назад',
   'nav.surface':    'Поверхня',
   'nav.exosphere':  'Екзосфера',

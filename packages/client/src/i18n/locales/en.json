@@ -15,9 +15,9 @@
   },
 
   "nav": {
-    "universe": "Universe",
+    "universe": "Galaxy",
     "cluster": "Star Cluster",
-    "galaxy": "Star Sectors",
+    "galaxy": "Star Group",
     "system": "Star System",
     "exosphere": "Exosphere",
     "home": "Home",
