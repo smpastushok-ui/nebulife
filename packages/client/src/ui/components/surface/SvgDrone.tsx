@@ -56,15 +56,6 @@ export const SvgDrone = React.memo(function SvgDrone({
         />
       )}
 
-      {/* Flight scanner cone — only when flying */}
-      {state.state === 'flying' && (
-        <path
-          d="M0,4 L-6,12 L6,12 Z"
-          fill="rgba(255,204,68,0.1)"
-          className="svg-scan-pulse"
-        />
-      )}
-
       {/* Cargo pod (Bottom Block) */}
       <IsoBlock
         x={0} y={4}

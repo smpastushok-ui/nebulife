@@ -43,54 +43,44 @@ const B_COLORS: Record<string, { top: string; left: string; right: string; accen
 // Detail sub-components
 // ---------------------------------------------------------------------------
 
-/** Colony Hub: multi-tier stepped structure + spire + green glow dot */
+/** Colony Hub: upper smaller block + antenna spire + green glow dot */
 function ColonyHubDetail({ x, y }: { x: number; y: number }) {
-  const tier2W = CELL_W * 0.7;
-  const tier2H = CELL_H * 0.7;
-  const tier2Depth = 16;
-  const tier2Y = y - 2;
-
-  const tier3W = CELL_W * 0.4;
-  const tier3H = CELL_H * 0.4;
-  const tier3Depth = 12;
-  const tier3Y = tier2Y - tier2Depth;
-
-  const spireW = 3;
-  const spireH = 1.5;
-  const spireDepth = 22;
-  const spireY = tier3Y - tier3Depth;
+  const tierW = CELL_W * 0.6;
+  const tierH = CELL_H * 0.6;
+  const tierDepth = 8;
+  const tierY = y - 4;
 
   return (
     <g>
+      {/* Upper tier block */}
       <IsoBlock
-        x={x} y={tier2Y}
-        w={tier2W} h={tier2H}
-        depth={tier2Depth}
+        x={x} y={tierY}
+        w={tierW} h={tierH}
+        depth={tierDepth}
         topColor="#6699bb"
         leftColor="#446688"
         rightColor="#5577aa"
-        windowColor="#88bbdd"
       />
-      <IsoBlock
-        x={x} y={tier3Y}
-        w={tier3W} h={tier3H}
-        depth={tier3Depth}
-        topColor="#77aacc"
-        leftColor="#557799"
-        rightColor="#6688bb"
-        windowColor="#ffffff"
+      {/* Antenna base */}
+      <line
+        x1={x} y1={tierY - tierDepth - 2}
+        x2={x} y2={tierY - tierDepth - 14}
+        stroke="#88bbdd"
+        strokeWidth="1"
+        strokeOpacity="0.9"
       />
-      <IsoBlock
-        x={x} y={spireY}
-        w={spireW} h={spireH}
-        depth={spireDepth}
-        topColor="#f8fafc"
-        leftColor="#cbd5e1"
-        rightColor="#94a3b8"
+      {/* Crossbar */}
+      <line
+        x1={x - 4} y1={tierY - tierDepth - 10}
+        x2={x + 4} y2={tierY - tierDepth - 10}
+        stroke="#88bbdd"
+        strokeWidth="0.8"
+        strokeOpacity="0.7"
       />
+      {/* Green glow beacon */}
       <circle
-        cx={x} cy={spireY - spireDepth - 2}
-        r={3.5}
+        cx={x} cy={tierY - tierDepth - 14}
+        r={2}
         fill="#44ff88"
         opacity={0.9}
         className="svg-engine-glow"
