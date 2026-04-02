@@ -40,14 +40,12 @@ interface TabDef {
 function buildTabs(t: (key: string) => string): TabDef[] {
   return [
     {
-      id: 'collections',
-      label: t('archive.tab_collections'),
+      id: 'navigation',
+      label: t('archive.tab_navigation'),
       subTabs: [
-        { id: 'cosmos', label: t('archive.sub_cosmos') },
-        { id: 'star-systems', label: t('archive.sub_star_systems') },
-        { id: 'planets-photos', label: t('archive.sub_planets_photos') },
-        { id: 'surface', label: t('archive.sub_surface') },
-        { id: 'life', label: t('archive.sub_life') },
+        { id: 'planets', label: t('archive.sub_planets') },
+        { id: 'systems', label: t('archive.sub_systems') },
+        { id: 'favorites', label: t('archive.sub_favorites') },
       ],
     },
     {
@@ -62,12 +60,14 @@ function buildTabs(t: (key: string) => string): TabDef[] {
       ],
     },
     {
-      id: 'navigation',
-      label: t('archive.tab_navigation'),
+      id: 'collections',
+      label: t('archive.tab_collections'),
       subTabs: [
-        { id: 'planets', label: t('archive.sub_planets') },
-        { id: 'systems', label: t('archive.sub_systems') },
-        { id: 'favorites', label: t('archive.sub_favorites') },
+        { id: 'cosmos', label: t('archive.sub_cosmos') },
+        { id: 'star-systems', label: t('archive.sub_star_systems') },
+        { id: 'planets-photos', label: t('archive.sub_planets_photos') },
+        { id: 'surface', label: t('archive.sub_surface') },
+        { id: 'life', label: t('archive.sub_life') },
       ],
     },
     {
