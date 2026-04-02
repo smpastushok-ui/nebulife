@@ -56,16 +56,6 @@ export const SvgDrone = React.memo(function SvgDrone({
         />
       )}
 
-      {/* Cargo pod (Bottom Block) */}
-      <IsoBlock
-        x={0} y={4}
-        w={4} h={2}
-        depth={3}
-        topColor="#64748b"
-        leftColor="#475569"
-        rightColor="#334155"
-      />
-
       {/* Main Body (Golden Block) */}
       <IsoBlock
         x={0} y={0}
@@ -87,7 +77,7 @@ export const SvgDrone = React.memo(function SvgDrone({
       />
 
       {/* Blocky Rotors */}
-      <g className="svg-engine-glow">
+      <g>
         <IsoBlock x={-7} y={1} w={1.5} h={0.75} depth={1} topColor="#cbd5e1" leftColor="#94a3b8" rightColor="#64748b" />
         <IsoBlock x={7} y={1} w={1.5} h={0.75} depth={1} topColor="#cbd5e1" leftColor="#94a3b8" rightColor="#64748b" />
         <IsoBlock x={-4} y={-2} w={1.5} h={0.75} depth={1} topColor="#cbd5e1" leftColor="#94a3b8" rightColor="#64748b" />

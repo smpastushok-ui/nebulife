@@ -32,7 +32,7 @@ export const SvgBot = React.memo(function SvgBot({
 }) {
   const { x, y } = gridToSvg(state.col, state.row);
   // Levitate above the tile surface
-  const screenY = y - 14;
+  const screenY = y - 4;
 
   return (
     <g
@@ -41,11 +41,11 @@ export const SvgBot = React.memo(function SvgBot({
         transition: state.state === 'flying' ? 'transform 0.65s linear' : 'none',
         fontFamily: 'monospace',
       }}
-      className={state.state === 'idle' ? 'svg-bot-flying' : undefined}
+      className={state.state === 'flying' ? 'svg-bot-flying' : undefined}
     >
       {/* Shadow ellipse on ground */}
       <ellipse
-        cx={0} cy={14}
+        cx={0} cy={4}
         rx={14} ry={6}
         fill="rgba(0,0,0,0.2)"
       />

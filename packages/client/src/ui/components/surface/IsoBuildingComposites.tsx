@@ -10,7 +10,7 @@ import type { PlacedBuilding } from '@nebulife/core';
 
 const B_COLORS: Record<string, { top: string; left: string; right: string; accent?: string }> = {
   colony_hub:         { top: '#5588aa', left: '#335577', right: '#446688', accent: '#44ff88' },
-  resource_storage:   { top: '#66bb88', left: '#448866', right: '#559977' },
+  resource_storage:   { top: '#475569', left: '#334155', right: '#1e293b' },
   landing_pad:        { top: '#88ccaa', left: '#669988', right: '#77bb99' },
   spaceport:          { top: '#aaccee', left: '#7799bb', right: '#88aacc' },
   solar_plant:        { top: '#ffcc44', left: '#cc9922', right: '#ddaa33' },
@@ -79,17 +79,17 @@ function RecessedNeon({ x, y, w, h, depth, dy, length, isRightSide = false, glow
 
 /** Colony Hub: premium 2x2 compound — central spire + side blocks + neon windows */
 function ColonyHubDetail({ x, y }: { x: number; y: number }) {
-  const subW = 10;
-  const subH = 5;
+  const subW = 14;
+  const subH = 7;
   const platDepth = 4;
 
   // 2x2 layout around center
   const blocks = [
-    { rx: -1, ry: 0, h: 14, type: 'side' },
-    { rx: 0, ry: -1, h: 18, type: 'side' },
-    { rx: 0, ry: 0, h: 36, type: 'spire' },
-    { rx: 1, ry: 0, h: 12, type: 'side' },
-    { rx: 0, ry: 1, h: 16, type: 'side' },
+    { rx: -1, ry: 0, h: 20, type: 'side' },
+    { rx: 0, ry: -1, h: 26, type: 'side' },
+    { rx: 0, ry: 0, h: 52, type: 'spire' },
+    { rx: 1, ry: 0, h: 17, type: 'side' },
+    { rx: 0, ry: 1, h: 22, type: 'side' },
   ].sort((a, b) => (a.rx + a.ry) - (b.rx + b.ry));
 
   return (
@@ -552,6 +552,74 @@ function OrbitalCollectorDetail({ x, y }: { x: number; y: number }) {
   );
 }
 
+/** Water Extractor: wide collection bowl + cylindrical tank + condenser unit */
+function WaterExtractorDetail({ x, y }: { x: number; y: number }) {
+  const tankW = 9;
+  const tankH = 4.5;
+  const tankDepth = 18;
+  const tankY = y - 2;
+  const topY  = tankY - tankDepth;
+
+  const bowlCY = topY - tankH - 4;
+  const bowlRx = 13;
+  const bowlRy = 6.5;
+
+  return (
+    <g>
+      {/* Main storage tank */}
+      <IsoBlock x={x} y={tankY} w={tankW} h={tankH} depth={tankDepth}
+        topColor="#44ccff" leftColor="#2299cc" rightColor="#33aadd" />
+
+      {/* Water-level neon strips */}
+      <RecessedNeon x={x} y={tankY} w={tankW} h={tankH} depth={tankDepth}
+        dy={5} length={9} glowColor="#88eeff" />
+      <RecessedNeon x={x} y={tankY} w={tankW} h={tankH} depth={tankDepth}
+        dy={5} length={9} isRightSide glowColor="#88eeff" />
+
+      {/* Condenser unit (right-front) */}
+      <IsoBlock x={x + tankW + 3} y={tankY + 6} w={5} h={2.5} depth={14}
+        topColor="#1e88bb" leftColor="#0f5577" rightColor="#1a6688" />
+
+      {/* Pipe connector: shadow + neon glow */}
+      <line x1={x + tankW - 1} y1={topY + 8} x2={x + tankW + 3} y2={topY + 11}
+        stroke="#020617" strokeWidth={3} strokeLinecap="round" />
+      <line x1={x + tankW - 1} y1={topY + 8} x2={x + tankW + 3} y2={topY + 11}
+        stroke="#44ccff" strokeWidth={1.5} strokeLinecap="round"
+        className="svg-engine-glow" />
+
+      {/* Condenser status beacon */}
+      <circle cx={x + tankW + 3} cy={tankY + 6 - 14 - 2.5 - 2} r={1.5}
+        fill="#44ccff" className="svg-engine-glow" />
+
+      {/* Support column bowl → tank */}
+      <line x1={x} y1={topY - tankH} x2={x} y2={bowlCY + bowlRy}
+        stroke="#1e6688" strokeWidth="2" />
+
+      {/* Collection bowl: outer metal rim */}
+      <ellipse cx={x} cy={bowlCY} rx={bowlRx} ry={bowlRy}
+        fill="#0a2233" stroke="#44ccff" strokeWidth="1.8" strokeOpacity="0.95" />
+
+      {/* Inner water pool */}
+      <ellipse cx={x} cy={bowlCY} rx={bowlRx * 0.72} ry={bowlRy * 0.72}
+        fill="#1a4466" opacity="0.88" />
+
+      {/* Water surface shimmer ring */}
+      <ellipse cx={x} cy={bowlCY} rx={bowlRx * 0.52} ry={bowlRy * 0.52}
+        fill="none" stroke="#66ddff" strokeWidth="1.2"
+        strokeOpacity="0.65" className="svg-engine-glow" />
+
+      {/* Specular highlight */}
+      <ellipse cx={x - bowlRx * 0.3} cy={bowlCY - bowlRy * 0.3}
+        rx={bowlRx * 0.18} ry={bowlRy * 0.18}
+        fill="#aaeeff" opacity="0.2" />
+
+      {/* Water beacon above bowl */}
+      <circle cx={x} cy={bowlCY - bowlRy - 4} r={2}
+        fill="#88eeff" className="svg-engine-glow" />
+    </g>
+  );
+}
+
 /** Genesis Vault: tall vault with arc + glow */
 function GenesisVaultDetail({ x, y }: { x: number; y: number }) {
   const vaultY = y - 2;
@@ -594,17 +662,20 @@ export const IsoBuilding = React.memo(function IsoBuilding({
   building,
   isNew,
 }: IsoBuildingProps) {
-  const { x, y } = gridToSvg(building.x, building.y);
   const def = BUILDING_DEFS[building.type];
   const colors = B_COLORS[building.type] ?? { top: '#778899', left: '#556677', right: '#667788' };
 
   const sizeW = def?.sizeW ?? 1;
-  // Visual height scales with footprint
-  const baseH = sizeW === 3 ? 16 : sizeW === 2 ? 12 : 8;
+  const sizeH = def?.sizeH ?? 1;
+  const baseH = 4; // thin platform for all buildings
 
   // Block half-extents for this building footprint
   const blockW = (CELL_W * sizeW) / 2;
   const blockH = (CELL_H * sizeW) / 2;
+
+  const cx = building.x + (sizeW - 1) / 2;
+  const cy = building.y + (sizeH - 1) / 2;
+  const { x, y } = gridToSvg(cx, cy);
 
   return (
     <g className={isNew ? 'svg-building-new' : undefined}>
