@@ -43,48 +43,61 @@ const B_COLORS: Record<string, { top: string; left: string; right: string; accen
 // Detail sub-components
 // ---------------------------------------------------------------------------
 
-/** Colony Hub: upper smaller block + antenna spire + green glow dot */
+/** Colony Hub: premium 2x2 compound — central spire + side blocks + neon windows */
 function ColonyHubDetail({ x, y }: { x: number; y: number }) {
-  const tierW = CELL_W * 0.6;
-  const tierH = CELL_H * 0.6;
-  const tierDepth = 8;
-  const tierY = y - 4;
+  const subW = 10;
+  const subH = 5;
+  const platDepth = 4;
+
+  // 2x2 layout around center
+  const blocks = [
+    { rx: -1, ry: 0, h: 14, type: 'side' },
+    { rx: 0, ry: -1, h: 18, type: 'side' },
+    { rx: 0, ry: 0, h: 36, type: 'spire' },
+    { rx: 1, ry: 0, h: 12, type: 'side' },
+    { rx: 0, ry: 1, h: 16, type: 'side' },
+  ].sort((a, b) => (a.rx + a.ry) - (b.rx + b.ry));
 
   return (
     <g>
-      {/* Upper tier block */}
-      <IsoBlock
-        x={x} y={tierY}
-        w={tierW} h={tierH}
-        depth={tierDepth}
-        topColor="#6699bb"
-        leftColor="#446688"
-        rightColor="#5577aa"
-      />
-      {/* Antenna base */}
-      <line
-        x1={x} y1={tierY - tierDepth - 2}
-        x2={x} y2={tierY - tierDepth - 14}
-        stroke="#88bbdd"
-        strokeWidth="1"
-        strokeOpacity="0.9"
-      />
-      {/* Crossbar */}
-      <line
-        x1={x - 4} y1={tierY - tierDepth - 10}
-        x2={x + 4} y2={tierY - tierDepth - 10}
-        stroke="#88bbdd"
-        strokeWidth="0.8"
-        strokeOpacity="0.7"
-      />
-      {/* Green glow beacon */}
-      <circle
-        cx={x} cy={tierY - tierDepth - 14}
-        r={2}
-        fill="#44ff88"
-        opacity={0.9}
-        className="svg-engine-glow"
-      />
+      {/* Foundation */}
+      <IsoBlock x={x} y={y} w={CELL_W * 1.2} h={CELL_H * 1.2} depth={platDepth}
+        topColor="#1e293b" leftColor="#0f172a" rightColor="#020617" />
+
+      {blocks.map((b, i) => {
+        const bx = x + (b.rx - b.ry) * subW;
+        const by = y - platDepth + (b.rx + b.ry) * subH;
+        const isSpire = b.type === 'spire';
+
+        return (
+          <g key={i}>
+            <IsoBlock x={bx} y={by} w={subW} h={subH} depth={b.h}
+              topColor={isSpire ? '#f8fafc' : '#38bdf8'}
+              leftColor={isSpire ? '#e2e8f0' : '#0ea5e9'}
+              rightColor={isSpire ? '#cbd5e1' : '#0284c7'}
+              windowColor={isSpire ? '#22d3ee' : undefined}
+            />
+            {isSpire && (
+              <>
+                {/* Radar dome on roof */}
+                <ellipse cx={bx} cy={by - b.h - subH} rx={subW * 0.5} ry={subH * 0.5}
+                  fill="none" stroke="#22d3ee" strokeWidth="1.5" className="svg-engine-glow" />
+                <circle cx={bx} cy={by - b.h - subH} r={1.5} fill="#ffffff" />
+                {/* Antenna + green beacon */}
+                <line x1={bx} y1={by - b.h - subH} x2={bx} y2={by - b.h - subH - 16}
+                  stroke="#cbd5e1" strokeWidth="1.5" />
+                <line x1={bx - 4} y1={by - b.h - subH - 10} x2={bx + 4} y2={by - b.h - subH - 10}
+                  stroke="#94a3b8" strokeWidth="1" />
+                <circle cx={bx} cy={by - b.h - subH - 16} r={2} fill="#44ff88"
+                  className="svg-engine-glow" />
+              </>
+            )}
+            {!isSpire && (
+              <circle cx={bx} cy={by - b.h - subH} r={1} fill="#22d3ee" opacity="0.7" />
+            )}
+          </g>
+        );
+      })}
     </g>
   );
 }
