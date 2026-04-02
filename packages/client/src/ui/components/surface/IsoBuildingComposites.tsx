@@ -232,28 +232,47 @@ function MineDetail({ x, y }: { x: number; y: number }) {
 
 /** Solar Plant: bright reflective flat panel on top */
 function SolarDetail({ x, y }: { x: number; y: number }) {
-  // Flat panel — wide, zero depth, bright gold
-  const panelW = CELL_W * 0.9;
-  const panelH = CELL_H * 0.9;
-  const panelY = y - 2;
+  // Solar panel plate helper
+  const SolarPlate = ({ px, py, pw, ph, pd }: { px: number; py: number; pw: number; ph: number; pd: number }) => {
+    const topY = py - pd;
+    return (
+      <g>
+        <IsoBlock x={px} y={py} w={pw} h={ph} depth={pd} topColor="#0ea5e9" leftColor="#0284c7" rightColor="#0369a1" />
+        {/* Grid lines on panel */}
+        <line x1={px - pw + 4} y1={topY} x2={px + pw - 4} y2={topY} stroke="#22d3ee" strokeWidth="0.5" opacity="0.3" />
+        <line x1={px} y1={topY - ph + 3} x2={px} y2={topY + ph - 3} stroke="#22d3ee" strokeWidth="0.5" opacity="0.3" />
+      </g>
+    );
+  };
+
+  // Two rear panels on tall poles + two front panels on short poles
+  const rearPanels = [{ dx: -8, dy: -4, pole: 14 }, { dx: 8, dy: -4, pole: 14 }];
+  const frontPanels = [{ dx: -4, dy: 6, pole: 8 }, { dx: 12, dy: 6, pole: 8 }];
 
   return (
     <g>
-      {/* Panel surface */}
-      <IsoBlock
-        x={x} y={panelY}
-        w={panelW} h={panelH}
-        depth={0}
-        topColor="#ffe066"
-        leftColor="#ccaa22"
-        rightColor="#ddbb33"
-      />
-      {/* Reflection highlight */}
-      <polygon
-        points={`${x - panelW * 0.5},${panelY - panelH * 0.3} ${x},${panelY - panelH * 0.8} ${x + panelW * 0.3},${panelY - panelH * 0.1}`}
-        fill="#ffffff"
-        opacity={0.12}
-      />
+      {/* Rear panels (behind control block) */}
+      {rearPanels.map((p, i) => (
+        <g key={`rp${i}`}>
+          <line x1={x + p.dx} y1={y + p.dy} x2={x + p.dx} y2={y + p.dy - p.pole} stroke="#64748b" strokeWidth="2" />
+          <SolarPlate px={x + p.dx} py={y + p.dy - p.pole} pw={12} ph={6} pd={2} />
+        </g>
+      ))}
+      {/* Control tower (center) */}
+      <IsoBlock x={x + 2} y={y} w={6} h={3} depth={14} topColor="#38bdf8" leftColor="#0ea5e9" rightColor="#0284c7" />
+      <circle cx={x + 2} cy={y - 17} r={1.5} fill="#22d3ee" className="svg-engine-glow" />
+      <line x1={x + 2} y1={y - 14} x2={x + 2} y2={y - 24} stroke="#94a3b8" strokeWidth="1" />
+      <circle cx={x + 2} cy={y - 24} r={1} fill="#facc15" className="svg-engine-glow" />
+      {/* Front panels (overlap control block) */}
+      {frontPanels.map((p, i) => (
+        <g key={`fp${i}`}>
+          <line x1={x + p.dx} y1={y + p.dy} x2={x + p.dx} y2={y + p.dy - p.pole} stroke="#64748b" strokeWidth="2" />
+          <SolarPlate px={x + p.dx} py={y + p.dy - p.pole} pw={12} ph={6} pd={2} />
+        </g>
+      ))}
+      {/* Battery block */}
+      <IsoBlock x={x + 16} y={y + 8} w={5} h={2.5} depth={8} topColor="#f97316" leftColor="#c2410c" rightColor="#9a3412" />
+      <circle cx={x + 16} cy={y - 2} r={1} fill="#44ff88" className="svg-engine-glow" />
     </g>
   );
 }
