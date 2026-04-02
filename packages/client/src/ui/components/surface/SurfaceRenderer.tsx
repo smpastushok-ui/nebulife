@@ -84,14 +84,14 @@ function HarvestRingOverlay({
   progress: number;
 }) {
   const { x, y } = gridToSvg(col, row);
-  const radius = 14;
+  const radius = 16;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - Math.max(0, Math.min(1, progress)));
 
   return (
     <circle
       cx={x}
-      cy={y - 6}
+      cy={y - 12}
       r={radius}
       fill="none"
       stroke="#44ff88"
