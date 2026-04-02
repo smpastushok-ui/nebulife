@@ -101,7 +101,7 @@ function HarvestRingOverlay({
       strokeDashoffset={String(dashOffset)}
       style={{
         transform: 'rotate(-90deg)',
-        transformOrigin: `${x}px ${y - 6}px`,
+        transformOrigin: `${x}px ${y - 12}px`,
         transition: 'stroke-dashoffset 0.1s linear',
       }}
     />
