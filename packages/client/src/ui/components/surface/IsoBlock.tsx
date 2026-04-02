@@ -44,26 +44,28 @@ export function IsoBlock({
   // top-left = (x, topY + h), top-right = (x + w, topY)
   const rightPoints = `${x},${topY + h} ${x + w},${topY} ${x + w},${y} ${x},${y + h}`;
 
-  // Glow path along left face top edge
+  // Glow overlay on left face
   const glowPath = glow
     ? `M${x - w},${topY} L${x},${topY + h} L${x},${y + h} L${x - w},${y}`
     : null;
 
-  // Window dashes: horizontal line near top of left face
-  const windowY = topY + h * 0.4;
-  const windowPath = windowColor
-    ? `M${x - w * 0.7},${windowY + depth * 0.3} L${x - w * 0.1},${windowY + h * 0.4 + depth * 0.3}`
-    : null;
+  // Window dashes: dynamically calculate rows of windows for BOTH faces
+  const windowRows: number[] = [];
+  if (windowColor && depth > 12) {
+    for (let dy = 10; dy <= depth - 10; dy += 12) {
+      windowRows.push(dy);
+    }
+  }
 
   return (
-    <g opacity={opacity} className={className} style={style}>
+    <g opacity={opacity} className={className} style={style} strokeLinejoin="round">
       {/* Top face */}
       <polygon
         points={topPoints}
         fill={topColor}
         stroke="#ffffff"
-        strokeWidth="0.5"
-        strokeOpacity="0.3"
+        strokeWidth="0.6"
+        strokeOpacity="0.7"
       />
       {/* Left face */}
       {depth > 0 && (
@@ -71,8 +73,8 @@ export function IsoBlock({
           points={leftPoints}
           fill={leftColor}
           stroke="#ffffff"
-          strokeWidth="0.5"
-          strokeOpacity="0.3"
+          strokeWidth="0.6"
+          strokeOpacity="0.7"
         />
       )}
       {/* Right face */}
@@ -81,8 +83,8 @@ export function IsoBlock({
           points={rightPoints}
           fill={rightColor}
           stroke="#ffffff"
-          strokeWidth="0.5"
-          strokeOpacity="0.3"
+          strokeWidth="0.6"
+          strokeOpacity="0.7"
         />
       )}
       {/* Glow overlay on left face */}
@@ -92,19 +94,19 @@ export function IsoBlock({
           fill="none"
           stroke={glow}
           strokeWidth="1.2"
-          strokeOpacity="0.55"
+          strokeOpacity="0.6"
         />
       )}
-      {/* Window dashes */}
-      {windowPath && (
-        <path
-          d={windowPath}
-          fill="none"
-          stroke={windowColor}
-          strokeWidth="1.5"
-          strokeDasharray="2 2"
-          strokeOpacity="0.8"
-        />
+      {/* Window dashes spanning both visible faces */}
+      {windowRows.length > 0 && (
+        <g stroke={windowColor} strokeWidth="1.5" strokeDasharray="2 3" fill="none">
+          {windowRows.map((dy, i) => (
+            <React.Fragment key={i}>
+              <line x1={x - w + 3} y1={topY + dy + 1.5} x2={x - 3} y2={topY + h + dy - 1.5} />
+              <line x1={x + 3} y1={topY + h + dy - 1.5} x2={x + w - 3} y2={topY + dy + 1.5} />
+            </React.Fragment>
+          ))}
+        </g>
       )}
     </g>
   );
