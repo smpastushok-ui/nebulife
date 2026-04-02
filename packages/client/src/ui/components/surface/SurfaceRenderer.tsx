@@ -158,10 +158,6 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
       const hc = harvestedCells.get(`${col},${row}`);
       const harvested = hc?.state ?? undefined;
 
-      // Emerge delay proportional to distance from hub (for initial load wave effect)
-      const dist = Math.abs(col - hubCol) + Math.abs(row - hubRow);
-      const delay = Math.min(dist * 0.02, 1.2);
-
       cells.push(
         <TerrainCell
           key={`tc_${col}_${row}`}
@@ -170,7 +166,7 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
           seed={seed}
           waterLevel={waterLevel}
           gridSize={gridSize}
-          delay={delay}
+          delay={0}
           harvested={harvested}
         />,
       );
@@ -181,7 +177,6 @@ export const SurfaceRenderer = React.memo(function SurfaceRenderer({
     discoveredTiles,
     seed, waterLevel, gridSize,
     harvestedCells,
-    hubCol, hubRow,
   ]);
 
   // ── Zone overlay — visible when placing a building ────────────────────────

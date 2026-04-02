@@ -16,7 +16,7 @@ interface IsoBlockProps {
   windowColor?: string; // optional window dashes
 }
 
-export function IsoBlock({
+export const IsoBlock = React.memo(function IsoBlock({
   x,
   y,
   w = 22,
@@ -110,4 +110,4 @@ export function IsoBlock({
       )}
     </g>
   );
-}
+});
