@@ -40,6 +40,40 @@ const B_COLORS: Record<string, { top: string; left: string; right: string; accen
 };
 
 // ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+interface RecessedNeonProps {
+  x: number; y: number; w: number; h: number; depth: number;
+  dy: number; length: number; isRightSide?: boolean; glowColor?: string;
+}
+
+function RecessedNeon({ x, y, w, h, depth, dy, length, isRightSide = false, glowColor = '#22d3ee' }: RecessedNeonProps) {
+  const topY = y - depth;
+  const startY = topY + dy;
+  const endY = startY + length;
+  const y1 = 1;
+  const y2 = w / 2 - 1;
+
+  if (!isRightSide) {
+    return (
+      <g>
+        <polygon points={`${x - w + 2},${startY + y1} ${x - 2},${startY + y2} ${x - 2},${endY + y2} ${x - w + 2},${endY + y1}`} fill="#020617" />
+        <line x1={x - w + 2} y1={startY + y1} x2={x - 2} y2={startY + y2} stroke="#000" strokeWidth={2} strokeOpacity={0.8} />
+        <line x1={x - w + 4} y1={startY + y1 + length / 2} x2={x - 4} y2={startY + y2 + length / 2} stroke={glowColor} strokeWidth={2.5} className="svg-engine-glow" />
+      </g>
+    );
+  }
+  return (
+    <g>
+      <polygon points={`${x + 2},${startY + y2} ${x + w - 2},${startY + y1} ${x + w - 2},${endY + y1} ${x + 2},${endY + y2}`} fill="#020617" />
+      <line x1={x + 2} y1={startY + y2} x2={x + w - 2} y2={startY + y1} stroke="#000" strokeWidth={2} strokeOpacity={0.8} />
+      <line x1={x + 4} y1={startY + y2 + length / 2} x2={x + w - 4} y2={startY + y1 + length / 2} stroke={glowColor} strokeWidth={2.5} className="svg-engine-glow" />
+    </g>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Detail sub-components
 // ---------------------------------------------------------------------------
 
@@ -98,6 +132,63 @@ function ColonyHubDetail({ x, y }: { x: number; y: number }) {
           </g>
         );
       })}
+    </g>
+  );
+}
+
+/** Resource Storage: 2x1 dual silos with neon level gauges + cargo containers */
+function ResourceStorageDetail({ x, y }: { x: number; y: number }) {
+  const subW = 16;
+  const subH = 8;
+  const platDepth = 8;
+  const rearX = x;
+  const rearY = y;
+  const frontX = x + subW;
+  const frontY = y + subH;
+  const roofYR = rearY - platDepth;
+  const roofYF = frontY - platDepth;
+
+  const P = {
+    dark:  { t: '#475569', l: '#334155', r: '#1e293b' },
+    light: { t: '#f8fafc', l: '#e2e8f0', r: '#cbd5e1' },
+    black: { t: '#1e293b', l: '#0f172a', r: '#020617' },
+    blue:  { t: '#38bdf8', l: '#0ea5e9', r: '#0284c7' },
+    yellow:{ t: '#facc15', l: '#eab308', r: '#ca8a04' },
+    orange:{ t: '#f97316', l: '#c2410c', r: '#9a3412' },
+  };
+
+  return (
+    <g>
+      {/* Foundation 2x1 */}
+      <IsoBlock x={rearX} y={rearY} w={20} h={10} depth={platDepth} topColor={P.black.t} leftColor={P.black.l} rightColor={P.black.r} />
+      <IsoBlock x={frontX} y={frontY} w={20} h={10} depth={platDepth} topColor={P.black.t} leftColor={P.black.l} rightColor={P.black.r} />
+
+      {/* Rear silo */}
+      <IsoBlock x={rearX} y={roofYR} w={14} h={7} depth={45} topColor={P.light.t} leftColor={P.light.l} rightColor={P.light.r} />
+      <RecessedNeon x={rearX} y={roofYR} w={14} h={7} depth={45} dy={8} length={30} glowColor="#44ff88" />
+      <RecessedNeon x={rearX} y={roofYR} w={14} h={7} depth={45} dy={8} length={30} isRightSide glowColor="#44ff88" />
+      <IsoBlock x={rearX} y={roofYR - 45} w={10} h={5} depth={6} topColor={P.dark.t} leftColor={P.dark.l} rightColor={P.dark.r} />
+      <circle cx={rearX} cy={roofYR - 53} r={2} fill="#44ff88" className="svg-engine-glow" />
+
+      {/* Pipeline connector */}
+      <IsoBlock x={x + subW / 2} y={roofYR + 8} w={6} h={3} depth={15} topColor={P.dark.t} leftColor={P.dark.l} rightColor={P.dark.r} />
+      <line x1={x + subW / 2 - 6} y1={roofYR + 2} x2={x + subW / 2 + 4} y2={roofYR + 6} stroke="#020617" strokeWidth={4} strokeLinecap="round" />
+      <line x1={x + subW / 2 - 6} y1={roofYR + 2} x2={x + subW / 2 + 4} y2={roofYR + 6} stroke="#22d3ee" strokeWidth={1.5} strokeLinecap="round" className="svg-engine-glow" />
+
+      {/* Pump terminal */}
+      <IsoBlock x={frontX - 14} y={roofYF + 6} w={8} h={4} depth={20} topColor={P.blue.t} leftColor={P.blue.l} rightColor={P.blue.r} />
+      <RecessedNeon x={frontX - 14} y={roofYF + 6} w={8} h={4} depth={20} dy={5} length={10} glowColor="#22d3ee" />
+
+      {/* Front silo */}
+      <IsoBlock x={frontX} y={roofYF} w={14} h={7} depth={45} topColor={P.light.t} leftColor={P.light.l} rightColor={P.light.r} />
+      <RecessedNeon x={frontX} y={roofYF} w={14} h={7} depth={45} dy={8} length={30} glowColor="#44ff88" />
+      <RecessedNeon x={frontX} y={roofYF} w={14} h={7} depth={45} dy={8} length={30} isRightSide glowColor="#44ff88" />
+      <IsoBlock x={frontX} y={roofYF - 45} w={10} h={5} depth={6} topColor={P.dark.t} leftColor={P.dark.l} rightColor={P.dark.r} />
+      <circle cx={frontX} cy={roofYF - 53} r={2} fill="#44ff88" className="svg-engine-glow" />
+
+      {/* Cargo containers */}
+      <IsoBlock x={frontX + 16} y={roofYF + 10} w={6} h={3} depth={10} topColor={P.yellow.t} leftColor={P.yellow.l} rightColor={P.yellow.r} />
+      <IsoBlock x={frontX + 10} y={roofYF + 16} w={5} h={2.5} depth={6} topColor={P.orange.t} leftColor={P.orange.l} rightColor={P.orange.r} />
     </g>
   );
 }
@@ -511,6 +602,9 @@ export const IsoBuilding = React.memo(function IsoBuilding({
       {/* Per-type structural details */}
       {building.type === 'colony_hub' && (
         <ColonyHubDetail x={x} y={y - baseH} />
+      )}
+      {building.type === 'resource_storage' && (
+        <ResourceStorageDetail x={x} y={y - baseH} />
       )}
       {building.type === 'mine' && (
         <MineDetail x={x} y={y - baseH} />
