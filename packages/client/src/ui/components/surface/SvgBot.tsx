@@ -50,27 +50,7 @@ export const SvgBot = React.memo(function SvgBot({
         fill="rgba(0,0,0,0.2)"
       />
 
-      {/* Scanner beam — visible only when flying */}
-      {state.state === 'flying' && (
-        <path
-          d="M0,0 L-10,16 L10,16 Z"
-          fill="rgba(34,211,238,0.12)"
-          className="svg-scan-pulse"
-        />
-      )}
-
-      {/* Work indicator — pulsing ring on the ground when working */}
-      {state.state === 'working' && (
-        <ellipse
-          cx={0} cy={14}
-          rx={16} ry={8}
-          fill="none"
-          stroke="#44ff88"
-          strokeWidth="1.5"
-          strokeOpacity="0.6"
-          className="svg-engine-glow"
-        />
-      )}
+      {/* No scanner beam or work indicator — clean bot visual */}
 
       {/* Main Body (Block) */}
       <IsoBlock

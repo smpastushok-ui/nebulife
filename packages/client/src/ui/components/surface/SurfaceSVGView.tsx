@@ -884,47 +884,6 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
         )}
 
         {/* ── Rover mode hint ────────────────────────────────────────────── */}
-        {roverMode && (
-          <div style={{
-            position:   'absolute',
-            top:        14,
-            left:       '50%',
-            transform:  'translateX(-50%)',
-            background: 'rgba(5,15,25,0.92)',
-            border:     '1px solid rgba(68,136,170,0.4)',
-            borderRadius: 4,
-            padding:    '6px 14px',
-            fontFamily: 'monospace',
-            fontSize:   11,
-            color:      '#7bb8ff',
-            display:    'flex',
-            alignItems: 'center',
-            gap:        10,
-            pointerEvents: 'auto',
-            whiteSpace: 'nowrap',
-            zIndex:     11000,
-          }}>
-            <span style={{ color: '#aabbcc' }}>
-              {t('surface.rover_mode_hint', 'Натиснiть на клiтинку для вiдправки бота')}
-            </span>
-            <button
-              onClick={() => setRoverMode(false)}
-              style={{
-                background: 'none',
-                border:     'none',
-                color:      '#556677',
-                fontSize:   14,
-                cursor:     'pointer',
-                fontFamily: 'monospace',
-                padding:    '0 2px',
-                lineHeight: '1',
-              }}
-            >
-              x
-            </button>
-          </div>
-        )}
-
         {/* ── Zoom controls ─────────────────────────────────────────────── */}
         <SurfaceDPad
           onZoomIn={zoomIn}
