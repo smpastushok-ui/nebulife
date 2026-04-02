@@ -240,28 +240,40 @@ function RadarTowerDetail({ x, y }: { x: number; y: number }) {
 
 /** Fusion Reactor: toroid ring + plasma glow */
 function FusionReactorDetail({ x, y }: { x: number; y: number }) {
-  const ringY = y - 4;
+  // Reactor tower (tall center block)
+  const towerW = CELL_W * 0.5;
+  const towerH = CELL_H * 0.5;
+  const towerDepth = 20;
+  const towerY = y - 2;
+  const topY = towerY - towerDepth;
 
   return (
     <g>
-      {/* Reactor ring — two offset ellipses for toroid illusion */}
-      <ellipse
-        cx={x} cy={ringY}
-        rx={10} ry={5}
-        fill="none"
-        stroke="#ff4466"
-        strokeWidth="2.5"
-        strokeOpacity="0.8"
-        className="svg-engine-glow"
+      {/* Main reactor tower */}
+      <IsoBlock
+        x={x} y={towerY}
+        w={towerW} h={towerH}
+        depth={towerDepth}
+        topColor="#e2e8f0"
+        leftColor="#cbd5e1"
+        rightColor="#94a3b8"
       />
-      <ellipse
-        cx={x} cy={ringY}
-        rx={6} ry={3}
-        fill="#ff224488"
-        stroke="#ff8899"
-        strokeWidth="1"
-        strokeOpacity="0.5"
+      {/* Neon strips on left face */}
+      <line x1={x - towerW + 2} y1={topY + 5} x2={x - 2} y2={topY + towerH + 3} stroke="#22d3ee" strokeWidth="2" opacity="0.7" className="svg-engine-glow" />
+      <line x1={x - towerW + 2} y1={topY + 11} x2={x - 2} y2={topY + towerH + 9} stroke="#22d3ee" strokeWidth="2" opacity="0.7" className="svg-engine-glow" />
+      {/* Neon strips on right face */}
+      <line x1={x + 2} y1={topY + towerH + 3} x2={x + towerW - 2} y2={topY + 5} stroke="#22d3ee" strokeWidth="2" opacity="0.7" className="svg-engine-glow" />
+      <line x1={x + 2} y1={topY + towerH + 9} x2={x + towerW - 2} y2={topY + 11} stroke="#22d3ee" strokeWidth="2" opacity="0.7" className="svg-engine-glow" />
+      {/* Reactor dome cap */}
+      <polygon
+        points={`${x},${topY - towerH - 2} ${x + towerW},${topY - 2} ${x},${topY + towerH - 2} ${x - towerW},${topY - 2}`}
+        fill="#020617"
       />
+      <ellipse cx={x} cy={topY - 2} rx={towerW * 0.6} ry={towerH * 0.6} fill="none" stroke="#22d3ee" strokeWidth="1.5" className="svg-engine-glow" />
+      <circle cx={x} cy={topY - 2} r={1.5} fill="#ffffff" />
+      {/* Antenna */}
+      <line x1={x - 4} y1={topY - 2} x2={x - 4} y2={topY - 14} stroke="#94a3b8" strokeWidth="1" />
+      <circle cx={x - 4} cy={topY - 14} r={1} fill="#f97316" className="svg-engine-glow" />
     </g>
   );
 }
