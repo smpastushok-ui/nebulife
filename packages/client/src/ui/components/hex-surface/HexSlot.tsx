@@ -131,19 +131,20 @@ function ResourceContent({
     : 0;
   const accumulated = getAccumulatedYield(slot.lastHarvestedAt, slot.yieldPerHour ?? 1, slot.maxCapacity ?? 12);
 
-  const ICONS: Record<string, string> = {
-    tree:  '#22c55e',
-    ore:   '#a0845e',
-    vent:  '#22d3ee',
-    water: '#3b82f6',
+  // Map resource type + rarity to WebP image
+  const RARITY_INDEX: Record<string, number> = {
+    common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5,
+  };
+  const rarityNum = RARITY_INDEX[rarity] ?? 1;
+
+  const RESOURCE_WEBP: Record<string, string> = {
+    ore:   `/buildings/minerals${rarityNum}.webp`,
+    tree:  `/buildings/izo${rarityNum}.webp`,     // tree → isotopes visual
+    vent:  `/buildings/izo${rarityNum}.webp`,     // vent → use isotope visual for now
+    water: `/buildings/minerals${rarityNum}.webp`, // water → use minerals visual for now
   };
 
-  const LABELS: Record<string, string> = {
-    tree:  'TREE',
-    ore:   'ORE',
-    vent:  'VENT',
-    water: 'H2O',
-  };
+  const webpSrc = RESOURCE_WEBP[resourceType] ?? `/buildings/minerals${rarityNum}.webp`;
 
   return (
     <div
@@ -157,59 +158,53 @@ function ResourceContent({
         userSelect: 'none',
       }}
     >
-      {/* Resource label */}
-      <div style={{
-        fontSize: 9,
-        color: color,
-        letterSpacing: 1,
-        marginBottom: 2,
-        textShadow: ready ? `0 0 8px ${color}` : 'none',
-        transition: 'text-shadow 0.3s',
-      }}>
-        {LABELS[resourceType]}
-      </div>
+      {/* Resource WebP image */}
+      <img
+        src={webpSrc}
+        alt={resourceType}
+        style={{
+          width: '100%', height: '100%', objectFit: 'cover',
+          position: 'absolute', inset: 0,
+          opacity: ready ? 1 : 0.5,
+          transition: 'opacity 0.3s',
+        }}
+      />
 
-      {/* Accumulated amount */}
+      {/* Accumulated amount overlay */}
       <div style={{
+        position: 'relative', zIndex: 1,
         fontSize: 14,
         fontWeight: 'bold',
-        color: ready ? color : '#445566',
+        color: ready ? '#ffffff' : '#88aacc',
+        textShadow: '0 1px 4px rgba(0,0,0,0.8)',
         transition: 'color 0.3s',
       }}>
-        {accumulated}
+        {accumulated > 0 ? accumulated : ''}
       </div>
 
       {/* Timer or READY label */}
       {ready ? (
-        <div className="hex-resource-glow" style={{
+        <div style={{
+          position: 'relative', zIndex: 1,
           fontSize: 8,
-          color: color,
+          color: '#44ff88',
           marginTop: 2,
           letterSpacing: 1,
+          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
         }}>
           READY
         </div>
       ) : (
         <div style={{
+          position: 'relative', zIndex: 1,
           fontSize: 8,
-          color: '#556677',
+          color: '#88aacc',
           marginTop: 2,
+          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
         }}>
           {formatMs(remaining)}
         </div>
       )}
-
-      {/* Rarity dot — top-right corner */}
-      <div style={{
-        position: 'absolute',
-        top: '20%',
-        right: '22%',
-        width: 7,
-        height: 7,
-        borderRadius: '50%',
-        background: rarityColor,
-        border: '1px solid #020510',
-      }} />
     </div>
   );
 }
@@ -299,6 +294,8 @@ function BuildingContent({
     resource_storage: '/buildings/resource_storage.webp',
     landing_pad: '/buildings/landing_pad.webp',
     spaceport: '/buildings/spaceport.webp',
+    atmo_extractor: '/buildings/atmo_extractor.webp',
+    water_extractor: '/buildings/water_extractor.webp',
   };
 
   const webpSrc = BUILDING_WEBP[type];
