@@ -130,3 +130,36 @@ export const MAX_BUILDINGS_PER_PLANET = {
   'gas-giant': 5,
   'ice-giant': 8,
 } as const;
+
+// ---------------------------------------------------------------------------
+// Hex Ring Surface — unlock costs (progressive)
+// ---------------------------------------------------------------------------
+
+/** Ring 1 unlock costs — isotopes only, indexed by unlock order (0-based). */
+export const HEX_RING1_COSTS: readonly { minerals: number; volatiles: number; isotopes: number }[] = [
+  { minerals: 0, volatiles: 0, isotopes: 5  },
+  { minerals: 0, volatiles: 0, isotopes: 8  },
+  { minerals: 0, volatiles: 0, isotopes: 12 },
+  { minerals: 0, volatiles: 0, isotopes: 16 },
+  { minerals: 0, volatiles: 0, isotopes: 21 },
+  { minerals: 0, volatiles: 0, isotopes: 28 },
+];
+
+/** Ring 2 unlock costs — minerals + volatiles, indexed by unlock order (0-based). */
+export const HEX_RING2_COSTS: readonly { minerals: number; volatiles: number; isotopes: number }[] = [
+  { minerals: 8,  volatiles: 5,  isotopes: 0 },
+  { minerals: 12, volatiles: 8,  isotopes: 0 },
+  { minerals: 16, volatiles: 11, isotopes: 0 },
+  { minerals: 22, volatiles: 14, isotopes: 0 },
+  { minerals: 28, volatiles: 18, isotopes: 0 },
+  { minerals: 35, volatiles: 22, isotopes: 0 },
+  { minerals: 42, volatiles: 27, isotopes: 0 },
+  { minerals: 50, volatiles: 32, isotopes: 0 },
+  { minerals: 58, volatiles: 37, isotopes: 0 },
+  { minerals: 68, volatiles: 43, isotopes: 0 },
+  { minerals: 78, volatiles: 50, isotopes: 0 },
+  { minerals: 90, volatiles: 57, isotopes: 0 },
+];
+
+/** Colony Hub passive isotope generation rate (per colony tick = per minute). */
+export const COLONY_HUB_ISOTOPE_RATE = 1 / 60; // 1 isotope per hour

@@ -66,10 +66,28 @@ const RESOURCE_TO_COLONY: Record<ResourceType, keyof { minerals: number; volatil
 // Initial state builder
 // ---------------------------------------------------------------------------
 
+/**
+ * Recalculate unlock costs for all locked slots based on current unlock progress.
+ * All locked hexes in the same ring show the SAME cost (the "next" unlock cost).
+ */
+function recalculateLockedCosts(slots: HexSlotData[]): HexSlotData[] {
+  const ring1Unlocked = slots.filter(s => s.ring === 1 && s.state !== 'locked').length;
+  const ring2Unlocked = slots.filter(s => s.ring === 2 && s.state !== 'locked' && s.state !== 'hidden').length;
+
+  const ring1NextCost = getUnlockCost(1, ring1Unlocked);
+  const ring2NextCost = getUnlockCost(2, ring2Unlocked);
+
+  return slots.map(s => {
+    if (s.state === 'locked' && s.ring === 1) return { ...s, unlockCost: ring1NextCost };
+    if (s.state === 'locked' && s.ring === 2) return { ...s, unlockCost: ring2NextCost };
+    return s;
+  });
+}
+
 function buildInitialSlots(): HexSlotData[] {
   const slots: HexSlotData[] = [];
 
-  // Ring 0 — center: colony hub
+  // Ring 0 — center: colony hub (free)
   slots.push({
     id: 'ring0-0',
     ring: 0,
@@ -79,19 +97,17 @@ function buildInitialSlots(): HexSlotData[] {
     buildingLevel: 1,
   });
 
-  // Ring 1 — 6 locked slots
-  const ring1Cost = getUnlockCost(1);
+  // Ring 1 — 6 locked slots (isotopes only, progressive cost)
   for (let i = 0; i < 6; i++) {
     slots.push({
       id: `ring1-${i}`,
       ring: 1,
       index: i,
       state: 'locked',
-      unlockCost: ring1Cost,
     });
   }
 
-  // Ring 2 — 12 hidden slots
+  // Ring 2 — 12 hidden slots (invisible until ring1 neighbor unlocked)
   for (let i = 0; i < 12; i++) {
     slots.push({
       id: `ring2-${i}`,
@@ -101,7 +117,7 @@ function buildInitialSlots(): HexSlotData[] {
     });
   }
 
-  return slots;
+  return recalculateLockedCosts(slots);
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +232,8 @@ export function useHexState(
         const saved = playerData?.game_state?.hex_slots;
 
         if (Array.isArray(saved) && saved.length > 0) {
-          setSlots(saved as HexSlotData[]);
+          // Migrate: recalculate costs for saved data (handles old flat-cost format)
+          setSlots(recalculateLockedCosts(saved as HexSlotData[]));
         } else {
           const initial = buildInitialSlots();
           setSlots(initial);
@@ -321,10 +338,9 @@ export function useHexState(
 
       // Roll slot contents
       const rolled = rollSlotContents(planet.seed, slotId);
-      const ring2Cost = getUnlockCost(2);
 
       updateSlots((prev) => {
-        const next = prev.map((s) => {
+        let next = prev.map((s) => {
           if (s.id !== slotId) return s;
           return {
             ...s,
@@ -332,6 +348,7 @@ export function useHexState(
             resourceType:  rolled.resourceType,
             rarity:        rolled.rarity,
             yieldPerHour:  rolled.yieldPerHour,
+            maxCapacity:   rolled.yieldPerHour ? rolled.yieldPerHour * 12 : undefined,
             unlockCost:    undefined,
             lastHarvestedAt: undefined,
           } as HexSlotData;
@@ -340,16 +357,17 @@ export function useHexState(
         // If ring 1 slot unlocked → reveal 2 adjacent ring 2 slots
         if (slot.ring === 1) {
           const i = slot.index;
-          const adj = [i * 2, i * 2 + 1];
-          return next.map((s) => {
+          const adj = [i * 2, (i * 2 + 1) % 12];
+          next = next.map((s) => {
             if (s.ring === 2 && adj.includes(s.index) && s.state === 'hidden') {
-              return { ...s, state: 'locked' as HexState, unlockCost: ring2Cost };
+              return { ...s, state: 'locked' as HexState };
             }
             return s;
           });
         }
 
-        return next;
+        // Recalculate costs for all remaining locked slots (progressive pricing)
+        return recalculateLockedCosts(next);
       });
 
       return true;

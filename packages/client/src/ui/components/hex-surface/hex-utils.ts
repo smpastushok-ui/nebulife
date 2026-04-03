@@ -136,9 +136,42 @@ export const RESOURCE_COLORS: Record<ResourceType, string> = {
   water: '#3b82f6',
 };
 
-export function getUnlockCost(ring: number): { minerals: number; volatiles: number; isotopes: number } {
-  if (ring === 1) return { minerals: 10, volatiles: 5, isotopes: 2 };
-  return { minerals: 25, volatiles: 15, isotopes: 8 };
+/**
+ * Progressive unlock cost. All locked hexes in a ring show the SAME cost —
+ * the cost for the NEXT unlock (based on how many are already unlocked).
+ * @param ring — 1 or 2
+ * @param unlockOrder — how many slots in this ring have been unlocked already (0-based)
+ */
+export function getUnlockCost(
+  ring: number,
+  unlockOrder: number = 0,
+): { minerals: number; volatiles: number; isotopes: number } {
+  if (ring === 1) {
+    const table = [
+      { minerals: 0, volatiles: 0, isotopes: 5  },
+      { minerals: 0, volatiles: 0, isotopes: 8  },
+      { minerals: 0, volatiles: 0, isotopes: 12 },
+      { minerals: 0, volatiles: 0, isotopes: 16 },
+      { minerals: 0, volatiles: 0, isotopes: 21 },
+      { minerals: 0, volatiles: 0, isotopes: 28 },
+    ];
+    return { ...table[Math.min(unlockOrder, table.length - 1)] };
+  }
+  const table = [
+    { minerals: 8,  volatiles: 5,  isotopes: 0 },
+    { minerals: 12, volatiles: 8,  isotopes: 0 },
+    { minerals: 16, volatiles: 11, isotopes: 0 },
+    { minerals: 22, volatiles: 14, isotopes: 0 },
+    { minerals: 28, volatiles: 18, isotopes: 0 },
+    { minerals: 35, volatiles: 22, isotopes: 0 },
+    { minerals: 42, volatiles: 27, isotopes: 0 },
+    { minerals: 50, volatiles: 32, isotopes: 0 },
+    { minerals: 58, volatiles: 37, isotopes: 0 },
+    { minerals: 68, volatiles: 43, isotopes: 0 },
+    { minerals: 78, volatiles: 50, isotopes: 0 },
+    { minerals: 90, volatiles: 57, isotopes: 0 },
+  ];
+  return { ...table[Math.min(unlockOrder, table.length - 1)] };
 }
 
 export function rollResourceType(seed: number, slotId: string): ResourceType {
