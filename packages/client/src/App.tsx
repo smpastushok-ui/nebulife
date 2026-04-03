@@ -360,7 +360,7 @@ function AppInner() {
       const saved = localStorage.getItem('nebulife_colony_resources');
       if (saved) return JSON.parse(saved);
     } catch { /* ignore */ }
-    return { minerals: 0, volatiles: 0, isotopes: 100 };
+    return { minerals: 0, volatiles: 0, isotopes: 150 };
   });
 
   useEffect(() => {
@@ -1407,12 +1407,8 @@ function AppInner() {
     if (typeof player.email_notifications === 'boolean') setEmailNotifications(player.email_notifications);
     if (typeof player.push_notifications === 'boolean') setPushNotifications(player.push_notifications);
     if (player.last_digest_seen !== undefined) setLastDigestSeen(player.last_digest_seen ?? null);
-    // Language sync: server → client ONLY if user hasn't explicitly chosen yet.
-    // localStorage 'nebulife_lang_chosen' is the single source of truth for user preference.
-    const langChosen = localStorage.getItem('nebulife_lang_chosen') === '1';
-    if (!langChosen && player.preferred_language && typeof player.preferred_language === 'string') {
-      setLanguage(player.preferred_language as Language);
-    }
+    // Language: localStorage is always the source of truth.
+    // Never override from server — player chose their language at first launch.
 
     setServerHydrated(true);
   }, []);
