@@ -44,13 +44,13 @@ function HiddenContent() {
     <div style={{
       position: 'absolute', inset: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: '#223344',
-      fontFamily: 'monospace',
-      fontSize: 20,
       userSelect: 'none',
     }}>
-      {/* simple lock icon using Unicode */}
-      <span style={{ opacity: 0.4 }}>&#128274;</span>
+      <img
+        src="/buildings/hecs_locked.webp"
+        alt="locked"
+        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.3 }}
+      />
     </div>
   );
 }
@@ -77,21 +77,24 @@ function LockedContent({
         userSelect: 'none',
       }}
     >
-      {/* Lock icon */}
-      <div style={{
-        fontSize: 16,
-        color: canAfford ? '#7bb8ff' : '#334455',
-        marginBottom: 4,
-        transition: 'color 0.2s',
-      }}>
-        &#128274;
-      </div>
+      <img
+        src="/buildings/hecs_locked.webp"
+        alt="locked"
+        style={{
+          width: '100%', height: '100%', objectFit: 'cover',
+          position: 'absolute', inset: 0,
+          opacity: canAfford ? 0.8 : 0.5,
+          transition: 'opacity 0.2s',
+        }}
+      />
       {cost && (
         <div style={{
+          position: 'relative', zIndex: 1,
           fontSize: 8,
           color: canAfford ? '#aabbcc' : '#445566',
           textAlign: 'center',
           lineHeight: 1.4,
+          marginTop: 30,
         }}>
           {cost.minerals > 0 && <span>{cost.minerals}M </span>}
           {cost.volatiles > 0 && <span>{cost.volatiles}V </span>}
@@ -281,6 +284,23 @@ function BuildingContent({
   };
 
   const label = BUILDING_ICONS[slot.buildingType ?? ''] ?? slot.buildingType?.slice(0, 3).toUpperCase() ?? '???';
+  const type = slot.buildingType ?? '';
+
+  // Map building type to WebP image path
+  const BUILDING_WEBP: Record<string, string> = {
+    colony_hub: '/buildings/colony.webp',
+    mine: '/buildings/mine.webp',
+    solar_plant: '/buildings/solar_plant.webp',
+    wind_generator: '/buildings/wind_generator.webp',
+    battery_station: '/buildings/battery_station.webp',
+    thermal_generator: '/buildings/thermal_generator.webp',
+    fusion_reactor: '/buildings/fusion_reactor.webp',
+    resource_storage: '/buildings/resource_storage.webp',
+    landing_pad: '/buildings/landing_pad.webp',
+    spaceport: '/buildings/spaceport.webp',
+  };
+
+  const webpSrc = BUILDING_WEBP[type];
 
   return (
     <div
@@ -295,19 +315,27 @@ function BuildingContent({
         userSelect: 'none',
       }}
     >
-      <div style={{
-        fontSize: 13,
-        fontWeight: 'bold',
-        color: '#7bb8ff',
-        letterSpacing: 2,
-      }}>
-        {label}
-      </div>
+      {webpSrc ? (
+        <img
+          src={webpSrc}
+          alt={type}
+          style={{ width: '90%', height: '90%', objectFit: 'contain' }}
+        />
+      ) : (
+        <div style={{
+          fontSize: 13,
+          fontWeight: 'bold',
+          color: '#7bb8ff',
+          letterSpacing: 2,
+        }}>
+          {label}
+        </div>
+      )}
       {slot.buildingLevel !== undefined && (
         <div style={{
+          position: 'absolute', bottom: '15%',
           fontSize: 8,
           color: '#446688',
-          marginTop: 3,
           letterSpacing: 1,
         }}>
           LVL {slot.buildingLevel}
