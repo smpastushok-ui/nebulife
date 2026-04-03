@@ -319,7 +319,7 @@ function BuildingContent({
         <img
           src={webpSrc}
           alt={type}
-          style={{ width: '90%', height: '90%', objectFit: 'contain' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : (
         <div style={{
@@ -392,9 +392,18 @@ export const HexSlot = React.memo(function HexSlot({
     borderColor = '#4488aa';
   }
 
+  // Main click handler for the entire hex area
+  const handleClick = () => {
+    if (slot.state === 'locked') onUnlock();
+    else if (slot.state === 'resource') onHarvest();
+    else if (slot.state === 'empty') onBuild();
+    else if (slot.state === 'building' || slot.state === 'harvester') onInspect();
+  };
+
   return (
     <div
       className={glowClass}
+      onClick={handleClick}
       style={{
         position: 'absolute',
         left,
@@ -403,12 +412,10 @@ export const HexSlot = React.memo(function HexSlot({
         height: HEX_H,
         clipPath: HEX_CLIP,
         background: bg,
-        border: `1.5px ${borderStyle} ${borderColor}`,
         boxSizing: 'border-box',
         opacity,
-        transition: 'border-color 0.3s, opacity 0.2s',
-        // Clip-path and border don't play well together, so we add the border
-        // via an inset pseudo-approach using outline which respects clip-path
+        cursor: slot.state === 'hidden' ? 'default' : 'pointer',
+        transition: 'opacity 0.2s',
       }}
     >
       {slot.state === 'hidden' && <HiddenContent />}

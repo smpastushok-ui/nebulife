@@ -169,10 +169,14 @@ export function HexBuildMenu({
                   key={type}
                   onClick={() => { onSelect(type); onClose(); }}
                   style={{
-                    padding: '6px 12px',
+                    padding: '12px 14px',
                     cursor: 'pointer',
                     borderBottom: '1px solid rgba(30,45,60,0.5)',
                     transition: 'background 0.15s',
+                    minHeight: 44,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
                   }}
                   onMouseEnter={(e) => {
                     (e.currentTarget as HTMLDivElement).style.background = 'rgba(68,136,170,0.12)';

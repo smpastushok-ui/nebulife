@@ -1,5 +1,5 @@
 // Hex size for rendering
-export const HEX_RADIUS = 50; // radius of hexagon in pixels
+export const HEX_RADIUS = 38; // radius of hexagon in pixels (smaller = tighter grid)
 
 export type HexState = 'hidden' | 'locked' | 'resource' | 'empty' | 'building' | 'harvester';
 export type ResourceType = 'tree' | 'ore' | 'vent' | 'water';
