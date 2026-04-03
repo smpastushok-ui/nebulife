@@ -97,7 +97,11 @@ export async function updatePlayer(
         science_points = COALESCE(${updates.science_points ?? null}, science_points),
         login_streak = COALESCE(${updates.login_streak ?? null}, login_streak),
         last_login = COALESCE(${updates.last_login ?? null}, last_login),
-        game_state = COALESCE(${updates.game_state ? JSON.stringify(updates.game_state) : null}::jsonb, game_state),
+        game_state = CASE
+          WHEN ${updates.game_state ? JSON.stringify(updates.game_state) : null}::jsonb IS NOT NULL
+          THEN game_state || ${JSON.stringify(updates.game_state ?? {})}::jsonb
+          ELSE game_state
+        END,
         quarks = COALESCE(${updates.quarks ?? null}, quarks),
         home_system_id = COALESCE(${updates.home_system_id ?? null}, home_system_id),
         home_planet_id = COALESCE(${updates.home_planet_id ?? null}, home_planet_id),
