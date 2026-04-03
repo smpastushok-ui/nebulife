@@ -355,44 +355,51 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           onZoomOut={() => setZoom((z) => Math.max(ZOOM_MIN, parseFloat((z - ZOOM_STEP).toFixed(2))))}
         />
 
-        {/* Planet name HUD (top-right) */}
+        {/* Planet name HUD — neon spin animation, below resource bar, right-aligned */}
         <div style={{
           position: 'fixed',
-          top: 16,
-          right: 16,
+          top: 48,
+          right: 0,
           fontFamily: 'monospace',
-          color: '#44ff88',
-          fontSize: 12,
-          letterSpacing: 2,
-          textShadow: '0 0 10px #44ff8866',
           pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          zIndex: 5,
         }}>
-          {planet.name ?? `PLANET-${planet.id.slice(0, 6).toUpperCase()}`}
+          <div style={{
+            background: 'rgba(10,15,25,0.85)',
+            border: '1px solid rgba(68,102,136,0.4)',
+            borderRight: 'none',
+            borderRadius: '4px 0 0 4px',
+            padding: '6px 14px 6px 12px',
+            display: 'flex',
+            perspective: 800,
+          }}>
+            {(planet.name ?? 'PLANET').toUpperCase().split('').map((ch, i, arr) => {
+              const dur = 0.8 + (i / Math.max(arr.length - 1, 1)) * 2.2;
+              return (
+                <span key={i} style={{
+                  display: 'inline-block',
+                  color: '#aaccee',
+                  fontSize: 13,
+                  fontWeight: 'bold',
+                  letterSpacing: '0.5px',
+                  textShadow: '0 0 5px rgba(68,136,170,0.7), 0 0 12px rgba(68,136,170,0.4)',
+                  animation: `nebuNeonSpin ${dur}s cubic-bezier(0.1,0.9,0.2,1) 0.4s forwards`,
+                  opacity: 0,
+                  whiteSpace: 'pre',
+                }}>{ch}</span>
+              );
+            })}
+          </div>
         </div>
 
         {/* Resource HUD (top-left) */}
         <div style={{
-          position: 'fixed',
-          top: 16,
-          left: 16,
-          fontFamily: 'monospace',
-          fontSize: 10,
-          color: '#667788',
-          lineHeight: 1.8,
-          pointerEvents: 'none',
+          /* Resource HUD removed — App.tsx ResourceDisplay handles this */
+          display: 'none',
         }}>
-          <div>
-            <span style={{ color: '#a0845e' }}>MIN </span>
-            <span style={{ color: '#aabbcc' }}>{colonyResources.minerals}</span>
-          </div>
-          <div>
-            <span style={{ color: '#22d3ee' }}>VOL </span>
-            <span style={{ color: '#aabbcc' }}>{colonyResources.volatiles}</span>
-          </div>
-          <div>
-            <span style={{ color: '#aa66ff' }}>ISO </span>
-            <span style={{ color: '#aabbcc' }}>{colonyResources.isotopes}</span>
-          </div>
         </div>
 
         {/* Close button (top-center) */}
