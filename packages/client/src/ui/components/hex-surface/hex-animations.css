@@ -1,0 +1,90 @@
+/* Hex surface animations — GPU-only CSS keyframes */
+
+/* Hex shake before opening */
+@keyframes hexShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px) rotate(-1deg); }
+  75% { transform: translateX(3px) rotate(1deg); }
+}
+.hex-shake { animation: hexShake 0.3s ease-in-out; }
+
+/* Hex lid flies up and fades */
+@keyframes hexLidOpen {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0; }
+}
+.hex-lid-open { animation: hexLidOpen 0.5s ease-out forwards; }
+
+/* Content emerges from below */
+@keyframes hexEmerge {
+  0% { transform: translateY(20px) scale(0.8); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.hex-emerge { animation: hexEmerge 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; opacity: 0; }
+
+/* Resource harvest — shrink and fade */
+@keyframes hexHarvest {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0) translateY(-20px); opacity: 0; }
+}
+.hex-harvest { animation: hexHarvest 0.4s ease-in forwards; }
+
+/* Building levitation */
+@keyframes hexLevitate {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.hex-levitate { animation: hexLevitate 3s ease-in-out infinite; }
+
+/* Sparkle particles */
+@keyframes hexSparkle {
+  0% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0) translateY(-15px); }
+}
+.hex-sparkle { animation: hexSparkle 0.8s ease-out forwards; }
+
+/* Locked hex pulse */
+@keyframes hexLockedPulse {
+  0%, 100% { stroke-opacity: 0.3; }
+  50% { stroke-opacity: 0.6; }
+}
+.hex-locked-pulse { animation: hexLockedPulse 2s ease-in-out infinite; }
+
+/* Resource glow (ready to harvest) */
+@keyframes hexResourceGlow {
+  0%, 100% { filter: drop-shadow(0 0 2px currentColor); }
+  50% { filter: drop-shadow(0 0 6px currentColor); }
+}
+.hex-resource-glow { animation: hexResourceGlow 2s ease-in-out infinite; }
+
+/* Building entrance */
+@keyframes hexBuildingDrop {
+  0% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.hex-building-enter { animation: hexBuildingDrop 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Respawn timer pulse */
+@keyframes hexRespawnPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+.hex-respawn-pulse { animation: hexRespawnPulse 1.5s ease-in-out infinite; }
+
+/* Building levitate (DOM-based, combines with levitate) */
+.hex-building-levitate { animation: hexLevitate 3s ease-in-out infinite; }
+
+/* Locked hex pulse for DOM border-color */
+@keyframes hexLockedPulseDom {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.hex-locked-pulse { animation: hexLockedPulseDom 2s ease-in-out infinite; }
+
+/* Resource glow border for DOM elements */
+@keyframes hexResourceGlowBorder {
+  0%, 100% { box-shadow: 0 0 4px 1px currentColor; }
+  50% { box-shadow: 0 0 10px 3px currentColor; }
+}
+.hex-resource-glow-border { animation: hexResourceGlowBorder 2s ease-in-out infinite; }
