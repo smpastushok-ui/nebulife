@@ -362,34 +362,33 @@ export const HexSlot = React.memo(function HexSlot({
   const left = x - HEX_W / 2;
   const top  = y - HEX_H / 2;
 
-  // Background and border color based on state
+  // Background based on state — no animations, just static brightness
   let bg = 'rgba(10,15,25,0.7)';
-  let borderColor = '#1a2535';
-  let borderStyle = 'solid';
   let opacity = 1;
-  let glowClass = '';
 
   if (slot.state === 'hidden') {
-    bg = 'rgba(5,8,15,0.5)';
-    borderColor = '#111a25';
-    opacity = 0.6;
+    // Unavailable — dark, dimmed
+    bg = 'rgba(5,8,15,0.85)';
+    opacity = 0.35;
   } else if (slot.state === 'locked') {
-    bg = 'rgba(8,14,24,0.65)';
-    borderColor = canAfford ? '#446688' : '#223344';
-    borderStyle = 'dashed';
-    glowClass = 'hex-locked-pulse';
+    if (canAfford) {
+      // Available to unlock — brighter, inviting
+      bg = 'rgba(20,30,50,0.75)';
+      opacity = 0.9;
+    } else {
+      // Visible but can't afford — dimmed
+      bg = 'rgba(8,14,24,0.8)';
+      opacity = 0.5;
+    }
   } else if (slot.state === 'resource') {
-    const color = slot.resourceType ? RESOURCE_COLORS[slot.resourceType] : '#44ff88';
-    const ready = isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour);
-    bg = `rgba(10,20,30,0.85)`;
-    borderColor = ready ? color : '#1a3040';
-    if (ready) glowClass = 'hex-resource-glow-border';
+    bg = 'rgba(12,22,35,0.85)';
+    opacity = 1;
   } else if (slot.state === 'empty') {
     bg = 'rgba(10,18,28,0.75)';
-    borderColor = '#2a3d55';
+    opacity = 1;
   } else if (slot.state === 'building' || slot.state === 'harvester') {
     bg = 'rgba(8,16,30,0.88)';
-    borderColor = '#4488aa';
+    opacity = 1;
   }
 
   // Main click handler for the entire hex area
@@ -402,7 +401,6 @@ export const HexSlot = React.memo(function HexSlot({
 
   return (
     <div
-      className={glowClass}
       onClick={handleClick}
       style={{
         position: 'absolute',
