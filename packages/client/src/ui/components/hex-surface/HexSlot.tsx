@@ -364,33 +364,13 @@ export const HexSlot = React.memo(function HexSlot({
   const left = x - HEX_W / 2;
   const top  = y - HEX_H / 2;
 
-  // Background based on state — no animations, just static brightness
-  let bg = 'rgba(10,15,25,0.7)';
+  // No background fill — invisible hit zones, WebP images provide the visual
   let opacity = 1;
 
   if (slot.state === 'hidden') {
-    // Unavailable — dark, dimmed
-    bg = 'rgba(5,8,15,0.85)';
     opacity = 0.35;
   } else if (slot.state === 'locked') {
-    if (canAfford) {
-      // Available to unlock — brighter, inviting
-      bg = 'rgba(20,30,50,0.75)';
-      opacity = 0.9;
-    } else {
-      // Visible but can't afford — dimmed
-      bg = 'rgba(8,14,24,0.8)';
-      opacity = 0.5;
-    }
-  } else if (slot.state === 'resource') {
-    bg = 'rgba(12,22,35,0.85)';
-    opacity = 1;
-  } else if (slot.state === 'empty') {
-    bg = 'rgba(10,18,28,0.75)';
-    opacity = 1;
-  } else if (slot.state === 'building' || slot.state === 'harvester') {
-    bg = 'rgba(8,16,30,0.88)';
-    opacity = 1;
+    opacity = canAfford ? 0.9 : 0.5;
   }
 
   // Main click handler for the entire hex area
@@ -412,8 +392,7 @@ export const HexSlot = React.memo(function HexSlot({
         height: HEX_H,
         zIndex: zIndex ?? 'auto',
         clipPath: HEX_CLIP,
-        background: bg,
-        boxSizing: 'border-box',
+        background: 'transparent',
         opacity,
         cursor: slot.state === 'hidden' ? 'default' : 'pointer',
         transition: 'opacity 0.2s',
