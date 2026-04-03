@@ -50,7 +50,7 @@ function HiddenContent() {
       <img
         src="/buildings/hecs_locked.webp"
         alt="locked"
-        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.3 }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%', opacity: 0.3 }}
       />
     </div>
   );
@@ -82,7 +82,7 @@ function LockedContent({
         src="/buildings/hecs_locked.webp"
         alt="locked"
         style={{
-          width: '100%', height: '100%', objectFit: 'cover',
+          width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
           position: 'absolute', inset: 0,
           opacity: canAfford ? 0.8 : 0.5,
           transition: 'opacity 0.2s',
@@ -163,7 +163,7 @@ function ResourceContent({
         src={webpSrc}
         alt={resourceType}
         style={{
-          width: '100%', height: '100%', objectFit: 'cover',
+          width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
           position: 'absolute', inset: 0,
           opacity: ready ? 1 : 0.5,
           transition: 'opacity 0.3s',
@@ -317,7 +317,7 @@ function BuildingContent({
         <img
           src={webpSrc}
           alt={type}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%' }}
         />
       ) : (
         <div style={{
