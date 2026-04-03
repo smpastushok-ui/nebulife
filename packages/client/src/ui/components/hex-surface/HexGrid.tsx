@@ -77,24 +77,25 @@ export const HexGrid = React.memo(function HexGrid({
         height: gridH,
         pointerEvents: 'auto',
       }}>
-        {slots.map((slot) => {
-          const pos = posMap.get(slot.id);
-          if (!pos) return null;
-
-          return (
+        {/* Sort by Y position so lower hexes render on top (correct isometric overlap) */}
+        {slots
+          .map((slot) => ({ slot, pos: posMap.get(slot.id) }))
+          .filter((item): item is { slot: HexSlotData; pos: { x: number; y: number } } => item.pos != null)
+          .sort((a, b) => a.pos.y - b.pos.y)
+          .map(({ slot, pos }, i) => (
             <HexSlot
               key={slot.id}
               slot={slot}
               x={pos.x}
               y={pos.y}
+              zIndex={i + 1}
               canAfford={canAffordUnlock(slot.id)}
               onUnlock={() => onUnlock(slot.id)}
               onHarvest={() => onHarvest(slot.id)}
               onBuild={() => onBuild(slot.id)}
               onInspect={() => onInspect(slot.id)}
             />
-          );
-        })}
+          ))}
       </div>
     </div>
   );

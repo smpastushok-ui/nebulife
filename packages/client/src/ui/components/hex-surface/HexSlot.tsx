@@ -14,6 +14,7 @@ interface HexSlotProps {
   slot: HexSlotData;
   x: number;
   y: number;
+  zIndex?: number;
   onUnlock: () => void;
   onHarvest: () => void;
   onBuild: () => void;
@@ -353,6 +354,7 @@ export const HexSlot = React.memo(function HexSlot({
   slot,
   x,
   y,
+  zIndex,
   onUnlock,
   onHarvest,
   onBuild,
@@ -408,6 +410,7 @@ export const HexSlot = React.memo(function HexSlot({
         top,
         width: HEX_W,
         height: HEX_H,
+        zIndex: zIndex ?? 'auto',
         clipPath: HEX_CLIP,
         background: bg,
         boxSizing: 'border-box',
