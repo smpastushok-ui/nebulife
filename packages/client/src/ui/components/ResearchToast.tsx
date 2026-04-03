@@ -418,7 +418,7 @@ const ToastItem: React.FC<{
     timerRef.current = setTimeout(() => {
       setLeaving(true);
       setTimeout(() => onDismiss(item.id), EXIT_MS[item.branch]);
-    }, 3000);
+    }, 2000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [item.id, item.branch, onDismiss]);
 
