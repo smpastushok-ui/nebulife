@@ -287,6 +287,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         <div style={{
           position: 'fixed',
           inset: 0,
+          zIndex: 9000,
           background: '#020510',
           display: 'flex',
           alignItems: 'center',
@@ -308,6 +309,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         style={{
           position: 'fixed',
           inset: 0,
+          zIndex: 9000,
           background: '#ffffff',
           overflow: 'hidden',
           userSelect: 'none',

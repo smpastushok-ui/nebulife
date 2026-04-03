@@ -412,15 +412,19 @@ const ToastItem: React.FC<{
     return () => cancelAnimationFrame(rafRef.current);
   }, [item.branch]);
 
-  // Auto-dismiss
+  // Auto-dismiss (stable ref to avoid re-triggering on onDismiss identity change)
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
   useEffect(() => {
     injectStyles();
+    const id = item.id;
+    const branch = item.branch;
     timerRef.current = setTimeout(() => {
       setLeaving(true);
-      setTimeout(() => onDismiss(item.id), EXIT_MS[item.branch]);
-    }, 2000);
+      setTimeout(() => onDismissRef.current(id), EXIT_MS[branch]);
+    }, 3000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [item.id, item.branch, onDismiss]);
+  }, [item.id, item.branch]);
 
   const color     = BRANCH_COLOR[item.branch];
   const animation = leaving ? EXIT_ANIM[item.branch] : ENTRY_ANIM[item.branch];
