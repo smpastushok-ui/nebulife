@@ -310,7 +310,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           position: 'fixed',
           inset: 0,
           zIndex: 9000,
-          background: '#ffffff',
+          background: '#0a0f1e',
           overflow: 'hidden',
           userSelect: 'none',
           WebkitUserSelect: 'none',

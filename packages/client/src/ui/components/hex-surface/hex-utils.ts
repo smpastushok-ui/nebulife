@@ -60,10 +60,10 @@ const AXIAL_COORDS: { ring: 0 | 1 | 2; q: number; r: number }[] = [
   { ring: 2, q: 1, r: 1 },
 ];
 
-/** Convert axial (q, r) to pixel position for flat-top hex */
+/** Convert axial (q, r) to pixel position for pointy-top hex */
 function axialToPixel(q: number, r: number, size: number): { x: number; y: number } {
-  const x = size * (3 / 2) * q;
-  const y = size * Math.sqrt(3) * (r + q / 2);
+  const x = size * Math.sqrt(3) * (q + r / 2);
+  const y = size * (3 / 2) * r;
   return { x, y };
 }
 
@@ -80,15 +80,18 @@ export function getHexPositions(): HexPosition[] {
   });
 }
 
-/** SVG polygon points string for a flat-top hexagon */
+/** SVG polygon points string for a pointy-top hexagon */
 export function hexPoints(cx: number, cy: number, r: number): string {
   const pts: string[] = [];
   for (let i = 0; i < 6; i++) {
-    const angle = (60 * i) * Math.PI / 180; // flat-top: start at 0°
+    const angle = (60 * i - 90) * Math.PI / 180; // pointy-top: start at -90° (top vertex)
     pts.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
   }
   return pts.join(' ');
 }
+
+/** CSS clip-path for a pointy-top hexagon */
+export const HEX_CLIP_PATH = 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)';
 
 // ---------------------------------------------------------------------------
 // Rarity + resource generation (seeded, deterministic)

@@ -21,11 +21,12 @@ interface HexSlotProps {
   canAfford: boolean;
 }
 
-// Flat-top hex clip-path
-const HEX_CLIP = 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)';
+// Pointy-top hex clip-path (matches reference design)
+const HEX_CLIP = 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)';
 
-// Size of a hex slot bounding box
-const SIZE = HEX_RADIUS * 2;
+// Size of a hex slot bounding box (pointy-top: width = sqrt(3)*r, height = 2*r)
+const HEX_W = Math.ceil(Math.sqrt(3) * HEX_RADIUS);
+const HEX_H = HEX_RADIUS * 2;
 
 function formatMs(ms: number): string {
   const totalSec = Math.ceil(ms / 1000);
@@ -330,8 +331,8 @@ export const HexSlot = React.memo(function HexSlot({
   onInspect,
   canAfford,
 }: HexSlotProps) {
-  const left = x - HEX_RADIUS;
-  const top  = y - HEX_RADIUS;
+  const left = x - HEX_W / 2;
+  const top  = y - HEX_H / 2;
 
   // Background and border color based on state
   let bg = 'rgba(10,15,25,0.7)';
@@ -370,8 +371,8 @@ export const HexSlot = React.memo(function HexSlot({
         position: 'absolute',
         left,
         top,
-        width: SIZE,
-        height: SIZE,
+        width: HEX_W,
+        height: HEX_H,
         clipPath: HEX_CLIP,
         background: bg,
         border: `1.5px ${borderStyle} ${borderColor}`,
