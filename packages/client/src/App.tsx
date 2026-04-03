@@ -3469,15 +3469,29 @@ function AppInner() {
   }, [homeInfo]);
 
   const handleGoToHomeSurface = useCallback(() => {
-    if (!homeInfo) return;
+    // Try homeInfo first, fallback to finding home system from engine
+    let info = homeInfo;
+    if (!info) {
+      const allSys = engineRef.current?.getAllSystems() ?? [];
+      const homeSys = allSys.find(s => s.ownerPlayerId !== null)
+        ?? allSys.find(s => s.planets.some(p => p.isHomePlanet));
+      if (homeSys) {
+        const homePlanet = homeSys.planets.find(p => p.isHomePlanet) ?? homeSys.planets[0];
+        if (homePlanet) {
+          info = { system: homeSys, planet: homePlanet };
+          setHomeInfo(info);
+        }
+      }
+    }
+    if (!info) return;
     setState(prev => ({
       ...prev,
-      selectedSystem: homeInfo.system,
-      selectedPlanet: homeInfo.planet,
+      selectedSystem: info!.system,
+      selectedPlanet: info!.planet,
     }));
     setSurfaceTarget({
-      planet: homeInfo.planet,
-      star: homeInfo.system.star,
+      planet: info.planet,
+      star: info.system.star,
     });
   }, [homeInfo]);
 
