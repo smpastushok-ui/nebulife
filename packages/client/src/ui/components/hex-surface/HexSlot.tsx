@@ -366,6 +366,7 @@ export const HexSlot = React.memo(function HexSlot({
   const [buildingBounce, setBuildingBounce] = useState(false);
   // Insufficient resources message
   const [insufficientMsg, setInsufficientMsg] = useState(false);
+  const [insufficientText, setInsufficientText] = useState('');
 
   // Main click handler for the entire hex area
   const handleClick = () => {
@@ -373,8 +374,18 @@ export const HexSlot = React.memo(function HexSlot({
       if (canAfford) {
         onUnlock();
       } else {
+        // Build detailed message showing what's missing
+        const cost = slot.unlockCost;
+        if (cost) {
+          const parts: string[] = [];
+          if (cost.minerals > 0) parts.push(`${cost.minerals}M`);
+          if (cost.volatiles > 0) parts.push(`${cost.volatiles}V`);
+          if (cost.isotopes > 0) parts.push(`${cost.isotopes}I`);
+          if ((cost.water ?? 0) > 0) parts.push(`${cost.water}W`);
+          setInsufficientText(parts.length > 0 ? parts.join(' ') : '???');
+        }
         setInsufficientMsg(true);
-        setTimeout(() => setInsufficientMsg(false), 2000);
+        setTimeout(() => setInsufficientMsg(false), 2500);
       }
     } else if (slot.state === 'resource') {
       // Trigger harvest + animation
@@ -457,23 +468,26 @@ export const HexSlot = React.memo(function HexSlot({
         </div>
       )}
 
-      {/* Insufficient resources message */}
+      {/* Insufficient resources message — shows cost needed */}
       {insufficientMsg && (
         <div style={{
           position: 'absolute',
-          top: '-20px',
+          top: '-24px',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 200,
-          fontSize: 9,
           fontFamily: 'monospace',
-          color: '#ff8844',
-          textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+          textAlign: 'center',
           whiteSpace: 'nowrap',
           pointerEvents: 'none',
-          animation: 'harvestFloat 2s ease-out forwards',
+          animation: 'harvestFloat 2.5s ease-out forwards',
         }}>
-          NOT ENOUGH
+          <div style={{ fontSize: 8, color: '#ff8844', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
+            NEED
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 'bold', color: '#ffaa66', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
+            {insufficientText}
+          </div>
         </div>
       )}
     </div>
