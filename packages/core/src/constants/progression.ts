@@ -94,6 +94,10 @@ export const XP_REWARDS = {
   HARVEST_TREE: 2,
   HARVEST_ORE: 2,
   HARVEST_VENT: 3,
+  /** Hex ring slot unlock XP by ring */
+  HEX_UNLOCK_RING1: 15,
+  HEX_UNLOCK_RING2: 50,
+  HEX_UNLOCK_RING3: 200,
 } as const;
 
 // ── Ring-based XP rewards ────────────────────────────────────────────────────

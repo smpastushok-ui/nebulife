@@ -4576,6 +4576,13 @@ function AppInner() {
           }}
           onHarvest={handleHarvest}
           onHarvestFx={handleHarvestFx}
+          onHexUnlocked={(ring) => {
+            const xp = ring === 1 ? XP_REWARDS.HEX_UNLOCK_RING1 : ring === 2 ? XP_REWARDS.HEX_UNLOCK_RING2 : XP_REWARDS.HEX_UNLOCK_RING3;
+            awardXP(xp, `hex_unlock_ring${ring}`);
+          }}
+          onHarvestAmount={(amount) => {
+            awardXP(amount, 'hex_harvest');
+          }}
           onPhaseChange={setSurfacePhase}
           onBuildPanelChange={setSurfaceBuildPanelOpen}
           playerLevel={playerLevel}

@@ -57,7 +57,7 @@ export interface HexStateResult {
 
 const RESOURCE_TO_COLONY: Record<ResourceType, keyof { minerals: number; volatiles: number; isotopes: number }> = {
   ore:   'minerals',
-  tree:  'minerals',  // biomass counts as minerals
+  tree:  'isotopes',  // trees produce isotopes (biomass fuel)
   vent:  'volatiles',
   water: 'volatiles', // water counts as volatiles
 };
@@ -154,7 +154,14 @@ function buildInitialSlots(): HexSlotData[] {
 function rollSlotContents(
   seed: number,
   slotId: string,
-): { state: 'resource' | 'empty'; resourceType?: ResourceType; rarity?: Rarity; yieldPerHour?: number } {
+  forceResource?: ResourceType,
+): { state: 'resource' | 'empty'; resourceType?: ResourceType; rarity?: Rarity; yieldPerHour?: number; maxCapacity?: number } {
+  // Forced resource (for RNG softlock prevention on home planet Ring 1)
+  if (forceResource) {
+    const rarity = rollRarity(seed, slotId);
+    const yieldPerHour = rarityYield(rarity);
+    return { state: 'resource', resourceType: forceResource, rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
+  }
   // 70% resource, 30% empty — deterministic via sin hash
   const h = Math.abs(Math.sin(seed * 0.17 + stringHash(slotId) * 0.031)) * 100;
 
@@ -162,7 +169,7 @@ function rollSlotContents(
     const resourceType = rollResourceType(seed, slotId);
     const rarity = rollRarity(seed, slotId);
     const yieldPerHour = rarityYield(rarity);
-    return { state: 'resource', resourceType, rarity, yieldPerHour };
+    return { state: 'resource', resourceType, rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
   }
   return { state: 'empty' };
 }
@@ -364,8 +371,18 @@ export function useHexState(
         isotopes:  -(slot.unlockCost.isotopes  ?? 0),
       });
 
+      // Guarantee ore + vent for first two Ring 1 unlocks (prevents RNG softlock)
+      let forceResource: ResourceType | undefined;
+      if (slot.ring === 1) {
+        const ring1Unlocked = slotsRef.current.filter(
+          (s) => s.ring === 1 && s.state !== 'locked' && s.state !== 'hidden',
+        ).length;
+        if (ring1Unlocked === 0) forceResource = 'ore';    // first = minerals
+        else if (ring1Unlocked === 1) forceResource = 'vent'; // second = volatiles
+      }
+
       // Roll slot contents
-      const rolled = rollSlotContents(planet.seed, slotId);
+      const rolled = rollSlotContents(planet.seed, slotId, forceResource);
 
       updateSlots((prev) => {
         let next = prev.map((s) => {

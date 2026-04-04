@@ -52,6 +52,8 @@ interface HexSurfaceProps {
   onBuildPanelChange?:    (open: boolean) => void;
   onHarvest?:             (objectType: SurfaceObjectType) => void;
   onHarvestFx?:           (objectType: SurfaceObjectType, sx: number, sy: number) => void;
+  onHexUnlocked?:         (ring: number) => void;
+  onHarvestAmount?:       (amount: number) => void;
   playerLevel?:           number;
   techTreeState?:         TechTreeState;
   isotopes?:              number;
@@ -95,6 +97,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onBuildPanelChange,
       onHarvest,
       onHarvestFx,
+      onHexUnlocked,
+      onHarvestAmount,
       playerLevel = 1,
       techTreeState,
       isotopes: _isotopes,
@@ -189,9 +193,13 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     const handleUnlock = useCallback(
       (slotId: string) => {
-        hexState.unlockSlot(slotId);
+        const slot = hexState.getSlot(slotId);
+        const success = hexState.unlockSlot(slotId);
+        if (success && slot) {
+          onHexUnlocked?.(slot.ring);
+        }
       },
-      [hexState],
+      [hexState, onHexUnlocked],
     );
 
     const handleHarvest = useCallback(
@@ -202,12 +210,13 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           const objType = RESOURCE_TO_OBJECT[slot.resourceType] as SurfaceObjectType | undefined;
           if (objType) {
             onHarvest?.(objType);
-            // Fire fly-to animation from center of screen as approximation
             onHarvestFx?.(objType, window.innerWidth / 2, window.innerHeight / 2);
           }
+          // Award XP = amount collected (burst harvest reward)
+          if (amount > 0) onHarvestAmount?.(amount);
         }
       },
-      [hexState, onHarvest, onHarvestFx],
+      [hexState, onHarvest, onHarvestFx, onHarvestAmount],
     );
 
     const handleBuild = useCallback(
