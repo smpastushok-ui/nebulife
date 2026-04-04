@@ -40,7 +40,7 @@ function getGroupElementsSorted(group: ResourceGroup) {
 }
 
 export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const totals = { minerals, volatiles, isotopes };
   const [collapsed, setCollapsed] = useState<Set<ResourceGroup>>(new Set());
 
@@ -158,9 +158,9 @@ export function ResourcesView({ minerals, volatiles, isotopes }: ResourcesViewPr
                       {el.symbol}
                     </span>
 
-                    {/* Name */}
+                    {/* Name (localized) */}
                     <span style={{ color: '#8899aa' }}>
-                      {el.name}
+                      {i18n.language === 'uk' ? el.nameUk : el.name}
                     </span>
 
                     {/* Atomic number */}
