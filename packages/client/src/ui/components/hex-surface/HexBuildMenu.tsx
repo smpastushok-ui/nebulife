@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { BuildingType } from '@nebulife/core';
+import type { BuildingType, PlanetType } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 
 interface HexBuildMenuProps {
@@ -11,6 +11,7 @@ interface HexBuildMenuProps {
   techTreeState?: any;
   colonyResources: { minerals: number; volatiles: number; isotopes: number; water: number };
   chemicalInventory?: Record<string, number>;
+  planetType?: PlanetType;
   onSelect: (type: BuildingType) => void;
   onClose: () => void;
 }
@@ -21,7 +22,7 @@ const RESOURCE_ABBR: Record<string, string> = {
 
 function formatCost(def: { cost: { resource: string; amount: number }[] }): string {
   if (def.cost.length === 0) return 'FREE';
-  return def.cost.map((c) => `${c.amount} ${RESOURCE_ABBR[c.resource] ?? c.resource}`).join(' / ');
+  return def.cost.map((c) => `${c.amount}${RESOURCE_ABBR[c.resource] ?? c.resource}`).join(' ');
 }
 
 function canAffordBuilding(
@@ -34,53 +35,68 @@ function canAffordBuilding(
     if (key in res) {
       if (res[key] < c.amount) return false;
     } else {
-      // Chemical element (U, Ti, Pt...)
       if ((chemInv[c.resource] ?? 0) < c.amount) return false;
     }
   }
   return true;
 }
 
-// Check if tech is researched using techTreeState (flat map of techId -> boolean)
 function isTechResearched(techTreeState: any, techId: string | null): boolean {
   if (techId === null) return true;
   if (!techTreeState) return false;
-  // techTreeState may be { researched: Record<string,boolean> } or a flat Record
   if (techTreeState.researched) return !!techTreeState.researched[techId];
   return !!techTreeState[techId];
 }
 
-// Visible buildings: filter by level and tech
-function getAvailableBuildings(
-  playerLevel: number,
-  techTreeState: any,
-): BuildingType[] {
-  return (Object.keys(BUILDING_DEFS) as BuildingType[]).filter((type) => {
-    const def = BUILDING_DEFS[type];
-    if (def.levelRequired > playerLevel) return false;
-    if (!isTechResearched(techTreeState, def.techRequired)) return false;
-    // Skip colony_hub — it's already placed in center slot
-    if (type === 'colony_hub') return false;
-    return true;
-  });
-}
+// Building image map (same as HexSlot BUILDING_WEBP)
+const BUILDING_IMG: Record<string, string> = {
+  colony_hub: '/buildings/colony.webp',
+  mine: '/buildings/mine.webp',
+  solar_plant: '/buildings/solar_plant.webp',
+  wind_generator: '/buildings/wind_generator.webp',
+  battery_station: '/buildings/battery_station.webp',
+  thermal_generator: '/buildings/thermal_generator.webp',
+  fusion_reactor: '/buildings/fusion_reactor.webp',
+  resource_storage: '/buildings/resource_storage.webp',
+  landing_pad: '/buildings/landing_pad.webp',
+  spaceport: '/buildings/spaceport.webp',
+  atmo_extractor: '/buildings/atmo_extractor.webp',
+  water_extractor: '/buildings/water_extractor.webp',
+  observatory: '/buildings/observatory.webp',
+  orbital_collector: '/buildings/orbital_collector.webp',
+  orbital_telescope: '/buildings/orbital_telescope.webp',
+  radar_tower: '/buildings/radar_tower.webp',
+  research_lab: '/buildings/research_lab.webp',
+  deep_drill: '/buildings/deep_drill.webp',
+  alpha_harvester: '/buildings/alpha_harvester.webp',
+  quantum_computer: '/buildings/quantum_computer.webp',
+  greenhouse: '/buildings/greenhouse.webp',
+  atmo_shield: '/buildings/atmo_shield.webp',
+  quantum_separator: '/buildings/quantum_separator.webp',
+  gas_fractionator: '/buildings/gas_fractionator.webp',
+  genesis_vault: '/buildings/genesis_vault.webp',
+  isotope_centrifuge: '/buildings/isotope_centrifuge.webp',
+  biome_dome: '/buildings/biome_dome.webp',
+  residential_dome: '/buildings/residential_dome.webp',
+  isotope_collector: '/buildings/isotope_centrifuge.webp', // reuse centrifuge image
+};
 
 const CATEGORY_ORDER = [
-  'infrastructure',
-  'energy',
   'extraction',
+  'energy',
+  'infrastructure',
   'science',
   'biosphere',
   'chemistry',
 ] as const;
 
 const CATEGORY_LABEL: Record<string, string> = {
-  infrastructure: 'INFRASTRUCTURE',
+  infrastructure: 'INFRA',
   energy:         'ENERGY',
-  extraction:     'EXTRACTION',
+  extraction:     'EXTRACT',
   science:        'SCIENCE',
-  biosphere:      'BIOSPHERE',
-  chemistry:      'CHEMISTRY',
+  biosphere:      'BIO',
+  chemistry:      'CHEM',
 };
 
 export function HexBuildMenu({
@@ -91,19 +107,12 @@ export function HexBuildMenu({
   techTreeState,
   colonyResources,
   chemicalInventory = {},
+  planetType,
   onSelect,
   onClose,
 }: HexBuildMenuProps) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
-  const available = getAvailableBuildings(playerLevel, techTreeState);
-
-  // Group by category
-  const grouped = CATEGORY_ORDER.reduce<Partial<Record<string, BuildingType[]>>>((acc, cat) => {
-    const items = available.filter((t) => BUILDING_DEFS[t].category === cat);
-    if (items.length > 0) acc[cat] = items;
-    return acc;
-  }, {});
 
   // Close on outside click
   useEffect(() => {
@@ -116,13 +125,22 @@ export function HexBuildMenu({
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
-  // Clamp position so menu stays within viewport
-  const menuW = 260;
-  const menuH = 300;
+  // All buildings except colony_hub, grouped by category
+  const allBuildings = (Object.keys(BUILDING_DEFS) as BuildingType[]).filter(t => t !== 'colony_hub');
+
+  const grouped = CATEGORY_ORDER.reduce<Partial<Record<string, BuildingType[]>>>((acc, cat) => {
+    const items = allBuildings.filter((t) => BUILDING_DEFS[t].category === cat);
+    if (items.length > 0) acc[cat] = items;
+    return acc;
+  }, {});
+
+  // Menu positioning
+  const menuW = 280;
+  const menuH = 400;
   const vpW = window.innerWidth;
   const vpH = window.innerHeight;
-  const left = Math.min(screenX, vpW - menuW - 12);
-  const top  = Math.min(screenY, vpH - menuH - 12);
+  const left = Math.min(Math.max(8, screenX - menuW / 2), vpW - menuW - 8);
+  const top = Math.min(Math.max(8, screenY - 60), vpH - menuH - 8);
 
   return (
     <div
@@ -133,10 +151,10 @@ export function HexBuildMenu({
         top,
         width: menuW,
         maxHeight: menuH,
-        background: 'rgba(8,14,24,0.96)',
+        background: 'rgba(8,14,24,0.97)',
         border: '1px solid #334455',
-        borderRadius: 4,
-        boxShadow: '0 4px 24px rgba(0,0,0,0.7)',
+        borderRadius: 6,
+        boxShadow: '0 4px 24px rgba(0,0,0,0.8)',
         overflowY: 'auto',
         zIndex: 1000,
         fontFamily: 'monospace',
@@ -147,123 +165,128 @@ export function HexBuildMenu({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '8px 12px',
+        padding: '6px 10px',
         borderBottom: '1px solid #1e2d3d',
       }}>
-        <span style={{ color: '#7bb8ff', fontSize: 11, letterSpacing: 1 }}>
-          BUILD
+        <span style={{ color: '#7bb8ff', fontSize: 10, letterSpacing: 1.5 }}>
+          {t('hex.build_menu', 'BUILD')}
         </span>
         <button
           onClick={onClose}
           style={{
-            background: 'none',
-            border: 'none',
-            color: '#556677',
-            cursor: 'pointer',
-            fontSize: 14,
-            padding: '0 2px',
-            fontFamily: 'monospace',
+            background: 'none', border: 'none', color: '#556677',
+            cursor: 'pointer', fontSize: 13, padding: '0 2px', fontFamily: 'monospace',
           }}
         >
           x
         </button>
       </div>
 
-      {/* Building list */}
-      <div style={{ padding: '4px 0' }}>
+      {/* Building list — compact cards */}
+      <div style={{ padding: '2px 0' }}>
         {Object.entries(grouped).map(([cat, types]) => (
           <div key={cat}>
-            {/* Category separator */}
+            {/* Category label */}
             <div style={{
-              padding: '4px 12px 2px',
-              fontSize: 8,
-              color: '#445566',
+              padding: '4px 10px 2px',
+              fontSize: 7,
+              color: '#3a5060',
               letterSpacing: 2,
+              textTransform: 'uppercase',
             }}>
-              {CATEGORY_LABEL[cat] ?? cat.toUpperCase()}
+              {CATEGORY_LABEL[cat] ?? cat}
             </div>
 
             {types!.map((type) => {
               const def = BUILDING_DEFS[type];
+              const levelLocked = def.levelRequired > playerLevel;
+              const techLocked = !isTechResearched(techTreeState, def.techRequired);
+              const planetLocked = planetType ? !def.allowedPlanetTypes.includes(planetType) : false;
+              const isLocked = levelLocked || techLocked || planetLocked;
+              const canAfford = !isLocked && canAffordBuilding(def, colonyResources, chemicalInventory);
               const costStr = formatCost(def);
-              const canAfford = canAffordBuilding(def, colonyResources, chemicalInventory);
+              const imgSrc = BUILDING_IMG[type];
 
               return (
                 <div
                   key={type}
                   onClick={() => { if (canAfford) { onSelect(type); onClose(); } }}
                   style={{
-                    padding: '12px 14px',
-                    cursor: canAfford ? 'pointer' : 'not-allowed',
-                    opacity: canAfford ? 1 : 0.45,
-                    borderBottom: '1px solid rgba(30,45,60,0.5)',
-                    transition: 'background 0.15s',
-                    minHeight: 44,
+                    padding: '4px 8px',
+                    cursor: canAfford ? 'pointer' : isLocked ? 'default' : 'not-allowed',
+                    borderBottom: '1px solid rgba(20,30,40,0.5)',
                     display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 8,
+                    opacity: isLocked ? 0.3 : canAfford ? 1 : 0.5,
+                    filter: isLocked ? 'grayscale(1)' : 'none',
+                    transition: 'background 0.15s',
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.background = 'rgba(68,136,170,0.12)';
+                    if (!isLocked) (e.currentTarget as HTMLDivElement).style.background = 'rgba(68,136,170,0.12)';
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLDivElement).style.background = 'transparent';
                   }}
                 >
-                  {/* Building name */}
+                  {/* Building thumbnail */}
                   <div style={{
-                    fontSize: 11,
-                    color: '#aabbcc',
-                    marginBottom: 2,
+                    width: 36, height: 36, flexShrink: 0,
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    background: 'rgba(15,25,35,0.8)',
+                    border: isLocked ? '1px dashed #2a3a4a' : '1px solid #334455',
+                    display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
                   }}>
-                    {t(`building.${type}.name`, def.name)}
+                    {imgSrc && (
+                      <img
+                        src={imgSrc}
+                        alt={type}
+                        style={{
+                          width: '100%', height: 'auto',
+                          opacity: isLocked ? 0.25 : 0.9,
+                        }}
+                      />
+                    )}
                   </div>
 
-                  {/* Description */}
-                  <div style={{
-                    fontSize: 9,
-                    color: '#667788',
-                    marginBottom: 3,
-                    lineHeight: 1.4,
-                  }}>
-                    {t(`building.${type}.desc`, def.description)}
-                  </div>
+                  {/* Info column */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Name + level badge */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}>
+                      <span style={{
+                        fontSize: 10, color: isLocked ? '#445566' : '#aabbcc',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>
+                        {t(`building.${type}.name`, def.name)}
+                      </span>
+                      {isLocked && (
+                        <span style={{
+                          fontSize: 8, color: '#ff8844',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {levelLocked ? `L${def.levelRequired}` : planetLocked ? 'N/A' : 'TECH'}
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Cost + level */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}>
-                    <span style={{
-                      fontSize: 9,
-                      color: '#4488aa',
-                    }}>
-                      {costStr}
-                    </span>
-                    <span style={{
-                      fontSize: 8,
-                      color: '#334455',
-                    }}>
-                      L{def.levelRequired}
-                    </span>
+                    {/* Cost row — only for unlocked */}
+                    {!isLocked && (
+                      <div style={{
+                        fontSize: 8, color: canAfford ? '#4488aa' : '#884444',
+                        marginTop: 1,
+                      }}>
+                        {costStr}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
         ))}
-
-        {available.length === 0 && (
-          <div style={{
-            padding: '16px 12px',
-            fontSize: 10,
-            color: '#445566',
-            textAlign: 'center',
-          }}>
-            No buildings available at your current level.
-          </div>
-        )}
       </div>
     </div>
   );

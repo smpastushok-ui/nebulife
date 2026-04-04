@@ -362,6 +362,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             techTreeState={techTreeState}
             colonyResources={colonyResources}
             chemicalInventory={chemicalInventory}
+            planetType={planet.type}
             onSelect={handleBuildSelect}
             onClose={handleBuildClose}
           />

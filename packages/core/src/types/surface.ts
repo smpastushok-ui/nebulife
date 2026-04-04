@@ -213,6 +213,8 @@ const ALL_TERRAIN: TerrainType[] = [
 
 const ROCKY_DWARF: PlanetType[] = ['rocky', 'terrestrial', 'dwarf'];
 const ROCKY_ONLY: PlanetType[] = ['rocky', 'terrestrial'];
+const TERRESTRIAL_ONLY: PlanetType[] = ['terrestrial'];
+const ROCKY_ICE: PlanetType[] = ['rocky', 'terrestrial', 'ice-giant'];
 const GAS_ICE: PlanetType[] = ['gas-giant', 'ice-giant'];
 const ALL_PLANETS: PlanetType[] = ['rocky', 'terrestrial', 'dwarf', 'gas-giant', 'ice-giant'];
 
@@ -390,7 +392,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     energyOutput: 0, energyConsumption: 2, energyStorageAdd: 0,
     production: [{ resource: 'water', amount: 1 }],
     consumption: [],
-    allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
+    allowedPlanetTypes: ROCKY_ICE, requiresAtmosphere: false, // needs water sources
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
 
@@ -592,7 +594,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     energyOutput: 0, energyConsumption: 6, energyStorageAdd: 0,
     production: [{ resource: 'habitability', amount: 0.015 }],
     consumption: [{ resource: 'water', amount: 0.05 }], // life support
-    allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
+    allowedPlanetTypes: TERRESTRIAL_ONLY, requiresAtmosphere: false, // needs biosphere-capable planet
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
 
