@@ -525,9 +525,13 @@ export function useHexState(
         water:     -(slot.unlockCost.water     ?? 0),
       });
 
-      // RNG softlock prevention for Zone 1: guarantee all 4 resource types (first 4 of 6)
+      // RNG softlock prevention: HOME planet Zone 1 guarantees all 4 resource types.
+      // Other planets use pure random (player already has cross-planet resources).
       let forceResource: ResourceType | undefined;
-      if (slot.ring === 1) {
+      const homePlanetId = typeof window !== 'undefined'
+        ? localStorage.getItem('nebulife_home_planet_id') : null;
+      const isHome = homePlanetId === planet.id;
+      if (isHome && slot.ring === 1) {
         const zone1Unlocked = slotsRef.current.filter(
           (s) => s.ring === 1 && s.state !== 'locked' && s.state !== 'hidden',
         ).length;
