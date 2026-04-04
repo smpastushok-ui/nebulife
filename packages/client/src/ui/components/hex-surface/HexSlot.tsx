@@ -97,9 +97,10 @@ function LockedContent({
           lineHeight: 1.4,
           marginTop: 30,
         }}>
-          {cost.minerals > 0 && <span>{cost.minerals}M </span>}
+          {cost.minerals  > 0 && <span>{cost.minerals}M </span>}
           {cost.volatiles > 0 && <span>{cost.volatiles}V </span>}
-          {cost.isotopes > 0 && <span>{cost.isotopes}I</span>}
+          {cost.isotopes  > 0 && <span>{cost.isotopes}I </span>}
+          {(cost.water ?? 0) > 0 && <span>{cost.water}W</span>}
         </div>
       )}
     </div>

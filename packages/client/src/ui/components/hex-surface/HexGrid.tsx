@@ -26,7 +26,7 @@ export const HexGrid = React.memo(function HexGrid({
   panX,
   panY,
 }: HexGridProps) {
-  // Compute hex positions once
+  // Compute hex positions once (30 diamond hexes)
   const positions = useMemo(() => getHexPositions(), []);
 
   // Find bounding box to auto-center the grid
@@ -44,12 +44,16 @@ export const HexGrid = React.memo(function HexGrid({
   const gridW = maxX - minX + HEX_RADIUS * 2;
   const gridH = maxY - minY + HEX_RADIUS * 2;
 
-  // Map slot id -> position for O(1) lookup
+  // Map slot id -> position + zOffset for O(1) lookup
   const posMap = useMemo(() => {
-    const m = new Map<string, { x: number; y: number }>();
+    const m = new Map<string, { x: number; y: number; zOffset: number }>();
     for (const p of positions) {
       // Normalize to start at (HEX_RADIUS, HEX_RADIUS) so slots don't clip at (0,0)
-      m.set(p.id, { x: p.x - minX + HEX_RADIUS, y: p.y - minY + HEX_RADIUS });
+      m.set(p.id, {
+        x:       p.x - minX + HEX_RADIUS,
+        y:       p.y - minY + HEX_RADIUS,
+        zOffset: p.zOffset,
+      });
     }
     return m;
   }, [positions, minX, minY]);
@@ -80,14 +84,16 @@ export const HexGrid = React.memo(function HexGrid({
         {/* Sort by Y position so lower hexes render on top (correct isometric overlap) */}
         {slots
           .map((slot) => ({ slot, pos: posMap.get(slot.id) }))
-          .filter((item): item is { slot: HexSlotData; pos: { x: number; y: number } } => item.pos != null)
+          .filter((item): item is { slot: HexSlotData; pos: { x: number; y: number; zOffset: number } } => item.pos != null)
           .sort((a, b) => a.pos.y - b.pos.y)
           .map(({ slot, pos }, i) => (
             <HexSlot
               key={slot.id}
               slot={slot}
               x={pos.x}
-              y={pos.y}
+              // Apply z-offset: outer rows are pushed down slightly to create
+              // a subtle "mountain" depth effect where the centre appears elevated
+              y={pos.y + pos.zOffset}
               zIndex={i + 1}
               canAfford={canAffordUnlock(slot.id)}
               onUnlock={() => onUnlock(slot.id)}

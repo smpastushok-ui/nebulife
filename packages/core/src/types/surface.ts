@@ -356,7 +356,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     levelRequired: 42, techRequired: 'phy-fusion', maxPerPlanet: 2,
     energyOutput: 50, energyConsumption: 0, energyStorageAdd: 0,
     production: [],
-    consumption: [{ resource: 'isotopes', amount: 0.1 }], // 1 isotope per 10 ticks
+    consumption: [{ resource: 'isotopes', amount: 0.1 }, { resource: 'water', amount: 0.05 }], // cooling
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
@@ -419,7 +419,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     levelRequired: 20, techRequired: 'phy-drill', maxPerPlanet: 3,
     energyOutput: 0, energyConsumption: 6, energyStorageAdd: 0,
     production: [{ resource: 'minerals', amount: 3 }],
-    consumption: [],
+    consumption: [{ resource: 'water', amount: 0.02 }], // cooling
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
@@ -530,7 +530,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     levelRequired: 38, techRequired: 'phy-quantum', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 10, energyStorageAdd: 0,
     production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 5 }], // 5 data/hour
-    consumption: [],
+    consumption: [{ resource: 'water', amount: 0.03 }], // cooling
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
@@ -548,7 +548,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     levelRequired: 3, techRequired: null, maxPerPlanet: 8,
     energyOutput: 0, energyConsumption: 2, energyStorageAdd: 0,
     production: [{ resource: 'habitability', amount: 0.005 }],
-    consumption: [],
+    consumption: [{ resource: 'water', amount: 0.03 }],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
@@ -562,7 +562,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     cost: [{ resource: 'minerals', amount: 20 }, { resource: 'volatiles', amount: 12 }, { resource: 'isotopes', amount: 3 }],
     levelRequired: 15, techRequired: 'bio-life-support', maxPerPlanet: 4,
     energyOutput: 0, energyConsumption: 4, energyStorageAdd: 0,
-    production: [], consumption: [],
+    production: [], consumption: [{ resource: 'water', amount: 0.05 }],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 500, fogRevealRadius: 0,
   },
@@ -591,7 +591,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     levelRequired: 32, techRequired: 'bio-biome-eng', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 6, energyStorageAdd: 0,
     production: [{ resource: 'habitability', amount: 0.015 }],
-    consumption: [],
+    consumption: [{ resource: 'water', amount: 0.05 }], // life support
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },

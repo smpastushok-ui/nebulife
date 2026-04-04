@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
-// useHexState — State management for hex ring surface
-// Replaces useSurfaceState.ts (no terrain grid, no A*, no bots)
+// useHexState — State management for diamond hex surface (30-hex layout)
+// Replaces the old 19-hex ring system.
 // ---------------------------------------------------------------------------
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -23,7 +23,11 @@ import {
   rollResourceType,
   rarityYield,
   isResourceReady,
-  RESOURCE_RESPAWN_MS,
+  DIAMOND_ROWS,
+  CENTER_ROW,
+  CENTER_COL,
+  computeZone,
+  getAdjacentIds,
 } from './hex-utils.js';
 
 // ---------------------------------------------------------------------------
@@ -67,88 +71,224 @@ const RESOURCE_TO_COLONY: Record<ResourceType, keyof { minerals: number; volatil
 };
 
 // ---------------------------------------------------------------------------
-// Initial state builder
+// Diamond layout — 30 hexes
+// Hub at (CENTER_ROW=4, CENTER_COL=2) = id "d4-2"
 // ---------------------------------------------------------------------------
 
-/**
- * Recalculate unlock costs for all locked slots based on current unlock progress.
- * All locked hexes in the same ring show the SAME cost (the "next" unlock cost).
- */
-function recalculateLockedCosts(slots: HexSlotData[]): HexSlotData[] {
-  const ring1Unlocked = slots.filter(s => s.ring === 1 && s.state !== 'locked').length;
-  const ring2Unlocked = slots.filter(s => s.ring === 2 && s.state !== 'locked' && s.state !== 'hidden').length;
+const HUB_ID = `d${CENTER_ROW}-${CENTER_COL}`;
 
-  const ring1NextCost = getUnlockCost(1, ring1Unlocked);
-  const ring2NextCost = getUnlockCost(2, ring2Unlocked);
+/**
+ * Enumerate all 30 diamond hexes in row-major order, returning their
+ * (row, col, zone, index-within-zone).
+ */
+function buildDiamondDescriptors(): Array<{
+  row: number;
+  col: number;
+  id: string;
+  zone: 0 | 1 | 2 | 3;
+  zoneIndex: number;
+}> {
+  // First pass: assign zone
+  const raw: Array<{ row: number; col: number; id: string; zone: 0 | 1 | 2 | 3 }> = [];
+  for (let row = 0; row < DIAMOND_ROWS.length; row++) {
+    const width = DIAMOND_ROWS[row];
+    for (let col = 0; col < width; col++) {
+      raw.push({ row, col, id: `d${row}-${col}`, zone: computeZone(row, col) });
+    }
+  }
+  // Second pass: index within zone
+  const zoneCounters: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
+  return raw.map((h) => ({ ...h, zoneIndex: zoneCounters[h.zone]++ }));
+}
+
+// ---------------------------------------------------------------------------
+// Recalculate unlock costs for all locked slots
+// ---------------------------------------------------------------------------
+
+function recalculateLockedCosts(slots: HexSlotData[]): HexSlotData[] {
+  const zone1Unlocked = slots.filter(s => s.ring === 1 && s.state !== 'locked' && s.state !== 'hidden').length;
+  const zone2Unlocked = slots.filter(s => s.ring === 2 && s.state !== 'locked' && s.state !== 'hidden').length;
+  const zone3Unlocked = slots.filter(s => s.ring === 3 && s.state !== 'locked' && s.state !== 'hidden').length;
+
+  const zone1Cost = getUnlockCost(1, zone1Unlocked);
+  const zone2Cost = getUnlockCost(2, zone2Unlocked);
+  const zone3Cost = getUnlockCost(3, zone3Unlocked);
 
   return slots.map(s => {
-    if (s.state === 'locked' && s.ring === 1) return { ...s, unlockCost: ring1NextCost };
-    if (s.state === 'locked' && s.ring === 2) return { ...s, unlockCost: ring2NextCost };
+    if (s.state !== 'locked') return s;
+    if (s.ring === 1) return { ...s, unlockCost: zone1Cost };
+    if (s.ring === 2) return { ...s, unlockCost: zone2Cost };
+    if (s.ring === 3) return { ...s, unlockCost: zone3Cost };
     return s;
   });
 }
 
-/**
- * Ensure Ring 2 slots are 'locked' (not 'hidden') if their parent Ring 1 slot is already unlocked.
- * Fixes saved data where Ring 2 stayed hidden after Ring 1 was opened.
- */
-function migrateRing2Visibility(slots: HexSlotData[]): HexSlotData[] {
-  // Find all unlocked Ring 1 indices
-  const unlockedRing1 = slots
-    .filter(s => s.ring === 1 && s.state !== 'locked' && s.state !== 'hidden')
-    .map(s => s.index);
+// ---------------------------------------------------------------------------
+// Reveal logic — unlocking a hex makes its hidden zone-N+1 neighbours 'locked'
+// ---------------------------------------------------------------------------
 
-  if (unlockedRing1.length === 0) return slots;
+function revealAdjacentHidden(slots: HexSlotData[], unlockedId: string): HexSlotData[] {
+  // Parse row/col from id
+  const m = unlockedId.match(/^d(\d+)-(\d+)$/);
+  if (!m) return slots; // old-format id — skip adjacency reveal
 
-  // Compute which Ring 2 indices should be visible
-  const visibleRing2 = new Set<number>();
-  for (const i of unlockedRing1) {
-    visibleRing2.add(i * 2);
-    visibleRing2.add((i * 2 + 1) % 12);
-  }
+  const row = parseInt(m[1], 10);
+  const col = parseInt(m[2], 10);
+  const adjIds = new Set(getAdjacentIds(row, col));
 
   return slots.map(s => {
-    if (s.ring === 2 && s.state === 'hidden' && visibleRing2.has(s.index)) {
+    if (adjIds.has(s.id) && s.state === 'hidden') {
       return { ...s, state: 'locked' as HexState };
     }
     return s;
   });
 }
 
-function buildInitialSlots(): HexSlotData[] {
-  const slots: HexSlotData[] = [];
+// ---------------------------------------------------------------------------
+// Initial slot builder (fresh start, 30 diamond hexes)
+// ---------------------------------------------------------------------------
 
-  // Ring 0 — center: colony hub (free)
-  slots.push({
-    id: 'ring0-0',
-    ring: 0,
-    index: 0,
-    state: 'building',
-    buildingType: 'colony_hub',
-    buildingLevel: 1,
+function buildInitialSlots(): HexSlotData[] {
+  const descriptors = buildDiamondDescriptors();
+  const slots: HexSlotData[] = descriptors.map(({ row, col, id, zone, zoneIndex }) => {
+    if (zone === 0) {
+      // Hub — auto-unlocked with colony building
+      return {
+        id,
+        ring: 0 as const,
+        index: zoneIndex,
+        state: 'building' as HexState,
+        buildingType: 'colony_hub',
+        buildingLevel: 1,
+      };
+    }
+    if (zone === 1) {
+      // Zone 1 — immediately visible as locked (adjacent to hub)
+      return {
+        id,
+        ring: 1 as const,
+        index: zoneIndex,
+        state: 'locked' as HexState,
+      };
+    }
+    // Zone 2 & 3 — hidden until neighbours are unlocked
+    return {
+      id,
+      ring: zone as 2 | 3,
+      index: zoneIndex,
+      state: 'hidden' as HexState,
+    };
   });
 
-  // Ring 1 — 6 locked slots (isotopes only, progressive cost)
-  for (let i = 0; i < 6; i++) {
-    slots.push({
-      id: `ring1-${i}`,
-      ring: 1,
-      index: i,
-      state: 'locked',
-    });
-  }
-
-  // Ring 2 — 12 hidden slots (invisible until ring1 neighbor unlocked)
-  for (let i = 0; i < 12; i++) {
-    slots.push({
-      id: `ring2-${i}`,
-      ring: 2,
-      index: i,
-      state: 'hidden',
-    });
-  }
-
   return recalculateLockedCosts(slots);
+}
+
+// ---------------------------------------------------------------------------
+// Migration: old ring-based saves → diamond layout
+// Detects by checking if the first saved slot id starts with "ring"
+// ---------------------------------------------------------------------------
+
+function migrateRingToDiamond(oldSlots: HexSlotData[]): HexSlotData[] {
+  if (!oldSlots.length || !oldSlots[0].id.startsWith('ring')) {
+    // Already diamond format or empty — run adjacency + cost fix only
+    return fixDiamondSlots(oldSlots);
+  }
+
+  console.info('[useHexState] Migrating ring-based saves to diamond layout');
+
+  // Build fresh diamond slots
+  const descriptors = buildDiamondDescriptors();
+
+  // Index old slots by id for quick lookup
+  const oldById = new Map<string, HexSlotData>();
+  for (const s of oldSlots) oldById.set(s.id, s);
+
+  // Map old ring slots to new diamond slots by zone order
+  // ring0-0 -> d4-2 (zone 0, index 0)
+  // ring1-0..5 -> zone1 slots in order
+  // ring2-0..11 -> zone2 slots in order
+  const zoneDescriptors: Record<number, Array<{ row: number; col: number; id: string; zone: 0 | 1 | 2 | 3; zoneIndex: number }>> = { 0: [], 1: [], 2: [], 3: [] };
+  for (const d of descriptors) zoneDescriptors[d.zone].push(d);
+
+  const newSlots: HexSlotData[] = descriptors.map(({ row, col, id, zone, zoneIndex }) => {
+    if (zone === 0) {
+      // Try to restore hub state from old ring0-0
+      const oldHub = oldById.get('ring0-0');
+      return {
+        id,
+        ring: 0 as const,
+        index: zoneIndex,
+        state: oldHub?.state ?? ('building' as HexState),
+        buildingType: oldHub?.buildingType ?? 'colony_hub',
+        buildingLevel: oldHub?.buildingLevel ?? 1,
+      };
+    }
+
+    if (zone === 1) {
+      // Restore from ring1-{zoneIndex} if available
+      const oldKey = `ring1-${zoneIndex}`;
+      const oldSlot = oldById.get(oldKey);
+      if (oldSlot && oldSlot.state !== 'hidden') {
+        return {
+          ...oldSlot,
+          id,
+          ring: 1 as const,
+          index: zoneIndex,
+        };
+      }
+      return {
+        id,
+        ring: 1 as const,
+        index: zoneIndex,
+        state: 'locked' as HexState,
+      };
+    }
+
+    if (zone === 2) {
+      // Restore from ring2-{zoneIndex} if available (only 12 zone-2 slots, same count)
+      const oldKey = `ring2-${zoneIndex}`;
+      const oldSlot = oldById.get(oldKey);
+      if (oldSlot && oldSlot.state !== 'hidden') {
+        return {
+          ...oldSlot,
+          id,
+          ring: 2 as const,
+          index: zoneIndex,
+        };
+      }
+      return {
+        id,
+        ring: 2 as const,
+        index: zoneIndex,
+        state: 'hidden' as HexState,
+      };
+    }
+
+    // Zone 3 — new, always hidden
+    return {
+      id,
+      ring: 3 as const,
+      index: zoneIndex,
+      state: 'hidden' as HexState,
+    };
+  });
+
+  return fixDiamondSlots(newSlots);
+}
+
+/**
+ * Fix diamond-format slots: ensure all zone N+1 neighbours of unlocked hexes
+ * are at least 'locked' (not 'hidden'), then recalculate costs.
+ */
+function fixDiamondSlots(slots: HexSlotData[]): HexSlotData[] {
+  // For every unlocked hex, reveal adjacent hidden neighbours
+  let result = [...slots];
+  for (const s of slots) {
+    if (s.state !== 'hidden' && s.state !== 'locked') {
+      result = revealAdjacentHidden(result, s.id);
+    }
+  }
+  return recalculateLockedCosts(result);
 }
 
 // ---------------------------------------------------------------------------
@@ -160,18 +300,23 @@ function rollSlotContents(
   slotId: string,
   forceResource?: ResourceType,
 ): { state: 'resource' | 'empty'; resourceType?: ResourceType; rarity?: Rarity; yieldPerHour?: number; maxCapacity?: number } {
-  // Forced resource (for RNG softlock prevention on home planet Ring 1)
   if (forceResource) {
     const rarity = rollRarity(seed, slotId);
     const yieldPerHour = rarityYield(rarity);
     return { state: 'resource', resourceType: forceResource, rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
   }
-  // Ring 1 always has resources (0% empty) to prevent dead-end start
-  // Ring 2+ has 70% resource / 30% empty
-  const isRing1 = slotId.startsWith('ring1-');
+
+  // Zone 1 always has resources (0% empty) to prevent dead-end start
+  // Zone 2+ has 70% resource / 30% empty
+  const isZone1 = slotId.startsWith('d') && (() => {
+    const m = slotId.match(/^d(\d+)-(\d+)$/);
+    if (!m) return false;
+    return computeZone(parseInt(m[1], 10), parseInt(m[2], 10)) === 1;
+  })();
+
   const h = Math.abs(Math.sin(seed * 0.17 + stringHash(slotId) * 0.031)) * 100;
 
-  if (isRing1 || h < 70) {
+  if (isZone1 || h < 70) {
     const resourceType = rollResourceType(seed, slotId);
     const rarity = rollRarity(seed, slotId);
     const yieldPerHour = rarityYield(rarity);
@@ -187,8 +332,7 @@ function stringHash(s: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// ELEMENT_GROUP cost mapping
-// Building cost resources use names like 'minerals', 'volatiles', 'isotopes'
+// Building cost helpers
 // ---------------------------------------------------------------------------
 
 type ColonyResources = { minerals: number; volatiles: number; isotopes: number; water: number };
@@ -208,7 +352,6 @@ function buildingCost(type: BuildingType): BuildingCostResult {
     if (key === 'minerals' || key === 'volatiles' || key === 'isotopes' || key === 'water') {
       colony[key] = (colony[key] ?? 0) + c.amount;
     } else {
-      // Chemical element (U, Ti, Pt, etc.)
       elements[c.resource] = (elements[c.resource] ?? 0) + c.amount;
     }
   }
@@ -217,7 +360,7 @@ function buildingCost(type: BuildingType): BuildingCostResult {
 
 function canAffordCost(
   resources: ColonyResources,
-  cost: Partial<ColonyResources>,
+  cost: Partial<ColonyResources & { water?: number }>,
   chemInv?: Record<string, number>,
   elementCosts?: Record<string, number>,
 ): boolean {
@@ -250,22 +393,17 @@ export function useHexState(
   const [slots, setSlots] = useState<HexSlotData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Debounce save timer
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Latest slots ref for callbacks that close over stale state
   const slotsRef = useRef<HexSlotData[]>([]);
   slotsRef.current = slots;
 
   // ---------------------------------------------------------------------------
-  // Persist to DB (debounced)
+  // Persist to DB (debounced 2s)
   // ---------------------------------------------------------------------------
 
   const scheduleSave = useCallback(
     (newSlots: HexSlotData[]) => {
-      if (saveTimerRef.current !== null) {
-        clearTimeout(saveTimerRef.current);
-      }
+      if (saveTimerRef.current !== null) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         updatePlayer(playerId, {
           game_state: { hex_slots: newSlots },
@@ -293,9 +431,11 @@ export function useHexState(
         const saved = playerData?.game_state?.hex_slots;
 
         if (Array.isArray(saved) && saved.length > 0) {
-          // Migrate: ensure Ring 2 visibility + recalculate costs
-          const migrated = migrateRing2Visibility(saved as HexSlotData[]);
-          setSlots(recalculateLockedCosts(migrated));
+          // Migrate ring-based OR fix diamond saves
+          const migrated = migrateRingToDiamond(saved as HexSlotData[]);
+          setSlots(migrated);
+          // Persist migrated state immediately so next load skips migration
+          scheduleSave(migrated);
         } else {
           const initial = buildInitialSlots();
           setSlots(initial);
@@ -303,46 +443,35 @@ export function useHexState(
         }
       } catch (err) {
         console.error('[useHexState] load failed:', err);
-        if (!cancelled) {
-          setSlots(buildInitialSlots());
-        }
+        if (!cancelled) setSlots(buildInitialSlots());
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cleanup save timer on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current !== null) {
-        clearTimeout(saveTimerRef.current);
-      }
+      if (saveTimerRef.current !== null) clearTimeout(saveTimerRef.current);
     };
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Respawn timer — check every 60s, trigger re-render when resource respawns
+  // Respawn timer — 60s check
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
+    const id = setInterval(() => {
       const current = slotsRef.current;
       const hasExpired = current.some(
         (s) => s.state === 'resource' && s.lastHarvestedAt !== undefined && isResourceReady(s.lastHarvestedAt),
       );
-      if (hasExpired) {
-        // Force re-render by creating a new array reference (slots are unchanged,
-        // isResourceReady() is recalculated in UI components)
-        setSlots((prev) => [...prev]);
-      }
+      if (hasExpired) setSlots((prev) => [...prev]);
     }, 60_000);
-
-    return () => clearInterval(intervalId);
+    return () => clearInterval(id);
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -361,9 +490,7 @@ export function useHexState(
   );
 
   const getSlot = useCallback(
-    (slotId: string): HexSlotData | undefined => {
-      return slotsRef.current.find((s) => s.id === slotId);
-    },
+    (slotId: string): HexSlotData | undefined => slotsRef.current.find((s) => s.id === slotId),
     [],
   );
 
@@ -388,7 +515,6 @@ export function useHexState(
     (slotId: string): boolean => {
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'locked' || !slot.unlockCost) return false;
-
       if (!canAffordCost(colonyResources, slot.unlockCost)) return false;
 
       // Deduct resources
@@ -396,49 +522,43 @@ export function useHexState(
         minerals:  -(slot.unlockCost.minerals  ?? 0),
         volatiles: -(slot.unlockCost.volatiles ?? 0),
         isotopes:  -(slot.unlockCost.isotopes  ?? 0),
+        water:     -(slot.unlockCost.water     ?? 0),
       });
 
-      // Guarantee ore + vent for first two Ring 1 unlocks (prevents RNG softlock)
+      // RNG softlock prevention for Zone 1: guarantee ore + vent + water (3 of 6)
       let forceResource: ResourceType | undefined;
       if (slot.ring === 1) {
-        const ring1Unlocked = slotsRef.current.filter(
+        const zone1Unlocked = slotsRef.current.filter(
           (s) => s.ring === 1 && s.state !== 'locked' && s.state !== 'hidden',
         ).length;
-        if (ring1Unlocked === 0) forceResource = 'ore';    // first = minerals
-        else if (ring1Unlocked === 1) forceResource = 'vent'; // second = volatiles
+        if (zone1Unlocked === 0) forceResource = 'ore';    // first  = minerals
+        if (zone1Unlocked === 1) forceResource = 'vent';   // second = volatiles
+        if (zone1Unlocked === 2) forceResource = 'water';  // third  = water
       }
 
       // Roll slot contents
       const rolled = rollSlotContents(planet.seed, slotId, forceResource);
 
       updateSlots((prev) => {
+        // Apply unlock
         let next = prev.map((s) => {
           if (s.id !== slotId) return s;
           return {
             ...s,
-            state: rolled.state,
-            resourceType:  rolled.resourceType,
-            rarity:        rolled.rarity,
-            yieldPerHour:  rolled.yieldPerHour,
-            maxCapacity:   rolled.yieldPerHour ? rolled.yieldPerHour * 12 : undefined,
-            unlockCost:    undefined,
+            state:           rolled.state,
+            resourceType:    rolled.resourceType,
+            rarity:          rolled.rarity,
+            yieldPerHour:    rolled.yieldPerHour,
+            maxCapacity:     rolled.yieldPerHour ? rolled.yieldPerHour * 12 : undefined,
+            unlockCost:      undefined,
             lastHarvestedAt: undefined,
           } as HexSlotData;
         });
 
-        // If ring 1 slot unlocked → reveal 2 adjacent ring 2 slots
-        if (slot.ring === 1) {
-          const i = slot.index;
-          const adj = [i * 2, (i * 2 + 1) % 12];
-          next = next.map((s) => {
-            if (s.ring === 2 && adj.includes(s.index) && s.state === 'hidden') {
-              return { ...s, state: 'locked' as HexState };
-            }
-            return s;
-          });
-        }
+        // Reveal adjacent hidden neighbours of the newly unlocked hex
+        next = revealAdjacentHidden(next, slotId);
 
-        // Recalculate costs for all remaining locked slots (progressive pricing)
+        // Recalculate costs for remaining locked hexes
         return recalculateLockedCosts(next);
       });
 
@@ -462,20 +582,15 @@ export function useHexState(
       const now = Date.now();
 
       updateSlots((prev) =>
-        prev.map((s) =>
-          s.id === slotId ? { ...s, lastHarvestedAt: now } : s,
-        ),
+        prev.map((s) => s.id === slotId ? { ...s, lastHarvestedAt: now } : s),
       );
 
       const colonyKey = RESOURCE_TO_COLONY[slot.resourceType];
       onResourceChange?.({ [colonyKey]: yieldAmount });
 
-      // Generate proportional chemical elements from harvest
       if (onElementChange && planet.resources) {
         const elements = computeHarvestElements(slot.resourceType, yieldAmount, planet.resources);
-        if (Object.keys(elements).length > 0) {
-          onElementChange(elements);
-        }
+        if (Object.keys(elements).length > 0) onElementChange(elements);
       }
 
       return yieldAmount;
@@ -495,7 +610,6 @@ export function useHexState(
       const { colony: colonyCost, elements: elementCost } = buildingCost(type);
       if (!canAffordCost(colonyResources, colonyCost, chemicalInventory, elementCost)) return false;
 
-      // Deduct colony resource cost
       const delta: Partial<ColonyResources> = {};
       if (colonyCost.minerals)  delta.minerals  = -(colonyCost.minerals);
       if (colonyCost.volatiles) delta.volatiles = -(colonyCost.volatiles);
@@ -503,12 +617,9 @@ export function useHexState(
       if (colonyCost.water)     delta.water     = -(colonyCost.water);
       if (Object.keys(delta).length > 0) onResourceChange?.(delta);
 
-      // Deduct element cost
       if (Object.keys(elementCost).length > 0 && onElementChange) {
         const elDelta: Record<string, number> = {};
-        for (const [el, amount] of Object.entries(elementCost)) {
-          elDelta[el] = -amount;
-        }
+        for (const [el, amount] of Object.entries(elementCost)) elDelta[el] = -amount;
         onElementChange(elDelta);
       }
 
@@ -522,7 +633,6 @@ export function useHexState(
 
       onBuildingPlaced?.(type);
 
-      // Persist to surface_buildings table (fire-and-forget)
       const building: PlacedBuilding = {
         id:      `${playerId}-${slotId}-${type}`,
         type,
@@ -554,12 +664,7 @@ export function useHexState(
       updateSlots((prev) =>
         prev.map((s) =>
           s.id === slotId
-            ? {
-                ...s,
-                state:         'empty' as HexState,
-                buildingType:  undefined,
-                buildingLevel: undefined,
-              }
+            ? { ...s, state: 'empty' as HexState, buildingType: undefined, buildingLevel: undefined }
             : s,
         ),
       );
