@@ -58,6 +58,8 @@ interface HexSurfaceProps {
   techTreeState?:         TechTreeState;
   isotopes?:              number;
   onConsumeIsotopes?:     (amount: number) => void;
+  chemicalInventory?:     Record<string, number>;
+  onElementChange?:       (delta: Record<string, number>) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +105,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       techTreeState,
       isotopes: _isotopes,
       onConsumeIsotopes: _onConsumeIsotopes,
+      chemicalInventory = {},
+      onElementChange,
     },
     ref,
   ) {
@@ -162,6 +166,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       (type) => {
         onBuildingPlaced?.(type);
       },
+      chemicalInventory,
+      onElementChange,
     );
 
     // ── Signal ready after initial load ────────────────────────────────────
@@ -353,6 +359,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             playerLevel={playerLevel}
             techTreeState={techTreeState}
             colonyResources={colonyResources}
+            chemicalInventory={chemicalInventory}
             onSelect={handleBuildSelect}
             onClose={handleBuildClose}
           />

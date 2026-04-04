@@ -134,6 +134,7 @@ interface SyncedGameState {
   research_data: number;
   // Colony
   colony_resources: { minerals: number; volatiles: number; isotopes: number };
+  chemical_inventory: Record<string, number>;
   // Game phase
   exodus_phase: boolean;
   destroyed_planets: Array<{ planetId: string; systemId: string; orbitAU: number }>;
@@ -367,6 +368,31 @@ function AppInner() {
     try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(colonyResources)); }
     catch { /* ignore */ }
   }, [colonyResources]);
+
+  // ── Chemical Inventory (element-level tracking, Phase 3+) ──────────────
+  const [chemicalInventory, setChemicalInventory] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_chemical_inventory');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(chemicalInventory)); }
+    catch { /* ignore */ }
+  }, [chemicalInventory]);
+
+  /** Handle element inventory changes (from hex harvest or chemistry buildings) */
+  const handleElementChange = useCallback((delta: Record<string, number>) => {
+    setChemicalInventory(prev => {
+      const next = { ...prev };
+      for (const [el, amount] of Object.entries(delta)) {
+        next[el] = Math.max(0, (next[el] ?? 0) + amount);
+      }
+      return next;
+    });
+  }, []);
 
   // ── Exodus phase flag ──────────────────────────────────────────────────
   const [isExodusPhase, setIsExodusPhase] = useState<boolean>(() => {
@@ -1097,7 +1123,7 @@ function AppInner() {
     const keysToRemove = [
       'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
       'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
-      'nebulife_colony_resources', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
+      'nebulife_colony_resources', 'nebulife_chemical_inventory', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
       'nebulife_log_entries', 'nebulife_onboarding_done', 'nebulife_scene',
       'nebulife_nav_system', 'nebulife_nav_planet', 'nebulife_destroyed_planets',
       'nebulife_favorite_planets', 'nebulife_game_started_at', 'nebulife_time_multiplier',
@@ -1281,6 +1307,10 @@ function AppInner() {
     if (gs.colony_resources && typeof gs.colony_resources === 'object') {
       setColonyResources(gs.colony_resources);
       try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(gs.colony_resources)); } catch { /* ignore */ }
+    }
+    if (gs.chemical_inventory && typeof gs.chemical_inventory === 'object') {
+      setChemicalInventory(gs.chemical_inventory as Record<string, number>);
+      try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(gs.chemical_inventory)); } catch { /* ignore */ }
     }
 
     // Game phase
@@ -3285,6 +3315,7 @@ function AppInner() {
       player_stats: playerStats,
       research_data: researchData,
       colony_resources: colonyResources,
+      chemical_inventory: chemicalInventory,
       exodus_phase: isExodusPhase,
       destroyed_planets: destroyedPlanets,
       onboarding_done: localStorage.getItem('nebulife_onboarding_done') === '1',
@@ -4588,6 +4619,8 @@ function AppInner() {
           playerLevel={playerLevel}
           techTreeState={techTreeState}
           isotopes={colonyResources.isotopes}
+          chemicalInventory={chemicalInventory}
+          onElementChange={handleElementChange}
           onConsumeIsotopes={(amount) => {
             setColonyResources((prev) => ({
               ...prev,

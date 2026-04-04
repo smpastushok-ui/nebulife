@@ -9,6 +9,7 @@ interface HexBuildMenuProps {
   playerLevel: number;
   techTreeState?: any;
   colonyResources: { minerals: number; volatiles: number; isotopes: number };
+  chemicalInventory?: Record<string, number>;
   onSelect: (type: BuildingType) => void;
   onClose: () => void;
 }
@@ -25,10 +26,16 @@ function formatCost(def: { cost: { resource: string; amount: number }[] }): stri
 function canAffordBuilding(
   def: { cost: { resource: string; amount: number }[] },
   res: { minerals: number; volatiles: number; isotopes: number },
+  chemInv: Record<string, number> = {},
 ): boolean {
   for (const c of def.cost) {
     const key = c.resource as keyof typeof res;
-    if (key in res && res[key] < c.amount) return false;
+    if (key in res) {
+      if (res[key] < c.amount) return false;
+    } else {
+      // Chemical element (U, Ti, Pt...)
+      if ((chemInv[c.resource] ?? 0) < c.amount) return false;
+    }
   }
   return true;
 }
@@ -82,6 +89,7 @@ export function HexBuildMenu({
   playerLevel,
   techTreeState,
   colonyResources,
+  chemicalInventory = {},
   onSelect,
   onClose,
 }: HexBuildMenuProps) {
@@ -176,7 +184,7 @@ export function HexBuildMenu({
             {types!.map((type) => {
               const def = BUILDING_DEFS[type];
               const costStr = formatCost(def);
-              const canAfford = canAffordBuilding(def, colonyResources);
+              const canAfford = canAffordBuilding(def, colonyResources, chemicalInventory);
 
               return (
                 <div

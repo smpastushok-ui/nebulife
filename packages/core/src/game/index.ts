@@ -122,6 +122,9 @@ export type {
   BuildingProximityMods,
 } from './proximity.js';
 
+// Element harvest (proportional element generation from hex surface harvests)
+export { computeHarvestElements } from './element-harvest.js';
+
 // Logistics
 export {
   launchShip,

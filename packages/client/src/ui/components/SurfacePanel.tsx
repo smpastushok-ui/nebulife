@@ -17,7 +17,7 @@ interface BuildingGroup { label: string; color: string; types: BuildingType[] }
 const BUILDING_GROUPS: BuildingGroup[] = [
   { label: 'infrastructure', color: '#44ff88',  types: ['colony_hub', 'resource_storage', 'landing_pad', 'spaceport'] },
   { label: 'energy',         color: '#ffcc44',  types: ['solar_plant', 'battery_station', 'wind_generator', 'thermal_generator', 'fusion_reactor'] },
-  { label: 'extraction',     color: '#ff8844',  types: ['mine', 'water_extractor', 'atmo_extractor', 'deep_drill', 'orbital_collector'] },
+  { label: 'extraction',     color: '#ff8844',  types: ['mine', 'water_extractor', 'atmo_extractor', 'deep_drill', 'orbital_collector', 'isotope_collector'] },
   { label: 'science',        color: '#4488ff',  types: ['research_lab', 'observatory', 'radar_tower', 'orbital_telescope', 'quantum_computer'] },
   { label: 'biosphere',      color: '#88ff44',  types: ['greenhouse', 'residential_dome', 'atmo_shield', 'biome_dome'] },
   { label: 'chemistry',      color: '#ff44aa',  types: ['quantum_separator', 'gas_fractionator', 'isotope_centrifuge', 'genesis_vault'] },
@@ -39,6 +39,7 @@ const BUILDING_COLORS: Partial<Record<BuildingType, string>> = {
   atmo_extractor:    '#66aacc',
   deep_drill:        '#cc8844',
   orbital_collector: '#4466ff',
+  isotope_collector: '#88aa44',
   research_lab:      '#4488ff',
   observatory:       '#cc88ff',
   radar_tower:       '#88aaff',
@@ -107,6 +108,7 @@ const BLDG_COSTS: Record<BuildingType, ResCost> = {
   atmo_extractor:     { m:25,  v:15, i:0  },
   deep_drill:         { m:40,  v:5,  i:5  },
   orbital_collector:  { m:50,  v:10, i:20 },
+  isotope_collector:  { m:12,  v:5,  i:0  },
   // Science
   research_lab:       { m:20,  v:5,  i:15 },
   observatory:        { m:25,  v:0,  i:20 },

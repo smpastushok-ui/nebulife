@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Planet, Star, BuildingType, PlacedBuilding } from '@nebulife/core';
-import { BUILDING_DEFS } from '@nebulife/core';
+import { BUILDING_DEFS, computeHarvestElements } from '@nebulife/core';
 import {
   placeBuilding as apiPlaceBuilding,
   removeBuilding as apiRemoveBuilding,
@@ -48,6 +48,9 @@ export interface HexStateResult {
   minerals: number;
   volatiles: number;
   isotopes: number;
+
+  // Chemical element inventory (for endgame building costs)
+  chemicalInventory: Record<string, number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -187,25 +190,43 @@ function stringHash(s: string): number {
 
 type ColonyResources = { minerals: number; volatiles: number; isotopes: number };
 
-function buildingCost(type: BuildingType): Partial<ColonyResources> {
+interface BuildingCostResult {
+  colony: Partial<ColonyResources>;
+  elements: Record<string, number>;
+}
+
+function buildingCost(type: BuildingType): BuildingCostResult {
   const def = BUILDING_DEFS[type];
-  if (!def) return {};
-  const cost: Partial<ColonyResources> = {};
+  if (!def) return { colony: {}, elements: {} };
+  const colony: Partial<ColonyResources> = {};
+  const elements: Record<string, number> = {};
   for (const c of def.cost) {
     const key = c.resource as keyof ColonyResources;
     if (key === 'minerals' || key === 'volatiles' || key === 'isotopes') {
-      cost[key] = (cost[key] ?? 0) + c.amount;
+      colony[key] = (colony[key] ?? 0) + c.amount;
+    } else {
+      // Chemical element (U, Ti, Pt, etc.)
+      elements[c.resource] = (elements[c.resource] ?? 0) + c.amount;
     }
   }
-  return cost;
+  return { colony, elements };
 }
 
-function canAffordCost(resources: ColonyResources, cost: Partial<ColonyResources>): boolean {
-  return (
-    (resources.minerals >= (cost.minerals ?? 0)) &&
-    (resources.volatiles >= (cost.volatiles ?? 0)) &&
-    (resources.isotopes >= (cost.isotopes ?? 0))
-  );
+function canAffordCost(
+  resources: ColonyResources,
+  cost: Partial<ColonyResources>,
+  chemInv?: Record<string, number>,
+  elementCosts?: Record<string, number>,
+): boolean {
+  if (resources.minerals < (cost.minerals ?? 0)) return false;
+  if (resources.volatiles < (cost.volatiles ?? 0)) return false;
+  if (resources.isotopes < (cost.isotopes ?? 0)) return false;
+  if (elementCosts && chemInv) {
+    for (const [el, amount] of Object.entries(elementCosts)) {
+      if ((chemInv[el] ?? 0) < amount) return false;
+    }
+  }
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -219,6 +240,8 @@ export function useHexState(
   colonyResources: ColonyResources,
   onResourceChange?: (delta: Partial<ColonyResources>) => void,
   onBuildingPlaced?: (type: BuildingType) => void,
+  chemicalInventory: Record<string, number> = {},
+  onElementChange?: (delta: Record<string, number>) => void,
 ): HexStateResult {
   const [slots, setSlots] = useState<HexSlotData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -443,9 +466,17 @@ export function useHexState(
       const colonyKey = RESOURCE_TO_COLONY[slot.resourceType];
       onResourceChange?.({ [colonyKey]: yieldAmount });
 
+      // Generate proportional chemical elements from harvest
+      if (onElementChange && planet.resources) {
+        const elements = computeHarvestElements(slot.resourceType, yieldAmount, planet.resources);
+        if (Object.keys(elements).length > 0) {
+          onElementChange(elements);
+        }
+      }
+
       return yieldAmount;
     },
-    [onResourceChange, updateSlots],
+    [onResourceChange, onElementChange, planet.resources, updateSlots],
   );
 
   // ---------------------------------------------------------------------------
@@ -457,15 +488,24 @@ export function useHexState(
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'empty') return false;
 
-      const cost = buildingCost(type);
-      if (!canAffordCost(colonyResources, cost)) return false;
+      const { colony: colonyCost, elements: elementCost } = buildingCost(type);
+      if (!canAffordCost(colonyResources, colonyCost, chemicalInventory, elementCost)) return false;
 
-      // Deduct cost
+      // Deduct colony resource cost
       const delta: Partial<ColonyResources> = {};
-      if (cost.minerals)  delta.minerals  = -(cost.minerals);
-      if (cost.volatiles) delta.volatiles = -(cost.volatiles);
-      if (cost.isotopes)  delta.isotopes  = -(cost.isotopes);
+      if (colonyCost.minerals)  delta.minerals  = -(colonyCost.minerals);
+      if (colonyCost.volatiles) delta.volatiles = -(colonyCost.volatiles);
+      if (colonyCost.isotopes)  delta.isotopes  = -(colonyCost.isotopes);
       if (Object.keys(delta).length > 0) onResourceChange?.(delta);
+
+      // Deduct element cost
+      if (Object.keys(elementCost).length > 0 && onElementChange) {
+        const elDelta: Record<string, number> = {};
+        for (const [el, amount] of Object.entries(elementCost)) {
+          elDelta[el] = -amount;
+        }
+        onElementChange(elDelta);
+      }
 
       updateSlots((prev) =>
         prev.map((s) =>
@@ -492,7 +532,7 @@ export function useHexState(
 
       return true;
     },
-    [colonyResources, onBuildingPlaced, onResourceChange, planet.id, playerId, updateSlots],
+    [colonyResources, chemicalInventory, onBuildingPlaced, onResourceChange, onElementChange, planet.id, playerId, updateSlots],
   );
 
   // ---------------------------------------------------------------------------
@@ -543,6 +583,7 @@ export function useHexState(
       minerals:  colonyResources.minerals,
       volatiles: colonyResources.volatiles,
       isotopes:  colonyResources.isotopes,
+      chemicalInventory,
     }),
     [
       slots,
@@ -556,6 +597,7 @@ export function useHexState(
       colonyResources.minerals,
       colonyResources.volatiles,
       colonyResources.isotopes,
+      chemicalInventory,
     ],
   );
 }
