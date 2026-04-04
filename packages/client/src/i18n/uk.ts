@@ -267,6 +267,8 @@ export const uk = {
 
   // ─── PixiJS (non-React, tStatic) ──────────────────────────────────────────
   'pixi.researched': 'Досліджено!',
+  'galaxy.researched': 'Досліджено!',
+  'system.destroyed': '[зруйновано]',
   'pixi.wood':       'Деревина',
   'pixi.ore':        'Руда',
   'pixi.gas':        'Газ',

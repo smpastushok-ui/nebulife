@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { BuildingType } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 
@@ -93,6 +94,7 @@ export function HexBuildMenu({
   onSelect,
   onClose,
 }: HexBuildMenuProps) {
+  const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const available = getAvailableBuildings(playerLevel, techTreeState);
 
@@ -214,7 +216,7 @@ export function HexBuildMenu({
                     color: '#aabbcc',
                     marginBottom: 2,
                   }}>
-                    {def.name}
+                    {t(`building.${type}.name`, def.name)}
                   </div>
 
                   {/* Description */}
@@ -224,7 +226,7 @@ export function HexBuildMenu({
                     marginBottom: 3,
                     lineHeight: 1.4,
                   }}>
-                    {def.description}
+                    {t(`building.${type}.desc`, def.description)}
                   </div>
 
                   {/* Cost + level */}

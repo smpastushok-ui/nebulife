@@ -38,6 +38,9 @@ export {
   RARITY_COLORS,
   RARITY_WEIGHTS,
   RARITY_LABELS,
+  RARITY_LABELS_UK,
+  RARITY_LABELS_EN,
+  getRarityLabel,
 } from './discovery.js';
 export type {
   CosmicObjectCategory,
@@ -47,7 +50,14 @@ export type {
 } from './discovery.js';
 
 // Cosmic catalog
-export { COSMIC_CATALOG, getCatalogEntry, getCatalogByCategory, getCatalogByRarity } from './cosmic-catalog.js';
+export {
+  COSMIC_CATALOG,
+  getCatalogEntry,
+  getCatalogByCategory,
+  getCatalogByRarity,
+  getCatalogName,
+  getCatalogDescription,
+} from './cosmic-catalog.js';
 export type { CatalogEntry } from './cosmic-catalog.js';
 
 // Prompt builder

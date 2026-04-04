@@ -1,10 +1,12 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PlaceholderTabProps {
   label: string;
 }
 
 export function PlaceholderTab({ label }: PlaceholderTabProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -19,7 +21,7 @@ export function PlaceholderTab({ label }: PlaceholderTabProps) {
         letterSpacing: 1,
       }}
     >
-      [ {label} ] — в розробці
+      [ {label} ] — {t('common.coming_soon')}
     </div>
   );
 }

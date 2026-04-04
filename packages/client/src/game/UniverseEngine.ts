@@ -783,6 +783,35 @@ export class UniverseEngine {
     return this.lodState;
   }
 
+  /**
+   * Update the number of galaxy groups and rebuild the galaxy visualization.
+   * Called after fetchUniverseInfo() resolves with the real cluster count,
+   * fixing the race condition where the engine was constructed with groupCount=1.
+   */
+  updateGroupCount(newCount: number): void {
+    if (newCount === this.groupCount) return;
+    this.groupCount = newCount;
+
+    // Dispose old geometry before rebuild to avoid GPU memory leak
+    if (this.clusterGeo) {
+      this.clusterGeo.dispose();
+      this.clusterGeo = null;
+    }
+    if (this.clusterPoints) {
+      const mat = this.clusterPoints.material;
+      if (Array.isArray(mat)) mat.forEach(m => m.dispose());
+      else mat.dispose();
+    }
+
+    // Clear hover caches — they reference the old geometry arrays
+    this.origColors = null;
+    this.origAlphas = null;
+    this.origSizes = null;
+    this.hoveredGroup = -1;
+
+    this.buildGalaxy();
+  }
+
   // ── Scene setup ────────────────────────────────────────────
 
   private setupScene(): void {

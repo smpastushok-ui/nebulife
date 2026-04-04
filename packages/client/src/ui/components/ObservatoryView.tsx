@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import type { Discovery, CatalogEntry, StarSystem } from '@nebulife/core';
 import {
   RARITY_COLORS,
-  RARITY_LABELS,
+  getRarityLabel,
   getCatalogEntry,
+  getCatalogName,
   buildPrompt,
   generateScientificReport,
 } from '@nebulife/core';
@@ -49,7 +50,8 @@ export function ObservatoryView({
   cost?: number;
   adPhotoToken?: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [phase, setPhase] = useState<Phase>('submitting');
   const [klingStatus, setKlingStatus] = useState<string>('pending');
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
@@ -62,13 +64,13 @@ export function ObservatoryView({
 
   const catalog = getCatalogEntry(discovery.type) as CatalogEntry | undefined;
   const color = RARITY_COLORS[discovery.rarity];
-  const objectName = catalog?.nameUk ?? discovery.type;
+  const objectName = catalog ? getCatalogName(catalog, lang) : discovery.type;
 
   // Generate scientific report text
   useEffect(() => {
-    const text = generateScientificReport(discovery, system, system.seed);
+    const text = generateScientificReport(discovery, system, system.seed, lang);
     setReportText(text);
-  }, [discovery, system]);
+  }, [discovery, system, lang]);
 
   // Main pipeline: submit → poll → download → reveal
   useEffect(() => {
@@ -222,7 +224,7 @@ export function ObservatoryView({
                   letterSpacing: 1,
                 }}
               >
-                {RARITY_LABELS[discovery.rarity]}
+                {getRarityLabel(discovery.rarity, lang)}
               </span>
             </div>
           </div>

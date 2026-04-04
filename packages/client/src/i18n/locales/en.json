@@ -11,7 +11,8 @@
     "rename": "Rename",
     "proceed": "Proceed",
     "understood": "UNDERSTOOD",
-    "unavailable": "Unavailable"
+    "unavailable": "Unavailable",
+    "coming_soon": "coming soon"
   },
 
   "nav": {
@@ -99,6 +100,7 @@
     "atmo_extractor":     { "name": "Atmospheric Condenser", "desc": "Collects volatiles from atmosphere. Output depends on pressure." },
     "deep_drill":         { "name": "Deep Drill",            "desc": "Access to deep deposits. Chance of rare elements." },
     "orbital_collector":  { "name": "Orbital Collector",     "desc": "Sole extraction method for gas/ice giants." },
+    "isotope_collector":  { "name": "Isotope Collector",     "desc": "Passive isotope extraction from cosmic radiation. 9 ISO/hr." },
     "research_lab":       { "name": "Research Lab",          "desc": "Scientific research. Generates research data." },
     "observatory":        { "name": "Observatory",           "desc": "Space observation. Research session slots." },
     "radar_tower":        { "name": "Radar Tower",           "desc": "Clears fog of war in 32-cell radius. Detects hidden deposits." },
@@ -625,7 +627,10 @@
     "terrain_coast": "coast",
     "terrain_ocean": "ocean",
     "terrain_mountains": "mountains",
-    "terrain_peaks": "peaks"
+    "terrain_peaks": "peaks",
+    "res_m": "M:",
+    "res_v": "V:",
+    "res_i": "I:"
   },
 
   "evacuation": {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Discovery, CatalogEntry } from '@nebulife/core';
-import { RARITY_COLORS, RARITY_LABELS, getCatalogEntry } from '@nebulife/core';
+import type { Discovery } from '@nebulife/core';
+import { RARITY_COLORS, getRarityLabel } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // GalleryCompareModal — Side-by-side comparison when a gallery cell is occupied
@@ -33,12 +33,13 @@ export function GalleryCompareModal({
   onReplace,
   onKeepOld,
 }: GalleryCompareModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
   const color = RARITY_COLORS[newDiscovery.rarity];
-  const rarityLabel = RARITY_LABELS[newDiscovery.rarity];
+  const rarityLabel = getRarityLabel(newDiscovery.rarity, lang);
 
   useEffect(() => {
     const t = requestAnimationFrame(() => setVisible(true));
@@ -50,8 +51,9 @@ export function GalleryCompareModal({
     setTimeout(cb, 300);
   };
 
-  const newDate = new Date(newDiscovery.timestamp).toLocaleDateString('uk-UA');
-  const oldDate = new Date(existingDate).toLocaleDateString('uk-UA');
+  const dateLocale = lang === 'en' ? 'en-GB' : 'uk-UA';
+  const newDate = new Date(newDiscovery.timestamp).toLocaleDateString(dateLocale);
+  const oldDate = new Date(existingDate).toLocaleDateString(dateLocale);
 
   return (
     <>

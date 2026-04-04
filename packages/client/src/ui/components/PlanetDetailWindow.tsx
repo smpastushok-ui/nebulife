@@ -94,16 +94,6 @@ function planetTypeKey(type: Planet['type']): string {
   }
 }
 
-function planetTypeName(t: Planet['type']): string {
-  switch (t) {
-    case 'rocky':       return 'Скелясте';
-    case 'terrestrial': return 'Земноподібне';
-    case 'gas-giant':   return 'Газовий гігант';
-    case 'ice-giant':   return 'Крижаний гігант';
-    case 'dwarf':       return 'Карликова';
-    default:            return t;
-  }
-}
 
 function formatTemp(k: number): string {
   const c = Math.round(k - 273.15);

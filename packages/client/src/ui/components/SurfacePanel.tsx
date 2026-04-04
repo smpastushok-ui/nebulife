@@ -336,7 +336,7 @@ function BuildingCard({
               color: selected ? '#cce8ff' : '#aabbcc',
               fontSize: 12, lineHeight: 1.3,
             }}>
-              {def.name}
+              {t(`building.${type}.name`, def.name)}
             </span>
             {/* ? toggles description inline */}
             <span
@@ -362,7 +362,7 @@ function BuildingCard({
           {descOpen && (
             <div style={{ marginBottom: 6 }}>
               <div style={{ color: '#667788', fontSize: 10, lineHeight: 1.5 }}>
-                {def.description}
+                {t(`building.${type}.desc`, def.description)}
               </div>
               <div style={{ color: '#3a4e5e', fontSize: 9, marginTop: 3 }}>
                 {terrainStr}&nbsp;&nbsp;{def.sizeW}&times;{def.sizeH}
@@ -378,17 +378,17 @@ function BuildingCard({
               <>
                 {cost.m > 0 && (
                   <span style={{ color: '#6699bb', fontSize: 10 }}>
-                    М:{cost.m}
+                    {t('surface_panel.res_m')}{cost.m}
                   </span>
                 )}
                 {cost.v > 0 && (
                   <span style={{ color: '#44ccff', fontSize: 10 }}>
-                    Л:{cost.v}
+                    {t('surface_panel.res_v')}{cost.v}
                   </span>
                 )}
                 {cost.i > 0 && (
                   <span style={{ color: '#88ff44', fontSize: 10 }}>
-                    І:{cost.i}
+                    {t('surface_panel.res_i')}{cost.i}
                   </span>
                 )}
                 {cost.m === 0 && cost.v === 0 && cost.i === 0 && (
@@ -591,7 +591,7 @@ function PlacementHint({ type, onCancel }: { type: BuildingType; onCancel: () =>
       pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
     }}>
       <span style={{ color: col, fontSize: 13, lineHeight: 1 }}>+</span>
-      <span style={{ color: '#aabbcc' }}>{def.name}</span>
+      <span style={{ color: '#aabbcc' }}>{t(`building.${type}.name`, def.name)}</span>
       <span style={{ color: '#445566' }}>—</span>
       <span style={{ color: '#556677' }}>{t('surface_panel.select_cell')}</span>
       <button
@@ -733,7 +733,7 @@ function BuildingListContent({
           }}>
             <BuildingIcon type={b.type} size={20} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#aabbcc', fontSize: 11 }}>{def.name}</div>
+              <div style={{ color: '#aabbcc', fontSize: 11 }}>{t(`building.${b.type}.name`, def.name)}</div>
               <div style={{ color: '#445566', fontSize: 9 }}>x:{b.x}  y:{b.y}</div>
             </div>
             <div style={{

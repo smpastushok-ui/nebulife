@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import {
   COSMIC_CATALOG,
   RARITY_COLORS,
-  RARITY_LABELS,
+  getRarityLabel,
+  getCatalogName,
   type CatalogEntry,
   type DiscoveryRarity,
   type Discovery,
@@ -60,7 +61,8 @@ interface CosmosGalleryProps {
 }
 
 export function CosmosGallery({ playerId, highlightedType, localEntries }: CosmosGalleryProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [discoveries, setDiscoveries] = useState<DiscoveryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [photoModal, setPhotoModal] = useState<{
@@ -229,6 +231,7 @@ export function CosmosGallery({ playerId, highlightedType, localEntries }: Cosmo
                   discovery={disc ?? null}
                   highlighted={entry.type === highlightedType}
                   isMobile={isMobile}
+                  lang={lang}
                   onClick={() => {
                     if (disc?.photo_url) {
                       const discovery: Discovery = {
@@ -278,19 +281,22 @@ function CatalogCell({
   discovery,
   highlighted,
   isMobile,
+  lang,
   onClick,
 }: {
   entry: CatalogEntry;
   discovery: DiscoveryData | null;
   highlighted?: boolean;
   isMobile?: boolean;
+  lang: string;
   onClick: () => void;
 }) {
   const [hover, setHover] = useState(false);
   const isDiscovered = !!discovery;
   const hasPhoto = !!(discovery?.photo_url);
   const color = RARITY_COLORS[entry.rarity];
-  const rarityLabel = RARITY_LABELS[entry.rarity];
+  const rarityLabel = getRarityLabel(entry.rarity, lang);
+  const displayName = getCatalogName(entry, lang);
 
   // Mobile: 9:16 aspect ratio cells; Desktop: fixed 100px height
   const cellSize: React.CSSProperties = isMobile
@@ -390,7 +396,7 @@ function CatalogCell({
             WebkitBoxOrient: 'vertical',
           }}
         >
-          {entry.nameUk}
+          {displayName}
         </div>
       </div>
     );
@@ -418,7 +424,7 @@ function CatalogCell({
       {/* Photo thumbnail */}
       <img
         src={discovery.photo_url!}
-        alt={entry.nameUk}
+        alt={displayName}
         style={{
           width: '100%',
           height: '100%',
@@ -442,7 +448,7 @@ function CatalogCell({
           lineHeight: 1.3,
         }}
       >
-        {entry.nameUk}
+        {displayName}
       </div>
 
       {/* Rarity badge */}

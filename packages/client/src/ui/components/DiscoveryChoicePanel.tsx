@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Discovery, StarSystem, DiscoveryRarity } from '@nebulife/core';
-import { RARITY_COLORS, getCatalogEntry } from '@nebulife/core';
+import { RARITY_COLORS, getCatalogEntry, getCatalogName, getCatalogDescription } from '@nebulife/core';
 import type { CatalogEntry } from '@nebulife/core';
 import { AdProgressButton } from './AdProgressButton.js';
 
@@ -48,7 +48,9 @@ export function DiscoveryChoicePanel({
   const color = RARITY_COLORS[discovery.rarity];
   const rarityLabel = t(`rarity.${discovery.rarity}`);
   const categoryLabel = t(`discovery_notification.category_${discovery.galleryCategory}`, { defaultValue: discovery.galleryCategory });
-  const name = (i18n.language === 'en' ? catalog?.nameEn : catalog?.nameUk) ?? catalog?.nameUk ?? discovery.type;
+  const lang = i18n.language;
+  const name = catalog ? getCatalogName(catalog, lang) : discovery.type;
+  const description = catalog ? getCatalogDescription(catalog, lang) : undefined;
 
   const isFreeQuantum = isFirstDiscovery || isLuckyFree;
   const quantumCost = isFreeQuantum ? 0 : 25;
@@ -179,7 +181,7 @@ export function DiscoveryChoicePanel({
           </div>
 
           {/* Description */}
-          {catalog?.descriptionUk && (
+          {description && (
             <div
               style={{
                 fontSize: 11,
@@ -188,7 +190,7 @@ export function DiscoveryChoicePanel({
                 textAlign: 'center',
               }}
             >
-              {catalog.descriptionUk}
+              {description}
             </div>
           )}
 

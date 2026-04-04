@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import type { Discovery, StarSystem } from '@nebulife/core';
 import {
   RARITY_COLORS,
-  RARITY_LABELS,
+  getRarityLabel,
   getCatalogEntry,
+  getCatalogName,
   generateScientificReport,
 } from '@nebulife/core';
 import type { CatalogEntry } from '@nebulife/core';
@@ -931,7 +932,8 @@ export function TelemetryView({
   onClose: () => void;
   onSaveToArchive?: (discoveryId: string, canvasDataUrl: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [phase, setPhase] = useState<Phase>('scanning');
   const [scanProgress, setScanProgress] = useState(0);
   const [saved, setSaved] = useState(false);
@@ -942,7 +944,7 @@ export function TelemetryView({
 
   const catalog = getCatalogEntry(discovery.type) as CatalogEntry | undefined;
   const color = RARITY_COLORS[discovery.rarity];
-  const objectName = catalog?.nameUk ?? discovery.type;
+  const objectName = catalog ? getCatalogName(catalog, lang) : discovery.type;
   const rarityIdx = ['common', 'uncommon', 'rare', 'epic', 'legendary'].indexOf(discovery.rarity);
   const category = CATEGORY_RENDER[discovery.category] ?? 'cluster';
 
@@ -956,8 +958,8 @@ export function TelemetryView({
 
   // Generate report
   useEffect(() => {
-    setReportText(generateScientificReport(discovery, system, system.seed));
-  }, [discovery, system]);
+    setReportText(generateScientificReport(discovery, system, system.seed, lang));
+  }, [discovery, system, lang]);
 
   // Animated scan
   useEffect(() => {
@@ -1206,7 +1208,7 @@ export function TelemetryView({
                   color, textTransform: 'uppercase', letterSpacing: 1,
                 }}
               >
-                {RARITY_LABELS[discovery.rarity]}
+                {getRarityLabel(discovery.rarity, lang)}
               </span>
               <span
                 style={{

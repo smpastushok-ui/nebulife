@@ -269,6 +269,8 @@ export const en: Record<TranslationKey, string> = {
 
   // ─── PixiJS (non-React, tStatic) ──────────────────────────────────────────
   'pixi.researched': 'Researched!',
+  'galaxy.researched': 'Explored!',
+  'system.destroyed': '[destroyed]',
   'pixi.wood':       'Wood',
   'pixi.ore':        'Ore',
   'pixi.gas':        'Gas',

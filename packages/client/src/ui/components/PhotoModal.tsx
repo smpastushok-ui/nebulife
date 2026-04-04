@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Discovery, CatalogEntry } from '@nebulife/core';
-import { RARITY_COLORS, RARITY_LABELS, getCatalogEntry } from '@nebulife/core';
+import { RARITY_COLORS, getRarityLabel, getCatalogEntry, getCatalogName, getCatalogDescription } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // PhotoModal — fullscreen photo view with share & save buttons
@@ -47,12 +47,13 @@ function buildShareText(
   rarityKey: string,
   galleryCategory: string,
   discoveryId: string,
+  lang: string,
   systemName?: string,
   description?: string,
 ): string {
   const emoji = RARITY_EMOJI[rarityKey] ?? '\u{2B50}';
   const catEmoji = CATEGORY_EMOJI[galleryCategory] ?? '\u{1F30D}';
-  const rarityLabel = RARITY_LABELS[rarityKey as keyof typeof RARITY_LABELS] ?? rarityKey;
+  const rarityLabel = getRarityLabel(rarityKey as import('@nebulife/core').DiscoveryRarity, lang) ?? rarityKey;
 
   const lines: string[] = [];
 
@@ -101,10 +102,11 @@ export function PhotoModal({
   onSaveToGallery?: () => void;
   onClose: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const catalog = getCatalogEntry(discovery.type) as CatalogEntry | undefined;
   const color = RARITY_COLORS[discovery.rarity];
-  const name = catalog?.nameUk ?? discovery.type;
+  const name = catalog ? getCatalogName(catalog, lang) : discovery.type;
   const [shared, setShared] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -112,9 +114,10 @@ export function PhotoModal({
     try {
       const shareTitle = buildShareTitle(name, discovery.rarity);
       const shareUrl = buildShareUrl(discovery.id);
+      const description = catalog ? getCatalogDescription(catalog, lang) : undefined;
       const shareText = buildShareText(
         name, discovery.rarity, discovery.galleryCategory, discovery.id,
-        systemName, catalog?.descriptionUk,
+        lang, systemName, description,
       );
 
       // Try to fetch the image as a file for native share
@@ -153,9 +156,10 @@ export function PhotoModal({
       if ((err as Error).name !== 'AbortError') {
         // Last resort: try clipboard
         try {
+          const clipDescription = catalog ? getCatalogDescription(catalog, lang) : undefined;
           const clipText = buildShareText(
             name, discovery.rarity, discovery.galleryCategory, discovery.id,
-            systemName, catalog?.descriptionUk,
+            lang, systemName, clipDescription,
           );
           await navigator.clipboard.writeText(clipText);
           setShared(true);
@@ -164,7 +168,7 @@ export function PhotoModal({
         }
       }
     }
-  }, [imageUrl, discovery, name, catalog, systemName]);
+  }, [imageUrl, discovery, name, catalog, systemName, lang]);
 
   const handleDownload = useCallback(async () => {
     try {
@@ -257,7 +261,7 @@ export function PhotoModal({
                   letterSpacing: 1,
                 }}
               >
-                {RARITY_LABELS[discovery.rarity]}
+                {getRarityLabel(discovery.rarity, lang)}
               </span>
               {systemName && (
                 <span style={{ fontSize: 11, color: '#667788' }}>
@@ -265,7 +269,7 @@ export function PhotoModal({
                 </span>
               )}
               <span style={{ fontSize: 10, color: '#445566' }}>
-                {new Date(discovery.timestamp).toLocaleDateString('uk-UA')}
+                {new Date(discovery.timestamp).toLocaleDateString(lang === 'en' ? 'en-GB' : 'uk-UA')}
               </span>
             </div>
           </div>

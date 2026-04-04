@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Discovery, CatalogEntry, DiscoveryRarity } from '@nebulife/core';
-import { RARITY_COLORS, getCatalogEntry } from '@nebulife/core';
+import { RARITY_COLORS, getCatalogEntry, getCatalogName, getCatalogDescription } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // Toast notification that appears when a cosmic discovery is made
@@ -37,14 +37,16 @@ export function DiscoveryNotification({
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const catalog = getCatalogEntry(discovery.type) as CatalogEntry | undefined;
   const color = RARITY_COLORS[discovery.rarity];
   const rarityLabel = t(RARITY_KEYS[discovery.rarity]);
   const categoryLabel = CATEGORY_KEYS[discovery.galleryCategory]
     ? t(CATEGORY_KEYS[discovery.galleryCategory])
     : discovery.galleryCategory;
-  const name = catalog?.nameUk ?? discovery.type;
+  const name = catalog ? getCatalogName(catalog, lang) : discovery.type;
+  const description = catalog ? getCatalogDescription(catalog, lang) : undefined;
 
   // Entrance animation
   useEffect(() => {
@@ -190,7 +192,7 @@ export function DiscoveryNotification({
         </div>
 
         {/* Description excerpt */}
-        {catalog?.descriptionUk && (
+        {description && (
           <div
             style={{
               fontSize: 11,
@@ -201,7 +203,7 @@ export function DiscoveryNotification({
               overflow: 'hidden',
             }}
           >
-            {catalog.descriptionUk}
+            {description}
           </div>
         )}
 

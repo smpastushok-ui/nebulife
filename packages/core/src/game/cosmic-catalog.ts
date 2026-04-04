@@ -12,6 +12,8 @@ export interface CatalogEntry {
   nameUk: string;
   nameEn: string;
   descriptionUk: string;
+  /** English description — optional; falls back to descriptionUk if absent */
+  descriptionEn?: string;
   promptTemplate: string;
   scientificFacts: string[];
 }
@@ -929,4 +931,20 @@ export function getCatalogByCategory(category: string): CatalogEntry[] {
 /** Filter catalog by rarity */
 export function getCatalogByRarity(rarity: string): CatalogEntry[] {
   return COSMIC_CATALOG.filter((e) => e.rarity === rarity);
+}
+
+/**
+ * Returns the localised name for a catalog entry.
+ * Falls back to nameUk when English is not available.
+ */
+export function getCatalogName(entry: CatalogEntry, lang: string): string {
+  return lang === 'en' ? (entry.nameEn || entry.nameUk) : entry.nameUk;
+}
+
+/**
+ * Returns the localised description for a catalog entry.
+ * Falls back to descriptionUk when descriptionEn is absent.
+ */
+export function getCatalogDescription(entry: CatalogEntry, lang: string): string {
+  return lang === 'en' ? (entry.descriptionEn || entry.descriptionUk) : entry.descriptionUk;
 }

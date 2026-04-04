@@ -34,7 +34,7 @@ import { TelescopeOverlay } from './ui/components/TelescopeOverlay.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
-import { getCatalogEntry } from '@nebulife/core';
+import { getCatalogEntry, getCatalogName } from '@nebulife/core';
 import { startPaymentFlow } from './api/payment-api.js';
 import { initIAP } from './api/iap-service.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
@@ -1488,6 +1488,7 @@ function AppInner() {
           // Fetch universe info for group count
           fetchUniverseInfo().then(info => {
             universeGroupCountRef.current = info.groupCount;
+            universeEngineRef.current?.updateGroupCount(info.groupCount);
           }).catch(() => { /* use default */ });
         } catch (err) {
           console.warn('[Legacy] Failed to ensure player in DB:', err);
@@ -1531,6 +1532,7 @@ function AppInner() {
               // Fetch universe info for group count
               fetchUniverseInfo().then(info => {
                 universeGroupCountRef.current = info.groupCount;
+                universeEngineRef.current?.updateGroupCount(info.groupCount);
               }).catch(() => { /* use default */ });
               // Check if player needs onboarding
               if (player.game_phase === 'onboarding') {
@@ -1657,7 +1659,7 @@ function AppInner() {
                   setDiscoveryQueue(q => [...q, { discovery: disc, system }]);
                   // Log the discovery event
                   const discEntry = getCatalogEntry(result.discovery.type) as CatalogEntry | undefined;
-                  const discName = discEntry?.nameUk ?? result.discovery.type;
+                  const discName = discEntry ? getCatalogName(discEntry, i18n.language) : result.discovery.type;
                   addLogEntry('science',
                     t('app.log.observatory_signal').replace('{name}', discName).replace('{system}', system.name),
                     { systemId: system.id, objectType: result.discovery.type, discoveryRef: result.discovery },
@@ -4128,14 +4130,14 @@ function AppInner() {
           backLabel={t('nav.galaxy')}
           showZoom
           hidden={hideLeftPanel}
-          extraButtons={[
+          extraButtons={!isExodusPhase ? [
             {
               title: t('nav.surface'),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleGoToHomeSurface,
               pulse: true,
             },
-          ]}
+          ] : undefined}
         />
       )}
 
@@ -4185,8 +4187,9 @@ function AppInner() {
           backLabel={t('nav.system')}
           showZoom
           hidden={hideLeftPanel}
-          extraButtons={state.selectedPlanet && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'terrestrial' || state.selectedPlanet.type === 'dwarf') ? (() => {
+          extraButtons={state.selectedPlanet && !isExodusPhase && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'terrestrial' || state.selectedPlanet.type === 'dwarf') ? (() => {
             const check = canLandOnPlanet(state.selectedPlanet!);
+            if (check.hidden) return undefined;
             return [{
               title: check.allowed ? t('nav.surface_btn') : (check.reason || t('common.unavailable')),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
@@ -4433,7 +4436,7 @@ function AppInner() {
           onViewPlanet={handleViewPlanet}
           onShowCharacteristics={handleShowCharacteristics}
           onClose={handleClosePlanetMenu}
-          onSurface={canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
+          onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
           onTelescopePhoto={handlePlanetTelescopePhoto}
@@ -4446,7 +4449,7 @@ function AppInner() {
         <PlanetInfoPanel
           planet={state.selectedPlanet}
           onClose={() => setState((prev) => ({ ...prev, showPlanetInfo: false, selectedPlanet: null }))}
-          onSurface={canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
+          onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
         />
       )}
@@ -4507,7 +4510,7 @@ function AppInner() {
           newImageUrl={galleryCompare.newImageUrl}
           existingImageUrl={galleryCompare.existingData.photo_url!}
           existingDate={galleryCompare.existingData.discovered_at}
-          objectName={(getCatalogEntry(galleryCompare.newDiscovery.type) as CatalogEntry | undefined)?.nameUk ?? galleryCompare.newDiscovery.type}
+          objectName={(() => { const e = getCatalogEntry(galleryCompare.newDiscovery.type) as CatalogEntry | undefined; return e ? getCatalogName(e, i18n.language) : galleryCompare.newDiscovery.type; })()}
           onReplace={handleGalleryReplace}
           onKeepOld={handleGalleryKeepOld}
         />

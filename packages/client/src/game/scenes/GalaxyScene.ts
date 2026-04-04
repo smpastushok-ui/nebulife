@@ -2,6 +2,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebulife/core';
 import { getResearchProgress, isSystemFullyResearched, SeededRNG } from '@nebulife/core';
 import type { TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
+import { tStatic } from '../../i18n/index.js';
 
 /* ── Helpers ───────────────────────────────────────────────────── */
 
@@ -1594,7 +1595,7 @@ export class GalaxyScene {
   /** Spawn a "Досліджено!" achievement label floating above a star */
   private spawnCompletionLabel(node: SystemNode) {
     const label = new Text({
-      text: 'Досліджено!',
+      text: tStatic('galaxy.researched'),
       style: { fontSize: 11, fill: 0x44ff88, fontFamily: 'monospace' },
       resolution: 2,
     });

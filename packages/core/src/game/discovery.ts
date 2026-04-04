@@ -59,7 +59,7 @@ export const RARITY_WEIGHTS: Record<DiscoveryRarity, number> = {
   legendary: 2,
 };
 
-/** Rarity display labels (Ukrainian) */
+/** Rarity display labels (Ukrainian) — kept for backward compatibility */
 export const RARITY_LABELS: Record<DiscoveryRarity, string> = {
   common: 'Штатна подія',
   uncommon: 'Аномалія',
@@ -67,6 +67,33 @@ export const RARITY_LABELS: Record<DiscoveryRarity, string> = {
   epic: 'Епічна знахідка',
   legendary: 'Свідок епохи',
 };
+
+/** Rarity display labels — Ukrainian */
+export const RARITY_LABELS_UK: Record<DiscoveryRarity, string> = {
+  common:    'Штатна подія',
+  uncommon:  'Аномалія',
+  rare:      'Феномен',
+  epic:      'Епічна знахідка',
+  legendary: 'Свідок епохи',
+};
+
+/** Rarity display labels — English */
+export const RARITY_LABELS_EN: Record<DiscoveryRarity, string> = {
+  common:    'Normal Event',
+  uncommon:  'Anomaly',
+  rare:      'Phenomenon',
+  epic:      'Epic Find',
+  legendary: 'Epoch Witness',
+};
+
+/**
+ * Returns the rarity label in the requested language.
+ * @param rarity  Discovery rarity tier.
+ * @param lang    Language code — 'en' or anything else (defaults to Ukrainian).
+ */
+export function getRarityLabel(rarity: DiscoveryRarity, lang: string): string {
+  return lang === 'en' ? RARITY_LABELS_EN[rarity] : RARITY_LABELS_UK[rarity];
+}
 
 // ---------------------------------------------------------------------------
 // Discovery interface

@@ -3,6 +3,7 @@ import type { StarSystem, Planet } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import { renderStar } from '../rendering/StarRenderer.js';
 import { renderPlanet, renderOrbitProjected, renderSystemMoon, getPlanetSize, Y_COMPRESS } from '../rendering/PlanetRenderer.js';
+import { tStatic } from '../../i18n/index.js';
 
 /** Twinkling star data (inline to avoid dependency on HomePlanetBackdrop) */
 interface TwinkleStar {
@@ -443,7 +444,7 @@ export class SystemScene {
 
     // Destroyed label
     const label = new Text({
-      text: `${planet.name} [зруйновано]`,
+      text: `${planet.name} ${tStatic('system.destroyed')}`,
       style: { fontSize: 8, fill: 0x884422, fontFamily: 'monospace' },
       resolution: 3,
     });

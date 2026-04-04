@@ -5,6 +5,7 @@ import {
   linkFirebaseToPlayer,
   createPlayerWithAuth,
 } from '../../packages/server/src/db.js';
+import { assignPlayerToCluster } from '@nebulife/server';
 
 /**
  * POST /api/auth/register
@@ -48,6 +49,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       if (linked) {
         console.log(`[register] Linked to legacy player: id=${linked.id}`);
+        // Assign cluster if not already assigned
+        if (linked.global_index != null && !linked.cluster_id) {
+          try {
+            await assignPlayerToCluster(linked.id, linked.global_index);
+            console.log(`[register] Cluster assigned for linked player: id=${linked.id}`);
+          } catch (clusterErr) {
+            console.warn('[register] Failed to assign cluster for linked player:', clusterErr);
+          }
+        }
         return res.status(200).json(linked);
       }
       console.log('[register] Legacy link failed, creating fresh player');
@@ -70,6 +80,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     console.log(`[register] Player created: id=${player?.id}, phase=${player?.game_phase}`);
+
+    // Assign the new player to their cluster
+    if (player?.global_index != null) {
+      try {
+        await assignPlayerToCluster(player.id, player.global_index);
+        console.log(`[register] Cluster assigned for new player: id=${player.id}, globalIndex=${player.global_index}`);
+      } catch (clusterErr) {
+        console.warn('[register] Failed to assign cluster for new player:', clusterErr);
+      }
+    }
+
     return res.status(201).json(player);
   } catch (err) {
     console.error('[register] FATAL ERROR:', err instanceof Error ? err.stack : err);
