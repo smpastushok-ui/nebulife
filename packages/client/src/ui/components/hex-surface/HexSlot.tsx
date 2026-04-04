@@ -317,7 +317,13 @@ function BuildingContent({
         <img
           src={webpSrc}
           alt={type}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%' }}
+          style={{
+            position: 'absolute',
+            left: '-10%',
+            bottom: 0,
+            width: '120%',
+            height: 'auto',
+          }}
         />
       ) : (
         <div style={{

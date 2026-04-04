@@ -62,8 +62,10 @@ const AXIAL_COORDS: { ring: 0 | 1 | 2; q: number; r: number }[] = [
 
 /** Convert axial (q, r) to pixel position for pointy-top hex */
 function axialToPixel(q: number, r: number, size: number): { x: number; y: number } {
-  const x = size * Math.sqrt(3) * (q + r / 2);
-  const y = size * (3 / 2) * r;
+  // 1.15 spacing factor — adds gap between hexes so they don't touch
+  const spacing = size * 1.15;
+  const x = spacing * Math.sqrt(3) * (q + r / 2);
+  const y = spacing * (3 / 2) * r;
   return { x, y };
 }
 
