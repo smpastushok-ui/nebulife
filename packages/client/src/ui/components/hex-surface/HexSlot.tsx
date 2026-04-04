@@ -278,6 +278,15 @@ function BuildingContent({
     research_lab: '/buildings/research_lab.webp',
     deep_drill: '/buildings/deep_drill.webp',
     alpha_harvester: '/buildings/alpha_harvester.webp',
+    quantum_computer: '/buildings/quantum_computer.webp',
+    greenhouse: '/buildings/greenhouse.webp',
+    atmo_shield: '/buildings/atmo_shield.webp',
+    quantum_separator: '/buildings/quantum_separator.webp',
+    gas_fractionator: '/buildings/gas_fractionator.webp',
+    genesis_vault: '/buildings/genesis_vault.webp',
+    isotope_centrifuge: '/buildings/isotope_centrifuge.webp',
+    biome_dome: '/buildings/biome_dome.webp',
+    residential_dome: '/buildings/residential_dome.webp',
   };
 
   const webpSrc = BUILDING_WEBP[type];
