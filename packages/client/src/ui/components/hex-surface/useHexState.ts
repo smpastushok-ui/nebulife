@@ -84,6 +84,33 @@ function recalculateLockedCosts(slots: HexSlotData[]): HexSlotData[] {
   });
 }
 
+/**
+ * Ensure Ring 2 slots are 'locked' (not 'hidden') if their parent Ring 1 slot is already unlocked.
+ * Fixes saved data where Ring 2 stayed hidden after Ring 1 was opened.
+ */
+function migrateRing2Visibility(slots: HexSlotData[]): HexSlotData[] {
+  // Find all unlocked Ring 1 indices
+  const unlockedRing1 = slots
+    .filter(s => s.ring === 1 && s.state !== 'locked' && s.state !== 'hidden')
+    .map(s => s.index);
+
+  if (unlockedRing1.length === 0) return slots;
+
+  // Compute which Ring 2 indices should be visible
+  const visibleRing2 = new Set<number>();
+  for (const i of unlockedRing1) {
+    visibleRing2.add(i * 2);
+    visibleRing2.add((i * 2 + 1) % 12);
+  }
+
+  return slots.map(s => {
+    if (s.ring === 2 && s.state === 'hidden' && visibleRing2.has(s.index)) {
+      return { ...s, state: 'locked' as HexState };
+    }
+    return s;
+  });
+}
+
 function buildInitialSlots(): HexSlotData[] {
   const slots: HexSlotData[] = [];
 
@@ -232,8 +259,9 @@ export function useHexState(
         const saved = playerData?.game_state?.hex_slots;
 
         if (Array.isArray(saved) && saved.length > 0) {
-          // Migrate: recalculate costs for saved data (handles old flat-cost format)
-          setSlots(recalculateLockedCosts(saved as HexSlotData[]));
+          // Migrate: ensure Ring 2 visibility + recalculate costs
+          const migrated = migrateRing2Visibility(saved as HexSlotData[]);
+          setSlots(recalculateLockedCosts(migrated));
         } else {
           const initial = buildInitialSlots();
           setSlots(initial);

@@ -338,20 +338,22 @@ function BuildingContent({
       {slot.buildingLevel !== undefined && (
         <div style={{
           position: 'absolute',
-          bottom: '5%',
+          bottom: '12%',
           left: '50%',
           transform: 'translateX(-50%)',
-          background: 'rgba(20,60,90,0.85)',
-          border: '1px solid rgba(68,136,170,0.5)',
-          borderRadius: 3,
-          padding: '1px 5px',
-          fontSize: 7,
+          width: 18,
+          height: 18,
+          clipPath: 'polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)',
+          background: 'linear-gradient(135deg, #4488cc, #2266aa)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 8,
           fontWeight: 'bold',
-          color: '#7bb8ff',
-          letterSpacing: 0.5,
-          whiteSpace: 'nowrap',
+          color: '#ffffff',
+          textShadow: '0 0 4px rgba(68,170,255,0.8)',
         }}>
-          LVL {slot.buildingLevel}
+          {slot.buildingLevel}
         </div>
       )}
     </div>
