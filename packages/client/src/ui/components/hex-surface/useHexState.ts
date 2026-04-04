@@ -525,15 +525,17 @@ export function useHexState(
         water:     -(slot.unlockCost.water     ?? 0),
       });
 
-      // RNG softlock prevention for Zone 1: guarantee ore + vent + water (3 of 6)
+      // RNG softlock prevention for Zone 1: guarantee all 4 resource types (first 4 of 6)
       let forceResource: ResourceType | undefined;
       if (slot.ring === 1) {
         const zone1Unlocked = slotsRef.current.filter(
           (s) => s.ring === 1 && s.state !== 'locked' && s.state !== 'hidden',
         ).length;
-        if (zone1Unlocked === 0) forceResource = 'ore';    // first  = minerals
-        if (zone1Unlocked === 1) forceResource = 'vent';   // second = volatiles
-        if (zone1Unlocked === 2) forceResource = 'water';  // third  = water
+        if (zone1Unlocked === 0) forceResource = 'ore';    // 1st = minerals
+        if (zone1Unlocked === 1) forceResource = 'vent';   // 2nd = volatiles
+        if (zone1Unlocked === 2) forceResource = 'water';  // 3rd = water
+        if (zone1Unlocked === 3) forceResource = 'tree';   // 4th = isotopes
+        // 5th-6th = random
       }
 
       // Roll slot contents
