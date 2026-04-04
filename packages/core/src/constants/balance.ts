@@ -62,9 +62,10 @@ export const HARVEST_DURATION_MS = 1500;
 
 /** Base yield per harvest action, before richness scaling. */
 export const HARVEST_YIELD = {
-  tree: { group: 'isotope'  as const, base: 1 },
-  ore:  { group: 'mineral'  as const, base: 2 },
-  vent: { group: 'volatile' as const, base: 1 },
+  tree:  { group: 'isotope'  as const, base: 1 },
+  ore:   { group: 'mineral'  as const, base: 2 },
+  vent:  { group: 'volatile' as const, base: 1 },
+  water: { group: 'water'    as const, base: 1 },
 } as const;
 
 /**
@@ -92,9 +93,10 @@ export const COLONY_TICK_INTERVAL_MS = 60_000;
 
 /** Base storage capacity provided by Colony Hub. */
 export const BASE_STORAGE_CAPACITY = {
-  minerals: 500,
-  volatiles: 300,
-  isotopes: 200,
+  minerals: 1000,
+  volatiles: 1000,
+  isotopes: 1000,
+  water: 1000,
 } as const;
 
 /** Base energy storage (without battery stations). */

@@ -13,6 +13,7 @@ export interface ColonyResources {
   minerals: number;   // solid materials
   volatiles: number;  // gases and liquids
   isotopes: number;   // energy
+  water: number;      // life support, cooling, hydrolysis
 }
 
 /** Inventory of chemical elements, e.g. { Fe: 100, U: 5 } (Phase 3) */

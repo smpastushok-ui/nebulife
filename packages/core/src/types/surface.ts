@@ -382,13 +382,13 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   water_extractor: {
     type: 'water_extractor', category: 'extraction',
     name: 'Водозбірник',
-    description: 'Видобуток летючих речовин з океану та узбережжя.',
+    description: 'Видобуток води з океану та узбережжя. Вода для життєзабезпечення та охолодження.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: WATER_TERRAIN,
     cost: [{ resource: 'minerals', amount: 5 }, { resource: 'volatiles', amount: 3 }],
     levelRequired: 1, techRequired: null, maxPerPlanet: 6,
     energyOutput: 0, energyConsumption: 2, energyStorageAdd: 0,
-    production: [{ resource: 'volatiles', amount: 1 }],
+    production: [{ resource: 'water', amount: 1 }],
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
@@ -686,7 +686,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
 // ---------------------------------------------------------------------------
 
 /** Types of harvestable objects on the surface. */
-export type SurfaceObjectType = 'tree' | 'ore' | 'vent';
+export type SurfaceObjectType = 'tree' | 'ore' | 'vent' | 'water';
 
 /** Stage of a tree cell after being harvested. */
 export type CellHarvestState = 'stump' | 'grass' | 'tree-small';
@@ -716,9 +716,10 @@ export interface HarvestedCell {
 
 /** Regrowth duration per stage in milliseconds, keyed by object type. */
 export const REGROWTH_STAGE_MS: Record<SurfaceObjectType, number> = {
-  tree: 3_600_000,   // 1 hour per stage (3 stages = 3h total)
-  ore:  3_600_000,   // 1 hour per stage (2 stages = 2h total)
-  vent: 7_200_000,   // 2 hours per stage (2 stages = 4h total)
+  tree:  3_600_000,   // 1 hour per stage (3 stages = 3h total)
+  ore:   3_600_000,   // 1 hour per stage (2 stages = 2h total)
+  vent:  7_200_000,   // 2 hours per stage (2 stages = 4h total)
+  water: 5_400_000,   // 1.5 hours per stage (2 stages = 3h total)
 };
 
 // ---------------------------------------------------------------------------

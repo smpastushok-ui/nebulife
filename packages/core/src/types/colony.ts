@@ -35,25 +35,27 @@ export interface StorageState {
     minerals: number;
     volatiles: number;
     isotopes: number;
+    water: number;
   };
   /** Bonus capacity from Resource Storage modules */
   bonus: {
     minerals: number;
     volatiles: number;
     isotopes: number;
+    water: number;
   };
 }
 
 /** Create default storage state (Colony Hub base values) */
 export function createStorageState(): StorageState {
   return {
-    base: { minerals: 500, volatiles: 300, isotopes: 200 },
-    bonus: { minerals: 0, volatiles: 0, isotopes: 0 },
+    base: { minerals: 1000, volatiles: 1000, isotopes: 1000, water: 1000 },
+    bonus: { minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
   };
 }
 
 /** Get total storage capacity for a resource type */
-export function getStorageCapacity(storage: StorageState, type: 'minerals' | 'volatiles' | 'isotopes'): number {
+export function getStorageCapacity(storage: StorageState, type: 'minerals' | 'volatiles' | 'isotopes' | 'water'): number {
   return storage.base[type] + storage.bonus[type];
 }
 
@@ -97,7 +99,7 @@ export interface PlanetColonyState {
 export function createPlanetColonyState(planetId: string): PlanetColonyState {
   return {
     planetId,
-    resources: { minerals: 0, volatiles: 0, isotopes: 0 },
+    resources: { minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
     chemicalInventory: {},
     energy: createEnergyState(),
     storage: createStorageState(),

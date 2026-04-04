@@ -48,6 +48,7 @@ export interface HexStateResult {
   minerals: number;
   volatiles: number;
   isotopes: number;
+  water: number;
 
   // Chemical element inventory (for endgame building costs)
   chemicalInventory: Record<string, number>;
@@ -58,11 +59,11 @@ export interface HexStateResult {
 // ResourceType -> which colony resource bucket it fills
 // ---------------------------------------------------------------------------
 
-const RESOURCE_TO_COLONY: Record<ResourceType, keyof { minerals: number; volatiles: number; isotopes: number }> = {
+const RESOURCE_TO_COLONY: Record<ResourceType, keyof { minerals: number; volatiles: number; isotopes: number; water: number }> = {
   ore:   'minerals',
   tree:  'isotopes',  // trees produce isotopes (biomass fuel)
   vent:  'volatiles',
-  water: 'volatiles', // water counts as volatiles
+  water: 'water',
 };
 
 // ---------------------------------------------------------------------------
@@ -190,7 +191,7 @@ function stringHash(s: string): number {
 // Building cost resources use names like 'minerals', 'volatiles', 'isotopes'
 // ---------------------------------------------------------------------------
 
-type ColonyResources = { minerals: number; volatiles: number; isotopes: number };
+type ColonyResources = { minerals: number; volatiles: number; isotopes: number; water: number };
 
 interface BuildingCostResult {
   colony: Partial<ColonyResources>;
@@ -204,7 +205,7 @@ function buildingCost(type: BuildingType): BuildingCostResult {
   const elements: Record<string, number> = {};
   for (const c of def.cost) {
     const key = c.resource as keyof ColonyResources;
-    if (key === 'minerals' || key === 'volatiles' || key === 'isotopes') {
+    if (key === 'minerals' || key === 'volatiles' || key === 'isotopes' || key === 'water') {
       colony[key] = (colony[key] ?? 0) + c.amount;
     } else {
       // Chemical element (U, Ti, Pt, etc.)
@@ -223,6 +224,7 @@ function canAffordCost(
   if (resources.minerals < (cost.minerals ?? 0)) return false;
   if (resources.volatiles < (cost.volatiles ?? 0)) return false;
   if (resources.isotopes < (cost.isotopes ?? 0)) return false;
+  if (resources.water < (cost.water ?? 0)) return false;
   if (elementCosts && chemInv) {
     for (const [el, amount] of Object.entries(elementCosts)) {
       if ((chemInv[el] ?? 0) < amount) return false;
@@ -498,6 +500,7 @@ export function useHexState(
       if (colonyCost.minerals)  delta.minerals  = -(colonyCost.minerals);
       if (colonyCost.volatiles) delta.volatiles = -(colonyCost.volatiles);
       if (colonyCost.isotopes)  delta.isotopes  = -(colonyCost.isotopes);
+      if (colonyCost.water)     delta.water     = -(colonyCost.water);
       if (Object.keys(delta).length > 0) onResourceChange?.(delta);
 
       // Deduct element cost
@@ -585,6 +588,7 @@ export function useHexState(
       minerals:  colonyResources.minerals,
       volatiles: colonyResources.volatiles,
       isotopes:  colonyResources.isotopes,
+      water:     colonyResources.water,
       chemicalInventory,
     }),
     [
@@ -599,6 +603,7 @@ export function useHexState(
       colonyResources.minerals,
       colonyResources.volatiles,
       colonyResources.isotopes,
+      colonyResources.water,
       chemicalInventory,
     ],
   );

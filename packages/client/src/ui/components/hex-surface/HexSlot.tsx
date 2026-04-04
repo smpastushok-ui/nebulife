@@ -145,9 +145,9 @@ function ResourceContent({
 
   const RESOURCE_WEBP: Record<string, string> = {
     ore:   `/buildings/minerals${rarityNum}.webp`,
-    tree:  `/buildings/izo${rarityNum}.webp`,     // tree → isotopes visual
-    vent:  `/buildings/izo${rarityNum}.webp`,     // vent → use isotope visual for now
-    water: `/buildings/minerals${rarityNum}.webp`, // water → use minerals visual for now
+    tree:  `/buildings/izo${rarityNum}.webp`,      // tree → isotopes visual
+    vent:  `/buildings/gas${rarityNum}.webp`,       // vent → gas/volatile visual
+    water: `/buildings/water${rarityNum}.webp`,     // water → water visual
   };
 
   const webpSrc = RESOURCE_WEBP[resourceType] ?? `/buildings/minerals${rarityNum}.webp`;

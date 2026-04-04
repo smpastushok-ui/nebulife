@@ -133,7 +133,7 @@ interface SyncedGameState {
   player_stats: { totalCompletedSessions: number; totalDiscoveries: number; lastDiscoverySession: number };
   research_data: number;
   // Colony
-  colony_resources: { minerals: number; volatiles: number; isotopes: number };
+  colony_resources: { minerals: number; volatiles: number; isotopes: number; water: number };
   chemical_inventory: Record<string, number>;
   // Game phase
   exodus_phase: boolean;
@@ -296,7 +296,7 @@ function AppInner() {
 
   // DOMRects of resource HUD icons for precise fly-to targeting
   const [resourceRects, setResourceRects] = useState<{
-    minerals: DOMRect; volatiles: DOMRect; isotopes: DOMRect;
+    minerals: DOMRect; volatiles: DOMRect; isotopes: DOMRect; water: DOMRect;
   } | null>(null);
 
   // Timer text per slot
@@ -356,12 +356,16 @@ function AppInner() {
   }, [researchData]);
 
   // ── Colony Resources (Phase 2+, after colonization) ───────────────────
-  const [colonyResources, setColonyResources] = useState<{ minerals: number; volatiles: number; isotopes: number }>(() => {
+  const [colonyResources, setColonyResources] = useState<{ minerals: number; volatiles: number; isotopes: number; water: number }>(() => {
     try {
       const saved = localStorage.getItem('nebulife_colony_resources');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Backward compat: old saves without water field default to 0
+        return { water: 0, ...parsed };
+      }
     } catch { /* ignore */ }
-    return { minerals: 0, volatiles: 0, isotopes: 150 };
+    return { minerals: 0, volatiles: 0, isotopes: 150, water: 0 };
   });
 
   useEffect(() => {
@@ -1305,8 +1309,11 @@ function AppInner() {
 
     // Colony
     if (gs.colony_resources && typeof gs.colony_resources === 'object') {
-      setColonyResources(gs.colony_resources);
-      try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(gs.colony_resources)); } catch { /* ignore */ }
+      // Backward compat: old saves without water field default to 0
+      const raw = gs.colony_resources as Record<string, number>;
+      const cr = { minerals: raw.minerals ?? 0, volatiles: raw.volatiles ?? 0, isotopes: raw.isotopes ?? 0, water: raw.water ?? 0 };
+      setColonyResources(cr);
+      try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(cr)); } catch { /* ignore */ }
     }
     if (gs.chemical_inventory && typeof gs.chemical_inventory === 'object') {
       setChemicalInventory(gs.chemical_inventory as Record<string, number>);
@@ -4638,6 +4645,7 @@ function AppInner() {
           minerals={colonyResources.minerals}
           volatiles={colonyResources.volatiles}
           isotopes={colonyResources.isotopes}
+          water={colonyResources.water}
           onRefsReady={setResourceRects}
         />
       )}
@@ -4650,7 +4658,7 @@ function AppInner() {
       )}
       {/* ── Fly-to-HUD resource dots ──────────────────────────────────────── */}
       {harvestFxQueue.map((fx) => {
-        const rKey = fx.type === 'ore' ? 'minerals' : fx.type === 'vent' ? 'volatiles' : 'isotopes';
+        const rKey = fx.type === 'ore' ? 'minerals' : fx.type === 'vent' ? 'volatiles' : fx.type === 'water' ? 'water' : 'isotopes';
         const rect = resourceRects?.[rKey];
         return (
           <ResourceFlyDot key={fx.id} type={fx.type} sx={fx.sx} sy={fx.sy}

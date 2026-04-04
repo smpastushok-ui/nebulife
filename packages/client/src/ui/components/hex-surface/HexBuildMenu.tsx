@@ -9,14 +9,14 @@ interface HexBuildMenuProps {
   screenY: number;
   playerLevel: number;
   techTreeState?: any;
-  colonyResources: { minerals: number; volatiles: number; isotopes: number };
+  colonyResources: { minerals: number; volatiles: number; isotopes: number; water: number };
   chemicalInventory?: Record<string, number>;
   onSelect: (type: BuildingType) => void;
   onClose: () => void;
 }
 
 const RESOURCE_ABBR: Record<string, string> = {
-  minerals: 'MIN', volatiles: 'VOL', isotopes: 'ISO',
+  minerals: 'MIN', volatiles: 'VOL', isotopes: 'ISO', water: 'H2O',
 };
 
 function formatCost(def: { cost: { resource: string; amount: number }[] }): string {
@@ -26,7 +26,7 @@ function formatCost(def: { cost: { resource: string; amount: number }[] }): stri
 
 function canAffordBuilding(
   def: { cost: { resource: string; amount: number }[] },
-  res: { minerals: number; volatiles: number; isotopes: number },
+  res: { minerals: number; volatiles: number; isotopes: number; water: number },
   chemInv: Record<string, number> = {},
 ): boolean {
   for (const c of def.cost) {

@@ -146,6 +146,7 @@ function getResourceAmount(resource: string, colony: PlanetColonyState): number 
   if (resource === 'minerals') return colony.resources.minerals;
   if (resource === 'volatiles') return colony.resources.volatiles;
   if (resource === 'isotopes') return colony.resources.isotopes;
+  if (resource === 'water') return colony.resources.water;
   // Chemical element
   return colony.chemicalInventory[resource] ?? 0;
 }
@@ -157,6 +158,8 @@ function deductResource(resource: string, amount: number, colony: PlanetColonySt
     colony.resources.volatiles = Math.max(0, colony.resources.volatiles - amount);
   } else if (resource === 'isotopes') {
     colony.resources.isotopes = Math.max(0, colony.resources.isotopes - amount);
+  } else if (resource === 'water') {
+    colony.resources.water = Math.max(0, colony.resources.water - amount);
   } else {
     // Chemical element
     colony.chemicalInventory[resource] = Math.max(0, (colony.chemicalInventory[resource] ?? 0) - amount);

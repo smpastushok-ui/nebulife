@@ -12,11 +12,13 @@ interface ResourceWidgetProps {
   minerals:  number;
   volatiles: number;
   isotopes:  number;
+  water:     number;
   /** Optional: callback to expose icon DOM rects for fly animations. */
   onRefsReady?: (rects: {
     minerals:  DOMRect;
     volatiles: DOMRect;
     isotopes:  DOMRect;
+    water:     DOMRect;
   }) => void;
 }
 
@@ -42,19 +44,23 @@ export const ResourceWidget: React.FC<ResourceWidgetProps> = ({
   minerals,
   volatiles,
   isotopes,
+  water,
   onRefsReady,
 }) => {
   const minRef = useRef<HTMLDivElement>(null);
   const volRef = useRef<HTMLDivElement>(null);
   const isoRef = useRef<HTMLDivElement>(null);
+  const watRef = useRef<HTMLDivElement>(null);
 
   const [popMin, setPopMin] = useState(false);
   const [popVol, setPopVol] = useState(false);
   const [popIso, setPopIso] = useState(false);
+  const [popWat, setPopWat] = useState(false);
 
   const prevMin = useRef(minerals);
   const prevVol = useRef(volatiles);
   const prevIso = useRef(isotopes);
+  const prevWat = useRef(water);
 
   // Trigger pop animation when value increases
   useEffect(() => {
@@ -84,6 +90,15 @@ export const ResourceWidget: React.FC<ResourceWidgetProps> = ({
     }
   }, [isotopes]);
 
+  useEffect(() => {
+    if (water !== prevWat.current) {
+      prevWat.current = water;
+      setPopWat(true);
+      const t = setTimeout(() => setPopWat(false), 220);
+      return () => clearTimeout(t);
+    }
+  }, [water]);
+
   // Expose icon rects to parent after mount
   useEffect(() => {
     if (!onRefsReady) return;
@@ -91,7 +106,8 @@ export const ResourceWidget: React.FC<ResourceWidgetProps> = ({
       const mr = minRef.current?.getBoundingClientRect();
       const vr = volRef.current?.getBoundingClientRect();
       const ir = isoRef.current?.getBoundingClientRect();
-      if (mr && vr && ir) onRefsReady({ minerals: mr, volatiles: vr, isotopes: ir });
+      const wr = watRef.current?.getBoundingClientRect();
+      if (mr && vr && ir && wr) onRefsReady({ minerals: mr, volatiles: vr, isotopes: ir, water: wr });
     });
     return () => cancelAnimationFrame(frame);
   }, [onRefsReady]);
@@ -152,6 +168,27 @@ export const ResourceWidget: React.FC<ResourceWidgetProps> = ({
       >
         <span style={{ ...ICON_STYLE, background: '#ffdd44', transform: 'rotate(45deg)', display: 'inline-block' }} />
         <span style={{ color: '#eedd88', minWidth: 22, textAlign: 'right' }}>{isotopes}</span>
+      </div>
+
+      <div style={dividerStyle} />
+
+      {/* Water */}
+      <div
+        ref={watRef}
+        style={{ ...ITEM_BASE, transform: popWat ? 'scale(1.22)' : 'scale(1)' }}
+      >
+        {/* Water droplet icon: circle with pointed bottom via clip-path */}
+        <span style={{
+          display:       'inline-block',
+          width:         8,
+          height:        10,
+          marginRight:   5,
+          verticalAlign: 'middle',
+          background:    '#3b82f6',
+          borderRadius:  '50% 50% 50% 50% / 60% 60% 40% 40%',
+          clipPath:      'polygon(50% 0%, 100% 60%, 85% 100%, 15% 100%, 0% 60%)',
+        }} />
+        <span style={{ color: '#6699cc', minWidth: 22, textAlign: 'right' }}>{water}</span>
       </div>
     </div>
   );

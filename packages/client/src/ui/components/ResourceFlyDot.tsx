@@ -17,9 +17,10 @@ interface ResourceFlyDotProps {
 }
 
 const DOT_COLOR: Record<SurfaceObjectType, string> = {
-  ore:  '#998877',
-  vent: '#44aaff',
-  tree: '#ffdd44',
+  ore:   '#998877',
+  vent:  '#44aaff',
+  tree:  '#ffdd44',
+  water: '#3b82f6',
 };
 
 // Approximate centre of the ResourceWidget icons (fixed top: 14, right: 14, height ~32px)

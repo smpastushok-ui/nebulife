@@ -136,6 +136,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       minerals: 0,
       volatiles: 0,
       isotopes: _isotopes ?? 100,
+      water: 0,
     });
 
     // Keep isotopes in sync with prop
@@ -146,11 +147,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     }, [_isotopes]);
 
     const handleResourceChange = useCallback(
-      (delta: Partial<{ minerals: number; volatiles: number; isotopes: number }>) => {
+      (delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => {
         setColonyResources((prev) => ({
           minerals:  prev.minerals  + (delta.minerals  ?? 0),
           volatiles: prev.volatiles + (delta.volatiles ?? 0),
           isotopes:  prev.isotopes  + (delta.isotopes  ?? 0),
+          water:     prev.water     + (delta.water     ?? 0),
         }));
       },
       [],

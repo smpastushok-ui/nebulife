@@ -155,8 +155,8 @@ function runSingleTick(
         researchDataProduced += amount;
       } else if (prod.resource === 'habitability') {
         // Habitability accumulates differently; skip resource capping
-      } else if (prod.resource === 'minerals' || prod.resource === 'volatiles' || prod.resource === 'isotopes') {
-        const cap = getStorageCapacity(colony.storage, prod.resource as 'minerals' | 'volatiles' | 'isotopes') * storageMult;
+      } else if (prod.resource === 'minerals' || prod.resource === 'volatiles' || prod.resource === 'isotopes' || prod.resource === 'water') {
+        const cap = getStorageCapacity(colony.storage, prod.resource as 'minerals' | 'volatiles' | 'isotopes' | 'water') * storageMult;
         colony.resources[prod.resource as keyof typeof colony.resources] = Math.min(
           (colony.resources[prod.resource as keyof typeof colony.resources] ?? 0) + amount,
           cap,
@@ -166,7 +166,7 @@ function runSingleTick(
 
     // Consume resources
     for (const con of def.consumption) {
-      if (con.resource === 'minerals' || con.resource === 'volatiles' || con.resource === 'isotopes') {
+      if (con.resource === 'minerals' || con.resource === 'volatiles' || con.resource === 'isotopes' || con.resource === 'water') {
         const key = con.resource as keyof typeof colony.resources;
         colony.resources[key] = Math.max(0, (colony.resources[key] ?? 0) - con.amount);
       }
