@@ -85,7 +85,7 @@ export type BuildingCategory =
   | 'biosphere'
   | 'chemistry';
 
-/** All 27 available building types */
+/** All 28 available building types */
 export type BuildingType =
   // Infrastructure (4)
   | 'colony_hub'
@@ -98,12 +98,13 @@ export type BuildingType =
   | 'wind_generator'
   | 'thermal_generator'
   | 'fusion_reactor'
-  // Extraction (5)
+  // Extraction (6)
   | 'mine'
   | 'water_extractor'
   | 'atmo_extractor'
   | 'deep_drill'
   | 'orbital_collector'
+  | 'isotope_collector'
   // Science & Recon (5)
   | 'research_lab'
   | 'observatory'
@@ -216,7 +217,7 @@ const GAS_ICE: PlanetType[] = ['gas-giant', 'ice-giant'];
 const ALL_PLANETS: PlanetType[] = ['rocky', 'terrestrial', 'dwarf', 'gas-giant', 'ice-giant'];
 
 // ---------------------------------------------------------------------------
-// Building definitions (static catalog) — 27 buildings
+// Building definitions (static catalog) — 28 buildings
 // ---------------------------------------------------------------------------
 
 export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
@@ -229,7 +230,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Головна база. Вбудована обсерваторія (+1 дані/год), 500 жителів, +5 енергії.',
     size: 3, sizeW: 3, sizeH: 3,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Fe', amount: 50 }, { resource: 'Al', amount: 30 }],
+    cost: [],   // free, auto-placed on ring 0
     adjacencyBonuses: [
       { neighbor: 'greenhouse', bonusLabel: '+10% харч.', bonusValue: 0.10 },
     ],
@@ -247,7 +248,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Розширює ємність сховища на +200 для обраного типу ресурсу.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Fe', amount: 30 }, { resource: 'Al', amount: 20 }],
+    cost: [{ resource: 'minerals', amount: 12 }, { resource: 'volatiles', amount: 5 }],
     levelRequired: 3, techRequired: null, maxPerPlanet: 6,
     energyOutput: 0, energyConsumption: 0, energyStorageAdd: 0,
     production: [], consumption: [],
@@ -261,7 +262,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Прийом малих кораблів, дронів та вантажів з орбіти.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: FLAT_LAND,
-    cost: [{ resource: 'Ti', amount: 40 }, { resource: 'Fe', amount: 50 }, { resource: 'Cu', amount: 20 }],
+    cost: [{ resource: 'minerals', amount: 25 }, { resource: 'volatiles', amount: 15 }, { resource: 'isotopes', amount: 5 }],
     levelRequired: 18, techRequired: 'phy-thrust-1', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 2, energyStorageAdd: 0,
     production: [], consumption: [],
@@ -275,10 +276,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Будівництво та запуск кораблів. Потребує посадковий майданчик.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: FLAT_LAND,
-    cost: [
-      { resource: 'Ti', amount: 80 }, { resource: 'Fe', amount: 100 },
-      { resource: 'Al', amount: 60 }, { resource: 'Cu', amount: 40 },
-    ],
+    cost: [{ resource: 'minerals', amount: 50 }, { resource: 'volatiles', amount: 30 }, { resource: 'isotopes', amount: 10 }],
     levelRequired: 35, techRequired: 'phy-orbital-mech', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 8, energyStorageAdd: 0,
     production: [], consumption: [],
@@ -295,7 +293,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Генерація енергії від зірки. Ефективність залежить від відстані.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Si', amount: 30 }, { resource: 'Cu', amount: 10 }],
+    cost: [{ resource: 'minerals', amount: 8 }],
     adjacencyBonuses: [
       { neighbor: 'mine', bonusLabel: '+15% видоб.', bonusValue: 0.15 },
     ],
@@ -312,7 +310,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Зберігає надлишки енергії. +100 ємності енерго-сховища.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Cu', amount: 25 }, { resource: 'Si', amount: 15 }, { resource: 'Fe', amount: 10 }],
+    cost: [{ resource: 'minerals', amount: 10 }, { resource: 'volatiles', amount: 5 }],
     levelRequired: 6, techRequired: 'phy-capacitor', maxPerPlanet: 4,
     energyOutput: 0, energyConsumption: 0, energyStorageAdd: 100,
     production: [], consumption: [],
@@ -326,7 +324,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Енергія з вітру. Потребує атмосферу. Вихід залежить від тиску.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: ['lowland', 'plains', 'beach'],
-    cost: [{ resource: 'Al', amount: 20 }, { resource: 'Cu', amount: 10 }, { resource: 'Fe', amount: 15 }],
+    cost: [{ resource: 'minerals', amount: 12 }, { resource: 'volatiles', amount: 5 }],
     levelRequired: 8, techRequired: 'phy-aero', maxPerPlanet: 8,
     energyOutput: 6, energyConsumption: 0, energyStorageAdd: 0,
     production: [], consumption: [],
@@ -340,7 +338,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Стабільна енергія з геотермальних джерел. Бонус на вулканах.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: VOLCANIC_HIGH,
-    cost: [{ resource: 'Ti', amount: 20 }, { resource: 'Fe', amount: 30 }, { resource: 'Cu', amount: 15 }],
+    cost: [{ resource: 'minerals', amount: 15 }, { resource: 'volatiles', amount: 8 }, { resource: 'isotopes', amount: 2 }],
     levelRequired: 10, techRequired: 'phy-thermo-1', maxPerPlanet: 4,
     energyOutput: 15, energyConsumption: 0, energyStorageAdd: 0,
     production: [], consumption: [],
@@ -354,10 +352,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Термоядерна енергія. +50 енергії. Споживає ізотопи.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [
-      { resource: 'Ti', amount: 60 }, { resource: 'U', amount: 10 },
-      { resource: 'Cu', amount: 30 }, { resource: 'Fe', amount: 40 },
-    ],
+    cost: [{ resource: 'minerals', amount: 70 }, { resource: 'volatiles', amount: 40 }, { resource: 'isotopes', amount: 15 }],
     levelRequired: 42, techRequired: 'phy-fusion', maxPerPlanet: 2,
     energyOutput: 50, energyConsumption: 0, energyStorageAdd: 0,
     production: [],
@@ -375,7 +370,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Видобуток базових мінералів з поверхневих покладів.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Fe', amount: 20 }],
+    cost: [{ resource: 'minerals', amount: 5 }],
     levelRequired: 1, techRequired: null, maxPerPlanet: 10,
     energyOutput: 0, energyConsumption: 3, energyStorageAdd: 0,
     production: [{ resource: 'minerals', amount: 2 }],
@@ -390,7 +385,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Видобуток летючих речовин з океану та узбережжя.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: WATER_TERRAIN,
-    cost: [{ resource: 'Fe', amount: 15 }, { resource: 'Cu', amount: 10 }],
+    cost: [{ resource: 'minerals', amount: 5 }, { resource: 'volatiles', amount: 3 }],
     levelRequired: 1, techRequired: null, maxPerPlanet: 6,
     energyOutput: 0, energyConsumption: 2, energyStorageAdd: 0,
     production: [{ resource: 'volatiles', amount: 1 }],
@@ -405,7 +400,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Збір летючих з атмосфери. Вихід залежить від тиску.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Al', amount: 25 }, { resource: 'Cu', amount: 15 }, { resource: 'Ti', amount: 10 }],
+    cost: [{ resource: 'minerals', amount: 15 }, { resource: 'volatiles', amount: 10 }, { resource: 'isotopes', amount: 2 }],
     levelRequired: 12, techRequired: 'chem-gas-sep', maxPerPlanet: 4,
     energyOutput: 0, energyConsumption: 4, energyStorageAdd: 0,
     production: [{ resource: 'volatiles', amount: 2 }],
@@ -420,7 +415,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Доступ до глибоких покладів. Шанс рідкісних елементів.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: HIGH_TERRAIN,
-    cost: [{ resource: 'Ti', amount: 35 }, { resource: 'Fe', amount: 40 }, { resource: 'Cu', amount: 20 }],
+    cost: [{ resource: 'minerals', amount: 25 }, { resource: 'volatiles', amount: 12 }, { resource: 'isotopes', amount: 3 }],
     levelRequired: 20, techRequired: 'phy-drill', maxPerPlanet: 3,
     energyOutput: 0, energyConsumption: 6, energyStorageAdd: 0,
     production: [{ resource: 'minerals', amount: 3 }],
@@ -435,12 +430,27 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Єдиний видобуток для газових/крижаних гігантів.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: ALL_TERRAIN,
-    cost: [{ resource: 'Ti', amount: 50 }, { resource: 'Al', amount: 30 }, { resource: 'Cu', amount: 25 }],
+    cost: [{ resource: 'minerals', amount: 40 }, { resource: 'volatiles', amount: 20 }, { resource: 'isotopes', amount: 8 }],
     levelRequired: 30, techRequired: 'chem-orbital', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 5, energyStorageAdd: 0,
     production: [{ resource: 'volatiles', amount: 4 }],
     consumption: [],
     allowedPlanetTypes: GAS_ICE, requiresAtmosphere: false,
+    storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
+  },
+
+  isotope_collector: {
+    type: 'isotope_collector', category: 'extraction',
+    name: 'Збирач ізотопів',
+    description: 'Пасивний видобуток ізотопів з космічного випромінювання. 9 ISO/год.',
+    size: 1, sizeW: 1, sizeH: 1,
+    requiresTerrain: LAND_TERRAIN,
+    cost: [{ resource: 'minerals', amount: 12 }, { resource: 'volatiles', amount: 5 }],
+    levelRequired: 6, techRequired: null, maxPerPlanet: 3,
+    energyOutput: 0, energyConsumption: 3, energyStorageAdd: 0,
+    production: [{ resource: 'isotopes', amount: 0.15 }], // 9 isotopes/hour (60 ticks)
+    consumption: [],
+    allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
 
@@ -453,7 +463,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Наукові дослідження. Генерує дані досліджень.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Ti', amount: 15 }, { resource: 'Cu', amount: 20 }],
+    cost: [{ resource: 'minerals', amount: 8 }, { resource: 'volatiles', amount: 5 }],
     adjacencyBonuses: [
       { neighbor: 'observatory', bonusLabel: '+20% дослідж.', bonusValue: 0.20 },
       { neighbor: 'greenhouse',  bonusLabel: '+10% біо',      bonusValue: 0.10 },
@@ -472,7 +482,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Спостереження за космосом. Слоти для сесій досліджень.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: HIGH_TERRAIN,
-    cost: [{ resource: 'Ti', amount: 25 }, { resource: 'Si', amount: 20 }],
+    cost: [{ resource: 'minerals', amount: 10 }, { resource: 'volatiles', amount: 5 }, { resource: 'isotopes', amount: 2 }],
     levelRequired: 2, techRequired: 'ast-radio-1', maxPerPlanet: 5, // 3 base + tech unlocks
     energyOutput: 0, energyConsumption: 2, energyStorageAdd: 0,
     production: [], // observatory provides research session slots, not per-tick production
@@ -487,7 +497,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Розсіює туман війни у радіусі 32 клітин. Виявляє приховані поклади.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: HIGH_PLUS_PEAKS,
-    cost: [{ resource: 'Cu', amount: 30 }, { resource: 'Ti', amount: 20 }, { resource: 'Fe', amount: 25 }],
+    cost: [{ resource: 'minerals', amount: 18 }, { resource: 'volatiles', amount: 10 }, { resource: 'isotopes', amount: 3 }],
     levelRequired: 14, techRequired: 'phy-em-field', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 4, energyStorageAdd: 0,
     production: [], consumption: [],
@@ -501,10 +511,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Генерує 3 дані досліджень за тік. +10% відкриттів у системі.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: ALL_TERRAIN,
-    cost: [
-      { resource: 'Ti', amount: 40 }, { resource: 'Si', amount: 30 },
-      { resource: 'Cu', amount: 20 }, { resource: 'Al', amount: 25 },
-    ],
+    cost: [{ resource: 'minerals', amount: 45 }, { resource: 'volatiles', amount: 25 }, { resource: 'isotopes', amount: 8 }],
     levelRequired: 28, techRequired: 'ast-deep-radar', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 6, energyStorageAdd: 0,
     production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 3 }], // 3 data/hour
@@ -519,10 +526,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Генерує 5 даних досліджень за тік. Зменшує час досліджень на 20%.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [
-      { resource: 'Ti', amount: 50 }, { resource: 'Cu', amount: 40 },
-      { resource: 'Si', amount: 35 }, { resource: 'U', amount: 5 },
-    ],
+    cost: [{ resource: 'minerals', amount: 60 }, { resource: 'volatiles', amount: 35 }, { resource: 'isotopes', amount: 10 }],
     levelRequired: 38, techRequired: 'phy-quantum', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 10, energyStorageAdd: 0,
     production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 5 }], // 5 data/hour
@@ -540,7 +544,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Вирощування їжі. Підвищує придатність для життя.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Si', amount: 20 }, { resource: 'Al', amount: 15 }],
+    cost: [{ resource: 'minerals', amount: 6 }, { resource: 'volatiles', amount: 4 }],
     levelRequired: 3, techRequired: null, maxPerPlanet: 8,
     energyOutput: 0, energyConsumption: 2, energyStorageAdd: 0,
     production: [{ resource: 'habitability', amount: 0.005 }],
@@ -555,7 +559,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Житлові модулі для екіпажу. +500 населення.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Si', amount: 30 }, { resource: 'Al', amount: 25 }, { resource: 'Fe', amount: 20 }],
+    cost: [{ resource: 'minerals', amount: 20 }, { resource: 'volatiles', amount: 12 }, { resource: 'isotopes', amount: 3 }],
     levelRequired: 15, techRequired: 'bio-life-support', maxPerPlanet: 4,
     energyOutput: 0, energyConsumption: 4, energyStorageAdd: 0,
     production: [], consumption: [],
@@ -569,7 +573,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Захист колонії від ворожої атмосфери та метеоритів.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: ALL_TERRAIN,
-    cost: [{ resource: 'Ti', amount: 50 }, { resource: 'Al', amount: 40 }, { resource: 'Cu', amount: 30 }],
+    cost: [{ resource: 'minerals', amount: 40 }, { resource: 'volatiles', amount: 25 }, { resource: 'isotopes', amount: 8 }],
     levelRequired: 25, techRequired: 'bio-terraforming', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 8, energyStorageAdd: 0,
     production: [], consumption: [],
@@ -583,10 +587,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Самодостатня біосфера. Еквівалент 3 теплиць.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [
-      { resource: 'Si', amount: 40 }, { resource: 'Al', amount: 35 },
-      { resource: 'Fe', amount: 30 }, { resource: 'Ti', amount: 20 },
-    ],
+    cost: [{ resource: 'minerals', amount: 35 }, { resource: 'volatiles', amount: 20 }, { resource: 'isotopes', amount: 5 }],
     levelRequired: 32, techRequired: 'bio-biome-eng', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 6, energyStorageAdd: 0,
     production: [{ resource: 'habitability', amount: 0.015 }],
@@ -604,7 +605,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Розщеплення мінералів на хімічні елементи. 10 мін -> 5 елементів.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'Ti', amount: 30 }, { resource: 'Cu', amount: 25 }, { resource: 'Si', amount: 20 }],
+    cost: [{ resource: 'minerals', amount: 30 }, { resource: 'volatiles', amount: 15 }, { resource: 'isotopes', amount: 5 }],
     levelRequired: 22, techRequired: 'chem-q-sep', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 5, energyStorageAdd: 0,
     production: [], // batch processing, handled by production.ts
@@ -619,10 +620,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Переробка летючих на хімічні елементи. 10 лет -> 5 елементів.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [
-      { resource: 'Ti', amount: 35 }, { resource: 'Cu', amount: 30 },
-      { resource: 'Al', amount: 20 }, { resource: 'Fe', amount: 25 },
-    ],
+    cost: [{ resource: 'minerals', amount: 35 }, { resource: 'volatiles', amount: 20 }, { resource: 'isotopes', amount: 5 }],
     levelRequired: 26, techRequired: 'chem-fraction', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 6, energyStorageAdd: 0,
     production: [],
@@ -637,10 +635,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Збагачення ізотопів. 5 ізо -> 2 U. Критично для термояд реактора.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [
-      { resource: 'Ti', amount: 45 }, { resource: 'U', amount: 3 },
-      { resource: 'Cu', amount: 30 }, { resource: 'Fe', amount: 30 },
-    ],
+    cost: [{ resource: 'minerals', amount: 50 }, { resource: 'volatiles', amount: 25 }, { resource: 'isotopes', amount: 8 }],
     levelRequired: 36, techRequired: 'chem-isotope', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 8, energyStorageAdd: 0,
     production: [],
@@ -655,11 +650,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Мегаструктура для зберігання ДНК та терраформування. +0.15 придатність.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [
-      { resource: 'Ti', amount: 100 }, { resource: 'Al', amount: 80 },
-      { resource: 'Si', amount: 60 },  { resource: 'U', amount: 10 },
-      { resource: 'Fe', amount: 80 },  { resource: 'Cu', amount: 50 },
-    ],
+    cost: [{ resource: 'minerals', amount: 120 }, { resource: 'volatiles', amount: 50 }, { resource: 'isotopes', amount: 20 }],
     levelRequired: 48, techRequired: 'bio-genesis', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 15, energyStorageAdd: 0,
     production: [{ resource: 'habitability', amount: 0.015 }],

@@ -264,6 +264,7 @@ function BuildingContent({
     atmo_extractor:      'ATM',
     deep_drill:          'DRL',
     orbital_collector:   'ORB',
+    isotope_collector:   'ICL',
     research_lab:        'LAB',
     observatory:         'OBS',
     radar_tower:         'RDR',

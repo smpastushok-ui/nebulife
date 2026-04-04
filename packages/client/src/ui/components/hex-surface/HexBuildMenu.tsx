@@ -13,10 +13,24 @@ interface HexBuildMenuProps {
   onClose: () => void;
 }
 
-// Colony resource cost estimate: raw element costs → approximate mineral/volatile/isotope cost
-// We show raw element cost directly since BUILDING_DEFS uses elements
+const RESOURCE_ABBR: Record<string, string> = {
+  minerals: 'MIN', volatiles: 'VOL', isotopes: 'ISO',
+};
+
 function formatCost(def: { cost: { resource: string; amount: number }[] }): string {
-  return def.cost.map((c) => `${c.amount} ${c.resource}`).join(' / ');
+  if (def.cost.length === 0) return 'FREE';
+  return def.cost.map((c) => `${c.amount} ${RESOURCE_ABBR[c.resource] ?? c.resource}`).join(' / ');
+}
+
+function canAffordBuilding(
+  def: { cost: { resource: string; amount: number }[] },
+  res: { minerals: number; volatiles: number; isotopes: number },
+): boolean {
+  for (const c of def.cost) {
+    const key = c.resource as keyof typeof res;
+    if (key in res && res[key] < c.amount) return false;
+  }
+  return true;
 }
 
 // Check if tech is researched using techTreeState (flat map of techId -> boolean)
@@ -162,15 +176,16 @@ export function HexBuildMenu({
             {types!.map((type) => {
               const def = BUILDING_DEFS[type];
               const costStr = formatCost(def);
-              const canAfford = true; // Raw cost in elements — always show, purchase handled in hook
+              const canAfford = canAffordBuilding(def, colonyResources);
 
               return (
                 <div
                   key={type}
-                  onClick={() => { onSelect(type); onClose(); }}
+                  onClick={() => { if (canAfford) { onSelect(type); onClose(); } }}
                   style={{
                     padding: '12px 14px',
-                    cursor: 'pointer',
+                    cursor: canAfford ? 'pointer' : 'not-allowed',
+                    opacity: canAfford ? 1 : 0.45,
                     borderBottom: '1px solid rgba(30,45,60,0.5)',
                     transition: 'background 0.15s',
                     minHeight: 44,
