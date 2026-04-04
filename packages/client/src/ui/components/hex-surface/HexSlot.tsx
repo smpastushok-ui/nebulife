@@ -271,6 +271,13 @@ function BuildingContent({
     spaceport: '/buildings/spaceport.webp',
     atmo_extractor: '/buildings/atmo_extractor.webp',
     water_extractor: '/buildings/water_extractor.webp',
+    observatory: '/buildings/observatory.webp',
+    orbital_collector: '/buildings/orbital_collector.webp',
+    orbital_telescope: '/buildings/orbital_telescope.webp',
+    radar_tower: '/buildings/radar_tower.webp',
+    research_lab: '/buildings/research_lab.webp',
+    deep_drill: '/buildings/deep_drill.webp',
+    alpha_harvester: '/buildings/alpha_harvester.webp',
   };
 
   const webpSrc = BUILDING_WEBP[type];
