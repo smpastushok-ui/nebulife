@@ -115,7 +115,6 @@ function ResourceContent({
   onHarvest: () => void;
 }) {
   const [, setTick] = useState(0);
-  const [harvestAnim, setHarvestAnim] = useState<number | null>(null);
 
   // Re-render every second to update timer
   useEffect(() => {
@@ -129,14 +128,6 @@ function ResourceContent({
   const remaining = slot.lastHarvestedAt
     ? respawnTimeRemaining(slot.lastHarvestedAt, slot.yieldPerHour)
     : 0;
-  const accumulated = getAccumulatedYield(slot.lastHarvestedAt, slot.yieldPerHour ?? 1, slot.maxCapacity ?? 12);
-
-  const handleHarvest = () => {
-    if (!ready) return;
-    setHarvestAnim(accumulated > 0 ? accumulated : slot.yieldPerHour ?? 1);
-    onHarvest();
-    setTimeout(() => setHarvestAnim(null), 1200);
-  };
 
   // Map resource type + rarity to WebP image
   const RARITY_INDEX: Record<string, number> = {
@@ -155,14 +146,13 @@ function ResourceContent({
 
   return (
     <div
-      onClick={handleHarvest}
       style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        cursor: ready ? 'pointer' : 'default',
         fontFamily: 'monospace',
         userSelect: 'none',
+        pointerEvents: 'none',
       }}
     >
       {/* Resource WebP image — bright when ready, dimmed when respawning */}
@@ -189,24 +179,6 @@ function ResourceContent({
         </div>
       )}
 
-      {/* Harvest animation — +N floats up and fades */}
-      {harvestAnim !== null && (
-        <div style={{
-          position: 'absolute',
-          top: '30%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 2,
-          fontSize: 18,
-          fontWeight: 'bold',
-          color: '#44ff88',
-          textShadow: '0 0 8px rgba(68,255,136,0.6), 0 2px 4px rgba(0,0,0,0.8)',
-          animation: 'harvestFloat 1.2s ease-out forwards',
-          pointerEvents: 'none',
-        }}>
-          +{harvestAnim}
-        </div>
-      )}
     </div>
   );
 }
@@ -388,12 +360,35 @@ export const HexSlot = React.memo(function HexSlot({
     opacity = canAfford ? 0.9 : 0.5;
   }
 
+  // Harvest animation state (lifted from ResourceContent so click target can trigger it)
+  const [harvestAnim, setHarvestAnim] = useState<number | null>(null);
+  // Building click animation
+  const [buildingBounce, setBuildingBounce] = useState(false);
+  // Insufficient resources message
+  const [insufficientMsg, setInsufficientMsg] = useState(false);
+
   // Main click handler for the entire hex area
   const handleClick = () => {
-    if (slot.state === 'locked') onUnlock();
-    else if (slot.state === 'resource') onHarvest();
-    else if (slot.state === 'empty') onBuild();
-    else if (slot.state === 'building' || slot.state === 'harvester') onInspect();
+    if (slot.state === 'locked') {
+      if (canAfford) {
+        onUnlock();
+      } else {
+        setInsufficientMsg(true);
+        setTimeout(() => setInsufficientMsg(false), 2000);
+      }
+    } else if (slot.state === 'resource') {
+      // Trigger harvest + animation
+      const amount = slot.yieldPerHour ?? 1;
+      setHarvestAnim(amount);
+      onHarvest();
+      setTimeout(() => setHarvestAnim(null), 1200);
+    } else if (slot.state === 'empty') {
+      onBuild();
+    } else if (slot.state === 'building' || slot.state === 'harvester') {
+      setBuildingBounce(true);
+      setTimeout(() => setBuildingBounce(false), 600);
+      onInspect();
+    }
   };
 
   return (
@@ -433,7 +428,53 @@ export const HexSlot = React.memo(function HexSlot({
       )}
       {slot.state === 'empty' && <EmptyContent onBuild={onBuild} />}
       {(slot.state === 'building' || slot.state === 'harvester') && (
-        <BuildingContent slot={slot} onInspect={onInspect} />
+        <div style={{
+          position: 'absolute', inset: 0,
+          transform: buildingBounce ? 'translateY(-4px)' : 'translateY(0)',
+          transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+        }}>
+          <BuildingContent slot={slot} onInspect={onInspect} />
+        </div>
+      )}
+
+      {/* Harvest +N float animation (triggered from centralized click) */}
+      {harvestAnim !== null && (
+        <div style={{
+          position: 'absolute',
+          top: '20%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 200,
+          fontSize: 18,
+          fontWeight: 'bold',
+          fontFamily: 'monospace',
+          color: '#44ff88',
+          textShadow: '0 0 8px rgba(68,255,136,0.6), 0 2px 4px rgba(0,0,0,0.8)',
+          animation: 'harvestFloat 1.2s ease-out forwards',
+          pointerEvents: 'none',
+        }}>
+          +{harvestAnim}
+        </div>
+      )}
+
+      {/* Insufficient resources message */}
+      {insufficientMsg && (
+        <div style={{
+          position: 'absolute',
+          top: '-20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 200,
+          fontSize: 9,
+          fontFamily: 'monospace',
+          color: '#ff8844',
+          textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          animation: 'harvestFloat 2s ease-out forwards',
+        }}>
+          NOT ENOUGH
+        </div>
       )}
     </div>
   );
