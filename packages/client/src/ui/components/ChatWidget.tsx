@@ -59,6 +59,8 @@ interface ChatWidgetProps {
   preferredLanguage?: string;
   /** Callback to award XP (e.g. for quiz correct answers) */
   onAwardXP?: (amount: number, reason: string) => void;
+  /** Player level — global chat send requires level 10+ */
+  playerLevel?: number;
 }
 
 type Tab = 'global' | 'dm-list' | 'dm-chat' | 'system' | 'astra';
@@ -78,7 +80,7 @@ const CHAT_PULSE_KEYFRAMES = `
   100% { opacity: 0; transform: translateY(-28px); }
 }`;
 
-export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP }: ChatWidgetProps) {
+export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, playerLevel = 1 }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [tab, setTab] = useState<Tab>('global');
@@ -259,8 +261,10 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     }
   }, [collapsed, tab, messages]);
 
+  const globalLocked = tab === 'global' && playerLevel < 10;
+
   const handleSend = async () => {
-    if (!input.trim() || !activeChannel || sending) return;
+    if (!input.trim() || !activeChannel || sending || globalLocked) return;
     setSending(true);
     setBannedError(false);
     try {
@@ -579,10 +583,25 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
               </div>
             )}
 
+            {/* Level restriction banner for global chat */}
+            {globalLocked && (
+              <div style={{
+                padding: '5px 12px',
+                background: 'rgba(40,30,10,0.7)',
+                borderTop: '1px solid #665522',
+                color: '#cc9944',
+                fontFamily: 'monospace',
+                fontSize: 9,
+                textAlign: 'center',
+              }}>
+                {t('chat.level_required', 'Global chat available from level 10')}
+              </div>
+            )}
+
             {/* Input */}
             <div style={{
               padding: '8px 12px',
-              borderTop: bannedError ? 'none' : '1px solid #223344',
+              borderTop: (bannedError || globalLocked) ? 'none' : '1px solid #223344',
               display: 'flex',
               gap: 8,
             }}>
@@ -590,15 +609,15 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 value={input}
                 onChange={(e) => { setInput(e.target.value); if (bannedError) setBannedError(false); }}
                 onKeyDown={handleKeyDown}
-                placeholder={t('chat.message_placeholder')}
+                placeholder={globalLocked ? t('chat.level_required', 'Level 10 required') : t('chat.message_placeholder')}
                 maxLength={500}
-                disabled={bannedError}
+                disabled={bannedError || globalLocked}
                 style={{
                   flex: 1,
                   background: 'rgba(20,30,45,0.8)',
                   border: '1px solid #334455',
                   borderRadius: 3,
-                  color: bannedError ? '#556677' : '#aabbcc',
+                  color: (bannedError || globalLocked) ? '#556677' : '#aabbcc',
                   fontFamily: 'monospace',
                   fontSize: 11,
                   padding: '6px 8px',
@@ -607,16 +626,16 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
               />
               <button
                 onClick={handleSend}
-                disabled={sending || !input.trim() || bannedError}
+                disabled={sending || !input.trim() || bannedError || globalLocked}
                 style={{
-                  background: input.trim() && !bannedError ? 'rgba(34,170,68,0.2)' : 'rgba(30,40,55,0.5)',
-                  border: `1px solid ${input.trim() && !bannedError ? '#44ff88' : '#334455'}`,
+                  background: input.trim() && !bannedError && !globalLocked ? 'rgba(34,170,68,0.2)' : 'rgba(30,40,55,0.5)',
+                  border: `1px solid ${input.trim() && !bannedError && !globalLocked ? '#44ff88' : '#334455'}`,
                   borderRadius: 3,
-                  color: input.trim() && !bannedError ? '#44ff88' : '#556677',
+                  color: input.trim() && !bannedError && !globalLocked ? '#44ff88' : '#556677',
                   fontFamily: 'monospace',
                   fontSize: 11,
                   padding: '6px 12px',
-                  cursor: input.trim() && !bannedError ? 'pointer' : 'default',
+                  cursor: input.trim() && !bannedError && !globalLocked ? 'pointer' : 'default',
                 }}
               >
                 {'>'}

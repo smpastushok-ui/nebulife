@@ -4919,6 +4919,7 @@ function AppInner() {
         <ChatWidget
           playerId={playerId.current}
           playerName={state.playerName}
+          playerLevel={playerLevel}
           onUnreadChange={setChatUnreadCount}
           systemNotifs={systemNotifs}
           onSystemNotifRead={(id) =>
