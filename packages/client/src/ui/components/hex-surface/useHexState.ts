@@ -165,10 +165,12 @@ function rollSlotContents(
     const yieldPerHour = rarityYield(rarity);
     return { state: 'resource', resourceType: forceResource, rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
   }
-  // 70% resource, 30% empty — deterministic via sin hash
+  // Ring 1 always has resources (0% empty) to prevent dead-end start
+  // Ring 2+ has 70% resource / 30% empty
+  const isRing1 = slotId.startsWith('ring1-');
   const h = Math.abs(Math.sin(seed * 0.17 + stringHash(slotId) * 0.031)) * 100;
 
-  if (h < 70) {
+  if (isRing1 || h < 70) {
     const resourceType = rollResourceType(seed, slotId);
     const rarity = rollRarity(seed, slotId);
     const yieldPerHour = rarityYield(rarity);

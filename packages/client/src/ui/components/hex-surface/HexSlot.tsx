@@ -68,10 +68,10 @@ function LockedContent({
   const cost = slot.unlockCost;
   return (
     <div
-      onClick={onUnlock}
       style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
+        pointerEvents: 'none',
         alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer',
         fontFamily: 'monospace',
@@ -213,10 +213,10 @@ function ResourceContent({
 function EmptyContent({ onBuild }: { onBuild: () => void }) {
   return (
     <div
-      onClick={onBuild}
       style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
+        pointerEvents: 'none',
         alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer',
         fontFamily: 'monospace',
@@ -304,15 +304,13 @@ function BuildingContent({
 
   return (
     <div
-      onClick={onInspect}
-      className="hex-building-levitate"
       style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer',
         fontFamily: 'monospace',
         userSelect: 'none',
+        pointerEvents: 'none',
       }}
     >
       {webpSrc ? (
@@ -399,7 +397,6 @@ export const HexSlot = React.memo(function HexSlot({
 
   return (
     <div
-      onClick={handleClick}
       style={{
         position: 'absolute',
         left,
@@ -410,10 +407,22 @@ export const HexSlot = React.memo(function HexSlot({
         background: 'transparent',
         overflow: 'visible',
         opacity,
-        cursor: slot.state === 'hidden' ? 'default' : 'pointer',
         transition: 'opacity 0.2s',
+        pointerEvents: 'none',
       }}
     >
+      {/* Click target — confined to hex shape, never blocked by overflow from neighbors */}
+      <div
+        onClick={handleClick}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 100,
+          clipPath: HEX_CLIP,
+          cursor: slot.state === 'hidden' ? 'default' : 'pointer',
+          pointerEvents: 'auto',
+        }}
+      />
       {slot.state === 'hidden' && <HiddenContent />}
       {slot.state === 'locked' && (
         <LockedContent slot={slot} canAfford={canAfford} onUnlock={onUnlock} />
