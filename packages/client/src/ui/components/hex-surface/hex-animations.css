@@ -1,5 +1,11 @@
 /* Hex surface animations — GPU-only CSS keyframes */
 
+/* Harvest +N float up and fade */
+@keyframes harvestFloat {
+  0%   { transform: translateX(-50%) translateY(0); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-30px); opacity: 0; }
+}
+
 /* Neon spin for planet name letters */
 @keyframes nebuNeonSpin {
   0%   { transform: rotateX(-1440deg); filter: blur(10px); opacity: 0; }

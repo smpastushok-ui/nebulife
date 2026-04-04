@@ -114,6 +114,7 @@ function ResourceContent({
   onHarvest: () => void;
 }) {
   const [, setTick] = useState(0);
+  const [harvestAnim, setHarvestAnim] = useState<number | null>(null);
 
   // Re-render every second to update timer
   useEffect(() => {
@@ -123,13 +124,18 @@ function ResourceContent({
 
   const resourceType = slot.resourceType!;
   const rarity = slot.rarity!;
-  const color = RESOURCE_COLORS[resourceType];
-  const rarityColor = RARITY_COLORS[rarity];
   const ready = isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour);
   const remaining = slot.lastHarvestedAt
     ? respawnTimeRemaining(slot.lastHarvestedAt, slot.yieldPerHour)
     : 0;
   const accumulated = getAccumulatedYield(slot.lastHarvestedAt, slot.yieldPerHour ?? 1, slot.maxCapacity ?? 12);
+
+  const handleHarvest = () => {
+    if (!ready) return;
+    setHarvestAnim(accumulated > 0 ? accumulated : slot.yieldPerHour ?? 1);
+    onHarvest();
+    setTimeout(() => setHarvestAnim(null), 1200);
+  };
 
   // Map resource type + rarity to WebP image
   const RARITY_INDEX: Record<string, number> = {
@@ -148,7 +154,7 @@ function ResourceContent({
 
   return (
     <div
-      onClick={ready ? onHarvest : undefined}
+      onClick={handleHarvest}
       style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
@@ -158,51 +164,46 @@ function ResourceContent({
         userSelect: 'none',
       }}
     >
-      {/* Resource WebP image */}
+      {/* Resource WebP image — bright when ready, dimmed when respawning */}
       <img
         src={webpSrc}
         alt={resourceType}
         style={{
           width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
           position: 'absolute', inset: 0,
-          opacity: ready ? 1 : 0.5,
-          transition: 'opacity 0.3s',
+          opacity: ready ? 1 : 0.4,
+          transition: 'opacity 0.5s',
         }}
       />
 
-      {/* Accumulated amount overlay */}
-      <div style={{
-        position: 'relative', zIndex: 1,
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: ready ? '#ffffff' : '#88aacc',
-        textShadow: '0 1px 4px rgba(0,0,0,0.8)',
-        transition: 'color 0.3s',
-      }}>
-        {accumulated > 0 ? accumulated : ''}
-      </div>
-
-      {/* Timer or READY label */}
-      {ready ? (
+      {/* Respawn timer — only when not ready */}
+      {!ready && (
         <div style={{
           position: 'relative', zIndex: 1,
-          fontSize: 8,
-          color: '#44ff88',
-          marginTop: 2,
-          letterSpacing: 1,
-          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-        }}>
-          READY
-        </div>
-      ) : (
-        <div style={{
-          position: 'relative', zIndex: 1,
-          fontSize: 8,
-          color: '#88aacc',
-          marginTop: 2,
+          fontSize: 9,
+          color: '#667788',
           textShadow: '0 1px 3px rgba(0,0,0,0.8)',
         }}>
           {formatMs(remaining)}
+        </div>
+      )}
+
+      {/* Harvest animation — +N floats up and fades */}
+      {harvestAnim !== null && (
+        <div style={{
+          position: 'absolute',
+          top: '30%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 2,
+          fontSize: 18,
+          fontWeight: 'bold',
+          color: '#44ff88',
+          textShadow: '0 0 8px rgba(68,255,136,0.6), 0 2px 4px rgba(0,0,0,0.8)',
+          animation: 'harvestFloat 1.2s ease-out forwards',
+          pointerEvents: 'none',
+        }}>
+          +{harvestAnim}
         </div>
       )}
     </div>
