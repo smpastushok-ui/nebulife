@@ -24,6 +24,8 @@ interface ResourceDisplayProps {
   minerals?: number;
   volatiles?: number;
   isotopes?: number;
+  water?: number;
+  onWaterClick?: () => void;
   /** Countdown timer text (shown when clock is visible) */
   countdownText?: string;
   /** Whether countdown is in urgent mode */
@@ -140,6 +142,15 @@ function IsotopesIcon() {
   );
 }
 
+/** SVG water droplet icon */
+function WaterIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.2">
+      <path d="M8 2C8 2 3 8 3 11C3 13.8 5.2 15 8 15C10.8 15 13 13.8 13 11C13 8 8 2 8 2Z" />
+    </svg>
+  );
+}
+
 const clickableItemStyle: React.CSSProperties = {
   ...itemStyle,
   cursor: 'pointer',
@@ -152,8 +163,8 @@ const clickableItemStyle: React.CSSProperties = {
 export function ResourceDisplay({
   researchData, quarks, isExodusPhase, onClick,
   onObservatoriesClick, onResearchDataClick,
-  onMineralsClick, onVolatilesClick, onIsotopesClick, onQuarksClick,
-  minerals = 0, volatiles = 0, isotopes = 0,
+  onMineralsClick, onVolatilesClick, onIsotopesClick, onQuarksClick, onWaterClick,
+  minerals = 0, volatiles = 0, isotopes = 0, water = 0,
   countdownText, countdownUrgent = false, onTimerClick,
   observatoryUsed = 0, observatoryTotal = 0,
 }: ResourceDisplayProps) {
@@ -281,6 +292,17 @@ export function ResourceDisplay({
             >
               <IsotopesIcon />
               <span style={{ color: '#88aa44' }}>{isotopes}</span>
+            </div>
+            <div style={dividerStyle} />
+            <div
+              style={itemHoverStyle('wat')}
+              title={t('resource_display.water_title', 'Water')}
+              onClick={makeItemClick(onWaterClick)}
+              onMouseEnter={() => setHoveredItem('wat')}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              <WaterIcon />
+              <span style={{ color: '#3b82f6' }}>{water}</span>
             </div>
             <div style={dividerStyle} />
           </>

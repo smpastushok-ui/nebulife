@@ -3020,9 +3020,12 @@ function AppInner() {
     // Update local home info
     setHomeInfo({ system: evacuationTarget.system, planet: evacuationTarget.planet });
 
-    // Reset research state: observatories were on the destroyed planet, 0 slots now
-    // Keep systems data (already researched systems remain known)
-    const emptyResearch: ResearchState = { slots: [], systems: researchState.systems };
+    // Reset research state: observatories were on the destroyed planet
+    // Start with 1 slot for colony hub's built-in observatory
+    const emptyResearch: ResearchState = {
+      slots: [{ slotIndex: 0, systemId: null, startedAt: null, sourcePlanetRing: 0 }],
+      systems: researchState.systems,
+    };
     setResearchState(emptyResearch);
     // Persist IMMEDIATELY to localStorage (don't wait for useEffect — sync might read stale data)
     try { localStorage.setItem('nebulife_research_state', JSON.stringify(emptyResearch)); } catch { /* ignore */ }
@@ -3924,6 +3927,7 @@ function AppInner() {
         minerals={colonyResources.minerals}
         volatiles={colonyResources.volatiles}
         isotopes={colonyResources.isotopes}
+        water={colonyResources.water}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
         onObservatoriesClick={() => setShowResourceModal('observatories')}
         onResearchDataClick={() => setShowResourceModal('research_data')}

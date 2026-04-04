@@ -404,11 +404,13 @@ export const HexSlot = React.memo(function HexSlot({
         setTimeout(() => setInsufficientMsg(false), 2500);
       }
     } else if (slot.state === 'resource') {
-      // Trigger harvest + animation
-      const amount = slot.yieldPerHour ?? 1;
-      setHarvestAnim(amount);
-      onHarvest();
-      setTimeout(() => setHarvestAnim(null), 1200);
+      // Only harvest + animate if resource is ready (not on cooldown)
+      if (isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour)) {
+        const amount = slot.yieldPerHour ?? 1;
+        setHarvestAnim(amount);
+        onHarvest();
+        setTimeout(() => setHarvestAnim(null), 1200);
+      }
     } else if (slot.state === 'empty') {
       onBuild();
     } else if (slot.state === 'building' || slot.state === 'harvester') {
