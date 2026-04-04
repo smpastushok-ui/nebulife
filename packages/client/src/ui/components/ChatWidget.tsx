@@ -835,7 +835,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 </div>
               )}
               {astraMessages.map((msg) => (
-                <AstraMessageItem key={msg.id} msg={{ role: msg.sender_id === 'astra' ? 'model' : 'user', text: msg.content }} messageId={msg.id} onAwardXP={onAwardXP} />
+                <AstraMessageItem key={msg.id} msg={{ role: (msg.sender_id === 'astra' || msg.sender_id === 'system') ? 'model' : 'user', text: msg.content }} messageId={msg.id} onAwardXP={onAwardXP} />
               ))}
               {astraLoading && (
                 <div style={{ color: '#44ffaa', fontSize: 10, fontFamily: 'monospace', opacity: 0.6 }}>
