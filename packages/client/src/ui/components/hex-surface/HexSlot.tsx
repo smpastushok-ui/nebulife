@@ -337,10 +337,19 @@ function BuildingContent({
       )}
       {slot.buildingLevel !== undefined && (
         <div style={{
-          position: 'absolute', bottom: '15%',
-          fontSize: 8,
-          color: '#446688',
-          letterSpacing: 1,
+          position: 'absolute',
+          bottom: '5%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(20,60,90,0.85)',
+          border: '1px solid rgba(68,136,170,0.5)',
+          borderRadius: 3,
+          padding: '1px 5px',
+          fontSize: 7,
+          fontWeight: 'bold',
+          color: '#7bb8ff',
+          letterSpacing: 0.5,
+          whiteSpace: 'nowrap',
         }}>
           LVL {slot.buildingLevel}
         </div>

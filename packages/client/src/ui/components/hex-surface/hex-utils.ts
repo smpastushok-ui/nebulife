@@ -78,7 +78,10 @@ export function getHexPositions(): HexPosition[] {
     const { x, y } = axialToPixel(coord.q, coord.r, HEX_RADIUS);
     const index = coord.ring === 0 ? 0 : coord.ring === 1 ? ring1Idx++ : ring2Idx++;
     const id = `ring${coord.ring}-${index}`;
-    return { id, ring: coord.ring, index, q: coord.q, r: coord.r, x, y };
+    // Subtle chaotic offset for non-center hexes (±3px) — makes grid feel organic
+    const jitterX = coord.ring === 0 ? 0 : Math.sin(coord.q * 7.3 + coord.r * 13.7) * 3;
+    const jitterY = coord.ring === 0 ? 0 : Math.cos(coord.q * 11.1 + coord.r * 5.9) * 3;
+    return { id, ring: coord.ring, index, q: coord.q, r: coord.r, x: x + jitterX, y: y + jitterY };
   });
 }
 
