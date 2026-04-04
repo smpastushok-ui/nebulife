@@ -59,7 +59,7 @@ export const HexGrid = React.memo(function HexGrid({
     <div style={{
       position: 'absolute',
       inset: 0,
-      overflow: 'hidden',
+      overflow: 'visible',
       pointerEvents: 'none',
     }}>
       {/*
