@@ -2,6 +2,21 @@ import React, { useState } from 'react';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { completeQuest } from '../../../api/academy-api.js';
 
+function QuarksIcon() {
+  return (
+    <svg
+      width="11" height="11" viewBox="0 0 16 16" fill="none"
+      stroke="rgba(120,160,255,0.8)" strokeWidth="1.3"
+      style={{ display: 'inline', verticalAlign: 'middle', marginBottom: 1 }}
+    >
+      <circle cx="8" cy="8" r="2" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(-60 8 8)" />
+    </svg>
+  );
+}
+
 interface QuestViewProps {
   lesson: DailyLesson | null;
   progress: AcademyProgress | null;
@@ -39,7 +54,7 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
     try {
       const result = await completeQuest(lesson.lessonId, num);
       if (result.correct) {
-        setFeedback(`Правильно! +${result.quarksAwarded} кварків, +${result.xpAwarded} XP`);
+        setFeedback(`Правильно! +${result.quarksAwarded}⚛ +${result.xpAwarded} XP`);
         onRefresh();
       } else {
         setFeedback(result.message ?? 'Неправильно, спробуйте ще.');
@@ -63,7 +78,7 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
       <p style={styles.description}>{quest.descriptionUk}</p>
 
       <div style={styles.rewardRow}>
-        <span style={styles.reward}>+{quest.quarkReward} кварків</span>
+        <span style={styles.reward}>+{quest.quarkReward} <QuarksIcon /></span>
         <span style={styles.reward}>+{quest.xpReward} XP</span>
       </div>
 

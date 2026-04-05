@@ -2,6 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { DailyLesson } from '../../../api/academy-api.js';
 import { answerQuiz } from '../../../api/academy-api.js';
 
+function QuarksIcon() {
+  return (
+    <svg
+      width="11" height="11" viewBox="0 0 16 16" fill="none"
+      stroke="rgba(120,160,255,0.8)" strokeWidth="1.3"
+      style={{ display: 'inline', verticalAlign: 'middle', marginBottom: 1 }}
+    >
+      <circle cx="8" cy="8" r="2" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(-60 8 8)" />
+    </svg>
+  );
+}
+
 // Inject XP float keyframes once
 const QUIZ_XP_STYLE_ID = 'quiz-xp-float-style';
 function injectXpKeyframes() {
@@ -102,7 +117,7 @@ export function QuizView({ lesson, onRefresh, onAwardXP }: QuizViewProps) {
         <div style={styles.resultBlock}>
           <div style={result.correct ? styles.resultCorrect : styles.resultWrong}>
             {result.correct
-              ? `Правильно! +${result.quarksAwarded} кварків, +${result.xpAwarded} XP`
+              ? <span>Правильно! +{result.quarksAwarded} <QuarksIcon /> +{result.xpAwarded} XP</span>
               : 'Неправильно'}
           </div>
           <p style={styles.explanation}>{result.explanation}</p>

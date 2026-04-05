@@ -2,6 +2,21 @@ import React, { useState } from 'react';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { completeLesson } from '../../../api/academy-api.js';
 
+function QuarksIcon() {
+  return (
+    <svg
+      width="11" height="11" viewBox="0 0 16 16" fill="none"
+      stroke="rgba(120,160,255,0.8)" strokeWidth="1.3"
+      style={{ display: 'inline', verticalAlign: 'middle', marginBottom: 1 }}
+    >
+      <circle cx="8" cy="8" r="2" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(-60 8 8)" />
+    </svg>
+  );
+}
+
 interface LessonViewProps {
   lesson: DailyLesson | null;
   progress: AcademyProgress | null;
@@ -78,7 +93,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
               onClick={handleMarkRead}
               disabled={marking}
             >
-              {marking ? 'Зберігаю...' : 'Прочитано (+1 кварк, +10 XP)'}
+              {marking ? 'Зберігаю...' : <span>Прочитано (+1 <QuarksIcon /> +10 XP)</span>}
             </button>
           )}
         </div>

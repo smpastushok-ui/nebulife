@@ -134,7 +134,7 @@ export interface CosmicArchiveProps {
   /** Telescope photos for collection galleries */
   systemPhotos?: Map<string, SystemPhotoData>;
   /** Colony resource totals (for Resources tab) */
-  colonyResources?: { minerals: number; volatiles: number; isotopes: number };
+  colonyResources?: { minerals: number; volatiles: number; isotopes: number; water: number };
 }
 
 // ---------------------------------------------------------------------------
@@ -501,6 +501,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           minerals={colonyResources?.minerals ?? 0}
           volatiles={colonyResources?.volatiles ?? 0}
           isotopes={colonyResources?.isotopes ?? 0}
+          water={colonyResources?.water ?? 0}
         />
       );
     }

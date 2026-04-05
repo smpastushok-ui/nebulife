@@ -214,13 +214,14 @@ export function ResourceDisplay({
         </div>
       )}
 
-      {/* Resources -- fixed top-right (each item individually clickable) */}
+      {/* Resources -- fixed top-center (each item individually clickable) */}
       <div
         style={{
           ...panelStyle,
           position: 'fixed',
           top: 12,
-          right: 12,
+          left: '50%',
+          transform: 'translateX(-50%)',
           cursor: 'default',
         }}
       >

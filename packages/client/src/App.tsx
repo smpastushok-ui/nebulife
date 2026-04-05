@@ -4669,6 +4669,10 @@ function AppInner() {
               isotopes: Math.max(0, prev.isotopes - amount),
             }));
           }}
+          researchData={researchData}
+          onConsumeResearchData={(amount) => {
+            setResearchData((prev) => Math.max(0, prev - amount));
+          }}
         />
       )}
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}

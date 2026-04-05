@@ -63,6 +63,8 @@ interface HexSurfaceProps {
   onConsumeIsotopes?:     (amount: number) => void;
   chemicalInventory?:     Record<string, number>;
   onElementChange?:       (delta: Record<string, number>) => void;
+  researchData?:          number;
+  onConsumeResearchData?: (amount: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +123,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onConsumeIsotopes: _onConsumeIsotopes,
       chemicalInventory = {},
       onElementChange,
+      researchData,
+      onConsumeResearchData,
     },
     ref,
   ) {
@@ -212,6 +216,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onElementChange,
       handleDroneHarvest,
       handleDroneAmount,
+      researchData,
+      onConsumeResearchData,
     );
 
     // ── Signal ready after initial load ────────────────────────────────────

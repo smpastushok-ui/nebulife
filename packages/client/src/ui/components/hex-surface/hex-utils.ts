@@ -1,13 +1,17 @@
 // Hex size for rendering
-export const HEX_RADIUS = 38; // radius of hexagon in pixels (smaller = tighter grid)
+export const HEX_RADIUS = 50;
+export const HEX_W = Math.ceil(Math.sqrt(3) * HEX_RADIUS);
+export const HEX_H = HEX_RADIUS * 2;
 
 export type HexState = 'hidden' | 'locked' | 'resource' | 'empty' | 'building' | 'harvester';
 export type ResourceType = 'tree' | 'ore' | 'vent' | 'water';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
+export type HexPlanetSize = 'small' | 'medium' | 'large';
+
 export interface HexSlotData {
   id: string;           // "d{row}-{col}" e.g. "d4-2" for hub. Old saves: "ring0-0" etc.
-  ring: 0 | 1 | 2 | 3; // zone: 0=hub, 1=inner, 2=mid, 3=outer (kept as 'ring' for save compat)
+  ring: number;         // zone: 0=hub, 1..N (kept as 'ring' for save compat)
   index: number;        // index within the zone (0-based)
   state: HexState;
   resourceType?: ResourceType;
@@ -17,7 +21,7 @@ export interface HexSlotData {
   lastHarvestedAt?: number;
   buildingType?: string;
   buildingLevel?: number;
-  unlockCost?: { minerals: number; volatiles: number; isotopes: number; water?: number };
+  unlockCost?: { minerals: number; volatiles: number; isotopes: number; water?: number; researchData?: number };
 }
 
 export interface HexPosition {
@@ -32,198 +36,130 @@ export interface HexPosition {
 }
 
 // ---------------------------------------------------------------------------
-// Diamond layout constants
+// Diamond layout — size 3 (30 hex, 3 zones) or size 4 (56 hex, 4 zones)
 // ---------------------------------------------------------------------------
 
-// Row widths for 10-row elongated diamond (portrait-optimised)
+// Planet size → diamond size mapping
+export function planetSizeToDiamond(size: HexPlanetSize): 3 | 4 {
+  return size === 'large' ? 4 : 3;
+}
+
+// Backward compat defaults (medium = size 3)
 export const DIAMOND_ROWS = [1, 2, 3, 4, 5, 5, 4, 3, 2, 1] as const;
-
-// Centre hex position
 export const CENTER_ROW = 4;
-export const CENTER_COL = 2; // col within row 4 (5 hexes wide, hub at index 2)
+export const CENTER_COL = 2;
 
-// ---------------------------------------------------------------------------
-// Diamond coordinate helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Pre-computed BFS zone lookup table (with row-5 stagger).
- * Zones are assigned by BFS graph distance from the hub hex "d4-2":
- *   zone 0 = hub (dist 0)      — 1 hex
- *   zone 1 = immediate ring    — 6 hexes  (dist 1)
- *   zone 2 = middle ring       — 11 hexes (dist 2)
- *   zone 3 = outer band        — 12 hexes (dist 3+)
- * Total: 30 hexes.
- */
-const HEX_ZONE_LOOKUP: Record<string, 0 | 1 | 2 | 3> = {
-  'd4-2': 0,
-  // zone 1 — 6 hexes
-  'd4-1': 1, 'd4-3': 1, 'd3-1': 1, 'd3-2': 1, 'd5-2': 1, 'd5-3': 1,
-  // zone 2 — 11 hexes
-  'd4-0': 2, 'd3-0': 2, 'd5-1': 2, 'd4-4': 2, 'd3-3': 2,
-  'd5-4': 2, 'd2-0': 2, 'd2-1': 2, 'd2-2': 2, 'd6-2': 2, 'd6-3': 2,
-  // zone 3 — 12 hexes
-  'd5-0': 3, 'd6-1': 3, 'd6-0': 3,
-  'd1-0': 3, 'd1-1': 3, 'd7-0': 3, 'd7-1': 3, 'd7-2': 3,
-  'd0-0': 3, 'd8-0': 3, 'd8-1': 3, 'd9-0': 3,
-};
-
-/**
- * Return the zone (0-3) for a diamond hex at (row, col).
- * Uses the pre-computed BFS lookup table for O(1) performance.
- */
-export function computeZone(row: number, col: number): 0 | 1 | 2 | 3 {
-  const id = `d${row}-${col}`;
-  return HEX_ZONE_LOOKUP[id] ?? 3; // default to outer zone for any unlisted hex
+export function getDiamondConfig(size: HexPlanetSize = 'medium') {
+  const d = planetSizeToDiamond(size);
+  const rows = d === 3 ? 10 : 14;
+  const maxWidth = d === 3 ? 5 : 7;
+  const centerRow = d === 3 ? 4 : 6;
+  const maxZone = d; // 3 zones or 4 zones
+  return { diamondSize: d, rows, maxWidth, centerRow, maxZone };
 }
 
+// ---------------------------------------------------------------------------
+// Diamond position generation (axial coordinate zone calculation)
+// ---------------------------------------------------------------------------
+
 /**
- * Return pixel position for a diamond hex at (row, col).
- * Pointy-top hex: horizontal spacing = sqrt(3)*size, vertical = 1.5*size.
- * Gap factor 1.4 for comfortable spacing between hexes.
- * Stagger: rows with same width as the previous row get +0.5 hex offset
- * to avoid hexes sitting directly above each other (honeycomb pattern).
+ * Generate diamond hex map using axial coordinates for zone calculation.
+ * @param size 3 = 30 hex (3 zones), 4 = 56 hex (4 zones)
  */
-function diamondToPixel(
-  row: number,
-  col: number,
-  size: number,
-): { x: number; y: number } {
-  const gap = 1.4;
-  const rowWidth = DIAMOND_ROWS[row] ?? 1;
-  // Horizontal centre of this hex relative to diamond centre
-  let xFrac = col - (rowWidth - 1) / 2;
-  // Stagger: if this row has the same width as the row above, offset by +0.5
-  // This prevents rows 4 and 5 (both width 5) from stacking directly
-  if (row > 0 && DIAMOND_ROWS[row - 1] === rowWidth) {
-    xFrac += 0.5;
+export function getDiamondPositions(size: 3 | 4 = 3): HexPosition[] {
+  const positions: HexPosition[] = [];
+  const totalRows = size === 3 ? 10 : 14;
+  const maxWidth = size === 3 ? 5 : 7;
+  const centerRow = size === 3 ? 4 : 6;
+
+  const zoneCounters: Record<number, number> = {};
+
+  for (let row = 0; row < totalRows; row++) {
+    const cols = row <= centerRow ? row + 1 : totalRows - row;
+    if (cols > maxWidth) continue; // safety
+
+    for (let col = 0; col < cols; col++) {
+      // Axial coordinate zone calculation
+      const q = col - Math.floor(cols / 2) - Math.floor((row - centerRow) / 2);
+      const r = row - centerRow;
+      const s = -q - r;
+      const zone = Math.max(Math.abs(q), Math.abs(r), Math.abs(s));
+
+      // Pixel position
+      const xOffset = (maxWidth - cols) * 0.5 * HEX_W;
+      const x = xOffset + col * HEX_W;
+      const y = row * (HEX_H * 0.75);
+
+      const zOffset = Math.abs(row - centerRow) * 2;
+      const index = (zoneCounters[zone] ?? 0);
+      zoneCounters[zone] = index + 1;
+
+      positions.push({
+        id: `d${row}-${col}`,
+        ring: zone,
+        index,
+        row,
+        col,
+        x,
+        y,
+        zOffset,
+      });
+    }
   }
-  const x = xFrac * Math.sqrt(3) * size * gap;
-  const y = (row - CENTER_ROW) * 1.5 * size * gap;
-  return { x, y };
+
+  return positions;
 }
 
-// ---------------------------------------------------------------------------
-// Adjacent hex calculation for diamond grid
-// ---------------------------------------------------------------------------
+/** Generate hex positions for a planet size (backward compat wrapper) */
+export function getHexPositions(size: HexPlanetSize = 'medium'): HexPosition[] {
+  return getDiamondPositions(planetSizeToDiamond(size));
+}
 
-/**
- * Get all valid neighbours of (row, col) in the diamond grid.
- * For pointy-top hexes in a rectangular stagger grid the neighbours are:
- *   same row: col-1, col+1
- *   row above: depends on whether the row above is wider or narrower
- *   row below: same logic
- *
- * In our diamond the number of hexes per row changes by ±1 each step.
- * When going from a wider row to a narrower row, the column offset shifts by 0.5.
- * We handle this by projecting the hex's x-fraction onto the neighbour row.
- */
-export function getAdjacentIds(row: number, col: number): string[] {
+/** Compute zone for a hex at (row, col) using axial coordinates */
+export function computeZone(row: number, col: number, size: HexPlanetSize = 'medium'): number {
+  const cfg = getDiamondConfig(size);
+  const totalRows = cfg.rows;
+  const cols = row <= cfg.centerRow ? row + 1 : totalRows - row;
+  const q = col - Math.floor(cols / 2) - Math.floor((row - cfg.centerRow) / 2);
+  const r = row - cfg.centerRow;
+  const s = -q - r;
+  return Math.max(Math.abs(q), Math.abs(r), Math.abs(s));
+}
+
+/** Get adjacent hex IDs for a given planet size */
+export function getAdjacentIds(row: number, col: number, size: HexPlanetSize = 'medium'): string[] {
+  const cfg = getDiamondConfig(size);
+  const totalRows = cfg.rows;
   const neighbours: string[] = [];
 
-  // Same-row neighbours
-  const rowWidth = DIAMOND_ROWS[row] ?? 0;
+  // All 6 hex directions (offset depends on row parity relative to center)
+  const getRowCols = (r: number) => r <= cfg.centerRow ? r + 1 : totalRows - r;
+
+  const rowWidth = getRowCols(row);
+
+  // Same row
   if (col > 0) neighbours.push(`d${row}-${col - 1}`);
   if (col < rowWidth - 1) neighbours.push(`d${row}-${col + 1}`);
 
-  // x-fraction of current hex (centre-relative)
+  // Row above and below — project via x-fraction
   const xFrac = col - (rowWidth - 1) / 2;
 
-  // Helper: find column in a target row whose x-fraction is nearest to xFrac
-  const neighboursInRow = (targetRow: number, xFracSelf: number, deltaX: number = 0) => {
-    if (targetRow < 0 || targetRow >= DIAMOND_ROWS.length) return;
-    const tw = DIAMOND_ROWS[targetRow];
-    // Two candidate columns (hex grid step is 0.5 per row when width changes)
-    const targetXFrac = xFracSelf + deltaX;
-    const candidates = [Math.floor(targetXFrac + (tw - 1) / 2), Math.ceil(targetXFrac + (tw - 1) / 2)];
-    const seen = new Set<number>();
-    for (const c of candidates) {
-      if (c >= 0 && c < tw && !seen.has(c)) {
-        seen.add(c);
-        neighbours.push(`d${targetRow}-${c}`);
+  for (const targetRow of [row - 1, row + 1]) {
+    if (targetRow < 0 || targetRow >= totalRows) continue;
+    const tw = getRowCols(targetRow);
+    if (tw <= 0) continue;
+
+    // Try both candidate columns
+    for (const delta of [-0.25, 0.25]) {
+      const c = Math.round(xFrac + delta + (tw - 1) / 2);
+      if (c >= 0 && c < tw) {
+        const id = `d${targetRow}-${c}`;
+        if (!neighbours.includes(id)) neighbours.push(id);
       }
     }
-  };
-
-  // Row above: when moving up, x-fraction shifts by ±0.5 depending on width change
-  if (row > 0) {
-    const aboveWidth = DIAMOND_ROWS[row - 1];
-    if (aboveWidth > rowWidth) {
-      // wider above: two upper neighbours
-      neighboursInRow(row - 1, xFrac, 0.5);
-      neighboursInRow(row - 1, xFrac, -0.5);
-    } else if (aboveWidth < rowWidth) {
-      // narrower above: project straight
-      neighboursInRow(row - 1, xFrac, 0);
-    } else {
-      // same width but staggered: offset by -0.5 (inverse of the visual stagger)
-      neighboursInRow(row - 1, xFrac, -0.5);
-      neighboursInRow(row - 1, xFrac, 0);
-    }
   }
 
-  // Row below: symmetric
-  if (row < DIAMOND_ROWS.length - 1) {
-    const belowWidth = DIAMOND_ROWS[row + 1];
-    if (belowWidth > rowWidth) {
-      neighboursInRow(row + 1, xFrac, 0.5);
-      neighboursInRow(row + 1, xFrac, -0.5);
-    } else if (belowWidth < rowWidth) {
-      neighboursInRow(row + 1, xFrac, 0);
-    } else {
-      // same width but staggered: offset by +0.5 (visual stagger direction)
-      neighboursInRow(row + 1, xFrac, 0.5);
-      neighboursInRow(row + 1, xFrac, 0);
-    }
-  }
-
-  // Deduplicate and filter valid ids
-  const all = new Set(neighbours);
-  return Array.from(all).filter((id) => {
-    const m = id.match(/^d(\d+)-(\d+)$/);
-    if (!m) return false;
-    const r = parseInt(m[1], 10);
-    const c = parseInt(m[2], 10);
-    return r >= 0 && r < DIAMOND_ROWS.length && c >= 0 && c < (DIAMOND_ROWS[r] ?? 0);
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Diamond position list (30 hexes)
-// ---------------------------------------------------------------------------
-
-interface DiamondHex {
-  row: number;
-  col: number;
-  id: string;
-  zone: 0 | 1 | 2 | 3;
-}
-
-function buildDiamondHexes(): DiamondHex[] {
-  const hexes: DiamondHex[] = [];
-  for (let row = 0; row < DIAMOND_ROWS.length; row++) {
-    const width = DIAMOND_ROWS[row];
-    for (let col = 0; col < width; col++) {
-      const zone = computeZone(row, col);
-      hexes.push({ row, col, id: `d${row}-${col}`, zone });
-    }
-  }
-  return hexes;
-}
-
-/** Generate all 30 diamond hex positions */
-export function getHexPositions(): HexPosition[] {
-  const hexes = buildDiamondHexes();
-
-  // Pre-count zone indices
-  const zoneCounters: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
-
-  return hexes.map(({ row, col, id, zone }) => {
-    const { x, y } = diamondToPixel(row, col, HEX_RADIUS);
-    const zOffset = Math.abs(row - CENTER_ROW) * 2;
-    const index = zoneCounters[zone]++;
-    return { id, ring: zone, index, row, col, x, y, zOffset };
-  });
+  return neighbours;
 }
 
 /** SVG polygon points string for a pointy-top hexagon */
@@ -243,8 +179,16 @@ export const HEX_CLIP_PATH = 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.
 // Rarity + resource generation (seeded, deterministic)
 // ---------------------------------------------------------------------------
 
-export function rollRarity(seed: number, slotId: string): Rarity {
+export function rollRarity(seed: number, slotId: string, zone: number = 1): Rarity {
   const h = Math.abs(Math.sin(seed * 0.1 + hashStr(slotId) * 0.01)) * 100;
+  // Zone 4 (large planets): boosted epic/legendary chances
+  if (zone >= 4) {
+    if (h < 8) return 'legendary';    // 8% (vs 2%)
+    if (h < 25) return 'epic';        // 17% (vs 8%)
+    if (h < 50) return 'rare';        // 25% (vs 15%)
+    if (h < 75) return 'uncommon';    // 25% (vs 25%)
+    return 'common';                   // 25% (vs 50%)
+  }
   if (h < 2) return 'legendary';
   if (h < 10) return 'epic';
   if (h < 25) return 'rare';
@@ -297,53 +241,14 @@ export const RESOURCE_COLORS: Record<ResourceType, string> = {
  */
 export function getUnlockCost(
   zone: number,
-  unlockOrder: number = 0,
-): { minerals: number; volatiles: number; isotopes: number; water?: number } {
-  if (zone === 1) {
-    const table = [
-      { minerals: 0, volatiles: 0, isotopes: 5  },
-      { minerals: 0, volatiles: 0, isotopes: 8  },
-      { minerals: 0, volatiles: 0, isotopes: 12 },
-      { minerals: 0, volatiles: 0, isotopes: 16 },
-      { minerals: 0, volatiles: 0, isotopes: 21 },
-      { minerals: 0, volatiles: 0, isotopes: 28 },
-    ];
-    return { ...table[Math.min(unlockOrder, table.length - 1)] };
-  }
-
-  if (zone === 2) {
-    const table = [
-      { minerals: 8,  volatiles: 5,  isotopes: 0 },
-      { minerals: 12, volatiles: 8,  isotopes: 0 },
-      { minerals: 16, volatiles: 11, isotopes: 0 },
-      { minerals: 22, volatiles: 14, isotopes: 0 },
-      { minerals: 28, volatiles: 18, isotopes: 0 },
-      { minerals: 35, volatiles: 22, isotopes: 0 },
-      { minerals: 42, volatiles: 27, isotopes: 0 },
-      { minerals: 50, volatiles: 32, isotopes: 0 },
-      { minerals: 58, volatiles: 37, isotopes: 0 },
-      { minerals: 68, volatiles: 43, isotopes: 0 },
-      { minerals: 78, volatiles: 50, isotopes: 0 },
-      { minerals: 90, volatiles: 57, isotopes: 0 },
-    ];
-    return { ...table[Math.min(unlockOrder, table.length - 1)] };
-  }
-
-  // Zone 3: minerals + volatiles + water
-  const table = [
-    { minerals: 30, volatiles: 20, isotopes: 0, water: 10 },
-    { minerals: 40, volatiles: 25, isotopes: 0, water: 12 },
-    { minerals: 52, volatiles: 32, isotopes: 0, water: 15 },
-    { minerals: 65, volatiles: 40, isotopes: 0, water: 18 },
-    { minerals: 80, volatiles: 50, isotopes: 0, water: 22 },
-    { minerals: 98, volatiles: 61, isotopes: 0, water: 26 },
-    { minerals: 118, volatiles: 74, isotopes: 0, water: 31 },
-    { minerals: 140, volatiles: 88, isotopes: 0, water: 37 },
-    { minerals: 165, volatiles: 103, isotopes: 0, water: 44 },
-    { minerals: 192, volatiles: 120, isotopes: 0, water: 52 },
-    { minerals: 222, volatiles: 139, isotopes: 0, water: 61 },
-  ];
-  return { ...table[Math.min(unlockOrder, table.length - 1)] };
+  _unlockOrder: number = 0,
+): { minerals: number; volatiles: number; isotopes: number; water?: number; researchData?: number } {
+  // Flat price per zone (terrestrial planets)
+  if (zone === 1) return { minerals: 0, volatiles: 0, isotopes: 5, researchData: 1 };
+  if (zone === 2) return { minerals: 8, volatiles: 5, isotopes: 0, researchData: 2 };
+  if (zone === 3) return { minerals: 30, volatiles: 20, isotopes: 0, water: 10, researchData: 5 };
+  // Zone 4 (large planets only — most expensive, best rewards)
+  return { minerals: 60, volatiles: 40, isotopes: 10, water: 20, researchData: 10 };
 }
 
 // ---------------------------------------------------------------------------
@@ -428,6 +333,7 @@ export const ZONE_RESPAWN_MS: Record<number, number> = {
   1: 600_000,      // zone 1 — 10 min
   2: 1_800_000,    // zone 2 — 30 min
   3: 7_200_000,    // zone 3 — 2 hours
+  4: 14_400_000,   // zone 4 (large only) — 4 hours (rare/epic/legendary boost)
 };
 export const RESOURCE_RESPAWN_MS = 600_000; // legacy fallback
 

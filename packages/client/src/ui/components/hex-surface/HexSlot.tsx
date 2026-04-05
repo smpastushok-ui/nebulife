@@ -98,7 +98,8 @@ function LockedContent({
           {cost.minerals  > 0 && <span>{cost.minerals}M </span>}
           {cost.volatiles > 0 && <span>{cost.volatiles}V </span>}
           {cost.isotopes  > 0 && <span>{cost.isotopes}I </span>}
-          {(cost.water ?? 0) > 0 && <span>{cost.water}W</span>}
+          {(cost.water ?? 0) > 0 && <span>{cost.water}W </span>}
+          {(cost.researchData ?? 0) > 0 && <span style={{ color: '#4488aa' }}>{cost.researchData}RD</span>}
         </div>
       )}
     </div>
@@ -356,6 +357,7 @@ export const HexSlot = React.memo(function HexSlot({
           if (cost.volatiles > 0) parts.push(`${cost.volatiles}V`);
           if (cost.isotopes > 0) parts.push(`${cost.isotopes}I`);
           if ((cost.water ?? 0) > 0) parts.push(`${cost.water}W`);
+          if ((cost.researchData ?? 0) > 0) parts.push(`${cost.researchData}RD`);
           setInsufficientText(parts.length > 0 ? parts.join(' ') : '???');
         }
         setInsufficientMsg(true);

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 /**
- * SurfaceDPad — zoom-only control (circular +/- buttons).
+ * SurfaceDPad — zoom control as a single pointy-top hexagon split horizontally.
+ * Top half = zoom in (+), bottom half = zoom out (−).
  * Camera panning is handled by touch drag on the canvas itself.
  */
 
@@ -10,51 +11,101 @@ interface SurfaceDPadProps {
   onZoomOut: () => void;
 }
 
-const SIZE = 64;
+// Pointy-top hexagon clip-path for a 50×60px box.
+// Vertices (% of width × height):
+//   top-center, upper-right, lower-right, bottom-center, lower-left, upper-left
+const HEX_CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
 
-const btnStyle: React.CSSProperties = {
+const W = 50;
+const H = 60;
+
+// Shared base for each half-button
+const halfBase: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  width: '100%',
+  height: '50%',
   background: 'transparent',
   border: 'none',
-  color: 'rgba(136,153,170,0.8)',
+  color: '#aabbcc',
   cursor: 'pointer',
   padding: 0,
+  margin: 0,
   fontFamily: 'monospace',
   fontWeight: 'bold',
+  fontSize: 20,
+  lineHeight: 1,
   userSelect: 'none',
   WebkitUserSelect: 'none',
   touchAction: 'none',
+  transition: 'background 0.12s',
 };
 
 export function SurfaceDPad({ onZoomIn, onZoomOut }: SurfaceDPadProps) {
+  const [hoverTop, setHoverTop] = useState(false);
+  const [hoverBot, setHoverBot] = useState(false);
+
   const prevent = (e: React.PointerEvent) => e.preventDefault();
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: 68,
-      left: 14,
-      zIndex: 9600,
-      width: SIZE,
-      height: SIZE,
-      borderRadius: '50%',
-      background: 'rgba(10,15,25,0.85)',
-      border: '1px solid rgba(68,102,136,0.4)',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      pointerEvents: 'auto',
-    }}>
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 68,
+        left: 14,
+        zIndex: 9600,
+        width: W,
+        height: H,
+        clipPath: HEX_CLIP,
+        background: '#0a1428',
+        // Hex border via outline is not clipped, so we use a box-shadow trick
+        // The real border is drawn by the wrapper below.
+        pointerEvents: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Top half — zoom in */}
       <button
-        style={{ ...btnStyle, flex: 1, fontSize: 22, borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+        style={{
+          ...halfBase,
+          background: hoverTop ? 'rgba(170,187,204,0.10)' : 'transparent',
+        }}
         onPointerDown={(e) => { prevent(e); onZoomIn(); }}
-      >+</button>
+        onPointerEnter={() => setHoverTop(true)}
+        onPointerLeave={() => setHoverTop(false)}
+        onPointerUp={() => setHoverTop(false)}
+        aria-label="Zoom in"
+      >
+        +
+      </button>
+
+      {/* Divider */}
+      <div
+        style={{
+          width: '100%',
+          height: 1,
+          background: '#334455',
+          flexShrink: 0,
+        }}
+      />
+
+      {/* Bottom half — zoom out */}
       <button
-        style={{ ...btnStyle, flex: 1, fontSize: 24 }}
+        style={{
+          ...halfBase,
+          background: hoverBot ? 'rgba(170,187,204,0.10)' : 'transparent',
+        }}
         onPointerDown={(e) => { prevent(e); onZoomOut(); }}
-      >{'\u2212'}</button>
+        onPointerEnter={() => setHoverBot(true)}
+        onPointerLeave={() => setHoverBot(false)}
+        onPointerUp={() => setHoverBot(false)}
+        aria-label="Zoom out"
+      >
+        {'\u2212'}
+      </button>
     </div>
   );
 }

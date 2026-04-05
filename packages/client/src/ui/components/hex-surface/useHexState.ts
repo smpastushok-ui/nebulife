@@ -16,6 +16,7 @@ import type {
   HexState,
   ResourceType,
   Rarity,
+  HexPlanetSize,
 } from './hex-utils.js';
 import {
   getUnlockCost,
@@ -29,7 +30,9 @@ import {
   CENTER_COL,
   computeZone,
   getAdjacentIds,
+  getDiamondConfig,
 } from './hex-utils.js';
+import { getPlanetSize } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -393,6 +396,9 @@ export function useHexState(
   // Drone auto-harvest callbacks (FX/XP)
   onDroneHarvest?: (objectType: string) => void,
   onDroneHarvestAmount?: (amount: number) => void,
+  // Research data for hex unlock costs
+  researchData?: number,
+  onConsumeResearchData?: (amount: number) => void,
 ): HexStateResult {
   const [slots, setSlots] = useState<HexSlotData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -525,9 +531,13 @@ export function useHexState(
     (slotId: string): boolean => {
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'locked' || !slot.unlockCost) return false;
-      return canAffordCost(colonyResources, slot.unlockCost);
+      if (!canAffordCost(colonyResources, slot.unlockCost)) return false;
+      // Check research data requirement
+      const rdCost = slot.unlockCost.researchData ?? 0;
+      if (rdCost > 0 && (researchData ?? 0) < rdCost) return false;
+      return true;
     },
-    [colonyResources],
+    [colonyResources, researchData],
   );
 
   // ---------------------------------------------------------------------------
@@ -539,6 +549,9 @@ export function useHexState(
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'locked' || !slot.unlockCost) return false;
       if (!canAffordCost(colonyResources, slot.unlockCost)) return false;
+      // Check research data
+      const rdCost = slot.unlockCost.researchData ?? 0;
+      if (rdCost > 0 && (researchData ?? 0) < rdCost) return false;
 
       // Deduct resources
       onResourceChange?.({
@@ -547,6 +560,8 @@ export function useHexState(
         isotopes:  -(slot.unlockCost.isotopes  ?? 0),
         water:     -(slot.unlockCost.water     ?? 0),
       });
+      // Deduct research data
+      if (rdCost > 0) onConsumeResearchData?.(rdCost);
 
       // RNG softlock prevention: HOME planet Zone 1 guarantees all 4 resource types.
       // Other planets use pure random (player already has cross-planet resources).
