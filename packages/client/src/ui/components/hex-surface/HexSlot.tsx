@@ -192,8 +192,8 @@ function ResourceContent({
           style={{
             position: 'relative', zIndex: 1,
             fontSize: 9,
-            color: '#667788',
-            textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+            color: '#ddeeff',
+            textShadow: '0 1px 4px rgba(0,0,0,0.9)',
           }}
         />
       )}

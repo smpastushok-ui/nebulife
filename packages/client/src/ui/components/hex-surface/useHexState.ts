@@ -89,11 +89,11 @@ function buildDiamondDescriptors(): Array<{
   row: number;
   col: number;
   id: string;
-  zone: 0 | 1 | 2 | 3;
+  zone: number;
   zoneIndex: number;
 }> {
   // First pass: assign zone
-  const raw: Array<{ row: number; col: number; id: string; zone: 0 | 1 | 2 | 3 }> = [];
+  const raw: Array<{ row: number; col: number; id: string; zone: number }> = [];
   for (let row = 0; row < DIAMOND_ROWS.length; row++) {
     const width = DIAMOND_ROWS[row];
     for (let col = 0; col < width; col++) {
@@ -159,7 +159,7 @@ function buildInitialSlots(): HexSlotData[] {
       // Hub — auto-unlocked with colony building
       return {
         id,
-        ring: 0 as const,
+        ring: 0,
         index: zoneIndex,
         state: 'building' as HexState,
         buildingType: 'colony_hub',
@@ -170,7 +170,7 @@ function buildInitialSlots(): HexSlotData[] {
       // Zone 1 — immediately visible as locked (adjacent to hub)
       return {
         id,
-        ring: 1 as const,
+        ring: 1,
         index: zoneIndex,
         state: 'locked' as HexState,
       };
@@ -211,7 +211,7 @@ function migrateRingToDiamond(oldSlots: HexSlotData[]): HexSlotData[] {
   // ring0-0 -> d4-2 (zone 0, index 0)
   // ring1-0..5 -> zone1 slots in order
   // ring2-0..11 -> zone2 slots in order
-  const zoneDescriptors: Record<number, Array<{ row: number; col: number; id: string; zone: 0 | 1 | 2 | 3; zoneIndex: number }>> = { 0: [], 1: [], 2: [], 3: [] };
+  const zoneDescriptors: Record<number, Array<{ row: number; col: number; id: string; zone: number; zoneIndex: number }>> = { 0: [], 1: [], 2: [], 3: [] };
   for (const d of descriptors) zoneDescriptors[d.zone].push(d);
 
   const newSlots: HexSlotData[] = descriptors.map(({ row, col, id, zone, zoneIndex }) => {
@@ -220,7 +220,7 @@ function migrateRingToDiamond(oldSlots: HexSlotData[]): HexSlotData[] {
       const oldHub = oldById.get('ring0-0');
       return {
         id,
-        ring: 0 as const,
+        ring: 0,
         index: zoneIndex,
         state: oldHub?.state ?? ('building' as HexState),
         buildingType: oldHub?.buildingType ?? 'colony_hub',
@@ -236,13 +236,13 @@ function migrateRingToDiamond(oldSlots: HexSlotData[]): HexSlotData[] {
         return {
           ...oldSlot,
           id,
-          ring: 1 as const,
+          ring: 1,
           index: zoneIndex,
         };
       }
       return {
         id,
-        ring: 1 as const,
+        ring: 1,
         index: zoneIndex,
         state: 'locked' as HexState,
       };
@@ -256,13 +256,13 @@ function migrateRingToDiamond(oldSlots: HexSlotData[]): HexSlotData[] {
         return {
           ...oldSlot,
           id,
-          ring: 2 as const,
+          ring: 2,
           index: zoneIndex,
         };
       }
       return {
         id,
-        ring: 2 as const,
+        ring: 2,
         index: zoneIndex,
         state: 'hidden' as HexState,
       };
