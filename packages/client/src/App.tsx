@@ -437,6 +437,8 @@ function AppInner() {
   const syncGameStateRef = useRef<() => void>(() => {});
   /** True after server game state has been hydrated — prevents premature local fallbacks */
   const [serverHydrated, setServerHydrated] = useState(false);
+  /** Ref mirror for surfaceTarget — used in intervals with empty deps to pause during surface view */
+  const surfaceTargetRef = useRef<{ planet: Planet; star: Star } | null>(null);
   const awardXPRef = useRef<(amount: number, reason: string) => void>(() => {});
   /** Stable reference to awardXP that can be used in callbacks defined before the actual implementation. */
   const awardXP = useCallback((amount: number, reason: string) => {
@@ -560,12 +562,13 @@ function AppInner() {
     if (!isExodusPhase || clockPhase !== 'visible' || gameStartedAt === null || evacuationPhase !== 'idle') return;
     const startedAt = gameStartedAt; // narrowed to number
     const tick = () => {
+      // PERF: Skip countdown when surface is open (saves 24 calls/sec)
+      if (surfaceTargetRef.current) return;
       const gameSecs = remainingGameSeconds(
         startedAt, Date.now(), timeMultiplier, accelAt, gameTimeAtAccel,
       );
       const t = formatGameTime(gameSecs);
       setCountdownText(t.text);
-      // Urgent when < 2 game hours remaining (7200 game seconds)
       setCountdownUrgent(t.totalGameSeconds < 7200);
     };
     tick();
@@ -854,6 +857,8 @@ function AppInner() {
     planet: Planet;
     star: Star;
   } | null>(null);
+  // Keep ref in sync with state
+  surfaceTargetRef.current = surfaceTarget;
 
   /** Quarks (in-game currency) */
   const [quarks, setQuarks] = useState<number>(0);
@@ -1628,6 +1633,8 @@ function AppInner() {
   // Research timer — check every 500ms
   useEffect(() => {
     const interval = setInterval(() => {
+      // PERF: Skip research processing when surface is open (saves 2 calls/sec)
+      if (surfaceTargetRef.current) return;
       const now = Date.now();
       const engine = engineRef.current;
       if (!engine) return;
