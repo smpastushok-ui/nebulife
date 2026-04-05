@@ -85,10 +85,18 @@ export function getDiamondPositions(size: 3 | 4 = 3): HexPosition[] {
       const s = -q - r;
       const zone = Math.max(Math.abs(q), Math.abs(r), Math.abs(s));
 
-      // Pixel position
-      const xOffset = (maxWidth - cols) * 0.5 * HEX_W;
-      const x = xOffset + col * HEX_W;
-      const y = row * (HEX_H * 0.75);
+      // Pixel position with gap + stagger (honeycomb pattern)
+      const GAP = 8; // px between hexes
+      const hexSpaceW = HEX_W + GAP;
+      const hexSpaceH = HEX_H * 0.75 + GAP * 0.5;
+      const xOffset = (maxWidth - cols) * 0.5 * hexSpaceW;
+      // Stagger: odd rows shift right by half a hex for honeycomb
+      const stagger = (row % 2 === 1) ? hexSpaceW * 0.5 : 0;
+      // Subtle jitter for organic feel (deterministic from row+col)
+      const jx = Math.sin(row * 7.3 + col * 13.7) * 3;
+      const jy = Math.cos(row * 11.1 + col * 5.9) * 2;
+      const x = xOffset + col * hexSpaceW + stagger + jx;
+      const y = row * hexSpaceH + jy;
 
       const zOffset = Math.abs(row - centerRow) * 2;
       const index = (zoneCounters[zone] ?? 0);

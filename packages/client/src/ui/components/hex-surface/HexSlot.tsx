@@ -102,8 +102,8 @@ function LockedContent({
       {cost && (
         <div style={{
           position: 'relative', zIndex: 1,
-          display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center',
-          marginTop: 30,
+          display: 'flex', flexDirection: 'column', gap: 1,
+          alignItems: 'center',
         }}>
           {cost.minerals > 0 && <CostDot amount={cost.minerals} color="#aa8855" />}
           {cost.volatiles > 0 && <CostDot amount={cost.volatiles} color="#22d3ee" />}
