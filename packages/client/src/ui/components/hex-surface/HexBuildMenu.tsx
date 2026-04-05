@@ -181,7 +181,8 @@ export function HexBuildMenu({
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: 320,
+          width: 'calc(100vw - 24px)',
+          maxWidth: 360,
           maxHeight: '80vh',
           background: 'rgba(8,14,24,0.97)',
           border: '1px solid #334455',
@@ -273,20 +274,18 @@ export function HexBuildMenu({
                         (e.currentTarget as HTMLDivElement).style.background = 'rgba(15,25,35,0.5)';
                       }}
                     >
-                      {/* Building image */}
+                      {/* Building image — contain to show full image regardless of aspect ratio */}
                       <div style={{
-                        width: 48, height: 48,
+                        width: 80, height: 80,
                         borderRadius: 3,
-                        overflow: 'hidden',
                         background: 'rgba(10,18,28,0.8)',
-                        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
                         marginBottom: 3,
                       }}>
                         {imgSrc && (
                           <img
                             src={imgSrc}
                             alt={type}
-                            style={{ width: '100%', height: 'auto' }}
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                           />
                         )}
                       </div>
