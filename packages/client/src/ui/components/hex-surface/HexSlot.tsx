@@ -133,27 +133,23 @@ function ResourceContent({
   const timerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
+  // PERF: 1s interval instead of RAF loop. RAF was running 120 calls/sec PER hex.
+  // With 6 respawning hexes = 720 calls/sec just for timer text. Now: 6 calls/sec.
   useEffect(() => {
     if (ready) return;
-    let raf: number;
-    let lastText = '';
-    const tick = () => {
+    const update = () => {
       const rem = slot.lastHarvestedAt != null ? respawnTimeRemaining(slot.lastHarvestedAt, slot.yieldPerHour, slot.ring) : 0;
       if (rem <= 0) {
-        // Resource is now ready — update opacity directly, parent will catch on next interaction
         if (timerRef.current) timerRef.current.textContent = '';
         if (imgRef.current) imgRef.current.style.opacity = '1';
-        return; // stop RAF loop
+        clearInterval(id);
+        return;
       }
-      const text = formatMs(rem);
-      if (text !== lastText) {
-        lastText = text;
-        if (timerRef.current) timerRef.current.textContent = text;
-      }
-      raf = requestAnimationFrame(tick);
+      if (timerRef.current) timerRef.current.textContent = formatMs(rem);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    update(); // immediate first update
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
   }, [ready, slot.lastHarvestedAt, slot.yieldPerHour]);
 
   return (
