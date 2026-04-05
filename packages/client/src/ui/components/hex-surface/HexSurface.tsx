@@ -356,6 +356,10 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // Planet type → background image mapping
     const PLANET_BG: Partial<Record<string, string>> = {
       terrestrial: '/planet_2d/terrestrial.webp',
+      rocky:       '/planet_2d/rocky.webp',
+      dwarf:       '/planet_2d/dwarf.webp',
+      'gas-giant': '/planet_2d/gas-giant.webp',
+      'ice-giant': '/planet_2d/ice-giant.webp',
     };
     const bgImage = PLANET_BG[planet.type];
 
@@ -365,7 +369,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           position: 'fixed',
           inset: 0,
           zIndex: 9000,
-          background: '#0a0f1e',
+          background: '#080808',
           overflow: 'hidden',
           userSelect: 'none',
           WebkitUserSelect: 'none',
@@ -389,7 +393,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             pointerEvents: 'none',
             transform: 'translateZ(0)',
             zIndex: 0,
-            opacity: 0.35,
+            opacity: 0.5,
           }} />
         )}
 
