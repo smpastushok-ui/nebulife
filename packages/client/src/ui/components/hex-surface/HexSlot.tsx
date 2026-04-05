@@ -116,15 +116,17 @@ function ResourceContent({
 }) {
   const [, setTick] = useState(0);
 
-  // Re-render every second to update timer
+  // Re-render every 30s to update timer (not every 1s — saves 30x CPU on 30 hexes)
+  // Only run timer when resource is NOT ready (respawning)
+  const ready = isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour);
   useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    if (ready) return; // no timer needed when resource is harvestable
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
     return () => clearInterval(id);
-  }, []);
+  }, [ready]);
 
   const resourceType = slot.resourceType!;
   const rarity = slot.rarity!;
-  const ready = isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour);
   const remaining = slot.lastHarvestedAt
     ? respawnTimeRemaining(slot.lastHarvestedAt, slot.yieldPerHour)
     : 0;

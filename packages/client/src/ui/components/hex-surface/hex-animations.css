@@ -1,4 +1,5 @@
 /* Hex surface animations — GPU-only CSS keyframes */
+/* PERFORMANCE: No infinite animations — all static. Only one-shot on interaction. */
 
 /* Harvest +N float up and fade */
 @keyframes harvestFloat {
@@ -19,7 +20,7 @@
   100% { transform: translateX(0); opacity: 1; }
 }
 
-/* Hex shake before opening */
+/* Hex shake before opening (one-shot) */
 @keyframes hexShake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-3px) rotate(-1deg); }
@@ -27,35 +28,28 @@
 }
 .hex-shake { animation: hexShake 0.3s ease-in-out; }
 
-/* Hex lid flies up and fades */
+/* Hex lid flies up and fades (one-shot) */
 @keyframes hexLidOpen {
   0% { transform: translateY(0); opacity: 1; }
   100% { transform: translateY(-40px); opacity: 0; }
 }
 .hex-lid-open { animation: hexLidOpen 0.5s ease-out forwards; }
 
-/* Content emerges from below */
+/* Content emerges from below (one-shot) */
 @keyframes hexEmerge {
   0% { transform: translateY(20px) scale(0.8); opacity: 0; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 .hex-emerge { animation: hexEmerge 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; opacity: 0; }
 
-/* Resource harvest — shrink and fade */
+/* Resource harvest — shrink and fade (one-shot) */
 @keyframes hexHarvest {
   0% { transform: scale(1); opacity: 1; }
   100% { transform: scale(0) translateY(-20px); opacity: 0; }
 }
 .hex-harvest { animation: hexHarvest 0.4s ease-in forwards; }
 
-/* Building levitation */
-@keyframes hexLevitate {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-.hex-levitate { animation: hexLevitate 3s ease-in-out infinite; }
-
-/* Sparkle particles */
+/* Sparkle particles (one-shot) */
 @keyframes hexSparkle {
   0% { opacity: 0; transform: scale(0); }
   50% { opacity: 1; transform: scale(1); }
@@ -63,47 +57,19 @@
 }
 .hex-sparkle { animation: hexSparkle 0.8s ease-out forwards; }
 
-/* Locked hex pulse */
-@keyframes hexLockedPulse {
-  0%, 100% { stroke-opacity: 0.3; }
-  50% { stroke-opacity: 0.6; }
-}
-.hex-locked-pulse { animation: hexLockedPulse 2s ease-in-out infinite; }
-
-/* Resource glow (ready to harvest) */
-@keyframes hexResourceGlow {
-  0%, 100% { filter: drop-shadow(0 0 2px currentColor); }
-  50% { filter: drop-shadow(0 0 6px currentColor); }
-}
-.hex-resource-glow { animation: hexResourceGlow 2s ease-in-out infinite; }
-
-/* Building entrance */
+/* Building entrance (one-shot) */
 @keyframes hexBuildingDrop {
   0% { transform: translateY(-30px) scale(0.9); opacity: 0; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 .hex-building-enter { animation: hexBuildingDrop 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
 
-/* Respawn timer pulse */
-@keyframes hexRespawnPulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
-}
-.hex-respawn-pulse { animation: hexRespawnPulse 1.5s ease-in-out infinite; }
-
-/* Building levitate (DOM-based, combines with levitate) */
-.hex-building-levitate { animation: hexLevitate 3s ease-in-out infinite; }
-
-/* Locked hex pulse for DOM border-color */
-@keyframes hexLockedPulseDom {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
-.hex-locked-pulse { animation: hexLockedPulseDom 2s ease-in-out infinite; }
-
-/* Resource glow border for DOM elements */
-@keyframes hexResourceGlowBorder {
-  0%, 100% { box-shadow: 0 0 4px 1px currentColor; }
-  50% { box-shadow: 0 0 10px 3px currentColor; }
-}
-.hex-resource-glow-border { animation: hexResourceGlowBorder 2s ease-in-out infinite; }
+/* DISABLED — All infinite animations removed for mobile performance:
+ * .hex-levitate (was 3s infinite on every building — 30 hexes)
+ * .hex-locked-pulse (was 2s infinite on every locked hex)
+ * .hex-resource-glow (was 2s infinite with drop-shadow — GPU killer)
+ * .hex-respawn-pulse (was 1.5s infinite on respawning resources)
+ * .hex-building-levitate (was 3s infinite duplicate)
+ * .hex-resource-glow-border (was 2s infinite with box-shadow)
+ * Total removed: up to 210 concurrent infinite animations.
+ */
