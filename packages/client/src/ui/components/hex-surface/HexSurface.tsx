@@ -128,6 +128,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     } | null>(null);
 
     // ── Drag / pan tracking ─────────────────────────────────────────────────
+    const rAFRef = useRef<number | null>(null);
     const dragRef = useRef<{
       startX: number;
       startY: number;
@@ -136,29 +137,34 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       moved: boolean;
     } | null>(null);
 
-    // ── Colony resources (driven by useHexState) ────────────────────────────
-    const [colonyResources, setColonyResources] = useState({
+    // ── Colony resources ─────────────────────────────────────────────────────
+    // PERF: Use ref to avoid re-rendering ALL 30 hexes when a single resource changes.
+    // useState version was causing full HexSurface → HexGrid → 30×HexSlot cascade.
+    // The ref is read by useHexState for affordability checks (stable reference).
+    const colonyResourcesRef = useRef({
       minerals: 0,
       volatiles: 0,
       isotopes: _isotopes ?? 100,
       water: 0,
     });
+    // Snapshot for React render (only read on mount / explicit re-render)
+    const colonyResources = colonyResourcesRef.current;
 
     // Keep isotopes in sync with prop
     useEffect(() => {
       if (_isotopes !== undefined) {
-        setColonyResources((prev) => ({ ...prev, isotopes: _isotopes }));
+        colonyResourcesRef.current.isotopes = _isotopes;
       }
     }, [_isotopes]);
 
     const handleResourceChange = useCallback(
       (delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => {
-        setColonyResources((prev) => ({
-          minerals:  prev.minerals  + (delta.minerals  ?? 0),
-          volatiles: prev.volatiles + (delta.volatiles ?? 0),
-          isotopes:  prev.isotopes  + (delta.isotopes  ?? 0),
-          water:     prev.water     + (delta.water     ?? 0),
-        }));
+        // Mutate ref directly — zero React re-renders
+        const r = colonyResourcesRef.current;
+        if (delta.minerals)  r.minerals  += delta.minerals;
+        if (delta.volatiles) r.volatiles += delta.volatiles;
+        if (delta.isotopes)  r.isotopes  += delta.isotopes;
+        if (delta.water)     r.water     += delta.water;
       },
       [],
     );
@@ -303,12 +309,17 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       if (dragRef.current.moved) {
         panXRef.current = dragRef.current.startPanX + dx;
         panYRef.current = dragRef.current.startPanY + dy;
-        applyTransformToDOM(panXRef.current, panYRef.current, z);
+        // Sync DOM mutation with display refresh — prevents 240Hz layout thrashing on S22
+        if (rAFRef.current) cancelAnimationFrame(rAFRef.current);
+        rAFRef.current = requestAnimationFrame(() => {
+          applyTransformToDOM(panXRef.current, panYRef.current, z);
+        });
       }
     }, [applyTransformToDOM]);
 
-    const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const handlePointerUp = useCallback((_e: React.PointerEvent<HTMLDivElement>) => {
       dragRef.current = null;
+      if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null; }
     }, []);
 
     // ── Wheel zoom ──────────────────────────────────────────────────────────
