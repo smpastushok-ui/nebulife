@@ -9,7 +9,7 @@ import type { Language } from '@nebulife/core';
 // Step 2: gemini-3.1-flash-image-preview generates 9:16 infographic images
 // ---------------------------------------------------------------------------
 
-const CORE_MODEL = 'gemini-3.1-flash-lite-preview';
+const CORE_MODEL = 'gemini-2.5-flash-preview-05-20';
 const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
 // ---------------------------------------------------------------------------
@@ -22,28 +22,23 @@ export interface DigestNewsItem {
   desc_uk: string;
   desc_en: string;
   imagePrompt: string;
+  source?: string;
 }
 
 // ---------------------------------------------------------------------------
-// Step 1: Generate weekly news text
+// Step 1: Generate weekly news text (Google Search grounded)
 // ---------------------------------------------------------------------------
-
-// Authoritative space news sources for URL context verification
-const SPACE_NEWS_URLS = [
-  'https://www.nasa.gov/news/all-news/',
-  'https://www.esa.int/News',
-  'https://www.space.com/news',
-  'https://spacenews.com/',
-  'https://www.universetoday.com/',
-  'https://phys.org/space-news/',
-  'https://www.planetary.org/articles',
-];
 
 const NEWS_PROMPT = `You are a space news curator for the game "Nebulife" — a hard sci-fi space exploration simulator.
 
-CRITICAL: You MUST ONLY report news that you can verify from the provided URL sources. DO NOT invent or hallucinate news. Every item must come from a real article published in the last 7 days on one of the authoritative sources provided.
+CRITICAL RULES:
+1. Use Google Search to find REAL space news from the past 7 days
+2. Every news item MUST be based on a real published article
+3. DO NOT invent or hallucinate any news
+4. Include the source URL for each item
+5. Focus ONLY on: NASA, ESA, SpaceX, JAXA, ISRO missions, astronomical discoveries, space launches, research breakthroughs
 
-Your task: Analyze the provided space news sources and compile the 15 most interesting REAL, VERIFIED space/astronomy/astrophysics news from the past 7 days.
+Your task: Search for and compile the 15 most interesting REAL space/astronomy/astrophysics news from the past 7 days.
 
 For each news item provide:
 - title_uk: Ukrainian title (short, 5-10 words)
@@ -51,12 +46,11 @@ For each news item provide:
 - desc_uk: Ukrainian description (1-2 sentences, factual, in-game style — as if reported by a space station AI)
 - desc_en: English description (same content, 1-2 sentences)
 - imagePrompt: A short prompt for generating a sci-fi illustration of this news (in English, 10-20 words, visual description only)
-- source: URL of the original article (for verification)
+- source: URL of the original article
 
 Style guide:
 - Write as if you are a ship's AI reporting findings to the Commander
 - Be factual but add a hint of sci-fi drama
-- Focus on: discoveries, missions, launches, astronomical events, research breakthroughs
 - No politics, no speculation, only confirmed scientific facts
 - If fewer than 15 verified news found, return however many you can verify (minimum 10)
 
@@ -73,10 +67,25 @@ export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
     model: CORE_MODEL,
     contents: NEWS_PROMPT,
     config: {
-      thinkingConfig: { thinkingBudget: 8192 },
-      tools: [{ urlContext: { urls: SPACE_NEWS_URLS } }],
+      tools: [{
+        googleSearch: {
+          dynamicRetrievalConfig: {
+            mode: 'MODE_DYNAMIC',
+            dynamicThreshold: 0.3,
+          },
+        },
+      }],
     },
   });
+
+  // Log grounding metadata for verification
+  const grounding = response.candidates?.[0]?.groundingMetadata;
+  if (grounding?.searchEntryPoint?.renderedContent) {
+    console.log('[digest] Search grounding available');
+  }
+  if (grounding?.groundingChunks?.length) {
+    console.log(`[digest] Grounded on ${grounding.groundingChunks.length} sources`);
+  }
 
   const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
   const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
