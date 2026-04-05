@@ -106,6 +106,7 @@ import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { DigestModal } from './ui/components/DigestModal.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
+import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
 import type { CosmicArchiveHandle } from './ui/components/CosmicArchive/CosmicArchive.js';
@@ -882,6 +883,7 @@ function AppInner() {
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   const [showAcademy, setShowAcademy] = useState(false);
+  const [showArena, setShowArena] = useState(false);
   const [sharedLessonInfo, setSharedLessonInfo] = useState<SharedLessonInfo | null>(() => {
     // Read share params from URL on first load
     try {
@@ -3926,6 +3928,25 @@ function AppInner() {
     });
   }
 
+  // Arena button — golden spaceship icon, no level restriction for now
+  toolGroups.push({
+    type: 'buttons',
+    items: [{
+      id: 'arena',
+      label: '',
+      variant: 'terminal' as const,
+      tooltip: 'Space Arena',
+      onClick: () => setShowArena(true),
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ddaa44" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2L15 8L22 9L17 14L18 21L12 18L6 21L7 14L2 9L9 8Z" />
+          <path d="M12 6V14" />
+          <path d="M8 10L12 8L16 10" />
+        </svg>
+      ),
+    }],
+  });
+
 
 
   if (state.error) {
@@ -4876,6 +4897,13 @@ function AppInner() {
           playerName={state.playerName}
           sharedLessonInfo={sharedLessonInfo}
           onAwardXP={awardXP}
+        />
+      )}
+
+      {/* Space Arena */}
+      {showArena && (
+        <SpaceArena
+          onExit={() => setShowArena(false)}
         />
       )}
 
