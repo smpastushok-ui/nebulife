@@ -99,14 +99,7 @@ export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
     model: CORE_MODEL,
     contents: prompt,
     config: {
-      tools: [{
-        googleSearch: {
-          dynamicRetrievalConfig: {
-            mode: 'MODE_DYNAMIC',
-            dynamicThreshold: 0.3,
-          },
-        },
-      }],
+      tools: [{ googleSearch: {} }],
     },
   });
 
