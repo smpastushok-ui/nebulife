@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!auth) return;
 
     if (!await RATE_LIMITS.aiChat(auth.playerId)) {
-      return res.status(429).json({ error: 'A.S.T.R.A. перевантажена. Зачекайте хвилину.' });
+      return res.status(429).json({ error: 'A.S.T.R.A. overloaded. Wait a minute.' });
     }
 
     const { message } = req.body ?? {};
@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (remaining <= 0) {
       return res.status(200).json({
-        text: 'Я розряджений, Командоре. Йду заряджатися.',
+        text: 'Power depleted, Commander. Recharging.',
         tokensUsed: 0,
         tokensRemaining: 0,
         limitReached: true,
@@ -76,16 +76,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       history.pop();
     }
 
-    // Get player callsign
+    // Get player callsign and language preference
     const player = await getPlayer(auth.playerId);
     const callsign = player?.callsign || 'Commander';
+    const lang = player?.language || 'uk';
 
     // Save USER message FIRST (so it appears in chat even if Gemini times out)
     const trimmed = message.trim();
     await saveMessage(auth.playerId, callsign, channel, trimmed);
 
-    // Call Gemini with context (this can take 5-25s; never throws)
-    const result = await chatWithAstra(trimmed, history);
+    // Call Gemini with context + player language (this can take 5-25s; never throws)
+    const result = await chatWithAstra(trimmed, history, lang);
 
     // Save A.S.T.R.A. response (even if it's a fallback error text)
     try {
@@ -116,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[AI chat] Unhandled error:', err);
     // Return the Astra fallback as 200 instead of cryptic 500
     return res.status(200).json({
-      text: 'A.S.T.R.A. offline. Спробуйте пізніше, Командоре.',
+      text: 'A.S.T.R.A. offline. Try again later, Commander.',
       tokensUsed: 0,
       tokensRemaining: 0,
       limitReached: false,

@@ -182,6 +182,7 @@ export interface AstraChatResult {
 export async function chatWithAstra(
   message: string,
   history: AstraMessage[] = [],
+  lang: string = 'uk',
 ): Promise<AstraChatResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { text: 'A.S.T.R.A. offline. API key missing.', totalTokens: 0 };
@@ -206,7 +207,9 @@ export async function chatWithAstra(
       model: ASTRA_MODEL,
       contents,
       config: {
-        systemInstruction: ASTRA_SYSTEM_PROMPT,
+        systemInstruction: lang === 'en'
+          ? ASTRA_SYSTEM_PROMPT + '\n\nCRITICAL: The player uses ENGLISH interface. You MUST respond in English. Address the player as "Commander".'
+          : ASTRA_SYSTEM_PROMPT,
         thinkingConfig: { thinkingBudget: 512 },
       },
     });
