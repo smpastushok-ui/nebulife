@@ -124,7 +124,7 @@ function ResourceContent({
 }) {
   const resourceType = slot.resourceType!;
   const rarity = slot.rarity!;
-  const ready = isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour);
+  const ready = isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour, slot.ring);
   const rarityNum = RARITY_INDEX[rarity] ?? 1;
   const webpSrc = (RESOURCE_WEBP_TEMPLATES[resourceType] ?? RESOURCE_WEBP_TEMPLATES.ore)(rarityNum);
 
@@ -138,7 +138,7 @@ function ResourceContent({
     let raf: number;
     let lastText = '';
     const tick = () => {
-      const rem = slot.lastHarvestedAt != null ? respawnTimeRemaining(slot.lastHarvestedAt, slot.yieldPerHour) : 0;
+      const rem = slot.lastHarvestedAt != null ? respawnTimeRemaining(slot.lastHarvestedAt, slot.yieldPerHour, slot.ring) : 0;
       if (rem <= 0) {
         // Resource is now ready — update opacity directly, parent will catch on next interaction
         if (timerRef.current) timerRef.current.textContent = '';
@@ -378,7 +378,7 @@ export const HexSlot = React.memo(function HexSlot({
         setTimeout(() => setInsufficientMsg(false), 2500);
       }
     } else if (slot.state === 'resource') {
-      if (isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour)) {
+      if (isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour, slot.ring)) {
         const amount = slot.yieldPerHour ?? 1;
         setHarvestAnim(amount);
         onHarvest(id);

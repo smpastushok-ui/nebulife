@@ -422,30 +422,42 @@ function hashStr(s: string): number {
 // Respawn + harvest math
 // ---------------------------------------------------------------------------
 
-export const RESOURCE_RESPAWN_MS = 3_600_000; // 1 hour
+/** Respawn time per zone (ms) */
+export const ZONE_RESPAWN_MS: Record<number, number> = {
+  0: 600_000,      // zone 0 (hub area) — 10 min
+  1: 600_000,      // zone 1 — 10 min
+  2: 1_800_000,    // zone 2 — 30 min
+  3: 7_200_000,    // zone 3 — 2 hours
+};
+export const RESOURCE_RESPAWN_MS = 600_000; // legacy fallback
+
+function zoneRespawnMs(zone?: number): number {
+  return ZONE_RESPAWN_MS[zone ?? 1] ?? 600_000;
+}
 
 /** Calculate how many units have accumulated since last harvest (capped at maxCapacity) */
 export function getAccumulatedYield(
   lastHarvestedAt: number | undefined,
   yieldPerHour: number,
   maxCapacity: number,
+  zone?: number,
 ): number {
-  if (!lastHarvestedAt) return yieldPerHour; // first harvest = 1 hour worth
-  const elapsedHours = (Date.now() - lastHarvestedAt) / RESOURCE_RESPAWN_MS;
-  return Math.min(maxCapacity, Math.floor(elapsedHours * yieldPerHour));
+  if (!lastHarvestedAt) return yieldPerHour;
+  const ms = zoneRespawnMs(zone);
+  const elapsed = (Date.now() - lastHarvestedAt) / ms;
+  return Math.min(maxCapacity, Math.floor(elapsed * yieldPerHour));
 }
 
 /** Check if at least 1 unit has accumulated */
-export function isResourceReady(lastHarvestedAt: number | undefined, yieldPerHour: number = 1): boolean {
+export function isResourceReady(lastHarvestedAt: number | undefined, yieldPerHour: number = 1, zone?: number): boolean {
   if (!lastHarvestedAt) return true;
-  const elapsedMs = Date.now() - lastHarvestedAt;
-  const msPerUnit = RESOURCE_RESPAWN_MS / yieldPerHour;
-  return elapsedMs >= msPerUnit;
+  const ms = zoneRespawnMs(zone);
+  return (Date.now() - lastHarvestedAt) >= (ms / yieldPerHour);
 }
 
 /** Time remaining until next unit (ms) */
-export function respawnTimeRemaining(lastHarvestedAt: number, yieldPerHour: number = 1): number {
-  const msPerUnit = RESOURCE_RESPAWN_MS / yieldPerHour;
+export function respawnTimeRemaining(lastHarvestedAt: number, yieldPerHour: number = 1, zone?: number): number {
+  const msPerUnit = zoneRespawnMs(zone) / yieldPerHour;
   return Math.max(0, msPerUnit - (Date.now() - lastHarvestedAt));
 }
 

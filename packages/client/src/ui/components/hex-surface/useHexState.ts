@@ -569,7 +569,7 @@ export function useHexState(
     (slotId: string): number | null => {
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'resource') return null;
-      if (!isResourceReady(slot.lastHarvestedAt)) return null;
+      if (!isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour, slot.ring)) return null;
       if (!slot.yieldPerHour || !slot.resourceType) return null;
 
       const yieldAmount = slot.yieldPerHour;
