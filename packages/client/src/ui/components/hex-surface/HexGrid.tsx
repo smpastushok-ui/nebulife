@@ -1,10 +1,11 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { getHexPositions, HEX_RADIUS } from './hex-utils';
-import type { HexSlotData } from './hex-utils';
+import type { HexSlotData, HexPlanetSize } from './hex-utils';
 import { HexSlot } from './HexSlot';
 
 interface HexGridProps {
   slots: HexSlotData[];
+  planetSize?: HexPlanetSize;
   onUnlock: (id: string) => void;
   onHarvest: (id: string) => void;
   onBuild: (id: string) => void;
@@ -13,12 +14,12 @@ interface HexGridProps {
   zoom: number;
   panX: number;
   panY: number;
-  /** Callback to expose the transform div ref for direct DOM pan during drag */
   onTransformRef?: (el: HTMLDivElement | null) => void;
 }
 
 export const HexGrid = React.memo(function HexGrid({
   slots,
+  planetSize = 'medium',
   onUnlock,
   onHarvest,
   onBuild,
@@ -29,8 +30,8 @@ export const HexGrid = React.memo(function HexGrid({
   panY,
   onTransformRef,
 }: HexGridProps) {
-  // Compute hex positions once (30 diamond hexes)
-  const positions = useMemo(() => getHexPositions(), []);
+  // Compute hex positions for this planet size
+  const positions = useMemo(() => getHexPositions(planetSize), [planetSize]);
 
   // Find bounding box to auto-center the grid
   const { minX, minY, maxX, maxY } = useMemo(() => {

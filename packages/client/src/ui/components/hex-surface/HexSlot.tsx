@@ -10,6 +10,19 @@ import {
   respawnTimeRemaining,
 } from './hex-utils';
 
+// Colored dot + number for resource costs (replaces text like "12M")
+function CostDot({ amount, color }: { amount: number; color: string }) {
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: color, display: 'inline-block', flexShrink: 0,
+      }} />
+      <span style={{ fontSize: 7, color, fontFamily: 'monospace' }}>{amount}</span>
+    </span>
+  );
+}
+
 interface HexSlotProps {
   id: string;
   slot: HexSlotData;
@@ -89,17 +102,14 @@ function LockedContent({
       {cost && (
         <div style={{
           position: 'relative', zIndex: 1,
-          fontSize: 8,
-          color: canAfford ? '#aabbcc' : '#445566',
-          textAlign: 'center',
-          lineHeight: 1.4,
+          display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center',
           marginTop: 30,
         }}>
-          {cost.minerals  > 0 && <span>{cost.minerals}M </span>}
-          {cost.volatiles > 0 && <span>{cost.volatiles}V </span>}
-          {cost.isotopes  > 0 && <span>{cost.isotopes}I </span>}
-          {(cost.water ?? 0) > 0 && <span>{cost.water}W </span>}
-          {(cost.researchData ?? 0) > 0 && <span style={{ color: '#4488aa' }}>{cost.researchData}RD</span>}
+          {cost.minerals > 0 && <CostDot amount={cost.minerals} color="#aa8855" />}
+          {cost.volatiles > 0 && <CostDot amount={cost.volatiles} color="#22d3ee" />}
+          {cost.isotopes > 0 && <CostDot amount={cost.isotopes} color="#44ff88" />}
+          {(cost.water ?? 0) > 0 && <CostDot amount={cost.water!} color="#3b82f6" />}
+          {(cost.researchData ?? 0) > 0 && <CostDot amount={cost.researchData!} color="#4488aa" />}
         </div>
       )}
     </div>
@@ -341,7 +351,7 @@ export const HexSlot = React.memo(function HexSlot({
   // Animation states (local to this hex — no cascade)
   const [harvestAnim, setHarvestAnim] = useState<number | null>(null);
   const [insufficientMsg, setInsufficientMsg] = useState(false);
-  const [insufficientText, setInsufficientText] = useState('');
+  const [insufficientCost, setInsufficientCost] = useState<HexSlotData['unlockCost'] | null>(null);
   const buildingRef = useRef<HTMLDivElement>(null);
 
   // Main click handler — uses id to call stable parent callbacks
@@ -350,16 +360,7 @@ export const HexSlot = React.memo(function HexSlot({
       if (canAfford) {
         onUnlock(id);
       } else {
-        const cost = slot.unlockCost;
-        if (cost) {
-          const parts: string[] = [];
-          if (cost.minerals > 0) parts.push(`${cost.minerals}M`);
-          if (cost.volatiles > 0) parts.push(`${cost.volatiles}V`);
-          if (cost.isotopes > 0) parts.push(`${cost.isotopes}I`);
-          if ((cost.water ?? 0) > 0) parts.push(`${cost.water}W`);
-          if ((cost.researchData ?? 0) > 0) parts.push(`${cost.researchData}RD`);
-          setInsufficientText(parts.length > 0 ? parts.join(' ') : '???');
-        }
+        setInsufficientCost(slot.unlockCost ?? null);
         setInsufficientMsg(true);
         setTimeout(() => setInsufficientMsg(false), 2500);
       }
@@ -447,7 +448,7 @@ export const HexSlot = React.memo(function HexSlot({
       )}
 
       {/* Insufficient resources message — shows cost needed */}
-      {insufficientMsg && (
+      {insufficientMsg && insufficientCost && (
         <div style={{
           position: 'absolute',
           top: '-24px',
@@ -456,15 +457,18 @@ export const HexSlot = React.memo(function HexSlot({
           zIndex: 200,
           fontFamily: 'monospace',
           textAlign: 'center',
-          whiteSpace: 'nowrap',
           pointerEvents: 'none',
           animation: 'harvestFloat 2.5s ease-out forwards',
         }}>
           <div style={{ fontSize: 8, color: '#ff8844', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
             NEED
           </div>
-          <div style={{ fontSize: 11, fontWeight: 'bold', color: '#ffaa66', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
-            {insufficientText}
+          <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
+            {insufficientCost.minerals > 0 && <CostDot amount={insufficientCost.minerals} color="#aa8855" />}
+            {insufficientCost.volatiles > 0 && <CostDot amount={insufficientCost.volatiles} color="#22d3ee" />}
+            {insufficientCost.isotopes > 0 && <CostDot amount={insufficientCost.isotopes} color="#44ff88" />}
+            {(insufficientCost.water ?? 0) > 0 && <CostDot amount={insufficientCost.water!} color="#3b82f6" />}
+            {(insufficientCost.researchData ?? 0) > 0 && <CostDot amount={insufficientCost.researchData!} color="#4488aa" />}
           </div>
         </div>
       )}

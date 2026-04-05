@@ -18,9 +18,11 @@ import React, {
 } from 'react';
 
 import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState } from '@nebulife/core';
+import { getPlanetSize } from '@nebulife/core';
 
 import { useHexState } from './useHexState.js';
 import { HexGrid } from './HexGrid.js';
+import type { HexPlanetSize } from './hex-utils.js';
 import { HexBuildMenu } from './HexBuildMenu.js';
 import { SurfaceDPad } from '../SurfaceDPad.js';
 
@@ -398,6 +400,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // ── Render ──────────────────────────────────────────────────────────────
 
     const bgImage = PLANET_BG[planet.type];
+    const hexPlanetSize: HexPlanetSize = getPlanetSize(planet.radiusEarth);
 
     return (
       <div
@@ -436,6 +439,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         {/* Hex grid */}
         <HexGrid
           slots={hexState.slots}
+          planetSize={hexPlanetSize}
           onUnlock={handleUnlock}
           onHarvest={handleHarvest}
           onBuild={handleBuild}
