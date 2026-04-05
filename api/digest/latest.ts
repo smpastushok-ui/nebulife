@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { getLatestCompleteDigest } from '../../packages/server/src/db.js';
 
 /**
  * GET /api/digest/latest
  * Returns the latest complete weekly digest with image URLs.
+ * No auth required — digest images are public Vercel Blob URLs.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -12,9 +12,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const auth = await authenticate(req, res);
-    if (!auth) return;
-
     const digest = await getLatestCompleteDigest();
     if (!digest || !digest.images_json) {
       return res.status(200).json({ digest: null });
