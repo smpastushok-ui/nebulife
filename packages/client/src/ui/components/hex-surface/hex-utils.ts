@@ -444,21 +444,20 @@ export function getAccumulatedYield(
 ): number {
   if (!lastHarvestedAt) return yieldPerHour;
   const ms = zoneRespawnMs(zone);
-  const elapsed = (Date.now() - lastHarvestedAt) / ms;
-  return Math.min(maxCapacity, Math.floor(elapsed * yieldPerHour));
+  // Fixed respawn per zone — rarity doesn't affect timer, only yield amount
+  const ready = (Date.now() - lastHarvestedAt) >= ms;
+  return ready ? yieldPerHour : 0;
 }
 
-/** Check if at least 1 unit has accumulated */
-export function isResourceReady(lastHarvestedAt: number | undefined, yieldPerHour: number = 1, zone?: number): boolean {
+/** Check if respawn timer has elapsed (fixed per zone, independent of rarity) */
+export function isResourceReady(lastHarvestedAt: number | undefined, _yieldPerHour: number = 1, zone?: number): boolean {
   if (!lastHarvestedAt) return true;
-  const ms = zoneRespawnMs(zone);
-  return (Date.now() - lastHarvestedAt) >= (ms / yieldPerHour);
+  return (Date.now() - lastHarvestedAt) >= zoneRespawnMs(zone);
 }
 
-/** Time remaining until next unit (ms) */
-export function respawnTimeRemaining(lastHarvestedAt: number, yieldPerHour: number = 1, zone?: number): number {
-  const msPerUnit = zoneRespawnMs(zone) / yieldPerHour;
-  return Math.max(0, msPerUnit - (Date.now() - lastHarvestedAt));
+/** Time remaining until respawn (fixed per zone) */
+export function respawnTimeRemaining(lastHarvestedAt: number, _yieldPerHour: number = 1, zone?: number): number {
+  return Math.max(0, zoneRespawnMs(zone) - (Date.now() - lastHarvestedAt));
 }
 
 // ---------------------------------------------------------------------------
