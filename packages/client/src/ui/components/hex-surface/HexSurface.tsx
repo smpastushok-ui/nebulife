@@ -64,14 +64,13 @@ interface HexSurfaceProps {
 
 // ---------------------------------------------------------------------------
 // ResourceType → SurfaceObjectType mapping
-// water → vent (closest harvest category; SurfaceObjectType has no 'water')
 // ---------------------------------------------------------------------------
 
 const RESOURCE_TO_OBJECT: Record<string, SurfaceObjectType> = {
   tree:  'tree',
   ore:   'ore',
   vent:  'vent',
-  water: 'vent',
+  water: 'water',
 };
 
 // ---------------------------------------------------------------------------
