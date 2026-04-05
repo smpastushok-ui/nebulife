@@ -449,9 +449,12 @@ function AppInner() {
     const amount = yield_.base;
     const key = yield_.group === 'mineral' ? 'minerals' as const
               : yield_.group === 'volatile' ? 'volatiles' as const
+              : yield_.group === 'water' ? 'water' as const
               : 'isotopes' as const;
     setColonyResources((prev) => ({ ...prev, [key]: prev[key] + amount }));
-    const xpKey = objectType === 'tree' ? 'HARVEST_TREE' : objectType === 'ore' ? 'HARVEST_ORE' : 'HARVEST_VENT';
+    const xpKey = objectType === 'tree' ? 'HARVEST_TREE'
+                : objectType === 'ore' ? 'HARVEST_ORE'
+                : 'HARVEST_VENT'; // water uses same XP as vent
     awardXP(XP_REWARDS[xpKey], `harvest_${objectType}`);
   }, [awardXP]);
 
@@ -3934,6 +3937,7 @@ function AppInner() {
         onMineralsClick={() => setShowResourceModal('minerals')}
         onVolatilesClick={() => setShowResourceModal('volatiles')}
         onIsotopesClick={() => setShowResourceModal('isotopes')}
+        onWaterClick={() => setShowResourceModal('water' as any)}
         onQuarksClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
         countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && evacuationPhase === 'idle' ? countdownText : undefined}
         countdownUrgent={countdownUrgent}
