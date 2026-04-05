@@ -76,6 +76,11 @@ export const HexGrid = React.memo(function HexGrid({
 
   // Direct DOM mutation for pan/zoom — bypasses React render cycle for 120fps
   const transformRef = useRef<HTMLDivElement>(null);
+  const refCallback = React.useCallback((el: HTMLDivElement | null) => {
+    transformRef.current = el;
+    onTransformRef?.(el);
+  }, [onTransformRef]);
+
   useEffect(() => {
     if (transformRef.current) {
       transformRef.current.style.transform =
@@ -96,10 +101,7 @@ export const HexGrid = React.memo(function HexGrid({
         Pan/zoom updated via ref (direct DOM) — no React re-render.
       */}
       <div
-        ref={(el) => {
-          transformRef.current = el;
-          onTransformRef?.(el);
-        }}
+        ref={refCallback}
         style={{
           position: 'absolute',
           left: '50%',

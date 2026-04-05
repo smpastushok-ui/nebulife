@@ -16,14 +16,41 @@ interface HexBuildMenuProps {
   onClose: () => void;
 }
 
-const RESOURCE_ABBR: Record<string, string> = {
-  minerals: 'MIN', volatiles: 'VOL', isotopes: 'ISO', water: 'H2O',
+// ---------------------------------------------------------------------------
+// Resource cost icons — colored dots with amount
+// ---------------------------------------------------------------------------
+
+const RESOURCE_ICON: Record<string, { color: string; label: string }> = {
+  minerals:  { color: '#aa8855', label: 'M' },
+  volatiles: { color: '#22d3ee', label: 'V' },
+  isotopes:  { color: '#44ff88', label: 'I' },
+  water:     { color: '#3b82f6', label: 'W' },
 };
 
-function formatCost(def: { cost: { resource: string; amount: number }[] }): string {
-  if (def.cost.length === 0) return 'FREE';
-  return def.cost.map((c) => `${c.amount}${RESOURCE_ABBR[c.resource] ?? c.resource}`).join(' ');
+function CostIcons({ cost }: { cost: { resource: string; amount: number }[] }) {
+  if (cost.length === 0) return <span style={{ fontSize: 7, color: '#4488aa' }}>FREE</span>;
+  return (
+    <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+      {cost.map((c) => {
+        const icon = RESOURCE_ICON[c.resource];
+        if (!icon) return null;
+        return (
+          <span key={c.resource} style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: icon.color, display: 'inline-block', flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 7, color: icon.color }}>{c.amount}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function canAffordBuilding(
   def: { cost: { resource: string; amount: number }[] },
@@ -48,7 +75,7 @@ function isTechResearched(techTreeState: any, techId: string | null): boolean {
   return !!techTreeState[techId];
 }
 
-// Building image map (same as HexSlot BUILDING_WEBP)
+// Building image map
 const BUILDING_IMG: Record<string, string> = {
   colony_hub: '/buildings/colony.webp',
   mine: '/buildings/mine.webp',
@@ -78,7 +105,7 @@ const BUILDING_IMG: Record<string, string> = {
   isotope_centrifuge: '/buildings/isotope_centrifuge.webp',
   biome_dome: '/buildings/biome_dome.webp',
   residential_dome: '/buildings/residential_dome.webp',
-  isotope_collector: '/buildings/isotope_centrifuge.webp', // reuse centrifuge image
+  isotope_collector: '/buildings/isotope_centrifuge.webp',
 };
 
 const CATEGORY_ORDER = [
@@ -90,19 +117,23 @@ const CATEGORY_ORDER = [
   'chemistry',
 ] as const;
 
-const CATEGORY_LABEL: Record<string, string> = {
-  infrastructure: 'INFRA',
-  energy:         'ENERGY',
-  extraction:     'EXTRACT',
-  science:        'SCIENCE',
-  biosphere:      'BIO',
-  chemistry:      'CHEM',
+const CATEGORY_COLORS: Record<string, string> = {
+  extraction:     '#aa8855',
+  energy:         '#ffcc44',
+  infrastructure: '#7bb8ff',
+  science:        '#cc88ff',
+  biosphere:      '#44ff88',
+  chemistry:      '#ff8844',
 };
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function HexBuildMenu({
-  slotId,
-  screenX,
-  screenY,
+  slotId: _slotId,
+  screenX: _screenX,
+  screenY: _screenY,
   playerLevel,
   techTreeState,
   colonyResources,
@@ -126,168 +157,171 @@ export function HexBuildMenu({
   }, [onClose]);
 
   // All buildings except colony_hub, grouped by category
-  const allBuildings = (Object.keys(BUILDING_DEFS) as BuildingType[]).filter(t => t !== 'colony_hub');
+  const allBuildings = (Object.keys(BUILDING_DEFS) as BuildingType[]).filter(bt => bt !== 'colony_hub');
 
   const grouped = CATEGORY_ORDER.reduce<Partial<Record<string, BuildingType[]>>>((acc, cat) => {
-    const items = allBuildings.filter((t) => BUILDING_DEFS[t].category === cat);
+    const items = allBuildings.filter((bt) => BUILDING_DEFS[bt].category === cat);
     if (items.length > 0) acc[cat] = items;
     return acc;
   }, {});
 
-  // Menu positioning
-  const menuW = 280;
-  const menuH = 400;
-  const vpW = window.innerWidth;
-  const vpH = window.innerHeight;
-  const left = Math.min(Math.max(8, screenX - menuW / 2), vpW - menuW - 8);
-  const top = Math.min(Math.max(8, screenY - 60), vpH - menuH - 8);
-
   return (
-    <div
-      ref={menuRef}
-      style={{
-        position: 'fixed',
-        left,
-        top,
-        width: menuW,
-        maxHeight: menuH,
-        background: 'rgba(8,14,24,0.97)',
-        border: '1px solid #334455',
-        borderRadius: 6,
-        boxShadow: '0 4px 24px rgba(0,0,0,0.8)',
-        overflowY: 'auto',
-        zIndex: 1000,
-        fontFamily: 'monospace',
-      }}
-    >
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '6px 10px',
-        borderBottom: '1px solid #1e2d3d',
-      }}>
-        <span style={{ color: '#7bb8ff', fontSize: 10, letterSpacing: 1.5 }}>
-          {t('hex.build_menu', 'BUILD')}
-        </span>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none', border: 'none', color: '#556677',
-            cursor: 'pointer', fontSize: 13, padding: '0 2px', fontFamily: 'monospace',
-          }}
-        >
-          x
-        </button>
-      </div>
+    <>
+      {/* Backdrop */}
+      <div
+        style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.4)' }}
+        onClick={onClose}
+      />
 
-      {/* Building list — compact cards */}
-      <div style={{ padding: '2px 0' }}>
-        {Object.entries(grouped).map(([cat, types]) => (
-          <div key={cat}>
-            {/* Category label */}
-            <div style={{
-              padding: '4px 10px 2px',
-              fontSize: 7,
-              color: '#3a5060',
-              letterSpacing: 2,
-              textTransform: 'uppercase',
-            }}>
-              {CATEGORY_LABEL[cat] ?? cat}
-            </div>
+      {/* Menu — centered on screen */}
+      <div
+        ref={menuRef}
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 320,
+          maxHeight: '80vh',
+          background: 'rgba(8,14,24,0.97)',
+          border: '1px solid #334455',
+          borderRadius: 6,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.8)',
+          overflowY: 'auto',
+          zIndex: 1000,
+          fontFamily: 'monospace',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 12px',
+          borderBottom: '1px solid #1e2d3d',
+          position: 'sticky',
+          top: 0,
+          background: 'rgba(8,14,24,0.97)',
+          zIndex: 2,
+        }}>
+          <span style={{ color: '#7bb8ff', fontSize: 11, letterSpacing: 1.5 }}>
+            {t('hex.build_menu', 'BUILD')}
+          </span>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none', border: 'none', color: '#556677',
+              cursor: 'pointer', fontSize: 14, padding: '0 2px', fontFamily: 'monospace',
+            }}
+          >
+            x
+          </button>
+        </div>
 
-            {types!.map((type) => {
-              const def = BUILDING_DEFS[type];
-              const levelLocked = def.levelRequired > playerLevel;
-              const techLocked = !isTechResearched(techTreeState, def.techRequired);
-              const planetLocked = planetType ? !def.allowedPlanetTypes.includes(planetType) : false;
-              const isLocked = levelLocked || techLocked || planetLocked;
-              const canAfford = !isLocked && canAffordBuilding(def, colonyResources, chemicalInventory);
-              const costStr = formatCost(def);
-              const imgSrc = BUILDING_IMG[type];
+        {/* Building grid — 3 columns per category */}
+        <div style={{ padding: '4px 8px 8px' }}>
+          {Object.entries(grouped).map(([cat, types]) => (
+            <div key={cat} style={{ marginBottom: 6 }}>
+              {/* Category header */}
+              <div style={{
+                padding: '4px 4px 3px',
+                fontSize: 7,
+                color: CATEGORY_COLORS[cat] ?? '#556677',
+                letterSpacing: 2,
+                textTransform: 'uppercase',
+                borderBottom: `1px solid ${CATEGORY_COLORS[cat] ?? '#334455'}22`,
+                marginBottom: 4,
+              }}>
+                {t(`hex.cat_${cat}`, cat)}
+              </div>
 
-              return (
-                <div
-                  key={type}
-                  onClick={() => { if (canAfford) { onSelect(type); onClose(); } }}
-                  style={{
-                    padding: '4px 8px',
-                    cursor: canAfford ? 'pointer' : isLocked ? 'default' : 'not-allowed',
-                    borderBottom: '1px solid rgba(20,30,40,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    opacity: isLocked ? 0.3 : canAfford ? 1 : 0.5,
-                    filter: isLocked ? 'grayscale(1)' : 'none',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isLocked) (e.currentTarget as HTMLDivElement).style.background = 'rgba(68,136,170,0.12)';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.background = 'transparent';
-                  }}
-                >
-                  {/* Building thumbnail */}
-                  <div style={{
-                    width: 36, height: 36, flexShrink: 0,
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                    background: 'rgba(15,25,35,0.8)',
-                    border: isLocked ? '1px dashed #2a3a4a' : '1px solid #334455',
-                    display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-                  }}>
-                    {imgSrc && (
-                      <img
-                        src={imgSrc}
-                        alt={type}
-                        style={{
-                          width: '100%', height: 'auto',
-                          opacity: isLocked ? 0.25 : 0.9,
-                        }}
-                      />
-                    )}
-                  </div>
+              {/* 3-column grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 4,
+              }}>
+                {types!.map((type) => {
+                  const def = BUILDING_DEFS[type];
+                  const levelLocked = def.levelRequired > playerLevel;
+                  const techLocked = !isTechResearched(techTreeState, def.techRequired);
+                  const planetLocked = planetType ? !def.allowedPlanetTypes.includes(planetType) : false;
+                  const isLocked = levelLocked || techLocked || planetLocked;
+                  const canAfford = !isLocked && canAffordBuilding(def, colonyResources, chemicalInventory);
+                  const imgSrc = BUILDING_IMG[type];
 
-                  {/* Info column */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Name + level badge */}
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 4,
-                    }}>
-                      <span style={{
-                        fontSize: 10, color: isLocked ? '#445566' : '#aabbcc',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  return (
+                    <div
+                      key={type}
+                      onClick={() => { if (canAfford) { onSelect(type); onClose(); } }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        padding: '4px 2px 5px',
+                        borderRadius: 4,
+                        cursor: canAfford ? 'pointer' : 'default',
+                        opacity: isLocked ? 0.25 : canAfford ? 1 : 0.5,
+                        filter: isLocked ? 'grayscale(1)' : 'none',
+                        background: 'rgba(15,25,35,0.5)',
+                        border: '1px solid rgba(51,68,85,0.3)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isLocked) (e.currentTarget as HTMLDivElement).style.background = 'rgba(68,136,170,0.15)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLDivElement).style.background = 'rgba(15,25,35,0.5)';
+                      }}
+                    >
+                      {/* Building image */}
+                      <div style={{
+                        width: 48, height: 48,
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                        background: 'rgba(10,18,28,0.8)',
+                        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+                        marginBottom: 3,
+                      }}>
+                        {imgSrc && (
+                          <img
+                            src={imgSrc}
+                            alt={type}
+                            style={{ width: '100%', height: 'auto' }}
+                          />
+                        )}
+                      </div>
+
+                      {/* Building name */}
+                      <div style={{
+                        fontSize: 8,
+                        color: isLocked ? '#445566' : '#aabbcc',
+                        textAlign: 'center',
+                        lineHeight: 1.2,
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        marginBottom: 2,
                       }}>
                         {t(`building.${type}.name`, def.name)}
-                      </span>
-                      {isLocked && (
-                        <span style={{
-                          fontSize: 8, color: '#ff8844',
-                          whiteSpace: 'nowrap',
-                        }}>
+                      </div>
+
+                      {/* Cost icons or lock reason */}
+                      {isLocked ? (
+                        <span style={{ fontSize: 7, color: '#ff8844' }}>
                           {levelLocked ? `L${def.levelRequired}` : planetLocked ? 'N/A' : 'TECH'}
                         </span>
+                      ) : (
+                        <CostIcons cost={def.cost} />
                       )}
                     </div>
-
-                    {/* Cost row — only for unlocked */}
-                    {!isLocked && (
-                      <div style={{
-                        fontSize: 8, color: canAfford ? '#4488aa' : '#884444',
-                        marginTop: 1,
-                      }}>
-                        {costStr}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

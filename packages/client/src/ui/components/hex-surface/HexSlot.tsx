@@ -196,29 +196,19 @@ function EmptyContent() {
     <div
       style={{
         position: 'absolute', inset: 0,
-        display: 'flex', flexDirection: 'column',
         pointerEvents: 'none',
-        alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer',
-        fontFamily: 'monospace',
-        userSelect: 'none',
       }}
     >
-      <div style={{
-        fontSize: 22,
-        color: '#334455',
-        lineHeight: 1,
-      }}>
-        +
-      </div>
-      <div style={{
-        fontSize: 8,
-        color: '#334455',
-        marginTop: 2,
-        letterSpacing: 1,
-      }}>
-        BUILD
-      </div>
+      <img
+        src="/buildings/build_hecs.webp"
+        alt="build"
+        style={{
+          width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
+          position: 'absolute', inset: 0,
+          opacity: 0.7,
+        }}
+      />
     </div>
   );
 }
@@ -483,18 +473,14 @@ export const HexSlot = React.memo(function HexSlot({
   // Prevents cascade re-render when unrelated hex is modified.
   return (
     prev.id === next.id &&
-    prev.canAfford === next.canAfford &&
     prev.x === next.x &&
     prev.y === next.y &&
+    prev.zIndex === next.zIndex &&
+    prev.canAfford === next.canAfford &&
     prev.slot.state === next.slot.state &&
     prev.slot.buildingType === next.slot.buildingType &&
     prev.slot.resourceType === next.slot.resourceType &&
-    prev.slot.rarity === next.slot.rarity &&
-    prev.slot.lastHarvestedAt === next.slot.lastHarvestedAt &&
     prev.slot.buildingLevel === next.slot.buildingLevel &&
-    prev.onUnlock === next.onUnlock &&
-    prev.onHarvest === next.onHarvest &&
-    prev.onBuild === next.onBuild &&
-    prev.onInspect === next.onInspect
+    prev.slot.lastHarvestedAt === next.slot.lastHarvestedAt
   );
 });

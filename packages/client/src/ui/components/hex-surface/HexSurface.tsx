@@ -185,6 +185,20 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     );
 
     // ── Hex state hook ──────────────────────────────────────────────────────
+    const handleDroneHarvest = useCallback((resourceKey: string) => {
+      // Map colony resource key back to SurfaceObjectType for FX
+      const keyToObj: Record<string, string> = { minerals: 'ore', volatiles: 'vent', isotopes: 'tree', water: 'water' };
+      const objType = keyToObj[resourceKey];
+      if (objType) {
+        onHarvest?.(objType as any);
+        onHarvestFx?.(objType as any, window.innerWidth / 2, window.innerHeight / 2);
+      }
+    }, [onHarvest, onHarvestFx]);
+
+    const handleDroneAmount = useCallback((amount: number) => {
+      onHarvestAmount?.(amount);
+    }, [onHarvestAmount]);
+
     const hexState = useHexState(
       planet,
       star,
@@ -196,6 +210,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       },
       chemicalInventory,
       onElementChange,
+      handleDroneHarvest,
+      handleDroneAmount,
     );
 
     // ── Signal ready after initial load ────────────────────────────────────

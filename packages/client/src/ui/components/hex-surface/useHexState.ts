@@ -23,6 +23,7 @@ import {
   rollResourceType,
   rarityYield,
   isResourceReady,
+  respawnTimeRemaining,
   DIAMOND_ROWS,
   CENTER_ROW,
   CENTER_COL,
@@ -389,6 +390,9 @@ export function useHexState(
   onBuildingPlaced?: (type: BuildingType) => void,
   chemicalInventory: Record<string, number> = {},
   onElementChange?: (delta: Record<string, number>) => void,
+  // Drone auto-harvest callbacks (FX/XP)
+  onDroneHarvest?: (objectType: string) => void,
+  onDroneHarvestAmount?: (amount: number) => void,
 ): HexStateResult {
   const [slots, setSlots] = useState<HexSlotData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -700,6 +704,100 @@ export function useHexState(
     },
     [playerId, updateSlots],
   );
+
+  // ---------------------------------------------------------------------------
+  // Drone auto-harvester (alpha_harvester)
+  // Three modes: active scan (10s), wait for respawn, safety check (60s)
+  // ---------------------------------------------------------------------------
+
+  const droneHarvestRef = useRef(onDroneHarvest);
+  droneHarvestRef.current = onDroneHarvest;
+  const droneHarvestAmountRef = useRef(onDroneHarvestAmount);
+  droneHarvestAmountRef.current = onDroneHarvestAmount;
+  const harvestResourceRef = useRef(harvestResource);
+  harvestResourceRef.current = harvestResource;
+
+  useEffect(() => {
+    const hasDrone = slots.some(s => s.buildingType === 'alpha_harvester');
+    if (!hasDrone) return;
+
+    const DRONE_INTERVAL = 10_000;  // 10s between harvests
+    const SAFETY_INTERVAL = 60_000; // 60s safety check
+
+    let harvestTimer: ReturnType<typeof setTimeout> | null = null;
+    let respawnTimers: ReturnType<typeof setTimeout>[] = [];
+    let safetyTimer: ReturnType<typeof setInterval> | null = null;
+    let stopped = false;
+
+    const getReadySlots = (): HexSlotData[] => {
+      return slotsRef.current.filter(s =>
+        s.state === 'resource' &&
+        s.resourceType &&
+        s.yieldPerHour &&
+        isResourceReady(s.lastHarvestedAt, s.yieldPerHour, s.ring)
+      );
+    };
+
+    const clearRespawnTimers = () => {
+      for (const t of respawnTimers) clearTimeout(t);
+      respawnTimers = [];
+    };
+
+    const scheduleRespawnWatchers = () => {
+      clearRespawnTimers();
+      const pending = slotsRef.current.filter(s =>
+        s.state === 'resource' && s.lastHarvestedAt && s.resourceType &&
+        !isResourceReady(s.lastHarvestedAt, s.yieldPerHour, s.ring)
+      );
+      for (const slot of pending) {
+        const remaining = respawnTimeRemaining(slot.lastHarvestedAt!, slot.yieldPerHour, slot.ring);
+        if (remaining > 0) {
+          const t = setTimeout(() => {
+            if (!stopped) droneHarvestCycle();
+          }, remaining + 200); // +200ms margin
+          respawnTimers.push(t);
+        }
+      }
+    };
+
+    const droneHarvestCycle = () => {
+      if (stopped) return;
+      if (harvestTimer) { clearTimeout(harvestTimer); harvestTimer = null; }
+
+      const ready = getReadySlots();
+      if (ready.length === 0) {
+        scheduleRespawnWatchers();
+        return;
+      }
+
+      // Harvest first ready resource
+      const target = ready[0];
+      const amount = harvestResourceRef.current(target.id);
+      if (amount !== null && target.resourceType) {
+        const objType = RESOURCE_TO_COLONY[target.resourceType];
+        droneHarvestRef.current?.(objType);
+        droneHarvestAmountRef.current?.(amount);
+      }
+
+      // Schedule next harvest in 10s (if more ready)
+      harvestTimer = setTimeout(droneHarvestCycle, DRONE_INTERVAL);
+    };
+
+    // Start drone cycle
+    droneHarvestCycle();
+
+    // Safety check every 60s
+    safetyTimer = setInterval(() => {
+      if (!stopped && !harvestTimer) droneHarvestCycle();
+    }, SAFETY_INTERVAL);
+
+    return () => {
+      stopped = true;
+      if (harvestTimer) clearTimeout(harvestTimer);
+      clearRespawnTimers();
+      if (safetyTimer) clearInterval(safetyTimer);
+    };
+  }, [slots]); // Re-run when slots change (drone placed/removed, harvest stamps)
 
   // ---------------------------------------------------------------------------
   // Result
