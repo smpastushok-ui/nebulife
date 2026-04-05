@@ -459,20 +459,8 @@ export function useHexState(
     };
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Respawn timer — 60s check
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      const current = slotsRef.current;
-      const hasExpired = current.some(
-        (s) => s.state === 'resource' && s.lastHarvestedAt !== undefined && isResourceReady(s.lastHarvestedAt),
-      );
-      if (hasExpired) setSlots((prev) => [...prev]);
-    }, 60_000);
-    return () => clearInterval(id);
-  }, []);
+  // NOTE: Respawn timer removed — HexSlot handles its own timer via RAF + direct DOM.
+  // The old 60s setInterval was creating [...prev] which broke React.memo on HexGrid.
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -702,6 +690,9 @@ export function useHexState(
       water:     colonyResources.water,
       chemicalInventory,
     }),
+    // PERF: Only slots and loading trigger re-memo. Colony resources are refs (stable).
+    // chemicalInventory excluded — it's read on-demand for building cost checks, not display.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       slots,
       loading,
@@ -711,11 +702,6 @@ export function useHexState(
       removeBuilding,
       canAffordUnlock,
       getSlot,
-      colonyResources.minerals,
-      colonyResources.volatiles,
-      colonyResources.isotopes,
-      colonyResources.water,
-      chemicalInventory,
     ],
   );
 }
