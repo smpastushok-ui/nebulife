@@ -382,6 +382,8 @@
     "top_up_quarks": "Top Up Quarks",
     "web_only_topup": "Top-up available via web version only",
     "guest_topup_note": "Registration required to purchase quarks",
+    "create_account": "CREATE ACCOUNT",
+    "create_account_hint": "Save your progress permanently. Sign in with Google or email.",
     "start_over": "Start Over",
     "confirm_reset": "Confirm Reset",
     "reset_warning": "This action cannot be undone. All progress will be lost.",

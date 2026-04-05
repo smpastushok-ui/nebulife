@@ -297,6 +297,40 @@ export function PlayerPage({
           )}
         </div>
 
+        {/* Register / Link account — prominent for guests */}
+        {isGuest && (
+          <button
+            onClick={onLinkAccount}
+            style={{
+              width: '100%',
+              padding: '12px 0',
+              background: 'rgba(68,136,170,0.15)',
+              border: '1px solid #4488aa',
+              borderRadius: 3,
+              color: '#7bb8ff',
+              fontFamily: 'monospace',
+              fontSize: 12,
+              fontWeight: 'bold',
+              letterSpacing: 1,
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLElement).style.background = 'rgba(68,136,170,0.25)';
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLElement).style.background = 'rgba(68,136,170,0.15)';
+            }}
+          >
+            {t('player.create_account', 'CREATE ACCOUNT')}
+          </button>
+        )}
+        {isGuest && (
+          <div style={{ fontSize: 9, color: '#556677', textAlign: 'center', lineHeight: 1.4 }}>
+            {t('player.create_account_hint', 'Save your progress permanently. Sign in with Google or email.')}
+          </div>
+        )}
+
         {/* Divider */}
         <div style={{ width: '100%', height: 1, background: 'rgba(51,68,85,0.3)' }} />
 
