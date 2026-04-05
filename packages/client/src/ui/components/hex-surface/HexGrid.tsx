@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { getHexPositions, HEX_RADIUS } from './hex-utils';
 import type { HexSlotData } from './hex-utils';
 import { HexSlot } from './HexSlot';
@@ -13,6 +13,8 @@ interface HexGridProps {
   zoom: number;
   panX: number;
   panY: number;
+  /** Callback to expose the transform div ref for direct DOM pan during drag */
+  onTransformRef?: (el: HTMLDivElement | null) => void;
 }
 
 export const HexGrid = React.memo(function HexGrid({
@@ -25,6 +27,7 @@ export const HexGrid = React.memo(function HexGrid({
   zoom,
   panX,
   panY,
+  onTransformRef,
 }: HexGridProps) {
   // Compute hex positions once (30 diamond hexes)
   const positions = useMemo(() => getHexPositions(), []);
@@ -58,6 +61,15 @@ export const HexGrid = React.memo(function HexGrid({
     return m;
   }, [positions, minX, minY]);
 
+  // Direct DOM mutation for pan/zoom — bypasses React render cycle for 120fps
+  const transformRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (transformRef.current) {
+      transformRef.current.style.transform =
+        `scale(${zoom}) translate3d(calc(-50% + ${panX}px), calc(-50% + ${panY}px), 0)`;
+    }
+  }, [zoom, panX, panY]);
+
   return (
     /* Outer wrapper: fills parent, clips overflow */
     <div style={{
@@ -67,20 +79,26 @@ export const HexGrid = React.memo(function HexGrid({
       pointerEvents: 'none',
     }}>
       {/*
-        Transform layer: scale(zoom) + translate so that grid center aligns to
-        50% 50% of the viewport. Translate is applied AFTER scale, so we divide
-        panX/panY by zoom to keep pan speed consistent.
+        Transform layer: GPU-accelerated via translate3d.
+        Pan/zoom updated via ref (direct DOM) — no React re-render.
       */}
-      <div style={{
-        position: 'absolute',
-        left: '50%',
-        top: '50%',
-        transform: `scale(${zoom}) translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px))`,
-        transformOrigin: '0 0',
-        width: gridW,
-        height: gridH,
-        pointerEvents: 'auto',
-      }}>
+      <div
+        ref={(el) => {
+          transformRef.current = el;
+          onTransformRef?.(el);
+        }}
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: `scale(${zoom}) translate3d(calc(-50% + ${panX}px), calc(-50% + ${panY}px), 0)`,
+          transformOrigin: '0 0',
+          width: gridW,
+          height: gridH,
+          pointerEvents: 'auto',
+          willChange: 'transform',
+        }}
+      >
         {/* Sort by Y position so lower hexes render on top (correct isometric overlap) */}
         {slots
           .map((slot) => ({ slot, pos: posMap.get(slot.id) }))

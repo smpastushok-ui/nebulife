@@ -111,9 +111,14 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     ref,
   ) {
     // ── Zoom / pan ──────────────────────────────────────────────────────────
+    // Pan uses refs to avoid re-rendering 30 hexes on every pixel of drag.
+    // HexGrid reads panX/panY via useEffect + direct DOM mutation (translate3d).
     const [zoom, setZoom] = useState(1.0);
-    const [panX, setPanX] = useState(0);
-    const [panY, setPanY] = useState(0);
+    const panXRef = useRef(0);
+    const panYRef = useRef(0);
+    // Expose current pan values as getter for HexGrid props (read on render, not on drag)
+    const panX = panXRef.current;
+    const panY = panYRef.current;
 
     // ── Build menu state ────────────────────────────────────────────────────
     const [buildMenu, setBuildMenu] = useState<{
@@ -258,19 +263,28 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     }, [onBuildPanelChange]);
 
     // ── Pointer events (drag to pan) ────────────────────────────────────────
+    // PERF: During drag, we mutate refs + direct DOM only (no React re-renders).
+    // React state is synced ONCE on pointerUp for final position.
+    const gridTransformRef = useRef<HTMLDivElement | null>(null);
+
+    const applyTransformToDOM = useCallback((x: number, y: number, z: number) => {
+      if (gridTransformRef.current) {
+        gridTransformRef.current.style.transform =
+          `scale(${z}) translate3d(calc(-50% + ${x}px), calc(-50% + ${y}px), 0)`;
+      }
+    }, []);
 
     const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-      // Only track primary (left) button or touch
       if (e.button !== 0 && e.pointerType === 'mouse') return;
       dragRef.current = {
         startX: e.clientX,
         startY: e.clientY,
-        startPanX: panX,
-        startPanY: panY,
+        startPanX: panXRef.current,
+        startPanY: panYRef.current,
         moved: false,
       };
       (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-    }, [panX, panY]);
+    }, []);
 
     const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
       if (!dragRef.current) return;
@@ -280,10 +294,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         dragRef.current.moved = true;
       }
       if (dragRef.current.moved) {
-        setPanX(dragRef.current.startPanX + dx);
-        setPanY(dragRef.current.startPanY + dy);
+        // Direct DOM mutation — zero React re-renders during drag
+        panXRef.current = dragRef.current.startPanX + dx;
+        panYRef.current = dragRef.current.startPanY + dy;
+        applyTransformToDOM(panXRef.current, panYRef.current, zoom);
       }
-    }, [zoom]);
+    }, [zoom, applyTransformToDOM]);
 
     const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
       dragRef.current = null;
@@ -350,6 +366,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           zoom={zoom}
           panX={panX}
           panY={panY}
+          onTransformRef={(el) => { gridTransformRef.current = el; }}
         />
 
         {/* Build menu popup */}
