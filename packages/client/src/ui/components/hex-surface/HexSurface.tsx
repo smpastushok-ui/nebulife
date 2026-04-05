@@ -56,7 +56,10 @@ interface HexSurfaceProps {
   onHarvestAmount?:       (amount: number) => void;
   playerLevel?:           number;
   techTreeState?:         TechTreeState;
+  minerals?:              number;
+  volatiles?:             number;
   isotopes?:              number;
+  water?:                 number;
   onConsumeIsotopes?:     (amount: number) => void;
   chemicalInventory?:     Record<string, number>;
   onElementChange?:       (delta: Record<string, number>) => void;
@@ -102,7 +105,10 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onHarvestAmount,
       playerLevel = 1,
       techTreeState,
+      minerals: _minerals,
+      volatiles: _volatiles,
       isotopes: _isotopes,
+      water: _water,
       onConsumeIsotopes: _onConsumeIsotopes,
       chemicalInventory = {},
       onElementChange,
@@ -141,20 +147,21 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // useState version was causing full HexSurface → HexGrid → 30×HexSlot cascade.
     // The ref is read by useHexState for affordability checks (stable reference).
     const colonyResourcesRef = useRef({
-      minerals: 0,
-      volatiles: 0,
+      minerals: _minerals ?? 0,
+      volatiles: _volatiles ?? 0,
       isotopes: _isotopes ?? 100,
-      water: 0,
+      water: _water ?? 0,
     });
     // Snapshot for React render (only read on mount / explicit re-render)
     const colonyResources = colonyResourcesRef.current;
 
-    // Keep isotopes in sync with prop
+    // Keep all resources in sync with props from App.tsx
     useEffect(() => {
-      if (_isotopes !== undefined) {
-        colonyResourcesRef.current.isotopes = _isotopes;
-      }
-    }, [_isotopes]);
+      if (_minerals !== undefined)  colonyResourcesRef.current.minerals  = _minerals;
+      if (_volatiles !== undefined) colonyResourcesRef.current.volatiles = _volatiles;
+      if (_isotopes !== undefined)  colonyResourcesRef.current.isotopes  = _isotopes;
+      if (_water !== undefined)     colonyResourcesRef.current.water     = _water;
+    }, [_minerals, _volatiles, _isotopes, _water]);
 
     const handleResourceChange = useCallback(
       (delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => {

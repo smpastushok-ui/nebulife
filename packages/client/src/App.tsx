@@ -768,6 +768,20 @@ function AppInner() {
     });
   }, [homeInfo, researchState]);
 
+  // Safety net: after colonization, ensure at least 1 observatory slot exists (colony hub built-in).
+  // Handles race condition where server hydration may overwrite slots to [] or state corruption.
+  useEffect(() => {
+    if (!isExodusPhase && researchState.slots.length === 0) {
+      setResearchState((prev) => {
+        if (prev.slots.length > 0) return prev;
+        return {
+          ...prev,
+          slots: [{ slotIndex: 0, systemId: null, startedAt: null, sourcePlanetRing: 0 }],
+        };
+      });
+    }
+  }, [isExodusPhase, researchState.slots.length]);
+
   // Resolve pending evacuation target from server data once engine is ready.
   // Handles the race condition where engine init ran before hydration wrote evac IDs to localStorage.
   useEffect(() => {
@@ -4643,7 +4657,10 @@ function AppInner() {
           onBuildPanelChange={setSurfaceBuildPanelOpen}
           playerLevel={playerLevel}
           techTreeState={techTreeState}
+          minerals={colonyResources.minerals}
+          volatiles={colonyResources.volatiles}
           isotopes={colonyResources.isotopes}
+          water={colonyResources.water}
           chemicalInventory={chemicalInventory}
           onElementChange={handleElementChange}
           onConsumeIsotopes={(amount) => {
