@@ -72,11 +72,17 @@ export function getDiamondPositions(size: 3 | 4 = 3): HexPosition[] {
   const maxWidth = size === 3 ? 5 : 7;
   const centerRow = size === 3 ? 4 : 6;
 
+  // "Floating islands" — generous gaps so tall buildings don't overlap back rows
+  const GAP_X = 12;
+  const GAP_Y = 45;
+  const EFF_W = HEX_W + GAP_X;
+  const EFF_H = (HEX_H * 0.75) + GAP_Y;
+
   const zoneCounters: Record<number, number> = {};
 
   for (let row = 0; row < totalRows; row++) {
     const cols = row <= centerRow ? row + 1 : totalRows - row;
-    if (cols > maxWidth) continue; // safety
+    if (cols > maxWidth) continue;
 
     for (let col = 0; col < cols; col++) {
       // Axial coordinate zone calculation
@@ -85,16 +91,11 @@ export function getDiamondPositions(size: 3 | 4 = 3): HexPosition[] {
       const s = -q - r;
       const zone = Math.max(Math.abs(q), Math.abs(r), Math.abs(s));
 
-      // Pixel position — clean hex grid with gap
-      const GAP = 6;
-      const spW = HEX_W + GAP;
-      const spH = HEX_H * 0.75 + GAP * 0.4;
-      // Centre each row horizontally
-      const xOffset = (maxWidth - cols) * 0.5 * spW;
-      const x = xOffset + col * spW;
-      const y = row * spH;
+      // Centre each row horizontally with generous spacing
+      const xOffset = (maxWidth - cols) * 0.5 * EFF_W;
+      const x = xOffset + col * EFF_W;
+      const y = row * EFF_H;
 
-      const zOffset = Math.abs(row - centerRow) * 2;
       const index = (zoneCounters[zone] ?? 0);
       zoneCounters[zone] = index + 1;
 
@@ -106,7 +107,7 @@ export function getDiamondPositions(size: 3 | 4 = 3): HexPosition[] {
         col,
         x,
         y,
-        zOffset,
+        zOffset: 0, // No z-distortion — flat floating islands
       });
     }
   }
