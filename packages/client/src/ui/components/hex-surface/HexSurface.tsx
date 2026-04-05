@@ -111,12 +111,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     ref,
   ) {
     // ── Zoom / pan ──────────────────────────────────────────────────────────
-    // Pan uses refs to avoid re-rendering 30 hexes on every pixel of drag.
-    // HexGrid reads panX/panY via useEffect + direct DOM mutation (translate3d).
-    const [zoom, setZoom] = useState(1.0);
+    // ALL movement uses refs + direct DOM — zero React re-renders during gestures.
+    // React state is NEVER updated during drag or wheel. Only on mount.
+    const zoomRef = useRef(1.0);
     const panXRef = useRef(0);
     const panYRef = useRef(0);
-    // Expose current pan values as getter for HexGrid props (read on render, not on drag)
+    // Initial values for HexGrid first render only
     const panX = panXRef.current;
     const panY = panYRef.current;
 
@@ -194,12 +194,27 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onBuildingCountChange?.(count);
     }, [hexState.slots, onBuildingCountChange]);
 
+    // ── Direct DOM transform (shared by pan, zoom, wheel) ──────────────────
+    const gridTransformRef = useRef<HTMLDivElement | null>(null);
+
+    const applyTransformToDOM = useCallback((x: number, y: number, z: number) => {
+      if (gridTransformRef.current) {
+        gridTransformRef.current.style.transform =
+          `scale(${z}) translate3d(calc(-50% + ${x}px), calc(-50% + ${y}px), 0)`;
+      }
+    }, []);
+
+    const applyZoom = useCallback((newZoom: number) => {
+      zoomRef.current = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, parseFloat(newZoom.toFixed(2))));
+      applyTransformToDOM(panXRef.current, panYRef.current, zoomRef.current);
+    }, [applyTransformToDOM]);
+
     // ── Imperative handle ───────────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
-      zoomIn:  () => setZoom((z) => Math.min(ZOOM_MAX, parseFloat((z + ZOOM_STEP).toFixed(2)))),
-      zoomOut: () => setZoom((z) => Math.max(ZOOM_MIN, parseFloat((z - ZOOM_STEP).toFixed(2)))),
-      pause:   () => { /* animations are CSS — no-op */ },
-      resume:  () => { /* no-op */ },
+      zoomIn:  () => applyZoom(zoomRef.current + ZOOM_STEP),
+      zoomOut: () => applyZoom(zoomRef.current - ZOOM_STEP),
+      pause:   () => {},
+      resume:  () => {},
     }));
 
     // ── Action handlers ─────────────────────────────────────────────────────
@@ -264,15 +279,6 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     // ── Pointer events (drag to pan) ────────────────────────────────────────
     // PERF: During drag, we mutate refs + direct DOM only (no React re-renders).
-    // React state is synced ONCE on pointerUp for final position.
-    const gridTransformRef = useRef<HTMLDivElement | null>(null);
-
-    const applyTransformToDOM = useCallback((x: number, y: number, z: number) => {
-      if (gridTransformRef.current) {
-        gridTransformRef.current.style.transform =
-          `scale(${z}) translate3d(calc(-50% + ${x}px), calc(-50% + ${y}px), 0)`;
-      }
-    }, []);
 
     const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
@@ -288,18 +294,18 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
       if (!dragRef.current) return;
-      const dx = (e.clientX - dragRef.current.startX) / zoom;
-      const dy = (e.clientY - dragRef.current.startY) / zoom;
+      const z = zoomRef.current;
+      const dx = (e.clientX - dragRef.current.startX) / z;
+      const dy = (e.clientY - dragRef.current.startY) / z;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
         dragRef.current.moved = true;
       }
       if (dragRef.current.moved) {
-        // Direct DOM mutation — zero React re-renders during drag
         panXRef.current = dragRef.current.startPanX + dx;
         panYRef.current = dragRef.current.startPanY + dy;
-        applyTransformToDOM(panXRef.current, panYRef.current, zoom);
+        applyTransformToDOM(panXRef.current, panYRef.current, z);
       }
-    }, [zoom, applyTransformToDOM]);
+    }, [applyTransformToDOM]);
 
     const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
       dragRef.current = null;
@@ -310,8 +316,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-      setZoom((z) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, parseFloat((z + delta).toFixed(2)))));
-    }, []);
+      applyZoom(zoomRef.current + delta);
+    }, [applyZoom]);
 
     // ── Loading screen ──────────────────────────────────────────────────────
 
@@ -363,7 +369,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           onBuild={handleBuild}
           onInspect={handleInspect}
           canAffordUnlock={hexState.canAffordUnlock}
-          zoom={zoom}
+          zoom={zoomRef.current}
           panX={panX}
           panY={panY}
           onTransformRef={(el) => { gridTransformRef.current = el; }}
@@ -387,8 +393,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
         {/* Zoom controls (bottom-left) */}
         <SurfaceDPad
-          onZoomIn={() => setZoom((z) => Math.min(ZOOM_MAX, parseFloat((z + ZOOM_STEP).toFixed(2))))}
-          onZoomOut={() => setZoom((z) => Math.max(ZOOM_MIN, parseFloat((z - ZOOM_STEP).toFixed(2))))}
+          onZoomIn={() => applyZoom(zoomRef.current + ZOOM_STEP)}
+          onZoomOut={() => applyZoom(zoomRef.current - ZOOM_STEP)}
         />
 
         {/* Planet name HUD — neon spin animation, below resource bar, right-aligned */}

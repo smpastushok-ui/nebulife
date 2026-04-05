@@ -51,7 +51,6 @@ export const HexGrid = React.memo(function HexGrid({
   const posMap = useMemo(() => {
     const m = new Map<string, { x: number; y: number; zOffset: number }>();
     for (const p of positions) {
-      // Normalize to start at (HEX_RADIUS, HEX_RADIUS) so slots don't clip at (0,0)
       m.set(p.id, {
         x:       p.x - minX + HEX_RADIUS,
         y:       p.y - minY + HEX_RADIUS,
@@ -60,6 +59,20 @@ export const HexGrid = React.memo(function HexGrid({
     }
     return m;
   }, [positions, minX, minY]);
+
+  // O(1) slot lookup by id — recalculated only when slots array changes
+  const slotById = useMemo(() => new Map(slots.map(s => [s.id, s])), [slots]);
+
+  // Pre-sorted slot render order by Y (isometric z-order) — computed once, not per render
+  const sortedSlotOrder = useMemo(() => {
+    return positions
+      .map(p => ({
+        id: p.id,
+        y: (p.y - minY + HEX_RADIUS) + p.zOffset,
+      }))
+      .sort((a, b) => a.y - b.y)
+      .map((item, i) => ({ id: item.id, zIndex: i + 1 }));
+  }, [positions, minY]);
 
   // Direct DOM mutation for pan/zoom — bypasses React render cycle for 120fps
   const transformRef = useRef<HTMLDivElement>(null);
@@ -99,27 +112,26 @@ export const HexGrid = React.memo(function HexGrid({
           willChange: 'transform',
         }}
       >
-        {/* Sort by Y position so lower hexes render on top (correct isometric overlap) */}
-        {slots
-          .map((slot) => ({ slot, pos: posMap.get(slot.id) }))
-          .filter((item): item is { slot: HexSlotData; pos: { x: number; y: number; zOffset: number } } => item.pos != null)
-          .sort((a, b) => a.pos.y - b.pos.y)
-          .map(({ slot, pos }, i) => (
+        {/* Render in pre-sorted Y order (isometric z-index) — no runtime .sort() */}
+        {sortedSlotOrder.map(({ id, zIndex }) => {
+          const slot = slotById.get(id);
+          const pos = posMap.get(id);
+          if (!slot || !pos) return null;
+          return (
             <HexSlot
-              key={slot.id}
+              key={id}
               slot={slot}
               x={pos.x}
-              // Apply z-offset: outer rows are pushed down slightly to create
-              // a subtle "mountain" depth effect where the centre appears elevated
               y={pos.y + pos.zOffset}
-              zIndex={i + 1}
-              canAfford={canAffordUnlock(slot.id)}
-              onUnlock={() => onUnlock(slot.id)}
-              onHarvest={() => onHarvest(slot.id)}
-              onBuild={() => onBuild(slot.id)}
-              onInspect={() => onInspect(slot.id)}
+              zIndex={zIndex}
+              canAfford={canAffordUnlock(id)}
+              onUnlock={() => onUnlock(id)}
+              onHarvest={() => onHarvest(id)}
+              onBuild={() => onBuild(id)}
+              onInspect={() => onInspect(id)}
             />
-          ))}
+          );
+        })}
       </div>
     </div>
   );
