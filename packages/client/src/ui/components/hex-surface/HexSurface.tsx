@@ -353,6 +353,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     // ── Render ──────────────────────────────────────────────────────────────
 
+    // Planet type → background image mapping
+    const PLANET_BG: Partial<Record<string, string>> = {
+      terrestrial: '/planet_2d/terrestrial.webp',
+    };
+    const bgImage = PLANET_BG[planet.type];
+
     return (
       <div
         style={{
@@ -371,6 +377,21 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         onPointerCancel={handlePointerUp}
         onWheel={handleWheel}
       >
+        {/* Static planet background — fixed, no movement, GPU layer */}
+        {bgImage && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url(${bgImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            pointerEvents: 'none',
+            transform: 'translateZ(0)',
+            zIndex: 0,
+            opacity: 0.35,
+          }} />
+        )}
+
         {/* Hex grid */}
         <HexGrid
           slots={hexState.slots}
