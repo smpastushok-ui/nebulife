@@ -23,7 +23,7 @@ import { getPlanetSize } from '@nebulife/core';
 import { useHexState } from './useHexState.js';
 import { HexGrid } from './HexGrid.js';
 import type { HexPlanetSize } from './hex-utils.js';
-import { HexBuildMenu } from './HexBuildMenu.js';
+import { HexBuildMenu, getAlphaHarvesterPrice } from './HexBuildMenu.js';
 import { SurfaceDPad } from '../SurfaceDPad.js';
 
 // ---------------------------------------------------------------------------
@@ -67,6 +67,9 @@ interface HexSurfaceProps {
   onElementChange?:       (delta: Record<string, number>) => void;
   researchData?:          number;
   onConsumeResearchData?: (amount: number) => void;
+  quarks?:                number;
+  onConsumeQuarks?:       (amount: number) => void;
+  alphaHarvesterCount?:   number;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +130,9 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onElementChange,
       researchData,
       onConsumeResearchData,
+      quarks,
+      onConsumeQuarks,
+      alphaHarvesterCount = 0,
     },
     ref,
   ) {
@@ -316,11 +322,17 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     const handleBuildSelect = useCallback(
       (type: BuildingType) => {
         if (!buildMenu) return;
+        // Alpha harvester: deduct quarks instead of colony resources
+        if (type === 'alpha_harvester') {
+          const price = getAlphaHarvesterPrice(alphaHarvesterCount);
+          if ((quarks ?? 0) < price) return;
+          onConsumeQuarks?.(price);
+        }
         hexState.placeBuilding(buildMenu.slotId, type);
         setBuildMenu(null);
         onBuildPanelChange?.(false);
       },
-      [buildMenu, hexState, onBuildPanelChange],
+      [buildMenu, hexState, onBuildPanelChange, quarks, alphaHarvesterCount, onConsumeQuarks],
     );
 
     const handleBuildClose = useCallback(() => {
@@ -462,6 +474,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             colonyResources={colonyResources}
             chemicalInventory={chemicalInventory}
             planetType={planet.type}
+            quarks={quarks}
+            alphaHarvesterCount={alphaHarvesterCount}
             onSelect={handleBuildSelect}
             onClose={handleBuildClose}
           />

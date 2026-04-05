@@ -3,6 +3,12 @@ import { useTranslation } from 'react-i18next';
 import type { BuildingType, PlanetType } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 
+// Alpha harvester escalating quarks price
+const ALPHA_HARVESTER_PRICES = [50, 103, 206]; // 1st=$1.20, 2nd=$2.50, 3rd+=$5.00
+export function getAlphaHarvesterPrice(purchasedCount: number): number {
+  return ALPHA_HARVESTER_PRICES[Math.min(purchasedCount, ALPHA_HARVESTER_PRICES.length - 1)];
+}
+
 interface HexBuildMenuProps {
   slotId: string;
   screenX: number;
@@ -12,6 +18,8 @@ interface HexBuildMenuProps {
   colonyResources: { minerals: number; volatiles: number; isotopes: number; water: number };
   chemicalInventory?: Record<string, number>;
   planetType?: PlanetType;
+  quarks?: number;
+  alphaHarvesterCount?: number;
   onSelect: (type: BuildingType) => void;
   onClose: () => void;
 }
@@ -139,6 +147,8 @@ export function HexBuildMenu({
   colonyResources,
   chemicalInventory = {},
   planetType,
+  quarks = 0,
+  alphaHarvesterCount = 0,
   onSelect,
   onClose,
 }: HexBuildMenuProps) {
@@ -248,7 +258,13 @@ export function HexBuildMenu({
                   const techLocked = !isTechResearched(techTreeState, def.techRequired);
                   const planetLocked = planetType ? !def.allowedPlanetTypes.includes(planetType) : false;
                   const isLocked = levelLocked || techLocked || planetLocked;
-                  const canAfford = !isLocked && canAffordBuilding(def, colonyResources, chemicalInventory);
+
+                  // Alpha harvester: quarks price instead of colony resources
+                  const isAlpha = type === 'alpha_harvester';
+                  const alphaPrice = isAlpha ? getAlphaHarvesterPrice(alphaHarvesterCount) : 0;
+                  const canAfford = !isLocked && (isAlpha
+                    ? quarks >= alphaPrice
+                    : canAffordBuilding(def, colonyResources, chemicalInventory));
                   const imgSrc = BUILDING_IMG[type];
 
                   return (
@@ -309,6 +325,13 @@ export function HexBuildMenu({
                       {isLocked ? (
                         <span style={{ fontSize: 7, color: '#ff8844' }}>
                           {levelLocked ? `L${def.levelRequired}` : planetLocked ? 'N/A' : 'TECH'}
+                        </span>
+                      ) : isAlpha ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 8 }}>
+                          <span style={{ color: canAfford ? '#ddaa44' : '#884444' }}>{alphaPrice}</span>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={canAfford ? '#ddaa44' : '#884444'} strokeWidth="2.5">
+                            <circle cx="12" cy="12" r="4" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                          </svg>
                         </span>
                       ) : (
                         <CostIcons cost={def.cost} />

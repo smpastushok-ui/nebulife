@@ -4673,6 +4673,11 @@ function AppInner() {
           onConsumeResearchData={(amount) => {
             setResearchData((prev) => Math.max(0, prev - amount));
           }}
+          quarks={quarks}
+          onConsumeQuarks={(amount) => {
+            setQuarks((prev) => Math.max(0, prev - amount));
+          }}
+          alphaHarvesterCount={0}
         />
       )}
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}
