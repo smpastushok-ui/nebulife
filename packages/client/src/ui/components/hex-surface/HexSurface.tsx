@@ -63,6 +63,7 @@ interface HexSurfaceProps {
   isotopes?:              number;
   water?:                 number;
   onConsumeIsotopes?:     (amount: number) => void;
+  onResourceDeducted?:    (delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => void;
   chemicalInventory?:     Record<string, number>;
   onElementChange?:       (delta: Record<string, number>) => void;
   researchData?:          number;
@@ -126,6 +127,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       isotopes: _isotopes,
       water: _water,
       onConsumeIsotopes: _onConsumeIsotopes,
+      onResourceDeducted,
       chemicalInventory = {},
       onElementChange,
       researchData,
@@ -186,14 +188,16 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     const handleResourceChange = useCallback(
       (delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => {
-        // Mutate ref directly — zero React re-renders
+        // Mutate ref directly — zero React re-renders for affordability checks
         const r = colonyResourcesRef.current;
         if (delta.minerals)  r.minerals  += delta.minerals;
         if (delta.volatiles) r.volatiles += delta.volatiles;
         if (delta.isotopes)  r.isotopes  += delta.isotopes;
         if (delta.water)     r.water     += delta.water;
+        // Also notify App.tsx to update HUD + persist to server
+        onResourceDeducted?.(delta);
       },
-      [],
+      [onResourceDeducted],
     );
 
     // ── Hex state hook ──────────────────────────────────────────────────────

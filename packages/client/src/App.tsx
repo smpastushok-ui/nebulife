@@ -4669,6 +4669,14 @@ function AppInner() {
               isotopes: Math.max(0, prev.isotopes - amount),
             }));
           }}
+          onResourceDeducted={(delta) => {
+            setColonyResources((prev) => ({
+              minerals:  Math.max(0, prev.minerals  + (delta.minerals ?? 0)),
+              volatiles: Math.max(0, prev.volatiles + (delta.volatiles ?? 0)),
+              isotopes:  Math.max(0, prev.isotopes  + (delta.isotopes ?? 0)),
+              water:     Math.max(0, prev.water     + (delta.water ?? 0)),
+            }));
+          }}
           researchData={researchData}
           onConsumeResearchData={(amount) => {
             setResearchData((prev) => Math.max(0, prev - amount));
