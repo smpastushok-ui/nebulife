@@ -84,6 +84,15 @@ const ZOOM_MIN  = 0.5;
 const ZOOM_MAX  = 2.0;
 const ZOOM_STEP = 0.2;
 
+// Planet type → background image mapping (module-level to avoid allocation per render)
+const PLANET_BG: Partial<Record<string, string>> = {
+  terrestrial: '/planet_2d/terrestrial.webp',
+  rocky:       '/planet_2d/rocky.webp',
+  dwarf:       '/planet_2d/dwarf.webp',
+  'gas-giant': '/planet_2d/gas-giant.webp',
+  'ice-giant': '/planet_2d/ice-giant.webp',
+};
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -208,6 +217,9 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     // ── Direct DOM transform (shared by pan, zoom, wheel) ──────────────────
     const gridTransformRef = useRef<HTMLDivElement | null>(null);
+    const handleTransformRef = useCallback((el: HTMLDivElement | null) => {
+      gridTransformRef.current = el;
+    }, []);
 
     const applyTransformToDOM = useCallback((x: number, y: number, z: number) => {
       if (gridTransformRef.current) {
@@ -222,9 +234,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     }, [applyTransformToDOM]);
 
     // ── Imperative handle ───────────────────────────────────────────────────
+    const handleZoomIn = useCallback(() => applyZoom(zoomRef.current + ZOOM_STEP), [applyZoom]);
+    const handleZoomOut = useCallback(() => applyZoom(zoomRef.current - ZOOM_STEP), [applyZoom]);
+
     useImperativeHandle(ref, () => ({
-      zoomIn:  () => applyZoom(zoomRef.current + ZOOM_STEP),
-      zoomOut: () => applyZoom(zoomRef.current - ZOOM_STEP),
+      zoomIn:  handleZoomIn,
+      zoomOut: handleZoomOut,
       pause:   () => {},
       resume:  () => {},
     }));
@@ -360,14 +375,6 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     // ── Render ──────────────────────────────────────────────────────────────
 
-    // Planet type → background image mapping
-    const PLANET_BG: Partial<Record<string, string>> = {
-      terrestrial: '/planet_2d/terrestrial.webp',
-      rocky:       '/planet_2d/rocky.webp',
-      dwarf:       '/planet_2d/dwarf.webp',
-      'gas-giant': '/planet_2d/gas-giant.webp',
-      'ice-giant': '/planet_2d/ice-giant.webp',
-    };
     const bgImage = PLANET_BG[planet.type];
 
     return (
@@ -415,7 +422,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           zoom={zoomRef.current}
           panX={panX}
           panY={panY}
-          onTransformRef={(el) => { gridTransformRef.current = el; }}
+          onTransformRef={handleTransformRef}
         />
 
         {/* Build menu popup */}
@@ -436,8 +443,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
         {/* Zoom controls (bottom-left) */}
         <SurfaceDPad
-          onZoomIn={() => applyZoom(zoomRef.current + ZOOM_STEP)}
-          onZoomOut={() => applyZoom(zoomRef.current - ZOOM_STEP)}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
         />
 
         {/* Planet name HUD — neon spin animation, below resource bar, right-aligned */}

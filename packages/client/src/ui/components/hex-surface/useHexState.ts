@@ -403,6 +403,9 @@ export function useHexState(
 
   const scheduleSave = useCallback(
     (newSlots: HexSlotData[]) => {
+      // Always persist to localStorage immediately (survives app close / reload)
+      try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(newSlots)); } catch { /* ignore */ }
+      // Debounce server save
       if (saveTimerRef.current !== null) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         updatePlayer(playerId, {
@@ -423,6 +426,20 @@ export function useHexState(
   useEffect(() => {
     let cancelled = false;
 
+    // 1) Load from localStorage FIRST (instant, survives app restart)
+    try {
+      const local = localStorage.getItem('nebulife_hex_slots');
+      if (local) {
+        const parsed = JSON.parse(local) as HexSlotData[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const migrated = migrateRingToDiamond(parsed);
+          setSlots(migrated);
+          setLoading(false);
+        }
+      }
+    } catch { /* ignore */ }
+
+    // 2) Then load from server (authoritative — may have cross-device changes)
     (async () => {
       try {
         const playerData = await getPlayer(playerId);
@@ -431,19 +448,26 @@ export function useHexState(
         const saved = playerData?.game_state?.hex_slots;
 
         if (Array.isArray(saved) && saved.length > 0) {
-          // Migrate ring-based OR fix diamond saves
           const migrated = migrateRingToDiamond(saved as HexSlotData[]);
           setSlots(migrated);
-          // Persist migrated state immediately so next load skips migration
-          scheduleSave(migrated);
+          // Sync localStorage with server truth
+          try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(migrated)); } catch { /* ignore */ }
         } else {
-          const initial = buildInitialSlots();
-          setSlots(initial);
-          scheduleSave(initial);
+          // No server data — check if localStorage already loaded slots
+          const hasLocal = slotsRef.current.length > 0;
+          if (!hasLocal) {
+            const initial = buildInitialSlots();
+            setSlots(initial);
+            scheduleSave(initial);
+          } else {
+            // Persist localStorage data to server
+            scheduleSave(slotsRef.current);
+          }
         }
       } catch (err) {
         console.error('[useHexState] load failed:', err);
-        if (!cancelled) setSlots(buildInitialSlots());
+        // If localStorage didn't load anything either, create initial
+        if (!cancelled && slotsRef.current.length === 0) setSlots(buildInitialSlots());
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -452,12 +476,19 @@ export function useHexState(
     return () => { cancelled = true; };
   }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cleanup on unmount
+  // Flush pending save on unmount (don't lose data!)
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current !== null) clearTimeout(saveTimerRef.current);
+      if (saveTimerRef.current !== null) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        // Flush immediately — send current slots to server
+        updatePlayer(playerId, {
+          game_state: { hex_slots: slotsRef.current },
+        }).catch(() => {});
+      }
     };
-  }, []);
+  }, [playerId]);
 
   // NOTE: Respawn timer removed — HexSlot handles its own timer via RAF + direct DOM.
   // The old 60s setInterval was creating [...prev] which broke React.memo on HexGrid.

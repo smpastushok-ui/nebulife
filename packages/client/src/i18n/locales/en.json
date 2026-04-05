@@ -734,6 +734,7 @@
     "volatiles_title": "Volatiles — fuel and chemistry",
     "isotopes_title": "Isotopes — energy resource",
     "quarks_title": "Quarks — universal currency",
+    "water_title": "Water — life support resource",
     "desc": {
       "observatories_name": "Observatories",
       "observatories_desc": "Active research stations in stellar orbits. Each observatory scans a star system, collects spectral data, and detects anomalies.",
@@ -747,7 +748,9 @@
       "isotopes_name": "Isotopes",
       "isotopes_desc": "Radioactive and rare isotopes from the planet's mantle and core. The primary energy source for reactors and warp drives.",
       "quarks_name": "Quarks",
-      "quarks_desc": "The in-game currency unit. Used to expand the fleet, generate AI images, and unlock premium features."
+      "quarks_desc": "The in-game currency unit. Used to expand the fleet, generate AI images, and unlock premium features.",
+      "water_name": "Water",
+      "water_desc": "Liquid water extracted from surface deposits and underground reservoirs. Essential for crew sustenance, food production, and chemical processes in colony domes."
     }
   },
 

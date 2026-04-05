@@ -3958,7 +3958,7 @@ function AppInner() {
         onMineralsClick={() => setShowResourceModal('minerals')}
         onVolatilesClick={() => setShowResourceModal('volatiles')}
         onIsotopesClick={() => setShowResourceModal('isotopes')}
-        onWaterClick={() => setShowResourceModal('water' as any)}
+        onWaterClick={() => setShowResourceModal('water')}
         onQuarksClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
         countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && evacuationPhase === 'idle' ? countdownText : undefined}
         countdownUrgent={countdownUrgent}

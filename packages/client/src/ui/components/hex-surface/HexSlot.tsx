@@ -84,7 +84,6 @@ function LockedContent({
           width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
           position: 'absolute', inset: 0,
           opacity: canAfford ? 0.8 : 0.5,
-          transition: 'opacity 0.2s',
         }}
       />
       {cost && (
@@ -172,7 +171,6 @@ function ResourceContent({
           width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
           position: 'absolute', inset: 0,
           opacity: ready ? 1 : 0.4,
-          transition: 'opacity 0.5s',
         }}
       />
 
@@ -351,9 +349,9 @@ export const HexSlot = React.memo(function HexSlot({
 
   // Animation states (local to this hex — no cascade)
   const [harvestAnim, setHarvestAnim] = useState<number | null>(null);
-  const [buildingBounce, setBuildingBounce] = useState(false);
   const [insufficientMsg, setInsufficientMsg] = useState(false);
   const [insufficientText, setInsufficientText] = useState('');
+  const buildingRef = useRef<HTMLDivElement>(null);
 
   // Main click handler — uses id to call stable parent callbacks
   const handleClick = () => {
@@ -383,8 +381,11 @@ export const HexSlot = React.memo(function HexSlot({
     } else if (slot.state === 'empty') {
       onBuild(id);
     } else if (slot.state === 'building' || slot.state === 'harvester') {
-      setBuildingBounce(true);
-      setTimeout(() => setBuildingBounce(false), 600);
+      // Bounce via direct DOM — no React re-render
+      if (buildingRef.current) {
+        buildingRef.current.style.transform = 'translateY(-4px)';
+        setTimeout(() => { if (buildingRef.current) buildingRef.current.style.transform = ''; }, 600);
+      }
       onInspect(id);
     }
   };
@@ -401,7 +402,6 @@ export const HexSlot = React.memo(function HexSlot({
         background: 'transparent',
         overflow: 'visible',
         opacity,
-        transition: 'opacity 0.2s',
         pointerEvents: 'none',
       }}
     >
@@ -426,9 +426,8 @@ export const HexSlot = React.memo(function HexSlot({
       )}
       {slot.state === 'empty' && <EmptyContent />}
       {(slot.state === 'building' || slot.state === 'harvester') && (
-        <div style={{
+        <div ref={buildingRef} style={{
           position: 'absolute', inset: 0,
-          transform: buildingBounce ? 'translateY(-4px)' : 'translateY(0)',
           transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
         }}>
           <BuildingContent slot={slot} />

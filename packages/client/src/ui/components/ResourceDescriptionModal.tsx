@@ -6,7 +6,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-export type ResourceType = 'observatories' | 'research_data' | 'minerals' | 'volatiles' | 'isotopes' | 'quarks';
+export type ResourceType = 'observatories' | 'research_data' | 'minerals' | 'volatiles' | 'isotopes' | 'quarks' | 'water';
 
 interface Element {
   symbol: string;
@@ -46,6 +46,12 @@ const ELEMENTS: Record<ResourceType, Element[]> = {
     { symbol: '²³⁹Pu', name: 'Плутоній-239', color: '#cc7744' },
   ],
   quarks: [],
+  water: [
+    { symbol: 'H₂O', name: 'Вода',              color: '#44aaff' },
+    { symbol: 'OH⁻', name: 'Гідроксид-іон',     color: '#66bbff' },
+    { symbol: 'H⁺',  name: 'Протон',             color: '#aaddff' },
+    { symbol: 'D₂O', name: 'Важка вода',         color: '#7799cc' },
+  ],
 };
 
 const ELEMENTS_EN: Record<ResourceType, Element[]> = {
@@ -80,6 +86,12 @@ const ELEMENTS_EN: Record<ResourceType, Element[]> = {
     { symbol: '²³⁹Pu', name: 'Plutonium-239',  color: '#cc7744' },
   ],
   quarks: [],
+  water: [
+    { symbol: 'H₂O', name: 'Water',         color: '#44aaff' },
+    { symbol: 'OH⁻', name: 'Hydroxide ion', color: '#66bbff' },
+    { symbol: 'H⁺',  name: 'Proton',        color: '#aaddff' },
+    { symbol: 'D₂O', name: 'Heavy water',   color: '#7799cc' },
+  ],
 };
 
 interface ResourceDescriptionModalProps {
