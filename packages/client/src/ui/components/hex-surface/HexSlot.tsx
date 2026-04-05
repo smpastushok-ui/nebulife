@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './hex-animations.css';
 import type { HexSlotData, Rarity } from './hex-utils';
 import {
@@ -107,6 +107,17 @@ function LockedContent({
   );
 }
 
+// Static lookup tables — outside component to avoid per-render allocation
+const RARITY_INDEX: Record<string, number> = {
+  common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5,
+};
+const RESOURCE_WEBP_TEMPLATES: Record<string, (n: number) => string> = {
+  ore:   (n) => `/buildings/minerals${n}.webp`,
+  tree:  (n) => `/buildings/izo${n}.webp`,
+  vent:  (n) => `/buildings/gas${n}.webp`,
+  water: (n) => `/buildings/water${n}.webp`,
+};
+
 function ResourceContent({
   slot,
   onHarvest,
@@ -114,37 +125,39 @@ function ResourceContent({
   slot: HexSlotData;
   onHarvest: () => void;
 }) {
-  const [, setTick] = useState(0);
-
-  // Re-render every 30s to update timer (not every 1s — saves 30x CPU on 30 hexes)
-  // Only run timer when resource is NOT ready (respawning)
-  const ready = isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour);
-  useEffect(() => {
-    if (ready) return; // no timer needed when resource is harvestable
-    const id = setInterval(() => setTick((n) => n + 1), 30_000);
-    return () => clearInterval(id);
-  }, [ready]);
-
   const resourceType = slot.resourceType!;
   const rarity = slot.rarity!;
-  const remaining = slot.lastHarvestedAt
-    ? respawnTimeRemaining(slot.lastHarvestedAt, slot.yieldPerHour)
-    : 0;
-
-  // Map resource type + rarity to WebP image
-  const RARITY_INDEX: Record<string, number> = {
-    common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5,
-  };
+  const ready = isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour);
   const rarityNum = RARITY_INDEX[rarity] ?? 1;
+  const webpSrc = (RESOURCE_WEBP_TEMPLATES[resourceType] ?? RESOURCE_WEBP_TEMPLATES.ore)(rarityNum);
 
-  const RESOURCE_WEBP: Record<string, string> = {
-    ore:   `/buildings/minerals${rarityNum}.webp`,
-    tree:  `/buildings/izo${rarityNum}.webp`,      // tree → isotopes visual
-    vent:  `/buildings/gas${rarityNum}.webp`,       // vent → gas/volatile visual
-    water: `/buildings/water${rarityNum}.webp`,     // water → water visual
-  };
+  // PERF: Respawn timer uses direct DOM mutation via ref — zero React re-renders.
+  // requestAnimationFrame updates textContent every ~1s without touching state.
+  const timerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-  const webpSrc = RESOURCE_WEBP[resourceType] ?? `/buildings/minerals${rarityNum}.webp`;
+  useEffect(() => {
+    if (ready) return;
+    let raf: number;
+    let lastText = '';
+    const tick = () => {
+      const rem = slot.lastHarvestedAt != null ? respawnTimeRemaining(slot.lastHarvestedAt, slot.yieldPerHour) : 0;
+      if (rem <= 0) {
+        // Resource is now ready — update opacity directly, parent will catch on next interaction
+        if (timerRef.current) timerRef.current.textContent = '';
+        if (imgRef.current) imgRef.current.style.opacity = '1';
+        return; // stop RAF loop
+      }
+      const text = formatMs(rem);
+      if (text !== lastText) {
+        lastText = text;
+        if (timerRef.current) timerRef.current.textContent = text;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [ready, slot.lastHarvestedAt, slot.yieldPerHour]);
 
   return (
     <div
@@ -159,6 +172,7 @@ function ResourceContent({
     >
       {/* Resource WebP image — bright when ready, dimmed when respawning */}
       <img
+        ref={imgRef}
         src={webpSrc}
         alt={resourceType}
         style={{
@@ -169,16 +183,17 @@ function ResourceContent({
         }}
       />
 
-      {/* Respawn timer — only when not ready */}
+      {/* Respawn timer — direct DOM textContent, no React state */}
       {!ready && (
-        <div style={{
-          position: 'relative', zIndex: 1,
-          fontSize: 9,
-          color: '#667788',
-          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-        }}>
-          {formatMs(remaining)}
-        </div>
+        <div
+          ref={timerRef}
+          style={{
+            position: 'relative', zIndex: 1,
+            fontSize: 9,
+            color: '#667788',
+            textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+          }}
+        />
       )}
 
     </div>
@@ -217,6 +232,36 @@ function EmptyContent({ onBuild }: { onBuild: () => void }) {
   );
 }
 
+// Static — outside component to avoid per-render allocation (GC pressure)
+const BUILDING_ICONS: Record<string, string> = {
+  colony_hub: 'HUB', resource_storage: 'STR', landing_pad: 'PAD', spaceport: 'SPT',
+  solar_plant: 'SOL', battery_station: 'BAT', wind_generator: 'WND', thermal_generator: 'THR',
+  fusion_reactor: 'FUS', mine: 'MIN', water_extractor: 'H2O', atmo_extractor: 'ATM',
+  deep_drill: 'DRL', orbital_collector: 'ORB', isotope_collector: 'ICL', research_lab: 'LAB',
+  observatory: 'OBS', radar_tower: 'RDR', orbital_telescope: 'TEL', quantum_computer: 'QNT',
+  greenhouse: 'GRN', residential_dome: 'DOM', atmo_shield: 'SHL', biome_dome: 'BIO',
+  quantum_separator: 'QSP', gas_fractionator: 'GAS', isotope_centrifuge: 'ISO',
+  genesis_vault: 'GNS', alpha_harvester: 'ALP',
+};
+
+const BUILDING_WEBP: Record<string, string> = {
+  colony_hub: '/buildings/colony.webp', mine: '/buildings/mine.webp',
+  solar_plant: '/buildings/solar_plant.webp', wind_generator: '/buildings/wind_generator.webp',
+  battery_station: '/buildings/battery_station.webp', thermal_generator: '/buildings/thermal_generator.webp',
+  fusion_reactor: '/buildings/fusion_reactor.webp', resource_storage: '/buildings/resource_storage.webp',
+  landing_pad: '/buildings/landing_pad.webp', spaceport: '/buildings/spaceport.webp',
+  atmo_extractor: '/buildings/atmo_extractor.webp', water_extractor: '/buildings/water_extractor.webp',
+  observatory: '/buildings/observatory.webp', orbital_collector: '/buildings/orbital_collector.webp',
+  orbital_telescope: '/buildings/orbital_telescope.webp', radar_tower: '/buildings/radar_tower.webp',
+  research_lab: '/buildings/research_lab.webp', deep_drill: '/buildings/deep_drill.webp',
+  alpha_harvester: '/buildings/alpha_harvester.webp', quantum_computer: '/buildings/quantum_computer.webp',
+  greenhouse: '/buildings/greenhouse.webp', atmo_shield: '/buildings/atmo_shield.webp',
+  quantum_separator: '/buildings/quantum_separator.webp', gas_fractionator: '/buildings/gas_fractionator.webp',
+  genesis_vault: '/buildings/genesis_vault.webp', isotope_centrifuge: '/buildings/isotope_centrifuge.webp',
+  biome_dome: '/buildings/biome_dome.webp', residential_dome: '/buildings/residential_dome.webp',
+  isotope_collector: '/buildings/isotope_centrifuge.webp',
+};
+
 function BuildingContent({
   slot,
   onInspect,
@@ -224,73 +269,9 @@ function BuildingContent({
   slot: HexSlotData;
   onInspect: () => void;
 }) {
-  const BUILDING_ICONS: Record<string, string> = {
-    colony_hub:          'HUB',
-    resource_storage:    'STR',
-    landing_pad:         'PAD',
-    spaceport:           'SPT',
-    solar_plant:         'SOL',
-    battery_station:     'BAT',
-    wind_generator:      'WND',
-    thermal_generator:   'THR',
-    fusion_reactor:      'FUS',
-    mine:                'MIN',
-    water_extractor:     'H2O',
-    atmo_extractor:      'ATM',
-    deep_drill:          'DRL',
-    orbital_collector:   'ORB',
-    isotope_collector:   'ICL',
-    research_lab:        'LAB',
-    observatory:         'OBS',
-    radar_tower:         'RDR',
-    orbital_telescope:   'TEL',
-    quantum_computer:    'QNT',
-    greenhouse:          'GRN',
-    residential_dome:    'DOM',
-    atmo_shield:         'SHL',
-    biome_dome:          'BIO',
-    quantum_separator:   'QSP',
-    gas_fractionator:    'GAS',
-    isotope_centrifuge:  'ISO',
-    genesis_vault:       'GNS',
-    alpha_harvester:     'ALP',
-  };
 
   const label = BUILDING_ICONS[slot.buildingType ?? ''] ?? slot.buildingType?.slice(0, 3).toUpperCase() ?? '???';
   const type = slot.buildingType ?? '';
-
-  // Map building type to WebP image path
-  const BUILDING_WEBP: Record<string, string> = {
-    colony_hub: '/buildings/colony.webp',
-    mine: '/buildings/mine.webp',
-    solar_plant: '/buildings/solar_plant.webp',
-    wind_generator: '/buildings/wind_generator.webp',
-    battery_station: '/buildings/battery_station.webp',
-    thermal_generator: '/buildings/thermal_generator.webp',
-    fusion_reactor: '/buildings/fusion_reactor.webp',
-    resource_storage: '/buildings/resource_storage.webp',
-    landing_pad: '/buildings/landing_pad.webp',
-    spaceport: '/buildings/spaceport.webp',
-    atmo_extractor: '/buildings/atmo_extractor.webp',
-    water_extractor: '/buildings/water_extractor.webp',
-    observatory: '/buildings/observatory.webp',
-    orbital_collector: '/buildings/orbital_collector.webp',
-    orbital_telescope: '/buildings/orbital_telescope.webp',
-    radar_tower: '/buildings/radar_tower.webp',
-    research_lab: '/buildings/research_lab.webp',
-    deep_drill: '/buildings/deep_drill.webp',
-    alpha_harvester: '/buildings/alpha_harvester.webp',
-    quantum_computer: '/buildings/quantum_computer.webp',
-    greenhouse: '/buildings/greenhouse.webp',
-    atmo_shield: '/buildings/atmo_shield.webp',
-    quantum_separator: '/buildings/quantum_separator.webp',
-    gas_fractionator: '/buildings/gas_fractionator.webp',
-    genesis_vault: '/buildings/genesis_vault.webp',
-    isotope_centrifuge: '/buildings/isotope_centrifuge.webp',
-    biome_dome: '/buildings/biome_dome.webp',
-    residential_dome: '/buildings/residential_dome.webp',
-  };
-
   const webpSrc = BUILDING_WEBP[type];
 
   return (
