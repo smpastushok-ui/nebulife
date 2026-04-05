@@ -29,33 +29,62 @@ export interface DigestNewsItem {
 // Step 1: Generate weekly news text (Google Search grounded)
 // ---------------------------------------------------------------------------
 
-const NEWS_PROMPT = `You are a space news curator for the game "Nebulife" — a hard sci-fi space exploration simulator.
+function buildNewsPrompt(): string {
+  // Compute exact date range: past 7 days from now
+  const now = new Date();
+  const weekAgo = new Date(now);
+  weekAgo.setDate(now.getDate() - 7);
+  const dateFrom = weekAgo.toISOString().split('T')[0];
+  const dateTo = now.toISOString().split('T')[0];
+
+  return `You are a space news curator for the game "Nebulife" — a hard sci-fi space exploration simulator.
+
+TODAY'S DATE: ${dateTo}
+SEARCH PERIOD: ${dateFrom} to ${dateTo} (exactly 7 days)
 
 CRITICAL RULES:
-1. Use Google Search to find REAL space news from the past 7 days
-2. Every news item MUST be based on a real published article
-3. DO NOT invent or hallucinate any news
-4. Include the source URL for each item
-5. Focus ONLY on: NASA, ESA, SpaceX, JAXA, ISRO missions, astronomical discoveries, space launches, research breakthroughs
+1. Use Google Search to find REAL space news published between ${dateFrom} and ${dateTo}
+2. ONLY include articles published within this 7-day window. Reject older news.
+3. Every news item MUST be based on a real published article with a verifiable URL
+4. DO NOT invent, hallucinate, or fabricate any news
+5. For each article found, evaluate its IMPORTANCE on a scale 1-10:
+   - 10: Historic breakthrough (new exoplanet discovery, first landing, gravitational waves)
+   - 8-9: Major mission milestone (launch, orbit insertion, sample return)
+   - 6-7: Significant scientific finding (new data, confirmed theory)
+   - 4-5: Routine update (schedule changes, funding news)
+   - 1-3: Minor news (personnel changes, conference announcements)
+6. ONLY include items scored 5 or higher. Skip boring routine updates.
 
-Your task: Search for and compile the 15 most interesting REAL space/astronomy/astrophysics news from the past 7 days.
+SEARCH QUERIES to use:
+- "space news this week ${dateTo}"
+- "NASA news ${dateFrom}"
+- "SpaceX launch ${dateTo}"
+- "ESA mission news"
+- "astronomy discovery this week"
+- "space exploration breakthrough"
+- "JWST new findings"
+- "Mars mission update"
 
 For each news item provide:
 - title_uk: Ukrainian title (short, 5-10 words)
 - title_en: English title (short, 5-10 words)
 - desc_uk: Ukrainian description (1-2 sentences, factual, in-game style — as if reported by a space station AI)
 - desc_en: English description (same content, 1-2 sentences)
-- imagePrompt: A short prompt for generating a sci-fi illustration of this news (in English, 10-20 words, visual description only)
-- source: URL of the original article
+- imagePrompt: A short prompt for generating a sci-fi illustration (English, 10-20 words, visual only)
+- source: Full URL of the original article
 
 Style guide:
 - Write as if you are a ship's AI reporting findings to the Commander
 - Be factual but add a hint of sci-fi drama
+- Focus on: discoveries, missions, launches, astronomical events, research breakthroughs
 - No politics, no speculation, only confirmed scientific facts
-- If fewer than 15 verified news found, return however many you can verify (minimum 10)
+- Sort by importance (most exciting first)
 
 Return ONLY valid JSON array (no markdown, no explanation):
-[{"title_uk":"...","title_en":"...","desc_uk":"...","desc_en":"...","imagePrompt":"...","source":"..."},...]`;
+[{"title_uk":"...","title_en":"...","desc_uk":"...","desc_en":"...","imagePrompt":"...","source":"..."},...]
+
+Return 10-15 items. Quality over quantity — skip boring news.`;
+}
 
 export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -63,9 +92,12 @@ export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
 
   const ai = new GoogleGenAI({ apiKey });
 
+  const prompt = buildNewsPrompt();
+  console.log(`[digest] Searching for news from past 7 days`);
+
   const response = await ai.models.generateContent({
     model: CORE_MODEL,
-    contents: NEWS_PROMPT,
+    contents: prompt,
     config: {
       tools: [{
         googleSearch: {
