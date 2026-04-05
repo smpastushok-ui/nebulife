@@ -9,7 +9,7 @@ import type { Language } from '@nebulife/core';
 // Step 2: gemini-3.1-flash-image-preview generates 9:16 infographic images
 // ---------------------------------------------------------------------------
 
-const CORE_MODEL = 'gemini-3-flash-preview';
+const CORE_MODEL = 'gemini-3.1-flash-lite-preview';
 const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
 // ---------------------------------------------------------------------------
@@ -28,9 +28,22 @@ export interface DigestNewsItem {
 // Step 1: Generate weekly news text
 // ---------------------------------------------------------------------------
 
+// Authoritative space news sources for URL context verification
+const SPACE_NEWS_URLS = [
+  'https://www.nasa.gov/news/all-news/',
+  'https://www.esa.int/News',
+  'https://www.space.com/news',
+  'https://spacenews.com/',
+  'https://www.universetoday.com/',
+  'https://phys.org/space-news/',
+  'https://www.planetary.org/articles',
+];
+
 const NEWS_PROMPT = `You are a space news curator for the game "Nebulife" — a hard sci-fi space exploration simulator.
 
-Your task: Find and compile the 15 most interesting REAL space/astronomy/astrophysics news from the past 7 days.
+CRITICAL: You MUST ONLY report news that you can verify from the provided URL sources. DO NOT invent or hallucinate news. Every item must come from a real article published in the last 7 days on one of the authoritative sources provided.
+
+Your task: Analyze the provided space news sources and compile the 15 most interesting REAL, VERIFIED space/astronomy/astrophysics news from the past 7 days.
 
 For each news item provide:
 - title_uk: Ukrainian title (short, 5-10 words)
@@ -38,17 +51,17 @@ For each news item provide:
 - desc_uk: Ukrainian description (1-2 sentences, factual, in-game style — as if reported by a space station AI)
 - desc_en: English description (same content, 1-2 sentences)
 - imagePrompt: A short prompt for generating a sci-fi illustration of this news (in English, 10-20 words, visual description only)
+- source: URL of the original article (for verification)
 
 Style guide:
 - Write as if you are a ship's AI reporting findings to the Commander
 - Be factual but add a hint of sci-fi drama
 - Focus on: discoveries, missions, launches, astronomical events, research breakthroughs
 - No politics, no speculation, only confirmed scientific facts
+- If fewer than 15 verified news found, return however many you can verify (minimum 10)
 
 Return ONLY valid JSON array (no markdown, no explanation):
-[{"title_uk":"...","title_en":"...","desc_uk":"...","desc_en":"...","imagePrompt":"..."},...]
-
-Return exactly 15 items. Search the web for the latest space news from the past week.`;
+[{"title_uk":"...","title_en":"...","desc_uk":"...","desc_en":"...","imagePrompt":"...","source":"..."},...]`;
 
 export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -61,7 +74,7 @@ export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
     contents: NEWS_PROMPT,
     config: {
       thinkingConfig: { thinkingBudget: 8192 },
-      tools: [{ googleSearch: {} }],
+      tools: [{ urlContext: { urls: SPACE_NEWS_URLS } }],
     },
   });
 
