@@ -11,14 +11,15 @@ import {
 } from './hex-utils';
 
 interface HexSlotProps {
+  id: string;
   slot: HexSlotData;
   x: number;
   y: number;
   zIndex?: number;
-  onUnlock: () => void;
-  onHarvest: () => void;
-  onBuild: () => void;
-  onInspect: () => void;
+  onUnlock: (id: string) => void;
+  onHarvest: (id: string) => void;
+  onBuild: (id: string) => void;
+  onInspect: (id: string) => void;
   canAfford: boolean;
 }
 
@@ -59,11 +60,9 @@ function HiddenContent() {
 function LockedContent({
   slot,
   canAfford,
-  onUnlock,
 }: {
   slot: HexSlotData;
   canAfford: boolean;
-  onUnlock: () => void;
 }) {
   const cost = slot.unlockCost;
   return (
@@ -120,10 +119,8 @@ const RESOURCE_WEBP_TEMPLATES: Record<string, (n: number) => string> = {
 
 function ResourceContent({
   slot,
-  onHarvest,
 }: {
   slot: HexSlotData;
-  onHarvest: () => void;
 }) {
   const resourceType = slot.resourceType!;
   const rarity = slot.rarity!;
@@ -200,7 +197,7 @@ function ResourceContent({
   );
 }
 
-function EmptyContent({ onBuild }: { onBuild: () => void }) {
+function EmptyContent() {
   return (
     <div
       style={{
@@ -264,10 +261,8 @@ const BUILDING_WEBP: Record<string, string> = {
 
 function BuildingContent({
   slot,
-  onInspect,
 }: {
   slot: HexSlotData;
-  onInspect: () => void;
 }) {
 
   const label = BUILDING_ICONS[slot.buildingType ?? ''] ?? slot.buildingType?.slice(0, 3).toUpperCase() ?? '???';
@@ -337,6 +332,7 @@ function BuildingContent({
 // ---------------------------------------------------------------------------
 
 export const HexSlot = React.memo(function HexSlot({
+  id,
   slot,
   x,
   y,
@@ -350,30 +346,25 @@ export const HexSlot = React.memo(function HexSlot({
   const left = x - HEX_W / 2;
   const top  = y - HEX_H / 2;
 
-  // No background fill — invisible hit zones, WebP images provide the visual
   let opacity = 1;
-
   if (slot.state === 'hidden') {
     opacity = 0.35;
   } else if (slot.state === 'locked') {
     opacity = canAfford ? 0.9 : 0.5;
   }
 
-  // Harvest animation state (lifted from ResourceContent so click target can trigger it)
+  // Animation states (local to this hex — no cascade)
   const [harvestAnim, setHarvestAnim] = useState<number | null>(null);
-  // Building click animation
   const [buildingBounce, setBuildingBounce] = useState(false);
-  // Insufficient resources message
   const [insufficientMsg, setInsufficientMsg] = useState(false);
   const [insufficientText, setInsufficientText] = useState('');
 
-  // Main click handler for the entire hex area
+  // Main click handler — uses id to call stable parent callbacks
   const handleClick = () => {
     if (slot.state === 'locked') {
       if (canAfford) {
-        onUnlock();
+        onUnlock(id);
       } else {
-        // Build detailed message showing what's missing
         const cost = slot.unlockCost;
         if (cost) {
           const parts: string[] = [];
@@ -387,19 +378,18 @@ export const HexSlot = React.memo(function HexSlot({
         setTimeout(() => setInsufficientMsg(false), 2500);
       }
     } else if (slot.state === 'resource') {
-      // Only harvest + animate if resource is ready (not on cooldown)
       if (isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour)) {
         const amount = slot.yieldPerHour ?? 1;
         setHarvestAnim(amount);
-        onHarvest();
+        onHarvest(id);
         setTimeout(() => setHarvestAnim(null), 1200);
       }
     } else if (slot.state === 'empty') {
-      onBuild();
+      onBuild(id);
     } else if (slot.state === 'building' || slot.state === 'harvester') {
       setBuildingBounce(true);
       setTimeout(() => setBuildingBounce(false), 600);
-      onInspect();
+      onInspect(id);
     }
   };
 
@@ -433,19 +423,19 @@ export const HexSlot = React.memo(function HexSlot({
       />
       {slot.state === 'hidden' && <HiddenContent />}
       {slot.state === 'locked' && (
-        <LockedContent slot={slot} canAfford={canAfford} onUnlock={onUnlock} />
+        <LockedContent slot={slot} canAfford={canAfford} />
       )}
       {slot.state === 'resource' && (
-        <ResourceContent slot={slot} onHarvest={onHarvest} />
+        <ResourceContent slot={slot} />
       )}
-      {slot.state === 'empty' && <EmptyContent onBuild={onBuild} />}
+      {slot.state === 'empty' && <EmptyContent />}
       {(slot.state === 'building' || slot.state === 'harvester') && (
         <div style={{
           position: 'absolute', inset: 0,
           transform: buildingBounce ? 'translateY(-4px)' : 'translateY(0)',
           transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
         }}>
-          <BuildingContent slot={slot} onInspect={onInspect} />
+          <BuildingContent slot={slot} />
         </div>
       )}
 
@@ -492,5 +482,24 @@ export const HexSlot = React.memo(function HexSlot({
         </div>
       )}
     </div>
+  );
+}, (prev, next) => {
+  // Deep comparison — hex re-renders ONLY when its own data changes.
+  // Prevents cascade re-render when unrelated hex is modified.
+  return (
+    prev.id === next.id &&
+    prev.canAfford === next.canAfford &&
+    prev.x === next.x &&
+    prev.y === next.y &&
+    prev.slot.state === next.slot.state &&
+    prev.slot.buildingType === next.slot.buildingType &&
+    prev.slot.resourceType === next.slot.resourceType &&
+    prev.slot.rarity === next.slot.rarity &&
+    prev.slot.lastHarvestedAt === next.slot.lastHarvestedAt &&
+    prev.slot.buildingLevel === next.slot.buildingLevel &&
+    prev.onUnlock === next.onUnlock &&
+    prev.onHarvest === next.onHarvest &&
+    prev.onBuild === next.onBuild &&
+    prev.onInspect === next.onInspect
   );
 });

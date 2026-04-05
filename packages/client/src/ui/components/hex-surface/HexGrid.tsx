@@ -5,10 +5,10 @@ import { HexSlot } from './HexSlot';
 
 interface HexGridProps {
   slots: HexSlotData[];
-  onUnlock: (slotId: string) => void;
-  onHarvest: (slotId: string) => void;
-  onBuild: (slotId: string) => void;
-  onInspect: (slotId: string) => void;
+  onUnlock: (id: string) => void;
+  onHarvest: (id: string) => void;
+  onBuild: (id: string) => void;
+  onInspect: (id: string) => void;
   canAffordUnlock: (slotId: string) => boolean;
   zoom: number;
   panX: number;
@@ -113,6 +113,7 @@ export const HexGrid = React.memo(function HexGrid({
         }}
       >
         {/* Render in pre-sorted Y order (isometric z-index) — no runtime .sort() */}
+        {/* Stable callbacks (no arrow wrapper) — preserves React.memo on HexSlot */}
         {sortedSlotOrder.map(({ id, zIndex }) => {
           const slot = slotById.get(id);
           const pos = posMap.get(id);
@@ -120,15 +121,16 @@ export const HexGrid = React.memo(function HexGrid({
           return (
             <HexSlot
               key={id}
+              id={id}
               slot={slot}
               x={pos.x}
               y={pos.y + pos.zOffset}
               zIndex={zIndex}
               canAfford={canAffordUnlock(id)}
-              onUnlock={() => onUnlock(id)}
-              onHarvest={() => onHarvest(id)}
-              onBuild={() => onBuild(id)}
-              onInspect={() => onInspect(id)}
+              onUnlock={onUnlock}
+              onHarvest={onHarvest}
+              onBuild={onBuild}
+              onInspect={onInspect}
             />
           );
         })}
