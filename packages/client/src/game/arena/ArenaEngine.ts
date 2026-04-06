@@ -749,10 +749,10 @@ export class ArenaEngine {
       }
     }
 
-    // Rotation: atan2(dirX, dirZ) gives angle on XZ plane
-    // +angle + PI/2 compensates nose-up texture orientation
+    // Rotation: ship texture has nose pointing "up" → after geo.rotateX(-PI/2) nose faces -Z
+    // atan2(dirZ, dirX) gives angle from +X axis; negate for Y-rotation convention
     this.playerAimAngle = Math.atan2(this.aimDirX, this.aimDirZ);
-    this.playerMesh.rotation.y = this.playerAimAngle + Math.PI / 2;
+    this.playerMesh.rotation.y = -Math.atan2(this.aimDirZ, this.aimDirX) - Math.PI / 2;
 
     // Bank angle — visual tilt when turning sharply (only on Z axis, no X)
     let angleDelta = this.playerAimAngle - prevAngle;
