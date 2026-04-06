@@ -175,20 +175,20 @@ export class ArenaEngine {
   }
 
   private setupFloor(): void {
-    // Subtle grid texture — thin lines on near-transparent dark background
+    // Holographic grid — only lines, fully transparent background
+    // Stars shine through from below
     const gridSize = 512;
     const canvas = document.createElement('canvas');
     canvas.width = gridSize;
     canvas.height = gridSize;
     const ctx = canvas.getContext('2d')!;
 
-    // Nearly transparent background
-    ctx.fillStyle = 'rgba(4, 8, 16, 0.4)';
-    ctx.fillRect(0, 0, gridSize, gridSize);
+    // Fully transparent background — stars visible through floor
+    ctx.clearRect(0, 0, gridSize, gridSize);
 
-    // Thin subtle grid lines
-    ctx.strokeStyle = 'rgba(40, 60, 90, 0.15)';
-    ctx.lineWidth = 0.5;
+    // Neon grid lines only
+    ctx.strokeStyle = 'rgba(68, 136, 170, 0.2)';
+    ctx.lineWidth = 1;
     const cellSize = gridSize / 8;
     for (let i = 0; i <= 8; i++) {
       const p = i * cellSize;
@@ -207,7 +207,7 @@ export class ArenaEngine {
       map: texture,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.6,
+      depthWrite: false, // don't block stars behind
     });
     this.disposables.push(geo, mat);
 
@@ -238,32 +238,47 @@ export class ArenaEngine {
   }
 
   private setupStarfield(): void {
-    const count = STARFIELD_COUNT * 2; // more stars for immersion
+    const count = STARFIELD_COUNT * 3; // dense starfield
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
-      // Full sphere distribution (visible from any camera angle)
       const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1); // uniform sphere
-      const r = 5000 + Math.random() * 5000;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 3000 + Math.random() * 8000;
       positions[i3]     = r * Math.sin(phi) * Math.cos(theta);
-      positions[i3 + 1] = r * Math.cos(phi);
+      positions[i3 + 1] = r * Math.cos(phi); // full sphere — stars above AND below floor
       positions[i3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-      // Vary color: white-blue-yellow
+
+      // Color variation: cool whites, warm yellows, blue tints
       const t = Math.random();
-      colors[i3]     = 0.6 + t * 0.4; // R
-      colors[i3 + 1] = 0.7 + t * 0.3; // G
-      colors[i3 + 2] = 0.8 + t * 0.2; // B
+      if (t < 0.3) {
+        // Blue-white
+        colors[i3] = 0.7; colors[i3+1] = 0.8; colors[i3+2] = 1.0;
+      } else if (t < 0.6) {
+        // Warm yellow
+        colors[i3] = 1.0; colors[i3+1] = 0.9; colors[i3+2] = 0.7;
+      } else {
+        // Pure white
+        colors[i3] = 0.9; colors[i3+1] = 0.9; colors[i3+2] = 0.95;
+      }
+
+      // Random brightness via size
+      sizes[i] = 1 + Math.random() * 4;
     }
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
     const mat = new THREE.PointsMaterial({
-      size: 4,
+      size: 3,
       sizeAttenuation: true,
       vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
     });
     this.disposables.push(geo, mat);
 
