@@ -25,12 +25,10 @@ import {
   rarityYield,
   isResourceReady,
   respawnTimeRemaining,
-  DIAMOND_ROWS,
-  CENTER_ROW,
-  CENTER_COL,
+  PLANET_LAYOUTS,
   computeZone,
   getAdjacentIds,
-  getDiamondConfig,
+  getHexPositions,
 } from './hex-utils.js';
 import { getPlanetSize } from '@nebulife/core';
 
@@ -75,34 +73,41 @@ const RESOURCE_TO_COLONY: Record<ResourceType, keyof { minerals: number; volatil
 };
 
 // ---------------------------------------------------------------------------
-// Diamond layout — 30 hexes
-// Hub at (CENTER_ROW=4, CENTER_COL=2) = id "d4-2"
+// Layout descriptors — size-aware
 // ---------------------------------------------------------------------------
 
-const HUB_ID = `d${CENTER_ROW}-${CENTER_COL}`;
+/** Hub hex = zone 0 for a given planet size */
+function getHubId(size: HexPlanetSize): string {
+  const positions = getHexPositions(size);
+  const hub = positions.find(p => p.ring === 0);
+  return hub?.id ?? 'd4-2'; // fallback: medium hub
+}
 
 /**
- * Enumerate all 30 diamond hexes in row-major order, returning their
- * (row, col, zone, index-within-zone).
+ * Enumerate all hexes for a given planet size in row-major order,
+ * returning (row, col, zone, index-within-zone).
  */
-function buildDiamondDescriptors(): Array<{
+function buildDiamondDescriptors(size: HexPlanetSize = 'medium'): Array<{
   row: number;
   col: number;
   id: string;
   zone: number;
   zoneIndex: number;
 }> {
-  // First pass: assign zone
+  const widths = PLANET_LAYOUTS[size];
   const raw: Array<{ row: number; col: number; id: string; zone: number }> = [];
-  for (let row = 0; row < DIAMOND_ROWS.length; row++) {
-    const width = DIAMOND_ROWS[row];
-    for (let col = 0; col < width; col++) {
-      raw.push({ row, col, id: `d${row}-${col}`, zone: computeZone(row, col) });
+  for (let row = 0; row < widths.length; row++) {
+    const cols = widths[row];
+    for (let col = 0; col < cols; col++) {
+      raw.push({ row, col, id: `d${row}-${col}`, zone: computeZone(row, col, size) });
     }
   }
-  // Second pass: index within zone
-  const zoneCounters: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
-  return raw.map((h) => ({ ...h, zoneIndex: zoneCounters[h.zone]++ }));
+  const zoneCounters: Record<number, number> = {};
+  return raw.map((h) => {
+    const zi = zoneCounters[h.zone] ?? 0;
+    zoneCounters[h.zone] = zi + 1;
+    return { ...h, zoneIndex: zi };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -110,20 +115,16 @@ function buildDiamondDescriptors(): Array<{
 // ---------------------------------------------------------------------------
 
 function recalculateLockedCosts(slots: HexSlotData[]): HexSlotData[] {
-  const zone1Unlocked = slots.filter(s => s.ring === 1 && s.state !== 'locked' && s.state !== 'hidden').length;
-  const zone2Unlocked = slots.filter(s => s.ring === 2 && s.state !== 'locked' && s.state !== 'hidden').length;
-  const zone3Unlocked = slots.filter(s => s.ring === 3 && s.state !== 'locked' && s.state !== 'hidden').length;
-
-  const zone1Cost = getUnlockCost(1, zone1Unlocked);
-  const zone2Cost = getUnlockCost(2, zone2Unlocked);
-  const zone3Cost = getUnlockCost(3, zone3Unlocked);
-
+  // Compute per-zone unlock counts for progressive cost (if needed in future)
+  const zoneUnlocked: Record<number, number> = {};
+  for (const s of slots) {
+    if (s.state !== 'locked' && s.state !== 'hidden') {
+      zoneUnlocked[s.ring] = (zoneUnlocked[s.ring] ?? 0) + 1;
+    }
+  }
   return slots.map(s => {
     if (s.state !== 'locked') return s;
-    if (s.ring === 1) return { ...s, unlockCost: zone1Cost };
-    if (s.ring === 2) return { ...s, unlockCost: zone2Cost };
-    if (s.ring === 3) return { ...s, unlockCost: zone3Cost };
-    return s;
+    return { ...s, unlockCost: getUnlockCost(s.ring, zoneUnlocked[s.ring] ?? 0) };
   });
 }
 
@@ -131,14 +132,13 @@ function recalculateLockedCosts(slots: HexSlotData[]): HexSlotData[] {
 // Reveal logic — unlocking a hex makes its hidden zone-N+1 neighbours 'locked'
 // ---------------------------------------------------------------------------
 
-function revealAdjacentHidden(slots: HexSlotData[], unlockedId: string): HexSlotData[] {
-  // Parse row/col from id
+function revealAdjacentHidden(slots: HexSlotData[], unlockedId: string, size: HexPlanetSize = 'medium'): HexSlotData[] {
   const m = unlockedId.match(/^d(\d+)-(\d+)$/);
   if (!m) return slots; // old-format id — skip adjacency reveal
 
   const row = parseInt(m[1], 10);
   const col = parseInt(m[2], 10);
-  const adjIds = new Set(getAdjacentIds(row, col));
+  const adjIds = new Set(getAdjacentIds(row, col, size));
 
   return slots.map(s => {
     if (adjIds.has(s.id) && s.state === 'hidden') {
@@ -152,9 +152,9 @@ function revealAdjacentHidden(slots: HexSlotData[], unlockedId: string): HexSlot
 // Initial slot builder (fresh start, 30 diamond hexes)
 // ---------------------------------------------------------------------------
 
-function buildInitialSlots(): HexSlotData[] {
-  const descriptors = buildDiamondDescriptors();
-  const slots: HexSlotData[] = descriptors.map(({ row, col, id, zone, zoneIndex }) => {
+function buildInitialSlots(size: HexPlanetSize = 'medium'): HexSlotData[] {
+  const descriptors = buildDiamondDescriptors(size);
+  const slots: HexSlotData[] = descriptors.map(({ id, zone, zoneIndex }) => {
     if (zone === 0) {
       // Hub — auto-unlocked with colony building
       return {
@@ -175,10 +175,10 @@ function buildInitialSlots(): HexSlotData[] {
         state: 'locked' as HexState,
       };
     }
-    // Zone 2 & 3 — hidden until neighbours are unlocked
+    // Zone 2+ — hidden until neighbours are unlocked
     return {
       id,
-      ring: zone as 2 | 3,
+      ring: zone,
       index: zoneIndex,
       state: 'hidden' as HexState,
     };
@@ -192,16 +192,16 @@ function buildInitialSlots(): HexSlotData[] {
 // Detects by checking if the first saved slot id starts with "ring"
 // ---------------------------------------------------------------------------
 
-function migrateRingToDiamond(oldSlots: HexSlotData[]): HexSlotData[] {
+function migrateRingToDiamond(oldSlots: HexSlotData[], size: HexPlanetSize = 'medium'): HexSlotData[] {
   if (!oldSlots.length || !oldSlots[0].id.startsWith('ring')) {
     // Already diamond format or empty — run adjacency + cost fix only
-    return fixDiamondSlots(oldSlots);
+    return fixDiamondSlots(oldSlots, size);
   }
 
   console.info('[useHexState] Migrating ring-based saves to diamond layout');
 
   // Build fresh diamond slots
-  const descriptors = buildDiamondDescriptors();
+  const descriptors = buildDiamondDescriptors(size);
 
   // Index old slots by id for quick lookup
   const oldById = new Map<string, HexSlotData>();
@@ -268,28 +268,27 @@ function migrateRingToDiamond(oldSlots: HexSlotData[]): HexSlotData[] {
       };
     }
 
-    // Zone 3 — new, always hidden
+    // Zone 3+ — new, always hidden
     return {
       id,
-      ring: 3 as const,
+      ring: zone,
       index: zoneIndex,
       state: 'hidden' as HexState,
     };
   });
 
-  return fixDiamondSlots(newSlots);
+  return fixDiamondSlots(newSlots, size);
 }
 
 /**
  * Fix diamond-format slots: ensure all zone N+1 neighbours of unlocked hexes
  * are at least 'locked' (not 'hidden'), then recalculate costs.
  */
-function fixDiamondSlots(slots: HexSlotData[]): HexSlotData[] {
-  // For every unlocked hex, reveal adjacent hidden neighbours
+function fixDiamondSlots(slots: HexSlotData[], size: HexPlanetSize = 'medium'): HexSlotData[] {
   let result = [...slots];
   for (const s of slots) {
     if (s.state !== 'hidden' && s.state !== 'locked') {
-      result = revealAdjacentHidden(result, s.id);
+      result = revealAdjacentHidden(result, s.id, size);
     }
   }
   return recalculateLockedCosts(result);
@@ -303,6 +302,7 @@ function rollSlotContents(
   seed: number,
   slotId: string,
   forceResource?: ResourceType,
+  size: HexPlanetSize = 'medium',
 ): { state: 'resource' | 'empty'; resourceType?: ResourceType; rarity?: Rarity; yieldPerHour?: number; maxCapacity?: number } {
   if (forceResource) {
     const rarity = rollRarity(seed, slotId);
@@ -315,13 +315,13 @@ function rollSlotContents(
   const isZone1 = slotId.startsWith('d') && (() => {
     const m = slotId.match(/^d(\d+)-(\d+)$/);
     if (!m) return false;
-    return computeZone(parseInt(m[1], 10), parseInt(m[2], 10)) === 1;
+    return computeZone(parseInt(m[1], 10), parseInt(m[2], 10), size) === 1;
   })();
 
   const h = Math.abs(Math.sin(seed * 0.17 + stringHash(slotId) * 0.031)) * 100;
 
   if (isZone1 || h < 70) {
-    const resourceType = rollResourceType(seed, slotId);
+    const resourceType = rollResourceType(seed, slotId, undefined, undefined, size);
     const rarity = rollRarity(seed, slotId);
     const yieldPerHour = rarityYield(rarity);
     return { state: 'resource', resourceType, rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
@@ -400,6 +400,8 @@ export function useHexState(
   researchData?: number,
   onConsumeResearchData?: (amount: number) => void,
 ): HexStateResult {
+  const planetSize = getPlanetSize(planet.radiusEarth);
+
   const [slots, setSlots] = useState<HexSlotData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -436,14 +438,27 @@ export function useHexState(
   useEffect(() => {
     let cancelled = false;
 
+    const expectedHubId = getHubId(planetSize);
+
+    /** Validate and migrate saved slots for current planet size */
+    const validateAndMigrate = (raw: HexSlotData[]): HexSlotData[] => {
+      const migrated = migrateRingToDiamond(raw, planetSize);
+      // If hub ID doesn't match expected layout → rebuild (planet size changed)
+      const hubSlot = migrated.find(s => s.ring === 0);
+      if (!hubSlot || hubSlot.id !== expectedHubId) {
+        console.info('[useHexState] Hub ID mismatch — rebuilding for', planetSize);
+        return buildInitialSlots(planetSize);
+      }
+      return migrated;
+    };
+
     // 1) Load from localStorage FIRST (instant, survives app restart)
     try {
       const local = localStorage.getItem('nebulife_hex_slots');
       if (local) {
         const parsed = JSON.parse(local) as HexSlotData[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const migrated = migrateRingToDiamond(parsed);
-          setSlots(migrated);
+          setSlots(validateAndMigrate(parsed));
           setLoading(false);
         }
       }
@@ -458,7 +473,7 @@ export function useHexState(
         const saved = playerData?.game_state?.hex_slots;
 
         if (Array.isArray(saved) && saved.length > 0) {
-          const migrated = migrateRingToDiamond(saved as HexSlotData[]);
+          const migrated = validateAndMigrate(saved as HexSlotData[]);
           setSlots(migrated);
           // Sync localStorage with server truth
           try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(migrated)); } catch { /* ignore */ }
@@ -466,7 +481,7 @@ export function useHexState(
           // No server data — check if localStorage already loaded slots
           const hasLocal = slotsRef.current.length > 0;
           if (!hasLocal) {
-            const initial = buildInitialSlots();
+            const initial = buildInitialSlots(planetSize);
             setSlots(initial);
             scheduleSave(initial);
           } else {
@@ -477,7 +492,7 @@ export function useHexState(
       } catch (err) {
         console.error('[useHexState] load failed:', err);
         // If localStorage didn't load anything either, create initial
-        if (!cancelled && slotsRef.current.length === 0) setSlots(buildInitialSlots());
+        if (!cancelled && slotsRef.current.length === 0) setSlots(buildInitialSlots(planetSize));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -581,7 +596,7 @@ export function useHexState(
       }
 
       // Roll slot contents
-      const rolled = rollSlotContents(planet.seed, slotId, forceResource);
+      const rolled = rollSlotContents(planet.seed, slotId, forceResource, planetSize);
 
       updateSlots((prev) => {
         // Apply unlock
@@ -600,7 +615,7 @@ export function useHexState(
         });
 
         // Reveal adjacent hidden neighbours of the newly unlocked hex
-        next = revealAdjacentHidden(next, slotId);
+        next = revealAdjacentHidden(next, slotId, planetSize);
 
         // Recalculate costs for remaining locked hexes
         return recalculateLockedCosts(next);

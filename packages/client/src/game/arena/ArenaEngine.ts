@@ -10,6 +10,8 @@ import {
   CAMERA_FOV, CAMERA_HEIGHT, CAMERA_DISTANCE, CAMERA_LERP_SPEED,
   MAX_PIXEL_RATIO, STARFIELD_COUNT,
   BOT_COUNT, MATCH_DURATION, COUNTDOWN_SECONDS,
+  ASTEROID_COUNT, ASTEROID_MIN_RADIUS, ASTEROID_MAX_RADIUS,
+  SHIP_MAX_SPEED, SHIP_ACCELERATION, SHIP_DRAG, SHIP_RADIUS,
 } from './ArenaConstants.js';
 
 // Pre-allocated temp vectors — ZERO allocations in hot path
@@ -35,6 +37,15 @@ export class ArenaEngine {
   private boundaryMesh!: THREE.LineLoop;
   private starfield!: THREE.Points;
 
+  // Player ship (triangle placeholder)
+  private playerMesh!: THREE.Mesh;
+  private playerVelX = 0;
+  private playerVelZ = 0;
+
+  // Asteroids
+  private asteroidMesh!: THREE.InstancedMesh;
+  private asteroidData: { x: number; z: number; vx: number; vz: number; radius: number; rot: number; rotSpeed: number }[] = [];
+
   // Game state
   private phase: MatchPhase = 'waiting';
   private matchTimer = 0;
@@ -46,8 +57,20 @@ export class ArenaEngine {
   // Input (set by ArenaControls)
   private input: InputState = { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
 
+  // Zoom
+  private zoomLevel = 1.0;
+  private readonly ZOOM_MIN = 0.4;
+  private readonly ZOOM_MAX = 2.0;
+  private readonly ZOOM_SPEED = 0.1;
+
+  // Keyboard state
+  private keys = new Set<string>();
+  private onKeyDownBound: (e: KeyboardEvent) => void;
+  private onKeyUpBound: (e: KeyboardEvent) => void;
+
   // Bound handlers (for cleanup)
   private onResizeBound: () => void;
+  private onWheelBound: (e: WheelEvent) => void;
 
   // Track all disposables for cleanup
   private disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
@@ -56,6 +79,9 @@ export class ArenaEngine {
     this.container = container;
     this.callbacks = callbacks;
     this.onResizeBound = this.onResize.bind(this);
+    this.onWheelBound = this.onWheel.bind(this);
+    this.onKeyDownBound = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());
+    this.onKeyUpBound = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -68,8 +94,13 @@ export class ArenaEngine {
     this.setupBoundary();
     this.setupStarfield();
     this.setupLights();
+    this.setupPlayerShip();
+    this.setupAsteroids();
 
     window.addEventListener('resize', this.onResizeBound);
+    window.addEventListener('keydown', this.onKeyDownBound);
+    window.addEventListener('keyup', this.onKeyUpBound);
+    this.renderer.domElement.addEventListener('wheel', this.onWheelBound, { passive: false });
 
     this.visible = true;
     this.clock.start();
@@ -84,6 +115,9 @@ export class ArenaEngine {
     }
 
     window.removeEventListener('resize', this.onResizeBound);
+    window.removeEventListener('keydown', this.onKeyDownBound);
+    window.removeEventListener('keyup', this.onKeyUpBound);
+    this.renderer?.domElement?.removeEventListener('wheel', this.onWheelBound);
 
     // Dispose all tracked geometry/material/textures
     for (const d of this.disposables) {
@@ -296,7 +330,70 @@ export class ArenaEngine {
     this.scene.add(dir);
   }
 
+  private setupPlayerShip(): void {
+    // Green triangle placeholder for player ship
+    const shape = new THREE.Shape();
+    shape.moveTo(0, SHIP_RADIUS);      // nose (forward = +Z)
+    shape.lineTo(-SHIP_RADIUS * 0.7, -SHIP_RADIUS * 0.6);
+    shape.lineTo(SHIP_RADIUS * 0.7, -SHIP_RADIUS * 0.6);
+    shape.closePath();
+
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: 3, bevelEnabled: false });
+    const mat = new THREE.MeshBasicMaterial({ color: 0x44ff88 });
+    this.disposables.push(geo, mat);
+
+    this.playerMesh = new THREE.Mesh(geo, mat);
+    this.playerMesh.rotation.x = -Math.PI / 2; // lay flat on XZ
+    this.playerMesh.position.set(0, 3, 0); // slightly above floor
+    this.scene.add(this.playerMesh);
+  }
+
+  private setupAsteroids(): void {
+    // InstancedMesh — 1 draw call for all asteroids
+    const geo = new THREE.IcosahedronGeometry(1, 1);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.8, metalness: 0.2 });
+    this.disposables.push(geo, mat);
+
+    this.asteroidMesh = new THREE.InstancedMesh(geo, mat, ASTEROID_COUNT);
+    this.asteroidMesh.castShadow = false;
+    this.asteroidMesh.receiveShadow = false;
+
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < ASTEROID_COUNT; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 100 + Math.random() * (ARENA_HALF - 150);
+      const x = Math.cos(angle) * dist;
+      const z = Math.sin(angle) * dist;
+      const radius = ASTEROID_MIN_RADIUS + Math.random() * (ASTEROID_MAX_RADIUS - ASTEROID_MIN_RADIUS);
+      const vAngle = Math.random() * Math.PI * 2;
+      const speed = 5 + Math.random() * 10;
+
+      this.asteroidData.push({
+        x, z,
+        vx: Math.cos(vAngle) * speed,
+        vz: Math.sin(vAngle) * speed,
+        radius,
+        rot: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 2,
+      });
+
+      dummy.position.set(x, radius * 0.3, z);
+      dummy.scale.set(radius, radius, radius);
+      dummy.rotation.set(Math.random(), Math.random(), Math.random());
+      dummy.updateMatrix();
+      this.asteroidMesh.setMatrixAt(i, dummy.matrix);
+    }
+    this.asteroidMesh.instanceMatrix.needsUpdate = true;
+    this.scene.add(this.asteroidMesh);
+  }
+
   // ── Resize handler ─────────────────────────────────────────────────────
+
+  private onWheel(e: WheelEvent): void {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? this.ZOOM_SPEED : -this.ZOOM_SPEED;
+    this.zoomLevel = Math.max(this.ZOOM_MIN, Math.min(this.ZOOM_MAX, this.zoomLevel + delta));
+  }
 
   private onResize(): void {
     const W = this.container.clientWidth;
@@ -332,24 +429,109 @@ export class ArenaEngine {
         this.matchTimer -= dt;
         if (this.matchTimer <= 0) {
           this.phase = 'ended';
-          // TODO: collect match results and call this.callbacks.onMatchEnd()
         }
-        // TODO: update ships, projectiles, asteroids, black holes, VFX
+        this.updatePlayer(dt);
+        this.updateAsteroids(dt);
         break;
       case 'ended':
         // Freeze — waiting for React to show end screen
         break;
     }
 
-    // Camera follows player with smooth damping
+    // Camera follows player with smooth damping + zoom
     _camTarget.set(this.playerPos.x, 0, this.playerPos.z);
     _tempVec3.set(
       this.playerPos.x,
-      CAMERA_HEIGHT,
-      this.playerPos.z + CAMERA_DISTANCE,
+      CAMERA_HEIGHT * this.zoomLevel,
+      this.playerPos.z + CAMERA_DISTANCE * this.zoomLevel,
     );
     this.camera.position.lerp(_tempVec3, CAMERA_LERP_SPEED);
     this.camera.lookAt(_camTarget);
+  }
+
+  // ── Player movement (WASD) ──────────────────────────────────────────────
+
+  private updatePlayer(dt: number): void {
+    // WASD input
+    let ax = 0, az = 0;
+    if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
+    if (this.keys.has('s') || this.keys.has('arrowdown'))  az += 1;
+    if (this.keys.has('a') || this.keys.has('arrowleft'))  ax -= 1;
+    if (this.keys.has('d') || this.keys.has('arrowright')) ax += 1;
+
+    // Normalize diagonal
+    const len = Math.sqrt(ax * ax + az * az);
+    if (len > 0) { ax /= len; az /= len; }
+
+    // Accelerate
+    this.playerVelX += ax * SHIP_ACCELERATION * dt;
+    this.playerVelZ += az * SHIP_ACCELERATION * dt;
+
+    // Drag
+    this.playerVelX *= SHIP_DRAG;
+    this.playerVelZ *= SHIP_DRAG;
+
+    // Clamp speed
+    const speed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
+    if (speed > SHIP_MAX_SPEED) {
+      this.playerVelX = (this.playerVelX / speed) * SHIP_MAX_SPEED;
+      this.playerVelZ = (this.playerVelZ / speed) * SHIP_MAX_SPEED;
+    }
+
+    // Move
+    this.playerPos.x += this.playerVelX * dt;
+    this.playerPos.z += this.playerVelZ * dt;
+
+    // Arena boundary
+    const dist = Math.sqrt(this.playerPos.x ** 2 + this.playerPos.z ** 2);
+    if (dist > ARENA_HALF - SHIP_RADIUS) {
+      const nx = this.playerPos.x / dist;
+      const nz = this.playerPos.z / dist;
+      this.playerPos.x = nx * (ARENA_HALF - SHIP_RADIUS);
+      this.playerPos.z = nz * (ARENA_HALF - SHIP_RADIUS);
+      // Reflect velocity
+      const dot = this.playerVelX * nx + this.playerVelZ * nz;
+      this.playerVelX -= 2 * dot * nx;
+      this.playerVelZ -= 2 * dot * nz;
+      this.playerVelX *= 0.5;
+      this.playerVelZ *= 0.5;
+    }
+
+    // Update mesh position
+    this.playerMesh.position.set(this.playerPos.x, 3, this.playerPos.z);
+
+    // Rotate triangle to face movement direction
+    if (speed > 5) {
+      const angle = Math.atan2(this.playerVelX, -this.playerVelZ);
+      this.playerMesh.rotation.y = angle;
+    }
+  }
+
+  // ── Asteroid drift ─────────────────────────────────────────────────────
+
+  private updateAsteroids(dt: number): void {
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < this.asteroidData.length; i++) {
+      const a = this.asteroidData[i];
+      a.x += a.vx * dt;
+      a.z += a.vz * dt;
+      a.rot += a.rotSpeed * dt;
+
+      // Wrap around arena (torus topology)
+      const d = Math.sqrt(a.x * a.x + a.z * a.z);
+      if (d > ARENA_HALF + a.radius) {
+        const angle = Math.atan2(a.z, a.x) + Math.PI; // opposite side
+        a.x = Math.cos(angle) * (ARENA_HALF - a.radius);
+        a.z = Math.sin(angle) * (ARENA_HALF - a.radius);
+      }
+
+      dummy.position.set(a.x, a.radius * 0.3, a.z);
+      dummy.scale.set(a.radius, a.radius, a.radius);
+      dummy.rotation.set(a.rot * 0.3, a.rot, a.rot * 0.7);
+      dummy.updateMatrix();
+      this.asteroidMesh.setMatrixAt(i, dummy.matrix);
+    }
+    this.asteroidMesh.instanceMatrix.needsUpdate = true;
   }
 
   // ── Public getters ─────────────────────────────────────────────────────

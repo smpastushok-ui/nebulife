@@ -50,10 +50,10 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: '#020510' }}>
-      {/* Three.js canvas container */}
+      {/* Three.js canvas container — z-index 0 so UI stays on top */}
       <div
         ref={containerRef}
-        style={{ position: 'absolute', inset: 0 }}
+        style={{ position: 'absolute', inset: 0, zIndex: 0 }}
       />
 
       {/* HUD overlay */}
@@ -111,25 +111,25 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
         </div>
       )}
 
-      {/* Exit button — top center */}
+      {/* Exit button — top center, high z-index to stay above canvas */}
       <button
         onClick={onExit}
         style={{
           position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(8,14,24,0.85)',
-          border: '1px solid #334455',
+          background: 'rgba(8,14,24,0.9)',
+          border: '1px solid #446688',
           borderRadius: 3,
-          color: '#556677',
+          color: '#aabbcc',
           fontFamily: 'monospace',
           fontSize: 10,
           letterSpacing: 2,
-          padding: '4px 14px',
+          padding: '6px 18px',
           cursor: 'pointer',
-          zIndex: 10,
+          zIndex: 100,
           pointerEvents: 'auto',
         }}
       >
-        EXIT ARENA
+        BACK
       </button>
     </div>
   );
