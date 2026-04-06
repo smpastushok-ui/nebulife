@@ -419,17 +419,16 @@ export class ArenaEngine {
 
     const size = SHIP_RADIUS * 3;
     const geo = new THREE.PlaneGeometry(size, size);
+    geo.rotateX(-Math.PI / 2); // Bake rotation into geometry once — no per-frame rotation.x
     const mat = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
+      alphaTest: 0.5, // Fix Z-fighting with overlapping transparent sprites
       side: THREE.DoubleSide,
-      depthWrite: false,
     });
     this.disposables.push(geo, mat);
 
     this.playerMesh = new THREE.Mesh(geo, mat);
-    this.playerMesh.rotation.x = -Math.PI / 2; // lay flat on XZ plane
-    // Nose points "up" in texture → rotation.y=0 means nose faces -Z (forward)
     this.playerMesh.position.set(0, 5, 0);
     this.scene.add(this.playerMesh);
   }
@@ -639,30 +638,40 @@ export class ArenaEngine {
 
   // ── Aim (mouse) ────────────────────────────────────────────────────────
 
+  // Aim direction vector (normalized) — used by fireBullet & spawnExhaust
+  private aimDirX = 0;
+  private aimDirZ = -1; // default: facing forward (-Z)
+
   private updateAim(dt: number): void {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
       const len = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
       if (len > 0.1) {
-        this.playerAimAngle = Math.atan2(this.mobileAim.x, -this.mobileAim.z);
+        this.aimDirX = this.mobileAim.x / len;
+        this.aimDirZ = this.mobileAim.z / len;
       }
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;
       const dz = this.aimPoint.z - this.playerPos.z;
-      this.playerAimAngle = Math.atan2(dx, -dz);
+      const len = Math.sqrt(dx * dx + dz * dz);
+      if (len > 1) {
+        this.aimDirX = dx / len;
+        this.aimDirZ = dz / len;
+      }
     }
 
-    // Bank angle — visual tilt when turning sharply
+    // Rotation: atan2(dirX, dirZ) gives angle, -angle - PI/2 compensates nose-up texture
+    this.playerAimAngle = Math.atan2(this.aimDirX, this.aimDirZ);
+    this.playerMesh.rotation.y = -this.playerAimAngle - Math.PI / 2;
+
+    // Bank angle — visual tilt when turning sharply (only on Z axis, no X)
     let angleDelta = this.playerAimAngle - prevAngle;
-    // Normalize to [-PI, PI]
     while (angleDelta > Math.PI) angleDelta -= Math.PI * 2;
     while (angleDelta < -Math.PI) angleDelta += Math.PI * 2;
     const targetBank = Math.max(-0.3, Math.min(0.3, -angleDelta * 3));
     this.playerBankAngle += (targetBank - this.playerBankAngle) * Math.min(1, dt * 8);
-
-    this.playerMesh.rotation.y = this.playerAimAngle;
-    this.playerMesh.rotation.z = this.playerBankAngle; // visual bank/tilt
+    // Note: rotation.z doesn't work well with baked geo.rotateX — skip bank for now
   }
 
   // ── Shooting ───────────────────────────────────────────────────────────
@@ -677,12 +686,17 @@ export class ArenaEngine {
   }
 
   private fireBullet(): void {
-    // Find inactive bullet in pool
     const idx = this.bullets.findIndex(b => !b.active);
-    if (idx === -1) return; // pool exhausted
+    if (idx === -1) return;
 
-    const dirX = Math.sin(this.playerAimAngle);
-    const dirZ = -Math.cos(this.playerAimAngle);
+    // Use aim direction vector (already normalized)
+    let dirX = this.aimDirX;
+    let dirZ = this.aimDirZ;
+    // Fallback if aim is zero: shoot forward based on ship rotation
+    if (dirX === 0 && dirZ === 0) {
+      dirX = Math.cos(this.playerMesh.rotation.y);
+      dirZ = -Math.sin(this.playerMesh.rotation.y);
+    }
 
     const b = this.bullets[idx];
     b.x = this.playerPos.x + dirX * (SHIP_RADIUS + 3);
@@ -868,15 +882,23 @@ export class ArenaEngine {
     const idx = this.exhaustParticles.findIndex(p => !p.active);
     if (idx === -1) return;
 
-    const dirX = -Math.sin(this.playerAimAngle);
-    const dirZ = Math.cos(this.playerAimAngle);
+    // Backward direction = inverted aim direction
+    let backX = -this.aimDirX;
+    let backZ = -this.aimDirZ;
+    // Fallback
+    if (backX === 0 && backZ === 0) {
+      backX = -Math.cos(this.playerMesh.rotation.y);
+      backZ = Math.sin(this.playerMesh.rotation.y);
+    }
+
     const spread = (Math.random() - 0.5) * 0.4;
+    const offsetDist = SHIP_RADIUS * 0.7;
 
     const p = this.exhaustParticles[idx];
-    p.x = this.playerPos.x + dirX * (SHIP_RADIUS * 0.7) + spread * dirZ * 3;
-    p.z = this.playerPos.z + dirZ * (SHIP_RADIUS * 0.7) + spread * dirX * 3;
-    p.vx = dirX * 60 + this.playerVelX * 0.3;
-    p.vz = dirZ * 60 + this.playerVelZ * 0.3;
+    p.x = this.playerPos.x + backX * offsetDist + spread * backZ * 3;
+    p.z = this.playerPos.z + backZ * offsetDist + spread * backX * 3;
+    p.vx = backX * 60 + this.playerVelX * 0.3;
+    p.vz = backZ * 60 + this.playerVelZ * 0.3;
     p.age = 0;
     p.scale = 0.8 + Math.random() * 0.4;
     p.active = true;
@@ -960,8 +982,9 @@ export class ArenaEngine {
 
     const m = this.missiles[idx];
     m.angle = this.playerAimAngle;
-    const dirX = Math.sin(m.angle);
-    const dirZ = -Math.cos(m.angle);
+    // Use aim direction vector
+    const dirX = this.aimDirX || Math.cos(this.playerMesh.rotation.y);
+    const dirZ = this.aimDirZ || -Math.sin(this.playerMesh.rotation.y);
     m.x = this.playerPos.x + dirX * (SHIP_RADIUS + 5);
     m.z = this.playerPos.z + dirZ * (SHIP_RADIUS + 5);
     m.vx = dirX * this.MISSILE_SPEED;
