@@ -104,6 +104,12 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
         onPointerUp={(e) => handlePointerUp(e, 'left')}
         onPointerCancel={(e) => handlePointerUp(e, 'left')}
       >
+        {/* Static hint — always visible */}
+        <div style={styles.hint}>
+          <div style={styles.hintRing} />
+          <span style={styles.hintLabel}>MOVE</span>
+        </div>
+        {/* Active joystick — appears on touch */}
         <div ref={leftBaseRef} style={styles.base}>
           <div ref={leftKnobRef} style={styles.knob} />
         </div>
@@ -117,6 +123,12 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
         onPointerUp={(e) => handlePointerUp(e, 'right')}
         onPointerCancel={(e) => handlePointerUp(e, 'right')}
       >
+        {/* Static hint — always visible */}
+        <div style={{ ...styles.hint, left: 'auto', right: 60 }}>
+          <div style={{ ...styles.hintRing, borderColor: 'rgba(255, 68, 68, 0.25)' }} />
+          <span style={{ ...styles.hintLabel, color: 'rgba(255, 68, 68, 0.4)' }}>AIM</span>
+        </div>
+        {/* Active joystick — appears on touch */}
         <div ref={rightBaseRef} style={styles.base}>
           <div ref={rightKnobRef} style={{ ...styles.knob, background: 'rgba(255, 68, 68, 0.7)' }} />
         </div>
@@ -131,6 +143,28 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
 };
 
 const styles: Record<string, React.CSSProperties> = {
+  hint: {
+    position: 'absolute',
+    bottom: 80,
+    left: 60,
+    pointerEvents: 'none',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 6,
+  },
+  hintRing: {
+    width: 70,
+    height: 70,
+    borderRadius: '50%',
+    border: '2px dashed rgba(255, 255, 255, 0.15)',
+  },
+  hintLabel: {
+    fontFamily: 'monospace',
+    fontSize: 8,
+    letterSpacing: 2,
+    color: 'rgba(255, 255, 255, 0.25)',
+  },
   base: {
     display: 'none',
     position: 'absolute',

@@ -41,6 +41,26 @@ export class ArenaEngine {
   private playerMesh!: THREE.Mesh;
   private playerVelX = 0;
   private playerVelZ = 0;
+  private playerBankAngle = 0; // visual tilt during turns
+
+  // Engine exhaust particles (InstancedMesh pool)
+  private exhaustMesh!: THREE.InstancedMesh;
+  private exhaustParticles: { x: number; z: number; vx: number; vz: number; age: number; active: boolean; scale: number }[] = [];
+  private readonly EXHAUST_POOL = 60;
+  private readonly EXHAUST_LIFETIME = 0.4;
+  private exhaustSpawnTimer = 0;
+
+  // Missiles (homing, limited turn rate)
+  private missileMesh!: THREE.InstancedMesh;
+  private missiles: { x: number; z: number; vx: number; vz: number; age: number; active: boolean; angle: number }[] = [];
+  private readonly MISSILE_POOL = 20;
+  private readonly MISSILE_SPEED = 400;
+  private readonly MISSILE_LIFETIME = 3;
+  private readonly MISSILE_TURN_RATE = 2.5; // radians/sec
+  private readonly MISSILE_RADIUS = 2;
+  private readonly MISSILE_DAMAGE = 45;
+  private readonly MISSILE_COOLDOWN = 3.5;
+  private missileCooldownTimer = 0;
 
   // Asteroids
   private asteroidMesh!: THREE.InstancedMesh;
@@ -131,6 +151,8 @@ export class ArenaEngine {
     this.setupPlayerShip();
     this.setupAsteroids();
     this.setupBullets();
+    this.setupExhaust();
+    this.setupMissiles();
 
     window.addEventListener('resize', this.onResizeBound);
     window.addEventListener('keydown', this.onKeyDownBound);
@@ -526,12 +548,15 @@ export class ArenaEngine {
           this.phase = 'ended';
         }
         this.updatePlayer(dt);
-        this.updateAim();
+        this.updateAim(dt);
         this.updateShooting(dt);
         this.updateBullets(dt);
+        this.updateMissiles(dt);
+        this.updateExhaust(dt);
         this.updateAsteroids(dt);
         this.checkPlayerAsteroidCollisions();
         this.checkBulletAsteroidCollisions();
+        this.checkMissileAsteroidCollisions();
         break;
       case 'ended':
         // Freeze — waiting for React to show end screen
@@ -608,20 +633,30 @@ export class ArenaEngine {
 
   // ── Aim (mouse) ────────────────────────────────────────────────────────
 
-  private updateAim(): void {
+  private updateAim(dt: number): void {
+    const prevAngle = this.playerAimAngle;
+
     if (this.isMobile) {
-      // Mobile: right joystick sets aim direction directly
       const len = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
       if (len > 0.1) {
         this.playerAimAngle = Math.atan2(this.mobileAim.x, -this.mobileAim.z);
       }
     } else {
-      // Desktop: aim at mouse cursor on Y=0 plane
       const dx = this.aimPoint.x - this.playerPos.x;
       const dz = this.aimPoint.z - this.playerPos.z;
       this.playerAimAngle = Math.atan2(dx, -dz);
     }
+
+    // Bank angle — visual tilt when turning sharply
+    let angleDelta = this.playerAimAngle - prevAngle;
+    // Normalize to [-PI, PI]
+    while (angleDelta > Math.PI) angleDelta -= Math.PI * 2;
+    while (angleDelta < -Math.PI) angleDelta += Math.PI * 2;
+    const targetBank = Math.max(-0.3, Math.min(0.3, -angleDelta * 3));
+    this.playerBankAngle += (targetBank - this.playerBankAngle) * Math.min(1, dt * 8);
+
     this.playerMesh.rotation.y = this.playerAimAngle;
+    this.playerMesh.rotation.z = this.playerBankAngle; // visual bank/tilt
   }
 
   // ── Shooting ───────────────────────────────────────────────────────────
@@ -799,6 +834,251 @@ export class ArenaEngine {
       this.asteroidMesh.setMatrixAt(i, dummy.matrix);
     }
     this.asteroidMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // ── Engine exhaust particles ─────────────────────────────────────────
+
+  private setupExhaust(): void {
+    const geo = new THREE.SphereGeometry(1.2, 3, 3);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff8844, transparent: true, opacity: 0.8 });
+    this.disposables.push(geo, mat);
+
+    this.exhaustMesh = new THREE.InstancedMesh(geo, mat, this.EXHAUST_POOL);
+    this.exhaustMesh.frustumCulled = false;
+
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < this.EXHAUST_POOL; i++) {
+      dummy.position.set(0, -1000, 0);
+      dummy.scale.set(0, 0, 0);
+      dummy.updateMatrix();
+      this.exhaustMesh.setMatrixAt(i, dummy.matrix);
+      this.exhaustParticles.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false, scale: 1 });
+    }
+    this.exhaustMesh.instanceMatrix.needsUpdate = true;
+    this.scene.add(this.exhaustMesh);
+  }
+
+  private spawnExhaust(): void {
+    const idx = this.exhaustParticles.findIndex(p => !p.active);
+    if (idx === -1) return;
+
+    const dirX = -Math.sin(this.playerAimAngle);
+    const dirZ = Math.cos(this.playerAimAngle);
+    const spread = (Math.random() - 0.5) * 0.4;
+
+    const p = this.exhaustParticles[idx];
+    p.x = this.playerPos.x + dirX * (SHIP_RADIUS * 0.7) + spread * dirZ * 3;
+    p.z = this.playerPos.z + dirZ * (SHIP_RADIUS * 0.7) + spread * dirX * 3;
+    p.vx = dirX * 60 + this.playerVelX * 0.3;
+    p.vz = dirZ * 60 + this.playerVelZ * 0.3;
+    p.age = 0;
+    p.scale = 0.8 + Math.random() * 0.4;
+    p.active = true;
+  }
+
+  private updateExhaust(dt: number): void {
+    // Spawn when thrusting
+    const isThrusting = this.isMobile
+      ? (Math.abs(this.mobileMove.x) > 0.1 || Math.abs(this.mobileMove.z) > 0.1)
+      : (this.keys.has('w') || this.keys.has('a') || this.keys.has('s') || this.keys.has('d'));
+
+    if (isThrusting) {
+      this.exhaustSpawnTimer -= dt;
+      if (this.exhaustSpawnTimer <= 0) {
+        this.spawnExhaust();
+        this.spawnExhaust(); // 2 per tick
+        this.exhaustSpawnTimer = 0.03; // ~33 per second
+      }
+    }
+
+    const dummy = new THREE.Object3D();
+    let needsUpdate = false;
+
+    for (let i = 0; i < this.exhaustParticles.length; i++) {
+      const p = this.exhaustParticles[i];
+      if (!p.active) continue;
+
+      p.x += p.vx * dt;
+      p.z += p.vz * dt;
+      p.age += dt;
+
+      if (p.age >= this.EXHAUST_LIFETIME) {
+        p.active = false;
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        this.exhaustMesh.setMatrixAt(i, dummy.matrix);
+        needsUpdate = true;
+        continue;
+      }
+
+      // Shrink + fade over lifetime
+      const t = p.age / this.EXHAUST_LIFETIME;
+      const s = p.scale * (1 - t);
+      dummy.position.set(p.x, 2, p.z);
+      dummy.scale.set(s, s, s);
+      dummy.updateMatrix();
+      this.exhaustMesh.setMatrixAt(i, dummy.matrix);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) this.exhaustMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // ── Homing missiles ─────────────────────────────────────────────────────
+
+  private setupMissiles(): void {
+    const geo = new THREE.ConeGeometry(1, 4, 4);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+    this.disposables.push(geo, mat);
+
+    this.missileMesh = new THREE.InstancedMesh(geo, mat, this.MISSILE_POOL);
+    this.missileMesh.frustumCulled = false;
+
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < this.MISSILE_POOL; i++) {
+      dummy.position.set(0, -1000, 0);
+      dummy.scale.set(0, 0, 0);
+      dummy.updateMatrix();
+      this.missileMesh.setMatrixAt(i, dummy.matrix);
+      this.missiles.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false, angle: 0 });
+    }
+    this.missileMesh.instanceMatrix.needsUpdate = true;
+    this.scene.add(this.missileMesh);
+  }
+
+  fireMissile(): void {
+    this.missileCooldownTimer = this.MISSILE_COOLDOWN;
+    const idx = this.missiles.findIndex(m => !m.active);
+    if (idx === -1) return;
+
+    const m = this.missiles[idx];
+    m.angle = this.playerAimAngle;
+    const dirX = Math.sin(m.angle);
+    const dirZ = -Math.cos(m.angle);
+    m.x = this.playerPos.x + dirX * (SHIP_RADIUS + 5);
+    m.z = this.playerPos.z + dirZ * (SHIP_RADIUS + 5);
+    m.vx = dirX * this.MISSILE_SPEED;
+    m.vz = dirZ * this.MISSILE_SPEED;
+    m.age = 0;
+    m.active = true;
+  }
+
+  private updateMissiles(dt: number): void {
+    // Fire missile with E key or right-click
+    this.missileCooldownTimer = Math.max(0, this.missileCooldownTimer - dt);
+    if (this.missileCooldownTimer <= 0 && (this.keys.has('e') || this.keys.has(' '))) {
+      this.fireMissile();
+    }
+
+    // Find nearest asteroid as homing target
+    const findTarget = (mx: number, mz: number): { x: number; z: number } | null => {
+      let best: { x: number; z: number } | null = null;
+      let bestDist = 500; // max homing range
+      for (const a of this.asteroidData) {
+        if (!a.alive) continue;
+        const d = Math.sqrt((mx - a.x) ** 2 + (mz - a.z) ** 2);
+        if (d < bestDist) { bestDist = d; best = { x: a.x, z: a.z }; }
+      }
+      return best;
+    };
+
+    const dummy = new THREE.Object3D();
+    let needsUpdate = false;
+
+    for (let i = 0; i < this.missiles.length; i++) {
+      const m = this.missiles[i];
+      if (!m.active) continue;
+
+      m.age += dt;
+      if (m.age >= this.MISSILE_LIFETIME) {
+        m.active = false;
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        this.missileMesh.setMatrixAt(i, dummy.matrix);
+        needsUpdate = true;
+        continue;
+      }
+
+      // Homing: limited turn rate toward nearest target
+      const target = findTarget(m.x, m.z);
+      if (target) {
+        const desiredAngle = Math.atan2(target.x - m.x, -(target.z - m.z));
+        let angleDiff = desiredAngle - m.angle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+        const maxTurn = this.MISSILE_TURN_RATE * dt;
+        if (Math.abs(angleDiff) > maxTurn) {
+          m.angle += Math.sign(angleDiff) * maxTurn;
+        } else {
+          m.angle = desiredAngle;
+        }
+      }
+
+      // Update velocity from angle
+      m.vx = Math.sin(m.angle) * this.MISSILE_SPEED;
+      m.vz = -Math.cos(m.angle) * this.MISSILE_SPEED;
+      m.x += m.vx * dt;
+      m.z += m.vz * dt;
+
+      // Visual
+      dummy.position.set(m.x, 4, m.z);
+      dummy.scale.set(1.5, 1.5, 1.5);
+      dummy.rotation.set(-Math.PI / 2, 0, 0);
+      dummy.rotateY(m.angle);
+      dummy.updateMatrix();
+      this.missileMesh.setMatrixAt(i, dummy.matrix);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) this.missileMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  private checkMissileAsteroidCollisions(): void {
+    const dummy = new THREE.Object3D();
+    for (let mi = 0; mi < this.missiles.length; mi++) {
+      const m = this.missiles[mi];
+      if (!m.active) continue;
+
+      for (let ai = 0; ai < this.asteroidData.length; ai++) {
+        const a = this.asteroidData[ai];
+        if (!a.alive) continue;
+        const dx = m.x - a.x;
+        const dz = m.z - a.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < a.radius + this.MISSILE_RADIUS) {
+          // Missile hit asteroid — AoE: damage all nearby asteroids
+          m.active = false;
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.set(0, 0, 0);
+          dummy.updateMatrix();
+          this.missileMesh.setMatrixAt(mi, dummy.matrix);
+          this.missileMesh.instanceMatrix.needsUpdate = true;
+
+          // Splash damage in radius 30
+          for (const a2 of this.asteroidData) {
+            if (!a2.alive) continue;
+            const d2 = Math.sqrt((m.x - a2.x) ** 2 + (m.z - a2.z) ** 2);
+            if (d2 < 30) {
+              a2.hp -= 3;
+              if (a2.hp <= 0) {
+                a2.alive = false;
+                a2.respawnTimer = 10;
+                const idx2 = this.asteroidData.indexOf(a2);
+                dummy.position.set(0, -1000, 0);
+                dummy.scale.set(0, 0, 0);
+                dummy.updateMatrix();
+                this.asteroidMesh.setMatrixAt(idx2, dummy.matrix);
+                this.asteroidMesh.instanceMatrix.needsUpdate = true;
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
   }
 
   // ── Public getters ─────────────────────────────────────────────────────
