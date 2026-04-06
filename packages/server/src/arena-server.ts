@@ -6,7 +6,7 @@
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { Matchmaker } from './arena-matchmaker.js';
-import type { ArenaPlayer } from './arena-matchmaker.js';
+import type { ServerPlayer } from './arena-matchmaker.js';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
@@ -36,11 +36,33 @@ wss.on('connection', (ws: WebSocket) => {
   const playerId = `player_${nextPlayerId++}`;
   console.log(`[Arena] Player connected: ${playerId}`);
 
-  // Create player object with send wrapper
-  const player: ArenaPlayer = {
+  // Create player object with send wrapper.
+  // Stats (hp, shield, speed, damage, position, etc.) are initialized by
+  // ArenaRoom.addPlayer() → respawnPlayer(), so we only need placeholders here.
+  const player: ServerPlayer = {
     id: playerId,
     name: `Player ${nextPlayerId}`,
     shipType: 'default',
+    x: 0,
+    z: 0,
+    rotation: 0,
+    hp: 100,
+    maxHp: 100,
+    shield: 50,
+    maxShield: 50,
+    lastDamageTakenAt: 0,
+    invulnerableUntil: 0,
+    baseSpeed: 200,
+    speedMult: 1,
+    baseDamage: 15,
+    damageMult: 1,
+    laserColor: 'green',
+    buffs: [],
+    slowExpiresAt: 0,
+    kills: 0,
+    deaths: 0,
+    score: 0,
+    damageDealt: 0,
     send: (event: string, data: unknown) => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ event, data }));
@@ -78,7 +100,7 @@ wss.on('connection', (ws: WebSocket) => {
   });
 });
 
-function handleMessage(playerId: string, msg: { event: string; data?: any }, player: ArenaPlayer) {
+function handleMessage(playerId: string, msg: { event: string; data?: any }, player: ServerPlayer) {
   switch (msg.event) {
     case 'join_queue':
       matchmaker.joinQueue(player);
