@@ -646,10 +646,18 @@ export class ArenaEngine {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
-      const len = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
-      if (len > 0.1) {
-        this.aimDirX = this.mobileAim.x / len;
-        this.aimDirZ = this.mobileAim.z / len;
+      // Right joystick active → aim where it points
+      const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
+      if (aimLen > 0.1) {
+        this.aimDirX = this.mobileAim.x / aimLen;
+        this.aimDirZ = this.mobileAim.z / aimLen;
+      } else {
+        // Right joystick idle → face movement direction (left joystick)
+        const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
+        if (moveLen > 0.1) {
+          this.aimDirX = this.mobileMove.x / moveLen;
+          this.aimDirZ = this.mobileMove.z / moveLen;
+        }
       }
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;
