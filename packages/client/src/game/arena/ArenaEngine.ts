@@ -163,57 +163,56 @@ export class ArenaEngine {
 
   private setupScene(): void {
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x020510, 0.0003);
+    // No fog — stars must be visible at far distances
   }
 
   private setupCamera(): void {
     const W = this.container.clientWidth;
     const H = this.container.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(CAMERA_FOV, W / H, 1, 5000);
+    this.camera = new THREE.PerspectiveCamera(CAMERA_FOV, W / H, 1, 15000);
     this.camera.position.set(0, CAMERA_HEIGHT, CAMERA_DISTANCE);
     this.camera.lookAt(0, 0, 0);
   }
 
   private setupFloor(): void {
-    // Generate grid texture via Canvas2D
+    // Subtle grid texture — thin lines on near-transparent dark background
     const gridSize = 512;
     const canvas = document.createElement('canvas');
     canvas.width = gridSize;
     canvas.height = gridSize;
     const ctx = canvas.getContext('2d')!;
 
-    // Dark background
-    ctx.fillStyle = '#060a14';
+    // Nearly transparent background
+    ctx.fillStyle = 'rgba(4, 8, 16, 0.4)';
     ctx.fillRect(0, 0, gridSize, gridSize);
 
-    // Grid lines
-    ctx.strokeStyle = 'rgba(51, 68, 85, 0.3)';
-    ctx.lineWidth = 1;
-    const cellSize = gridSize / 16;
-    for (let i = 0; i <= 16; i++) {
+    // Thin subtle grid lines
+    ctx.strokeStyle = 'rgba(40, 60, 90, 0.15)';
+    ctx.lineWidth = 0.5;
+    const cellSize = gridSize / 8;
+    for (let i = 0; i <= 8; i++) {
       const p = i * cellSize;
-      ctx.beginPath();
-      ctx.moveTo(p, 0);
-      ctx.lineTo(p, gridSize);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, p);
-      ctx.lineTo(gridSize, p);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, gridSize); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(gridSize, p); ctx.stroke();
     }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(16, 16);
+    texture.repeat.set(20, 20);
     this.disposables.push(texture);
 
     const geo = new THREE.PlaneGeometry(ARENA_SIZE, ARENA_SIZE);
-    const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+    const mat = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.6,
+    });
     this.disposables.push(geo, mat);
 
     this.floorMesh = new THREE.Mesh(geo, mat);
-    this.floorMesh.rotation.x = -Math.PI / 2; // XZ plane
+    this.floorMesh.rotation.x = -Math.PI / 2;
     this.floorMesh.position.y = 0;
     this.scene.add(this.floorMesh);
   }
@@ -239,21 +238,33 @@ export class ArenaEngine {
   }
 
   private setupStarfield(): void {
-    const positions = new Float32Array(STARFIELD_COUNT * 3);
-    for (let i = 0; i < STARFIELD_COUNT; i++) {
+    const count = STARFIELD_COUNT * 2; // more stars for immersion
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
       const i3 = i * 3;
-      // Hemisphere above the arena
+      // Full sphere distribution (visible from any camera angle)
       const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI * 0.4; // upper hemisphere
-      const r = 2000 + Math.random() * 1000;
-      positions[i3] = r * Math.sin(phi) * Math.cos(theta);
+      const phi = Math.acos(2 * Math.random() - 1); // uniform sphere
+      const r = 5000 + Math.random() * 5000;
+      positions[i3]     = r * Math.sin(phi) * Math.cos(theta);
       positions[i3 + 1] = r * Math.cos(phi);
       positions[i3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+      // Vary color: white-blue-yellow
+      const t = Math.random();
+      colors[i3]     = 0.6 + t * 0.4; // R
+      colors[i3 + 1] = 0.7 + t * 0.3; // G
+      colors[i3 + 2] = 0.8 + t * 0.2; // B
     }
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const mat = new THREE.PointsMaterial({ color: 0x556677, size: 3, sizeAttenuation: true });
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const mat = new THREE.PointsMaterial({
+      size: 4,
+      sizeAttenuation: true,
+      vertexColors: true,
+    });
     this.disposables.push(geo, mat);
 
     this.starfield = new THREE.Points(geo, mat);
