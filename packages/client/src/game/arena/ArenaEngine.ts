@@ -73,7 +73,7 @@ export class ArenaEngine {
   private readonly EXHAUST_LIFETIME = 0.4;
   private exhaustSpawnTimer = 0;
 
-  // Missiles (homing, limited turn rate)
+  // Missiles (homing, limited turn rate, ammo-based)
   private missileMesh!: THREE.InstancedMesh;
   private missiles: { x: number; z: number; vx: number; vz: number; age: number; active: boolean; angle: number }[] = [];
   private readonly MISSILE_POOL = 20;
@@ -82,8 +82,20 @@ export class ArenaEngine {
   private readonly MISSILE_TURN_RATE = 2.5; // radians/sec
   private readonly MISSILE_RADIUS = 2;
   private readonly MISSILE_DAMAGE = 45;
-  private readonly MISSILE_COOLDOWN = 3.5;
+  private readonly MISSILE_COOLDOWN = 0.5; // between individual shots
   private missileCooldownTimer = 0;
+  private missileAmmo = 10;
+  private readonly MISSILE_MAX_AMMO = 10;
+  private readonly MISSILE_RELOAD_TIME = 60; // seconds to reload all 10
+  private missileReloadTimer = 0;
+
+  // Warp boost (1s forward burst, 2x speed, blur effect)
+  private warpActive = false;
+  private warpTimer = 0;
+  private readonly WARP_DURATION = 1.0;
+  private readonly WARP_SPEED_MULT = 2.0;
+  private readonly WARP_COOLDOWN = 8;
+  private warpCooldownTimer = 0;
 
   // Asteroids
   private asteroidMesh!: THREE.InstancedMesh;
@@ -262,7 +274,10 @@ export class ArenaEngine {
   }
 
   triggerDash(): void {
-    // TODO: implement dash
+    if (this.warpCooldownTimer > 0 || this.warpActive) return;
+    this.warpActive = true;
+    this.warpTimer = this.WARP_DURATION;
+    this.warpCooldownTimer = this.WARP_COOLDOWN;
   }
 
   /** Gravity push — shove nearest asteroid in front of ship at 2x ship speed */
@@ -627,6 +642,7 @@ export class ArenaEngine {
           this.phase = 'ended';
         }
         this.updateDeathRespawn(dt);
+        this.updateWarp(dt);
         if (!this.playerDead) {
           this.updatePlayer(dt);
           this.updateAim(dt);
@@ -685,11 +701,19 @@ export class ArenaEngine {
     this.playerVelX *= SHIP_DRAG;
     this.playerVelZ *= SHIP_DRAG;
 
+    // Warp: override velocity to forward direction at 2x speed
+    if (this.warpActive) {
+      const warpSpeed = SHIP_MAX_SPEED * this.WARP_SPEED_MULT;
+      this.playerVelX = this.aimDirX * warpSpeed;
+      this.playerVelZ = this.aimDirZ * warpSpeed;
+    }
+
     // Clamp speed
+    const maxSpd = this.warpActive ? SHIP_MAX_SPEED * this.WARP_SPEED_MULT : SHIP_MAX_SPEED;
     const speed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
-    if (speed > SHIP_MAX_SPEED) {
-      this.playerVelX = (this.playerVelX / speed) * SHIP_MAX_SPEED;
-      this.playerVelZ = (this.playerVelZ / speed) * SHIP_MAX_SPEED;
+    if (speed > maxSpd) {
+      this.playerVelX = (this.playerVelX / speed) * maxSpd;
+      this.playerVelZ = (this.playerVelZ / speed) * maxSpd;
     }
 
     // Move
@@ -1097,7 +1121,10 @@ export class ArenaEngine {
   }
 
   fireMissile(): void {
+    if (this.missileAmmo <= 0 || this.missileCooldownTimer > 0) return;
+    this.missileAmmo--;
     this.missileCooldownTimer = this.MISSILE_COOLDOWN;
+    if (this.missileAmmo <= 0) this.missileReloadTimer = this.MISSILE_RELOAD_TIME;
     const idx = this.missiles.findIndex(m => !m.active);
     if (idx === -1) return;
 
@@ -1115,9 +1142,19 @@ export class ArenaEngine {
   }
 
   private updateMissiles(dt: number): void {
-    // Fire missile with E key or right-click
     this.missileCooldownTimer = Math.max(0, this.missileCooldownTimer - dt);
-    if (this.missileCooldownTimer <= 0 && (this.keys.has('e') || this.keys.has(' '))) {
+
+    // Reload ammo over time
+    if (this.missileAmmo < this.MISSILE_MAX_AMMO) {
+      this.missileReloadTimer -= dt;
+      if (this.missileReloadTimer <= 0) {
+        this.missileAmmo = this.MISSILE_MAX_AMMO;
+        this.missileReloadTimer = 0;
+      }
+    }
+
+    // Fire missile with E key or Space
+    if (this.missileCooldownTimer <= 0 && this.missileAmmo > 0 && (this.keys.has('e') || this.keys.has(' '))) {
       this.fireMissile();
     }
 
@@ -1228,6 +1265,17 @@ export class ArenaEngine {
           break;
         }
       }
+    }
+  }
+
+  // ── Warp boost ──────────────────────────────────────────────────────────
+
+  private updateWarp(dt: number): void {
+    this.warpCooldownTimer = Math.max(0, this.warpCooldownTimer - dt);
+    if (!this.warpActive) return;
+    this.warpTimer -= dt;
+    if (this.warpTimer <= 0) {
+      this.warpActive = false;
     }
   }
 
@@ -1434,4 +1482,10 @@ export class ArenaEngine {
   getCountdownTimer(): number { return this.countdownTimer; }
   isPlayerDead(): boolean { return this.playerDead; }
   getRespawnTimer(): number { return this.respawnTimer; }
+  getMissileAmmo(): number { return this.missileAmmo; }
+  getMissileReloadTimer(): number { return this.missileReloadTimer; }
+  getMissileReloadTotal(): number { return this.MISSILE_RELOAD_TIME; }
+  isWarpActive(): boolean { return this.warpActive; }
+  getWarpCooldown(): number { return this.warpCooldownTimer; }
+  getWarpCooldownTotal(): number { return this.WARP_COOLDOWN; }
 }

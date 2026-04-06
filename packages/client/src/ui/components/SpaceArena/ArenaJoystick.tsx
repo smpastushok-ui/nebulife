@@ -7,11 +7,14 @@ interface ArenaJoystickProps {
   onFireLaser?: (firing: boolean) => void;
   onFireMissile?: () => void;
   onGravPush?: () => void;
+  missileAmmo?: number;
+  warpReady?: boolean;
+  isWarping?: boolean;
 }
 
 const MAX_RADIUS = 50;
 
-export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onDash, onFireLaser, onFireMissile, onGravPush }) => {
+export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onDash, onFireLaser, onFireMissile, onGravPush, missileAmmo = 10, warpReady = true, isWarping = false }) => {
   const leftBaseRef = useRef<HTMLDivElement>(null);
   const leftKnobRef = useRef<HTMLDivElement>(null);
   const leftPointerId = useRef<number | null>(null);
@@ -124,16 +127,16 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
         display: 'flex', flexDirection: 'column', gap: 12,
         zIndex: 60,
       }}>
-        {/* Missile button */}
+        {/* Missile button with ammo count */}
         <button
-          onPointerDown={() => onFireMissile?.()}
-          style={styles.weaponBtn}
+          onPointerDown={() => missileAmmo > 0 && onFireMissile?.()}
+          style={{ ...styles.weaponBtn, opacity: missileAmmo > 0 ? 1 : 0.4 }}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff4444" strokeWidth="2" strokeLinecap="round">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff4444' : '#664444'} strokeWidth="2" strokeLinecap="round">
             <path d="M12 2L15 8L12 22L9 8Z" />
             <line x1="7" y1="12" x2="17" y2="12" />
           </svg>
-          <span style={styles.weaponLabel}>ROCKET</span>
+          <span style={{ ...styles.weaponLabel, color: missileAmmo > 0 ? '#ff6666' : '#664444' }}>{missileAmmo > 0 ? `${missileAmmo}` : 'RELOAD'}</span>
         </button>
 
         {/* Laser button (hold to fire) */}
@@ -151,15 +154,15 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
           <span style={{ ...styles.weaponLabel, color: '#66ff99' }}>LASER</span>
         </button>
 
-        {/* Boost button */}
+        {/* Warp button with cooldown */}
         <button
-          onPointerDown={onDash}
-          style={styles.weaponBtn}
+          onPointerDown={() => warpReady && onDash()}
+          style={{ ...styles.weaponBtn, opacity: warpReady ? 1 : 0.4, border: isWarping ? '2px solid #00eeff' : '2px solid rgba(100, 140, 180, 0.3)' }}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00eeff" strokeWidth="2" strokeLinecap="round">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#00eeff' : '#446677'} strokeWidth="2" strokeLinecap="round">
             <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
           </svg>
-          <span style={{ ...styles.weaponLabel, color: '#44ddff' }}>BOOST</span>
+          <span style={{ ...styles.weaponLabel, color: warpReady ? '#44ddff' : '#446677' }}>{isWarping ? 'WARP!' : warpReady ? 'WARP' : 'WAIT'}</span>
         </button>
       </div>
 

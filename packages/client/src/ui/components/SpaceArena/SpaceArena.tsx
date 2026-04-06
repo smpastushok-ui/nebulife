@@ -55,6 +55,22 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
     engineRef.current?.triggerGravPush();
   }, []);
 
+  // Poll engine state for UI (missile ammo, warp cooldown)
+  const [missileAmmo, setMissileAmmo] = useState(10);
+  const [warpReady, setWarpReady] = useState(true);
+  const [isWarping, setIsWarping] = useState(false);
+  useEffect(() => {
+    if (!ready) return;
+    const id = setInterval(() => {
+      const e = engineRef.current;
+      if (!e) return;
+      setMissileAmmo(e.getMissileAmmo());
+      setWarpReady(e.getWarpCooldown() <= 0);
+      setIsWarping(e.isWarpActive());
+    }, 200); // 5 fps UI poll
+    return () => clearInterval(id);
+  }, [ready]);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -78,7 +94,11 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
       {/* Three.js canvas container — z-index 0 so UI stays on top */}
       <div
         ref={containerRef}
-        style={{ position: 'absolute', inset: 0, zIndex: 0 }}
+        style={{
+          position: 'absolute', inset: 0, zIndex: 0,
+          filter: isWarping ? 'blur(2px) brightness(1.3)' : 'none',
+          transition: 'filter 0.15s',
+        }}
       />
 
       {/* HUD overlay */}
@@ -167,6 +187,9 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
           onFireLaser={handleFireLaser}
           onFireMissile={handleFireMissile}
           onGravPush={handleGravPush}
+          missileAmmo={missileAmmo}
+          warpReady={warpReady}
+          isWarping={isWarping}
         />
       )}
     </div>

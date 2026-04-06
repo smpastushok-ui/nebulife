@@ -883,7 +883,12 @@ function AppInner() {
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   const [showAcademy, setShowAcademy] = useState(false);
-  const [showArena, setShowArena] = useState(false);
+  const [showArena, setShowArenaRaw] = useState(() => localStorage.getItem('nebulife_arena_active') === '1');
+  const setShowArena = useCallback((val: boolean) => {
+    setShowArenaRaw(val);
+    if (val) localStorage.setItem('nebulife_arena_active', '1');
+    else localStorage.removeItem('nebulife_arena_active');
+  }, []);
   const [sharedLessonInfo, setSharedLessonInfo] = useState<SharedLessonInfo | null>(() => {
     // Read share params from URL on first load
     try {
