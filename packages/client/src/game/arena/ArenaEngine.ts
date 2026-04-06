@@ -411,20 +411,26 @@ export class ArenaEngine {
   }
 
   private setupPlayerShip(): void {
-    // Green triangle placeholder for player ship
-    const shape = new THREE.Shape();
-    shape.moveTo(0, SHIP_RADIUS);      // nose (forward = +Z)
-    shape.lineTo(-SHIP_RADIUS * 0.7, -SHIP_RADIUS * 0.6);
-    shape.lineTo(SHIP_RADIUS * 0.7, -SHIP_RADIUS * 0.6);
-    shape.closePath();
+    // 2D sprite ship — star_ship1.webp (nose = top of image)
+    const loader = new THREE.TextureLoader();
+    const texture = loader.load('/arena_ships/star_ship1.webp');
+    texture.colorSpace = THREE.SRGBColorSpace;
+    this.disposables.push(texture);
 
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: 3, bevelEnabled: false });
-    const mat = new THREE.MeshBasicMaterial({ color: 0x44ff88 });
+    const size = SHIP_RADIUS * 3;
+    const geo = new THREE.PlaneGeometry(size, size);
+    const mat = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
     this.disposables.push(geo, mat);
 
     this.playerMesh = new THREE.Mesh(geo, mat);
-    this.playerMesh.rotation.x = -Math.PI / 2; // lay flat on XZ
-    this.playerMesh.position.set(0, 3, 0); // slightly above floor
+    this.playerMesh.rotation.x = -Math.PI / 2; // lay flat on XZ plane
+    // Nose points "up" in texture → rotation.y=0 means nose faces -Z (forward)
+    this.playerMesh.position.set(0, 5, 0);
     this.scene.add(this.playerMesh);
   }
 
