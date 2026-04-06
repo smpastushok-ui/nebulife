@@ -6,11 +6,14 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ArenaEngine } from '../../../game/arena/index.js';
 import type { ArenaCallbacks, MatchResult } from '../../../game/arena/index.js';
+import { ArenaJoystick } from './ArenaJoystick.js';
 
 interface SpaceArenaProps {
   onExit: () => void;
   onMatchEnd?: (result: MatchResult) => void;
 }
+
+const isMobileDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,6 +25,7 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
   const [maxShield] = useState(50);
   const [kills, setKills] = useState(0);
   const [deaths, setDeaths] = useState(0);
+  const [mobile] = useState(isMobileDevice);
 
   const callbacks = useRef<ArenaCallbacks>({
     onMatchEnd: (result) => onMatchEnd?.(result),
@@ -31,11 +35,23 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
     },
   });
 
+  // Mobile joystick callbacks
+  const handleMove = useCallback((x: number, y: number) => {
+    engineRef.current?.setMobileMove(x, y);
+  }, []);
+  const handleAim = useCallback((x: number, y: number, firing: boolean) => {
+    engineRef.current?.setMobileAim(x, y, firing);
+  }, []);
+  const handleDash = useCallback(() => {
+    engineRef.current?.triggerDash();
+  }, []);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
     const engine = new ArenaEngine(containerRef.current, callbacks.current);
     engineRef.current = engine;
+    engine.setIsMobile(mobile);
 
     engine.init().then(() => {
       setReady(true);
@@ -131,6 +147,15 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
       >
         BACK
       </button>
+
+      {/* Mobile joysticks */}
+      {mobile && ready && (
+        <ArenaJoystick
+          onMove={handleMove}
+          onAim={handleAim}
+          onDash={handleDash}
+        />
+      )}
     </div>
   );
 }

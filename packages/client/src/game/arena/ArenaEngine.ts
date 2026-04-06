@@ -44,7 +44,35 @@ export class ArenaEngine {
 
   // Asteroids
   private asteroidMesh!: THREE.InstancedMesh;
-  private asteroidData: { x: number; z: number; vx: number; vz: number; radius: number; rot: number; rotSpeed: number }[] = [];
+  private asteroidData: { x: number; z: number; vx: number; vz: number; radius: number; rot: number; rotSpeed: number; hp: number; alive: boolean; respawnTimer: number }[] = [];
+
+  // Bullets (pulse blaster) — InstancedMesh pool
+  private bulletMesh!: THREE.InstancedMesh;
+  private bullets: { x: number; z: number; vx: number; vz: number; age: number; active: boolean }[] = [];
+  private readonly BULLET_POOL = 100;
+  private readonly BULLET_SPEED = 800;
+  private readonly BULLET_LIFETIME = 0.75;
+  private readonly BULLET_RADIUS = 1.5;
+  private readonly BULLET_DAMAGE = 15;
+  private readonly FIRE_COOLDOWN = 0.25;
+  private fireCooldownTimer = 0;
+  private mouseDown = false;
+
+  // Mouse aim
+  private raycaster = new THREE.Raycaster();
+  private aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private mouseNDC = new THREE.Vector2();
+  private aimPoint = new THREE.Vector3(0, 0, 100);
+  private playerAimAngle = 0;
+
+  // Collision temp
+  private readonly ASTEROID_HP_MAX = 5;
+
+  // Mobile joystick input
+  private mobileMove = { x: 0, z: 0 };
+  private mobileAim = { x: 0, z: 0 };
+  private mobileFiring = false;
+  private isMobile = false;
 
   // Game state
   private phase: MatchPhase = 'waiting';
@@ -71,6 +99,9 @@ export class ArenaEngine {
   // Bound handlers (for cleanup)
   private onResizeBound: () => void;
   private onWheelBound: (e: WheelEvent) => void;
+  private onMouseMoveBound: (e: MouseEvent) => void;
+  private onMouseDownBound: (e: MouseEvent) => void;
+  private onMouseUpBound: (e: MouseEvent) => void;
 
   // Track all disposables for cleanup
   private disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
@@ -82,6 +113,9 @@ export class ArenaEngine {
     this.onWheelBound = this.onWheel.bind(this);
     this.onKeyDownBound = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());
     this.onKeyUpBound = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
+    this.onMouseMoveBound = this.onMouseMove.bind(this);
+    this.onMouseDownBound = () => { this.mouseDown = true; };
+    this.onMouseUpBound = () => { this.mouseDown = false; };
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -96,11 +130,15 @@ export class ArenaEngine {
     this.setupLights();
     this.setupPlayerShip();
     this.setupAsteroids();
+    this.setupBullets();
 
     window.addEventListener('resize', this.onResizeBound);
     window.addEventListener('keydown', this.onKeyDownBound);
     window.addEventListener('keyup', this.onKeyUpBound);
     this.renderer.domElement.addEventListener('wheel', this.onWheelBound, { passive: false });
+    this.renderer.domElement.addEventListener('mousemove', this.onMouseMoveBound);
+    this.renderer.domElement.addEventListener('mousedown', this.onMouseDownBound);
+    this.renderer.domElement.addEventListener('mouseup', this.onMouseUpBound);
 
     this.visible = true;
     this.clock.start();
@@ -118,6 +156,9 @@ export class ArenaEngine {
     window.removeEventListener('keydown', this.onKeyDownBound);
     window.removeEventListener('keyup', this.onKeyUpBound);
     this.renderer?.domElement?.removeEventListener('wheel', this.onWheelBound);
+    this.renderer?.domElement?.removeEventListener('mousemove', this.onMouseMoveBound);
+    this.renderer?.domElement?.removeEventListener('mousedown', this.onMouseDownBound);
+    this.renderer?.domElement?.removeEventListener('mouseup', this.onMouseUpBound);
 
     // Dispose all tracked geometry/material/textures
     for (const d of this.disposables) {
@@ -160,10 +201,27 @@ export class ArenaEngine {
     }
   }
 
-  // ── Input API (called by ArenaControls) ────────────────────────────────
+  // ── Input API ──────────────────────────────────────────────────────────
 
   setInput(input: InputState): void {
     this.input = input;
+  }
+
+  setMobileMove(x: number, y: number): void {
+    this.mobileMove = { x, z: y };
+  }
+
+  setMobileAim(x: number, y: number, firing: boolean): void {
+    this.mobileAim = { x, z: y };
+    this.mobileFiring = firing;
+  }
+
+  triggerDash(): void {
+    // TODO: implement dash
+  }
+
+  setIsMobile(mobile: boolean): void {
+    this.isMobile = mobile;
   }
 
   // ── Match control ──────────────────────────────────────────────────────
@@ -375,6 +433,9 @@ export class ArenaEngine {
         radius,
         rot: Math.random() * Math.PI * 2,
         rotSpeed: (Math.random() - 0.5) * 2,
+        hp: this.ASTEROID_HP_MAX,
+        alive: true,
+        respawnTimer: 0,
       });
 
       dummy.position.set(x, radius * 0.3, z);
@@ -385,6 +446,40 @@ export class ArenaEngine {
     }
     this.asteroidMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(this.asteroidMesh);
+  }
+
+  private setupBullets(): void {
+    const geo = new THREE.SphereGeometry(this.BULLET_RADIUS, 4, 4);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x44ff88 });
+    this.disposables.push(geo, mat);
+
+    this.bulletMesh = new THREE.InstancedMesh(geo, mat, this.BULLET_POOL);
+    this.bulletMesh.frustumCulled = false;
+
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < this.BULLET_POOL; i++) {
+      // Hide all bullets initially
+      dummy.position.set(0, -1000, 0);
+      dummy.scale.set(0, 0, 0);
+      dummy.updateMatrix();
+      this.bulletMesh.setMatrixAt(i, dummy.matrix);
+      this.bullets.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false });
+    }
+    this.bulletMesh.instanceMatrix.needsUpdate = true;
+    this.scene.add(this.bulletMesh);
+  }
+
+  private onMouseMove(e: MouseEvent): void {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    // Raycast to Y=0 plane
+    this.raycaster.setFromCamera(this.mouseNDC, this.camera);
+    const hit = new THREE.Vector3();
+    if (this.raycaster.ray.intersectPlane(this.aimPlane, hit)) {
+      this.aimPoint.copy(hit);
+    }
   }
 
   // ── Resize handler ─────────────────────────────────────────────────────
@@ -431,7 +526,12 @@ export class ArenaEngine {
           this.phase = 'ended';
         }
         this.updatePlayer(dt);
+        this.updateAim();
+        this.updateShooting(dt);
+        this.updateBullets(dt);
         this.updateAsteroids(dt);
+        this.checkPlayerAsteroidCollisions();
+        this.checkBulletAsteroidCollisions();
         break;
       case 'ended':
         // Freeze — waiting for React to show end screen
@@ -452,12 +552,17 @@ export class ArenaEngine {
   // ── Player movement (WASD) ──────────────────────────────────────────────
 
   private updatePlayer(dt: number): void {
-    // WASD input
+    // Input: WASD (desktop) or mobile joystick
     let ax = 0, az = 0;
-    if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
-    if (this.keys.has('s') || this.keys.has('arrowdown'))  az += 1;
-    if (this.keys.has('a') || this.keys.has('arrowleft'))  ax -= 1;
-    if (this.keys.has('d') || this.keys.has('arrowright')) ax += 1;
+    if (this.isMobile) {
+      ax = this.mobileMove.x;
+      az = this.mobileMove.z;
+    } else {
+      if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
+      if (this.keys.has('s') || this.keys.has('arrowdown'))  az += 1;
+      if (this.keys.has('a') || this.keys.has('arrowleft'))  ax -= 1;
+      if (this.keys.has('d') || this.keys.has('arrowright')) ax += 1;
+    }
 
     // Normalize diagonal
     const len = Math.sqrt(ax * ax + az * az);
@@ -499,11 +604,154 @@ export class ArenaEngine {
 
     // Update mesh position
     this.playerMesh.position.set(this.playerPos.x, 3, this.playerPos.z);
+  }
 
-    // Rotate triangle to face movement direction
-    if (speed > 5) {
-      const angle = Math.atan2(this.playerVelX, -this.playerVelZ);
-      this.playerMesh.rotation.y = angle;
+  // ── Aim (mouse) ────────────────────────────────────────────────────────
+
+  private updateAim(): void {
+    if (this.isMobile) {
+      // Mobile: right joystick sets aim direction directly
+      const len = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
+      if (len > 0.1) {
+        this.playerAimAngle = Math.atan2(this.mobileAim.x, -this.mobileAim.z);
+      }
+    } else {
+      // Desktop: aim at mouse cursor on Y=0 plane
+      const dx = this.aimPoint.x - this.playerPos.x;
+      const dz = this.aimPoint.z - this.playerPos.z;
+      this.playerAimAngle = Math.atan2(dx, -dz);
+    }
+    this.playerMesh.rotation.y = this.playerAimAngle;
+  }
+
+  // ── Shooting ───────────────────────────────────────────────────────────
+
+  private updateShooting(dt: number): void {
+    this.fireCooldownTimer = Math.max(0, this.fireCooldownTimer - dt);
+    const isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
+    if (isFiring && this.fireCooldownTimer <= 0) {
+      this.fireBullet();
+      this.fireCooldownTimer = this.FIRE_COOLDOWN;
+    }
+  }
+
+  private fireBullet(): void {
+    // Find inactive bullet in pool
+    const idx = this.bullets.findIndex(b => !b.active);
+    if (idx === -1) return; // pool exhausted
+
+    const dirX = Math.sin(this.playerAimAngle);
+    const dirZ = -Math.cos(this.playerAimAngle);
+
+    const b = this.bullets[idx];
+    b.x = this.playerPos.x + dirX * (SHIP_RADIUS + 3);
+    b.z = this.playerPos.z + dirZ * (SHIP_RADIUS + 3);
+    b.vx = dirX * this.BULLET_SPEED;
+    b.vz = dirZ * this.BULLET_SPEED;
+    b.age = 0;
+    b.active = true;
+  }
+
+  private updateBullets(dt: number): void {
+    const dummy = new THREE.Object3D();
+    let needsUpdate = false;
+
+    for (let i = 0; i < this.bullets.length; i++) {
+      const b = this.bullets[i];
+      if (!b.active) continue;
+
+      b.x += b.vx * dt;
+      b.z += b.vz * dt;
+      b.age += dt;
+
+      // Deactivate if lifetime exceeded or out of arena
+      const dist = Math.sqrt(b.x * b.x + b.z * b.z);
+      if (b.age >= this.BULLET_LIFETIME || dist > ARENA_HALF + 50) {
+        b.active = false;
+        // Hide: scale 0, y=-1000
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        this.bulletMesh.setMatrixAt(i, dummy.matrix);
+        needsUpdate = true;
+        continue;
+      }
+
+      // Update visible position
+      dummy.position.set(b.x, 3, b.z);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      this.bulletMesh.setMatrixAt(i, dummy.matrix);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) this.bulletMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // ── Collisions ─────────────────────────────────────────────────────────
+
+  private checkPlayerAsteroidCollisions(): void {
+    for (const a of this.asteroidData) {
+      if (!a.alive) continue;
+      const dx = this.playerPos.x - a.x;
+      const dz = this.playerPos.z - a.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      const minDist = SHIP_RADIUS + a.radius;
+      if (dist < minDist && dist > 0) {
+        // Push player out
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const overlap = minDist - dist;
+        this.playerPos.x += nx * overlap;
+        this.playerPos.z += nz * overlap;
+        // Bounce velocity
+        const dot = this.playerVelX * nx + this.playerVelZ * nz;
+        if (dot < 0) {
+          this.playerVelX -= 1.5 * dot * nx;
+          this.playerVelZ -= 1.5 * dot * nz;
+        }
+        // Push asteroid slightly
+        a.vx -= nx * 20;
+        a.vz -= nz * 20;
+      }
+    }
+  }
+
+  private checkBulletAsteroidCollisions(): void {
+    const dummy = new THREE.Object3D();
+    for (let bi = 0; bi < this.bullets.length; bi++) {
+      const b = this.bullets[bi];
+      if (!b.active) continue;
+
+      for (let ai = 0; ai < this.asteroidData.length; ai++) {
+        const a = this.asteroidData[ai];
+        if (!a.alive) continue;
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < a.radius + this.BULLET_RADIUS) {
+          // Bullet hit asteroid
+          b.active = false;
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.set(0, 0, 0);
+          dummy.updateMatrix();
+          this.bulletMesh.setMatrixAt(bi, dummy.matrix);
+          this.bulletMesh.instanceMatrix.needsUpdate = true;
+
+          a.hp -= 1;
+          if (a.hp <= 0) {
+            // Destroy asteroid
+            a.alive = false;
+            a.respawnTimer = 10; // seconds
+            dummy.position.set(0, -1000, 0);
+            dummy.scale.set(0, 0, 0);
+            dummy.updateMatrix();
+            this.asteroidMesh.setMatrixAt(ai, dummy.matrix);
+            this.asteroidMesh.instanceMatrix.needsUpdate = true;
+          }
+          break; // bullet consumed
+        }
+      }
     }
   }
 
@@ -513,6 +761,25 @@ export class ArenaEngine {
     const dummy = new THREE.Object3D();
     for (let i = 0; i < this.asteroidData.length; i++) {
       const a = this.asteroidData[i];
+
+      // Respawn countdown
+      if (!a.alive) {
+        a.respawnTimer -= dt;
+        if (a.respawnTimer <= 0) {
+          // Respawn at random edge
+          const angle = Math.random() * Math.PI * 2;
+          a.x = Math.cos(angle) * (ARENA_HALF - 50);
+          a.z = Math.sin(angle) * (ARENA_HALF - 50);
+          a.hp = this.ASTEROID_HP_MAX;
+          a.alive = true;
+          const vA = Math.random() * Math.PI * 2;
+          a.vx = Math.cos(vA) * (5 + Math.random() * 10);
+          a.vz = Math.sin(vA) * (5 + Math.random() * 10);
+        } else {
+          continue; // skip hidden asteroid
+        }
+      }
+
       a.x += a.vx * dt;
       a.z += a.vz * dt;
       a.rot += a.rotSpeed * dt;
@@ -520,9 +787,9 @@ export class ArenaEngine {
       // Wrap around arena (torus topology)
       const d = Math.sqrt(a.x * a.x + a.z * a.z);
       if (d > ARENA_HALF + a.radius) {
-        const angle = Math.atan2(a.z, a.x) + Math.PI; // opposite side
-        a.x = Math.cos(angle) * (ARENA_HALF - a.radius);
-        a.z = Math.sin(angle) * (ARENA_HALF - a.radius);
+        const wAngle = Math.atan2(a.z, a.x) + Math.PI;
+        a.x = Math.cos(wAngle) * (ARENA_HALF - a.radius);
+        a.z = Math.sin(wAngle) * (ARENA_HALF - a.radius);
       }
 
       dummy.position.set(a.x, a.radius * 0.3, a.z);
