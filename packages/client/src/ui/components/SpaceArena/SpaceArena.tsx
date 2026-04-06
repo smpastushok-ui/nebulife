@@ -45,6 +45,15 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
   const handleDash = useCallback(() => {
     engineRef.current?.triggerDash();
   }, []);
+  const handleFireLaser = useCallback((firing: boolean) => {
+    engineRef.current?.setMobileAim(0, 0, firing);
+  }, []);
+  const handleFireMissile = useCallback(() => {
+    engineRef.current?.fireMissile();
+  }, []);
+  const handleGravPush = useCallback(() => {
+    engineRef.current?.triggerGravPush();
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -127,25 +136,26 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
         </div>
       )}
 
-      {/* Exit button — top center, high z-index to stay above canvas */}
+      {/* Exit button — bottom left, door icon */}
       <button
         onClick={onExit}
         style={{
-          position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(8,14,24,0.9)',
-          border: '1px solid #446688',
-          borderRadius: 3,
-          color: '#aabbcc',
-          fontFamily: 'monospace',
-          fontSize: 10,
-          letterSpacing: 2,
-          padding: '6px 18px',
+          position: 'absolute', bottom: 20, left: 16,
+          width: 44, height: 44,
+          background: 'rgba(8,14,24,0.8)',
+          border: '2px solid rgba(100,140,180,0.3)',
+          borderRadius: 8,
           cursor: 'pointer',
           zIndex: 100,
           pointerEvents: 'auto',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
-        BACK
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#aabbcc" strokeWidth="2" strokeLinecap="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
       </button>
 
       {/* Mobile joysticks */}
@@ -154,6 +164,9 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
           onMove={handleMove}
           onAim={handleAim}
           onDash={handleDash}
+          onFireLaser={handleFireLaser}
+          onFireMissile={handleFireMissile}
+          onGravPush={handleGravPush}
         />
       )}
     </div>

@@ -3964,8 +3964,8 @@ function AppInner() {
       <div ref={universeCanvasRef} id="universe-canvas" style={{ position: 'fixed', inset: 0, zIndex: 1, display: universeVisible ? 'block' : 'none' }} />
       <div ref={canvasRef} id="game-canvas" style={{ display: universeVisible ? 'none' : undefined }} />
 
-      {/* Resource HUD — top center */}
-      <ResourceDisplay
+      {/* Resource HUD — top center (hidden in arena) */}
+      {!showArena && (<ResourceDisplay
         researchData={researchData}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
@@ -3987,6 +3987,7 @@ function AppInner() {
         observatoryUsed={researchState.slots.filter(s => s.systemId !== null).length}
         observatoryTotal={researchState.slots.length}
       />
+      )}
 
       {/* Doomsday Clock — above command bar (Exodus phase only) */}
       {/* Phase 1: "СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ..." */}
@@ -4158,7 +4159,7 @@ function AppInner() {
       />
 
       {/* CommandBar — visible at bottom (hidden during cinematic intro) */}
-      {!cinematicActive && (
+      {!cinematicActive && !showArena && (
         <CommandBar
           scene={effectiveScene}
           navigationItems={navigationItems}

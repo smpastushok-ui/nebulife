@@ -4,11 +4,14 @@ interface ArenaJoystickProps {
   onMove: (x: number, y: number) => void;
   onAim: (x: number, y: number, isFiring: boolean) => void;
   onDash: () => void;
+  onFireLaser?: (firing: boolean) => void;
+  onFireMissile?: () => void;
+  onGravPush?: () => void;
 }
 
 const MAX_RADIUS = 50;
 
-export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onDash }) => {
+export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onDash, onFireLaser, onFireMissile, onGravPush }) => {
   const leftBaseRef = useRef<HTMLDivElement>(null);
   const leftKnobRef = useRef<HTMLDivElement>(null);
   const leftPointerId = useRef<number | null>(null);
@@ -115,29 +118,70 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
         </div>
       </div>
 
-      {/* Right zone (Aim + Fire) */}
-      <div
-        style={{ flex: 1, position: 'relative' }}
-        onPointerDown={(e) => handlePointerDown(e, 'right')}
-        onPointerMove={(e) => handlePointerMove(e, 'right')}
-        onPointerUp={(e) => handlePointerUp(e, 'right')}
-        onPointerCancel={(e) => handlePointerUp(e, 'right')}
-      >
-        {/* Static hint — always visible */}
-        <div style={{ ...styles.hint, left: 'auto', right: 60 }}>
-          <div style={{ ...styles.hintRing, borderColor: 'rgba(255, 68, 68, 0.25)' }} />
-          <span style={{ ...styles.hintLabel, color: 'rgba(255, 68, 68, 0.4)' }}>AIM</span>
-        </div>
-        {/* Active joystick — appears on touch */}
-        <div ref={rightBaseRef} style={styles.base}>
-          <div ref={rightKnobRef} style={{ ...styles.knob, background: 'rgba(255, 68, 68, 0.7)' }} />
-        </div>
+      {/* Right side — weapon buttons (3 stacked) */}
+      <div style={{
+        position: 'absolute', right: 16, bottom: 80,
+        display: 'flex', flexDirection: 'column', gap: 12,
+        zIndex: 60,
+      }}>
+        {/* Missile button */}
+        <button
+          onPointerDown={() => onFireMissile?.()}
+          style={styles.weaponBtn}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff4444" strokeWidth="2" strokeLinecap="round">
+            <path d="M12 2L15 8L12 22L9 8Z" />
+            <line x1="7" y1="12" x2="17" y2="12" />
+          </svg>
+          <span style={styles.weaponLabel}>ROCKET</span>
+        </button>
+
+        {/* Laser button (hold to fire) */}
+        <button
+          onPointerDown={() => { onFireLaser?.(true); onAim(0, 0, true); }}
+          onPointerUp={() => { onFireLaser?.(false); onAim(0, 0, false); }}
+          onPointerCancel={() => { onFireLaser?.(false); onAim(0, 0, false); }}
+          style={styles.weaponBtn}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#44ff88" strokeWidth="2" strokeLinecap="round">
+            <line x1="12" y1="2" x2="12" y2="22" />
+            <circle cx="12" cy="6" r="2" />
+            <line x1="8" y1="14" x2="16" y2="14" />
+          </svg>
+          <span style={{ ...styles.weaponLabel, color: '#66ff99' }}>LASER</span>
+        </button>
+
+        {/* Boost button */}
+        <button
+          onPointerDown={onDash}
+          style={styles.weaponBtn}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00eeff" strokeWidth="2" strokeLinecap="round">
+            <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
+          </svg>
+          <span style={{ ...styles.weaponLabel, color: '#44ddff' }}>BOOST</span>
+        </button>
       </div>
 
-      {/* Dash button — center bottom */}
-      <button onClick={onDash} style={styles.dashBtn}>
-        DASH
-      </button>
+      {/* Left side — utility buttons */}
+      <div style={{
+        position: 'absolute', left: 16, bottom: 180,
+        display: 'flex', flexDirection: 'column', gap: 12,
+        zIndex: 60,
+      }}>
+        {/* Gravity push button */}
+        <button
+          onPointerDown={() => onGravPush?.()}
+          style={styles.weaponBtn}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#aa66ff" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
+            <path d="M4.93 4.93L7.76 7.76M16.24 16.24L19.07 19.07" />
+          </svg>
+          <span style={{ ...styles.weaponLabel, color: '#bb88ff' }}>GRAV</span>
+        </button>
+      </div>
     </div>
   );
 };
@@ -203,5 +247,26 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: 2,
     zIndex: 101,
     cursor: 'pointer',
+  },
+  weaponBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    background: 'rgba(10, 15, 25, 0.75)',
+    border: '2px solid rgba(100, 140, 180, 0.3)',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 1,
+    cursor: 'pointer',
+    touchAction: 'none',
+    pointerEvents: 'auto' as const,
+  },
+  weaponLabel: {
+    fontSize: 6,
+    color: '#ff6666',
+    letterSpacing: 1,
+    fontFamily: 'monospace',
   },
 };

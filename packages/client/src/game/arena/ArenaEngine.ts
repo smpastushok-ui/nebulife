@@ -37,11 +37,34 @@ export class ArenaEngine {
   private boundaryMesh!: THREE.LineLoop;
   private starfield!: THREE.Points;
 
-  // Player ship (triangle placeholder)
+  // Player ship
   private playerMesh!: THREE.Mesh;
   private playerVelX = 0;
   private playerVelZ = 0;
-  private playerBankAngle = 0; // visual tilt during turns
+  private playerBankAngle = 0;
+  private playerNickSprite!: THREE.Sprite;
+  private playerDead = false;
+  private respawnTimer = 0;
+  private readonly RESPAWN_TIME = 5;
+
+  // Black hole
+  private blackHoleMesh: THREE.Group | null = null;
+  private blackHolePos = { x: 0, z: 0 };
+  private blackHoleActive = false;
+  private blackHoleAge = 0;
+  private blackHoleLifetime = 15;
+  private blackHoleSpawnTimer = 60 + Math.random() * 60; // 60-120s first spawn
+
+  // VFX pool (hit flashes, explosion flashes, debris)
+  private vfxPool: {
+    mesh: THREE.Mesh;
+    age: number;
+    life: number;
+    type: 'hit' | 'flash' | 'debris';
+    vel?: { x: number; z: number };
+    rotSpeed?: { x: number; y: number; z: number };
+    scaleSpeed?: number;
+  }[] = [];
 
   // Engine exhaust particles (InstancedMesh pool)
   private exhaustMesh!: THREE.InstancedMesh;
@@ -242,6 +265,37 @@ export class ArenaEngine {
     // TODO: implement dash
   }
 
+  /** Gravity push — shove nearest asteroid in front of ship at 2x ship speed */
+  triggerGravPush(): void {
+    const pushRange = SHIP_RADIUS * 5;
+    let bestIdx = -1;
+    let bestDist = pushRange;
+
+    for (let i = 0; i < this.asteroidData.length; i++) {
+      const a = this.asteroidData[i];
+      if (!a.alive) continue;
+      const dx = a.x - this.playerPos.x;
+      const dz = a.z - this.playerPos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist >= bestDist) continue;
+
+      // Check if asteroid is in front of ship (dot product with aim direction)
+      const dot = dx * this.aimDirX + dz * this.aimDirZ;
+      if (dot > 0) { // in front
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+
+    if (bestIdx >= 0) {
+      const a = this.asteroidData[bestIdx];
+      const speed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
+      const pushSpeed = Math.max(speed * 2, SHIP_MAX_SPEED * 1.5);
+      a.vx = this.aimDirX * pushSpeed;
+      a.vz = this.aimDirZ * pushSpeed;
+    }
+  }
+
   setIsMobile(mobile: boolean): void {
     this.isMobile = mobile;
   }
@@ -431,6 +485,26 @@ export class ArenaEngine {
     this.playerMesh = new THREE.Mesh(geo, mat);
     this.playerMesh.position.set(0, 5, 0);
     this.scene.add(this.playerMesh);
+
+    // Nickname label above ship
+    const nickCanvas = document.createElement('canvas');
+    nickCanvas.width = 256;
+    nickCanvas.height = 64;
+    const nCtx = nickCanvas.getContext('2d')!;
+    nCtx.fillStyle = 'transparent';
+    nCtx.clearRect(0, 0, 256, 64);
+    nCtx.font = '24px monospace';
+    nCtx.fillStyle = '#aaddff';
+    nCtx.textAlign = 'center';
+    nCtx.fillText('PLAYER', 128, 40);
+    const nickTex = new THREE.CanvasTexture(nickCanvas);
+    this.disposables.push(nickTex);
+    const nickMat = new THREE.SpriteMaterial({ map: nickTex, transparent: true, depthTest: false });
+    this.disposables.push(nickMat);
+    this.playerNickSprite = new THREE.Sprite(nickMat);
+    this.playerNickSprite.scale.set(30, 8, 1);
+    this.playerNickSprite.position.set(0, 20, 0);
+    this.scene.add(this.playerNickSprite);
   }
 
   private setupAsteroids(): void {
@@ -552,14 +626,19 @@ export class ArenaEngine {
         if (this.matchTimer <= 0) {
           this.phase = 'ended';
         }
-        this.updatePlayer(dt);
-        this.updateAim(dt);
-        this.updateShooting(dt);
+        this.updateDeathRespawn(dt);
+        if (!this.playerDead) {
+          this.updatePlayer(dt);
+          this.updateAim(dt);
+          this.updateShooting(dt);
+          this.updateExhaust(dt);
+          this.checkPlayerAsteroidCollisions();
+        }
         this.updateBullets(dt);
         this.updateMissiles(dt);
-        this.updateExhaust(dt);
         this.updateAsteroids(dt);
-        this.checkPlayerAsteroidCollisions();
+        this.updateBlackHole(dt);
+        this.updateVFX(dt);
         this.checkBulletAsteroidCollisions();
         this.checkMissileAsteroidCollisions();
         break;
@@ -632,8 +711,9 @@ export class ArenaEngine {
       this.playerVelZ *= 0.5;
     }
 
-    // Update mesh position
-    this.playerMesh.position.set(this.playerPos.x, 3, this.playerPos.z);
+    // Update mesh + nickname position
+    this.playerMesh.position.set(this.playerPos.x, 5, this.playerPos.z);
+    this.playerNickSprite.position.set(this.playerPos.x, 20, this.playerPos.z - 15);
   }
 
   // ── Aim (mouse) ────────────────────────────────────────────────────────
@@ -669,9 +749,10 @@ export class ArenaEngine {
       }
     }
 
-    // Rotation: atan2(dirX, dirZ) gives angle, -angle - PI/2 compensates nose-up texture
+    // Rotation: atan2(dirX, dirZ) gives angle on XZ plane
+    // +angle + PI/2 compensates nose-up texture orientation
     this.playerAimAngle = Math.atan2(this.aimDirX, this.aimDirZ);
-    this.playerMesh.rotation.y = -this.playerAimAngle - Math.PI / 2;
+    this.playerMesh.rotation.y = this.playerAimAngle + Math.PI / 2;
 
     // Bank angle — visual tilt when turning sharply (only on Z axis, no X)
     let angleDelta = this.playerAimAngle - prevAngle;
@@ -761,22 +842,53 @@ export class ArenaEngine {
       const dist = Math.sqrt(dx * dx + dz * dz);
       const minDist = SHIP_RADIUS + a.radius;
       if (dist < minDist && dist > 0) {
-        // Push player out
+        const speed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
+        if (speed > 80) {
+          // High speed collision → death
+          this.killPlayer();
+          return;
+        }
+        // Low speed → bounce
         const nx = dx / dist;
         const nz = dz / dist;
         const overlap = minDist - dist;
         this.playerPos.x += nx * overlap;
         this.playerPos.z += nz * overlap;
-        // Bounce velocity
         const dot = this.playerVelX * nx + this.playerVelZ * nz;
         if (dot < 0) {
           this.playerVelX -= 1.5 * dot * nx;
           this.playerVelZ -= 1.5 * dot * nz;
         }
-        // Push asteroid slightly
         a.vx -= nx * 20;
         a.vz -= nz * 20;
       }
+    }
+  }
+
+  private killPlayer(): void {
+    this.playerDead = true;
+    this.respawnTimer = this.RESPAWN_TIME;
+    this.playerMesh.visible = false;
+    this.playerNickSprite.visible = false;
+    // Spawn explosion VFX at death position
+    this.spawnExplosion(this.playerPos.x, this.playerPos.z);
+    this.playerVelX = 0;
+    this.playerVelZ = 0;
+  }
+
+  private updateDeathRespawn(dt: number): void {
+    if (!this.playerDead) return;
+    this.respawnTimer -= dt;
+    if (this.respawnTimer <= 0) {
+      this.playerDead = false;
+      // Respawn at random safe position on arena edge
+      const angle = Math.random() * Math.PI * 2;
+      this.playerPos.x = Math.cos(angle) * (ARENA_HALF * 0.7);
+      this.playerPos.z = Math.sin(angle) * (ARENA_HALF * 0.7);
+      this.playerVelX = 0;
+      this.playerVelZ = 0;
+      this.playerMesh.visible = true;
+      this.playerNickSprite.visible = true;
     }
   }
 
@@ -793,8 +905,9 @@ export class ArenaEngine {
         const dz = b.z - a.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
         if (dist < a.radius + this.BULLET_RADIUS) {
-          // Bullet hit asteroid
+          // Bullet hit asteroid — spawn hit VFX
           b.active = false;
+          this.spawnHitEffect(b.x, b.z);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();
@@ -1118,9 +1231,207 @@ export class ArenaEngine {
     }
   }
 
+  // ── VFX (hit flashes + explosions + debris) ─────────────────────────────
+
+  private spawnHitEffect(x: number, z: number): void {
+    const geo = new THREE.PlaneGeometry(8, 8);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x44ffaa,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 1,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, 3, z);
+    mesh.rotation.y = Math.random() * Math.PI * 2;
+    this.scene.add(mesh);
+    this.vfxPool.push({ mesh, age: 0, life: 0.2, type: 'hit' });
+  }
+
+  private spawnExplosion(x: number, z: number): void {
+    // Central flash
+    const flashGeo = new THREE.PlaneGeometry(35, 35);
+    flashGeo.rotateX(-Math.PI / 2);
+    const flashMat = new THREE.MeshBasicMaterial({
+      color: 0xffaa44,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 1,
+    });
+    const flashMesh = new THREE.Mesh(flashGeo, flashMat);
+    flashMesh.position.set(x, 4, z);
+    this.scene.add(flashMesh);
+    this.vfxPool.push({ mesh: flashMesh, age: 0, life: 0.8, type: 'flash', scaleSpeed: 2.0 });
+
+    // Debris cubes
+    const debrisCount = 6 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < debrisCount; i++) {
+      const debGeo = new THREE.BoxGeometry(2, 2, 2);
+      const debMat = new THREE.MeshBasicMaterial({ color: 0x444455 });
+      const debMesh = new THREE.Mesh(debGeo, debMat);
+      debMesh.position.set(x, 3, z);
+
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 50 + Math.random() * 50;
+      const vel = { x: Math.cos(angle) * speed, z: Math.sin(angle) * speed };
+      const rotSpeed = {
+        x: (Math.random() - 0.5) * 10,
+        y: (Math.random() - 0.5) * 10,
+        z: (Math.random() - 0.5) * 10,
+      };
+
+      this.scene.add(debMesh);
+      this.vfxPool.push({ mesh: debMesh, age: 0, life: 1.5, type: 'debris', vel, rotSpeed });
+    }
+  }
+
+  private updateVFX(dt: number): void {
+    for (let i = this.vfxPool.length - 1; i >= 0; i--) {
+      const vfx = this.vfxPool[i];
+      vfx.age += dt;
+
+      if (vfx.age >= vfx.life) {
+        this.scene.remove(vfx.mesh);
+        vfx.mesh.geometry.dispose();
+        (vfx.mesh.material as THREE.Material).dispose();
+        this.vfxPool.splice(i, 1);
+        continue;
+      }
+
+      const t = vfx.age / vfx.life; // 0..1
+
+      if (vfx.type === 'hit') {
+        // Shrink + fade
+        const s = 1 - t;
+        vfx.mesh.scale.set(s, s, s);
+        (vfx.mesh.material as THREE.MeshBasicMaterial).opacity = 1 - t;
+      } else if (vfx.type === 'flash') {
+        // Grow + fade
+        const s = 1 + t * (vfx.scaleSpeed ?? 2);
+        vfx.mesh.scale.set(s, s, s);
+        (vfx.mesh.material as THREE.MeshBasicMaterial).opacity = 1 - t;
+      } else if (vfx.type === 'debris') {
+        // Move + rotate + shrink
+        if (vfx.vel) {
+          vfx.mesh.position.x += vfx.vel.x * dt;
+          vfx.mesh.position.z += vfx.vel.z * dt;
+          vfx.vel.x *= 0.98; // drag
+          vfx.vel.z *= 0.98;
+        }
+        if (vfx.rotSpeed) {
+          vfx.mesh.rotation.x += vfx.rotSpeed.x * dt;
+          vfx.mesh.rotation.y += vfx.rotSpeed.y * dt;
+          vfx.mesh.rotation.z += vfx.rotSpeed.z * dt;
+        }
+        const s = 1 - t * 0.8;
+        vfx.mesh.scale.set(s, s, s);
+      }
+    }
+  }
+
+  // ── Black hole ──────────────────────────────────────────────────────────
+
+  private updateBlackHole(dt: number): void {
+    if (!this.blackHoleActive) {
+      this.blackHoleSpawnTimer -= dt;
+      if (this.blackHoleSpawnTimer <= 0) {
+        this.spawnBlackHole();
+      }
+      return;
+    }
+
+    this.blackHoleAge += dt;
+    if (this.blackHoleAge >= this.blackHoleLifetime) {
+      this.despawnBlackHole();
+      return;
+    }
+
+    // Rotate accretion disk
+    if (this.blackHoleMesh) {
+      this.blackHoleMesh.rotation.y += dt * 0.5;
+    }
+
+    // Gravity pull on player
+    if (!this.playerDead) {
+      const dx = this.blackHolePos.x - this.playerPos.x;
+      const dz = this.blackHolePos.z - this.playerPos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < 200 && dist > 0) {
+        const force = 5000 / (dist * dist + 100);
+        const nx = dx / dist;
+        const nz = dz / dist;
+        this.playerVelX += nx * force * dt;
+        this.playerVelZ += nz * force * dt;
+        // Kill if too close
+        if (dist < 15) {
+          this.killPlayer();
+        }
+      }
+    }
+
+    // Pull asteroids
+    for (const a of this.asteroidData) {
+      if (!a.alive) continue;
+      const dx = this.blackHolePos.x - a.x;
+      const dz = this.blackHolePos.z - a.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < 300 && dist > 0) {
+        const force = 3000 / (dist * dist + 100);
+        a.vx += (dx / dist) * force * dt;
+        a.vz += (dz / dist) * force * dt;
+        if (dist < 20) {
+          a.alive = false;
+          a.respawnTimer = 10;
+        }
+      }
+    }
+  }
+
+  private spawnBlackHole(): void {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 200 + Math.random() * (ARENA_HALF - 400);
+    this.blackHolePos.x = Math.cos(angle) * dist;
+    this.blackHolePos.z = Math.sin(angle) * dist;
+    this.blackHoleActive = true;
+    this.blackHoleAge = 0;
+
+    // Visual: dark sphere + ring
+    const group = new THREE.Group();
+    const coreGeo = new THREE.SphereGeometry(15, 16, 16);
+    const coreMat = new THREE.MeshBasicMaterial({ color: 0x110022 });
+    this.disposables.push(coreGeo, coreMat);
+    group.add(new THREE.Mesh(coreGeo, coreMat));
+
+    const ringGeo = new THREE.RingGeometry(20, 35, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x441166, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+    this.disposables.push(ringGeo, ringMat);
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.rotation.z = 0.35;
+    group.add(ring);
+
+    group.position.set(this.blackHolePos.x, 5, this.blackHolePos.z);
+    this.scene.add(group);
+    this.blackHoleMesh = group;
+  }
+
+  private despawnBlackHole(): void {
+    if (this.blackHoleMesh) {
+      this.scene.remove(this.blackHoleMesh);
+      this.blackHoleMesh = null;
+    }
+    this.blackHoleActive = false;
+    this.blackHoleSpawnTimer = 60 + Math.random() * 60;
+  }
+
   // ── Public getters ─────────────────────────────────────────────────────
 
   getPhase(): MatchPhase { return this.phase; }
   getMatchTimer(): number { return this.matchTimer; }
   getCountdownTimer(): number { return this.countdownTimer; }
+  isPlayerDead(): boolean { return this.playerDead; }
+  getRespawnTimer(): number { return this.respawnTimer; }
 }
