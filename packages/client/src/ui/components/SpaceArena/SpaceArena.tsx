@@ -8,6 +8,7 @@ import { ArenaEngine } from '../../../game/arena/index.js';
 import type { ArenaCallbacks, MatchResult } from '../../../game/arena/index.js';
 import { ArenaJoystick } from './ArenaJoystick.js';
 import { ArenaTutorial, shouldShowArenaTutorial } from './ArenaTutorial.js';
+import { SpaceAmbient } from '../../../audio/SpaceAmbient.js';
 
 interface SpaceArenaProps {
   onExit: () => void;
@@ -19,6 +20,7 @@ const isMobileDevice = () => 'ontouchstart' in window || navigator.maxTouchPoint
 export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<ArenaEngine | null>(null);
+  const ambientRef = useRef<SpaceAmbient | null>(null);
   const [ready, setReady] = useState(false);
   const [hp, setHp] = useState(100);
   const [maxHp] = useState(100);
@@ -111,12 +113,20 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
     engineRef.current = engine;
     engine.setIsMobile(mobile);
 
+    // Procedural deep-space ambient. The Hangar "Enter Arena" click is
+    // the user gesture that propagates here, so AudioContext is allowed.
+    const ambient = new SpaceAmbient();
+    ambient.start();
+    ambientRef.current = ambient;
+
     engine.init().then(() => {
       setReady(true);
       engine.startMatch();
     });
 
     return () => {
+      ambientRef.current?.stop();
+      ambientRef.current = null;
       engine.destroy();
       engineRef.current = null;
     };
