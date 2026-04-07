@@ -18,6 +18,9 @@ import {
 const _tempVec3 = new THREE.Vector3();
 const _camTarget = new THREE.Vector3();
 
+// Power-up types (mirrors server arena-matchmaker for Phase 2 compat)
+export type PowerUpType = 'WARP' | 'DAMAGE_UP' | 'SLOW_LASER' | 'SHIELD';
+
 export class ArenaEngine {
   private container: HTMLElement;
   private callbacks: ArenaCallbacks;
@@ -96,6 +99,30 @@ export class ArenaEngine {
   private readonly WARP_SPEED_MULT = 2.0;
   private readonly WARP_COOLDOWN = 8;
   private warpCooldownTimer = 0;
+
+  // Power-ups (collectable map orbs with 10s buffs)
+  private powerUps: { id: number; type: PowerUpType; x: number; z: number; mesh: THREE.Mesh; pulsePhase: number }[] = [];
+  private powerUpCounter = 0;
+  private powerUpSpawnTimer = 5; // first spawn after 5s
+  private readonly POWERUP_SPAWN_INTERVAL = 15;
+  private readonly MAX_POWERUPS = 5;
+  private readonly POWERUP_COLLECT_RADIUS = 30;
+  private readonly POWERUP_BUFF_DURATION_MS = 10000; // 10s
+  private readonly POWERUP_SHIELD_HP = 50;
+  private readonly POWERUP_COLORS: Record<PowerUpType, number> = {
+    WARP: 0x00eeff,
+    DAMAGE_UP: 0xff4444,
+    SLOW_LASER: 0x4488ff,
+    SHIELD: 0xaaddff,
+  };
+
+  // Active player buffs from collected power-ups
+  private playerBuffs: { type: PowerUpType; expiresAt: number }[] = [];
+  private playerSpeedMult = 1.0;
+  private playerDamageMult = 1.0;
+  private playerLaserColor: 'green' | 'red' | 'blue' = 'green';
+  private playerExtraShield = 0; // absorbs one lethal hit while > 0
+  private playerShieldMesh: THREE.Mesh | null = null;
 
   // Asteroids
   private asteroidMesh!: THREE.InstancedMesh;
@@ -188,6 +215,7 @@ export class ArenaEngine {
     this.setupBullets();
     this.setupExhaust();
     this.setupMissiles();
+    this.setupHoloShield();
 
     window.addEventListener('resize', this.onResizeBound);
     window.addEventListener('keydown', this.onKeyDownBound);
@@ -655,6 +683,7 @@ export class ArenaEngine {
         this.updateAsteroids(dt);
         this.updateBlackHole(dt);
         this.updateVFX(dt);
+        this.updatePowerUps(dt);
         this.checkBulletAsteroidCollisions();
         this.checkMissileAsteroidCollisions();
         break;
@@ -693,23 +722,25 @@ export class ArenaEngine {
     const len = Math.sqrt(ax * ax + az * az);
     if (len > 0) { ax /= len; az /= len; }
 
-    // Accelerate
-    this.playerVelX += ax * SHIP_ACCELERATION * dt;
-    this.playerVelZ += az * SHIP_ACCELERATION * dt;
+    // Accelerate (power-up speed multiplier applies to acceleration too)
+    this.playerVelX += ax * SHIP_ACCELERATION * this.playerSpeedMult * dt;
+    this.playerVelZ += az * SHIP_ACCELERATION * this.playerSpeedMult * dt;
 
     // Drag
     this.playerVelX *= SHIP_DRAG;
     this.playerVelZ *= SHIP_DRAG;
 
-    // Warp: override velocity to forward direction at 2x speed
+    // Warp: override velocity to forward direction at 2x speed (stacks with power-up)
     if (this.warpActive) {
-      const warpSpeed = SHIP_MAX_SPEED * this.WARP_SPEED_MULT;
+      const warpSpeed = SHIP_MAX_SPEED * this.WARP_SPEED_MULT * this.playerSpeedMult;
       this.playerVelX = this.aimDirX * warpSpeed;
       this.playerVelZ = this.aimDirZ * warpSpeed;
     }
 
     // Clamp speed
-    const maxSpd = this.warpActive ? SHIP_MAX_SPEED * this.WARP_SPEED_MULT : SHIP_MAX_SPEED;
+    const maxSpd = this.warpActive
+      ? SHIP_MAX_SPEED * this.WARP_SPEED_MULT * this.playerSpeedMult
+      : SHIP_MAX_SPEED * this.playerSpeedMult;
     const speed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
     if (speed > maxSpd) {
       this.playerVelX = (this.playerVelX / speed) * maxSpd;
@@ -890,10 +921,26 @@ export class ArenaEngine {
   }
 
   private killPlayer(): void {
+    // Holographic SHIELD power-up absorbs one lethal hit
+    if (this.playerExtraShield > 0) {
+      this.playerExtraShield = 0;
+      this.playerBuffs = this.playerBuffs.filter(b => b.type !== 'SHIELD');
+      this.applyBuffEffects(); // hides shield mesh
+      // Visible shield-break flash
+      this.spawnHitEffect(this.playerPos.x, this.playerPos.z);
+      // Push back from impact
+      this.playerVelX *= -0.4;
+      this.playerVelZ *= -0.4;
+      return; // survived the hit
+    }
+
     this.playerDead = true;
     this.respawnTimer = this.RESPAWN_TIME;
     this.playerMesh.visible = false;
     this.playerNickSprite.visible = false;
+    // Clear all buffs on death
+    this.playerBuffs = [];
+    this.applyBuffEffects();
     // Spawn explosion VFX at death position
     this.spawnExplosion(this.playerPos.x, this.playerPos.z);
     this.playerVelX = 0;
@@ -938,7 +985,7 @@ export class ArenaEngine {
           this.bulletMesh.setMatrixAt(bi, dummy.matrix);
           this.bulletMesh.instanceMatrix.needsUpdate = true;
 
-          a.hp -= 1;
+          a.hp -= this.playerDamageMult; // 1.0 normal, 1.5 with DAMAGE_UP buff
           if (a.hp <= 0) {
             // Destroy asteroid
             a.alive = false;
@@ -1118,6 +1165,201 @@ export class ArenaEngine {
     }
     this.missileMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(this.missileMesh);
+  }
+
+  // ── Power-ups ──────────────────────────────────────────────────────────
+
+  private setupHoloShield(): void {
+    // Semi-transparent additive sphere around the player ship
+    const geo = new THREE.SphereGeometry(SHIP_RADIUS * 1.7, 16, 12);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xaaddff,
+      transparent: true,
+      opacity: 0.28,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.disposables.push(geo, mat);
+    this.playerShieldMesh = new THREE.Mesh(geo, mat);
+    this.playerShieldMesh.visible = false;
+    this.scene.add(this.playerShieldMesh);
+  }
+
+  private spawnPowerUp(): void {
+    if (this.powerUps.length >= this.MAX_POWERUPS) return;
+
+    const types: PowerUpType[] = ['WARP', 'DAMAGE_UP', 'SLOW_LASER', 'SHIELD'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const color = this.POWERUP_COLORS[type];
+
+    // Glowing core sphere
+    const coreGeo = new THREE.SphereGeometry(6, 14, 10);
+    const coreMat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.disposables.push(coreGeo, coreMat);
+    const mesh = new THREE.Mesh(coreGeo, coreMat);
+
+    // Outer halo (additive, larger, dimmer)
+    const haloGeo = new THREE.SphereGeometry(11, 14, 10);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.25,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.disposables.push(haloGeo, haloMat);
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    mesh.add(halo);
+
+    // Random position within 80% of arena radius (avoid spawn at exact origin)
+    const r = 80 + Math.random() * (ARENA_HALF * 0.8);
+    const angle = Math.random() * Math.PI * 2;
+    const x = Math.cos(angle) * r;
+    const z = Math.sin(angle) * r;
+    mesh.position.set(x, 10, z);
+    this.scene.add(mesh);
+
+    this.powerUps.push({
+      id: this.powerUpCounter++,
+      type,
+      x,
+      z,
+      mesh,
+      pulsePhase: Math.random() * Math.PI * 2,
+    });
+  }
+
+  private updatePowerUps(dt: number): void {
+    // Spawn timer
+    this.powerUpSpawnTimer -= dt;
+    if (this.powerUpSpawnTimer <= 0) {
+      this.spawnPowerUp();
+      this.powerUpSpawnTimer = this.POWERUP_SPAWN_INTERVAL;
+    }
+
+    // Animate orbs (pulse + bob + rotate)
+    for (const pu of this.powerUps) {
+      pu.pulsePhase += dt * 3;
+      const pulse = 1 + Math.sin(pu.pulsePhase) * 0.18;
+      pu.mesh.scale.set(pulse, pulse, pulse);
+      pu.mesh.position.y = 10 + Math.sin(pu.pulsePhase * 0.7) * 3;
+      pu.mesh.rotation.y += dt * 1.5;
+    }
+
+    // Proximity collection (only when alive)
+    if (!this.playerDead) {
+      for (let i = this.powerUps.length - 1; i >= 0; i--) {
+        const pu = this.powerUps[i];
+        const dx = this.playerPos.x - pu.x;
+        const dz = this.playerPos.z - pu.z;
+        if (dx * dx + dz * dz < this.POWERUP_COLLECT_RADIUS * this.POWERUP_COLLECT_RADIUS) {
+          this.collectPowerUp(i);
+        }
+      }
+    }
+
+    // Expire buffs
+    const now = Date.now();
+    const before = this.playerBuffs.length;
+    this.playerBuffs = this.playerBuffs.filter(b => b.expiresAt > now);
+    if (this.playerBuffs.length !== before) {
+      this.applyBuffEffects();
+    }
+
+    // Sync holographic shield to player position
+    if (this.playerShieldMesh && this.playerShieldMesh.visible) {
+      this.playerShieldMesh.position.set(this.playerPos.x, 5, this.playerPos.z);
+      this.playerShieldMesh.rotation.y += dt * 0.8;
+    }
+  }
+
+  private collectPowerUp(index: number): void {
+    const pu = this.powerUps[index];
+
+    // Pickup VFX (reuses hit-effect ring)
+    this.spawnHitEffect(pu.x, pu.z);
+
+    // Remove mesh from scene + dispose geometry/material
+    this.scene.remove(pu.mesh);
+    pu.mesh.geometry.dispose();
+    if (Array.isArray(pu.mesh.material)) {
+      pu.mesh.material.forEach(m => m.dispose());
+    } else {
+      pu.mesh.material.dispose();
+    }
+    // Dispose halo child too
+    pu.mesh.children.forEach(child => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose();
+        if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+        else child.material.dispose();
+      }
+    });
+
+    this.powerUps.splice(index, 1);
+
+    // Apply buff
+    const expiresAt = Date.now() + this.POWERUP_BUFF_DURATION_MS;
+
+    // DAMAGE_UP and SLOW_LASER both change laser color → mutually exclusive
+    if (pu.type === 'DAMAGE_UP' || pu.type === 'SLOW_LASER') {
+      this.playerBuffs = this.playerBuffs.filter(b => b.type !== 'DAMAGE_UP' && b.type !== 'SLOW_LASER');
+    }
+
+    const existing = this.playerBuffs.findIndex(b => b.type === pu.type);
+    if (existing >= 0) {
+      this.playerBuffs[existing].expiresAt = expiresAt;
+    } else {
+      this.playerBuffs.push({ type: pu.type, expiresAt });
+    }
+
+    this.applyBuffEffects();
+  }
+
+  private applyBuffEffects(): void {
+    // Reset to base
+    this.playerSpeedMult = 1.0;
+    this.playerDamageMult = 1.0;
+    this.playerLaserColor = 'green';
+    let hasShield = false;
+
+    for (const buff of this.playerBuffs) {
+      switch (buff.type) {
+        case 'WARP':
+          this.playerSpeedMult *= 1.5;
+          break;
+        case 'DAMAGE_UP':
+          this.playerDamageMult = 1.5;
+          this.playerLaserColor = 'red';
+          break;
+        case 'SLOW_LASER':
+          this.playerLaserColor = 'blue';
+          break;
+        case 'SHIELD':
+          hasShield = true;
+          // Refresh shield buffer to full each tick the buff is active
+          this.playerExtraShield = this.POWERUP_SHIELD_HP;
+          break;
+      }
+    }
+    if (!hasShield) this.playerExtraShield = 0;
+
+    // Update bullet color via shared material
+    const bulletMat = this.bulletMesh.material as THREE.MeshBasicMaterial;
+    const colorMap = { green: 0x44ff88, red: 0xff4444, blue: 0x4488ff };
+    bulletMat.color.setHex(colorMap[this.playerLaserColor]);
+
+    // Show / hide holographic shield
+    if (this.playerShieldMesh) {
+      this.playerShieldMesh.visible = hasShield;
+    }
   }
 
   fireMissile(): void {
@@ -1497,4 +1739,14 @@ export class ArenaEngine {
   isWarpActive(): boolean { return this.warpActive; }
   getWarpCooldown(): number { return this.warpCooldownTimer; }
   getWarpCooldownTotal(): number { return this.WARP_COOLDOWN; }
+
+  /** Returns active power-up buffs with remaining time in ms */
+  getPlayerBuffs(): { type: PowerUpType; remainingMs: number }[] {
+    const now = Date.now();
+    return this.playerBuffs
+      .filter(b => b.expiresAt > now)
+      .map(b => ({ type: b.type, remainingMs: b.expiresAt - now }));
+  }
+
+  getPowerUpBuffDurationMs(): number { return this.POWERUP_BUFF_DURATION_MS; }
 }
