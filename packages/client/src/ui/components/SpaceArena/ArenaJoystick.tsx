@@ -20,42 +20,25 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
   const leftPointerId = useRef<number | null>(null);
   const leftOrigin = useRef({ x: 0, y: 0 });
 
-  const rightBaseRef = useRef<HTMLDivElement>(null);
-  const rightKnobRef = useRef<HTMLDivElement>(null);
-  const rightPointerId = useRef<number | null>(null);
-  const rightOrigin = useRef({ x: 0, y: 0 });
-
-  const handlePointerDown = useCallback((e: React.PointerEvent, side: 'left' | 'right') => {
-    const isLeft = side === 'left';
-    const baseRef = isLeft ? leftBaseRef : rightBaseRef;
-    const knobRef = isLeft ? leftKnobRef : rightKnobRef;
-    const origin = isLeft ? leftOrigin : rightOrigin;
-    const pointerIdRef = isLeft ? leftPointerId : rightPointerId;
-
-    if (pointerIdRef.current !== null) return;
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (leftPointerId.current !== null) return;
 
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    pointerIdRef.current = e.pointerId;
-    origin.current = { x: e.clientX, y: e.clientY };
+    leftPointerId.current = e.pointerId;
+    leftOrigin.current = { x: e.clientX, y: e.clientY };
 
-    if (baseRef.current && knobRef.current) {
-      baseRef.current.style.display = 'block';
-      baseRef.current.style.left = `${e.clientX}px`;
-      baseRef.current.style.top = `${e.clientY}px`;
-      knobRef.current.style.transform = `translate(-50%, -50%)`;
+    if (leftBaseRef.current && leftKnobRef.current) {
+      leftBaseRef.current.style.display = 'block';
+      leftBaseRef.current.style.left = `${e.clientX}px`;
+      leftBaseRef.current.style.top = `${e.clientY}px`;
+      leftKnobRef.current.style.transform = `translate(-50%, -50%)`;
     }
+  }, []);
 
-    if (!isLeft) onAim(0, 0, true);
-  }, [onAim]);
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (leftPointerId.current !== e.pointerId) return;
 
-  const handlePointerMove = useCallback((e: React.PointerEvent, side: 'left' | 'right') => {
-    const isLeft = side === 'left';
-    const pointerIdRef = isLeft ? leftPointerId : rightPointerId;
-
-    if (pointerIdRef.current !== e.pointerId) return;
-
-    const origin = (isLeft ? leftOrigin : rightOrigin).current;
-    const knobRef = isLeft ? leftKnobRef : rightKnobRef;
+    const origin = leftOrigin.current;
 
     let dx = e.clientX - origin.x;
     let dy = e.clientY - origin.y;
@@ -66,39 +49,25 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
       dy = (dy / distance) * MAX_RADIUS;
     }
 
-    if (knobRef.current) {
-      knobRef.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    if (leftKnobRef.current) {
+      leftKnobRef.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     }
 
     const nx = dx / MAX_RADIUS;
     const ny = dy / MAX_RADIUS;
+    onMove(nx, ny);
+  }, [onMove]);
 
-    if (isLeft) {
-      onMove(nx, ny);
-    } else {
-      const isFiring = distance > 10;
-      if (isFiring) onAim(nx, ny, true);
-    }
-  }, [onMove, onAim]);
-
-  const handlePointerUp = useCallback((e: React.PointerEvent, side: 'left' | 'right') => {
-    const isLeft = side === 'left';
-    const pointerIdRef = isLeft ? leftPointerId : rightPointerId;
-
-    if (pointerIdRef.current !== e.pointerId) return;
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (leftPointerId.current !== e.pointerId) return;
 
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    pointerIdRef.current = null;
+    leftPointerId.current = null;
 
-    const baseRef = isLeft ? leftBaseRef : rightBaseRef;
-    if (baseRef.current) baseRef.current.style.display = 'none';
+    if (leftBaseRef.current) leftBaseRef.current.style.display = 'none';
 
-    if (isLeft) {
-      onMove(0, 0);
-    } else {
-      onAim(0, 0, false);
-    }
-  }, [onMove, onAim]);
+    onMove(0, 0);
+  }, [onMove]);
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none', touchAction: 'none' }}>
@@ -113,10 +82,10 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
           pointerEvents: 'auto',
           touchAction: 'none',
         }}
-        onPointerDown={(e) => handlePointerDown(e, 'left')}
-        onPointerMove={(e) => handlePointerMove(e, 'left')}
-        onPointerUp={(e) => handlePointerUp(e, 'left')}
-        onPointerCancel={(e) => handlePointerUp(e, 'left')}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
       >
         {/* Static hint — always visible */}
         <div style={styles.hint}>
