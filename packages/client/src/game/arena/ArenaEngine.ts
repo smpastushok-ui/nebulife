@@ -1039,12 +1039,18 @@ export class ArenaEngine {
       a.z += a.vz * dt;
       a.rot += a.rotSpeed * dt;
 
-      // Wrap around arena (torus topology)
+      // Destroy asteroid that flies past arena bounds (pushed out by grav push,
+      // black hole explosion, or drifted over the edge). Respawn on a fresh
+      // random edge position after a short delay.
       const d = Math.sqrt(a.x * a.x + a.z * a.z);
       if (d > ARENA_HALF + a.radius) {
-        const wAngle = Math.atan2(a.z, a.x) + Math.PI;
-        a.x = Math.cos(wAngle) * (ARENA_HALF - a.radius);
-        a.z = Math.sin(wAngle) * (ARENA_HALF - a.radius);
+        a.alive = false;
+        a.respawnTimer = 5;
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        this.asteroidMesh.setMatrixAt(i, dummy.matrix);
+        continue;
       }
 
       dummy.position.set(a.x, a.radius * 0.3, a.z);
