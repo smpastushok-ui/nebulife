@@ -26,6 +26,7 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
   const [kills, setKills] = useState(0);
   const [deaths, setDeaths] = useState(0);
   const [mobile] = useState(isMobileDevice);
+  const [sessionStats, setSessionStats] = useState({ kills: 0, missileKills: 0, deaths: 0, score: 0 });
 
   const callbacks = useRef<ArenaCallbacks>({
     onMatchEnd: (result) => onMatchEnd?.(result),
@@ -71,10 +72,40 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
     return () => clearInterval(id);
   }, [ready]);
 
+  // Poll engine for session stats (kills, missileKills, deaths, score)
+  useEffect(() => {
+    if (!ready) return;
+    const id = setInterval(() => {
+      const e = engineRef.current;
+      if (!e || typeof e.getArenaStats !== 'function') return;
+      setSessionStats(e.getArenaStats());
+    }, 500);
+    return () => clearInterval(id);
+  }, [ready]);
+
+  // Merge session stats into cumulative localStorage on exit
+  const handleExit = useCallback(() => {
+    const rawPrev = localStorage.getItem('nebulife_arena_stats');
+    const prev = rawPrev
+      ? JSON.parse(rawPrev)
+      : { kills: 0, missileKills: 0, deaths: 0, score: 0, bestScore: 0, sessions: 0 };
+    const merged = {
+      kills: prev.kills + sessionStats.kills,
+      missileKills: prev.missileKills + sessionStats.missileKills,
+      deaths: prev.deaths + sessionStats.deaths,
+      score: prev.score + sessionStats.score,
+      bestScore: Math.max(prev.bestScore, sessionStats.score),
+      sessions: prev.sessions + 1,
+    };
+    localStorage.setItem('nebulife_arena_stats', JSON.stringify(merged));
+    onExit();
+  }, [onExit, sessionStats]);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const engine = new ArenaEngine(containerRef.current, callbacks.current);
+    const shipId = localStorage.getItem('nebulife_hangar_ship') || 'ship1';
+    const engine = new ArenaEngine(containerRef.current, callbacks.current, shipId);
     engineRef.current = engine;
     engine.setIsMobile(mobile);
 
@@ -158,7 +189,7 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
 
       {/* Exit button — bottom left, door icon */}
       <button
-        onClick={onExit}
+        onClick={handleExit}
         style={{
           position: 'absolute', bottom: 20, left: 16,
           width: 44, height: 44,

@@ -8,6 +8,14 @@ import { useT } from '../../../i18n/index.js';
 
 interface HangarPageProps {
   playerLevel: number;
+  arenaStats: {
+    kills: number;
+    missileKills: number;
+    deaths: number;
+    score: number;
+    bestScore: number;
+    sessions: number;
+  } | null;
   onBack: () => void;
   onEnterArena: () => void;
 }
@@ -20,7 +28,7 @@ const SHIPS: { id: string; src: string }[] = [
 
 const SELECTED_SHIP_KEY = 'nebulife_hangar_ship';
 
-export const HangarPage: React.FC<HangarPageProps> = ({ playerLevel, onBack, onEnterArena }) => {
+export const HangarPage: React.FC<HangarPageProps> = ({ playerLevel, arenaStats, onBack, onEnterArena }) => {
   const { t } = useT();
 
   const [selectedShip, setSelectedShip] = useState<string>(() => {
@@ -58,6 +66,28 @@ export const HangarPage: React.FC<HangarPageProps> = ({ playerLevel, onBack, onE
       </div>
 
       <div style={styles.hint}>{t('hangar.hint')}</div>
+
+      {/* Pilot stats strip — shown only after at least one arena session */}
+      {arenaStats && arenaStats.sessions > 0 && (
+        <div style={styles.statsStrip}>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>{t('hangar.stats.sessions')}</div>
+            <div style={styles.statValue}>{arenaStats.sessions}</div>
+          </div>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>{t('hangar.stats.kills')}</div>
+            <div style={styles.statValue}>{arenaStats.kills}</div>
+          </div>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>{t('hangar.stats.deaths')}</div>
+            <div style={styles.statValue}>{arenaStats.deaths}</div>
+          </div>
+          <div style={styles.statCell}>
+            <div style={styles.statLabel}>{t('hangar.stats.best_score')}</div>
+            <div style={{ ...styles.statValue, color: '#44ff88' }}>{arenaStats.bestScore}</div>
+          </div>
+        </div>
+      )}
 
       {/* Main layout: 3 columns (ship preview | upgrades | events) */}
       <div style={styles.layout}>
@@ -366,5 +396,31 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px dashed #334455',
     borderRadius: 3,
     marginTop: 4,
+  },
+  statsStrip: {
+    position: 'relative',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: 40,
+    padding: '12px 32px',
+    borderBottom: '1px solid #1a2333',
+    zIndex: 2,
+  },
+  statCell: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 2,
+  },
+  statLabel: {
+    fontSize: 9,
+    color: '#667788',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  statValue: {
+    fontSize: 18,
+    color: '#aabbcc',
+    letterSpacing: 1,
   },
 };

@@ -896,6 +896,33 @@ function AppInner() {
     if (val) localStorage.setItem('nebulife_hangar_active', '1');
     else localStorage.removeItem('nebulife_hangar_active');
   }, []);
+  const [arenaStats, setArenaStats] = useState<{
+    kills: number;
+    missileKills: number;
+    deaths: number;
+    score: number;
+    bestScore: number;
+    sessions: number;
+  } | null>(() => {
+    try {
+      const raw = localStorage.getItem('nebulife_arena_stats');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  // Refresh arenaStats from localStorage each time the Hangar opens
+  // (ensures stats updated after an arena session completes)
+  useEffect(() => {
+    if (showHangar) {
+      try {
+        const raw = localStorage.getItem('nebulife_arena_stats');
+        setArenaStats(raw ? JSON.parse(raw) : null);
+      } catch {
+        setArenaStats(null);
+      }
+    }
+  }, [showHangar]);
   const [sharedLessonInfo, setSharedLessonInfo] = useState<SharedLessonInfo | null>(() => {
     // Read share params from URL on first load
     try {
@@ -4930,6 +4957,7 @@ function AppInner() {
       {showHangar && !showArena && (
         <HangarPage
           playerLevel={playerLevel}
+          arenaStats={arenaStats}
           onBack={() => setShowHangar(false)}
           onEnterArena={() => {
             setShowHangar(false);
