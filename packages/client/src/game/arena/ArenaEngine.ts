@@ -1124,7 +1124,10 @@ export class ArenaEngine {
     if (this.missileAmmo <= 0 || this.missileCooldownTimer > 0) return;
     this.missileAmmo--;
     this.missileCooldownTimer = this.MISSILE_COOLDOWN;
-    if (this.missileAmmo <= 0) this.missileReloadTimer = this.MISSILE_RELOAD_TIME;
+    // Start per-missile reload timer when dropping below max for the first time
+    if (this.missileAmmo === this.MISSILE_MAX_AMMO - 1) {
+      this.missileReloadTimer = this.MISSILE_RELOAD_TIME / this.MISSILE_MAX_AMMO;
+    }
     const idx = this.missiles.findIndex(m => !m.active);
     if (idx === -1) return;
 
@@ -1144,12 +1147,18 @@ export class ArenaEngine {
   private updateMissiles(dt: number): void {
     this.missileCooldownTimer = Math.max(0, this.missileCooldownTimer - dt);
 
-    // Reload ammo over time
+    // Reload ammo over time — 1 missile per (MISSILE_RELOAD_TIME / MAX_AMMO) seconds
     if (this.missileAmmo < this.MISSILE_MAX_AMMO) {
       this.missileReloadTimer -= dt;
       if (this.missileReloadTimer <= 0) {
-        this.missileAmmo = this.MISSILE_MAX_AMMO;
-        this.missileReloadTimer = 0;
+        this.missileAmmo++;
+        if (this.missileAmmo < this.MISSILE_MAX_AMMO) {
+          // Schedule next reload tick
+          this.missileReloadTimer = this.MISSILE_RELOAD_TIME / this.MISSILE_MAX_AMMO;
+        } else {
+          // Ammo full — stop the timer
+          this.missileReloadTimer = 0;
+        }
       }
     }
 
