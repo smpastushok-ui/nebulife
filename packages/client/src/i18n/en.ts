@@ -26,6 +26,43 @@ export const en: Record<TranslationKey, string> = {
   'cmd.fly_star':        'Fly to my star',
   'cmd.arena_tooltip':   'Space Arena (unlocks at level 10)',
   'arena.locked':        'Arena unlocks at level 10. Keep exploring — {levels} more level(s) to go.',
+
+  'arena.tutorial.skip':               'Skip',
+  'arena.tutorial.next':               'Next',
+  'arena.tutorial.start':              'Start',
+
+  'arena.tutorial.step1.title':        'Welcome to the arena',
+  'arena.tutorial.step1.body_desktop': 'This is a combat simulator: asteroids, black holes, boosts. Controls: keyboard + mouse.',
+  'arena.tutorial.step1.body_mobile':  'This is a combat simulator: asteroids, black holes, boosts. Controls: two touch areas.',
+
+  'arena.tutorial.step2.title':        'Movement',
+  'arena.tutorial.step2.body_desktop': 'WASD or arrow keys. The ship accelerates and decelerates smoothly.',
+  'arena.tutorial.step2.body_mobile':  'Left joystick (bottom-left corner of the screen). Drag your finger in the desired direction.',
+
+  'arena.tutorial.step3.title':        'Aim and shoot',
+  'arena.tutorial.step3.body_desktop': 'Mouse sets the aim. Left mouse button - continuous laser.',
+  'arena.tutorial.step3.body_mobile':  'LASER button - continuous laser. Fire direction matches movement.',
+
+  'arena.tutorial.step4.title':        'Missiles',
+  'arena.tutorial.step4.body_desktop': 'E or Space - homing missile. 10 ammo, 6s reload per unit.',
+  'arena.tutorial.step4.body_mobile':  'ROCKET button - homing missile. Shows ammo count.',
+
+  'arena.tutorial.step5.title':        'Gravity push',
+  'arena.tutorial.step5.body_desktop': 'Q key - pushes the nearest asteroid in front of the ship.',
+  'arena.tutorial.step5.body_mobile':  'GRAV button - pushes the nearest asteroid in front of the ship.',
+
+  'arena.tutorial.step6.title':        'Warp boost',
+  'arena.tutorial.step6.body_desktop': 'Shift - sharp forward dash for 1s. Cooldown 8s.',
+  'arena.tutorial.step6.body_mobile':  'WARP button - sharp forward dash for 1s. Cooldown 8s.',
+
+  'arena.tutorial.step7.title':        'Black holes',
+  'arena.tutorial.step7.body_desktop': 'Spawn every 60-120s. Purple gravity field is visible - avoid the center.',
+  'arena.tutorial.step7.body_mobile':  'Spawn every 60-120s. Purple gravity field is visible - avoid the center.',
+
+  'arena.tutorial.step8.title':        'Boosts',
+  'arena.tutorial.step8.body_desktop': 'Orbs on the map (WARP, DAMAGE, SHIELD, SLOW). Collect with your ship - 10s buff.',
+  'arena.tutorial.step8.body_mobile':  'Orbs on the map (WARP, DAMAGE, SHIELD, SLOW). Collect with your ship - 10s buff.',
+
   'hangar.title':             'HANGAR',
   'hangar.subtitle':          'Combat simulator',
   'hangar.pilot':             'Pilot',
@@ -45,6 +82,10 @@ export const en: Record<TranslationKey, string> = {
   'hangar.event.coming_soon': 'Soon',
   'hangar.event.tournament':  'Tournament',
   'hangar.event.tournament_desc': 'Multiplayer battles up to 10 players.',
+  'hangar.stats.sessions':  'Sessions',
+  'hangar.stats.kills':     'Kills',
+  'hangar.stats.deaths':    'Deaths',
+  'hangar.stats.best_score':'Best score',
 
   // ─── RadialMenu ──────────────────────────────────────────────────────────
   'radial.enter':         'Enter System',

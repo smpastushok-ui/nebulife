@@ -24,6 +24,43 @@ export const uk = {
   'cmd.fly_star':        'Полетiти до моєї зiрки',
   'cmd.arena_tooltip':   'Космiчна Арена (з 10 рiвня)',
   'arena.locked':        'Арена доступна з 10 рiвня. Продовжуйте дослiдження — ще {levels} рiв. до вiдкриття.',
+
+  'arena.tutorial.skip':               'Пропустити',
+  'arena.tutorial.next':               'Далi',
+  'arena.tutorial.start':              'Почати бiй',
+
+  'arena.tutorial.step1.title':        'Вiтаю в аренi',
+  'arena.tutorial.step1.body_desktop': 'Це бойовий симулятор: астероїди, чорнi дiри, бустери. Керування - клавiатура + миша.',
+  'arena.tutorial.step1.body_mobile':  'Це бойовий симулятор: астероїди, чорнi дiри, бустери. Керування - два сенсорнi поля.',
+
+  'arena.tutorial.step2.title':        'Рух',
+  'arena.tutorial.step2.body_desktop': 'WASD або стрiлки. Корабель плавно прискорюється та гальмує.',
+  'arena.tutorial.step2.body_mobile':  'Лiвий джойстик (нижнiй-лiвий кут екрана). Перетягни палець у потрiбний напрям.',
+
+  'arena.tutorial.step3.title':        'Прицiл та стрiльба',
+  'arena.tutorial.step3.body_desktop': 'Мишка задає прицiл. Лiва кнопка миши - постiйний лазер.',
+  'arena.tutorial.step3.body_mobile':  'Кнопка LASER - постiйний лазер. Напрям пострiлу спiвпадає з рухом.',
+
+  'arena.tutorial.step4.title':        'Ракети',
+  'arena.tutorial.step4.body_desktop': 'Клавiша E або Space - ракета з самонаведенням. Боєзапас 10, перезарядка 6с за штуку.',
+  'arena.tutorial.step4.body_mobile':  'Кнопка ROCKET - ракета з самонаведенням. Показує запас.',
+
+  'arena.tutorial.step5.title':        'Гравiтацiйний штовх',
+  'arena.tutorial.step5.body_desktop': 'Клавiша Q - штовхає найближчий астероїд перед кораблем.',
+  'arena.tutorial.step5.body_mobile':  'Кнопка GRAV - штовхає найближчий астероїд перед кораблем.',
+
+  'arena.tutorial.step6.title':        'Варп-прискорення',
+  'arena.tutorial.step6.body_desktop': 'Shift - рiзкий ривок вперед на 1с. Кулдаун 8с.',
+  'arena.tutorial.step6.body_mobile':  'Кнопка WARP - рiзкий ривок вперед на 1с. Кулдаун 8с.',
+
+  'arena.tutorial.step7.title':        'Чорнi дiри',
+  'arena.tutorial.step7.body_desktop': 'Зʼявляються кожнi 60-120с. Видно фiолетове поле тяжiння - уникай центру.',
+  'arena.tutorial.step7.body_mobile':  'Зʼявляються кожнi 60-120с. Видно фiолетове поле тяжiння - уникай центру.',
+
+  'arena.tutorial.step8.title':        'Бустери',
+  'arena.tutorial.step8.body_desktop': 'Кулi на мапi (WARP, DAMAGE, SHIELD, SLOW). Збирай кораблем - дають баф на 10с.',
+  'arena.tutorial.step8.body_mobile':  'Кулi на мапi (WARP, DAMAGE, SHIELD, SLOW). Збирай кораблем - дають баф на 10с.',
+
   'hangar.title':             'АНГАР',
   'hangar.subtitle':          'Бойовий симулятор',
   'hangar.pilot':             'Пiлот',
@@ -43,6 +80,10 @@ export const uk = {
   'hangar.event.coming_soon': 'Скоро',
   'hangar.event.tournament':  'Турнiр',
   'hangar.event.tournament_desc': 'Багатокористувацькi поєдинки до 10 гравцiв.',
+  'hangar.stats.sessions':  'Сесiй',
+  'hangar.stats.kills':     'Знищено',
+  'hangar.stats.deaths':    'Смертей',
+  'hangar.stats.best_score':'Рекорд',
 
   // ─── RadialMenu ──────────────────────────────────────────────────────────
   'radial.enter':         'До системи',
