@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ArenaEngine } from '../../../game/arena/index.js';
 import type { ArenaCallbacks, MatchResult } from '../../../game/arena/index.js';
 import { ArenaJoystick } from './ArenaJoystick.js';
+import { ArenaTutorial, shouldShowArenaTutorial } from './ArenaTutorial.js';
 
 interface SpaceArenaProps {
   onExit: () => void;
@@ -27,6 +28,7 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
   const [deaths, setDeaths] = useState(0);
   const [mobile] = useState(isMobileDevice);
   const [sessionStats, setSessionStats] = useState({ kills: 0, missileKills: 0, deaths: 0, score: 0 });
+  const [showTutorial, setShowTutorial] = useState(() => shouldShowArenaTutorial());
 
   const callbacks = useRef<ArenaCallbacks>({
     onMatchEnd: (result) => onMatchEnd?.(result),
@@ -221,6 +223,14 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
           missileAmmo={missileAmmo}
           warpReady={warpReady}
           isWarping={isWarping}
+        />
+      )}
+
+      {/* First-time tutorial overlay — shown only if localStorage flag not set */}
+      {showTutorial && (
+        <ArenaTutorial
+          isMobile={mobile}
+          onComplete={() => setShowTutorial(false)}
         />
       )}
     </div>
