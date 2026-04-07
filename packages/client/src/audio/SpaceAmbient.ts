@@ -16,18 +16,23 @@ export class SpaceAmbient {
   private gainNode: GainNode | null = null;
   private isPlaying = false;
   private onVisibilityChange: (() => void) | null = null;
+  private onFirstInteraction: (() => void) | null = null;
 
   public start(): void {
     if (this.isPlaying) return;
 
     const AudioContextClass: typeof AudioContext | undefined =
       window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
+    if (!AudioContextClass) {
+      console.warn('[SpaceAmbient] AudioContext not supported');
+      return;
+    }
 
     try {
       this.ctx = new AudioContextClass();
-    } catch {
-      return; // AudioContext blocked
+    } catch (err) {
+      console.warn('[SpaceAmbient] AudioContext creation failed:', err);
+      return;
     }
 
     this.gainNode = this.ctx.createGain();
@@ -36,6 +41,22 @@ export class SpaceAmbient {
 
     this.createLowRumble();
     this.createSolarWind();
+
+    // Browsers often create AudioContext in 'suspended' state. Try to resume
+    // immediately. If that fails (no user gesture trust), attach a one-time
+    // listener that resumes on the next pointer/key event.
+    if (this.ctx.state === 'suspended') {
+      void this.ctx.resume().then(() => {
+        if (this.ctx?.state === 'running') {
+          console.log('[SpaceAmbient] resumed successfully');
+        }
+      }).catch(() => {
+        console.warn('[SpaceAmbient] auto-resume blocked, waiting for user interaction');
+        this.attachInteractionFallback();
+      });
+    } else {
+      console.log('[SpaceAmbient] running');
+    }
 
     // Pause / resume on tab visibility change to save battery
     this.onVisibilityChange = () => {
@@ -51,7 +72,39 @@ export class SpaceAmbient {
     this.isPlaying = true;
   }
 
+  /** Bulletproof fallback: resume AudioContext on next user interaction */
+  private attachInteractionFallback(): void {
+    if (this.onFirstInteraction) return; // already attached
+
+    this.onFirstInteraction = () => {
+      if (!this.ctx || this.ctx.state === 'closed') return;
+      void this.ctx.resume().then(() => {
+        if (this.ctx?.state === 'running') {
+          console.log('[SpaceAmbient] resumed via interaction fallback');
+        }
+      });
+      // One-shot: detach after first try
+      if (this.onFirstInteraction) {
+        document.removeEventListener('pointerdown', this.onFirstInteraction);
+        document.removeEventListener('keydown', this.onFirstInteraction);
+        document.removeEventListener('touchstart', this.onFirstInteraction);
+        this.onFirstInteraction = null;
+      }
+    };
+    document.addEventListener('pointerdown', this.onFirstInteraction, { once: true });
+    document.addEventListener('keydown', this.onFirstInteraction, { once: true });
+    document.addEventListener('touchstart', this.onFirstInteraction, { once: true });
+  }
+
   public stop(): void {
+    // Detach interaction fallback listeners (may exist even if start() failed)
+    if (this.onFirstInteraction) {
+      document.removeEventListener('pointerdown', this.onFirstInteraction);
+      document.removeEventListener('keydown', this.onFirstInteraction);
+      document.removeEventListener('touchstart', this.onFirstInteraction);
+      this.onFirstInteraction = null;
+    }
+
     if (!this.isPlaying || !this.ctx) {
       // Still detach visibility listener even if start() failed midway
       if (this.onVisibilityChange) {
