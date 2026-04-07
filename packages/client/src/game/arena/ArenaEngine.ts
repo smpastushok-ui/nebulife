@@ -19,6 +19,12 @@ const _tempVec3 = new THREE.Vector3();
 const _camTarget = new THREE.Vector3();
 const _tempDummy = new THREE.Object3D(); // shared matrix writer for InstancedMesh updates
 
+const SHIP_FILES: Record<string, string> = {
+  ship1: '/arena_ships/star_ship1.webp',
+  ship2: '/arena_ships/star_ship2.webp',
+  ship3: '/arena_ships/star_ship3.webp',
+};
+
 // Power-up types (mirrors server arena-matchmaker for Phase 2 compat)
 export type PowerUpType = 'WARP' | 'DAMAGE_UP' | 'SLOW_LASER' | 'SHIELD';
 
@@ -50,6 +56,13 @@ export class ArenaEngine {
   private playerDead = false;
   private respawnTimer = 0;
   private readonly RESPAWN_TIME = 5;
+  private shipId: string;
+  private stats = {
+    kills: 0,         // total asteroids destroyed (bullets + missiles)
+    missileKills: 0,  // subset: destroyed by missiles
+    deaths: 0,        // player deaths (not shield-saves)
+    score: 0,         // +10 per bullet kill, +30 per missile kill, -5 per death
+  };
 
   // Black hole
   private blackHoleMesh: THREE.Group | null = null;
@@ -196,9 +209,10 @@ export class ArenaEngine {
   // Track all disposables for cleanup
   private disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
 
-  constructor(container: HTMLElement, callbacks: ArenaCallbacks) {
+  constructor(container: HTMLElement, callbacks: ArenaCallbacks, shipId: string = 'ship1') {
     this.container = container;
     this.callbacks = callbacks;
+    this.shipId = shipId;
     this.onResizeBound = this.onResize.bind(this);
     this.onWheelBound = this.onWheel.bind(this);
     this.onKeyDownBound = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());
@@ -518,9 +532,10 @@ export class ArenaEngine {
   }
 
   private setupPlayerShip(): void {
-    // 2D sprite ship — star_ship1.webp (nose = top of image)
+    // 2D sprite ship — nose = top of image, ship selected via constructor shipId
     const loader = new THREE.TextureLoader();
-    const texture = loader.load('/arena_ships/star_ship1.webp');
+    const shipFile = SHIP_FILES[this.shipId] ?? SHIP_FILES.ship1;
+    const texture = loader.load(shipFile);
     texture.colorSpace = THREE.SRGBColorSpace;
     this.disposables.push(texture);
 
@@ -603,8 +618,16 @@ export class ArenaEngine {
   }
 
   private setupBullets(): void {
-    const geo = new THREE.SphereGeometry(this.BULLET_RADIUS, 4, 4);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x44ff88 });
+    const geo = new THREE.PlaneGeometry(1, 4);
+    geo.rotateX(-Math.PI / 2); // lay flat on XZ plane (like ship)
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x44ff88,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
     this.disposables.push(geo, mat);
 
     this.bulletMesh = new THREE.InstancedMesh(geo, mat, this.BULLET_POOL);
@@ -695,8 +718,7 @@ export class ArenaEngine {
         this.checkBulletAsteroidCollisions();
         this.checkMissileAsteroidCollisions();
         break;
-      case 'ended':
-        // Freeze — waiting for React to show end screen
+      default:
         break;
     }
 
@@ -887,6 +909,9 @@ export class ArenaEngine {
       // Update visible position
       dummy.position.set(b.x, 3, b.z);
       dummy.scale.set(1, 1, 1);
+      // Orient beam along velocity direction using (x, -z) convention
+      const beamAngle = Math.atan2(-b.vx, -b.vz);
+      dummy.rotation.set(0, beamAngle, 0);
       dummy.updateMatrix();
       this.bulletMesh.setMatrixAt(i, dummy.matrix);
       needsUpdate = true;
@@ -941,6 +966,10 @@ export class ArenaEngine {
       this.playerVelZ *= -0.4;
       return; // survived the hit
     }
+
+    // Player actually dies (shield did not absorb the hit)
+    this.stats.deaths++;
+    this.stats.score = Math.max(0, this.stats.score - 5);
 
     this.playerDead = true;
     this.respawnTimer = this.RESPAWN_TIME;
@@ -998,6 +1027,8 @@ export class ArenaEngine {
             // Destroy asteroid
             a.alive = false;
             a.respawnTimer = 10; // seconds
+            this.stats.kills++;
+            this.stats.score += 10;
             dummy.position.set(0, -1000, 0);
             dummy.scale.set(0, 0, 0);
             dummy.updateMatrix();
@@ -1521,6 +1552,9 @@ export class ArenaEngine {
               if (a2.hp <= 0) {
                 a2.alive = false;
                 a2.respawnTimer = 10;
+                this.stats.kills++;
+                this.stats.missileKills++;
+                this.stats.score += 30;
                 const idx2 = this.asteroidData.indexOf(a2);
                 dummy.position.set(0, -1000, 0);
                 dummy.scale.set(0, 0, 0);
@@ -1810,6 +1844,9 @@ export class ArenaEngine {
   getMissileAmmo(): number { return this.missileAmmo; }
   getMissileReloadTimer(): number { return this.missileReloadTimer; }
   getMissileReloadTotal(): number { return this.MISSILE_RELOAD_TIME; }
+  getArenaStats(): { kills: number; missileKills: number; deaths: number; score: number } {
+    return { ...this.stats };
+  }
   isWarpActive(): boolean { return this.warpActive; }
   getWarpCooldown(): number { return this.warpCooldownTimer; }
   getWarpCooldownTotal(): number { return this.WARP_COOLDOWN; }

@@ -85,7 +85,7 @@ export interface WeaponDef {
 }
 
 // Arena match state
-export type MatchPhase = 'waiting' | 'countdown' | 'playing' | 'ended';
+export type MatchPhase = 'waiting' | 'countdown' | 'playing';
 
 // Match results
 export interface MatchResult {
