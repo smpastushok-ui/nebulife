@@ -107,6 +107,7 @@ import { DigestModal } from './ui/components/DigestModal.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
+import { HangarPage } from './ui/components/Hangar/HangarPage.js';
 import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
 import type { CosmicArchiveHandle } from './ui/components/CosmicArchive/CosmicArchive.js';
@@ -888,6 +889,12 @@ function AppInner() {
     setShowArenaRaw(val);
     if (val) localStorage.setItem('nebulife_arena_active', '1');
     else localStorage.removeItem('nebulife_arena_active');
+  }, []);
+  const [showHangar, setShowHangarRaw] = useState(() => localStorage.getItem('nebulife_hangar_active') === '1');
+  const setShowHangar = useCallback((val: boolean) => {
+    setShowHangarRaw(val);
+    if (val) localStorage.setItem('nebulife_hangar_active', '1');
+    else localStorage.removeItem('nebulife_hangar_active');
   }, []);
   const [sharedLessonInfo, setSharedLessonInfo] = useState<SharedLessonInfo | null>(() => {
     // Read share params from URL on first load
@@ -3848,7 +3855,8 @@ function AppInner() {
     needsOnboarding ||
     (evacuationTarget && evacuationPhase === 'idle' && !evacuationPromptDismissed) ||
     evacuationPhase !== 'idle' ||
-    showArena
+    showArena ||
+    showHangar
   );
 
   const toolGroups: ToolGroup[] = [];
@@ -3934,17 +3942,28 @@ function AppInner() {
     });
   }
 
-  // Arena button — golden spaceship icon, no level restriction for now
+  // Arena button — golden spaceship icon, unlocks at level 10
+  // Opens the Hangar intermediate page (not Arena directly)
+  const ARENA_MIN_LEVEL = 10;
+  const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
   toolGroups.push({
     type: 'buttons',
     items: [{
       id: 'arena',
       label: '',
       variant: 'terminal' as const,
-      tooltip: 'Space Arena',
-      onClick: () => setShowArena(true),
+      tooltip: t('cmd.arena_tooltip'),
+      onClick: () => {
+        if (!arenaUnlocked) {
+          const levelsLeft = ARENA_MIN_LEVEL - playerLevel;
+          setToastMessage(t('arena.locked').replace('{levels}', String(levelsLeft)));
+          setTimeout(() => setToastMessage(null), 4000);
+          return;
+        }
+        setShowHangar(true);
+      },
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ddaa44" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={arenaUnlocked ? '#ddaa44' : '#665533'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: arenaUnlocked ? 1 : 0.5 }}>
           <path d="M12 2L15 8L22 9L17 14L18 21L12 18L6 21L7 14L2 9L9 8Z" />
           <path d="M12 6V14" />
           <path d="M8 10L12 8L16 10" />
@@ -3971,7 +3990,7 @@ function AppInner() {
       <div ref={canvasRef} id="game-canvas" style={{ display: universeVisible ? 'none' : undefined }} />
 
       {/* Resource HUD — top center (hidden in arena) */}
-      {!showArena && (<ResourceDisplay
+      {!showArena && !showHangar && (<ResourceDisplay
         researchData={researchData}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
@@ -4165,7 +4184,7 @@ function AppInner() {
       />
 
       {/* CommandBar — visible at bottom (hidden during cinematic intro) */}
-      {!cinematicActive && !showArena && (
+      {!cinematicActive && !showArena && !showHangar && (
         <CommandBar
           scene={effectiveScene}
           navigationItems={navigationItems}
@@ -4907,10 +4926,26 @@ function AppInner() {
         />
       )}
 
+      {/* Hangar — intermediate page between main game and Space Arena */}
+      {showHangar && !showArena && (
+        <HangarPage
+          playerLevel={playerLevel}
+          onBack={() => setShowHangar(false)}
+          onEnterArena={() => {
+            setShowHangar(false);
+            setShowArena(true);
+          }}
+        />
+      )}
+
       {/* Space Arena */}
       {showArena && (
         <SpaceArena
-          onExit={() => setShowArena(false)}
+          onExit={() => {
+            setShowArena(false);
+            // Return to Hangar after arena exit
+            setShowHangar(true);
+          }}
         />
       )}
 
