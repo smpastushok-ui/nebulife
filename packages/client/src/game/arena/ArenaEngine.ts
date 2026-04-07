@@ -302,6 +302,7 @@ export class ArenaEngine {
   }
 
   triggerDash(): void {
+    if (this.playerDead) return;
     if (this.warpCooldownTimer > 0 || this.warpActive) return;
     this.warpActive = true;
     this.warpTimer = this.WARP_DURATION;
@@ -310,6 +311,7 @@ export class ArenaEngine {
 
   /** Gravity push — shove nearest asteroid in front of ship at 2x ship speed */
   triggerGravPush(): void {
+    if (this.playerDead) return;
     const pushRange = SHIP_RADIUS * 5;
     let bestIdx = -1;
     let bestDist = pushRange;
@@ -1363,6 +1365,7 @@ export class ArenaEngine {
   }
 
   fireMissile(): void {
+    if (this.playerDead) return;
     if (this.missileAmmo <= 0 || this.missileCooldownTimer > 0) return;
     this.missileAmmo--;
     this.missileCooldownTimer = this.MISSILE_COOLDOWN;
@@ -1374,10 +1377,12 @@ export class ArenaEngine {
     if (idx === -1) return;
 
     const m = this.missiles[idx];
-    m.angle = this.playerAimAngle;
-    // Use aim direction vector
-    const dirX = this.aimDirX || Math.cos(this.playerMesh.rotation.y);
-    const dirZ = this.aimDirZ || -Math.sin(this.playerMesh.rotation.y);
+    // Use (x, -z) convention to match velocity recalc + homing in updateMissiles
+    m.angle = Math.atan2(this.aimDirX, -this.aimDirZ);
+    // Use aim direction vector. Fallback decomposes ship rotation
+    // (rotation.y = atan2(-dirX, -dirZ) → dirX = -sin, dirZ = -cos)
+    const dirX = this.aimDirX || -Math.sin(this.playerMesh.rotation.y);
+    const dirZ = this.aimDirZ || -Math.cos(this.playerMesh.rotation.y);
     m.x = this.playerPos.x + dirX * (SHIP_RADIUS + 5);
     m.z = this.playerPos.z + dirZ * (SHIP_RADIUS + 5);
     m.vx = dirX * this.MISSILE_SPEED;
@@ -1404,8 +1409,8 @@ export class ArenaEngine {
       }
     }
 
-    // Fire missile with E key or Space
-    if (this.missileCooldownTimer <= 0 && this.missileAmmo > 0 && (this.keys.has('e') || this.keys.has(' '))) {
+    // Fire missile with E key or Space (blocked while dead)
+    if (!this.playerDead && this.missileCooldownTimer <= 0 && this.missileAmmo > 0 && (this.keys.has('e') || this.keys.has(' '))) {
       this.fireMissile();
     }
 
