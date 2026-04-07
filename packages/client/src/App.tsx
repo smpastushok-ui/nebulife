@@ -3847,7 +3847,8 @@ function AppInner() {
     telemetryTarget ||
     needsOnboarding ||
     (evacuationTarget && evacuationPhase === 'idle' && !evacuationPromptDismissed) ||
-    evacuationPhase !== 'idle'
+    evacuationPhase !== 'idle' ||
+    showArena
   );
 
   const toolGroups: ToolGroup[] = [];

@@ -101,10 +101,18 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
   }, [onMove, onAim]);
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', touchAction: 'none' }}>
-      {/* Left zone (Movement) */}
+    <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none', touchAction: 'none' }}>
+      {/* Left touch zone — only bottom-left corner (NOT full screen) */}
       <div
-        style={{ flex: 1, position: 'relative' }}
+        style={{
+          position: 'absolute',
+          left: 0,
+          bottom: 0,
+          width: '45%',
+          height: '65%',
+          pointerEvents: 'auto',
+          touchAction: 'none',
+        }}
         onPointerDown={(e) => handlePointerDown(e, 'left')}
         onPointerMove={(e) => handlePointerMove(e, 'left')}
         onPointerUp={(e) => handlePointerUp(e, 'left')}
@@ -121,12 +129,25 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
         </div>
       </div>
 
-      {/* Right side — weapon buttons (3 stacked) */}
+      {/* Right side — weapon buttons (4 stacked: GRAV, ROCKET, LASER, WARP) */}
       <div style={{
         position: 'absolute', right: 16, bottom: 80,
         display: 'flex', flexDirection: 'column', gap: 12,
-        zIndex: 60,
+        zIndex: 60, pointerEvents: 'auto',
       }}>
+        {/* Gravity push — now at the TOP of the right menu (above rockets) */}
+        <button
+          onPointerDown={() => onGravPush?.()}
+          style={styles.weaponBtn}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#aa66ff" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
+            <path d="M4.93 4.93L7.76 7.76M16.24 16.24L19.07 19.07" />
+          </svg>
+          <span style={{ ...styles.weaponLabel, color: '#bb88ff' }}>GRAV</span>
+        </button>
+
         {/* Missile button with ammo count */}
         <button
           onPointerDown={() => missileAmmo > 0 && onFireMissile?.()}
@@ -163,26 +184,6 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({ onMove, onAim, onD
             <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
           </svg>
           <span style={{ ...styles.weaponLabel, color: warpReady ? '#44ddff' : '#446677' }}>{isWarping ? 'WARP!' : warpReady ? 'WARP' : 'WAIT'}</span>
-        </button>
-      </div>
-
-      {/* Left side — utility buttons */}
-      <div style={{
-        position: 'absolute', left: 16, bottom: 180,
-        display: 'flex', flexDirection: 'column', gap: 12,
-        zIndex: 60,
-      }}>
-        {/* Gravity push button */}
-        <button
-          onPointerDown={() => onGravPush?.()}
-          style={styles.weaponBtn}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#aa66ff" strokeWidth="2" strokeLinecap="round">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
-            <path d="M4.93 4.93L7.76 7.76M16.24 16.24L19.07 19.07" />
-          </svg>
-          <span style={{ ...styles.weaponLabel, color: '#bb88ff' }}>GRAV</span>
         </button>
       </div>
     </div>

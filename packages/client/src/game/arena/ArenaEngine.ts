@@ -17,6 +17,7 @@ import {
 // Pre-allocated temp vectors — ZERO allocations in hot path
 const _tempVec3 = new THREE.Vector3();
 const _camTarget = new THREE.Vector3();
+const _tempDummy = new THREE.Object3D(); // shared matrix writer for InstancedMesh updates
 
 // Power-up types (mirrors server arena-matchmaker for Phase 2 compat)
 export type PowerUpType = 'WARP' | 'DAMAGE_UP' | 'SLOW_LASER' | 'SHIELD';
@@ -57,6 +58,12 @@ export class ArenaEngine {
   private blackHoleAge = 0;
   private blackHoleLifetime = 15;
   private blackHoleSpawnTimer = 60 + Math.random() * 60; // 60-120s first spawn
+  private readonly BLACK_HOLE_PULL_RADIUS = 500;         // player field of effect (was 200)
+  private readonly BLACK_HOLE_ASTEROID_RADIUS = 600;     // asteroid field (was 300)
+  private readonly BLACK_HOLE_MAX_FORCE_PLAYER = 600;    // 1.5x SHIP_ACCELERATION
+  private readonly BLACK_HOLE_MAX_FORCE_ASTEROID = 500;
+  private readonly BLACK_HOLE_KILL_RADIUS = 30;          // player kill zone (was 15)
+  private readonly BLACK_HOLE_KILL_RADIUS_ASTEROID = 35; // asteroid kill zone (was 20)
 
   // VFX pool (hit flashes, explosion flashes, debris)
   private vfxPool: {
@@ -145,6 +152,7 @@ export class ArenaEngine {
   private aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private mouseNDC = new THREE.Vector2();
   private aimPoint = new THREE.Vector3(0, 0, 100);
+  private _mouseHit = new THREE.Vector3(); // reused in onMouseMove (no GC)
   private playerAimAngle = 0;
 
   // Collision temp
@@ -620,11 +628,10 @@ export class ArenaEngine {
     this.mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-    // Raycast to Y=0 plane
+    // Raycast to Y=0 plane (reuses this._mouseHit — zero GC)
     this.raycaster.setFromCamera(this.mouseNDC, this.camera);
-    const hit = new THREE.Vector3();
-    if (this.raycaster.ray.intersectPlane(this.aimPlane, hit)) {
-      this.aimPoint.copy(hit);
+    if (this.raycaster.ray.intersectPlane(this.aimPlane, this._mouseHit)) {
+      this.aimPoint.copy(this._mouseHit);
     }
   }
 
@@ -667,10 +674,9 @@ export class ArenaEngine {
         }
         break;
       case 'playing':
-        this.matchTimer -= dt;
-        if (this.matchTimer <= 0) {
-          this.phase = 'ended';
-        }
+        // Arena is a sandbox — no match end. matchTimer no longer ticks
+        // down and phase never transitions to 'ended' (which would freeze
+        // updatePlayer / updateShooting / updateWarp).
         this.updateDeathRespawn(dt);
         this.updateWarp(dt);
         if (!this.playerDead) {
@@ -854,7 +860,7 @@ export class ArenaEngine {
   }
 
   private updateBullets(dt: number): void {
-    const dummy = new THREE.Object3D();
+    const dummy = _tempDummy;
     let needsUpdate = false;
 
     for (let i = 0; i < this.bullets.length; i++) {
@@ -966,7 +972,7 @@ export class ArenaEngine {
   }
 
   private checkBulletAsteroidCollisions(): void {
-    const dummy = new THREE.Object3D();
+    const dummy = _tempDummy;
     for (let bi = 0; bi < this.bullets.length; bi++) {
       const b = this.bullets[bi];
       if (!b.active) continue;
@@ -1007,7 +1013,7 @@ export class ArenaEngine {
   // ── Asteroid drift ─────────────────────────────────────────────────────
 
   private updateAsteroids(dt: number): void {
-    const dummy = new THREE.Object3D();
+    const dummy = _tempDummy;
     for (let i = 0; i < this.asteroidData.length; i++) {
       const a = this.asteroidData[i];
 
@@ -1113,7 +1119,7 @@ export class ArenaEngine {
       }
     }
 
-    const dummy = new THREE.Object3D();
+    const dummy = _tempDummy;
     let needsUpdate = false;
 
     for (let i = 0; i < this.exhaustParticles.length; i++) {
@@ -1426,7 +1432,7 @@ export class ArenaEngine {
       return best;
     };
 
-    const dummy = new THREE.Object3D();
+    const dummy = _tempDummy;
     let needsUpdate = false;
 
     for (let i = 0; i < this.missiles.length; i++) {
@@ -1480,7 +1486,7 @@ export class ArenaEngine {
   }
 
   private checkMissileAsteroidCollisions(): void {
-    const dummy = new THREE.Object3D();
+    const dummy = _tempDummy;
     for (let mi = 0; mi < this.missiles.length; mi++) {
       const m = this.missiles[mi];
       if (!m.active) continue;
@@ -1653,40 +1659,52 @@ export class ArenaEngine {
       return;
     }
 
-    // Rotate accretion disk
+    // Rotate accretion disk + pulse AoE rings
     if (this.blackHoleMesh) {
       this.blackHoleMesh.rotation.y += dt * 0.5;
+      // Pulse AoE ring opacities for "alive" feel
+      const pulse = 0.7 + Math.sin(this.blackHoleAge * 2) * 0.3;
+      const aoeMaterials = this.blackHoleMesh.userData.aoeMaterials as
+        THREE.MeshBasicMaterial[] | undefined;
+      if (aoeMaterials) {
+        for (const mat of aoeMaterials) {
+          const base = (mat.userData as { baseOpacity: number }).baseOpacity;
+          mat.opacity = base * pulse;
+        }
+      }
     }
 
-    // Gravity pull on player
+    // Gravity pull on player — quadratic falloff (strong near center, zero at edge)
     if (!this.playerDead) {
       const dx = this.blackHolePos.x - this.playerPos.x;
       const dz = this.blackHolePos.z - this.playerPos.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < 200 && dist > 0) {
-        const force = 5000 / (dist * dist + 100);
+      if (dist < this.BLACK_HOLE_PULL_RADIUS && dist > 0) {
+        const t = 1 - dist / this.BLACK_HOLE_PULL_RADIUS;
+        const force = this.BLACK_HOLE_MAX_FORCE_PLAYER * t * t;
         const nx = dx / dist;
         const nz = dz / dist;
         this.playerVelX += nx * force * dt;
         this.playerVelZ += nz * force * dt;
-        // Kill if too close
-        if (dist < 15) {
+        // Kill if too close to the singularity
+        if (dist < this.BLACK_HOLE_KILL_RADIUS) {
           this.killPlayer();
         }
       }
     }
 
-    // Pull asteroids
+    // Pull asteroids — same quadratic formula, slightly larger radius
     for (const a of this.asteroidData) {
       if (!a.alive) continue;
       const dx = this.blackHolePos.x - a.x;
       const dz = this.blackHolePos.z - a.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < 300 && dist > 0) {
-        const force = 3000 / (dist * dist + 100);
+      if (dist < this.BLACK_HOLE_ASTEROID_RADIUS && dist > 0) {
+        const t = 1 - dist / this.BLACK_HOLE_ASTEROID_RADIUS;
+        const force = this.BLACK_HOLE_MAX_FORCE_ASTEROID * t * t;
         a.vx += (dx / dist) * force * dt;
         a.vz += (dz / dist) * force * dt;
-        if (dist < 20) {
+        if (dist < this.BLACK_HOLE_KILL_RADIUS_ASTEROID) {
           a.alive = false;
           a.respawnTimer = 10;
         }
@@ -1702,22 +1720,67 @@ export class ArenaEngine {
     this.blackHoleActive = true;
     this.blackHoleAge = 0;
 
-    // Visual: dark sphere + ring
     const group = new THREE.Group();
-    const coreGeo = new THREE.SphereGeometry(15, 16, 16);
+    const aoeMaterials: THREE.MeshBasicMaterial[] = [];
+
+    // Helper: flat floor ring with base opacity stored for pulse animation
+    const addAoeDisk = (
+      inner: number,
+      outer: number,
+      color: number,
+      baseOpacity: number,
+      yOffset: number,
+    ): void => {
+      const geo = new THREE.RingGeometry(inner, outer, 64);
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: baseOpacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      (mat.userData as { baseOpacity: number }).baseOpacity = baseOpacity;
+      this.disposables.push(geo, mat);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.y = yOffset;
+      group.add(mesh);
+      aoeMaterials.push(mat);
+    };
+
+    // 1. Outer field — full pull radius (dim purple)
+    addAoeDisk(0, this.BLACK_HOLE_PULL_RADIUS, 0x6622aa, 0.06, 0.2);
+    // 2. Mid zone — noticeable pull (300u)
+    addAoeDisk(0, 300, 0x8833cc, 0.12, 0.4);
+    // 3. Inner danger — strong pull (100u)
+    addAoeDisk(0, 100, 0xaa44ff, 0.25, 0.6);
+    // 4. Boundary outline — bright edge at pull radius
+    addAoeDisk(this.BLACK_HOLE_PULL_RADIUS - 4, this.BLACK_HOLE_PULL_RADIUS,
+              0xcc66ff, 0.5, 0.8);
+
+    // 5. Core sphere (singularity)
+    const coreGeo = new THREE.SphereGeometry(20, 16, 16);
     const coreMat = new THREE.MeshBasicMaterial({ color: 0x110022 });
     this.disposables.push(coreGeo, coreMat);
     group.add(new THREE.Mesh(coreGeo, coreMat));
 
-    const ringGeo = new THREE.RingGeometry(20, 35, 32);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x441166, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
-    this.disposables.push(ringGeo, ringMat);
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.rotation.z = 0.35;
-    group.add(ring);
+    // 6. Accretion disk (rotating around core)
+    const accGeo = new THREE.RingGeometry(25, 50, 32);
+    const accMat = new THREE.MeshBasicMaterial({
+      color: 0x441166,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.7,
+    });
+    this.disposables.push(accGeo, accMat);
+    const accretion = new THREE.Mesh(accGeo, accMat);
+    accretion.rotation.x = -Math.PI / 2;
+    accretion.rotation.z = 0.35;
+    group.add(accretion);
 
     group.position.set(this.blackHolePos.x, 5, this.blackHolePos.z);
+    group.userData.aoeMaterials = aoeMaterials;
     this.scene.add(group);
     this.blackHoleMesh = group;
   }
