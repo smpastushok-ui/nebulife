@@ -17,6 +17,9 @@ export interface CinematicIntroProps {
   onRequestGalaxyScene: () => void;
   onRequestSystemScene: (system: StarSystem) => void;
   onRequestHomeScene: () => void;
+  /** Notifies parent (App) that a cinematic video is currently playing,
+   *  so global ambient (SpaceAmbient / PlanetAmbient) can be muted. */
+  onVideoPlayingChange?: (playing: boolean) => void;
 }
 
 type Stage = 0 | 1 | 2 | 3 | 4;
@@ -335,6 +338,119 @@ function VideoPlaceholder({ label }: { label: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// CinematicVideoSlide - real video element with loading + end fade states
+// ---------------------------------------------------------------------------
+//   - Shows a "loading" overlay (animated dots over starfield) while the
+//     video buffers
+//   - Plays full-quality video once `canplay` fires
+//   - On `ended`: 1-second brightness fade-to-black, video stays in DOM as
+//     a dark background
+//   - Notifies parent via onPlayingChange so global ambient can mute
+// ---------------------------------------------------------------------------
+function CinematicVideoSlide({
+  src,
+  onPlayingChange,
+}: {
+  src: string;
+  onPlayingChange?: (playing: boolean) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [ended, setEnded] = useState(false);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  onPlayingChangeRef.current = onPlayingChange;
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const handleCanPlay = () => setLoaded(true);
+    const handlePlay = () => onPlayingChangeRef.current?.(true);
+    const handleEnded = () => {
+      onPlayingChangeRef.current?.(false);
+      setEnded(true);
+    };
+    const handlePause = () => onPlayingChangeRef.current?.(false);
+    v.addEventListener('canplay', handleCanPlay);
+    v.addEventListener('loadeddata', handleCanPlay);
+    v.addEventListener('play', handlePlay);
+    v.addEventListener('ended', handleEnded);
+    v.addEventListener('pause', handlePause);
+    return () => {
+      v.removeEventListener('canplay', handleCanPlay);
+      v.removeEventListener('loadeddata', handleCanPlay);
+      v.removeEventListener('play', handlePlay);
+      v.removeEventListener('ended', handleEnded);
+      v.removeEventListener('pause', handlePause);
+      // Ensure parent knows we are no longer playing on unmount
+      onPlayingChangeRef.current?.(false);
+    };
+  }, [src]);
+
+  return (
+    <div style={{
+      position: 'relative',
+      width: '100%',
+      maxWidth: 720,
+      aspectRatio: '16/9',
+      borderRadius: 4,
+      overflow: 'hidden',
+      margin: '0 auto',
+      background: '#000',
+    }}>
+      <video
+        ref={videoRef}
+        src={src}
+        autoPlay
+        playsInline
+        preload="auto"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          opacity: loaded ? 1 : 0,
+          filter: ended ? 'brightness(0)' : 'brightness(1)',
+          transition: 'opacity 0.4s ease-out, filter 1s ease-out',
+        }}
+      />
+      {!loaded && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: 12,
+          background: 'radial-gradient(ellipse at center, #0a1020 0%, #020510 80%)',
+          color: '#4488aa',
+          fontFamily: 'monospace',
+          fontSize: 10,
+          letterSpacing: 3,
+          textTransform: 'uppercase',
+          pointerEvents: 'none',
+        }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <span style={{ ...dotStyle, animationDelay: '0s' }} />
+            <span style={{ ...dotStyle, animationDelay: '0.2s' }} />
+            <span style={{ ...dotStyle, animationDelay: '0.4s' }} />
+          </div>
+          <div>loading transmission</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const dotStyle: React.CSSProperties = {
+  width: 6,
+  height: 6,
+  borderRadius: '50%',
+  background: '#4488aa',
+  animation: 'cinematicLoadPulse 1.2s ease-in-out infinite',
+  display: 'inline-block',
+};
+
+// ---------------------------------------------------------------------------
 // Terminal typewriter for slide 1 (green text, skip on click)
 // ---------------------------------------------------------------------------
 function TerminalTypewriter({
@@ -411,11 +527,13 @@ function OnboardingSlides({
   system,
   planet,
   onComplete,
+  onVideoPlayingChange,
 }: {
   visible: boolean;
   system: { star: { name: string; spectralClass: string; subType: number; temperatureK: number } };
   planet: { name: string };
   onComplete: () => void;
+  onVideoPlayingChange?: (playing: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [slide, setSlide] = useState<OnboardingSlide>(0);
@@ -482,20 +600,7 @@ function OnboardingSlides({
         {/* Slide 0: Catastrophe video */}
         {slide === 0 && (
           <>
-            <video
-              src="/videos/1.mp4"
-              autoPlay
-              playsInline
-              preload="auto"
-              style={{
-                width: '100%',
-                maxWidth: 720,
-                aspectRatio: '16/9',
-                borderRadius: 4,
-                objectFit: 'cover',
-                background: 'rgba(15,20,35,0.8)',
-              }}
-            />
+            <CinematicVideoSlide src="/videos/1.mp4" onPlayingChange={onVideoPlayingChange} />
             <p style={{ color: '#8899aa', fontSize: 13, textAlign: 'center', lineHeight: '1.6', maxWidth: 500, margin: 0 }}>
               {t('cinematic.civilization_intro')}
             </p>
@@ -598,6 +703,7 @@ export function CinematicIntro({
   onRequestGalaxyScene,
   onRequestSystemScene,
   onRequestHomeScene,
+  onVideoPlayingChange,
 }: CinematicIntroProps) {
   const { t } = useTranslation();
   const subtitleLines = useMemo(() => [
@@ -693,6 +799,10 @@ export function CinematicIntro({
         @keyframes cin-pulse {
           0%, 100% { opacity: 0.4; }
           50% { opacity: 1; }
+        }
+        @keyframes cinematicLoadPulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.85); }
+          50% { opacity: 1; transform: scale(1); }
         }
       `}</style>
 
@@ -799,6 +909,7 @@ export function CinematicIntro({
         system={system}
         planet={planet}
         onComplete={handleSlidesComplete}
+        onVideoPlayingChange={onVideoPlayingChange}
       />
     </>
   );

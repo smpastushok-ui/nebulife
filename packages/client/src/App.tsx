@@ -355,6 +355,7 @@ function AppInner() {
     () => !localStorage.getItem('nebulife_onboarding_done'),
   );
   const [cinematicActive, setCinematicActive] = useState(false);
+  const [cinematicVideoPlaying, setCinematicVideoPlaying] = useState(false);
   const [showGuestReminder, setShowGuestReminder] = useState(false);
 
   // ── Discovery system state ──────────────────────────────────────────────
@@ -948,7 +949,7 @@ function AppInner() {
   useEffect(() => {
     const ambient = ambientRef.current;
     if (!ambient) return;
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive;
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying;
     const wasPaused = prevAmbientPausedRef.current;
     if (shouldPause && !wasPaused) {
       ambient.pause();
@@ -956,7 +957,7 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying]);
 
   // --- Planet surface ambient (earth / desert / ice / volcanic) ---
   // Starts when the player enters a planet surface, stops when they leave.
@@ -983,6 +984,19 @@ function AppInner() {
       planetAmbientRef.current = null;
     };
   }, [surfaceTarget, ambientEnabled]);
+
+  // Pause/resume PlanetAmbient when a cinematic video starts/ends.
+  // (PlanetAmbient is only created on surface, but if cinematic kicks in
+  //  while player is somehow in surface scene, mute it during the video.)
+  useEffect(() => {
+    const pa = planetAmbientRef.current;
+    if (!pa) return;
+    if (cinematicVideoPlaying) {
+      pa.pause();
+    } else {
+      pa.resume();
+    }
+  }, [cinematicVideoPlaying]);
   const [arenaStats, setArenaStats] = useState<{
     kills: number;
     missileKills: number;
@@ -5297,6 +5311,7 @@ function AppInner() {
         <CinematicIntro
           homeInfo={homeInfo}
           engineRef={engineRef}
+          onVideoPlayingChange={setCinematicVideoPlaying}
           onComplete={handleOnboardingComplete}
           onRequestUniverseScene={async () => {
             await initUniverseEngine();
