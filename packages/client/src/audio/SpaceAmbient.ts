@@ -145,6 +145,23 @@ export class SpaceAmbient {
     }
   }
 
+  /** Temporarily suspend audio context without destroying oscillators.
+   *  Use for scene transitions where ambient should yield (e.g. surface, terminal). */
+  public pause(): void {
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    if (this.ctx.state === 'running') {
+      void this.ctx.suspend();
+    }
+  }
+
+  /** Resume a previously paused context. No-op if already running or closed. */
+  public resume(): void {
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    if (this.ctx.state === 'suspended') {
+      void this.ctx.resume();
+    }
+  }
+
   private createLowRumble(): void {
     if (!this.ctx || !this.gainNode) return;
 

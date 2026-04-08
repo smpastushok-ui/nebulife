@@ -108,6 +108,7 @@ import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
+import { SpaceAmbient } from './audio/SpaceAmbient.js';
 import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
 import type { CosmicArchiveHandle } from './ui/components/CosmicArchive/CosmicArchive.js';
@@ -185,6 +186,7 @@ function AppInner() {
   const engineRef = useRef<GameEngine | null>(null);
   const universeCanvasRef = useRef<HTMLDivElement>(null);
   const universeEngineRef = useRef<UniverseEngine | null>(null);
+  const ambientRef = useRef<SpaceAmbient | null>(null);
   const globalPlayerIndexRef = useRef<number>(0);
   const universeGroupCountRef = useRef<number>(1);
   const [universeVisible, setUniverseVisible] = useState(false);
@@ -243,6 +245,20 @@ function AppInner() {
       localStorage.setItem('nebulife_research_state', JSON.stringify(researchState));
     } catch { /* ignore quota errors */ }
   }, [researchState]);
+
+  // --- Global SpaceAmbient (plays everywhere except surface + terminal) ---
+  // Starts once on App mount. Because this runs before the user has
+  // clicked anything, the AudioContext will be suspended; SpaceAmbient
+  // attachInteractionFallback handles resume on the first pointer/key.
+  useEffect(() => {
+    const ambient = new SpaceAmbient();
+    ambient.start();
+    ambientRef.current = ambient;
+    return () => {
+      ambientRef.current?.stop();
+      ambientRef.current = null;
+    };
+  }, []);
 
   // --- Tech Tree State ---
   const [techTreeState, setTechTreeState] = useState<TechTreeState>(() => {
@@ -896,6 +912,20 @@ function AppInner() {
     if (val) localStorage.setItem('nebulife_hangar_active', '1');
     else localStorage.removeItem('nebulife_hangar_active');
   }, []);
+
+  // Pause SpaceAmbient when player is on planet surface or inside the
+  // Terminal (Cosmic Archive) overlay - those scenes will get their own
+  // themed ambient later. Resume elsewhere.
+  useEffect(() => {
+    const ambient = ambientRef.current;
+    if (!ambient) return;
+    const shouldPause = !!surfaceTarget || showCosmicArchive;
+    if (shouldPause) {
+      ambient.pause();
+    } else {
+      ambient.resume();
+    }
+  }, [surfaceTarget, showCosmicArchive]);
   const [arenaStats, setArenaStats] = useState<{
     kills: number;
     missileKills: number;
