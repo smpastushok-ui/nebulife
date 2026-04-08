@@ -109,7 +109,6 @@ import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
 import { SpaceAmbient } from './audio/SpaceAmbient.js';
-import { PlanetAmbient, planetToAmbientBiome } from './audio/PlanetAmbient.js';
 import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
 import type { CosmicArchiveHandle } from './ui/components/CosmicArchive/CosmicArchive.js';
@@ -188,7 +187,6 @@ function AppInner() {
   const universeCanvasRef = useRef<HTMLDivElement>(null);
   const universeEngineRef = useRef<UniverseEngine | null>(null);
   const ambientRef = useRef<SpaceAmbient | null>(null);
-  const planetAmbientRef = useRef<PlanetAmbient | null>(null);
   const globalPlayerIndexRef = useRef<number>(0);
   const universeGroupCountRef = useRef<number>(1);
   const [universeVisible, setUniverseVisible] = useState(false);
@@ -970,55 +968,13 @@ function AppInner() {
     prevAmbientPausedRef.current = shouldPause;
   }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying]);
 
-  // Volume slider -> setVolume on both ambients (no scene transition).
-  // Runs on every slider drag. Safe when ambient is paused: setVolume
-  // schedules a new target and the next resume() will ramp to it.
+  // Volume slider -> setVolume on SpaceAmbient. Runs on every slider drag.
+  // Safe when ambient is paused: setVolume schedules a new target and the
+  // next resume() will ramp to it. HTML5 audio.volume is already 0..1 so
+  // we pass the slider value through unchanged.
   useEffect(() => {
-    // Map UI 0-1 range -> engine 0-0.3 (the max safe level inside
-    // each ambient class - higher risks clipping before the limiter).
-    const engineVolume = ambientVolume * 0.3;
-    ambientRef.current?.setVolume(engineVolume);
-    planetAmbientRef.current?.setVolume(engineVolume);
+    ambientRef.current?.setVolume(ambientVolume);
   }, [ambientVolume]);
-
-  // --- Planet surface ambient (earth / desert / ice / volcanic) ---
-  // Starts when the player enters a planet surface, stops when they leave.
-  // Biome is derived from the planet's surface temperature + life/water.
-  // Respects the same ambientEnabled preference as SpaceAmbient.
-  useEffect(() => {
-    if (!surfaceTarget || !ambientEnabled) {
-      if (planetAmbientRef.current) {
-        planetAmbientRef.current.stop();
-        planetAmbientRef.current = null;
-      }
-      return;
-    }
-    const biome = planetToAmbientBiome({
-      surfaceTempK: surfaceTarget.planet.surfaceTempK,
-      hasLife: surfaceTarget.planet.hasLife,
-      hydrosphere: surfaceTarget.planet.hydrosphere,
-    });
-    const pa = new PlanetAmbient();
-    pa.start(biome);
-    planetAmbientRef.current = pa;
-    return () => {
-      planetAmbientRef.current?.stop();
-      planetAmbientRef.current = null;
-    };
-  }, [surfaceTarget, ambientEnabled]);
-
-  // Pause/resume PlanetAmbient when a cinematic video starts/ends.
-  // (PlanetAmbient is only created on surface, but if cinematic kicks in
-  //  while player is somehow in surface scene, mute it during the video.)
-  useEffect(() => {
-    const pa = planetAmbientRef.current;
-    if (!pa) return;
-    if (cinematicVideoPlaying) {
-      pa.pause();
-    } else {
-      pa.resume();
-    }
-  }, [cinematicVideoPlaying]);
   const [arenaStats, setArenaStats] = useState<{
     kills: number;
     missileKills: number;
