@@ -37,7 +37,7 @@ export class SpaceAmbient {
 
     this.gainNode = this.ctx.createGain();
     this.gainNode.connect(this.ctx.destination);
-    this.gainNode.gain.value = 0.05; // very quiet
+    this.gainNode.gain.value = 0.15; // audible but atmospheric
 
     this.createLowRumble();
     this.createSolarWind();
@@ -199,12 +199,26 @@ export class SpaceAmbient {
   private createSolarWind(): void {
     if (!this.ctx || !this.gainNode) return;
 
-    // White noise buffer (2 seconds, looped)
-    const bufferSize = this.ctx.sampleRate * 2;
+    // 10-second noise buffer, looped. Longer = loop seam is rare + more
+    // natural texture than 2s.
+    const bufferSize = this.ctx.sampleRate * 10;
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
+    }
+
+    // Eliminate loop seam click: linearly fade the last N samples so that
+    // data[bufferSize - 1] ends exactly at data[0]. Without this the
+    // random jump between the two boundary samples produces a periodic
+    // "gun-shot" click every loop cycle.
+    const fadeLen = Math.min(8192, Math.floor(bufferSize * 0.02)); // ~185 ms at 44.1 kHz
+    const startVal = data[0];
+    for (let i = 0; i < fadeLen; i++) {
+      const t = i / fadeLen; // 0..1
+      const idx = bufferSize - fadeLen + i;
+      // Crossfade noise into the exact start value so the seam is continuous
+      data[idx] = data[idx] * (1 - t) + startVal * t;
     }
 
     this.noiseSource = this.ctx.createBufferSource();
@@ -215,6 +229,8 @@ export class SpaceAmbient {
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 400;
+    // High Q would ring at discontinuities; keep Q low for smooth roll-off
+    filter.Q.value = 0.5;
 
     // Slow LFO sweeping the cutoff for organic motion
     const filterLfo = this.ctx.createOscillator();
@@ -232,7 +248,7 @@ export class SpaceAmbient {
     this.noiseSource.connect(filter);
 
     const noiseGain = this.ctx.createGain();
-    noiseGain.gain.value = 0.02;
+    noiseGain.gain.value = 0.06; // was 0.02, bumped for audibility
     filter.connect(noiseGain);
     noiseGain.connect(this.gainNode);
 
