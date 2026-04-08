@@ -482,7 +482,20 @@ function OnboardingSlides({
         {/* Slide 0: Catastrophe video */}
         {slide === 0 && (
           <>
-            <VideoPlaceholder label="CATASTROPHE_VIDEO" />
+            <video
+              src="/videos/1.mp4"
+              autoPlay
+              playsInline
+              preload="auto"
+              style={{
+                width: '100%',
+                maxWidth: 720,
+                aspectRatio: '16/9',
+                borderRadius: 4,
+                objectFit: 'cover',
+                background: 'rgba(15,20,35,0.8)',
+              }}
+            />
             <p style={{ color: '#8899aa', fontSize: 13, textAlign: 'center', lineHeight: '1.6', maxWidth: 500, margin: 0 }}>
               {t('cinematic.civilization_intro')}
             </p>
