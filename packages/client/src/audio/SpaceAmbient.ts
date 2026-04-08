@@ -40,19 +40,40 @@ export class SpaceAmbient {
       this.audio.loop = true;
       this.audio.volume = 0; // silent start, fade-in below
       this.audio.preload = 'auto';
-      this.audio.crossOrigin = 'anonymous';
+      // Do NOT set crossOrigin - not needed for same-origin playback,
+      // and can cause failures if the server does not send CORS headers.
     } catch (err) {
       console.warn('[SpaceAmbient] Audio creation failed:', err);
       return;
     }
 
+    console.log(`[SpaceAmbient] created audio element src=${this.src}`);
+
+    // Diagnostic event listeners
+    this.audio.addEventListener('loadeddata', () => {
+      console.log(`[SpaceAmbient] loadeddata (readyState=${this.audio?.readyState}, duration=${this.audio?.duration?.toFixed(1)}s)`);
+    });
+    this.audio.addEventListener('canplay', () => {
+      console.log('[SpaceAmbient] canplay');
+    });
+    this.audio.addEventListener('playing', () => {
+      console.log(`[SpaceAmbient] event:playing (paused=${this.audio?.paused}, volume=${this.audio?.volume.toFixed(3)})`);
+    });
+    this.audio.addEventListener('error', () => {
+      const err = this.audio?.error;
+      console.error(`[SpaceAmbient] error code=${err?.code} message=${err?.message}`);
+    });
+    this.audio.addEventListener('stalled', () => {
+      console.warn('[SpaceAmbient] stalled');
+    });
+
     // Try to start playback. Browsers usually block without a user gesture
     // (autoplay policy). If blocked, fall back to the first pointer/key event.
     void this.audio.play().then(() => {
-      console.log('[SpaceAmbient] playing');
+      console.log(`[SpaceAmbient] play() resolved (paused=${this.audio?.paused}, volume=${this.audio?.volume.toFixed(3)})`);
       this.fadeTo(this.targetVolume, this.fadeInSec * 1000);
-    }).catch(() => {
-      console.warn('[SpaceAmbient] autoplay blocked, waiting for user interaction');
+    }).catch((err) => {
+      console.warn('[SpaceAmbient] play() rejected:', err?.message ?? err);
       this.attachInteractionFallback();
     });
 
@@ -174,6 +195,8 @@ export class SpaceAmbient {
     const startTime = performance.now();
     const clampedTarget = Math.max(0, Math.min(1, target));
 
+    console.log(`[SpaceAmbient] fadeTo ${startVolume.toFixed(3)} -> ${clampedTarget.toFixed(3)} over ${durationMs}ms`);
+
     const tick = (now: number) => {
       const t = durationMs > 0 ? Math.min(1, (now - startTime) / durationMs) : 1;
       audio.volume = startVolume + (clampedTarget - startVolume) * t;
@@ -182,6 +205,7 @@ export class SpaceAmbient {
       } else {
         this.fadeRaf = null;
         audio.volume = clampedTarget;
+        console.log(`[SpaceAmbient] fade done (volume=${audio.volume.toFixed(3)}, paused=${audio.paused})`);
         onComplete?.();
       }
     };
