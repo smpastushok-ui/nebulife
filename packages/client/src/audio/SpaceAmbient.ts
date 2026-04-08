@@ -17,7 +17,7 @@ export class SpaceAmbient {
   private isPlaying = false;
   private onVisibilityChange: (() => void) | null = null;
   private onFirstInteraction: (() => void) | null = null;
-  private readonly targetVolume = 0.15; // audible but atmospheric
+  private readonly targetVolume = 0.10; // slightly lower for headroom before compressor
   private readonly fadeInSec = 2;       // fade-in on start
   private readonly fadeOutSec = 1;      // fade-out on stop
   private readonly fadeShortSec = 0.3;  // fade for scene pause / resume
@@ -39,8 +39,29 @@ export class SpaceAmbient {
       return;
     }
 
+    // Signal chain: [sources] -> masterGain -> dcBlock (highpass 30 Hz) ->
+    //                compressor (brickwall limiter) -> destination.
+    // The compressor prevents any peaks from causing speaker distortion
+    // (the "tearing" a user hears when oscillators align phases).
+    // The highpass removes subsonic garbage that small speakers cannot
+    // reproduce and would rattle their cones trying to.
     this.gainNode = this.ctx.createGain();
-    this.gainNode.connect(this.ctx.destination);
+
+    const dcBlock = this.ctx.createBiquadFilter();
+    dcBlock.type = 'highpass';
+    dcBlock.frequency.value = 30;
+    dcBlock.Q.value = 0.7;
+
+    const limiter = this.ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6;   // dB — soft-knee starts here
+    limiter.knee.value = 10;
+    limiter.ratio.value = 12;       // 12:1 = effectively a limiter
+    limiter.attack.value = 0.003;   // 3ms attack
+    limiter.release.value = 0.25;
+
+    this.gainNode.connect(dcBlock);
+    dcBlock.connect(limiter);
+    limiter.connect(this.ctx.destination);
 
     // Smooth fade-in over 2 seconds - prevents click from sudden wave start
     const now = this.ctx.currentTime;
@@ -174,29 +195,45 @@ export class SpaceAmbient {
   public pause(): void {
     if (!this.ctx || !this.gainNode || this.ctx.state === 'closed') return;
     const now = this.ctx.currentTime;
+    const prev = this.gainNode.gain.value;
     this.gainNode.gain.cancelScheduledValues(now);
-    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+    this.gainNode.gain.setValueAtTime(prev, now);
     this.gainNode.gain.linearRampToValueAtTime(0, now + this.fadeShortSec);
+    console.log(`[SpaceAmbient] pause: gain ${prev.toFixed(3)} -> 0 (ctx=${this.ctx.state})`);
   }
 
-  /** Resume paused audio output with a gain ramp back to target volume. */
+  /** Resume paused audio output with a gain ramp back to target volume.
+   *  Forces a clean ramp even after long pauses: ctx.resume() first to
+   *  guarantee currentTime is flowing, then set value, then ramp. */
   public resume(): void {
-    if (!this.ctx || !this.gainNode || this.ctx.state === 'closed') return;
-    // If context was suspended (e.g. by visibility change), resume first
+    if (!this.ctx || !this.gainNode || this.ctx.state === 'closed') {
+      console.warn('[SpaceAmbient] resume: aborted (no ctx / gain / closed)');
+      return;
+    }
+    // If context was suspended (by tab visibility or browser policy),
+    // resume it synchronously via promise. Ramp still schedules in
+    // ctx.currentTime which will advance once resume() resolves.
     if (this.ctx.state === 'suspended') {
       void this.ctx.resume();
     }
     const now = this.ctx.currentTime;
+    const prev = this.gainNode.gain.value;
     this.gainNode.gain.cancelScheduledValues(now);
-    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+    // Force-set the starting value in case automation left it in a stale
+    // state. Using `prev` keeps the transition smooth if resume is called
+    // mid-fade (prev will be somewhere between 0 and target).
+    this.gainNode.gain.setValueAtTime(prev, now);
     this.gainNode.gain.linearRampToValueAtTime(this.targetVolume, now + this.fadeShortSec);
+    console.log(`[SpaceAmbient] resume: gain ${prev.toFixed(3)} -> ${this.targetVolume} (ctx=${this.ctx.state})`);
   }
 
   private createLowRumble(): void {
     if (!this.ctx || !this.gainNode) return;
 
-    // Three deep sine tones (reactor / vacuum hum)
-    const freqs = [45, 55, 65];
+    // Three deep sine tones (reactor / vacuum hum). Raised from 45/55/65
+    // to 60/75/90 Hz so small laptop speakers can actually reproduce the
+    // frequencies instead of rattling their port trying to.
+    const freqs = [60, 75, 90];
 
     for (const freq of freqs) {
       const osc = this.ctx.createOscillator();
@@ -210,7 +247,15 @@ export class SpaceAmbient {
       lfo.frequency.value = 0.1 + Math.random() * 0.2; // slow pulse
 
       const lfoGain = this.ctx.createGain();
-      lfoGain.gain.value = 0.5;
+      lfoGain.gain.value = 0.35;  // reduced from 0.5 - less peak modulation
+
+      // Per-oscillator gain ramp from 0 to base value to avoid any
+      // transient when the oscillator's sine starts. Base value is
+      // reduced from 1.0 to 0.6 so the three oscillators (peak ~1.8 sum)
+      // leave enough headroom before the limiter kicks in.
+      const oscNow = this.ctx.currentTime;
+      oscGain.gain.setValueAtTime(0, oscNow);
+      oscGain.gain.linearRampToValueAtTime(0.6, oscNow + this.fadeInSec);
 
       lfo.connect(lfoGain);
       lfoGain.connect(oscGain.gain);
@@ -281,7 +326,11 @@ export class SpaceAmbient {
     this.noiseSource.connect(filter);
 
     const noiseGain = this.ctx.createGain();
-    noiseGain.gain.value = 0.06; // was 0.02, bumped for audibility
+    // Ramp noise gain in smoothly - starting at a non-zero value abruptly
+    // can cause a pop when combined with the filter's initial IIR state.
+    const noiseNow = this.ctx.currentTime;
+    noiseGain.gain.setValueAtTime(0, noiseNow);
+    noiseGain.gain.linearRampToValueAtTime(0.05, noiseNow + this.fadeInSec);
     filter.connect(noiseGain);
     noiseGain.connect(this.gainNode);
 

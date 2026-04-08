@@ -936,15 +936,26 @@ function AppInner() {
   // Terminal (Cosmic Archive) overlay - those scenes will get their own
   // themed ambient later. Also respect the user's on/off preference from
   // PlayerPage settings.
+  //
+  // Only call pause() / resume() on actual state TRANSITIONS (tracked via
+  // prevPausedRef) - not on every re-render. This prevents:
+  //   a) resume() being called right after start() on initial mount
+  //      (which would cancel the start's 2s fade-in and replace it with
+  //      a 300ms ramp scheduled BEFORE AudioContext is actually running);
+  //   b) multiple redundant pause/resume calls from unrelated state
+  //      updates that happen to trigger this effect via identity changes.
+  const prevAmbientPausedRef = useRef<boolean>(false);
   useEffect(() => {
     const ambient = ambientRef.current;
     if (!ambient) return;
     const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive;
-    if (shouldPause) {
+    const wasPaused = prevAmbientPausedRef.current;
+    if (shouldPause && !wasPaused) {
       ambient.pause();
-    } else {
+    } else if (!shouldPause && wasPaused) {
       ambient.resume();
     }
+    prevAmbientPausedRef.current = shouldPause;
   }, [ambientEnabled, surfaceTarget, showCosmicArchive]);
 
   // --- Planet surface ambient (earth / desert / ice / volcanic) ---
