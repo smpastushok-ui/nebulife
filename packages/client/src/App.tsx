@@ -250,21 +250,32 @@ function AppInner() {
 
   // --- Global SpaceAmbient (plays everywhere except surface + terminal) ---
   // User-controllable via PlayerPage settings toggle. Persisted in
-  // localStorage. Default: enabled.
-  const [ambientEnabled, setAmbientEnabledRaw] = useState<boolean>(() => {
+  // localStorage. Default: 33% volume. Slider in PlayerPage writes here.
+  const [ambientVolume, setAmbientVolumeRaw] = useState<number>(() => {
     try {
-      const raw = localStorage.getItem('nebulife_ambient_enabled');
-      return raw === null ? true : raw === '1';
+      // Prefer the new normalized key
+      const raw = localStorage.getItem('nebulife_ambient_volume');
+      if (raw !== null) {
+        const n = parseFloat(raw);
+        if (Number.isFinite(n)) return Math.max(0, Math.min(1, n));
+      }
+      // Migration: honour the old binary toggle for existing players
+      const legacy = localStorage.getItem('nebulife_ambient_enabled');
+      if (legacy === '0') return 0;
+      return 0.33; // fresh default (~33%)
     } catch {
-      return true;
+      return 0.33;
     }
   });
-  const setAmbientEnabled = useCallback((val: boolean) => {
-    setAmbientEnabledRaw(val);
+  const setAmbientVolume = useCallback((val: number) => {
+    const clamped = Math.max(0, Math.min(1, val));
+    setAmbientVolumeRaw(clamped);
     try {
-      localStorage.setItem('nebulife_ambient_enabled', val ? '1' : '0');
+      localStorage.setItem('nebulife_ambient_volume', String(clamped));
     } catch { /* ignore */ }
   }, []);
+  // Derived boolean used in scene-reactive / lifecycle effects below.
+  const ambientEnabled = ambientVolume > 0;
 
   // Starts once on App mount. Because this runs before the user has
   // clicked anything, the AudioContext will be suspended; SpaceAmbient
@@ -958,6 +969,17 @@ function AppInner() {
     }
     prevAmbientPausedRef.current = shouldPause;
   }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying]);
+
+  // Volume slider -> setVolume on both ambients (no scene transition).
+  // Runs on every slider drag. Safe when ambient is paused: setVolume
+  // schedules a new target and the next resume() will ramp to it.
+  useEffect(() => {
+    // Map UI 0-1 range -> engine 0-0.3 (the max safe level inside
+    // each ambient class - higher risks clipping before the limiter).
+    const engineVolume = ambientVolume * 0.3;
+    ambientRef.current?.setVolume(engineVolume);
+    planetAmbientRef.current?.setVolume(engineVolume);
+  }, [ambientVolume]);
 
   // --- Planet surface ambient (earth / desert / ice / volcanic) ---
   // Starts when the player enters a planet surface, stops when they leave.
@@ -4941,8 +4963,8 @@ function AppInner() {
           pushNotifications={pushNotifications}
           onToggleEmailNotif={handleToggleEmailNotif}
           onTogglePushNotif={handleTogglePushNotif}
-          ambientEnabled={ambientEnabled}
-          onToggleAmbient={setAmbientEnabled}
+          ambientVolume={ambientVolume}
+          onChangeAmbientVolume={setAmbientVolume}
         />
       )}
 

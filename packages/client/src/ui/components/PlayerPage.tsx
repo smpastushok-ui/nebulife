@@ -26,8 +26,9 @@ interface PlayerPageProps {
   onToggleEmailNotif?: (val: boolean) => void;
   onTogglePushNotif?: (val: boolean) => void;
   // Audio preferences
-  ambientEnabled?: boolean;
-  onToggleAmbient?: (val: boolean) => void;
+  /** Ambient volume 0-1 (0 = muted, 1 = max). Replaces the old on/off toggle. */
+  ambientVolume?: number;
+  onChangeAmbientVolume?: (val: number) => void;
 }
 
 // ── Avatar SVG ────────────────────────────────────────────────────────────
@@ -89,8 +90,8 @@ export function PlayerPage({
   pushNotifications = true,
   onToggleEmailNotif,
   onTogglePushNotif,
-  ambientEnabled = true,
-  onToggleAmbient,
+  ambientVolume = 0.33,
+  onChangeAmbientVolume,
 }: PlayerPageProps) {
   const { t, i18n } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
@@ -452,7 +453,7 @@ export function PlayerPage({
             </div>
 
             {/* Audio section */}
-            {onToggleAmbient && (
+            {onChangeAmbientVolume && (
               <div style={{
                 marginTop: 12,
                 padding: '14px 16px',
@@ -467,34 +468,37 @@ export function PlayerPage({
                   {i18n.language === 'en' ? 'AUDIO' : 'АУДІО'}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 11, color: '#8899aa' }}>
-                    {i18n.language === 'en' ? 'Space sound' : 'Звук космосу'}
-                  </span>
-                  <button
-                    onClick={() => onToggleAmbient(!ambientEnabled)}
-                    style={{
-                      width: 36,
-                      height: 20,
-                      borderRadius: 10,
-                      border: 'none',
-                      background: ambientEnabled ? 'rgba(68,255,136,0.3)' : 'rgba(51,68,85,0.3)',
-                      cursor: 'pointer',
-                      position: 'relative',
-                      transition: 'background 0.2s',
-                    }}
-                  >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, color: '#8899aa' }}>
+                      {i18n.language === 'en' ? 'Space sound' : 'Звук космосу'}
+                    </span>
                     <span style={{
-                      position: 'absolute',
-                      top: 3,
-                      left: ambientEnabled ? 18 : 3,
-                      width: 14,
-                      height: 14,
-                      borderRadius: '50%',
-                      background: ambientEnabled ? '#44ff88' : '#667788',
-                      transition: 'left 0.2s, background 0.2s',
-                    }} />
-                  </button>
+                      fontSize: 10,
+                      color: ambientVolume === 0 ? '#667788' : '#44ff88',
+                      fontFamily: 'monospace',
+                      minWidth: 44,
+                      textAlign: 'right',
+                      letterSpacing: 1,
+                    }}>
+                      {ambientVolume === 0
+                        ? (i18n.language === 'en' ? 'OFF' : 'ВИМК')
+                        : `${Math.round(ambientVolume * 100)}%`}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round(ambientVolume * 100)}
+                    onChange={(e) => onChangeAmbientVolume(Number(e.target.value) / 100)}
+                    style={{
+                      width: '100%',
+                      accentColor: '#44ff88',
+                      cursor: 'pointer',
+                    }}
+                  />
                 </div>
               </div>
             )}
