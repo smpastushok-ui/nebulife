@@ -1274,7 +1274,14 @@ function AppInner() {
       'nebulife_home_system_id', 'nebulife_home_planet_id', 'nebulife_generation_index',
       'nebulife_evac_system_id', 'nebulife_evac_planet_id', 'nebulife_evac_forced',
       'nebulife_evac_phase',
-      // Language + chat — reset to fresh start
+      // Surface progress (was missing - hex buildings, resources, harvest timers)
+      'nebulife_hex_slots',
+      // System navigation state
+      'nebulife_pinned_systems', 'nebulife_system_order',
+      // Arena + Hangar session state
+      'nebulife_arena_active', 'nebulife_arena_stats', 'nebulife_arena_tutorial_done',
+      'nebulife_hangar_active', 'nebulife_hangar_ship',
+      // Language + chat - reset to fresh start
       'nebulife_lang_chosen',
       'nebulife_chat_last_read_global',
       'nebulife_chat_last_read_system',
@@ -1283,8 +1290,13 @@ function AppInner() {
     keysToRemove.forEach(k => localStorage.removeItem(k));
     // Also remove all quiz answer keys
     Object.keys(localStorage).filter(k => k.startsWith('nebulife_quiz_')).forEach(k => localStorage.removeItem(k));
+    // Legacy per-planet harvest progress (from old surface system: harvest_<planetId>)
+    Object.keys(localStorage).filter(k => k.startsWith('harvest_')).forEach(k => localStorage.removeItem(k));
 
     // 2b. Clear React state to prevent effects from re-persisting to localStorage
+    // Every useState with a localStorage.setItem useEffect must be reset here,
+    // otherwise React re-renders during the warp animation (~1.5s) will write
+    // the old state back to localStorage before window.location.reload().
     setEvacuationPhase('idle');
     setEvacuationTarget(null);
     setForcedEvacuation(false);
@@ -1293,6 +1305,17 @@ function AppInner() {
     setCountdownText('');
     setCountdownUrgent(false);
     timerExpiredHandledRef.current = false;
+    // Colony + research + progression state (all auto-persisted)
+    setColonyResources({ minerals: 0, volatiles: 0, isotopes: 150, water: 0 });
+    setResearchData(INITIAL_RESEARCH_DATA);
+    setPlayerXP(0);
+    setPlayerLevel(1);
+    setResearchState(createResearchState(HOME_OBSERVATORY_COUNT));
+    setTechTreeState(createTechTreeState());
+    setPlayerStats({ totalCompletedSessions: 0, totalDiscoveries: 0, lastDiscoverySession: 0 });
+    setLogEntries([]);
+    setFavoritePlanets(new Set());
+    setTutorialStep(0);
 
     // 3. Save new generation_index AFTER clearing — GameEngine will use it on reload
     localStorage.setItem('nebulife_generation_index', String(newGenerationIndex));
@@ -1357,6 +1380,13 @@ function AppInner() {
       if (frame < maxFrames) {
         requestAnimationFrame(animate);
       } else {
+        // Second pass: nuke any state that React effects may have re-persisted
+        // during the warp animation before we reload.
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        Object.keys(localStorage).filter(k => k.startsWith('nebulife_quiz_')).forEach(k => localStorage.removeItem(k));
+        Object.keys(localStorage).filter(k => k.startsWith('harvest_')).forEach(k => localStorage.removeItem(k));
+        // Preserve generation_index (set in step 3) - re-apply after clearing
+        localStorage.setItem('nebulife_generation_index', String(newGenerationIndex));
         window.location.reload();
       }
     };
