@@ -53,6 +53,11 @@ export class PlanetAmbient {
     this.masterGain.gain.linearRampToValueAtTime(this.targetVolume, now + this.fadeInSec);
 
     this.currentBiome = biome;
+    // Set isPlaying BEFORE biome composer so scheduleRandomBird() et al
+    // don't early-return on the first (sync) call. Without this, all
+    // scheduled one-shot events (birds, crickets, chimes, bubbles) would
+    // never register their setTimeouts because isPlaying was still false.
+    this.isPlaying = true;
     switch (biome) {
       case 'earth':    this.createEarthAmbient(); break;
       case 'desert':   this.createDesertAmbient(); break;
@@ -84,11 +89,10 @@ export class PlanetAmbient {
       }
     };
     document.addEventListener('visibilitychange', this.onVisibilityChange);
-
-    this.isPlaying = true;
   }
 
   public stop(): void {
+    console.log(`[PlanetAmbient:${this.currentBiome}] stop (isPlaying=${this.isPlaying})`);
     // Detach interaction fallback listeners
     if (this.onFirstInteraction) {
       document.removeEventListener('pointerdown', this.onFirstInteraction);
@@ -147,10 +151,12 @@ export class PlanetAmbient {
 
   public pause(): void {
     if (!this.ctx || !this.masterGain || this.ctx.state === 'closed') return;
+    const prev = this.masterGain.gain.value;
     const now = this.ctx.currentTime;
     this.masterGain.gain.cancelScheduledValues(now);
-    this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+    this.masterGain.gain.setValueAtTime(prev, now);
     this.masterGain.gain.linearRampToValueAtTime(0, now + this.fadeShortSec);
+    console.log(`[PlanetAmbient:${this.currentBiome}] pause: gain ${prev.toFixed(3)} -> 0`);
   }
 
   public resume(): void {
@@ -158,10 +164,12 @@ export class PlanetAmbient {
     if (this.ctx.state === 'suspended') {
       void this.ctx.resume();
     }
+    const prev = this.masterGain.gain.value;
     const now = this.ctx.currentTime;
     this.masterGain.gain.cancelScheduledValues(now);
-    this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+    this.masterGain.gain.setValueAtTime(prev, now);
     this.masterGain.gain.linearRampToValueAtTime(this.targetVolume, now + this.fadeShortSec);
+    console.log(`[PlanetAmbient:${this.currentBiome}] resume: gain ${prev.toFixed(3)} -> ${this.targetVolume}`);
   }
 
   public setVolume(v: number): void {
