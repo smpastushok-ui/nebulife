@@ -262,9 +262,9 @@ function AppInner() {
       // Migration: honour the old binary toggle for existing players
       const legacy = localStorage.getItem('nebulife_ambient_enabled');
       if (legacy === '0') return 0;
-      return 0.33; // fresh default (~33%)
+      return 0.30; // fresh default: 30%
     } catch {
-      return 0.33;
+      return 0.30;
     }
   });
   const setAmbientVolume = useCallback((val: number) => {

@@ -90,7 +90,7 @@ export function PlayerPage({
   pushNotifications = true,
   onToggleEmailNotif,
   onTogglePushNotif,
-  ambientVolume = 0.33,
+  ambientVolume = 0.30,
   onChangeAmbientVolume,
 }: PlayerPageProps) {
   const { t, i18n } = useTranslation();
