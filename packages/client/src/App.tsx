@@ -247,6 +247,23 @@ function AppInner() {
   }, [researchState]);
 
   // --- Global SpaceAmbient (plays everywhere except surface + terminal) ---
+  // User-controllable via PlayerPage settings toggle. Persisted in
+  // localStorage. Default: enabled.
+  const [ambientEnabled, setAmbientEnabledRaw] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('nebulife_ambient_enabled');
+      return raw === null ? true : raw === '1';
+    } catch {
+      return true;
+    }
+  });
+  const setAmbientEnabled = useCallback((val: boolean) => {
+    setAmbientEnabledRaw(val);
+    try {
+      localStorage.setItem('nebulife_ambient_enabled', val ? '1' : '0');
+    } catch { /* ignore */ }
+  }, []);
+
   // Starts once on App mount. Because this runs before the user has
   // clicked anything, the AudioContext will be suspended; SpaceAmbient
   // attachInteractionFallback handles resume on the first pointer/key.
@@ -915,17 +932,18 @@ function AppInner() {
 
   // Pause SpaceAmbient when player is on planet surface or inside the
   // Terminal (Cosmic Archive) overlay - those scenes will get their own
-  // themed ambient later. Resume elsewhere.
+  // themed ambient later. Also respect the user's on/off preference from
+  // PlayerPage settings.
   useEffect(() => {
     const ambient = ambientRef.current;
     if (!ambient) return;
-    const shouldPause = !!surfaceTarget || showCosmicArchive;
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive;
     if (shouldPause) {
       ambient.pause();
     } else {
       ambient.resume();
     }
-  }, [surfaceTarget, showCosmicArchive]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive]);
   const [arenaStats, setArenaStats] = useState<{
     kills: number;
     missileKills: number;
@@ -4840,6 +4858,8 @@ function AppInner() {
           pushNotifications={pushNotifications}
           onToggleEmailNotif={handleToggleEmailNotif}
           onTogglePushNotif={handleTogglePushNotif}
+          ambientEnabled={ambientEnabled}
+          onToggleAmbient={setAmbientEnabled}
         />
       )}
 

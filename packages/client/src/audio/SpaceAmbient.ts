@@ -17,6 +17,10 @@ export class SpaceAmbient {
   private isPlaying = false;
   private onVisibilityChange: (() => void) | null = null;
   private onFirstInteraction: (() => void) | null = null;
+  private readonly targetVolume = 0.15; // audible but atmospheric
+  private readonly fadeInSec = 2;       // fade-in on start
+  private readonly fadeOutSec = 1;      // fade-out on stop
+  private readonly fadeShortSec = 0.3;  // fade for scene pause / resume
 
   public start(): void {
     if (this.isPlaying) return;
@@ -37,7 +41,11 @@ export class SpaceAmbient {
 
     this.gainNode = this.ctx.createGain();
     this.gainNode.connect(this.ctx.destination);
-    this.gainNode.gain.value = 0.15; // audible but atmospheric
+
+    // Smooth fade-in over 2 seconds - prevents click from sudden wave start
+    const now = this.ctx.currentTime;
+    this.gainNode.gain.setValueAtTime(0, now);
+    this.gainNode.gain.linearRampToValueAtTime(this.targetVolume, now + this.fadeInSec);
 
     this.createLowRumble();
     this.createSolarWind();
@@ -105,7 +113,7 @@ export class SpaceAmbient {
       this.onFirstInteraction = null;
     }
 
-    if (!this.isPlaying || !this.ctx) {
+    if (!this.isPlaying || !this.ctx || !this.gainNode) {
       // Still detach visibility listener even if start() failed midway
       if (this.onVisibilityChange) {
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
@@ -115,51 +123,73 @@ export class SpaceAmbient {
       return;
     }
 
-    for (const osc of this.oscillators) {
-      try { osc.stop(); } catch { /* already stopped */ }
-    }
-    this.oscillators = [];
+    // Smooth fade-out over 1 second, THEN stop oscillators + close context.
+    // Prevents the "click" that happens when a sine wave is cut mid-cycle.
+    const now = this.ctx.currentTime;
+    this.gainNode.gain.cancelScheduledValues(now);
+    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+    this.gainNode.gain.linearRampToValueAtTime(0, now + this.fadeOutSec);
 
-    if (this.noiseSource) {
-      try { this.noiseSource.stop(); } catch { /* already stopped */ }
-      this.noiseSource = null;
-    }
+    // Capture references BEFORE nulling so the timeout can clean them up
+    const ctxToClose = this.ctx;
+    const oscsToStop = this.oscillators;
+    const noiseToStop = this.noiseSource;
+
+    this.oscillators = [];
+    this.noiseSource = null;
+    this.ctx = null;
+    this.gainNode = null;
+    this.isPlaying = false;
 
     if (this.onVisibilityChange) {
       document.removeEventListener('visibilitychange', this.onVisibilityChange);
       this.onVisibilityChange = null;
     }
 
-    if (this.ctx.state !== 'closed') {
-      void this.ctx.close();
-    }
-    this.ctx = null;
-    this.gainNode = null;
-    this.isPlaying = false;
+    setTimeout(() => {
+      for (const osc of oscsToStop) {
+        try { osc.stop(); } catch { /* already stopped */ }
+      }
+      if (noiseToStop) {
+        try { noiseToStop.stop(); } catch { /* already stopped */ }
+      }
+      if (ctxToClose.state !== 'closed') {
+        void ctxToClose.close();
+      }
+    }, this.fadeOutSec * 1000 + 50);
   }
 
-  /** Adjust master volume (clamped to 0..0.2 to keep things subtle) */
+  /** Adjust master volume (clamped to 0..0.3). Ramps smoothly. */
   public setVolume(v: number): void {
-    if (this.gainNode) {
-      this.gainNode.gain.value = Math.max(0, Math.min(0.2, v));
-    }
+    if (!this.ctx || !this.gainNode) return;
+    const target = Math.max(0, Math.min(0.3, v));
+    const now = this.ctx.currentTime;
+    this.gainNode.gain.cancelScheduledValues(now);
+    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+    this.gainNode.gain.linearRampToValueAtTime(target, now + this.fadeShortSec);
   }
 
-  /** Temporarily suspend audio context without destroying oscillators.
-   *  Use for scene transitions where ambient should yield (e.g. surface, terminal). */
+  /** Pause audio output (gain ramp to 0, context stays alive for quick resume).
+   *  Use for scene transitions: surface, terminal. */
   public pause(): void {
-    if (!this.ctx || this.ctx.state === 'closed') return;
-    if (this.ctx.state === 'running') {
-      void this.ctx.suspend();
-    }
+    if (!this.ctx || !this.gainNode || this.ctx.state === 'closed') return;
+    const now = this.ctx.currentTime;
+    this.gainNode.gain.cancelScheduledValues(now);
+    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+    this.gainNode.gain.linearRampToValueAtTime(0, now + this.fadeShortSec);
   }
 
-  /** Resume a previously paused context. No-op if already running or closed. */
+  /** Resume paused audio output with a gain ramp back to target volume. */
   public resume(): void {
-    if (!this.ctx || this.ctx.state === 'closed') return;
+    if (!this.ctx || !this.gainNode || this.ctx.state === 'closed') return;
+    // If context was suspended (e.g. by visibility change), resume first
     if (this.ctx.state === 'suspended') {
       void this.ctx.resume();
     }
+    const now = this.ctx.currentTime;
+    this.gainNode.gain.cancelScheduledValues(now);
+    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+    this.gainNode.gain.linearRampToValueAtTime(this.targetVolume, now + this.fadeShortSec);
   }
 
   private createLowRumble(): void {
@@ -199,26 +229,29 @@ export class SpaceAmbient {
   private createSolarWind(): void {
     if (!this.ctx || !this.gainNode) return;
 
-    // 10-second noise buffer, looped. Longer = loop seam is rare + more
-    // natural texture than 2s.
-    const bufferSize = this.ctx.sampleRate * 10;
+    // 30-second buffer. Longer makes the boundary event rare.
+    const bufferSize = this.ctx.sampleRate * 30;
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
+
+    // Fill with pre-smoothed noise: each sample is the average of 4
+    // random values. This removes high-frequency spikes that excite the
+    // filter and cause spectral edge clicks.
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
+      data[i] = (Math.random() + Math.random() + Math.random() + Math.random() - 2) * 0.5;
     }
 
-    // Eliminate loop seam click: linearly fade the last N samples so that
-    // data[bufferSize - 1] ends exactly at data[0]. Without this the
-    // random jump between the two boundary samples produces a periodic
-    // "gun-shot" click every loop cycle.
-    const fadeLen = Math.min(8192, Math.floor(bufferSize * 0.02)); // ~185 ms at 44.1 kHz
-    const startVal = data[0];
+    // Click-free loop: apply a Hann half-window at both ends so that both
+    // data[0] and data[bufferSize-1] are exactly 0. The wrap from 0 to 0
+    // produces no discontinuity and no click at all. The "dip" at the
+    // boundary lasts only 400 ms total (200 ms fade-out + 200 ms fade-in)
+    // and is imperceptible against the ambient rumble.
+    const fadeLen = Math.floor(this.ctx.sampleRate * 0.2); // 200 ms per side
     for (let i = 0; i < fadeLen; i++) {
-      const t = i / fadeLen; // 0..1
-      const idx = bufferSize - fadeLen + i;
-      // Crossfade noise into the exact start value so the seam is continuous
-      data[idx] = data[idx] * (1 - t) + startVal * t;
+      // Cosine-based Hann window: smooth 0 -> 1 over fadeLen samples
+      const w = 0.5 - 0.5 * Math.cos((Math.PI * i) / fadeLen);
+      data[i] *= w;                        // fade-in from 0
+      data[bufferSize - 1 - i] *= w;       // fade-out to 0
     }
 
     this.noiseSource = this.ctx.createBufferSource();

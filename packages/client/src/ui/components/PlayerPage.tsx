@@ -25,6 +25,9 @@ interface PlayerPageProps {
   pushNotifications?: boolean;
   onToggleEmailNotif?: (val: boolean) => void;
   onTogglePushNotif?: (val: boolean) => void;
+  // Audio preferences
+  ambientEnabled?: boolean;
+  onToggleAmbient?: (val: boolean) => void;
 }
 
 // ── Avatar SVG ────────────────────────────────────────────────────────────
@@ -86,6 +89,8 @@ export function PlayerPage({
   pushNotifications = true,
   onToggleEmailNotif,
   onTogglePushNotif,
+  ambientEnabled = true,
+  onToggleAmbient,
 }: PlayerPageProps) {
   const { t, i18n } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
@@ -445,6 +450,54 @@ export function PlayerPage({
                 </div>
               )}
             </div>
+
+            {/* Audio section */}
+            {onToggleAmbient && (
+              <div style={{
+                marginTop: 12,
+                padding: '14px 16px',
+                background: 'rgba(10,15,25,0.6)',
+                border: '1px solid rgba(51,68,85,0.2)',
+                borderRadius: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}>
+                <div style={{ fontSize: 10, color: '#556677', letterSpacing: 0.5 }}>
+                  {i18n.language === 'en' ? 'AUDIO' : 'АУДІО'}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, color: '#8899aa' }}>
+                    {i18n.language === 'en' ? 'Space sound' : 'Звук космосу'}
+                  </span>
+                  <button
+                    onClick={() => onToggleAmbient(!ambientEnabled)}
+                    style={{
+                      width: 36,
+                      height: 20,
+                      borderRadius: 10,
+                      border: 'none',
+                      background: ambientEnabled ? 'rgba(68,255,136,0.3)' : 'rgba(51,68,85,0.3)',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute',
+                      top: 3,
+                      left: ambientEnabled ? 18 : 3,
+                      width: 14,
+                      height: 14,
+                      borderRadius: '50%',
+                      background: ambientEnabled ? '#44ff88' : '#667788',
+                      transition: 'left 0.2s, background 0.2s',
+                    }} />
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
