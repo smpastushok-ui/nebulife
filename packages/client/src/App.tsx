@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { playSfx } from './audio/SfxPlayer.js';
 import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
 import { LanguageSelectScreen } from './ui/components/LanguageSelectScreen.js';
@@ -3073,6 +3074,7 @@ function AppInner() {
   // ── Evacuation handlers ──────────────────────────────────────────────
   const handleStartEvacuation = useCallback(() => {
     if (!evacuationTarget) return;
+    playSfx('evac-alarm', 0.5);
     setEvacuationPhase('stage0-launch');
     awardXP(XP_REWARDS.EVACUATION_START, 'evacuation');
     // Immediate sync on critical event
@@ -3144,6 +3146,7 @@ function AppInner() {
 
   // Colony founding
   const handleFoundColony = useCallback(() => {
+    playSfx('colony-founded', 0.5);
     globeRef.current?.stopShipFlight();
     setEvacuationPhase('cutscene-landing');
   }, []);
@@ -4078,9 +4081,9 @@ function AppInner() {
     });
   }
 
-  // Arena button — golden spaceship icon, unlocks at level 10
+  // Arena button — golden spaceship icon, unlocks at level 50
   // Opens the Hangar intermediate page (not Arena directly)
-  const ARENA_MIN_LEVEL = 10;
+  const ARENA_MIN_LEVEL = 50;
   const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
   toolGroups.push({
     type: 'buttons',
@@ -4092,6 +4095,7 @@ function AppInner() {
       onClick: () => {
         if (!arenaUnlocked) {
           const levelsLeft = ARENA_MIN_LEVEL - playerLevel;
+          playSfx('ui-error', 0.3);
           setToastMessage(t('arena.locked').replace('{levels}', String(levelsLeft)));
           setTimeout(() => setToastMessage(null), 4000);
           return;

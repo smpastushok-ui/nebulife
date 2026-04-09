@@ -10,6 +10,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 interface LevelUpBannerProps {
   level:  number | null;
@@ -66,6 +67,7 @@ export const LevelUpBanner: React.FC<LevelUpBannerProps> = ({ level, onDone }) =
 
   useEffect(() => {
     if (level === null) return;
+    playSfx('level-up', 0.5);
     // Clear any pending timer
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {

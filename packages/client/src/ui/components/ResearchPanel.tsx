@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem, ResearchState, ResearchSlot, SystemResearchState, ObservedRange } from '@nebulife/core';
 import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched, isRingFullyResearched, RESEARCH_DATA_COST } from '@nebulife/core';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute', right: 16, top: 48, width: 280,
@@ -209,7 +210,7 @@ export function ResearchPanel({
             ...(canStart ? btnStyle : btnDisabledStyle),
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}
-          onClick={() => canStart && onStartResearch(system.id)}
+          onClick={() => { if (canStart) { playSfx('research-start', 0.4); onStartResearch(system.id); } }}
           disabled={!canStart}
         >
           {canStart

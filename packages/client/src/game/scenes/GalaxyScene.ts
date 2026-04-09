@@ -3,6 +3,7 @@ import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebu
 import { getResearchProgress, isSystemFullyResearched, SeededRNG } from '@nebulife/core';
 import type { TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
 import { tStatic } from '../../i18n/index.js';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 /* ── Helpers ───────────────────────────────────────────────────── */
 
@@ -514,6 +515,7 @@ export class GalaxyScene {
       if (this.cinematicMode) return;
       cc++;
       if (cc === 1) {
+        playSfx('system-select', 0.3);
         this.expandSystem(sys.id);
         ct = setTimeout(() => { cc = 0; }, 260);
       } else if (cc === 2) {
@@ -618,7 +620,10 @@ export class GalaxyScene {
       if (this.clickGuard?.()) return;
       cc++;
       if (cc === 1) {
-        if (!this.clickGuard?.()) this.expandSystem(sys.id);
+        if (!this.clickGuard?.()) {
+          playSfx('system-select', 0.3);
+          this.expandSystem(sys.id);
+        }
         ct = setTimeout(() => { cc = 0; }, 260);
       } else if (cc === 2) {
         if (ct) clearTimeout(ct);
@@ -916,6 +921,7 @@ export class GalaxyScene {
     this.onRadialClose?.();
 
     this.transitionActive = true;
+    playSfx('warp-jump', 0.5);
     this.transitionProgress = 0;
     this.transitionTargetId = targetSystemId;
     this.transitionTargetX = isHome ? 0 : targetNode!.tx;
@@ -1372,6 +1378,7 @@ export class GalaxyScene {
     if (elapsed >= BLACKOUT_END) {
       this.transitionActive = false;
       if (this.transitionOnComplete) {
+        playSfx('warp-arrive', 0.4);
         this.transitionOnComplete();
         this.transitionOnComplete = null;
       }

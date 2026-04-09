@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { playSfx } from '../../audio/SfxPlayer.js';
 import {
   sendMessage,
   getMessages,
@@ -270,6 +271,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     try {
       const msg = await sendMessage(activeChannel, input.trim());
       setMessages((prev) => [...prev, msg]);
+      playSfx('chat-send', 0.3);
       setInput('');
     } catch (err) {
       if (err instanceof Error && err.message.includes('403')) {

@@ -4,6 +4,7 @@ import { SeededRNG } from '@nebulife/core';
 import { renderStar } from '../rendering/StarRenderer.js';
 import { renderPlanet, renderOrbitProjected, renderSystemMoon, getPlanetSize, Y_COMPRESS } from '../rendering/PlanetRenderer.js';
 import { tStatic } from '../../i18n/index.js';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 /** Twinkling star data (inline to avoid dependency on HomePlanetBackdrop) */
 interface TwinkleStar {
@@ -352,6 +353,7 @@ export class SystemScene {
 
     planetSprite.on('pointerdown', (ev) => {
       if (this.clickGuard?.()) return;
+      playSfx('planet-select', 0.3);
       this.onPlanetSelect(planet, { x: ev.global.x, y: ev.global.y });
     });
     planetSprite.on('pointerover', () => {

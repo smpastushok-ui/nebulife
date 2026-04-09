@@ -20,6 +20,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 
+import { playSfx } from '../../../audio/SfxPlayer.js';
 import type {
   Planet,
   Star,
@@ -376,9 +377,10 @@ export function useSurfaceState(
   const harvestTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Bot RAF ref ───────────────────────────────────────────────────────────
-  const botRafRef       = useRef<number | null>(null);
-  const botStateRef     = useRef<BotAnimState | null>(null);
-  const lastBotTsRef    = useRef<number>(0);
+  const botRafRef           = useRef<number | null>(null);
+  const botStateRef         = useRef<BotAnimState | null>(null);
+  const lastBotTsRef        = useRef<number>(0);
+  const tileDiscoverCounter = useRef<number>(0);
 
   // Keep ref in sync with state for RAF closure
   useEffect(() => {
@@ -627,6 +629,10 @@ export function useSurfaceState(
 
       // Discover new tiles when bot crosses a new cell
       if (crossedCell) {
+        tileDiscoverCounter.current++;
+        if (tileDiscoverCounter.current % 3 === 0) {
+          playSfx('tile-discover', 0.2);
+        }
         setDiscoveredTiles((prev) =>
           discoverCellsInRadius(prev, col, row, BOT_DISCOVER_RADIUS, gridSize),
         );
@@ -774,6 +780,10 @@ export function useSurfaceState(
       });
     }, 0);
 
+    if (result === 'tree') playSfx('harvest-tree', 0.4);
+    else if (result === 'ore') playSfx('harvest-ore', 0.4);
+    else if (result === 'vent') playSfx('harvest-vent', 0.4);
+
     return result;
   }, [harvestedCells, gridSize, planetSeed, waterLevel, saveHarvested, discoveredTiles]);
 
@@ -812,6 +822,7 @@ export function useSurfaceState(
         state: 'startup',
       };
     });
+    playSfx('bot-launch', 0.4);
   }, [gridSize]);
 
   // ── setBotActive ──────────────────────────────────────────────────────────

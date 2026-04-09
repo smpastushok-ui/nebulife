@@ -4,6 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
+import { playSfx } from '../../audio/SfxPlayer.js';
 import type { ArenaCallbacks, InputState, ShipEntity, MatchPhase } from './ArenaTypes.js';
 import {
   ARENA_SIZE, ARENA_HALF,
@@ -181,6 +182,7 @@ export class ArenaEngine {
   private phase: MatchPhase = 'waiting';
   private matchTimer = 0;
   private countdownTimer = 0;
+  private prevCountdownCeil = 0;
 
   // Player ship position for camera follow
   private playerPos = new THREE.Vector3(0, 0, 0);
@@ -327,6 +329,7 @@ export class ArenaEngine {
     if (this.playerDead) return;
     if (this.warpCooldownTimer > 0 || this.warpActive) return;
     this.warpActive = true;
+    playSfx('arena-dash', 0.4);
     this.warpTimer = this.WARP_DURATION;
     this.warpCooldownTimer = this.WARP_COOLDOWN;
   }
@@ -360,6 +363,7 @@ export class ArenaEngine {
       const pushSpeed = Math.max(speed * 2, SHIP_MAX_SPEED * 1.5);
       a.vx = this.aimDirX * pushSpeed;
       a.vz = this.aimDirZ * pushSpeed;
+      playSfx('arena-grav', 0.4);
     }
   }
 
@@ -694,6 +698,13 @@ export class ArenaEngine {
         this.countdownTimer -= dt;
         if (this.countdownTimer <= 0) {
           this.phase = 'playing';
+          playSfx('arena-start', 0.5);
+        } else {
+          const ceil = Math.ceil(this.countdownTimer);
+          if (ceil !== this.prevCountdownCeil) {
+            this.prevCountdownCeil = ceil;
+            playSfx('arena-countdown', 0.3);
+          }
         }
         break;
       case 'playing':
@@ -854,6 +865,7 @@ export class ArenaEngine {
     this.fireCooldownTimer = Math.max(0, this.fireCooldownTimer - dt);
     const isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
     if (isFiring && this.fireCooldownTimer <= 0) {
+      playSfx('arena-laser', 0.3);
       this.fireBullet();
       this.fireCooldownTimer = this.FIRE_COOLDOWN;
     }
@@ -961,6 +973,7 @@ export class ArenaEngine {
       this.applyBuffEffects(); // hides shield mesh
       // Visible shield-break flash
       this.spawnHitEffect(this.playerPos.x, this.playerPos.z);
+      playSfx('arena-shield-break', 0.4);
       // Push back from impact
       this.playerVelX *= -0.4;
       this.playerVelZ *= -0.4;
@@ -995,6 +1008,7 @@ export class ArenaEngine {
       this.playerPos.z = Math.sin(angle) * (ARENA_HALF * 0.7);
       this.playerVelX = 0;
       this.playerVelZ = 0;
+      playSfx('respawn', 0.4);
       this.playerMesh.visible = true;
       this.playerNickSprite.visible = true;
     }
@@ -1016,6 +1030,7 @@ export class ArenaEngine {
           // Bullet hit asteroid — spawn hit VFX
           b.active = false;
           this.spawnHitEffect(b.x, b.z);
+          playSfx('arena-asteroid-hit', 0.3);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();
@@ -1330,6 +1345,7 @@ export class ArenaEngine {
 
     // Pickup VFX (reuses hit-effect ring)
     this.spawnHitEffect(pu.x, pu.z);
+    playSfx('arena-powerup', 0.4);
 
     // Remove mesh from scene + dispose geometry/material
     this.scene.remove(pu.mesh);
@@ -1432,6 +1448,7 @@ export class ArenaEngine {
     m.vz = dirZ * this.MISSILE_SPEED;
     m.age = 0;
     m.active = true;
+    playSfx('arena-missile', 0.4);
   }
 
   private updateMissiles(dt: number): void {
@@ -1601,6 +1618,7 @@ export class ArenaEngine {
   }
 
   private spawnExplosion(x: number, z: number): void {
+    playSfx('arena-explosion', 0.5);
     // Central flash
     const flashGeo = new THREE.PlaneGeometry(35, 35);
     flashGeo.rotateX(-Math.PI / 2);
@@ -1753,6 +1771,7 @@ export class ArenaEngine {
   }
 
   private spawnBlackHole(): void {
+    playSfx('arena-blackhole', 0.5);
     const angle = Math.random() * Math.PI * 2;
     const dist = 200 + Math.random() * (ARENA_HALF - 400);
     this.blackHolePos.x = Math.cos(angle) * dist;

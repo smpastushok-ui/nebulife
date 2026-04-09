@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { DailyLesson } from '../../../api/academy-api.js';
 import { answerQuiz } from '../../../api/academy-api.js';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 function QuarksIcon() {
   return (
@@ -63,9 +64,15 @@ export function QuizView({ lesson, onRefresh, onAwardXP }: QuizViewProps) {
     try {
       const res = await answerQuiz(lesson.lessonId, index);
       setResult(res);
+      if (res.correct) {
+        playSfx('quiz-correct', 0.4);
+      } else {
+        playSfx('quiz-wrong', 0.3);
+      }
       // Award XP locally for animation + show float
       if (res.correct && res.xpAwarded > 0 && onAwardXP) {
         onAwardXP(res.xpAwarded, 'quiz_correct');
+        playSfx('xp-gain', 0.3);
         setShowXP(true);
         setTimeout(() => setShowXP(false), 2000);
       }

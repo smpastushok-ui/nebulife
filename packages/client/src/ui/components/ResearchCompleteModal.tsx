@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem, SystemResearchState } from '@nebulife/core';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // ResearchCompleteModal — "Дослідження системи завершено"
@@ -147,6 +148,7 @@ export function ResearchCompleteModal({
   // Staggered planet reveal with sound cues
   useEffect(() => {
     if (!visible) return;
+    playSfx('research-complete', 0.5);
     const planets = system.planets;
     let current = 0;
     const reveal = () => {

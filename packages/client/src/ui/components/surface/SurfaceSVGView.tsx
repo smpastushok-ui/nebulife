@@ -22,6 +22,7 @@ import React, {
   useMemo,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 import type {
   Planet,
@@ -599,6 +600,7 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
       if (newBldTimerRef.current) clearTimeout(newBldTimerRef.current);
       newBldTimerRef.current = setTimeout(() => setNewBuildingId(undefined), 600);
 
+      playSfx('building-place', 0.4);
       onBuildingPlaced?.(newBuilding.type);
       placeBuilding(playerId, planet.id, newBuilding).catch(() => {
         setTimeout(() => placeBuilding(playerId, planet.id, newBuilding).catch(console.error), 2000);
@@ -623,6 +625,7 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
       const b = demolishConfirm;
       demolishingIds.current.add(b.id);
       setDemolishConfirm(null);
+      playSfx('building-demolish', 0.4);
       setBuildings((prev) => prev.filter((x) => x.id !== b.id));
       demolishingIds.current.delete(b.id);
       removeBuilding(playerId, b.id).catch(console.error);

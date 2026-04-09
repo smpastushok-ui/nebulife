@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TechNode, TechNodeStatus } from '@nebulife/core';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // TechNodeCard — Individual technology node card with 3 states
@@ -122,6 +123,7 @@ export function TechNodeCard({
         <button
           onClick={(e) => {
             e.stopPropagation();
+            playSfx('tech-unlock', 0.4);
             onResearch();
           }}
           onMouseEnter={() => setBtnHovered(true)}

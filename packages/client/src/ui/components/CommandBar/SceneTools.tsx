@@ -1,4 +1,5 @@
 import React from 'react';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 import type { ToolGroup, ExtendedScene } from './types.js';
 import {
   sectionCenter,
@@ -54,7 +55,7 @@ export function SceneTools({ groups, scene }: SceneToolsProps) {
                   opacity: tool.disabled ? 0.4 : 1,
                   cursor: tool.disabled ? 'not-allowed' : 'pointer',
                 }}
-                onClick={tool.onClick}
+                onClick={() => { playSfx('ui-click', 0.2); tool.onClick(); }}
                 disabled={tool.disabled}
                 onMouseEnter={(e) => {
                   if (!tool.disabled) {
@@ -78,7 +79,7 @@ export function SceneTools({ groups, scene }: SceneToolsProps) {
                   opacity: tool.disabled ? 0.4 : 1,
                   cursor: tool.disabled ? 'not-allowed' : 'pointer',
                 }}
-                onClick={tool.onClick}
+                onClick={() => { playSfx('ui-click', 0.2); tool.onClick(); }}
                 disabled={tool.disabled}
                 onMouseEnter={(e) => {
                   if (!tool.disabled && !tool.active) {

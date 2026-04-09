@@ -18,3 +18,5 @@ packages/client/public/music/*.wav
 packages/client/public/music/*.WAV
 packages/client/public/music/*.aiff
 packages/client/public/music/*.flac
+packages/client/public/sfx/*.wav
+packages/client/public/sfx/*.WAV

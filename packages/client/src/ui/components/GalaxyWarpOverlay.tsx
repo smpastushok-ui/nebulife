@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // GalaxyWarpOverlay — full-screen hyperspace streaks (canvas 2D)
@@ -88,6 +89,8 @@ export function GalaxyWarpOverlay({ onComplete }: GalaxyWarpOverlayProps) {
   const doneRef = useRef(false);
 
   useEffect(() => {
+    playSfx('scene-transition', 0.4);
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
