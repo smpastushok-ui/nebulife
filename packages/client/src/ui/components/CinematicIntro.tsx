@@ -600,7 +600,7 @@ function OnboardingSlides({
         {/* Slide 0: Catastrophe video */}
         {slide === 0 && (
           <>
-            <CinematicVideoSlide src="/videos/1.mp4" onPlayingChange={onVideoPlayingChange} />
+            <CinematicVideoSlide src="/videos/catastrophe.mp4" onPlayingChange={onVideoPlayingChange} />
             <p style={{ color: '#8899aa', fontSize: 13, textAlign: 'center', lineHeight: '1.6', maxWidth: 500, margin: 0 }}>
               {t('cinematic.civilization_intro')}
             </p>
@@ -624,7 +624,7 @@ function OnboardingSlides({
         {/* Slide 2: Mission briefing + video */}
         {slide === 2 && (
           <>
-            <VideoPlaceholder label="BRIEFING_VIDEO" />
+            <CinematicVideoSlide src="/videos/briefing.mp4" onPlayingChange={onVideoPlayingChange} />
             <div style={{ color: '#aabbcc', fontSize: 13, lineHeight: '1.8', maxWidth: 500, textAlign: 'left' }}>
               <div style={{ color: '#556677', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>
                 {t('cinematic.evacuation_directive')}

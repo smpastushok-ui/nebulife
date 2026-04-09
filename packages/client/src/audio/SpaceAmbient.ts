@@ -27,8 +27,12 @@ export class SpaceAmbient {
   private readonly fadeInSec = 2;
   private readonly fadeOutSec = 1;
   private readonly fadeShortSec = 0.3;
+  // Cinematic-friendly smooth fade (default for resume). Overlaps naturally
+  // with the 1s CSS fade-to-black at the end of intro videos, so the music
+  // gently swells back in as the scene transitions.
+  private readonly fadeCinematicSec = 1.5;
 
-  constructor(src: string = '/music/StellarDrift.webm') {
+  constructor(src: string = '/music/space.webm') {
     this.src = src;
   }
 
@@ -144,27 +148,64 @@ export class SpaceAmbient {
     });
   }
 
-  /** Scene transition: fade volume to 0 but keep the audio element alive. */
-  public pause(): void {
+  /**
+   * Scene transition: fade volume to 0 but keep the audio element alive.
+   * Does NOT call audio.pause() - we only ramp volume so the decode
+   * pipeline stays warm and iOS audio-focus quirks are minimized.
+   * Optional fadeMs override for per-context tuning (default 300ms).
+   */
+  public pause(fadeMs: number = this.fadeShortSec * 1000): void {
     if (!this.audio) {
       console.warn('[SpaceAmbient] pause: no audio element');
       return;
     }
-    this.fadeTo(0, this.fadeShortSec * 1000);
-    console.log(`[SpaceAmbient] pause -> 0`);
+    this.fadeTo(0, fadeMs);
+    console.log(`[SpaceAmbient] pause -> 0 over ${fadeMs}ms`);
   }
 
-  /** Scene transition: fade volume back to the last target. */
-  public resume(): void {
+  /**
+   * Scene transition: fade volume back to the last target.
+   *
+   * ALWAYS calls audio.play() unconditionally (not just when paused).
+   * Reason: on iOS/Chrome a sibling <video> with audio can steal the
+   * audio session and leave our HTMLAudioElement silent-but-not-paused.
+   * A redundant play() on an already-playing element is a documented no-op.
+   *
+   * If play() rejects (autoplay policy after a cinematic dismissal without
+   * a fresh gesture), we log the error, schedule the fade anyway so volume
+   * is at target when playback finally resumes, and attach the same
+   * pointerdown/keydown/touchstart fallback that start() uses.
+   *
+   * Default fade is 1.5s (fadeCinematicSec) - smooth enough for exiting
+   * intro videos, snappy enough for surface/archive returns.
+   */
+  public resume(fadeMs: number = this.fadeCinematicSec * 1000): void {
     if (!this.audio) {
       console.warn('[SpaceAmbient] resume: no audio element');
       return;
     }
-    if (this.audio.paused) {
-      void this.audio.play().catch(() => { /* ignore */ });
-    }
-    this.fadeTo(this.targetVolume, this.fadeShortSec * 1000);
-    console.log(`[SpaceAmbient] resume -> ${this.targetVolume.toFixed(3)}`);
+    const audio = this.audio;
+    console.log(
+      `[SpaceAmbient] resume requested (paused=${audio.paused}, ` +
+      `volume=${audio.volume.toFixed(3)}, target=${this.targetVolume.toFixed(3)}, ` +
+      `fadeMs=${fadeMs})`,
+    );
+
+    // Always attempt play(). No-op for an already-playing element,
+    // restores audio-session ownership on iOS/mobile where a sibling
+    // <video> with audio may have silently evicted us.
+    void audio.play().then(() => {
+      console.log('[SpaceAmbient] resume: play() resolved');
+      this.fadeTo(this.targetVolume, fadeMs);
+    }).catch((err) => {
+      console.warn('[SpaceAmbient] resume: play() rejected:', err?.message ?? err);
+      // Schedule the fade anyway - audio.volume mutates regardless of
+      // playback state, so when the interaction fallback eventually fires
+      // play(), the element is already at target volume. No second call
+      // or click needed from our side.
+      this.fadeTo(this.targetVolume, fadeMs);
+      this.attachInteractionFallback();
+    });
   }
 
   /** Slider drag: smoothly ramp to the new target. v is in 0..1. */

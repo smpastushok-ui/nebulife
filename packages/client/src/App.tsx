@@ -88,7 +88,7 @@ import { ResourceFlyDot } from './ui/components/ResourceFlyDot.js';
 import { LevelUpBanner } from './ui/components/LevelUpBanner.js';
 import { ResearchToast } from './ui/components/ResearchToast.js';
 import type { ResearchToastItem } from './ui/components/ResearchToast.js';
-import { CutscenePlaceholder } from './ui/components/CutscenePlaceholder.js';
+import { CutsceneVideo } from './ui/components/CutsceneVideo.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, fetchUniverseInfo } from './api/player-api.js';
@@ -588,12 +588,12 @@ function AppInner() {
   // Evacuation phase (declared early so tick effect can reference it)
   type EvacuationPhase =
     | 'idle'
-    | 'stage0-launch'          // CutscenePlaceholder: ship launch (4s)
+    | 'stage0-launch'          // CutsceneVideo: evac-launch.mp4
     | 'stage1-system-flight'   // SystemScene + ship Bezier flight to planet
-    | 'stage2-explosion'       // CutscenePlaceholder: planet destruction (6s)
+    | 'stage2-explosion'       // CutsceneVideo: evac-explosion.mp4
     | 'stage3-planet-approach' // PlanetViewScene + ship from edge to orbit
     | 'stage4-orbit'           // Ship on orbit + colony founding button
-    | 'cutscene-landing'       // CutscenePlaceholder: landing (5s)
+    | 'cutscene-landing'       // CutsceneVideo: evac-landing.mp4
     | 'surface';               // Surface view on new planet
   const [evacuationPhase, setEvacuationPhase] = useState<EvacuationPhase>(() => {
     try {
@@ -4746,23 +4746,19 @@ function AppInner() {
       )}
       {/* Stage 0: Ship launch cutscene */}
       {evacuationPhase === 'stage0-launch' && (
-        <CutscenePlaceholder
-          label={forcedEvacuation
-            ? t('app.forced_evacuation')
-            : t('app.launch_evacuation')}
-          duration={forcedEvacuation ? 5 : 4}
+        <CutsceneVideo
+          src="/videos/evac-launch.mp4"
           onComplete={handleStage0Complete}
+          onPlayingChange={setCinematicVideoPlaying}
         />
       )}
       {/* Stage 1: System flight — no overlay, ship flies in PixiJS scene */}
       {/* Stage 2: Planet explosion cutscene (6s) */}
       {evacuationPhase === 'stage2-explosion' && (
-        <CutscenePlaceholder
-          label={forcedEvacuation
-            ? t('app.planet_collision')
-            : t('app.planet_destroyed')}
-          duration={6}
+        <CutsceneVideo
+          src="/videos/evac-explosion.mp4"
           onComplete={handleStage2Complete}
+          onPlayingChange={setCinematicVideoPlaying}
         />
       )}
       {/* Stage 3: Planet approach — no overlay, ship flies in PlanetViewScene */}
@@ -4775,10 +4771,10 @@ function AppInner() {
       )}
       {/* Cutscene: Landing on new planet (5s) */}
       {evacuationPhase === 'cutscene-landing' && (
-        <CutscenePlaceholder
-          label={t('app.landing')}
-          duration={5}
+        <CutsceneVideo
+          src="/videos/evac-landing.mp4"
           onComplete={handleCutsceneLandingComplete}
+          onPlayingChange={setCinematicVideoPlaying}
         />
       )}
       {/* Fade-to-black overlay for stage1→stage2 transition */}

@@ -15,5 +15,6 @@ coverage/
 # Audio source files (uncompressed) - keep WAV locally for re-encoding,
 # but only commit the compressed webm/m4a variants that ship to players.
 packages/client/public/music/*.wav
+packages/client/public/music/*.WAV
 packages/client/public/music/*.aiff
 packages/client/public/music/*.flac
