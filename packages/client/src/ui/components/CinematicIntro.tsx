@@ -547,7 +547,7 @@ function OnboardingSlides({
     }
     // Terminal loop plays as background on all non-video slides (1, 2, 3)
     if (slide >= 1) {
-      playLoop('terminal-loop', 0.25);
+      playLoop('terminal-loop', 0.5);
     } else {
       stopLoop('terminal-loop');
     }

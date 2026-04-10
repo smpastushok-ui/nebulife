@@ -575,6 +575,25 @@ localStorage ←→ React state ←→ buildGameStateSnapshot() → server JSONB
 - **Покупка з недостатнім балансом**: deficit = price - quarks → MonoPay на deficit → callback → credit → deduct
 - **UI**: баланс в CommandBar (права секція), кнопка поповнення → QuarkTopUpModal
 
+### 11.4 Стандартна іконка кварка
+
+Іконка кварка — атом SVG (НЕ літера "Q"). Використовується у всіх компонентах де відображається баланс або ціна в кварках.
+
+```tsx
+function QuarkIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.2" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
+      <circle cx="8" cy="8" r="2" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(-60 8 8)" />
+    </svg>
+  );
+}
+```
+
+Канонічний варіант — з `ResourceDisplay.tsx`. Всі локальні копії у HangarPage, SystemContextMenu, PlanetContextMenu, PlayerPage мають відповідати цьому зразку.
+
 ---
 
 ## 12. AI-генерована поверхня

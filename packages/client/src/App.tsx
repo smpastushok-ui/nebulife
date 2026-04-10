@@ -981,7 +981,7 @@ function AppInner() {
   useEffect(() => {
     const ambient = ambientRef.current;
     if (!ambient) return;
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar;
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || needsOnboarding;
     const wasPaused = prevAmbientPausedRef.current;
     if (shouldPause && !wasPaused) {
       ambient.pause();
@@ -989,7 +989,7 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, needsOnboarding]);
 
   // Play planet ambient loop while surface view is active.
   useEffect(() => {

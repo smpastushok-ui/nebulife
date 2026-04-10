@@ -64,11 +64,11 @@ function AvatarSVG({ color }: { color: string }) {
 
 function QuarkIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="7" cy="7" r="2" fill="#aaccff" opacity="0.8" />
-      <ellipse cx="7" cy="7" rx="6" ry="3" stroke="#aaccff" strokeWidth="0.8" opacity="0.5" transform="rotate(0 7 7)" />
-      <ellipse cx="7" cy="7" rx="6" ry="3" stroke="#aaccff" strokeWidth="0.8" opacity="0.5" transform="rotate(60 7 7)" />
-      <ellipse cx="7" cy="7" rx="6" ry="3" stroke="#aaccff" strokeWidth="0.8" opacity="0.5" transform="rotate(120 7 7)" />
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.2" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
+      <circle cx="8" cy="8" r="2" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(-60 8 8)" />
     </svg>
   );
 }
