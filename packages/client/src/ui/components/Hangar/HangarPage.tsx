@@ -33,7 +33,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({ playerLevel, arenaStats,
   const { t } = useT();
 
   useEffect(() => {
-    playLoop('angar', 0.25);
+    playLoop('angar', 0.5);
     return () => stopLoop('angar');
   }, []);
 

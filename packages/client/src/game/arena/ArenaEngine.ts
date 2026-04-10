@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { playSfx, playLoop, stopLoop, stopAllLoops } from '../../audio/SfxPlayer.js';
+import { playSfx, playLoop, stopLoop, stopAllLoops, setLoopVolume } from '../../audio/SfxPlayer.js';
 import type { ArenaCallbacks, InputState, ShipEntity, MatchPhase } from './ArenaTypes.js';
 import {
   ARENA_SIZE, ARENA_HALF,
@@ -702,12 +702,12 @@ export class ArenaEngine {
         if (this.countdownTimer <= 0) {
           this.phase = 'playing';
           playSfx('arena-start', 0.5);
-          playLoop('fly', 0.15);
+          playLoop('fly', 0.0); // starts silent, volume tied to speed in updatePlayer
         } else {
           const ceil = Math.ceil(this.countdownTimer);
           if (ceil !== this.prevCountdownCeil) {
             this.prevCountdownCeil = ceil;
-            playSfx('arena-countdown', 0.2);
+            playSfx('arena-countdown', 0.5);
           }
         }
         break;
@@ -814,6 +814,12 @@ export class ArenaEngine {
     // Update mesh + nickname position
     this.playerMesh.position.set(this.playerPos.x, 5, this.playerPos.z);
     this.playerNickSprite.position.set(this.playerPos.x, 20, this.playerPos.z - 15);
+
+    // Dynamic fly loop volume: silent when stopped, grows with speed
+    const curSpeed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
+    const speedRatio = Math.min(1, curSpeed / (SHIP_MAX_SPEED * this.playerSpeedMult));
+    // Map 0..1 speed ratio to 0..0.3 volume (idle=silent, full speed=0.3)
+    setLoopVolume('fly', speedRatio * 0.3);
   }
 
   // ── Aim (mouse) ────────────────────────────────────────────────────────
@@ -1013,8 +1019,8 @@ export class ArenaEngine {
       this.playerPos.z = Math.sin(angle) * (ARENA_HALF * 0.7);
       this.playerVelX = 0;
       this.playerVelZ = 0;
-      playSfx('respawn', 0.35);
-      playLoop('fly', 0.15);
+      playSfx('respawn', 0.25);
+      playLoop('fly', 0.0); // starts silent, volume tied to speed
       this.playerMesh.visible = true;
       this.playerNickSprite.visible = true;
     }
@@ -1351,7 +1357,7 @@ export class ArenaEngine {
 
     // Pickup VFX (reuses hit-effect ring)
     this.spawnHitEffect(pu.x, pu.z);
-    playSfx('arena-powerup', 0.4);
+    playSfx('arena-powerup', 0.2);
 
     // Remove mesh from scene + dispose geometry/material
     this.scene.remove(pu.mesh);
@@ -1623,7 +1629,7 @@ export class ArenaEngine {
   }
 
   private spawnExplosion(x: number, z: number): void {
-    playSfx('arena-explosion', 0.5);
+    playSfx('arena-explosion', 0.65);
     // Central flash
     const flashGeo = new THREE.PlaneGeometry(35, 35);
     flashGeo.rotateX(-Math.PI / 2);

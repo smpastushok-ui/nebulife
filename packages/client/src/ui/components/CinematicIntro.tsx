@@ -544,8 +544,10 @@ function OnboardingSlides({
   useEffect(() => {
     if (slide === 0) {
       playSfx('before-trailers', 0.3);
-    } else if (slide === 1) {
-      playLoop('terminal-loop', 0.2);
+    }
+    // Terminal loop plays as background on all non-video slides (1, 2, 3)
+    if (slide >= 1) {
+      playLoop('terminal-loop', 0.25);
     } else {
       stopLoop('terminal-loop');
     }

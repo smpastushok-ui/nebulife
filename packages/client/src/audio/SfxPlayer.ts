@@ -32,6 +32,12 @@ export function playLoop(name: string, volume = 0.3): void {
   } catch { /* SSR / restricted */ }
 }
 
+/** Adjust volume of a running loop (e.g. engine hum tied to ship speed). */
+export function setLoopVolume(name: string, volume: number): void {
+  const audio = loops.get(name);
+  if (audio) audio.volume = Math.max(0, Math.min(1, volume));
+}
+
 /** Stop a specific loop. */
 export function stopLoop(name: string): void {
   const audio = loops.get(name);
