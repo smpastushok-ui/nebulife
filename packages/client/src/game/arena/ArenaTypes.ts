@@ -85,7 +85,7 @@ export interface WeaponDef {
 }
 
 // Arena match state
-export type MatchPhase = 'waiting' | 'countdown' | 'playing';
+export type MatchPhase = 'waiting' | 'countdown' | 'playing' | 'ended';
 
 // Match results
 export interface MatchResult {
@@ -112,6 +112,65 @@ export interface InputState {
   aimDir: Vec2;      // normalized aim direction
   firing: boolean;
   dash: boolean;
+}
+
+// Team types for team battle mode
+export type Team = 'blue' | 'red';
+
+// Bot brain import (forward reference resolved via ArenaAI.ts)
+import type { BotBrain } from './ArenaAI.js';
+
+// Bot ship entity (team battle mode)
+export interface BotShip {
+  id: number;
+  team: Team;
+  name: string;
+  pos: { x: number; z: number };
+  vel: { x: number; z: number };
+  rotation: number;
+  hp: number;
+  maxHp: number;
+  alive: boolean;
+  respawnTimer: number;
+  mesh: THREE.Mesh;
+  nickSprite: THREE.Sprite;
+  brain: BotBrain;
+  fireCooldown: number;
+  kills: number;
+  deaths: number;
+  damageDealt: number;
+  dashCooldown: number;
+  isDashing: boolean;
+}
+
+// Bot bullet — separate pool entry with owner tracking
+export interface BotBullet {
+  x: number;
+  z: number;
+  vx: number;
+  vz: number;
+  age: number;
+  active: boolean;
+  ownerId: number;       // bot id that fired
+  ownerTeam: Team;       // blue | red
+}
+
+// Extended MatchResult for team mode
+export interface TeamMatchResult extends MatchResult {
+  teamMode: true;
+  playerTeam: Team;
+  winningTeam: Team | 'draw';
+  blueKills: number;
+  redKills: number;
+  allPlayers: {
+    id: number;
+    name: string;
+    team: Team;
+    kills: number;
+    deaths: number;
+    damageDealt: number;
+    kdRatio: number;
+  }[];
 }
 
 // Import THREE namespace for model type

@@ -1,7 +1,8 @@
 // ---------------------------------------------------------------------------
 // HangarPage — Combat hangar: ship selection, pilot stats, arena entry
 // Animated entrance, countUp numbers, 5 ship slots (3 open + 2 locked stubs),
-// arena entry cost UI (1 quark / 1 ad — stubs for now)
+// 3 event modes: Training (free), Team Battle (1Q), Tournament (coming soon),
+// controls reference panel.
 // ---------------------------------------------------------------------------
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -22,6 +23,7 @@ interface HangarPageProps {
   } | null;
   onBack: () => void;
   onEnterArena: () => void;
+  onEnterTeamBattle?: () => void;
 }
 
 // ── Ship slots ───────────────────────────────────────────────────────────────
@@ -44,6 +46,22 @@ const SHIP_SLOTS: ShipSlot[] = [
 ];
 
 const SELECTED_SHIP_KEY = 'nebulife_hangar_ship';
+
+// ── Controls reference data ──────────────────────────────────────────────────
+
+interface ControlRow {
+  keyLabel: string;
+  actionKey: string;
+}
+
+const CONTROLS: ControlRow[] = [
+  { keyLabel: 'WASD / Arrows', actionKey: 'hangar.controls.move' },
+  { keyLabel: 'Mouse',          actionKey: 'hangar.controls.aim' },
+  { keyLabel: 'Left Click',     actionKey: 'hangar.controls.laser' },
+  { keyLabel: 'E / Space',      actionKey: 'hangar.controls.missile' },
+  { keyLabel: 'Shift',          actionKey: 'hangar.controls.warp' },
+  { keyLabel: 'G',              actionKey: 'hangar.controls.gravity' },
+];
 
 // ── CountUp hook ─────────────────────────────────────────────────────────────
 
@@ -78,10 +96,12 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   arenaStats,
   onBack,
   onEnterArena,
+  onEnterTeamBattle,
 }) => {
   const { t } = useT();
   const [mounted, setMounted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [controlsOpen, setControlsOpen] = useState(false);
 
   // Ambient loop
   useEffect(() => {
@@ -130,18 +150,27 @@ export const HangarPage: React.FC<HangarPageProps> = ({
     setSelectedShip(slot.id);
   }, [t]);
 
-  // Arena entry
-  const handleEnter = useCallback(() => {
+  // Training entry (free)
+  const handleEnterTraining = useCallback(() => {
     playSfx('ui-click', 0.07);
-    // TODO: deduct 1 quark or verify ad watched
     onEnterArena();
   }, [onEnterArena]);
 
-  const handleWatchAd = useCallback(() => {
+  // Team Battle entry
+  const handleEnterTeamBattle = useCallback(() => {
     playSfx('ui-click', 0.07);
-    setToast(t('hangar.event.coming_soon'));
-    setTimeout(() => setToast(null), 2500);
-  }, [t]);
+    if (onEnterTeamBattle) {
+      onEnterTeamBattle();
+    } else {
+      setToast(t('hangar.event.coming_soon'));
+      setTimeout(() => setToast(null), 2500);
+    }
+  }, [onEnterTeamBattle, t]);
+
+  const handleToggleControls = useCallback(() => {
+    playSfx('ui-click', 0.07);
+    setControlsOpen(prev => !prev);
+  }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -251,28 +280,68 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           })}
         </div>
 
-        {/* ── Arena entry ────────────────────────────────────────────── */}
+        {/* ── Controls panel ────────────────────────────────────────── */}
+        <div style={{
+          ...S.controlsSection,
+          opacity: mounted ? 1 : 0,
+          transition: 'opacity 0.5s ease 0.75s',
+        }}>
+          <button style={S.controlsHeader} onClick={handleToggleControls}>
+            <span style={S.controlsTitle}>{t('hangar.controls.title')}</span>
+            <span style={{ ...S.controlsChevron, transform: controlsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </span>
+          </button>
+          {controlsOpen && (
+            <div style={S.controlsGrid}>
+              {CONTROLS.map(row => (
+                <React.Fragment key={row.keyLabel}>
+                  <div style={S.controlKey}>{row.keyLabel}</div>
+                  <div style={S.controlAction}>{t(row.actionKey as Parameters<typeof t>[0])}</div>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── TRAINING event card ───────────────────────────────────── */}
         <div style={{
           ...S.entrySection,
           opacity: mounted ? 1 : 0,
           transition: 'opacity 0.5s ease 0.9s',
         }}>
-          <div style={S.entryTitle}>{t('hangar.event.arena')}</div>
-          <div style={S.entryDesc}>{t('hangar.event.arena_desc')}</div>
+          <div style={S.entryTitle}>{t('hangar.event.training')}</div>
+          <div style={S.entryDesc}>{t('hangar.event.training_desc')}</div>
           <div style={S.entryButtons}>
-            <button style={S.entryQuark} onClick={handleEnter}>
-              1{' '}
-              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
-                <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
-                <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
-              </svg>
-            </button>
-            <span style={S.entryOr}>or</span>
-            <button style={S.entryAd} onClick={handleWatchAd}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7L8 5z" /></svg>
-              AD
+            <button style={S.entryFree} onClick={handleEnterTraining}>
+              {t('hangar.event.training_enter')}
             </button>
           </div>
+        </div>
+
+        {/* ── TEAM BATTLE event card ────────────────────────────────── */}
+        <div style={{
+          ...S.entrySection,
+          borderColor: onEnterTeamBattle ? '#446644' : '#223344',
+          opacity: mounted ? 1 : 0,
+          transition: 'opacity 0.5s ease 1.0s',
+        }}>
+          <div style={{ ...S.entryTitle, color: onEnterTeamBattle ? '#88dd88' : '#667788' }}>
+            {t('hangar.event.team_battle')}
+          </div>
+          <div style={S.entryDesc}>{t('hangar.event.team_battle_desc')}</div>
+          {onEnterTeamBattle ? (
+            <div style={S.entryButtons}>
+              <button style={S.entryQuark} onClick={handleEnterTeamBattle}>
+                1{' '}
+                <QuarkIcon />
+              </button>
+            </div>
+          ) : (
+            <div style={S.comingSoon}>{t('hangar.event.coming_soon')}</div>
+          )}
         </div>
 
         {/* ── Tournament (coming soon) ──────────────────────────────── */}
@@ -302,6 +371,10 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           0%, 100% { box-shadow: 0 0 8px rgba(123,184,255,0.2); }
           50% { box-shadow: 0 0 20px rgba(123,184,255,0.4); }
         }
+        @keyframes hangarPulseGreen {
+          0%, 100% { box-shadow: 0 0 8px rgba(68,255,136,0.15); }
+          50% { box-shadow: 0 0 18px rgba(68,255,136,0.3); }
+        }
       `}</style>
     </div>
   );
@@ -323,6 +396,15 @@ function LockIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#556677" strokeWidth="1.5" strokeLinecap="round">
       <rect x="5" y="11" width="14" height="10" rx="2" />
       <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+function QuarkIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
+      <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
+      <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
     </svg>
   );
 }
@@ -422,9 +504,42 @@ const S: Record<string, React.CSSProperties> = {
   },
   lockedCost: { fontSize: 8, color: '#4488aa', marginTop: 4, letterSpacing: 1 },
 
-  // Arena entry
+  // Controls panel
+  controlsSection: {
+    margin: '10px 16px 0',
+    background: 'rgba(5,10,20,0.7)', border: '1px solid #1e2e3e', borderRadius: 4,
+    overflow: 'hidden',
+  },
+  controlsHeader: {
+    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '8px 12px', background: 'transparent', border: 'none',
+    cursor: 'pointer', fontFamily: 'monospace',
+  },
+  controlsTitle: {
+    fontSize: 9, color: '#556677', letterSpacing: 2, textTransform: 'uppercase',
+  },
+  controlsChevron: {
+    color: '#445566', transition: 'transform 0.2s ease',
+    display: 'inline-flex', alignItems: 'center',
+  },
+  controlsGrid: {
+    display: 'grid', gridTemplateColumns: 'auto 1fr',
+    gap: '5px 14px', padding: '4px 12px 10px',
+  },
+  controlKey: {
+    fontSize: 9, color: '#7bb8ff', letterSpacing: 1,
+    padding: '2px 5px', background: 'rgba(68,136,170,0.12)',
+    border: '1px solid #2a3e55', borderRadius: 3,
+    whiteSpace: 'nowrap', alignSelf: 'center',
+  },
+  controlAction: {
+    fontSize: 9, color: '#8899aa', letterSpacing: 0.5,
+    alignSelf: 'center',
+  },
+
+  // Event cards (shared)
   entrySection: {
-    margin: '12px 16px 0', padding: 16,
+    margin: '10px 16px 0', padding: 16,
     background: 'rgba(10,15,25,0.7)', border: '1px solid #334455', borderRadius: 6,
     display: 'flex', flexDirection: 'column', gap: 10,
   },
@@ -433,6 +548,17 @@ const S: Record<string, React.CSSProperties> = {
   entryButtons: {
     display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginTop: 4,
   },
+  // Free entry button (green tint)
+  entryFree: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '10px 28px',
+    background: 'linear-gradient(135deg, rgba(44,136,80,0.2), rgba(20,60,40,0.3))',
+    border: '1px solid #336644', borderRadius: 4,
+    color: '#44ff88', fontFamily: 'monospace', fontSize: 11,
+    letterSpacing: 2, cursor: 'pointer', textTransform: 'uppercase',
+    animation: 'hangarPulseGreen 2.5s ease-in-out infinite',
+  },
+  // 1 quark entry button (blue tint)
   entryQuark: {
     display: 'flex', alignItems: 'center', gap: 6,
     padding: '10px 20px',
@@ -441,20 +567,6 @@ const S: Record<string, React.CSSProperties> = {
     color: '#7bb8ff', fontFamily: 'monospace', fontSize: 11,
     letterSpacing: 2, cursor: 'pointer', textTransform: 'uppercase',
     animation: 'hangarPulse 2s ease-in-out infinite',
-  },
-  entryIcon: {
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    width: 18, height: 18, borderRadius: '50%',
-    background: 'rgba(68,136,170,0.3)', border: '1px solid #4488aa',
-    fontSize: 9, fontWeight: 'bold', color: '#7bb8ff',
-  },
-  entryOr: { fontSize: 9, color: '#556677', textTransform: 'uppercase' },
-  entryAd: {
-    display: 'flex', alignItems: 'center', gap: 5,
-    padding: '10px 16px',
-    background: 'rgba(10,15,25,0.6)', border: '1px solid #334455', borderRadius: 4,
-    color: '#8899aa', fontFamily: 'monospace', fontSize: 10,
-    letterSpacing: 1, cursor: 'pointer', textTransform: 'uppercase',
   },
 
   // Tournament

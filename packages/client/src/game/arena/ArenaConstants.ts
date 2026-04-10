@@ -104,6 +104,24 @@ export const SCORE_KILL = 100;
 export const SCORE_DAMAGE = 1;       // per HP damage
 export const SCORE_KINETIC_KILL = 150;
 
+// Team Battle scoring
+export const TEAM_SCORE_ENEMY_KILL = 20;   // score per enemy ship kill
+export const TEAM_SCORE_DEATH = -10;        // score penalty per death
+export const TEAM_KILL_LIMIT = 100;         // kills to win the match
+
+// Team Battle bots
+export const TEAM_BOT_COUNT = 9;           // 4 blue allies + 5 red enemies
+export const TEAM_BLUE_BOTS = 4;           // allies (excluding player)
+export const TEAM_RED_BOTS = 5;            // enemies
+export const BOT_BULLET_POOL = 300;        // global bot bullet pool
+export const BOT_RESPAWN_DELAY = 5;        // seconds
+
+// Bot names pool
+export const BOT_NAMES = [
+  'NOVA', 'BLAZE', 'COMET', 'VORTEX', 'NEBULA',
+  'PULSAR', 'QUASAR', 'ZENITH', 'ECLIPSE', 'PHOTON', 'STELLAR', 'COSMIC',
+];
+
 // Camera
 export const CAMERA_FOV = 55;
 export const CAMERA_HEIGHT = 800;

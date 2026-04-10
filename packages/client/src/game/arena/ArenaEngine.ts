@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { playSfx, playLoop, stopLoop, stopAllLoops, setLoopVolume } from '../../audio/SfxPlayer.js';
-import type { ArenaCallbacks, InputState, ShipEntity, MatchPhase } from './ArenaTypes.js';
+import type { ArenaCallbacks, InputState, ShipEntity, MatchPhase, BotShip, BotBullet, Team, TeamMatchResult } from './ArenaTypes.js';
 import {
   ARENA_SIZE, ARENA_HALF,
   CAMERA_FOV, CAMERA_HEIGHT, CAMERA_DISTANCE, CAMERA_LERP_SPEED,
@@ -13,7 +13,10 @@ import {
   BOT_COUNT, MATCH_DURATION, COUNTDOWN_SECONDS,
   ASTEROID_COUNT, ASTEROID_MIN_RADIUS, ASTEROID_MAX_RADIUS,
   SHIP_MAX_SPEED, SHIP_ACCELERATION, SHIP_DRAG, SHIP_RADIUS,
+  TEAM_BLUE_BOTS, TEAM_RED_BOTS, BOT_BULLET_POOL, BOT_RESPAWN_DELAY,
+  BOT_NAMES, TEAM_SCORE_ENEMY_KILL, TEAM_SCORE_DEATH, TEAM_KILL_LIMIT,
 } from './ArenaConstants.js';
+import { createBotBrain, updateBot } from './ArenaAI.js';
 
 // Pre-allocated temp vectors — ZERO allocations in hot path
 const _tempVec3 = new THREE.Vector3();
@@ -211,10 +214,36 @@ export class ArenaEngine {
   // Track all disposables for cleanup
   private disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
 
-  constructor(container: HTMLElement, callbacks: ArenaCallbacks, shipId: string = 'ship1') {
+  // ── Team mode ─────────────────────────────────────────────────────────
+  private teamMode: boolean;
+  private playerTeam: Team = 'blue';
+  private teamKills = { blue: 0, red: 0 };
+  private readonly TEAM_KILL_LIMIT = TEAM_KILL_LIMIT;
+
+  // Bot ships
+  private botShips: BotShip[] = [];
+
+  // Bot bullets (separate pool)
+  private botBulletMesh!: THREE.InstancedMesh;
+  private botBullets: BotBullet[] = [];
+  private readonly BOT_BULLET_POOL = BOT_BULLET_POOL;
+  private readonly BOT_BULLET_SPEED = 700;
+  private readonly BOT_BULLET_LIFETIME = 0.8;
+  private readonly BOT_BULLET_RADIUS = 1.5;
+  private readonly BOT_BULLET_DAMAGE = 12;
+
+  // Player HP for team mode
+  private playerHp = 100;
+  private readonly PLAYER_MAX_HP = 100;
+
+  // Kill feed (last 5 kills)
+  private killFeed: { killer: string; victim: string; time: number }[] = [];
+
+  constructor(container: HTMLElement, callbacks: ArenaCallbacks, shipId: string = 'ship1', teamMode: boolean = false) {
     this.container = container;
     this.callbacks = callbacks;
     this.shipId = shipId;
+    this.teamMode = teamMode;
     this.onResizeBound = this.onResize.bind(this);
     this.onWheelBound = this.onWheel.bind(this);
     this.onKeyDownBound = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());
@@ -240,6 +269,10 @@ export class ArenaEngine {
     this.setupExhaust();
     this.setupMissiles();
     this.setupHoloShield();
+    if (this.teamMode) {
+      this.setupBotBullets();
+      this.setupBotShips();
+    }
 
     window.addEventListener('resize', this.onResizeBound);
     window.addEventListener('keydown', this.onKeyDownBound);
@@ -732,6 +765,14 @@ export class ArenaEngine {
         this.updatePowerUps(dt);
         this.checkBulletAsteroidCollisions();
         this.checkMissileAsteroidCollisions();
+        // Team mode
+        if (this.teamMode) {
+          this.updateBotShips(dt);
+          this.updateBotBullets(dt);
+          this.checkBotBulletShipCollisions();
+          this.checkPlayerBulletBotCollisions();
+          this.checkTeamMatchEnd();
+        }
         break;
       default:
         break;
@@ -1868,6 +1909,618 @@ export class ArenaEngine {
     }
     this.blackHoleActive = false;
     this.blackHoleSpawnTimer = 60 + Math.random() * 60;
+  }
+
+  // ── Team Battle: setup ──────────────────────────────────────────────────
+
+  private setupBotBullets(): void {
+    const geo = new THREE.PlaneGeometry(1, 3);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xff8844,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.disposables.push(geo, mat);
+
+    this.botBulletMesh = new THREE.InstancedMesh(geo, mat, this.BOT_BULLET_POOL);
+    this.botBulletMesh.frustumCulled = false;
+
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < this.BOT_BULLET_POOL; i++) {
+      dummy.position.set(0, -1000, 0);
+      dummy.scale.set(0, 0, 0);
+      dummy.updateMatrix();
+      this.botBulletMesh.setMatrixAt(i, dummy.matrix);
+      this.botBullets.push({
+        x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false,
+        ownerId: -1, ownerTeam: 'red',
+      });
+    }
+    this.botBulletMesh.instanceMatrix.needsUpdate = true;
+    this.scene.add(this.botBulletMesh);
+  }
+
+  private createNickSprite(name: string, color: string): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 256, 64);
+    ctx.font = '22px monospace';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.fillText(name, 128, 40);
+    const tex = new THREE.CanvasTexture(canvas);
+    this.disposables.push(tex);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    this.disposables.push(mat);
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(30, 8, 1);
+    return sprite;
+  }
+
+  private setupBotShips(): void {
+    // Shuffle bot names
+    const shuffled = [...BOT_NAMES].sort(() => Math.random() - 0.5);
+    let nameIdx = 0;
+
+    const spawnBot = (id: number, team: Team): BotShip => {
+      const name = shuffled[nameIdx++ % shuffled.length];
+      const color = team === 'blue' ? 0x4488ff : 0xff4444;
+      const labelColor = team === 'blue' ? '#4499ff' : '#ff5544';
+
+      // Flat plane geometry (same as player ship) tinted by team color
+      const size = SHIP_RADIUS * 3;
+      const geo = new THREE.PlaneGeometry(size, size);
+      geo.rotateX(-Math.PI / 2);
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+      });
+      this.disposables.push(geo, mat);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(0, 5, 0);
+      this.scene.add(mesh);
+
+      const nickSprite = this.createNickSprite(name, labelColor);
+      this.scene.add(nickSprite);
+
+      // Spread spawn positions around the arena (not near center or player)
+      const spawnAngle = (id / (TEAM_BLUE_BOTS + TEAM_RED_BOTS)) * Math.PI * 2 + (team === 'red' ? Math.PI : 0);
+      const spawnDist = ARENA_HALF * 0.5 + Math.random() * ARENA_HALF * 0.25;
+      const spawnX = Math.cos(spawnAngle) * spawnDist;
+      const spawnZ = Math.sin(spawnAngle) * spawnDist;
+
+      const bot: BotShip = {
+        id,
+        team,
+        name,
+        pos: { x: spawnX, z: spawnZ },
+        vel: { x: 0, z: 0 },
+        rotation: 0,
+        hp: 100,
+        maxHp: 100,
+        alive: true,
+        respawnTimer: 0,
+        mesh,
+        nickSprite,
+        brain: createBotBrain('medium'),
+        fireCooldown: Math.random() * 0.5, // stagger initial fires
+        kills: 0,
+        deaths: 0,
+        damageDealt: 0,
+        dashCooldown: 0,
+        isDashing: false,
+      };
+
+      mesh.position.set(spawnX, 5, spawnZ);
+      nickSprite.position.set(spawnX, 20, spawnZ - 15);
+
+      return bot;
+    };
+
+    let botId = 1000;
+    // 4 blue allies
+    for (let i = 0; i < TEAM_BLUE_BOTS; i++) {
+      this.botShips.push(spawnBot(botId++, 'blue'));
+    }
+    // 5 red enemies
+    for (let i = 0; i < TEAM_RED_BOTS; i++) {
+      this.botShips.push(spawnBot(botId++, 'red'));
+    }
+  }
+
+  // ── Team Battle: update bots ─────────────────────────────────────────────
+
+  private updateBotShips(dt: number): void {
+    // Build ShipEntity array for AI (all alive bots + player as enemy of red)
+    const allShipEntities = this.buildShipEntityList();
+
+    for (const bot of this.botShips) {
+      if (!bot.alive) {
+        // Respawn countdown
+        bot.respawnTimer -= dt;
+        if (bot.respawnTimer <= 0) {
+          this.respawnBot(bot);
+        }
+        continue;
+      }
+
+      // Tick fire cooldown
+      bot.fireCooldown = Math.max(0, bot.fireCooldown - dt);
+      if (bot.dashCooldown > 0) bot.dashCooldown -= dt;
+
+      // Build self as ShipEntity for AI
+      const selfEntity = this.botToShipEntity(bot, allShipEntities);
+
+      // Build enemies for AI: filter to opposite team
+      const enemyEntities = allShipEntities.filter(s => {
+        if (!s.alive) return false;
+        if (s.id === bot.id) return false;
+        // Bots only target opposite team; player is blue so red bots attack player
+        const sTeam = this.getEntityTeam(s.id);
+        return sTeam !== bot.team;
+      });
+
+      // Run AI FSM
+      const input = updateBot(bot.brain, selfEntity, enemyEntities, dt);
+
+      // Apply movement
+      const ax = input.moveDir.x;
+      const az = input.moveDir.z;
+      bot.vel.x += ax * SHIP_ACCELERATION * dt;
+      bot.vel.z += az * SHIP_ACCELERATION * dt;
+      bot.vel.x *= SHIP_DRAG;
+      bot.vel.z *= SHIP_DRAG;
+
+      // Clamp speed
+      const speed = Math.sqrt(bot.vel.x * bot.vel.x + bot.vel.z * bot.vel.z);
+      if (speed > SHIP_MAX_SPEED) {
+        bot.vel.x = (bot.vel.x / speed) * SHIP_MAX_SPEED;
+        bot.vel.z = (bot.vel.z / speed) * SHIP_MAX_SPEED;
+      }
+
+      bot.pos.x += bot.vel.x * dt;
+      bot.pos.z += bot.vel.z * dt;
+
+      // Arena boundary
+      const dist = Math.sqrt(bot.pos.x * bot.pos.x + bot.pos.z * bot.pos.z);
+      if (dist > ARENA_HALF - SHIP_RADIUS) {
+        const nx = bot.pos.x / dist;
+        const nz = bot.pos.z / dist;
+        bot.pos.x = nx * (ARENA_HALF - SHIP_RADIUS);
+        bot.pos.z = nz * (ARENA_HALF - SHIP_RADIUS);
+        const dot = bot.vel.x * nx + bot.vel.z * nz;
+        bot.vel.x -= 2 * dot * nx;
+        bot.vel.z -= 2 * dot * nz;
+        bot.vel.x *= 0.5;
+        bot.vel.z *= 0.5;
+      }
+
+      // Bot-asteroid collision (bounce)
+      this.checkBotAsteroidCollision(bot);
+
+      // Update rotation from aim direction
+      if (input.aimDir.x !== 0 || input.aimDir.z !== 0) {
+        bot.rotation = Math.atan2(-input.aimDir.x, -input.aimDir.z);
+      }
+
+      // Update mesh
+      bot.mesh.position.set(bot.pos.x, 5, bot.pos.z);
+      bot.mesh.rotation.y = bot.rotation;
+      bot.nickSprite.position.set(bot.pos.x, 20, bot.pos.z - 15);
+
+      // Fire if AI says so and cooldown elapsed
+      if (input.firing && bot.fireCooldown <= 0) {
+        this.fireBotBullet(bot, input.aimDir.x, input.aimDir.z);
+        bot.fireCooldown = 0.3 + Math.random() * 0.15; // 0.3–0.45s between shots
+      }
+    }
+  }
+
+  /** Build ShipEntity[] from all bots + player for AI look-up */
+  private buildShipEntityList(): (ShipEntity & { id: number; alive: boolean })[] {
+    const list: (ShipEntity & { id: number; alive: boolean })[] = [];
+
+    // Add player (id = 0, team blue)
+    list.push({
+      id: 0,
+      isPlayer: true,
+      name: 'PLAYER',
+      pos: { x: this.playerPos.x, z: this.playerPos.z },
+      vel: { x: this.playerVelX, z: this.playerVelZ },
+      rotation: this.playerAimAngle,
+      radius: SHIP_RADIUS,
+      alive: !this.playerDead,
+      hp: this.playerHp,
+      maxHp: this.PLAYER_MAX_HP,
+      shield: 0,
+      maxShield: 0,
+      shieldRegenTimer: 0,
+      weaponSlots: [],
+      dashCooldown: this.warpCooldownTimer,
+      isDashing: this.warpActive,
+      dashTimer: 0,
+      modelGroup: null,
+      kills: this.stats.kills,
+      deaths: this.stats.deaths,
+      damageDealt: 0,
+    });
+
+    // Add all bots
+    for (const bot of this.botShips) {
+      list.push({
+        id: bot.id,
+        isPlayer: false,
+        name: bot.name,
+        pos: { ...bot.pos },
+        vel: { ...bot.vel },
+        rotation: bot.rotation,
+        radius: SHIP_RADIUS,
+        alive: bot.alive,
+        hp: bot.hp,
+        maxHp: bot.maxHp,
+        shield: 0,
+        maxShield: 0,
+        shieldRegenTimer: 0,
+        weaponSlots: [],
+        dashCooldown: bot.dashCooldown,
+        isDashing: bot.isDashing,
+        dashTimer: 0,
+        modelGroup: null,
+        kills: bot.kills,
+        deaths: bot.deaths,
+        damageDealt: bot.damageDealt,
+      });
+    }
+    return list;
+  }
+
+  /** Convert a BotShip to ShipEntity for AI consumption */
+  private botToShipEntity(
+    bot: BotShip,
+    _allEntities: (ShipEntity & { id: number; alive: boolean })[],
+  ): ShipEntity {
+    return {
+      id: bot.id,
+      isPlayer: false,
+      name: bot.name,
+      pos: { ...bot.pos },
+      vel: { ...bot.vel },
+      rotation: bot.rotation,
+      radius: SHIP_RADIUS,
+      alive: bot.alive,
+      hp: bot.hp,
+      maxHp: bot.maxHp,
+      shield: 0,
+      maxShield: 0,
+      shieldRegenTimer: 0,
+      weaponSlots: [],
+      dashCooldown: bot.dashCooldown,
+      isDashing: bot.isDashing,
+      dashTimer: 0,
+      modelGroup: null,
+      kills: bot.kills,
+      deaths: bot.deaths,
+      damageDealt: bot.damageDealt,
+    };
+  }
+
+  /** Return the team for any ship id (0 = player = blue) */
+  private getEntityTeam(id: number): Team {
+    if (id === 0) return this.playerTeam;
+    const bot = this.botShips.find(b => b.id === id);
+    return bot ? bot.team : 'red';
+  }
+
+  private checkBotAsteroidCollision(bot: BotShip): void {
+    for (const a of this.asteroidData) {
+      if (!a.alive) continue;
+      const dx = bot.pos.x - a.x;
+      const dz = bot.pos.z - a.z;
+      const distSq = dx * dx + dz * dz;
+      const minDist = SHIP_RADIUS + a.radius;
+      if (distSq < minDist * minDist && distSq > 0) {
+        const dist = Math.sqrt(distSq);
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const overlap = minDist - dist;
+        // Push out (anti-stick)
+        bot.pos.x += nx * overlap;
+        bot.pos.z += nz * overlap;
+        // Reflect velocity
+        const dot = bot.vel.x * nx + bot.vel.z * nz;
+        if (dot < 0) {
+          bot.vel.x -= 1.5 * dot * nx;
+          bot.vel.z -= 1.5 * dot * nz;
+        }
+        a.vx -= nx * 15;
+        a.vz -= nz * 15;
+      }
+    }
+  }
+
+  private fireBotBullet(bot: BotShip, dirX: number, dirZ: number): void {
+    const idx = this.botBullets.findIndex(b => !b.active);
+    if (idx === -1) return;
+
+    let dx = dirX;
+    let dz = dirZ;
+    if (dx === 0 && dz === 0) { dx = 0; dz = -1; }
+
+    const b = this.botBullets[idx];
+    b.x = bot.pos.x + dx * (SHIP_RADIUS + 3);
+    b.z = bot.pos.z + dz * (SHIP_RADIUS + 3);
+    b.vx = dx * this.BOT_BULLET_SPEED;
+    b.vz = dz * this.BOT_BULLET_SPEED;
+    b.age = 0;
+    b.active = true;
+    b.ownerId = bot.id;
+    b.ownerTeam = bot.team;
+  }
+
+  private updateBotBullets(dt: number): void {
+    const dummy = _tempDummy;
+    let needsUpdate = false;
+
+    for (let i = 0; i < this.botBullets.length; i++) {
+      const b = this.botBullets[i];
+      if (!b.active) continue;
+
+      b.x += b.vx * dt;
+      b.z += b.vz * dt;
+      b.age += dt;
+
+      const distSq = b.x * b.x + b.z * b.z;
+      if (b.age >= this.BOT_BULLET_LIFETIME || distSq > (ARENA_HALF + 50) * (ARENA_HALF + 50)) {
+        b.active = false;
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        this.botBulletMesh.setMatrixAt(i, dummy.matrix);
+        needsUpdate = true;
+        continue;
+      }
+
+      dummy.position.set(b.x, 3, b.z);
+      dummy.scale.set(1, 1, 1);
+      const beamAngle = Math.atan2(-b.vx, -b.vz);
+      dummy.rotation.set(0, beamAngle, 0);
+      dummy.updateMatrix();
+      this.botBulletMesh.setMatrixAt(i, dummy.matrix);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) this.botBulletMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // ── Team Battle: collision — bot bullets vs ships ──────────────────────
+
+  private checkBotBulletShipCollisions(): void {
+    const dummy = _tempDummy;
+
+    for (let bi = 0; bi < this.botBullets.length; bi++) {
+      const b = this.botBullets[bi];
+      if (!b.active) continue;
+
+      // Check against bots first
+      for (const bot of this.botShips) {
+        if (!bot.alive) continue;
+        if (bot.id === b.ownerId) continue;                // skip own ship
+        if (bot.team === b.ownerTeam) continue;            // no friendly fire
+
+        const dx = b.x - bot.pos.x;
+        const dz = b.z - bot.pos.z;
+        const minDist = SHIP_RADIUS + this.BOT_BULLET_RADIUS;
+        if (dx * dx + dz * dz < minDist * minDist) {
+          b.active = false;
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.set(0, 0, 0);
+          dummy.updateMatrix();
+          this.botBulletMesh.setMatrixAt(bi, dummy.matrix);
+          this.botBulletMesh.instanceMatrix.needsUpdate = true;
+
+          this.spawnHitEffect(b.x, b.z);
+
+          // Find shooter bot to credit damage
+          const shooterBot = this.botShips.find(s => s.id === b.ownerId);
+
+          bot.hp -= this.BOT_BULLET_DAMAGE;
+          if (shooterBot) shooterBot.damageDealt += this.BOT_BULLET_DAMAGE;
+
+          if (bot.hp <= 0) {
+            this.killBot(bot, shooterBot ?? null);
+          }
+          break;
+        }
+      }
+
+      if (!b.active) continue;
+
+      // Check against player (only red bots can hit player, player is blue)
+      if (!this.playerDead && b.ownerTeam !== this.playerTeam) {
+        const dx = b.x - this.playerPos.x;
+        const dz = b.z - this.playerPos.z;
+        const minDist = SHIP_RADIUS + this.BOT_BULLET_RADIUS;
+        if (dx * dx + dz * dz < minDist * minDist) {
+          b.active = false;
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.set(0, 0, 0);
+          dummy.updateMatrix();
+          this.botBulletMesh.setMatrixAt(bi, dummy.matrix);
+          this.botBulletMesh.instanceMatrix.needsUpdate = true;
+
+          this.spawnHitEffect(b.x, b.z);
+
+          this.playerHp -= this.BOT_BULLET_DAMAGE;
+
+          // Find shooter
+          const shooterBot = this.botShips.find(s => s.id === b.ownerId);
+          if (shooterBot) shooterBot.damageDealt += this.BOT_BULLET_DAMAGE;
+
+          if (this.playerHp <= 0) {
+            this.playerHp = 0;
+            // Credit shooter with kill
+            if (shooterBot) {
+              shooterBot.kills++;
+              this.teamKills[shooterBot.team]++;
+              this.addKillFeed(shooterBot.name, 'PLAYER');
+            }
+            this.killPlayer();
+          }
+        }
+      }
+    }
+  }
+
+  /** Player bullets hitting bots */
+  private checkPlayerBulletBotCollisions(): void {
+    const dummy = _tempDummy;
+
+    for (let bi = 0; bi < this.bullets.length; bi++) {
+      const b = this.bullets[bi];
+      if (!b.active) continue;
+
+      for (const bot of this.botShips) {
+        if (!bot.alive) continue;
+        if (bot.team === this.playerTeam) continue; // no friendly fire
+
+        const dx = b.x - bot.pos.x;
+        const dz = b.z - bot.pos.z;
+        const minDist = SHIP_RADIUS + this.BULLET_RADIUS;
+        if (dx * dx + dz * dz < minDist * minDist) {
+          // Deactivate bullet
+          b.active = false;
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.set(0, 0, 0);
+          dummy.updateMatrix();
+          this.bulletMesh.setMatrixAt(bi, dummy.matrix);
+          this.bulletMesh.instanceMatrix.needsUpdate = true;
+
+          this.spawnHitEffect(b.x, b.z);
+
+          const dmg = this.BULLET_DAMAGE * this.playerDamageMult;
+          bot.hp -= dmg;
+
+          if (bot.hp <= 0) {
+            this.killBot(bot, null); // player killed bot
+            this.stats.kills++;
+            this.stats.score += TEAM_SCORE_ENEMY_KILL;
+            this.teamKills[this.playerTeam]++;
+            this.addKillFeed('PLAYER', bot.name);
+          }
+          break; // bullet consumed
+        }
+      }
+    }
+  }
+
+  private killBot(bot: BotShip, killer: BotShip | null): void {
+    bot.alive = false;
+    bot.hp = 0;
+    bot.deaths++;
+    bot.respawnTimer = BOT_RESPAWN_DELAY;
+    bot.mesh.visible = false;
+    bot.nickSprite.visible = false;
+
+    this.spawnExplosion(bot.pos.x, bot.pos.z);
+
+    if (killer) {
+      killer.kills++;
+      this.teamKills[killer.team]++;
+      this.addKillFeed(killer.name, bot.name);
+    }
+  }
+
+  private respawnBot(bot: BotShip): void {
+    const angle = Math.random() * Math.PI * 2;
+    bot.pos.x = Math.cos(angle) * (ARENA_HALF * 0.65);
+    bot.pos.z = Math.sin(angle) * (ARENA_HALF * 0.65);
+    bot.vel.x = 0;
+    bot.vel.z = 0;
+    bot.hp = bot.maxHp;
+    bot.alive = true;
+    bot.respawnTimer = 0;
+    bot.fireCooldown = 0.5;
+    bot.brain.state = 'patrol';
+    bot.brain.targetId = null;
+    bot.mesh.visible = true;
+    bot.nickSprite.visible = true;
+    bot.mesh.position.set(bot.pos.x, 5, bot.pos.z);
+    bot.nickSprite.position.set(bot.pos.x, 20, bot.pos.z - 15);
+  }
+
+  private addKillFeed(killer: string, victim: string): void {
+    this.killFeed.push({ killer, victim, time: Date.now() });
+    if (this.killFeed.length > 5) this.killFeed.shift();
+  }
+
+  private checkTeamMatchEnd(): void {
+    if (this.teamKills.blue < this.TEAM_KILL_LIMIT && this.teamKills.red < this.TEAM_KILL_LIMIT) return;
+
+    this.phase = 'ended' as MatchPhase;
+
+    const winningTeam: Team | 'draw' =
+      this.teamKills.blue > this.teamKills.red ? 'blue' :
+      this.teamKills.red  > this.teamKills.blue ? 'red' : 'draw';
+
+    // Build player row
+    const allPlayers = [
+      {
+        id: 0,
+        name: 'PLAYER',
+        team: this.playerTeam,
+        kills: this.stats.kills,
+        deaths: this.stats.deaths,
+        damageDealt: 0,
+        kdRatio: this.stats.deaths > 0 ? this.stats.kills / this.stats.deaths : this.stats.kills,
+      },
+      ...this.botShips.map(b => ({
+        id: b.id,
+        name: b.name,
+        team: b.team,
+        kills: b.kills,
+        deaths: b.deaths,
+        damageDealt: b.damageDealt,
+        kdRatio: b.deaths > 0 ? b.kills / b.deaths : b.kills,
+      })),
+    ].sort((a, b2) => b2.kills - a.kills);
+
+    const result: TeamMatchResult = {
+      teamMode: true,
+      playerTeam: this.playerTeam,
+      winningTeam,
+      blueKills: this.teamKills.blue,
+      redKills: this.teamKills.red,
+      allPlayers,
+      kills: this.stats.kills,
+      deaths: this.stats.deaths,
+      damageDealt: 0,
+      damageTaken: 0,
+      survivalTime: 0,
+      kdRatio: this.stats.deaths > 0 ? this.stats.kills / this.stats.deaths : this.stats.kills,
+    };
+
+    this.callbacks.onMatchEnd(result);
+  }
+
+  // ── Public getters (team mode) ─────────────────────────────────────────
+
+  getTeamKills(): { blue: number; red: number } { return { ...this.teamKills }; }
+  isTeamMode(): boolean { return this.teamMode; }
+  getPlayerTeam(): Team { return this.playerTeam; }
+  getKillFeed(): { killer: string; victim: string; time: number }[] { return [...this.killFeed]; }
+  getBotShips(): { id: number; name: string; team: Team; hp: number; maxHp: number; alive: boolean }[] {
+    return this.botShips.map(b => ({
+      id: b.id, name: b.name, team: b.team,
+      hp: b.hp, maxHp: b.maxHp, alive: b.alive,
+    }));
   }
 
   // ── Public getters ─────────────────────────────────────────────────────

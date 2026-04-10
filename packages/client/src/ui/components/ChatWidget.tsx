@@ -236,11 +236,11 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     return () => { if (iv) clearInterval(iv); };
   }, [collapsed]);
 
-  // Notify parent of unread count changes (global + system + astra)
+  // Notify parent of unread count changes (system + astra only — global excluded)
   const unreadSystem = systemNotifs.filter(n => !n.read).length;
   useEffect(() => {
-    onUnreadChange?.(unreadGlobal + unreadSystem + unreadAstra);
-  }, [unreadGlobal, unreadSystem, unreadAstra, onUnreadChange]);
+    onUnreadChange?.(unreadSystem + unreadAstra);
+  }, [unreadSystem, unreadAstra, onUnreadChange]);
 
   // Mark system notifs as read when viewing system tab
   useEffect(() => {
@@ -393,13 +393,18 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
 
   // ── Collapsed state ──
   if (collapsed) {
-    const totalUnread = unreadGlobal + unreadSystem + unreadAstra;
+    const totalUnread = unreadSystem + unreadAstra; // global excluded from badge
     return (
       <button
         onClick={() => {
           playSfx('ui-click', 0.07);
-          // If unread system notifs, open to system tab
-          if (unreadSystem > 0) setTab('system');
+          // Auto-select the tab with unread messages (priority: system > astra > global)
+          if (unreadSystem > 0) {
+            setTab('system');
+          } else if (unreadAstra > 0) {
+            setTab('astra');
+            setSeenDigestWeekDate(latestDigestWeekDate); // mark as read immediately
+          }
           setCollapsed(false);
         }}
         style={{
