@@ -246,7 +246,7 @@ export class ArenaEngine {
   private lockTarget: number | null = null;  // bot id being locked
   private lockTimer = 0;
   private lockLocked = false;  // true when fully locked (3s elapsed)
-  private readonly LOCK_TIME = 3.0;      // seconds to acquire lock
+  private readonly LOCK_TIME = 1.5;      // seconds to acquire lock
   private readonly LOCK_RANGE = 400;     // units
   private readonly LOCK_CONE = 30;       // degrees half-angle from aim direction
 
@@ -777,12 +777,14 @@ export class ArenaEngine {
         this.updatePowerUps(dt);
         this.checkBulletAsteroidCollisions();
         this.checkMissileAsteroidCollisions();
+        this.checkMissileBotCollisions();
         // Team mode
         if (this.teamMode) {
           this.updateBotShips(dt);
           this.updateBotBullets(dt);
           this.checkBotBulletShipCollisions();
           this.checkPlayerBulletBotCollisions();
+          this.checkPlayerBotPhysicalCollisions();
           this.checkTeamMatchEnd();
         }
         break;
@@ -1755,6 +1757,71 @@ export class ArenaEngine {
     }
   }
 
+  private checkMissileBotCollisions(): void {
+    if (!this.teamMode) return;
+    const dummy = _tempDummy;
+
+    for (let mi = 0; mi < this.missiles.length; mi++) {
+      const m = this.missiles[mi];
+      if (!m.active) continue;
+
+      for (const bot of this.botShips) {
+        if (!bot.alive) continue;
+        if (bot.team === this.playerTeam) continue; // skip allies
+        if (performance.now() < bot.invulnerableUntil) continue;
+
+        const dx = m.x - bot.pos.x;
+        const dz = m.z - bot.pos.z;
+        const distSq = dx * dx + dz * dz;
+        const rSum = this.MISSILE_RADIUS + SHIP_RADIUS;
+
+        if (distSq < rSum * rSum) {
+          // Hit — deactivate missile
+          m.active = false;
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.set(0, 0, 0);
+          dummy.updateMatrix();
+          this.missileMesh.setMatrixAt(mi, dummy.matrix);
+          this.missileMesh.instanceMatrix.needsUpdate = true;
+
+          // Direct hit damage
+          bot.hp -= this.MISSILE_DAMAGE;
+          this.spawnHitEffect(m.x, m.z);
+          playSfx('missile-hit', 0.2);
+
+          if (bot.hp <= 0) {
+            bot.hp = 0;
+            this.killBot(bot, null);
+            this.stats.kills++;
+            this.stats.score += TEAM_SCORE_ENEMY_KILL;
+            this.teamKills[this.playerTeam]++;
+            this.addKillFeed('PLAYER', bot.name);
+          }
+
+          // AoE splash to nearby enemy bots (radius 30 units)
+          for (const b2 of this.botShips) {
+            if (!b2.alive || b2.id === bot.id) continue;
+            if (b2.team === this.playerTeam) continue;
+            if (performance.now() < b2.invulnerableUntil) continue;
+            const d2 = Math.sqrt((m.x - b2.pos.x) ** 2 + (m.z - b2.pos.z) ** 2);
+            if (d2 < 30) {
+              b2.hp -= 3;
+              if (b2.hp <= 0) {
+                b2.hp = 0;
+                this.killBot(b2, null);
+                this.stats.kills++;
+                this.stats.score += TEAM_SCORE_ENEMY_KILL;
+                this.teamKills[this.playerTeam]++;
+                this.addKillFeed('PLAYER', b2.name);
+              }
+            }
+          }
+          break; // missile consumed
+        }
+      }
+    }
+  }
+
   // ── Warp boost ──────────────────────────────────────────────────────────
 
   private updateWarp(dt: number): void {
@@ -2207,8 +2274,10 @@ export class ArenaEngine {
       const az = input.moveDir.z;
       bot.vel.x += ax * SHIP_ACCELERATION * dt;
       bot.vel.z += az * SHIP_ACCELERATION * dt;
-      bot.vel.x *= SHIP_DRAG;
-      bot.vel.z *= SHIP_DRAG;
+      // Frame-rate independent drag: normalised to 60fps equivalent
+      const frameDrag = Math.pow(SHIP_DRAG, dt * 60);
+      bot.vel.x *= frameDrag;
+      bot.vel.z *= frameDrag;
 
       // Clamp speed
       const speed = Math.sqrt(bot.vel.x * bot.vel.x + bot.vel.z * bot.vel.z);
@@ -2572,6 +2641,68 @@ export class ArenaEngine {
             }
           }
           break; // bullet consumed
+        }
+      }
+    }
+  }
+
+  private checkPlayerBotPhysicalCollisions(): void {
+    if (!this.teamMode || this.playerDead) return;
+
+    for (const bot of this.botShips) {
+      if (!bot.alive) continue;
+
+      const dx = this.playerPos.x - bot.pos.x;
+      const dz = this.playerPos.z - bot.pos.z;
+      const distSq = dx * dx + dz * dz;
+      const rSum = SHIP_RADIUS * 2;
+
+      if (distSq < rSum * rSum) {
+        const dist = Math.sqrt(distSq);
+        if (dist < 0.01) continue;
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const overlap = rSum - dist;
+
+        // Separate both ships
+        this.playerPos.x += nx * overlap * 0.5;
+        this.playerPos.z += nz * overlap * 0.5;
+        bot.pos.x -= nx * overlap * 0.5;
+        bot.pos.z -= nz * overlap * 0.5;
+
+        // Elastic velocity exchange along collision normal
+        const dvx = this.playerVelX - bot.vel.x;
+        const dvz = this.playerVelZ - bot.vel.z;
+        const dot = dvx * nx + dvz * nz;
+        this.playerVelX -= dot * nx;
+        this.playerVelZ -= dot * nz;
+        bot.vel.x += dot * nx;
+        bot.vel.z += dot * nz;
+
+        // Damage both based on relative speed (only above threshold 50 u/s)
+        const relSpeed = Math.sqrt(dvx * dvx + dvz * dvz);
+        if (relSpeed > 50) {
+          const dmg = Math.min(40, (relSpeed - 50) * 0.4);
+
+          if (performance.now() >= this.invulnerableUntil) {
+            this.playerHp -= dmg;
+            if (this.playerHp <= 0) {
+              this.playerHp = 0;
+              this.killPlayer();
+            }
+          }
+
+          if (performance.now() >= bot.invulnerableUntil) {
+            bot.hp -= dmg;
+            if (bot.hp <= 0) {
+              bot.hp = 0;
+              this.killBot(bot, null);
+              this.stats.kills++;
+              this.stats.score += TEAM_SCORE_ENEMY_KILL;
+              this.teamKills[this.playerTeam]++;
+              this.addKillFeed('PLAYER', bot.name);
+            }
+          }
         }
       }
     }
