@@ -36,6 +36,8 @@ interface ResourceDisplayProps {
   observatoryUsed?: number;
   /** Observatory slots: total available */
   observatoryTotal?: number;
+  /** When true, pulse-highlight the Research Data item to draw attention */
+  highlightResearchData?: boolean;
 }
 
 const panelStyle: React.CSSProperties = {
@@ -167,6 +169,7 @@ export function ResourceDisplay({
   minerals = 0, volatiles = 0, isotopes = 0, water = 0,
   countdownText, countdownUrgent = false, onTimerClick,
   observatoryUsed = 0, observatoryTotal = 0,
+  highlightResearchData = false,
 }: ResourceDisplayProps) {
   const { t } = useTranslation();
   const [hoverTimer, setHoverTimer] = useState(false);
@@ -185,6 +188,12 @@ export function ResourceDisplay({
 
   return (
     <>
+      <style>{`
+        @keyframes researchDataPulse {
+          0%, 100% { box-shadow: 0 0 4px rgba(204,68,68,0.3); }
+          50% { box-shadow: 0 0 12px rgba(204,68,68,0.6); }
+        }
+      `}</style>
       {/* Timer -- above TERMINAL button (bottom bar) */}
       {countdownText && (
         <div
@@ -247,7 +256,15 @@ export function ResourceDisplay({
 
         {/* Research Data -- always visible */}
         <div
-          style={itemHoverStyle('rd')}
+          style={{
+            ...itemHoverStyle('rd'),
+            ...(highlightResearchData ? {
+              background: 'rgba(204,68,68,0.15)',
+              border: '1px solid #cc4444',
+              borderRadius: 3,
+              animation: 'researchDataPulse 1s ease-in-out infinite',
+            } : {}),
+          }}
           data-tutorial-id="resource-data"
           title={t('resource_display.research_data_title')}
           onClick={makeItemClick(onResearchDataClick)}
