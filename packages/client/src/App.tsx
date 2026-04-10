@@ -396,7 +396,10 @@ function AppInner() {
   const [researchData, setResearchData] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('nebulife_research_data');
-      if (saved !== null) return parseInt(saved, 10);
+      if (saved !== null) {
+        const n = parseFloat(saved);
+        if (Number.isFinite(n)) return n;
+      }
     } catch { /* ignore */ }
     return INITIAL_RESEARCH_DATA;
   });
@@ -2342,7 +2345,7 @@ function AppInner() {
   }, []);
 
   const handleStartResearch = useCallback((systemId: string) => {
-    if (!hasResearchData(researchData)) {
+    if (!hasResearchData(Math.floor(researchData))) {
       setShowGetResearchData(true);
       return;
     }
@@ -2537,7 +2540,7 @@ function AppInner() {
   }, [state.selectedSystem]);
 
   const handleSystemMenuResearch = useCallback(() => {
-    if (!hasResearchData(researchData)) {
+    if (!hasResearchData(Math.floor(researchData))) {
       setShowGetResearchData(true);
       return;
     }
@@ -4263,7 +4266,7 @@ function AppInner() {
 
       {/* Resource HUD — top center (hidden in arena) */}
       {!showArena && !showHangar && (<ResourceDisplay
-        researchData={researchData}
+        researchData={Math.floor(researchData)}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
         minerals={colonyResources.minerals}
@@ -4628,7 +4631,7 @@ function AppInner() {
       {state.scene === 'system' && !isCurrentSystemFullyAccessible && state.selectedSystem && (
         <SystemResearchOverlay
           progress={currentSystemProgress}
-          canResearch={hasResearchData(researchData) && findFreeSlot(researchState) >= 0}
+          canResearch={hasResearchData(Math.floor(researchData)) && findFreeSlot(researchState) >= 0}
           isResearching={researchState.slots.some((s) => s.systemId === state.selectedSystem!.id)}
           onStartResearch={() => handleStartResearch(state.selectedSystem!.id)}
           onDisabledClick={() => handleStartResearch(state.selectedSystem!.id)}
@@ -4688,7 +4691,7 @@ function AppInner() {
           researchState={researchState}
           allSystems={engineRef.current?.getAllSystems() ?? []}
           activeSlotTimerText={activeSlotTimer}
-          researchData={researchData}
+          researchData={Math.floor(researchData)}
           onStartResearch={handleStartResearch}
           onClose={() => setShowSystemResearch(false)}
         />
@@ -5009,7 +5012,7 @@ function AppInner() {
               water:     Math.max(0, prev.water     + (delta.water ?? 0)),
             }));
           }}
-          researchData={researchData}
+          researchData={Math.floor(researchData)}
           onConsumeResearchData={(amount) => {
             setResearchData((prev) => Math.max(0, prev - amount));
           }}
@@ -5244,7 +5247,7 @@ function AppInner() {
           playerLevel={playerLevel}
           techTreeState={techTreeState}
           onResearchTech={handleResearchTech}
-          researchData={researchData}
+          researchData={Math.floor(researchData)}
           researchDataCost={RESEARCH_DATA_COST}
           favoritePlanets={favoritePlanets}
           onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
