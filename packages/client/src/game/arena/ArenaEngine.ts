@@ -102,7 +102,7 @@ export class ArenaEngine {
 
   // Missiles (homing, limited turn rate, ammo-based)
   private missileMesh!: THREE.InstancedMesh;
-  private missiles: { x: number; z: number; vx: number; vz: number; age: number; active: boolean; angle: number }[] = [];
+  private missiles: { x: number; z: number; vx: number; vz: number; age: number; active: boolean; angle: number; targetId: number | null }[] = [];
   private readonly MISSILE_POOL = 20;
   private readonly MISSILE_SPEED = 400;
   private readonly MISSILE_LIFETIME = 3;
@@ -238,6 +238,14 @@ export class ArenaEngine {
 
   // Kill feed (last 5 kills)
   private killFeed: { killer: string; victim: string; time: number }[] = [];
+
+  // ── Lock-on targeting ──────────────────────────────────────────────────
+  private lockTarget: number | null = null;  // bot id being locked
+  private lockTimer = 0;
+  private lockLocked = false;  // true when fully locked (3s elapsed)
+  private readonly LOCK_TIME = 3.0;      // seconds to acquire lock
+  private readonly LOCK_RANGE = 400;     // units
+  private readonly LOCK_CONE = 30;       // degrees half-angle from aim direction
 
   constructor(container: HTMLElement, callbacks: ArenaCallbacks, shipId: string = 'ship1', teamMode: boolean = false) {
     this.container = container;
@@ -753,6 +761,7 @@ export class ArenaEngine {
         if (!this.playerDead) {
           this.updatePlayer(dt);
           this.updateAim(dt);
+          this.updateLockOn(dt);
           this.updateShooting(dt);
           this.updateExhaust(dt);
           this.checkPlayerAsteroidCollisions();
@@ -908,6 +917,57 @@ export class ArenaEngine {
     const targetBank = Math.max(-0.3, Math.min(0.3, -angleDelta * 3));
     this.playerBankAngle += (targetBank - this.playerBankAngle) * Math.min(1, dt * 8);
     // Note: rotation.z doesn't work well with baked geo.rotateX — skip bank for now
+  }
+
+  // ── Lock-on targeting ──────────────────────────────────────────────────
+
+  private updateLockOn(dt: number): void {
+    if (!this.teamMode || this.playerDead) {
+      this.lockTarget = null;
+      this.lockTimer = 0;
+      this.lockLocked = false;
+      return;
+    }
+
+    // Find best enemy in lock cone
+    const coneRad = this.LOCK_CONE * Math.PI / 180;
+    let bestBot: number | null = null;
+    let bestDist = Infinity;
+
+    for (const bot of this.botShips) {
+      if (!bot.alive || bot.team === this.playerTeam) continue;
+      const dx = bot.pos.x - this.playerPos.x;
+      const dz = bot.pos.z - this.playerPos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > this.LOCK_RANGE) continue;
+
+      // Check if bot is within aim cone
+      const angleToBot = Math.atan2(dx, -dz);
+      const aimAngle = Math.atan2(this.aimDirX, -this.aimDirZ);
+      let angleDiff = angleToBot - aimAngle;
+      // Normalize to [-PI, PI]
+      while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+      if (Math.abs(angleDiff) < coneRad && dist < bestDist) {
+        bestDist = dist;
+        bestBot = bot.id;
+      }
+    }
+
+    // Update lock state
+    if (bestBot !== null && bestBot === this.lockTarget) {
+      // Same target — accumulate timer
+      this.lockTimer += dt;
+      if (this.lockTimer >= this.LOCK_TIME) {
+        this.lockLocked = true;
+      }
+    } else {
+      // New target or no target
+      this.lockTarget = bestBot;
+      this.lockTimer = bestBot !== null ? 0 : 0;
+      this.lockLocked = false;
+    }
   }
 
   // ── Shooting ───────────────────────────────────────────────────────────
@@ -1276,7 +1336,7 @@ export class ArenaEngine {
       dummy.scale.set(0, 0, 0);
       dummy.updateMatrix();
       this.missileMesh.setMatrixAt(i, dummy.matrix);
-      this.missiles.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false, angle: 0 });
+      this.missiles.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false, angle: 0, targetId: null });
     }
     this.missileMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(this.missileMesh);
@@ -1503,6 +1563,17 @@ export class ArenaEngine {
     m.vz = dirZ * this.MISSILE_SPEED;
     m.age = 0;
     m.active = true;
+
+    if (this.lockLocked && this.lockTarget !== null) {
+      m.targetId = this.lockTarget;
+      // Reset lock after firing
+      this.lockLocked = false;
+      this.lockTimer = 0;
+      this.lockTarget = null;
+    } else {
+      m.targetId = null;
+    }
+
     playSfx('arena-missile', 0.15);
   }
 
@@ -1529,15 +1600,35 @@ export class ArenaEngine {
       this.fireMissile();
     }
 
-    // Find nearest asteroid as homing target
-    const findTarget = (mx: number, mz: number): { x: number; z: number } | null => {
+    // Find homing target for a missile
+    // If missile has a targetId: home to that specific bot (if alive)
+    // Otherwise: find nearest object (asteroid OR enemy bot) in range 500
+    const findTarget = (mx: number, mz: number, targetId: number | null): { x: number; z: number } | null => {
+      if (targetId !== null) {
+        const bot = this.botShips.find(b => b.id === targetId);
+        if (bot && bot.alive) return { x: bot.pos.x, z: bot.pos.z };
+        // Target died — fall through to nearest
+      }
+
       let best: { x: number; z: number } | null = null;
       let bestDist = 500; // max homing range
+
+      // Check asteroids
       for (const a of this.asteroidData) {
         if (!a.alive) continue;
         const d = Math.sqrt((mx - a.x) ** 2 + (mz - a.z) ** 2);
         if (d < bestDist) { bestDist = d; best = { x: a.x, z: a.z }; }
       }
+
+      // Check enemy bots (in team mode)
+      if (this.teamMode) {
+        for (const bot of this.botShips) {
+          if (!bot.alive || bot.team === this.playerTeam) continue;
+          const d = Math.sqrt((mx - bot.pos.x) ** 2 + (mz - bot.pos.z) ** 2);
+          if (d < bestDist) { bestDist = d; best = { x: bot.pos.x, z: bot.pos.z }; }
+        }
+      }
+
       return best;
     };
 
@@ -1560,7 +1651,7 @@ export class ArenaEngine {
       }
 
       // Homing: limited turn rate toward nearest target
-      const target = findTarget(m.x, m.z);
+      const target = findTarget(m.x, m.z, m.targetId);
       if (target) {
         const desiredAngle = Math.atan2(target.x - m.x, -(target.z - m.z));
         let angleDiff = desiredAngle - m.angle;
@@ -2549,4 +2640,24 @@ export class ArenaEngine {
   }
 
   getPowerUpBuffDurationMs(): number { return this.POWERUP_BUFF_DURATION_MS; }
+
+  getLockState(): { targetId: number | null; progress: number; locked: boolean } {
+    return {
+      targetId: this.lockTarget,
+      progress: Math.min(1, this.lockTimer / this.LOCK_TIME),
+      locked: this.lockLocked,
+    };
+  }
+
+  getBotScreenPos(botId: number): { x: number; y: number } | null {
+    const bot = this.botShips.find(b => b.id === botId);
+    if (!bot || !bot.alive) return null;
+    const vec = new THREE.Vector3(bot.pos.x, 10, bot.pos.z);
+    vec.project(this.camera);
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    return {
+      x: (vec.x * 0.5 + 0.5) * rect.width,
+      y: (-vec.y * 0.5 + 0.5) * rect.height,
+    };
+  }
 }

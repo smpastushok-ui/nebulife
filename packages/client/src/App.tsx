@@ -962,6 +962,7 @@ function AppInner() {
     if (val) localStorage.setItem('nebulife_hangar_active', '1');
     else localStorage.removeItem('nebulife_hangar_active');
   }, []);
+  const [arenaTeamMode, setArenaTeamMode] = useState(false);
 
   // Pause SpaceAmbient when player is on planet surface or inside the
   // Terminal (Cosmic Archive) overlay - those scenes will get their own
@@ -5180,6 +5181,12 @@ function AppInner() {
           arenaStats={arenaStats}
           onBack={() => setShowHangar(false)}
           onEnterArena={() => {
+            setArenaTeamMode(false);
+            setShowHangar(false);
+            setShowArena(true);
+          }}
+          onEnterTeamBattle={() => {
+            setArenaTeamMode(true);
             setShowHangar(false);
             setShowArena(true);
           }}
@@ -5189,8 +5196,10 @@ function AppInner() {
       {/* Space Arena */}
       {showArena && (
         <SpaceArena
+          teamMode={arenaTeamMode}
           onExit={() => {
             setShowArena(false);
+            setArenaTeamMode(false);
             // Return to Hangar after arena exit
             setShowHangar(true);
           }}

@@ -12,11 +12,12 @@ import { ArenaTutorial, shouldShowArenaTutorial } from './ArenaTutorial.js';
 interface SpaceArenaProps {
   onExit: () => void;
   onMatchEnd?: (result: MatchResult) => void;
+  teamMode?: boolean;
 }
 
 const isMobileDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
+export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<ArenaEngine | null>(null);
   const [ready, setReady] = useState(false);
@@ -30,6 +31,10 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
   const [sessionStats, setSessionStats] = useState({ kills: 0, asteroidKills: 0, deaths: 0, score: 0 });
   const [showTutorial, setShowTutorial] = useState(() => shouldShowArenaTutorial());
   const [isDead, setIsDead] = useState(false);
+  const [teamKills, setTeamKills] = useState({ blue: 0, red: 0 });
+  const [killFeed, setKillFeed] = useState<{ killer: string; victim: string; killerTeam: string; victimTeam: string }[]>([]);
+  const [lockState, setLockState] = useState<{ targetId: number | null; progress: number; locked: boolean } | null>(null);
+  const [lockScreenPos, setLockScreenPos] = useState<{ x: number; y: number } | null>(null);
 
   const callbacks = useRef<ArenaCallbacks>({
     onMatchEnd: (result) => onMatchEnd?.(result),
@@ -88,6 +93,48 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
     return () => clearInterval(id);
   }, [ready]);
 
+  // Poll team kills + kill feed (200ms)
+  useEffect(() => {
+    if (!ready || !teamMode) return;
+    const id = setInterval(() => {
+      const e = engineRef.current;
+      if (!e) return;
+      setTeamKills(e.getTeamKills());
+      const rawFeed = e.getKillFeed();
+      const bots = e.getBotShips();
+      const playerTeam = e.getPlayerTeam();
+      const nameToTeam = (name: string): string => {
+        if (name === 'PLAYER') return playerTeam;
+        const bot = bots.find(b => b.name === name);
+        return bot ? bot.team : 'red';
+      };
+      setKillFeed(rawFeed.slice(-5).map(entry => ({
+        killer: entry.killer,
+        victim: entry.victim,
+        killerTeam: nameToTeam(entry.killer),
+        victimTeam: nameToTeam(entry.victim),
+      })));
+    }, 200);
+    return () => clearInterval(id);
+  }, [ready, teamMode]);
+
+  // Poll lock-on state (50ms — fast for smooth tracking)
+  useEffect(() => {
+    if (!ready || !teamMode) return;
+    const id = setInterval(() => {
+      const e = engineRef.current;
+      if (!e) return;
+      const ls = e.getLockState();
+      setLockState(ls);
+      if (ls.targetId !== null) {
+        setLockScreenPos(e.getBotScreenPos(ls.targetId));
+      } else {
+        setLockScreenPos(null);
+      }
+    }, 50);
+    return () => clearInterval(id);
+  }, [ready, teamMode]);
+
   // Merge session stats into cumulative localStorage on exit
   const handleExit = useCallback(() => {
     const rawPrev = localStorage.getItem('nebulife_arena_stats');
@@ -110,7 +157,7 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
     if (!containerRef.current) return;
 
     const shipId = localStorage.getItem('nebulife_hangar_ship') || 'ship1';
-    const engine = new ArenaEngine(containerRef.current, callbacks.current, shipId);
+    const engine = new ArenaEngine(containerRef.current, callbacks.current, shipId, teamMode);
     engineRef.current = engine;
     engine.setIsMobile(mobile);
 
@@ -238,6 +285,87 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
             <span style={{ fontSize: 10, color: '#44ff88' }}>K:{kills}</span>
             <span style={{ fontSize: 10, color: '#cc4444' }}>D:{deaths}</span>
           </div>
+
+          {/* Team score bar — top center, team mode only */}
+          {teamMode && (
+            <div style={{
+              position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+              display: 'flex', alignItems: 'center', gap: 8,
+              fontFamily: 'monospace', fontSize: 11, zIndex: 3, pointerEvents: 'none',
+            }}>
+              <span style={{ color: '#4488ff', fontWeight: 'bold' }}>BLUE {teamKills.blue}</span>
+              <div style={{
+                width: 200, height: 6, background: 'rgba(10,15,25,0.8)',
+                borderRadius: 3, overflow: 'hidden', display: 'flex',
+              }}>
+                <div style={{ width: `${(teamKills.blue / 100) * 100}%`, background: '#4488ff', transition: 'width 0.3s' }} />
+                <div style={{ flex: 1 }} />
+                <div style={{ width: `${(teamKills.red / 100) * 100}%`, background: '#ff4444', transition: 'width 0.3s' }} />
+              </div>
+              <span style={{ color: '#ff4444', fontWeight: 'bold' }}>{teamKills.red} RED</span>
+            </div>
+          )}
+
+          {/* Kill feed — top right, team mode only */}
+          {teamMode && killFeed.length > 0 && (
+            <div style={{
+              position: 'absolute', top: 40, right: 16, zIndex: 3,
+              display: 'flex', flexDirection: 'column', gap: 2,
+              fontFamily: 'monospace', fontSize: 8, pointerEvents: 'none',
+            }}>
+              {killFeed.map((entry, i) => (
+                <div key={i} style={{
+                  color: '#8899aa', opacity: 1 - i * 0.2,
+                  transition: 'opacity 0.5s',
+                }}>
+                  <span style={{ color: entry.killerTeam === 'blue' ? '#4488ff' : '#ff4444' }}>
+                    {entry.killer}
+                  </span>
+                  {' > '}
+                  <span style={{ color: entry.victimTeam === 'blue' ? '#4488ff' : '#ff4444' }}>
+                    {entry.victim}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Lock-on indicator — screen-space overlay, team mode only */}
+      {teamMode && lockState && lockState.targetId !== null && (
+        <div style={{
+          position: 'absolute',
+          left: lockScreenPos?.x ?? 0,
+          top: lockScreenPos?.y ?? 0,
+          transform: 'translate(-50%, -50%)',
+          zIndex: 3, pointerEvents: 'none',
+        }}>
+          {/* Diamond shape */}
+          <div style={{
+            width: 40, height: 40,
+            border: `2px solid ${lockState.locked ? '#ff4444' : '#ffaa44'}`,
+            transform: 'rotate(45deg)',
+            transition: 'border-color 0.2s',
+          }} />
+          {/* Lock-on progress bar */}
+          <div style={{
+            width: 40, height: 3, marginTop: 4,
+            background: 'rgba(10,15,25,0.8)', borderRadius: 2,
+          }}>
+            <div style={{
+              width: `${lockState.progress * 100}%`,
+              height: '100%',
+              background: lockState.locked ? '#ff4444' : '#ffaa44',
+              borderRadius: 2, transition: 'width 0.05s',
+            }} />
+          </div>
+          {lockState.locked && (
+            <div style={{
+              fontSize: 8, color: '#ff4444', textAlign: 'center',
+              fontFamily: 'monospace', letterSpacing: 2, marginTop: 2,
+            }}>LOCKED</div>
+          )}
         </div>
       )}
 
