@@ -487,7 +487,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     cost: [{ resource: 'minerals', amount: 10 }, { resource: 'volatiles', amount: 5 }, { resource: 'isotopes', amount: 2 }],
     levelRequired: 2, techRequired: 'ast-radio-1', maxPerPlanet: 5, // 3 base + tech unlocks
     energyOutput: 0, energyConsumption: 2, energyStorageAdd: 0,
-    production: [], // observatory provides research session slots, not per-tick production
+    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 2 }], // 2 data/hour
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,

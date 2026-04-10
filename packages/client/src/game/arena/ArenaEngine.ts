@@ -755,13 +755,13 @@ export class ArenaEngine {
         this.countdownTimer -= dt;
         if (this.countdownTimer <= 0) {
           this.phase = 'playing';
-          playSfx('arena-start', 0.12);
+          playSfx('arena-start', 0.06);
           playLoop('fly', 0.0); // starts silent, volume tied to speed in updatePlayer
         } else {
           const ceil = Math.ceil(this.countdownTimer);
           if (ceil !== this.prevCountdownCeil) {
             this.prevCountdownCeil = ceil;
-            playSfx('arena-countdown', 0.12);
+            playSfx('arena-countdown', 0.06);
           }
         }
         break;
@@ -1157,7 +1157,7 @@ export class ArenaEngine {
       this.playerPos.z = Math.sin(angle) * (ARENA_HALF * 0.7);
       this.playerVelX = 0;
       this.playerVelZ = 0;
-      playSfx('respawn', 0.12);
+      playSfx('respawn', 0.06);
       playLoop('fly', 0.0); // starts silent, volume tied to speed
       this.playerMesh.visible = true;
       this.playerNickSprite.visible = true;
@@ -1457,7 +1457,7 @@ export class ArenaEngine {
         const dz = this.playerPos.z - hp.z;
         if (dx * dx + dz * dz < this.HEALTH_PICKUP_RADIUS * this.HEALTH_PICKUP_RADIUS) {
           this.playerHp = Math.min(this.PLAYER_MAX_HP, this.playerHp + this.HEALTH_PICKUP_HEAL);
-          playSfx('arena-powerup', 0.15);
+          playSfx('arena-powerup', 0.075);
           hp.active = false;
           hp.mesh.visible = false;
           hp.respawnTimer = this.HEALTH_PICKUP_RESPAWN;

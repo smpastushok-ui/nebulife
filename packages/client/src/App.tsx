@@ -507,6 +507,8 @@ function AppInner() {
   const [serverHydrated, setServerHydrated] = useState(false);
   /** Ref mirror for surfaceTarget — used in intervals with empty deps to pause during surface view */
   const surfaceTargetRef = useRef<{ planet: Planet; star: Star } | null>(null);
+  /** Retains last known planet context so colony tick can run passively even when surface is closed */
+  const colonyPlanetRef = useRef<{ planet: Planet; star: Star } | null>(null);
   const awardXPRef = useRef<(amount: number, reason: string) => void>(() => {});
   /** Stable reference to awardXP that can be used in callbacks defined before the actual implementation. */
   const awardXP = useCallback((amount: number, reason: string) => {
@@ -997,6 +999,11 @@ function AppInner() {
     prevAmbientPausedRef.current = shouldPause;
   }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, needsOnboarding]);
 
+  // Retain last planet context so colony tick can run passively when surface is closed.
+  useEffect(() => {
+    if (surfaceTarget) colonyPlanetRef.current = surfaceTarget;
+  }, [surfaceTarget]);
+
   // Play planet ambient loop while surface view is active.
   useEffect(() => {
     if (surfaceTarget) {
@@ -1006,6 +1013,16 @@ function AppInner() {
     }
     return () => stopLoop('planet-loop');
   }, [surfaceTarget]);
+
+  // Play terminal ambient loop while Cosmic Archive is open.
+  useEffect(() => {
+    if (showCosmicArchive) {
+      playLoop('terminal-loop', 0.5);
+    } else {
+      stopLoop('terminal-loop');
+    }
+    return () => stopLoop('terminal-loop');
+  }, [showCosmicArchive]);
 
   // Initialise colony tick state when entering surface for the first time
   useEffect(() => {
@@ -1041,11 +1058,11 @@ function AppInner() {
   useEffect(() => {
     const id = setInterval(() => {
       const colony = colonyStateRef.current;
-      const surface = surfaceTargetRef.current;
-      if (!colony || !surface) return;
+      const planetCtx = surfaceTargetRef.current ?? colonyPlanetRef.current;
+      if (!colony || !planetCtx) return;
       const tileAt = () => undefined;
       const mutableColony: PlanetColonyState = JSON.parse(JSON.stringify(colony));
-      const result = runColonyTicks(mutableColony, surface.planet, techTreeStateRef.current, tileAt, Date.now());
+      const result = runColonyTicks(mutableColony, planetCtx.planet, techTreeStateRef.current, tileAt, Date.now());
       if (result.researchDataProduced > 0 || result.shutdownIds.length > 0 || Object.keys(result.elementsProduced).length > 0) {
         if (result.researchDataProduced > 0) {
           setResearchData(prev => prev + result.researchDataProduced);
