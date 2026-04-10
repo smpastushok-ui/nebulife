@@ -937,7 +937,7 @@ export function TelemetryView({
   const lang = i18n.language;
 
   // Play telemetry scan sound on mount
-  useEffect(() => { playSfx('research-system-start', 0.4); }, []);
+  useEffect(() => { playSfx('research-system-start', 0.2); }, []);
 
   const [phase, setPhase] = useState<Phase>('scanning');
   const [scanProgress, setScanProgress] = useState(0);

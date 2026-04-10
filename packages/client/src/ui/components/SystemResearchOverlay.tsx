@@ -110,7 +110,7 @@ export function SystemResearchOverlay({
         <button
           onClick={() => {
             if (canResearch) {
-              playSfx('research-system-start', 0.5);
+              playSfx('research-system-start', 0.25);
               onStartResearch?.();
             } else {
               onDisabledClick?.();

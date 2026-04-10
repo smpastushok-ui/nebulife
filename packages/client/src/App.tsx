@@ -1027,6 +1027,16 @@ function AppInner() {
     return () => stopLoop('terminal-loop');
   }, [showCosmicArchive]);
 
+  // Play before_trailers music during onboarding, before first cinematic video starts.
+  useEffect(() => {
+    if (needsOnboarding && !cinematicVideoPlaying) {
+      playLoop('before-trailers', 0.4);
+    } else {
+      stopLoop('before-trailers');
+    }
+    return () => stopLoop('before-trailers');
+  }, [needsOnboarding, cinematicVideoPlaying]);
+
   // Initialise colony tick state when entering surface for the first time
   useEffect(() => {
     if (!surfaceTarget) return;
@@ -1189,6 +1199,17 @@ function AppInner() {
       }, 800);
       return () => clearTimeout(t);
     }
+  }, [clockPhase]);
+
+  // Play alarm 3x when the countdown timer first becomes visible (after onboarding videos).
+  const alarmPlayedRef = useRef(false);
+  useEffect(() => {
+    if (clockPhase !== 'visible' || alarmPlayedRef.current) return;
+    alarmPlayedRef.current = true;
+    playSfx('alarm', 0.25);
+    const t1 = setTimeout(() => playSfx('alarm', 0.25), 2000);
+    const t2 = setTimeout(() => playSfx('alarm', 0.25), 4000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [clockPhase]);
 
   // Start tutorial after clock reveal completes (so timer and tutorial don't overlap)
@@ -2566,7 +2587,7 @@ function AppInner() {
       setShowGetResearchData(true);
       return;
     }
-    playSfx('research-system-start', 0.5);
+    playSfx('research-system-start', 0.25);
     const sys = state.selectedSystem;
     setShowSystemMenu(false);
     setRadialSystem(null);
@@ -3224,7 +3245,7 @@ function AppInner() {
   // ── Evacuation handlers ──────────────────────────────────────────────
   const handleStartEvacuation = useCallback(() => {
     if (!evacuationTarget) return;
-    playSfx('evac-alarm', 0.5);
+    playSfx('evac-alarm', 0.25);
     setEvacuationPhase('stage0-launch');
     awardXP(XP_REWARDS.EVACUATION_START, 'evacuation');
     // Immediate sync on critical event
@@ -3810,7 +3831,7 @@ function AppInner() {
       if (check.chaos) setShowChaosModal(true);
       return;
     }
-    playSfx('go-to-exosphera', 0.3);
+    playSfx('go-to-exosphera', 0.5);
     setSurfaceTarget({
       planet: state.selectedPlanet,
       star: state.selectedSystem.star,
@@ -3821,7 +3842,7 @@ function AppInner() {
     setSurfaceTarget(null);
     // Zoom exosphere out to maximum distance after surface unmounts
     setTimeout(() => {
-      for (let i = 0; i < 10; i++) globeRef.current?.zoomOut();
+      for (let i = 0; i < 30; i++) globeRef.current?.zoomOut();
     }, 100);
   }, []);
 
@@ -3860,7 +3881,7 @@ function AppInner() {
       selectedSystem: info!.system,
       selectedPlanet: info!.planet,
     }));
-    playSfx('go-to-exosphera', 0.3);
+    playSfx('go-to-exosphera', 0.5);
     setSurfaceTarget({
       planet: info.planet,
       star: info.system.star,

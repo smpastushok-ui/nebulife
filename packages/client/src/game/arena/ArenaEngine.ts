@@ -390,7 +390,7 @@ export class ArenaEngine {
     if (this.playerDead) return;
     if (this.warpCooldownTimer > 0 || this.warpActive) return;
     this.warpActive = true;
-    playSfx('arena-warp', 0.3);
+    playSfx('arena-warp', 0.15);
     this.warpTimer = this.WARP_DURATION;
     this.warpCooldownTimer = this.WARP_COOLDOWN;
   }
@@ -1686,6 +1686,9 @@ export class ArenaEngine {
 
     // Apply buff
     const expiresAt = Date.now() + this.POWERUP_BUFF_DURATION_MS;
+
+    // Extra sound for specific powerup types
+    if (pu.type === 'DAMAGE_UP') playSfx('lazer-red', 0.25);
 
     // DAMAGE_UP and SLOW_LASER both change laser color → mutually exclusive
     if (pu.type === 'DAMAGE_UP' || pu.type === 'SLOW_LASER') {
