@@ -25,6 +25,7 @@ import { HexGrid } from './HexGrid.js';
 import type { HexPlanetSize } from './hex-utils.js';
 import { HexBuildMenu, getAlphaHarvesterPrice } from './HexBuildMenu.js';
 import { SurfaceDPad } from '../SurfaceDPad.js';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // Public types (re-exported so App.tsx imports work unchanged)
@@ -100,6 +101,14 @@ const PLANET_BG: Partial<Record<string, string>> = {
   'gas-giant': '/planet_2d/gas-giant.webp',
   'ice-giant': '/planet_2d/ice-giant.webp',
 };
+
+// ---------------------------------------------------------------------------
+// Tiny helper — plays planet name load sound once on mount
+// ---------------------------------------------------------------------------
+function PlanetNameSound() {
+  useEffect(() => { playSfx('name-planet-load', 0.3); }, []);
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -490,6 +499,9 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
         />
+
+        {/* Planet name load sound — plays once on surface mount */}
+        <PlanetNameSound />
 
         {/* Planet name HUD — neon spin animation, below resource bar, right-aligned */}
         <div style={{

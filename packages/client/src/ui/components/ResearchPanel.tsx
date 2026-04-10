@@ -210,7 +210,7 @@ export function ResearchPanel({
             ...(canStart ? btnStyle : btnDisabledStyle),
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}
-          onClick={() => { if (canStart) { playSfx('research-system-start', 0.35); onStartResearch(system.id); } }}
+          onClick={() => { if (canStart) { playSfx('research-system-start', 0.5); onStartResearch(system.id); } }}
           disabled={!canStart}
         >
           {canStart
