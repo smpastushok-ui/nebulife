@@ -187,6 +187,9 @@ export class ArenaEngine {
   private countdownTimer = 0;
   private prevCountdownCeil = 0;
 
+  // Invulnerability after respawn (timestamp ms, performance.now())
+  private invulnerableUntil = 0;
+
   // Player ship position for camera follow
   private playerPos = new THREE.Vector3(0, 0, 0);
 
@@ -865,6 +868,15 @@ export class ArenaEngine {
     this.playerMesh.position.set(this.playerPos.x, 5, this.playerPos.z);
     this.playerNickSprite.position.set(this.playerPos.x, 20, this.playerPos.z - 15);
 
+    // Flicker effect during invulnerability window
+    const mat = this.playerMesh.material as THREE.MeshBasicMaterial;
+    if (performance.now() < this.invulnerableUntil) {
+      mat.opacity = 0.4 + Math.sin(performance.now() * 0.01) * 0.3;
+      mat.transparent = true;
+    } else if (mat.opacity !== 1) {
+      mat.opacity = 1;
+    }
+
     // Dynamic fly loop volume: silent when stopped, grows with speed
     const curSpeed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
     const speedRatio = Math.min(1, curSpeed / (SHIP_MAX_SPEED * this.playerSpeedMult));
@@ -1077,6 +1089,9 @@ export class ArenaEngine {
   }
 
   private killPlayer(): void {
+    // Invulnerability window after respawn
+    if (performance.now() < this.invulnerableUntil) return;
+
     // Holographic SHIELD power-up absorbs one lethal hit
     if (this.playerExtraShield > 0) {
       this.playerExtraShield = 0;
@@ -1115,6 +1130,7 @@ export class ArenaEngine {
     this.respawnTimer -= dt;
     if (this.respawnTimer <= 0) {
       this.playerDead = false;
+      this.invulnerableUntil = performance.now() + 3000; // 3 seconds invulnerability
       this.callbacks.onPlayerRespawn?.();
       // Respawn at random safe position on arena edge
       const angle = Math.random() * Math.PI * 2;
@@ -2055,22 +2071,39 @@ export class ArenaEngine {
   }
 
   private setupBotShips(): void {
+    // Preload all 3 ship textures (same pattern as setupPlayerShip — async but renders when ready)
+    const loader = new THREE.TextureLoader();
+    const shipTextureKeys = Object.keys(SHIP_FILES) as (keyof typeof SHIP_FILES)[];
+    const shipTextures: THREE.Texture[] = shipTextureKeys.map(key => {
+      const tex = loader.load(SHIP_FILES[key]);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      this.disposables.push(tex);
+      return tex;
+    });
+
     // Shuffle bot names
     const shuffled = [...BOT_NAMES].sort(() => Math.random() - 0.5);
     let nameIdx = 0;
 
     const spawnBot = (id: number, team: Team): BotShip => {
       const name = shuffled[nameIdx++ % shuffled.length];
-      const color = team === 'blue' ? 0x4488ff : 0xff4444;
+      const tintColor = team === 'blue'
+        ? new THREE.Color(0.5, 0.7, 1.0)
+        : new THREE.Color(1.0, 0.5, 0.5);
       const labelColor = team === 'blue' ? '#4499ff' : '#ff5544';
 
-      // Flat plane geometry (same as player ship) tinted by team color
+      // Pick a random ship texture for this bot
+      const tex = shipTextures[id % shipTextures.length];
+
+      // Flat plane geometry (same as player ship) with texture + team color tint
       const size = SHIP_RADIUS * 3;
       const geo = new THREE.PlaneGeometry(size, size);
       geo.rotateX(-Math.PI / 2);
       const mat = new THREE.MeshBasicMaterial({
-        color,
+        map: tex,
+        color: tintColor,
         transparent: true,
+        alphaTest: 0.1,
         opacity: 0.9,
         side: THREE.DoubleSide,
       });
@@ -2108,6 +2141,7 @@ export class ArenaEngine {
         damageDealt: 0,
         dashCooldown: 0,
         isDashing: false,
+        invulnerableUntil: 0,
       };
 
       mesh.position.set(spawnX, 5, spawnZ);
@@ -2206,6 +2240,15 @@ export class ArenaEngine {
       bot.mesh.position.set(bot.pos.x, 5, bot.pos.z);
       bot.mesh.rotation.y = bot.rotation;
       bot.nickSprite.position.set(bot.pos.x, 20, bot.pos.z - 15);
+
+      // Flicker effect during invulnerability window
+      const botMat = bot.mesh.material as THREE.MeshBasicMaterial;
+      if (performance.now() < bot.invulnerableUntil) {
+        botMat.opacity = 0.4 + Math.sin(performance.now() * 0.01) * 0.3;
+        botMat.transparent = true;
+      } else if (botMat.opacity !== 0.9) {
+        botMat.opacity = 0.9;
+      }
 
       // Fire if AI says so and cooldown elapsed
       if (input.firing && bot.fireCooldown <= 0) {
@@ -2422,11 +2465,12 @@ export class ArenaEngine {
           // Find shooter bot to credit damage
           const shooterBot = this.botShips.find(s => s.id === b.ownerId);
 
-          bot.hp -= this.BOT_BULLET_DAMAGE;
-          if (shooterBot) shooterBot.damageDealt += this.BOT_BULLET_DAMAGE;
-
-          if (bot.hp <= 0) {
-            this.killBot(bot, shooterBot ?? null);
+          if (performance.now() >= bot.invulnerableUntil) {
+            bot.hp -= this.BOT_BULLET_DAMAGE;
+            if (shooterBot) shooterBot.damageDealt += this.BOT_BULLET_DAMAGE;
+            if (bot.hp <= 0) {
+              this.killBot(bot, shooterBot ?? null);
+            }
           }
           break;
         }
@@ -2449,21 +2493,23 @@ export class ArenaEngine {
 
           this.spawnHitEffect(b.x, b.z);
 
-          this.playerHp -= this.BOT_BULLET_DAMAGE;
+          if (performance.now() >= this.invulnerableUntil) {
+            this.playerHp -= this.BOT_BULLET_DAMAGE;
 
-          // Find shooter
-          const shooterBot = this.botShips.find(s => s.id === b.ownerId);
-          if (shooterBot) shooterBot.damageDealt += this.BOT_BULLET_DAMAGE;
+            // Find shooter
+            const shooterBot = this.botShips.find(s => s.id === b.ownerId);
+            if (shooterBot) shooterBot.damageDealt += this.BOT_BULLET_DAMAGE;
 
-          if (this.playerHp <= 0) {
-            this.playerHp = 0;
-            // Credit shooter with kill
-            if (shooterBot) {
-              shooterBot.kills++;
-              this.teamKills[shooterBot.team]++;
-              this.addKillFeed(shooterBot.name, 'PLAYER');
+            if (this.playerHp <= 0) {
+              this.playerHp = 0;
+              // Credit shooter with kill
+              if (shooterBot) {
+                shooterBot.kills++;
+                this.teamKills[shooterBot.team]++;
+                this.addKillFeed(shooterBot.name, 'PLAYER');
+              }
+              this.killPlayer();
             }
-            this.killPlayer();
           }
         }
       }
@@ -2496,15 +2542,17 @@ export class ArenaEngine {
 
           this.spawnHitEffect(b.x, b.z);
 
-          const dmg = this.BULLET_DAMAGE * this.playerDamageMult;
-          bot.hp -= dmg;
+          if (performance.now() >= bot.invulnerableUntil) {
+            const dmg = this.BULLET_DAMAGE * this.playerDamageMult;
+            bot.hp -= dmg;
 
-          if (bot.hp <= 0) {
-            this.killBot(bot, null); // player killed bot
-            this.stats.kills++;
-            this.stats.score += TEAM_SCORE_ENEMY_KILL;
-            this.teamKills[this.playerTeam]++;
-            this.addKillFeed('PLAYER', bot.name);
+            if (bot.hp <= 0) {
+              this.killBot(bot, null); // player killed bot
+              this.stats.kills++;
+              this.stats.score += TEAM_SCORE_ENEMY_KILL;
+              this.teamKills[this.playerTeam]++;
+              this.addKillFeed('PLAYER', bot.name);
+            }
           }
           break; // bullet consumed
         }
@@ -2513,6 +2561,7 @@ export class ArenaEngine {
   }
 
   private killBot(bot: BotShip, killer: BotShip | null): void {
+    if (performance.now() < bot.invulnerableUntil) return; // invulnerable after respawn
     bot.alive = false;
     bot.hp = 0;
     bot.deaths++;
@@ -2539,6 +2588,7 @@ export class ArenaEngine {
     bot.alive = true;
     bot.respawnTimer = 0;
     bot.fireCooldown = 0.5;
+    bot.invulnerableUntil = performance.now() + 3000; // 3 seconds invulnerability
     bot.brain.state = 'patrol';
     bot.brain.targetId = null;
     bot.mesh.visible = true;

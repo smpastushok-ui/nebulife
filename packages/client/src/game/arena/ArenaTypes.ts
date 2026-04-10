@@ -141,6 +141,7 @@ export interface BotShip {
   damageDealt: number;
   dashCooldown: number;
   isDashing: boolean;
+  invulnerableUntil: number; // timestamp ms (performance.now()), 0 = not invulnerable
 }
 
 // Bot bullet — separate pool entry with owner tracking

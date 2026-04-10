@@ -102,6 +102,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   const [mounted, setMounted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [isMobile] = useState(() => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
 
   // Ambient loop
   useEffect(() => {
@@ -280,31 +281,33 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           })}
         </div>
 
-        {/* ── Controls panel ────────────────────────────────────────── */}
-        <div style={{
-          ...S.controlsSection,
-          opacity: mounted ? 1 : 0,
-          transition: 'opacity 0.5s ease 0.75s',
-        }}>
-          <button style={S.controlsHeader} onClick={handleToggleControls}>
-            <span style={S.controlsTitle}>{t('hangar.controls.title')}</span>
-            <span style={{ ...S.controlsChevron, transform: controlsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </span>
-          </button>
-          {controlsOpen && (
-            <div style={S.controlsGrid}>
-              {CONTROLS.map(row => (
-                <React.Fragment key={row.keyLabel}>
-                  <div style={S.controlKey}>{row.keyLabel}</div>
-                  <div style={S.controlAction}>{t(row.actionKey as Parameters<typeof t>[0])}</div>
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* ── Controls panel (desktop only) ─────────────────────── */}
+        {!isMobile && (
+          <div style={{
+            ...S.controlsSection,
+            opacity: mounted ? 1 : 0,
+            transition: 'opacity 0.5s ease 0.75s',
+          }}>
+            <button style={S.controlsHeader} onClick={handleToggleControls}>
+              <span style={S.controlsTitle}>{t('hangar.controls.title')}</span>
+              <span style={{ ...S.controlsChevron, transform: controlsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+            {controlsOpen && (
+              <div style={S.controlsGrid}>
+                {CONTROLS.map(row => (
+                  <React.Fragment key={row.keyLabel}>
+                    <div style={S.controlKey}>{row.keyLabel}</div>
+                    <div style={S.controlAction}>{t(row.actionKey as Parameters<typeof t>[0])}</div>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── TRAINING event card ───────────────────────────────────── */}
         <div style={{
