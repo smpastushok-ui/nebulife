@@ -121,24 +121,24 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   // Ship card click
   const handleShipClick = useCallback((slot: ShipSlot) => {
     if (slot.locked) {
-      playSfx('ui-click', 0.15);
+      playSfx('ui-click', 0.07);
       setToast(t('hangar.event.coming_soon'));
       setTimeout(() => setToast(null), 2500);
       return;
     }
-    playSfx('ui-click', 0.2);
+    playSfx('ui-click', 0.07);
     setSelectedShip(slot.id);
   }, [t]);
 
   // Arena entry
   const handleEnter = useCallback(() => {
-    playSfx('ui-click', 0.2);
+    playSfx('ui-click', 0.07);
     // TODO: deduct 1 quark or verify ad watched
     onEnterArena();
   }, [onEnterArena]);
 
   const handleWatchAd = useCallback(() => {
-    playSfx('ui-click', 0.15);
+    playSfx('ui-click', 0.07);
     setToast(t('hangar.event.coming_soon'));
     setTimeout(() => setToast(null), 2500);
   }, [t]);

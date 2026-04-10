@@ -923,7 +923,7 @@ export class GalaxyScene {
     this.onRadialClose?.();
 
     this.transitionActive = true;
-    playSfx('warp-jump', 0.4);
+    playSfx('warp-jump', 0.28);
     this.transitionProgress = 0;
     this.transitionTargetId = targetSystemId;
     this.transitionTargetX = isHome ? 0 : targetNode!.tx;

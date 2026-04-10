@@ -49,7 +49,7 @@ export function PlayerPanel({ playerName, playerLevel = 1, playerXP = 0, onClick
   return (
     <div style={sectionRight}>
       <button
-        onClick={() => { playSfx('ui-click', 0.15); onClick?.(); }}
+        onClick={() => { playSfx('ui-click', 0.07); onClick?.(); }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         title={playerName}

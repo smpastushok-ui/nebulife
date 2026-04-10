@@ -121,7 +121,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
                 ...styles.tabButton,
                 ...(tab === t ? styles.tabActive : {}),
               }}
-              onClick={() => { playSfx('ui-click', 0.15); setTab(t); }}
+              onClick={() => { playSfx('ui-click', 0.07); setTab(t); }}
             >
               {TAB_LABELS[t]}
             </button>
@@ -133,7 +133,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
           {shareBanner && (
             <div style={styles.shareBanner}>
               {shareBanner}
-              <button style={styles.shareBannerClose} onClick={() => { playSfx('ui-click', 0.15); setShareBanner(null); }}>x</button>
+              <button style={styles.shareBannerClose} onClick={() => { playSfx('ui-click', 0.07); setShareBanner(null); }}>x</button>
             </div>
           )}
           {loading ? (
@@ -188,7 +188,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
 
       {/* Footer */}
       <div style={styles.footer}>
-        <button style={styles.closeButton} onClick={() => { playSfx('ui-click', 0.15); onClose(); }}>
+        <button style={styles.closeButton} onClick={() => { playSfx('ui-click', 0.07); onClose(); }}>
           X Закрити
         </button>
         <span style={styles.countdownText}>

@@ -87,7 +87,11 @@ export class SpaceAmbient {
       if (document.visibilityState === 'hidden') {
         this.audio.pause();
       } else {
-        void this.audio.play().catch(() => { /* ignore */ });
+        void this.audio.play().then(() => {
+          this.fadeTo(this.targetVolume, this.fadeCinematicSec * 1000);
+        }).catch(() => {
+          this.attachInteractionFallback();
+        });
       }
     };
     document.addEventListener('visibilitychange', this.onVisibilityChange);

@@ -28,7 +28,7 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
 
   const handleToggle = useCallback(() => {
     if (disabled) return;
-    playSfx('ui-click', 0.15);
+    playSfx('ui-click', 0.07);
     setOpen(prev => !prev);
   }, [disabled]);
 
@@ -36,7 +36,7 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
     if (item.disabled) return;
     setOpen(false);
     if (item.active) return;
-    playSfx('ui-click', 0.15);
+    playSfx('ui-click', 0.07);
     onNavigate(item.scene);
   }, [onNavigate]);
 

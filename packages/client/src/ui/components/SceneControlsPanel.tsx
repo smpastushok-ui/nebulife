@@ -77,7 +77,7 @@ function ControlButton({
   const [hover, setHover] = useState(false);
   return (
     <button
-      onClick={() => { playSfx('ui-click', 0.15); onClick(); }}
+      onClick={() => { playSfx('ui-click', 0.07); onClick(); }}
       title={title}
       style={{
         ...btnStyle,

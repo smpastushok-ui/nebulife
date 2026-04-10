@@ -50,7 +50,7 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
   const handleSubmitCalculation = async () => {
     const num = parseFloat(answer);
     if (isNaN(num)) return;
-    playSfx('ui-click', 0.15);
+    playSfx('ui-click', 0.07);
     setSubmitting(true);
     setFeedback(null);
     try {
@@ -106,13 +106,13 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
         )}
 
         {(quest.type === 'observation' || quest.type === 'exploration') && (
-          <button style={styles.navButton} onClick={() => { playSfx('ui-click', 0.15); onNavigateToGalaxy(); }}>
+          <button style={styles.navButton} onClick={() => { playSfx('ui-click', 0.07); onNavigateToGalaxy(); }}>
             Перейти в галактику
           </button>
         )}
 
         {quest.type === 'photo' && (
-          <button style={styles.navButton} onClick={() => { playSfx('ui-click', 0.15); onNavigateToGalaxy(); }}>
+          <button style={styles.navButton} onClick={() => { playSfx('ui-click', 0.07); onNavigateToGalaxy(); }}>
             Перейти до телескопа
           </button>
         )}

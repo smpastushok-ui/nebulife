@@ -31,7 +31,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
 
   const handleShare = () => {
     if (!lesson) return;
-    playSfx('ui-click', 0.15);
+    playSfx('ui-click', 0.07);
     const url = `${window.location.origin}/api/share?lesson=${encodeURIComponent(lesson.lessonId)}&from=${encodeURIComponent(playerName ?? '')}&title=${encodeURIComponent(lesson.lessonNameUk)}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
@@ -46,7 +46,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
   const isCompleted = progress?.completed_lessons?.[lesson.lessonId];
 
   const handleMarkRead = async () => {
-    playSfx('ui-click', 0.15);
+    playSfx('ui-click', 0.07);
     setMarking(true);
     try {
       await completeLesson(lesson.lessonId);

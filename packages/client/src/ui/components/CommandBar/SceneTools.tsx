@@ -55,7 +55,7 @@ export function SceneTools({ groups, scene }: SceneToolsProps) {
                   opacity: tool.disabled ? 0.4 : 1,
                   cursor: tool.disabled ? 'not-allowed' : 'pointer',
                 }}
-                onClick={() => { playSfx('ui-click', 0.2); tool.onClick(); }}
+                onClick={() => { playSfx('ui-click', 0.07); tool.onClick(); }}
                 disabled={tool.disabled}
                 onMouseEnter={(e) => {
                   if (!tool.disabled) {
@@ -79,7 +79,7 @@ export function SceneTools({ groups, scene }: SceneToolsProps) {
                   opacity: tool.disabled ? 0.4 : 1,
                   cursor: tool.disabled ? 'not-allowed' : 'pointer',
                 }}
-                onClick={() => { playSfx('ui-click', 0.2); tool.onClick(); }}
+                onClick={() => { playSfx('ui-click', 0.07); tool.onClick(); }}
                 disabled={tool.disabled}
                 onMouseEnter={(e) => {
                   if (!tool.disabled && !tool.active) {
