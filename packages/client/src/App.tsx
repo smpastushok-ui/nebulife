@@ -3317,7 +3317,6 @@ function AppInner() {
 
   // Colony founding
   const handleFoundColony = useCallback(() => {
-    playSfx('colony-founded', 0.25);
     globeRef.current?.stopShipFlight();
     setEvacuationPhase('cutscene-landing');
   }, []);
@@ -5610,13 +5609,18 @@ export function App() {
   const [languageSelected, setLanguageSelected] = useState(
     () => localStorage.getItem('nebulife_lang_chosen') === '1',
   );
-  const [savedLang] = useState<Language>(
-    () => (localStorage.getItem('nebulife_lang') as Language) || 'uk',
-  );
+  const [savedLang] = useState<Language>(() => {
+    const lang = (localStorage.getItem('nebulife_lang') as Language) || 'uk';
+    // Sync react-i18next to match custom LanguageProvider on every app start.
+    // Without this, react-i18next may fall back to browser locale (e.g. English)
+    // while the custom provider correctly shows Ukrainian.
+    void i18n.changeLanguage(lang);
+    return lang;
+  });
 
   const handleLanguageChange = useCallback((lang: Language) => {
     localStorage.setItem('nebulife_lang', lang);
-    i18n.changeLanguage(lang);
+    void i18n.changeLanguage(lang);
   }, []);
 
   if (!languageSelected) {

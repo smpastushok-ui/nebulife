@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiscoveryRarity } from '@nebulife/core';
 import { RARITY_COLORS } from '@nebulife/core';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // ScientificReport — typewriter-styled scientific report for the president
@@ -43,6 +44,7 @@ export function ScientificReport({
         }
         return next;
       });
+      playSfx('text-massage', 0.15);
     }, TICK_INTERVAL);
 
     return () => clearInterval(timer);

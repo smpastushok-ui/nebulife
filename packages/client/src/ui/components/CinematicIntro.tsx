@@ -490,7 +490,7 @@ function TerminalTypewriter({
     }
     const currentLine = lines[lineIdx];
     if (charIdx < currentLine.length) {
-      const t = setTimeout(() => setCharIdx((c) => c + 1), 35);
+      const t = setTimeout(() => { playSfx('text-massage', 0.15); setCharIdx((c) => c + 1); }, 35);
       return () => clearTimeout(t);
     } else {
       const t = setTimeout(() => { setLineIdx((l) => l + 1); setCharIdx(0); }, 400);

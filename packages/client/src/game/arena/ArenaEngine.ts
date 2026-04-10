@@ -1088,10 +1088,22 @@ export class ArenaEngine {
       const dist = Math.sqrt(dx * dx + dz * dz);
       const minDist = SHIP_RADIUS + a.radius;
       if (dist < minDist && dist > 0) {
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const overlap = minDist - dist;
+        // Push ship out (no velocity bounce — ship collides and takes damage)
+        this.playerPos.x += nx * overlap;
+        this.playerPos.z += nz * overlap;
+        // Cancel ship velocity into asteroid (ship stops on impact)
+        const impactDot = this.playerVelX * nx + this.playerVelZ * nz;
+        if (impactDot < 0) {
+          this.playerVelX -= impactDot * nx;
+          this.playerVelZ -= impactDot * nz;
+        }
+        // Damage ship based on impact speed
         const speed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
-        if (speed > 50 && performance.now() >= this.invulnerableUntil) {
-          // Proportional damage based on impact speed (0-50 HP)
-          const impact = Math.min(50, (speed - 50) * 0.5);
+        if (speed > 30 && performance.now() >= this.invulnerableUntil) {
+          const impact = Math.min(60, (speed - 30) * 0.6);
           this.playerHp -= impact;
           if (this.playerHp <= 0) {
             this.playerHp = 0;
@@ -1099,19 +1111,6 @@ export class ArenaEngine {
             return;
           }
         }
-        // Bounce
-        const nx = dx / dist;
-        const nz = dz / dist;
-        const overlap = minDist - dist;
-        this.playerPos.x += nx * overlap;
-        this.playerPos.z += nz * overlap;
-        const dot = this.playerVelX * nx + this.playerVelZ * nz;
-        if (dot < 0) {
-          this.playerVelX -= 1.5 * dot * nx;
-          this.playerVelZ -= 1.5 * dot * nz;
-        }
-        a.vx -= nx * 20;
-        a.vz -= nz * 20;
       }
     }
   }
@@ -2537,21 +2536,21 @@ export class ArenaEngine {
       if (dist > ARENA_HALF - SHIP_RADIUS) {
         const nx = bot.pos.x / dist;
         const nz = bot.pos.z / dist;
-        // Clamp position inside boundary
-        bot.pos.x = nx * (ARENA_HALF - SHIP_RADIUS);
-        bot.pos.z = nz * (ARENA_HALF - SHIP_RADIUS);
-        // Reflect velocity
-        const dot = bot.vel.x * nx + bot.vel.z * nz;
-        bot.vel.x -= 2 * dot * nx;
-        bot.vel.z -= 2 * dot * nz;
-        bot.vel.x *= 0.5;
-        bot.vel.z *= 0.5;
-        // Push bot inward so it doesn't hug the wall
-        bot.pos.x -= nx * 8;
-        bot.pos.z -= nz * 8;
-      }
-      // If bot drifted near boundary (85% radius), force AI to patrol toward center
-      if (dist > ARENA_HALF * 0.85) {
+        // Hard-push 24 units inward (prevents sticking)
+        bot.pos.x = nx * (ARENA_HALF - SHIP_RADIUS - 24);
+        bot.pos.z = nz * (ARENA_HALF - SHIP_RADIUS - 24);
+        // Cancel outward velocity component, preserve tangential motion
+        const outDot = bot.vel.x * nx + bot.vel.z * nz;
+        if (outDot > 0) {
+          bot.vel.x -= outDot * nx;
+          bot.vel.z -= outDot * nz;
+        }
+        // Force AI immediately toward center
+        bot.brain.waypoint = { x: 0, z: 0 };
+        bot.brain.state = 'patrol';
+        bot.brain.decisionTimer = 0;
+      } else if (dist > ARENA_HALF * 0.85) {
+        // Approaching boundary — steer toward center
         bot.brain.waypoint = { x: 0, z: 0 };
         bot.brain.state = 'patrol';
         bot.brain.decisionTimer = 0;
@@ -2701,17 +2700,25 @@ export class ArenaEngine {
         const nx = dx / dist;
         const nz = dz / dist;
         const overlap = minDist - dist;
-        // Push out (anti-stick)
+        // Push bot out (no velocity bounce)
         bot.pos.x += nx * overlap;
         bot.pos.z += nz * overlap;
-        // Reflect velocity
-        const dot = bot.vel.x * nx + bot.vel.z * nz;
-        if (dot < 0) {
-          bot.vel.x -= 1.5 * dot * nx;
-          bot.vel.z -= 1.5 * dot * nz;
+        // Cancel bot velocity into asteroid
+        const impactDot = bot.vel.x * nx + bot.vel.z * nz;
+        if (impactDot < 0) {
+          bot.vel.x -= impactDot * nx;
+          bot.vel.z -= impactDot * nz;
         }
-        a.vx -= nx * 15;
-        a.vz -= nz * 15;
+        // Damage bot based on impact speed
+        const botSpeed = Math.sqrt(bot.vel.x * bot.vel.x + bot.vel.z * bot.vel.z);
+        if (botSpeed > 30 && performance.now() >= bot.invulnerableUntil) {
+          const impact = Math.min(60, (botSpeed - 30) * 0.6);
+          bot.hp -= impact;
+          if (bot.hp <= 0) {
+            bot.hp = 0;
+            this.killBot(bot, null);
+          }
+        }
       }
     }
   }
@@ -2939,22 +2946,15 @@ export class ArenaEngine {
         const nz = dz / dist;
         const overlap = rSum - dist;
 
-        // Separate both ships
+        // Separate both ships (no velocity bounce — weaker one explodes)
         this.playerPos.x += nx * overlap * 0.5;
         this.playerPos.z += nz * overlap * 0.5;
         bot.pos.x -= nx * overlap * 0.5;
         bot.pos.z -= nz * overlap * 0.5;
 
-        // Elastic velocity exchange along collision normal
+        // Relative speed for damage (no velocity exchange)
         const dvx = this.playerVelX - bot.vel.x;
         const dvz = this.playerVelZ - bot.vel.z;
-        const dot = dvx * nx + dvz * nz;
-        this.playerVelX -= dot * nx;
-        this.playerVelZ -= dot * nz;
-        bot.vel.x += dot * nx;
-        bot.vel.z += dot * nz;
-
-        // Damage both based on relative speed (only above threshold 50 u/s)
         const relSpeed = Math.sqrt(dvx * dvx + dvz * dvz);
         if (relSpeed > 50) {
           const dmg = Math.min(40, (relSpeed - 50) * 0.4);
