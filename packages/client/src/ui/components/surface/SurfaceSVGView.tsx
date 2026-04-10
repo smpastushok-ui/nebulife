@@ -887,11 +887,8 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
         )}
 
         {/* ── Rover mode hint ────────────────────────────────────────────── */}
-        {/* ── Zoom controls ─────────────────────────────────────────────── */}
-        <SurfaceDPad
-          onZoomIn={zoomIn}
-          onZoomOut={zoomOut}
-        />
+        {/* ── Zoom controls — disabled, conflicts with SceneControlsPanel ── */}
+        {/* <SurfaceDPad onZoomIn={zoomIn} onZoomOut={zoomOut} /> */}
 
         {/* ── Building panel ─────────────────────────────────────────────── */}
         {showBuildPanel && (
