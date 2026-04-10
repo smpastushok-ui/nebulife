@@ -951,13 +951,19 @@ function AppInner() {
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   const [showAcademy, setShowAcademy] = useState(false);
-  const [showArena, setShowArenaRaw] = useState(() => localStorage.getItem('nebulife_arena_active') === '1');
+  // On refresh: bot arena state is lost (GPU memory), redirect to hangar.
+  // For future multiplayer: restore arena session from server instead.
+  const wasInBotArena = localStorage.getItem('nebulife_arena_active') === '1';
+  if (wasInBotArena) localStorage.removeItem('nebulife_arena_active'); // clear stale flag
+  const [showArena, setShowArenaRaw] = useState(false); // never auto-restore bot arena
   const setShowArena = useCallback((val: boolean) => {
     setShowArenaRaw(val);
     if (val) localStorage.setItem('nebulife_arena_active', '1');
     else localStorage.removeItem('nebulife_arena_active');
   }, []);
-  const [showHangar, setShowHangarRaw] = useState(() => localStorage.getItem('nebulife_hangar_active') === '1');
+  const [showHangar, setShowHangarRaw] = useState(() =>
+    localStorage.getItem('nebulife_hangar_active') === '1' || wasInBotArena,
+  );
   const setShowHangar = useCallback((val: boolean) => {
     setShowHangarRaw(val);
     if (val) localStorage.setItem('nebulife_hangar_active', '1');
