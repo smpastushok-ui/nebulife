@@ -701,13 +701,13 @@ export class ArenaEngine {
         this.countdownTimer -= dt;
         if (this.countdownTimer <= 0) {
           this.phase = 'playing';
-          playSfx('arena-start', 0.5);
+          playSfx('arena-start', 0.25);
           playLoop('fly', 0.0); // starts silent, volume tied to speed in updatePlayer
         } else {
           const ceil = Math.ceil(this.countdownTimer);
           if (ceil !== this.prevCountdownCeil) {
             this.prevCountdownCeil = ceil;
-            playSfx('arena-countdown', 0.5);
+            playSfx('arena-countdown', 0.25);
           }
         }
         break;
@@ -983,7 +983,7 @@ export class ArenaEngine {
       this.applyBuffEffects(); // hides shield mesh
       // Visible shield-break flash
       this.spawnHitEffect(this.playerPos.x, this.playerPos.z);
-      playSfx('arena-shield-break', 0.35);
+      playSfx('arena-shield-break', 0.14);
       // Push back from impact
       this.playerVelX *= -0.4;
       this.playerVelZ *= -0.4;
@@ -1021,7 +1021,7 @@ export class ArenaEngine {
       this.playerPos.z = Math.sin(angle) * (ARENA_HALF * 0.7);
       this.playerVelX = 0;
       this.playerVelZ = 0;
-      playSfx('respawn', 0.25);
+      playSfx('respawn', 0.12);
       playLoop('fly', 0.0); // starts silent, volume tied to speed
       this.playerMesh.visible = true;
       this.playerNickSprite.visible = true;
@@ -1359,7 +1359,7 @@ export class ArenaEngine {
 
     // Pickup VFX (reuses hit-effect ring)
     this.spawnHitEffect(pu.x, pu.z);
-    playSfx('arena-powerup', 0.2);
+    playSfx('arena-powerup', 0.1);
 
     // Remove mesh from scene + dispose geometry/material
     this.scene.remove(pu.mesh);
@@ -1632,7 +1632,10 @@ export class ArenaEngine {
   }
 
   private spawnExplosion(x: number, z: number): void {
-    playSfx('arena-explosion', 0.65);
+    // Volume falls off with distance from player (0.65 at origin, ~0.1 at arena edge)
+    const dist = Math.sqrt((x - this.playerPos.x) ** 2 + (z - this.playerPos.z) ** 2);
+    const vol = Math.max(0.1, 0.65 * (1 - dist / (ARENA_HALF * 2)));
+    playSfx('arena-explosion', vol);
     // Central flash
     const flashGeo = new THREE.PlaneGeometry(35, 35);
     flashGeo.rotateX(-Math.PI / 2);
