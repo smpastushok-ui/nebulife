@@ -780,9 +780,7 @@ export function useSurfaceState(
       });
     }, 0);
 
-    if (result === 'tree') playSfx('harvest-tree', 0.3);
-    else if (result === 'ore') playSfx('harvest-ore', 0.3);
-    else if (result === 'vent') playSfx('harvest-vent', 0.3);
+    if (result) playSfx('harvest-all', 0.3);
 
     return result;
   }, [harvestedCells, gridSize, planetSeed, waterLevel, saveHarvested, discoveredTiles]);
