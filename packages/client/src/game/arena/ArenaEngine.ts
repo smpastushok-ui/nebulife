@@ -1857,8 +1857,8 @@ export class ArenaEngine {
     const dist = Math.sqrt((x - this.playerPos.x) ** 2 + (z - this.playerPos.z) ** 2);
     const vol = Math.max(0.1, 0.65 * (1 - dist / (ARENA_HALF * 2)));
     playSfx('arena-explosion', vol);
-    // Central flash
-    const flashGeo = new THREE.PlaneGeometry(35, 35);
+    // Central flash — circular
+    const flashGeo = new THREE.CircleGeometry(18, 16);
     flashGeo.rotateX(-Math.PI / 2);
     const flashMat = new THREE.MeshBasicMaterial({
       color: 0xffaa44,
@@ -1872,11 +1872,31 @@ export class ArenaEngine {
     this.scene.add(flashMesh);
     this.vfxPool.push({ mesh: flashMesh, age: 0, life: 0.8, type: 'flash', scaleSpeed: 2.0 });
 
-    // Debris cubes
-    const debrisCount = 6 + Math.floor(Math.random() * 4);
+    // Secondary ring flash
+    const ringGeo = new THREE.RingGeometry(12, 20, 24);
+    ringGeo.rotateX(-Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xff6622,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 0.7,
+      side: THREE.DoubleSide,
+    });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringMesh.position.set(x, 3, z);
+    this.scene.add(ringMesh);
+    this.vfxPool.push({ mesh: ringMesh, age: 0, life: 1.0, type: 'flash', scaleSpeed: 3.0 });
+
+    // Debris — triangular shards
+    const debrisCount = 8 + Math.floor(Math.random() * 5);
     for (let i = 0; i < debrisCount; i++) {
-      const debGeo = new THREE.BoxGeometry(2, 2, 2);
-      const debMat = new THREE.MeshBasicMaterial({ color: 0x444455 });
+      const size = 1 + Math.random() * 2;
+      const debGeo = new THREE.ConeGeometry(size, size * 2, 3);
+      const shade = 0.2 + Math.random() * 0.3;
+      const debMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(shade, shade * 0.8, shade * 0.6),
+      });
       const debMesh = new THREE.Mesh(debGeo, debMat);
       debMesh.position.set(x, 3, z);
 
