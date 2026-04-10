@@ -230,13 +230,17 @@ function handleChase(
     target = findNearestEnemy(self, allShips);
   }
   if (!target) {
+    // No enemy — patrol toward a waypoint instead of standing still
+    const wp = brain.waypoint ?? randomWaypoint();
+    const toWp = vec2Sub(wp, self.pos);
+    const wpDist = vec2Len(toWp);
     return {
       nextState: 'patrol',
-      moveDir: { x: 0, z: 0 },
+      moveDir: wpDist > 1 ? vec2Norm(toWp) : vec2Norm({ x: Math.random() - 0.5, z: Math.random() - 0.5 }),
       aimDir: { x: 0, z: 1 },
       firing: false,
       dash: false,
-      newWaypoint: randomWaypoint(),
+      newWaypoint: wpDist < 40 ? randomWaypoint() : wp,
       newTargetId: null,
     };
   }
@@ -245,22 +249,28 @@ function handleChase(
 
   // Transition checks
   if (dist > RANGE_DISENGAGE) {
+    const wp = randomWaypoint();
+    const toWp = vec2Sub(wp, self.pos);
     return {
       nextState: 'patrol',
-      moveDir: { x: 0, z: 0 },
+      moveDir: vec2Len(toWp) > 1 ? vec2Norm(toWp) : { x: 0, z: 1 },
       aimDir: { x: 0, z: 1 },
       firing: false,
       dash: false,
-      newWaypoint: randomWaypoint(),
+      newWaypoint: wp,
       newTargetId: null,
     };
   }
   if (dist < RANGE_ATTACK) {
+    // Transition to attack — start circle-strafing immediately
+    const toTarget = vec2Sub(target.pos, self.pos);
+    const toTargetNorm = vec2Norm(toTarget);
+    const tangent: Vec2 = { x: -toTargetNorm.z, z: toTargetNorm.x };
     return {
       nextState: 'attack',
-      moveDir: { x: 0, z: 0 },
-      aimDir: { x: 0, z: 1 },
-      firing: false,
+      moveDir: tangent,
+      aimDir: applyAimError(toTargetNorm, params.aimOffsetRad),
+      firing: true,
       dash: false,
       newWaypoint: brain.waypoint,
       newTargetId: target.id,
@@ -292,7 +302,7 @@ function handleAttack(
   if (self.hp / self.maxHp < HP_FLEE_THRESHOLD) {
     return {
       nextState: 'flee',
-      moveDir: { x: 0, z: 0 },
+      moveDir: vec2Norm(vec2Scale(vec2Sub(self.pos, { x: 0, z: 0 }), 1)), // flee toward edge
       aimDir: { x: 0, z: 1 },
       firing: false,
       dash: true, // dash away immediately
@@ -306,9 +316,11 @@ function handleAttack(
     target = findNearestEnemy(self, allShips);
   }
   if (!target) {
+    const wp = brain.waypoint ?? randomWaypoint();
+    const toWp = vec2Sub(wp, self.pos);
     return {
       nextState: 'patrol',
-      moveDir: { x: 0, z: 0 },
+      moveDir: vec2Len(toWp) > 1 ? vec2Norm(toWp) : vec2Norm({ x: Math.random() - 0.5, z: Math.random() - 0.5 }),
       aimDir: { x: 0, z: 1 },
       firing: false,
       dash: false,
@@ -502,13 +514,24 @@ function computeContinuationInput(
     }
     case 'chase': {
       const target = brain.targetId !== null ? getShipById(brain.targetId, allShips) : null;
-      if (!target) return { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
+      if (!target) {
+        // No target — keep moving toward waypoint instead of freezing
+        const wp = brain.waypoint ?? { x: 0, z: 0 };
+        const toWp = vec2Sub(wp, self.pos);
+        const md = vec2Len(toWp) > 1 ? vec2Norm(toWp) : { x: 0, z: 1 };
+        return { moveDir: md, aimDir: md, firing: false, dash: false };
+      }
       const moveDir = vec2Norm(vec2Sub(target.pos, self.pos));
       return { moveDir, aimDir: applyAimError(moveDir, params.aimOffsetRad), firing: false, dash: false };
     }
     case 'attack': {
       const target = brain.targetId !== null ? getShipById(brain.targetId, allShips) : null;
-      if (!target) return { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
+      if (!target) {
+        const wp = brain.waypoint ?? { x: 0, z: 0 };
+        const toWp = vec2Sub(wp, self.pos);
+        const md = vec2Len(toWp) > 1 ? vec2Norm(toWp) : { x: 0, z: 1 };
+        return { moveDir: md, aimDir: md, firing: false, dash: false };
+      }
       const toTarget = vec2Norm(vec2Sub(target.pos, self.pos));
       const tangent: Vec2 = { x: -toTarget.z, z: toTarget.x };
       return {
@@ -520,7 +543,12 @@ function computeContinuationInput(
     }
     case 'flee': {
       const nearest = findNearestEnemy(self, allShips);
-      if (!nearest) return { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
+      if (!nearest) {
+        // No enemy — move toward center to recover
+        const toCenter = vec2Sub({ x: 0, z: 0 }, self.pos);
+        const md = vec2Len(toCenter) > 1 ? vec2Norm(toCenter) : { x: 0, z: 1 };
+        return { moveDir: md, aimDir: md, firing: false, dash: false };
+      }
       const awayDir = vec2Norm(vec2Scale(vec2Sub(nearest.pos, self.pos), -1));
       return {
         moveDir: awayDir,
