@@ -136,7 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    addLog(`Images done: ${imagesGenerated}/${TOTAL_IMAGES}`);
+    addLog(`Images done: ${imagesGenerated}/${totalImages}`);
 
     // ── Step 4: Send to all players ───────────────────────────────────
     const digestMsg = JSON.stringify({ type: 'digest', weekDate });
