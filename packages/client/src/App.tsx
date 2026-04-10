@@ -1020,7 +1020,7 @@ function AppInner() {
   // Play terminal ambient loop while Cosmic Archive is open.
   useEffect(() => {
     if (showCosmicArchive) {
-      playLoop('terminal-loop', 0.5);
+      playLoop('terminal-loop', 0.3);
     } else {
       stopLoop('terminal-loop');
     }
@@ -1030,7 +1030,7 @@ function AppInner() {
   // Play before_trailers music during onboarding, before first cinematic video starts.
   useEffect(() => {
     if (needsOnboarding && !cinematicVideoPlaying) {
-      playLoop('before-trailers', 0.4);
+      playLoop('before-trailers', 0.5);
     } else {
       stopLoop('before-trailers');
     }
@@ -3317,7 +3317,7 @@ function AppInner() {
 
   // Colony founding
   const handleFoundColony = useCallback(() => {
-    playSfx('colony-founded', 0.5);
+    playSfx('colony-founded', 0.25);
     globeRef.current?.stopShipFlight();
     setEvacuationPhase('cutscene-landing');
   }, []);
@@ -4163,17 +4163,8 @@ function AppInner() {
 
   // Build tool groups based on current scene
   // Hide left SceneControlsPanel when any overlay/modal blocks the view
-  const hideLeftPanel = !!(
-    completedModal ||
-    pendingDiscovery ||
-    observatoryTarget ||
-    telemetryTarget ||
-    needsOnboarding ||
-    (evacuationTarget && evacuationPhase === 'idle' && !evacuationPromptDismissed) ||
-    evacuationPhase !== 'idle' ||
-    showArena ||
-    showHangar
-  );
+  // Hide left SceneControlsPanel only during arena (full-screen takeover)
+  const hideLeftPanel = !!(showArena || showHangar);
 
   const toolGroups: ToolGroup[] = [];
 
