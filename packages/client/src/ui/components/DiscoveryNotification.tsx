@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Discovery, CatalogEntry, DiscoveryRarity } from '@nebulife/core';
 import { RARITY_COLORS, getCatalogEntry, getCatalogName, getCatalogDescription } from '@nebulife/core';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // Toast notification that appears when a cosmic discovery is made
@@ -50,6 +51,7 @@ export function DiscoveryNotification({
 
   // Entrance animation
   useEffect(() => {
+    playSfx('new-discovery-find', 0.4);
     const t = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(t);
   }, []);

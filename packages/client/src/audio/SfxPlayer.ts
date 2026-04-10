@@ -7,11 +7,13 @@
 // stopAllLoops()         — stop everything (scene exit, cleanup)
 // ---------------------------------------------------------------------------
 
-/** Play a one-shot sound effect. Creates a new Audio element each time. */
-export function playSfx(name: string, volume = 0.5): void {
+/** Play a one-shot sound effect. Creates a new Audio element each time.
+ *  Optional `rate` param shifts pitch (0.5 = octave down, 2.0 = octave up). */
+export function playSfx(name: string, volume = 0.5, rate = 1): void {
   try {
     const audio = new Audio(`/sfx/${name}.webm`);
     audio.volume = Math.max(0, Math.min(1, volume));
+    if (rate !== 1) audio.playbackRate = Math.max(0.25, Math.min(4, rate));
     void audio.play().catch(() => { /* autoplay blocked */ });
   } catch { /* SSR / restricted */ }
 }

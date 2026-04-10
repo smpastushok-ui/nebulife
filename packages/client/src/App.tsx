@@ -959,7 +959,7 @@ function AppInner() {
   useEffect(() => {
     const ambient = ambientRef.current;
     if (!ambient) return;
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying;
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar;
     const wasPaused = prevAmbientPausedRef.current;
     if (shouldPause && !wasPaused) {
       ambient.pause();
@@ -967,12 +967,12 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar]);
 
   // Play planet ambient loop while surface view is active.
   useEffect(() => {
     if (surfaceTarget) {
-      playLoop('planet-loop', 0.2);
+      playLoop('planet-loop', 0.1);
     } else {
       stopLoop('planet-loop');
     }
@@ -3670,6 +3670,7 @@ function AppInner() {
       if (check.chaos) setShowChaosModal(true);
       return;
     }
+    playSfx('go-to-exosphera', 0.3);
     setSurfaceTarget({
       planet: state.selectedPlanet,
       star: state.selectedSystem.star,
@@ -3715,6 +3716,7 @@ function AppInner() {
       selectedSystem: info!.system,
       selectedPlanet: info!.planet,
     }));
+    playSfx('go-to-exosphera', 0.3);
     setSurfaceTarget({
       planet: info.planet,
       star: info.system.star,

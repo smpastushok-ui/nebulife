@@ -515,7 +515,8 @@ export class GalaxyScene {
       if (this.cinematicMode) return;
       cc++;
       if (cc === 1) {
-        playSfx('system-select', 0.2);
+        const starRate = 1.3 - Math.min(0.6, (sys.star.radiusSolar || 1) * 0.1);
+        playSfx('system-select', 0.2, starRate);
         this.expandSystem(sys.id);
         ct = setTimeout(() => { cc = 0; }, 260);
       } else if (cc === 2) {
@@ -621,7 +622,8 @@ export class GalaxyScene {
       cc++;
       if (cc === 1) {
         if (!this.clickGuard?.()) {
-          playSfx('system-select', 0.2);
+          const starRate = 1.3 - Math.min(0.6, (sys.star.radiusSolar || 1) * 0.1);
+          playSfx('system-select', 0.2, starRate);
           this.expandSystem(sys.id);
         }
         ct = setTimeout(() => { cc = 0; }, 260);

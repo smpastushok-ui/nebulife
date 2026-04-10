@@ -1568,6 +1568,7 @@ export class ArenaEngine {
         if (dist < a.radius + this.MISSILE_RADIUS) {
           // Missile hit asteroid — AoE: damage all nearby asteroids
           m.active = false;
+          playSfx('missile-hit', 0.2);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();
