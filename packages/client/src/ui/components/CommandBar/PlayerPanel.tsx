@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { sectionRight } from './styles.js';
 import { levelProgress, MAX_PLAYER_LEVEL } from '@nebulife/core';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // Player badge SVG — shield with star
@@ -48,7 +49,7 @@ export function PlayerPanel({ playerName, playerLevel = 1, playerXP = 0, onClick
   return (
     <div style={sectionRight}>
       <button
-        onClick={onClick}
+        onClick={() => { playSfx('ui-click', 0.15); onClick?.(); }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         title={playerName}

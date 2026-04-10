@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { completeQuest } from '../../../api/academy-api.js';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 function QuarksIcon() {
   return (
@@ -49,6 +50,7 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
   const handleSubmitCalculation = async () => {
     const num = parseFloat(answer);
     if (isNaN(num)) return;
+    playSfx('ui-click', 0.15);
     setSubmitting(true);
     setFeedback(null);
     try {
@@ -104,13 +106,13 @@ export function QuestView({ lesson, progress, onRefresh, onNavigateToGalaxy }: Q
         )}
 
         {(quest.type === 'observation' || quest.type === 'exploration') && (
-          <button style={styles.navButton} onClick={onNavigateToGalaxy}>
+          <button style={styles.navButton} onClick={() => { playSfx('ui-click', 0.15); onNavigateToGalaxy(); }}>
             Перейти в галактику
           </button>
         )}
 
         {quest.type === 'photo' && (
-          <button style={styles.navButton} onClick={onNavigateToGalaxy}>
+          <button style={styles.navButton} onClick={() => { playSfx('ui-click', 0.15); onNavigateToGalaxy(); }}>
             Перейти до телескопа
           </button>
         )}

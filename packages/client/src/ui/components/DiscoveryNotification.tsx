@@ -66,11 +66,13 @@ export function DiscoveryNotification({
   }, [onDismiss]);
 
   const handleInvestigate = () => {
+    playSfx('ui-click', 0.15);
     setExiting(true);
     setTimeout(onInvestigate, 200);
   };
 
   const handleClose = () => {
+    playSfx('ui-click', 0.15);
     setExiting(true);
     setTimeout(onDismiss, 400);
   };

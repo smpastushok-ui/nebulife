@@ -394,6 +394,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     return (
       <button
         onClick={() => {
+          playSfx('ui-click', 0.15);
           // If unread system notifs, open to system tab
           if (unreadSystem > 0) setTab('system');
           setCollapsed(false);
@@ -488,7 +489,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
             />
           </div>
           <button
-            onClick={() => setCollapsed(true)}
+            onClick={() => { playSfx('ui-click', 0.15); setCollapsed(true); }}
             style={{
               background: 'none',
               border: 'none',
@@ -1006,7 +1007,7 @@ function TabButton({
 
   return (
     <button
-      onClick={onClick}
+      onClick={() => { playSfx('ui-click', 0.15); onClick(); }}
       style={{
         background: active ? `${badgeColor}22` : hasBadge ? `${badgeColor}0d` : 'none',
         border: `1px solid ${borderColor}`,

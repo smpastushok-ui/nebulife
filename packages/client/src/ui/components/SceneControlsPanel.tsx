@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // SceneControlsPanel — Left-side vertical controls (back, center, zoom)
@@ -76,7 +77,7 @@ function ControlButton({
   const [hover, setHover] = useState(false);
   return (
     <button
-      onClick={onClick}
+      onClick={() => { playSfx('ui-click', 0.15); onClick(); }}
       title={title}
       style={{
         ...btnStyle,

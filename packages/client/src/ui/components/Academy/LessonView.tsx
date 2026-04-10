@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { completeLesson } from '../../../api/academy-api.js';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 function QuarksIcon() {
   return (
@@ -30,6 +31,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
 
   const handleShare = () => {
     if (!lesson) return;
+    playSfx('ui-click', 0.15);
     const url = `${window.location.origin}/api/share?lesson=${encodeURIComponent(lesson.lessonId)}&from=${encodeURIComponent(playerName ?? '')}&title=${encodeURIComponent(lesson.lessonNameUk)}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
@@ -44,6 +46,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
   const isCompleted = progress?.completed_lessons?.[lesson.lessonId];
 
   const handleMarkRead = async () => {
+    playSfx('ui-click', 0.15);
     setMarking(true);
     try {
       await completeLesson(lesson.lessonId);

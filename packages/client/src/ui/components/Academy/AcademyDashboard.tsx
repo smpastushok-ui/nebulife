@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getAcademyProgress, getTodayLesson, shareNotify } from '../../../api/academy-api.js';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 import { LessonView } from './LessonView.js';
 import { QuestView } from './QuestView.js';
 import { QuizView } from './QuizView.js';
@@ -120,7 +121,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
                 ...styles.tabButton,
                 ...(tab === t ? styles.tabActive : {}),
               }}
-              onClick={() => setTab(t)}
+              onClick={() => { playSfx('ui-click', 0.15); setTab(t); }}
             >
               {TAB_LABELS[t]}
             </button>
@@ -132,7 +133,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
           {shareBanner && (
             <div style={styles.shareBanner}>
               {shareBanner}
-              <button style={styles.shareBannerClose} onClick={() => setShareBanner(null)}>x</button>
+              <button style={styles.shareBannerClose} onClick={() => { playSfx('ui-click', 0.15); setShareBanner(null); }}>x</button>
             </div>
           )}
           {loading ? (
@@ -187,7 +188,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
 
       {/* Footer */}
       <div style={styles.footer}>
-        <button style={styles.closeButton} onClick={onClose}>
+        <button style={styles.closeButton} onClick={() => { playSfx('ui-click', 0.15); onClose(); }}>
           X Закрити
         </button>
         <span style={styles.countdownText}>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { levelProgress, MAX_PLAYER_LEVEL } from '@nebulife/core';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // PlayerPage — Full-screen player profile overlay
@@ -103,6 +104,7 @@ export function PlayerPage({
   const accentColor = isMaxLevel ? '#44ff88' : '#4488aa';
 
   const handleTopUp = () => {
+    playSfx('ui-click', 0.15);
     if (isGuest) {
       onLinkAccount();
       return;
@@ -116,6 +118,7 @@ export function PlayerPage({
   };
 
   const handleStartOver = () => {
+    playSfx('ui-click', 0.15);
     if (!confirmReset) {
       setConfirmReset(true);
       return;
@@ -139,7 +142,7 @@ export function PlayerPage({
     >
       {/* Close button */}
       <button
-        onClick={onClose}
+        onClick={() => { playSfx('ui-click', 0.15); onClose(); }}
         style={{
           position: 'absolute',
           top: 14,
@@ -306,7 +309,7 @@ export function PlayerPage({
         {/* Register / Link account — prominent for guests */}
         {isGuest && (
           <button
-            onClick={onLinkAccount}
+            onClick={() => { playSfx('ui-click', 0.15); onLinkAccount(); }}
             style={{
               width: '100%',
               padding: '12px 0',
@@ -342,7 +345,7 @@ export function PlayerPage({
 
         {/* Logout button */}
         <button
-          onClick={onLogout}
+          onClick={() => { playSfx('ui-click', 0.15); onLogout(); }}
           style={{
             width: '100%',
             padding: '10px 0',
@@ -392,7 +395,7 @@ export function PlayerPage({
                     {i18n.language === 'en' ? 'Email digest' : 'Email-дайджест'}
                   </span>
                   <button
-                    onClick={() => onToggleEmailNotif(!emailNotifications)}
+                    onClick={() => { playSfx('ui-click', 0.15); onToggleEmailNotif(!emailNotifications); }}
                     style={{
                       width: 36,
                       height: 20,
@@ -425,7 +428,7 @@ export function PlayerPage({
                     {i18n.language === 'en' ? 'Push notifications' : 'Push-сповіщення'}
                   </span>
                   <button
-                    onClick={() => onTogglePushNotif(!pushNotifications)}
+                    onClick={() => { playSfx('ui-click', 0.15); onTogglePushNotif(!pushNotifications); }}
                     style={{
                       width: 36,
                       height: 20,
@@ -553,7 +556,7 @@ export function PlayerPage({
               {t('player.reset_warning')}
               <br />
               <button
-                onClick={() => setConfirmReset(false)}
+                onClick={() => { playSfx('ui-click', 0.15); setConfirmReset(false); }}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -575,6 +578,7 @@ export function PlayerPage({
           <div style={{ borderTop: '1px solid rgba(204,68,68,0.15)', paddingTop: 12, marginTop: 8 }}>
             <button
               onClick={() => {
+                playSfx('ui-click', 0.15);
                 if (confirmDelete) {
                   onDeleteAccount();
                 } else {
@@ -600,7 +604,7 @@ export function PlayerPage({
                 {t('player.delete_warning')}
                 <br />
                 <button
-                  onClick={() => setConfirmDelete(false)}
+                  onClick={() => { playSfx('ui-click', 0.15); setConfirmDelete(false); }}
                   style={{
                     background: 'none',
                     border: 'none',

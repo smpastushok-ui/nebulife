@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { NavigationMenuItem } from './types.js';
 import { toolButtonBase } from './styles.js';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 interface NavigationMenuProps {
   items: NavigationMenuItem[];
@@ -27,6 +28,7 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
 
   const handleToggle = useCallback(() => {
     if (disabled) return;
+    playSfx('ui-click', 0.15);
     setOpen(prev => !prev);
   }, [disabled]);
 
@@ -34,6 +36,7 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
     if (item.disabled) return;
     setOpen(false);
     if (item.active) return;
+    playSfx('ui-click', 0.15);
     onNavigate(item.scene);
   }, [onNavigate]);
 
