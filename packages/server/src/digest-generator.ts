@@ -136,6 +136,8 @@ export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
 
 /** Whitelist of trusted space/science news domains */
 const TRUSTED_DOMAINS = [
+  // Google Search grounding proxy (Gemini returns these instead of original URLs)
+  'vertexaisearch.cloud.google.com', 'google.com', 'googleapis.com',
   'nasa.gov', 'esa.int', 'spacex.com', 'space.com', 'nature.com',
   'science.org', 'sciencedaily.com', 'phys.org', 'arxiv.org',
   'newscientist.com', 'scientificamerican.com', 'bbc.com', 'bbc.co.uk',
