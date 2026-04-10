@@ -76,8 +76,11 @@ import {
   getEffectValue,
   hasAvailableTech,
   ALL_NODES,
+  runColonyTicks,
+  createPlanetColonyState,
+  COLONY_TICK_INTERVAL_MS,
 } from '@nebulife/core';
-import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType } from '@nebulife/core';
+import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding } from '@nebulife/core';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
@@ -402,6 +405,23 @@ function AppInner() {
     try { localStorage.setItem('nebulife_research_data', String(researchData)); }
     catch { /* ignore */ }
   }, [researchData]);
+
+  // ── Colony Tick State (passive building production) ────────────────────
+  const [colonyState, setColonyState] = useState<PlanetColonyState | null>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_colony_state');
+      if (saved) return JSON.parse(saved) as PlanetColonyState;
+    } catch { /* ignore */ }
+    return null;
+  });
+  const colonyStateRef = useRef<PlanetColonyState | null>(null);
+  colonyStateRef.current = colonyState;
+
+  useEffect(() => {
+    try {
+      if (colonyState) localStorage.setItem('nebulife_colony_state', JSON.stringify(colonyState));
+    } catch { /* ignore */ }
+  }, [colonyState]);
 
   // ── Colony Resources (Phase 2+, after colonization) ───────────────────
   const [colonyResources, setColonyResources] = useState<{ minerals: number; volatiles: number; isotopes: number; water: number }>(() => {
@@ -979,6 +999,64 @@ function AppInner() {
     return () => stopLoop('planet-loop');
   }, [surfaceTarget]);
 
+  // Initialise colony tick state when entering surface for the first time
+  useEffect(() => {
+    if (!surfaceTarget) return;
+    const planetId = surfaceTarget.planet.id;
+    setColonyState((prev) => {
+      if (prev && prev.planetId === planetId) return prev;
+      // Build list from hex slots
+      let buildings: PlacedBuilding[] = [];
+      try {
+        const raw = localStorage.getItem('nebulife_hex_slots');
+        if (raw) {
+          const slots = JSON.parse(raw) as { id: string; ring: number; index: number; state: string; buildingType?: string; buildingLevel?: number }[];
+          buildings = slots
+            .filter(s => s.state === 'building' && s.buildingType)
+            .map(s => ({
+              id: s.id,
+              type: s.buildingType as BuildingType,
+              x: s.index,
+              y: s.ring,
+              level: s.buildingLevel ?? 1,
+              builtAt: new Date().toISOString(),
+            }));
+        }
+      } catch { /* ignore */ }
+      const fresh = createPlanetColonyState(planetId);
+      fresh.buildings = buildings;
+      return fresh;
+    });
+  }, [surfaceTarget?.planet.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Colony tick — runs every 60s, processes passive building production
+  useEffect(() => {
+    const id = setInterval(() => {
+      const colony = colonyStateRef.current;
+      const surface = surfaceTargetRef.current;
+      if (!colony || !surface) return;
+      const tileAt = () => undefined;
+      const mutableColony: PlanetColonyState = JSON.parse(JSON.stringify(colony));
+      const result = runColonyTicks(mutableColony, surface.planet, techTreeStateRef.current, tileAt, Date.now());
+      if (result.researchDataProduced > 0 || result.shutdownIds.length > 0 || Object.keys(result.elementsProduced).length > 0) {
+        if (result.researchDataProduced > 0) {
+          setResearchData(prev => prev + result.researchDataProduced);
+        }
+        if (Object.keys(result.elementsProduced).length > 0) {
+          setChemicalInventory(prev => {
+            const next = { ...prev };
+            for (const [el, amt] of Object.entries(result.elementsProduced)) {
+              next[el] = (next[el] ?? 0) + amt;
+            }
+            return next;
+          });
+        }
+        setColonyState(result.colony);
+      }
+    }, COLONY_TICK_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Volume slider -> setVolume on SpaceAmbient. Runs on every slider drag.
   // Safe when ambient is paused: setVolume schedules a new target and the
   // next resume() will ramp to it. HTML5 audio.volume is already 0..1 so
@@ -1280,7 +1358,7 @@ function AppInner() {
     const keysToRemove = [
       'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
       'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
-      'nebulife_colony_resources', 'nebulife_chemical_inventory', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
+      'nebulife_colony_resources', 'nebulife_chemical_inventory', 'nebulife_colony_state', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
       'nebulife_log_entries', 'nebulife_onboarding_done', 'nebulife_scene',
       'nebulife_nav_system', 'nebulife_nav_planet', 'nebulife_destroyed_planets',
       'nebulife_favorite_planets', 'nebulife_game_started_at', 'nebulife_time_multiplier',
@@ -4849,6 +4927,14 @@ function AppInner() {
               });
             }
             awardXP(XP_REWARDS.BUILDING_PLACED, 'building_placed');
+            // Sync building to colony tick state
+            if (type) {
+              setColonyState(prev => {
+                if (!prev) return prev;
+                const b: PlacedBuilding = { id: `build-${Date.now()}`, type, x: 0, y: 0, level: 1, builtAt: new Date().toISOString() };
+                return { ...prev, buildings: [...prev.buildings, b] };
+              });
+            }
           }}
           onHarvest={handleHarvest}
           onHarvestFx={handleHarvestFx}
