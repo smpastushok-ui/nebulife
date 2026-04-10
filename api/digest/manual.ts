@@ -86,8 +86,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         addLog(`  DROPPED: "${d.title}" — ${d.reason}`);
       }
 
-      if (verified.length < 5) {
-        throw new Error(`Only ${verified.length} news items passed verification (need at least 5)`);
+      if (verified.length < 3) {
+        throw new Error(`Only ${verified.length} news items passed verification (need at least 3)`);
       }
 
       news = verified;
@@ -96,6 +96,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // ── Step 3: Generate images (skip already generated ones) ─────────
+    // Dynamic page count: 3 items per page, rounded up
+    const pagesPerLang = Math.ceil(news.length / ITEMS_PER_IMAGE);
+    const totalImages = DIGEST_LANGUAGES.length * pagesPerLang;
+
     let digest = await getWeeklyDigest(weekDate);
     if (!digest) throw new Error('Digest row not found after save');
 
@@ -104,9 +108,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? (JSON.parse(digest.images_json) as Record<string, string[]>)
       : { uk: [], en: [] };
 
-    while (imagesGenerated < TOTAL_IMAGES) {
-      const langIndex = Math.floor(imagesGenerated / DIGEST_IMAGES_PER_LANG);
-      const pageIndex = imagesGenerated % DIGEST_IMAGES_PER_LANG;
+    addLog(`News: ${news.length} items -> ${pagesPerLang} pages/lang x ${DIGEST_LANGUAGES.length} langs = ${totalImages} images`);
+
+    while (imagesGenerated < totalImages) {
+      const langIndex = Math.floor(imagesGenerated / pagesPerLang);
+      const pageIndex = imagesGenerated % pagesPerLang;
       const lang = DIGEST_LANGUAGES[langIndex];
 
       if (!lang) break;
@@ -115,14 +121,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const newsGroup = news.slice(startIdx, startIdx + ITEMS_PER_IMAGE);
       if (newsGroup.length === 0) break;
 
-      addLog(`Generating image: ${lang} page ${pageIndex} (${imagesGenerated + 1}/${TOTAL_IMAGES})...`);
+      addLog(`Generating image: ${lang} page ${pageIndex + 1}/${pagesPerLang} (${imagesGenerated + 1}/${totalImages})...`);
 
       try {
         const imageUrl = await generateDigestImage(newsGroup, lang, pageIndex);
         if (!currentImages[lang]) currentImages[lang] = [];
         currentImages[lang].push(imageUrl);
         imagesGenerated++;
-        await updateDigestImage(weekDate, JSON.stringify(currentImages), imagesGenerated, TOTAL_IMAGES);
+        await updateDigestImage(weekDate, JSON.stringify(currentImages), imagesGenerated, totalImages);
         addLog(`  -> OK: ${imageUrl.slice(0, 60)}...`);
       } catch (imgErr) {
         addLog(`  -> FAILED: ${imgErr instanceof Error ? imgErr.message : 'Unknown'}`);

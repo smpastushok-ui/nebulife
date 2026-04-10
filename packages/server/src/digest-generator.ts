@@ -116,18 +116,20 @@ export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
   const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
   const parsed = JSON.parse(cleaned) as DigestNewsItem[];
 
-  if (!Array.isArray(parsed) || parsed.length < 10) {
-    throw new Error(`Expected 15 news items, got ${parsed?.length ?? 0}`);
+  if (!Array.isArray(parsed) || parsed.length < 3) {
+    throw new Error(`Too few news items: got ${parsed?.length ?? 0}, need at least 3`);
   }
 
-  // Validate structure
-  for (const item of parsed) {
-    if (!item.title_uk || !item.title_en || !item.desc_uk || !item.desc_en || !item.imagePrompt) {
-      throw new Error('Invalid news item structure');
-    }
+  // Validate structure — keep only valid items, skip broken ones
+  const valid = parsed.filter(item =>
+    item.title_uk && item.title_en && item.desc_uk && item.desc_en && item.imagePrompt
+  );
+
+  if (valid.length < 3) {
+    throw new Error(`Only ${valid.length} structurally valid items (need at least 3)`);
   }
 
-  return parsed.slice(0, 15);
+  return valid.slice(0, 15);
 }
 
 // ---------------------------------------------------------------------------
