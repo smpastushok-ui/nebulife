@@ -1574,7 +1574,6 @@ function AppInner() {
 
         if (localHasEmptySlots && serverHasSlots) {
           // Post-evacuation: local was explicitly emptied, server is stale — keep local
-          // Also push the correct empty state to server to fix the stale data
           const pid = playerId.current;
           if (pid) {
             updatePlayer(pid, {
@@ -1582,8 +1581,31 @@ function AppInner() {
             }).catch(() => {});
           }
         } else {
-          setResearchState(rs);
-          try { localStorage.setItem('nebulife_research_state', JSON.stringify(rs)); } catch { /* ignore */ }
+          // Compare progress scores: whoever has more discovered nodes wins
+          const getProgressScore = (research: unknown): number => {
+            const r = research as { systems?: Record<string, { discoveredNodes?: Record<string, unknown> }> } | null;
+            if (!r || !r.systems) return 0;
+            return Object.values(r.systems).reduce((total: number, sys) => {
+              const nodesCount = sys.discoveredNodes ? Object.keys(sys.discoveredNodes).length : 0;
+              return total + nodesCount + 1;
+            }, 0);
+          };
+          const localScore = getProgressScore(localResearch);
+          const serverScore = getProgressScore(rs);
+
+          if (localScore >= serverScore && localResearch) {
+            // Local has more or equal progress — keep local, push to server
+            const pid = playerId.current;
+            if (pid) {
+              updatePlayer(pid, {
+                game_state: { ...gs, research_state: localResearch } as unknown as Record<string, unknown>,
+              }).catch(() => {});
+            }
+          } else {
+            // Server has more progress — use server data
+            setResearchState(rs);
+            try { localStorage.setItem('nebulife_research_state', JSON.stringify(rs)); } catch { /* ignore */ }
+          }
         }
       }
     }
@@ -5277,11 +5299,13 @@ function AppInner() {
           arenaStats={arenaStats}
           onBack={() => setShowHangar(false)}
           onEnterArena={() => {
+            syncGameStateRef.current(); // push latest state to server before arena
             setArenaTeamMode(false);
             setShowHangar(false);
             setShowArena(true);
           }}
           onEnterTeamBattle={() => {
+            syncGameStateRef.current(); // push latest state to server before arena
             setArenaTeamMode(true);
             setShowHangar(false);
             setShowArena(true);
