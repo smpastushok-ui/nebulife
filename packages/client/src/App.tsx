@@ -4084,7 +4084,8 @@ function AppInner() {
   // Arena button — golden spaceship icon, unlocks at level 50
   // Opens the Hangar intermediate page (not Arena directly)
   const ARENA_MIN_LEVEL = 50;
-  const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
+  // TODO: re-enable level gate: const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
+  const arenaUnlocked = true; // temporarily open for testing
   toolGroups.push({
     type: 'buttons',
     items: [{

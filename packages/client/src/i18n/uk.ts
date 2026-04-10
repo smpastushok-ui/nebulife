@@ -22,8 +22,8 @@ export const uk = {
   'cmd.fly_cluster':     'Полетiти до мого скупчення',
   'cmd.fly_center':      'Полетiти до центру галактики',
   'cmd.fly_star':        'Полетiти до моєї зiрки',
-  'cmd.arena_tooltip':   'Космiчна Арена (з 10 рiвня)',
-  'arena.locked':        'Арена доступна з 10 рiвня. Продовжуйте дослiдження — ще {levels} рiв. до вiдкриття.',
+  'cmd.arena_tooltip':   'Космiчна Арена (з 50 рiвня)',
+  'arena.locked':        'Арена доступна з 50 рiвня. Продовжуйте дослiдження — ще {levels} рiв. до вiдкриття.',
 
   'arena.tutorial.skip':               'Пропустити',
   'arena.tutorial.next':               'Далi',

@@ -24,8 +24,8 @@ export const en: Record<TranslationKey, string> = {
   'cmd.fly_cluster':     'Fly to my cluster',
   'cmd.fly_center':      'Fly to galaxy center',
   'cmd.fly_star':        'Fly to my star',
-  'cmd.arena_tooltip':   'Space Arena (unlocks at level 10)',
-  'arena.locked':        'Arena unlocks at level 10. Keep exploring — {levels} more level(s) to go.',
+  'cmd.arena_tooltip':   'Space Arena (unlocks at level 50)',
+  'arena.locked':        'Arena unlocks at level 50. Keep exploring — {levels} more level(s) to go.',
 
   'arena.tutorial.skip':               'Skip',
   'arena.tutorial.next':               'Next',
