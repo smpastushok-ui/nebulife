@@ -1561,6 +1561,43 @@ export class ArenaEngine {
       }
     }
 
+    // Bot power-up collection (team mode)
+    if (this.teamMode) {
+      for (const bot of this.botShips) {
+        if (!bot.alive) continue;
+        for (let i = this.powerUps.length - 1; i >= 0; i--) {
+          const pu = this.powerUps[i];
+          const dx = bot.pos.x - pu.x;
+          const dz = bot.pos.z - pu.z;
+          if (dx * dx + dz * dz < this.POWERUP_COLLECT_RADIUS * this.POWERUP_COLLECT_RADIUS) {
+            // Simplified bot buff: only apply HEALTH and SHIELD healing
+            if (pu.type === 'HEALTH') {
+              bot.hp = Math.min(bot.maxHp, bot.hp + 30);
+            } else if (pu.type === 'SHIELD') {
+              bot.hp = Math.min(bot.maxHp, bot.hp + 50);
+            }
+            // Remove power-up from scene
+            this.scene.remove(pu.mesh);
+            pu.mesh.geometry.dispose();
+            pu.mesh.children.forEach(child => {
+              if (child instanceof THREE.Mesh) {
+                child.geometry.dispose();
+                if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                else child.material.dispose();
+              }
+            });
+            if (Array.isArray(pu.mesh.material)) {
+              pu.mesh.material.forEach(m => m.dispose());
+            } else {
+              (pu.mesh.material as THREE.Material).dispose();
+            }
+            this.powerUps.splice(i, 1);
+            break;
+          }
+        }
+      }
+    }
+
     // Expire buffs
     const now = Date.now();
     const before = this.playerBuffs.length;
@@ -2331,6 +2368,10 @@ export class ArenaEngine {
         damageDealt: 0,
         dashCooldown: 0,
         isDashing: false,
+        dashTimer: 0,
+        missileAmmo: 8,
+        missileCooldown: Math.random() * 3,
+        missileReloadTimer: 10,
         invulnerableUntil: 0,
       };
 
@@ -2357,6 +2398,9 @@ export class ArenaEngine {
     // Build ShipEntity array for AI (all alive bots + player as enemy of red)
     const allShipEntities = this.buildShipEntityList();
 
+    // Target distribution: limit max 2 bots per target to prevent clustering
+    const targetCounts = new Map<number, number>();
+
     for (const bot of this.botShips) {
       if (!bot.alive) {
         // Respawn countdown
@@ -2367,14 +2411,24 @@ export class ArenaEngine {
         continue;
       }
 
-      // Tick fire cooldown
+      // Tick cooldowns
       bot.fireCooldown = Math.max(0, bot.fireCooldown - dt);
       if (bot.dashCooldown > 0) bot.dashCooldown -= dt;
+      bot.missileCooldown = Math.max(0, (bot.missileCooldown ?? 0) - dt);
+
+      // Missile reload (1 per 10 seconds)
+      if ((bot.missileAmmo ?? 8) < 8) {
+        bot.missileReloadTimer = (bot.missileReloadTimer ?? 10) - dt;
+        if (bot.missileReloadTimer <= 0) {
+          bot.missileAmmo = (bot.missileAmmo ?? 0) + 1;
+          bot.missileReloadTimer = 10;
+        }
+      }
 
       // Build self as ShipEntity for AI
       const selfEntity = this.botToShipEntity(bot, allShipEntities);
 
-      // Build enemies for AI: filter to opposite team
+      // Build enemies for AI: filter to opposite team, prefer less-chased targets
       const enemyEntities = allShipEntities.filter(s => {
         if (!s.alive) return false;
         if (s.id === bot.id) return false;
@@ -2383,8 +2437,20 @@ export class ArenaEngine {
         return sTeam !== bot.team;
       });
 
+      // Sort enemies to prefer those fewer bots are already chasing
+      enemyEntities.sort((a, b) => {
+        const ca = targetCounts.get(a.id) ?? 0;
+        const cb = targetCounts.get(b.id) ?? 0;
+        return ca - cb;
+      });
+
       // Run AI FSM
       const input = updateBot(bot.brain, selfEntity, enemyEntities, dt);
+
+      // Track target counts to prevent clustering
+      if (bot.brain.targetId !== null) {
+        targetCounts.set(bot.brain.targetId, (targetCounts.get(bot.brain.targetId) ?? 0) + 1);
+      }
 
       // Apply movement
       const ax = input.moveDir.x;
@@ -2401,6 +2467,25 @@ export class ArenaEngine {
       if (speed > SHIP_MAX_SPEED) {
         bot.vel.x = (bot.vel.x / speed) * SHIP_MAX_SPEED;
         bot.vel.z = (bot.vel.z / speed) * SHIP_MAX_SPEED;
+      }
+
+      // Warp/dash — activate when AI requests and cooldown is ready
+      if (input.dash && bot.dashCooldown <= 0 && !bot.isDashing) {
+        bot.isDashing = true;
+        bot.dashTimer = 0.2; // dash duration
+        bot.dashCooldown = 8; // warp cooldown
+      }
+      if (bot.isDashing) {
+        bot.dashTimer = (bot.dashTimer ?? 0) - dt;
+        if (bot.dashTimer <= 0) {
+          bot.isDashing = false;
+          bot.dashTimer = 0;
+        } else {
+          // Override velocity to 2x max speed in aim direction
+          const warpSpeed = SHIP_MAX_SPEED * 2;
+          bot.vel.x = input.aimDir.x * warpSpeed;
+          bot.vel.z = input.aimDir.z * warpSpeed;
+        }
       }
 
       bot.pos.x += bot.vel.x * dt;
@@ -2453,10 +2538,17 @@ export class ArenaEngine {
         botMat.opacity = 0.9;
       }
 
-      // Fire if AI says so and cooldown elapsed
+      // Fire bullets if AI says so and cooldown elapsed
       if (input.firing && bot.fireCooldown <= 0) {
         this.fireBotBullet(bot, input.aimDir.x, input.aimDir.z);
         bot.fireCooldown = 0.3 + Math.random() * 0.15; // 0.3–0.45s between shots
+      }
+
+      // Fire missile occasionally (every ~5-8 seconds when in attack mode and has ammo)
+      if (input.firing && (bot.missileAmmo ?? 0) > 0 && bot.missileCooldown <= 0 && Math.random() < 0.02) {
+        this.fireBotMissile(bot, input.aimDir.x, input.aimDir.z);
+        bot.missileAmmo = (bot.missileAmmo ?? 1) - 1;
+        bot.missileCooldown = 5 + Math.random() * 3; // 5-8s between missiles
       }
     }
   }
@@ -2600,6 +2692,26 @@ export class ArenaEngine {
     b.active = true;
     b.ownerId = bot.id;
     b.ownerTeam = bot.team;
+  }
+
+  private fireBotMissile(bot: BotShip, dirX: number, dirZ: number): void {
+    const idx = this.missiles.findIndex(m => !m.active);
+    if (idx === -1) return;
+
+    let dx = dirX;
+    let dz = dirZ;
+    if (dx === 0 && dz === 0) { dx = 0; dz = -1; }
+
+    const m = this.missiles[idx];
+    m.angle = Math.atan2(dx, -dz);
+    m.x = bot.pos.x + dx * (SHIP_RADIUS + 5);
+    m.z = bot.pos.z + dz * (SHIP_RADIUS + 5);
+    m.vx = dx * this.MISSILE_SPEED;
+    m.vz = dz * this.MISSILE_SPEED;
+    m.age = 0;
+    m.active = true;
+    m.targetId = null; // dumb missile — homing finds nearest enemy
+    playSfx('arena-missile', 0.08); // quieter for bots
   }
 
   private updateBotBullets(dt: number): void {

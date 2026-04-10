@@ -44,8 +44,8 @@ const RANGE_DETECT = 300;  // patrol -> chase
 const RANGE_ATTACK = 150;  // chase -> attack
 const RANGE_DISENGAGE = 400; // chase -> patrol (lost target)
 
-const HP_FLEE_THRESHOLD = 0.25;  // flee when HP < 25%
-const HP_RALLY_THRESHOLD = 0.50; // flee -> patrol when HP > 50%
+const HP_FLEE_THRESHOLD = 0.40;  // flee when HP < 40% (was 25%)
+const HP_RALLY_THRESHOLD = 0.70; // flee -> patrol when HP > 70% (was 50%)
 
 // How far from arena center waypoints can spawn
 const WAYPOINT_SPREAD = ARENA_HALF * 0.8;
@@ -370,12 +370,15 @@ function handleAttack(
   const rawAim = toTargetNorm;
   const aimDir = applyAimError(rawAim, params.aimOffsetRad);
 
+  // Dodge: if enemy is very close (within 60 units) and dash is available, burst away
+  const shouldDash = dist < 60 && self.dashCooldown <= 0;
+
   return {
     nextState: 'attack',
     moveDir,
     aimDir,
     firing: true,
-    dash: false,
+    dash: shouldDash,
     newWaypoint: brain.waypoint,
     newTargetId: target.id,
   };

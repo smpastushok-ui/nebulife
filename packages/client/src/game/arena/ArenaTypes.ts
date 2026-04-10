@@ -141,6 +141,11 @@ export interface BotShip {
   damageDealt: number;
   dashCooldown: number;
   isDashing: boolean;
+  dashTimer: number;         // seconds remaining in current dash
+  // Missiles
+  missileAmmo: number;
+  missileCooldown: number;
+  missileReloadTimer: number;
   invulnerableUntil: number; // timestamp ms (performance.now()), 0 = not invulnerable
 }
 
