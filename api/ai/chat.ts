@@ -79,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Get player callsign and language preference
     const player = await getPlayer(auth.playerId);
     const callsign = player?.callsign || 'Commander';
-    const lang = player?.language || 'uk';
+    const lang = player?.preferred_language || 'uk';
 
     // Save USER message FIRST (so it appears in chat even if Gemini times out)
     const trimmed = message.trim();

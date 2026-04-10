@@ -150,7 +150,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // ── Zoom / pan ──────────────────────────────────────────────────────────
     // ALL movement uses refs + direct DOM — zero React re-renders during gestures.
     // React state is NEVER updated during drag or wheel. Only on mount.
-    const zoomRef = useRef(1.0);
+    const zoomRef = useRef(1.25);
     const panXRef = useRef(0);
     const panYRef = useRef(0);
     // Initial values for HexGrid first render only

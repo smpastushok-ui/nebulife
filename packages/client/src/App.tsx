@@ -1958,7 +1958,7 @@ function AppInner() {
   // Sync research labels mode to engine
   useEffect(() => {
     engineRef.current?.setGalaxyResearchLabels(researchLabelsMode);
-  }, [researchLabelsMode]);
+  }, [researchLabelsMode, state.scene]);
 
   useEffect(() => {
     if (!canvasRef.current || engineRef.current) return;
@@ -2427,6 +2427,7 @@ function AppInner() {
   }, []);
 
   const handleSystemMenuResearch = useCallback(() => {
+    playSfx('research-system-start', 0.5);
     const sys = state.selectedSystem;
     setShowSystemMenu(false);
     setRadialSystem(null);
@@ -3679,6 +3680,10 @@ function AppInner() {
 
   const handleCloseSurface = useCallback(() => {
     setSurfaceTarget(null);
+    // Zoom exosphere out to maximum distance after surface unmounts
+    setTimeout(() => {
+      for (let i = 0; i < 10; i++) globeRef.current?.zoomOut();
+    }, 100);
   }, []);
 
   // ── Home planet navigation handlers ─────────────────────────────────

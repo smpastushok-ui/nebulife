@@ -1239,6 +1239,11 @@ function QuizCard({ data, messageId, onAwardXP }: { data: QuizData; messageId: s
   const handleAnswer = (i: number) => {
     if (revealed) return;
     setSelected(i);
+    if (i === data.correctIndex) {
+      playSfx('quiz-correct', 0.35);
+    } else {
+      playSfx('quiz-wrong', 0.25);
+    }
     try { localStorage.setItem(storageKey, String(i)); } catch { /* ignore */ }
     // Award XP for correct answer
     if (i === data.correctIndex && onAwardXP) {

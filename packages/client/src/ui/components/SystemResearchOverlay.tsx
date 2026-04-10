@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // SystemResearchOverlay — blur overlay for unresearched star systems
@@ -104,7 +105,7 @@ export function SystemResearchOverlay({
         </div>
       ) : (
         <button
-          onClick={canResearch ? onStartResearch : undefined}
+          onClick={canResearch ? () => { playSfx('research-system-start', 0.5); onStartResearch?.(); } : undefined}
           disabled={!canResearch}
           style={{
             marginTop: 16,

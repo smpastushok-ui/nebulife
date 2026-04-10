@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { playSfx } from '../../audio/SfxPlayer.js';
 import type { Discovery, StarSystem } from '@nebulife/core';
 import {
   RARITY_COLORS,
@@ -934,6 +935,10 @@ export function TelemetryView({
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
+
+  // Play telemetry scan sound on mount
+  useEffect(() => { playSfx('research-system-start', 0.4); }, []);
+
   const [phase, setPhase] = useState<Phase>('scanning');
   const [scanProgress, setScanProgress] = useState(0);
   const [saved, setSaved] = useState(false);

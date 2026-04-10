@@ -56,7 +56,14 @@ export function playSfx(name: string, volume = 0.5, rate = 1): void {
     if (rate !== 1) audio.playbackRate = Math.max(0.25, Math.min(4, rate));
     activeOneShots.add(audio);
     audio.addEventListener('ended', () => activeOneShots.delete(audio), { once: true });
-    void audio.play().catch(() => { activeOneShots.delete(audio); });
+    void audio.play().catch(() => {
+      if (!unlocked) {
+        // Autoplay blocked before first interaction — retry on first gesture
+        pendingLoops.push(audio);
+      } else {
+        activeOneShots.delete(audio);
+      }
+    });
   } catch { /* SSR / restricted */ }
 }
 
