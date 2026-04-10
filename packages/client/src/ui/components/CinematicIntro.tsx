@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet } from '@nebulife/core';
 import type { GameEngine } from '../../game/GameEngine.js';
-import { playSfx, playLoop, stopLoop } from '../../audio/SfxPlayer.js';
+import { playSfx, playLoop, stopLoop, setLoopVolume } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // CinematicIntro — 5-stage cinematic zoom-in for new players
@@ -541,17 +541,21 @@ function OnboardingSlides({
   const [typewriterDone, setTypewriterDone] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
 
+  // Start terminal loop on first mount — it will be audible only when slide >= 1
+  // Starting on mount (in a click gesture context from "Start" button) ensures
+  // autoplay is allowed. Volume is set to 0 initially and raised when slide changes.
+  useEffect(() => {
+    playLoop('terminal-loop', 0);
+    return () => stopLoop('terminal-loop');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (slide === 0) {
       playSfx('before-trailers', 0.3);
-    }
-    // Terminal loop plays as background on all non-video slides (1, 2, 3)
-    if (slide >= 1) {
-      playLoop('terminal-loop', 0.5);
+      setLoopVolume('terminal-loop', 0); // mute during video
     } else {
-      stopLoop('terminal-loop');
+      setLoopVolume('terminal-loop', 0.5); // unmute on slides 1, 2, 3
     }
-    return () => stopLoop('terminal-loop');
   }, [slide]);
 
   const { star } = system;
