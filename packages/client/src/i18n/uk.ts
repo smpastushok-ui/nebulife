@@ -179,6 +179,7 @@ export const uk = {
   'research.type.dwarf':         'Карликова',
   'research.type.gas_giant':     'Газовий гігант',
   'research.type.ice_giant':     'Крижаний гігант',
+  'research.insufficient_data':  'Недостатньо дослідницьких даних. Зберіть більше даних досліджуючи галактику.',
 
   // ─── Academy — Dashboard ──────────────────────────────────────────────────
   'academy.tab.lesson':   'Урок',

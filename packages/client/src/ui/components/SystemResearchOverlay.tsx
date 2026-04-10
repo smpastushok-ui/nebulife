@@ -20,6 +20,8 @@ interface SystemResearchOverlayProps {
   isResearching?: boolean;
   /** Callback to start research on this system */
   onStartResearch?: () => void;
+  /** Callback fired when the button is clicked while disabled (e.g. show toast) */
+  onDisabledClick?: () => void;
 }
 
 export function SystemResearchOverlay({
@@ -27,6 +29,7 @@ export function SystemResearchOverlay({
   canResearch = false,
   isResearching = false,
   onStartResearch,
+  onDisabledClick,
 }: SystemResearchOverlayProps) {
   const { t } = useTranslation();
   if (progress >= 100) return null;
@@ -105,8 +108,15 @@ export function SystemResearchOverlay({
         </div>
       ) : (
         <button
-          onClick={canResearch ? () => { playSfx('research-system-start', 0.5); onStartResearch?.(); } : undefined}
-          disabled={!canResearch}
+          onClick={() => {
+            if (canResearch) {
+              playSfx('research-system-start', 0.5);
+              onStartResearch?.();
+            } else {
+              onDisabledClick?.();
+            }
+          }}
+          aria-disabled={!canResearch}
           style={{
             marginTop: 16,
             padding: '8px 24px',

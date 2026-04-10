@@ -367,7 +367,15 @@ function TelescopeButton({ onClick, generating }: { onClick: () => void; generat
         <line x1="2" y1="11" x2="0.5" y2="15" />
         <line x1="2" y1="11" x2="4" y2="15" />
       </svg>
-      <span>{generating ? t('telescope.processing_panorama') : t('telescope.panorama_cost')}</span>
+      <span>
+        {generating ? t('telescope.processing_panorama') : t('telescope.panorama_cost')}
+        {!generating && (
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
+            <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
+            <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
+          </svg>
+        )}
+      </span>
     </button>
   );
 }

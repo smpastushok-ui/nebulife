@@ -4,6 +4,19 @@ import type { StarSystem } from '@nebulife/core';
 import { AdProgressButton } from './AdProgressButton.js';
 
 // ---------------------------------------------------------------------------
+// QuarkIcon — inline SVG quark currency symbol
+// ---------------------------------------------------------------------------
+
+function QuarkIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
+      <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
+      <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // SystemContextMenu — context popup for a star system in the galaxy view
 // ---------------------------------------------------------------------------
 
@@ -81,7 +94,7 @@ const separatorStyle: React.CSSProperties = {
 };
 
 function MenuItem({ label, onClick, color, disabled }: {
-  label: string; onClick: () => void; color?: string; disabled?: boolean;
+  label: React.ReactNode; onClick: () => void; color?: string; disabled?: boolean;
 }) {
   const [hover, setHover] = useState(false);
   if (disabled) {
@@ -269,7 +282,7 @@ export function SystemContextMenu({
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ flex: 1 }}>
                   <MenuItem
-                    label={t('context_menu.panorama_cost', { cost: PHOTO_COST })}
+                    label={<>{t('context_menu.panorama_cost', { cost: PHOTO_COST })}<QuarkIcon /></>}
                     onClick={onTelescopePhoto}
                     color={quarks >= PHOTO_COST ? '#ddaa44' : '#445566'}
                     disabled={quarks < PHOTO_COST}
@@ -322,13 +335,13 @@ export function SystemContextMenu({
                 <div style={separatorStyle} />
                 <div style={groupLabelStyle}>{t('context_menu.missions_group')}</div>
                 <MenuItem
-                  label={t('context_menu.mission_short')}
+                  label={<>{t('context_menu.mission_short')}<QuarkIcon /></>}
                   onClick={() => onSendMission('short')}
                   color={quarks >= 30 ? '#ddaa44' : '#445566'}
                   disabled={quarks < 30}
                 />
                 <MenuItem
-                  label={t('context_menu.mission_long')}
+                  label={<>{t('context_menu.mission_long')}<QuarkIcon /></>}
                   onClick={() => onSendMission('long')}
                   color={quarks >= 60 ? '#ddaa44' : '#445566'}
                   disabled={quarks < 60}

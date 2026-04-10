@@ -13,6 +13,19 @@ import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
 import { AdProgressButton } from './AdProgressButton.js';
 
 // ---------------------------------------------------------------------------
+// QuarkIcon — inline SVG quark currency symbol
+// ---------------------------------------------------------------------------
+
+function QuarkIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
+      <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
+      <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PlanetContextMenu — Tabbed panel with planet globe, navigation, resources,
 // and premium tools. Designed for extensibility.
 // ---------------------------------------------------------------------------
@@ -65,7 +78,7 @@ const itemHoverBg = 'rgba(40,60,90,0.4)';
 /* ────────── Subcomponents ────────── */
 
 function MenuItem({ label, onClick, color, icon, right, disabled, title }: {
-  label: string;
+  label: React.ReactNode;
   onClick?: () => void;
   color?: string;
   icon?: string;
@@ -588,7 +601,7 @@ export function PlanetContextMenu({
                   <div style={{ flex: 1 }}>
                     <MenuItem
                       icon="◉"
-                      label={t('planet.photo_label', { cost: PHOTO_COST })}
+                      label={<>{t('planet.photo_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
                       onClick={canAffordPhoto ? onTelescopePhoto : undefined}
                       color={canAffordPhoto ? '#ddaa44' : '#445566'}
                       disabled={!canAffordPhoto}

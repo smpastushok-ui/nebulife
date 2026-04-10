@@ -181,6 +181,7 @@ export const en: Record<TranslationKey, string> = {
   'research.type.dwarf':         'Dwarf',
   'research.type.gas_giant':     'Gas Giant',
   'research.type.ice_giant':     'Ice Giant',
+  'research.insufficient_data':  'Insufficient research data. Collect more data by exploring the galaxy.',
 
   // ─── Academy — Dashboard ──────────────────────────────────────────────────
   'academy.tab.lesson':   'Lesson',

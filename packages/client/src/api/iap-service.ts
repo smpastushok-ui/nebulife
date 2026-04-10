@@ -42,7 +42,7 @@ export interface IAPPackage {
   identifier: string;
   /** App Store / Play Store product ID */
   productIdentifier: string;
-  /** Display title shown in modal (e.g. "100 ⚛") */
+  /** Display title shown in modal (e.g. "100 Q") */
   title: string;
   /** Short description */
   description: string;
@@ -57,7 +57,7 @@ export const FALLBACK_IAP_PACKAGES: IAPPackage[] = [
   {
     identifier: 'quarks_100',
     productIdentifier: 'nebulife_quarks_100',
-    title: '100 ⚛',
+    title: '100',
     description: 'Стартовий набір',
     priceString: '$0.99',
     quarks: 100,
@@ -65,7 +65,7 @@ export const FALLBACK_IAP_PACKAGES: IAPPackage[] = [
   {
     identifier: 'quarks_500',
     productIdentifier: 'nebulife_quarks_500',
-    title: '500 ⚛',
+    title: '500',
     description: 'Оптимальний вибір',
     priceString: '$3.99',
     quarks: 500,
@@ -73,7 +73,7 @@ export const FALLBACK_IAP_PACKAGES: IAPPackage[] = [
   {
     identifier: 'quarks_2000',
     productIdentifier: 'nebulife_quarks_2000',
-    title: '2000 ⚛',
+    title: '2000',
     description: 'Найкраще значення',
     priceString: '$12.99',
     quarks: 2000,
@@ -111,7 +111,7 @@ export async function fetchIAPPackages(): Promise<IAPPackage[]> {
     return current.availablePackages.map(pkg => ({
       identifier: pkg.identifier,
       productIdentifier: pkg.product.identifier,
-      title: `${QUARKS_BY_PRODUCT_ID[pkg.product.identifier] ?? '?'} ⚛`,
+      title: `${QUARKS_BY_PRODUCT_ID[pkg.product.identifier] ?? '?'}`,
       description: pkg.product.description,
       priceString: pkg.product.priceString,
       quarks: QUARKS_BY_PRODUCT_ID[pkg.product.identifier] ?? 0,

@@ -93,6 +93,9 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
   const [showNewDM, setShowNewDM] = useState(false);
   const [unreadGlobal, setUnreadGlobal] = useState(0);
   const [bannedError, setBannedError] = useState(false);
+  // Track which digest the user has "seen" in the ASTRA tab
+  const [seenDigestWeekDate, setSeenDigestWeekDate] = useState<string | null | undefined>(lastDigestSeen);
+  const unreadAstra = (latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate) ? 1 : 0;
 
   // Inject neon pulse keyframes once
   const pulseStyleInjected = useRef(false);
@@ -233,11 +236,11 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     return () => { if (iv) clearInterval(iv); };
   }, [collapsed]);
 
-  // Notify parent of unread count changes (global + system)
+  // Notify parent of unread count changes (global + system + astra)
   const unreadSystem = systemNotifs.filter(n => !n.read).length;
   useEffect(() => {
-    onUnreadChange?.(unreadGlobal + unreadSystem);
-  }, [unreadGlobal, unreadSystem, onUnreadChange]);
+    onUnreadChange?.(unreadGlobal + unreadSystem + unreadAstra);
+  }, [unreadGlobal, unreadSystem, unreadAstra, onUnreadChange]);
 
   // Mark system notifs as read when viewing system tab
   useEffect(() => {
@@ -390,7 +393,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
 
   // ── Collapsed state ──
   if (collapsed) {
-    const totalUnread = unreadGlobal + unreadSystem;
+    const totalUnread = unreadGlobal + unreadSystem + unreadAstra;
     return (
       <button
         onClick={() => {
@@ -466,8 +469,10 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
           <div style={{ display: 'flex', gap: 8 }}>
             <TabButton
               active={tab === 'astra'}
-              onClick={() => { setTab('astra'); setActiveDM(null); }}
+              onClick={() => { setTab('astra'); setActiveDM(null); setSeenDigestWeekDate(latestDigestWeekDate); }}
               label="A.S.T.R.A."
+              badge={unreadAstra > 0 ? unreadAstra : undefined}
+              badgeColor="#44ffaa"
             />
             <TabButton
               active={tab === 'global'}

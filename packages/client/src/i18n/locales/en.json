@@ -244,7 +244,8 @@
     "panel_insufficient_data": "Insufficient research data",
     "panel_ring_locked": "Research Ring {{ring}} first",
     "panel_no_slots": "No free observatories",
-    "actions_unavailable": "Actions unavailable"
+    "actions_unavailable": "Actions unavailable",
+    "insufficient_data": "Insufficient research data. Collect more data by exploring the galaxy."
   },
 
   "surface": {
@@ -421,7 +422,7 @@
     "view_panorama": "View Panorama",
     "processing": "Processing...",
     "alpha_hint": "Get a photo from the Alpha telescope. Uses quarks to rent a cutting-edge telescope.",
-    "panorama_cost": "System Photo Panorama · 30⚛",
+    "panorama_cost": "System Photo Panorama · 30",
     "planet_one": "planet",
     "planet_few": "planets",
     "planet_many": "planets",
@@ -437,7 +438,7 @@
 
   "context_menu": {
     "research_group": "RESEARCH",
-    "panorama_cost": "System Panorama — {{cost}} ⚛",
+    "panorama_cost": "System Panorama — {{cost}}",
     "panorama_tooltip": "Rent supertélescope capacity to capture a unique panorama of the selected star system. The image will belong exclusively to you.",
     "panorama_processing": "Processing panorama...",
     "panorama_ad_label": "Wide-Angle Scan",
@@ -446,8 +447,8 @@
     "send_probe": "Send Probe",
     "level_50_plus": "level 50+",
     "missions_group": "MISSIONS",
-    "mission_short": "Short mission 5s — 30 ⚛",
-    "mission_long": "Long mission 10s — 60 ⚛",
+    "mission_short": "Short mission 5s — 30",
+    "mission_long": "Long mission 10s — 60",
     "mission_processing": "Mission — in progress...",
     "view_mission_video": "View Mission Video"
   },
@@ -707,13 +708,13 @@
     "to_pay": "To pay",
     "currency": "UAH",
     "creating_payment": "Creating payment...",
-    "pay_btn": "Top up {{amount}} ⚛ for {{amount}} UAH",
+    "pay_btn": "Top up {{amount}} for {{amount}} UAH",
     "note": "1 quark = 1 UAH · Payment via Monobank",
     "iap_title": "Quark Packs",
     "iap_loading": "Loading...",
     "iap_buy": "Buy for {{price}}",
     "iap_buying": "Processing...",
-    "iap_success": "Received {{quarks}} ⚛",
+    "iap_success": "Received {{quarks}}",
     "iap_error": "Purchase failed. Please try again.",
     "iap_cancelled": "Purchase cancelled.",
     "iap_note": "Purchases confirmed via App Store / Google Play"
@@ -891,7 +892,7 @@
     "share_btn": "Share",
     "save_btn": "Save to Collection",
     "processing_panorama": "Processing panorama...",
-    "panorama_cost": "Panorama 30⚛"
+    "panorama_cost": "Panorama 30"
   },
 
   "nav_header": {

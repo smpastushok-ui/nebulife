@@ -53,7 +53,7 @@ function WebTopUpModal({ playerId, currentBalance, onClose }: QuarkTopUpModalPro
           <button style={styles.closeBtn} onClick={onClose}>x</button>
         </div>
         <div style={styles.balance}>
-          {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} ⚛</span>
+          {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 1 }}><circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" /><text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text></svg></span>
         </div>
         <div style={styles.presets}>
           {PRESETS.map((preset) => (
@@ -65,7 +65,7 @@ function WebTopUpModal({ playerId, currentBalance, onClose }: QuarkTopUpModalPro
               }}
               onClick={() => { setSelectedAmount(preset); setIsCustom(false); }}
             >
-              {preset} ⚛
+              {preset} <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 1 }}><circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" /><text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text></svg>
             </button>
           ))}
           <button
@@ -150,7 +150,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
           <button style={styles.closeBtn} onClick={onClose}>x</button>
         </div>
         <div style={styles.balance}>
-          {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} ⚛</span>
+          {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 1 }}><circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" /><text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text></svg></span>
         </div>
 
         {loadingPkgs ? (
@@ -184,7 +184,11 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
                 >
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', marginBottom: 2 }}>
-                      {pkg.title}
+                      {pkg.title}{' '}
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                        <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
+                        <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
+                      </svg>
                     </div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: 'monospace' }}>
                       {pkg.description}
@@ -211,7 +215,12 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
             marginBottom: 12,
             fontFamily: 'monospace',
           }}>
-            {message.text}
+            {message.text}{message.ok && (
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
+                <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
+                <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
+              </svg>
+            )}
           </div>
         )}
 

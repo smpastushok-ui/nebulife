@@ -261,8 +261,11 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           <div style={S.entryDesc}>{t('hangar.event.arena_desc')}</div>
           <div style={S.entryButtons}>
             <button style={S.entryQuark} onClick={handleEnter}>
-              <span style={S.entryIcon}>Q</span>
-              1 QUARK
+              1{' '}
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
+                <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
+                <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
+              </svg>
             </button>
             <span style={S.entryOr}>or</span>
             <button style={S.entryAd} onClick={handleWatchAd}>

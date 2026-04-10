@@ -2239,7 +2239,11 @@ function AppInner() {
   }, []);
 
   const handleStartResearch = useCallback((systemId: string) => {
-    if (!hasResearchData(researchData)) return;
+    if (!hasResearchData(researchData)) {
+      setToastMessage(t('research.insufficient_data'));
+      setTimeout(() => setToastMessage(null), 4000);
+      return;
+    }
     // Block if no observatories or no free slots
     if (researchState.slots.length === 0) return;
     // Resolve the target system's ring to find the closest observatory slot
@@ -2282,7 +2286,7 @@ function AppInner() {
         });
       }
     }
-  }, [researchData, researchState, isTutorialActive, tutorialStep]);
+  }, [researchData, researchState, isTutorialActive, tutorialStep, t]);
 
   // --- Tech Tree: research a technology ---
   const handleResearchTech = useCallback((techId: string) => {
@@ -4516,6 +4520,7 @@ function AppInner() {
           canResearch={hasResearchData(researchData) && findFreeSlot(researchState) >= 0}
           isResearching={researchState.slots.some((s) => s.systemId === state.selectedSystem!.id)}
           onStartResearch={() => handleStartResearch(state.selectedSystem!.id)}
+          onDisabledClick={() => handleStartResearch(state.selectedSystem!.id)}
         />
       )}
 

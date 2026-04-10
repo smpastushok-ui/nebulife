@@ -69,7 +69,7 @@
     "available_from_level": "Доступно з {{level}}+ рівня (зараз: {{current}})",
     "coming_soon": "скоро",
     "premium_tools": "Преміум інструменти",
-    "photo_label": "Фото планети — {{cost}} ⚛",
+    "photo_label": "Фото планети — {{cost}}",
     "photo_tooltip": "Оренда потужностей супертелескопа, який зробить неперевершене унікальне зображення обраної планети. Таке зображення буде лише у вас.",
     "photo_base_label": "Фото планети",
     "photo_generating": "генерується...",
@@ -244,7 +244,8 @@
     "panel_insufficient_data": "Недостатньо дослідницьких даних",
     "panel_ring_locked": "Спершу дослідіть Кільце {{ring}}",
     "panel_no_slots": "Немає вільних обсерваторій",
-    "actions_unavailable": "Дії недоступні"
+    "actions_unavailable": "Дії недоступні",
+    "insufficient_data": "Недостатньо дослідницьких даних. Зберіть більше даних досліджуючи галактику."
   },
 
   "surface": {
@@ -419,7 +420,7 @@
     "view_panorama": "Дивитися панораму",
     "processing": "Обробка...",
     "alpha_hint": "Отримати фото з Альфа телескопа. Використовує кварки для оренди надсучасного телескопа.",
-    "panorama_cost": "Фото-панорама системи · 30⚛",
+    "panorama_cost": "Фото-панорама системи · 30",
     "planet_one": "планета",
     "planet_few": "планети",
     "planet_many": "планет",
@@ -435,7 +436,7 @@
 
   "context_menu": {
     "research_group": "ДОСЛІДЖЕННЯ",
-    "panorama_cost": "Панорама системи — {{cost}} ⚛",
+    "panorama_cost": "Панорама системи — {{cost}}",
     "panorama_tooltip": "Оренда потужностей супертелескопа, який зробить неперевершену унікальну панораму обраної зоряної системи. Таке зображення буде лише у вас.",
     "panorama_processing": "Обробка панорами...",
     "panorama_ad_label": "Ширококутний скан",
@@ -444,8 +445,8 @@
     "send_probe": "Відправити зонд",
     "level_50_plus": "рівень 50+",
     "missions_group": "МІСІЇ",
-    "mission_short": "Коротка місія 5с — 30 ⚛",
-    "mission_long": "Довга місія 10с — 60 ⚛",
+    "mission_short": "Коротка місія 5с — 30",
+    "mission_long": "Довга місія 10с — 60",
     "mission_processing": "Місія — в процесі...",
     "view_mission_video": "Дивитися відео місії"
   },
@@ -698,20 +699,20 @@
   },
 
   "topup": {
-    "title": "⚛ Поповнення кварків",
+    "title": "Поповнення кварків",
     "current_balance": "Поточний баланс",
     "other_amount": "Інше",
     "quark_amount_placeholder": "Кількість кварків",
     "to_pay": "До оплати",
     "currency": "грн",
     "creating_payment": "Створення платежу...",
-    "pay_btn": "Поповнити {{amount}} ⚛ за {{amount}} грн",
+    "pay_btn": "Поповнити {{amount}} за {{amount}} грн",
     "note": "1 кварк = 1 грн · Оплата через Monobank",
     "iap_title": "Набори кварків",
     "iap_loading": "Завантаження...",
     "iap_buy": "Придбати за {{price}}",
     "iap_buying": "Обробка...",
-    "iap_success": "Отримано {{quarks}} ⚛",
+    "iap_success": "Отримано {{quarks}}",
     "iap_error": "Помилка покупки. Спробуйте ще раз.",
     "iap_cancelled": "Покупку скасовано.",
     "iap_note": "Покупки підтверджуються через App Store / Google Play"
@@ -889,7 +890,7 @@
     "share_btn": "Поділитися",
     "save_btn": "Зберегти в Колекцію",
     "processing_panorama": "Обробка панорами...",
-    "panorama_cost": "Панорама 30⚛"
+    "panorama_cost": "Панорама 30"
   },
 
   "nav_header": {
