@@ -154,7 +154,7 @@ export type {
 } from './db.js';
 
 // Weekly Digest Generator
-export { generateWeeklyNewsText, generateDigestImage, getCurrentWeekMonday } from './digest-generator.js';
+export { generateWeeklyNewsText, generateDigestImage, getCurrentWeekMonday, verifyNewsItems } from './digest-generator.js';
 export type { DigestNewsItem } from './digest-generator.js';
 
 // Push notifications

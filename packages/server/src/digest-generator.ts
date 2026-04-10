@@ -131,6 +131,104 @@ export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Verify news items — check sources are reachable, filter hallucinations
+// ---------------------------------------------------------------------------
+
+/** Whitelist of trusted space/science news domains */
+const TRUSTED_DOMAINS = [
+  'nasa.gov', 'esa.int', 'spacex.com', 'space.com', 'nature.com',
+  'science.org', 'sciencedaily.com', 'phys.org', 'arxiv.org',
+  'newscientist.com', 'scientificamerican.com', 'bbc.com', 'bbc.co.uk',
+  'reuters.com', 'apnews.com', 'theguardian.com', 'nytimes.com',
+  'washingtonpost.com', 'cnn.com', 'spacenews.com', 'arstechnica.com',
+  'universetoday.com', 'skyandtelescope.org', 'astronomy.com',
+  'planetary.org', 'iau.org', 'spaceflightnow.com', 'nasaspaceflight.com',
+  'jpl.nasa.gov', 'hubblesite.org', 'jwst.nasa.gov', 'livescience.com',
+  'space.stackexchange.com', 'earthsky.org', 'eso.org', 'jaxa.jp',
+  'isro.gov.in', 'roscosmos.ru', 'cnsa.gov.cn', 'blueorigin.com',
+  'rocketlabusa.com', 'virgingalactic.com', 'theregister.com',
+  'wired.com', 'techcrunch.com', 'theverge.com', 'engadget.com',
+];
+
+export async function verifyNewsItems(
+  items: DigestNewsItem[],
+  previousTitles: string[] = [],
+): Promise<{ verified: DigestNewsItem[]; dropped: { title: string; reason: string }[] }> {
+  const verified: DigestNewsItem[] = [];
+  const dropped: { title: string; reason: string }[] = [];
+
+  for (const item of items) {
+    // Check 1: must have a source URL
+    if (!item.source || !item.source.startsWith('http')) {
+      dropped.push({ title: item.title_en, reason: 'no_source_url' });
+      continue;
+    }
+
+    // Check 2: source must be from a trusted domain
+    try {
+      const hostname = new URL(item.source).hostname.replace(/^www\./, '');
+      const isTrusted = TRUSTED_DOMAINS.some(d => hostname === d || hostname.endsWith(`.${d}`));
+      if (!isTrusted) {
+        dropped.push({ title: item.title_en, reason: `untrusted_domain: ${hostname}` });
+        continue;
+      }
+    } catch {
+      dropped.push({ title: item.title_en, reason: 'invalid_url' });
+      continue;
+    }
+
+    // Check 3: source URL must be reachable (HEAD request, 5s timeout)
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const resp = await fetch(item.source, {
+        method: 'HEAD',
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+      clearTimeout(timeout);
+
+      if (resp.status >= 400) {
+        dropped.push({ title: item.title_en, reason: `http_${resp.status}` });
+        continue;
+      }
+    } catch {
+      // Network error or timeout — source may be behind firewall, still accept
+      // but flag it
+      console.warn(`[digest-verify] Source unreachable (accepted): ${item.source}`);
+    }
+
+    // Check 4: duplicate detection — compare with previous digest titles
+    if (previousTitles.length > 0) {
+      const titleLower = item.title_en.toLowerCase();
+      const isDuplicate = previousTitles.some(prev => {
+        const prevLower = prev.toLowerCase();
+        // Exact match or >70% overlap (simple word-based)
+        if (titleLower === prevLower) return true;
+        const words1 = new Set(titleLower.split(/\s+/));
+        const words2 = new Set(prevLower.split(/\s+/));
+        const intersection = [...words1].filter(w => words2.has(w));
+        return intersection.length / Math.max(words1.size, words2.size) > 0.7;
+      });
+      if (isDuplicate) {
+        dropped.push({ title: item.title_en, reason: 'duplicate_of_previous_digest' });
+        continue;
+      }
+    }
+
+    // Check 5: description length — too short = low quality
+    if (item.desc_en.length < 30) {
+      dropped.push({ title: item.title_en, reason: 'description_too_short' });
+      continue;
+    }
+
+    verified.push(item);
+  }
+
+  return { verified, dropped };
+}
+
+// ---------------------------------------------------------------------------
 // Step 2: Generate digest infographic image
 // ---------------------------------------------------------------------------
 

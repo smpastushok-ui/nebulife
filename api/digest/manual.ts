@@ -10,6 +10,7 @@ import {
   generateWeeklyNewsText,
   generateDigestImage,
   getCurrentWeekMonday,
+  verifyNewsItems,
   type DigestNewsItem,
 } from '../../packages/server/src/digest-generator.js';
 import { DIGEST_LANGUAGES, DIGEST_IMAGES_PER_LANG } from '@nebulife/core';
@@ -62,10 +63,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else {
       // ── Step 2: Generate news text ──────────────────────────────────
       addLog(`Generating news text for week ${weekDate}...`);
-      news = await generateWeeklyNewsText();
-      addLog(`Generated ${news.length} news items`);
+      const rawNews = await generateWeeklyNewsText();
+      addLog(`Generated ${rawNews.length} raw news items`);
+
+      // ── Step 2.5: Verify — trusted sources, dedup, quality ──────────
+      // Get previous digest titles for duplicate detection
+      let previousTitles: string[] = [];
+      try {
+        const prevMonday = new Date(weekDate);
+        prevMonday.setDate(prevMonday.getDate() - 7);
+        const prevWeek = prevMonday.toISOString().slice(0, 10);
+        const prevDigest = await getWeeklyDigest(prevWeek);
+        if (prevDigest?.news_json) {
+          const prevItems = JSON.parse(prevDigest.news_json) as DigestNewsItem[];
+          previousTitles = prevItems.map(i => i.title_en);
+        }
+      } catch { /* no previous digest — skip dedup */ }
+
+      const { verified, dropped } = await verifyNewsItems(rawNews, previousTitles);
+      addLog(`Verification: ${verified.length} passed, ${dropped.length} dropped`);
+      for (const d of dropped) {
+        addLog(`  DROPPED: "${d.title}" — ${d.reason}`);
+      }
+
+      if (verified.length < 5) {
+        throw new Error(`Only ${verified.length} news items passed verification (need at least 5)`);
+      }
+
+      news = verified;
       await saveWeeklyDigest(weekDate, JSON.stringify(news));
-      addLog(`Saved to DB`);
+      addLog(`Saved ${news.length} verified items to DB`);
     }
 
     // ── Step 3: Generate images (skip already generated ones) ─────────
