@@ -30,7 +30,7 @@ const SHIP_FILES: Record<string, string> = {
 };
 
 // Power-up types (mirrors server arena-matchmaker for Phase 2 compat)
-export type PowerUpType = 'WARP' | 'DAMAGE_UP' | 'SLOW_LASER' | 'SHIELD';
+export type PowerUpType = 'WARP' | 'DAMAGE_UP' | 'SLOW_LASER' | 'SHIELD' | 'HEALTH';
 
 export class ArenaEngine {
   private container: HTMLElement;
@@ -138,7 +138,16 @@ export class ArenaEngine {
     DAMAGE_UP: 0xff4444,
     SLOW_LASER: 0x4488ff,
     SHIELD: 0xaaddff,
+    HEALTH: 0x44ff44,
   };
+
+  // Health pickups — green cross, +30 HP
+  private healthPickups: { id: number; x: number; z: number; mesh: THREE.Group; respawnTimer: number; active: boolean }[] = [];
+  private healthPickupCounter = 0;
+  private readonly HEALTH_PICKUP_COUNT = 5;
+  private readonly HEALTH_PICKUP_HEAL = 30;
+  private readonly HEALTH_PICKUP_RESPAWN = 15; // seconds
+  private readonly HEALTH_PICKUP_RADIUS = 25;
 
   // Active player buffs from collected power-ups
   private playerBuffs: { type: PowerUpType; expiresAt: number }[] = [];
@@ -284,6 +293,7 @@ export class ArenaEngine {
       this.setupBotBullets();
       this.setupBotShips();
     }
+    this.setupHealthPickups();
 
     window.addEventListener('resize', this.onResizeBound);
     window.addEventListener('keydown', this.onKeyDownBound);
@@ -745,13 +755,13 @@ export class ArenaEngine {
         this.countdownTimer -= dt;
         if (this.countdownTimer <= 0) {
           this.phase = 'playing';
-          playSfx('arena-start', 0.25);
+          playSfx('arena-start', 0.12);
           playLoop('fly', 0.0); // starts silent, volume tied to speed in updatePlayer
         } else {
           const ceil = Math.ceil(this.countdownTimer);
           if (ceil !== this.prevCountdownCeil) {
             this.prevCountdownCeil = ceil;
-            playSfx('arena-countdown', 0.25);
+            playSfx('arena-countdown', 0.12);
           }
         }
         break;
@@ -775,6 +785,7 @@ export class ArenaEngine {
         this.updateBlackHole(dt);
         this.updateVFX(dt);
         this.updatePowerUps(dt);
+        this.updateHealthPickups(dt);
         this.checkBulletAsteroidCollisions();
         this.checkMissileAsteroidCollisions();
         this.checkMissileBotCollisions();
@@ -1383,6 +1394,92 @@ export class ArenaEngine {
     this.playerShieldMesh = new THREE.Mesh(geo, mat);
     this.playerShieldMesh.visible = false;
     this.scene.add(this.playerShieldMesh);
+  }
+
+  // ── Health Pickups (green cross, +30 HP) ────────────────────────────────
+
+  private setupHealthPickups(): void {
+    for (let i = 0; i < this.HEALTH_PICKUP_COUNT; i++) {
+      const group = new THREE.Group();
+      // Horizontal bar
+      const hGeo = new THREE.PlaneGeometry(10, 3);
+      hGeo.rotateX(-Math.PI / 2);
+      const mat = new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+      group.add(new THREE.Mesh(hGeo, mat));
+      // Vertical bar
+      const vGeo = new THREE.PlaneGeometry(3, 10);
+      vGeo.rotateX(-Math.PI / 2);
+      group.add(new THREE.Mesh(vGeo, mat));
+      // Glow halo
+      const haloGeo = new THREE.CircleGeometry(8, 16);
+      haloGeo.rotateX(-Math.PI / 2);
+      const haloMat = new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false });
+      group.add(new THREE.Mesh(haloGeo, haloMat));
+
+      const angle = Math.random() * Math.PI * 2;
+      const r = 100 + Math.random() * (ARENA_HALF * 0.7);
+      const x = Math.cos(angle) * r;
+      const z = Math.sin(angle) * r;
+      group.position.set(x, 5, z);
+      this.scene.add(group);
+
+      this.healthPickups.push({
+        id: this.healthPickupCounter++,
+        x, z, mesh: group, respawnTimer: 0, active: true,
+      });
+    }
+  }
+
+  private updateHealthPickups(dt: number): void {
+    for (const hp of this.healthPickups) {
+      if (!hp.active) {
+        hp.respawnTimer -= dt;
+        if (hp.respawnTimer <= 0) {
+          // Respawn at new random position
+          const angle = Math.random() * Math.PI * 2;
+          const r = 100 + Math.random() * (ARENA_HALF * 0.7);
+          hp.x = Math.cos(angle) * r;
+          hp.z = Math.sin(angle) * r;
+          hp.mesh.position.set(hp.x, 5, hp.z);
+          hp.mesh.visible = true;
+          hp.active = true;
+        }
+        continue;
+      }
+
+      // Animate: gentle bob + rotate
+      hp.mesh.position.y = 5 + Math.sin(performance.now() * 0.003 + hp.id) * 2;
+      hp.mesh.rotation.y += dt * 1.2;
+
+      // Player collection
+      if (!this.playerDead) {
+        const dx = this.playerPos.x - hp.x;
+        const dz = this.playerPos.z - hp.z;
+        if (dx * dx + dz * dz < this.HEALTH_PICKUP_RADIUS * this.HEALTH_PICKUP_RADIUS) {
+          this.playerHp = Math.min(this.PLAYER_MAX_HP, this.playerHp + this.HEALTH_PICKUP_HEAL);
+          playSfx('arena-powerup', 0.15);
+          hp.active = false;
+          hp.mesh.visible = false;
+          hp.respawnTimer = this.HEALTH_PICKUP_RESPAWN;
+        }
+      }
+
+      // Bot collection (in team mode)
+      if (this.teamMode) {
+        for (const bot of this.botShips) {
+          if (!bot.alive) continue;
+          const dx = bot.pos.x - hp.x;
+          const dz = bot.pos.z - hp.z;
+          if (dx * dx + dz * dz < this.HEALTH_PICKUP_RADIUS * this.HEALTH_PICKUP_RADIUS) {
+            bot.hp = Math.min(100, bot.hp + this.HEALTH_PICKUP_HEAL);
+            hp.active = false;
+            hp.mesh.visible = false;
+            hp.respawnTimer = this.HEALTH_PICKUP_RESPAWN;
+            break;
+          }
+        }
+      }
+    }
   }
 
   private spawnPowerUp(): void {
