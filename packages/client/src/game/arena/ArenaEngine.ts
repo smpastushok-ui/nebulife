@@ -995,6 +995,7 @@ export class ArenaEngine {
     this.stats.score = Math.max(0, this.stats.score - 10);
 
     this.playerDead = true;
+    this.callbacks.onPlayerDeath?.();
     stopLoop('fly');
     this.respawnTimer = this.RESPAWN_TIME;
     this.playerMesh.visible = false;
@@ -1013,6 +1014,7 @@ export class ArenaEngine {
     this.respawnTimer -= dt;
     if (this.respawnTimer <= 0) {
       this.playerDead = false;
+      this.callbacks.onPlayerRespawn?.();
       // Respawn at random safe position on arena edge
       const angle = Math.random() * Math.PI * 2;
       this.playerPos.x = Math.cos(angle) * (ARENA_HALF * 0.7);

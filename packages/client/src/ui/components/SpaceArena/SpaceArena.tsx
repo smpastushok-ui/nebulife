@@ -29,6 +29,7 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
   const [mobile] = useState(isMobileDevice);
   const [sessionStats, setSessionStats] = useState({ kills: 0, asteroidKills: 0, deaths: 0, score: 0 });
   const [showTutorial, setShowTutorial] = useState(() => shouldShowArenaTutorial());
+  const [isDead, setIsDead] = useState(false);
 
   const callbacks = useRef<ArenaCallbacks>({
     onMatchEnd: (result) => onMatchEnd?.(result),
@@ -36,6 +37,8 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
     onStatsUpdate: (h, mh, s, ms, k, d) => {
       setHp(h); setShield(s); setKills(k); setDeaths(d);
     },
+    onPlayerDeath: () => setIsDead(true),
+    onPlayerRespawn: () => setIsDead(false),
   });
 
   // Mobile joystick callbacks
@@ -129,10 +132,59 @@ export function SpaceArena({ onExit, onMatchEnd }: SpaceArenaProps) {
         ref={containerRef}
         style={{
           position: 'absolute', inset: 0, zIndex: 0,
-          filter: isWarping ? 'blur(2px) brightness(1.3)' : 'none',
-          transition: 'filter 0.15s',
+          filter: isDead
+            ? 'blur(3px) brightness(0.35) saturate(0.3)'
+            : isWarping ? 'blur(2px) brightness(1.3)' : 'none',
+          transition: isDead ? 'filter 0.2s ease-out' : 'filter 0.8s ease-in',
         }}
       />
+
+      {/* Death glitch overlay */}
+      {isDead && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}>
+          {/* Red flash */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'radial-gradient(ellipse at center, rgba(200,40,40,0.4) 0%, rgba(200,40,40,0) 70%)',
+            animation: 'arenaDeathFlash 0.6s ease-out forwards',
+          }} />
+          {/* Scanlines */}
+          <div style={{
+            position: 'absolute', inset: 0, opacity: 0.12,
+            background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px)',
+            animation: 'arenaScanlines 0.1s linear infinite',
+          }} />
+          {/* Chromatic aberration strips */}
+          <div style={{
+            position: 'absolute', inset: 0, opacity: 0.15, mixBlendMode: 'screen',
+            boxShadow: '-3px 0 0 rgba(255,0,0,0.5), 3px 0 0 rgba(0,200,255,0.5)',
+            animation: 'arenaGlitchShift 0.3s ease-out forwards',
+          }} />
+          {/* Vignette */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%)',
+          }} />
+        </div>
+      )}
+
+      {/* Keyframes for death glitch */}
+      <style>{`
+        @keyframes arenaDeathFlash {
+          0% { opacity: 1; }
+          100% { opacity: 0.2; }
+        }
+        @keyframes arenaScanlines {
+          0% { background-position: 0 0; }
+          100% { background-position: 0 4px; }
+        }
+        @keyframes arenaGlitchShift {
+          0% { transform: translateX(-6px); opacity: 0.4; }
+          20% { transform: translateX(4px); opacity: 0.25; }
+          40% { transform: translateX(-3px); opacity: 0.15; }
+          100% { transform: translateX(0); opacity: 0.08; }
+        }
+      `}</style>
 
       {/* HUD overlay */}
       {ready && (

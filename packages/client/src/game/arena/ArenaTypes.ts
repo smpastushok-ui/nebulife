@@ -102,6 +102,8 @@ export interface ArenaCallbacks {
   onMatchEnd: (result: MatchResult) => void;
   onExit: () => void;
   onStatsUpdate: (hp: number, maxHp: number, shield: number, maxShield: number, kills: number, deaths: number) => void;
+  onPlayerDeath?: () => void;
+  onPlayerRespawn?: () => void;
 }
 
 // Input state (from controls)
