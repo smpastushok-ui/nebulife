@@ -1066,12 +1066,17 @@ export class ArenaEngine {
       const minDist = SHIP_RADIUS + a.radius;
       if (dist < minDist && dist > 0) {
         const speed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
-        if (speed > 80) {
-          // High speed collision → death
-          this.killPlayer();
-          return;
+        if (speed > 50 && performance.now() >= this.invulnerableUntil) {
+          // Proportional damage based on impact speed (0-50 HP)
+          const impact = Math.min(50, (speed - 50) * 0.5);
+          this.playerHp -= impact;
+          if (this.playerHp <= 0) {
+            this.playerHp = 0;
+            this.killPlayer();
+            return;
+          }
         }
-        // Low speed → bounce
+        // Bounce
         const nx = dx / dist;
         const nz = dz / dist;
         const overlap = minDist - dist;
@@ -2219,13 +2224,24 @@ export class ArenaEngine {
       if (dist > ARENA_HALF - SHIP_RADIUS) {
         const nx = bot.pos.x / dist;
         const nz = bot.pos.z / dist;
+        // Clamp position inside boundary
         bot.pos.x = nx * (ARENA_HALF - SHIP_RADIUS);
         bot.pos.z = nz * (ARENA_HALF - SHIP_RADIUS);
+        // Reflect velocity
         const dot = bot.vel.x * nx + bot.vel.z * nz;
         bot.vel.x -= 2 * dot * nx;
         bot.vel.z -= 2 * dot * nz;
         bot.vel.x *= 0.5;
         bot.vel.z *= 0.5;
+        // Push bot inward so it doesn't hug the wall
+        bot.pos.x -= nx * 8;
+        bot.pos.z -= nz * 8;
+      }
+      // If bot drifted near boundary (85% radius), force AI to patrol toward center
+      if (dist > ARENA_HALF * 0.85) {
+        bot.brain.waypoint = { x: 0, z: 0 };
+        bot.brain.state = 'patrol';
+        bot.brain.decisionTimer = 0;
       }
 
       // Bot-asteroid collision (bounce)

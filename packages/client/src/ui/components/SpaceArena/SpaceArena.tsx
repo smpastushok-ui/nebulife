@@ -241,51 +241,6 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           fontFamily: 'monospace',
           zIndex: 2,
         }}>
-          {/* HP + Shield bars — top left */}
-          <div style={{
-            position: 'absolute', top: 60, left: 16,
-            display: 'flex', flexDirection: 'column', gap: 3,
-          }}>
-            {/* Shield bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 9, color: '#4488cc', width: 12 }}>S</span>
-              <div style={{
-                width: 120, height: 6, background: 'rgba(10,15,25,0.8)',
-                borderRadius: 3, overflow: 'hidden',
-              }}>
-                <div style={{
-                  width: `${(shield / maxShield) * 100}%`, height: '100%',
-                  background: '#4488cc', borderRadius: 3,
-                }} />
-              </div>
-              <span style={{ fontSize: 8, color: '#4488cc' }}>{Math.floor(shield)}</span>
-            </div>
-            {/* HP bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 9, color: '#44ff88', width: 12 }}>H</span>
-              <div style={{
-                width: 120, height: 6, background: 'rgba(10,15,25,0.8)',
-                borderRadius: 3, overflow: 'hidden',
-              }}>
-                <div style={{
-                  width: `${(hp / maxHp) * 100}%`, height: '100%',
-                  background: hp > 30 ? '#44ff88' : '#cc4444', borderRadius: 3,
-                }} />
-              </div>
-              <span style={{ fontSize: 8, color: hp > 30 ? '#44ff88' : '#cc4444' }}>{Math.floor(hp)}</span>
-            </div>
-          </div>
-
-          {/* Kill/Death counter — top center */}
-          <div style={{
-            position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', gap: 16,
-            background: 'rgba(10,15,25,0.7)', borderRadius: 4, padding: '4px 12px',
-          }}>
-            <span style={{ fontSize: 10, color: '#44ff88' }}>K:{kills}</span>
-            <span style={{ fontSize: 10, color: '#cc4444' }}>D:{deaths}</span>
-          </div>
-
           {/* Team score bar — top center, team mode only */}
           {teamMode && (
             <div style={{
