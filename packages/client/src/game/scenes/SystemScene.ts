@@ -353,7 +353,7 @@ export class SystemScene {
 
     planetSprite.on('pointerdown', (ev) => {
       if (this.clickGuard?.()) return;
-      playSfx('planet-select', 0.3);
+      playSfx('planet-select', 0.2);
       this.onPlanetSelect(planet, { x: ev.global.x, y: ev.global.y });
     });
     planetSprite.on('pointerover', () => {

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useT } from '../../../i18n/index.js';
+import { playLoop, stopLoop } from '../../../audio/SfxPlayer.js';
 
 interface HangarPageProps {
   playerLevel: number;
@@ -30,6 +31,11 @@ const SELECTED_SHIP_KEY = 'nebulife_hangar_ship';
 
 export const HangarPage: React.FC<HangarPageProps> = ({ playerLevel, arenaStats, onBack, onEnterArena }) => {
   const { t } = useT();
+
+  useEffect(() => {
+    playLoop('angar', 0.25);
+    return () => stopLoop('angar');
+  }, []);
 
   const [selectedShip, setSelectedShip] = useState<string>(() => {
     return localStorage.getItem(SELECTED_SHIP_KEY) || SHIPS[0].id;

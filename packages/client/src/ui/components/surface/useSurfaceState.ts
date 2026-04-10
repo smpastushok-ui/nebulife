@@ -780,9 +780,9 @@ export function useSurfaceState(
       });
     }, 0);
 
-    if (result === 'tree') playSfx('harvest-tree', 0.4);
-    else if (result === 'ore') playSfx('harvest-ore', 0.4);
-    else if (result === 'vent') playSfx('harvest-vent', 0.4);
+    if (result === 'tree') playSfx('harvest-tree', 0.3);
+    else if (result === 'ore') playSfx('harvest-ore', 0.3);
+    else if (result === 'vent') playSfx('harvest-vent', 0.3);
 
     return result;
   }, [harvestedCells, gridSize, planetSeed, waterLevel, saveHarvested, discoveredTiles]);
@@ -822,7 +822,7 @@ export function useSurfaceState(
         state: 'startup',
       };
     });
-    playSfx('bot-launch', 0.4);
+    playSfx('bot-launch', 0.3);
   }, [gridSize]);
 
   // ── setBotActive ──────────────────────────────────────────────────────────

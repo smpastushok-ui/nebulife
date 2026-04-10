@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { playSfx } from './audio/SfxPlayer.js';
+import { playSfx, playLoop, stopLoop } from './audio/SfxPlayer.js';
 import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
 import { LanguageSelectScreen } from './ui/components/LanguageSelectScreen.js';
@@ -968,6 +968,16 @@ function AppInner() {
     }
     prevAmbientPausedRef.current = shouldPause;
   }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying]);
+
+  // Play planet ambient loop while surface view is active.
+  useEffect(() => {
+    if (surfaceTarget) {
+      playLoop('planet-loop', 0.2);
+    } else {
+      stopLoop('planet-loop');
+    }
+    return () => stopLoop('planet-loop');
+  }, [surfaceTarget]);
 
   // Volume slider -> setVolume on SpaceAmbient. Runs on every slider drag.
   // Safe when ambient is paused: setVolume schedules a new target and the
@@ -4096,7 +4106,7 @@ function AppInner() {
       onClick: () => {
         if (!arenaUnlocked) {
           const levelsLeft = ARENA_MIN_LEVEL - playerLevel;
-          playSfx('ui-error', 0.3);
+          playSfx('ui-error', 0.25);
           setToastMessage(t('arena.locked').replace('{levels}', String(levelsLeft)));
           setTimeout(() => setToastMessage(null), 4000);
           return;

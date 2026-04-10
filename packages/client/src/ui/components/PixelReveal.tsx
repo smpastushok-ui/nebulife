@@ -166,7 +166,7 @@ export function PixelReveal({
       st.totalBlocks = st.order.length;
       st.revealed = 0;
       st.running = true;
-      playSfx('pixel-reveal', 0.4);
+      playSfx('pixel-reveal', 0.35);
       st.completed = false;
       st.phase = 'sweep';
       st.sweepProgress = 0;

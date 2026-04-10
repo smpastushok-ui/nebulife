@@ -271,7 +271,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     try {
       const msg = await sendMessage(activeChannel, input.trim());
       setMessages((prev) => [...prev, msg]);
-      playSfx('chat-send', 0.3);
+      playSfx('chat-send', 0.25);
       setInput('');
     } catch (err) {
       if (err instanceof Error && err.message.includes('403')) {

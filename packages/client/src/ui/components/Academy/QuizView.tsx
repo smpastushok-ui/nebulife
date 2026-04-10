@@ -65,14 +65,14 @@ export function QuizView({ lesson, onRefresh, onAwardXP }: QuizViewProps) {
       const res = await answerQuiz(lesson.lessonId, index);
       setResult(res);
       if (res.correct) {
-        playSfx('quiz-correct', 0.4);
+        playSfx('quiz-correct', 0.35);
       } else {
-        playSfx('quiz-wrong', 0.3);
+        playSfx('quiz-wrong', 0.25);
       }
       // Award XP locally for animation + show float
       if (res.correct && res.xpAwarded > 0 && onAwardXP) {
         onAwardXP(res.xpAwarded, 'quiz_correct');
-        playSfx('xp-gain', 0.3);
+        playSfx('xp-gain', 0.25);
         setShowXP(true);
         setTimeout(() => setShowXP(false), 2000);
       }

@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { playSfx } from '../../audio/SfxPlayer.js';
+import { playSfx, playLoop, stopLoop, stopAllLoops } from '../../audio/SfxPlayer.js';
 import type { ArenaCallbacks, InputState, ShipEntity, MatchPhase } from './ArenaTypes.js';
 import {
   ARENA_SIZE, ARENA_HALF,
@@ -295,6 +295,9 @@ export class ArenaEngine {
     if (this.renderer.domElement.parentNode) {
       this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
     }
+
+    // Stop all audio loops
+    stopAllLoops();
   }
 
   setVisible(vis: boolean): void {
@@ -329,7 +332,7 @@ export class ArenaEngine {
     if (this.playerDead) return;
     if (this.warpCooldownTimer > 0 || this.warpActive) return;
     this.warpActive = true;
-    playSfx('arena-dash', 0.4);
+    playSfx('arena-warp', 0.3);
     this.warpTimer = this.WARP_DURATION;
     this.warpCooldownTimer = this.WARP_COOLDOWN;
   }
@@ -363,7 +366,7 @@ export class ArenaEngine {
       const pushSpeed = Math.max(speed * 2, SHIP_MAX_SPEED * 1.5);
       a.vx = this.aimDirX * pushSpeed;
       a.vz = this.aimDirZ * pushSpeed;
-      playSfx('arena-grav', 0.4);
+      playSfx('arena-grav', 0.35);
     }
   }
 
@@ -699,11 +702,12 @@ export class ArenaEngine {
         if (this.countdownTimer <= 0) {
           this.phase = 'playing';
           playSfx('arena-start', 0.5);
+          playLoop('fly', 0.15);
         } else {
           const ceil = Math.ceil(this.countdownTimer);
           if (ceil !== this.prevCountdownCeil) {
             this.prevCountdownCeil = ceil;
-            playSfx('arena-countdown', 0.3);
+            playSfx('arena-countdown', 0.2);
           }
         }
         break;
@@ -865,7 +869,7 @@ export class ArenaEngine {
     this.fireCooldownTimer = Math.max(0, this.fireCooldownTimer - dt);
     const isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
     if (isFiring && this.fireCooldownTimer <= 0) {
-      playSfx('arena-laser', 0.15);
+      playSfx('arena-laser', 0.1);
       this.fireBullet();
       this.fireCooldownTimer = this.FIRE_COOLDOWN;
     }
@@ -973,7 +977,7 @@ export class ArenaEngine {
       this.applyBuffEffects(); // hides shield mesh
       // Visible shield-break flash
       this.spawnHitEffect(this.playerPos.x, this.playerPos.z);
-      playSfx('arena-shield-break', 0.4);
+      playSfx('arena-shield-break', 0.35);
       // Push back from impact
       this.playerVelX *= -0.4;
       this.playerVelZ *= -0.4;
@@ -985,6 +989,7 @@ export class ArenaEngine {
     this.stats.score = Math.max(0, this.stats.score - 10);
 
     this.playerDead = true;
+    stopLoop('fly');
     this.respawnTimer = this.RESPAWN_TIME;
     this.playerMesh.visible = false;
     this.playerNickSprite.visible = false;
@@ -1008,7 +1013,8 @@ export class ArenaEngine {
       this.playerPos.z = Math.sin(angle) * (ARENA_HALF * 0.7);
       this.playerVelX = 0;
       this.playerVelZ = 0;
-      playSfx('respawn', 0.4);
+      playSfx('respawn', 0.35);
+      playLoop('fly', 0.15);
       this.playerMesh.visible = true;
       this.playerNickSprite.visible = true;
     }
@@ -1030,7 +1036,7 @@ export class ArenaEngine {
           // Bullet hit asteroid — spawn hit VFX
           b.active = false;
           this.spawnHitEffect(b.x, b.z);
-          playSfx('arena-asteroid-hit', 0.3);
+          playSfx('asteroid-explosion', 0.3);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();
@@ -1448,7 +1454,7 @@ export class ArenaEngine {
     m.vz = dirZ * this.MISSILE_SPEED;
     m.age = 0;
     m.active = true;
-    playSfx('arena-missile', 0.2);
+    playSfx('arena-missile', 0.15);
   }
 
   private updateMissiles(dt: number): void {

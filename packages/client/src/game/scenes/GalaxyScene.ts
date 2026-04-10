@@ -515,7 +515,7 @@ export class GalaxyScene {
       if (this.cinematicMode) return;
       cc++;
       if (cc === 1) {
-        playSfx('system-select', 0.3);
+        playSfx('system-select', 0.2);
         this.expandSystem(sys.id);
         ct = setTimeout(() => { cc = 0; }, 260);
       } else if (cc === 2) {
@@ -621,7 +621,7 @@ export class GalaxyScene {
       cc++;
       if (cc === 1) {
         if (!this.clickGuard?.()) {
-          playSfx('system-select', 0.3);
+          playSfx('system-select', 0.2);
           this.expandSystem(sys.id);
         }
         ct = setTimeout(() => { cc = 0; }, 260);
@@ -921,7 +921,7 @@ export class GalaxyScene {
     this.onRadialClose?.();
 
     this.transitionActive = true;
-    playSfx('warp-jump', 0.5);
+    playSfx('warp-jump', 0.4);
     this.transitionProgress = 0;
     this.transitionTargetId = targetSystemId;
     this.transitionTargetX = isHome ? 0 : targetNode!.tx;
@@ -1378,7 +1378,7 @@ export class GalaxyScene {
     if (elapsed >= BLACKOUT_END) {
       this.transitionActive = false;
       if (this.transitionOnComplete) {
-        playSfx('warp-arrive', 0.4);
+        playSfx('warp-arrive', 0.35);
         this.transitionOnComplete();
         this.transitionOnComplete = null;
       }

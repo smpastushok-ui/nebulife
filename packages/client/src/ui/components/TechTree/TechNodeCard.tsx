@@ -123,7 +123,7 @@ export function TechNodeCard({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            playSfx('tech-unlock', 0.4);
+            playSfx('tech-unlock', 0.35);
             onResearch();
           }}
           onMouseEnter={() => setBtnHovered(true)}

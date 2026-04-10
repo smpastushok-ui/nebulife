@@ -148,7 +148,7 @@ export function ResearchCompleteModal({
   // Staggered planet reveal with sound cues
   useEffect(() => {
     if (!visible) return;
-    playSfx('research-complete', 0.5);
+    playSfx('research-complete-all', 0.4);
     const planets = system.planets;
     let current = 0;
     const reveal = () => {

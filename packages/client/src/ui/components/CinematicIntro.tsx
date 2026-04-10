@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet } from '@nebulife/core';
 import type { GameEngine } from '../../game/GameEngine.js';
+import { playSfx, playLoop, stopLoop } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // CinematicIntro — 5-stage cinematic zoom-in for new players
@@ -539,6 +540,17 @@ function OnboardingSlides({
   const [slide, setSlide] = useState<OnboardingSlide>(0);
   const [typewriterDone, setTypewriterDone] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
+
+  useEffect(() => {
+    if (slide === 0) {
+      playSfx('before-trailers', 0.3);
+    } else if (slide === 1) {
+      playLoop('terminal-loop', 0.2);
+    } else {
+      stopLoop('terminal-loop');
+    }
+    return () => stopLoop('terminal-loop');
+  }, [slide]);
 
   const { star } = system;
 
