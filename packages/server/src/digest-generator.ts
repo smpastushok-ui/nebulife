@@ -9,7 +9,7 @@ import type { Language } from '@nebulife/core';
 // Step 2: gemini-3.1-flash-image-preview generates 9:16 infographic images
 // ---------------------------------------------------------------------------
 
-const CORE_MODEL = 'gemini-2.5-flash-preview-05-20';
+const CORE_MODEL = 'gemini-2.5-flash';
 const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
 // ---------------------------------------------------------------------------
