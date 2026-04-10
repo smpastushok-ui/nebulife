@@ -2502,11 +2502,14 @@ function AppInner() {
     engineRef.current?.enterSystemDirect(state.selectedSystem);
   }, [state.selectedSystem]);
 
+  const [forceShowSystemInfo, setForceShowSystemInfo] = useState(false);
+  // Reset forceShowSystemInfo when selected system changes
+  useEffect(() => { setForceShowSystemInfo(false); }, [state.selectedSystem?.id]);
   const handleSystemMenuCharacteristics = useCallback(() => {
     setShowSystemMenu(false);
     setRadialSystem(null);
     setRadialGetScreenPos(null);
-    // Will show SystemInfoPanel (existing panel)
+    setForceShowSystemInfo(true);
   }, []);
 
   const handleSystemMenuResearch = useCallback(() => {
@@ -3921,7 +3924,7 @@ function AppInner() {
     && state.scene === 'galaxy'
     && !showSystemMenu
     && !radialSystem
-    && (selectedSystem.ownerPlayerId !== null || isSystemFullyResearched(researchState, selectedSystem.id));
+    && (forceShowSystemInfo || selectedSystem.ownerPlayerId !== null || isSystemFullyResearched(researchState, selectedSystem.id));
 
   // Timer text for the selected system's active slot
   const activeSlotTimer = selectedSystem

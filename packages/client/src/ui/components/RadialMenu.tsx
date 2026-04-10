@@ -213,7 +213,7 @@ export function RadialMenu({
     switch (action) {
       case 'enter':        onEnterSystem(); break;
       case 'objects':      onObjectsList(); break;
-      case 'chars':        showFlash(t('research.actions_unavailable')); break;
+      case 'chars':        onCharacteristics(); break;
       case 'rename':       onRename(); break;
       case 'research':     onResearch(); break;
       case 'telescope':    onTelescopePhoto(); break;
