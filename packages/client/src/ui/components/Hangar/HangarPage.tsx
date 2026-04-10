@@ -10,7 +10,7 @@ interface HangarPageProps {
   playerLevel: number;
   arenaStats: {
     kills: number;
-    missileKills: number;
+    asteroidKills: number;
     deaths: number;
     score: number;
     bestScore: number;
@@ -76,7 +76,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({ playerLevel, arenaStats,
           </div>
           <div style={styles.statCell}>
             <div style={styles.statLabel}>{t('hangar.stats.kills')}</div>
-            <div style={styles.statValue}>{arenaStats.kills}</div>
+            <div style={styles.statValue}>{arenaStats.asteroidKills}</div>
           </div>
           <div style={styles.statCell}>
             <div style={styles.statLabel}>{t('hangar.stats.deaths')}</div>

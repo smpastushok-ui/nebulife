@@ -978,7 +978,7 @@ function AppInner() {
   }, [ambientVolume]);
   const [arenaStats, setArenaStats] = useState<{
     kills: number;
-    missileKills: number;
+    asteroidKills: number;
     deaths: number;
     score: number;
     bestScore: number;

@@ -208,12 +208,14 @@ export class SpaceAmbient {
     });
   }
 
-  /** Slider drag: smoothly ramp to the new target. v is in 0..1. */
+  /** Slider drag: set volume immediately. No fade — the slider itself
+   *  generates smooth intermediate values, and fadeTo's 300ms ramp gets
+   *  cancelled every 16ms during drag, causing the volume to barely move. */
   public setVolume(v: number): void {
     const clamped = Math.max(0, Math.min(1, v));
     this.targetVolume = clamped;
     if (this.audio) {
-      this.fadeTo(clamped, this.fadeShortSec * 1000);
+      this.audio.volume = clamped;
     }
   }
 

@@ -59,10 +59,10 @@ export class ArenaEngine {
   private readonly RESPAWN_TIME = 5;
   private shipId: string;
   private stats = {
-    kills: 0,         // total asteroids destroyed (bullets + missiles)
-    missileKills: 0,  // subset: destroyed by missiles
-    deaths: 0,        // player deaths (not shield-saves)
-    score: 0,         // +10 per bullet kill, +30 per missile kill, -5 per death
+    kills: 0,           // enemy ship kills (future PvP/PvE)
+    asteroidKills: 0,   // asteroids destroyed
+    deaths: 0,          // player deaths (not shield-saves)
+    score: 0,           // +5 asteroid(laser), +10 asteroid(missile), +20 enemy, -10 death
   };
 
   // Black hole
@@ -865,7 +865,7 @@ export class ArenaEngine {
     this.fireCooldownTimer = Math.max(0, this.fireCooldownTimer - dt);
     const isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
     if (isFiring && this.fireCooldownTimer <= 0) {
-      playSfx('arena-laser', 0.3);
+      playSfx('arena-laser', 0.15);
       this.fireBullet();
       this.fireCooldownTimer = this.FIRE_COOLDOWN;
     }
@@ -982,7 +982,7 @@ export class ArenaEngine {
 
     // Player actually dies (shield did not absorb the hit)
     this.stats.deaths++;
-    this.stats.score = Math.max(0, this.stats.score - 5);
+    this.stats.score = Math.max(0, this.stats.score - 10);
 
     this.playerDead = true;
     this.respawnTimer = this.RESPAWN_TIME;
@@ -1042,8 +1042,8 @@ export class ArenaEngine {
             // Destroy asteroid
             a.alive = false;
             a.respawnTimer = 10; // seconds
-            this.stats.kills++;
-            this.stats.score += 10;
+            this.stats.asteroidKills++;
+            this.stats.score += 5;
             dummy.position.set(0, -1000, 0);
             dummy.scale.set(0, 0, 0);
             dummy.updateMatrix();
@@ -1448,7 +1448,7 @@ export class ArenaEngine {
     m.vz = dirZ * this.MISSILE_SPEED;
     m.age = 0;
     m.active = true;
-    playSfx('arena-missile', 0.4);
+    playSfx('arena-missile', 0.2);
   }
 
   private updateMissiles(dt: number): void {
@@ -1569,9 +1569,8 @@ export class ArenaEngine {
               if (a2.hp <= 0) {
                 a2.alive = false;
                 a2.respawnTimer = 10;
-                this.stats.kills++;
-                this.stats.missileKills++;
-                this.stats.score += 30;
+                this.stats.asteroidKills++;
+                this.stats.score += 10;
                 const idx2 = this.asteroidData.indexOf(a2);
                 dummy.position.set(0, -1000, 0);
                 dummy.scale.set(0, 0, 0);
@@ -1863,7 +1862,7 @@ export class ArenaEngine {
   getMissileAmmo(): number { return this.missileAmmo; }
   getMissileReloadTimer(): number { return this.missileReloadTimer; }
   getMissileReloadTotal(): number { return this.MISSILE_RELOAD_TIME; }
-  getArenaStats(): { kills: number; missileKills: number; deaths: number; score: number } {
+  getArenaStats(): { kills: number; asteroidKills: number; deaths: number; score: number } {
     return { ...this.stats };
   }
   isWarpActive(): boolean { return this.warpActive; }

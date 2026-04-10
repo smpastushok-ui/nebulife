@@ -89,7 +89,7 @@ export function GalaxyWarpOverlay({ onComplete }: GalaxyWarpOverlayProps) {
   const doneRef = useRef(false);
 
   useEffect(() => {
-    playSfx('scene-transition', 0.4);
+    playSfx('scene-transition', 0.2);
 
     const canvas = canvasRef.current;
     if (!canvas) return;
