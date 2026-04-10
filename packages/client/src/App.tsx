@@ -5400,8 +5400,8 @@ function AppInner() {
         </div>
       )}
 
-      {/* Chat widget (visible when authenticated, not in onboarding) */}
-      {!authLoading && !needsOnboarding && !needsCallsign && playerId.current && (
+      {/* Chat widget (visible when authenticated, not in onboarding/arena/hangar) */}
+      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showHangar && playerId.current && (
         <ChatWidget
           playerId={playerId.current}
           playerName={state.playerName}

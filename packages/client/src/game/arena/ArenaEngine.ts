@@ -1135,6 +1135,7 @@ export class ArenaEngine {
     this.respawnTimer -= dt;
     if (this.respawnTimer <= 0) {
       this.playerDead = false;
+      this.playerHp = this.PLAYER_MAX_HP; // restore full HP on respawn
       this.invulnerableUntil = performance.now() + 3000; // 3 seconds invulnerability
       this.callbacks.onPlayerRespawn?.();
       // Respawn at random safe position on arena edge
