@@ -107,7 +107,7 @@ export const SCORE_KINETIC_KILL = 150;
 // Team Battle scoring
 export const TEAM_SCORE_ENEMY_KILL = 20;   // score per enemy ship kill
 export const TEAM_SCORE_DEATH = -10;        // score penalty per death
-export const TEAM_KILL_LIMIT = 100;         // kills to win the match
+export const TEAM_KILL_LIMIT = 50;          // kills to win the match
 
 // Team Battle bots
 export const TEAM_BOT_COUNT = 9;           // 4 blue allies + 5 red enemies

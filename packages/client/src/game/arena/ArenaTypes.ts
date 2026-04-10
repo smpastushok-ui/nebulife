@@ -159,6 +159,8 @@ export interface BotBullet {
   active: boolean;
   ownerId: number;       // bot id that fired
   ownerTeam: Team;       // blue | red
+  rotX: number; rotY: number; rotZ: number;
+  rotSpX: number; rotSpY: number; rotSpZ: number;
 }
 
 // Extended MatchResult for team mode

@@ -161,10 +161,14 @@ export class ArenaEngine {
   private asteroidMesh!: THREE.InstancedMesh;
   private asteroidData: { x: number; z: number; vx: number; vz: number; radius: number; rot: number; rotSpeed: number; hp: number; alive: boolean; respawnTimer: number }[] = [];
 
-  // Bullets (pulse blaster) — InstancedMesh pool
-  private bulletMesh!: THREE.InstancedMesh;
-  private bullets: { x: number; z: number; vx: number; vz: number; age: number; active: boolean }[] = [];
+  // Bullets (asteroid fragments) — 3-pool InstancedMesh: small/medium/large
+  private bulletMeshes: THREE.InstancedMesh[] = [];
+  private bullets: { x: number; z: number; vx: number; vz: number; age: number; active: boolean;
+    meshIdx: number; instIdx: number; rotX: number; rotY: number; rotZ: number;
+    rotSpX: number; rotSpY: number; rotSpZ: number }[] = [];
   private readonly BULLET_POOL = 100;
+  private readonly BULLET_SIZES = [2.5, 4.0, 6.0];
+  private readonly BULLET_POOL_SIZES = [60, 30, 10]; // total = 100
   private readonly BULLET_SPEED = 800;
   private readonly BULLET_LIFETIME = 0.75;
   private readonly BULLET_RADIUS = 1.5;
@@ -679,33 +683,39 @@ export class ArenaEngine {
   }
 
   private setupBullets(): void {
-    const geo = new THREE.PlaneGeometry(1, 4);
-    geo.rotateX(-Math.PI / 2); // lay flat on XZ plane (like ship)
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0x44ff88,
-      transparent: true,
-      opacity: 0.9,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    this.disposables.push(geo, mat);
-
-    this.bulletMesh = new THREE.InstancedMesh(geo, mat, this.BULLET_POOL);
-    this.bulletMesh.frustumCulled = false;
-
-    const dummy = new THREE.Object3D();
-    for (let i = 0; i < this.BULLET_POOL; i++) {
-      // Hide all bullets initially
-      dummy.position.set(0, -1000, 0);
-      dummy.scale.set(0, 0, 0);
-      dummy.updateMatrix();
-      this.bulletMesh.setMatrixAt(i, dummy.matrix);
-      this.bullets.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false });
+    // 3 pools: small (r=2.5, 60), medium (r=4, 30), large (r=6, 10)
+    const color = 0x998877; // warm rocky gray
+    for (let m = 0; m < 3; m++) {
+      const r = this.BULLET_SIZES[m];
+      const geo = new THREE.IcosahedronGeometry(r, 0);
+      const mat = new THREE.MeshLambertMaterial({ color, flatShading: true });
+      this.disposables.push(geo, mat);
+      const poolSize = this.BULLET_POOL_SIZES[m];
+      const mesh = new THREE.InstancedMesh(geo, mat, poolSize);
+      mesh.frustumCulled = false;
+      const dummy = new THREE.Object3D();
+      for (let i = 0; i < poolSize; i++) {
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+        this.bullets.push({
+          x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false,
+          meshIdx: m, instIdx: i,
+          rotX: Math.random() * Math.PI * 2,
+          rotY: Math.random() * Math.PI * 2,
+          rotZ: Math.random() * Math.PI * 2,
+          rotSpX: (Math.random() - 0.5) * 6,
+          rotSpY: (Math.random() - 0.5) * 6,
+          rotSpZ: (Math.random() - 0.5) * 6,
+        });
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      this.scene.add(mesh);
+      this.bulletMeshes.push(mesh);
     }
-    this.bulletMesh.instanceMatrix.needsUpdate = true;
-    this.scene.add(this.bulletMesh);
   }
+
 
   private onMouseMove(e: MouseEvent): void {
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -1031,7 +1041,7 @@ export class ArenaEngine {
 
   private updateBullets(dt: number): void {
     const dummy = _tempDummy;
-    let needsUpdate = false;
+    const needsUpdate = [false, false, false];
 
     for (let i = 0; i < this.bullets.length; i++) {
       const b = this.bullets[i];
@@ -1040,32 +1050,32 @@ export class ArenaEngine {
       b.x += b.vx * dt;
       b.z += b.vz * dt;
       b.age += dt;
+      b.rotX += b.rotSpX * dt;
+      b.rotY += b.rotSpY * dt;
+      b.rotZ += b.rotSpZ * dt;
 
-      // Deactivate if lifetime exceeded or out of arena
       const dist = Math.sqrt(b.x * b.x + b.z * b.z);
       if (b.age >= this.BULLET_LIFETIME || dist > ARENA_HALF + 50) {
         b.active = false;
-        // Hide: scale 0, y=-1000
         dummy.position.set(0, -1000, 0);
         dummy.scale.set(0, 0, 0);
         dummy.updateMatrix();
-        this.bulletMesh.setMatrixAt(i, dummy.matrix);
-        needsUpdate = true;
+        this.bulletMeshes[b.meshIdx].setMatrixAt(b.instIdx, dummy.matrix);
+        needsUpdate[b.meshIdx] = true;
         continue;
       }
 
-      // Update visible position
-      dummy.position.set(b.x, 3, b.z);
+      dummy.position.set(b.x, 4, b.z);
       dummy.scale.set(1, 1, 1);
-      // Orient beam along velocity direction using (x, -z) convention
-      const beamAngle = Math.atan2(-b.vx, -b.vz);
-      dummy.rotation.set(0, beamAngle, 0);
+      dummy.rotation.set(b.rotX, b.rotY, b.rotZ);
       dummy.updateMatrix();
-      this.bulletMesh.setMatrixAt(i, dummy.matrix);
-      needsUpdate = true;
+      this.bulletMeshes[b.meshIdx].setMatrixAt(b.instIdx, dummy.matrix);
+      needsUpdate[b.meshIdx] = true;
     }
 
-    if (needsUpdate) this.bulletMesh.instanceMatrix.needsUpdate = true;
+    for (let m = 0; m < 3; m++) {
+      if (needsUpdate[m]) this.bulletMeshes[m].instanceMatrix.needsUpdate = true;
+    }
   }
 
   // ── Collisions ─────────────────────────────────────────────────────────
@@ -1184,8 +1194,8 @@ export class ArenaEngine {
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();
-          this.bulletMesh.setMatrixAt(bi, dummy.matrix);
-          this.bulletMesh.instanceMatrix.needsUpdate = true;
+          this.bulletMeshes[b.meshIdx].setMatrixAt(b.instIdx, dummy.matrix);
+          this.bulletMeshes[b.meshIdx].instanceMatrix.needsUpdate = true;
 
           a.hp -= this.playerDamageMult; // 1.0 normal, 1.5 with DAMAGE_UP buff
           if (a.hp <= 0) {
@@ -1255,6 +1265,41 @@ export class ArenaEngine {
       dummy.updateMatrix();
       this.asteroidMesh.setMatrixAt(i, dummy.matrix);
     }
+
+    // Asteroid-asteroid elastic pushback (O(N²), N≈25 — trivial cost)
+    for (let i = 0; i < this.asteroidData.length - 1; i++) {
+      const a = this.asteroidData[i];
+      if (!a.alive) continue;
+      for (let j = i + 1; j < this.asteroidData.length; j++) {
+        const b = this.asteroidData[j];
+        if (!b.alive) continue;
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        const minDist = a.radius + b.radius;
+        if (dist < minDist && dist > 0) {
+          const nx = dx / dist;
+          const nz = dz / dist;
+          // Relative velocity along normal
+          const relVn = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;
+          if (relVn > 0) { // moving toward each other
+            const e = 0.7; // restitution
+            const j = (1 + e) * relVn / 2;
+            a.vx -= j * nx;
+            a.vz -= j * nz;
+            b.vx += j * nx;
+            b.vz += j * nz;
+          }
+          // Separate to prevent overlap
+          const overlap = (minDist - dist) * 0.5;
+          a.x -= nx * overlap;
+          a.z -= nz * overlap;
+          b.x += nx * overlap;
+          b.z += nz * overlap;
+        }
+      }
+    }
+
     this.asteroidMesh.instanceMatrix.needsUpdate = true;
   }
 
@@ -1684,11 +1729,6 @@ export class ArenaEngine {
       }
     }
     if (!hasShield) this.playerExtraShield = 0;
-
-    // Update bullet color via shared material
-    const bulletMat = this.bulletMesh.material as THREE.MeshBasicMaterial;
-    const colorMap = { green: 0x44ff88, red: 0xff4444, blue: 0x4488ff };
-    bulletMat.color.setHex(colorMap[this.playerLaserColor]);
 
     // Show / hide holographic shield
     if (this.playerShieldMesh) {
@@ -2248,16 +2288,8 @@ export class ArenaEngine {
   // ── Team Battle: setup ──────────────────────────────────────────────────
 
   private setupBotBullets(): void {
-    const geo = new THREE.PlaneGeometry(1, 3);
-    geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0xff8844,
-      transparent: true,
-      opacity: 0.9,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
+    const geo = new THREE.IcosahedronGeometry(3, 0);
+    const mat = new THREE.MeshLambertMaterial({ color: 0x887766, flatShading: true });
     this.disposables.push(geo, mat);
 
     this.botBulletMesh = new THREE.InstancedMesh(geo, mat, this.BOT_BULLET_POOL);
@@ -2272,6 +2304,12 @@ export class ArenaEngine {
       this.botBullets.push({
         x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false,
         ownerId: -1, ownerTeam: 'red',
+        rotX: Math.random() * Math.PI * 2,
+        rotY: Math.random() * Math.PI * 2,
+        rotZ: Math.random() * Math.PI * 2,
+        rotSpX: (Math.random() - 0.5) * 5,
+        rotSpY: (Math.random() - 0.5) * 5,
+        rotSpZ: (Math.random() - 0.5) * 5,
       });
     }
     this.botBulletMesh.instanceMatrix.needsUpdate = true;
@@ -2692,6 +2730,9 @@ export class ArenaEngine {
     b.active = true;
     b.ownerId = bot.id;
     b.ownerTeam = bot.team;
+    b.rotSpX = (Math.random() - 0.5) * 5;
+    b.rotSpY = (Math.random() - 0.5) * 5;
+    b.rotSpZ = (Math.random() - 0.5) * 5;
   }
 
   private fireBotMissile(bot: BotShip, dirX: number, dirZ: number): void {
@@ -2725,6 +2766,9 @@ export class ArenaEngine {
       b.x += b.vx * dt;
       b.z += b.vz * dt;
       b.age += dt;
+      b.rotX += b.rotSpX * dt;
+      b.rotY += b.rotSpY * dt;
+      b.rotZ += b.rotSpZ * dt;
 
       const distSq = b.x * b.x + b.z * b.z;
       if (b.age >= this.BOT_BULLET_LIFETIME || distSq > (ARENA_HALF + 50) * (ARENA_HALF + 50)) {
@@ -2737,10 +2781,9 @@ export class ArenaEngine {
         continue;
       }
 
-      dummy.position.set(b.x, 3, b.z);
+      dummy.position.set(b.x, 4, b.z);
       dummy.scale.set(1, 1, 1);
-      const beamAngle = Math.atan2(-b.vx, -b.vz);
-      dummy.rotation.set(0, beamAngle, 0);
+      dummy.rotation.set(b.rotX, b.rotY, b.rotZ);
       dummy.updateMatrix();
       this.botBulletMesh.setMatrixAt(i, dummy.matrix);
       needsUpdate = true;
@@ -2852,8 +2895,8 @@ export class ArenaEngine {
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();
-          this.bulletMesh.setMatrixAt(bi, dummy.matrix);
-          this.bulletMesh.instanceMatrix.needsUpdate = true;
+          this.bulletMeshes[b.meshIdx].setMatrixAt(b.instIdx, dummy.matrix);
+          this.bulletMeshes[b.meshIdx].instanceMatrix.needsUpdate = true;
 
           this.spawnHitEffect(b.x, b.z);
 
