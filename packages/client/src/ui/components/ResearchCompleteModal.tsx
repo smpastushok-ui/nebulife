@@ -118,14 +118,16 @@ function getHabColor(h: number): string {
 
 export function ResearchCompleteModal({
   system,
-  research,
+  research: _research,
   onViewSystem,
   onClose,
+  skipSfx = false,
 }: {
   system: StarSystem;
-  research: SystemResearchState;
+  research?: SystemResearchState;
   onViewSystem: () => void;
   onClose: () => void;
+  skipSfx?: boolean;
 }) {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
@@ -148,7 +150,7 @@ export function ResearchCompleteModal({
   // Staggered planet reveal with sound cues
   useEffect(() => {
     if (!visible) return;
-    playSfx('research-complete-all', 0.4);
+    if (!skipSfx) playSfx('research-complete-all', 0.4);
     const planets = system.planets;
     let current = 0;
     const reveal = () => {

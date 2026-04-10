@@ -2528,12 +2528,13 @@ function AppInner() {
   const [forceShowSystemInfo, setForceShowSystemInfo] = useState(false);
   // Reset forceShowSystemInfo when selected system changes
   useEffect(() => { setForceShowSystemInfo(false); }, [state.selectedSystem?.id]);
+  const [charsSystem, setCharsSystem] = useState<StarSystem | null>(null);
   const handleSystemMenuCharacteristics = useCallback(() => {
     setShowSystemMenu(false);
     setRadialSystem(null);
     setRadialGetScreenPos(null);
-    setForceShowSystemInfo(true);
-  }, []);
+    setCharsSystem(state.selectedSystem ?? null);
+  }, [state.selectedSystem]);
 
   const handleSystemMenuResearch = useCallback(() => {
     if (!hasResearchData(researchData)) {
@@ -4692,7 +4693,14 @@ function AppInner() {
           onClose={() => setShowSystemResearch(false)}
         />
       )}
-      {/* SystemInfoPanel removed — info available via radial menu */}
+      {charsSystem && (
+        <ResearchCompleteModal
+          system={charsSystem}
+          skipSfx
+          onViewSystem={() => setCharsSystem(null)}
+          onClose={() => setCharsSystem(null)}
+        />
+      )}
       {/* Radial Menu (galaxy view — replaces old SystemContextMenu) */}
       {radialSystem && state.scene === 'galaxy' && radialGetScreenPos && (
         <RadialMenu
