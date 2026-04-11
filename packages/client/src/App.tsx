@@ -36,7 +36,6 @@ import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
 import { getCatalogEntry, getCatalogName } from '@nebulife/core';
-import { startPaymentFlow } from './api/payment-api.js';
 import { initIAP } from './api/iap-service.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
 import {

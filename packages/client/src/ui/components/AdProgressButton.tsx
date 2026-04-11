@@ -47,6 +47,7 @@ export function AdProgressButton({
   const [hover, setHover] = useState(false);
   const [adProgress, setAdProgress] = useState<number>(() => getAdProgress(adRewardType));
   const [adWatching, setAdWatching] = useState(false);
+  const [rewarded, setRewarded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [noFill, setNoFill] = useState(false);
 
@@ -75,6 +76,7 @@ export function AdProgressButton({
     setAdWatching(false);
 
     if (result.rewarded) {
+      setRewarded(true);
       onComplete(result.photoToken);
     } else if (result.reason === 'no_fill') {
       setNoFill(true);
@@ -124,9 +126,9 @@ export function AdProgressButton({
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 'bold', marginBottom: 3 }}>
-              {adWatching ? t('ads.watching') : label}
+              {rewarded ? t('ads.reward_received') : adWatching ? t('ads.watching', { current: adProgress + 1, total: requiredAds }) : label}
             </div>
-            <ProgressBlocks done={adProgress} total={requiredAds} size="small" />
+            <ProgressBlocks done={rewarded ? requiredAds : adProgress} total={requiredAds} size="small" />
             <div style={{ fontSize: 9, color: '#44887766', marginTop: 2 }}>
               {progressText}
             </div>
@@ -179,9 +181,9 @@ export function AdProgressButton({
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 6 }}>
-            {adWatching ? t('ads.watching') : label}
+            {rewarded ? t('ads.reward_received') : adWatching ? t('ads.watching', { current: adProgress + 1, total: requiredAds }) : label}
           </div>
-          <ProgressBlocks done={adProgress} total={requiredAds} size="normal" />
+          <ProgressBlocks done={rewarded ? requiredAds : adProgress} total={requiredAds} size="normal" />
           <div style={{ fontSize: 10, color: '#44887788', marginTop: 4, lineHeight: 1.4 }}>
             {progressText}
           </div>

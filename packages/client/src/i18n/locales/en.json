@@ -455,7 +455,8 @@
   },
 
   "ads": {
-    "watching": "Watching...",
+    "watching": "Ad {{current}}/{{total}}",
+    "reward_received": "Received!",
     "interrupted": "Watch interrupted",
     "daily_limit": "Daily limit reached",
     "no_fill": "No satellite link available"
@@ -718,7 +719,11 @@
     "iap_success": "Received {{quarks}}",
     "iap_error": "Purchase failed. Please try again.",
     "iap_cancelled": "Purchase cancelled.",
-    "iap_note": "Purchases confirmed via App Store / Google Play"
+    "iap_note": "Purchases confirmed via App Store / Google Play",
+    "ads_btn": "Get quarks for watching ads",
+    "ads_btn_progress": "Ad {{completed}}/{{total}}",
+    "ads_success": "+5 quarks!",
+    "ads_failed": "Ad not available. Try again later."
   },
 
   "scene_controls": {
@@ -864,6 +869,7 @@
   },
 
   "photo": {
+    "watch_ads": "Watch ads",
     "save_to_collection": "To Collection",
     "saved": "Saved",
     "share": "Share",
@@ -964,6 +970,11 @@
     "astra_depleted": "Assistant depleted",
     "astra_charge_btn": "Charge assistant",
     "astra_unlock": "Unlock ($1)",
+    "astra_charge_quarks": "Charge A.S.T.R.A. — 50Q",
+    "astra_charging": "Charging...",
+    "astra_charge_success": "A.S.T.R.A. charged",
+    "astra_charge_no_quarks": "Not enough quarks (need 50Q)",
+    "astra_charge_error": "Charge failed. Please try again.",
     "astra_placeholder": "Query A.S.T.R.A....",
     "astra_placeholder_depleted": "A.S.T.R.A. depleted...",
     "weekly_digest_available": "Weekly space digest available",

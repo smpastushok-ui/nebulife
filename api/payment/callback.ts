@@ -4,15 +4,7 @@ import {
   getPaymentIntent,
   updatePaymentIntentStatus,
   creditQuarks,
-  deductQuarks,
-  getPlanetModelByPayment,
-  getPlanetModel,
-  updatePlanetModel,
-  addAstraPurchasedTokens,
 } from '../../packages/server/src/db.js';
-import { generateImage } from '../../packages/server/src/kling-client.js';
-import { buildPlanetModelPrompt } from '../../packages/server/src/planet-model-prompt-builder.js';
-import type { Planet, Star } from '@nebulife/core';
 
 /**
  * POST /api/payment/callback
@@ -20,8 +12,7 @@ import type { Planet, Star } from '@nebulife/core';
  * Monobank webhook (server-to-server).
  * Intent-based flow:
  *   - 'topup' → creditQuarks
- *   - 'purchase_model' → creditQuarks + deductQuarks(fullPrice) + start generation
- *   - Legacy (no intent) → fallback to planet_model lookup
+ *   - 'purchase_surface' → creditQuarks (surface endpoint handles generation)
  */
 
 // Cache for Monobank public key (refreshed every 60 min)
@@ -108,27 +99,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleIntentSuccess(intent.reference, intent, res);
       }
 
-      // Legacy fallback: direct planet model lookup
-      const model = await getPlanetModelByPayment(reference);
-      if (model) {
-        return await handleLegacyModelSuccess(model.id, model.planet_id, model.system_id, res);
-      }
-
-      console.error(`Mono callback: no intent or model found for ref=${reference}`);
-      return res.status(404).json({ error: 'Payment reference not found' });
+      // Legacy fallback: no active intent found — log and acknowledge
+      console.error(`Mono callback: no intent found for ref=${reference}`);
+      return res.status(200).json({ status: 'acknowledged' });
     }
 
     if (paymentStatus === 'failure' || paymentStatus === 'expired' || paymentStatus === 'reversed') {
       if (intent) {
         await updatePaymentIntentStatus(reference, 'failed');
-      }
-      // Also update model if it exists
-      const model = await getPlanetModelByPayment(reference);
-      if (model) {
-        await updatePlanetModel(model.id, {
-          payment_status: 'failed',
-          status: 'payment_failed',
-        });
       }
       return res.status(200).json({ status: 'payment_failed' });
     }
@@ -159,80 +137,11 @@ async function handleIntentSuccess(
     return res.status(200).json({ status: 'ok', type: 'topup' });
   }
 
-  if (intent.purpose === 'purchase_model') {
-    // Purchase: credit quarks done, now deduct full price and start generation
-    const meta = intent.purchase_meta;
-    if (!meta) {
-      console.error('purchase_model intent missing purchase_meta');
-      return res.status(200).json({ status: 'ok', type: 'purchase_model', warning: 'missing meta' });
-    }
-
-    const fullPrice = (meta.fullPrice as number) || 49;
-    const modelId = meta.modelId as string;
-    const planetId = meta.planetId as string;
-    const systemId = meta.systemId as string;
-
-    // Deduct full price from balance
-    const deducted = await deductQuarks(intent.player_id, fullPrice);
-    if (!deducted) {
-      console.error(`Failed to deduct ${fullPrice} quarks for model ${modelId}`);
-      return res.status(200).json({ status: 'ok', warning: 'deduction_failed' });
-    }
-
-    // Start generation: mark paid, create Kling task, store ID for status endpoint to drive
-    await updatePlanetModel(modelId, {
-      payment_status: 'paid',
-      status: 'generating_photo',
-    });
-
-    const model = await getPlanetModel(modelId);
-    const klingPrompt = model?.planet_data && model?.star_data
-      ? buildPlanetModelPrompt(model.planet_data as unknown as Planet, model.star_data as unknown as Star)
-      : `Single alien planet sphere, photorealistic, isolated on pure white background, no stars, scientific visualization, 4K`;
-    const { taskId: klingTaskId } = await generateImage({ prompt: klingPrompt, aspectRatio: '1:1' });
-    await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
-
-    console.log(`Purchase model completed: ${modelId}, player ${intent.player_id}`);
-    return res.status(200).json({ status: 'ok', type: 'purchase_model' });
-  }
-
   if (intent.purpose === 'purchase_surface') {
     // Surface generation purchase — just credit quarks (surface endpoint handles the rest)
     console.log(`Surface purchase top-up completed: ${intent.player_id} +${intent.amount_quarks} quarks`);
     return res.status(200).json({ status: 'ok', type: 'purchase_surface' });
   }
 
-  if (intent.purpose === 'astra_tokens') {
-    // A.S.T.R.A. Alpha — credit 10000 tokens
-    await addAstraPurchasedTokens(intent.player_id, 10000);
-    console.log(`ASTRA tokens purchased: ${intent.player_id} +10000 tokens`);
-    return res.status(200).json({ status: 'ok', type: 'astra_tokens' });
-  }
-
   return res.status(200).json({ status: 'ok' });
 }
-
-/**
- * Legacy fallback for old-style planet model payments (without payment_intents).
- */
-async function handleLegacyModelSuccess(
-  modelId: string,
-  planetId: string,
-  systemId: string,
-  res: VercelResponse,
-) {
-  await updatePlanetModel(modelId, {
-    payment_status: 'paid',
-    status: 'generating_photo',
-  });
-
-  const legacyModel = await getPlanetModel(modelId);
-  const klingPrompt = legacyModel?.planet_data && legacyModel?.star_data
-    ? buildPlanetModelPrompt(legacyModel.planet_data as unknown as Planet, legacyModel.star_data as unknown as Star)
-    : `Single alien planet sphere, photorealistic, isolated on pure white background, no stars, scientific visualization, 4K`;
-  const { taskId: klingTaskId } = await generateImage({ prompt: klingPrompt, aspectRatio: '1:1' });
-  await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
-
-  return res.status(200).json({ status: 'ok' });
-}
-

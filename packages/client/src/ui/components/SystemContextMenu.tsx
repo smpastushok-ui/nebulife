@@ -223,7 +223,7 @@ export function SystemContextMenu({
 
   const canMission = hasPhoto && !missionGenerating && !missionComplete;
 
-  const PHOTO_COST = 100;
+  const PHOTO_COST = 50;
 
   const starTag = `${system.star.spectralClass}${system.star.subType}`;
   const planetsCount = system.planets.length;

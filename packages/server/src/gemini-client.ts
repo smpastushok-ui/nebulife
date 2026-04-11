@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { put } from '@vercel/blob';
 
 // ---------------------------------------------------------------------------
@@ -210,7 +210,7 @@ export async function chatWithAstra(
         systemInstruction: lang === 'en'
           ? ASTRA_SYSTEM_PROMPT + '\n\nCRITICAL: The player uses ENGLISH interface. You MUST respond in English. Address the player as "Commander".'
           : ASTRA_SYSTEM_PROMPT,
-        thinkingConfig: { thinkingBudget: 512 },
+        thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
       },
     });
     const timeoutPromise = new Promise<never>((_, reject) =>
