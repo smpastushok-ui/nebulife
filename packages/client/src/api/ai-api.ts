@@ -34,22 +34,27 @@ export async function askAstra(message: string): Promise<AstraResponse> {
   return (await res.json()) as AstraResponse;
 }
 
+export interface AstraTopupResponse {
+  success: boolean;
+  tokensGranted: number;
+  newQuarkBalance: number;
+}
+
 /**
- * Create a payment to unlock 10000 A.S.T.R.A. tokens.
- * Returns the Monobank payment URL.
+ * Charge A.S.T.R.A. tokens by spending 50 quarks.
+ * Deducts 50 quarks and grants 1,000,000 A.S.T.R.A. tokens.
  */
-export async function topupAstraTokens(): Promise<string> {
+export async function topupAstraTokens(playerId: string): Promise<AstraTopupResponse> {
   const res = await authFetch('/api/ai/topup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: '{}',
+    body: JSON.stringify({ playerId }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error ?? `Payment error: ${res.status}`);
+    throw new Error(err.error ?? `Charge error: ${res.status}`);
   }
 
-  const data = (await res.json()) as { payUrl: string };
-  return data.payUrl;
+  return (await res.json()) as AstraTopupResponse;
 }

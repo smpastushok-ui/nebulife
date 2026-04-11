@@ -14,6 +14,7 @@ export interface PremiumFeatureDef {
   costCurrency: 'quarks';
   description: string;
   status: 'stub';
+  minLevel: number;
 }
 
 export const PREMIUM_STUBS: PremiumFeatureDef[] = [
@@ -25,6 +26,7 @@ export const PREMIUM_STUBS: PremiumFeatureDef[] = [
     costCurrency: 'quarks',
     description: 'Коротка AI-відеомісія до зоряної системи (5 секунд)',
     status: 'stub',
+    minLevel: 50,
   },
   {
     id: 'missionLong',
@@ -34,5 +36,6 @@ export const PREMIUM_STUBS: PremiumFeatureDef[] = [
     costCurrency: 'quarks',
     description: 'Довга AI-відеомісія до зоряної системи (10 секунд)',
     status: 'stub',
+    minLevel: 50,
   },
 ];

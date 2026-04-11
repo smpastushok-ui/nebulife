@@ -453,7 +453,8 @@
   },
 
   "ads": {
-    "watching": "Перегляд...",
+    "watching": "Реклама {{current}}/{{total}}",
+    "reward_received": "Отримано!",
     "interrupted": "Перегляд перервано",
     "daily_limit": "Ліміт вичерпано",
     "no_fill": "Немає зв'язку з супутником"
@@ -716,7 +717,11 @@
     "iap_success": "Отримано {{quarks}}",
     "iap_error": "Помилка покупки. Спробуйте ще раз.",
     "iap_cancelled": "Покупку скасовано.",
-    "iap_note": "Покупки підтверджуються через App Store / Google Play"
+    "iap_note": "Покупки підтверджуються через App Store / Google Play",
+    "ads_btn": "Отримати кварки за рекламу",
+    "ads_btn_progress": "Реклама {{completed}}/{{total}}",
+    "ads_success": "+5 кварків!",
+    "ads_failed": "Реклама не завантажена. Спробуйте пізніше."
   },
 
   "scene_controls": {
@@ -862,6 +867,7 @@
   },
 
   "photo": {
+    "watch_ads": "За рекламу",
     "save_to_collection": "До колекцiї",
     "saved": "Збережено",
     "share": "Подiлитися",
@@ -962,6 +968,11 @@
     "astra_depleted": "Асистент розряджений",
     "astra_charge_btn": "Зарядити асистента",
     "astra_unlock": "Розблокувати ($1)",
+    "astra_charge_quarks": "Зарядити A.S.T.R.A. — 50Q",
+    "astra_charging": "Заряджаємо...",
+    "astra_charge_success": "A.S.T.R.A. заряджено",
+    "astra_charge_no_quarks": "Недостатньо кварків (потрібно 50Q)",
+    "astra_charge_error": "Помилка заряджання. Спробуйте ще раз.",
     "astra_placeholder": "Запит до A.S.T.R.A....",
     "astra_placeholder_depleted": "A.S.T.R.A. розряджена...",
     "weekly_digest_available": "Тижневий космічний дайджест доступний",

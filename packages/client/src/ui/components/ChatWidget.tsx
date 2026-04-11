@@ -11,7 +11,6 @@ import {
   type DMChannelInfo,
 } from '../../api/messages-api.js';
 import { askAstra, topupAstraTokens, type AstraMessage, type AstraResponse } from '../../api/ai-api.js';
-import { isNativePlatform, canShowAd, showMultipleRewardedAds, claimAdReward } from '../../services/ads-service.js';
 import { NewDMModal } from './NewDMModal.js';
 
 // ---------------------------------------------------------------------------
@@ -360,22 +359,32 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     }
   };
 
-  // A.S.T.R.A. topup (payment)
-  const handleAstraTopup = async () => {
-    try {
-      const payUrl = await topupAstraTokens();
-      window.open(payUrl, '_blank');
-    } catch { /* ignore */ }
-  };
+  // A.S.T.R.A. charge via quarks (50Q -> 1,000,000 tokens)
+  const [astraCharging, setAstraCharging] = useState(false);
+  const [astraChargeMsg, setAstraChargeMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
-  // A.S.T.R.A. charge via rewarded ads
-  const handleAstraAdCharge = async () => {
-    const watched = await showMultipleRewardedAds(2);
-    if (!watched) return;
-    const result = await claimAdReward('astra_charge', 2);
-    if (result.rewarded) {
-      setAstraLimitReached(false);
-      setAstraTokensRemaining((prev) => (prev ?? 0) + 200);
+  const handleAstraTopup = async () => {
+    if (astraCharging) return;
+    setAstraCharging(true);
+    setAstraChargeMsg(null);
+    try {
+      const result = await topupAstraTokens(playerId);
+      if (result.success) {
+        setAstraLimitReached(false);
+        setAstraTokensRemaining((prev) => (prev ?? 0) + result.tokensGranted);
+        setAstraChargeMsg({ text: t('chat.astra_charge_success'), ok: true });
+        setTimeout(() => setAstraChargeMsg(null), 3000);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('insufficient_quarks')) {
+        setAstraChargeMsg({ text: t('chat.astra_charge_no_quarks'), ok: false });
+      } else {
+        setAstraChargeMsg({ text: t('chat.astra_charge_error'), ok: false });
+      }
+      setTimeout(() => setAstraChargeMsg(null), 3000);
+    } finally {
+      setAstraCharging(false);
     }
   };
 
@@ -877,53 +886,50 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
               <div ref={astraEndRef} />
             </div>
 
-            {/* Limit reached banner + unlock options */}
-            {astraLimitReached && (
+            {/* Limit reached banner + charge options */}
+            {(astraLimitReached || astraChargeMsg) && (
               <div style={{
                 padding: '8px 12px',
-                borderTop: '1px solid #336655',
-                background: 'rgba(0,30,20,0.5)',
+                borderTop: '1px solid #223344',
+                background: 'rgba(5,10,20,0.7)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 6,
               }}>
-                <span style={{ color: '#ff8844', fontSize: 10, fontFamily: 'monospace' }}>
-                  {t('chat.astra_depleted')}
-                </span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {isNativePlatform() && canShowAd() && (
-                    <button
-                      onClick={handleAstraAdCharge}
-                      style={{
-                        background: 'rgba(0,80,40,0.3)',
-                        border: '1px solid #44ff88',
-                        borderRadius: 3,
-                        color: '#44ff88',
-                        fontFamily: 'monospace',
-                        fontSize: 10,
-                        padding: '4px 10px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {t('chat.astra_charge_btn')}
-                    </button>
-                  )}
+                {astraLimitReached && (
+                  <span style={{ color: '#ff8844', fontSize: 10, fontFamily: 'monospace' }}>
+                    {t('chat.astra_depleted')}
+                  </span>
+                )}
+                {astraChargeMsg && (
+                  <span style={{
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    color: astraChargeMsg.ok ? '#44ff88' : '#cc4444',
+                  }}>
+                    {astraChargeMsg.text}
+                  </span>
+                )}
+                {astraLimitReached && (
                   <button
                     onClick={handleAstraTopup}
+                    disabled={astraCharging}
                     style={{
-                      background: 'rgba(34,102,170,0.3)',
-                      border: '1px solid #4488aa',
+                      alignSelf: 'flex-start',
+                      background: astraCharging ? 'rgba(34,68,102,0.2)' : 'rgba(34,68,102,0.3)',
+                      border: '1px solid #446688',
                       borderRadius: 3,
                       color: '#7bb8ff',
                       fontFamily: 'monospace',
                       fontSize: 10,
                       padding: '4px 10px',
-                      cursor: 'pointer',
+                      cursor: astraCharging ? 'default' : 'pointer',
+                      opacity: astraCharging ? 0.6 : 1,
                     }}
                   >
-                    {t('chat.astra_unlock')}
+                    {astraCharging ? t('chat.astra_charging') : t('chat.astra_charge_quarks')}
                   </button>
-                </div>
+                )}
               </div>
             )}
 

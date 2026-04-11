@@ -180,22 +180,8 @@ export type {
   TaskStatus,
 } from './kling-client.js';
 
-export {
-  createModelTask,
-  checkModelTask,
-} from './tripo-client.js';
-
-export type {
-  TripoCreateTaskResponse,
-  TripoTaskStatus,
-  TripoTaskStatusResponse,
-} from './tripo-client.js';
-
 // Surface prompt builder
 export { buildSurfacePrompt } from './surface-prompt-builder.js';
-
-// Planet 3D model prompt builder
-export { buildPlanetModelPrompt } from './planet-model-prompt-builder.js';
 
 // System photo/mission prompt builder
 export { buildSystemPhotoPrompt, buildMissionVideoPrompt, buildGeminiSystemPhotoPrompt } from './system-photo-prompt-builder.js';

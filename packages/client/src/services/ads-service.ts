@@ -186,8 +186,6 @@ export function remainingAdsToday(): number {
 
 export type RewardType =
   | 'quarks'
-  | 'astra_charge'
-  | 'premium_photo'
   | 'discovery_photo'
   | 'planet_photo'
   | 'panorama_photo';

@@ -1,14 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { addAdReward, creditQuarks, addAstraPurchasedTokens } from '../../packages/server/src/db.js';
+import { addAdReward, creditQuarks } from '../../packages/server/src/db.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { generatePhotoToken } from '../../packages/server/src/photo-token.js';
 
 const REWARD_CONFIG: Record<string, { requiredAds: number }> = {
   quarks: { requiredAds: 3 },
-  astra_charge: { requiredAds: 2 },
-  premium_photo: { requiredAds: 2 },
   discovery_photo: { requiredAds: 3 },
   planet_photo: { requiredAds: 3 },
   panorama_photo: { requiredAds: 5 },
@@ -84,11 +82,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (rewardType === 'quarks') {
       await creditQuarks(auth.playerId, 5);
       amount = 5;
-    } else if (rewardType === 'astra_charge') {
-      await addAstraPurchasedTokens(auth.playerId, 200);
-      amount = 200;
-    } else if (rewardType === 'premium_photo') {
-      amount = 1;
     } else if (['discovery_photo', 'planet_photo', 'panorama_photo'].includes(rewardType)) {
       amount = 1;
       const photoToken = generatePhotoToken(auth.playerId, rewardType);
