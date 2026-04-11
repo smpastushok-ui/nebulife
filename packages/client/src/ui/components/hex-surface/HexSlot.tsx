@@ -39,6 +39,7 @@ interface HexSlotProps {
   onHarvest: (id: string) => void;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
+  onDestroy: (id: string) => void;
   canAfford: boolean;
 }
 
@@ -342,6 +343,7 @@ export const HexSlot = React.memo(function HexSlot({
   onHarvest,
   onBuild,
   onInspect,
+  onDestroy,
   canAfford,
 }: HexSlotProps) {
   const left = x - HEX_W / 2;
@@ -358,6 +360,7 @@ export const HexSlot = React.memo(function HexSlot({
   const [harvestAnim, setHarvestAnim] = useState<number | null>(null);
   const [insufficientMsg, setInsufficientMsg] = useState(false);
   const [insufficientCost, setInsufficientCost] = useState<HexSlotData['unlockCost'] | null>(null);
+  const [destroyConfirm, setDestroyConfirm] = useState(false);
   const buildingRef = useRef<HTMLDivElement>(null);
 
   // Main click handler — uses id to call stable parent callbacks
@@ -416,6 +419,110 @@ export const HexSlot = React.memo(function HexSlot({
           pointerEvents: 'auto',
         }}
       />
+
+      {/* Destroy button — top-center, only for resource tiles. Upper position avoids
+          z-index conflicts: hexes above have lower zIndex and won't cover this. */}
+      {slot.state === 'resource' && !destroyConfirm && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setDestroyConfirm(true); }}
+          style={{
+            position: 'absolute',
+            top: '8%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 150,
+            pointerEvents: 'auto',
+            width: 16,
+            height: 10,
+            background: 'rgba(20, 8, 8, 0.82)',
+            border: '1px solid rgba(140, 40, 40, 0.45)',
+            borderRadius: 2,
+            color: '#774444',
+            fontSize: 7,
+            fontFamily: 'monospace',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1,
+            padding: 0,
+          }}
+        >
+          x
+        </button>
+      )}
+
+      {/* Destroy confirm overlay — full hex, clipped to hex shape */}
+      {slot.state === 'resource' && destroyConfirm && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 200,
+            clipPath: HEX_CLIP,
+            background: 'rgba(35, 8, 8, 0.94)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 5,
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{
+            fontSize: 7,
+            color: '#cc5544',
+            fontFamily: 'monospace',
+            letterSpacing: 1,
+          }}>
+            FREE?
+          </div>
+          <div style={{ display: 'flex', gap: 5 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDestroy(id); setDestroyConfirm(false); }}
+              style={{
+                width: 20,
+                height: 14,
+                background: 'rgba(80, 20, 20, 0.9)',
+                border: '1px solid rgba(190, 60, 60, 0.7)',
+                borderRadius: 2,
+                color: '#dd6655',
+                fontSize: 8,
+                fontFamily: 'monospace',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              Y
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setDestroyConfirm(false); }}
+              style={{
+                width: 20,
+                height: 14,
+                background: 'rgba(15, 25, 45, 0.9)',
+                border: '1px solid rgba(60, 90, 120, 0.5)',
+                borderRadius: 2,
+                color: '#4488aa',
+                fontSize: 8,
+                fontFamily: 'monospace',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              N
+            </button>
+          </div>
+        </div>
+      )}
+
       {slot.state === 'hidden' && <HiddenContent />}
       {slot.state === 'locked' && (
         <LockedContent slot={slot} canAfford={canAfford} />

@@ -150,7 +150,15 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // ── Zoom / pan ──────────────────────────────────────────────────────────
     // ALL movement uses refs + direct DOM — zero React re-renders during gestures.
     // React state is NEVER updated during drag or wheel. Only on mount.
-    const zoomRef = useRef(0.8);
+    //
+    // Initial zoom: computed once so the full grid fits the viewport width.
+    // Prevents left/right hex tile clipping on narrow mobile screens.
+    const zoomRef = useRef((() => {
+      const pSize = getPlanetSize(planet.radiusEarth);
+      const maxW = ({ orbital: 4, small: 4, medium: 5, large: 6 } as Record<string, number>)[pSize] ?? 5;
+      const gridW = (maxW - 1) * 99 + 100; // EFF_W(99) * (cols-1) + HEX_RADIUS*2(100)
+      return Math.min(0.8, (window.innerWidth - 24) / gridW);
+    })());
     const panXRef = useRef(0);
     const panYRef = useRef(0);
     // Initial values for HexGrid first render only
@@ -332,6 +340,13 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       // Future: show building info popup
     }, []);
 
+    const handleDestroy = useCallback(
+      (slotId: string) => {
+        hexState.destroyResource(slotId);
+      },
+      [hexState],
+    );
+
     const handleBuildSelect = useCallback(
       (type: BuildingType) => {
         if (!buildMenu) return;
@@ -469,6 +484,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           onHarvest={handleHarvest}
           onBuild={handleBuild}
           onInspect={handleInspect}
+          onDestroy={handleDestroy}
           canAffordUnlock={hexState.canAffordUnlock}
           zoom={zoomRef.current}
           panX={panX}

@@ -45,6 +45,7 @@ export interface HexStateResult {
   harvestResource: (slotId: string) => number | null;
   placeBuilding: (slotId: string, type: BuildingType) => boolean;
   removeBuilding: (slotId: string) => void;
+  destroyResource: (slotId: string) => void;
 
   // Queries
   canAffordUnlock: (slotId: string) => boolean;
@@ -736,6 +737,33 @@ export function useHexState(
   );
 
   // ---------------------------------------------------------------------------
+  // destroyResource — clear resource tile → 'empty' (free for building)
+  // ---------------------------------------------------------------------------
+
+  const destroyResource = useCallback(
+    (slotId: string): void => {
+      const slot = slotsRef.current.find((s) => s.id === slotId);
+      if (!slot || slot.state !== 'resource') return;
+      updateSlots((prev) =>
+        prev.map((s) =>
+          s.id === slotId
+            ? {
+                ...s,
+                state: 'empty' as HexState,
+                resourceType: undefined,
+                rarity: undefined,
+                yieldPerHour: undefined,
+                maxCapacity: undefined,
+                lastHarvestedAt: undefined,
+              }
+            : s,
+        ),
+      );
+    },
+    [updateSlots],
+  );
+
+  // ---------------------------------------------------------------------------
   // Drone auto-harvester (alpha_harvester)
   // Three modes: active scan (10s), wait for respawn, safety check (60s)
   // ---------------------------------------------------------------------------
@@ -841,6 +869,7 @@ export function useHexState(
       harvestResource,
       placeBuilding,
       removeBuilding,
+      destroyResource,
       canAffordUnlock,
       getSlot,
       minerals:  colonyResources.minerals,
@@ -859,6 +888,7 @@ export function useHexState(
       harvestResource,
       placeBuilding,
       removeBuilding,
+      destroyResource,
       canAffordUnlock,
       getSlot,
     ],

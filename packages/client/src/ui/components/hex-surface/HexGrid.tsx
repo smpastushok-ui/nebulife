@@ -10,6 +10,7 @@ interface HexGridProps {
   onHarvest: (id: string) => void;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
+  onDestroy: (id: string) => void;
   canAffordUnlock: (slotId: string) => boolean;
   zoom: number;
   panX: number;
@@ -24,6 +25,7 @@ export const HexGrid = React.memo(function HexGrid({
   onHarvest,
   onBuild,
   onInspect,
+  onDestroy,
   canAffordUnlock,
   zoom,
   panX,
@@ -134,6 +136,7 @@ export const HexGrid = React.memo(function HexGrid({
               onHarvest={onHarvest}
               onBuild={onBuild}
               onInspect={onInspect}
+              onDestroy={onDestroy}
             />
           );
         })}
