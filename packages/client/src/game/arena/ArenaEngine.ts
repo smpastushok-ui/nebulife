@@ -830,8 +830,24 @@ export class ArenaEngine {
     // Input: WASD (desktop) or mobile joystick
     let ax = 0, az = 0;
     if (this.isMobile) {
-      ax = this.mobileMove.x;
-      az = this.mobileMove.z;
+      // Local-space strafe: joystick input is relative to ship's facing direction
+      // joystickX (mobileMove.x) = strafe right/left
+      // joystickY (mobileMove.z) = forward/back (negative = up = forward)
+      const jx = this.mobileMove.x;
+      const jz = this.mobileMove.z;
+      const jLen = Math.sqrt(jx * jx + jz * jz);
+      if (jLen > 0.01) {
+        // Forward vector = where the ship is facing (aimDir)
+        const fwdX = this.aimDirX;
+        const fwdZ = this.aimDirZ;
+        // Right vector = perpendicular to forward
+        const rgtX = fwdZ;
+        const rgtZ = -fwdX;
+        // Convert local input to world-space acceleration
+        // -jz because joystick up (negative) = move forward
+        ax = fwdX * (-jz) + rgtX * jx;
+        az = fwdZ * (-jz) + rgtZ * jx;
+      }
     } else {
       if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
       if (this.keys.has('s') || this.keys.has('arrowdown'))  az += 1;
@@ -922,12 +938,43 @@ export class ArenaEngine {
       if (aimLen > 0.1) {
         this.aimDirX = this.mobileAim.x / aimLen;
         this.aimDirZ = this.mobileAim.z / aimLen;
+      } else if (this.teamMode) {
+        // Right joystick idle + team mode → auto-aim at nearest enemy
+        const target = this.findNearestEnemy();
+        if (target) {
+          const dx = target.pos.x - this.playerPos.x;
+          const dz = target.pos.z - this.playerPos.z;
+          const tLen = Math.sqrt(dx * dx + dz * dz);
+          if (tLen > 1) {
+            this.aimDirX = dx / tLen;
+            this.aimDirZ = dz / tLen;
+          }
+        } else {
+          // No alive enemies → face movement direction
+          const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
+          if (moveLen > 0.1) {
+            this.aimDirX = this.mobileMove.x / moveLen;
+            this.aimDirZ = this.mobileMove.z / moveLen;
+          }
+        }
       } else {
-        // Right joystick idle → face movement direction (left joystick)
+        // Solo mode, right joystick idle → face movement direction (world-space)
         const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
         if (moveLen > 0.1) {
-          this.aimDirX = this.mobileMove.x / moveLen;
-          this.aimDirZ = this.mobileMove.z / moveLen;
+          // Convert local joystick back to world direction for solo aim fallback
+          const jx = this.mobileMove.x;
+          const jz = this.mobileMove.z;
+          const fwdX = this.aimDirX;
+          const fwdZ = this.aimDirZ;
+          const rgtX = fwdZ;
+          const rgtZ = -fwdX;
+          const worldX = fwdX * (-jz) + rgtX * jx;
+          const worldZ = fwdZ * (-jz) + rgtZ * jx;
+          const wLen = Math.sqrt(worldX * worldX + worldZ * worldZ);
+          if (wLen > 0.1) {
+            this.aimDirX = worldX / wLen;
+            this.aimDirZ = worldZ / wLen;
+          }
         }
       }
     } else {
@@ -952,6 +999,22 @@ export class ArenaEngine {
     const targetBank = Math.max(-0.3, Math.min(0.3, -angleDelta * 3));
     this.playerBankAngle += (targetBank - this.playerBankAngle) * Math.min(1, dt * 8);
     // Note: rotation.z doesn't work well with baked geo.rotateX — skip bank for now
+  }
+
+  // ── Auto-aim: find nearest alive enemy bot ─────────────────────────────
+
+  private findNearestEnemy(): BotShip | null {
+    const AUTO_AIM_RANGE = 500;
+    let best: BotShip | null = null;
+    let bestDist = AUTO_AIM_RANGE;
+    for (const bot of this.botShips) {
+      if (!bot.alive || bot.team === this.playerTeam) continue;
+      const dx = bot.pos.x - this.playerPos.x;
+      const dz = bot.pos.z - this.playerPos.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d < bestDist) { bestDist = d; best = bot; }
+    }
+    return best;
   }
 
   // ── Lock-on targeting ──────────────────────────────────────────────────

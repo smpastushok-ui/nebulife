@@ -36,6 +36,31 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const [lockState, setLockState] = useState<{ targetId: number | null; progress: number; locked: boolean } | null>(null);
   const [lockScreenPos, setLockScreenPos] = useState<{ x: number; y: number } | null>(null);
 
+  // Landscape orientation lock for mobile
+  const [isPortrait, setIsPortrait] = useState(() => mobile && window.innerHeight > window.innerWidth);
+
+  useEffect(() => {
+    if (!mobile) return;
+    // Try native orientation lock (not available in all browsers)
+    try { (screen.orientation as any).lock('landscape').catch(() => {}); } catch (_) {}
+
+    const check = () => setIsPortrait(window.innerHeight > window.innerWidth);
+    window.addEventListener('resize', check);
+    window.addEventListener('orientationchange', check);
+    return () => {
+      window.removeEventListener('resize', check);
+      window.removeEventListener('orientationchange', check);
+      try { (screen.orientation as any).unlock(); } catch (_) {}
+    };
+  }, [mobile]);
+
+  // Notify Three.js about effective dimension change when CSS rotation kicks in
+  useEffect(() => {
+    if (!mobile) return;
+    const t = setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+    return () => clearTimeout(t);
+  }, [isPortrait, mobile]);
+
   const callbacks = useRef<ArenaCallbacks>({
     onMatchEnd: (result) => onMatchEnd?.(result),
     onExit: () => onExit(),
@@ -56,9 +81,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const handleDash = useCallback(() => {
     engineRef.current?.triggerDash();
   }, []);
-  const handleFireLaser = useCallback((firing: boolean) => {
-    engineRef.current?.setMobileAim(0, 0, firing);
-  }, []);
+  // Laser fire is now handled by right joystick (aim + auto-fire)
   const handleFireMissile = useCallback(() => {
     engineRef.current?.fireMissile();
   }, []);
@@ -172,8 +195,20 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     };
   }, []);
 
+  // When mobile is portrait, apply CSS rotation to force landscape
+  const needRotate = mobile && isPortrait;
+  const outerStyle: React.CSSProperties = needRotate
+    ? {
+        position: 'fixed', top: 0, left: 0, zIndex: 9000, background: '#020510',
+        width: window.innerHeight, height: window.innerWidth,
+        transform: 'rotate(90deg) translateY(-100%)',
+        transformOrigin: 'top left',
+        overflow: 'hidden',
+      }
+    : { position: 'fixed', inset: 0, zIndex: 9000, background: '#020510' };
+
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: '#020510' }}>
+    <div style={outerStyle}>
       {/* Three.js canvas container — z-index 0 so UI stays on top */}
       <div
         ref={containerRef}
@@ -324,11 +359,11 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         </div>
       )}
 
-      {/* Exit button — bottom left, door icon */}
+      {/* Exit button — top left */}
       <button
         onClick={handleExit}
         style={{
-          position: 'absolute', bottom: 20, left: 16,
+          position: 'absolute', top: 12, left: 12,
           width: 44, height: 44,
           background: 'rgba(8,14,24,0.8)',
           border: '2px solid rgba(100,140,180,0.3)',
@@ -352,7 +387,6 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           onMove={handleMove}
           onAim={handleAim}
           onDash={handleDash}
-          onFireLaser={handleFireLaser}
           onFireMissile={handleFireMissile}
           onGravPush={handleGravPush}
           missileAmmo={missileAmmo}
