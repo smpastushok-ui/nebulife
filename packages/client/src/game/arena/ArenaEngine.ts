@@ -2518,8 +2518,8 @@ export class ArenaEngine {
 
       // Anti-edge-stuck: force patrol to center when near boundary
       const distFromCenter = Math.sqrt(bot.pos.x * bot.pos.x + bot.pos.z * bot.pos.z);
-      if (distFromCenter > ARENA_HALF - 150) {
-        bot.brain.waypoint = { x: (Math.random() - 0.5) * (ARENA_HALF * 0.3), z: (Math.random() - 0.5) * (ARENA_HALF * 0.3) };
+      if (distFromCenter > ARENA_HALF * 0.70) {
+        bot.brain.waypoint = { x: (Math.random() - 0.5) * (ARENA_HALF * 0.4), z: (Math.random() - 0.5) * (ARENA_HALF * 0.4) };
         bot.brain.state = 'patrol';
         bot.brain.targetId = null;
         bot.brain.decisionTimer = 0;
@@ -2599,6 +2599,16 @@ export class ArenaEngine {
 
       bot.pos.x += bot.vel.x * dt;
       bot.pos.z += bot.vel.z * dt;
+
+      // Soft center pull — gradual force toward center when far out
+      const distFromCenterPost = Math.sqrt(bot.pos.x * bot.pos.x + bot.pos.z * bot.pos.z);
+      if (distFromCenterPost > ARENA_HALF * 0.6) {
+        const pushStrength = (distFromCenterPost - ARENA_HALF * 0.6) / (ARENA_HALF * 0.4);
+        const centerX = -bot.pos.x / distFromCenterPost;
+        const centerZ = -bot.pos.z / distFromCenterPost;
+        bot.vel.x += centerX * pushStrength * 80 * dt;
+        bot.vel.z += centerZ * pushStrength * 80 * dt;
+      }
 
       // Arena boundary
       const dist = Math.sqrt(bot.pos.x * bot.pos.x + bot.pos.z * bot.pos.z);

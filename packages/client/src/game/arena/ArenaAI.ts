@@ -49,7 +49,7 @@ const HP_FLEE_THRESHOLD = 0.40;  // flee when HP < 40% (was 25%)
 const HP_RALLY_THRESHOLD = 0.70; // flee -> patrol when HP > 70% (was 50%)
 
 // How far from arena center waypoints can spawn
-const WAYPOINT_SPREAD = ARENA_HALF * 0.8;
+const WAYPOINT_SPREAD = ARENA_HALF * 0.55;
 
 // Circle-strafe orbit radius around attack target
 const STRAFE_ORBIT_RADIUS = 120;
@@ -226,6 +226,20 @@ function handleChase(
   allShips: ShipEntity[],
   params: DifficultyParams,
 ): PatrolResult {
+  // Boundary check — abort chase if too close to edge
+  const distFromCenter = Math.sqrt(self.pos.x * self.pos.x + self.pos.z * self.pos.z);
+  if (distFromCenter > ARENA_HALF * 0.75) {
+    return {
+      nextState: 'patrol',
+      moveDir: vec2Norm({ x: -self.pos.x, z: -self.pos.z }),
+      aimDir: vec2Norm({ x: -self.pos.x, z: -self.pos.z }),
+      firing: false,
+      dash: false,
+      newWaypoint: randomWaypoint(),
+      newTargetId: null,
+    };
+  }
+
   // Re-find target or nearest if lost
   let target = brain.targetId !== null ? getShipById(brain.targetId, allShips) : null;
   if (!target) {
@@ -306,14 +320,14 @@ function handleAttack(
   brain.attackTimer = (brain.attackTimer ?? 0) + params2.decisionInterval;
   if (brain.attackTimer > 8 + pseudoRand() * 4) {
     brain.attackTimer = 0;
-    const awayDir = vec2Norm(vec2Scale(self.pos, 1)); // fly toward edge
+    const newWp = randomWaypoint(); // uses reduced WAYPOINT_SPREAD (550 units max)
     return {
       nextState: 'patrol',
-      moveDir: awayDir.x !== 0 || awayDir.z !== 0 ? awayDir : { x: 1, z: 0 },
+      moveDir: vec2Norm(vec2Sub(newWp, self.pos)),
       aimDir: { x: 0, z: 1 },
       firing: false,
       dash: self.dashCooldown <= 0,
-      newWaypoint: randomWaypoint(),
+      newWaypoint: newWp,
       newTargetId: null,
     };
   }
@@ -322,7 +336,7 @@ function handleAttack(
   if (self.hp / self.maxHp < HP_FLEE_THRESHOLD) {
     return {
       nextState: 'flee',
-      moveDir: vec2Norm(vec2Scale(vec2Sub(self.pos, { x: 0, z: 0 }), 1)), // flee toward edge
+      moveDir: vec2Norm({ x: -self.pos.x, z: -self.pos.z }), // flee toward center
       aimDir: { x: 0, z: 1 },
       firing: false,
       dash: true, // dash away immediately
@@ -424,18 +438,23 @@ function handleFlee(
     };
   }
 
-  // Move away from nearest enemy, toward arena edge
+  // Move away from nearest enemy — toward center when near edge
   const nearest = findNearestEnemy(self, allShips);
+  const distFromCenter = Math.sqrt(self.pos.x * self.pos.x + self.pos.z * self.pos.z);
 
   let fleeDir: Vec2;
-  if (nearest) {
+  if (distFromCenter > ARENA_HALF * 0.7) {
+    // Near edge — always flee toward center
+    fleeDir = vec2Norm({ x: -self.pos.x, z: -self.pos.z });
+  } else if (nearest) {
+    // Flee perpendicular to enemy (strafe away, not straight back toward edge)
     const toEnemy = vec2Sub(nearest.pos, self.pos);
-    // Opposite of toward enemy
-    fleeDir = vec2Norm(vec2Scale(toEnemy, -1));
+    const awayFromEnemy = vec2Norm(vec2Scale(toEnemy, -1));
+    // Rotate 90 degrees for perpendicular escape
+    fleeDir = { x: -awayFromEnemy.z, z: awayFromEnemy.x };
   } else {
-    // No enemy visible — move toward arena edge (away from center)
-    const toCenter = vec2Sub({ x: 0, z: 0 }, self.pos);
-    fleeDir = vec2Norm(vec2Scale(toCenter, -1));
+    // No enemy — flee toward center
+    fleeDir = vec2Norm({ x: -self.pos.x, z: -self.pos.z });
   }
 
   // Aim away from threat (no need to fire while fleeing)
