@@ -72,6 +72,7 @@
     "photo_label": "Planet photo — {{cost}} Q",
     "photo_tooltip": "Rent supertélescope capacity to capture a unique image of the selected planet. The image will belong exclusively to you.",
     "photo_base_label": "Planet photo",
+    "photo_view_label": "View planet photo",
     "photo_generating": "generating...",
     "photo_ad_label": "Satellite Request",
     "photo_ad_progress": "Data transfer: {{done}}/{{total}} packets"

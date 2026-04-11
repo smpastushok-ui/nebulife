@@ -119,15 +119,17 @@ function buildButtons(props: {
       action: premAction,
       dim: premDim,
       isPremium: true,
-      submenuLabel: (
-        <>
-          {t('radial.panorama_cost')}
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
-            <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
-            <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
-          </svg>
-        </>
-      ),
+      submenuLabel: hasPhoto
+        ? <>{t('radial.view_panorama')}</>
+        : (
+          <>
+            {t('radial.panorama_cost')}
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
+              <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
+              <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
+            </svg>
+          </>
+        ),
       hint: ALPHA_HINT,
     });
   }

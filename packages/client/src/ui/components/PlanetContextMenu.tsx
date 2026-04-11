@@ -469,6 +469,8 @@ export function PlanetContextMenu({
   isDestroyed,
   surfaceDisabledReason,
   isPhotoGenerating,
+  planetHasPhoto,
+  onViewPlanetPhoto,
   playerLevel,
   canShowAds,
 }: {
@@ -485,6 +487,8 @@ export function PlanetContextMenu({
   isDestroyed?: boolean;
   surfaceDisabledReason?: string;
   isPhotoGenerating?: boolean;
+  planetHasPhoto?: boolean;
+  onViewPlanetPhoto?: () => void;
   playerLevel: number;
   canShowAds?: boolean;
 }) {
@@ -598,7 +602,15 @@ export function PlanetContextMenu({
                 {t('planet.premium_tools')}
               </div>
               {/* Telescope photo */}
-              {onTelescopePhoto && !isPhotoGenerating && (
+              {planetHasPhoto && onViewPlanetPhoto && (
+                <MenuItem
+                  icon="◉"
+                  label={t('planet.photo_view_label')}
+                  onClick={onViewPlanetPhoto}
+                  color="#7bb8ff"
+                />
+              )}
+              {!planetHasPhoto && onTelescopePhoto && !isPhotoGenerating && (
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <MenuItem
@@ -612,7 +624,7 @@ export function PlanetContextMenu({
                   <TooltipHint text={t('planet.photo_tooltip')} />
                 </div>
               )}
-              {onTelescopePhoto && isPhotoGenerating && (
+              {!planetHasPhoto && onTelescopePhoto && isPhotoGenerating && (
                 <MenuItem
                   icon="◉"
                   label={t('planet.photo_base_label')}

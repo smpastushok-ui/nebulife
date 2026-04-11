@@ -4839,9 +4839,17 @@ function AppInner() {
           onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
-          onTelescopePhoto={handlePlanetTelescopePhoto}
+          onTelescopePhoto={() => handlePlanetTelescopePhoto()}
           onAdTelescopePhoto={(photoToken) => handlePlanetTelescopePhoto(photoToken)}
           isPhotoGenerating={systemPhotos.get(`planet-${state.selectedPlanet.id}`)?.status === 'generating'}
+          planetHasPhoto={systemPhotos.get(`planet-${state.selectedPlanet.id}`)?.status === 'succeed'}
+          onViewPlanetPhoto={() => {
+            const photo = systemPhotos.get(`planet-${state.selectedPlanet!.id}`);
+            if (photo?.photoUrl) {
+              setState(prev => ({ ...prev, showPlanetMenu: false }));
+              setTelescopeOverlay({ phase: 'reveal', targetName: state.selectedPlanet!.name, targetType: 'planet', photoUrl: photo.photoUrl, photoKey: `planet-${state.selectedPlanet!.id}` });
+            }
+          }}
           canShowAds={isNativePlatform() && canShowAd()}
         />
       )}
