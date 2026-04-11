@@ -1020,7 +1020,7 @@ function AppInner() {
   // Play terminal ambient loop while Cosmic Archive is open.
   useEffect(() => {
     if (showCosmicArchive) {
-      playLoop('terminal-loop', 0.3);
+      playLoop('terminal-loop', 0.2);
     } else {
       stopLoop('terminal-loop');
     }

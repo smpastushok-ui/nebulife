@@ -554,7 +554,7 @@ function OnboardingSlides({
       playSfx('before-trailers', 0.3);
       setLoopVolume('terminal-loop', 0); // mute during video
     } else {
-      setLoopVolume('terminal-loop', 0.3); // unmute on slides 1, 2, 3
+      setLoopVolume('terminal-loop', 0.2); // unmute on slides 1, 2, 3
     }
   }, [slide]);
 
