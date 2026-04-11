@@ -2465,6 +2465,24 @@ export class ArenaEngine {
         }
       }
 
+      // Anti-edge-stuck: force patrol to center when near boundary
+      const distFromCenter = Math.sqrt(bot.pos.x * bot.pos.x + bot.pos.z * bot.pos.z);
+      if (distFromCenter > ARENA_HALF - 150) {
+        bot.brain.waypoint = { x: (Math.random() - 0.5) * (ARENA_HALF * 0.3), z: (Math.random() - 0.5) * (ARENA_HALF * 0.3) };
+        bot.brain.state = 'patrol';
+        bot.brain.targetId = null;
+        bot.brain.decisionTimer = 0;
+      }
+
+      // Clear dead targets immediately (don't wait for AI decision tick)
+      if (bot.brain.targetId !== null) {
+        const targetAlive = allShipEntities.some(s => s.id === bot.brain.targetId && s.alive);
+        if (!targetAlive) {
+          bot.brain.targetId = null;
+          bot.brain.decisionTimer = 0;
+        }
+      }
+
       // Build self as ShipEntity for AI
       const selfEntity = this.botToShipEntity(bot, allShipEntities);
 

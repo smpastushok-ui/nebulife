@@ -22,6 +22,7 @@ export interface BotBrain {
   waypoint: Vec2 | null;
   decisionTimer: number; // seconds until next decision tick
   difficulty: BotDifficulty;
+  attackTimer: number;   // seconds spent attacking current target
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +122,7 @@ export function createBotBrain(difficulty: BotDifficulty): BotBrain {
     waypoint: randomWaypoint(),
     decisionTimer: 0,
     difficulty,
+    attackTimer: 0,
   };
 }
 
@@ -262,7 +264,8 @@ function handleChase(
     };
   }
   if (dist < RANGE_ATTACK) {
-    // Transition to attack — start circle-strafing immediately
+    // Transition to attack — reset attack timer
+    brain.attackTimer = 0;
     const toTarget = vec2Sub(target.pos, self.pos);
     const toTargetNorm = vec2Norm(toTarget);
     const tangent: Vec2 = { x: -toTargetNorm.z, z: toTargetNorm.x };
@@ -298,6 +301,23 @@ function handleAttack(
   allShips: ShipEntity[],
   params: DifficultyParams,
 ): PatrolResult {
+  // Attack timeout: disengage after 8-12s to prevent orbit-lock
+  const params2 = DIFFICULTY_PARAMS[brain.difficulty];
+  brain.attackTimer = (brain.attackTimer ?? 0) + params2.decisionInterval;
+  if (brain.attackTimer > 8 + pseudoRand() * 4) {
+    brain.attackTimer = 0;
+    const awayDir = vec2Norm(vec2Scale(self.pos, 1)); // fly toward edge
+    return {
+      nextState: 'patrol',
+      moveDir: awayDir.x !== 0 || awayDir.z !== 0 ? awayDir : { x: 1, z: 0 },
+      aimDir: { x: 0, z: 1 },
+      firing: false,
+      dash: self.dashCooldown <= 0,
+      newWaypoint: randomWaypoint(),
+      newTargetId: null,
+    };
+  }
+
   // Flee if low HP
   if (self.hp / self.maxHp < HP_FLEE_THRESHOLD) {
     return {
@@ -342,8 +362,9 @@ function handleAttack(
     };
   }
 
-  // Circle-strafe around target
-  // Compute tangent direction (perpendicular to radius vector)
+  // Circle-strafe around target with per-bot orbit radius to prevent stacking
+  const myOrbitRadius = 80 + (self.id % 5) * 20; // 80, 100, 120, 140, 160
+
   const toTarget = vec2Sub(target.pos, self.pos);
   const toTargetNorm = vec2Norm(toTarget);
 
@@ -352,9 +373,9 @@ function handleAttack(
 
   // If too close, back off; if too far, close in
   let radialComponent = 0;
-  if (dist < STRAFE_ORBIT_RADIUS * 0.7) {
+  if (dist < myOrbitRadius * 0.7) {
     radialComponent = -1; // back away
-  } else if (dist > STRAFE_ORBIT_RADIUS * 1.3) {
+  } else if (dist > myOrbitRadius * 1.3) {
     radialComponent = 1; // close in
   }
 
