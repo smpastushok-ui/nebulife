@@ -231,7 +231,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
             <div style={S.previewLocked}>
               <LockIcon />
               <div style={{ fontSize: 10, color: '#556677', marginTop: 8 }}>
-                {activeSlot.costLabel}
+                {activeSlot.cost !== undefined ? <>{activeSlot.cost} <QuarkIcon /></> : activeSlot.costLabel}
               </div>
             </div>
           )}
@@ -265,7 +265,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 {slot.locked ? (
                   <div style={S.lockedSlot}>
                     <LockIcon />
-                    <div style={S.lockedCost}>{slot.costLabel}</div>
+                    <div style={S.lockedCost}>{slot.cost !== undefined ? <>{slot.cost} <QuarkIcon /></> : slot.costLabel}</div>
                   </div>
                 ) : (
                   <img src={slot.src} alt={slot.id} style={S.cardImg} />
