@@ -958,24 +958,12 @@ export class ArenaEngine {
           }
         }
       } else {
-        // Solo mode, right joystick idle → face movement direction (world-space)
-        const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
-        if (moveLen > 0.1) {
-          // Convert local joystick back to world direction for solo aim fallback
-          const jx = this.mobileMove.x;
-          const jz = this.mobileMove.z;
-          const fwdX = this.aimDirX;
-          const fwdZ = this.aimDirZ;
-          const rgtX = fwdZ;
-          const rgtZ = -fwdX;
-          const worldX = fwdX * (-jz) + rgtX * jx;
-          const worldZ = fwdZ * (-jz) + rgtZ * jx;
-          const wLen = Math.sqrt(worldX * worldX + worldZ * worldZ);
-          if (wLen > 0.1) {
-            this.aimDirX = worldX / wLen;
-            this.aimDirZ = worldZ / wLen;
-          }
-        }
+        // Solo mode, right joystick idle → keep current aim direction.
+        // Do NOT derive aim from the left joystick: the left joystick input is
+        // already in local-space (relative to current aim), so converting it
+        // back to world-space using aimDir creates a circular dependency that
+        // causes the ship to spin in place.  Ship only turns when the right
+        // joystick is actively pushed.
       }
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;

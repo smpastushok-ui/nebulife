@@ -97,17 +97,19 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
   }, [onAim]);
 
   // ── Arc ability buttons positioning (semicircle above right hint) ──────
-  // Center of arc: right hint position (bottom: 80px, right: 60px)
-  const arcRadius = 80;
-  const arcAngles = [
-    -60,  // WARP — top-right
-    -90,  // ROCKET — top-center
-    -120, // GRAV — top-left
+  // The right hint ring center is at (bottom: 115, right: 95) in viewport coords
+  // (bottom: 80 container + 35 half-ring = 115; right: 60 container edge offset).
+  // Arc buttons use fixed bottom/right so they never overlap the touch zone.
+  // Layout: three buttons in a fan above the hint ring.
+  //   WARP   — upper-right  (bottom: 195, right: 30)
+  //   ROCKET — top-center   (bottom: 210, right: 85)
+  //   GRAV   — upper-left   (bottom: 195, right: 140)
+  // Each button is 48×48, so the closest edge to the hint is ~40px clear gap.
+  const arcPositions = [
+    { bottom: 195, right: 30  }, // WARP
+    { bottom: 215, right: 83  }, // ROCKET
+    { bottom: 195, right: 140 }, // GRAV
   ];
-  const arcButtons = arcAngles.map(deg => ({
-    x: Math.cos((deg * Math.PI) / 180) * arcRadius,
-    y: Math.sin((deg * Math.PI) / 180) * arcRadius,
-  }));
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none', touchAction: 'none' }}>
@@ -158,65 +160,63 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
       </div>
 
       {/* Arc ability menu — semicircle above right hint */}
-      <div style={{
-        position: 'absolute', bottom: 80, right: 60,
-        width: 0, height: 0,
-        pointerEvents: 'none', zIndex: 60,
-      }}>
-        {/* WARP — top-right of arc */}
-        <button
-          onPointerDown={() => warpReady && onDash()}
-          style={{
-            ...styles.arcBtn,
-            left: arcButtons[0].x - 24,
-            top: arcButtons[0].y - 24,
-            opacity: warpReady ? 1 : 0.4,
-            borderColor: isWarping ? '#00eeff' : 'rgba(100, 140, 180, 0.3)',
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#00eeff' : '#446677'} strokeWidth="2" strokeLinecap="round">
-            <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
-          </svg>
-          <span style={{ ...styles.arcLabel, color: warpReady ? '#44ddff' : '#446677' }}>
-            {isWarping ? 'WARP!' : warpReady ? 'WARP' : 'WAIT'}
-          </span>
-        </button>
+      {/* Each button is independently positioned with bottom/right to avoid
+          overlapping the right joystick touch zone (bottom: 0-160, right: 0-50%).
+          Buttons sit 195-215px above the bottom edge, 30-140px from the right. */}
 
-        {/* ROCKET — top-center of arc */}
-        <button
-          onPointerDown={() => missileAmmo > 0 && onFireMissile?.()}
-          style={{
-            ...styles.arcBtn,
-            left: arcButtons[1].x - 24,
-            top: arcButtons[1].y - 24,
-            opacity: missileAmmo > 0 ? 1 : 0.4,
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff4444' : '#664444'} strokeWidth="2" strokeLinecap="round">
-            <path d="M12 2L15 8L12 22L9 8Z" />
-            <line x1="7" y1="12" x2="17" y2="12" />
-          </svg>
-          <span style={{ ...styles.arcLabel, color: missileAmmo > 0 ? '#ff6666' : '#664444' }}>
-            {missileAmmo > 0 ? `${missileAmmo}` : 'RELOAD'}
-          </span>
-        </button>
+      {/* WARP — upper-right of fan */}
+      <button
+        onPointerDown={() => warpReady && onDash()}
+        style={{
+          ...styles.arcBtn,
+          bottom: arcPositions[0].bottom,
+          right: arcPositions[0].right,
+          opacity: warpReady ? 1 : 0.4,
+          borderColor: isWarping ? '#00eeff' : 'rgba(100, 140, 180, 0.3)',
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#00eeff' : '#446677'} strokeWidth="2" strokeLinecap="round">
+          <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
+        </svg>
+        <span style={{ ...styles.arcLabel, color: warpReady ? '#44ddff' : '#446677' }}>
+          {isWarping ? 'WARP!' : warpReady ? 'WARP' : 'WAIT'}
+        </span>
+      </button>
 
-        {/* GRAV — top-left of arc */}
-        <button
-          onPointerDown={() => onGravPush?.()}
-          style={{
-            ...styles.arcBtn,
-            left: arcButtons[2].x - 24,
-            top: arcButtons[2].y - 24,
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#aa66ff" strokeWidth="2" strokeLinecap="round">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
-          </svg>
-          <span style={{ ...styles.arcLabel, color: '#bb88ff' }}>GRAV</span>
-        </button>
-      </div>
+      {/* ROCKET — top-center of fan */}
+      <button
+        onPointerDown={() => missileAmmo > 0 && onFireMissile?.()}
+        style={{
+          ...styles.arcBtn,
+          bottom: arcPositions[1].bottom,
+          right: arcPositions[1].right,
+          opacity: missileAmmo > 0 ? 1 : 0.4,
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff4444' : '#664444'} strokeWidth="2" strokeLinecap="round">
+          <path d="M12 2L15 8L12 22L9 8Z" />
+          <line x1="7" y1="12" x2="17" y2="12" />
+        </svg>
+        <span style={{ ...styles.arcLabel, color: missileAmmo > 0 ? '#ff6666' : '#664444' }}>
+          {missileAmmo > 0 ? `${missileAmmo}` : 'RELOAD'}
+        </span>
+      </button>
+
+      {/* GRAV — upper-left of fan */}
+      <button
+        onPointerDown={() => onGravPush?.()}
+        style={{
+          ...styles.arcBtn,
+          bottom: arcPositions[2].bottom,
+          right: arcPositions[2].right,
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#aa66ff" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
+        </svg>
+        <span style={{ ...styles.arcLabel, color: '#bb88ff' }}>GRAV</span>
+      </button>
     </div>
   );
 };

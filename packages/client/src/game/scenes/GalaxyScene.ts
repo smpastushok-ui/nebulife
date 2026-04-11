@@ -636,13 +636,18 @@ export class GalaxyScene {
 
     this.nodesLayer.addChild(dot);
 
+    // Ring 2 stars appear dimmer and smaller — they should feel "further away"
+    const isRing2 = ringIndex === 2;
+    const ring2AlphaMul = isRing2 ? 0.6 : 1.0;
+    const ring2RadiusMul = isRing2 ? 0.8 : 1.0;
+
     let baseAlpha: number;
     if (state === 'researched' || state === 'home') {
-      baseAlpha = 1;
+      baseAlpha = (isRing2 ? 0.75 : 1.0);
     } else if (state === 'researching') {
-      baseAlpha = 0.75 + (progress / 100) * 0.25;
+      baseAlpha = (0.75 + (progress / 100) * 0.25) * ring2AlphaMul;
     } else {
-      baseAlpha = 0.75;
+      baseAlpha = 0.75 * ring2AlphaMul;
     }
 
     dot.alpha = baseAlpha;
@@ -650,6 +655,7 @@ export class GalaxyScene {
     const speed = 0.5 + (phase / (Math.PI * 2)) * 1.0;
     const nebulaColor = hexToNum(sys.star.colorHex);
     const particleCount = starState === 'home' ? 72 : 25 + Math.min(sys.planets.length, 8) * 4;
+    const adjustedRadius = effectiveR * ring2RadiusMul;
 
     return {
       container: dot, system: sys, nameLabel,
@@ -658,7 +664,7 @@ export class GalaxyScene {
       starState, planetCount: sys.planets.length,
       nodeType: 'personal' as const,
       nebulaColor, particleCount,
-      phaseOffset: phase, speed, baseRadius: effectiveR,
+      phaseOffset: phase, speed, baseRadius: adjustedRadius,
       baseAlpha, tx, ty, ringIndex,
       spectralClass: sys.star.spectralClass,
       expandProgress: 0, expandTarget: 0,
@@ -1442,6 +1448,8 @@ export class GalaxyScene {
     /* ── Visible star system ── */
     const pulse = 0.88 + 0.12 * Math.sin(t * 0.00095 + ph * 0.013);
     const br = starState === 'researching' ? 0.65 : 1.0;
+    // Ring 2 personal stars: reduce glow intensity to reinforce "further away" feel
+    const glowMul = (node.nodeType === 'personal' && node.ringIndex >= 2) ? 0.55 : 1.0;
 
     // Eased expansion factor (0=collapsed, 1=fully expanded)
     const ep = easeOutQuad(node.expandProgress);
@@ -1452,7 +1460,7 @@ export class GalaxyScene {
     for (let ci = GN; ci >= 1; ci--) {
       const f = ci / GN;            // 1.0 = outer edge, 1/GN = inner
       const r = glowMaxR * f;
-      const a = 0.06 * Math.exp(-f * 4.0) * pulse * br;
+      const a = 0.06 * Math.exp(-f * 4.0) * pulse * br * glowMul;
       if (a > 0.002) {
         g.circle(0, 0, r);
         g.fill({ color: nebulaColor, alpha: a });
@@ -1464,7 +1472,7 @@ export class GalaxyScene {
     for (let ci = coreSteps; ci >= 1; ci--) {
       const f = ci / coreSteps;              // 1.0 = outer edge, 1/14 = inner
       const r = coreR * f;
-      const a = Math.pow(1 - f, 0.55) * 0.90 * pulse * br;
+      const a = Math.pow(1 - f, 0.55) * 0.90 * pulse * br * glowMul;
       if (a > 0.003) {
         g.circle(0, 0, r);
         g.fill({ color: nebulaColor, alpha: a });
@@ -1472,7 +1480,7 @@ export class GalaxyScene {
     }
     // Bright white centre highlight
     g.circle(0, 0, coreR * 0.22);
-    g.fill({ color: 0xffffff, alpha: 0.55 * pulse });
+    g.fill({ color: 0xffffff, alpha: 0.55 * pulse * glowMul });
 
     /* ── HOME: warm glow accent ── */
     if (isHome) {
@@ -1497,7 +1505,7 @@ export class GalaxyScene {
         // Slow twinkle, fade with distance
         const alpha = (0.22 - distFrac * 0.14)
           * (0.5 + 0.5 * Math.sin(tSec * 1.4 + i * 1.37))
-          * br;
+          * br * glowMul;
         g.circle(Math.cos(angle) * dist, Math.sin(angle) * dist, r);
         g.fill({ color: particleColor, alpha });
       }
