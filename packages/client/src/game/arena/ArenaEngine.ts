@@ -840,9 +840,9 @@ export class ArenaEngine {
         // Forward vector = where the ship is facing (aimDir)
         const fwdX = this.aimDirX;
         const fwdZ = this.aimDirZ;
-        // Right vector = perpendicular to forward
-        const rgtX = fwdZ;
-        const rgtZ = -fwdX;
+        // Right vector = perpendicular to forward (CW rotation)
+        const rgtX = -fwdZ;
+        const rgtZ = fwdX;
         // Convert local input to world-space acceleration
         // -jz because joystick up (negative) = move forward
         ax = fwdX * (-jz) + rgtX * jx;
