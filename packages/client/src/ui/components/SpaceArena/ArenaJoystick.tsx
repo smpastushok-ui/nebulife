@@ -111,6 +111,10 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
     { bottom: 195, right: 140 }, // GRAV
   ];
 
+  // Safe-area-aware bottom offset (CSS env variable via inline style)
+  const safeBottom = 'env(safe-area-inset-bottom, 0px)';
+  const safeRight = 'env(safe-area-inset-right, 0px)';
+
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none', touchAction: 'none' }}>
       {/* Left touch zone — left half of screen */}
@@ -125,8 +129,8 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
         onPointerUp={onLeftUp}
         onPointerCancel={onLeftUp}
       >
-        {/* Static hint — MOVE */}
-        <div style={styles.hintLeft}>
+        {/* Static hint — MOVE (offset by safe area bottom) */}
+        <div style={{ ...styles.hintLeft, bottom: `calc(80px + ${safeBottom})` }}>
           <div style={styles.hintRing} />
           <span style={styles.hintLabel}>MOVE</span>
         </div>
@@ -148,8 +152,8 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
         onPointerUp={onRightUp}
         onPointerCancel={onRightUp}
       >
-        {/* Static hint — AIM */}
-        <div style={styles.hintRight}>
+        {/* Static hint — AIM (offset by safe area bottom) */}
+        <div style={{ ...styles.hintRight, bottom: `calc(80px + ${safeBottom})` }}>
           <div style={{ ...styles.hintRing, borderColor: 'rgba(68, 255, 136, 0.2)' }} />
           <span style={{ ...styles.hintLabel, color: 'rgba(68, 255, 136, 0.3)' }}>AIM</span>
         </div>
@@ -162,15 +166,16 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
       {/* Arc ability menu — semicircle above right hint */}
       {/* Each button is independently positioned with bottom/right to avoid
           overlapping the right joystick touch zone (bottom: 0-160, right: 0-50%).
-          Buttons sit 195-215px above the bottom edge, 30-140px from the right. */}
+          Buttons sit 195-215px above the bottom edge, 30-140px from the right.
+          All bottom/right values include safe area insets for iPhone home bar. */}
 
       {/* WARP — upper-right of fan */}
       <button
         onPointerDown={() => warpReady && onDash()}
         style={{
           ...styles.arcBtn,
-          bottom: arcPositions[0].bottom,
-          right: arcPositions[0].right,
+          bottom: `calc(${arcPositions[0].bottom}px + ${safeBottom})`,
+          right: `calc(${arcPositions[0].right}px + ${safeRight})`,
           opacity: warpReady ? 1 : 0.4,
           borderColor: isWarping ? '#00eeff' : 'rgba(100, 140, 180, 0.3)',
         }}
@@ -188,8 +193,8 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
         onPointerDown={() => missileAmmo > 0 && onFireMissile?.()}
         style={{
           ...styles.arcBtn,
-          bottom: arcPositions[1].bottom,
-          right: arcPositions[1].right,
+          bottom: `calc(${arcPositions[1].bottom}px + ${safeBottom})`,
+          right: `calc(${arcPositions[1].right}px + ${safeRight})`,
           opacity: missileAmmo > 0 ? 1 : 0.4,
         }}
       >
@@ -207,8 +212,8 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
         onPointerDown={() => onGravPush?.()}
         style={{
           ...styles.arcBtn,
-          bottom: arcPositions[2].bottom,
-          right: arcPositions[2].right,
+          bottom: `calc(${arcPositions[2].bottom}px + ${safeBottom})`,
+          right: `calc(${arcPositions[2].right}px + ${safeRight})`,
         }}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#aa66ff" strokeWidth="2" strokeLinecap="round">
