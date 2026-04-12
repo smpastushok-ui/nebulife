@@ -1256,7 +1256,7 @@ function QuizCard({ data, messageId, onAwardXP }: { data: QuizData; messageId: s
     if (revealed) return;
     setSelected(i);
     if (i === data.correctIndex) {
-      playSfx('quiz-correct', 0.35);
+      playSfx('quiz-correct', 0.18);
     } else {
       playSfx('quiz-wrong', 0.25);
     }

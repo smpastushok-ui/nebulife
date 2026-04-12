@@ -1016,15 +1016,7 @@ function AppInner() {
     return () => stopLoop('planet-loop');
   }, [surfaceTarget]);
 
-  // Play terminal ambient loop while Cosmic Archive is open.
-  useEffect(() => {
-    if (showCosmicArchive) {
-      playLoop('terminal-loop', 0.2);
-    } else {
-      stopLoop('terminal-loop');
-    }
-    return () => stopLoop('terminal-loop');
-  }, [showCosmicArchive]);
+  // Terminal ambient loop removed — no background music in Cosmic Archive.
 
   // Play before_trailers music during onboarding, before first cinematic video starts.
   useEffect(() => {

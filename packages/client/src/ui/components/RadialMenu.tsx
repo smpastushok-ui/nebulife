@@ -78,8 +78,10 @@ function buildButtons(props: {
   }
 
   // General
-  list.push({ icon: '\u2261', tip: t('radial.characteristics'), color: '#8899aa', action: 'chars'  });
-  list.push({ icon: '\u270E', tip: t('common.rename'),           color: '#8899aa', action: 'rename' });
+  if (isResearched || isHome) {
+    list.push({ icon: '\u2261', tip: t('radial.characteristics'), color: '#8899aa', action: 'chars' });
+  }
+  list.push({ icon: '\u270E', tip: t('common.rename'), color: '#8899aa', action: 'rename' });
 
   // Research
   if (!isResearched && !isHome) {

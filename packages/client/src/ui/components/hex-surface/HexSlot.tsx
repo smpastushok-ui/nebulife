@@ -421,9 +421,12 @@ export const HexSlot = React.memo(function HexSlot({
       />
 
       {/* Destroy button — top-center, only for resource tiles. Upper position avoids
-          z-index conflicts: hexes above have lower zIndex and won't cover this. */}
+          z-index conflicts: hexes above have lower zIndex and won't cover this.
+          onPointerDown stops propagation so HexSurface's drag handler isn't triggered,
+          which prevents setPointerCapture from breaking the subsequent click event. */}
       {slot.state === 'resource' && !destroyConfirm && (
         <button
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); setDestroyConfirm(true); }}
           style={{
             position: 'absolute',
@@ -455,6 +458,7 @@ export const HexSlot = React.memo(function HexSlot({
       {/* Destroy confirm overlay — full hex, clipped to hex shape */}
       {slot.state === 'resource' && destroyConfirm && (
         <div
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
@@ -480,7 +484,8 @@ export const HexSlot = React.memo(function HexSlot({
           </div>
           <div style={{ display: 'flex', gap: 5 }}>
             <button
-              onClick={(e) => { e.stopPropagation(); onDestroy(id); setDestroyConfirm(false); }}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onDestroy(id); setDestroyConfirm(false); }}
+              onClick={(e) => e.stopPropagation()}
               style={{
                 width: 20,
                 height: 14,
@@ -500,7 +505,8 @@ export const HexSlot = React.memo(function HexSlot({
               Y
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); setDestroyConfirm(false); }}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); setDestroyConfirm(false); }}
+              onClick={(e) => e.stopPropagation()}
               style={{
                 width: 20,
                 height: 14,

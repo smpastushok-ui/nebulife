@@ -266,7 +266,9 @@ export function SystemContextMenu({
 
         {/* General */}
         <MenuItem label={t('common.rename')} onClick={onRename} />
-        <MenuItem label={t('radial.characteristics')} onClick={onCharacteristics} />
+        {(isResearched || isHome) && (
+          <MenuItem label={t('radial.characteristics')} onClick={onCharacteristics} />
+        )}
 
         {/* Research action (if not yet researched) */}
         {!isResearched && !isHome && (

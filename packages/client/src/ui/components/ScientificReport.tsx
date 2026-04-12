@@ -44,7 +44,7 @@ export function ScientificReport({
         }
         return next;
       });
-      playSfx('text-massage', 0.15);
+      playSfx('text-massage', 0.05);
     }, TICK_INTERVAL);
 
     return () => clearInterval(timer);
