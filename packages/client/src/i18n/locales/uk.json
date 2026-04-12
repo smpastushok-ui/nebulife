@@ -394,6 +394,14 @@
     "level_up_nodes_unlocked": "Відкрито нові вузли у Терміналі Досліджень"
   },
 
+  "settings": {
+    "delete_account": "Видалити акаунт",
+    "delete_confirm_title": "Видалення акаунту",
+    "delete_confirm_text": "Це видалить всі ваші дані назавжди. Введіть DELETE для підтвердження.",
+    "delete_success": "Акаунт видалено",
+    "delete_type_confirm": "Введіть DELETE"
+  },
+
   "auth": {
     "subtitle": "дослідження всесвіту",
     "legacy_progress": "У вас є збережений прогрес. Увійдіть щоб зберегти його.",
@@ -721,7 +729,11 @@
     "ads_btn": "Отримати кварки за рекламу",
     "ads_btn_progress": "Реклама {{completed}}/{{total}}",
     "ads_success": "+5 кварків!",
-    "ads_failed": "Реклама не завантажена. Спробуйте пізніше."
+    "ads_failed": "Реклама не завантажена. Спробуйте пізніше.",
+    "restore_purchases": "Відновити покупки",
+    "restore_success": "Покупки відновлено",
+    "restore_none": "Немає покупок для відновлення",
+    "restore_error": "Помилка відновлення"
   },
 
   "scene_controls": {

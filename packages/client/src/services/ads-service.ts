@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { Capacitor } from '@capacitor/core';
-import { AdMob, RewardAdPluginEvents, RewardAdOptions } from '@capacitor-community/admob';
+import { AdMob, RewardAdPluginEvents, RewardAdOptions, AdmobConsentStatus } from '@capacitor-community/admob';
 import { authFetch } from '../auth/api-client.js';
 
 // Test Ad Unit IDs (replace with real ones from AdMob dashboard)
@@ -25,6 +25,35 @@ let initialized = false;
 
 export async function initAds(): Promise<void> {
   if (!Capacitor.isNativePlatform() || initialized) return;
+
+  // --- iOS: App Tracking Transparency (ATT) ---
+  // Must request tracking permission BEFORE initializing AdMob on iOS 14+.
+  // Apple will reject the app if ATT is not shown before personalized ads.
+  if (Capacitor.getPlatform() === 'ios') {
+    try {
+      const status = await AdMob.trackingAuthorizationStatus();
+      if (status.status === 'notDetermined') {
+        await AdMob.requestTrackingAuthorization();
+      }
+    } catch {
+      // Not supported on this OS version or simulator — skip silently
+    }
+  }
+
+  // --- Android / EEA: Google UMP Consent (GDPR) ---
+  // Google requires collecting consent before showing personalized ads in the EEA.
+  // AdmobConsentStatus.REQUIRED means the user is in a GDPR region and has not consented yet.
+  try {
+    const consentInfo = await AdMob.requestConsentInfo();
+    if (
+      consentInfo.isConsentFormAvailable &&
+      consentInfo.status === AdmobConsentStatus.REQUIRED
+    ) {
+      await AdMob.showConsentForm();
+    }
+  } catch {
+    // UMP not available or network error — continue without consent form
+  }
 
   await AdMob.initialize({
     initializeForTesting: true, // TODO: set to false for production

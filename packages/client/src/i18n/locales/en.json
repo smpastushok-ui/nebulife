@@ -396,6 +396,14 @@
     "level_up_nodes_unlocked": "New nodes unlocked in the Research Terminal"
   },
 
+  "settings": {
+    "delete_account": "Delete account",
+    "delete_confirm_title": "Account deletion",
+    "delete_confirm_text": "This will permanently delete all your data. Type DELETE to confirm.",
+    "delete_success": "Account deleted",
+    "delete_type_confirm": "Type DELETE"
+  },
+
   "auth": {
     "subtitle": "exploring the universe",
     "legacy_progress": "You have saved progress. Sign in to keep it.",
@@ -723,7 +731,11 @@
     "ads_btn": "Get quarks for watching ads",
     "ads_btn_progress": "Ad {{completed}}/{{total}}",
     "ads_success": "+5 quarks!",
-    "ads_failed": "Ad not available. Try again later."
+    "ads_failed": "Ad not available. Try again later.",
+    "restore_purchases": "Restore purchases",
+    "restore_success": "Purchases restored",
+    "restore_none": "No purchases to restore",
+    "restore_error": "Restore error"
   },
 
   "scene_controls": {

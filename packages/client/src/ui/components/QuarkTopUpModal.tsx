@@ -118,6 +118,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
   const [loadingPkgs, setLoadingPkgs] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null); // identifier of package being purchased
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   // Ads reward state
   const [adsProgress, setAdsProgress] = useState(0); // 0-3
@@ -168,6 +169,29 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
       setTimeout(onClose, 1800);
     } else {
       setMessage({ text: t('topup.ads_failed'), ok: false });
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    if (restoring || purchasing || adsRunning) return;
+    setRestoring(true);
+    setMessage(null);
+    try {
+      const { Purchases } = await import('@revenuecat/purchases-capacitor');
+      const customerInfo = await Purchases.restorePurchases();
+      const hasEntitlements =
+        customerInfo.customerInfo &&
+        Object.keys(customerInfo.customerInfo.entitlements?.active ?? {}).length > 0;
+      if (hasEntitlements) {
+        setMessage({ text: t('topup.restore_success'), ok: true });
+        onQuarksGranted?.(0);
+      } else {
+        setMessage({ text: t('topup.restore_none'), ok: false });
+      }
+    } catch {
+      setMessage({ text: t('topup.restore_error'), ok: false });
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -277,6 +301,28 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
         )}
 
         <div style={styles.note}>{t('topup.iap_note')}</div>
+
+        {/* Restore Purchases — required by Apple for apps with IAP */}
+        <button
+          style={{
+            width: '100%',
+            marginTop: 10,
+            padding: '8px 14px',
+            borderRadius: 3,
+            border: '1px solid #334455',
+            background: 'transparent',
+            color: '#667788',
+            fontFamily: 'monospace',
+            fontSize: 11,
+            cursor: restoring || !!purchasing || adsRunning ? 'default' : 'pointer',
+            opacity: restoring || !!purchasing || adsRunning ? 0.5 : 1,
+            textAlign: 'center' as const,
+          }}
+          onClick={handleRestorePurchases}
+          disabled={restoring || !!purchasing || adsRunning}
+        >
+          {restoring ? '...' : t('topup.restore_purchases')}
+        </button>
       </div>
     </>
   );

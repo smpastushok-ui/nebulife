@@ -96,7 +96,8 @@ export function PlayerPage({
 }: PlayerPageProps) {
   const { t, i18n } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTypeInput, setDeleteTypeInput] = useState('');
   const [nativeTopUpMsg, setNativeTopUpMsg] = useState(false);
 
   const progress = levelProgress(playerXP);
@@ -579,51 +580,138 @@ export function PlayerPage({
             <button
               onClick={() => {
                 playSfx('ui-click', 0.07);
-                if (confirmDelete) {
-                  onDeleteAccount();
-                } else {
-                  setConfirmDelete(true);
-                }
+                setDeleteTypeInput('');
+                setShowDeleteModal(true);
               }}
               style={{
                 width: '100%',
                 padding: '8px 16px',
-                background: confirmDelete ? 'rgba(204,68,68,0.15)' : 'transparent',
-                border: `1px solid ${confirmDelete ? 'rgba(204,68,68,0.5)' : 'rgba(68,51,51,0.2)'}`,
+                background: 'transparent',
+                border: '1px solid rgba(68,51,51,0.2)',
                 borderRadius: 3,
-                color: confirmDelete ? '#cc4444' : '#443333',
+                color: '#443333',
                 fontFamily: 'monospace',
                 fontSize: 10,
                 cursor: 'pointer',
+                transition: 'color 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLElement).style.color = '#cc4444';
+                (e.target as HTMLElement).style.borderColor = 'rgba(204,68,68,0.4)';
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLElement).style.color = '#443333';
+                (e.target as HTMLElement).style.borderColor = 'rgba(68,51,51,0.2)';
               }}
             >
-              {confirmDelete ? t('player.confirm_delete') : t('player.delete_account')}
+              {t('settings.delete_account')}
             </button>
-            {confirmDelete && (
-              <div style={{ fontSize: 9, color: '#884444', textAlign: 'center', lineHeight: 1.5, marginTop: 6 }}>
-                {t('player.delete_warning')}
-                <br />
-                <button
-                  onClick={() => { playSfx('ui-click', 0.07); setConfirmDelete(false); }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#556677',
-                    fontFamily: 'monospace',
-                    fontSize: 9,
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    marginTop: 3,
-                    padding: 0,
-                  }}
-                >
-                  {t('common.cancel')}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Delete Account confirmation modal */}
+      {showDeleteModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9800,
+            background: 'rgba(2,5,16,0.96)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '24px',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowDeleteModal(false); setDeleteTypeInput(''); } }}
+        >
+          <div style={{
+            maxWidth: 320, width: '100%',
+            background: 'rgba(10,15,25,0.98)',
+            border: '1px solid rgba(204,68,68,0.3)',
+            borderRadius: 6,
+            padding: '28px 24px',
+            display: 'flex', flexDirection: 'column', gap: 16,
+            fontFamily: 'monospace',
+          }}>
+            {/* Title */}
+            <div style={{ fontSize: 13, color: '#cc4444', letterSpacing: 1, textTransform: 'uppercase' }}>
+              {t('settings.delete_confirm_title')}
+            </div>
+
+            {/* Description */}
+            <div style={{ fontSize: 11, color: '#8899aa', lineHeight: 1.6 }}>
+              {t('settings.delete_confirm_text')}
+            </div>
+
+            {/* Type DELETE input */}
+            <input
+              type="text"
+              value={deleteTypeInput}
+              onChange={(e) => setDeleteTypeInput(e.target.value)}
+              placeholder={t('settings.delete_type_confirm')}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                background: 'rgba(20,15,15,0.6)',
+                border: `1px solid ${deleteTypeInput === 'DELETE' ? 'rgba(204,68,68,0.6)' : 'rgba(51,68,85,0.4)'}`,
+                borderRadius: 3,
+                color: deleteTypeInput === 'DELETE' ? '#cc4444' : '#aabbcc',
+                fontFamily: 'monospace',
+                fontSize: 12,
+                letterSpacing: 2,
+                outline: 'none',
+                transition: 'border-color 0.15s, color 0.15s',
+                boxSizing: 'border-box',
+              }}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+            />
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => { playSfx('ui-click', 0.07); setShowDeleteModal(false); setDeleteTypeInput(''); }}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  background: 'rgba(20,30,50,0.5)',
+                  border: '1px solid rgba(51,68,85,0.3)',
+                  borderRadius: 3,
+                  color: '#8899aa',
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                disabled={deleteTypeInput !== 'DELETE'}
+                onClick={() => {
+                  if (deleteTypeInput !== 'DELETE') return;
+                  playSfx('ui-click', 0.07);
+                  setShowDeleteModal(false);
+                  onDeleteAccount();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  background: deleteTypeInput === 'DELETE' ? 'rgba(204,68,68,0.2)' : 'rgba(20,15,15,0.4)',
+                  border: `1px solid ${deleteTypeInput === 'DELETE' ? 'rgba(204,68,68,0.5)' : 'rgba(68,51,51,0.2)'}`,
+                  borderRadius: 3,
+                  color: deleteTypeInput === 'DELETE' ? '#cc4444' : '#443333',
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  cursor: deleteTypeInput === 'DELETE' ? 'pointer' : 'not-allowed',
+                  opacity: deleteTypeInput === 'DELETE' ? 1 : 0.5,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {t('player.confirm_delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -279,7 +279,9 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           {/* Team score bar — top center, team mode only */}
           {teamMode && (
             <div style={{
-              position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+              position: 'absolute',
+              top: `calc(12px + env(safe-area-inset-top, 0px))`,
+              left: '50%', transform: 'translateX(-50%)',
               display: 'flex', alignItems: 'center', gap: 8,
               fontFamily: 'monospace', fontSize: 11, zIndex: 3, pointerEvents: 'none',
             }}>
@@ -296,10 +298,13 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
             </div>
           )}
 
-          {/* Kill feed — top right, team mode only */}
+          {/* Kill feed — top right, team mode only (safe area offset) */}
           {teamMode && killFeed.length > 0 && (
             <div style={{
-              position: 'absolute', top: 40, right: 16, zIndex: 3,
+              position: 'absolute',
+              top: `calc(40px + env(safe-area-inset-top, 0px))`,
+              right: `calc(16px + env(safe-area-inset-right, 0px))`,
+              zIndex: 3,
               display: 'flex', flexDirection: 'column', gap: 2,
               fontFamily: 'monospace', fontSize: 8, pointerEvents: 'none',
             }}>
@@ -359,11 +364,13 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         </div>
       )}
 
-      {/* Exit button — top left */}
+      {/* Exit button — top left (offset for iOS notch / Dynamic Island) */}
       <button
         onClick={handleExit}
         style={{
-          position: 'absolute', top: 12, left: 12,
+          position: 'absolute',
+          top: `calc(12px + env(safe-area-inset-top, 0px))`,
+          left: `calc(12px + env(safe-area-inset-left, 0px))`,
           width: 44, height: 44,
           background: 'rgba(8,14,24,0.8)',
           border: '2px solid rgba(100,140,180,0.3)',
