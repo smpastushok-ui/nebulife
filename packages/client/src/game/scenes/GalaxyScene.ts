@@ -873,6 +873,8 @@ export class GalaxyScene {
 
   /** Spawn a floating "+N%" label above a star node */
   private spawnResearchGainLabel(node: SystemNode, delta: number) {
+    // When research labels (eye) are ON, the persistent label already shows progress — skip animation
+    if (this.researchLabelsEnabled) return;
     const label = new Text({
       text: `+${Math.round(delta)}%`,
       style: { fontSize: 10, fill: 0xffdd66, fontFamily: 'monospace' },
@@ -978,7 +980,7 @@ export class GalaxyScene {
     if (this.researchLabelsEnabled && node.researchLabel) {
       const isFull = prog >= 100;
       node.researchLabel.text = isFull ? '◉' : prog > 0 ? `${Math.round(prog)}%` : '·';
-      node.researchLabel.style.fill = isFull ? 0x44ff88 : prog > 0 ? 0x8899aa : 0x3a4d5a;
+      node.researchLabel.style.fill = isFull ? 0x44ff88 : prog > 0 ? 0xffdd66 : 0x3a4d5a;
     }
 
     if (state === 'researching') {
@@ -1585,12 +1587,12 @@ export class GalaxyScene {
 
       if (enabled) {
         const text = isFull ? '◉' : prog > 0 ? `${prog}%` : '·';
-        const color = isFull ? 0x44ff88 : prog > 0 ? 0x8899aa : 0x3a4d5a;
+        const color = isFull ? 0x44ff88 : prog > 0 ? 0xffdd66 : 0x3a4d5a;
 
         if (!node.researchLabel) {
           node.researchLabel = new Text({
             text,
-            style: { fontSize: isFull ? 9 : 7, fill: color, fontFamily: 'monospace' },
+            style: { fontSize: isFull ? 9 : 10, fill: color, fontFamily: 'monospace' },
             resolution: 2,
           });
           node.researchLabel.anchor.set(0.5, 1);
@@ -1599,6 +1601,7 @@ export class GalaxyScene {
         } else {
           node.researchLabel.text = text;
           node.researchLabel.style.fill = color;
+          node.researchLabel.style.fontSize = isFull ? 9 : 10;
           node.researchLabel.visible = true;
         }
       } else {
