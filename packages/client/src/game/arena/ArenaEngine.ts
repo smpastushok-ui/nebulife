@@ -827,27 +827,35 @@ export class ArenaEngine {
   // ── Player movement (WASD) ──────────────────────────────────────────────
 
   private updatePlayer(dt: number): void {
+    // Anchor mode: right joystick active on mobile → freeze movement
+    // Math.abs avoids sqrt and is immune to micro-drift on touch release
+    const isAnchored = this.isMobile &&
+      (Math.abs(this.mobileAim.x) > 0.1 || Math.abs(this.mobileAim.z) > 0.1);
+
     // Input: WASD (desktop) or mobile joystick
     let ax = 0, az = 0;
     if (this.isMobile) {
-      // Local-space strafe: joystick input is relative to ship's facing direction
-      // joystickX (mobileMove.x) = strafe right/left
-      // joystickY (mobileMove.z) = forward/back (negative = up = forward)
-      const jx = this.mobileMove.x;
-      const jz = this.mobileMove.z;
-      const jLen = Math.sqrt(jx * jx + jz * jz);
-      if (jLen > 0.01) {
-        // Forward vector = where the ship is facing (aimDir)
-        const fwdX = this.aimDirX;
-        const fwdZ = this.aimDirZ;
-        // Right vector = perpendicular to forward (CW rotation)
-        const rgtX = -fwdZ;
-        const rgtZ = fwdX;
-        // Convert local input to world-space acceleration
-        // -jz because joystick up (negative) = move forward
-        ax = fwdX * (-jz) + rgtX * jx;
-        az = fwdZ * (-jz) + rgtZ * jx;
+      if (!isAnchored) {
+        // Local-space strafe: joystick input is relative to ship's facing direction
+        // joystickX (mobileMove.x) = strafe right/left
+        // joystickY (mobileMove.z) = forward/back (negative = up = forward)
+        const jx = this.mobileMove.x;
+        const jz = this.mobileMove.z;
+        const jLen = Math.sqrt(jx * jx + jz * jz);
+        if (jLen > 0.01) {
+          // Forward vector = where the ship is facing (aimDir)
+          const fwdX = this.aimDirX;
+          const fwdZ = this.aimDirZ;
+          // Right vector = perpendicular to forward (CW rotation)
+          const rgtX = -fwdZ;
+          const rgtZ = fwdX;
+          // Convert local input to world-space acceleration
+          // -jz because joystick up (negative) = move forward
+          ax = fwdX * (-jz) + rgtX * jx;
+          az = fwdZ * (-jz) + rgtZ * jx;
+        }
       }
+      // isAnchored → ax=0, az=0: ship stops receiving input
     } else {
       if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
       if (this.keys.has('s') || this.keys.has('arrowdown'))  az += 1;
@@ -863,9 +871,10 @@ export class ArenaEngine {
     this.playerVelX += ax * SHIP_ACCELERATION * this.playerSpeedMult * dt;
     this.playerVelZ += az * SHIP_ACCELERATION * this.playerSpeedMult * dt;
 
-    // Drag
-    this.playerVelX *= SHIP_DRAG;
-    this.playerVelZ *= SHIP_DRAG;
+    // Drag — stronger when anchored for quick stop
+    const drag = isAnchored ? 0.82 : SHIP_DRAG;
+    this.playerVelX *= drag;
+    this.playerVelZ *= drag;
 
     // Warp: override velocity to forward direction at 2x speed (stacks with power-up)
     if (this.warpActive) {
@@ -933,37 +942,46 @@ export class ArenaEngine {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
-      // Right joystick active → aim where it points
-      const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
-      if (aimLen > 0.1) {
+      // Deadzone check via Math.abs — immune to micro-drift on touch release
+      const isAnchored = Math.abs(this.mobileAim.x) > 0.1 || Math.abs(this.mobileAim.z) > 0.1;
+
+      if (isAnchored) {
+        // Manual aim: right joystick points where to shoot
+        const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
         this.aimDirX = this.mobileAim.x / aimLen;
         this.aimDirZ = this.mobileAim.z / aimLen;
-      } else if (this.teamMode) {
-        // Right joystick idle + team mode → auto-aim at nearest enemy
+      } else {
+        // Auto-aim: find nearest alive enemy (all modes, not just teamMode)
         const target = this.findNearestEnemy();
         if (target) {
+          // Predictive aim: lead the target by bullet flight time
           const dx = target.pos.x - this.playerPos.x;
           const dz = target.pos.z - this.playerPos.z;
-          const tLen = Math.sqrt(dx * dx + dz * dz);
-          if (tLen > 1) {
-            this.aimDirX = dx / tLen;
-            this.aimDirZ = dz / tLen;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          const flightTime = dist / this.BULLET_SPEED;
+          const predX = target.pos.x + target.vel.x * flightTime - this.playerPos.x;
+          const predZ = target.pos.z + target.vel.z * flightTime - this.playerPos.z;
+          const predLen = Math.sqrt(predX * predX + predZ * predZ);
+          if (predLen > 1) {
+            // Smooth slerp toward predicted aim — dt*8 ≈ 0.13s full turn at 60fps
+            const tgtX = predX / predLen;
+            const tgtZ = predZ / predLen;
+            const t = Math.min(1, dt * 8);
+            this.aimDirX += (tgtX - this.aimDirX) * t;
+            this.aimDirZ += (tgtZ - this.aimDirZ) * t;
+            // Renormalize after lerp
+            const newLen = Math.sqrt(this.aimDirX ** 2 + this.aimDirZ ** 2);
+            if (newLen > 0.001) { this.aimDirX /= newLen; this.aimDirZ /= newLen; }
           }
-        } else {
-          // No alive enemies → face movement direction
+        } else if (this.teamMode) {
+          // No enemy nearby in team mode → face movement direction
           const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
           if (moveLen > 0.1) {
             this.aimDirX = this.mobileMove.x / moveLen;
             this.aimDirZ = this.mobileMove.z / moveLen;
           }
         }
-      } else {
-        // Solo mode, right joystick idle → keep current aim direction.
-        // Do NOT derive aim from the left joystick: the left joystick input is
-        // already in local-space (relative to current aim), so converting it
-        // back to world-space using aimDir creates a circular dependency that
-        // causes the ship to spin in place.  Ship only turns when the right
-        // joystick is actively pushed.
+        // Solo mode, no target → keep current aim direction (no change)
       }
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;
@@ -991,12 +1009,11 @@ export class ArenaEngine {
 
   // ── Auto-aim: find nearest alive enemy bot ─────────────────────────────
 
-  private findNearestEnemy(): BotShip | null {
-    const AUTO_AIM_RANGE = 500;
+  private findNearestEnemy(maxDist = 600): BotShip | null {
     let best: BotShip | null = null;
-    let bestDist = AUTO_AIM_RANGE;
+    let bestDist = maxDist;
     for (const bot of this.botShips) {
-      if (!bot.alive || bot.team === this.playerTeam) continue;
+      if (!bot.alive || bot.hp <= 0 || bot.team === this.playerTeam) continue;
       const dx = bot.pos.x - this.playerPos.x;
       const dz = bot.pos.z - this.playerPos.z;
       const d = Math.sqrt(dx * dx + dz * dz);
@@ -1060,7 +1077,25 @@ export class ArenaEngine {
 
   private updateShooting(dt: number): void {
     this.fireCooldownTimer = Math.max(0, this.fireCooldownTimer - dt);
-    const isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
+
+    let isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
+
+    // Auto-fire: right stick idle + alive enemy within 600 units
+    if (this.isMobile && !isFiring) {
+      const isAnchored = Math.abs(this.mobileAim.x) > 0.1 || Math.abs(this.mobileAim.z) > 0.1;
+      if (!isAnchored) {
+        const target = this.findNearestEnemy();
+        // Validate target is still alive before auto-firing
+        if (target && target.alive && target.hp > 0) {
+          const dx = target.pos.x - this.playerPos.x;
+          const dz = target.pos.z - this.playerPos.z;
+          if (dx * dx + dz * dz < 600 * 600) {
+            isFiring = true;
+          }
+        }
+      }
+    }
+
     if (isFiring && this.fireCooldownTimer <= 0) {
       playSfx('arena-laser', 0.1);
       this.fireBullet();
