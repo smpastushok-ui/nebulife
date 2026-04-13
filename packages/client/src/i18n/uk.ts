@@ -84,7 +84,7 @@ export const uk = {
   'hangar.event.training_desc':    'Одиночний симулятор проти астероїдiв. Вхiд безкоштовний.',
   'hangar.event.training_enter':   'ТРЕНУВАТИСЬ',
   'hangar.event.team_battle':      'Командний Бiй',
-  'hangar.event.team_battle_desc': '5 на 5. Синi проти Червоних. Перша команда до 100 знищень перемагає.',
+  'hangar.event.team_battle_desc': '5 на 5. Синi проти Червоних. Перша команда до 50 знищень перемагає.',
   'hangar.event.team_battle_enter':'ПРИЄДНАТИСЬ',
   'hangar.controls.title':         'Управлiння',
   'hangar.controls.move':          'Рух',

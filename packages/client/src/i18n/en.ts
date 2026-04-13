@@ -86,7 +86,7 @@ export const en: Record<TranslationKey, string> = {
   'hangar.event.training_desc':    'Solo combat simulator against asteroids. Free entry.',
   'hangar.event.training_enter':   'TRAIN',
   'hangar.event.team_battle':      'Team Battle',
-  'hangar.event.team_battle_desc': '5v5 combat. Blue vs Red. First to 100 kills wins.',
+  'hangar.event.team_battle_desc': '5v5 combat. Blue vs Red. First to 50 kills wins.',
   'hangar.event.team_battle_enter':'JOIN',
   'hangar.controls.title':         'Controls',
   'hangar.controls.move':          'Movement',
