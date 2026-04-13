@@ -6,10 +6,10 @@
 
 import { Capacitor } from '@capacitor/core';
 
-// Test interstitial ad unit IDs
+// Interstitial ad unit IDs (iOS: test, Android: production)
 const INTERSTITIAL_ID = Capacitor.getPlatform() === 'ios'
-  ? 'ca-app-pub-3940256099942544/4411468910'
-  : 'ca-app-pub-3940256099942544/1033173712';
+  ? 'ca-app-pub-3940256099942544/4411468910'  // iOS test (replace with production)
+  : 'ca-app-pub-3504252081237345/4806964536';  // Android production
 
 class InterstitialManager {
   private lastAdTime = 0;
