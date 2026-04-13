@@ -836,23 +836,16 @@ export class ArenaEngine {
     let ax = 0, az = 0;
     if (this.isMobile) {
       if (!isAnchored) {
-        // Local-space strafe: joystick input is relative to ship's facing direction
-        // joystickX (mobileMove.x) = strafe right/left
-        // joystickY (mobileMove.z) = forward/back (negative = up = forward)
+        // World-space movement: joystick maps directly to screen axes.
+        // With auto-aim the ship rotates to face enemies, so local-space
+        // strafe would make left/right depend on ship rotation — confusing.
+        // Screen right → +X world, screen up → -Z world (camera is at +Z).
         const jx = this.mobileMove.x;
-        const jz = this.mobileMove.z;
+        const jz = this.mobileMove.z; // jz < 0 = screen up = world -Z ✓
         const jLen = Math.sqrt(jx * jx + jz * jz);
         if (jLen > 0.01) {
-          // Forward vector = where the ship is facing (aimDir)
-          const fwdX = this.aimDirX;
-          const fwdZ = this.aimDirZ;
-          // Right vector = perpendicular to forward (CW rotation)
-          const rgtX = -fwdZ;
-          const rgtZ = fwdX;
-          // Convert local input to world-space acceleration
-          // -jz because joystick up (negative) = move forward
-          ax = fwdX * (-jz) + rgtX * jx;
-          az = fwdZ * (-jz) + rgtZ * jx;
+          ax = jx;
+          az = jz;
         }
       }
       // isAnchored → ax=0, az=0: ship stops receiving input
