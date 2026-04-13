@@ -7,6 +7,7 @@ import { generatePhotoToken } from '../../packages/server/src/photo-token.js';
 
 const REWARD_CONFIG: Record<string, { requiredAds: number }> = {
   quarks: { requiredAds: 3 },
+  research_data: { requiredAds: 2 },
   discovery_photo: { requiredAds: 3 },
   planet_photo: { requiredAds: 3 },
   panorama_photo: { requiredAds: 5 },
@@ -82,6 +83,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (rewardType === 'quarks') {
       await creditQuarks(auth.playerId, 5);
       amount = 5;
+    } else if (rewardType === 'research_data') {
+      amount = 10;
     } else if (['discovery_photo', 'planet_photo', 'panorama_photo'].includes(rewardType)) {
       amount = 1;
       const photoToken = generatePhotoToken(auth.playerId, rewardType);

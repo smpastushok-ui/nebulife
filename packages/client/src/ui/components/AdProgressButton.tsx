@@ -77,7 +77,7 @@ export function AdProgressButton({
 
     if (result.rewarded) {
       setRewarded(true);
-      onComplete(result.photoToken);
+      onComplete(result.photoToken ?? '');
     } else if (result.reason === 'no_fill') {
       setNoFill(true);
     } else if (result.reason === 'error') {

@@ -219,6 +219,7 @@ export function remainingAdsToday(): number {
 
 export type RewardType =
   | 'quarks'
+  | 'research_data'
   | 'discovery_photo'
   | 'planet_photo'
   | 'panorama_photo';
@@ -331,7 +332,7 @@ export function getAdProgress(rewardType: RewardType): number {
 // ---------------------------------------------------------------------------
 
 export type WatchAdsResult =
-  | { rewarded: true; photoToken: string }
+  | { rewarded: true; photoToken?: string; amount?: number }
   | { rewarded: false; reason: 'dismissed' | 'no_fill' | 'error' };
 
 /**
@@ -388,15 +389,21 @@ export async function watchAdsWithProgress(
       return { rewarded: false, reason: 'error' };
     }
 
-    const data = (await res.json()) as { rewarded: boolean; photoToken?: string };
+    const data = (await res.json()) as { rewarded: boolean; photoToken?: string; amount?: number };
 
-    if (!data.rewarded || !data.photoToken) {
+    if (!data.rewarded) {
+      return { rewarded: false, reason: 'error' };
+    }
+
+    // Photo reward types require a photoToken
+    const isPhotoType = rewardType === 'discovery_photo' || rewardType === 'planet_photo' || rewardType === 'panorama_photo';
+    if (isPhotoType && !data.photoToken) {
       return { rewarded: false, reason: 'error' };
     }
 
     // Clear progress only on confirmed success
     clearProgress(rewardType);
-    return { rewarded: true, photoToken: data.photoToken };
+    return { rewarded: true, photoToken: data.photoToken, amount: data.amount };
   } catch {
     return { rewarded: false, reason: 'error' };
   }
