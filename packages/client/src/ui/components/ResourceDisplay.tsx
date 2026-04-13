@@ -270,7 +270,7 @@ export function ResourceDisplay({
           onMouseLeave={() => setHoveredItem(null)}
         >
           <ResearchDataIcon />
-          <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{researchData}</span>
+          <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{Math.floor(researchData)}</span>
         </div>
         <div style={dividerStyle} />
 

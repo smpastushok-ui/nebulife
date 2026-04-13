@@ -171,6 +171,7 @@ interface SyncedGameState {
   home_planet_id: string;
   // Metadata
   synced_at: number;
+  last_regen_time?: number;
 }
 
 export interface GameState {
@@ -405,9 +406,19 @@ function AppInner() {
   });
 
   useEffect(() => {
-    try { localStorage.setItem('nebulife_research_data', String(researchData)); }
+    try { localStorage.setItem('nebulife_research_data', String(Math.floor(researchData))); }
     catch { /* ignore */ }
   }, [researchData]);
+
+  // ── Passive research data regen — 1/hour base rate for ALL players ──────
+  useEffect(() => {
+    const id = setInterval(() => {
+      const techBonus = getEffectValue(techTreeStateRef.current, 'research_data_regen', 0);
+      const ratePerMinute = (1 + techBonus) / 60; // base 1/hour + tech bonus
+      setResearchData(prev => prev + ratePerMinute); // float directly into state
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // ── Colony Tick State (passive building production) ────────────────────
   const [colonyState, setColonyState] = useState<PlanetColonyState | null>(() => {
@@ -1664,8 +1675,13 @@ function AppInner() {
       try { localStorage.setItem('nebulife_player_stats', JSON.stringify(gs.player_stats)); } catch { /* ignore */ }
     }
     if (typeof gs.research_data === 'number') {
-      setResearchData(gs.research_data);
-      try { localStorage.setItem('nebulife_research_data', String(gs.research_data)); } catch { /* ignore */ }
+      const lastRegenTime = gs.last_regen_time ?? Date.now();
+      const hoursOffline = (Date.now() - lastRegenTime) / 3_600_000;
+      const techBonus = getEffectValue(techTreeStateRef.current, 'research_data_regen', 0);
+      const offlineGain = Math.floor(hoursOffline * (1 + techBonus));
+      const loadedValue = gs.research_data + (offlineGain > 0 ? offlineGain : 0);
+      setResearchData(loadedValue);
+      try { localStorage.setItem('nebulife_research_data', String(Math.floor(loadedValue))); } catch { /* ignore */ }
     }
 
     // Colony
@@ -3723,7 +3739,8 @@ function AppInner() {
       level: playerLevel,
       research_state: researchState,
       player_stats: playerStats,
-      research_data: researchData,
+      research_data: Math.floor(researchData),
+      last_regen_time: Date.now(),
       colony_resources: colonyResources,
       chemical_inventory: chemicalInventory,
       exodus_phase: isExodusPhase,
