@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { put } from '@vercel/blob';
 import type { Language } from '@nebulife/core';
 
@@ -9,7 +9,7 @@ import type { Language } from '@nebulife/core';
 // Step 2: gemini-3.1-flash-image-preview generates 9:16 infographic images
 // ---------------------------------------------------------------------------
 
-const CORE_MODEL = 'gemini-2.5-flash';
+const CORE_MODEL = 'gemini-3.1-flash-lite-preview';
 const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
 // ---------------------------------------------------------------------------
@@ -99,6 +99,7 @@ export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
     model: CORE_MODEL,
     contents: prompt,
     config: {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
       tools: [{ googleSearch: {} }],
     },
   });

@@ -90,6 +90,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ processed: 1, lang, pageIndex, total: newCount });
   } catch (err) {
     console.error('[digest-images] Failed:', err);
-    return res.status(200).json({ processed: 0, error: err instanceof Error ? err.message : 'Unknown' });
+    return res.status(500).json({ processed: 0, error: err instanceof Error ? err.message : 'Unknown' });
   }
 }
