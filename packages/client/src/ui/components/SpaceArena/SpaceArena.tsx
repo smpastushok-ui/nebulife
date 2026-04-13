@@ -6,7 +6,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ArenaEngine } from '../../../game/arena/index.js';
 import type { ArenaCallbacks, MatchResult } from '../../../game/arena/index.js';
-import { ArenaJoystick } from './ArenaJoystick.js';
+import { ArenaLandscapeControls } from './ArenaLandscapeControls.js';
 import { ArenaTutorial, shouldShowArenaTutorial } from './ArenaTutorial.js';
 
 interface SpaceArenaProps {
@@ -61,11 +61,6 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     return () => clearTimeout(t);
   }, [isPortrait, mobile]);
 
-  // Keep engine in sync with CSS rotation state
-  useEffect(() => {
-    engineRef.current?.setNeedsRotate(mobile && isPortrait);
-  }, [isPortrait, mobile]);
-
   const callbacks = useRef<ArenaCallbacks>({
     onMatchEnd: (result) => onMatchEnd?.(result),
     onExit: () => onExit(),
@@ -76,7 +71,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     onPlayerRespawn: () => setIsDead(false),
   });
 
-  // Mobile joystick callbacks — coordinate conversion handled inside ArenaJoystick via needRotate
+  // Mobile joystick callbacks — coordinate conversion handled inside ArenaLandscapeControls via needRotate
   const handleMove = useCallback((x: number, y: number) => {
     engineRef.current?.setMobileMove(x, y);
   }, []);
@@ -188,7 +183,6 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     const engine = new ArenaEngine(containerRef.current, callbacks.current, shipId, teamMode);
     engineRef.current = engine;
     engine.setIsMobile(mobile);
-    engine.setNeedsRotate(mobile && window.innerHeight > window.innerWidth);
 
     engine.init().then(() => {
       setReady(true);
@@ -396,7 +390,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
 
       {/* Mobile joysticks */}
       {mobile && ready && (
-        <ArenaJoystick
+        <ArenaLandscapeControls
           onMove={handleMove}
           onAim={handleAim}
           onDash={handleDash}
@@ -404,7 +398,6 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           onGravPush={handleGravPush}
           missileAmmo={missileAmmo}
           warpReady={warpReady}
-          isWarping={isWarping}
           needRotate={needRotate}
         />
       )}

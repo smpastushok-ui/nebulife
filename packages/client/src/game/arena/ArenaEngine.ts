@@ -192,8 +192,10 @@ export class ArenaEngine {
   private mobileMove = { x: 0, z: 0 };
   private mobileAim = { x: 0, z: 0 };
   private mobileFiring = false;
-  private needsRotate = false; // true when CSS rotate(90deg) CW is applied to canvas
   private isMobile = false;
+
+  // Laser sight
+  private laserSight!: THREE.Line;
 
   // Game state
   private phase: MatchPhase = 'waiting';
@@ -207,7 +209,7 @@ export class ArenaEngine {
   // Player ship position for camera follow
   private playerPos = new THREE.Vector3(0, 0, 0);
 
-  // Input (set by ArenaControls)
+  // Input state
   private input: InputState = { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
 
   // Zoom
@@ -357,6 +359,11 @@ export class ArenaEngine {
 
     // Stop all audio loops
     stopAllLoops();
+
+    if (this.laserSight) {
+      this.laserSight.geometry.dispose();
+      (this.laserSight.material as THREE.Material).dispose();
+    }
   }
 
   setVisible(vis: boolean): void {
@@ -431,17 +438,6 @@ export class ArenaEngine {
 
   setIsMobile(mobile: boolean): void {
     this.isMobile = mobile;
-  }
-
-  /**
-   * Tell the engine whether the canvas has CSS rotate(90deg) CW applied.
-   * When true, physical pointer coordinates are transformed accordingly:
-   *   physical right (+jx) → world +Z (az = jx)
-   *   physical down  (+jz) → world −X (ax = −jz)
-   * When false (actual landscape): ax = jx, az = jz.
-   */
-  setNeedsRotate(value: boolean): void {
-    this.needsRotate = value;
   }
 
   // ── Match control ──────────────────────────────────────────────────────
@@ -630,6 +626,13 @@ export class ArenaEngine {
     this.playerMesh = new THREE.Mesh(geo, mat);
     this.playerMesh.position.set(0, 5, 0);
     this.scene.add(this.playerMesh);
+
+    // Laser sight — thin line from ship nose showing aim direction
+    const laserGeo = new THREE.BufferGeometry();
+    laserGeo.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0, 0,0,0], 3));
+    const laserMat = new THREE.LineBasicMaterial({ color: 0x44ff88, transparent: true, opacity: 0.3 });
+    this.laserSight = new THREE.Line(laserGeo, laserMat);
+    this.scene.add(this.laserSight);
 
     // Nickname label above ship
     const nickCanvas = document.createElement('canvas');
@@ -827,10 +830,11 @@ export class ArenaEngine {
 
     // Camera follows player with smooth damping + zoom
     _camTarget.set(this.playerPos.x, 0, this.playerPos.z);
+    const LOOK_AHEAD = 60;
     _tempVec3.set(
-      this.playerPos.x,
+      this.playerPos.x + this.aimDirX * LOOK_AHEAD,
       CAMERA_HEIGHT * this.zoomLevel,
-      this.playerPos.z + CAMERA_DISTANCE * this.zoomLevel,
+      this.playerPos.z + this.aimDirZ * LOOK_AHEAD + CAMERA_DISTANCE * this.zoomLevel,
     );
     this.camera.position.lerp(_tempVec3, CAMERA_LERP_SPEED);
     this.camera.lookAt(_camTarget);
@@ -839,26 +843,18 @@ export class ArenaEngine {
   // ── Player movement (WASD) ──────────────────────────────────────────────
 
   private updatePlayer(dt: number): void {
-    // Anchor mode: right joystick active on mobile → freeze movement
-    // Math.abs avoids sqrt and is immune to micro-drift on touch release
-    const isAnchored = this.isMobile &&
-      (Math.abs(this.mobileAim.x) > 0.1 || Math.abs(this.mobileAim.z) > 0.1);
-
     // Input: WASD (desktop) or mobile joystick
     let ax = 0, az = 0;
     if (this.isMobile) {
-      if (!isAnchored) {
-        const jx = this.mobileMove.x;
-        const jz = this.mobileMove.z;
-        const jLen = Math.sqrt(jx * jx + jz * jz);
-        if (jLen > 0.01) {
-          // Coordinate transform is applied in SpaceArena.tsx before setMobileMove.
-          // Engine always uses direct mapping.
-          ax = jx;
-          az = jz;
-        }
+      const jx = this.mobileMove.x;
+      const jz = this.mobileMove.z;
+      const jLen = Math.sqrt(jx * jx + jz * jz);
+      if (jLen > 0.01) {
+        // Coordinate transform is applied in SpaceArena.tsx before setMobileMove.
+        // Engine always uses direct mapping.
+        ax = jx;
+        az = jz;
       }
-      // isAnchored → ax=0, az=0: ship stops receiving input
     } else {
       if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
       if (this.keys.has('s') || this.keys.has('arrowdown'))  az += 1;
@@ -874,16 +870,23 @@ export class ArenaEngine {
     this.playerVelX += ax * SHIP_ACCELERATION * this.playerSpeedMult * dt;
     this.playerVelZ += az * SHIP_ACCELERATION * this.playerSpeedMult * dt;
 
-    // Drag — stronger when anchored for quick stop
-    const drag = isAnchored ? 0.82 : SHIP_DRAG;
+    // Drag
+    const drag = SHIP_DRAG;
     this.playerVelX *= drag;
     this.playerVelZ *= drag;
 
     // Warp: override velocity to forward direction at 2x speed (stacks with power-up)
     if (this.warpActive) {
       const warpSpeed = SHIP_MAX_SPEED * this.WARP_SPEED_MULT * this.playerSpeedMult;
-      this.playerVelX = this.aimDirX * warpSpeed;
-      this.playerVelZ = this.aimDirZ * warpSpeed;
+      // Twin-stick: warp in movement direction (left stick), fallback to aim direction
+      const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
+      if (this.isMobile && moveLen > 0.1) {
+        this.playerVelX = (this.mobileMove.x / moveLen) * warpSpeed;
+        this.playerVelZ = (this.mobileMove.z / moveLen) * warpSpeed;
+      } else {
+        this.playerVelX = this.aimDirX * warpSpeed;
+        this.playerVelZ = this.aimDirZ * warpSpeed;
+      }
     }
 
     // Clamp speed
@@ -945,49 +948,13 @@ export class ArenaEngine {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
-      // Deadzone check via Math.abs — immune to micro-drift on touch release
-      const isAnchored = Math.abs(this.mobileAim.x) > 0.1 || Math.abs(this.mobileAim.z) > 0.1;
-
-      if (isAnchored) {
-        // Manual aim: right joystick points where to shoot.
-        // Coordinate transform applied in SpaceArena before setMobileAim — direct mapping here.
-        const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
+      const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
+      if (aimLen > 0.1) {
+        // Right stick active → set aim direction directly
         this.aimDirX = this.mobileAim.x / aimLen;
         this.aimDirZ = this.mobileAim.z / aimLen;
-      } else {
-        // Auto-aim: find nearest alive enemy (all modes, not just teamMode)
-        const target = this.findNearestEnemy();
-        if (target) {
-          // Predictive aim: lead the target by bullet flight time
-          const dx = target.pos.x - this.playerPos.x;
-          const dz = target.pos.z - this.playerPos.z;
-          const dist = Math.sqrt(dx * dx + dz * dz);
-          const flightTime = dist / this.BULLET_SPEED;
-          const predX = target.pos.x + target.vel.x * flightTime - this.playerPos.x;
-          const predZ = target.pos.z + target.vel.z * flightTime - this.playerPos.z;
-          const predLen = Math.sqrt(predX * predX + predZ * predZ);
-          if (predLen > 1) {
-            // Smooth slerp toward predicted aim — dt*8 ≈ 0.13s full turn at 60fps
-            const tgtX = predX / predLen;
-            const tgtZ = predZ / predLen;
-            const t = Math.min(1, dt * 8);
-            this.aimDirX += (tgtX - this.aimDirX) * t;
-            this.aimDirZ += (tgtZ - this.aimDirZ) * t;
-            // Renormalize after lerp
-            const newLen = Math.sqrt(this.aimDirX ** 2 + this.aimDirZ ** 2);
-            if (newLen > 0.001) { this.aimDirX /= newLen; this.aimDirZ /= newLen; }
-          }
-        } else if (this.teamMode) {
-          // No enemy nearby in team mode → face movement direction
-          const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
-          if (moveLen > 0.1) {
-            // mobileMove is already pre-transformed by SpaceArena callbacks
-            this.aimDirX = this.mobileMove.x / moveLen;
-            this.aimDirZ = this.mobileMove.z / moveLen;
-          }
-        }
-        // Solo mode, no target → keep current aim direction (no change)
       }
+      // When right stick released: keep last aimDir (Last Angle Memory)
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;
       const dz = this.aimPoint.z - this.playerPos.z;
@@ -1010,21 +977,14 @@ export class ArenaEngine {
     const targetBank = Math.max(-0.3, Math.min(0.3, -angleDelta * 3));
     this.playerBankAngle += (targetBank - this.playerBankAngle) * Math.min(1, dt * 8);
     // Note: rotation.z doesn't work well with baked geo.rotateX — skip bank for now
-  }
 
-  // ── Auto-aim: find nearest alive enemy bot ─────────────────────────────
-
-  private findNearestEnemy(maxDist = 600): BotShip | null {
-    let best: BotShip | null = null;
-    let bestDist = maxDist;
-    for (const bot of this.botShips) {
-      if (!bot.alive || bot.hp <= 0 || bot.team === this.playerTeam) continue;
-      const dx = bot.pos.x - this.playerPos.x;
-      const dz = bot.pos.z - this.playerPos.z;
-      const d = Math.sqrt(dx * dx + dz * dz);
-      if (d < bestDist) { bestDist = d; best = bot; }
+    // Update laser sight line
+    if (this.laserSight) {
+      const pos = this.laserSight.geometry.attributes.position as THREE.BufferAttribute;
+      pos.setXYZ(0, this.playerPos.x + this.aimDirX * SHIP_RADIUS, 6, this.playerPos.z + this.aimDirZ * SHIP_RADIUS);
+      pos.setXYZ(1, this.playerPos.x + this.aimDirX * 400, 6, this.playerPos.z + this.aimDirZ * 400);
+      pos.needsUpdate = true;
     }
-    return best;
   }
 
   // ── Lock-on targeting ──────────────────────────────────────────────────
@@ -1084,22 +1044,6 @@ export class ArenaEngine {
     this.fireCooldownTimer = Math.max(0, this.fireCooldownTimer - dt);
 
     let isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
-
-    // Auto-fire: right stick idle + alive enemy within 600 units
-    if (this.isMobile && !isFiring) {
-      const isAnchored = Math.abs(this.mobileAim.x) > 0.1 || Math.abs(this.mobileAim.z) > 0.1;
-      if (!isAnchored) {
-        const target = this.findNearestEnemy();
-        // Validate target is still alive before auto-firing
-        if (target && target.alive && target.hp > 0) {
-          const dx = target.pos.x - this.playerPos.x;
-          const dz = target.pos.z - this.playerPos.z;
-          if (dx * dx + dz * dz < 600 * 600) {
-            isFiring = true;
-          }
-        }
-      }
-    }
 
     if (isFiring && this.fireCooldownTimer <= 0) {
       playSfx('arena-laser', 0.1);
@@ -1234,6 +1178,7 @@ export class ArenaEngine {
     this.respawnTimer = this.RESPAWN_TIME;
     this.playerMesh.visible = false;
     this.playerNickSprite.visible = false;
+    if (this.laserSight) this.laserSight.visible = false;
     // Clear all buffs on death
     this.playerBuffs = [];
     this.applyBuffEffects();
@@ -1261,6 +1206,7 @@ export class ArenaEngine {
       playLoop('fly', 0.0); // starts silent, volume tied to speed
       this.playerMesh.visible = true;
       this.playerNickSprite.visible = true;
+      if (this.laserSight) this.laserSight.visible = true;
     }
   }
 
