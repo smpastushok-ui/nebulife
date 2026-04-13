@@ -40,7 +40,7 @@ export const HOME_RESEARCH_MAX_RING = 2;
 
 // --- Research Data ---
 /** Starting research data charges for new players. */
-export const INITIAL_RESEARCH_DATA = 100;
+export const INITIAL_RESEARCH_DATA = 70;
 
 /** Cost in research data units per scan session. */
 export const RESEARCH_DATA_COST = 1;
