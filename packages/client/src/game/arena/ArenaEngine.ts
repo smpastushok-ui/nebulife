@@ -853,11 +853,11 @@ export class ArenaEngine {
         const jLen = Math.sqrt(jx * jx + jz * jz);
         if (jLen > 0.01) {
           if (this.needsRotate) {
-            // CSS rotate(90deg) CW applied to canvas:
-            //   physical right (+jx) → element DOWN → world +Z
-            //   physical down  (+jz) → element LEFT → world −X
-            ax = -jz;
-            az =  jx;
+            // CSS rotate(90deg) translateY(-100%) with transformOrigin top-left:
+            //   element RIGHT (+X) → physical DOWN (+jz) → world +X  ∴ ax = +jz
+            //   element UP    (-Y) → physical RIGHT (+jx) → world -Z  ∴ az = -jx
+            ax =  jz;
+            az = -jx;
           } else {
             // Device is actual landscape — no CSS transform:
             //   physical right → world +X,  physical down → world +Z
@@ -961,11 +961,12 @@ export class ArenaEngine {
         // Apply same physical→world transform as movement.
         const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
         if (this.needsRotate) {
-          // CSS rotate(90deg) CW: physical right→world +Z, physical down→world −X
-          this.aimDirX = -this.mobileAim.z / aimLen;
-          this.aimDirZ =  this.mobileAim.x / aimLen;
+          // Same transform as movement: element RIGHT→physical DOWN (jz), element UP→physical RIGHT (jx)
+          // aimDirX = world +X = +aim.z;  aimDirZ = world -Z = -aim.x
+          this.aimDirX =  this.mobileAim.z / aimLen;
+          this.aimDirZ = -this.mobileAim.x / aimLen;
         } else {
-          // Actual landscape: physical right→world +X, physical down→world +Z
+          // Actual landscape: direct mapping
           this.aimDirX = this.mobileAim.x / aimLen;
           this.aimDirZ = this.mobileAim.z / aimLen;
         }
@@ -997,8 +998,8 @@ export class ArenaEngine {
           const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
           if (moveLen > 0.1) {
             if (this.needsRotate) {
-              this.aimDirX = -this.mobileMove.z / moveLen;
-              this.aimDirZ =  this.mobileMove.x / moveLen;
+              this.aimDirX =  this.mobileMove.z / moveLen;
+              this.aimDirZ = -this.mobileMove.x / moveLen;
             } else {
               this.aimDirX = this.mobileMove.x / moveLen;
               this.aimDirZ = this.mobileMove.z / moveLen;
