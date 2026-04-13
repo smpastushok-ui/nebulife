@@ -1759,7 +1759,7 @@ export class ArenaEngine {
           this.playerSpeedMult *= 1.5;
           break;
         case 'DAMAGE_UP':
-          this.playerDamageMult = 1.5;
+          this.playerDamageMult = 2.0; // +100% damage
           this.playerLaserColor = 'red';
           break;
         case 'SLOW_LASER':
