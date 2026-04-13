@@ -12,18 +12,22 @@ export interface AstraMessage {
 export interface AstraResponse {
   text: string;
   tokensUsed: number;
+  /** Remaining free tokens. -1 means Pro (unlimited tokens). */
   tokensRemaining: number;
   limitReached: boolean;
+  isPro?: boolean;
+  proMsgsLimit?: number;
 }
 
 /**
  * Send a message to A.S.T.R.A. and get a response.
+ * Pass isPremium=true to skip token deduction (Pro subscribers).
  */
-export async function askAstra(message: string): Promise<AstraResponse> {
+export async function askAstra(message: string, isPremium?: boolean): Promise<AstraResponse> {
   const res = await authFetch('/api/ai/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, isPremium: isPremium === true }),
   });
 
   if (!res.ok) {

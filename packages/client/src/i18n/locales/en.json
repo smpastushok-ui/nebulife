@@ -999,7 +999,14 @@
     "reported": "Reported",
     "new_conversation": "New Conversation",
     "search_callsign": "Search by callsign...",
-    "no_results": "Nobody found"
+    "no_results": "Nobody found",
+    "pro_badge": "PRO",
+    "pro_messages_today": "{{count}}/50 messages",
+    "pro_daily_limit": "Daily limit reached. Resets tomorrow."
+  },
+
+  "premium": {
+    "daily_quarks": "+5 daily quarks"
   },
 
   "event": {

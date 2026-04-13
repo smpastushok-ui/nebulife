@@ -115,6 +115,20 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
   const [astraTokensRemaining, setAstraTokensRemaining] = useState<number | null>(null);
   const astraEndRef = useRef<HTMLDivElement>(null);
 
+  // Pro subscriber state
+  const isPremium = localStorage.getItem('nebulife_premium') === '1';
+  const PRO_DAILY_LIMIT = 50;
+
+  // Compute Pro daily message count from localStorage
+  const getProMsgsToday = (): number => {
+    const today = new Date().toISOString().slice(0, 10);
+    const savedDate = localStorage.getItem('nebulife_pro_msgs_date');
+    if (savedDate !== today) return 0;
+    return parseInt(localStorage.getItem('nebulife_pro_msgs_today') ?? '0', 10);
+  };
+  const [proMsgsToday, setProMsgsToday] = useState<number>(() => getProMsgsToday());
+  const proLimitReached = isPremium && proMsgsToday >= PRO_DAILY_LIMIT;
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -308,7 +322,17 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
   // A.S.T.R.A. send (with optimistic update for instant feedback)
   const handleAstraSend = async () => {
     const text = astraInput.trim();
-    if (!text || astraLoading || astraLimitReached) return;
+    // Block if: no text, loading, free limit reached, or pro daily limit reached
+    if (!text || astraLoading || astraLimitReached || proLimitReached) return;
+
+    // Pro: increment daily message counter before sending
+    if (isPremium) {
+      const today = new Date().toISOString().slice(0, 10);
+      const newCount = proMsgsToday + 1;
+      localStorage.setItem('nebulife_pro_msgs_today', String(newCount));
+      localStorage.setItem('nebulife_pro_msgs_date', today);
+      setProMsgsToday(newCount);
+    }
 
     setAstraInput('');
     setAstraLoading(true);
@@ -326,10 +350,13 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     setAstraMessages(prev => [...prev, userMsg]);
 
     try {
-      const resp = await askAstra(text);
-      setAstraTokensRemaining(resp.tokensRemaining);
-      if (resp.limitReached) {
-        setAstraLimitReached(true);
+      const resp = await askAstra(text, isPremium);
+      // For free users: track token remaining
+      if (!isPremium) {
+        setAstraTokensRemaining(resp.tokensRemaining);
+        if (resp.limitReached) {
+          setAstraLimitReached(true);
+        }
       }
       // Show Astra response immediately (optimistic)
       const astraMsg: MessageData = {
@@ -585,6 +612,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                   channel={activeChannel}
                   onReported={() => {}}
                   onAwardXP={onAwardXP}
+                  isOwnPremium={isPremium}
                 />
               ))}
               <div ref={messagesEndRef} />
@@ -811,8 +839,24 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
         {/* A.S.T.R.A. tab */}
         {tab === 'astra' && (
           <>
-            {/* Token counter */}
-            {astraTokensRemaining !== null && (
+            {/* Pro badge / token counter */}
+            {isPremium ? (
+              <div style={{
+                padding: '3px 12px',
+                borderBottom: '1px solid #223344',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 6,
+              }}>
+                <span style={{ color: '#7bb8ff', fontSize: 9, fontFamily: 'monospace', letterSpacing: 0.5 }}>
+                  PRO
+                </span>
+                <span style={{ color: proMsgsToday >= PRO_DAILY_LIMIT ? '#ff8844' : '#556677', fontSize: 9, fontFamily: 'monospace' }}>
+                  {t('chat.pro_messages_today', { count: proMsgsToday })}
+                </span>
+              </div>
+            ) : astraTokensRemaining !== null && (
               <div style={{
                 padding: '3px 12px',
                 borderBottom: '1px solid #223344',
@@ -887,7 +931,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
             </div>
 
             {/* Limit reached banner + charge options */}
-            {(astraLimitReached || astraChargeMsg) && (
+            {((!isPremium && (astraLimitReached || astraChargeMsg)) || proLimitReached) && (
               <div style={{
                 padding: '8px 12px',
                 borderTop: '1px solid #223344',
@@ -896,12 +940,19 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                 flexDirection: 'column',
                 gap: 6,
               }}>
-                {astraLimitReached && (
+                {/* Pro: daily limit reached */}
+                {isPremium && proLimitReached && (
+                  <span style={{ color: '#ff8844', fontSize: 10, fontFamily: 'monospace' }}>
+                    {t('chat.pro_daily_limit')}
+                  </span>
+                )}
+                {/* Free: token depleted */}
+                {!isPremium && astraLimitReached && (
                   <span style={{ color: '#ff8844', fontSize: 10, fontFamily: 'monospace' }}>
                     {t('chat.astra_depleted')}
                   </span>
                 )}
-                {astraChargeMsg && (
+                {!isPremium && astraChargeMsg && (
                   <span style={{
                     fontSize: 10,
                     fontFamily: 'monospace',
@@ -910,7 +961,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
                     {astraChargeMsg.text}
                   </span>
                 )}
-                {astraLimitReached && (
+                {!isPremium && astraLimitReached && (
                   <button
                     onClick={handleAstraTopup}
                     disabled={astraCharging}
@@ -939,41 +990,53 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
               display: 'flex',
               gap: 8,
             }}>
-              <input
-                value={astraInput}
-                onChange={(e) => setAstraInput(e.target.value)}
-                onKeyDown={handleAstraKeyDown}
-                placeholder={astraLimitReached ? t('chat.astra_placeholder_depleted') : t('chat.astra_placeholder')}
-                maxLength={1000}
-                disabled={astraLoading || astraLimitReached}
-                style={{
-                  flex: 1,
-                  background: 'rgba(20,30,45,0.8)',
-                  border: '1px solid #334455',
-                  borderRadius: 3,
-                  color: astraLimitReached ? '#556677' : '#aabbcc',
-                  fontFamily: 'monospace',
-                  fontSize: 11,
-                  padding: '6px 8px',
-                  outline: 'none',
-                }}
-              />
-              <button
-                onClick={handleAstraSend}
-                disabled={astraLoading || !astraInput.trim() || astraLimitReached}
-                style={{
-                  background: astraInput.trim() && !astraLoading && !astraLimitReached ? 'rgba(0,180,100,0.2)' : 'rgba(30,40,55,0.5)',
-                  border: `1px solid ${astraInput.trim() && !astraLoading && !astraLimitReached ? '#44ffaa' : '#334455'}`,
-                  borderRadius: 3,
-                  color: astraInput.trim() && !astraLoading && !astraLimitReached ? '#44ffaa' : '#556677',
-                  fontFamily: 'monospace',
-                  fontSize: 11,
-                  padding: '6px 12px',
-                  cursor: astraInput.trim() && !astraLoading && !astraLimitReached ? 'pointer' : 'default',
-                }}
-              >
-                {'>'}
-              </button>
+              {(() => {
+                const blocked = astraLoading || (isPremium ? proLimitReached : astraLimitReached);
+                const placeholderKey = (isPremium && proLimitReached)
+                  ? 'chat.pro_daily_limit'
+                  : astraLimitReached
+                    ? 'chat.astra_placeholder_depleted'
+                    : 'chat.astra_placeholder';
+                return (
+                  <>
+                    <input
+                      value={astraInput}
+                      onChange={(e) => setAstraInput(e.target.value)}
+                      onKeyDown={handleAstraKeyDown}
+                      placeholder={t(placeholderKey)}
+                      maxLength={1000}
+                      disabled={blocked}
+                      style={{
+                        flex: 1,
+                        background: 'rgba(20,30,45,0.8)',
+                        border: '1px solid #334455',
+                        borderRadius: 3,
+                        color: blocked ? '#556677' : '#aabbcc',
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        padding: '6px 8px',
+                        outline: 'none',
+                      }}
+                    />
+                    <button
+                      onClick={handleAstraSend}
+                      disabled={blocked || !astraInput.trim()}
+                      style={{
+                        background: astraInput.trim() && !blocked ? 'rgba(0,180,100,0.2)' : 'rgba(30,40,55,0.5)',
+                        border: `1px solid ${astraInput.trim() && !blocked ? '#44ffaa' : '#334455'}`,
+                        borderRadius: 3,
+                        color: astraInput.trim() && !blocked ? '#44ffaa' : '#556677',
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        padding: '6px 12px',
+                        cursor: astraInput.trim() && !blocked ? 'pointer' : 'default',
+                      }}
+                    >
+                      {'>'}
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           </>
         )}
@@ -993,6 +1056,26 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+// Pro subscriber atom badge
+function ProBadge() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#7bb8ff"
+      strokeWidth="1.5"
+      style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 3 }}
+    >
+      <circle cx="12" cy="12" r="2.5" fill="#7bb8ff" />
+      <ellipse cx="12" cy="12" rx="10" ry="4" />
+      <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)" />
+      <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)" />
+    </svg>
+  );
+}
 
 function TabButton({
   active,
@@ -1065,12 +1148,15 @@ function MessageItem({
   channel,
   onReported,
   onAwardXP,
+  isOwnPremium,
 }: {
   message: MessageData;
   isOwn: boolean;
   channel: string;
   onReported: () => void;
   onAwardXP?: (amount: number, reason: string) => void;
+  /** Whether the own player has a Pro subscription (to show badge on own messages) */
+  isOwnPremium?: boolean;
 }) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
@@ -1114,8 +1200,11 @@ function MessageItem({
           color: isOwn ? '#4488aa' : '#8899aa',
           fontSize: 10,
           fontWeight: 'bold',
+          display: 'inline-flex',
+          alignItems: 'center',
         }}>
           {isOwn ? t('chat.you_label') : message.sender_name}
+          {isOwn && isOwnPremium && <ProBadge />}
         </span>
         <span style={{ color: '#445566', fontSize: 9 }}>{time}</span>
 
