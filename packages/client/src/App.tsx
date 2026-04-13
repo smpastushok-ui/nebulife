@@ -1245,7 +1245,11 @@ function AppInner() {
   }, [clockPhase]);
 
   // Play alarm 3x when the countdown timer first becomes visible (after onboarding videos).
-  const alarmPlayedRef = useRef(false);
+  // Pre-mark as played if clock was already visible on mount (returning player / page refresh)
+  // so the alarm only fires during the actual first reveal animation, not on every page load.
+  const alarmPlayedRef = useRef(
+    (() => { try { return localStorage.getItem('nebulife_clock_revealed') === '1'; } catch { return false; } })()
+  );
   useEffect(() => {
     if (clockPhase !== 'visible' || alarmPlayedRef.current) return;
     alarmPlayedRef.current = true;
@@ -2585,6 +2589,7 @@ function AppInner() {
     if (state.selectedPlanet && state.selectedSystem) {
       const planet = state.selectedPlanet; // capture before engine fires onSceneChange
       const system = state.selectedSystem;
+      playSfx('go-to-exosphera', 1.0);
       engineRef.current?.showPlanetViewScene(system, planet, true);
       setState((prev) => ({
         ...prev,

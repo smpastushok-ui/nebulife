@@ -9,6 +9,7 @@ import {
   getAccumulatedYield,
   respawnTimeRemaining,
 } from './hex-utils';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 // Resource icons matching ResourceDisplay (top HUD)
 const COST_ICONS: Record<string, (s: number) => React.ReactElement> = {
@@ -377,6 +378,7 @@ export const HexSlot = React.memo(function HexSlot({
       if (isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour, slot.ring)) {
         const amount = slot.yieldPerHour ?? 1;
         setHarvestAnim(amount);
+        playSfx('harvest-all', 0.5);
         onHarvest(id);
         setTimeout(() => setHarvestAnim(null), 1200);
       }
