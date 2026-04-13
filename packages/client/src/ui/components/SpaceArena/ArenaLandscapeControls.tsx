@@ -145,32 +145,31 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         </div>
       </div>
 
-      {/* Ability buttons -- arc left of AIM zone, small transparent icons */}
-      {/* WARP — top */}
+      {/* Ability buttons -- small arc upper-left of AIM hint ring */}
+      {/* Positioned relative to right edge: AIM hint is at right:60, bottom:80 */}
+      {/* Arc: 3 buttons at ~10-11 o'clock around the AIM ring */}
       <button
-        style={{ ...styles.abilityBtn, bottom: `calc(190px + ${safeBottom})`, left: `calc(50% + 10px)`, opacity: warpReady ? 1 : 0.35 }}
+        style={{ ...styles.abilityBtn, bottom: `calc(175px + ${safeBottom})`, right: `calc(135px + ${safeRight})`, opacity: warpReady ? 1 : 0.3 }}
         onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
         </svg>
       </button>
-      {/* ROCKET — middle */}
       <button
-        style={{ ...styles.abilityBtn, bottom: `calc(135px + ${safeBottom})`, left: `calc(50% - 20px)`, opacity: missileAmmo > 0 ? 1 : 0.35 }}
+        style={{ ...styles.abilityBtn, bottom: `calc(145px + ${safeBottom})`, right: `calc(100px + ${safeRight})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
         onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 2L15 8L12 22L9 8Z" />
           <line x1="7" y1="12" x2="17" y2="12" />
         </svg>
       </button>
-      {/* GRAV — bottom */}
       <button
-        style={{ ...styles.abilityBtn, bottom: `calc(80px + ${safeBottom})`, left: `calc(50% + 10px)` }}
+        style={{ ...styles.abilityBtn, bottom: `calc(165px + ${safeBottom})`, right: `calc(65px + ${safeRight})` }}
         onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="4" />
           <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
         </svg>
@@ -224,9 +223,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   abilityBtn: {
     position: 'absolute' as const,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     background: 'transparent',
     border: '1.5px solid rgba(100, 140, 180, 0.25)',
     display: 'flex',
