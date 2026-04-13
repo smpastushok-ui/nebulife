@@ -981,6 +981,15 @@ function AppInner() {
   // themed ambient later. Also respect the user's on/off preference from
   // PlayerPage settings.
   //
+  // Telescope overlay state — declared before ambient effect that references it.
+  const [telescopeOverlay, setTelescopeOverlay] = useState<{
+    phase: 'init' | 'capture' | 'reveal';
+    targetName: string;
+    targetType: 'system' | 'planet';
+    photoUrl: string | null;
+    photoKey: string;
+  } | null>(null);
+
   // Only call pause() / resume() on actual state TRANSITIONS (tracked via
   // prevPausedRef) - not on every re-render. This prevents:
   //   a) resume() being called right after start() on initial mount
@@ -1305,14 +1314,7 @@ function AppInner() {
   const [systemPhotos, setSystemPhotos] = useState<Map<string, SystemPhotoData>>(new Map());
   const [systemMissions, setSystemMissions] = useState<Map<string, SystemMissionData>>(new Map());
 
-  // ── Telescope overlay state ───────────────────────────────────────────
-  const [telescopeOverlay, setTelescopeOverlay] = useState<{
-    phase: 'init' | 'capture' | 'reveal';
-    targetName: string;
-    targetType: 'system' | 'planet';
-    photoUrl: string | null;
-    photoKey: string;
-  } | null>(null);
+  // telescopeOverlay state moved above ambient effect (line ~985)
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // ── Digest modal state ──────────────────────────────────────────────
