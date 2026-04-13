@@ -406,7 +406,7 @@ function AppInner() {
   });
 
   useEffect(() => {
-    try { localStorage.setItem('nebulife_research_data', String(Math.floor(researchData))); }
+    try { localStorage.setItem('nebulife_research_data', String(researchData)); }
     catch { /* ignore */ }
   }, [researchData]);
 
@@ -1679,9 +1679,12 @@ function AppInner() {
       const hoursOffline = (Date.now() - lastRegenTime) / 3_600_000;
       const techBonus = getEffectValue(techTreeStateRef.current, 'research_data_regen', 0);
       const offlineGain = Math.floor(hoursOffline * (1 + techBonus));
-      const loadedValue = gs.research_data + (offlineGain > 0 ? offlineGain : 0);
+      const serverValue = gs.research_data + (offlineGain > 0 ? offlineGain : 0);
+      // Keep the higher of localStorage float (has fractional progress) or server + offline
+      const localSaved = parseFloat(localStorage.getItem('nebulife_research_data') ?? '0');
+      const loadedValue = Math.max(serverValue, localSaved);
       setResearchData(loadedValue);
-      try { localStorage.setItem('nebulife_research_data', String(Math.floor(loadedValue))); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_research_data', String(loadedValue)); } catch { /* ignore */ }
     }
 
     // Colony
