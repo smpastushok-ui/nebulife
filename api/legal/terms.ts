@@ -183,7 +183,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     <div class="contact">
       <p><strong>Contact</strong></p>
       <p>For questions about these Terms or to report violations:</p>
-      <p><a href="mailto:nebulife.game@gmail.com">nebulife.game@gmail.com</a></p>
+      <p><a href="mailto:woodoo.ukraine@gmail.com">woodoo.ukraine@gmail.com</a></p>
     </div>
   </div>
 </body>
