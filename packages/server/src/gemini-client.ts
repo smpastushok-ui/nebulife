@@ -209,7 +209,7 @@ export async function chatWithAstra(
       config: {
         systemInstruction: lang === 'en'
           ? ASTRA_SYSTEM_PROMPT + '\n\nCRITICAL: The player uses ENGLISH interface. You MUST respond in English. Address the player as "Commander".'
-          : ASTRA_SYSTEM_PROMPT,
+          : ASTRA_SYSTEM_PROMPT + '\n\nКРИТИЧНО: Гравець використовує українську мову. Ти ЗАВЖДИ відповідаєш ТІЛЬКИ УКРАЇНСЬКОЮ мовою. Звертайся до гравця "Командоре".',
         thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
       },
     });

@@ -991,7 +991,7 @@ function AppInner() {
   useEffect(() => {
     const ambient = ambientRef.current;
     if (!ambient) return;
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || needsOnboarding;
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || needsOnboarding || !!telescopeOverlay;
     const wasPaused = prevAmbientPausedRef.current;
     if (shouldPause && !wasPaused) {
       ambient.pause();
@@ -999,7 +999,7 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, needsOnboarding]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, needsOnboarding, telescopeOverlay]);
 
   // Retain last planet context so colony tick can run passively when surface is closed.
   useEffect(() => {
@@ -1017,6 +1017,17 @@ function AppInner() {
   }, [surfaceTarget]);
 
   // Terminal ambient loop removed — no background music in Cosmic Archive.
+
+  // Play quantum-focusing loop during telescope overlay init/capture phases (stops when photo arrives).
+  useEffect(() => {
+    const phase = telescopeOverlay?.phase;
+    if (phase === 'init' || phase === 'capture') {
+      playLoop('terminal-loop', 0.5);
+    } else {
+      stopLoop('terminal-loop');
+    }
+    return () => stopLoop('terminal-loop');
+  }, [telescopeOverlay?.phase]);
 
   // Play before_trailers music during onboarding, before first cinematic video starts.
   useEffect(() => {
@@ -3583,14 +3594,16 @@ function AppInner() {
           for (const nd of newlyResearched) {
             addLogEntry('system', t('app.log.tech_integrated').replace('{name}', nd.name));
           }
-          // Show only ONE toast for the last researched tech (avoid 5+ stacked toasts)
-          const last = newlyResearched[newlyResearched.length - 1];
-          setPendingResearchToasts((q) => [...q, {
-            id:       Math.random().toString(36).slice(2),
-            techId:   last.id,
-            techName: last.name,
-            branch:   last.branch as ResearchToastItem['branch'],
-          }]);
+          // Show a toast for every newly researched tech (queued, one at a time via ResearchToast)
+          setPendingResearchToasts((q) => [
+            ...q,
+            ...newlyResearched.map(nd => ({
+              id:       Math.random().toString(36).slice(2),
+              techId:   nd.id,
+              techName: nd.name,
+              branch:   nd.branch as ResearchToastItem['branch'],
+            })),
+          ]);
           // Expand research slots if observatory/concurrent effects gained
           const extraSlots =
             getEffectValue(currentTech, 'observatory_count_add', 0) +
