@@ -821,7 +821,9 @@ export class ArenaEngine {
       CAMERA_HEIGHT * this.zoomLevel,
       this.playerPos.z + CAMERA_DISTANCE * this.zoomLevel,
     );
-    this.camera.position.lerp(_tempVec3, CAMERA_LERP_SPEED);
+    // Frame-rate independent lerp: consistent smoothing regardless of FPS
+    const lerpT = 1 - Math.pow(1 - CAMERA_LERP_SPEED, dt * 60);
+    this.camera.position.lerp(_tempVec3, lerpT);
     this.camera.lookAt(_camTarget);
   }
 

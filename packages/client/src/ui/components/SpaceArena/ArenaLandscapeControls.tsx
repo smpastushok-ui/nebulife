@@ -157,7 +157,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       </button>
       {/* ROCKET -- 3 o'clock (right of ring) */}
       <button
-        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(30px + ${safeRight})`, bottom: `calc(125px + ${safeBottom})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
+        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(18px + ${safeRight})`, bottom: `calc(125px + ${safeBottom})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
         onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
