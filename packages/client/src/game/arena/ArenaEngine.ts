@@ -3184,10 +3184,14 @@ export class ArenaEngine {
     if (!bot || !bot.alive) return null;
     _projVec.set(bot.pos.x, 5, bot.pos.z);
     _projVec.project(this.camera);
-    const rect = this._cachedRect ?? (this._cachedRect = this.renderer.domElement.getBoundingClientRect());
+    // Use clientWidth/clientHeight (pre-CSS-transform dimensions) — NOT getBoundingClientRect
+    // which returns post-rotation sizes. The lock-on indicator div is inside the same
+    // CSS-rotated container, so coordinates must be in pre-transform space.
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
     return {
-      x: (_projVec.x * 0.5 + 0.5) * rect.width + rect.left,
-      y: (-_projVec.y * 0.5 + 0.5) * rect.height + rect.top,
+      x: (_projVec.x * 0.5 + 0.5) * w,
+      y: (-_projVec.y * 0.5 + 0.5) * h,
     };
   }
 }
