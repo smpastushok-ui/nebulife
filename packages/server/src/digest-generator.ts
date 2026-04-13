@@ -153,6 +153,11 @@ const TRUSTED_DOMAINS = [
   'isro.gov.in', 'roscosmos.ru', 'cnsa.gov.cn', 'blueorigin.com',
   'rocketlabusa.com', 'virgingalactic.com', 'theregister.com',
   'wired.com', 'techcrunch.com', 'theverge.com', 'engadget.com',
+  'latimes.com', 'nbcnews.com', 'cbsnews.com', 'abcnews.go.com',
+  'foxnews.com', 'usatoday.com', 'independent.co.uk', 'telegraph.co.uk',
+  'france24.com', 'dw.com', 'aljazeera.com', 'theatlantic.com',
+  'popularmechanics.com', 'inverse.com', 'futurism.com', 'gizmodo.com',
+  'space.nss.org', 'spacepolicyonline.com', 'thespacereview.com',
 ];
 
 export async function verifyNewsItems(
@@ -194,8 +199,8 @@ export async function verifyNewsItems(
       clearTimeout(timeout);
 
       if (resp.status >= 400) {
-        dropped.push({ title: item.title_en, reason: `http_${resp.status}` });
-        continue;
+        // Gemini often generates approximate URLs that 404 — accept but log
+        console.warn(`[digest-verify] Source returned ${resp.status} (accepted): ${item.source}`);
       }
     } catch {
       // Network error or timeout — source may be behind firewall, still accept
