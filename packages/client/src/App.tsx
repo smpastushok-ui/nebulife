@@ -5295,6 +5295,7 @@ function AppInner() {
         <ResourceDescriptionModal
           resource={showResourceModal}
           onClose={() => setShowResourceModal(null)}
+          colonyState={colonyState}
         />
       )}
 

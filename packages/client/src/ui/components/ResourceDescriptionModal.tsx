@@ -5,6 +5,8 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import type { PlanetColonyState } from '@nebulife/core';
+import { BUILDING_DEFS } from '@nebulife/core';
 
 export type ResourceType = 'observatories' | 'research_data' | 'minerals' | 'volatiles' | 'isotopes' | 'quarks' | 'water';
 
@@ -97,12 +99,47 @@ const ELEMENTS_EN: Record<ResourceType, Element[]> = {
 interface ResourceDescriptionModalProps {
   resource: ResourceType;
   onClose: () => void;
+  colonyState?: PlanetColonyState | null;
 }
 
-export function ResourceDescriptionModal({ resource, onClose }: ResourceDescriptionModalProps) {
+export function ResourceDescriptionModal({ resource, onClose, colonyState }: ResourceDescriptionModalProps) {
   const { t, i18n } = useTranslation();
   const isEn = i18n.language === 'en';
   const elements = (isEn ? ELEMENTS_EN : ELEMENTS)[resource];
+
+  // Compute building RD production rates
+  const buildingRates: { name: string; count: number; ratePerHour: number; shutdown: number }[] = [];
+  if (resource === 'research_data' && colonyState?.buildings) {
+    const groups: Record<string, { count: number; shutdown: number }> = {};
+    for (const b of colonyState.buildings) {
+      const def = BUILDING_DEFS[b.type as keyof typeof BUILDING_DEFS];
+      if (!def) continue;
+      const rdProd = def.production.find(p => p.resource === 'researchData');
+      if (!rdProd) continue;
+      if (!groups[b.type]) groups[b.type] = { count: 0, shutdown: 0 };
+      groups[b.type].count++;
+      if (b.shutdown) groups[b.type].shutdown++;
+    }
+    for (const [type, g] of Object.entries(groups)) {
+      const def = BUILDING_DEFS[type as keyof typeof BUILDING_DEFS];
+      const rdProd = def.production.find(p => p.resource === 'researchData');
+      if (!rdProd) continue;
+      // amount is per tick (60s), so per hour = amount * 60
+      const ratePerHour = rdProd.amount * 60;
+      const displayName = isEn
+        ? type.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())
+        : def.name;
+      buildingRates.push({
+        name: displayName,
+        count: g.count,
+        ratePerHour: ratePerHour * (g.count - g.shutdown),
+        shutdown: g.shutdown,
+      });
+    }
+  }
+  const passiveRate = 1; // 1 RD/hour base for all players
+  const totalPerHour = buildingRates.reduce((s, b) => s + b.ratePerHour, 0) + passiveRate;
+  const totalPerMin = totalPerHour / 60;
 
   const name = t(`resource_display.desc.${resource}_name`);
   const desc = t(`resource_display.desc.${resource}_desc`);
@@ -197,6 +234,44 @@ export function ResourceDescriptionModal({ resource, onClose }: ResourceDescript
               ))}
             </div>
           </>
+        )}
+
+        {/* Production section — only for research_data */}
+        {resource === 'research_data' && (
+          <div style={{ borderTop: '1px solid #223344', marginTop: 14, paddingTop: 10 }}>
+            <p style={{ margin: '0 0 8px', fontSize: 10, color: '#556677', letterSpacing: 2, textTransform: 'uppercase' }}>
+              {isEn ? 'Production' : 'Виробництво'}
+            </p>
+
+            {/* Passive regen */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#667788', marginBottom: 3 }}>
+              <span>{isEn ? 'Passive regen' : 'Пасивний реген'}</span>
+              <span style={{ color: '#4488aa' }}>+{passiveRate}/{isEn ? 'hr' : 'год'}</span>
+            </div>
+
+            {/* Building rates */}
+            {buildingRates.map((b, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#667788', marginBottom: 3 }}>
+                <span>
+                  {b.name} x{b.count}
+                  {b.shutdown > 0 && <span style={{ color: '#cc4444', fontSize: 8 }}> ({b.shutdown} off)</span>}
+                </span>
+                <span style={{ color: b.shutdown === b.count ? '#cc4444' : '#4488aa' }}>
+                  +{b.ratePerHour.toFixed(1)}/{isEn ? 'hr' : 'год'}
+                </span>
+              </div>
+            ))}
+
+            {/* Totals */}
+            <div style={{ borderTop: '1px solid #223344', marginTop: 6, paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#aabbcc' }}>
+              <span style={{ fontWeight: 'bold' }}>{isEn ? 'Total' : 'Всього'}</span>
+              <span>
+                <span style={{ color: '#44ff88' }}>+{totalPerMin.toFixed(2)}/{isEn ? 'min' : 'хв'}</span>
+                <span style={{ color: '#556677', margin: '0 4px' }}>|</span>
+                <span style={{ color: '#44ff88' }}>+{totalPerHour.toFixed(1)}/{isEn ? 'hr' : 'год'}</span>
+              </span>
+            </div>
+          </div>
         )}
       </div>
     </>
