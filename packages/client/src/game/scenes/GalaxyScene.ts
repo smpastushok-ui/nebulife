@@ -973,6 +973,14 @@ export class GalaxyScene {
     }
     this.prevProgress.set(systemId, prog);
 
+    // Always keep research label in sync regardless of state
+    // (fixes stale % after session completes when state transitions to 'unexplored')
+    if (this.researchLabelsEnabled && node.researchLabel) {
+      const isFull = prog >= 100;
+      node.researchLabel.text = isFull ? '◉' : prog > 0 ? `${Math.round(prog)}%` : '·';
+      node.researchLabel.style.fill = isFull ? 0x44ff88 : prog > 0 ? 0x8899aa : 0x3a4d5a;
+    }
+
     if (state === 'researching') {
       node.starState = 'researching';
       node.baseAlpha = 0.75 + (prog / 100) * 0.25;
@@ -987,11 +995,6 @@ export class GalaxyScene {
         node.atomOrbit = new Graphics();
         node.container.addChild(node.atomOrbit);
       }
-
-      // Keep research label in sync
-      if (this.researchLabelsEnabled && node.researchLabel) {
-        node.researchLabel.text = `${Math.round(prog)}%`;
-      }
     }
 
     if (state === 'researched') {
@@ -1005,11 +1008,6 @@ export class GalaxyScene {
       if (!this.completedSystems.has(systemId)) {
         this.completedSystems.add(systemId);
         this.spawnCompletionLabel(node);
-      }
-      // Update research mode label to eye symbol
-      if (this.researchLabelsEnabled && node.researchLabel) {
-        node.researchLabel.text = '◉';
-        node.researchLabel.style.fill = 0x44ff88;
       }
     }
   }
