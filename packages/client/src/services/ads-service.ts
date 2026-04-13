@@ -7,9 +7,9 @@ import { AdMob, RewardAdPluginEvents, RewardAdOptions, AdmobConsentStatus } from
 import { authFetch } from '../auth/api-client.js';
 import { interstitialManager } from './interstitial-manager.js';
 
-// Ad Unit IDs (iOS: test, Android: production)
+// Ad Unit IDs (production)
 const REWARDED_AD_UNIT_ID = Capacitor.getPlatform() === 'ios'
-  ? 'ca-app-pub-3940256099942544/1712485313'  // iOS test (replace with production)
+  ? 'ca-app-pub-3504252081237345/1351147285'  // iOS production
   : 'ca-app-pub-3504252081237345/3685454552';  // Android production
 
 const DAILY_LIMIT = 10;
