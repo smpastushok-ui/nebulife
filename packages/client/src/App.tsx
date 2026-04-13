@@ -897,6 +897,11 @@ function AppInner() {
     if (sys && planet) {
       engine.updateHomeSystem(pending.systemId, pending.planetId);
       setHomeInfo({ system: sys, planet });
+      // Keep colonyPlanetRef in sync when home planet changes (cross-device evacuation sync).
+      // Only update if the player hasn't opened the surface yet (surfaceTarget takes priority).
+      if (!surfaceTargetRef.current) {
+        colonyPlanetRef.current = { planet, star: sys.star };
+      }
       pendingHomeRef.current = null;
     }
   }, [serverHydrated, homeInfo]);
@@ -2277,6 +2282,11 @@ function AppInner() {
         const homePlanet = homeSystem.planets.find(p => p.isHomePlanet) ?? homeSystem.planets[0];
         if (homePlanet) {
           setHomeInfo({ system: homeSystem, planet: homePlanet });
+          // Initialize colonyPlanetRef so colony tick can produce resources immediately
+          // without requiring the player to visit the surface first.
+          if (!colonyPlanetRef.current) {
+            colonyPlanetRef.current = { planet: homePlanet, star: homeSystem.star };
+          }
         }
       }
 
