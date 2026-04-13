@@ -5,6 +5,7 @@
 import { Capacitor } from '@capacitor/core';
 import { AdMob, RewardAdPluginEvents, RewardAdOptions, AdmobConsentStatus } from '@capacitor-community/admob';
 import { authFetch } from '../auth/api-client.js';
+import { interstitialManager } from './interstitial-manager.js';
 
 // Test Ad Unit IDs (replace with real ones from AdMob dashboard)
 const REWARDED_AD_UNIT_ID = Capacitor.getPlatform() === 'ios'
@@ -60,6 +61,9 @@ export async function initAds(): Promise<void> {
   });
 
   initialized = true;
+
+  // Preload the first interstitial ad so it's ready when needed
+  interstitialManager.prepareNext();
 }
 
 // ---------------------------------------------------------------------------

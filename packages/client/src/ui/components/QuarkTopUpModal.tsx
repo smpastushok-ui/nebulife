@@ -5,9 +5,12 @@ import {
   isNativeIAP,
   fetchIAPPackages,
   purchaseQuarkPack,
+  checkPremiumStatus,
+  purchasePremium,
   type IAPPackage,
 } from '../../api/iap-service.js';
 import { watchAdsWithProgress, canShowAd } from '../../services/ads-service.js';
+import { interstitialManager } from '../../services/interstitial-manager.js';
 
 const PRESETS = [50, 100, 200, 500];
 
@@ -119,6 +122,8 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
   const [purchasing, setPurchasing] = useState<string | null>(null); // identifier of package being purchased
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [isPremiumActive, setIsPremiumActive] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
 
   // Ads reward state
   const [adsProgress, setAdsProgress] = useState(0); // 0-3
@@ -128,6 +133,11 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
     fetchIAPPackages()
       .then(pkgs => setPackages(pkgs))
       .finally(() => setLoadingPkgs(false));
+    // Check premium status when modal opens
+    checkPremiumStatus().then(status => {
+      setIsPremiumActive(status.active);
+      interstitialManager.setPremium(status.active);
+    });
   }, []);
 
   const handleBuy = async (pkg: IAPPackage) => {
@@ -147,6 +157,24 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
       }
     } finally {
       setPurchasing(null);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    if (subscribing || isPremiumActive || !!purchasing) return;
+    setSubscribing(true);
+    setMessage(null);
+    try {
+      const result = await purchasePremium();
+      if (result.success) {
+        setIsPremiumActive(true);
+        interstitialManager.setPremium(true);
+        setMessage({ text: t('premium.active'), ok: true });
+      } else if (result.error !== 'cancelled') {
+        setMessage({ text: t('topup.iap_error'), ok: false });
+      }
+    } finally {
+      setSubscribing(false);
     }
   };
 
@@ -207,6 +235,51 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
         </div>
         <div style={styles.balance}>
           {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} <QuarkIcon /></span>
+        </div>
+
+        {/* Premium subscription section */}
+        <div style={{
+          marginBottom: 16,
+          padding: '14px 16px',
+          borderRadius: 4,
+          border: `1px solid ${isPremiumActive ? 'rgba(68,255,136,0.4)' : '#4488aa'}`,
+          background: isPremiumActive ? 'rgba(68,255,136,0.06)' : 'rgba(68,136,170,0.08)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isPremiumActive ? 0 : 8 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'monospace', color: isPremiumActive ? '#44ff88' : '#7bb8ff', marginBottom: 2 }}>
+                {t('premium.title')}
+              </div>
+              <div style={{ fontSize: 11, color: '#8899aa', fontFamily: 'monospace' }}>
+                {t('premium.no_ads')}
+              </div>
+            </div>
+            {isPremiumActive ? (
+              <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#44ff88', fontWeight: 600 }}>
+                {t('premium.active')}
+              </div>
+            ) : (
+              <button
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 3,
+                  border: '1px solid #4488aa',
+                  background: subscribing ? 'rgba(68,136,170,0.3)' : 'rgba(68,136,170,0.18)',
+                  color: '#7bb8ff',
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: subscribing || !!purchasing ? 'default' : 'pointer',
+                  opacity: subscribing || !!purchasing ? 0.6 : 1,
+                  whiteSpace: 'nowrap' as const,
+                }}
+                onClick={handleSubscribe}
+                disabled={subscribing || !!purchasing}
+              >
+                {subscribing ? '...' : t('premium.subscribe')}
+              </button>
+            )}
+          </div>
         </div>
 
         {loadingPkgs ? (

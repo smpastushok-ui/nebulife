@@ -1020,5 +1020,13 @@
     "quantum_complete": "Квантовий синтез {{planet}} завершено",
     "level_up": "Рiвень пiдвищено до {{level}}!",
     "rename_system": "Нова назва системи:"
+  },
+
+  "premium": {
+    "title": "Premium",
+    "no_ads": "Без реклами",
+    "subscribe": "Підписатись",
+    "active": "Premium активний",
+    "monthly": "{{price}}/місяць"
   }
 }

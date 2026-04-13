@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { DailyLesson } from '../../../api/academy-api.js';
 import { answerQuiz } from '../../../api/academy-api.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
+import { interstitialManager } from '../../../services/interstitial-manager.js';
 
 function QuarksIcon() {
   return (
@@ -77,6 +78,7 @@ export function QuizView({ lesson, onRefresh, onAwardXP }: QuizViewProps) {
         setTimeout(() => setShowXP(false), 2000);
       }
       onRefresh();
+      interstitialManager.tryShow();
     } catch (err) {
       console.error('Quiz answer error:', err);
     } finally {

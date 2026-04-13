@@ -1022,5 +1022,13 @@
     "quantum_complete": "Quantum synthesis of {{planet}} complete",
     "level_up": "Level up to {{level}}!",
     "rename_system": "New system name:"
+  },
+
+  "premium": {
+    "title": "Premium",
+    "no_ads": "No ads",
+    "subscribe": "Subscribe",
+    "active": "Premium active",
+    "monthly": "{{price}}/month"
   }
 }

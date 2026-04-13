@@ -23,6 +23,7 @@ import { authFetch } from '../auth/api-client.js';
 // ---------------------------------------------------------------------------
 const REVENUECAT_IOS_KEY = 'appl_REPLACE_WITH_IOS_KEY';
 const REVENUECAT_ANDROID_KEY = 'goog_REPLACE_WITH_ANDROID_KEY';
+const PREMIUM_PRODUCT_ID = 'nebulife_premium_monthly';
 
 /** True when running as a native iOS or Android app (not web/browser). */
 export function isNativeIAP(): boolean {
@@ -94,6 +95,8 @@ export async function initIAP(userId: string): Promise<void> {
   } catch (err) {
     console.warn('[IAP] Could not initialize RevenueCat:', err);
   }
+  // Check and cache premium status after SDK init
+  await checkPremiumStatus();
 }
 
 /** Fetch available quark packs from RevenueCat (or fall back to static list). */
@@ -119,6 +122,69 @@ export async function fetchIAPPackages(): Promise<IAPPackage[]> {
   } catch (err) {
     console.warn('[IAP] fetchIAPPackages error, using fallback:', err);
     return FALLBACK_IAP_PACKAGES;
+  }
+}
+
+export interface PremiumStatus {
+  active: boolean;
+  /** Localized price string for the premium subscription, if available */
+  priceString?: string;
+}
+
+/**
+ * Check whether the player has an active premium subscription.
+ * First checks RevenueCat entitlements, falls back to localStorage flag
+ * `nebulife_premium` for dev/testing purposes.
+ */
+export async function checkPremiumStatus(): Promise<PremiumStatus> {
+  // localStorage fallback (dev / non-native)
+  if (!isNativeIAP()) {
+    const flag = localStorage.getItem('nebulife_premium');
+    return { active: flag === '1' };
+  }
+  try {
+    const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    const { customerInfo } = await Purchases.getCustomerInfo();
+    const active = !!customerInfo.entitlements.active['premium'];
+    return { active };
+  } catch (err) {
+    console.warn('[IAP] checkPremiumStatus error:', err);
+    const flag = localStorage.getItem('nebulife_premium');
+    return { active: flag === '1' };
+  }
+}
+
+/**
+ * Purchase the premium subscription package via RevenueCat.
+ * Finds the package with product ID `nebulife_premium_monthly` in the current offering.
+ */
+export async function purchasePremium(): Promise<{ success: boolean; error?: string }> {
+  if (!isNativeIAP()) {
+    return { success: false, error: 'Not on native platform' };
+  }
+  try {
+    const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    const offerings = await Purchases.getOfferings();
+    const current = offerings.current;
+    if (!current) throw new Error('No offerings');
+
+    const pkg = current.availablePackages.find(
+      p => p.product.identifier === PREMIUM_PRODUCT_ID,
+    );
+    if (!pkg) throw new Error(`Premium package "${PREMIUM_PRODUCT_ID}" not found in offering`);
+
+    await Purchases.purchasePackage({ aPackage: pkg });
+    return { success: true };
+  } catch (err: unknown) {
+    const errCode = (err as { code?: string })?.code;
+    if (errCode === '1') {
+      return { success: false, error: 'cancelled' };
+    }
+    if ((err as { userCancelled?: boolean })?.userCancelled === true) {
+      return { success: false, error: 'cancelled' };
+    }
+    console.error('[IAP] purchasePremium error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
 
