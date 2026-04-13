@@ -61,6 +61,11 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     return () => clearTimeout(t);
   }, [isPortrait, mobile]);
 
+  // Keep engine in sync with CSS rotation state
+  useEffect(() => {
+    engineRef.current?.setNeedsRotate(mobile && isPortrait);
+  }, [isPortrait, mobile]);
+
   const callbacks = useRef<ArenaCallbacks>({
     onMatchEnd: (result) => onMatchEnd?.(result),
     onExit: () => onExit(),
@@ -183,6 +188,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     const engine = new ArenaEngine(containerRef.current, callbacks.current, shipId, teamMode);
     engineRef.current = engine;
     engine.setIsMobile(mobile);
+    engine.setNeedsRotate(mobile && window.innerHeight > window.innerWidth);
 
     engine.init().then(() => {
       setReady(true);

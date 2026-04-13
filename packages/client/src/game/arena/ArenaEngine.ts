@@ -192,6 +192,7 @@ export class ArenaEngine {
   private mobileMove = { x: 0, z: 0 };
   private mobileAim = { x: 0, z: 0 };
   private mobileFiring = false;
+  private needsRotate = false; // true when CSS rotate(90deg) CW is applied to canvas
   private isMobile = false;
 
   // Game state
@@ -430,6 +431,17 @@ export class ArenaEngine {
 
   setIsMobile(mobile: boolean): void {
     this.isMobile = mobile;
+  }
+
+  /**
+   * Tell the engine whether the canvas has CSS rotate(90deg) CW applied.
+   * When true, physical pointer coordinates are transformed accordingly:
+   *   physical right (+jx) → world +Z (az = jx)
+   *   physical down  (+jz) → world −X (ax = −jz)
+   * When false (actual landscape): ax = jx, az = jz.
+   */
+  setNeedsRotate(value: boolean): void {
+    this.needsRotate = value;
   }
 
   // ── Match control ──────────────────────────────────────────────────────
@@ -836,18 +848,22 @@ export class ArenaEngine {
     let ax = 0, az = 0;
     if (this.isMobile) {
       if (!isAnchored) {
-        // World-space movement for CSS rotate(90deg) landscape.
-        // Container rotated 90° CW: physical down(+dy) = visual right,
-        // physical right(+dx) = visual down.
-        // Visual right = world -Z, visual up = world -X.
-        // ax = jx (physical right = visual down = world +X ✓)
-        // az = -jz (physical down = visual right = world -Z ✓)
         const jx = this.mobileMove.x;
         const jz = this.mobileMove.z;
         const jLen = Math.sqrt(jx * jx + jz * jz);
         if (jLen > 0.01) {
-          ax = jx;
-          az = -jz;
+          if (this.needsRotate) {
+            // CSS rotate(90deg) CW applied to canvas:
+            //   physical right (+jx) → element DOWN → world +Z
+            //   physical down  (+jz) → element LEFT → world −X
+            ax = -jz;
+            az =  jx;
+          } else {
+            // Device is actual landscape — no CSS transform:
+            //   physical right → world +X,  physical down → world +Z
+            ax = jx;
+            az = jz;
+          }
         }
       }
       // isAnchored → ax=0, az=0: ship stops receiving input
@@ -942,10 +958,17 @@ export class ArenaEngine {
 
       if (isAnchored) {
         // Manual aim: right joystick points where to shoot.
-        // Same 90° CW landscape correction: aimDirZ = -mobileAim.z
+        // Apply same physical→world transform as movement.
         const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
-        this.aimDirX = this.mobileAim.x / aimLen;
-        this.aimDirZ = -this.mobileAim.z / aimLen;
+        if (this.needsRotate) {
+          // CSS rotate(90deg) CW: physical right→world +Z, physical down→world −X
+          this.aimDirX = -this.mobileAim.z / aimLen;
+          this.aimDirZ =  this.mobileAim.x / aimLen;
+        } else {
+          // Actual landscape: physical right→world +X, physical down→world +Z
+          this.aimDirX = this.mobileAim.x / aimLen;
+          this.aimDirZ = this.mobileAim.z / aimLen;
+        }
       } else {
         // Auto-aim: find nearest alive enemy (all modes, not just teamMode)
         const target = this.findNearestEnemy();
@@ -973,8 +996,13 @@ export class ArenaEngine {
           // No enemy nearby in team mode → face movement direction
           const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
           if (moveLen > 0.1) {
-            this.aimDirX = this.mobileMove.x / moveLen;
-            this.aimDirZ = this.mobileMove.z / moveLen;
+            if (this.needsRotate) {
+              this.aimDirX = -this.mobileMove.z / moveLen;
+              this.aimDirZ =  this.mobileMove.x / moveLen;
+            } else {
+              this.aimDirX = this.mobileMove.x / moveLen;
+              this.aimDirZ = this.mobileMove.z / moveLen;
+            }
           }
         }
         // Solo mode, no target → keep current aim direction (no change)
