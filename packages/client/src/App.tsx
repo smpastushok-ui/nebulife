@@ -1021,9 +1021,23 @@ function AppInner() {
   }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, needsOnboarding, telescopeOverlay]);
 
   // Retain last planet context so colony tick can run passively when surface is closed.
+  // Also persist to localStorage so the tick can run immediately after a page reload.
   useEffect(() => {
-    if (surfaceTarget) colonyPlanetRef.current = surfaceTarget;
+    if (surfaceTarget) {
+      colonyPlanetRef.current = surfaceTarget;
+      try { localStorage.setItem('nebulife_colony_planet', JSON.stringify(surfaceTarget)); } catch { /* ignore */ }
+    }
   }, [surfaceTarget]);
+
+  // Restore colony planet ref on startup so passive tick can run without reopening the surface.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_colony_planet');
+      if (saved && !colonyPlanetRef.current) {
+        colonyPlanetRef.current = JSON.parse(saved) as { planet: Planet; star: Star };
+      }
+    } catch { /* ignore */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Play planet ambient loop while surface view is active.
   useEffect(() => {
@@ -1088,7 +1102,8 @@ function AppInner() {
     });
   }, [surfaceTarget?.planet.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Colony tick — runs every 60s, processes passive building production
+  // Colony tick — checks every 5s; runColonyTicks counts full 60s ticks internally.
+  // Using 5s avoids floating-point jitter that caused tickCount=0 when interval=60s exactly.
   useEffect(() => {
     const id = setInterval(() => {
       const colony = colonyStateRef.current;
@@ -1112,7 +1127,7 @@ function AppInner() {
         }
         setColonyState(result.colony);
       }
-    }, COLONY_TICK_INTERVAL_MS);
+    }, 5_000); // check every 5s; full 60s ticks counted inside runColonyTicks
     return () => clearInterval(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
