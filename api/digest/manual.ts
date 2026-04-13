@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const weekDate = (req.body as { weekDate?: string })?.weekDate ?? getCurrentWeekMonday();
+  const weekDate = (req.body as { weekDate?: string })?.weekDate ?? new Date().toISOString().slice(0, 10);
   const log: string[] = [];
   const addLog = (msg: string) => { log.push(msg); console.log(`[digest/manual] ${msg}`); };
 
