@@ -94,6 +94,19 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
   const [bannedError, setBannedError] = useState(false);
   // Track which digest the user has "seen" in the ASTRA tab
   const [seenDigestWeekDate, setSeenDigestWeekDate] = useState<string | null | undefined>(lastDigestSeen);
+
+  // Sync seenDigestWeekDate when lastDigestSeen prop loads asynchronously (player data comes in after mount).
+  // Without this, useState ignores prop changes after initial render, leaving seenDigestWeekDate=null
+  // even after the player's last_digest_seen is fetched from the server, causing a false "unread" badge.
+  useEffect(() => {
+    if (lastDigestSeen == null) return;
+    // Only update if the stored "seen" value is older or missing — never regress it.
+    setSeenDigestWeekDate(prev => {
+      if (prev == null || lastDigestSeen > prev) return lastDigestSeen;
+      return prev;
+    });
+  }, [lastDigestSeen]);
+
   const unreadAstra = (latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate) ? 1 : 0;
 
   // Inject neon pulse keyframes once
