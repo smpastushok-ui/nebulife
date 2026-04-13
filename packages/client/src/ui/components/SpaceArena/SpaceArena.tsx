@@ -28,6 +28,12 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const [kills, setKills] = useState(0);
   const [deaths, setDeaths] = useState(0);
   const [mobile] = useState(isMobileDevice);
+  // DEBUG: axis remapping mode — cycle with the AXIS button to find correct orientation
+  // 0: identity (x→x, y→y)  1: 90°CCW (x→-y, y→x)  2: 180° (-x,-y)  3: 90°CW (x→y, y→-x)
+  const [axisMode, setAxisMode] = useState(() => {
+    const saved = localStorage.getItem('nebulife_axis_mode');
+    return saved ? (parseInt(saved, 10) % 4) : 0;
+  });
   const [sessionStats, setSessionStats] = useState({ kills: 0, asteroidKills: 0, deaths: 0, score: 0 });
   const [showTutorial, setShowTutorial] = useState(() => shouldShowArenaTutorial());
   const [isDead, setIsDead] = useState(false);
@@ -76,13 +82,28 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     onPlayerRespawn: () => setIsDead(false),
   });
 
+  // Apply axis rotation transform (for CSS-rotated landscape on portrait device).
+  // axisMode cycles through 4 rotations so the user can find the correct one.
+  const applyAxisTransform = useCallback((x: number, y: number): [number, number] => {
+    if (!(mobile && isPortrait)) return [x, y]; // actual landscape — no transform needed
+    switch (axisMode) {
+      case 0: return [ x,  y]; // identity
+      case 1: return [ y, -x]; // 90° CCW: right→up, down→right
+      case 2: return [-x, -y]; // 180° flip
+      case 3: return [-y,  x]; // 90° CW: right→down, down→left
+      default: return [x, y];
+    }
+  }, [axisMode, mobile, isPortrait]);
+
   // Mobile joystick callbacks
   const handleMove = useCallback((x: number, y: number) => {
-    engineRef.current?.setMobileMove(x, y);
-  }, []);
+    const [tx, ty] = applyAxisTransform(x, y);
+    engineRef.current?.setMobileMove(tx, ty);
+  }, [applyAxisTransform]);
   const handleAim = useCallback((x: number, y: number, firing: boolean) => {
-    engineRef.current?.setMobileAim(x, y, firing);
-  }, []);
+    const [tx, ty] = applyAxisTransform(x, y);
+    engineRef.current?.setMobileAim(tx, ty, firing);
+  }, [applyAxisTransform]);
   const handleDash = useCallback(() => {
     engineRef.current?.triggerDash();
   }, []);
@@ -393,6 +414,34 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           <line x1="21" y1="12" x2="9" y2="12" />
         </svg>
       </button>
+
+      {/* DEBUG: axis mode toggle — tap to cycle, remove after calibration */}
+      {mobile && (
+        <button
+          onPointerDown={() => {
+            const next = (axisMode + 1) % 4;
+            setAxisMode(next);
+            localStorage.setItem('nebulife_axis_mode', String(next));
+          }}
+          style={{
+            position: 'absolute',
+            top: `calc(12px + env(safe-area-inset-top, 0px))`,
+            left: `calc(64px + env(safe-area-inset-left, 0px))`,
+            width: 44, height: 44,
+            background: 'rgba(255,80,0,0.7)',
+            border: '2px solid #ff8844',
+            borderRadius: 8,
+            cursor: 'pointer',
+            zIndex: 100,
+            pointerEvents: 'auto',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexDirection: 'column',
+          }}
+        >
+          <span style={{ color: '#fff', fontSize: 9, fontFamily: 'monospace', letterSpacing: 0 }}>AXIS</span>
+          <span style={{ color: '#ffdd66', fontSize: 13, fontFamily: 'monospace', fontWeight: 'bold' }}>{axisMode}</span>
+        </button>
+      )}
 
       {/* Mobile joysticks */}
       {mobile && ready && (

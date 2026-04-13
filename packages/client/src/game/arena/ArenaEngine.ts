@@ -852,18 +852,10 @@ export class ArenaEngine {
         const jz = this.mobileMove.z;
         const jLen = Math.sqrt(jx * jx + jz * jz);
         if (jLen > 0.01) {
-          if (this.needsRotate) {
-            // CSS rotate(90deg) translateY(-100%) with transformOrigin top-left:
-            //   element RIGHT (+X) → physical DOWN (+jz) → world +X  ∴ ax = +jz
-            //   element UP    (-Y) → physical RIGHT (+jx) → world -Z  ∴ az = -jx
-            ax =  jz;
-            az = -jx;
-          } else {
-            // Device is actual landscape — no CSS transform:
-            //   physical right → world +X,  physical down → world +Z
-            ax = jx;
-            az = jz;
-          }
+          // Coordinate transform is applied in SpaceArena.tsx before setMobileMove.
+          // Engine always uses direct mapping.
+          ax = jx;
+          az = jz;
         }
       }
       // isAnchored → ax=0, az=0: ship stops receiving input
@@ -958,18 +950,10 @@ export class ArenaEngine {
 
       if (isAnchored) {
         // Manual aim: right joystick points where to shoot.
-        // Apply same physical→world transform as movement.
+        // Coordinate transform applied in SpaceArena before setMobileAim — direct mapping here.
         const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
-        if (this.needsRotate) {
-          // Same transform as movement: element RIGHT→physical DOWN (jz), element UP→physical RIGHT (jx)
-          // aimDirX = world +X = +aim.z;  aimDirZ = world -Z = -aim.x
-          this.aimDirX =  this.mobileAim.z / aimLen;
-          this.aimDirZ = -this.mobileAim.x / aimLen;
-        } else {
-          // Actual landscape: direct mapping
-          this.aimDirX = this.mobileAim.x / aimLen;
-          this.aimDirZ = this.mobileAim.z / aimLen;
-        }
+        this.aimDirX = this.mobileAim.x / aimLen;
+        this.aimDirZ = this.mobileAim.z / aimLen;
       } else {
         // Auto-aim: find nearest alive enemy (all modes, not just teamMode)
         const target = this.findNearestEnemy();
@@ -997,13 +981,9 @@ export class ArenaEngine {
           // No enemy nearby in team mode → face movement direction
           const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
           if (moveLen > 0.1) {
-            if (this.needsRotate) {
-              this.aimDirX =  this.mobileMove.z / moveLen;
-              this.aimDirZ = -this.mobileMove.x / moveLen;
-            } else {
-              this.aimDirX = this.mobileMove.x / moveLen;
-              this.aimDirZ = this.mobileMove.z / moveLen;
-            }
+            // mobileMove is already pre-transformed by SpaceArena callbacks
+            this.aimDirX = this.mobileMove.x / moveLen;
+            this.aimDirZ = this.mobileMove.z / moveLen;
           }
         }
         // Solo mode, no target → keep current aim direction (no change)
