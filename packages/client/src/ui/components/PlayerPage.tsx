@@ -14,6 +14,8 @@ interface PlayerPageProps {
   quarks: number;
   isGuest: boolean;
   isNative: boolean;
+  /** Whether the player has an active Pro subscription */
+  isPremium?: boolean;
   onClose: () => void;
   onLogout: () => void;
   onStartOver: () => void;
@@ -30,6 +32,27 @@ interface PlayerPageProps {
   /** Ambient volume 0-1 (0 = muted, 1 = max). Replaces the old on/off toggle. */
   ambientVolume?: number;
   onChangeAmbientVolume?: (val: number) => void;
+}
+
+// ── Pro badge ─────────────────────────────────────────────────────────────
+
+function ProBadge() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#7bb8ff"
+      strokeWidth="1.5"
+      style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 3 }}
+    >
+      <circle cx="12" cy="12" r="2.5" fill="#7bb8ff" />
+      <ellipse cx="12" cy="12" rx="10" ry="4" />
+      <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)" />
+      <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)" />
+    </svg>
+  );
 }
 
 // ── Avatar SVG ────────────────────────────────────────────────────────────
@@ -80,6 +103,7 @@ export function PlayerPage({
   quarks,
   isGuest,
   isNative,
+  isPremium = false,
   onClose,
   onLogout,
   onStartOver,
@@ -189,8 +213,12 @@ export function PlayerPage({
           fontSize: 14,
           color: '#aabbcc',
           letterSpacing: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
         }}>
           {playerName}
+          {isPremium && <ProBadge />}
         </div>
 
         {/* Level + XP */}

@@ -1883,6 +1883,25 @@ function AppInner() {
                 localStorage.removeItem('nebulife_player_id');
               }
               registered = true;
+
+              // Pro daily quarks: grant 5 quarks once per day for Pro subscribers
+              try {
+                const isProSubscriber = localStorage.getItem('nebulife_premium') === '1';
+                const lastClaimDate = localStorage.getItem('nebulife_pro_daily_date');
+                const todayDate = new Date().toISOString().slice(0, 10);
+                if (isProSubscriber && lastClaimDate !== todayDate) {
+                  const quarksRes = await authFetch('/api/player/daily-quarks', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                  if (quarksRes.ok) {
+                    const quarksData = await quarksRes.json();
+                    localStorage.setItem('nebulife_pro_daily_date', todayDate);
+                    if (quarksData.newBalance !== undefined) {
+                      setQuarks(quarksData.newBalance);
+                    }
+                  }
+                }
+              } catch {
+                // Non-critical — daily quarks claim failure is silently ignored
+              }
             } else {
               console.warn(`[Auth] Register attempt ${attempt + 1} failed: ${res.status}`);
               if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
@@ -5103,6 +5122,7 @@ function AppInner() {
           quarks={quarks}
           isGuest={isGuest}
           isNative={Capacitor.isNativePlatform()}
+          isPremium={localStorage.getItem('nebulife_premium') === '1'}
           onClose={() => setShowPlayerPage(false)}
           onLogout={handleLogout}
           onStartOver={handleStartOver}

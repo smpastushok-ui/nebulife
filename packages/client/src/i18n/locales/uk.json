@@ -997,7 +997,14 @@
     "reported": "Прийнято",
     "new_conversation": "Нова бесіда",
     "search_callsign": "Пошук за позивним...",
-    "no_results": "Нікого не знайдено"
+    "no_results": "Нікого не знайдено",
+    "pro_badge": "PRO",
+    "pro_messages_today": "{{count}}/50 повідомлень",
+    "pro_daily_limit": "Ліміт на сьогодні вичерпано. Повернись завтра."
+  },
+
+  "premium": {
+    "daily_quarks": "+5 кварків за день"
   },
 
   "event": {
