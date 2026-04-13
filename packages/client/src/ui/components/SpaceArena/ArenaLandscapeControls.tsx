@@ -145,36 +145,36 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         </div>
       </div>
 
-      {/* Ability buttons -- vertical stack, center-right */}
-      <div style={{
-        position: 'absolute',
-        bottom: `calc(80px + ${safeBottom})`,
-        right: `calc(180px + ${safeRight})`,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 15,
-        alignItems: 'center',
-        pointerEvents: 'none',
-      }}>
-        <button
-          style={{ ...styles.abilityBtn, borderColor: '#bb88ff', color: '#bb88ff' }}
-          onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
-        >
-          GRAV
-        </button>
-        <button
-          style={{ ...styles.abilityBtn, borderColor: '#ff6666', color: '#ff6666', opacity: missileAmmo > 0 ? 1 : 0.5 }}
-          onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
-        >
-          {missileAmmo > 0 ? `${missileAmmo}` : 'WAIT'}
-        </button>
-        <button
-          style={{ ...styles.abilityBtn, borderColor: '#44ddff', color: '#44ddff', opacity: warpReady ? 1 : 0.5 }}
-          onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
-        >
-          WARP
-        </button>
-      </div>
+      {/* Ability buttons -- arc left of AIM zone, small transparent icons */}
+      {/* WARP — top */}
+      <button
+        style={{ ...styles.abilityBtn, bottom: `calc(190px + ${safeBottom})`, left: `calc(50% + 10px)`, opacity: warpReady ? 1 : 0.35 }}
+        onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
+        </svg>
+      </button>
+      {/* ROCKET — middle */}
+      <button
+        style={{ ...styles.abilityBtn, bottom: `calc(135px + ${safeBottom})`, left: `calc(50% - 20px)`, opacity: missileAmmo > 0 ? 1 : 0.35 }}
+        onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2L15 8L12 22L9 8Z" />
+          <line x1="7" y1="12" x2="17" y2="12" />
+        </svg>
+      </button>
+      {/* GRAV — bottom */}
+      <button
+        style={{ ...styles.abilityBtn, bottom: `calc(80px + ${safeBottom})`, left: `calc(50% + 10px)` }}
+        onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
+        </svg>
+      </button>
     </div>
   );
 };
@@ -223,11 +223,12 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 0 15px rgba(0,0,0,0.5)',
   },
   abilityBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    background: 'rgba(15, 20, 30, 0.85)',
-    border: '1px solid',
+    position: 'absolute' as const,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    background: 'transparent',
+    border: '1.5px solid rgba(100, 140, 180, 0.25)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

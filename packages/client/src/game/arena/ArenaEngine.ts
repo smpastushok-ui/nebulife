@@ -194,8 +194,6 @@ export class ArenaEngine {
   private mobileFiring = false;
   private isMobile = false;
 
-  // Laser sight
-  private laserSight!: THREE.Line;
 
   // Game state
   private phase: MatchPhase = 'waiting';
@@ -213,7 +211,7 @@ export class ArenaEngine {
   private input: InputState = { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
 
   // Zoom
-  private zoomLevel = 1.0;
+  private zoomLevel = 0.7;
   private readonly ZOOM_MIN = 0.4;
   private readonly ZOOM_MAX = 2.0;
   private readonly ZOOM_SPEED = 0.1;
@@ -359,11 +357,6 @@ export class ArenaEngine {
 
     // Stop all audio loops
     stopAllLoops();
-
-    if (this.laserSight) {
-      this.laserSight.geometry.dispose();
-      (this.laserSight.material as THREE.Material).dispose();
-    }
   }
 
   setVisible(vis: boolean): void {
@@ -626,13 +619,6 @@ export class ArenaEngine {
     this.playerMesh = new THREE.Mesh(geo, mat);
     this.playerMesh.position.set(0, 5, 0);
     this.scene.add(this.playerMesh);
-
-    // Laser sight — thin line from ship nose showing aim direction
-    const laserGeo = new THREE.BufferGeometry();
-    laserGeo.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0, 0,0,0], 3));
-    const laserMat = new THREE.LineBasicMaterial({ color: 0x44ff88, transparent: true, opacity: 0.3 });
-    this.laserSight = new THREE.Line(laserGeo, laserMat);
-    this.scene.add(this.laserSight);
 
     // Nickname label above ship
     const nickCanvas = document.createElement('canvas');
@@ -978,13 +964,6 @@ export class ArenaEngine {
     this.playerBankAngle += (targetBank - this.playerBankAngle) * Math.min(1, dt * 8);
     // Note: rotation.z doesn't work well with baked geo.rotateX — skip bank for now
 
-    // Update laser sight line
-    if (this.laserSight) {
-      const pos = this.laserSight.geometry.attributes.position as THREE.BufferAttribute;
-      pos.setXYZ(0, this.playerPos.x + this.aimDirX * SHIP_RADIUS, 6, this.playerPos.z + this.aimDirZ * SHIP_RADIUS);
-      pos.setXYZ(1, this.playerPos.x + this.aimDirX * 400, 6, this.playerPos.z + this.aimDirZ * 400);
-      pos.needsUpdate = true;
-    }
   }
 
   // ── Lock-on targeting ──────────────────────────────────────────────────
@@ -1178,7 +1157,6 @@ export class ArenaEngine {
     this.respawnTimer = this.RESPAWN_TIME;
     this.playerMesh.visible = false;
     this.playerNickSprite.visible = false;
-    if (this.laserSight) this.laserSight.visible = false;
     // Clear all buffs on death
     this.playerBuffs = [];
     this.applyBuffEffects();
@@ -1206,7 +1184,6 @@ export class ArenaEngine {
       playLoop('fly', 0.0); // starts silent, volume tied to speed
       this.playerMesh.visible = true;
       this.playerNickSprite.visible = true;
-      if (this.laserSight) this.laserSight.visible = true;
     }
   }
 
