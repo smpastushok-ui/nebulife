@@ -3029,24 +3029,41 @@ export class ArenaEngine {
         if (relSpeed > 50) {
           const dmg = Math.min(40, (relSpeed - 50) * 0.4);
 
-          if (performance.now() >= this.invulnerableUntil) {
-            this.playerHp -= dmg;
-            if (this.playerHp <= 0) {
-              this.playerHp = 0;
-              this.killPlayer();
-            }
-          }
+          let playerDied = false;
+          let botDied = false;
 
           if (performance.now() >= bot.invulnerableUntil) {
             bot.hp -= dmg;
             if (bot.hp <= 0) {
               bot.hp = 0;
-              this.killBot(bot, null);
-              this.stats.kills++;
-              this.stats.score += TEAM_SCORE_ENEMY_KILL;
-              this.teamKills[this.playerTeam]++;
-              this.addKillFeed('PLAYER', bot.name);
+              botDied = true;
             }
+          }
+
+          if (performance.now() >= this.invulnerableUntil) {
+            this.playerHp -= dmg;
+            if (this.playerHp <= 0) {
+              this.playerHp = 0;
+              playerDied = true;
+            }
+          }
+
+          // Award kills: both die → each gets +1; one survives → survivor gets +1
+          if (botDied) {
+            this.killBot(bot, null);
+            this.stats.kills++;
+            this.stats.score += TEAM_SCORE_ENEMY_KILL;
+            this.teamKills[this.playerTeam]++;
+            this.addKillFeed('PLAYER', bot.name);
+          }
+          if (playerDied) {
+            if (!botDied) {
+              // Bot survived the ram → bot gets the kill credit
+              bot.kills++;
+              this.teamKills[bot.team]++;
+              this.addKillFeed(bot.name, 'PLAYER');
+            }
+            this.killPlayer();
           }
         }
       }
