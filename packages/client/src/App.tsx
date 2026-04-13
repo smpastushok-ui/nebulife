@@ -506,7 +506,7 @@ function AppInner() {
   const [playerXP, setPlayerXP] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('nebulife_player_xp');
-      if (saved !== null) { const n = parseInt(saved, 10); if (n >= 0) return n; }
+      if (saved !== null) { const n = parseFloat(saved); if (n >= 0) return n; }
     } catch { /* ignore */ }
     return 0;
   });
@@ -1588,10 +1588,12 @@ function AppInner() {
 
     // Progression
     if (typeof gs.xp === 'number' && gs.xp >= 0) {
-      setPlayerXP(gs.xp);
-      setPlayerLevel(typeof gs.level === 'number' && gs.level > 0 ? gs.level : levelFromXP(gs.xp));
-      try { localStorage.setItem('nebulife_player_xp', String(gs.xp)); } catch { /* ignore */ }
-      try { localStorage.setItem('nebulife_player_level', String(gs.level ?? levelFromXP(gs.xp))); } catch { /* ignore */ }
+      const localXP = parseFloat(localStorage.getItem('nebulife_player_xp') ?? '0');
+      const resolvedXP = Math.max(gs.xp, localXP);
+      setPlayerXP(resolvedXP);
+      setPlayerLevel(typeof gs.level === 'number' && gs.level > 0 ? Math.max(gs.level, levelFromXP(resolvedXP)) : levelFromXP(resolvedXP));
+      try { localStorage.setItem('nebulife_player_xp', String(resolvedXP)); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_player_level', String(Math.max(gs.level ?? 0, levelFromXP(resolvedXP)))); } catch { /* ignore */ }
     }
 
     // Research — hydrate from server, but NEVER overwrite a local empty-slots state.
@@ -1651,8 +1653,15 @@ function AppInner() {
       }
     }
     if (gs.player_stats && typeof gs.player_stats === 'object') {
-      setPlayerStats(gs.player_stats);
-      try { localStorage.setItem('nebulife_player_stats', JSON.stringify(gs.player_stats)); } catch { /* ignore */ }
+      const localStats = (() => { try { return JSON.parse(localStorage.getItem('nebulife_player_stats') ?? 'null'); } catch { return null; } })();
+      const resolved = {
+        ...gs.player_stats,
+        totalCompletedSessions: Math.max(gs.player_stats.totalCompletedSessions ?? 0, localStats?.totalCompletedSessions ?? 0),
+        totalDiscoveries: Math.max(gs.player_stats.totalDiscoveries ?? 0, localStats?.totalDiscoveries ?? 0),
+        lastDiscoverySession: Math.max(gs.player_stats.lastDiscoverySession ?? 0, localStats?.lastDiscoverySession ?? 0),
+      };
+      setPlayerStats(resolved);
+      try { localStorage.setItem('nebulife_player_stats', JSON.stringify(resolved)); } catch { /* ignore */ }
     }
     if (typeof gs.research_data === 'number') {
       const lastRegenTime = gs.last_regen_time ?? Date.now();
@@ -1671,13 +1680,24 @@ function AppInner() {
     if (gs.colony_resources && typeof gs.colony_resources === 'object') {
       // Backward compat: old saves without water field default to 0
       const raw = gs.colony_resources as Record<string, number>;
-      const cr = { minerals: raw.minerals ?? 0, volatiles: raw.volatiles ?? 0, isotopes: raw.isotopes ?? 0, water: raw.water ?? 0 };
+      const localCR = (() => { try { return JSON.parse(localStorage.getItem('nebulife_colony_resources') ?? 'null'); } catch { return null; } })();
+      const cr = {
+        minerals: Math.max(raw.minerals ?? 0, localCR?.minerals ?? 0),
+        volatiles: Math.max(raw.volatiles ?? 0, localCR?.volatiles ?? 0),
+        isotopes: Math.max(raw.isotopes ?? 0, localCR?.isotopes ?? 0),
+        water: Math.max(raw.water ?? 0, localCR?.water ?? 0),
+      };
       setColonyResources(cr);
       try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(cr)); } catch { /* ignore */ }
     }
     if (gs.chemical_inventory && typeof gs.chemical_inventory === 'object') {
-      setChemicalInventory(gs.chemical_inventory as Record<string, number>);
-      try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(gs.chemical_inventory)); } catch { /* ignore */ }
+      const localCI = (() => { try { return JSON.parse(localStorage.getItem('nebulife_chemical_inventory') ?? 'null'); } catch { return null; } })();
+      const merged: Record<string, number> = {};
+      for (const key of new Set([...Object.keys(gs.chemical_inventory as Record<string, number>), ...Object.keys(localCI ?? {})])) {
+        merged[key] = Math.max((gs.chemical_inventory as Record<string, number>)[key] ?? 0, localCI?.[key] ?? 0);
+      }
+      setChemicalInventory(merged);
+      try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(merged)); } catch { /* ignore */ }
     }
 
     // Game phase
@@ -1702,8 +1722,13 @@ function AppInner() {
     if (gs.tech_tree && typeof gs.tech_tree === 'object') {
       const tt = gs.tech_tree as TechTreeState;
       if (tt.researched && typeof tt.researched === 'object') {
-        setTechTreeState(tt);
-        try { localStorage.setItem('nebulife_tech_tree', JSON.stringify(tt)); } catch { /* ignore */ }
+        const localTT = (() => { try { return JSON.parse(localStorage.getItem('nebulife_tech_tree') ?? 'null'); } catch { return null; } })();
+        const merged = {
+          ...tt,
+          researched: { ...tt.researched, ...(localTT?.researched ?? {}) },
+        };
+        setTechTreeState(merged);
+        try { localStorage.setItem('nebulife_tech_tree', JSON.stringify(merged)); } catch { /* ignore */ }
       }
     }
 
