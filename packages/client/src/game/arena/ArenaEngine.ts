@@ -183,6 +183,7 @@ export class ArenaEngine {
   private mouseNDC = new THREE.Vector2();
   private aimPoint = new THREE.Vector3(0, 0, 100);
   private _mouseHit = new THREE.Vector3(); // reused in onMouseMove (no GC)
+  private _cachedRect: DOMRect | null = null; // invalidated on resize
   private playerAimAngle = 0;
 
   // Collision temp
@@ -379,11 +380,13 @@ export class ArenaEngine {
   }
 
   setMobileMove(x: number, y: number): void {
-    this.mobileMove = { x, z: y };
+    this.mobileMove.x = x;
+    this.mobileMove.z = y;
   }
 
   setMobileAim(x: number, y: number, firing: boolean): void {
-    this.mobileAim = { x, z: y };
+    this.mobileAim.x = x;
+    this.mobileAim.z = y;
     this.mobileFiring = firing;
   }
 
@@ -719,7 +722,7 @@ export class ArenaEngine {
 
 
   private onMouseMove(e: MouseEvent): void {
-    const rect = this.renderer.domElement.getBoundingClientRect();
+    const rect = this._cachedRect ?? (this._cachedRect = this.renderer.domElement.getBoundingClientRect());
     this.mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
@@ -744,6 +747,7 @@ export class ArenaEngine {
     this.camera.aspect = W / H;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(W, H);
+    this._cachedRect = null; // canvas size changed — invalidate cached rect
   }
 
   // ── Main loop ──────────────────────────────────────────────────────────
@@ -890,9 +894,11 @@ export class ArenaEngine {
     this.playerPos.x += this.playerVelX * dt;
     this.playerPos.z += this.playerVelZ * dt;
 
-    // Arena boundary
-    const dist = Math.sqrt(this.playerPos.x ** 2 + this.playerPos.z ** 2);
-    if (dist > ARENA_HALF - SHIP_RADIUS) {
+    // Arena boundary — squared distance for cheap early reject; sqrt only when needed
+    const distSq = this.playerPos.x ** 2 + this.playerPos.z ** 2;
+    const boundaryLimit = ARENA_HALF - SHIP_RADIUS;
+    if (distSq > boundaryLimit * boundaryLimit) {
+      const dist = Math.sqrt(distSq);
       const nx = this.playerPos.x / dist;
       const nz = this.playerPos.z / dist;
       this.playerPos.x = nx * (ARENA_HALF - SHIP_RADIUS);
@@ -919,10 +925,14 @@ export class ArenaEngine {
     }
 
     // Dynamic fly loop volume: silent when stopped, grows with speed
-    const curSpeed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
-    const speedRatio = Math.min(1, curSpeed / (SHIP_MAX_SPEED * this.playerSpeedMult));
+    // Reuse `speed` computed above for clamp — no second sqrt needed
+    const speedRatio = Math.min(1, speed / (SHIP_MAX_SPEED * this.playerSpeedMult));
     // Map 0..1 speed ratio to 0..0.3 volume (idle=silent, full speed=0.3)
-    setLoopVolume('fly', speedRatio * 0.3);
+    const newFlyVol = speedRatio * 0.3;
+    if (Math.abs(newFlyVol - this._lastFlyVol) > 0.01) {
+      setLoopVolume('fly', newFlyVol);
+      this._lastFlyVol = newFlyVol;
+    }
   }
 
   // ── Aim (mouse) ────────────────────────────────────────────────────────
@@ -930,6 +940,9 @@ export class ArenaEngine {
   // Aim direction vector (normalized) — used by fireBullet & spawnExhaust
   private aimDirX = 0;
   private aimDirZ = -1; // default: facing forward (-Z)
+
+  // Last fly loop volume — skip setLoopVolume when change is negligible
+  private _lastFlyVol = 0;
 
   private updateAim(dt: number): void {
     const prevAngle = this.playerAimAngle;
@@ -979,6 +992,7 @@ export class ArenaEngine {
 
     // Find best enemy in lock cone
     const coneRad = this.LOCK_CONE * Math.PI / 180;
+    const aimAngle = Math.atan2(this.aimDirX, -this.aimDirZ); // loop-invariant
     let bestBot: number | null = null;
     let bestDist = Infinity;
 
@@ -991,7 +1005,6 @@ export class ArenaEngine {
 
       // Check if bot is within aim cone
       const angleToBot = Math.atan2(dx, -dz);
-      const aimAngle = Math.atan2(this.aimDirX, -this.aimDirZ);
       let angleDiff = angleToBot - aimAngle;
       // Normalize to [-PI, PI]
       while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
@@ -3168,12 +3181,12 @@ export class ArenaEngine {
   getBotScreenPos(botId: number): { x: number; y: number } | null {
     const bot = this.botShips.find(b => b.id === botId);
     if (!bot || !bot.alive) return null;
-    const vec = new THREE.Vector3(bot.pos.x, 10, bot.pos.z);
-    vec.project(this.camera);
-    const rect = this.renderer.domElement.getBoundingClientRect();
+    _tempVec3.set(bot.pos.x, 10, bot.pos.z);
+    _tempVec3.project(this.camera);
+    const rect = this._cachedRect ?? (this._cachedRect = this.renderer.domElement.getBoundingClientRect());
     return {
-      x: (vec.x * 0.5 + 0.5) * rect.width,
-      y: (-vec.y * 0.5 + 0.5) * rect.height,
+      x: (_tempVec3.x * 0.5 + 0.5) * rect.width,
+      y: (-_tempVec3.y * 0.5 + 0.5) * rect.height,
     };
   }
 }
