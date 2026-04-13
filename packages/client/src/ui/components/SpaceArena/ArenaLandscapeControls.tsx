@@ -145,44 +145,36 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         </div>
       </div>
 
-      {/* Ability buttons -- vertical column, right edge, vertically centered */}
-      <div style={{
-        position: 'absolute',
-        right: `calc(8px + ${safeRight})`,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        pointerEvents: 'none',
-      }}>
-        <button
-          style={{ ...styles.abilityBtn, opacity: warpReady ? 1 : 0.3 }}
-          onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
-          </svg>
-        </button>
-        <button
-          style={{ ...styles.abilityBtn, opacity: missileAmmo > 0 ? 1 : 0.3 }}
-          onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L15 8L12 22L9 8Z" />
-            <line x1="7" y1="12" x2="17" y2="12" />
-          </svg>
-        </button>
-        <button
-          style={{ ...styles.abilityBtn }}
-          onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
-          </svg>
-        </button>
-      </div>
+      {/* Ability buttons -- arranged around right side of AIM ring at 1, 3, 5 o'clock */}
+      {/* WARP -- 1 o'clock (upper-right of ring) */}
+      <button
+        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(68px + ${safeRight})`, bottom: `calc(190px + ${safeBottom})`, opacity: warpReady ? 1 : 0.3 }}
+        onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
+        </svg>
+      </button>
+      {/* ROCKET -- 3 o'clock (right of ring) */}
+      <button
+        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(30px + ${safeRight})`, bottom: `calc(125px + ${safeBottom})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
+        onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2L15 8L12 22L9 8Z" />
+          <line x1="7" y1="12" x2="17" y2="12" />
+        </svg>
+      </button>
+      {/* GRAV -- 5 o'clock (lower-right of ring) */}
+      <button
+        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(68px + ${safeRight})`, bottom: `calc(60px + ${safeBottom})` }}
+        onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
+        </svg>
+      </button>
     </div>
   );
 };
@@ -231,6 +223,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 0 15px rgba(0,0,0,0.5)',
   },
   abilityBtn: {
+    position: 'absolute' as const,
     width: 34,
     height: 34,
     borderRadius: 17,
