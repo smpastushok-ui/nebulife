@@ -258,6 +258,10 @@ export function ResourceDisplay({
         <div
           style={{
             ...itemHoverStyle('rd'),
+            ...(highlightResearchData ? {
+              animation: 'researchDataPulse 1s ease-in-out infinite',
+              borderRadius: 3,
+            } : {}),
           }}
           data-tutorial-id="resource-data"
           title={t('resource_display.research_data_title')}

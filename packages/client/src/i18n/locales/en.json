@@ -246,7 +246,9 @@
     "panel_ring_locked": "Research Ring {{ring}} first",
     "panel_no_slots": "No free observatories",
     "actions_unavailable": "Actions unavailable",
-    "insufficient_data": "Insufficient research data. Collect more data by exploring the galaxy."
+    "insufficient_data": "Insufficient research data. Collect more data by exploring the galaxy.",
+    "watch_ad": "Watch ad",
+    "data_received": "+10 Data!"
   },
 
   "surface": {
