@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'space.nebulife.game',
+  appId: 'app.nebulife.game',
   appName: 'Nebulife',
   webDir: 'dist',
   server: {
