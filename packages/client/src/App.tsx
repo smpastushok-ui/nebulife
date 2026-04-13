@@ -5530,8 +5530,8 @@ function AppInner() {
         <FreeTaskHUD current={tutorialFreeCount} total={2} />
       )}
 
-      {/* Chat unread notification dot — visible above chat widget */}
-      {chatUnreadCount > 0 && (
+      {/* Chat unread notification dot — hidden during arena */}
+      {chatUnreadCount > 0 && !showArena && (
         <div
           style={{
             position: 'fixed',

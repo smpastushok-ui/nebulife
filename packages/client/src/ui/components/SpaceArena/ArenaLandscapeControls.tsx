@@ -145,36 +145,44 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         </div>
       </div>
 
-      {/* Ability buttons -- arc to the RIGHT of AIM hint ring, near screen edge */}
-      {/* WARP — top-right */}
-      <button
-        style={{ ...styles.abilityBtn, bottom: `calc(160px + ${safeBottom})`, right: `calc(10px + ${safeRight})`, opacity: warpReady ? 1 : 0.3 }}
-        onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
-        </svg>
-      </button>
-      {/* ROCKET — mid-right */}
-      <button
-        style={{ ...styles.abilityBtn, bottom: `calc(115px + ${safeBottom})`, right: `calc(5px + ${safeRight})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
-        onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2L15 8L12 22L9 8Z" />
-          <line x1="7" y1="12" x2="17" y2="12" />
-        </svg>
-      </button>
-      {/* GRAV — bottom-right */}
-      <button
-        style={{ ...styles.abilityBtn, bottom: `calc(70px + ${safeBottom})`, right: `calc(10px + ${safeRight})` }}
-        onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
-        </svg>
-      </button>
+      {/* Ability buttons -- vertical column, right edge, vertically centered */}
+      <div style={{
+        position: 'absolute',
+        right: `calc(8px + ${safeRight})`,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        pointerEvents: 'none',
+      }}>
+        <button
+          style={{ ...styles.abilityBtn, opacity: warpReady ? 1 : 0.3 }}
+          onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
+          </svg>
+        </button>
+        <button
+          style={{ ...styles.abilityBtn, opacity: missileAmmo > 0 ? 1 : 0.3 }}
+          onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L15 8L12 22L9 8Z" />
+            <line x1="7" y1="12" x2="17" y2="12" />
+          </svg>
+        </button>
+        <button
+          style={{ ...styles.abilityBtn }}
+          onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 };
@@ -223,7 +231,6 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 0 15px rgba(0,0,0,0.5)',
   },
   abilityBtn: {
-    position: 'absolute' as const,
     width: 34,
     height: 34,
     borderRadius: 17,
