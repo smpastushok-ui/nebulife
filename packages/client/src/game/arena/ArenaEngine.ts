@@ -836,16 +836,18 @@ export class ArenaEngine {
     let ax = 0, az = 0;
     if (this.isMobile) {
       if (!isAnchored) {
-        // World-space movement: joystick maps directly to screen axes.
-        // With auto-aim the ship rotates to face enemies, so local-space
-        // strafe would make left/right depend on ship rotation — confusing.
-        // Screen right → +X world, screen up → -Z world (camera is at +Z).
+        // World-space movement for CSS rotate(90deg) landscape.
+        // Container rotated 90° CW: physical down(+dy) = visual right,
+        // physical right(+dx) = visual down.
+        // Visual right = world -Z, visual up = world -X.
+        // ax = jx (physical right = visual down = world +X ✓)
+        // az = -jz (physical down = visual right = world -Z ✓)
         const jx = this.mobileMove.x;
-        const jz = this.mobileMove.z; // jz < 0 = screen up = world -Z ✓
+        const jz = this.mobileMove.z;
         const jLen = Math.sqrt(jx * jx + jz * jz);
         if (jLen > 0.01) {
           ax = jx;
-          az = jz;
+          az = -jz;
         }
       }
       // isAnchored → ax=0, az=0: ship stops receiving input
@@ -939,10 +941,11 @@ export class ArenaEngine {
       const isAnchored = Math.abs(this.mobileAim.x) > 0.1 || Math.abs(this.mobileAim.z) > 0.1;
 
       if (isAnchored) {
-        // Manual aim: right joystick points where to shoot
+        // Manual aim: right joystick points where to shoot.
+        // Same 90° CW landscape correction: aimDirZ = -mobileAim.z
         const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
         this.aimDirX = this.mobileAim.x / aimLen;
-        this.aimDirZ = this.mobileAim.z / aimLen;
+        this.aimDirZ = -this.mobileAim.z / aimLen;
       } else {
         // Auto-aim: find nearest alive enemy (all modes, not just teamMode)
         const target = this.findNearestEnemy();
