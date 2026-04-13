@@ -121,6 +121,7 @@ import type { User } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { initAds, canShowAd, isNativePlatform } from './services/ads-service.js';
+import { interstitialManager } from './services/interstitial-manager.js';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
   generateSystemMission, pollMissionStatus,
@@ -2011,6 +2012,7 @@ function AppInner() {
 
                 // Award SESSION_XP on every completed session
                 awardXP(SESSION_XP, 'research_session');
+                interstitialManager.tryShow();
 
                 // Show modal if just completed — award ring-scaled XP
                 if (result.isNowComplete) {
@@ -3772,6 +3774,7 @@ function AppInner() {
 
   // ── Initialize AdMob on native platforms ────────────────────────────────
   useEffect(() => {
+    interstitialManager.sessionStartTime = Date.now();
     initAds().catch(() => { /* AdMob init failed — non-critical */ });
   }, []);
 
@@ -5340,6 +5343,7 @@ function AppInner() {
             setArenaTeamMode(false);
             // Return to Hangar after arena exit
             setShowHangar(true);
+            interstitialManager.tryShow();
           }}
         />
       )}
