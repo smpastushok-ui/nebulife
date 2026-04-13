@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ArenaEngine } from '../../../game/arena/index.js';
-import type { ArenaCallbacks, MatchResult } from '../../../game/arena/index.js';
+import type { ArenaCallbacks, MatchResult, TeamMatchResult } from '../../../game/arena/index.js';
 import { ArenaLandscapeControls } from './ArenaLandscapeControls.js';
 import { ArenaTutorial, shouldShowArenaTutorial } from './ArenaTutorial.js';
 
@@ -35,6 +35,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const [killFeed, setKillFeed] = useState<{ killer: string; victim: string; killerTeam: string; victimTeam: string }[]>([]);
   const [lockState, setLockState] = useState<{ targetId: number | null; progress: number; locked: boolean } | null>(null);
   const [lockScreenPos, setLockScreenPos] = useState<{ x: number; y: number } | null>(null);
+  const [matchResult, setMatchResult] = useState<TeamMatchResult | null>(null);
 
   // Landscape orientation lock for mobile
   const [isPortrait, setIsPortrait] = useState(() => mobile && window.innerHeight > window.innerWidth);
@@ -62,7 +63,12 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   }, [isPortrait, mobile]);
 
   const callbacks = useRef<ArenaCallbacks>({
-    onMatchEnd: (result) => onMatchEnd?.(result),
+    onMatchEnd: (result) => {
+      onMatchEnd?.(result);
+      if ((result as TeamMatchResult).teamMode) {
+        setMatchResult(result as TeamMatchResult);
+      }
+    },
     onExit: () => onExit(),
     onStatsUpdate: (h, mh, s, ms, k, d) => {
       setHp(h); setShield(s); setKills(k); setDeaths(d);
@@ -215,10 +221,12 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         ref={containerRef}
         style={{
           position: 'absolute', inset: 0, zIndex: 0,
-          filter: isDead
-            ? 'blur(3px) brightness(0.35) saturate(0.3)'
-            : isWarping ? 'blur(2px) brightness(1.3)' : 'none',
-          transition: isDead ? 'filter 0.2s ease-out' : 'filter 0.8s ease-in',
+          filter: matchResult
+            ? 'blur(4px) brightness(0.5) saturate(0.4)'
+            : isDead
+              ? 'blur(3px) brightness(0.35) saturate(0.3)'
+              : isWarping ? 'blur(2px) brightness(1.3)' : 'none',
+          transition: matchResult ? 'filter 0.5s ease-out' : isDead ? 'filter 0.2s ease-out' : 'filter 0.8s ease-in',
         }}
       />
 
@@ -251,7 +259,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         </div>
       )}
 
-      {/* Keyframes for death glitch */}
+      {/* Keyframes for death glitch and match end */}
       <style>{`
         @keyframes arenaDeathFlash {
           0% { opacity: 1; }
@@ -266,6 +274,14 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           20% { transform: translateX(4px); opacity: 0.25; }
           40% { transform: translateX(-3px); opacity: 0.15; }
           100% { transform: translateX(0); opacity: 0.08; }
+        }
+        @keyframes arenaMatchEndIn {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes arenaMatchEndBgIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
         }
       `}</style>
 
@@ -410,6 +426,172 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           onComplete={() => setShowTutorial(false)}
         />
       )}
+
+      {/* Match result overlay — shown when team match ends */}
+      {matchResult && (() => {
+        const r = matchResult;
+        const blueColor = '#4488ff';
+        const redColor = '#ff4444';
+        const drawColor = '#aabbcc';
+        const winnerColor = r.winningTeam === 'blue' ? blueColor : r.winningTeam === 'red' ? redColor : drawColor;
+        const winnerLabel = r.winningTeam === 'blue' ? 'BLUE WINS' : r.winningTeam === 'red' ? 'RED WINS' : 'DRAW';
+        const bluePlayers = r.allPlayers.filter(p => p.team === 'blue').sort((a, b) => b.kills - a.kills);
+        const redPlayers = r.allPlayers.filter(p => p.team === 'red').sort((a, b) => b.kills - a.kills);
+        return (
+          <>
+            {/* Dim backdrop */}
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 50,
+              background: 'rgba(2,5,16,0.75)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
+              animation: 'arenaMatchEndBgIn 0.4s ease-out forwards',
+            }} />
+            {/* Results panel */}
+            <div style={{
+              position: 'absolute',
+              top: '50%', left: '50%',
+              zIndex: 51,
+              width: 'min(580px, 92vw)',
+              background: 'rgba(10,15,25,0.96)',
+              border: '1px solid #334455',
+              borderRadius: 6,
+              fontFamily: 'monospace',
+              padding: '28px 24px 20px',
+              animation: 'arenaMatchEndIn 0.4s ease-out forwards',
+            }}>
+              {/* Winner title */}
+              <div style={{
+                textAlign: 'center',
+                fontSize: 26,
+                fontWeight: 'bold',
+                color: winnerColor,
+                letterSpacing: 4,
+                marginBottom: 4,
+                textShadow: `0 0 18px ${winnerColor}88`,
+              }}>
+                {winnerLabel}
+              </div>
+              {/* Score line */}
+              <div style={{
+                textAlign: 'center',
+                fontSize: 13,
+                color: '#667788',
+                letterSpacing: 2,
+                marginBottom: 20,
+              }}>
+                <span style={{ color: blueColor }}>{r.blueKills}</span>
+                {' — '}
+                <span style={{ color: redColor }}>{r.redKills}</span>
+              </div>
+
+              {/* Divider */}
+              <div style={{ borderTop: '1px solid #223344', marginBottom: 16 }} />
+
+              {/* Two-column player list */}
+              <div style={{ display: 'flex', gap: 12 }}>
+                {/* BLUE column */}
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    color: blueColor, fontSize: 10, letterSpacing: 3,
+                    fontWeight: 'bold', marginBottom: 8, paddingBottom: 4,
+                    borderBottom: `1px solid ${blueColor}44`,
+                  }}>
+                    BLUE  {r.blueKills} kills
+                  </div>
+                  {bluePlayers.map(p => (
+                    <div key={p.id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '4px 6px', marginBottom: 2,
+                      borderRadius: 3,
+                      background: p.name === 'PLAYER' ? 'rgba(68,136,255,0.12)' : 'transparent',
+                      border: p.name === 'PLAYER' ? '1px solid rgba(68,136,255,0.3)' : '1px solid transparent',
+                    }}>
+                      <span style={{
+                        color: p.name === 'PLAYER' ? blueColor : '#8899aa',
+                        fontSize: 11,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        maxWidth: '60%',
+                      }}>
+                        {p.name === 'PLAYER' ? 'YOU' : p.name}
+                      </span>
+                      <span style={{ color: '#667788', fontSize: 10, flexShrink: 0 }}>
+                        <span style={{ color: '#aabbcc' }}>{p.kills}</span>
+                        <span style={{ color: '#445566' }}>/</span>
+                        <span style={{ color: '#8899aa' }}>{p.deaths}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* RED column */}
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    color: redColor, fontSize: 10, letterSpacing: 3,
+                    fontWeight: 'bold', marginBottom: 8, paddingBottom: 4,
+                    borderBottom: `1px solid ${redColor}44`,
+                  }}>
+                    RED  {r.redKills} kills
+                  </div>
+                  {redPlayers.map(p => (
+                    <div key={p.id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '4px 6px', marginBottom: 2,
+                      borderRadius: 3,
+                      background: p.name === 'PLAYER' ? 'rgba(255,68,68,0.12)' : 'transparent',
+                      border: p.name === 'PLAYER' ? '1px solid rgba(255,68,68,0.3)' : '1px solid transparent',
+                    }}>
+                      <span style={{
+                        color: p.name === 'PLAYER' ? redColor : '#8899aa',
+                        fontSize: 11,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        maxWidth: '60%',
+                      }}>
+                        {p.name === 'PLAYER' ? 'YOU' : p.name}
+                      </span>
+                      <span style={{ color: '#667788', fontSize: 10, flexShrink: 0 }}>
+                        <span style={{ color: '#aabbcc' }}>{p.kills}</span>
+                        <span style={{ color: '#445566' }}>/</span>
+                        <span style={{ color: '#8899aa' }}>{p.deaths}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Column header hint */}
+              <div style={{
+                textAlign: 'right', color: '#445566', fontSize: 9, letterSpacing: 1, marginTop: 4,
+              }}>
+                kills / deaths
+              </div>
+
+              {/* Divider */}
+              <div style={{ borderTop: '1px solid #223344', margin: '16px 0 14px' }} />
+
+              {/* Exit button */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button
+                  onClick={handleExit}
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    letterSpacing: 3,
+                    color: '#aabbcc',
+                    background: 'rgba(30,45,65,0.7)',
+                    border: '1px solid #446688',
+                    borderRadius: 3,
+                    padding: '8px 32px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  EXIT
+                </button>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }

@@ -782,9 +782,6 @@ export class ArenaEngine {
         }
         break;
       case 'playing':
-        // Arena is a sandbox — no match end. matchTimer no longer ticks
-        // down and phase never transitions to 'ended' (which would freeze
-        // updatePlayer / updateShooting / updateWarp).
         this.updateDeathRespawn(dt);
         this.updateWarp(dt);
         if (!this.playerDead) {
@@ -813,6 +810,30 @@ export class ArenaEngine {
           this.checkPlayerBulletBotCollisions();
           this.checkPlayerBotPhysicalCollisions();
           this.checkTeamMatchEnd();
+        }
+        break;
+      case 'ended':
+        // All ships coast to a stop — heavy drag, no input, no shooting, no spawning
+        {
+          const endedDrag = Math.pow(0.88, dt * 60); // much heavier than normal 0.97
+          this.playerVelX *= endedDrag;
+          this.playerVelZ *= endedDrag;
+          this.playerPos.x += this.playerVelX * dt;
+          this.playerPos.z += this.playerVelZ * dt;
+          this.playerMesh.position.set(this.playerPos.x, 5, this.playerPos.z);
+          this.playerNickSprite.position.set(this.playerPos.x, 20, this.playerPos.z - 15);
+          // Bots coast too
+          for (const bot of this.botShips) {
+            if (!bot.alive) continue;
+            bot.vel.x *= endedDrag;
+            bot.vel.z *= endedDrag;
+            bot.pos.x += bot.vel.x * dt;
+            bot.pos.z += bot.vel.z * dt;
+            bot.mesh.position.set(bot.pos.x, 5, bot.pos.z);
+            bot.nickSprite.position.set(bot.pos.x, 20, bot.pos.z - 15);
+          }
+          // Keep VFX fading out (particles, explosions)
+          this.updateVFX(dt);
         }
         break;
       default:
