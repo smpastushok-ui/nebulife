@@ -21,6 +21,7 @@ import { createBotBrain, updateBot } from './ArenaAI.js';
 // Pre-allocated temp vectors — ZERO allocations in hot path
 const _tempVec3 = new THREE.Vector3();
 const _camTarget = new THREE.Vector3();
+const _projVec = new THREE.Vector3(); // dedicated scratch for screen projection (not shared with camera)
 const _tempDummy = new THREE.Object3D(); // shared matrix writer for InstancedMesh updates
 
 const SHIP_FILES: Record<string, string> = {
@@ -3181,12 +3182,12 @@ export class ArenaEngine {
   getBotScreenPos(botId: number): { x: number; y: number } | null {
     const bot = this.botShips.find(b => b.id === botId);
     if (!bot || !bot.alive) return null;
-    _tempVec3.set(bot.pos.x, 10, bot.pos.z);
-    _tempVec3.project(this.camera);
+    _projVec.set(bot.pos.x, 5, bot.pos.z);
+    _projVec.project(this.camera);
     const rect = this._cachedRect ?? (this._cachedRect = this.renderer.domElement.getBoundingClientRect());
     return {
-      x: (_tempVec3.x * 0.5 + 0.5) * rect.width,
-      y: (-_tempVec3.y * 0.5 + 0.5) * rect.height,
+      x: (_projVec.x * 0.5 + 0.5) * rect.width + rect.left,
+      y: (-_projVec.y * 0.5 + 0.5) * rect.height + rect.top,
     };
   }
 }

@@ -150,7 +150,8 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
       const ls = e.getLockState();
       setLockState(ls);
       if (ls.targetId !== null) {
-        setLockScreenPos(e.getBotScreenPos(ls.targetId));
+        const pos = e.getBotScreenPos(ls.targetId);
+        setLockScreenPos(pos); // null if bot died → clears stale indicator
       } else {
         setLockScreenPos(null);
       }
