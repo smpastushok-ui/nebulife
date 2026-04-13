@@ -4390,6 +4390,16 @@ function AppInner() {
 
 
 
+  const shutdownBuildingTypes = useMemo(() => {
+    const set = new Set<string>();
+    if (colonyState) {
+      for (const b of colonyState.buildings) {
+        if (b.shutdown) set.add(b.type);
+      }
+    }
+    return set;
+  }, [colonyState]);
+
   if (state.error) {
     return (
       <div style={{ color: '#ff4444', padding: 20, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
@@ -5170,6 +5180,7 @@ function AppInner() {
             setQuarks((prev) => Math.max(0, prev - amount));
           }}
           alphaHarvesterCount={0}
+          shutdownBuildingTypes={shutdownBuildingTypes}
         />
       )}
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}

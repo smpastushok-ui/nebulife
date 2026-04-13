@@ -72,6 +72,7 @@ interface HexSurfaceProps {
   quarks?:                number;
   onConsumeQuarks?:       (amount: number) => void;
   alphaHarvesterCount?:   number;
+  shutdownBuildingTypes?: Set<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,6 +145,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       quarks,
       onConsumeQuarks,
       alphaHarvesterCount = 0,
+      shutdownBuildingTypes,
     },
     ref,
   ) {
@@ -490,6 +492,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           panX={panX}
           panY={panY}
           onTransformRef={handleTransformRef}
+          shutdownBuildingTypes={shutdownBuildingTypes}
         />
 
         {/* Build menu popup */}

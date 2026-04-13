@@ -10,6 +10,7 @@ import {
   respawnTimeRemaining,
 } from './hex-utils';
 import { playSfx } from '../../../audio/SfxPlayer.js';
+import { BUILDING_DEFS } from '@nebulife/core';
 
 // Resource icons matching ResourceDisplay (top HUD)
 const COST_ICONS: Record<string, (s: number) => React.ReactElement> = {
@@ -42,6 +43,7 @@ interface HexSlotProps {
   onInspect: (id: string) => void;
   onDestroy: (id: string) => void;
   canAfford: boolean;
+  isShutdown?: boolean;
 }
 
 // Pointy-top hex clip-path (matches reference design)
@@ -346,6 +348,7 @@ export const HexSlot = React.memo(function HexSlot({
   onInspect,
   onDestroy,
   canAfford,
+  isShutdown = false,
 }: HexSlotProps) {
   const left = x - HEX_W / 2;
   const top  = y - HEX_H / 2;
@@ -547,6 +550,29 @@ export const HexSlot = React.memo(function HexSlot({
           <BuildingContent slot={slot} />
         </div>
       )}
+      {isShutdown && (slot.state === 'building' || slot.state === 'harvester') && (
+        <div style={{
+          position: 'absolute',
+          top: 2,
+          right: 2,
+          zIndex: 150,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          background: 'rgba(0,0,0,0.7)',
+          borderRadius: 4,
+          padding: '1px 3px',
+          pointerEvents: 'none',
+        }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#cc4444" strokeWidth="3" strokeLinecap="round">
+            <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
+            <line x1="4" y1="4" x2="20" y2="20" stroke="#cc4444" strokeWidth="2" />
+          </svg>
+          <span style={{ fontSize: 7, color: '#cc4444', fontFamily: 'monospace', fontWeight: 'bold' }}>
+            {BUILDING_DEFS[slot.buildingType as keyof typeof BUILDING_DEFS]?.energyConsumption ?? '?'}
+          </span>
+        </div>
+      )}
 
       {/* Harvest +N float animation (triggered from centralized click) */}
       {harvestAnim !== null && (
@@ -604,6 +630,7 @@ export const HexSlot = React.memo(function HexSlot({
     prev.y === next.y &&
     prev.zIndex === next.zIndex &&
     prev.canAfford === next.canAfford &&
+    prev.isShutdown === next.isShutdown &&
     prev.slot.state === next.slot.state &&
     prev.slot.buildingType === next.slot.buildingType &&
     prev.slot.resourceType === next.slot.resourceType &&

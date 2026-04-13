@@ -16,6 +16,7 @@ interface HexGridProps {
   panX: number;
   panY: number;
   onTransformRef?: (el: HTMLDivElement | null) => void;
+  shutdownBuildingTypes?: Set<string>;
 }
 
 export const HexGrid = React.memo(function HexGrid({
@@ -31,6 +32,7 @@ export const HexGrid = React.memo(function HexGrid({
   panX,
   panY,
   onTransformRef,
+  shutdownBuildingTypes,
 }: HexGridProps) {
   // Compute hex positions for this planet size
   const positions = useMemo(() => getHexPositions(planetSize), [planetSize]);
@@ -137,6 +139,7 @@ export const HexGrid = React.memo(function HexGrid({
               onBuild={onBuild}
               onInspect={onInspect}
               onDestroy={onDestroy}
+              isShutdown={shutdownBuildingTypes?.has(slot.buildingType ?? '') ?? false}
             />
           );
         })}
