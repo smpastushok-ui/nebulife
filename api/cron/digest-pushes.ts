@@ -62,7 +62,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    await markDigestPushesSent(digest.week_date);
+    if (totalSent > 0) {
+      await markDigestPushesSent(digest.week_date);
+    }
     console.log(`[digest-pushes] Sent ${totalSent} pushes, cleared ${totalExpired} expired tokens for ${digest.week_date}`);
 
     return res.status(200).json({

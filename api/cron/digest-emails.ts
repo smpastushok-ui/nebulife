@@ -59,7 +59,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    await markDigestEmailsSent(digest.week_date);
+    if (totalSent > 0) {
+      await markDigestEmailsSent(digest.week_date);
+    }
     console.log(`[digest-emails] Sent ${totalSent} emails for ${digest.week_date}`);
 
     return res.status(200).json({
