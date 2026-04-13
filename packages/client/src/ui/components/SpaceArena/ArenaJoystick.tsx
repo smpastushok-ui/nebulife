@@ -9,6 +9,9 @@ interface ArenaJoystickProps {
   missileAmmo?: number;
   warpReady?: boolean;
   isWarping?: boolean;
+  /** When true, container is CSS-rotated 90° CW (portrait phone → landscape game).
+   *  Pointer clientX/clientY are viewport coords; we must convert to container-local. */
+  needRotate?: boolean;
 }
 
 const MAX_RADIUS = 50;
@@ -16,7 +19,17 @@ const MAX_RADIUS = 50;
 export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
   onMove, onAim, onDash, onFireMissile, onGravPush,
   missileAmmo = 10, warpReady = true, isWarping = false,
+  needRotate = false,
 }) => {
+  // Convert viewport (portrait) coords → container-local coords when CSS-rotated.
+  // CSS transform: rotate(90deg) translateY(-100%) with transformOrigin: top left
+  // maps container(x,y) → viewport(innerWidth - y, x), so inverse is:
+  //   container_x = viewport_y,  container_y = innerWidth - viewport_x
+  const toLocal = useCallback((vx: number, vy: number): { x: number; y: number } => {
+    if (!needRotate) return { x: vx, y: vy };
+    return { x: vy, y: window.innerWidth - vx };
+  }, [needRotate]);
+
   // ── Left joystick (movement / strafe) ──────────────────────────────────
   const leftBaseRef = useRef<HTMLDivElement>(null);
   const leftKnobRef = useRef<HTMLDivElement>(null);
@@ -27,26 +40,28 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
     if (leftPointerId.current !== null) return;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     leftPointerId.current = e.pointerId;
-    leftOrigin.current = { x: e.clientX, y: e.clientY };
+    const local = toLocal(e.clientX, e.clientY);
+    leftOrigin.current = local;
     if (leftBaseRef.current && leftKnobRef.current) {
       leftBaseRef.current.style.display = 'block';
-      leftBaseRef.current.style.left = `${e.clientX}px`;
-      leftBaseRef.current.style.top = `${e.clientY}px`;
+      leftBaseRef.current.style.left = `${local.x}px`;
+      leftBaseRef.current.style.top = `${local.y}px`;
       leftKnobRef.current.style.transform = 'translate(-50%, -50%)';
     }
-  }, []);
+  }, [toLocal]);
 
   const onLeftMove = useCallback((e: React.PointerEvent) => {
     if (leftPointerId.current !== e.pointerId) return;
-    let dx = e.clientX - leftOrigin.current.x;
-    let dy = e.clientY - leftOrigin.current.y;
+    const local = toLocal(e.clientX, e.clientY);
+    let dx = local.x - leftOrigin.current.x;
+    let dy = local.y - leftOrigin.current.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > MAX_RADIUS) { dx = (dx / dist) * MAX_RADIUS; dy = (dy / dist) * MAX_RADIUS; }
     if (leftKnobRef.current) {
       leftKnobRef.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     }
     onMove(dx / MAX_RADIUS, dy / MAX_RADIUS);
-  }, [onMove]);
+  }, [onMove, toLocal]);
 
   const onLeftUp = useCallback((e: React.PointerEvent) => {
     if (leftPointerId.current !== e.pointerId) return;
@@ -66,27 +81,29 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
     if (rightPointerId.current !== null) return;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     rightPointerId.current = e.pointerId;
-    rightOrigin.current = { x: e.clientX, y: e.clientY };
+    const local = toLocal(e.clientX, e.clientY);
+    rightOrigin.current = local;
     if (rightBaseRef.current && rightKnobRef.current) {
       rightBaseRef.current.style.display = 'block';
-      rightBaseRef.current.style.left = `${e.clientX}px`;
-      rightBaseRef.current.style.top = `${e.clientY}px`;
+      rightBaseRef.current.style.left = `${local.x}px`;
+      rightBaseRef.current.style.top = `${local.y}px`;
       rightKnobRef.current.style.transform = 'translate(-50%, -50%)';
     }
     onAim(0, 0, true); // start firing
-  }, [onAim]);
+  }, [onAim, toLocal]);
 
   const onRightMove = useCallback((e: React.PointerEvent) => {
     if (rightPointerId.current !== e.pointerId) return;
-    let dx = e.clientX - rightOrigin.current.x;
-    let dy = e.clientY - rightOrigin.current.y;
+    const local = toLocal(e.clientX, e.clientY);
+    let dx = local.x - rightOrigin.current.x;
+    let dy = local.y - rightOrigin.current.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > MAX_RADIUS) { dx = (dx / dist) * MAX_RADIUS; dy = (dy / dist) * MAX_RADIUS; }
     if (rightKnobRef.current) {
       rightKnobRef.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     }
     onAim(dx / MAX_RADIUS, dy / MAX_RADIUS, true);
-  }, [onAim]);
+  }, [onAim, toLocal]);
 
   const onRightUp = useCallback((e: React.PointerEvent) => {
     if (rightPointerId.current !== e.pointerId) return;
