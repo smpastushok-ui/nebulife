@@ -100,7 +100,7 @@ export async function generateWeeklyNewsText(): Promise<DigestNewsItem[]> {
     contents: prompt,
     config: {
       thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
-      tools: [{ googleSearch: {} }],
+      tools: [{ googleSearch: {} }, { urlContext: {} }],
     },
   });
 
