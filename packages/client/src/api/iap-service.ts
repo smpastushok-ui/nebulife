@@ -17,13 +17,10 @@ import { Capacitor } from '@capacitor/core';
 import { authFetch } from '../auth/api-client.js';
 
 // ---------------------------------------------------------------------------
-// TODO: Replace these placeholder keys with your RevenueCat API keys.
-// iOS key: found under Project Settings → iOS in the RevenueCat dashboard.
-// Android key: found under Project Settings → Android in the dashboard.
+// RevenueCat API keys (test keys — replace with production keys before release)
 // ---------------------------------------------------------------------------
-const REVENUECAT_IOS_KEY = 'appl_REPLACE_WITH_IOS_KEY';
-const REVENUECAT_ANDROID_KEY = 'goog_REPLACE_WITH_ANDROID_KEY';
-const PREMIUM_PRODUCT_ID = 'nebulife_premium_monthly';
+const REVENUECAT_IOS_KEY = 'test_bgUKWMvwmBdTVOlDtHqSUFHxZqR';
+const REVENUECAT_ANDROID_KEY = 'test_bgUKWMvwmBdTVOlDtHqSUFHxZqR';
 
 /** True when running as a native iOS or Android app (not web/browser). */
 export function isNativeIAP(): boolean {
@@ -87,10 +84,12 @@ export async function initIAP(userId: string): Promise<void> {
   try {
     // Dynamic import so the module is not bundled into the web build
     const { Purchases, LOG_LEVEL } = await import('@revenuecat/purchases-capacitor');
-    const apiKey = Capacitor.getPlatform() === 'ios' ? REVENUECAT_IOS_KEY : REVENUECAT_ANDROID_KEY;
-    await Purchases.configure({ apiKey, appUserID: userId });
-    if (import.meta.env.DEV) {
-      await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
+    await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
+    const platform = Capacitor.getPlatform();
+    if (platform === 'ios') {
+      await Purchases.configure({ apiKey: REVENUECAT_IOS_KEY, appUserID: userId });
+    } else if (platform === 'android') {
+      await Purchases.configure({ apiKey: REVENUECAT_ANDROID_KEY, appUserID: userId });
     }
   } catch (err) {
     console.warn('[IAP] Could not initialize RevenueCat:', err);
@@ -145,7 +144,8 @@ export async function checkPremiumStatus(): Promise<PremiumStatus> {
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
     const { customerInfo } = await Purchases.getCustomerInfo();
-    const active = !!customerInfo.entitlements.active['premium'];
+    const active = typeof customerInfo.entitlements?.active?.['Nebulife Pro'] !== 'undefined';
+    if (active) localStorage.setItem('nebulife_premium', '1');
     return { active };
   } catch (err) {
     console.warn('[IAP] checkPremiumStatus error:', err);
@@ -155,34 +155,27 @@ export async function checkPremiumStatus(): Promise<PremiumStatus> {
 }
 
 /**
- * Purchase the premium subscription package via RevenueCat.
- * Finds the package with product ID `nebulife_premium_monthly` in the current offering.
+ * Present the RevenueCatUI paywall for premium subscription.
+ * Returns true if the user completed a purchase or restored an existing one.
  */
 export async function purchasePremium(): Promise<{ success: boolean; error?: string }> {
   if (!isNativeIAP()) {
     return { success: false, error: 'Not on native platform' };
   }
   try {
-    const { Purchases } = await import('@revenuecat/purchases-capacitor');
-    const offerings = await Purchases.getOfferings();
-    const current = offerings.current;
-    if (!current) throw new Error('No offerings');
-
-    const pkg = current.availablePackages.find(
-      p => p.product.identifier === PREMIUM_PRODUCT_ID,
-    );
-    if (!pkg) throw new Error(`Premium package "${PREMIUM_PRODUCT_ID}" not found in offering`);
-
-    await Purchases.purchasePackage({ aPackage: pkg });
-    return { success: true };
-  } catch (err: unknown) {
-    const errCode = (err as { code?: string })?.code;
-    if (errCode === '1') {
-      return { success: false, error: 'cancelled' };
+    const { RevenueCatUI, PAYWALL_RESULT } = await import('@revenuecat/purchases-capacitor-ui');
+    const { result } = await RevenueCatUI.presentPaywall();
+    switch (result) {
+      case PAYWALL_RESULT.PURCHASED:
+      case PAYWALL_RESULT.RESTORED:
+        localStorage.setItem('nebulife_premium', '1');
+        return { success: true };
+      case PAYWALL_RESULT.CANCELLED:
+        return { success: false, error: 'cancelled' };
+      default:
+        return { success: false };
     }
-    if ((err as { userCancelled?: boolean })?.userCancelled === true) {
-      return { success: false, error: 'cancelled' };
-    }
+  } catch (err) {
     console.error('[IAP] purchasePremium error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
