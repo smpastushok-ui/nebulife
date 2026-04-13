@@ -174,14 +174,9 @@ export async function verifyNewsItems(
       continue;
     }
 
-    // Check 2: source must be from a trusted domain
+    // Check 2: source URL must be parseable (domain whitelist removed — Gemini grounding is sufficient)
     try {
-      const hostname = new URL(item.source).hostname.replace(/^www\./, '');
-      const isTrusted = TRUSTED_DOMAINS.some(d => hostname === d || hostname.endsWith(`.${d}`));
-      if (!isTrusted) {
-        dropped.push({ title: item.title_en, reason: `untrusted_domain: ${hostname}` });
-        continue;
-      }
+      new URL(item.source);
     } catch {
       dropped.push({ title: item.title_en, reason: 'invalid_url' });
       continue;
