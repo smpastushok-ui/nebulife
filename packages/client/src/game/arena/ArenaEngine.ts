@@ -816,11 +816,10 @@ export class ArenaEngine {
 
     // Camera follows player with smooth damping + zoom
     _camTarget.set(this.playerPos.x, 0, this.playerPos.z);
-    const LOOK_AHEAD = 60;
     _tempVec3.set(
-      this.playerPos.x + this.aimDirX * LOOK_AHEAD,
+      this.playerPos.x,
       CAMERA_HEIGHT * this.zoomLevel,
-      this.playerPos.z + this.aimDirZ * LOOK_AHEAD + CAMERA_DISTANCE * this.zoomLevel,
+      this.playerPos.z + CAMERA_DISTANCE * this.zoomLevel,
     );
     this.camera.position.lerp(_tempVec3, CAMERA_LERP_SPEED);
     this.camera.lookAt(_camTarget);
