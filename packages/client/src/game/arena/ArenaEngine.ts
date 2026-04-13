@@ -954,8 +954,21 @@ export class ArenaEngine {
         // Right stick active → set aim direction directly
         this.aimDirX = this.mobileAim.x / aimLen;
         this.aimDirZ = this.mobileAim.z / aimLen;
+      } else {
+        // Right stick released → smoothly turn nose toward movement direction
+        const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
+        if (moveLen > 0.1) {
+          const tgtX = this.mobileMove.x / moveLen;
+          const tgtZ = this.mobileMove.z / moveLen;
+          const turnSpeed = Math.min(1, dt * 10); // fast smooth turn (~0.1s)
+          this.aimDirX += (tgtX - this.aimDirX) * turnSpeed;
+          this.aimDirZ += (tgtZ - this.aimDirZ) * turnSpeed;
+          // Renormalize
+          const newLen = Math.sqrt(this.aimDirX ** 2 + this.aimDirZ ** 2);
+          if (newLen > 0.001) { this.aimDirX /= newLen; this.aimDirZ /= newLen; }
+        }
+        // Neither stick active → keep last aimDir (Last Angle Memory)
       }
-      // When right stick released: keep last aimDir (Last Angle Memory)
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;
       const dz = this.aimPoint.z - this.playerPos.z;
