@@ -145,19 +145,19 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         </div>
       </div>
 
-      {/* Ability buttons -- small arc upper-left of AIM hint ring */}
-      {/* Positioned relative to right edge: AIM hint is at right:60, bottom:80 */}
-      {/* Arc: 3 buttons at ~10-11 o'clock around the AIM ring */}
+      {/* Ability buttons -- arc to the RIGHT of AIM hint ring, near screen edge */}
+      {/* WARP — top-right */}
       <button
-        style={{ ...styles.abilityBtn, bottom: `calc(175px + ${safeBottom})`, right: `calc(135px + ${safeRight})`, opacity: warpReady ? 1 : 0.3 }}
+        style={{ ...styles.abilityBtn, bottom: `calc(160px + ${safeBottom})`, right: `calc(10px + ${safeRight})`, opacity: warpReady ? 1 : 0.3 }}
         onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
         </svg>
       </button>
+      {/* ROCKET — mid-right */}
       <button
-        style={{ ...styles.abilityBtn, bottom: `calc(145px + ${safeBottom})`, right: `calc(100px + ${safeRight})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
+        style={{ ...styles.abilityBtn, bottom: `calc(115px + ${safeBottom})`, right: `calc(5px + ${safeRight})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
         onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -165,8 +165,9 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
           <line x1="7" y1="12" x2="17" y2="12" />
         </svg>
       </button>
+      {/* GRAV — bottom-right */}
       <button
-        style={{ ...styles.abilityBtn, bottom: `calc(165px + ${safeBottom})`, right: `calc(65px + ${safeRight})` }}
+        style={{ ...styles.abilityBtn, bottom: `calc(70px + ${safeBottom})`, right: `calc(10px + ${safeRight})` }}
         onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
