@@ -7,10 +7,18 @@ import { AdMob, RewardAdPluginEvents, RewardAdOptions, AdmobConsentStatus } from
 import { authFetch } from '../auth/api-client.js';
 import { interstitialManager } from './interstitial-manager.js';
 
-// Ad Unit IDs (production)
-const REWARDED_AD_UNIT_ID = Capacitor.getPlatform() === 'ios'
-  ? 'ca-app-pub-3504252081237345/1351147285'  // iOS production
-  : 'ca-app-pub-3504252081237345/3685454552';  // Android production
+// Ad Unit IDs
+// TEST mode: use Google test IDs during development/testing to avoid AdMob violations
+// PRODUCTION: swap to real IDs before release
+const USE_TEST_ADS = true; // <-- SET TO false BEFORE RELEASE
+
+const REWARDED_AD_UNIT_ID = USE_TEST_ADS
+  ? (Capacitor.getPlatform() === 'ios'
+      ? 'ca-app-pub-3940256099942544/1712485313'    // iOS test
+      : 'ca-app-pub-3940256099942544/5224354917')   // Android test
+  : (Capacitor.getPlatform() === 'ios'
+      ? 'ca-app-pub-3504252081237345/1351147285'    // iOS production
+      : 'ca-app-pub-3504252081237345/3685454552');   // Android production
 
 const DAILY_LIMIT = 10;
 const STORAGE_KEY = 'nebulife_ad_views';
