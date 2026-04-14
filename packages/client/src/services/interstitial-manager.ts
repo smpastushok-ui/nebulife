@@ -6,10 +6,18 @@
 
 import { Capacitor } from '@capacitor/core';
 
-// Interstitial ad unit IDs (iOS: test, Android: production)
-const INTERSTITIAL_ID = Capacitor.getPlatform() === 'ios'
-  ? 'ca-app-pub-3504252081237345/9897294671'  // iOS production
-  : 'ca-app-pub-3504252081237345/4806964536';  // Android production
+// Interstitial ad unit IDs
+// TEST mode: use Google test IDs during development/testing
+// PRODUCTION: swap to real IDs before release
+const USE_TEST_ADS = true; // <-- SET TO false BEFORE RELEASE
+
+const INTERSTITIAL_ID = USE_TEST_ADS
+  ? (Capacitor.getPlatform() === 'ios'
+      ? 'ca-app-pub-3940256099942544/4411468910'    // iOS test
+      : 'ca-app-pub-3940256099942544/1033173712')   // Android test
+  : (Capacitor.getPlatform() === 'ios'
+      ? 'ca-app-pub-3504252081237345/9897294671'    // iOS production
+      : 'ca-app-pub-3504252081237345/4806964536');   // Android production
 
 class InterstitialManager {
   private lastAdTime = 0;
