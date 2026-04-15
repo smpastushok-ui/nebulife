@@ -514,6 +514,8 @@ function AppInner() {
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
   // Queue of pending level-up levels (shown one at a time, no overlap with major modals)
   const [levelUpQueue, setLevelUpQueue] = useState<number[]>([]);
+  // Exit confirmation dialog (Android back button at root level)
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const gameStateRef = useRef<Record<string, unknown>>({});
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncGameStateRef = useRef<() => void>(() => {});
@@ -806,12 +808,13 @@ function AppInner() {
   }, [levelUpNotification, levelUpQueue, telemetryTarget, observatoryTarget, pendingDiscovery, completedModal, popupQueueBlocked]);
 
   // Flush pending research toasts one at a time.
-  // Wait 3 s after level-up banner disappears, then show first pending toast.
+  // Wait until level-up banner is fully dismissed, then show first pending toast.
   // Subsequent toasts appear after the current one is dismissed.
   useEffect(() => {
     if (pendingResearchToasts.length === 0) return;
     if (researchToasts.length > 0) return; // current toast still visible — wait
     if (levelUpNotification !== null) return; // level-up banner still visible — wait
+    if (levelUpQueue.length > 0) return; // level-up banner about to show — wait
 
     const timer = setTimeout(() => {
       setPendingResearchToasts((pending) => {
@@ -822,7 +825,7 @@ function AppInner() {
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [pendingResearchToasts, researchToasts, levelUpNotification]);
+  }, [pendingResearchToasts, researchToasts, levelUpNotification, levelUpQueue]);
 
   /** Gallery: map object_type → existing DiscoveryData (with photo) for duplicate check */
   const [galleryMap, setGalleryMap] = useState<Map<string, DiscoveryData>>(new Map());
@@ -3921,8 +3924,8 @@ function AppInner() {
           setState(prev => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
           break;
         case 'home-intro':
-          // At root — minimize app instead of exiting
-          CapApp.minimizeApp();
+          // At root — show confirmation dialog before minimizing
+          setShowExitConfirm(true);
           break;
       }
     });
@@ -5736,6 +5739,37 @@ function AppInner() {
             setIsGuest(false);
           }}
         />
+      )}
+
+      {/* Exit confirmation dialog (Android back button at root level) */}
+      {showExitConfirm && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', fontFamily: 'monospace' }}
+          onClick={() => setShowExitConfirm(false)}
+        >
+          <div
+            style={{ background: 'rgba(10,15,25,0.97)', border: '1px solid #334455', borderRadius: 6, padding: '20px 24px', maxWidth: 280 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ color: '#aabbcc', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
+              {t('app.exit_confirm')}
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                style={{ padding: '8px 16px', background: 'rgba(10,15,25,0.8)', border: '1px solid #334455', borderRadius: 3, color: '#8899aa', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }}
+              >
+                {t('app.cancel')}
+              </button>
+              <button
+                onClick={async () => { const { App: CapApp } = await import('@capacitor/app'); CapApp.minimizeApp(); }}
+                style={{ padding: '8px 16px', background: 'rgba(204,68,68,0.15)', border: '1px solid #cc4444', borderRadius: 3, color: '#cc4444', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }}
+              >
+                {t('app.exit')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
