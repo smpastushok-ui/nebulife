@@ -97,7 +97,7 @@ import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, fetchUniverseInfo } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { requestPushPermission, startForegroundListener } from './notifications/push-service.js';
-import { onAuthChange, signOut, handleRedirectResult } from './auth/auth-service.js';
+import { onAuthChange, signOut } from './auth/auth-service.js';
 import { authFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
 import { AuthScreen } from './ui/components/AuthScreen.js';
@@ -1894,9 +1894,6 @@ function AppInner() {
       setAuthLoading(false);
       return;
     }
-
-    // Handle redirect result from signInWithRedirect / linkWithRedirect (Capacitor native)
-    handleRedirectResult().catch(() => { /* non-critical */ });
 
     const unsubscribe = onAuthChange(async (user) => {
       setFirebaseUser(user);

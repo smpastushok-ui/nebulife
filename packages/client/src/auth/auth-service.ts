@@ -1,19 +1,18 @@
 import {
   signInAnonymously,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   GoogleAuthProvider,
+  signInWithCredential,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   linkWithPopup,
-  linkWithRedirect,
   linkWithCredential,
   EmailAuthProvider,
   onAuthStateChanged,
   type User,
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { auth } from './firebase-config.js';
 
 // ---------------------------------------------------------------------------
@@ -21,7 +20,18 @@ import { auth } from './firebase-config.js';
 // Gracefully handles auth being null (Firebase not configured)
 // ---------------------------------------------------------------------------
 
+const GOOGLE_WEB_CLIENT_ID = '702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com';
+
 const googleProvider = new GoogleAuthProvider();
+
+// Initialize GoogleAuth on native platforms
+if (Capacitor.isNativePlatform()) {
+  GoogleAuth.initialize({
+    clientId: GOOGLE_WEB_CLIENT_ID,
+    scopes: ['profile', 'email'],
+    grantOfflineAccess: true,
+  });
+}
 
 function requireAuth() {
   if (!auth) throw new Error('Firebase not configured');
@@ -44,26 +54,17 @@ export async function signInAsGuest(): Promise<User> {
   return cred.user;
 }
 
-/** Sign in with Google popup (web) or redirect (native Capacitor). */
+/** Sign in with Google popup (web) or native Capacitor plugin. */
 export async function signInWithGoogle(): Promise<User | null> {
   const a = requireAuth();
   if (Capacitor.isNativePlatform()) {
-    await signInWithRedirect(a, googleProvider);
-    // Result will be handled by handleRedirectResult() on next load
-    return null;
+    const googleUser = await GoogleAuth.signIn();
+    const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+    const result = await signInWithCredential(a, credential);
+    return result.user;
   }
   const result = await signInWithPopup(a, googleProvider);
   return result.user;
-}
-
-/** Handle the result of a signInWithRedirect call (called on app init). */
-export async function handleRedirectResult(): Promise<User | null> {
-  try {
-    const result = await getRedirectResult(requireAuth());
-    return result?.user ?? null;
-  } catch {
-    return null;
-  }
 }
 
 /** Sign in with email and password. */
@@ -84,9 +85,10 @@ export async function linkGoogleToAnonymous(): Promise<User | null> {
   const user = a.currentUser;
   if (!user) throw new Error('No current user');
   if (Capacitor.isNativePlatform()) {
-    await linkWithRedirect(user, googleProvider);
-    // Result will be handled by handleRedirectResult() on next load
-    return null;
+    const googleUser = await GoogleAuth.signIn();
+    const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+    const result = await linkWithCredential(user, credential);
+    return result.user;
   }
   const result = await linkWithPopup(user, googleProvider);
   return result.user;
