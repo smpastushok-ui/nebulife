@@ -131,7 +131,7 @@ export function SystemNavHeader({
     <div
       style={{
         position: 'fixed',
-        top: 50,
+        top: 'calc(50px + env(safe-area-inset-top, 0px))',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 40,

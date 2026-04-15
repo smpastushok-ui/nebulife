@@ -442,7 +442,9 @@ const S: Record<string, React.CSSProperties> = {
   // Header
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 16px', borderBottom: '1px solid #1a2a3a', gap: 10, flexShrink: 0,
+    padding: '14px 16px',
+    paddingTop: 'calc(14px + env(safe-area-inset-top, 0px))',
+    borderBottom: '1px solid #1a2a3a', gap: 10, flexShrink: 0,
   },
   backBtn: {
     display: 'flex', alignItems: 'center', gap: 5,
