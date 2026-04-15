@@ -97,18 +97,19 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
   }, [onAim]);
 
   // ── Arc ability buttons positioning (semicircle above right hint) ──────
-  // The right hint ring center is at (bottom: 115, right: 95) in viewport coords
-  // (bottom: 80 container + 35 half-ring = 115; right: 60 container edge offset).
+  // The right hint ring center is at (bottom: 115, right: 115) in viewport coords
+  // (bottom: 80 container + 35 half-ring = 115; right: 80 container edge offset).
   // Arc buttons use fixed bottom/right so they never overlap the touch zone.
   // Layout: three buttons in a fan above the hint ring.
-  //   WARP   — upper-right  (bottom: 195, right: 30)
-  //   ROCKET — top-center   (bottom: 210, right: 85)
-  //   GRAV   — upper-left   (bottom: 195, right: 140)
+  //   WARP   — upper-right  (bottom: 195, right: 50)
+  //   ROCKET — top-center   (bottom: 210, right: 103)
+  //   GRAV   — upper-left   (bottom: 195, right: 160)
   // Each button is 48×48, so the closest edge to the hint is ~40px clear gap.
+  // Right offsets increased by ~20px to avoid edge cut-off in landscape mode.
   const arcPositions = [
-    { bottom: 195, right: 30  }, // WARP
-    { bottom: 215, right: 83  }, // ROCKET
-    { bottom: 195, right: 140 }, // GRAV
+    { bottom: 195, right: 50  }, // WARP
+    { bottom: 215, right: 103 }, // ROCKET
+    { bottom: 195, right: 160 }, // GRAV
   ];
 
   // Safe-area-aware bottom offset (CSS env variable via inline style)
@@ -153,7 +154,7 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
         onPointerCancel={onRightUp}
       >
         {/* Static hint — AIM (offset by safe area bottom) */}
-        <div style={{ ...styles.hintRight, bottom: `calc(80px + ${safeBottom})`, right: `calc(60px + ${safeRight})` }}>
+        <div style={{ ...styles.hintRight, bottom: `calc(80px + ${safeBottom})`, right: `calc(80px + ${safeRight})` }}>
           <div style={{ ...styles.hintRing, borderColor: 'rgba(68, 255, 136, 0.2)' }} />
           <span style={{ ...styles.hintLabel, color: 'rgba(68, 255, 136, 0.3)' }}>AIM</span>
         </div>

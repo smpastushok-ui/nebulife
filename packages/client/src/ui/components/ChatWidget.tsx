@@ -499,11 +499,11 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     <>
       <div style={{
         position: 'fixed',
+        top: 'calc(50px + env(safe-area-inset-top, 0px))',
         bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
         right: 'calc(16px + env(safe-area-inset-right, 0px))',
         zIndex: 9700,
         width: 360,
-        height: 420,
         background: 'rgba(10,15,25,0.96)',
         border: '1px solid #334455',
         borderRadius: 6,
