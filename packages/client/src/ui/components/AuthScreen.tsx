@@ -31,12 +31,13 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
   const hasLegacyPlayer = !!localStorage.getItem(PLAYER_ID_KEY);
 
-  const handleAuth = async (authFn: () => Promise<User>, isNew: boolean) => {
+  const handleAuth = async (authFn: () => Promise<User | null>, isNew: boolean) => {
     setError('');
     setLoading(true);
     try {
       const user = await authFn();
-      onAuthenticated(user, isNew);
+      // On native Capacitor, signInWithRedirect returns null — result handled on next load
+      if (user) onAuthenticated(user, isNew);
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('errors.authError');
       // Firebase error messages are in English — translate common ones
