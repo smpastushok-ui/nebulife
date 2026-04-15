@@ -173,10 +173,11 @@ export function generateScientificReport(
       lines.push(rarityReaction);
       lines.push('');
 
-      if (entry.scientificFacts.length > 0) {
+      const enFacts = entry.scientificFactsEn;
+      if (enFacts && enFacts.length > 0) {
         lines.push('Here is what science knows about such objects:');
-        const factCount = Math.min(entry.scientificFacts.length, rng.nextInt(1, 2));
-        const shuffled = [...entry.scientificFacts].sort(() => rng.next() - 0.5);
+        const factCount = Math.min(enFacts.length, rng.nextInt(1, 2));
+        const shuffled = [...enFacts].sort(() => rng.next() - 0.5);
         for (let i = 0; i < factCount; i++) {
           lines.push(`- ${shuffled[i]}`);
         }
