@@ -21,7 +21,7 @@ export function FreeTaskHUD({ current, total }: FreeTaskHUDProps) {
     <div
       style={{
         position: 'fixed',
-        top: 14,
+        top: 'calc(14px + env(safe-area-inset-top, 0px))',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 10051,

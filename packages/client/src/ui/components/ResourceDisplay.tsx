@@ -200,7 +200,7 @@ export function ResourceDisplay({
           style={{
             ...panelStyle,
             position: 'fixed',
-            bottom: 56,
+            bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
             left: '50%',
             transform: 'translateX(-50%)',
             cursor: onTimerClick ? 'pointer' : 'default',
@@ -228,7 +228,7 @@ export function ResourceDisplay({
         style={{
           ...panelStyle,
           position: 'fixed',
-          top: 12,
+          top: 'calc(12px + env(safe-area-inset-top, 0px))',
           left: '50%',
           transform: 'translateX(-50%)',
           cursor: 'default',

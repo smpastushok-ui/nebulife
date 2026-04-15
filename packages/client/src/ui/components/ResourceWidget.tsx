@@ -114,8 +114,8 @@ export const ResourceWidget: React.FC<ResourceWidgetProps> = ({
 
   const containerStyle: React.CSSProperties = {
     position:        'fixed',
-    top:             14,
-    right:           14,
+    top:             'calc(14px + env(safe-area-inset-top, 0px))',
+    right:           'calc(14px + env(safe-area-inset-right, 0px))',
     background:      'rgba(10,15,25,0.92)',
     border:          '1px solid #334455',
     borderRadius:    4,

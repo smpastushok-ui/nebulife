@@ -153,7 +153,7 @@ export const ArenaJoystick: React.FC<ArenaJoystickProps> = ({
         onPointerCancel={onRightUp}
       >
         {/* Static hint — AIM (offset by safe area bottom) */}
-        <div style={{ ...styles.hintRight, bottom: `calc(80px + ${safeBottom})` }}>
+        <div style={{ ...styles.hintRight, bottom: `calc(80px + ${safeBottom})`, right: `calc(60px + ${safeRight})` }}>
           <div style={{ ...styles.hintRing, borderColor: 'rgba(68, 255, 136, 0.2)' }} />
           <span style={{ ...styles.hintLabel, color: 'rgba(68, 255, 136, 0.3)' }}>AIM</span>
         </div>

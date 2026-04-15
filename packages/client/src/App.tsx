@@ -4415,7 +4415,7 @@ function AppInner() {
         <div
           style={{
             position: 'fixed',
-            bottom: 56,
+            bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 9700,
@@ -4440,7 +4440,7 @@ function AppInner() {
         <div
           style={{
             position: 'fixed',
-            bottom: 56,
+            bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 9700,
@@ -4465,7 +4465,7 @@ function AppInner() {
       {isExodusPhase && clockPhase === 'visible' && evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed && (
         <div style={{
           position: 'fixed',
-          bottom: 90,
+          bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 9700,
@@ -5469,7 +5469,7 @@ function AppInner() {
       {toastMessage && (
         <div style={{
           position: 'fixed',
-          bottom: 80,
+          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
           left: '50%',
           transform: 'translateX(-50%)',
           background: 'rgba(10,15,25,0.95)',
@@ -5551,8 +5551,8 @@ function AppInner() {
         <div
           style={{
             position: 'fixed',
-            bottom: 90,
-            right: 18,
+            bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
+            right: 'calc(18px + env(safe-area-inset-right, 0px))',
             zIndex: 9750,
             display: 'flex',
             alignItems: 'center',

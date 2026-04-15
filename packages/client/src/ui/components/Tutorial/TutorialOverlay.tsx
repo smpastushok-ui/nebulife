@@ -358,7 +358,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
         }}
         style={{
           position: 'fixed',
-          top: 14,
+          top: 'calc(14px + env(safe-area-inset-top, 0px))',
           left: 14,
           zIndex: 10052,
           background: 'none',

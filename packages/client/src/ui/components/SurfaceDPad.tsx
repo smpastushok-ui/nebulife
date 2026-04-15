@@ -52,8 +52,8 @@ export function SurfaceDPad({ onZoomIn, onZoomOut }: SurfaceDPadProps) {
     <div
       style={{
         position: 'fixed',
-        bottom: 68,
-        left: 14,
+        bottom: 'calc(68px + env(safe-area-inset-bottom, 0px))',
+        left: 'calc(14px + env(safe-area-inset-left, 0px))',
         zIndex: 9600,
         width: W,
         height: H,

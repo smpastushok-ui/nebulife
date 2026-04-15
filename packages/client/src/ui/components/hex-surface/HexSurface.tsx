@@ -521,7 +521,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         {/* Planet name HUD — neon spin animation, below resource bar, right-aligned */}
         <div style={{
           position: 'fixed',
-          top: 48,
+          top: 'calc(48px + env(safe-area-inset-top, 0px))',
           right: 0,
           fontFamily: 'monospace',
           pointerEvents: 'none',
@@ -570,7 +570,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           onClick={onClose}
           style={{
             position: 'fixed',
-            top: 14,
+            top: 'calc(14px + env(safe-area-inset-top, 0px))',
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'rgba(8,14,24,0.85)',
