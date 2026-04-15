@@ -26,6 +26,7 @@ const googleProvider = new GoogleAuthProvider();
 // Lazy-initialized native Google Auth (dynamic import to avoid Vercel build failure)
 let _googleAuthInitialized = false;
 async function getNativeGoogleAuth() {
+  // @ts-ignore — module only available in native Capacitor builds, not on Vercel
   const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
   if (!_googleAuthInitialized) {
     GoogleAuth.initialize({
