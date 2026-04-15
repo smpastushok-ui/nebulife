@@ -1,6 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebulife/core';
-import { getResearchProgress, isSystemFullyResearched, SeededRNG } from '@nebulife/core';
+import { getResearchProgress, isSystemFullyResearched, SeededRNG, computeGroupPosition } from '@nebulife/core';
 import type { TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
 import { tStatic } from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
@@ -204,6 +204,8 @@ export class GalaxyScene {
     neighborSystems?: Array<{ system: StarSystem; ownerIndex: number }>,
     coreSystems?: Array<{ system: StarSystem; coreId: number; depth: number }>,
     expandedVisible?: boolean,
+    groupCount?: number,
+    playerGroupIndex?: number,
     private onSelect?: (system: StarSystem, screenPos?: { x: number; y: number }) => void,
     private onDoubleClick?: (system: StarSystem) => void,
     private onTelescopeClick?: (system: StarSystem) => void,
@@ -312,6 +314,94 @@ export class GalaxyScene {
     }
 
     this.buildConnectionEdges();
+
+    /* ── Background cluster visualization ── */
+    if (groupCount && groupCount > 1) {
+      this.buildClusterBackground(
+        galaxySeed,
+        groupCount,
+        playerGroupIndex ?? 0,
+        playerCenterX,
+        playerCenterY,
+      );
+    }
+  }
+
+  /* ── Background cluster visualization ──────────────────────── */
+
+  /**
+   * Render a static background layer showing all galaxy clusters as dim star clouds.
+   * Each cluster is represented by ~40 tiny dots scattered around its galactic position.
+   * The player's own cluster is rendered slightly brighter with a faint ring.
+   *
+   * Coordinate mapping:
+   *   - computeGroupPosition returns galaxy-wide coords in LY (scale ~400-2000 LY)
+   *   - We subtract the player's cluster position to get relative offset
+   *   - Multiply by CLUSTER_BG_SCALE to convert to screen pixels
+   */
+  private buildClusterBackground(
+    galaxySeed: number,
+    groupCount: number,
+    playerGroupIndex: number,
+    _playerCenterX: number,
+    _playerCenterY: number,
+  ) {
+    /** Screen pixels per galaxy-wide LY for cluster position mapping */
+    const CLUSTER_BG_SCALE = 0.5;
+    /** Screen pixels radius of gaussian scatter for stars within a cluster */
+    const CLUSTER_SCATTER_PX = 45;
+    /** Number of dim dots per cluster */
+    const DOTS_PER_CLUSTER = 40;
+
+    // Get the player's cluster position as the reference origin
+    const ownClusterMeta = computeGroupPosition(galaxySeed, playerGroupIndex);
+    const ownGx = ownClusterMeta.position.x;
+    const ownGy = ownClusterMeta.position.y;
+
+    const clusterBg = new Graphics();
+
+    for (let gi = 0; gi < groupCount; gi++) {
+      const isOwnCluster = gi === playerGroupIndex;
+      const meta = computeGroupPosition(galaxySeed, gi);
+
+      // Screen position of this cluster's center relative to the player's cluster
+      const cx = (meta.position.x - ownGx) * CLUSTER_BG_SCALE;
+      const cy = (meta.position.y - ownGy) * CLUSTER_BG_SCALE;
+
+      // Deterministic scatter RNG per cluster
+      const rng = new SeededRNG(meta.groupSeed ^ 0xdeadbeef);
+
+      // Draw cluster dots
+      const dotAlpha = isOwnCluster ? 0.35 : 0.18;
+      const dotColor = isOwnCluster ? 0x6688aa : 0x334466;
+
+      for (let d = 0; d < DOTS_PER_CLUSTER; d++) {
+        // Gaussian scatter via Box-Muller
+        const u1 = Math.max(1e-10, rng.next());
+        const u2 = rng.next();
+        const mag = Math.sqrt(-2 * Math.log(u1));
+        const sx = cx + mag * Math.cos(2 * Math.PI * u2) * CLUSTER_SCATTER_PX;
+        const sy = cy + mag * Math.sin(2 * Math.PI * u2) * CLUSTER_SCATTER_PX;
+
+        const radius = 0.8 + rng.next() * 0.8;
+        const alpha = dotAlpha * (0.6 + rng.next() * 0.4);
+
+        clusterBg.circle(sx, sy, radius);
+        clusterBg.fill({ color: dotColor, alpha });
+      }
+
+      // Faint ring around the cluster center to mark its extent
+      const ringAlpha = isOwnCluster ? 0.08 : 0.04;
+      const ringColor = isOwnCluster ? 0x446688 : 0x223344;
+      const ringRadius = CLUSTER_SCATTER_PX * 1.8;
+
+      // Draw ring as a thin circle outline using arc
+      clusterBg.circle(cx, cy, ringRadius);
+      clusterBg.stroke({ width: 0.5, color: ringColor, alpha: ringAlpha });
+    }
+
+    // Insert cluster background BEHIND everything else (at index 1, after bgStars which is at 0)
+    this.container.addChildAt(clusterBg, 1);
   }
 
   /* ── Helpers ────────────────────────────────────────────────── */

@@ -1909,6 +1909,7 @@ function AppInner() {
           fetchUniverseInfo().then(info => {
             universeGroupCountRef.current = info.groupCount;
             universeEngineRef.current?.updateGroupCount(info.groupCount);
+            engineRef.current?.setGroupInfo(globalPlayerIndexRef.current, info.groupCount);
           }).catch(() => { /* use default */ });
         } catch (err) {
           console.warn('[Legacy] Failed to ensure player in DB:', err);
@@ -1953,6 +1954,7 @@ function AppInner() {
               fetchUniverseInfo().then(info => {
                 universeGroupCountRef.current = info.groupCount;
                 universeEngineRef.current?.updateGroupCount(info.groupCount);
+                engineRef.current?.setGroupInfo(globalPlayerIndexRef.current, info.groupCount);
               }).catch(() => { /* use default */ });
               // Check if player needs onboarding
               if (player.game_phase === 'onboarding') {

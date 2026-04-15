@@ -2,6 +2,7 @@ import { Application, Container } from 'pixi.js';
 import {
   generatePlayerRings,
   assignPlayerPosition,
+  assignPlayerToGroup,
   isSystemFullyResearched,
   delaunayEdges,
   PLAYERS_PER_GROUP,
@@ -50,6 +51,10 @@ export class GameEngine {
   private _neighborSystems: Array<{ system: StarSystem; ownerIndex: number }> = [];
   private _coreSystems: Array<{ system: StarSystem; coreId: number; depth: number }> = [];
 
+  /** Galaxy-wide cluster info for background visualization */
+  private groupCount = 1;
+  private playerGroupIndex = 0;
+
   constructor(container: HTMLElement, callbacks: GameCallbacks, playerIndex = 0, galaxySeed = 42) {
     this.container = container;
     this.callbacks = callbacks;
@@ -93,6 +98,17 @@ export class GameEngine {
     this.researchState = state;
   }
 
+  /**
+   * Set galaxy-wide cluster info for background visualization.
+   * Called from App.tsx after /api/universe/info resolves.
+   * globalPlayerIndex is the player's index across ALL clusters.
+   */
+  setGroupInfo(globalPlayerIndex: number, groupCount: number) {
+    const assignment = assignPlayerToGroup(globalPlayerIndex);
+    this.playerGroupIndex = assignment.groupIndex;
+    this.groupCount = groupCount;
+  }
+
   /** Update a single system's visual on the galaxy map without full re-render. */
   updateSystemResearchVisual(systemId: string, state: ResearchState) {
     this.researchState = state;
@@ -120,6 +136,8 @@ export class GameEngine {
       this._neighborSystems,
       this._coreSystems,
       false, // expandedVisible: neighbor/core hidden by default
+      this.groupCount,
+      this.playerGroupIndex,
       (system, screenPos) => {
         // New directional layout — no camera animation needed
         this.callbacks.onSystemSelect(system, screenPos);
