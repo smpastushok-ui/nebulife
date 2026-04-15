@@ -10,12 +10,13 @@ interface HexGridProps {
   onHarvest: (id: string) => void;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
-  // Affordability is checked on-click, not per-render — avoids cascade re-renders on resource change
+  onDestroy: (id: string) => void;
   canAffordUnlock: (slotId: string) => boolean;
   zoom: number;
   panX: number;
   panY: number;
   onTransformRef?: (el: HTMLDivElement | null) => void;
+  shutdownBuildingTypes?: Set<string>;
 }
 
 export const HexGrid = React.memo(function HexGrid({
@@ -25,11 +26,13 @@ export const HexGrid = React.memo(function HexGrid({
   onHarvest,
   onBuild,
   onInspect,
+  onDestroy,
   canAffordUnlock,
   zoom,
   panX,
   panY,
   onTransformRef,
+  shutdownBuildingTypes,
 }: HexGridProps) {
   // Compute hex positions for this planet size
   const positions = useMemo(() => getHexPositions(planetSize), [planetSize]);
@@ -117,7 +120,7 @@ export const HexGrid = React.memo(function HexGrid({
         }}
       >
         {/* Render in pre-sorted Y order (isometric z-index) — no runtime .sort() */}
-        {/* canAffordUnlock passed as checkCanAfford — called on-click, not per render */}
+        {/* Stable callbacks (no arrow wrapper) — preserves React.memo on HexSlot */}
         {sortedSlotOrder.map(({ id, zIndex }) => {
           const slot = slotById.get(id);
           const pos = posMap.get(id);
@@ -130,11 +133,13 @@ export const HexGrid = React.memo(function HexGrid({
               x={pos.x}
               y={pos.y + pos.zOffset}
               zIndex={zIndex}
-              checkCanAfford={canAffordUnlock}
+              canAfford={canAffordUnlock(id)}
               onUnlock={onUnlock}
               onHarvest={onHarvest}
               onBuild={onBuild}
               onInspect={onInspect}
+              onDestroy={onDestroy}
+              isShutdown={shutdownBuildingTypes?.has(slot.buildingType ?? '') ?? false}
             />
           );
         })}

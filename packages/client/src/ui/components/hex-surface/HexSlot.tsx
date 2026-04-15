@@ -10,6 +10,7 @@ import {
   respawnTimeRemaining,
 } from './hex-utils';
 import { playSfx } from '../../../audio/SfxPlayer.js';
+import { BUILDING_DEFS } from '@nebulife/core';
 
 // Resource icons matching ResourceDisplay (top HUD)
 const COST_ICONS: Record<string, (s: number) => React.ReactElement> = {
@@ -40,8 +41,9 @@ interface HexSlotProps {
   onHarvest: (id: string) => void;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
-  // Called on click to check affordability — NOT called during render
-  checkCanAfford: (id: string) => boolean;
+  onDestroy: (id: string) => void;
+  canAfford: boolean;
+  isShutdown?: boolean;
 }
 
 // Pointy-top hex clip-path (matches reference design)
@@ -80,8 +82,10 @@ function HiddenContent() {
 
 function LockedContent({
   slot,
+  canAfford,
 }: {
   slot: HexSlotData;
+  canAfford: boolean;
 }) {
   const cost = slot.unlockCost;
   return (
@@ -102,7 +106,7 @@ function LockedContent({
         style={{
           width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
           position: 'absolute', inset: 0,
-          opacity: 0.65,
+          opacity: canAfford ? 0.8 : 0.5,
         }}
       />
       {cost && (
@@ -342,7 +346,9 @@ export const HexSlot = React.memo(function HexSlot({
   onHarvest,
   onBuild,
   onInspect,
-  checkCanAfford,
+  onDestroy,
+  canAfford,
+  isShutdown = false,
 }: HexSlotProps) {
   const left = x - HEX_W / 2;
   const top  = y - HEX_H / 2;
@@ -351,20 +357,20 @@ export const HexSlot = React.memo(function HexSlot({
   if (slot.state === 'hidden') {
     opacity = 0.35;
   } else if (slot.state === 'locked') {
-    opacity = 0.65;
+    opacity = canAfford ? 0.9 : 0.5;
   }
 
   // Animation states (local to this hex — no cascade)
   const [harvestAnim, setHarvestAnim] = useState<number | null>(null);
   const [insufficientMsg, setInsufficientMsg] = useState(false);
   const [insufficientCost, setInsufficientCost] = useState<HexSlotData['unlockCost'] | null>(null);
+  const [destroyConfirm, setDestroyConfirm] = useState(false);
   const buildingRef = useRef<HTMLDivElement>(null);
 
   // Main click handler — uses id to call stable parent callbacks
   const handleClick = () => {
     if (slot.state === 'locked') {
-      // Check affordability only on click (not during render)
-      if (checkCanAfford(id)) {
+      if (canAfford) {
         onUnlock(id);
       } else {
         setInsufficientCost(slot.unlockCost ?? null);
@@ -418,9 +424,119 @@ export const HexSlot = React.memo(function HexSlot({
           pointerEvents: 'auto',
         }}
       />
+
+      {/* Destroy button — top-center, only for resource tiles. Upper position avoids
+          z-index conflicts: hexes above have lower zIndex and won't cover this.
+          onPointerDown stops propagation so HexSurface's drag handler isn't triggered,
+          which prevents setPointerCapture from breaking the subsequent click event. */}
+      {slot.state === 'resource' && !destroyConfirm && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); setDestroyConfirm(true); }}
+          style={{
+            position: 'absolute',
+            top: '8%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 150,
+            pointerEvents: 'auto',
+            width: 16,
+            height: 10,
+            background: 'rgba(20, 8, 8, 0.82)',
+            border: '1px solid rgba(140, 40, 40, 0.45)',
+            borderRadius: 2,
+            color: '#774444',
+            fontSize: 7,
+            fontFamily: 'monospace',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1,
+            padding: 0,
+          }}
+        >
+          x
+        </button>
+      )}
+
+      {/* Destroy confirm overlay — full hex, clipped to hex shape */}
+      {slot.state === 'resource' && destroyConfirm && (
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 200,
+            clipPath: HEX_CLIP,
+            background: 'rgba(35, 8, 8, 0.94)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 5,
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{
+            fontSize: 7,
+            color: '#cc5544',
+            fontFamily: 'monospace',
+            letterSpacing: 1,
+          }}>
+            FREE?
+          </div>
+          <div style={{ display: 'flex', gap: 5 }}>
+            <button
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onDestroy(id); setDestroyConfirm(false); }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: 20,
+                height: 14,
+                background: 'rgba(80, 20, 20, 0.9)',
+                border: '1px solid rgba(190, 60, 60, 0.7)',
+                borderRadius: 2,
+                color: '#dd6655',
+                fontSize: 8,
+                fontFamily: 'monospace',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              Y
+            </button>
+            <button
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); setDestroyConfirm(false); }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: 20,
+                height: 14,
+                background: 'rgba(15, 25, 45, 0.9)',
+                border: '1px solid rgba(60, 90, 120, 0.5)',
+                borderRadius: 2,
+                color: '#4488aa',
+                fontSize: 8,
+                fontFamily: 'monospace',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              N
+            </button>
+          </div>
+        </div>
+      )}
+
       {slot.state === 'hidden' && <HiddenContent />}
       {slot.state === 'locked' && (
-        <LockedContent slot={slot} />
+        <LockedContent slot={slot} canAfford={canAfford} />
       )}
       {slot.state === 'resource' && (
         <ResourceContent slot={slot} />
@@ -432,6 +548,29 @@ export const HexSlot = React.memo(function HexSlot({
           transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
         }}>
           <BuildingContent slot={slot} />
+        </div>
+      )}
+      {isShutdown && (slot.state === 'building' || slot.state === 'harvester') && (
+        <div style={{
+          position: 'absolute',
+          top: 2,
+          right: 2,
+          zIndex: 150,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          background: 'rgba(0,0,0,0.7)',
+          borderRadius: 4,
+          padding: '1px 3px',
+          pointerEvents: 'none',
+        }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#cc4444" strokeWidth="3" strokeLinecap="round">
+            <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
+            <line x1="4" y1="4" x2="20" y2="20" stroke="#cc4444" strokeWidth="2" />
+          </svg>
+          <span style={{ fontSize: 7, color: '#cc4444', fontFamily: 'monospace', fontWeight: 'bold' }}>
+            {BUILDING_DEFS[slot.buildingType as keyof typeof BUILDING_DEFS]?.energyConsumption ?? '?'}
+          </span>
         </div>
       )}
 
@@ -483,13 +622,15 @@ export const HexSlot = React.memo(function HexSlot({
     </div>
   );
 }, (prev, next) => {
-  // Custom memo comparator — hex re-renders ONLY when its own data changes.
-  // canAfford removed: affordability is checked on-click, not in render.
+  // Deep comparison — hex re-renders ONLY when its own data changes.
+  // Prevents cascade re-render when unrelated hex is modified.
   return (
     prev.id === next.id &&
     prev.x === next.x &&
     prev.y === next.y &&
     prev.zIndex === next.zIndex &&
+    prev.canAfford === next.canAfford &&
+    prev.isShutdown === next.isShutdown &&
     prev.slot.state === next.slot.state &&
     prev.slot.buildingType === next.slot.buildingType &&
     prev.slot.resourceType === next.slot.resourceType &&
