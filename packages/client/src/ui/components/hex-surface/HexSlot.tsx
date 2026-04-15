@@ -40,7 +40,8 @@ interface HexSlotProps {
   onHarvest: (id: string) => void;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
-  canAfford: boolean;
+  // Called on click to check affordability — NOT called during render
+  checkCanAfford: (id: string) => boolean;
 }
 
 // Pointy-top hex clip-path (matches reference design)
@@ -79,10 +80,8 @@ function HiddenContent() {
 
 function LockedContent({
   slot,
-  canAfford,
 }: {
   slot: HexSlotData;
-  canAfford: boolean;
 }) {
   const cost = slot.unlockCost;
   return (
@@ -103,7 +102,7 @@ function LockedContent({
         style={{
           width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
           position: 'absolute', inset: 0,
-          opacity: canAfford ? 0.8 : 0.5,
+          opacity: 0.65,
         }}
       />
       {cost && (
@@ -343,7 +342,7 @@ export const HexSlot = React.memo(function HexSlot({
   onHarvest,
   onBuild,
   onInspect,
-  canAfford,
+  checkCanAfford,
 }: HexSlotProps) {
   const left = x - HEX_W / 2;
   const top  = y - HEX_H / 2;
@@ -352,7 +351,7 @@ export const HexSlot = React.memo(function HexSlot({
   if (slot.state === 'hidden') {
     opacity = 0.35;
   } else if (slot.state === 'locked') {
-    opacity = canAfford ? 0.9 : 0.5;
+    opacity = 0.65;
   }
 
   // Animation states (local to this hex — no cascade)
@@ -364,7 +363,8 @@ export const HexSlot = React.memo(function HexSlot({
   // Main click handler — uses id to call stable parent callbacks
   const handleClick = () => {
     if (slot.state === 'locked') {
-      if (canAfford) {
+      // Check affordability only on click (not during render)
+      if (checkCanAfford(id)) {
         onUnlock(id);
       } else {
         setInsufficientCost(slot.unlockCost ?? null);
@@ -420,7 +420,7 @@ export const HexSlot = React.memo(function HexSlot({
       />
       {slot.state === 'hidden' && <HiddenContent />}
       {slot.state === 'locked' && (
-        <LockedContent slot={slot} canAfford={canAfford} />
+        <LockedContent slot={slot} />
       )}
       {slot.state === 'resource' && (
         <ResourceContent slot={slot} />
@@ -483,14 +483,13 @@ export const HexSlot = React.memo(function HexSlot({
     </div>
   );
 }, (prev, next) => {
-  // Deep comparison — hex re-renders ONLY when its own data changes.
-  // Prevents cascade re-render when unrelated hex is modified.
+  // Custom memo comparator — hex re-renders ONLY when its own data changes.
+  // canAfford removed: affordability is checked on-click, not in render.
   return (
     prev.id === next.id &&
     prev.x === next.x &&
     prev.y === next.y &&
     prev.zIndex === next.zIndex &&
-    prev.canAfford === next.canAfford &&
     prev.slot.state === next.slot.state &&
     prev.slot.buildingType === next.slot.buildingType &&
     prev.slot.resourceType === next.slot.resourceType &&
