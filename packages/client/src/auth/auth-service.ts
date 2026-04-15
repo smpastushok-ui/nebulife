@@ -1,15 +1,19 @@
 import {
   signInAnonymously,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   linkWithPopup,
+  linkWithRedirect,
   linkWithCredential,
   EmailAuthProvider,
   onAuthStateChanged,
   type User,
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
 import { auth } from './firebase-config.js';
 
 // ---------------------------------------------------------------------------
@@ -40,10 +44,26 @@ export async function signInAsGuest(): Promise<User> {
   return cred.user;
 }
 
-/** Sign in with Google popup. */
-export async function signInWithGoogle(): Promise<User> {
-  const cred = await signInWithPopup(requireAuth(), googleProvider);
-  return cred.user;
+/** Sign in with Google popup (web) or redirect (native Capacitor). */
+export async function signInWithGoogle(): Promise<User | null> {
+  const a = requireAuth();
+  if (Capacitor.isNativePlatform()) {
+    await signInWithRedirect(a, googleProvider);
+    // Result will be handled by handleRedirectResult() on next load
+    return null;
+  }
+  const result = await signInWithPopup(a, googleProvider);
+  return result.user;
+}
+
+/** Handle the result of a signInWithRedirect call (called on app init). */
+export async function handleRedirectResult(): Promise<User | null> {
+  try {
+    const result = await getRedirectResult(requireAuth());
+    return result?.user ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Sign in with email and password. */
@@ -59,10 +79,15 @@ export async function registerWithEmail(email: string, password: string): Promis
 }
 
 /** Link an anonymous account to Google (preserves UID). */
-export async function linkGoogleToAnonymous(): Promise<User> {
+export async function linkGoogleToAnonymous(): Promise<User | null> {
   const a = requireAuth();
   const user = a.currentUser;
   if (!user) throw new Error('No current user');
+  if (Capacitor.isNativePlatform()) {
+    await linkWithRedirect(user, googleProvider);
+    // Result will be handled by handleRedirectResult() on next load
+    return null;
+  }
   const result = await linkWithPopup(user, googleProvider);
   return result.user;
 }

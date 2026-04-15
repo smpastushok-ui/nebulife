@@ -551,7 +551,9 @@ function OnboardingSlides({
 
   useEffect(() => {
     if (slide === 0) {
-      playSfx('before-trailers', 0.3);
+      // App.tsx already plays 'before-trailers' as a loop during onboarding.
+      // Do NOT call playSfx('before-trailers') here — it would create a duplicate.
+      stopLoop('terminal-loop'); // ensure terminal-loop is silent on the video slide
       setLoopVolume('terminal-loop', 0); // mute during video
     } else {
       setLoopVolume('terminal-loop', 0.3); // unmute on slides 1, 2, 3
