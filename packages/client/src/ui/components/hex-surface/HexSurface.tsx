@@ -103,6 +103,13 @@ const PLANET_BG: Partial<Record<string, string>> = {
   'ice-giant': '/planet_2d/ice-giant.webp',
 };
 
+// Most common hex images to preload on surface mount
+const PRELOAD_HEX_IMAGES = [
+  '/buildings/hecs_locked.webp',
+  '/buildings/build_hecs.webp',
+  '/buildings/colony.webp',
+];
+
 // ---------------------------------------------------------------------------
 // Tiny helper — plays planet name load sound once on mount
 // ---------------------------------------------------------------------------
@@ -149,6 +156,14 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     },
     ref,
   ) {
+    // ── Preload most common hex images on mount ──────────────────────────────
+    useEffect(() => {
+      PRELOAD_HEX_IMAGES.forEach(src => {
+        const img = new Image();
+        img.src = src;
+      });
+    }, []);
+
     // ── Zoom / pan ──────────────────────────────────────────────────────────
     // ALL movement uses refs + direct DOM — zero React re-renders during gestures.
     // React state is NEVER updated during drag or wheel. Only on mount.

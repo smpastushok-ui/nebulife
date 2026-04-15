@@ -33,6 +33,13 @@ import {
 import { getPlanetSize } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
+// Module-level player data cache — avoids repeated network calls on re-mount
+// ---------------------------------------------------------------------------
+let _lastFetchTime = 0;
+let _lastFetchData: any = null;
+const CACHE_TTL_MS = 30_000; // 30 seconds
+
+// ---------------------------------------------------------------------------
 // Public interface
 // ---------------------------------------------------------------------------
 
@@ -454,30 +461,46 @@ export function useHexState(
     };
 
     // 1) Load from localStorage FIRST (instant, survives app restart)
+    // If data exists, show it immediately WITHOUT loading screen
+    let localLoaded = false;
     try {
       const local = localStorage.getItem('nebulife_hex_slots');
       if (local) {
         const parsed = JSON.parse(local) as HexSlotData[];
         if (Array.isArray(parsed) && parsed.length > 0) {
           setSlots(validateAndMigrate(parsed));
-          setLoading(false);
+          setLoading(false); // Hide loading screen immediately
+          localLoaded = true;
         }
       }
     } catch { /* ignore */ }
 
-    // 2) Then load from server (authoritative — may have cross-device changes)
+    // 2) Then load from server in background (authoritative — may have cross-device changes)
     (async () => {
       try {
-        const playerData = await getPlayer(playerId);
+        // Use module-level cache to avoid repeated network calls on re-mount
+        let playerData: any;
+        const now = Date.now();
+        if (_lastFetchData && now - _lastFetchTime < CACHE_TTL_MS) {
+          playerData = _lastFetchData;
+        } else {
+          playerData = await getPlayer(playerId);
+          _lastFetchTime = Date.now();
+          _lastFetchData = playerData;
+        }
+
         if (cancelled) return;
 
         const saved = playerData?.game_state?.hex_slots;
 
         if (Array.isArray(saved) && saved.length > 0) {
-          const migrated = validateAndMigrate(saved as HexSlotData[]);
-          setSlots(migrated);
-          // Sync localStorage with server truth
-          try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(migrated)); } catch { /* ignore */ }
+          const serverSlots = validateAndMigrate(saved as HexSlotData[]);
+          // Fix 5: Only update if different from current (skip identical server data)
+          if (JSON.stringify(serverSlots) !== JSON.stringify(slotsRef.current)) {
+            setSlots(serverSlots);
+            // Sync localStorage with server truth
+            try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(serverSlots)); } catch { /* ignore */ }
+          }
         } else {
           // No server data — check if localStorage already loaded slots
           const hasLocal = slotsRef.current.length > 0;
@@ -495,7 +518,7 @@ export function useHexState(
         // If localStorage didn't load anything either, create initial
         if (!cancelled && slotsRef.current.length === 0) setSlots(buildInitialSlots(planetSize));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !localLoaded) setLoading(false);
       }
     })();
 
@@ -540,7 +563,8 @@ export function useHexState(
   );
 
   // ---------------------------------------------------------------------------
-  // canAffordUnlock
+  // canAffordUnlock — exported as a stable ref-based function (not reactive)
+  // Called only on click, NOT in the render loop, to avoid cascade re-renders
   // ---------------------------------------------------------------------------
 
   const canAffordUnlock = useCallback(
@@ -775,9 +799,11 @@ export function useHexState(
   const harvestResourceRef = useRef(harvestResource);
   harvestResourceRef.current = harvestResource;
 
+  // Derive a stable boolean — only re-run the drone effect when harvester is added/removed
+  const hasHarvester = slots.some(s => s.buildingType === 'alpha_harvester');
+
   useEffect(() => {
-    const hasDrone = slots.some(s => s.buildingType === 'alpha_harvester');
-    if (!hasDrone) return;
+    if (!hasHarvester) return;
 
     const DRONE_INTERVAL = 10_000;  // 10s between harvests
     const SAFETY_INTERVAL = 60_000; // 60s safety check
@@ -855,7 +881,7 @@ export function useHexState(
       clearRespawnTimers();
       if (safetyTimer) clearInterval(safetyTimer);
     };
-  }, [slots]); // Re-run when slots change (drone placed/removed, harvest stamps)
+  }, [hasHarvester]); // Only re-run when harvester is added/removed (not on every slots change)
 
   // ---------------------------------------------------------------------------
   // Result
