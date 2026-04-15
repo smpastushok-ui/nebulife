@@ -519,6 +519,11 @@ export const uk = {
   'element.Th': 'Торiй',
   'element.U':  'Уран',
   'element.Pu': 'Плутонiй',
+
+  // App-level dialogs
+  'app.exit_confirm': 'Вийти з гри?',
+  'app.cancel':       'Скасувати',
+  'app.exit':         'Вийти',
 } as const;
 
 export type TranslationKey = keyof typeof uk;

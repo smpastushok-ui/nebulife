@@ -14,7 +14,6 @@
     "unavailable": "Unavailable",
     "coming_soon": "coming soon"
   },
-
   "nav": {
     "universe": "Galaxy",
     "cluster": "Star Cluster",
@@ -31,7 +30,6 @@
     "fly_galaxy_center": "Fly to Galaxy Center",
     "fly_my_star": "Fly to My Star"
   },
-
   "rarity": {
     "common": "Standard Event",
     "uncommon": "Anomaly",
@@ -39,7 +37,6 @@
     "epic": "Epic Discovery",
     "legendary": "Witness to an Epoch"
   },
-
   "planet": {
     "rocky": "Rocky",
     "rocky_on": "rocky planet",
@@ -77,7 +74,6 @@
     "photo_ad_label": "Satellite Request",
     "photo_ad_progress": "Data transfer: {{done}}/{{total}} packets"
   },
-
   "terrain_bonus": {
     "plains": "Plains +20%",
     "volcano": "Volcano +100%",
@@ -85,101 +81,331 @@
     "coast": "Coast +50%",
     "hills": "Highlands +15%"
   },
-
   "building": {
-    "colony_hub":         { "name": "Colony Hub",            "desc": "Main base. Built-in observatory (+1 data/hr), 500 residents, +5 energy." },
-    "resource_storage":   { "name": "Resource Module",       "desc": "Expands storage capacity by +200 for the selected resource type." },
-    "landing_pad":        { "name": "Landing Pad",           "desc": "Reception for small ships, drones, and cargo from orbit." },
-    "spaceport":          { "name": "Spaceport",             "desc": "Ship construction and launch. Requires Landing Pad." },
-    "solar_plant":        { "name": "Solar Plant",           "desc": "Energy from the star. Efficiency depends on orbital distance." },
-    "battery_station":    { "name": "Battery Station",       "desc": "Stores surplus energy. +100 energy storage capacity." },
-    "wind_generator":     { "name": "Wind Generator",        "desc": "Wind energy. Requires atmosphere. Output depends on pressure." },
-    "thermal_generator":  { "name": "Thermal Generator",     "desc": "Stable energy from geothermal sources. Bonus on volcanoes." },
-    "fusion_reactor":     { "name": "Plasma Synthesizer",    "desc": "Thermonuclear energy. +50 energy. Consumes isotopes." },
-    "mine":               { "name": "Mine",                  "desc": "Extracts basic minerals from surface deposits." },
-    "water_extractor":    { "name": "Water Extractor",       "desc": "Extracts volatiles from ocean and coastline." },
-    "atmo_extractor":     { "name": "Atmospheric Condenser", "desc": "Collects volatiles from atmosphere. Output depends on pressure." },
-    "deep_drill":         { "name": "Deep Drill",            "desc": "Access to deep deposits. Chance of rare elements." },
-    "orbital_collector":  { "name": "Orbital Collector",     "desc": "Sole extraction method for gas/ice giants." },
-    "isotope_collector":  { "name": "Isotope Collector",     "desc": "Passive isotope extraction from cosmic radiation. 9 ISO/hr." },
-    "research_lab":       { "name": "Research Lab",          "desc": "Scientific research. Generates research data." },
-    "observatory":        { "name": "Observatory",           "desc": "Space observation. Research session slots." },
-    "radar_tower":        { "name": "Radar Tower",           "desc": "Clears fog of war in 32-cell radius. Detects hidden deposits." },
-    "orbital_telescope":  { "name": "Orbital Telescope",     "desc": "Generates 3 research data per tick. +10% system discoveries." },
-    "quantum_computer":   { "name": "Quantum Computer",      "desc": "Generates 5 research data per tick. -20% research time." },
-    "greenhouse":         { "name": "Greenhouse",            "desc": "Food production. Increases habitability." },
-    "residential_dome":   { "name": "Residential Dome",      "desc": "Crew quarters. +500 population." },
-    "atmo_shield":        { "name": "Atmospheric Shield",    "desc": "Protects colony from hostile atmosphere and meteorites." },
-    "biome_dome":         { "name": "Biome Dome",            "desc": "Self-sufficient biosphere. Equivalent to 3 greenhouses." },
-    "quantum_separator":  { "name": "Quantum Separator",     "desc": "Splits minerals into chemical elements. 10 min → 5 elements." },
-    "gas_fractionator":   { "name": "Gas Fractionator",      "desc": "Processes volatiles into elements. 10 vol → 5 elements." },
-    "isotope_centrifuge": { "name": "Isotope Centrifuge",    "desc": "Enriches isotopes. 5 iso → 2 U. Critical for fusion reactor." },
-    "genesis_vault":      { "name": "Genesis Vault",         "desc": "Megastructure for DNA storage and terraforming. +0.15 habitability." },
-    "alpha_harvester":    { "name": "Alpha Harvester",       "desc": "Premium drone. Auto-harvests resources in 10-cell radius. Purchased with quarks." }
+    "colony_hub": {
+      "name": "Colony Hub",
+      "desc": "Main base. Built-in observatory (+1 data/hr), 500 residents, +5 energy."
+    },
+    "resource_storage": {
+      "name": "Resource Module",
+      "desc": "Expands storage capacity by +200 for the selected resource type."
+    },
+    "landing_pad": {
+      "name": "Landing Pad",
+      "desc": "Reception for small ships, drones, and cargo from orbit."
+    },
+    "spaceport": {
+      "name": "Spaceport",
+      "desc": "Ship construction and launch. Requires Landing Pad."
+    },
+    "solar_plant": {
+      "name": "Solar Plant",
+      "desc": "Energy from the star. Efficiency depends on orbital distance."
+    },
+    "battery_station": {
+      "name": "Battery Station",
+      "desc": "Stores surplus energy. +100 energy storage capacity."
+    },
+    "wind_generator": {
+      "name": "Wind Generator",
+      "desc": "Wind energy. Requires atmosphere. Output depends on pressure."
+    },
+    "thermal_generator": {
+      "name": "Thermal Generator",
+      "desc": "Stable energy from geothermal sources. Bonus on volcanoes."
+    },
+    "fusion_reactor": {
+      "name": "Plasma Synthesizer",
+      "desc": "Thermonuclear energy. +50 energy. Consumes isotopes."
+    },
+    "mine": {
+      "name": "Mine",
+      "desc": "Extracts basic minerals from surface deposits."
+    },
+    "water_extractor": {
+      "name": "Water Extractor",
+      "desc": "Extracts volatiles from ocean and coastline."
+    },
+    "atmo_extractor": {
+      "name": "Atmospheric Condenser",
+      "desc": "Collects volatiles from atmosphere. Output depends on pressure."
+    },
+    "deep_drill": {
+      "name": "Deep Drill",
+      "desc": "Access to deep deposits. Chance of rare elements."
+    },
+    "orbital_collector": {
+      "name": "Orbital Collector",
+      "desc": "Sole extraction method for gas/ice giants."
+    },
+    "isotope_collector": {
+      "name": "Isotope Collector",
+      "desc": "Passive isotope extraction from cosmic radiation. 9 ISO/hr."
+    },
+    "research_lab": {
+      "name": "Research Lab",
+      "desc": "Scientific research. Generates research data."
+    },
+    "observatory": {
+      "name": "Observatory",
+      "desc": "Space observation. Research session slots."
+    },
+    "radar_tower": {
+      "name": "Radar Tower",
+      "desc": "Clears fog of war in 32-cell radius. Detects hidden deposits."
+    },
+    "orbital_telescope": {
+      "name": "Orbital Telescope",
+      "desc": "Generates 3 research data per tick. +10% system discoveries."
+    },
+    "quantum_computer": {
+      "name": "Quantum Computer",
+      "desc": "Generates 5 research data per tick. -20% research time."
+    },
+    "greenhouse": {
+      "name": "Greenhouse",
+      "desc": "Food production. Increases habitability."
+    },
+    "residential_dome": {
+      "name": "Residential Dome",
+      "desc": "Crew quarters. +500 population."
+    },
+    "atmo_shield": {
+      "name": "Atmospheric Shield",
+      "desc": "Protects colony from hostile atmosphere and meteorites."
+    },
+    "biome_dome": {
+      "name": "Biome Dome",
+      "desc": "Self-sufficient biosphere. Equivalent to 3 greenhouses."
+    },
+    "quantum_separator": {
+      "name": "Quantum Separator",
+      "desc": "Splits minerals into chemical elements. 10 min → 5 elements."
+    },
+    "gas_fractionator": {
+      "name": "Gas Fractionator",
+      "desc": "Processes volatiles into elements. 10 vol → 5 elements."
+    },
+    "isotope_centrifuge": {
+      "name": "Isotope Centrifuge",
+      "desc": "Enriches isotopes. 5 iso → 2 U. Critical for fusion reactor."
+    },
+    "genesis_vault": {
+      "name": "Genesis Vault",
+      "desc": "Megastructure for DNA storage and terraforming. +0.15 habitability."
+    },
+    "alpha_harvester": {
+      "name": "Alpha Harvester",
+      "desc": "Premium drone. Auto-harvests resources in 10-cell radius. Purchased with quarks."
+    }
   },
-
   "building_adj": {
     "research_bonus": "+20% research",
     "energy_bonus": "+15% energy",
     "harvest_bonus": "+10% harvest"
   },
-
   "tech": {
-    "ast-radio-1":        { "name": "Radio Telescope I",         "desc": "Reduces research time by 10%" },
-    "ast-compress":       { "name": "Compression Algorithms",    "desc": "+2 research data per session" },
-    "ast-satellite":      { "name": "Orbital Satellite",         "desc": "+15% discovery chance" },
-    "ast-spectrum":       { "name": "Spectrum Analyzer",         "desc": "Reveals spectral class from 15% progress" },
-    "ast-obs-2":          { "name": "Observatory II",            "desc": "+1 observatory slot" },
-    "ast-probe":          { "name": "Automated Probe",           "desc": "+1 available research ring" },
-    "ast-dock":           { "name": "Small Orbital Dock",        "desc": "+1 concurrent research" },
-    "ast-deep-radar":     { "name": "Deep Space Radar",          "desc": "+1 scan range, -15% research time" },
-    "ast-anomaly-filter": { "name": "Anomaly Filter",            "desc": "+30% anomaly chance" },
-    "ast-relay":          { "name": "Relay Network",             "desc": "+5 research data per session" },
-    "ast-obs-3":          { "name": "Observatory III",           "desc": "+1 observatory slot" },
-    "ast-quantum-int":    { "name": "Quantum Interferometer",    "desc": "+50% rare discovery chance" },
-    "ast-grav-scan":      { "name": "Gravitational Scanner",     "desc": "+25% discovery chance, +1 ring" },
-    "ast-orbital-yard":   { "name": "Orbital Shipyard",          "desc": "Unlocks Orbital Shipyard on surface" },
-
-    "phy-capacitor":      { "name": "Capacitive Condensers",     "desc": "Unlocks Battery Station." },
-    "phy-aero":           { "name": "Aerodynamics",              "desc": "Unlocks Wind Generator. +10% energy output." },
-    "phy-thermo-1":       { "name": "Thermodynamics I",          "desc": "Unlocks Thermal Generator. +15% energy output." },
-    "phy-em-field":       { "name": "Electromagnetic Field",     "desc": "Unlocks Radar Tower. +1 scan range." },
-    "phy-thrust-1":       { "name": "Thrust I",                  "desc": "Unlocks Landing Pad. Ship production." },
-    "phy-drill":          { "name": "Deep Drilling",             "desc": "Unlocks Deep Drill. +20% extraction yield." },
-    "phy-orbital-mech":   { "name": "Orbital Mechanics",         "desc": "Unlocks Spaceport. +15% ship speed." },
-    "phy-reactor-eff":    { "name": "Reactor Efficiency",        "desc": "-15% building energy consumption." },
-    "phy-quantum":        { "name": "Quantum Physics",           "desc": "Unlocks Quantum Computer. -20% research time." },
-    "phy-fusion":         { "name": "Thermonuclear Fusion",      "desc": "Unlocks Plasma Synthesizer. +25% energy output." },
-    "phy-warp-theory":    { "name": "Warp Theory",               "desc": "+50% ship speed, +500 cargo." },
-    "phy-megastructure":  { "name": "Megastructures",            "desc": "Storage ×2. Unlocks mega-buildings." },
-
-    "chem-basic-refine":  { "name": "Basic Refining",            "desc": "+15% resource harvest yield." },
-    "chem-gas-sep":       { "name": "Gas Separation",            "desc": "Unlocks Atmospheric Condenser." },
-    "chem-alloys":        { "name": "Alloys",                    "desc": "+15% mineral extraction. +20% storage capacity." },
-    "chem-rare-detect":   { "name": "Rare Element Detector",     "desc": "+50% rare element chance when drilling." },
-    "chem-q-sep":         { "name": "Quantum Separator",         "desc": "Unlocks Quantum Separator. +20% element conversion." },
-    "chem-fraction":      { "name": "Fractionation",             "desc": "Unlocks Gas Fractionator. +30% processing speed." },
-    "chem-orbital":       { "name": "Orbital Collection",        "desc": "Unlocks Orbital Collector for gas giants." },
-    "chem-catalysis":     { "name": "Catalysts",                 "desc": "+25% processing speed. +15% conversion." },
-    "chem-isotope":       { "name": "Isotope Chemistry",         "desc": "Unlocks Isotope Centrifuge. +20% isotope yield." },
-    "chem-antimatter":    { "name": "Antimatter",                "desc": "+30% energy output. +20% ship speed." },
-    "chem-nanotech":      { "name": "Nanotechnology",            "desc": "+50% refining. +30% extraction." },
-    "chem-transmute":     { "name": "Transmutation",             "desc": "+50% element conversion. Cross-element transmutation." },
-
-    "bio-botany":         { "name": "Botany",                    "desc": "+15% food yield. +20% resource regrowth speed." },
-    "bio-microbiology":   { "name": "Microbiology",              "desc": "+30% resource regrowth. +10% biological discoveries." },
-    "bio-hydroponics":    { "name": "Hydroponics",               "desc": "+25% greenhouse food yield." },
-    "bio-life-support":   { "name": "Life Support Systems",      "desc": "Unlocks Residential Dome. +200 population." },
-    "bio-ecology":        { "name": "Ecology",                   "desc": "+0.05 habitability. +20% regrowth." },
-    "bio-terraforming":   { "name": "Terraforming",              "desc": "Unlocks Atmospheric Shield. +50% terraforming speed." },
-    "bio-genetics":       { "name": "Genetics",                  "desc": "+30% food yield. +300 population." },
-    "bio-biome-eng":      { "name": "Biosphere Engineering",     "desc": "Unlocks Biome Dome. +0.05 habitability." },
-    "bio-synth-life":     { "name": "Synthetic Life",            "desc": "Unlocks drone production. +20% food." },
-    "bio-neural-net":     { "name": "Neural Networks",           "desc": "-20% research time. +500 population." },
-    "bio-evolution":      { "name": "Guided Evolution",          "desc": "Terraforming ×2. +0.1 habitability." },
-    "bio-genesis":        { "name": "Genesis Ark",               "desc": "Unlocks Genesis Vault. +0.15 habitability." }
+    "ast-radio-1": {
+      "name": "Radio Telescope I",
+      "desc": "Reduces research time by 10%"
+    },
+    "ast-compress": {
+      "name": "Compression Algorithms",
+      "desc": "+2 research data per session"
+    },
+    "ast-satellite": {
+      "name": "Orbital Satellite",
+      "desc": "+15% discovery chance"
+    },
+    "ast-spectrum": {
+      "name": "Spectrum Analyzer",
+      "desc": "Reveals spectral class from 15% progress"
+    },
+    "ast-obs-2": {
+      "name": "Observatory II",
+      "desc": "+1 observatory slot"
+    },
+    "ast-probe": {
+      "name": "Automated Probe",
+      "desc": "+1 available research ring"
+    },
+    "ast-dock": {
+      "name": "Small Orbital Dock",
+      "desc": "+1 concurrent research"
+    },
+    "ast-deep-radar": {
+      "name": "Deep Space Radar",
+      "desc": "+1 scan range, -15% research time"
+    },
+    "ast-anomaly-filter": {
+      "name": "Anomaly Filter",
+      "desc": "+30% anomaly chance"
+    },
+    "ast-relay": {
+      "name": "Relay Network",
+      "desc": "+5 research data per session"
+    },
+    "ast-obs-3": {
+      "name": "Observatory III",
+      "desc": "+1 observatory slot"
+    },
+    "ast-quantum-int": {
+      "name": "Quantum Interferometer",
+      "desc": "+50% rare discovery chance"
+    },
+    "ast-grav-scan": {
+      "name": "Gravitational Scanner",
+      "desc": "+25% discovery chance, +1 ring"
+    },
+    "ast-orbital-yard": {
+      "name": "Orbital Shipyard",
+      "desc": "Unlocks Orbital Shipyard on surface"
+    },
+    "phy-capacitor": {
+      "name": "Capacitive Condensers",
+      "desc": "Unlocks Battery Station."
+    },
+    "phy-aero": {
+      "name": "Aerodynamics",
+      "desc": "Unlocks Wind Generator. +10% energy output."
+    },
+    "phy-thermo-1": {
+      "name": "Thermodynamics I",
+      "desc": "Unlocks Thermal Generator. +15% energy output."
+    },
+    "phy-em-field": {
+      "name": "Electromagnetic Field",
+      "desc": "Unlocks Radar Tower. +1 scan range."
+    },
+    "phy-thrust-1": {
+      "name": "Thrust I",
+      "desc": "Unlocks Landing Pad. Ship production."
+    },
+    "phy-drill": {
+      "name": "Deep Drilling",
+      "desc": "Unlocks Deep Drill. +20% extraction yield."
+    },
+    "phy-orbital-mech": {
+      "name": "Orbital Mechanics",
+      "desc": "Unlocks Spaceport. +15% ship speed."
+    },
+    "phy-reactor-eff": {
+      "name": "Reactor Efficiency",
+      "desc": "-15% building energy consumption."
+    },
+    "phy-quantum": {
+      "name": "Quantum Physics",
+      "desc": "Unlocks Quantum Computer. -20% research time."
+    },
+    "phy-fusion": {
+      "name": "Thermonuclear Fusion",
+      "desc": "Unlocks Plasma Synthesizer. +25% energy output."
+    },
+    "phy-warp-theory": {
+      "name": "Warp Theory",
+      "desc": "+50% ship speed, +500 cargo."
+    },
+    "phy-megastructure": {
+      "name": "Megastructures",
+      "desc": "Storage ×2. Unlocks mega-buildings."
+    },
+    "chem-basic-refine": {
+      "name": "Basic Refining",
+      "desc": "+15% resource harvest yield."
+    },
+    "chem-gas-sep": {
+      "name": "Gas Separation",
+      "desc": "Unlocks Atmospheric Condenser."
+    },
+    "chem-alloys": {
+      "name": "Alloys",
+      "desc": "+15% mineral extraction. +20% storage capacity."
+    },
+    "chem-rare-detect": {
+      "name": "Rare Element Detector",
+      "desc": "+50% rare element chance when drilling."
+    },
+    "chem-q-sep": {
+      "name": "Quantum Separator",
+      "desc": "Unlocks Quantum Separator. +20% element conversion."
+    },
+    "chem-fraction": {
+      "name": "Fractionation",
+      "desc": "Unlocks Gas Fractionator. +30% processing speed."
+    },
+    "chem-orbital": {
+      "name": "Orbital Collection",
+      "desc": "Unlocks Orbital Collector for gas giants."
+    },
+    "chem-catalysis": {
+      "name": "Catalysts",
+      "desc": "+25% processing speed. +15% conversion."
+    },
+    "chem-isotope": {
+      "name": "Isotope Chemistry",
+      "desc": "Unlocks Isotope Centrifuge. +20% isotope yield."
+    },
+    "chem-antimatter": {
+      "name": "Antimatter",
+      "desc": "+30% energy output. +20% ship speed."
+    },
+    "chem-nanotech": {
+      "name": "Nanotechnology",
+      "desc": "+50% refining. +30% extraction."
+    },
+    "chem-transmute": {
+      "name": "Transmutation",
+      "desc": "+50% element conversion. Cross-element transmutation."
+    },
+    "bio-botany": {
+      "name": "Botany",
+      "desc": "+15% food yield. +20% resource regrowth speed."
+    },
+    "bio-microbiology": {
+      "name": "Microbiology",
+      "desc": "+30% resource regrowth. +10% biological discoveries."
+    },
+    "bio-hydroponics": {
+      "name": "Hydroponics",
+      "desc": "+25% greenhouse food yield."
+    },
+    "bio-life-support": {
+      "name": "Life Support Systems",
+      "desc": "Unlocks Residential Dome. +200 population."
+    },
+    "bio-ecology": {
+      "name": "Ecology",
+      "desc": "+0.05 habitability. +20% regrowth."
+    },
+    "bio-terraforming": {
+      "name": "Terraforming",
+      "desc": "Unlocks Atmospheric Shield. +50% terraforming speed."
+    },
+    "bio-genetics": {
+      "name": "Genetics",
+      "desc": "+30% food yield. +300 population."
+    },
+    "bio-biome-eng": {
+      "name": "Biosphere Engineering",
+      "desc": "Unlocks Biome Dome. +0.05 habitability."
+    },
+    "bio-synth-life": {
+      "name": "Synthetic Life",
+      "desc": "Unlocks drone production. +20% food."
+    },
+    "bio-neural-net": {
+      "name": "Neural Networks",
+      "desc": "-20% research time. +500 population."
+    },
+    "bio-evolution": {
+      "name": "Guided Evolution",
+      "desc": "Terraforming ×2. +0.1 habitability."
+    },
+    "bio-genesis": {
+      "name": "Genesis Ark",
+      "desc": "Unlocks Genesis Vault. +0.15 habitability."
+    }
   },
-
   "errors": {
     "levelRequired": "Requires level {{level}}",
     "techRequired": "Technology required: {{tech}}",
@@ -207,7 +433,6 @@
     "fillAllFields": "Please fill all fields",
     "passwordMismatch": "Passwords do not match"
   },
-
   "research": {
     "complete_title": "Research Complete",
     "telemetry_received": "Telemetry received",
@@ -250,7 +475,6 @@
     "watch_ad": "Watch ad",
     "data_received": "+10 Data!"
   },
-
   "surface": {
     "title": "Surface",
     "build_panel": "Buildings",
@@ -292,7 +516,6 @@
     "hide_minimap": "Hide minimap",
     "show_minimap": "Show minimap"
   },
-
   "quest": {
     "counter": "QUEST {{step}}/{{total}}",
     "skip": "Skip",
@@ -307,7 +530,6 @@
     "step4_title": "Energy",
     "step4_desc": "Build a Solar Plant to generate energy. Without energy, buildings stop working!"
   },
-
   "discovery": {
     "choice_telemetry": "Basic Telemetry",
     "choice_telemetry_free": "Free",
@@ -321,7 +543,6 @@
     "quantum_insufficient": "— insufficient",
     "notification": "Observatory detected signal: {{name}} in system {{system}}. Awaiting operator decision."
   },
-
   "system": {
     "objects_panel_title": "System Objects",
     "view_planet": "View Planet",
@@ -360,7 +581,6 @@
     "col_moons_short": "MON",
     "no_moons": "no moons"
   },
-
   "observatory": {
     "title": "Nebulife Observatory",
     "setting_up": "Setting up observatory...",
@@ -369,12 +589,10 @@
     "signal_received": "Signal received! Processing image...",
     "error": "Observatory Error"
   },
-
   "telemetry": {
     "in_collection": "In Collection",
     "add_to_collection": "Add to Collection"
   },
-
   "player": {
     "level": "Level",
     "quarks": "Quarks",
@@ -397,7 +615,6 @@
     "level_up_reached": "LEVEL [ {{level}} ] REACHED",
     "level_up_nodes_unlocked": "New nodes unlocked in the Research Terminal"
   },
-
   "settings": {
     "delete_account": "Delete account",
     "delete_confirm_title": "Account deletion",
@@ -405,7 +622,6 @@
     "delete_success": "Account deleted",
     "delete_type_confirm": "Type DELETE"
   },
-
   "auth": {
     "subtitle": "exploring the universe",
     "legacy_progress": "You have saved progress. Sign in to keep it.",
@@ -423,7 +639,6 @@
     "register_btn": "Register",
     "has_account_login": "Already have an account? Sign In"
   },
-
   "radial": {
     "enter_system": "Enter System",
     "objects": "System Objects",
@@ -446,7 +661,6 @@
     "star_k": "K-type",
     "star_m": "M-type"
   },
-
   "context_menu": {
     "research_group": "RESEARCH",
     "panorama_cost": "System Panorama — {{cost}}",
@@ -463,7 +677,6 @@
     "mission_processing": "Mission — in progress...",
     "view_mission_video": "View Mission Video"
   },
-
   "ads": {
     "watching": "Ad {{current}}/{{total}}",
     "reward_received": "Received!",
@@ -471,7 +684,6 @@
     "daily_limit": "Daily limit reached",
     "no_fill": "No satellite link available"
   },
-
   "toast": {
     "branch_bio": "BIO",
     "branch_phy": "PHY",
@@ -480,7 +692,6 @@
     "technology": "TECHNOLOGY",
     "integrated": "Integrated:"
   },
-
   "tech_tree": {
     "not_available": "Tech tree not yet available",
     "epoch_1": "Epoch I: Levels 1-15",
@@ -493,7 +704,6 @@
     "level_label": "Level",
     "research_btn": "Research"
   },
-
   "system_info": {
     "section_star": "STAR",
     "section_system": "SYSTEM",
@@ -515,7 +725,6 @@
     "ring_value": "ring {{ring}}",
     "enter_system": "Enter System"
   },
-
   "planet_info": {
     "group_physical": "Physical",
     "type": "Type",
@@ -562,7 +771,6 @@
     "surface_disabled": "To Surface — {{reason}}",
     "go_to_surface": "Descend to Surface"
   },
-
   "discovery_notification": {
     "new_discovery": "New Discovery!",
     "investigate_btn": "Investigate via Observatory",
@@ -577,7 +785,6 @@
     "category_anomalies": "Anomalies",
     "category_landscapes": "Landscapes"
   },
-
   "planet_detail": {
     "section_physical": "PHYSICAL PARAMETERS",
     "section_temperature": "TEMPERATURE",
@@ -617,7 +824,6 @@
     "life_microbial": "Microbial",
     "life_none": "None"
   },
-
   "surface_panel": {
     "temperature": "Temperature",
     "gravity": "Gravity",
@@ -647,7 +853,6 @@
     "res_v": "V:",
     "res_i": "I:"
   },
-
   "evacuation": {
     "header_critical": "CRITICAL SITUATION",
     "header_signal": "DETECTION SIGNAL",
@@ -664,7 +869,6 @@
     "btn_start": "START EVACUATION",
     "btn_later": "Later"
   },
-
   "colony": {
     "nav_system_header": "NAVIGATION SYSTEM",
     "orbital_position_reached": "Orbital position reached",
@@ -674,7 +878,6 @@
     "label_temperature": "TEMPERATURE",
     "found_colony_btn": "FOUND COLONY"
   },
-
   "guest": {
     "reminder_prefix": "Dear President, to save your space exploration progress —",
     "reminder_register": "register",
@@ -684,11 +887,9 @@
     "error_google_in_use": "This Google account is already in use",
     "error_auth": "Authorization error"
   },
-
   "cutscene": {
     "coming_soon": "Video coming soon..."
   },
-
   "link_account": {
     "title": "Link Account",
     "hint": "Link your account to purchase quarks and sync progress across devices",
@@ -698,7 +899,6 @@
     "min_6_chars": "Min. 6 characters",
     "error_google_in_use": "This Google account is already in use"
   },
-
   "callsign": {
     "title": "Choose Callsign",
     "hint": "Your unique name in the Nebulife universe",
@@ -711,7 +911,6 @@
     "saving": "Saving...",
     "rules": "Latin letters, digits, _ or - (3-20 characters)"
   },
-
   "topup": {
     "title": "Top Up Quarks",
     "current_balance": "Current balance",
@@ -739,7 +938,6 @@
     "restore_none": "No purchases to restore",
     "restore_error": "Restore error"
   },
-
   "scene_controls": {
     "center": "Center",
     "zoom_in": "Zoom In",
@@ -747,7 +945,6 @@
     "show_research_pct": "Show research %",
     "hide_research_pct": "Hide research %"
   },
-
   "resource_display": {
     "observatories_title": "Observatories — research stations",
     "research_data_title": "Research data — resource for scanning systems",
@@ -774,11 +971,9 @@
       "water_desc": "Liquid water extracted from surface deposits and underground reservoirs. Essential for crew sustenance, food production, and chemical processes in colony domes."
     }
   },
-
   "scientific_report": {
     "title": "Scientific Report for the President"
   },
-
   "archive": {
     "title": "Control Center",
     "tab_collections": "Collections",
@@ -832,7 +1027,6 @@
     "no_favorites": "No favorite planets",
     "no_favorites_hint": "Click on a planet in the Planets section and select Add to Favorites"
   },
-
   "cinematic": {
     "click_to_skip": "click to skip",
     "mission_control": "MISSION CONTROL CENTER",
@@ -859,7 +1053,6 @@
     "subtitle_3": "Are you ready to conquer the universe?",
     "civilization_intro": "Your civilization has existed for thousands of years among the stars. But time is running out."
   },
-
   "gallery": {
     "discovered_count": "Discovered: {{count}} / {{total}}",
     "elements_count": "{{count}} elements",
@@ -881,7 +1074,6 @@
     "share": "Share",
     "planets_count": "{{count}} planets"
   },
-
   "photo": {
     "watch_ads": "Watch ads",
     "save_to_collection": "To Collection",
@@ -896,7 +1088,6 @@
     "replace_btn": "Replace with new",
     "keep_old_btn": "Keep old"
   },
-
   "telescope": {
     "planet_status_1": "OPTICS CALIBRATING...",
     "planet_status_2": "COLLECTING PHOTONS...",
@@ -915,12 +1106,10 @@
     "processing_panorama": "Processing panorama...",
     "panorama_cost": "Panorama 30"
   },
-
   "nav_header": {
     "search_placeholder": "search system...",
     "no_results": "nothing found"
   },
-
   "tutorial": {
     "research_progress": "Research: {{current}}/{{total}}",
     "done": "Done!",
@@ -947,7 +1136,6 @@
     "step_gallery_final_text": "Congratulations, Commander! Your first discovery has been saved to the Archive. Keep exploring the cosmos!",
     "step_gallery_final_next": "Finish"
   },
-
   "log": {
     "ship_log": "SHIP'S LOG",
     "entries_count": "{{count}} entries",
@@ -965,7 +1153,6 @@
     "cat_expedition": "EXPEDITION",
     "cat_system": "SYSTEM"
   },
-
   "chat": {
     "title": "Chat",
     "tab_global": "Global",
@@ -1006,11 +1193,13 @@
     "pro_messages_today": "{{count}}/50 messages",
     "pro_daily_limit": "Daily limit reached. Resets tomorrow."
   },
-
   "premium": {
-    "daily_quarks": "+5 daily quarks"
+    "title": "Premium",
+    "no_ads": "No ads",
+    "subscribe": "Subscribe",
+    "active": "Premium active",
+    "monthly": "{{price}}/month"
   },
-
   "event": {
     "urgent_video": "[ URGENT VIDEO MESSAGE ]",
     "asteroid_update": "ALERT: TRAJECTORY UPDATED",
@@ -1032,12 +1221,9 @@
     "level_up": "Level up to {{level}}!",
     "rename_system": "New system name:"
   },
-
-  "premium": {
-    "title": "Premium",
-    "no_ads": "No ads",
-    "subscribe": "Subscribe",
-    "active": "Premium active",
-    "monthly": "{{price}}/month"
+  "app": {
+    "exit_confirm": "Exit game?",
+    "cancel": "Cancel",
+    "exit": "Exit"
   }
 }

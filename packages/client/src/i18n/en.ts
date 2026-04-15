@@ -521,4 +521,9 @@ export const en: Record<TranslationKey, string> = {
   'element.Th': 'Thorium',
   'element.U':  'Uranium',
   'element.Pu': 'Plutonium',
+
+  // App-level dialogs
+  'app.exit_confirm': 'Exit game?',
+  'app.cancel':       'Cancel',
+  'app.exit':         'Exit',
 };
