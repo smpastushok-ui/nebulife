@@ -83,8 +83,8 @@ export function DiscoveryNotification({
     <div
       style={{
         position: 'absolute',
-        top: 80,
-        right: 20,
+        top: 'calc(80px + env(safe-area-inset-top, 0px))',
+        right: 'calc(20px + env(safe-area-inset-right, 0px))',
         width: 320,
         zIndex: 200,
         pointerEvents: 'auto',

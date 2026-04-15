@@ -587,7 +587,7 @@ const S: Record<string, React.CSSProperties> = {
 
   // Toast
   toast: {
-    position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+    position: 'fixed', bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', left: '50%', transform: 'translateX(-50%)',
     padding: '8px 20px', background: 'rgba(10,15,25,0.95)',
     border: '1px solid #4488aa', borderRadius: 4,
     color: '#7bb8ff', fontFamily: 'monospace', fontSize: 10,

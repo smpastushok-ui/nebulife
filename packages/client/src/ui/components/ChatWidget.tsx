@@ -458,8 +458,8 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
         }}
         style={{
           position: 'fixed',
-          bottom: 56,
-          right: 16,
+          bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+          right: 'calc(16px + env(safe-area-inset-right, 0px))',
           zIndex: 9700,
           background: totalUnread > 0 ? 'rgba(8,16,32,0.97)' : 'rgba(10,15,25,0.96)',
           border: `1px solid ${totalUnread > 0 ? 'rgba(68,136,255,0.35)' : '#334455'}`,
@@ -499,8 +499,8 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     <>
       <div style={{
         position: 'fixed',
-        bottom: 56,
-        right: 16,
+        bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+        right: 'calc(16px + env(safe-area-inset-right, 0px))',
         zIndex: 9700,
         width: 360,
         height: 420,

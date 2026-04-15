@@ -170,8 +170,8 @@ export function PlayerPage({
         onClick={() => { playSfx('ui-click', 0.07); onClose(); }}
         style={{
           position: 'absolute',
-          top: 14,
-          right: 14,
+          top: 'calc(14px + env(safe-area-inset-top, 0px))',
+          right: 'calc(14px + env(safe-area-inset-right, 0px))',
           background: 'none',
           border: '1px solid rgba(51,68,85,0.3)',
           borderRadius: 3,

@@ -106,7 +106,7 @@ export function BuildingQuest({ hubBuilt, solarBuilt }: BuildingQuestProps) {
   return (
     <div style={{
       position: 'fixed',
-      bottom: 60,
+      bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
       left: '50%',
       transform: 'translateX(-50%)',
       zIndex: 200,

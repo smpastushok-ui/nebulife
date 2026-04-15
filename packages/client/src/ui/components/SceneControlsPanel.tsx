@@ -131,7 +131,7 @@ export function SceneControlsPanel({
     <div
       style={{
         position: 'fixed',
-        left: hidden ? -60 : 14,
+        left: hidden ? -60 : 'calc(14px + env(safe-area-inset-left, 0px))',
         top: '50%',
         transform: 'translateY(-50%)',
         display: 'flex',
