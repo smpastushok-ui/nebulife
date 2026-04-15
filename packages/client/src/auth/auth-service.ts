@@ -12,7 +12,6 @@ import {
   type User,
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { auth } from './firebase-config.js';
 
 // ---------------------------------------------------------------------------
@@ -24,13 +23,19 @@ const GOOGLE_WEB_CLIENT_ID = '702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps
 
 const googleProvider = new GoogleAuthProvider();
 
-// Initialize GoogleAuth on native platforms
-if (Capacitor.isNativePlatform()) {
-  GoogleAuth.initialize({
-    clientId: GOOGLE_WEB_CLIENT_ID,
-    scopes: ['profile', 'email'],
-    grantOfflineAccess: true,
-  });
+// Lazy-initialized native Google Auth (dynamic import to avoid Vercel build failure)
+let _googleAuthInitialized = false;
+async function getNativeGoogleAuth() {
+  const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+  if (!_googleAuthInitialized) {
+    GoogleAuth.initialize({
+      clientId: GOOGLE_WEB_CLIENT_ID,
+      scopes: ['profile', 'email'],
+      grantOfflineAccess: true,
+    });
+    _googleAuthInitialized = true;
+  }
+  return GoogleAuth;
 }
 
 function requireAuth() {
@@ -58,6 +63,7 @@ export async function signInAsGuest(): Promise<User> {
 export async function signInWithGoogle(): Promise<User | null> {
   const a = requireAuth();
   if (Capacitor.isNativePlatform()) {
+    const GoogleAuth = await getNativeGoogleAuth();
     const googleUser = await GoogleAuth.signIn();
     const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
     const result = await signInWithCredential(a, credential);
@@ -85,6 +91,7 @@ export async function linkGoogleToAnonymous(): Promise<User | null> {
   const user = a.currentUser;
   if (!user) throw new Error('No current user');
   if (Capacitor.isNativePlatform()) {
+    const GoogleAuth = await getNativeGoogleAuth();
     const googleUser = await GoogleAuth.signIn();
     const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
     const result = await linkWithCredential(user, credential);
