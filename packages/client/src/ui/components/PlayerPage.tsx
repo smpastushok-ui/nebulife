@@ -199,7 +199,10 @@ export function PlayerPage({
       <div style={{
         maxWidth: 340,
         width: '100%',
-        padding: '48px 24px 32px',
+        paddingTop: 48,
+        paddingLeft: 24,
+        paddingRight: 24,
+        paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

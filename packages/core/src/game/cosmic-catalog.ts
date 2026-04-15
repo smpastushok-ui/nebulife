@@ -16,6 +16,8 @@ export interface CatalogEntry {
   descriptionEn?: string;
   promptTemplate: string;
   scientificFacts: string[];
+  /** English scientific facts — optional; English report skips this section if absent */
+  scientificFactsEn?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +302,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A classic galaxy with a central bulge and well-defined spiral arms traced by young stars and active star-forming regions, containing hundreds of billions of stars.',
     promptTemplate: 'A grand design spiral galaxy with well-defined spiral arms traced by blue young stars and pink HII regions, golden central bulge, dark dust lanes between arms, viewed at slight angle',
     scientificFacts: ['Чумацький Шлях — спіральна галактика з перемичкою', 'Спіральні рукави — хвилі щільності, а не фіксовані структури', 'Містять від 100 мільярдів до трильйона зірок'],
+    scientificFactsEn: ['The Milky Way is a barred spiral galaxy', 'Spiral arms are density waves, not fixed structures', 'Contain between 100 billion and a trillion stars'],
   },
   {
     type: 'barred-spiral', category: 'galaxies', rarity: 'uncommon', galleryCategory: 'cosmos',
@@ -308,6 +311,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A spiral galaxy with a prominent stellar bar through its center, from whose ends the spiral arms emerge. About 60% of spiral galaxies, including the Milky Way, have a bar.',
     promptTemplate: 'A barred spiral galaxy with a prominent central bar of stars, spiral arms emerging from the ends of the bar, active star formation regions at the bar-arm junctions',
     scientificFacts: ['Близько 60% спіральних галактик мають перемичку', 'Перемичка може направляти газ до центру, живлячи чорну діру', 'Наша галактика також має перемичку'],
+    scientificFactsEn: ['About 60% of spiral galaxies have a bar', 'The bar can funnel gas toward the center, feeding the black hole', 'Our own galaxy also has a bar'],
   },
   {
     type: 'elliptical-galaxy', category: 'galaxies', rarity: 'uncommon', galleryCategory: 'cosmos',
@@ -316,6 +320,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A smooth, featureless ellipsoidal galaxy lacking spiral arms, dominated by old stars and low in gas and dust. Often formed through the merger of spiral galaxies.',
     promptTemplate: 'A smooth elliptical galaxy with a golden-red hue from predominantly old stellar populations, no spiral structure, diffuse outer halo, possible faint shell structures from past mergers',
     scientificFacts: ['Від карликових (мільйони зірок) до гігантських (трильйони)', 'Утворюються через злиття спіральних галактик', 'Найбільші відомі галактики — еліптичні'],
+    scientificFactsEn: ['Range from dwarf (millions of stars) to giant (trillions)', 'Formed through the merger of spiral galaxies', 'The largest known galaxies are ellipticals'],
   },
   {
     type: 'ring-galaxy', category: 'galaxies', rarity: 'epic', galleryCategory: 'cosmos',
@@ -324,6 +329,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A rare galaxy featuring a bright ring of intense star formation surrounding a relatively empty center, created when another galaxy passed directly through its nucleus.',
     promptTemplate: 'A striking ring galaxy with a bright blue ring of intense star formation surrounding a relatively empty central region, the ring created by a galactic collision, companion galaxy visible nearby',
     scientificFacts: ['Утворюються при прямому зіткненні двох галактик', 'Об\'єкт Хога — найвідоміша кільцева галактика', 'Хвиля зореутворення поширюється назовні від центру удару'],
+    scientificFactsEn: ['Formed when one galaxy passes directly through another', 'Hoag\'s Object is the most famous ring galaxy', 'The star-formation wave expands outward from the impact point'],
   },
   {
     type: 'colliding-galaxies', category: 'galaxies', rarity: 'epic', galleryCategory: 'cosmos',
@@ -332,6 +338,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'Two or more galaxies in the process of merging, with gravitational tidal forces drawing out long streamers of stars and gas and triggering intense starburst activity.',
     promptTemplate: 'Two galaxies in the process of merging, long tidal tails of stars and gas stretched by gravitational interaction, bridges of matter connecting the two cores, intense starburst regions at the collision interface',
     scientificFacts: ['Злиття Антенних галактик (NGC 4038/4039) — класичний приклад', 'При зіткненні зірки майже ніколи не стикаються', 'Чумацький Шлях зіткнеться з Андромедою через ~4.5 мільярди років'],
+    scientificFactsEn: ['The Antennae Galaxies (NGC 4038/4039) are a classic example', 'During a collision, individual stars almost never collide', 'The Milky Way will collide with Andromeda in ~4.5 billion years'],
   },
   {
     type: 'quasar', category: 'galaxies', rarity: 'legendary', galleryCategory: 'cosmos',
@@ -340,6 +347,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'An extraordinarily luminous active galactic nucleus powered by accretion onto a supermassive black hole, outshining its entire host galaxy and visible across billions of light-years.',
     promptTemplate: 'A brilliant quasar with an intensely luminous central point outshining its entire host galaxy, powerful relativistic jets extending for thousands of light-years, surrounding accretion disk visible',
     scientificFacts: ['Можуть бути яскравішими за трильйон Сонць', 'Перший квазар (3C 273) відкрито у 1963 році', 'Живляться акрецією на надмасивну чорну діру'],
+    scientificFactsEn: ['Can outshine a trillion suns', 'The first quasar (3C 273) was discovered in 1963', 'Powered by accretion onto a supermassive black hole'],
   },
   {
     type: 'lenticular-galaxy', category: 'galaxies', rarity: 'common', galleryCategory: 'cosmos',
@@ -348,6 +356,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'An intermediate galaxy type between spiral and elliptical, possessing a disk like a spiral but lacking distinct arms and active star formation due to depleted gas reserves.',
     promptTemplate: 'A lenticular galaxy with a prominent disk and central bulge but no spiral arms, smooth appearance with subtle dust lanes, old stellar population giving it a golden hue',
     scientificFacts: ['Позначаються S0 в класифікації Хаббла', 'Вичерпали газ для утворення нових зірок', 'Можуть мати пилові кільця від поглинутих малих галактик'],
+    scientificFactsEn: ['Classified as S0 in the Hubble sequence', 'Have exhausted their gas supply for new star formation', 'May have dust rings from absorbed smaller galaxies'],
   },
   {
     type: 'irregular-galaxy', category: 'galaxies', rarity: 'common', galleryCategory: 'cosmos',
@@ -356,6 +365,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A galaxy lacking a clear regular structure, often rich in gas and active star-forming regions. Frequently the result of gravitational distortion by a neighboring galaxy.',
     promptTemplate: 'An irregular galaxy with chaotic structure, patches of bright blue star-forming regions, no clear spiral arms or elliptical shape, rich in gas and dust clouds, asymmetric appearance',
     scientificFacts: ['Великі та Малі Магелланові Хмари — неправильні галактики', 'Часто є супутниками більших галактик', 'Можуть бути деформованими гравітацією сусідніх галактик'],
+    scientificFactsEn: ['The Large and Small Magellanic Clouds are irregular galaxies', 'Often satellites of larger galaxies', 'Can be deformed by the gravity of neighboring galaxies'],
   },
   {
     type: 'seyfert-galaxy', category: 'galaxies', rarity: 'rare', galleryCategory: 'cosmos',
@@ -364,6 +374,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A spiral galaxy with an exceptionally bright active nucleus powered by a central black hole — a lower-luminosity cousin of quasars, representing about 10% of large galaxies.',
     promptTemplate: 'A Seyfert galaxy with an extremely bright active galactic nucleus visible through the spiral structure, nuclear emission outshining surrounding stars, faint jets or outflows from the core',
     scientificFacts: ['Близько 10% великих галактик — сейфертівські', 'Класифікуються на типи 1 та 2 залежно від кута спостереження', 'Активне ядро живиться акрецією на чорну діру'],
+    scientificFactsEn: ['About 10% of large galaxies are Seyferts', 'Classified as Type 1 or 2 depending on viewing angle', 'The active nucleus is powered by accretion onto a black hole'],
   },
   {
     type: 'starburst-galaxy', category: 'galaxies', rarity: 'rare', galleryCategory: 'cosmos',
@@ -372,6 +383,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A galaxy undergoing an episode of exceptionally intense star formation, producing new stars 10–100 times faster than the normal rate, often triggered by a galactic interaction.',
     promptTemplate: 'A starburst galaxy with intense regions of rapid star formation, brilliant blue clusters of young massive stars, superwind outflows of hot gas driven by supernovae, filaments of expelled material',
     scientificFacts: ['Темп зореутворення в 10-100 разів вище нормального', 'M82 — найвідоміша галактика зі спалахом', 'Часто викликається взаємодією з іншою галактикою'],
+    scientificFactsEn: ['Star formation rate 10–100 times above normal', 'M82 is the most famous starburst galaxy', 'Often triggered by interaction with another galaxy'],
   },
   {
     type: 'dwarf-galaxy', category: 'galaxies', rarity: 'common', galleryCategory: 'cosmos',
@@ -380,6 +392,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A small galaxy containing a few billion stars — the most common galaxy type in the universe and the basic building blocks from which larger galaxies are assembled.',
     promptTemplate: 'A small dwarf galaxy with scattered stars and a few bright star-forming regions, diffuse structure, low surface brightness, visible against a background of distant galaxies',
     scientificFacts: ['Найпоширеніший тип галактик у Всесвіті', 'Чумацький Шлях оточений десятками карликових галактик', 'Поглинаються великими галактиками — галактичний канібалізм'],
+    scientificFactsEn: ['The most common galaxy type in the universe', 'The Milky Way is surrounded by dozens of dwarf galaxies', 'Absorbed by larger galaxies — galactic cannibalism'],
   },
   {
     type: 'radio-galaxy', category: 'galaxies', rarity: 'epic', galleryCategory: 'cosmos',
@@ -388,6 +401,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A galaxy emitting powerful radio waves from enormous relativistic jets launched by its central supermassive black hole, which can extend for millions of light-years.',
     promptTemplate: 'A radio galaxy with enormous relativistic jets extending millions of light-years from the central active nucleus, radio lobes glowing at the jet termination points, powerful energy output',
     scientificFacts: ['Джети можуть простягатися на мільйони світлових років', 'Центавр A — найближча потужна радіогалактика', 'Радіовипромінювання зумовлене синхротронним механізмом'],
+    scientificFactsEn: ['Jets can extend for millions of light-years', 'Centaurus A is the nearest powerful radio galaxy', 'Radio emission is produced by the synchrotron mechanism'],
   },
   {
     type: 'polar-ring-galaxy', category: 'galaxies', rarity: 'legendary', galleryCategory: 'cosmos',
@@ -396,6 +410,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A rare galaxy with a ring of gas, dust, and stars orbiting perpendicular to the main galactic disk, likely formed by the accretion of a smaller companion galaxy.',
     promptTemplate: 'A polar ring galaxy with a dramatic ring of gas, dust and stars orbiting perpendicular to the main galactic disk, two distinct structural components clearly visible at right angles',
     scientificFacts: ['Кільце утворилося при поглинанні малої галактики', 'NGC 4650A — класичний приклад', 'Дозволяють вимірювати розподіл темної матерії'],
+    scientificFactsEn: ['The ring formed through accretion of a smaller companion galaxy', 'NGC 4650A is a classic example', 'Allow measurement of the dark matter distribution'],
   },
   {
     type: 'jellyfish-galaxy', category: 'galaxies', rarity: 'epic', galleryCategory: 'cosmos',
@@ -404,6 +419,7 @@ const GALAXIES: CatalogEntry[] = [
     descriptionEn: 'A galaxy with long streaming "tentacles" of gas and young stars, stripped away by ram pressure as the galaxy moves through the hot intracluster medium at high velocity.',
     promptTemplate: 'A jellyfish galaxy with long tentacles of stripped gas and young stars trailing behind as it moves through hot cluster gas, ram pressure stripping creating dramatic blue streamers',
     scientificFacts: ['Утворюються ram pressure stripping у скупченнях галактик', 'У "щупальцях" відбувається активне зореутворення', 'ESO 137-001 — вражаючий приклад'],
+    scientificFactsEn: ['Formed by ram pressure stripping in galaxy clusters', 'Active star formation occurs in the trailing "tentacles"', 'ESO 137-001 is a striking example'],
   },
 ];
 

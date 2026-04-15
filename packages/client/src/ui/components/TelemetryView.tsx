@@ -1070,7 +1070,10 @@ export function TelemetryView({
             style={{
               position: 'absolute',
               top: 0, left: 0, right: 0,
-              padding: '50px 18px 14px',
+              paddingTop: 'calc(56px + env(safe-area-inset-top, 0px))',
+              paddingLeft: 18,
+              paddingRight: 18,
+              paddingBottom: 14,
               background: 'linear-gradient(rgba(0,0,0,0.7), transparent)',
               fontFamily: 'monospace',
               zIndex: 1,
@@ -1101,7 +1104,7 @@ export function TelemetryView({
             onClick={onClose}
             style={{
               position: 'absolute',
-              top: 56, right: 16,
+              top: 'calc(56px + env(safe-area-inset-top, 0px))', right: 16,
               background: 'none',
               border: '1px solid #334455',
               color: '#556677',
@@ -1120,7 +1123,7 @@ export function TelemetryView({
           <div
             style={{
               position: 'absolute',
-              bottom: 16, left: 16,
+              bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))', left: 16,
               fontFamily: 'monospace',
               fontSize: 9,
               color: '#44886688',
