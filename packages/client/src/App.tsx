@@ -2155,6 +2155,12 @@ function AppInner() {
     engineRef.current?.setResearchState(researchState);
   }, [researchState]);
 
+  // Sync effective max ring to engine (controls BFS depth into galactic core)
+  useEffect(() => {
+    const maxRingAdd = getEffectValue(techTreeState, 'max_ring_add', 0);
+    engineRef.current?.setEffectiveMaxRing(HOME_RESEARCH_MAX_RING + maxRingAdd);
+  }, [techTreeState]);
+
   // Animated counter: count up to hoveredStarInfo.progress over ~900ms
   useEffect(() => {
     if (progressAnimRef.current !== null) {
@@ -2271,6 +2277,9 @@ function AppInner() {
     engine.init().then(() => {
       // Sync restored research state before anything else
       engine.setResearchState(researchState);
+      // Sync effective max ring for progressive core BFS depth
+      const maxRingAdd = getEffectValue(techTreeStateRef.current, 'max_ring_add', 0);
+      engine.setEffectiveMaxRing(HOME_RESEARCH_MAX_RING + maxRingAdd);
       engineRef.current = engine;
 
       // If home was relocated via evacuation, update engine rings before navigation
