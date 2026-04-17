@@ -178,11 +178,9 @@ export function ResearchCompleteModal({
     setTimeout(cb, 350);
   }, []);
 
-  // Auto-dismiss after animations complete (~8s)
-  useEffect(() => {
-    const timer = setTimeout(() => exit(onClose), 8000);
-    return () => clearTimeout(timer);
-  }, [exit, onClose]);
+  // No auto-dismiss — player must acknowledge the discovery. The modal is the
+  // first moment the player learns about the planets in the system, so we
+  // keep it open until they click "View System" or "Close".
 
   const planets = system.planets;
   const hasHabitable = planets.some(p => p.habitability.overall >= 0.70);
