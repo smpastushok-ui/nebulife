@@ -4,6 +4,36 @@
 
 ---
 
+## 🚀 Міграція Tripo: 3D планет → 3D кораблі (квітень 2026)
+
+**Рішення**: Planets-in-3D виходять неякісно через Tripo (занадто стилізовані). Перенаправляємо pipeline на генерацію кораблів — flagship/arena/clan.
+
+**Changes needed** (див. GAME_BIBLE §13):
+
+### Server
+- [ ] `packages/server/src/tripo-client.ts` — додати `buildShipPrompt(role, style)` з 5 role + 5 style varying
+- [ ] DB міграція: `planet_models` → `ship_models` таблиця (нові колонки `role`, `style`)
+- [ ] `api/tripo/generate.ts` — приймає `{role, style}` замість `{planetId}`
+- [ ] `api/models` endpoint — віддає list ship моделей гравця
+
+### Client
+- [ ] Rename `Planet3DViewer.tsx` → `Ship3DViewer.tsx`
+- [ ] Видалити "3D" кнопку з `PlanetViewScene` / `CommandBar.planet`
+- [ ] Додати "Generate ship" кнопку в `HangarPage` (role/style selector)
+- [ ] `ArenaEngine` — замінити default ship mesh на гравцевий GLB якщо є
+- [ ] Babylon.js viewer — працює як є, тільки URL інший
+
+### Wiring
+- [ ] QuarksTopUpModal — оновити текст "3D ship design" замість "planet"
+- [ ] i18n uk/en — оновити ключі
+- [ ] Gallery / Characteristics — прибрати 3D model кнопку з planet-level UI
+
+### Cleanup
+- [ ] Delete `packages/client/src/ui/components/Planet3DViewer.tsx` after rename commits
+- [ ] Delete old `planet_models` table after migration (keep for 2 weeks as backup)
+
+---
+
 ## 🚨 Критично (блокує production деплой)
 
 ### Vercel build падає на `57ee23e` (CORS middleware)

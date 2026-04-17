@@ -93,10 +93,14 @@
 | 1 | 🎬 **Video-mission** (Gemini + Veo/Kling) | 20 ⚛ | ~45% | A |
 | 2 | 🧬 **Life-form generation** (DNA + Kling photo) | 15 ⚛ | ~20% | B |
 | 3 | 📸 **AI-фото поверхні планети** (Kling) | 10 ⚛ | ~15% | — (вже є) |
-| 4 | 🪐 **3D-модель планети** (Tripo GLB) | 49 ⚛ | ~10% | — (вже є) |
+| 4 | 🚀 **3D-модель корабля** (Kling concept + Tripo GLB) | 49 ⚛ | ~10% | E |
 | 5 | 🏆 **Clan subscription** (leader perks) | 99 ⚛/міс | ~5% | E |
 | 6 | 📺 **Rewarded ads** (AdMob) — поповнення +5⚛ | — | ~3% | G |
 | 7 | 🛍️ **Marketplace fee 10%** (P2P trade) | — | ~2% | E |
+
+> ⚠️ **Tripo-для-планет відключено** (квітень 2026): 3D-моделі планет від Tripo виходять занадто стилізованими/неточними — поганий cost/quality для $0.50 API. Планети залишаються тільки як **AI-фото** (Kling) + процедурна рендер SystemScene + Babylon.js viewer для фото.
+>
+> **Tripo перенаправлено на кораблі** (ships): гравець генерує унікальний дизайн свого флагмана / арена-корабля / clan flagship. Pipeline: Gemini-prompt за "role + style" → Kling concept-art → Tripo GLB. Цільова якість: 1-3k полігонів, GLB, використовується у ArenaEngine (3D) та як preview у HangarPage / PlayerPage.
 
 **Ключова логіка цін**: ціна гравцю = **AI API cost × 10** (10× margin). Приклад:
 - Kling photo ≈ $0.15 API → 10⚛ (гравець платить ~$0.40 за кварк економіку) → margin 60-70%
@@ -706,7 +710,7 @@ localStorage ←→ React state ←→ buildGameStateSnapshot() → server JSONB
 |---|---|---|---|
 | AI поверхня (перша рідна планета) | **Безкоштовно** | ~$0.15 | hook, 1-ша генерація home planet |
 | AI поверхня (наступні) | **10 ⚛** | ~$0.15 | Kling photo |
-| 3D модель планети | **49 ⚛** | ~$0.50 | Kling → Tripo GLB |
+| 🚀 3D модель корабля | **49 ⚛** | ~$0.50 | Kling concept → Tripo GLB. **Замінив planet Tripo** (планета-3D виходила неякісно) |
 | 🎬 **Video-expedition (15s)** | **20 ⚛** | ~$0.50 | Gemini script + Veo/Kling відео + TTS |
 | 🎬 **Video-expedition legendary (30s)** | **35 ⚛** | ~$1.00 | rare event, longer footage |
 | 🧬 **Life-form generation (common)** | **5 ⚛** | ~$0.05 | DNA sample + Kling illustration |
@@ -806,26 +810,61 @@ GET /api/surface/status/:id (polling кожні 5с)
 
 ---
 
-## 13. 3D моделі планет
+## 13. 3D моделі кораблів (Tripo)
 
-### 13.1 Pipeline
+> ⚠️ **Зміна курсу (квітень 2026)**: Tripo-для-планет вимкнено — модельки виходили стилізовані/неточні, cost/quality поганий. Pipeline перенаправлено на генерацію **унікальних кораблів** гравців (flagship / arena ship / clan flagship).
+
+### 13.1 Pipeline (нова ціль)
 
 ```
-1. Kling: generateImage(planet photo, 1:1) → photo_url
-2. Tripo: createModelTask(photo_url) → taskId
-3. Poll: checkModelTask(taskId) → status
-4. Ready: download GLB → viewer (Babylon.js)
+1. Gemini: buildShipPrompt(role, style, clan?) → prompt
+   role:  'flagship' | 'arena-fighter' | 'explorer' | 'trader' | 'clan-cruiser'
+   style: 'sleek' | 'industrial' | 'organic' | 'alien' | 'military'
+2. Kling: generateImage(prompt, 1:1, "isometric ship concept art") → photo_url
+3. Tripo: createModelTask(photo_url, target_polys=2000) → taskId
+4. Poll: checkModelTask(taskId) → status
+5. Ready: download GLB → ship_models table → Babylon.js / Three.js viewer
 ```
 
 ### 13.2 Statuses
 
-`pending` → `generating_photo` → `photo_ready` → `generating_model` → `ready` / `failed`
+`pending` → `generating_concept` → `concept_ready` → `generating_model` → `ready` / `failed`
 
-### 13.3 Viewer (Planet3DViewer.tsx)
+### 13.3 Використання в грі
 
-- Babylon.js engine + SceneLoader (GLB)
-- Автоматична камера (ArcRotateCamera)
-- Освітлення від зоряного кольору
+- **HangarPage** — preview обраного корабля (Babylon.js ArcRotateCamera)
+- **ArenaEngine** — замість дефолтних Three.js кораблів використовує `.glb` гравця як mesh для його ship entity
+- **SystemScene** — невеликий ship icon біля player home (при navigation)
+- **Clan banner** — flagship клану відображається на cluster map (якщо clan owner підключив)
+
+### 13.4 DB schema (оновити)
+
+Таблиця `planet_models` → **перейменувати** у `ship_models`:
+
+```sql
+ship_models (
+  id UUID PK,
+  player_id TEXT FK,
+  role TEXT,              -- 'flagship' | 'arena-fighter' | ...
+  style TEXT,
+  kling_task_id TEXT,
+  tripo_task_id TEXT,
+  concept_url TEXT,       -- Kling concept art
+  glb_url TEXT,            -- Tripo output
+  status TEXT,
+  created_at TIMESTAMPTZ,
+  quarks_paid INT
+);
+```
+
+### 13.5 Міграція існуючого коду (TODO)
+
+- `api/tripo/generate.ts` — поміняти prompt builder, таблицю
+- `api/tripo/status/[id].ts` — працює без змін
+- `api/models` endpoint — повертає ship list замість planet list
+- `packages/server/src/tripo-client.ts` — без змін (API той самий)
+- `packages/client/src/ui/components/Planet3DViewer.tsx` → **rename to `Ship3DViewer.tsx`**
+- Видалити "3D view" кнопку з PlanetViewScene, додати в HangarPage
 
 ---
 
