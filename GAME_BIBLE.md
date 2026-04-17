@@ -129,7 +129,7 @@
 1. Фото топ-якості → emotional attachment до своєї планети/зірки
 2. Бачить "у мене є таке, ніхто більше не має" → посягає поділитись
 3. Через 2-3 досліджених зірки хочеться побачити їх фото → купує за 10⚛
-4. Starter wallet (50⚛) дозволяє 5 purchases → потім upsell до Pro
+4. Starter wallet (20⚛) дозволяє 2 додаткових фото → після цього upsell до MonoPay/Pro
 
 **Маркетинговий наратив**:
 
@@ -145,8 +145,9 @@
 **Конверсія hook → paying** (target funnel):
 ```
 Install  →  Free first photo (60 сек)  →  "Wow"  →  Explore 2-3 inne stars  →
-"Хочу побачити ЦЮ зірку теж"  →  Starter wallet (50⚛ free)  →
-5 artifact'ів за першу сесію  →  Next session: MonoPay $2-5 або Pro 100⚛/міс
+"Хочу побачити ЦЮ зірку теж"  →  Starter wallet (20⚛ free = 2 photos)  →
+Total day-1 artifacts: 3 (1 home free + 2 зі starter)  →
+"Хочу ще" → MonoPay $2-5 або Pro 100⚛/міс
 ```
 
 **CAC / LTV math**:
@@ -193,11 +194,108 @@ Install  →  Free first photo (60 сек)  →  "Wow"  →  Explore 2-3 inne st
 
 **Principle "Pay for wonders, not for winning"**: кварки НЕ дають power. Тільки **unique artifacts** (photo, video, 3D ship, life-form). Freemium-гравець отримує ту ж progression, але без "красивих скринів". Це запобігає pay-to-win відчуттю.
 
-**Starter wallet**: 50⚛ при реєстрації (~5 додаткових фото АБО 2 video-mission — достатньо щоб відчути всі три категорії артефактів на день 1).
+**Starter wallet**: **20⚛** при реєстрації (= 2 додаткових Kling-фото). Разом з безкоштовною home-фоткою це **3 artifacts за день 1** — достатньо щоб відчути цінність, але НЕ настільки щедро щоб гравець забув про existence IAP.
 
-**Daily rewards**: 1-3⚛ за вхід + 2⚛ за quiz → freemium робить 1 artifact на тиждень безкоштовно → retention без wall.
+**Чому не 50⚛** (історичне): початково планувалось 50⚛ = 5 фото, але розрахунок на 100k installs показав $53k+ витрат на Kling API (див. економіку нижче). 20⚛ скорочує free-cost на 60% без шкоди для конверсії.
+
+**Daily rewards**: **1⚛ за вхід** + **1⚛ за quiz** (було 2-3⚛ + 2⚛; зменшено щоб контроль над free API cost). Freemium все ще може накопичити ~60⚛/міс = 6 фото безкоштовно для retention.
 
 **Pro-subscription** (100⚛/міс ≈ $2.50): 2× daily quarks + 10 video-missions/міс + priority queue + unlocked Academy deep-dive lessons. Ціль 5-8% конверсії DAU.
+
+### 💸 Економіка free quota на 100k installs (розрахунок квіт.2026)
+
+**Базові витрати при зменшеному starter 20⚛ + daily 1⚛/день:**
+
+| Сегмент | Якщо всі з 100k | Реалістичний funnel (Tier 1-2) |
+|---|---|---|
+| 1-ша free home-фотка | $20,000 | **$17,000** (85% reach first gen) |
+| 2 фото зі starter (20⚛ = 2 × $0.20) | $40,000 max | **$18,000** (45k D1-retained × 2 фото) |
+| Daily 1⚛ (~30 ⚛/міс = 3 фото) | $60,000 max | **$4,800** (8k D30 × 3 фото × $0.20) |
+| **Сумарно free AI cost** | $120,000 max | **≈ $39,800 realistic** |
+
+**Revenue (той самий сегмент):**
+- 15% paying users × LTV $15 = **$225,000** за 3 міс
+- Platform fees (Apple/Google 30%) = -$67,500
+- Free AI cost = -$39,800
+- Server (Vercel + Neon + extra Kling) = -$5,000
+- **Gross profit: $112,700 на 100k installs** (без CAC)
+
+**З paid UA Tier 1-2** (CPI $4 середній):
+- CAC = -$400,000
+- Net: **-$287,300** ❌ — paid UA в Tier 1-2 **не окупається**
+
+**Рекомендована стратегія запуску** (вибір ухвалено):
+1. **Soft launch organic-only** — TikTok, Reddit, Discord, referral. CPI = $0.
+2. Validate unit economics на ~20-50k organic installs.
+3. Включати paid UA тільки коли video-missions генерують share-виральність (TikTok-ads target CPI ≤ $2.50).
+4. Якщо раніше ніж video-missions виджут live — тримати paid UA ВИМКНЕНИМ.
+
+### 🎯 Realistic сценарій для нішевого продукту
+
+Нішевий science-edu-MMO рідко злітає до 100k installs без paid UA. Треба реалістичні цифри.
+
+**Niche-realistic прогноз (без paid UA, перші 12 міс):**
+
+| Місяць | Installs/міс (organic) | Cumulative MAU | Джерела трафіку |
+|---|---|---|---|
+| 1-2 | 100-300 | ~400 | друзі/сім'я beta + Ukraine tech Twitter |
+| 3-4 | 300-800 | ~1 500 | 1-2 TikTok ролики злетіли + r/astronomy post |
+| 5-6 | 800-2 000 | ~4 000 | Weekly Digest share loop + referrals |
+| 7-9 | 2 000-5 000 | ~12 000 | 1 видео-експедиція стала вірусною + Product Hunt |
+| 10-12 | 5 000-10 000 | ~25 000 | Steady community growth + Discord 5k+ members |
+
+**ARPU для нішевої аудиторії астро-ентузіастів (вища ніж mass-market!)**:
+- **Power users** (~8% DAU) = $1-3/день (купують video-missions щотижня)
+- **Regular** (~20% DAU) = $0.20/день (купують 2-3 photos/міс)
+- **Freemium** (~72% DAU) = $0.02/день (чисто щоденні бонуси, без IAP)
+- **Blended ARPU ~$0.35/день** — **у 2.3× вище** ніж mass-market target $0.15
+
+**Realistic revenue calculation (niche-focused, місяць 12):**
+```
+25 000 MAU × $0.35 ARPU × 30 днів  =  $262,500/міс gross
+  − 30% platform fees               =  -$78,750
+  − Free AI cost (~$0.50/MAU/міс)   =  -$12,500
+  − Server (Vercel + Neon + Kling)  =  -$8,000
+  − AI pipeline (Gemini + Veo)      =  -$15,000 (за power users)
+  ───────────────────
+  Net profit: ≈ $148,250/міс
+```
+
+Це при **25k MAU**, а не 100k. Ключ — **правильна аудиторія + premium pricing**.
+
+**Резервні канали якщо organic < 500 installs/міс:**
+
+1. **Науковий контент-маркетинг** (низький бюджет, довгий ефект):
+   - YouTube devlog — "як ми робимо AI планети" серія (~$0 витрат, long-tail views)
+   - Weekly Digest як public-facing blog на `nebulife.space/digest` — SEO для "astronomy news"
+   - Співпраця з Science News каналами (nothing to pay, mutual amplification)
+
+2. **Партнерства** (credibility + reach):
+   - NASA Citizen Science listings (free)
+   - Khan Academy / Brilliant guest content (shared audience)
+   - Planetary Society member community
+   - Українські освітні ініціативи (Науковий піднімай, Безплатна астрономія)
+
+3. **Premium positioning** (вища ціна → менше гравців, але прибутковіших):
+   - Ціна photo 10⚛ → **15⚛** (margin 46% замість 20%)
+   - Video 20⚛ → **30⚛** (margin 70%)
+   - Pro 100⚛/міс → **150⚛/міс** (для astronomy enthusiasts не проблема)
+
+4. **Fallback — B2B/edu ліцензування**:
+   - Schools license: 100 students × $2/місяць = $200/місяць × 50 шкіл = **$10k/міс MRR**
+   - Museums / planetariums: one-time $500-5000 встановлення + per-seat subscription
+   - Це НЕ план A, але safety net якщо consumer growth < очікувань
+
+**Жодна з фіч гри не втратиться через пониження ambitions** — продукт орієнтований саме на premium astronomy-enthusiast audience. 5 000 щасливих платящих користувачів > 100 000 churning freemium.
+
+### 🚨 Pivot триггери — коли змінюємо стратегію
+
+Якщо через 3 місяці organic < 200 installs/міс → переоцінюємо:
+- **Перевірити**: чи video-missions реально share-worthy? Якщо ні — переробити prompt/styling
+- **Переглянути** позиціонування: можливо "Living Galaxy" занадто абстрактно → перейменувати "AI Astronomy" або "Living Textbook"
+- **Включити paid UA $500-1k/міс** тестовий budget на Tier 2 ринки (Україна, Польща, Чехія) — CPI $0.30-1.00 vs $4+ Tier 1
+
+Якщо через 6 місяців MRR < $500 → переключити фокус на **B2B edu** як основний revenue.
 
 ### 0.5 Явні Non-Goals (щоб не розмиватись)
 
