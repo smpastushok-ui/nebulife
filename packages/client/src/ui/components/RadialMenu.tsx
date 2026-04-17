@@ -307,6 +307,30 @@ export function RadialMenu({
     ? t(`radial.star_${spClass.toLowerCase()}`)
     : spClass;
 
+  // Planet composition breakdown (only revealed when the system is researched
+  // or it's the player's home — unresearched stars keep their mystery).
+  const planetBreakdown = (() => {
+    if (!isResearched && !isHome) return null;
+    const byType = new Map<string, number>();
+    let habitable = 0;
+    for (const p of system.planets) {
+      byType.set(p.type, (byType.get(p.type) ?? 0) + 1);
+      if (p.isColonizable || p.hasLife) habitable++;
+    }
+    const TYPE_ICON: Record<string, string> = {
+      'rocky':       '\u25C6', // ◆
+      'terrestrial': '\u2600', // ☀
+      'gas-giant':   '\u25EF', // ◯
+      'ice-giant':   '\u2744', // ❄
+      'dwarf':       '\u00B7', // ·
+    };
+    const parts: string[] = [];
+    for (const [type, count] of byType) {
+      parts.push(`${TYPE_ICON[type] ?? '?'}${count}`);
+    }
+    return { parts, habitable };
+  })();
+
   // Initial positions (will be overwritten by rAF, but avoids flash)
   const initPos = getScreenPos();
   const initPositions = initPos ? arcPositions(buttons.length, initPos.x, initPos.y) : null;
@@ -350,6 +374,16 @@ export function RadialMenu({
             : t('radial.unknown_planets')
           }
         </div>
+        {planetBreakdown && planetBreakdown.parts.length > 0 && (
+          <div style={{ fontSize: 8, color: '#667788', marginTop: 2, letterSpacing: '0.1em' }}>
+            {planetBreakdown.parts.join(' \u00B7 ')}
+            {planetBreakdown.habitable > 0 && (
+              <span style={{ color: '#44ff88', marginLeft: 6 }}>
+                \u2713 {planetBreakdown.habitable} {t('radial.habitable')}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Research progress % — centered inside the arc (below star center) */}

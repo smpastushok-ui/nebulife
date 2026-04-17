@@ -689,7 +689,8 @@
     "star_f": "F-тип",
     "star_g": "G-тип",
     "star_k": "K-тип",
-    "star_m": "M-тип"
+    "star_m": "M-тип",
+    "habitable": "придатна"
   },
   "context_menu": {
     "research_group": "ДОСЛІДЖЕННЯ",
