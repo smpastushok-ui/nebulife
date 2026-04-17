@@ -28,15 +28,14 @@ let _googleAuthInitialized = false;
 
 /**
  * True if Google Sign-in is usable on this platform.
- * NOTE: Native Capacitor plugin `@codetrix-studio/capacitor-google-auth` is not
- * yet fully wired up (needs MainActivity.registerPlugin + server_client_id in
- * strings.xml + SHA-1 in Firebase Console). Until then we disable Google on
- * native and only enable it on web (Firebase popup).
+ * - Web: always available (Firebase popup).
+ * - Native: requires `@codetrix-studio/capacitor-google-auth` to be registered
+ *   in MainActivity AND a matching SHA-1 fingerprint in google-services.json
+ *   (Firebase Console) for the keystore that signed this APK.
  */
 export function isGoogleSignInAvailable(): boolean {
   if (!Capacitor.isNativePlatform()) return true;
-  // Temporarily disabled on mobile — re-enable after native plugin is configured
-  return false;
+  return Capacitor.isPluginAvailable('GoogleAuth');
 }
 
 async function getNativeGoogleAuth() {
