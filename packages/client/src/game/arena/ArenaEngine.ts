@@ -15,6 +15,7 @@ import {
   SHIP_MAX_SPEED, SHIP_ACCELERATION, SHIP_DRAG, SHIP_RADIUS,
   TEAM_BLUE_BOTS, TEAM_RED_BOTS, BOT_BULLET_POOL, BOT_RESPAWN_DELAY,
   BOT_NAMES, TEAM_SCORE_ENEMY_KILL, TEAM_SCORE_DEATH, TEAM_KILL_LIMIT,
+  TRAINING_BOT_COUNT, TRAINING_ASTEROID_COUNT,
 } from './ArenaConstants.js';
 import { createBotBrain, updateBot } from './ArenaAI.js';
 
@@ -293,10 +294,9 @@ export class ArenaEngine {
     this.setupExhaust();
     this.setupMissiles();
     this.setupHoloShield();
-    if (this.teamMode) {
-      this.setupBotBullets();
-      this.setupBotShips();
-    }
+    // Bots: team mode (4 blue + 5 red) or training FFA (6 neutral)
+    this.setupBotBullets();
+    this.setupBotShips();
     this.setupHealthPickups();
 
     window.addEventListener('resize', this.onResizeBound);
@@ -642,16 +642,18 @@ export class ArenaEngine {
 
   private setupAsteroids(): void {
     // InstancedMesh — 1 draw call for all asteroids
+    // Training mode uses fewer asteroids (ambiance only)
+    const asteroidCount = this.teamMode ? ASTEROID_COUNT : TRAINING_ASTEROID_COUNT;
     const geo = new THREE.IcosahedronGeometry(1, 1);
     const mat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.8, metalness: 0.2 });
     this.disposables.push(geo, mat);
 
-    this.asteroidMesh = new THREE.InstancedMesh(geo, mat, ASTEROID_COUNT);
+    this.asteroidMesh = new THREE.InstancedMesh(geo, mat, asteroidCount);
     this.asteroidMesh.castShadow = false;
     this.asteroidMesh.receiveShadow = false;
 
     const dummy = new THREE.Object3D();
-    for (let i = 0; i < ASTEROID_COUNT; i++) {
+    for (let i = 0; i < asteroidCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       const dist = 100 + Math.random() * (ARENA_HALF - 150);
       const x = Math.cos(angle) * dist;
@@ -799,13 +801,13 @@ export class ArenaEngine {
         this.checkBulletAsteroidCollisions();
         this.checkMissileAsteroidCollisions();
         this.checkMissileBotCollisions();
-        // Team mode
+        // Bots (team mode AND training FFA)
+        this.updateBotShips(dt);
+        this.updateBotBullets(dt);
+        this.checkBotBulletShipCollisions();
+        this.checkPlayerBulletBotCollisions();
+        this.checkPlayerBotPhysicalCollisions();
         if (this.teamMode) {
-          this.updateBotShips(dt);
-          this.updateBotBullets(dt);
-          this.checkBotBulletShipCollisions();
-          this.checkPlayerBulletBotCollisions();
-          this.checkPlayerBotPhysicalCollisions();
           this.checkTeamMatchEnd();
         }
         break;
@@ -938,8 +940,8 @@ export class ArenaEngine {
       if (aimLen > 0.1) {
         this.aimDirX = this.mobileAim.x / aimLen;
         this.aimDirZ = this.mobileAim.z / aimLen;
-      } else if (this.teamMode) {
-        // Right joystick idle + team mode → auto-aim at nearest enemy
+      } else if (this.botShips.length > 0) {
+        // Right joystick idle + bots present → auto-aim at nearest enemy
         const target = this.findNearestEnemy();
         if (target) {
           const dx = target.pos.x - this.playerPos.x;
@@ -996,7 +998,9 @@ export class ArenaEngine {
     let best: BotShip | null = null;
     let bestDist = AUTO_AIM_RANGE;
     for (const bot of this.botShips) {
-      if (!bot.alive || bot.team === this.playerTeam) continue;
+      if (!bot.alive) continue;
+      // In team mode: skip allies. In training (neutral): all bots are enemies.
+      if (this.teamMode && bot.team === this.playerTeam) continue;
       const dx = bot.pos.x - this.playerPos.x;
       const dz = bot.pos.z - this.playerPos.z;
       const d = Math.sqrt(dx * dx + dz * dz);
@@ -1008,7 +1012,7 @@ export class ArenaEngine {
   // ── Lock-on targeting ──────────────────────────────────────────────────
 
   private updateLockOn(dt: number): void {
-    if (!this.teamMode || this.playerDead) {
+    if (this.botShips.length === 0 || this.playerDead) {
       this.lockTarget = null;
       this.lockTimer = 0;
       this.lockLocked = false;
@@ -1021,7 +1025,9 @@ export class ArenaEngine {
     let bestDist = Infinity;
 
     for (const bot of this.botShips) {
-      if (!bot.alive || bot.team === this.playerTeam) continue;
+      if (!bot.alive) continue;
+      // In team mode skip allies; in training (neutral) all are enemies
+      if (this.teamMode && bot.team === this.playerTeam) continue;
       const dx = bot.pos.x - this.playerPos.x;
       const dz = bot.pos.z - this.playerPos.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
@@ -1985,7 +1991,7 @@ export class ArenaEngine {
   }
 
   private checkMissileBotCollisions(): void {
-    if (!this.teamMode) return;
+    if (this.botShips.length === 0) return;
     const dummy = _tempDummy;
 
     for (let mi = 0; mi < this.missiles.length; mi++) {
@@ -1994,7 +2000,8 @@ export class ArenaEngine {
 
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
-        if (bot.team === this.playerTeam) continue; // skip allies
+        // In team mode: skip allies; in FFA: all bots are targets
+        if (this.teamMode && bot.team === this.playerTeam) continue;
         if (performance.now() < bot.invulnerableUntil) continue;
 
         const dx = m.x - bot.pos.x;
@@ -2021,14 +2028,17 @@ export class ArenaEngine {
             this.killBot(bot, null);
             this.stats.kills++;
             this.stats.score += TEAM_SCORE_ENEMY_KILL;
-            this.teamKills[this.playerTeam]++;
+            if (this.teamMode) {
+              this.teamKills[this.playerTeam as 'blue' | 'red']++;
+            }
             this.addKillFeed('PLAYER', bot.name);
           }
 
           // AoE splash to nearby enemy bots (radius 30 units)
           for (const b2 of this.botShips) {
             if (!b2.alive || b2.id === bot.id) continue;
-            if (b2.team === this.playerTeam) continue;
+            // In team mode skip allies; in FFA all are targets
+            if (this.teamMode && b2.team === this.playerTeam) continue;
             if (performance.now() < b2.invulnerableUntil) continue;
             const d2 = Math.sqrt((m.x - b2.pos.x) ** 2 + (m.z - b2.pos.z) ** 2);
             if (d2 < 30) {
@@ -2038,7 +2048,9 @@ export class ArenaEngine {
                 this.killBot(b2, null);
                 this.stats.kills++;
                 this.stats.score += TEAM_SCORE_ENEMY_KILL;
-                this.teamKills[this.playerTeam]++;
+                if (this.teamMode) {
+                  this.teamKills[this.playerTeam as 'blue' | 'red']++;
+                }
                 this.addKillFeed('PLAYER', b2.name);
               }
             }
@@ -2403,12 +2415,35 @@ export class ArenaEngine {
     const shuffled = [...BOT_NAMES].sort(() => Math.random() - 0.5);
     let nameIdx = 0;
 
-    const spawnBot = (id: number, team: Team): BotShip => {
+    // Neutral tint colors — varied warm greys/oranges for visual distinction
+    const neutralTints = [
+      new THREE.Color(0.9, 0.7, 0.5),
+      new THREE.Color(0.7, 0.9, 0.6),
+      new THREE.Color(0.8, 0.6, 0.9),
+      new THREE.Color(0.9, 0.8, 0.4),
+      new THREE.Color(0.6, 0.8, 0.9),
+      new THREE.Color(0.9, 0.5, 0.6),
+    ];
+
+    const totalBots = this.teamMode
+      ? TEAM_BLUE_BOTS + TEAM_RED_BOTS
+      : TRAINING_BOT_COUNT;
+
+    const spawnBot = (id: number, team: Team, index: number): BotShip => {
       const name = shuffled[nameIdx++ % shuffled.length];
-      const tintColor = team === 'blue'
-        ? new THREE.Color(0.5, 0.7, 1.0)
-        : new THREE.Color(1.0, 0.5, 0.5);
-      const labelColor = team === 'blue' ? '#4499ff' : '#ff5544';
+      let tintColor: THREE.Color;
+      let labelColor: string;
+      if (team === 'blue') {
+        tintColor = new THREE.Color(0.5, 0.7, 1.0);
+        labelColor = '#4499ff';
+      } else if (team === 'red') {
+        tintColor = new THREE.Color(1.0, 0.5, 0.5);
+        labelColor = '#ff5544';
+      } else {
+        // neutral — each bot gets a unique tint
+        tintColor = neutralTints[index % neutralTints.length];
+        labelColor = '#cc9944';
+      }
 
       // Pick a random ship texture for this bot
       const tex = shipTextures[id % shipTextures.length];
@@ -2434,10 +2469,12 @@ export class ArenaEngine {
       this.scene.add(nickSprite);
 
       // Spread spawn positions around the arena (not near center or player)
-      const spawnAngle = (id / (TEAM_BLUE_BOTS + TEAM_RED_BOTS)) * Math.PI * 2 + (team === 'red' ? Math.PI : 0);
+      const spawnAngle = (index / totalBots) * Math.PI * 2;
       const spawnDist = ARENA_HALF * 0.5 + Math.random() * ARENA_HALF * 0.25;
       const spawnX = Math.cos(spawnAngle) * spawnDist;
       const spawnZ = Math.sin(spawnAngle) * spawnDist;
+
+      const difficulty = team === 'neutral' ? 'easy' as const : 'medium' as const;
 
       const bot: BotShip = {
         id,
@@ -2452,7 +2489,7 @@ export class ArenaEngine {
         respawnTimer: 0,
         mesh,
         nickSprite,
-        brain: createBotBrain('medium'),
+        brain: createBotBrain(difficulty),
         fireCooldown: Math.random() * 0.5, // stagger initial fires
         kills: 0,
         deaths: 0,
@@ -2473,13 +2510,19 @@ export class ArenaEngine {
     };
 
     let botId = 1000;
-    // 4 blue allies
-    for (let i = 0; i < TEAM_BLUE_BOTS; i++) {
-      this.botShips.push(spawnBot(botId++, 'blue'));
-    }
-    // 5 red enemies
-    for (let i = 0; i < TEAM_RED_BOTS; i++) {
-      this.botShips.push(spawnBot(botId++, 'red'));
+    if (this.teamMode) {
+      // Team mode: 4 blue allies + 5 red enemies
+      for (let i = 0; i < TEAM_BLUE_BOTS; i++) {
+        this.botShips.push(spawnBot(botId++, 'blue', i));
+      }
+      for (let i = 0; i < TEAM_RED_BOTS; i++) {
+        this.botShips.push(spawnBot(botId++, 'red', TEAM_BLUE_BOTS + i));
+      }
+    } else {
+      // Training FFA: 6 neutral easy bots
+      for (let i = 0; i < TRAINING_BOT_COUNT; i++) {
+        this.botShips.push(spawnBot(botId++, 'neutral', i));
+      }
     }
   }
 
@@ -2538,10 +2581,12 @@ export class ArenaEngine {
       const selfEntity = this.botToShipEntity(bot, allShipEntities);
 
       // Build enemies for AI: filter to opposite team, prefer less-chased targets
+      // For neutral (FFA training): everyone is an enemy (different id)
       const enemyEntities = allShipEntities.filter(s => {
         if (!s.alive) return false;
         if (s.id === bot.id) return false;
-        // Bots only target opposite team; player is blue so red bots attack player
+        if (bot.team === 'neutral') return true; // FFA: everyone is an enemy
+        // Team mode: bots only target opposite team
         const sTeam = this.getEntityTeam(s.id);
         return sTeam !== bot.team;
       });
@@ -2762,7 +2807,7 @@ export class ArenaEngine {
 
   /** Return the team for any ship id (0 = player = blue) */
   private getEntityTeam(id: number): Team {
-    if (id === 0) return this.playerTeam;
+    if (id === 0) return this.teamMode ? this.playerTeam : 'neutral';
     const bot = this.botShips.find(b => b.id === id);
     return bot ? bot.team : 'red';
   }
@@ -2894,7 +2939,8 @@ export class ArenaEngine {
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
         if (bot.id === b.ownerId) continue;                // skip own ship
-        if (bot.team === b.ownerTeam) continue;            // no friendly fire
+        // In team mode: no friendly fire; in FFA (neutral): hit anyone else
+        if (b.ownerTeam !== 'neutral' && bot.team === b.ownerTeam) continue;
 
         const dx = b.x - bot.pos.x;
         const dz = b.z - bot.pos.z;
@@ -2925,8 +2971,8 @@ export class ArenaEngine {
 
       if (!b.active) continue;
 
-      // Check against player (only red bots can hit player, player is blue)
-      if (!this.playerDead && b.ownerTeam !== this.playerTeam) {
+      // Check against player (in team mode: only enemies; in FFA: all bots)
+      if (!this.playerDead && (b.ownerTeam === 'neutral' || b.ownerTeam !== this.playerTeam)) {
         const dx = b.x - this.playerPos.x;
         const dz = b.z - this.playerPos.z;
         const minDist = SHIP_RADIUS + this.BOT_BULLET_RADIUS;
@@ -2952,7 +2998,9 @@ export class ArenaEngine {
               // Credit shooter with kill
               if (shooterBot) {
                 shooterBot.kills++;
-                this.teamKills[shooterBot.team]++;
+                if (this.teamMode && (shooterBot.team === 'blue' || shooterBot.team === 'red')) {
+                  this.teamKills[shooterBot.team]++;
+                }
                 this.addKillFeed(shooterBot.name, 'PLAYER');
               }
               this.killPlayer();
@@ -2973,7 +3021,8 @@ export class ArenaEngine {
 
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
-        if (bot.team === this.playerTeam) continue; // no friendly fire
+        // In team mode: skip allies; in FFA (neutral): all bots are targets
+        if (this.teamMode && bot.team === this.playerTeam) continue;
 
         const dx = b.x - bot.pos.x;
         const dz = b.z - bot.pos.z;
@@ -2997,7 +3046,9 @@ export class ArenaEngine {
               this.killBot(bot, null); // player killed bot
               this.stats.kills++;
               this.stats.score += TEAM_SCORE_ENEMY_KILL;
-              this.teamKills[this.playerTeam]++;
+              if (this.teamMode) {
+                this.teamKills[this.playerTeam as 'blue' | 'red']++;
+              }
               this.addKillFeed('PLAYER', bot.name);
             }
           }
@@ -3008,7 +3059,7 @@ export class ArenaEngine {
   }
 
   private checkPlayerBotPhysicalCollisions(): void {
-    if (!this.teamMode || this.playerDead) return;
+    if (this.botShips.length === 0 || this.playerDead) return;
 
     for (const bot of this.botShips) {
       if (!bot.alive) continue;
@@ -3053,7 +3104,9 @@ export class ArenaEngine {
               this.killBot(bot, null);
               this.stats.kills++;
               this.stats.score += TEAM_SCORE_ENEMY_KILL;
-              this.teamKills[this.playerTeam]++;
+              if (this.teamMode) {
+                this.teamKills[this.playerTeam as 'blue' | 'red']++;
+              }
               this.addKillFeed('PLAYER', bot.name);
             }
           }
@@ -3075,7 +3128,10 @@ export class ArenaEngine {
 
     if (killer) {
       killer.kills++;
-      this.teamKills[killer.team]++;
+      // Only track team kills in team mode (neutral has no team score)
+      if (this.teamMode && (killer.team === 'blue' || killer.team === 'red')) {
+        this.teamKills[killer.team]++;
+      }
       this.addKillFeed(killer.name, bot.name);
     }
   }

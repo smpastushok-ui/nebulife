@@ -114,8 +114,8 @@ export interface InputState {
   dash: boolean;
 }
 
-// Team types for team battle mode
-export type Team = 'blue' | 'red';
+// Team types for team battle mode + neutral for FFA training
+export type Team = 'blue' | 'red' | 'neutral';
 
 // Bot brain import (forward reference resolved via ArenaAI.ts)
 import type { BotBrain } from './ArenaAI.js';
