@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   linkGoogleToAnonymous,
   linkEmailToAnonymous,
+  isGoogleSignInAvailable,
 } from '../../auth/auth-service.js';
 import { authFetch } from '../../auth/api-client.js';
 
@@ -90,9 +91,11 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
 
         {screen === 'choice' && (
           <>
-            <button style={googleBtnStyle} onClick={handleGoogle} disabled={loading}>
-              {loading ? t('common.loading') : 'Google'}
-            </button>
+            {isGoogleSignInAvailable() && (
+              <button style={googleBtnStyle} onClick={handleGoogle} disabled={loading}>
+                {loading ? t('common.loading') : 'Google'}
+              </button>
+            )}
             <button
               style={btnStyle}
               onClick={() => { setScreen('email-form'); setError(''); }}

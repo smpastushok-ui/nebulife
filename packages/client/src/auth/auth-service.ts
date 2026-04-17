@@ -25,7 +25,19 @@ const googleProvider = new GoogleAuthProvider();
 
 // Lazy-initialized native Google Auth (dynamic import to avoid Vercel build failure)
 let _googleAuthInitialized = false;
+
+/** True if the native GoogleAuth plugin is registered on this platform. */
+export function isGoogleSignInAvailable(): boolean {
+  // On web we always allow (uses Firebase popup)
+  if (!Capacitor.isNativePlatform()) return true;
+  // On native we need the Capacitor plugin to be registered
+  return Capacitor.isPluginAvailable('GoogleAuth');
+}
+
 async function getNativeGoogleAuth() {
+  if (!Capacitor.isPluginAvailable('GoogleAuth')) {
+    throw new Error('Google Sign-in is not available on this device yet');
+  }
   // @ts-ignore — module only available in native Capacitor builds, not on Vercel
   const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
   if (!_googleAuthInitialized) {

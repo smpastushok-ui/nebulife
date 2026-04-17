@@ -5,6 +5,7 @@ import {
   signInWithGoogle,
   signInWithEmail,
   registerWithEmail,
+  isGoogleSignInAvailable,
 } from '../../auth/auth-service.js';
 import type { User } from 'firebase/auth';
 
@@ -30,6 +31,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [loading, setLoading] = useState(false);
 
   const hasLegacyPlayer = !!localStorage.getItem(PLAYER_ID_KEY);
+  const googleAvailable = isGoogleSignInAvailable();
 
   const handleAuth = async (authFn: () => Promise<User | null>, isNew: boolean) => {
     setError('');
@@ -88,15 +90,17 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         {/* Landing screen */}
         {screen === 'landing' && (
           <>
-            <button
-              style={googleBtnStyle}
-              onClick={handleGoogle}
-              disabled={loading}
-              onMouseEnter={hoverIn}
-              onMouseLeave={hoverOut}
-            >
-              {loading ? t('auth.loading') : t('auth.google_login')}
-            </button>
+            {googleAvailable && (
+              <button
+                style={googleBtnStyle}
+                onClick={handleGoogle}
+                disabled={loading}
+                onMouseEnter={hoverIn}
+                onMouseLeave={hoverOut}
+              >
+                {loading ? t('auth.loading') : t('auth.google_login')}
+              </button>
+            )}
 
             <button
               style={btnStyle}

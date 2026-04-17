@@ -6,7 +6,11 @@
 // ---------------------------------------------------------------------------
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
+import { Capacitor } from '@capacitor/core';
+
+// NOTE: Firebase Web Messaging is not supported in Android/iOS WebView.
+// TODO: migrate to @capacitor/push-notifications for native push on mobile.
 
 /** VAPID public key — must match FIREBASE_SERVICE_ACCOUNT_JSON project */
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined;
@@ -44,7 +48,11 @@ function getFirebaseApp() {
  * Returns the token string, or null if permission denied or Firebase not configured.
  */
 export async function requestPushPermission(): Promise<string | null> {
+  // Firebase Web Messaging does not work inside Capacitor WebView
+  if (Capacitor.isNativePlatform()) return null;
+
   if (!('Notification' in window) || !('serviceWorker' in navigator)) return null;
+  if (!(await isSupported().catch(() => false))) return null;
 
   const app = getFirebaseApp();
   if (!app || !VAPID_KEY) {
@@ -76,25 +84,33 @@ export async function requestPushPermission(): Promise<string | null> {
  * Fires a custom DOM event so App.tsx can handle it.
  */
 export function startForegroundListener(): (() => void) | null {
+  // Skip on native — FCM web SDK is not supported in WebView
+  if (Capacitor.isNativePlatform()) return null;
+
   const app = getFirebaseApp();
   if (!app) return null;
 
-  try {
-    const messaging = getMessaging(app);
-    const unsubscribe = onMessage(messaging, (payload) => {
-      const weekDate = payload.data?.weekDate ?? '';
-      window.dispatchEvent(new CustomEvent('nebulife:push-digest', { detail: { weekDate } }));
-    });
-    return unsubscribe;
-  } catch {
-    return null;
-  }
+  // Fire-and-forget: isSupported is async, attach listener only when supported
+  isSupported().catch(() => false).then((supported) => {
+    if (!supported) return;
+    try {
+      const messaging = getMessaging(app);
+      onMessage(messaging, (payload) => {
+        const weekDate = payload.data?.weekDate ?? '';
+        window.dispatchEvent(new CustomEvent('nebulife:push-digest', { detail: { weekDate } }));
+      });
+    } catch {
+      /* ignore */
+    }
+  });
+  return null;
 }
 
 /**
  * Check current push permission status without requesting.
  */
 export function getPushPermissionStatus(): NotificationPermission | 'unsupported' {
+  if (Capacitor.isNativePlatform()) return 'unsupported';
   if (!('Notification' in window)) return 'unsupported';
   return Notification.permission;
 }
