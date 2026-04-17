@@ -246,7 +246,8 @@ export class SpaceAmbient {
 
     const tick = (now: number) => {
       const t = durationMs > 0 ? Math.min(1, (now - startTime) / durationMs) : 1;
-      audio.volume = startVolume + (clampedTarget - startVolume) * t;
+      const v = startVolume + (clampedTarget - startVolume) * t;
+      audio.volume = Math.max(0, Math.min(1, v));
       if (t < 1) {
         this.fadeRaf = requestAnimationFrame(tick);
       } else {
