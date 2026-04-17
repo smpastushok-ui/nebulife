@@ -174,6 +174,46 @@ Total day-1 artifacts: 3 (1 home free + 2 зі starter)  →
 3. Колекція → pride → re-roll з ціллю "ідеальної версії"
 4. 20+ слотів × середньо 2-3 re-rolls = **40-60⚛ на active collector'а**
 
+**Power users — колекціонери відео-експедицій**:
+- Відео-місії (15-30 сек) стають головним об'єктом колекціонування у top 5% гравців
+- Вони скуповують 10-30 відео-місій на місяць (200-900⚛ = ~$5-25/міс на гравця)
+- Кожна експедиція унікальна: **дата + планета + rarity tier + унікальний ID** — це "номерні цифрові артефакти"
+- Collection showcase: сторінка гравця "Мої експедиції" у хронологічному порядку
+- **Фундамент для маркетплейсу** — див. нижче
+
+### 🛍️ Торгівля колекціями (P2P marketplace, Q3 2026)
+
+**Концепція**: гравці обмінюють/продають унікальні AI-артефакти за кварки. Створює повноцінну вторинну економіку, де артефакти мають trade value окрім primary purchase.
+
+**Що можна продавати** (приблизні ціни на secondary market):
+
+| Тип артефакту | Ціна на marketplace | USD equivalent |
+|---|---|---|
+| 🎬 Відео-експедиції (legendary) | 50-200⚛ | $1.25-5 |
+| 🧬 Life-forms (legendary) | 80-300⚛ | $2-7.50 |
+| 📸 Унікальні Kling-фото (legendary events) | 20-80⚛ | $0.50-2 |
+| 🚀 Ship 3D (rare styles) | 100-400⚛ | $2.50-10 |
+| 🏷️ Custom star names | 50-100⚛ | fixed |
+
+**Механіка трейду**:
+- **Listing**: гравець викладає артефакт з власною ціною
+- **10% комісія гри** (revenue stream #7 у таблиці §0.4-bis)
+- У metadata артефакту залишаються: `unique ID`, `original discoverer`, `discovery timestamp`, `previous owners` — історія ownership прозора
+- Покупець отримує право **використовувати** артефакт (gallery, wallpaper, share), але **original discoverer** назавжди задокументований
+- Це справжній **digital collectible без web3-хайпу** — просто game DB + ownership transfers
+
+**Чому це revenue multiplier для нішевої аудиторії**:
+- Power user купує 10 video-missions/міс → витрачає 200⚛ = ~$5
+- З marketplace: цей же user **купує 5 + продає 3 legendary за 150⚛ сумарно** → гра отримує **15⚛ комісії + user усе одно витрачає $5 на новий контент**
+- Net ефект: **retention ×2** (collecting motivation), **revenue той самий** + комісії
+
+**Softlaunch послідовність**:
+1. Q2: 3-rarity tier для всіх артефактів (prerequisite)
+2. Q2 кінець: Gallery share + watermarks на всіх артефактах (prerequisite — без them marketplace = piracy)
+3. Q3 початок: Marketplace MVP (listing + browse)
+4. Q3 середина: Trade history + "Top Collectors" leaderboard
+5. Q3 кінець: Clan "trophy rooms" (клан колективно володіє legendary артефактами)
+
 **Rarity-тipр подій** (для різної retention-мотивації):
 - **Normal** (60% подій): 1-2 re-rolls очікується, прийнятна перша
 - **Rare** (30%): 2-4 re-rolls типово, деякі як wallpaper

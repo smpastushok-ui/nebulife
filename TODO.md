@@ -17,6 +17,62 @@
 
 ---
 
+## 🖼️ ПРІОРИТЕТ 1 — Вотермарк на AI-артефактах (серверний)
+
+**Навіщо**: коли гравець ділиться фото/відео, напис "nebulife.space" забезпечує organic growth + потрібен для майбутнього marketplace (запобігання піратству).
+
+**Дизайн** — мінімалістичний, в стилі гри:
+- Текст: `nebulife.space` + іконка ⚛ (атом)
+- Позиція: правий нижній кут, відступ 2% від краю
+- Шрифт: monospace, розмір 2.5% від ширини
+- **Адаптивний колір**:
+  - Темний фон (середнє value < 0.5) → білий текст з alpha 0.8
+  - Світлий фон (≥ 0.5) → темний `#1a1a1a` з alpha 0.85
+  - Контраст завжди WCAG 4.5:1
+- Легка тінь 1px для читабельності на переходах
+- Без градієнтів/glow/анімацій — плоский текст
+
+### Сервер — фотографії (Kling)
+- [ ] `packages/server/src/watermark.ts` — новий модуль
+  - Використовує `sharp` (вже є в монорепо)
+  - Експорт: `addPhotoWatermark(buffer) → Promise<Buffer>`
+  - Логіка: sharp stats → mean lightness → вибір кольору → composite text
+- [ ] `api/surface/status/:id` — після Kling "succeed":
+  1. Завантажити оригінал з Kling CDN
+  2. Прогнати через `addPhotoWatermark()`
+  3. Upload watermarked версію у Vercel Blob
+  4. Зберегти `surface_maps.photo_url` = blob URL
+- [ ] Те саме для `api/system-photo/status/:id`
+- [ ] Кешування: якщо blob URL вже watermarked — skip
+
+### Сервер — відео (Veo/Runway)
+Потрібен ffmpeg на сервері. Обрати:
+- [ ] **Варіант A** (простіше): Vercel Background Function з `fluent-ffmpeg` + static ffmpeg binary
+  - Ліміт Vercel free: 300 сек → вкладаємось (15-30 сек відео)
+- [ ] **Варіант B** (надійніше, $$): Cloudinary video transform API ~$0.05/video
+- [ ] Логіка:
+  1. Download mp4 з Veo
+  2. Overlay watermark через ffmpeg `drawtext`
+  3. Колір — фіксований білий alpha 0.7 (відео завжди темний космічний фон)
+  4. Upload mp4 у Blob, оновити `video_missions.video_url`
+
+### DB
+- [ ] Додати `original_url TEXT` у `surface_maps` + `video_missions` (зберігати оригінал Kling/Veo для diagnose)
+- [ ] Додати `watermarked_at TIMESTAMPTZ`
+
+### Тестування
+- [ ] Unit test `addPhotoWatermark()` з 5 зразками: чорний, білий, mixed, Red Supergiant, фото з deталлю в кутку
+- [ ] Verify WCAG 4.5:1 contrast
+- [ ] Performance: <500ms на photo
+
+### Дрібні деталі
+- Watermark НЕ ламає compare UI (CURRENT/NEW обидва watermarked)
+- При save-to-device watermark лишається — fature, не bug
+- Для ship GLB metadata author field (не візуально на модель)
+- Pro-підписка у майбутньому: "Remove watermark" +50⚛/міс (тільки на paid артефакти; free завжди watermarked)
+
+---
+
 ## 🚀 ПРІОРИТЕТ 1 — Головні фічі (максимальний ефект)
 
 ### Відео-місії (45% очікуваного доходу)
