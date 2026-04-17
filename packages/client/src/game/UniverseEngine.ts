@@ -93,6 +93,11 @@ const STELLAR_CLASSES_FULL = [
 const SPEC_CLS_ORDERED = ['O', 'B', 'A', 'F', 'G', 'K', 'M'];
 const SPEC_WEIGHTS = [0.00003, 0.13, 0.6, 3.0, 7.6, 12.1, 76.45];
 
+// Reusable temp vectors — avoid per-frame allocations in animate loop
+const _tmpVec3A = new THREE.Vector3();
+const _tmpVec3B = new THREE.Vector3();
+const _tmpVec2 = new THREE.Vector2();
+
 // Visualization
 const STARS_PER_CLUSTER = 260;
 const CORE_STARS_PER_CLUSTER = 160;
@@ -489,6 +494,9 @@ export class UniverseEngine {
   private controls!: OrbitControls;
   private animFrameId = 0;
   private visible = false;
+  /** Frame throttle: min interval between renders (ms). 33 = ~30 FPS */
+  private frameInterval = 33;
+  private lastFrameTime = 0;
 
   // Galaxy objects
   private groups: GalaxyGroupMeta[] = [];
@@ -1284,6 +1292,13 @@ export class UniverseEngine {
     return new THREE.Vector3(g.position.x * SCALE, g.position.z * SCALE, g.position.y * SCALE);
   }
 
+  /** Write group world position into existing vector (zero-alloc for hot loops) */
+  private getGroupWorldPosInto(idx: number, out: THREE.Vector3): void {
+    if (idx < 0 || idx >= this.groups.length) { out.set(0, 0, 0); return; }
+    const g = this.groups[idx];
+    out.set(g.position.x * SCALE, g.position.z * SCALE, g.position.y * SCALE);
+  }
+
   // ── Event listeners ────────────────────────────────────────
 
   private setupEventListeners(): void {
@@ -1518,7 +1533,13 @@ export class UniverseEngine {
   private animate = (): void => {
     if (!this.visible) return;
     this.animFrameId = requestAnimationFrame(this.animate);
-    const t = performance.now() * 0.001;
+
+    // Frame throttle — skip render if too soon (saves GPU on idle 3D view)
+    const now = performance.now();
+    if (now - this.lastFrameTime < this.frameInterval) return;
+    this.lastFrameTime = now;
+
+    const t = now * 0.001;
 
     // Fly-to animation
     if (this.flyAnimation) {
@@ -1543,27 +1564,30 @@ export class UniverseEngine {
     // Player ring pulse
     if (this.myRing.visible) {
       (this.myRing.material as THREE.MeshBasicMaterial).opacity = 0.15 + 0.1 * Math.sin(t * 2.5);
-      const camDir = new THREE.Vector3();
-      this.camera.getWorldPosition(camDir);
-      this.myRing.lookAt(camDir);
+      this.camera.getWorldPosition(_tmpVec3A);
+      this.myRing.lookAt(_tmpVec3A);
     }
 
     // LOD distance check (skip during fly animation)
+    // Uses _tmpVec3B to avoid per-frame Vector3 allocations in the hot loop
     if (!this.flyAnimation) {
       if (this.lodState === 'galaxy') {
         let closestIdx = -1, closestDist = Infinity;
         for (let gi = 0; gi < this.groups.length; gi++) {
-          const wp = this.getGroupWorldPos(gi);
-          const d = this.controls.target.distanceTo(wp);
+          this.getGroupWorldPosInto(gi, _tmpVec3B);
+          const d = this.controls.target.distanceTo(_tmpVec3B);
           if (d < closestDist) { closestDist = d; closestIdx = gi; }
         }
-        const camDist = closestIdx >= 0 ? this.camera.position.distanceTo(this.getGroupWorldPos(closestIdx)) : Infinity;
-        if (closestIdx >= 0 && camDist < LOD_EXPAND_DIST) {
-          this.expandCluster(closestIdx);
+        if (closestIdx >= 0) {
+          this.getGroupWorldPosInto(closestIdx, _tmpVec3B);
+          const camDist = this.camera.position.distanceTo(_tmpVec3B);
+          if (camDist < LOD_EXPAND_DIST) {
+            this.expandCluster(closestIdx);
+          }
         }
       } else if (this.lodState === 'cluster' && this.lodClusterIndex >= 0) {
-        const wp = this.getGroupWorldPos(this.lodClusterIndex);
-        const d = this.camera.position.distanceTo(wp);
+        this.getGroupWorldPosInto(this.lodClusterIndex, _tmpVec3B);
+        const d = this.camera.position.distanceTo(_tmpVec3B);
         if (d > LOD_COLLAPSE_DIST) {
           this.collapseCluster();
         }
@@ -1577,20 +1601,18 @@ export class UniverseEngine {
       }
     }
 
-    // Jets billboard
-    if (this.jetUpRef) {
-      (this.jetUpRef.material as THREE.ShaderMaterial).uniforms.time.value = t;
-      const camDir = new THREE.Vector3();
-      this.camera.getWorldPosition(camDir);
-      const angle = Math.atan2(camDir.x, camDir.z);
-      this.jetUpRef.rotation.set(0, angle, 0);
-    }
-    if (this.jetDownRef) {
-      (this.jetDownRef.material as THREE.ShaderMaterial).uniforms.time.value = t;
-      const camDir = new THREE.Vector3();
-      this.camera.getWorldPosition(camDir);
-      const angle = Math.atan2(camDir.x, camDir.z);
-      this.jetDownRef.rotation.set(0, angle, 0);
+    // Jets billboard — reuse single camera position lookup for both jets
+    if (this.jetUpRef || this.jetDownRef) {
+      this.camera.getWorldPosition(_tmpVec3A);
+      const jetAngle = Math.atan2(_tmpVec3A.x, _tmpVec3A.z);
+      if (this.jetUpRef) {
+        (this.jetUpRef.material as THREE.ShaderMaterial).uniforms.time.value = t;
+        this.jetUpRef.rotation.set(0, jetAngle, 0);
+      }
+      if (this.jetDownRef) {
+        (this.jetDownRef.material as THREE.ShaderMaterial).uniforms.time.value = t;
+        this.jetDownRef.rotation.set(0, jetAngle, 0);
+      }
     }
 
     this.controls.update();

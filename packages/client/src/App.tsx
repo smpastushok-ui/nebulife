@@ -2480,9 +2480,12 @@ function AppInner() {
         setState(prev => ({ ...prev, scene: 'universe' }));
       });
     } else {
-      // Transitioning FROM universe (to PixiJS)
+      // Transitioning FROM universe (to PixiJS) — destroy Three.js renderer to free GPU
       setUniverseVisible(false);
-      universeEngineRef.current?.setVisible(false);
+      if (universeEngineRef.current) {
+        universeEngineRef.current.destroy();
+        universeEngineRef.current = null;
+      }
       engineRef.current?.resume();
       if (target === 'home-intro') {
         engineRef.current?.showHomePlanetScene(true);
@@ -3892,6 +3895,31 @@ function AppInner() {
     };
   }, [hydrateGameStateFromServer]);
 
+  // ── Pause/resume renderers on visibility change (save battery in background) ──
+  useEffect(() => {
+    const handleEngineVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        // Pause PixiJS ticker
+        engineRef.current?.pause();
+        // Pause Three.js animation loop
+        universeEngineRef.current?.setVisible(false);
+      } else if (document.visibilityState === 'visible') {
+        // Resume PixiJS ticker (only if universe is not active — universe pauses pixi)
+        if (!universeEngineRef.current || !universeVisible) {
+          engineRef.current?.resume();
+        }
+        // Resume Three.js animation loop (only if universe view is active)
+        if (universeVisible) {
+          universeEngineRef.current?.setVisible(true);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleEngineVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleEngineVisibility);
+    };
+  }, [universeVisible]);
+
   // ── Initialize AdMob on native platforms ────────────────────────────────
   useEffect(() => {
     interstitialManager.sessionStartTime = Date.now();
@@ -4880,6 +4908,10 @@ function AppInner() {
           quarks={quarks}
           playerLevel={playerLevel}
           researchProgress={(() => {
+            // With the "eye" toggle ON, progress is already shown over the
+            // star by GalaxyScene, so suppress the RadialMenu's progress chip
+            // to avoid duplicating the same number above and below the star.
+            if (researchLabelsMode) return undefined;
             const prog = getResearchProgress(researchState, radialSystem.id);
             return (prog > 0 && prog < 100) ? prog : undefined;
           })()}
@@ -5704,7 +5736,10 @@ function AppInner() {
           }}
           onLeaveUniverseToGalaxy={() => {
             setUniverseVisible(false);
-            universeEngineRef.current?.setVisible(false);
+            if (universeEngineRef.current) {
+              universeEngineRef.current.destroy();
+              universeEngineRef.current = null;
+            }
             engineRef.current?.resume();
             engineRef.current?.showGalaxyScene();
             setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
