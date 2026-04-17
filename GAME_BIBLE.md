@@ -5,6 +5,116 @@
 
 ---
 
+## 0. Стратегічне позиціонування (оновлено квітень 2026)
+
+### 0.1 Одне речення
+
+**Nebulife — це жива галактика-підручник з AI-генерованим контентом, де гравці колоніями (по 50) досліджують власний кластер з 1 450 зірок і навчаються справжній астрономії через квести, відео-експедиції та щотижневий космічний дайджест.**
+
+### 0.2 Не "ще одна космічна гра". Це нова підкатегорія:
+
+> **Living Galaxy — AI-generated learning MMO**
+
+Раніше такого не існувало. Поєднання:
+
+| Фіча | Чому унікально |
+|---|---|
+| 🎬 **AI video-mission generation** | Жодна mobile-гра не генерує відеоподії на льоту |
+| 🧬 **DNA-рівнева генерація життя** | Spore (2008) desktop-only, без AI. Nebulife — mobile, з Gemini |
+| 📰 **Weekly Digest з реальних новин NASA/ESA/JWST** | Edu-content всередині гри, Gemini-bilingual |
+| 🎓 **Academy: справжня астрономія** | Вікторини + факти + lessons, адаптивна складність |
+| 👥 **Auto-scaling clusters (50 гравців → новий кластер)** | Deterministic seed + PostgreSQL advisory locks |
+| ⚛️ **Determinism + fair MMO** | Один seed = однакова галактика для всіх |
+
+### 0.3 П'ять стовпів (pillars). Кожна фіча має підсилювати хоч один:
+
+1. **LIVING** — щось у грі змінюється щодня/щотижня без потреби в оновленнях (AI-generated contents).
+2. **LEARNING** — гравець виходить з гри з новим знанням з астрономії/фізики/біології.
+3. **DETERMINISTIC** — fair-play через спільний seed; неможливо "купити кращий всесвіт".
+4. **SOCIAL** — кластер 50 гравців — це неявна гільдія; clans/trade/PvP згодом — явна.
+5. **SCALABLE CONTENT** — AI пайплайн (Kling + Tripo + Gemini + video) = infinite content без росту art-team.
+
+### 0.4 Стратегічні вектори розвитку (Q2-Q3 2026)
+
+Усі робочі спринти мають **прямо служити одному з цих векторів**. Якщо фіча не лягає в жоден вектор — її **не робимо**.
+
+#### 🎬 Вектор A — "Video-mission as the killer feature"
+- Постачальник: Gemini (сценарій) + Veo/Kling/Runway (відео) + TTS (озвучка) + Gemini (скоротити).
+- Мета: Кожна планетарна експедиція = унікальне 15-30 сек відео з описом події.
+- Loop: гравець дослідив планету → відправив mission → отримав video → shared-moment ("ЦЕ трапилось на моїй планеті!") → organic growth у TikTok/Reddit.
+- Первинний KPI: **% гравців що зробили хоч 1 експедицію за сесію** (мета 40%+).
+
+#### 🧬 Вектор B — "Life generation as gameplay loop"
+- DNA parameters → environment fit → procedural creature → Kling photo.
+- Від "одноклітинних" до "складних екосистем" — progression через tech-tree chemistry→biology.
+- Кожна унікальна life-form має ID та може бути shared / traded (foundation для економіки).
+- Мета Q3: 3-rarity tier-система (common/rare/legendary), marketplace mvp.
+
+#### 📰 Вектор C — "Weekly Digest як re-engagement crown jewel"
+- Generates every Monday via cron. Push-notification всім гравцям.
+- 3-5 новин з тижня + AI illustrations + quiz.
+- Сторінка digest має "share card" (OpenGraph image) — бажано щоб гравець розіслав друзям.
+- Мета: D7 retention 20%+ через автоматичне нагадування тижневе.
+
+#### 🎓 Вектор D — "Academy як educational moat"
+- Адаптивна складність, теми синхронізовані з фактичним progress гравця.
+- Щоденний урок з quiz (+10 кварків).
+- Streak-bonuses: 7 days → +50, 30 days → exclusive tech node preview, 100 days → custom star name.
+- Партнерства з NASA Open API, ESA media, space.com (під ліцензією).
+- Мета: family-friendly rating → батьки дозволяють дітям → organic schools market.
+
+#### ⚔️ Вектор E — "Clans + territory control" (Q3)
+- Cluster = natural clan (50 гравців). Dopuscaćме можливість leader elections.
+- Territorial control: alliance контролює core zone → passive resource bonus.
+- PvP: arena вже live (L50+), expand у territorial defense / raid.
+- Trade: marketplace для rare life-forms, AI-photos, 3D models.
+- Мета: ARPU ×5 через premium clan subscriptions ($4.99 → leader perks).
+
+#### 🎯 Вектор F — "First-60-seconds onboarding refactor"
+- Current churn killer. Після language-select — провали 50%+.
+- Замінити на cinematic intro з voice-over: "Твоя планета, 7 днів, знайди нову домівку".
+- Tutorial не "перелік UI", а DISCOVERY: перші 60 сек гравець знаходить УНІКАЛЬНУ planet + dostaje notif "ти перший хто її дослідив у цьому всесвіті".
+- Мета: D1 retention з 25% → 45%+.
+
+#### 📱 Вектор G — "Mobile performance & polish"
+- Поточні GPU 274MB (було 360), треба <150MB.
+- Bundle 2.5MB → <1.5MB через lazy-load scenes.
+- Заряд батареї: ≤6%/година (зараз ~10%).
+- 60fps стабільно на Samsung S22+ / Pixel 6+.
+- Мета: **Play Store rating 4.3+ з коментарів "плавно, не гріє".**
+
+### 0.5 Явні Non-Goals (щоб не розмиватись)
+
+| НЕ робимо | Чому |
+|---|---|
+| ~~Real-time PvP shooter~~ | Поза нашою архітектурою, не наша аудиторія |
+| ~~3D planet exploration у стилі No Man's Sky~~ | Занадто дорого; ми 2D + AI photos |
+| ~~Web3 / crypto / NFT~~ | Руйнує edu-friendly позицію |
+| ~~Licensed sci-fi IP~~ | Жодних Star Wars/Star Trek crossovers |
+| ~~Gacha mechanic~~ | Gambling regulations + поза edu-friendly |
+| ~~Battle royale~~ | Проти "тихий атмосферний космос" |
+
+### 0.6 Success Metrics (rolling 30-day)
+
+| Метрика | Q2 target | Q3 target |
+|---|---|---|
+| MAU (monthly active) | 2 000 | 15 000 |
+| D1 retention | 40% | 45% |
+| D7 retention | 18% | 22% |
+| D30 retention | 8% | 12% |
+| ARPDAU | $0.05 | $0.12 |
+| Рейтинг Play Store | 4.2 | 4.4 |
+| Video missions / user / week | 2+ | 5+ |
+| Weekly Digest opens | 45% MAU | 60% MAU |
+| Shared content pieces | 50/week | 500/week |
+
+### 0.7 Правило рішень
+
+> Перед тим як взятися за будь-яку фічу, запитай себе: **"У який з векторів A-G вона лягає і як підсилює хоча б один з 5 стовпів?"**
+> Якщо відповідь "жоден" або "всі потроху" — відкладаємо.
+
+---
+
 ## 1. Концепція
 
 **Жанр**: Science-fiction space exploration / survival strategy
