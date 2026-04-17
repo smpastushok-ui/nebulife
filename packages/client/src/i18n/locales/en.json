@@ -691,7 +691,8 @@
     "star_f": "F-type",
     "star_g": "G-type",
     "star_k": "K-type",
-    "star_m": "M-type"
+    "star_m": "M-type",
+    "habitable": "habitable"
   },
   "context_menu": {
     "research_group": "RESEARCH",
