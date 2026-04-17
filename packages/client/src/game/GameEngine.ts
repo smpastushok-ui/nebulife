@@ -50,7 +50,7 @@ export class GameEngine {
   private playerPos = { x: 0, y: 0 };
   private researchState: ResearchState = { slots: [], systems: {} };
   private _neighborSystems: Array<{ system: StarSystem; ownerIndex: number }> = [];
-  private _coreSystems: Array<{ system: StarSystem; coreId: number; depth: number }> = [];
+  private _coreSystems: Array<{ system: StarSystem; coreId: number; depth: number; coreNeighborIds: number[] }> = [];
 
   /** Galaxy-wide cluster info for background visualization */
   private groupCount = 1;
@@ -115,6 +115,7 @@ export class GameEngine {
    */
   setEffectiveMaxRing(maxRing: number) {
     this.effectiveMaxRing = maxRing;
+    this.galaxyScene?.setEffectiveMaxRing(maxRing);
   }
 
   /**
@@ -210,6 +211,8 @@ export class GameEngine {
       this.callbacks.onHoverSystem ? (systemId: string | null, progress: number) => {
         this.callbacks.onHoverSystem!(systemId, progress);
       } : undefined,
+      // Effective max ring for 3-tier visibility
+      this.effectiveMaxRing,
     );
 
     this.app.stage.addChild(this.galaxyScene.container);
@@ -435,7 +438,7 @@ export class GameEngine {
     return result;
   }
 
-  private computeCoreSystems(): Array<{ system: StarSystem; coreId: number; depth: number }> {
+  private computeCoreSystems(): Array<{ system: StarSystem; coreId: number; depth: number; coreNeighborIds: number[] }> {
     // Use group-specific seed (not the master galaxy seed) so every cluster
     // has its own core topology. Previously this.galaxySeed meant cluster_0
     // and cluster_1 shared identical core systems in the 2D PixiJS view,
@@ -455,7 +458,7 @@ export class GameEngine {
     const queue: Array<{ id: number; bfsDepth: number }> = [{ id: entryStar.id, bfsDepth: 0 }];
     visited.add(entryStar.id);
 
-    const result: Array<{ system: StarSystem; coreId: number; depth: number }> = [];
+    const result: Array<{ system: StarSystem; coreId: number; depth: number; coreNeighborIds: number[] }> = [];
 
     while (queue.length > 0) {
       const { id, bfsDepth } = queue.shift()!;
@@ -466,6 +469,7 @@ export class GameEngine {
         system: generateCoreStarSystem(coreSys),
         coreId: id,
         depth: coreSys.depth,
+        coreNeighborIds: coreSys.neighbors,
       });
 
       if (bfsDepth < maxBfsDepth) {

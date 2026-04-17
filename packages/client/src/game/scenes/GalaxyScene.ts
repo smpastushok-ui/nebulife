@@ -84,6 +84,9 @@ const COLLAPSE_DURATION = 400;
 
 /* ── Interfaces ────────────────────────────────────────────────── */
 
+/** Visibility tier for 3-tier star system rendering */
+type VisibilityTier = 1 | 2 | 3;
+
 interface SystemNode {
   container: Container;
   system: StarSystem;
@@ -125,6 +128,10 @@ interface SystemNode {
   expandTarget: number;
   /** Whether radial open callback has been fired for this expand cycle */
   radialOpenFired: boolean;
+  /** Core mesh ID (only for core nodes) */
+  coreId?: number;
+  /** Current visibility tier (1=visible, 2=faded, 3=hidden). Computed per-frame from effectiveMaxRing. */
+  visibilityTier: VisibilityTier;
 }
 
 /* ── Scene ─────────────────────────────────────────────────────── */
@@ -195,6 +202,35 @@ export class GalaxyScene {
   /** Systems that already received a completion "Досліджено!" label — no double-spawn */
   private completedSystems = new Set<string>();
 
+  /**
+   * Effective max ring (HOME_RESEARCH_MAX_RING + tech tree max_ring_add).
+   * Systems with ringIndex <= effectiveMaxRing are Tier 1 (fully visible).
+   * Systems with ringIndex === effectiveMaxRing + 1 are Tier 2 (faded).
+   * Systems with ringIndex > effectiveMaxRing + 1 are Tier 3 (hidden).
+   */
+  private effectiveMaxRing = 2;
+
+  /**
+   * Core neighbor graph: maps core system ID (string, e.g. "core-5-12345") to
+   * an array of neighbor core system IDs. Used for branching visibility in the core zone.
+   */
+  private coreNeighborGraph = new Map<string, string[]>();
+
+  /**
+   * Set of core system IDs that are entry stars (depth 0).
+   * Entry stars are always visible (Tier 1/2 depending on effectiveMaxRing).
+   */
+  private coreEntryIds = new Set<string>();
+
+  /**
+   * Cached set of visible core system IDs (computed from BFS through explored core systems).
+   * Recomputed when researchState or effectiveMaxRing changes.
+   */
+  private visibleCoreIds = new Set<string>();
+
+  /** Whether neighbor/core systems should be shown at all (toggled by UI) */
+  private neighborCoreEnabled = false;
+
   constructor(
     rings: GalaxyRing[],
     galaxySeed: number,
@@ -202,7 +238,7 @@ export class GalaxyScene {
     playerCenterY: number,
     researchState: ResearchState,
     neighborSystems?: Array<{ system: StarSystem; ownerIndex: number }>,
-    coreSystems?: Array<{ system: StarSystem; coreId: number; depth: number }>,
+    coreSystems?: Array<{ system: StarSystem; coreId: number; depth: number; coreNeighborIds: number[] }>,
     expandedVisible?: boolean,
     groupCount?: number,
     playerGroupIndex?: number,
@@ -215,9 +251,11 @@ export class GalaxyScene {
     private onRadialClose?: () => void,
   /** Called when pointer enters/leaves a researching star — for animated progress HUD */
   private onHoverSystem?: (systemId: string | null, progress: number) => void,
+    effectiveMaxRing?: number,
   ) {
     this.container = new Container();
     this.researchState = researchState;
+    this.effectiveMaxRing = effectiveMaxRing ?? 2;
 
     /* Simple static background star field (no galaxy backdrop) */
     this.accretionDisk = null;
@@ -293,7 +331,22 @@ export class GalaxyScene {
 
     /* ── Core systems (galactic core mesh, progressive BFS depth) ── */
     if (coreSystems) {
-      for (const { system } of coreSystems) {
+      // Build coreId->systemId mapping for neighbor graph construction
+      const coreIdToSysId = new Map<number, string>();
+      for (const { system, coreId, depth } of coreSystems) {
+        coreIdToSysId.set(coreId, system.id);
+        if (depth === 0) this.coreEntryIds.add(system.id);
+      }
+
+      for (const { system, coreId, coreNeighborIds } of coreSystems) {
+        // Build core neighbor graph (systemId -> neighbor systemIds)
+        const neighborSysIds: string[] = [];
+        for (const nid of coreNeighborIds) {
+          const nsid = coreIdToSysId.get(nid);
+          if (nsid) neighborSysIds.push(nsid);
+        }
+        this.coreNeighborGraph.set(system.id, neighborSysIds);
+
         // Skip if already present
         if (this.systemNodes.has(system.id)) continue;
 
@@ -303,15 +356,24 @@ export class GalaxyScene {
         tx += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
         ty += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
 
-        const node = this.buildSysNode(system, tx, ty, 3);
+        const node = this.buildSysNode(system, tx, ty, system.ringIndex);
         node.nodeType = 'core';
+        node.coreId = coreId;
         node.baseAlpha = expandedVisible ? 0.35 : 0;
         node.baseRadius *= 0.6;
         node.nameLabel.style.fill = 0x554433;
         node.container.alpha = node.baseAlpha;
         this.systemNodes.set(system.id, node);
       }
+
+      // Compute initial visible core IDs
+      this.recomputeVisibleCoreIds();
     }
+
+    this.neighborCoreEnabled = !!expandedVisible;
+
+    // Apply initial visibility tiers to all neighbor/core nodes
+    this.applyAllVisibilityTiers();
 
     this.buildConnectionEdges();
 
@@ -419,6 +481,161 @@ export class GalaxyScene {
     return (Math.abs(h) % 10000) / 10000 * Math.PI * 2;
   }
 
+  /* ── 3-Tier Visibility ──────────────────────────────────────── */
+
+  /**
+   * Recompute the set of visible core system IDs.
+   * Uses branching expansion: entry stars are always visible, then each fully
+   * researched core system reveals its direct neighbors in the core mesh.
+   */
+  private recomputeVisibleCoreIds(): void {
+    this.visibleCoreIds.clear();
+
+    // Start with all entry stars (depth 0)
+    for (const entryId of this.coreEntryIds) {
+      this.visibleCoreIds.add(entryId);
+    }
+
+    // BFS: for each fully researched core system, add its direct neighbors
+    const queue: string[] = [];
+    for (const entryId of this.coreEntryIds) {
+      if (isSystemFullyResearched(this.researchState, entryId)) {
+        queue.push(entryId);
+      }
+    }
+
+    const processed = new Set<string>();
+    while (queue.length > 0) {
+      const sysId = queue.shift()!;
+      if (processed.has(sysId)) continue;
+      processed.add(sysId);
+
+      const neighbors = this.coreNeighborGraph.get(sysId);
+      if (neighbors) {
+        for (const nid of neighbors) {
+          this.visibleCoreIds.add(nid);
+          // If this neighbor is also fully researched, continue BFS
+          if (!processed.has(nid) && isSystemFullyResearched(this.researchState, nid)) {
+            queue.push(nid);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Determine visibility tier for a system node.
+   *
+   * Tier 1 (visible, full interaction): ringIndex <= effectiveMaxRing
+   * Tier 2 (faded, no interaction): ringIndex === effectiveMaxRing + 1
+   * Tier 3 (hidden): ringIndex > effectiveMaxRing + 1
+   *
+   * For core systems (nodeType === 'core'), additional branching logic applies:
+   * the system must also be in visibleCoreIds to be Tier 1/2 (otherwise Tier 3).
+   */
+  private getVisibilityTier(node: SystemNode): VisibilityTier {
+    const maxRing = this.effectiveMaxRing;
+    const ri = node.ringIndex;
+
+    // Home star is always Tier 1
+    if (node.starState === 'home') return 1;
+
+    // Personal systems: straightforward ring-based tiers
+    if (node.nodeType === 'personal') {
+      if (ri <= maxRing) return 1;
+      if (ri === maxRing + 1) return 2;
+      return 3;
+    }
+
+    // Neighbor systems: ringIndex is always 3 (set in computeNeighborSystems)
+    if (node.nodeType === 'neighbor') {
+      if (ri <= maxRing) return 1;
+      if (ri === maxRing + 1) return 2;
+      return 3;
+    }
+
+    // Core systems: must be in visibleCoreIds AND satisfy ring-based tier
+    if (node.nodeType === 'core') {
+      // Not in visible set (not reachable via explored chain) -> hidden
+      if (!this.visibleCoreIds.has(node.system.id)) return 3;
+      // In visible set: apply ring-based tier
+      if (ri <= maxRing) return 1;
+      if (ri === maxRing + 1) return 2;
+      return 3;
+    }
+
+    return 3;
+  }
+
+  /**
+   * Apply visibility tier to a system node: set alpha, interactivity, label visibility.
+   * Called during setNeighborCoreVisible and when tiers change.
+   */
+  private applyVisibilityTier(node: SystemNode): void {
+    const tier = this.getVisibilityTier(node);
+    node.visibilityTier = tier;
+
+    if (!this.neighborCoreEnabled && (node.nodeType === 'neighbor' || node.nodeType === 'core')) {
+      // Neighbor/core not toggled on yet — keep hidden regardless of tier
+      node.baseAlpha = 0;
+      node.container.eventMode = 'none';
+      return;
+    }
+
+    switch (tier) {
+      case 1: {
+        // Full visibility — restore normal alpha based on node type
+        if (node.nodeType === 'neighbor') {
+          node.baseAlpha = 0.45;
+        } else if (node.nodeType === 'core') {
+          node.baseAlpha = 0.35;
+        }
+        // Personal nodes keep their calculated baseAlpha
+        node.container.eventMode = 'static';
+        node.container.cursor = 'pointer';
+        break;
+      }
+      case 2: {
+        // Faded — visible but non-interactive
+        node.baseAlpha = 0.3;
+        node.container.eventMode = 'none';
+        // Hide labels and glow for Tier 2
+        node.nameLabel.visible = false;
+        if (node.researchLabel) node.researchLabel.visible = false;
+        if (node.scanArc) node.scanArc.visible = false;
+        if (node.atomOrbit) node.atomOrbit.visible = false;
+        break;
+      }
+      case 3: {
+        // Hidden — not rendered
+        node.baseAlpha = 0;
+        node.container.eventMode = 'none';
+        break;
+      }
+    }
+  }
+
+  /**
+   * Update effective max ring and recompute visibility tiers for all nodes.
+   * Called from GameEngine when tech tree changes.
+   */
+  setEffectiveMaxRing(maxRing: number): void {
+    if (this.effectiveMaxRing === maxRing) return;
+    this.effectiveMaxRing = maxRing;
+    this.recomputeVisibleCoreIds();
+    this.applyAllVisibilityTiers();
+  }
+
+  /**
+   * Recompute and apply visibility tiers for all neighbor and core nodes.
+   */
+  private applyAllVisibilityTiers(): void {
+    for (const [, node] of this.systemNodes) {
+      if (node.nodeType === 'neighbor' || node.nodeType === 'core') {
+        this.applyVisibilityTier(node);
+      }
+    }
+  }
 
   /**
    * Build organic connection edges (kept for potential future use).
@@ -633,6 +850,7 @@ export class GalaxyScene {
       tx: 0, ty: 0, ringIndex: 0,
       expandProgress: 0, expandTarget: 0,
       radialOpenFired: false,
+      visibilityTier: 1 as VisibilityTier,
     };
   }
 
@@ -759,6 +977,7 @@ export class GalaxyScene {
       spectralClass: sys.star.spectralClass,
       expandProgress: 0, expandTarget: 0,
       radialOpenFired: false,
+      visibilityTier: 1 as VisibilityTier,
     };
   }
 
@@ -806,6 +1025,8 @@ export class GalaxyScene {
 
     for (const node of allNodes) {
       if (node === originNode) continue;
+      // Skip Tier 2/3 nodes (non-interactive)
+      if (node.visibilityTier !== 1) continue;
       const nx = node === this.homeNode ? 0 : node.tx;
       const ny = node === this.homeNode ? 0 : node.ty;
       const vx = nx - ox;
@@ -917,12 +1138,20 @@ export class GalaxyScene {
       this.preFocusAlphas.set(id, node.baseAlpha);
     }
 
-    // Dim all except focused to 50%
+    // Dim all except focused to 50% (but don't override Tier 2/3 alpha)
     if (this.homeNode && this.homeNode.system.id !== systemId) {
       this.homeNode.baseAlpha = 0.5;
     }
     for (const [id, node] of this.systemNodes) {
-      node.baseAlpha = id === systemId ? 1 : 0.5;
+      if (id === systemId) {
+        node.baseAlpha = 1;
+      } else if (node.visibilityTier === 2) {
+        node.baseAlpha = 0.3; // Keep faded tier alpha
+      } else if (node.visibilityTier === 3) {
+        node.baseAlpha = 0; // Keep hidden
+      } else {
+        node.baseAlpha = 0.5;
+      }
     }
   }
 
@@ -986,14 +1215,9 @@ export class GalaxyScene {
 
   /** Show or hide neighbor and core system nodes (for galaxy expansion UI) */
   setNeighborCoreVisible(visible: boolean): void {
-    for (const [, node] of this.systemNodes) {
-      if (node.nodeType === 'neighbor') {
-        node.baseAlpha = visible ? 0.45 : 0;
-      }
-      if (node.nodeType === 'core') {
-        node.baseAlpha = visible ? 0.35 : 0;
-      }
-    }
+    this.neighborCoreEnabled = visible;
+    this.recomputeVisibleCoreIds();
+    this.applyAllVisibilityTiers();
   }
 
   /** Get world position of a system relative to galaxy container origin (HOME = 0,0) */
@@ -1101,6 +1325,12 @@ export class GalaxyScene {
         node.researchLabel.text = '◉';
         node.researchLabel.style.fill = 0x44ff88;
       }
+      // When a core system is fully researched, recompute visible core IDs
+      // to reveal its direct neighbors (branching expansion)
+      if (node.nodeType === 'core') {
+        this.recomputeVisibleCoreIds();
+        this.applyAllVisibilityTiers();
+      }
     }
   }
 
@@ -1176,9 +1406,22 @@ export class GalaxyScene {
 
     // Animate all system nodes
     for (const [, node] of this.systemNodes) {
+      // Tier 3 (hidden): skip rendering entirely, just ensure alpha is 0
+      if (node.visibilityTier === 3) {
+        node.container.alpha += (0 - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
+        continue;
+      }
+
       node.container.alpha += (node.baseAlpha - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
       animateExpand(node);
       this.animateStarBurn(node, t);
+
+      // Tier 2 (faded): skip expensive animations (atom orbit, scan arc)
+      if (node.visibilityTier === 2) {
+        if (node.scanArc) node.scanArc.visible = false;
+        if (node.atomOrbit) node.atomOrbit.visible = false;
+        continue;
+      }
 
       // Scan arc probe dot removed — only atom orbit animation shown
       if (node.scanArc) node.scanArc.visible = false;
@@ -1279,12 +1522,21 @@ export class GalaxyScene {
     };
     if (this.homeNode) drawTerritoryAura(this.homeNode.tx ?? 0, this.homeNode.ty ?? 0);
     for (const [, node] of this.systemNodes) {
-      if (node.starState === 'researched') drawTerritoryAura(node.tx, node.ty);
+      if (node.starState === 'researched' && node.visibilityTier === 1) drawTerritoryAura(node.tx, node.ty);
     }
 
     // Wavy connection lines — blue threads between stars
     this.connectionLines.clear();
     for (const edge of this.connectionEdges) {
+      // Get visibility tier for both endpoints
+      const node1 = edge.key1 === 'home' ? this.homeNode : this.systemNodes.get(edge.key1);
+      const node2 = edge.key2 === 'home' ? this.homeNode : this.systemNodes.get(edge.key2);
+      const tier1 = node1?.visibilityTier ?? 1;
+      const tier2 = node2?.visibilityTier ?? 1;
+
+      // Skip edges where either endpoint is Tier 3 (hidden)
+      if (tier1 === 3 || tier2 === 3) continue;
+
       const st1 = edge.key1 === 'home' ? 'home' : this.systemNodes.get(edge.key1)?.starState ?? 'unexplored';
       const st2 = edge.key2 === 'home' ? 'home' : this.systemNodes.get(edge.key2)?.starState ?? 'unexplored';
       const ri1 = edge.key1 === 'home' ? 0 : (this.systemNodes.get(edge.key1)?.ringIndex ?? 0);
@@ -1295,7 +1547,16 @@ export class GalaxyScene {
         st === 'home' || st === 'researched' ? 1.0 :
         st === 'researching' ? 0.7 :
         ri >= 2 ? 0.22 : 0.46;
-      const alpha = Math.min(vis(st1, ri1), vis(st2, ri2)) * 0.28;
+      let alpha = Math.min(vis(st1, ri1), vis(st2, ri2)) * 0.28;
+
+      // If either endpoint is Tier 2 (faded), reduce edge alpha further
+      if (tier1 === 2 || tier2 === 2) {
+        const minTierAlpha = Math.min(
+          tier1 === 2 ? 0.3 : 1.0,
+          tier2 === 2 ? 0.3 : 1.0,
+        );
+        alpha = alpha * minTierAlpha * 0.5;
+      }
       this.drawWavyLine(this.connectionLines, edge.x1, edge.y1, edge.x2, edge.y2, t, edge.seed, alpha);
     }
 
@@ -1671,6 +1932,12 @@ export class GalaxyScene {
       ...this.systemNodes.values(),
     ];
     for (const node of allNodes) {
+      // Skip Tier 2/3 nodes — no labels for faded/hidden systems
+      if (node.visibilityTier !== 1) {
+        if (node.researchLabel) node.researchLabel.visible = false;
+        continue;
+      }
+
       const isHome = node.system.ownerPlayerId !== null;
       const isFull = isHome || isSystemFullyResearched(this.researchState, node.system.id);
       const prog = isFull ? 100 : Math.round(getResearchProgress(this.researchState, node.system.id));
