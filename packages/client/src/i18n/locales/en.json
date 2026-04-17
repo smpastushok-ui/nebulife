@@ -253,13 +253,45 @@
       "name": "Quantum Interferometer",
       "desc": "+50% rare discovery chance"
     },
+    "ast-core-scanner": {
+      "name": "Galactic Core Scanner",
+      "desc": "+1 core access ring (core depth 1)"
+    },
+    "ast-long-range": {
+      "name": "Long-Range Telescope",
+      "desc": "+1 core access ring (core depth 2)"
+    },
+    "ast-spectrograph": {
+      "name": "Multi-Spectrograph",
+      "desc": "+1 core access ring (core depth 3)"
+    },
+    "ast-pulsar-net": {
+      "name": "Pulsar Network",
+      "desc": "+1 core access ring (core depth 4)"
+    },
+    "ast-darkfield": {
+      "name": "Dark Field Detector",
+      "desc": "+1 core access ring (core depth 5)"
+    },
+    "ast-xray-array": {
+      "name": "X-Ray Array",
+      "desc": "+1 core access ring (core depth 6)"
+    },
     "ast-grav-scan": {
       "name": "Gravitational Scanner",
       "desc": "+25% discovery chance, +1 ring"
     },
+    "ast-neutrino-lens": {
+      "name": "Neutrino Lens",
+      "desc": "+1 core access ring (core depth 8)"
+    },
     "ast-orbital-yard": {
       "name": "Orbital Shipyard",
       "desc": "Unlocks Orbital Shipyard on surface"
+    },
+    "ast-hyperscope": {
+      "name": "Hypermodal Telescope",
+      "desc": "+1 core access ring (full core access)"
     },
     "phy-capacitor": {
       "name": "Capacitive Condensers",
