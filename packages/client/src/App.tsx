@@ -3659,11 +3659,13 @@ function AppInner() {
     navigator.serviceWorker.addEventListener('message', handleSwMessage);
     // Start foreground FCM message listener
     const unsubForeground = startForegroundListener();
-    window.addEventListener('nebulife:push-digest', () => {
+    const handlePushDigest = () => {
       window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
-    });
+    };
+    window.addEventListener('nebulife:push-digest', handlePushDigest);
     return () => {
       navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      window.removeEventListener('nebulife:push-digest', handlePushDigest);
       unsubForeground?.();
     };
   }, []);

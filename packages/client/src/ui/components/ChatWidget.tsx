@@ -179,7 +179,7 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
 
     authFailedRef.current = false;
     fetchMessages();
-    pollingRef.current = setInterval(fetchMessages, 3000);
+    pollingRef.current = setInterval(fetchMessages, 5000);
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
