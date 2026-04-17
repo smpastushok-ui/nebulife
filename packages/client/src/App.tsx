@@ -3693,14 +3693,20 @@ function AppInner() {
           for (const nd of newlyResearched) {
             addLogEntry('system', t('app.log.tech_integrated').replace('{name}', nd.name));
           }
-          // Show only ONE toast for the last researched tech (avoid 5+ stacked toasts)
-          const last = newlyResearched[newlyResearched.length - 1];
-          setPendingResearchToasts((q) => [...q, {
-            id:       Math.random().toString(36).slice(2),
-            techId:   last.id,
-            techName: last.name,
-            branch:   last.branch as ResearchToastItem['branch'],
-          }]);
+          // Queue a toast for every newly-unlocked tech — they'll be shown
+          // one at a time (see the pendingResearchToasts useEffect, ~2-3s
+          // apart). Previously only the LAST tech got a toast, so players
+          // missed intermediate unlocks (e.g. on L7 you'd see Aero but miss
+          // Capacitor, or vice versa depending on ALL_NODES iteration order).
+          setPendingResearchToasts((q) => [
+            ...q,
+            ...newlyResearched.map((nd) => ({
+              id:       Math.random().toString(36).slice(2),
+              techId:   nd.id,
+              techName: nd.name,
+              branch:   nd.branch as ResearchToastItem['branch'],
+            })),
+          ]);
           // Expand research slots if observatory/concurrent effects gained
           const extraSlots =
             getEffectValue(currentTech, 'observatory_count_add', 0) +
