@@ -1,378 +1,285 @@
-# TODO — Nebulife (зведений план)
+# Що треба зробити — Nebulife
 
-Організовано за пріоритетом. Кожен блок має посилання на стовп (з 6 в §0.3) і вектор (A-G з §0.4) у Game Bible.
-
----
-
-## 🔥 P0 — БЛОКЕРИ (робимо першими)
-
-### 0.1 · Ring 2 popup bug (можливо вже фіксится новим APK)
-- [ ] Підтвердити після rebuild: попап RadialMenu з'являється на Ring 2 зірках (researched + in-progress)
-- [ ] Якщо ще буде — скрін від user для diagnose
-
-### 0.2 · First-photo-as-hook — перевірити що ще працює
-- [ ] `api/surface/generate.ts` — перевірити що перша планета реально **безкоштовна** (без списання)
-- [ ] Onboarding text/voiceover: "через 60 сек у тебе буде фото"
-- [ ] Share card generator після першого фото (OG image)
-- [ ] Fallback якщо Kling API помер — показати retry, не списувати
+Повний список незавершеного, з пріоритетами. Що вище — те раніше.
 
 ---
 
-## 🚀 P1 — VECTOR A: Video-Missions (цільова revenue #1, 45%)
+## 🔥 ПРІОРИТЕТ 0 — Термінове (ламає гравцю досвід)
 
-**Pillar**: LIVING + SCALABLE CONTENT · **Вектор**: A
+### Перевірити чи попап планет показується на всіх зірках
+Після пересборки APK гравець скаже, чи на Ring 2 відкривається попап. Якщо ні — дамо скрін, полагодимо.
 
-- [ ] **Server: video pipeline**
-  - [ ] `packages/server/src/video-client.ts` — новий клієнт (Veo або Runway API)
-  - [ ] `packages/server/src/video-prompt-builder.ts` — бере `planet + event + player context`, формує scene prompt для Gemini
-  - [ ] Gemini step: text → 3-line narrative
-  - [ ] Veo/Runway step: narrative + event image → 15s mp4
-  - [ ] TTS step: narrative → voiceover (ElevenLabs або Google Cloud TTS)
-  - [ ] Vercel Blob upload для mp4 + cover image
-  - [ ] DB: `video_missions` таблиця (id, player_id, planet_id, event_type, rarity, video_url, status, quarks_paid)
-- [ ] **API endpoints**
-  - [ ] `POST /api/video/generate` (cost 20⚛/35⚛ legendary)
-  - [ ] `GET /api/video/status/:id` polling
-  - [ ] `GET /api/video/list?playerId=` — player's expeditions
-- [ ] **Client UI**
-  - [ ] `SystemMissionButton` → оновити для video (зараз там mission placeholder)
-  - [ ] `VideoMissionPlayer.tsx` — fullscreen modal з mp4 + narrative overlay
-  - [ ] Share button → OG card з первим кадром + "Моя експедиція"
-  - [ ] Collection page у PlayerPage → вкладка "Експедиції"
-- [ ] **Monetization tracking**
-  - [ ] RevenueCat event "video_generated"
-  - [ ] Analytics: D1/D7 % користувачів які зробили 1+ video
-
-**Очікуваний імпакт**: +45% до загального ARPDAU, TikTok organic reach.
+### Переконатись що перша фотка планети дійсно безкоштовна
+- Перевірити в коді (`api/surface/generate.ts`) що перша генерація home-планети НЕ списує кварки.
+- Додати голосовий вступ перед першою генерацією: "через 60 секунд ти побачиш свою планету — крутіше за NASA".
+- Зробити картку для шеру після першої фотки (гравець зможе поділитись).
+- Якщо Kling API впав — не списувати кварки, дати повторити.
 
 ---
 
-## 🎯 P1 — VECTOR F: First-60-seconds Onboarding
+## 🚀 ПРІОРИТЕТ 1 — Головні фічі (максимальний ефект)
 
-**Pillar**: LEARNING + LIVING · **Вектор**: F
+### Відео-місії (45% очікуваного доходу)
+**Гравець платить 20⚛ за звичайне відео, 35⚛ за легендарне.**
 
-- [ ] **Cinematic intro**
-  - [ ] Заміна language-select на mini-cinematic 10-15 сек
-  - [ ] Voiceover (TTS, pre-recorded): "Твоя планета. 7 днів до катастрофи. Знайди нову домівку."
-  - [ ] Фон: твоя домашня зірка починає згасати
-- [ ] **First discovery moment**
-  - [ ] Перший Kling photo автогенерується при loading (не чекаємо action)
-  - [ ] Reveal animation: noise → photo
-  - [ ] Тост: "Ти перший, хто побачив цю зірку" (unique id + datetime)
-- [ ] **Tutorial через discovery**
-  - [ ] Ring 1 позначено "починаємо тут"
-  - [ ] Перший click → повільна камера orbit, показ UI елементів через callout
-  - [ ] Tip-of-day inline (не з попапом)
-- [ ] **KPI target**: D1 retention 25% → 45%+
+На сервері:
+- [ ] Створити клієнт для відео (Veo або Runway — вибрати дешевшого)
+- [ ] Gemini пише сценарій (3 речення) за планетою + подією
+- [ ] Genearate: сценарій + фото події → 15-секундне mp4
+- [ ] Голос за кадром (TTS — ElevenLabs або Google)
+- [ ] Зберігати mp4 у Vercel Blob
+- [ ] Таблиця в базі `video_missions` (гравець, планета, подія, url, статус)
 
----
+API ендпоінти:
+- [ ] `POST /api/video/generate` — почати генерацію
+- [ ] `GET /api/video/status/:id` — перевіряти готовність
+- [ ] `GET /api/video/list?playerId=` — список експедицій гравця
 
-## 🧬 P2 — VECTOR B: Life-Form Generation
+На клієнті:
+- [ ] Кнопка "Відправити місію" → починає генерацію
+- [ ] Повноекранний плеєр з підписами
+- [ ] Кнопка "Поділитись" → картка з першим кадром
+- [ ] Вкладка "Експедиції" на сторінці гравця
 
-**Pillar**: LEARNING + AI-AS-PRODUCT + SOCIAL · **Вектор**: B
+### Нормальне знайомство з грою (перші 60 секунд)
+**Без цього гравці закривають гру через 30 секунд. Пріоритет максимальний.**
 
-- [ ] **DNA parameter UI**
-  - [ ] Side panel при дослідженні habitable планети
-  - [ ] Slider-и: metabolism type, size, ecosystem complexity, environment adaptation
-  - [ ] Preview pokaz з Kling при зміні
-- [ ] **3-rarity tier system**
-  - [ ] `common` (60% results, 5⚛) — одноклітинні, bacteria-like
-  - [ ] `rare` (30%, 15⚛) — мульти-клітинні, екосистеми
-  - [ ] `legendary` (10%, 40⚛) — sapient / exotic physics
-  - [ ] Rolled at generation time за вагою habitability params
-- [ ] **Server**
-  - [ ] `api/life/generate` endpoint
-  - [ ] Gemini prompt для "creature description" з DNA + planet context
-  - [ ] Kling з описом → photo
-  - [ ] DB `life_forms` таблиця
-- [ ] **Display in Gallery**
-  - [ ] Нова вкладка "Life Forms"
-  - [ ] Rarity badges (common grey / rare blue / legendary gold)
-  - [ ] Share button
+- [ ] Замість вибору мови — кіноролик 10-15 секунд з голосом
+- [ ] Голос каже: "Твоя планета. 7 днів до катастрофи. Знайди нову домівку."
+- [ ] Фон: домашня зірка починає згасати
+- [ ] Перша фотка планети генерується ДОКИ гравець дивиться ролик — готова коли закінчиться
+- [ ] Анімація "розкодування" фотки з шуму
+- [ ] Повідомлення: "Ти перший у світі, хто побачив цю планету"
+- [ ] Підсвітити Ring 1 — "починай дослідження тут"
+- [ ] Перший клік — камера облітає систему, підказки через стрілки
+- [ ] **Ціль**: гравців що лишаються на другий день, з 25% має стати 45%+
 
-**Залежність**: Marketplace в Vector E залежить від цього (P2P trade rare/legendary).
+### Стартовий баланс і щоденні винагороди
+**Зараз гравець заходить без кварків. Треба дати відчути що гра "жива".**
 
----
-
-## 🎰 P2 — Re-roll Loop / Collector Mechanics (§0.4-bis)
-
-**Pillar**: AI-AS-PRODUCT + LIVING · **Вектор**: — (cross-cutting)
-
-- [ ] **Rarity tiers для events**
-  - [ ] Додати поле `rarity: 'normal' | 'rare' | 'legendary'` до кожного event type
-  - [ ] UI badge у gallery list
-- [ ] **Anti-fatigue guards**
-  - [ ] 30-секундний cooldown між re-roll одного slot
-  - [ ] Pro-perk "Save both" (2 фото на slot для підписників)
-- [ ] **Achievement badges**
-  - [ ] "Collector" — 10+ legendary у gallery
-  - [ ] "Completionist" — всі normal events заповнені
-  - [ ] "Speed runner" — заповнив 5 slots за годину
-- [ ] **Share card generator**
-  - [ ] OG image endpoint `/api/share/planet/:id` → PNG з photo + planet name + referral code
-  - [ ] Link preview для Telegram/Discord/Twitter
+- [ ] Стартовий баланс 50⚛ при реєстрації (вистачить на ~5 фото або 2 відео)
+- [ ] Щоденний бонус 1-3⚛ за вхід у гру
+- [ ] 2⚛ за проходження денної вікторини Академії
+- [ ] Преміум-підписка 100⚛/міс (через RevenueCat)
+- [ ] "Дивитись рекламу за 5⚛" — до 5 разів на день (AdMob уже стоїть)
 
 ---
 
-## 🚀 P2 — Tripo Pivot (planet-3D → ship-3D)
+## 🎯 ПРІОРИТЕТ 2 — Основні фічі гри
 
-**Pillar**: AI-AS-PRODUCT + SOCIAL · **Вектор**: E
+### Генерація форм життя (Вектор B)
+**Гравець створює унікальне життя на своїй планеті. Різна рідкісність → різна ціна.**
 
-### Server
-- [ ] `packages/server/src/tripo-client.ts` — `buildShipPrompt(role, style)` з 5 ролей × 5 стилів
-- [ ] DB міграція: `planet_models` → `ship_models` (додати `role`, `style` колонки)
-- [ ] `api/tripo/generate.ts` — приймає `{role, style}` замість `{planetId}`
-- [ ] `api/models` — повертає ship list
+- [ ] Панель з параметрами ДНК: метаболізм, розмір, складність, адаптація
+- [ ] Preview (Kling малює) при зміні параметрів
+- [ ] Три рівні рідкісності:
+  - Звичайне (60% шансу) — 5⚛ — одноклітинне
+  - Рідкісне (30%) — 15⚛ — багатоклітинні, екосистеми
+  - Легендарне (10%) — 40⚛ — розумне життя
+- [ ] Ендпоінт `api/life/generate`
+- [ ] Gemini пише опис істоти → Kling малює
+- [ ] Таблиця `life_forms` у базі
+- [ ] Вкладка "Форми життя" у галереї з бейджами рідкісності
+- [ ] Кнопка "Поділитись"
 
-### Client
-- [ ] Rename `Planet3DViewer.tsx` → `Ship3DViewer.tsx`
-- [ ] Видалити "3D" кнопку з `PlanetViewScene` / `CommandBar.planet`
-- [ ] Додати "Generate ship" кнопку в `HangarPage` (role/style selector)
-- [ ] `ArenaEngine` — заміна default ship mesh на player GLB
-- [ ] Babylon.js viewer — без змін, тільки URL інший
+### Переробка колекції (гравець може пере-генерувати)
+Кожна генерація однієї події — унікальна. Гравець сам вирішує яка краща.
 
-### Wiring
-- [ ] QuarksTopUpModal — "3D ship design" замість "planet"
-- [ ] i18n uk/en — оновити ключі
-- [ ] Gallery / Characteristics — прибрати 3D model з planet UI
+- [ ] Додати рівень рідкісності до кожного типу події (звичайна/рідкісна/легендарна)
+- [ ] Значок рідкісності біля фото в колекції
+- [ ] Затримка 30 секунд між повторною генерацією того ж слоту (щоб не спамив)
+- [ ] Преміум-бонус: "Зберегти обидві" — 2 фото в слоті замість 1
+- [ ] Досягнення:
+  - "Колекціонер" — 10+ легендарних фото
+  - "Перфекціоніст" — всі звичайні події заповнені
+  - "Швидкий" — 5 слотів за годину
+- [ ] Генератор картки для шеру: OG-картинка з фото + ім'я планети + посилання на гру
 
-### Cleanup
-- [ ] Delete `Planet3DViewer.tsx` після rename
-- [ ] Delete `planet_models` table (2 тижні backup)
+### Переключення Tripo з планет на кораблі
+**3D-моделі планет виходили неякісні. Перенаправляємо на генерацію кораблів гравця.**
 
----
+На сервері:
+- [ ] Оновити `tripo-client.ts` — промпт тепер "корабель гравця, роль X, стиль Y"
+- [ ] SQL-міграція: таблицю `planet_models` перейменувати на `ship_models`, додати колонки `role`, `style`
+- [ ] Ендпоінт `api/tripo/generate` приймає `{role, style}` замість `{planetId}`
+- [ ] Ендпоінт `api/models` повертає список кораблів гравця
 
-## 📰 P3 — VECTOR C: Weekly Digest Premium
+На клієнті:
+- [ ] Перейменувати `Planet3DViewer.tsx` → `Ship3DViewer.tsx`
+- [ ] Прибрати кнопку "3D" зі сторінки планети
+- [ ] Додати кнопку "Згенерувати корабель" у ангарі (вибір ролі + стилю)
+- [ ] У арені підставляти корабель гравця замість дефолтного
+- [ ] Тексти оновити — "3D корабель" замість "3D планета"
+- [ ] Видалити старий Planet3DViewer і стару таблицю `planet_models` (через 2 тижні backup)
 
-**Pillar**: LEARNING + LIVING · **Вектор**: C
+### Оптимізація для мобільного (Вектор G)
+**Що вже зроблено:** пауза на фоні, знищення 3D-двигуна при переключенні, 30 FPS у галактиці, приховання невидимих зірок, використання пулу векторів замість нових об'єктів, зменшення кількості зірок у кластерах, лінива ініціалізація реклами.
 
-- [ ] **Push cron** (вже є `/api/cron/moderate`, треба додати digest)
-  - [ ] Cron щопонеділка 10:00 UTC
-  - [ ] FCM notification всім MAU
-- [ ] **Share card для digest**
-  - [ ] OG image з hero photo
-  - [ ] TG/Discord preview test
-- [ ] **Premium illustrations** (5⚛ unlock)
-  - [ ] Bilingual hero art замість generic stock photo
-- [ ] **Stats**
-  - [ ] Open rate tracking
-  - [ ] Target: 60% MAU до Q3
+**Що ще треба:**
+- [ ] Графіка <150 МБ (зараз 274, було 360)
+  - Об'єднати 1450 зірок в один draw call (InstancedSprite або batched Graphics)
+  - Після переключення на ship-3D — перевірити розмір кеша
+- [ ] Розмір програми <1.5 МБ (зараз 2.5)
+  - Розділити на chunks: pixi / three / babylon / firebase / i18n окремо
+  - Арена і поверхня — завантажувати тільки коли відкриваєш
+- [ ] Батарея ≤6%/година
+  - Автопауза коли заряд <20%
+  - Перемикач "Low-power mode" у налаштуваннях
+- [ ] 60 FPS стабільно на Samsung S22+ / Pixel 6
+  - Спростити анімації для Tier-1 зірок далеко від камери
 
----
-
-## 🎓 P3 — VECTOR D: Academy Deep-dive
-
-**Pillar**: LEARNING · **Вектор**: D
-
-- [ ] **Daily lesson streak**
-  - [ ] 7-day streak: +50⚛
-  - [ ] 30-day: exclusive tech node preview
-  - [ ] 100-day: custom star name 25⚛ worth
-- [ ] **Adaptive difficulty**
-  - [ ] Track player performance per topic
-  - [ ] Gemini prompt використовує `difficulty` + `topic_history`
-- [ ] **Deep-dive lessons** (3⚛ кожен, Pro unlock all)
-  - [ ] 20+ topics для launch
-  - [ ] Quiz after each with gems reward
-- [ ] **NASA API integration**
-  - [ ] Astronomy Picture of the Day → як daily hook
-  - [ ] JWST releases → video missions source
-
----
-
-## ⚔️ P4 — VECTOR E: Clans + Territory (Q3 2026)
-
-**Pillar**: SOCIAL + AI-AS-PRODUCT · **Вектор**: E
-
-- [ ] **Clan creation UI** (cluster = natural clan boundary)
-  - [ ] Leader election (vote in Player page)
-  - [ ] Clan banner (30⚛ AI-gen)
-  - [ ] Member roster
-- [ ] **Territory control**
-  - [ ] Core zone assignment до clan з most collective research
-  - [ ] Passive resource bonus
-  - [ ] Raid/defense mechanics
-- [ ] **P2P Marketplace**
-  - [ ] Listing UI для rare artifacts (life-forms, ship models, legendary events)
-  - [ ] 10% fee для game economy
-  - [ ] Neon DB transactions з idempotency
-- [ ] **Clan Pro subscription**
-  - [ ] 99⚛/міс leader perks
-  - [ ] 2× territory bonus
-  - [ ] Custom clan emblem AI-gen
+### Активні баги
+- [ ] "[object Object]" спамить у консоль на Line 330 — знайти джерело
+- [ ] Кількість потоків зросла з 116 до 134 після оптимізацій — перевірити що додалось
+- [ ] При переключенні сцени в dev-режимі "стрибок" кадру (тільки HMR, не критично)
+- [ ] Попап планет іноді не відкривається на певних зірках — потребує скрін/відео від гравця
 
 ---
 
-## 💰 P1 — МОНЕТИЗАЦІЯ (поточні ціни ще не всі реалізовані)
+## 📰 ПРІОРИТЕТ 3 — Retention і контент
 
-Ціни з §11.2 Bible:
+### Тижневий дайджест (Вектор C)
+Кожного понеділка гравець отримує push: "5 новин космосу за тиждень + AI-арт".
+
+- [ ] Cron щопонеділка о 10:00 — розсилка FCM
+- [ ] Картка для шеру (preview у Telegram/Discord)
+- [ ] Преміум-ілюстрації (5⚛ розблокує кращий hero-арт)
+- [ ] Метрика: 60% MAU має відкривати дайджест до 3-го кварталу
+
+### Академія — справжня астрономія
+- [ ] Щоденний урок + вікторина (+10⚛ за streak)
+- [ ] Бонуси за безперервність:
+  - 7 днів поспіль → +50⚛
+  - 30 днів → preview майбутньої технології в tech tree
+  - 100 днів → право дати ім'я зірці (ціна зазвичай 25⚛, тут безкоштовно)
+- [ ] Адаптивна складність — Gemini враховує попередні відповіді
+- [ ] Deep-dive уроки (3⚛ кожен, Pro відкриває всі)
+- [ ] Інтеграція з NASA API (Astronomy Picture of the Day → хук дня)
+- [ ] JWST releases → джерело для відео-місій
+
+### Платформи і push
+- [ ] iOS Google Sign-In (додати в Info.plist + AppDelegate)
+- [ ] Firebase для iOS (Bundle ID + SHA)
+- [ ] Play Store: додати SHA-1 релізного keystore у Firebase Console + Google Cloud
+- [ ] Заповнити Play Console (скріни, опис, privacy policy, data safety)
+- [ ] Нативний push: `@capacitor/push-notifications` замість Web FCM (зараз тогл прихований на Android)
+- [ ] Повернути тогл push у профілі після переходу на нативний
+
+### Маркетинг до софт-лончу
+- [ ] 5 скрінів для App Store (before/after — зірка крапка → Kling фото)
+- [ ] TikTok ролик 30 сек: геймплей → reveal фотки → заклик встановити
+- [ ] Лендінг: "Твоя зірка. Крутіше за NASA. Безкоштовно."
+- [ ] Press kit (1 стор PDF + GIF + скріни)
+- [ ] Discord-сервер для ранньої спільноти
+- [ ] Реферальна програма: +10⚛ обом за запрошеного гравця
+- [ ] Софт-лонч в Україні (TestFlight / Play Beta) перед світовим запуском
+
+---
+
+## ⚔️ ПРІОРИТЕТ 4 — Кінцевий етап (Q3 2026)
+
+### Клани і територіальний контроль
+- [ ] Cluster (50 гравців) = природний клан → UI для нього
+- [ ] Вибори лідера через голосування у профілі
+- [ ] Прапор клану (30⚛, Kling малює)
+- [ ] Реєстр членів
+- [ ] Центральна зона → клан з найбільше досліджень → пасивний бонус ресурсів
+- [ ] Рейд / оборона механіки
+- [ ] Маркетплейс для обміну rare-артефактами між гравцями (комісія 10%)
+- [ ] Преміум для лідера клану (99⚛/міс, 2× бонус території + кастомний емблем)
+
+### Технічний борг
+- [ ] `@codetrix-studio/capacitor-google-auth` оновити коли вийде stable (зараз RC)
+- [ ] `npm ls @capacitor/core` — має бути одна версія
+- [ ] Привести `@capacitor/app` і `@capacitor-community/admob` до одного стилю (зараз і static, і dynamic import — ламає code-splitting)
+- [ ] Юніт-тести:
+  - [ ] `resolveApiUrl` (логіка префіксів для мобільного)
+  - [ ] `isGoogleSignInAvailable`
+  - [ ] `canStartResearch` з різними рівнями maxRing
+- [ ] End-to-end тести:
+  - [ ] Реєстрація через email
+  - [ ] Генерація першої фотки
+  - [ ] Завершення сесії дослідження
+- [ ] Інтеграційний тест CORS middleware в CI
+- [ ] Прибрати явний `registerPlugin(GoogleAuth.class)` з MainActivity (Capacitor сам реєструє)
+- [ ] Видалити закомічені (deleted але не pushed) PNG/WebP файли будівель/тайлів
+
+---
+
+## 💰 Прайс-лист (що реалізовано / ні)
 
 ### Реалізовано ✅
-- [x] AI поверхня перша — безкоштовно
-- [x] AI поверхня наступні — 10⚛
-- [x] Поповнення через MonoPay
-- [x] Кварки баланс у CommandBar
+- AI-фото першої планети (безкоштовно)
+- AI-фото наступних — 10⚛
+- Поповнення через MonoPay
+- Баланс кварків у CommandBar
 
-### Не реалізовано ❌
-- [ ] **Starter wallet 50⚛** при реєстрації
-- [ ] **Daily rewards** 1-3⚛ за login
-- [ ] **Quiz reward** 2⚛ per pass
-- [ ] **Pro subscription 100⚛/міс** (RevenueCat product)
-- [ ] **Rewarded ad +5⚛** (до 5 разів/день, AdMob)
-- [ ] Video mission 20⚛ / 35⚛ legendary (залежить від Vector A)
-- [ ] Life-form 5/15/40⚛ (залежить від Vector B)
-- [ ] Ship 3D 49⚛ (залежить від Tripo pivot)
-- [ ] Custom star name 25⚛
-- [ ] Weekly Digest premium art 5⚛
-- [ ] Academy deep-dive 3⚛
-- [ ] Clan banner 30⚛
-- [ ] Marketplace 10% fee
-
----
-
-## 🚀 P2 — VECTOR G: Mobile Performance
-
-**Pillar**: — (infra) · **Вектор**: G
-
-### Вже зроблено ✅
-- [x] Pause ticker on visibilitychange
-- [x] Destroy UniverseEngine on view toggle
-- [x] 30 FPS throttle для idle scenes
-- [x] Tier 3 hide container
-- [x] Vector3 pool в UniverseEngine
-- [x] UniverseEngine stars 260→80
-- [x] AdMob lazy-init
-- [x] Chat polling 3s→5s
-- [x] Push-digest event listener cleanup
-- [x] Lazy scanArc/atomOrbit + reduced circle counts
-
-### Залишилось ❌
-- [ ] **Graphics <150 MB** (було 360, зараз 274 — ще -80MB треба)
-  - [ ] InstancedSprite або batched Graphics для 1450 stars (потенціал -60MB)
-  - [ ] Verify Tripo ship GLB зміни cache size
-- [ ] **Bundle <1.5 MB** (зараз 2.5 MB)
-  - [ ] `build.rollupOptions.output.manualChunks` для pixi/three/babylon/firebase/i18n
-  - [ ] Lazy-load arena/surface scenes (dynamic import)
-  - [ ] Tree-shake неиспользуемих icons/компонентів
-- [ ] **Battery ≤6%/год** (target)
-  - [ ] Auto-pause loop при battery <20%
-  - [ ] Low-power mode toggle в settings
-- [ ] **60 FPS Samsung S22+ / Pixel 6**
-  - [ ] Reduce animation complexity для Galaxy tier 1 stars
-  - [ ] Skip atom orbit для dist > threshold
-- [ ] **WebGL texture warnings 16-31**
-  - [ ] Pin texture units у PixiJS init (шум логів)
+### Треба реалізувати ❌
+- Стартовий баланс 50⚛
+- Щоденний вхід 1-3⚛
+- Вікторина 2⚛
+- Пре-підписка 100⚛/міс
+- Reward ad +5⚛ (до 5 разів/день)
+- Відео звичайне 20⚛ / легендарне 35⚛
+- Форма життя 5/15/40⚛ за рідкісністю
+- 3D корабель 49⚛
+- Кастомне ім'я зірки 25⚛
+- Преміум-арт дайджесту 5⚛
+- Deep-dive урок 3⚛
+- Прапор клану 30⚛
+- Комісія маркетплейсу 10%
 
 ---
 
-## 🐛 P2 — АКТИВНІ БАГИ
+## 📝 Довідка
 
-- [ ] **"[object Object]" Line 330 console spam** — знайти джерело (якийсь плагін або console.error(obj) без stringify)
-- [ ] **116 → 134 threads** після Round 1 оптимізацій — перевірити що додалось
-- [ ] **Ship HMR jump** при transition (dev-only, low priority)
-- [ ] **Ring 2 popup iноді не відкривається** — потребує user відео/скрін для repro
-
----
-
-## 📱 P3 — PLATFORM / INFRA
-
-### iOS ready for launch
-- [ ] Google Sign-in iOS (`Info.plist` CFBundleURLSchemes + AppDelegate.swift)
-- [ ] Firebase iOS Bundle ID + SHA
-- [ ] TestFlight internal testing
-
-### Android Play Store
-- [ ] Release keystore SHA-1 у Firebase Console + Google Cloud Console
-- [ ] Play Console listing (screenshots, description)
-- [ ] Privacy Policy URL (обов'язкова з 2024)
-- [ ] Data Safety form
-- [ ] Internal testing via Play Console
-
-### Push Notifications native
-- [ ] `npm install @capacitor/push-notifications`
-- [ ] Native push service (замість web FCM на Android)
-- [ ] AndroidManifest: `POST_NOTIFICATIONS` + FCM service
-- [ ] Повторно увімкнути push toggle у PlayerPage
-
----
-
-## 🧹 P4 — TECH DEBT
-
-- [ ] `@codetrix-studio/capacitor-google-auth@3.4.0-rc.4` → stable коли вийде
-- [ ] `@capacitor/core` версія audit (`npm ls @capacitor/core` має показати одну версію)
-- [ ] **Dynamic imports консистентно**: `@capacitor/app`, `@capacitor-community/admob` зараз і static, і dynamic — вибрати одне
-- [ ] **Unit tests**:
-  - [ ] `resolveApiUrl` (native prefix logic)
-  - [ ] `isGoogleSignInAvailable`
-  - [ ] `canStartResearch` з різними maxRingOverride
-- [ ] **E2E tests**:
-  - [ ] Registration → email
-  - [ ] First planet photo generation
-  - [ ] Research session completion
-- [ ] **CORS middleware integration test** у CI
-- [ ] Cleanup:
-  - [ ] MainActivity може прибрати явний `registerPlugin(GoogleAuth.class)` (capacitor autoregister)
-  - [ ] Видалити закомічені PNG/WebP building/tile assets (деякі в main як deleted але не pushed)
-
----
-
-## 📢 P3 — MARKETING / GO-TO-MARKET
-
-- [ ] **App Store screenshots** (5 slides) — before/after star→Kling photo
-- [ ] **TikTok short** (30s): gameplay → reveal → share prompt
-- [ ] **Landing page hero**: "Твоя зірка. Крутіше за NASA. Безкоштовно."
-- [ ] **Press kit** (1-page PDF + screenshots + GIF demo)
-- [ ] **Discord server** для early community
-- [ ] **Referral program** — +10⚛ obом за invite який зареєструвався
-- [ ] **Soft launch Ukraine** (TestFlight/Play Beta) перед worldwide
-
----
-
-## 📝 ДОВІДКА
-
-**Поточні credentials:**
+**Облікові дані:**
 - Google OAuth Web Client: `702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com`
 - AdMob App ID: `ca-app-pub-3504252081237345~9129352922`
-- Production domains: `nebulife.space`, `www.nebulife.space`, `*.vercel.app`
+- Домени: `nebulife.space`, `www.nebulife.space`, `*.vercel.app`
 
-**SHA-1 в google-services.json (Android `app.nebulife.game`):**
+**SHA-1 відбитки в google-services.json (Android, `app.nebulife.game`):**
 - `b5e78aa2fff9828f7e9884c86718cfaebaabf3d5`
 - `dfce69c9511bae1ed123bf825b31ebfcd7e61611`
 - `330602a08c265d306a7ebacae94d5e5e6fa2e505`
 
-**Release keystore:**
-- Path: `nebulife-release.keystore` (корінь проекту)
-- Password: `nebulife2026` (key + store)
+**Release keystore (для підписаного APK):**
+- Шлях: `nebulife-release.keystore` (корінь проекту)
+- Пароль: `nebulife2026` (і для ключа, і для сховища)
 - Alias: `nebulife`
 
 **Vercel:**
-- Team: woodoo
-- Project: nebulife (`prj_IUHhdqjmKK4j5ycMjffOMiYFCcVb`)
-- Primary domain: `www.nebulife.space`
+- Команда: `woodoo`
+- Проект: `nebulife` (ID `prj_IUHhdqjmKK4j5ycMjffOMiYFCcVb`)
+- Основний домен: `www.nebulife.space`
 
-**Neon PostgreSQL connection** — в `.env.local` (VITE_*) та Vercel env.
+**Neon PostgreSQL** — connection string у `.env.local` (локально) і у Vercel env vars (на проді).
 
 ---
 
-## 🎯 РЕКОМЕНДОВАНИЙ ПОРЯДОК ВИКОНАННЯ
+## 🎯 Рекомендований порядок (що робимо коли)
 
-**Наступні 2 тижні (sprint):**
-1. P0 — Ring 2 popup + first-photo-as-hook (швидко)
-2. P1 — Vector F onboarding (critical for D1 retention)
-3. P1 — Starter wallet 50⚛ + daily rewards (critical для активації)
+**Цей тиждень:**
+1. Перевірити Ring 2 попап (пріоритет 0)
+2. Перевірити що перша фотка безкоштовна (пріоритет 0)
+3. Стартовий баланс 50⚛ + щоденні 1-3⚛ (пріоритет 1 — без цього гра порожня)
 
-**Місяць наступний:**
-4. P1 — Vector A video-missions MVP (45% target revenue)
-5. P2 — Vector G performance optimizations
-6. P2 — Tripo pivot (ship generation)
-7. P2 — Re-roll rarity + share cards
+**Наступні 2 тижні:**
+4. Знайомство з грою (онбординг) — критично для retention
+5. Відео-місії MVP (45% доходу)
+6. Оптимізація пам'яті (ще -80 МБ графіки)
 
-**Місяць за тим:**
-8. P3 — Vector C Weekly Digest premium + push
-9. P3 — Vector D Academy streaks + deep-dive
-10. P3 — Marketing materials + Soft launch Ukraine
+**Наступний місяць:**
+7. Tripo кораблі (нові revenue stream)
+8. Переробка колекції (рідкісність + кулдаун + досягнення)
+9. Тижневий дайджест + push
 
-**Q3:**
-11. P4 — Vector E clans + territory + marketplace
-12. P4 — P2P trade + clan Pro subscription
-13. P4 — iOS launch
+**За 2 місяці:**
+10. Академія streaks + NASA API
+11. Маркетингові матеріали
+12. Софт-лонч в Україні
+
+**Q3 2026:**
+13. Клани + територіальний контроль
+14. Маркетплейс (P2P обмін артефактами)
+15. iOS запуск
