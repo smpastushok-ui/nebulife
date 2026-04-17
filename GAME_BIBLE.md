@@ -26,13 +26,14 @@
 | 👥 **Auto-scaling clusters (50 гравців → новий кластер)** | Deterministic seed + PostgreSQL advisory locks |
 | ⚛️ **Determinism + fair MMO** | Один seed = однакова галактика для всіх |
 
-### 0.3 П'ять стовпів (pillars). Кожна фіча має підсилювати хоч один:
+### 0.3 Шість стовпів (pillars). Кожна фіча має підсилювати хоч один:
 
 1. **LIVING** — щось у грі змінюється щодня/щотижня без потреби в оновленнях (AI-generated contents).
 2. **LEARNING** — гравець виходить з гри з новим знанням з астрономії/фізики/біології.
 3. **DETERMINISTIC** — fair-play через спільний seed; неможливо "купити кращий всесвіт".
 4. **SOCIAL** — кластер 50 гравців — це неявна гільдія; clans/trade/PvP згодом — явна.
 5. **SCALABLE CONTENT** — AI пайплайн (Kling + Tripo + Gemini + video) = infinite content без росту art-team.
+6. **AI-AS-PRODUCT** — AI-генерований артефакт (фото планети, 3D модель, відео-експедиція, унікальне життя) це **товар що гравець купує і володіє**. Кожен такий артефакт має прямий ціннік у кварках, прив'язаний до вартості AI API + маржа. Це **основна монетизація**, реклама — допоміжна.
 
 ### 0.4 Стратегічні вектори розвитку (Q2-Q3 2026)
 
@@ -83,6 +84,33 @@
 - 60fps стабільно на Samsung S22+ / Pixel 6+.
 - Мета: **Play Store rating 4.3+ з коментарів "плавно, не гріє".**
 
+### 0.4-bis Монетизація: AI-артефакти як товар
+
+**Ієрархія джерел доходу** (за очікуваним внеском у ARPDAU):
+
+| # | Джерело | Середня ціна за подію | Частка в ARPDAU (ціль) | Вектор |
+|---|---|---|---|---|
+| 1 | 🎬 **Video-mission** (Gemini + Veo/Kling) | 20 ⚛ | ~45% | A |
+| 2 | 🧬 **Life-form generation** (DNA + Kling photo) | 15 ⚛ | ~20% | B |
+| 3 | 📸 **AI-фото поверхні планети** (Kling) | 10 ⚛ | ~15% | — (вже є) |
+| 4 | 🪐 **3D-модель планети** (Tripo GLB) | 49 ⚛ | ~10% | — (вже є) |
+| 5 | 🏆 **Clan subscription** (leader perks) | 99 ⚛/міс | ~5% | E |
+| 6 | 📺 **Rewarded ads** (AdMob) — поповнення +5⚛ | — | ~3% | G |
+| 7 | 🛍️ **Marketplace fee 10%** (P2P trade) | — | ~2% | E |
+
+**Ключова логіка цін**: ціна гравцю = **AI API cost × 10** (10× margin). Приклад:
+- Kling photo ≈ $0.15 API → 10⚛ (гравець платить ~$0.40 за кварк економіку) → margin 60-70%
+- Veo 15 сек відео ≈ $0.50 API → 20⚛ → margin 60-65%
+- Gemini text ≈ $0.002 → безкоштовно (bundle з video/photo)
+
+**Principle "Pay for wonders, not for winning"**: кварки НЕ дають power. Тільки **unique artifacts** (photo, video, 3D, life-form). Гравець-freemium отримує ту саму game-progression, але без "красивих скринів" свого всесвіту. Це запобігає pay-to-win відчуттю.
+
+**Starter wallet**: 50⚛ при реєстрації (1 безкоштовна video-mission + 2 планетних фото — достатньо щоб відчути цінність).
+
+**Daily rewards**: 1-3⚛ за щоденний вхід + 2⚛ за quiz → гравець може собі дозволити 1 artifact на тиждень без платежу → retention без wall.
+
+**Pro-subscription** (100⚛/міс, приблизно 200 ₴): 2× daily quarks + 10 video-missions/міс + priority generation queue + unlocked academy deep-dive уроки. ~5-8% конверсія очікувана.
+
 ### 0.5 Явні Non-Goals (щоб не розмиватись)
 
 | НЕ робимо | Чому |
@@ -102,7 +130,10 @@
 | D1 retention | 40% | 45% |
 | D7 retention | 18% | 22% |
 | D30 retention | 8% | 12% |
-| ARPDAU | $0.05 | $0.12 |
+| ARPDAU | $0.15 | $0.40 |
+| Paying user rate | 3% | 6% |
+| Artifact purchases / paying user / week | 1 | 3 |
+| Pro-subscription conversion | 2% DAU | 5% DAU |
 | Рейтинг Play Store | 4.2 | 4.4 |
 | Video missions / user / week | 2+ | 5+ |
 | Weekly Digest opens | 45% MAU | 60% MAU |
@@ -669,14 +700,26 @@ localStorage ←→ React state ←→ buildGameStateSnapshot() → server JSONB
 
 1 кварк = 1 гривня. Всі ігрові покупки за кварки. Баланс зберігається на сервері (`players.quarks`).
 
-### 11.2 Ціни
+### 11.2 Ціни (10× markup над AI API cost)
 
-| Покупка | Ціна | Примітка |
-|---|---|---|
-| AI поверхня (перша рідна планета) | **Безкоштовно** | Тільки 1-ша генерація home planet |
-| AI поверхня (решта) | **10 ⚛** | Нові планети та перегенерація |
-| 3D модель планети | **49 ⚛** | Kling photo → Tripo GLB |
-| Поповнення | Будь-яка сума | MonoPay → creditQuarks |
+| Покупка | Ціна | API cost | Примітка |
+|---|---|---|---|
+| AI поверхня (перша рідна планета) | **Безкоштовно** | ~$0.15 | hook, 1-ша генерація home planet |
+| AI поверхня (наступні) | **10 ⚛** | ~$0.15 | Kling photo |
+| 3D модель планети | **49 ⚛** | ~$0.50 | Kling → Tripo GLB |
+| 🎬 **Video-expedition (15s)** | **20 ⚛** | ~$0.50 | Gemini script + Veo/Kling відео + TTS |
+| 🎬 **Video-expedition legendary (30s)** | **35 ⚛** | ~$1.00 | rare event, longer footage |
+| 🧬 **Life-form generation (common)** | **5 ⚛** | ~$0.05 | DNA sample + Kling illustration |
+| 🧬 **Life-form (rare)** | **15 ⚛** | ~$0.15 | complex multi-cell |
+| 🧬 **Life-form (legendary)** | **40 ⚛** | ~$0.40 | sapient / exotic |
+| 🏷️ **Custom star name** | **25 ⚛** | — | persistent у world |
+| 📰 **Weekly Digest PREMIUM illustrations** | **5 ⚛** | ~$0.05 | unlocks bilingual hero art |
+| 🎓 **Academy deep-dive lesson** | **3 ⚛** | ~$0.02 | Gemini-generated + quiz |
+| 🏆 **Clan banner (AI-gen)** | **30 ⚛** | ~$0.30 | персональний прапор клану |
+| 🛍️ **Marketplace listing fee** | 10% | — | з продажу rare artifact між гравцями |
+| 🎫 **Pro subscription** | **100 ⚛/міс** | — | 2× daily quarks + 10 video/міс + priority queue + deep-dive lessons |
+| 📺 Rewarded ad viewing | +5 ⚛ free | — | AdMob, до 5 разів/день |
+| Поповнення | Будь-яка сума | — | MonoPay → creditQuarks |
 
 ### 11.3 Механіка
 
