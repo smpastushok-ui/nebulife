@@ -3715,10 +3715,14 @@ function AppInner() {
           for (const nd of newlyResearched) {
             addLogEntry('system', t('app.log.tech_integrated').replace('{name}', nd.name));
           }
-          // Show a toast for every newly researched tech (queued, one at a time via ResearchToast)
+          // Queue a toast for every newly-unlocked tech — they'll be shown
+          // one at a time (see the pendingResearchToasts useEffect, ~2-3s
+          // apart). Previously only the LAST tech got a toast, so players
+          // missed intermediate unlocks (e.g. on L7 you'd see Aero but miss
+          // Capacitor, or vice versa depending on ALL_NODES iteration order).
           setPendingResearchToasts((q) => [
             ...q,
-            ...newlyResearched.map(nd => ({
+            ...newlyResearched.map((nd) => ({
               id:       Math.random().toString(36).slice(2),
               techId:   nd.id,
               techName: nd.name,
