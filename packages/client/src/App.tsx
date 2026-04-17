@@ -4876,6 +4876,10 @@ function AppInner() {
           quarks={quarks}
           playerLevel={playerLevel}
           researchProgress={(() => {
+            // With the "eye" toggle ON, progress is already shown over the
+            // star by GalaxyScene, so suppress the RadialMenu's progress chip
+            // to avoid duplicating the same number above and below the star.
+            if (researchLabelsMode) return undefined;
             const prog = getResearchProgress(researchState, radialSystem.id);
             return (prog > 0 && prog < 100) ? prog : undefined;
           })()}
