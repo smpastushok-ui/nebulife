@@ -96,10 +96,6 @@ interface SystemNode {
   atomOrbit: Graphics | null;
   /** Research label shown in research-mode overlay (% progress or ◉ for 100%) */
   researchLabel: Text | null;
-  glowOuter: Graphics;  // kept for transition compat (empty)
-  glowMid: Graphics;    // kept for transition compat (empty)
-  corona: Graphics;     // kept for transition compat (empty)
-  core: Graphics;       // kept for transition compat (empty)
   /** Per-frame particle canvas — cleared+redrawn every update */
   particleGfx: Graphics;
   /** Visual state for rendering */
@@ -773,23 +769,15 @@ export class GalaxyScene {
   }
 
   /**
-   * Create the standard star container with empty compat Graphics + live particleGfx.
+   * Create the standard star container with live particleGfx.
    */
   private createStarGfx(): {
-    container: Container; glowOuter: Graphics; glowMid: Graphics; corona: Graphics; core: Graphics; particleGfx: Graphics;
+    container: Container; particleGfx: Graphics;
   } {
     const container = new Container();
-    const glowOuter = new Graphics();
-    const glowMid = new Graphics();
-    const corona = new Graphics();
-    const core = new Graphics();
-    container.addChild(glowOuter);
-    container.addChild(glowMid);
-    container.addChild(corona);
-    container.addChild(core);
     const particleGfx = new Graphics();
     container.addChild(particleGfx);
-    return { container, glowOuter, glowMid, corona, core, particleGfx };
+    return { container, particleGfx };
   }
 
   // Menu icon removed — replaced by RadialMenu (React overlay)
@@ -801,7 +789,7 @@ export class GalaxyScene {
     const baseR = starBaseRadius(sys.star.luminositySolar) * 1.6 * spectralMul;
     const phase = this.hash(sys.id);
 
-    const { container: dot, glowOuter, glowMid, corona, core, particleGfx } = this.createStarGfx();
+    const { container: dot, particleGfx } = this.createStarGfx();
 
     const nl = new Text({
       text: sys.name,
@@ -844,7 +832,7 @@ export class GalaxyScene {
     this.homeNode = {
       container: dot, system: sys, nameLabel: nl,
       scanArc: null, atomOrbit: null, researchLabel: null,
-      glowOuter, glowMid, corona, core, particleGfx,
+      particleGfx,
       starState: 'home', planetCount: sys.planets.length,
       nodeType: 'personal' as const,
       nebulaColor, particleCount: 72,
@@ -868,7 +856,7 @@ export class GalaxyScene {
     const spectralMul = SPECTRAL_SIZE_MUL[sys.star.spectralClass] ?? 1.0;
     const effectiveR = baseR * spectralMul;
 
-    const { container: dot, glowOuter, glowMid, corona, core, particleGfx } = this.createStarGfx();
+    const { container: dot, particleGfx } = this.createStarGfx();
     const starState: SystemNode['starState'] = state === 'unexplored' ? 'unexplored'
       : state === 'researching' ? 'researching'
       : state === 'researched' ? 'researched'
@@ -877,19 +865,10 @@ export class GalaxyScene {
     dot.x = tx;
     dot.y = ty;
 
-    // Scanning arc (spinning arc for actively researching systems)
-    let scanArc: Graphics | null = null;
-    if (state === 'researching') {
-      scanArc = new Graphics();
-      dot.addChild(scanArc);
-    }
-
-    // Atom orbital animation — 2 tilted electron rings, shown at 0% progress
-    let atomOrbit: Graphics | null = null;
-    if (state === 'researching') {
-      atomOrbit = new Graphics();
-      dot.addChild(atomOrbit);
-    }
+    // Scanning arc + atom orbit: lazy-created on demand when state='researching'
+    // (see updateSystemVisual and update loop)
+    const scanArc: Graphics | null = null;
+    const atomOrbit: Graphics | null = null;
 
     // Name label
     const nameLabel = new Text({
@@ -972,7 +951,7 @@ export class GalaxyScene {
     return {
       container: dot, system: sys, nameLabel,
       scanArc, atomOrbit, researchLabel: null,
-      glowOuter, glowMid, corona, core, particleGfx,
+      particleGfx,
       starState, planetCount: sys.planets.length,
       nodeType: 'personal' as const,
       nebulaColor, particleCount,
@@ -1306,10 +1285,19 @@ export class GalaxyScene {
         node.container.addChild(node.atomOrbit);
       }
 
-      // Keep research label in sync (both eye-on and eye-off modes show in-progress %)
+      // Keep research label in sync with the new state.
+      // Eye ON  → yellow dot while in progress (color set by showResearchLabels).
+      // Eye OFF → numeric % above the star.
       if (node.researchLabel && prog > 0 && prog < 100) {
-        node.researchLabel.text = `${Math.round(prog)}%`;
-        node.researchLabel.style.fill = 0xaabbcc;
+        if (this.researchLabelsEnabled) {
+          node.researchLabel.text = '●';
+          node.researchLabel.style.fill = 0xffcc44;
+          node.researchLabel.style.fontSize = 8;
+        } else {
+          node.researchLabel.text = `${Math.round(prog)}%`;
+          node.researchLabel.style.fill = 0xaabbcc;
+          node.researchLabel.style.fontSize = 7;
+        }
         node.researchLabel.visible = true;
       }
     }
@@ -1326,10 +1314,17 @@ export class GalaxyScene {
         this.completedSystems.add(systemId);
         this.spawnCompletionLabel(node);
       }
-      // Hide label entirely for fully researched stars — clean look per design:
-      // no "EXPLORED" / "◉" / "100%" marker, just the star's color and size.
+      // Fully researched: eye ON keeps a green dot, eye OFF shows nothing
+      // (clean star look with just the star's color and size).
       if (node.researchLabel) {
-        node.researchLabel.visible = false;
+        if (this.researchLabelsEnabled) {
+          node.researchLabel.text = '●';
+          node.researchLabel.style.fill = 0x44ff88;
+          node.researchLabel.style.fontSize = 8;
+          node.researchLabel.visible = true;
+        } else {
+          node.researchLabel.visible = false;
+        }
       }
       // When a core system is fully researched, recompute visible core IDs
       // to reveal its direct neighbors (branching expansion)
@@ -1429,13 +1424,32 @@ export class GalaxyScene {
 
       node.container.alpha += (node.baseAlpha - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
       animateExpand(node);
-      this.animateStarBurn(node, t);
 
-      // Tier 2 (faded): skip expensive animations (atom orbit, scan arc)
+      // Tier 2 (faded): simplified rendering — just a minimal dot, skip expensive animations
       if (node.visibilityTier === 2) {
+        this.animateStarBurnSimple(node, t);
         if (node.scanArc) node.scanArc.visible = false;
         if (node.atomOrbit) node.atomOrbit.visible = false;
         continue;
+      }
+
+      this.animateStarBurn(node, t);
+
+      // Live update research % over the star (only in eye-OFF mode where we
+      // show a number). Eye-ON mode uses a colored dot that doesn't tick.
+      if (
+        node.researchLabel
+        && node.researchLabel.visible
+        && !this.researchLabelsEnabled
+      ) {
+        const isResearching = this.researchState.slots.some((s) => s.systemId === node.system.id);
+        if (isResearching) {
+          const prog = Math.round(getResearchProgress(this.researchState, node.system.id));
+          if (prog > 0 && prog < 100) {
+            const next = `${prog}%`;
+            if (node.researchLabel.text !== next) node.researchLabel.text = next;
+          }
+        }
       }
 
       // Scan arc probe dot removed — only atom orbit animation shown
@@ -1514,7 +1528,7 @@ export class GalaxyScene {
     // Territory glow — soft aura under explored systems (home + researched)
     this.territoryGfx.clear();
     const drawTerritoryAura = (x: number, y: number) => {
-      const N = 10;
+      const N = 6;
       const maxR = 52;
       // Shadow (offset down-right slightly)
       for (let ci = N; ci >= 1; ci--) {
@@ -1760,6 +1774,29 @@ export class GalaxyScene {
   }
 
   /**
+   * Simplified star rendering for Tier 2 (faded) nodes.
+   * Only draws a minimal glow + core dot — no orbiting particles, no concentric gradient.
+   * Saves ~30-40 Graphics draw calls per Tier 2 node per frame.
+   */
+  private animateStarBurnSimple(node: SystemNode, t: number) {
+    const g = node.particleGfx;
+    g.clear();
+
+    const { baseRadius, phaseOffset: ph, nebulaColor } = node;
+    const coreR = Math.max(2.5, baseRadius * 0.42);
+    const pulse = 0.85 + 0.15 * Math.sin(t * 0.0006 + ph);
+
+    // Outer glow — just 3 rings instead of 16-24
+    g.circle(0, 0, coreR * 2.0);
+    g.fill({ color: nebulaColor, alpha: 0.03 * pulse });
+    g.circle(0, 0, coreR * 1.2);
+    g.fill({ color: nebulaColor, alpha: 0.08 * pulse });
+    // Core dot
+    g.circle(0, 0, coreR * 0.6);
+    g.fill({ color: nebulaColor, alpha: 0.35 * pulse });
+  }
+
+  /**
    * Draw star system visuals into node.particleGfx (cleared each frame).
    *
    * Unexplored   → sonar ripple rings (unchanged)
@@ -1785,8 +1822,8 @@ export class GalaxyScene {
       const baseAlpha = isR2 ? 0.10 : 0.18;
       const decay = isR2 ? 4.5 : 5.0;
       const brt = 0.82 + 0.18 * Math.sin(t * 0.0006 + ph);
-      // Radial gradient glow (24 concentric circles for smooth falloff from center)
-      const numCircles = 24;
+      // Radial gradient glow (12 concentric circles — reduced from 24, outer circles were invisible)
+      const numCircles = 12;
       for (let c = numCircles; c >= 1; c--) {
         const cf = c / numCircles;
         const cr = maxR * cf;
@@ -1820,9 +1857,9 @@ export class GalaxyScene {
     // Eased expansion factor (0=collapsed, 1=fully expanded)
     const ep = easeOutQuad(node.expandProgress);
 
-    /* ── Radial gradient glow (16 concentric circles simulating smooth radial gradient) ── */
+    /* ── Radial gradient glow (10 concentric circles — reduced from 16, outer rings invisible) ── */
     const glowMaxR = coreR * 3.5;
-    const GN = 16;
+    const GN = 10;
     for (let ci = GN; ci >= 1; ci--) {
       const f = ci / GN;            // 1.0 = outer edge, 1/GN = inner
       const r = glowMaxR * f;
@@ -1833,10 +1870,10 @@ export class GalaxyScene {
       }
     }
 
-    /* ── Gradient core — no hard edge, smooth center-bright falloff ── */
-    const coreSteps = 14;
+    /* ── Gradient core — no hard edge, smooth center-bright falloff (8 steps, reduced from 14) ── */
+    const coreSteps = 8;
     for (let ci = coreSteps; ci >= 1; ci--) {
-      const f = ci / coreSteps;              // 1.0 = outer edge, 1/14 = inner
+      const f = ci / coreSteps;              // 1.0 = outer edge, 1/8 = inner
       const r = coreR * f;
       const a = Math.pow(1 - f, 0.55) * 0.90 * pulse * br * glowMul;
       if (a > 0.003) {
@@ -1857,7 +1894,10 @@ export class GalaxyScene {
     /* ── Orbiting particles: always visible for explored stars, smaller+dimmer with distance ── */
     {
       const isResearching = starState === 'researching';
-      const pCount = isResearching ? 10 : particleCount;
+      // When collapsed (not expanded), halve particle count for performance.
+      // Full count is only needed when the star is expanded and orbits are visible.
+      const expandedOrHome = ep > 0.01 || isHome;
+      const pCount = isResearching ? 10 : (expandedOrHome ? particleCount : Math.ceil(particleCount * 0.5));
       const particleColor = SPECTRAL_PARTICLE_COLOR[spectralClass] ?? 0xfff8f0;
       const tSec = t * 0.001;
       const maxDist = isResearching ? 36 : 48;   // orbit radius limit
@@ -1941,12 +1981,13 @@ export class GalaxyScene {
 
   /**
    * Toggle per-star research labels.
-   * Design:
-   * - 100% researched (or home) → NEVER show a label (clean star look).
-   * - 0% (untouched) with eye ON → show a faint dot so the player sees "all stars".
-   * - 0 < prog < 100 → show `${prog}%` over the star REGARDLESS of eye toggle
-   *   (so partial progress is always visible without clicking).
-   * - Tier 2/3 (faded/hidden) → no labels.
+   * Eye ON  → show a colored dot over every Tier-1 star:
+   *   🟢 green  = fully researched (100%)
+   *   🟡 yellow = research in progress (0 < prog < 100)
+   *   🔴 red    = untouched (prog === 0)
+   * Eye OFF → show `${prog}%` only for partially-researched stars; nothing for
+   *   0% or 100% (keeps the map clean).
+   * Tier 2/3 (faded/hidden) → no labels in either mode.
    */
   showResearchLabels(enabled: boolean) {
     this.researchLabelsEnabled = enabled;
@@ -1964,26 +2005,32 @@ export class GalaxyScene {
       const isFull = isHome || isSystemFullyResearched(this.researchState, node.system.id);
       const prog = isFull ? 100 : Math.round(getResearchProgress(this.researchState, node.system.id));
 
-      // 100% → no label ever.
-      if (isFull) {
-        if (node.researchLabel) node.researchLabel.visible = false;
-        continue;
-      }
+      let text: string;
+      let color: number;
+      let fontSize: number;
 
-      // Partial progress always visible (both eye modes). Untouched only when eye ON.
-      const shouldShow = (prog > 0 && prog < 100) || enabled;
-      if (!shouldShow) {
-        if (node.researchLabel) node.researchLabel.visible = false;
-        continue;
+      if (enabled) {
+        // Colored status dot
+        text = '●';
+        fontSize = 8;
+        if (isFull)       color = 0x44ff88; // green
+        else if (prog > 0) color = 0xffcc44; // yellow
+        else              color = 0xcc4444; // red
+      } else {
+        // No eye: only show partial progress as number, hide clean/100%
+        if (isFull || prog === 0) {
+          if (node.researchLabel) node.researchLabel.visible = false;
+          continue;
+        }
+        text = `${prog}%`;
+        color = 0xaabbcc;
+        fontSize = 7;
       }
-
-      const text = prog > 0 ? `${prog}%` : '·';
-      const color = prog > 0 ? 0xaabbcc : 0x3a4d5a;
 
       if (!node.researchLabel) {
         node.researchLabel = new Text({
           text,
-          style: { fontSize: 7, fill: color, fontFamily: 'monospace' },
+          style: { fontSize, fill: color, fontFamily: 'monospace' },
           resolution: 2,
         });
         node.researchLabel.anchor.set(0.5, 1);
@@ -1991,6 +2038,7 @@ export class GalaxyScene {
         node.container.addChild(node.researchLabel);
       } else {
         node.researchLabel.text = text;
+        node.researchLabel.style.fontSize = fontSize;
         node.researchLabel.style.fill = color;
         node.researchLabel.visible = true;
       }
