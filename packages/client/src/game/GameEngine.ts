@@ -5,6 +5,7 @@ import {
   assignPlayerToGroup,
   isSystemFullyResearched,
   delaunayEdges,
+  deriveGroupSeed,
   PLAYERS_PER_GROUP,
   generateGalaxyGroupCore,
   generateCoreStarSystem,
@@ -55,6 +56,13 @@ export class GameEngine {
   private groupCount = 1;
   private playerGroupIndex = 0;
 
+  /**
+   * Effective max ring from tech tree (HOME_RESEARCH_MAX_RING + max_ring_add).
+   * Used to compute progressive BFS depth for core systems.
+   * Set from App.tsx via setEffectiveMaxRing().
+   */
+  private effectiveMaxRing = 2;
+
   constructor(container: HTMLElement, callbacks: GameCallbacks, playerIndex = 0, galaxySeed = 42) {
     this.container = container;
     this.callbacks = callbacks;
@@ -96,6 +104,17 @@ export class GameEngine {
 
   setResearchState(state: ResearchState) {
     this.researchState = state;
+  }
+
+  /**
+   * Set the effective max ring (HOME_RESEARCH_MAX_RING + tech tree max_ring_add).
+   * This controls BFS depth into the galactic core:
+   *   bfsDepth = max(3, effectiveMaxRing + 1)
+   * Base (maxRing=2) → depth 3, ast-probe (maxRing=3) → depth 4,
+   * ast-grav-scan (maxRing=4) → depth 5, etc. Capped at 12 (full core).
+   */
+  setEffectiveMaxRing(maxRing: number) {
+    this.effectiveMaxRing = maxRing;
   }
 
   /**
@@ -404,6 +423,9 @@ export class GameEngine {
         for (const sys of ring2.starSystems) {
           // Skip if already in personal systems (overlapping positions)
           if (!this.rings.some(r => r.starSystems.some(s => s.id === sys.id))) {
+            // Override ringIndex to 3 so neighbor systems require ast-probe tech
+            // (Phase 2 gate: L10-20, ast-probe grants max_ring_add +1 → effectiveMaxRing=3)
+            sys.ringIndex = 3;
             result.push({ system: sys, ownerIndex: ni });
           }
         }
@@ -414,13 +436,21 @@ export class GameEngine {
   }
 
   private computeCoreSystems(): Array<{ system: StarSystem; coreId: number; depth: number }> {
-    const core = generateGalaxyGroupCore(this.galaxySeed);
+    // Use group-specific seed (not the master galaxy seed) so every cluster
+    // has its own core topology. Previously this.galaxySeed meant cluster_0
+    // and cluster_1 shared identical core systems in the 2D PixiJS view,
+    // while the 3D UniverseEngine correctly used deriveGroupSeed().
+    const core = generateGalaxyGroupCore(deriveGroupSeed(this.galaxySeed, this.playerGroupIndex));
 
     // Find this player's entry star
     const entryStar = core.systems.find(s => s.entryForPlayerIndex === this.playerIndex);
     if (!entryStar) return [];
 
-    // BFS from entry star, max depth 3
+    // Progressive BFS depth: base maxRing=2 → depth 3, each +1 max_ring_add → +1 depth.
+    // ast-probe (maxRing=3) → depth 4, ast-grav-scan (maxRing=4) → depth 5, etc.
+    // Capped at 12 (DEPTH_COUNTS.length in galaxy-group-generator = full core).
+    const maxBfsDepth = Math.min(Math.max(3, this.effectiveMaxRing + 1), 12);
+
     const visited = new Set<number>();
     const queue: Array<{ id: number; bfsDepth: number }> = [{ id: entryStar.id, bfsDepth: 0 }];
     visited.add(entryStar.id);
@@ -438,7 +468,7 @@ export class GameEngine {
         depth: coreSys.depth,
       });
 
-      if (bfsDepth < 3) {
+      if (bfsDepth < maxBfsDepth) {
         for (const nid of coreSys.neighbors) {
           if (!visited.has(nid)) {
             visited.add(nid);

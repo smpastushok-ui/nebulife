@@ -281,7 +281,7 @@ export class GalaxyScene {
         tx += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
         ty += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
 
-        const node = this.buildSysNode(system, tx, ty, 2);
+        const node = this.buildSysNode(system, tx, ty, 3);
         node.nodeType = 'neighbor';
         node.baseAlpha = expandedVisible ? 0.45 : 0;
         node.baseRadius *= 0.7;
@@ -291,7 +291,7 @@ export class GalaxyScene {
       }
     }
 
-    /* ── Core systems (galactic core mesh, BFS up to depth 3) ── */
+    /* ── Core systems (galactic core mesh, progressive BFS depth) ── */
     if (coreSystems) {
       for (const { system } of coreSystems) {
         // Skip if already present
