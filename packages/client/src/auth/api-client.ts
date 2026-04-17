@@ -1,8 +1,36 @@
+import { Capacitor } from '@capacitor/core';
 import { getIdToken } from './auth-service.js';
 
 // ---------------------------------------------------------------------------
 // Authenticated fetch wrapper — attaches Firebase ID token to every request
 // ---------------------------------------------------------------------------
+
+/**
+ * On web (browser / PWA) API requests go to the same origin with relative
+ * paths ('/api/...'). On native Capacitor (Android / iOS) the bundle is
+ * served from `https://localhost/` inside a WebView, so relative '/api/...'
+ * would fail. Prefix with the production host in that case.
+ *
+ * Override with VITE_API_BASE_URL at build time if the backend lives
+ * somewhere else (e.g. a staging deploy).
+ */
+const PROD_API_BASE =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  'https://www.nebulife.space';
+
+export function resolveApiUrl(url: string): string {
+  // Absolute URLs pass through unchanged
+  if (/^https?:\/\//i.test(url)) return url;
+  if (Capacitor.isNativePlatform()) {
+    return `${PROD_API_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+  }
+  return url;
+}
+
+/** Unauthenticated fetch wrapper that still prefixes the native host. */
+export function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  return fetch(resolveApiUrl(url), options);
+}
 
 /**
  * Fetch wrapper that automatically includes Authorization: Bearer <token>.
@@ -24,5 +52,5 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
       headers.set('X-Idempotency-Key', crypto.randomUUID());
     }
   }
-  return fetch(url, { ...options, headers });
+  return fetch(resolveApiUrl(url), { ...options, headers });
 }

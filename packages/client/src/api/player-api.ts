@@ -4,7 +4,7 @@
 // Communicates with /api/player/*, /api/discoveries/*, /api/gallery/*
 // ---------------------------------------------------------------------------
 
-import { authFetch } from '../auth/api-client.js';
+import { authFetch, apiFetch } from '../auth/api-client.js';
 
 const API_BASE = '/api';
 
@@ -243,7 +243,7 @@ export interface UniverseInfo {
  * Public endpoint — no auth required.
  */
 export async function fetchUniverseInfo(): Promise<UniverseInfo> {
-  const res = await fetch(`${API_BASE}/universe/info`);
+  const res = await apiFetch(`${API_BASE}/universe/info`);
   if (!res.ok) {
     throw new Error(`Fetch universe info failed: ${res.status}`);
   }
