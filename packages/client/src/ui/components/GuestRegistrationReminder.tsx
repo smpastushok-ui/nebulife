@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { signInWithGoogle, linkGoogleToAnonymous, getCurrentUser } from '../../auth/auth-service.js';
+import {
+  signInWithGoogle,
+  linkGoogleToAnonymous,
+  getCurrentUser,
+  isGoogleSignInAvailable,
+} from '../../auth/auth-service.js';
 
 // ---------------------------------------------------------------------------
 // GuestRegistrationReminder — one-time notification for guest players
@@ -99,13 +104,15 @@ export function GuestRegistrationReminder({
         {/* Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Google */}
-          <AuthButton
-            label={t('guest.btn_google')}
-            color="#4488cc"
-            borderColor="#336699"
-            onClick={handleGoogle}
-            disabled={loading}
-          />
+          {isGoogleSignInAvailable() && (
+            <AuthButton
+              label={t('guest.btn_google')}
+              color="#4488cc"
+              borderColor="#336699"
+              onClick={handleGoogle}
+              disabled={loading}
+            />
+          )}
 
           {/* Email */}
           <AuthButton
