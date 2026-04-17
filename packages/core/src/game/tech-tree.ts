@@ -66,7 +66,23 @@ export interface TechTreeState {
   researched: Record<string, number>; // techId → timestamp
 }
 
-// ── Astronomy branch: 14 nodes (Levels 1–50) ──────────────────────────────
+// ── Astronomy branch: 22 nodes (Levels 1–50) ──────────────────────────────
+//
+// Two chains within the branch:
+//   Main chain:      general astronomy upgrades (speed, discovery, observatories)
+//   Deep Core chain: progressive max_ring_add nodes that unlock deeper core systems
+//
+// Main chain:  ast-radio-1 → ast-compress → ast-satellite → ast-spectrum → ast-obs-2
+//              → ast-probe(+1 ring) → ast-dock → ast-deep-radar → ast-anomaly-filter
+//              → ast-relay → ast-obs-3 → ast-quantum-int → ast-grav-scan(+1 ring)
+//              → ast-orbital-yard
+//
+// Deep Core:   ast-probe(+1) → ast-core-scanner(+1) → ast-long-range(+1)
+//              → ast-spectrograph(+1) → ast-pulsar-net(+1) → ast-darkfield(+1)
+//              → ast-xray-array(+1) → ast-grav-scan(+1) [shared with main]
+//              → ast-neutrino-lens(+1) → ast-hyperscope(+1)
+//
+// Total max_ring_add = 10 → effectiveMaxRing = 2 (base) + 10 = 12 (full core)
 
 export const ASTRONOMY_NODES: TechNode[] = [
   // ── Epoch 1: Levels 1–15 ──
@@ -156,6 +172,43 @@ export const ASTRONOMY_NODES: TechNode[] = [
     effects: [{ type: 'concurrent_research_add', value: 1 }],
     iconSymbol: '\u2338', // ⌸
   },
+  // ── Deep Core sub-chain: L20 → L50 (8 new nodes branching from ast-probe) ──
+  {
+    id: 'ast-core-scanner',
+    branch: 'astronomy',
+    name: 'Сканер ядра галактики',
+    description: '+1 кільце доступу до ядра (core depth 1)',
+    levelRequired: 20,
+    prerequisiteId: 'ast-probe',
+    epoch: 2,
+    xpReward: 45,
+    effects: [{ type: 'max_ring_add', value: 1 }],
+    iconSymbol: '\u2316', // ⌖
+  },
+  {
+    id: 'ast-long-range',
+    branch: 'astronomy',
+    name: 'Далекобійний телескоп',
+    description: '+1 кільце доступу до ядра (core depth 2)',
+    levelRequired: 24,
+    prerequisiteId: 'ast-core-scanner',
+    epoch: 2,
+    xpReward: 50,
+    effects: [{ type: 'max_ring_add', value: 1 }],
+    iconSymbol: '\u2295', // ⊕
+  },
+  {
+    id: 'ast-spectrograph',
+    branch: 'astronomy',
+    name: 'Мультиспектрограф',
+    description: '+1 кільце доступу до ядра (core depth 3)',
+    levelRequired: 28,
+    prerequisiteId: 'ast-long-range',
+    epoch: 2,
+    xpReward: 55,
+    effects: [{ type: 'max_ring_add', value: 1 }],
+    iconSymbol: '\u2500', // ─
+  },
   {
     id: 'ast-deep-radar',
     branch: 'astronomy',
@@ -195,6 +248,18 @@ export const ASTRONOMY_NODES: TechNode[] = [
     effects: [{ type: 'research_data_regen', value: 5 }],
     iconSymbol: '\u2637', // ☷
   },
+  {
+    id: 'ast-pulsar-net',
+    branch: 'astronomy',
+    name: 'Пульсарна мережа',
+    description: '+1 кільце доступу до ядра (core depth 4)',
+    levelRequired: 34,
+    prerequisiteId: 'ast-spectrograph',
+    epoch: 2,
+    xpReward: 65,
+    effects: [{ type: 'max_ring_add', value: 1 }],
+    iconSymbol: '\u2739', // ✹
+  },
 
   // ── Epoch 3: Levels 35–50 ──
   {
@@ -210,6 +275,18 @@ export const ASTRONOMY_NODES: TechNode[] = [
     iconSymbol: '\u2726', // ✦
   },
   {
+    id: 'ast-darkfield',
+    branch: 'astronomy',
+    name: 'Детектор темного поля',
+    description: '+1 кільце доступу до ядра (core depth 5)',
+    levelRequired: 38,
+    prerequisiteId: 'ast-pulsar-net',
+    epoch: 3,
+    xpReward: 75,
+    effects: [{ type: 'max_ring_add', value: 1 }],
+    iconSymbol: '\u25C9', // ◉
+  },
+  {
     id: 'ast-quantum-int',
     branch: 'astronomy',
     name: 'Квантовий інтерферометр',
@@ -220,6 +297,18 @@ export const ASTRONOMY_NODES: TechNode[] = [
     xpReward: 80,
     effects: [{ type: 'rare_discovery_mult', value: 1.5 }],
     iconSymbol: '\u2042', // ⁂
+  },
+  {
+    id: 'ast-xray-array',
+    branch: 'astronomy',
+    name: 'Рентгенівська решітка',
+    description: '+1 кільце доступу до ядра (core depth 6)',
+    levelRequired: 42,
+    prerequisiteId: 'ast-darkfield',
+    epoch: 3,
+    xpReward: 85,
+    effects: [{ type: 'max_ring_add', value: 1 }],
+    iconSymbol: '\u2622', // ☢
   },
   {
     id: 'ast-grav-scan',
@@ -237,6 +326,18 @@ export const ASTRONOMY_NODES: TechNode[] = [
     iconSymbol: '\u2641', // ♁
   },
   {
+    id: 'ast-neutrino-lens',
+    branch: 'astronomy',
+    name: 'Нейтринна лінза',
+    description: '+1 кільце доступу до ядра (core depth 8)',
+    levelRequired: 48,
+    prerequisiteId: 'ast-xray-array',
+    epoch: 3,
+    xpReward: 100,
+    effects: [{ type: 'max_ring_add', value: 1 }],
+    iconSymbol: '\u2394', // ⎔
+  },
+  {
     id: 'ast-orbital-yard',
     branch: 'astronomy',
     name: 'Орбітальна Верф',
@@ -247,6 +348,18 @@ export const ASTRONOMY_NODES: TechNode[] = [
     xpReward: 150,
     effects: [{ type: 'surface_building_unlock', value: 1 }],
     iconSymbol: '\u2693', // ⚓
+  },
+  {
+    id: 'ast-hyperscope',
+    branch: 'astronomy',
+    name: 'Гіпермодальний телескоп',
+    description: '+1 кільце доступу до ядра (повний доступ до ядра)',
+    levelRequired: 50,
+    prerequisiteId: 'ast-neutrino-lens',
+    epoch: 3,
+    xpReward: 150,
+    effects: [{ type: 'max_ring_add', value: 1 }],
+    iconSymbol: '\u2742', // ❂
   },
 ];
 
