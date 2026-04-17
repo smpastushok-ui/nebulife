@@ -63,6 +63,9 @@ class InterstitialManager {
   async prepareNext(): Promise<void> {
     if (this._isPremium || !Capacitor.isNativePlatform()) return;
     try {
+      // Lazy init AdMob SDK if not yet initialized (avoids eager init at app startup)
+      const { ensureAdMobInitialized } = await import('./ads-service.js');
+      await ensureAdMobInitialized();
       const { AdMob } = await import('@capacitor-community/admob');
       await AdMob.prepareInterstitial({ adId: INTERSTITIAL_ID });
       this.isPrepared = true;

@@ -120,7 +120,7 @@ import { TutorialOverlay, FreeTaskHUD, TUTORIAL_STEPS } from './ui/components/Tu
 import type { User } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import { initAds, canShowAd, isNativePlatform, watchAdsWithProgress } from './services/ads-service.js';
+import { canShowAd, isNativePlatform, watchAdsWithProgress } from './services/ads-service.js';
 import { interstitialManager } from './services/interstitial-manager.js';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
@@ -3898,10 +3898,9 @@ function AppInner() {
     };
   }, [universeVisible]);
 
-  // ── Initialize AdMob on native platforms ────────────────────────────────
+  // ── AdMob session start (SDK init is lazy — happens on first ad request) ─
   useEffect(() => {
     interstitialManager.sessionStartTime = Date.now();
-    initAds().catch(() => { /* AdMob init failed — non-critical */ });
   }, []);
 
   // ── Android hardware back button ────────────────────────────────────────
@@ -4875,14 +4874,11 @@ function AppInner() {
           activeMission={systemMissions.get(radialSystem.id) ?? null}
           quarks={quarks}
           playerLevel={playerLevel}
-          researchProgress={(() => {
-            // With the "eye" toggle ON, progress is already shown over the
-            // star by GalaxyScene, so suppress the RadialMenu's progress chip
-            // to avoid duplicating the same number above and below the star.
-            if (researchLabelsMode) return undefined;
-            const prog = getResearchProgress(researchState, radialSystem.id);
-            return (prog > 0 && prog < 100) ? prog : undefined;
-          })()}
+          // Progress % is always shown above the star by GalaxyScene
+          // (live-updated in the scene's update loop), so we intentionally
+          // NEVER pass researchProgress to RadialMenu — the bottom gold chip
+          // would only duplicate the same value.
+          researchProgress={undefined}
           researchBlockReason={(() => {
             if (researchState.slots.length === 0) return t('errors.noObservatories');
             if (findFreeSlot(researchState) < 0) return t('errors.allSlotsOccupied');
