@@ -151,6 +151,9 @@ export const HangarPage: React.FC<HangarPageProps> = ({
     setSelectedShip(slot.id);
   }, [t]);
 
+  // Team battle level gate
+  const teamBattleUnlocked = playerLevel >= 50;
+
   // Training entry (free)
   const handleEnterTraining = useCallback(() => {
     playSfx('ui-click', 0.07);
@@ -160,13 +163,18 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   // Team Battle entry
   const handleEnterTeamBattle = useCallback(() => {
     playSfx('ui-click', 0.07);
+    if (!teamBattleUnlocked) {
+      setToast(t('hangar.team_battle_locked' as Parameters<typeof t>[0]));
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
     if (onEnterTeamBattle) {
       onEnterTeamBattle();
     } else {
       setToast(t('hangar.event.coming_soon'));
       setTimeout(() => setToast(null), 2500);
     }
-  }, [onEnterTeamBattle, t]);
+  }, [onEnterTeamBattle, t, teamBattleUnlocked]);
 
   const handleToggleControls = useCallback(() => {
     playSfx('ui-click', 0.07);
@@ -327,19 +335,29 @@ export const HangarPage: React.FC<HangarPageProps> = ({
         {/* ── TEAM BATTLE event card ────────────────────────────────── */}
         <div style={{
           ...S.entrySection,
-          borderColor: onEnterTeamBattle ? '#446644' : '#223344',
-          opacity: mounted ? 1 : 0,
+          borderColor: teamBattleUnlocked && onEnterTeamBattle ? '#446644' : '#223344',
+          opacity: mounted ? (teamBattleUnlocked ? 1 : 0.5) : 0,
           transition: 'opacity 0.5s ease 1.0s',
         }}>
-          <div style={{ ...S.entryTitle, color: onEnterTeamBattle ? '#88dd88' : '#667788' }}>
-            {t('hangar.event.team_battle')}
+          <div style={{ ...S.entryTitle, color: teamBattleUnlocked && onEnterTeamBattle ? '#88dd88' : '#667788' }}>
+            {t('hangar.event.team_battle')}{!teamBattleUnlocked ? ' (L50)' : ''}
           </div>
           <div style={S.entryDesc}>{t('hangar.event.team_battle_desc')}</div>
-          {onEnterTeamBattle ? (
+          {teamBattleUnlocked && onEnterTeamBattle ? (
             <div style={S.entryButtons}>
               <button style={S.entryQuark} onClick={handleEnterTeamBattle}>
                 1{' '}
                 <QuarkIcon />
+              </button>
+            </div>
+          ) : !teamBattleUnlocked ? (
+            <div style={S.entryButtons}>
+              <button
+                style={{ ...S.entryQuark, opacity: 0.4, cursor: 'not-allowed', animation: 'none' }}
+                onClick={handleEnterTeamBattle}
+              >
+                <LockIcon />
+                <span style={{ marginLeft: 4 }}>L50</span>
               </button>
             </div>
           ) : (

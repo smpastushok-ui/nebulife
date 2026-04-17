@@ -116,6 +116,10 @@ export const TEAM_RED_BOTS = 5;            // enemies
 export const BOT_BULLET_POOL = 300;        // global bot bullet pool
 export const BOT_RESPAWN_DELAY = 5;        // seconds
 
+// Training FFA bots
+export const TRAINING_BOT_COUNT = 6;
+export const TRAINING_ASTEROID_COUNT = 10;
+
 // Bot names pool
 export const BOT_NAMES = [
   'NOVA', 'BLAZE', 'COMET', 'VORTEX', 'NEBULA',

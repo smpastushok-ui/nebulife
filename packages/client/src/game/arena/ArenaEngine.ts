@@ -15,13 +15,13 @@ import {
   SHIP_MAX_SPEED, SHIP_ACCELERATION, SHIP_DRAG, SHIP_RADIUS,
   TEAM_BLUE_BOTS, TEAM_RED_BOTS, BOT_BULLET_POOL, BOT_RESPAWN_DELAY,
   BOT_NAMES, TEAM_SCORE_ENEMY_KILL, TEAM_SCORE_DEATH, TEAM_KILL_LIMIT,
+  TRAINING_BOT_COUNT, TRAINING_ASTEROID_COUNT,
 } from './ArenaConstants.js';
 import { createBotBrain, updateBot } from './ArenaAI.js';
 
 // Pre-allocated temp vectors — ZERO allocations in hot path
 const _tempVec3 = new THREE.Vector3();
 const _camTarget = new THREE.Vector3();
-const _projVec = new THREE.Vector3(); // dedicated scratch for screen projection (not shared with camera)
 const _tempDummy = new THREE.Object3D(); // shared matrix writer for InstancedMesh updates
 
 const SHIP_FILES: Record<string, string> = {
@@ -184,7 +184,6 @@ export class ArenaEngine {
   private mouseNDC = new THREE.Vector2();
   private aimPoint = new THREE.Vector3(0, 0, 100);
   private _mouseHit = new THREE.Vector3(); // reused in onMouseMove (no GC)
-  private _cachedRect: DOMRect | null = null; // invalidated on resize
   private playerAimAngle = 0;
 
   // Collision temp
@@ -195,7 +194,6 @@ export class ArenaEngine {
   private mobileAim = { x: 0, z: 0 };
   private mobileFiring = false;
   private isMobile = false;
-
 
   // Game state
   private phase: MatchPhase = 'waiting';
@@ -209,11 +207,11 @@ export class ArenaEngine {
   // Player ship position for camera follow
   private playerPos = new THREE.Vector3(0, 0, 0);
 
-  // Input state
+  // Input (set by ArenaControls)
   private input: InputState = { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
 
   // Zoom
-  private zoomLevel = 0.7;
+  private zoomLevel = 1.0;
   private readonly ZOOM_MIN = 0.4;
   private readonly ZOOM_MAX = 2.0;
   private readonly ZOOM_SPEED = 0.1;
@@ -296,10 +294,9 @@ export class ArenaEngine {
     this.setupExhaust();
     this.setupMissiles();
     this.setupHoloShield();
-    if (this.teamMode) {
-      this.setupBotBullets();
-      this.setupBotShips();
-    }
+    // Bots: team mode (4 blue + 5 red) or training FFA (6 neutral)
+    this.setupBotBullets();
+    this.setupBotShips();
     this.setupHealthPickups();
 
     window.addEventListener('resize', this.onResizeBound);
@@ -381,13 +378,11 @@ export class ArenaEngine {
   }
 
   setMobileMove(x: number, y: number): void {
-    this.mobileMove.x = x;
-    this.mobileMove.z = y;
+    this.mobileMove = { x, z: y };
   }
 
   setMobileAim(x: number, y: number, firing: boolean): void {
-    this.mobileAim.x = x;
-    this.mobileAim.z = y;
+    this.mobileAim = { x, z: y };
     this.mobileFiring = firing;
   }
 
@@ -647,16 +642,18 @@ export class ArenaEngine {
 
   private setupAsteroids(): void {
     // InstancedMesh — 1 draw call for all asteroids
+    // Training mode uses fewer asteroids (ambiance only)
+    const asteroidCount = this.teamMode ? ASTEROID_COUNT : TRAINING_ASTEROID_COUNT;
     const geo = new THREE.IcosahedronGeometry(1, 1);
     const mat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.8, metalness: 0.2 });
     this.disposables.push(geo, mat);
 
-    this.asteroidMesh = new THREE.InstancedMesh(geo, mat, ASTEROID_COUNT);
+    this.asteroidMesh = new THREE.InstancedMesh(geo, mat, asteroidCount);
     this.asteroidMesh.castShadow = false;
     this.asteroidMesh.receiveShadow = false;
 
     const dummy = new THREE.Object3D();
-    for (let i = 0; i < ASTEROID_COUNT; i++) {
+    for (let i = 0; i < asteroidCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       const dist = 100 + Math.random() * (ARENA_HALF - 150);
       const x = Math.cos(angle) * dist;
@@ -723,7 +720,7 @@ export class ArenaEngine {
 
 
   private onMouseMove(e: MouseEvent): void {
-    const rect = this._cachedRect ?? (this._cachedRect = this.renderer.domElement.getBoundingClientRect());
+    const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
@@ -748,7 +745,6 @@ export class ArenaEngine {
     this.camera.aspect = W / H;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(W, H);
-    this._cachedRect = null; // canvas size changed — invalidate cached rect
   }
 
   // ── Main loop ──────────────────────────────────────────────────────────
@@ -782,6 +778,9 @@ export class ArenaEngine {
         }
         break;
       case 'playing':
+        // Arena is a sandbox — no match end. matchTimer no longer ticks
+        // down and phase never transitions to 'ended' (which would freeze
+        // updatePlayer / updateShooting / updateWarp).
         this.updateDeathRespawn(dt);
         this.updateWarp(dt);
         if (!this.playerDead) {
@@ -802,38 +801,14 @@ export class ArenaEngine {
         this.checkBulletAsteroidCollisions();
         this.checkMissileAsteroidCollisions();
         this.checkMissileBotCollisions();
-        // Team mode
+        // Bots (team mode AND training FFA)
+        this.updateBotShips(dt);
+        this.updateBotBullets(dt);
+        this.checkBotBulletShipCollisions();
+        this.checkPlayerBulletBotCollisions();
+        this.checkPlayerBotPhysicalCollisions();
         if (this.teamMode) {
-          this.updateBotShips(dt);
-          this.updateBotBullets(dt);
-          this.checkBotBulletShipCollisions();
-          this.checkPlayerBulletBotCollisions();
-          this.checkPlayerBotPhysicalCollisions();
           this.checkTeamMatchEnd();
-        }
-        break;
-      case 'ended':
-        // All ships coast to a stop — heavy drag, no input, no shooting, no spawning
-        {
-          const endedDrag = Math.pow(0.88, dt * 60); // much heavier than normal 0.97
-          this.playerVelX *= endedDrag;
-          this.playerVelZ *= endedDrag;
-          this.playerPos.x += this.playerVelX * dt;
-          this.playerPos.z += this.playerVelZ * dt;
-          this.playerMesh.position.set(this.playerPos.x, 5, this.playerPos.z);
-          this.playerNickSprite.position.set(this.playerPos.x, 20, this.playerPos.z - 15);
-          // Bots coast too
-          for (const bot of this.botShips) {
-            if (!bot.alive) continue;
-            bot.vel.x *= endedDrag;
-            bot.vel.z *= endedDrag;
-            bot.pos.x += bot.vel.x * dt;
-            bot.pos.z += bot.vel.z * dt;
-            bot.mesh.position.set(bot.pos.x, 5, bot.pos.z);
-            bot.nickSprite.position.set(bot.pos.x, 20, bot.pos.z - 15);
-          }
-          // Keep VFX fading out (particles, explosions)
-          this.updateVFX(dt);
         }
         break;
       default:
@@ -847,9 +822,7 @@ export class ArenaEngine {
       CAMERA_HEIGHT * this.zoomLevel,
       this.playerPos.z + CAMERA_DISTANCE * this.zoomLevel,
     );
-    // Frame-rate independent lerp: consistent smoothing regardless of FPS
-    const lerpT = 1 - Math.pow(1 - CAMERA_LERP_SPEED, dt * 60);
-    this.camera.position.lerp(_tempVec3, lerpT);
+    this.camera.position.lerp(_tempVec3, CAMERA_LERP_SPEED);
     this.camera.lookAt(_camTarget);
   }
 
@@ -859,14 +832,23 @@ export class ArenaEngine {
     // Input: WASD (desktop) or mobile joystick
     let ax = 0, az = 0;
     if (this.isMobile) {
+      // Local-space strafe: joystick input is relative to ship's facing direction
+      // joystickX (mobileMove.x) = strafe right/left
+      // joystickY (mobileMove.z) = forward/back (negative = up = forward)
       const jx = this.mobileMove.x;
       const jz = this.mobileMove.z;
       const jLen = Math.sqrt(jx * jx + jz * jz);
       if (jLen > 0.01) {
-        // Coordinate transform is applied in SpaceArena.tsx before setMobileMove.
-        // Engine always uses direct mapping.
-        ax = jx;
-        az = jz;
+        // Forward vector = where the ship is facing (aimDir)
+        const fwdX = this.aimDirX;
+        const fwdZ = this.aimDirZ;
+        // Right vector = perpendicular to forward (CW rotation)
+        const rgtX = -fwdZ;
+        const rgtZ = fwdX;
+        // Convert local input to world-space acceleration
+        // -jz because joystick up (negative) = move forward
+        ax = fwdX * (-jz) + rgtX * jx;
+        az = fwdZ * (-jz) + rgtZ * jx;
       }
     } else {
       if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
@@ -884,22 +866,14 @@ export class ArenaEngine {
     this.playerVelZ += az * SHIP_ACCELERATION * this.playerSpeedMult * dt;
 
     // Drag
-    const drag = SHIP_DRAG;
-    this.playerVelX *= drag;
-    this.playerVelZ *= drag;
+    this.playerVelX *= SHIP_DRAG;
+    this.playerVelZ *= SHIP_DRAG;
 
     // Warp: override velocity to forward direction at 2x speed (stacks with power-up)
     if (this.warpActive) {
       const warpSpeed = SHIP_MAX_SPEED * this.WARP_SPEED_MULT * this.playerSpeedMult;
-      // Twin-stick: warp in movement direction (left stick), fallback to aim direction
-      const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
-      if (this.isMobile && moveLen > 0.1) {
-        this.playerVelX = (this.mobileMove.x / moveLen) * warpSpeed;
-        this.playerVelZ = (this.mobileMove.z / moveLen) * warpSpeed;
-      } else {
-        this.playerVelX = this.aimDirX * warpSpeed;
-        this.playerVelZ = this.aimDirZ * warpSpeed;
-      }
+      this.playerVelX = this.aimDirX * warpSpeed;
+      this.playerVelZ = this.aimDirZ * warpSpeed;
     }
 
     // Clamp speed
@@ -916,11 +890,9 @@ export class ArenaEngine {
     this.playerPos.x += this.playerVelX * dt;
     this.playerPos.z += this.playerVelZ * dt;
 
-    // Arena boundary — squared distance for cheap early reject; sqrt only when needed
-    const distSq = this.playerPos.x ** 2 + this.playerPos.z ** 2;
-    const boundaryLimit = ARENA_HALF - SHIP_RADIUS;
-    if (distSq > boundaryLimit * boundaryLimit) {
-      const dist = Math.sqrt(distSq);
+    // Arena boundary
+    const dist = Math.sqrt(this.playerPos.x ** 2 + this.playerPos.z ** 2);
+    if (dist > ARENA_HALF - SHIP_RADIUS) {
       const nx = this.playerPos.x / dist;
       const nz = this.playerPos.z / dist;
       this.playerPos.x = nx * (ARENA_HALF - SHIP_RADIUS);
@@ -947,14 +919,10 @@ export class ArenaEngine {
     }
 
     // Dynamic fly loop volume: silent when stopped, grows with speed
-    // Reuse `speed` computed above for clamp — no second sqrt needed
-    const speedRatio = Math.min(1, speed / (SHIP_MAX_SPEED * this.playerSpeedMult));
+    const curSpeed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
+    const speedRatio = Math.min(1, curSpeed / (SHIP_MAX_SPEED * this.playerSpeedMult));
     // Map 0..1 speed ratio to 0..0.3 volume (idle=silent, full speed=0.3)
-    const newFlyVol = speedRatio * 0.3;
-    if (Math.abs(newFlyVol - this._lastFlyVol) > 0.01) {
-      setLoopVolume('fly', newFlyVol);
-      this._lastFlyVol = newFlyVol;
-    }
+    setLoopVolume('fly', speedRatio * 0.3);
   }
 
   // ── Aim (mouse) ────────────────────────────────────────────────────────
@@ -963,32 +931,41 @@ export class ArenaEngine {
   private aimDirX = 0;
   private aimDirZ = -1; // default: facing forward (-Z)
 
-  // Last fly loop volume — skip setLoopVolume when change is negligible
-  private _lastFlyVol = 0;
-
   private updateAim(dt: number): void {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
+      // Right joystick active → aim where it points
       const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
       if (aimLen > 0.1) {
-        // Right stick active → set aim direction directly
         this.aimDirX = this.mobileAim.x / aimLen;
         this.aimDirZ = this.mobileAim.z / aimLen;
-      } else {
-        // Right stick released → smoothly turn nose toward movement direction
-        const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
-        if (moveLen > 0.1) {
-          const tgtX = this.mobileMove.x / moveLen;
-          const tgtZ = this.mobileMove.z / moveLen;
-          const turnSpeed = Math.min(1, dt * 10); // fast smooth turn (~0.1s)
-          this.aimDirX += (tgtX - this.aimDirX) * turnSpeed;
-          this.aimDirZ += (tgtZ - this.aimDirZ) * turnSpeed;
-          // Renormalize
-          const newLen = Math.sqrt(this.aimDirX ** 2 + this.aimDirZ ** 2);
-          if (newLen > 0.001) { this.aimDirX /= newLen; this.aimDirZ /= newLen; }
+      } else if (this.botShips.length > 0) {
+        // Right joystick idle + bots present → auto-aim at nearest enemy
+        const target = this.findNearestEnemy();
+        if (target) {
+          const dx = target.pos.x - this.playerPos.x;
+          const dz = target.pos.z - this.playerPos.z;
+          const tLen = Math.sqrt(dx * dx + dz * dz);
+          if (tLen > 1) {
+            this.aimDirX = dx / tLen;
+            this.aimDirZ = dz / tLen;
+          }
+        } else {
+          // No alive enemies → face movement direction
+          const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
+          if (moveLen > 0.1) {
+            this.aimDirX = this.mobileMove.x / moveLen;
+            this.aimDirZ = this.mobileMove.z / moveLen;
+          }
         }
-        // Neither stick active → keep last aimDir (Last Angle Memory)
+      } else {
+        // Solo mode, right joystick idle → keep current aim direction.
+        // Do NOT derive aim from the left joystick: the left joystick input is
+        // already in local-space (relative to current aim), so converting it
+        // back to world-space using aimDir creates a circular dependency that
+        // causes the ship to spin in place.  Ship only turns when the right
+        // joystick is actively pushed.
       }
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;
@@ -1012,13 +989,30 @@ export class ArenaEngine {
     const targetBank = Math.max(-0.3, Math.min(0.3, -angleDelta * 3));
     this.playerBankAngle += (targetBank - this.playerBankAngle) * Math.min(1, dt * 8);
     // Note: rotation.z doesn't work well with baked geo.rotateX — skip bank for now
+  }
 
+  // ── Auto-aim: find nearest alive enemy bot ─────────────────────────────
+
+  private findNearestEnemy(): BotShip | null {
+    const AUTO_AIM_RANGE = 500;
+    let best: BotShip | null = null;
+    let bestDist = AUTO_AIM_RANGE;
+    for (const bot of this.botShips) {
+      if (!bot.alive) continue;
+      // In team mode: skip allies. In training (neutral): all bots are enemies.
+      if (this.teamMode && bot.team === this.playerTeam) continue;
+      const dx = bot.pos.x - this.playerPos.x;
+      const dz = bot.pos.z - this.playerPos.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d < bestDist) { bestDist = d; best = bot; }
+    }
+    return best;
   }
 
   // ── Lock-on targeting ──────────────────────────────────────────────────
 
   private updateLockOn(dt: number): void {
-    if (!this.teamMode || this.playerDead) {
+    if (this.botShips.length === 0 || this.playerDead) {
       this.lockTarget = null;
       this.lockTimer = 0;
       this.lockLocked = false;
@@ -1027,12 +1021,13 @@ export class ArenaEngine {
 
     // Find best enemy in lock cone
     const coneRad = this.LOCK_CONE * Math.PI / 180;
-    const aimAngle = Math.atan2(this.aimDirX, -this.aimDirZ); // loop-invariant
     let bestBot: number | null = null;
     let bestDist = Infinity;
 
     for (const bot of this.botShips) {
-      if (!bot.alive || bot.team === this.playerTeam) continue;
+      if (!bot.alive) continue;
+      // In team mode skip allies; in training (neutral) all are enemies
+      if (this.teamMode && bot.team === this.playerTeam) continue;
       const dx = bot.pos.x - this.playerPos.x;
       const dz = bot.pos.z - this.playerPos.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
@@ -1040,6 +1035,7 @@ export class ArenaEngine {
 
       // Check if bot is within aim cone
       const angleToBot = Math.atan2(dx, -dz);
+      const aimAngle = Math.atan2(this.aimDirX, -this.aimDirZ);
       let angleDiff = angleToBot - aimAngle;
       // Normalize to [-PI, PI]
       while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
@@ -1070,9 +1066,7 @@ export class ArenaEngine {
 
   private updateShooting(dt: number): void {
     this.fireCooldownTimer = Math.max(0, this.fireCooldownTimer - dt);
-
-    let isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
-
+    const isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
     if (isFiring && this.fireCooldownTimer <= 0) {
       playSfx('arena-laser', 0.1);
       this.fireBullet();
@@ -1780,7 +1774,7 @@ export class ArenaEngine {
           this.playerSpeedMult *= 1.5;
           break;
         case 'DAMAGE_UP':
-          this.playerDamageMult = 2.0; // +100% damage
+          this.playerDamageMult = 1.5;
           this.playerLaserColor = 'red';
           break;
         case 'SLOW_LASER':
@@ -1997,7 +1991,7 @@ export class ArenaEngine {
   }
 
   private checkMissileBotCollisions(): void {
-    if (!this.teamMode) return;
+    if (this.botShips.length === 0) return;
     const dummy = _tempDummy;
 
     for (let mi = 0; mi < this.missiles.length; mi++) {
@@ -2006,7 +2000,8 @@ export class ArenaEngine {
 
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
-        if (bot.team === this.playerTeam) continue; // skip allies
+        // In team mode: skip allies; in FFA: all bots are targets
+        if (this.teamMode && bot.team === this.playerTeam) continue;
         if (performance.now() < bot.invulnerableUntil) continue;
 
         const dx = m.x - bot.pos.x;
@@ -2033,14 +2028,17 @@ export class ArenaEngine {
             this.killBot(bot, null);
             this.stats.kills++;
             this.stats.score += TEAM_SCORE_ENEMY_KILL;
-            this.teamKills[this.playerTeam]++;
+            if (this.teamMode) {
+              this.teamKills[this.playerTeam as 'blue' | 'red']++;
+            }
             this.addKillFeed('PLAYER', bot.name);
           }
 
           // AoE splash to nearby enemy bots (radius 30 units)
           for (const b2 of this.botShips) {
             if (!b2.alive || b2.id === bot.id) continue;
-            if (b2.team === this.playerTeam) continue;
+            // In team mode skip allies; in FFA all are targets
+            if (this.teamMode && b2.team === this.playerTeam) continue;
             if (performance.now() < b2.invulnerableUntil) continue;
             const d2 = Math.sqrt((m.x - b2.pos.x) ** 2 + (m.z - b2.pos.z) ** 2);
             if (d2 < 30) {
@@ -2050,7 +2048,9 @@ export class ArenaEngine {
                 this.killBot(b2, null);
                 this.stats.kills++;
                 this.stats.score += TEAM_SCORE_ENEMY_KILL;
-                this.teamKills[this.playerTeam]++;
+                if (this.teamMode) {
+                  this.teamKills[this.playerTeam as 'blue' | 'red']++;
+                }
                 this.addKillFeed('PLAYER', b2.name);
               }
             }
@@ -2415,12 +2415,35 @@ export class ArenaEngine {
     const shuffled = [...BOT_NAMES].sort(() => Math.random() - 0.5);
     let nameIdx = 0;
 
-    const spawnBot = (id: number, team: Team): BotShip => {
+    // Neutral tint colors — varied warm greys/oranges for visual distinction
+    const neutralTints = [
+      new THREE.Color(0.9, 0.7, 0.5),
+      new THREE.Color(0.7, 0.9, 0.6),
+      new THREE.Color(0.8, 0.6, 0.9),
+      new THREE.Color(0.9, 0.8, 0.4),
+      new THREE.Color(0.6, 0.8, 0.9),
+      new THREE.Color(0.9, 0.5, 0.6),
+    ];
+
+    const totalBots = this.teamMode
+      ? TEAM_BLUE_BOTS + TEAM_RED_BOTS
+      : TRAINING_BOT_COUNT;
+
+    const spawnBot = (id: number, team: Team, index: number): BotShip => {
       const name = shuffled[nameIdx++ % shuffled.length];
-      const tintColor = team === 'blue'
-        ? new THREE.Color(0.5, 0.7, 1.0)
-        : new THREE.Color(1.0, 0.5, 0.5);
-      const labelColor = team === 'blue' ? '#4499ff' : '#ff5544';
+      let tintColor: THREE.Color;
+      let labelColor: string;
+      if (team === 'blue') {
+        tintColor = new THREE.Color(0.5, 0.7, 1.0);
+        labelColor = '#4499ff';
+      } else if (team === 'red') {
+        tintColor = new THREE.Color(1.0, 0.5, 0.5);
+        labelColor = '#ff5544';
+      } else {
+        // neutral — each bot gets a unique tint
+        tintColor = neutralTints[index % neutralTints.length];
+        labelColor = '#cc9944';
+      }
 
       // Pick a random ship texture for this bot
       const tex = shipTextures[id % shipTextures.length];
@@ -2446,10 +2469,12 @@ export class ArenaEngine {
       this.scene.add(nickSprite);
 
       // Spread spawn positions around the arena (not near center or player)
-      const spawnAngle = (id / (TEAM_BLUE_BOTS + TEAM_RED_BOTS)) * Math.PI * 2 + (team === 'red' ? Math.PI : 0);
+      const spawnAngle = (index / totalBots) * Math.PI * 2;
       const spawnDist = ARENA_HALF * 0.5 + Math.random() * ARENA_HALF * 0.25;
       const spawnX = Math.cos(spawnAngle) * spawnDist;
       const spawnZ = Math.sin(spawnAngle) * spawnDist;
+
+      const difficulty = team === 'neutral' ? 'easy' as const : 'medium' as const;
 
       const bot: BotShip = {
         id,
@@ -2464,7 +2489,7 @@ export class ArenaEngine {
         respawnTimer: 0,
         mesh,
         nickSprite,
-        brain: createBotBrain('medium'),
+        brain: createBotBrain(difficulty),
         fireCooldown: Math.random() * 0.5, // stagger initial fires
         kills: 0,
         deaths: 0,
@@ -2485,13 +2510,19 @@ export class ArenaEngine {
     };
 
     let botId = 1000;
-    // 4 blue allies
-    for (let i = 0; i < TEAM_BLUE_BOTS; i++) {
-      this.botShips.push(spawnBot(botId++, 'blue'));
-    }
-    // 5 red enemies
-    for (let i = 0; i < TEAM_RED_BOTS; i++) {
-      this.botShips.push(spawnBot(botId++, 'red'));
+    if (this.teamMode) {
+      // Team mode: 4 blue allies + 5 red enemies
+      for (let i = 0; i < TEAM_BLUE_BOTS; i++) {
+        this.botShips.push(spawnBot(botId++, 'blue', i));
+      }
+      for (let i = 0; i < TEAM_RED_BOTS; i++) {
+        this.botShips.push(spawnBot(botId++, 'red', TEAM_BLUE_BOTS + i));
+      }
+    } else {
+      // Training FFA: 6 neutral easy bots
+      for (let i = 0; i < TRAINING_BOT_COUNT; i++) {
+        this.botShips.push(spawnBot(botId++, 'neutral', i));
+      }
     }
   }
 
@@ -2550,10 +2581,12 @@ export class ArenaEngine {
       const selfEntity = this.botToShipEntity(bot, allShipEntities);
 
       // Build enemies for AI: filter to opposite team, prefer less-chased targets
+      // For neutral (FFA training): everyone is an enemy (different id)
       const enemyEntities = allShipEntities.filter(s => {
         if (!s.alive) return false;
         if (s.id === bot.id) return false;
-        // Bots only target opposite team; player is blue so red bots attack player
+        if (bot.team === 'neutral') return true; // FFA: everyone is an enemy
+        // Team mode: bots only target opposite team
         const sTeam = this.getEntityTeam(s.id);
         return sTeam !== bot.team;
       });
@@ -2774,7 +2807,7 @@ export class ArenaEngine {
 
   /** Return the team for any ship id (0 = player = blue) */
   private getEntityTeam(id: number): Team {
-    if (id === 0) return this.playerTeam;
+    if (id === 0) return this.teamMode ? this.playerTeam : 'neutral';
     const bot = this.botShips.find(b => b.id === id);
     return bot ? bot.team : 'red';
   }
@@ -2906,7 +2939,8 @@ export class ArenaEngine {
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
         if (bot.id === b.ownerId) continue;                // skip own ship
-        if (bot.team === b.ownerTeam) continue;            // no friendly fire
+        // In team mode: no friendly fire; in FFA (neutral): hit anyone else
+        if (b.ownerTeam !== 'neutral' && bot.team === b.ownerTeam) continue;
 
         const dx = b.x - bot.pos.x;
         const dz = b.z - bot.pos.z;
@@ -2937,8 +2971,8 @@ export class ArenaEngine {
 
       if (!b.active) continue;
 
-      // Check against player (only red bots can hit player, player is blue)
-      if (!this.playerDead && b.ownerTeam !== this.playerTeam) {
+      // Check against player (in team mode: only enemies; in FFA: all bots)
+      if (!this.playerDead && (b.ownerTeam === 'neutral' || b.ownerTeam !== this.playerTeam)) {
         const dx = b.x - this.playerPos.x;
         const dz = b.z - this.playerPos.z;
         const minDist = SHIP_RADIUS + this.BOT_BULLET_RADIUS;
@@ -2964,7 +2998,9 @@ export class ArenaEngine {
               // Credit shooter with kill
               if (shooterBot) {
                 shooterBot.kills++;
-                this.teamKills[shooterBot.team]++;
+                if (this.teamMode && (shooterBot.team === 'blue' || shooterBot.team === 'red')) {
+                  this.teamKills[shooterBot.team]++;
+                }
                 this.addKillFeed(shooterBot.name, 'PLAYER');
               }
               this.killPlayer();
@@ -2985,7 +3021,8 @@ export class ArenaEngine {
 
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
-        if (bot.team === this.playerTeam) continue; // no friendly fire
+        // In team mode: skip allies; in FFA (neutral): all bots are targets
+        if (this.teamMode && bot.team === this.playerTeam) continue;
 
         const dx = b.x - bot.pos.x;
         const dz = b.z - bot.pos.z;
@@ -3009,7 +3046,9 @@ export class ArenaEngine {
               this.killBot(bot, null); // player killed bot
               this.stats.kills++;
               this.stats.score += TEAM_SCORE_ENEMY_KILL;
-              this.teamKills[this.playerTeam]++;
+              if (this.teamMode) {
+                this.teamKills[this.playerTeam as 'blue' | 'red']++;
+              }
               this.addKillFeed('PLAYER', bot.name);
             }
           }
@@ -3020,7 +3059,7 @@ export class ArenaEngine {
   }
 
   private checkPlayerBotPhysicalCollisions(): void {
-    if (!this.teamMode || this.playerDead) return;
+    if (this.botShips.length === 0 || this.playerDead) return;
 
     for (const bot of this.botShips) {
       if (!bot.alive) continue;
@@ -3050,41 +3089,26 @@ export class ArenaEngine {
         if (relSpeed > 50) {
           const dmg = Math.min(40, (relSpeed - 50) * 0.4);
 
-          let playerDied = false;
-          let botDied = false;
+          if (performance.now() >= this.invulnerableUntil) {
+            this.playerHp -= dmg;
+            if (this.playerHp <= 0) {
+              this.playerHp = 0;
+              this.killPlayer();
+            }
+          }
 
           if (performance.now() >= bot.invulnerableUntil) {
             bot.hp -= dmg;
             if (bot.hp <= 0) {
               bot.hp = 0;
-              botDied = true;
+              this.killBot(bot, null);
+              this.stats.kills++;
+              this.stats.score += TEAM_SCORE_ENEMY_KILL;
+              if (this.teamMode) {
+                this.teamKills[this.playerTeam as 'blue' | 'red']++;
+              }
+              this.addKillFeed('PLAYER', bot.name);
             }
-          }
-
-          if (performance.now() >= this.invulnerableUntil) {
-            this.playerHp -= dmg;
-            if (this.playerHp <= 0) {
-              this.playerHp = 0;
-              playerDied = true;
-            }
-          }
-
-          // Award kills: both die → each gets +1; one survives → survivor gets +1
-          if (botDied) {
-            this.killBot(bot, null);
-            this.stats.kills++;
-            this.stats.score += TEAM_SCORE_ENEMY_KILL;
-            this.teamKills[this.playerTeam]++;
-            this.addKillFeed('PLAYER', bot.name);
-          }
-          if (playerDied) {
-            if (!botDied) {
-              // Bot survived the ram → bot gets the kill credit
-              bot.kills++;
-              this.teamKills[bot.team]++;
-              this.addKillFeed(bot.name, 'PLAYER');
-            }
-            this.killPlayer();
           }
         }
       }
@@ -3104,7 +3128,10 @@ export class ArenaEngine {
 
     if (killer) {
       killer.kills++;
-      this.teamKills[killer.team]++;
+      // Only track team kills in team mode (neutral has no team score)
+      if (this.teamMode && (killer.team === 'blue' || killer.team === 'red')) {
+        this.teamKills[killer.team]++;
+      }
       this.addKillFeed(killer.name, bot.name);
     }
   }
@@ -3233,16 +3260,12 @@ export class ArenaEngine {
   getBotScreenPos(botId: number): { x: number; y: number } | null {
     const bot = this.botShips.find(b => b.id === botId);
     if (!bot || !bot.alive) return null;
-    _projVec.set(bot.pos.x, 5, bot.pos.z);
-    _projVec.project(this.camera);
-    // Use clientWidth/clientHeight (pre-CSS-transform dimensions) — NOT getBoundingClientRect
-    // which returns post-rotation sizes. The lock-on indicator div is inside the same
-    // CSS-rotated container, so coordinates must be in pre-transform space.
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
+    const vec = new THREE.Vector3(bot.pos.x, 10, bot.pos.z);
+    vec.project(this.camera);
+    const rect = this.renderer.domElement.getBoundingClientRect();
     return {
-      x: (_projVec.x * 0.5 + 0.5) * w,
-      y: (-_projVec.y * 0.5 + 0.5) * h,
+      x: (vec.x * 0.5 + 0.5) * rect.width,
+      y: (-vec.y * 0.5 + 0.5) * rect.height,
     };
   }
 }
