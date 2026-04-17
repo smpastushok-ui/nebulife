@@ -34,8 +34,9 @@ import {
   hexRing,
   PLAYER_SPACING,
   EXPANSION_START_RADIUS,
+  generateGalaxyGroupCore,
 } from '@nebulife/core';
-import type { GalaxyGroupMeta } from '@nebulife/core';
+import type { GalaxyGroupMeta, CoreSystem } from '@nebulife/core';
 import { delaunayEdges } from '@nebulife/core';
 
 // ══════════════════════════════════════════════════════════════
@@ -58,31 +59,6 @@ export interface UniverseCallbacks {
 const DETAIL_NUM_PLAYERS = 50;
 const DETAIL_RING_DISTANCE_LY = 5;
 const DETAIL_GOLDEN_ANGLE = 2.399963;
-const DETAIL_K_NEIGHBORS = 4;
-const DETAIL_DEPTH_COUNTS = [48, 52, 52, 50, 48, 46, 42, 38, 32, 24, 12, 6];
-
-const DETAIL_STELLAR = [
-  { cl: 'O', sub: 5, lum: 501000, color: '#9bb0ff' },
-  { cl: 'B', sub: 0, lum: 20000, color: '#aabfff' },
-  { cl: 'B', sub: 5, lum: 790, color: '#cad7ff' },
-  { cl: 'A', sub: 0, lum: 79, color: '#f8f7ff' },
-  { cl: 'A', sub: 5, lum: 20, color: '#fff4ea' },
-  { cl: 'F', sub: 0, lum: 6.3, color: '#fff2e0' },
-  { cl: 'F', sub: 5, lum: 2.5, color: '#fff4e8' },
-  { cl: 'G', sub: 0, lum: 1.3, color: '#fff9f0' },
-  { cl: 'G', sub: 2, lum: 1.0, color: '#fff5e3' },
-  { cl: 'G', sub: 5, lum: 0.79, color: '#fff1d8' },
-  { cl: 'K', sub: 0, lum: 0.40, color: '#ffd2a1' },
-  { cl: 'K', sub: 5, lum: 0.16, color: '#ffcc8f' },
-  { cl: 'M', sub: 0, lum: 0.063, color: '#ffbd80' },
-  { cl: 'M', sub: 2, lum: 0.025, color: '#ffb575' },
-  { cl: 'M', sub: 5, lum: 0.008, color: '#ffb070' },
-  { cl: 'M', sub: 8, lum: 0.001, color: '#ffa060' },
-];
-const DETAIL_CLS = ['O', 'B', 'A', 'F', 'G', 'K', 'M'];
-const DETAIL_WEIGHTS: Record<string, number> = { O: 0.00003, B: 0.13, A: 0.6, F: 3.0, G: 7.6, K: 12.1, M: 76.45 };
-const DETAIL_W_ARR = DETAIL_CLS.map(c => DETAIL_WEIGHTS[c]);
-const DETAIL_W_TOTAL = DETAIL_W_ARR.reduce((a, b) => a + b, 0);
 
 // Galaxy-level IMF stellar types
 const STELLAR_IMF = [
@@ -314,17 +290,6 @@ interface DetailSystemEntry {
   playerIdx: number;
 }
 
-function pickDetailSpectral(rng: SeededRNG): DetailStar {
-  let r = rng.next() * DETAIL_W_TOTAL;
-  let sc = 'M';
-  for (let i = 0; i < DETAIL_CLS.length; i++) {
-    r -= DETAIL_W_ARR[i];
-    if (r <= 0) { sc = DETAIL_CLS[i]; break; }
-  }
-  const matching = DETAIL_STELLAR.filter(s => s.cl === sc);
-  return matching[Math.floor(rng.next() * matching.length)];
-}
-
 function pickStellarIMF(rng: SeededRNG) {
   let roll = rng.next(), cum = 0;
   for (const s of STELLAR_IMF) { cum += s.w; if (roll < cum) return s; }
@@ -361,10 +326,6 @@ function dist2d(a: { x: number; y: number }, b: { x: number; y: number }): numbe
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
-function lerp2d(a: { x: number; y: number }, b: { x: number; y: number }, t: number) {
-  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-}
-
 function getPlayerHome(i: number): { q: number; r: number } {
   const angle = i * DETAIL_GOLDEN_ANGLE;
   const mr = Math.ceil(EXPANSION_START_RADIUS / PLAYER_SPACING);
@@ -386,7 +347,6 @@ function clusterName(seed: number): string {
 
 function generateClusterDetail(groupSeed: number): ClusterDetail {
   const rng = new SeededRNG(groupSeed);
-  const CENTER = { x: 0, y: 0 };
 
   const players: DetailPlayer[] = [];
   for (let i = 0; i < DETAIL_NUM_PLAYERS; i++) {
@@ -433,91 +393,25 @@ function generateClusterDetail(groupSeed: number): ClusterDetail {
     players[j].neighbors.push(i);
   }
 
-  // Core systems (500)
-  const coreSystems: DetailCoreSystem[] = [];
-  let cid = 0;
+  // Core systems (500) — use the shared generator from @nebulife/core
+  // This ensures 2D (PixiJS GalaxyScene) and 3D (Three.js UniverseEngine)
+  // show identical core topology for the same cluster seed.
+  const coreData = generateGalaxyGroupCore(groupSeed);
+  const coreSystems: DetailCoreSystem[] = coreData.systems.map((cs: CoreSystem) => ({
+    id: cs.id,
+    x: cs.position.x,
+    y: cs.position.y,
+    z: cs.position.z,
+    depth: cs.depth,
+    neighbors: [...cs.neighbors],
+    spec: { cl: cs.spectralClass, sub: cs.subType, lum: cs.luminositySolar, color: cs.colorHex },
+    entryForPlayer: cs.entryForPlayerIndex,
+  }));
 
-  // Depth 0: 50 entry stars
+  // Link players to their entry stars
   for (let i = 0; i < DETAIL_NUM_PLAYERS; i++) {
-    const p = players[i];
-    const r2exit = p.ring2[p.coreExitRing2Idx];
-    const t = 0.3 + rng.next() * 0.15;
-    const pos = lerp2d(r2exit, CENTER, t);
-    const jx = (rng.next() - 0.5) * 6;
-    const jy = (rng.next() - 0.5) * 6;
-    const spec = pickDetailSpectral(rng);
-    const sys: DetailCoreSystem = {
-      id: cid++, x: pos.x + jx, y: pos.y + jy, z: rng.nextGaussian(0, 5),
-      depth: 0, neighbors: [], spec, entryForPlayer: i,
-    };
-    coreSystems.push(sys);
-    p.entryStarId = sys.id;
-  }
-
-  // Depth 1..12
-  for (let d = 0; d < DETAIL_DEPTH_COUNTS.length; d++) {
-    const count = DETAIL_DEPTH_COUNTS[d];
-    const depthIndex = d + 1;
-    const prevDepth = coreSystems.filter(s => s.depth === depthIndex - 1);
-    for (let i = 0; i < count; i++) {
-      const parent = prevDepth[i % prevDepth.length];
-      const shrink = 0.25 + rng.next() * 0.2;
-      const basePos = lerp2d(parent, CENTER, shrink);
-      const dfc = dist2d(basePos, CENTER);
-      const spread = (rng.next() - 0.5) * 1.2 / (1 + depthIndex * 0.15);
-      const angle = Math.atan2(basePos.y, basePos.x) + spread;
-      const fx = dfc * Math.cos(angle) + (rng.next() - 0.5) * 4;
-      const fy = dfc * Math.sin(angle) + (rng.next() - 0.5) * 4;
-      const bulgeW = Math.exp(-(dfc * dfc) / (80 * 80));
-      const sigma = 3 + 17 * bulgeW;
-      const spec = pickDetailSpectral(rng);
-      coreSystems.push({
-        id: cid++, x: fx, y: fy, z: rng.nextGaussian(0, sigma),
-        depth: depthIndex, neighbors: [], spec, entryForPlayer: -1,
-      });
-    }
-  }
-
-  // K-nearest neighbor edges
-  for (const sys of coreSystems) {
-    const sorted = coreSystems.filter(o => o.id !== sys.id)
-      .map(o => ({ o, d: Math.sqrt((sys.x - o.x) ** 2 + (sys.y - o.y) ** 2 + (sys.z - o.z) ** 2) }))
-      .sort((a, b) => a.d - b.d);
-    for (let i = 0; i < Math.min(DETAIL_K_NEIGHBORS, sorted.length); i++) {
-      const nbr = sorted[i].o;
-      if (!sys.neighbors.includes(nbr.id)) sys.neighbors.push(nbr.id);
-      if (!nbr.neighbors.includes(sys.id)) nbr.neighbors.push(sys.id);
-    }
-  }
-
-  // Connectivity enforcement
-  const findComp = (startId: number): Set<number> => {
-    const visited = new Set<number>();
-    const q = [startId]; visited.add(startId);
-    while (q.length > 0) {
-      const cur = q.shift()!;
-      for (const nid of coreSystems[cur].neighbors) {
-        if (!visited.has(nid)) { visited.add(nid); q.push(nid); }
-      }
-    }
-    return visited;
-  };
-
-  let mainComp = findComp(0);
-  let iter = 0;
-  while (mainComp.size < coreSystems.length && iter < 100) {
-    const outside = coreSystems.find(s => !mainComp.has(s.id));
-    if (!outside) break;
-    let bestD = Infinity, bestId = -1;
-    for (const id of mainComp) {
-      const d = Math.sqrt((coreSystems[id].x - outside.x) ** 2 + (coreSystems[id].y - outside.y) ** 2 + (coreSystems[id].z - outside.z) ** 2);
-      if (d < bestD) { bestD = d; bestId = id; }
-    }
-    if (bestId >= 0) {
-      coreSystems[bestId].neighbors.push(outside.id);
-      outside.neighbors.push(bestId);
-    }
-    mainComp = findComp(0); iter++;
+    const entryId = coreData.entryIds[i];
+    if (entryId !== undefined) players[i].entryStarId = entryId;
   }
 
   // Edge pairs
