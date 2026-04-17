@@ -30,6 +30,7 @@ import {
   getClusterByGroupIndex,
   getClusterPlayers,
   setPlayerCluster,
+  assignPlayerToClusterTx,
   getClusterCount,
   updateClusterPosition,
   getPlayer,
@@ -142,7 +143,10 @@ export async function findOrCreateClusterForPlayer(
 /**
  * Assign a player to their cluster.
  *
- * Sets the player's cluster_id and increments the cluster's player_count.
+ * Uses a PostgreSQL transaction with an advisory lock to atomically:
+ *   1. Set the player's cluster_id (only if not already set).
+ *   2. Recount actual players and update player_count / is_full.
+ *
  * Idempotent: if the player already has a cluster_id, this is a no-op.
  */
 export async function assignPlayerToCluster(
@@ -156,19 +160,18 @@ export async function assignPlayerToCluster(
     if (existing) return rowToClusterInfo(existing);
   }
 
-  // Find or create the cluster
+  // Find or create the cluster (ON CONFLICT safe)
   const clusterInfo = await findOrCreateClusterForPlayer(globalIndex);
 
-  // Link player to cluster
-  await setPlayerCluster(playerId, clusterInfo.id);
-  await incrementClusterPlayerCount(clusterInfo.id);
+  // Atomically link player + recount inside a single transaction
+  const assignment = assignPlayerToGroup(globalIndex);
+  const updatedRow = await assignPlayerToClusterTx(
+    playerId,
+    clusterInfo.id,
+    assignment.groupIndex,
+  );
 
-  // Return updated info
-  return {
-    ...clusterInfo,
-    playerCount: clusterInfo.playerCount + 1,
-    isFull: clusterInfo.playerCount + 1 >= PLAYERS_PER_GROUP,
-  };
+  return rowToClusterInfo(updatedRow);
 }
 
 /**

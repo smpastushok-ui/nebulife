@@ -1829,6 +1829,48 @@ export async function setPlayerCluster(playerId: string, clusterId: string): Pro
   `;
 }
 
+/**
+ * Atomically assign a player to a cluster inside a single transaction.
+ *
+ * 1. Acquires an advisory lock scoped to groupIndex so concurrent registrations
+ *    for the same cluster are serialised.
+ * 2. Sets the player's cluster_id (only if not already set).
+ * 3. Recounts the actual number of players in the cluster (SELECT COUNT)
+ *    and writes that back into clusters.player_count / is_full.
+ *
+ * Returns the updated ClusterRow.
+ */
+export async function assignPlayerToClusterTx(
+  playerId: string,
+  clusterId: string,
+  groupIndex: number,
+): Promise<ClusterRow> {
+  const sql = getSQL();
+  const results = await sql.transaction(
+    [
+      // 1. Advisory lock — serialise per groupIndex within this transaction
+      sql`SELECT pg_advisory_xact_lock(${groupIndex})`,
+      // 2. Link player to cluster (no-op if already linked)
+      sql`UPDATE players SET cluster_id = ${clusterId} WHERE id = ${playerId} AND cluster_id IS NULL`,
+      // 3. Recount real players and update cluster
+      sql`
+        UPDATE clusters
+        SET player_count = (SELECT COUNT(*)::int FROM players WHERE cluster_id = ${clusterId}),
+            is_full = ((SELECT COUNT(*)::int FROM players WHERE cluster_id = ${clusterId}) >= 50)
+        WHERE id = ${clusterId}
+        RETURNING *
+      `,
+    ],
+    { isolationLevel: 'ReadCommitted' },
+  );
+  // results[2] is the RETURNING * from the UPDATE
+  const rows = results[2] as unknown as ClusterRow[];
+  if (rows[0]) return rows[0];
+  // Fallback: cluster wasn't updated (shouldn't happen), re-fetch
+  const fallback = await sql`SELECT * FROM clusters WHERE id = ${clusterId}`;
+  return fallback[0] as ClusterRow;
+}
+
 /** Get the total number of clusters. */
 export async function getClusterCount(): Promise<number> {
   const sql = getSQL();

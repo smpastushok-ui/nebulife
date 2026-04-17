@@ -127,6 +127,7 @@ export {
   getClusterByGroupIndex,
   getClusterPlayers,
   setPlayerCluster,
+  assignPlayerToClusterTx,
   getClusterCount,
   updateClusterPosition,
 } from './db.js';
