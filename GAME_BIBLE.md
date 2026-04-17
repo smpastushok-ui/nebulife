@@ -157,6 +157,38 @@ Install  →  Free first photo (60 сек)  →  "Wow"  →  Explore 2-3 inne st
 - Adjusted LTV with D30 retention 8%: ~$15
 - **LTV / CAC ≈ 11x** — excellent unit economics for a mobile game
 
+### 🎰 Re-roll loop (collector monetization)
+
+**Кожна генерація тієї ж події — унікальна**. Kling дає **різний** результат навіть з тим самим prompt-ом (noise, seed variance). Це основа для **колекціонерської** монетизації.
+
+**Gallery механіка** (вже частково реалізована):
+- 1 тип події (`Spectroscopic Binary`, `Red Supergiant`, `Pulsar`, `Black Hole Jet`, …) = **1 слот** у колекції гравця
+- Кожен слот зберігає **фото яке гравець сам вибрав** (не останнє згенероване)
+- При повторній генерації — **compare UI**: CURRENT vs NEW → `Replace with new` / `Keep old`
+- Див. референс скрін (квітень 2026): Spectroscopic Binary `13/04 vs 17/04` — обидва сайз-by-сайз, дві кнопки
+
+**Як це заробляє**:
+1. Гравець каже "мені не сподобалось це фото" → **купує ще одну генерацію 10⚛**
+2. Motivation сильніше ніж first-time gen (бо вже знає якість Kling)
+3. Колекція → pride → re-roll з ціллю "ідеальної версії"
+4. 20+ слотів × середньо 2-3 re-rolls = **40-60⚛ на active collector'а**
+
+**Rarity-тipр подій** (для різної retention-мотивації):
+- **Normal** (60% подій): 1-2 re-rolls очікується, прийнятна перша
+- **Rare** (30%): 2-4 re-rolls типово, деякі як wallpaper
+- **Legendary** (10%: Wolf-Rayet, neutron-merger, magnetar, black-hole-jet): колекціонерський трофей, 5-10 re-rolls, social share
+
+**Anti-fatigue guards** (щоб re-roll не перетворився на gambling):
+- Cooldown 30 сек між re-roll того самого slot (stream-of-bad-rolls frustration → ні)
+- **"Save both" option для Pro-subscribers**: замість 1 slot → 3 slots на подію
+- Gallery badges: `Collector` (10+ legendary) / `Completionist` (усі normal заповнені)
+- НЕ gambling механіка: гравець ЗАВЖДИ отримує фото, просто вибирає чи замінити старе. Немає "loss" моменту.
+
+**Share-ability як organic growth loop**:
+- Кнопка `Share` у Gallery detail → OG card "Look at MY Spectroscopic Binary" з referral link
+- TikTok format: "ось моя колекція космосу" (30s карусель з 10 фото)
+- Фіча **вижне сама собою** без ad spend — кожен гравець свій маркетолог
+
 ### Інші monetization constants
 
 **Principle "Pay for wonders, not for winning"**: кварки НЕ дають power. Тільки **unique artifacts** (photo, video, 3D ship, life-form). Freemium-гравець отримує ту ж progression, але без "красивих скринів". Це запобігає pay-to-win відчуттю.
