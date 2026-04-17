@@ -102,18 +102,70 @@
 >
 > **Tripo перенаправлено на кораблі** (ships): гравець генерує унікальний дизайн свого флагмана / арена-корабля / clan flagship. Pipeline: Gemini-prompt за "role + style" → Kling concept-art → Tripo GLB. Цільова якість: 1-3k полігонів, GLB, використовується у ArenaEngine (3D) та як preview у HangarPage / PlayerPage.
 
-**Ключова логіка цін**: ціна гравцю = **AI API cost × 10** (10× margin). Приклад:
-- Kling photo ≈ $0.15 API → 10⚛ (гравець платить ~$0.40 за кварк економіку) → margin 60-70%
+**Ключова логіка цін**: ціна гравцю = **AI API cost × ~5-10**.
+- Kling photo ≈ **$0.20 API** (≈ 8 ₴) → 10⚛ гравцю (≈ 10 ₴) → margin ~20% (мала бо це **hook-продукт**)
 - Veo 15 сек відео ≈ $0.50 API → 20⚛ → margin 60-65%
+- Tripo ship model ≈ $0.50 API → 49⚛ → margin 75%
 - Gemini text ≈ $0.002 → безкоштовно (bundle з video/photo)
 
-**Principle "Pay for wonders, not for winning"**: кварки НЕ дають power. Тільки **unique artifacts** (photo, video, 3D, life-form). Гравець-freemium отримує ту саму game-progression, але без "красивих скринів" свого всесвіту. Це запобігає pay-to-win відчуттю.
+### 🎁 First-photo-as-hook (ключова стратегія залучення)
 
-**Starter wallet**: 50⚛ при реєстрації (1 безкоштовна video-mission + 2 планетних фото — достатньо щоб відчути цінність).
+**ПЕРША Kling-генерація гравця — ЗАВЖДИ безкоштовна.**
 
-**Daily rewards**: 1-3⚛ за щоденний вхід + 2⚛ за quiz → гравець може собі дозволити 1 artifact на тиждень без платежу → retention без wall.
+Це не "teaser з watermark". Це **повний продукт топ-якості**:
+- Та сама Kling v2.1 Master
+- 2K 16:9
+- Збереження у персональній галереї гравця
+- Share-ready
 
-**Pro-subscription** (100⚛/міс, приблизно 200 ₴): 2× daily quarks + 10 video-missions/міс + priority generation queue + unlocked academy deep-dive уроки. ~5-8% конверсія очікувана.
+**Quality bar**: кожне фото має виглядати **краще за PR-візуалізації NASA/ESA**.
+Референс який ми прийняли: Red Supergiant HIP-90985 (17/04/2026) —
+фотореалістична поверхня з конвективними гранулами, variable brightness,
+природне динамічне освітлення. Якщо згенеровано гірше — скинути й повторити.
+
+**Собівартість hook**: ~$0.20 (≈ 8 ₴) за unique signup. Це **дешевший CAC** ніж
+будь-яка реклама в Facebook Ads / Google UAC (середній CAC mobile-гри $2-8).
+Плюс hook **сам виконує funnel step "activation"**:
+1. Фото топ-якості → emotional attachment до своєї планети/зірки
+2. Бачить "у мене є таке, ніхто більше не має" → посягає поділитись
+3. Через 2-3 досліджених зірки хочеться побачити їх фото → купує за 10⚛
+4. Starter wallet (50⚛) дозволяє 5 purchases → потім upsell до Pro
+
+**Маркетинговий наратив**:
+
+> **"Твоя зірка. Крутіше за NASA. Безкоштовно. Бо ти її перший відкрив."**
+
+Використовуємо в:
+- App Store screenshots #1-2 (before/after: star dot → Kling photo)
+- Onboarding voiceover (перед першим фото: "через 60 сек у тебе буде фото зірки якої не бачив ніхто")
+- Landing page hero
+- TikTok short: 30 сек gameplay → **reveal** фотки → share prompt
+- Share card після генерації (OG image для Telegram / Discord)
+
+**Конверсія hook → paying** (target funnel):
+```
+Install  →  Free first photo (60 сек)  →  "Wow"  →  Explore 2-3 inne stars  →
+"Хочу побачити ЦЮ зірку теж"  →  Starter wallet (50⚛ free)  →
+5 artifact'ів за першу сесію  →  Next session: MonoPay $2-5 або Pro 100⚛/міс
+```
+
+**CAC / LTV math**:
+- CAC: $0.20 Kling API per signup
+- Target free→paying conversion: 15%
+- Adjusted CAC/paying-user: $1.33
+- ARPU: $0.15/день (Q2 target) × 30 days retained = $4.50
+- Adjusted LTV with D30 retention 8%: ~$15
+- **LTV / CAC ≈ 11x** — excellent unit economics for a mobile game
+
+### Інші monetization constants
+
+**Principle "Pay for wonders, not for winning"**: кварки НЕ дають power. Тільки **unique artifacts** (photo, video, 3D ship, life-form). Freemium-гравець отримує ту ж progression, але без "красивих скринів". Це запобігає pay-to-win відчуттю.
+
+**Starter wallet**: 50⚛ при реєстрації (~5 додаткових фото АБО 2 video-mission — достатньо щоб відчути всі три категорії артефактів на день 1).
+
+**Daily rewards**: 1-3⚛ за вхід + 2⚛ за quiz → freemium робить 1 artifact на тиждень безкоштовно → retention без wall.
+
+**Pro-subscription** (100⚛/міс ≈ $2.50): 2× daily quarks + 10 video-missions/міс + priority queue + unlocked Academy deep-dive lessons. Ціль 5-8% конверсії DAU.
 
 ### 0.5 Явні Non-Goals (щоб не розмиватись)
 
