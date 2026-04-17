@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Capacitor } from '@capacitor/core';
 import type { Discovery, CatalogEntry } from '@nebulife/core';
 import { RARITY_COLORS, getRarityLabel, getCatalogEntry, getCatalogName, getCatalogDescription } from '@nebulife/core';
 
@@ -120,41 +121,43 @@ export function PhotoModal({
         lang, systemName, description,
       );
 
-      // Try to fetch the image as a file for native share
+      // Native (Android / iOS) — use Capacitor Share plugin.
+      // It opens the OS share sheet which handles image download + attachment
+      // correctly, bypassing WebView CORS restrictions.
+      if (Capacitor.isNativePlatform()) {
+        const { Share } = await import('@capacitor/share');
+        await Share.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+          dialogTitle: shareTitle,
+        });
+        setShared(true);
+        return;
+      }
+
+      // Web: try to fetch the image as a file for richer native share.
       let file: File | null = null;
       try {
         const res = await fetch(imageUrl);
         const blob = await res.blob();
         file = new File([blob], `nebulife-${discovery.type}.png`, { type: blob.type });
       } catch {
-        // Image fetch failed — continue without file
+        // CORS or network — fall through
       }
 
       if (navigator.share && file && navigator.canShare?.({ files: [file] })) {
-        // Best case: share with image file + rich text + URL
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
-          files: [file],
-        });
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl, files: [file] });
         setShared(true);
       } else if (navigator.share) {
-        // Fallback: share URL (Telegram will fetch OG tags and show photo)
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
-        });
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
         setShared(true);
       } else {
-        // Desktop fallback: copy share text to clipboard
         await navigator.clipboard.writeText(shareText);
         setShared(true);
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        // Last resort: try clipboard
         try {
           const clipDescription = catalog ? getCatalogDescription(catalog, lang) : undefined;
           const clipText = buildShareText(
@@ -164,22 +167,65 @@ export function PhotoModal({
           await navigator.clipboard.writeText(clipText);
           setShared(true);
         } catch {
-          console.warn('Share failed:', err);
+          console.warn('[PhotoModal] share failed:', err);
         }
       }
     }
   }, [imageUrl, discovery, name, catalog, systemName, lang]);
 
   const handleDownload = useCallback(async () => {
+    const filename = `nebulife-${discovery.type}-${discovery.id.slice(0, 8)}.png`;
+
+    // Native (Android / iOS) — save via Capacitor Filesystem to the public
+    // Pictures / Documents directory so the photo appears in the system
+    // Gallery. Regular <a download> doesn't trigger a download inside a
+    // Capacitor WebView (no download manager), so we must use the plugin.
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        // Fetch image as base64
+        const res = await fetch(imageUrl);
+        const blob = await res.blob();
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1] ?? '');
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+
+        // Android: Directory.ExternalStorage + "Pictures/Nebulife/…" puts it
+        // into the system Gallery. iOS: Directory.Documents is visible via
+        // the Files app (Photos library requires a Photos-permission plugin
+        // which we'll add later if needed).
+        await Filesystem.writeFile({
+          path: `Pictures/Nebulife/${filename}`,
+          data: base64,
+          directory: Directory.ExternalStorage,
+          recursive: true,
+        });
+      } catch (err) {
+        console.warn('[PhotoModal] native download failed:', err);
+        // Last-resort fallback: open image URL in external browser
+        try {
+          const { App } = await import('@capacitor/app');
+          // @ts-expect-error — openUrl not in public typings but works in runtime
+          await App.openUrl?.({ url: imageUrl });
+        } catch {
+          window.open(imageUrl, '_blank');
+        }
+      }
+      return;
+    }
+
+    // Web — classic blob download
     try {
       const res = await fetch(imageUrl);
       const blob = await res.blob();
-      downloadImageFile(blob, `nebulife-${discovery.type}.png`);
+      downloadImageFile(blob, filename);
     } catch {
-      // Direct link fallback
       window.open(imageUrl, '_blank');
     }
-  }, [imageUrl, discovery.type]);
+  }, [imageUrl, discovery.type, discovery.id]);
 
   const handleSave = useCallback(() => {
     onSaveToGallery?.();
