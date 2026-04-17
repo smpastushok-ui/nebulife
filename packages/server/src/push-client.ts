@@ -1,3 +1,10 @@
+import { webcrypto } from 'node:crypto';
+
+// Web Crypto API — the real `crypto` global exists on Node 19+, but
+// @types/node doesn't expose it as a global for `lib: ["ES2022"]`. Use the
+// explicit `node:crypto` import instead. `webcrypto` implements SubtleCrypto.
+const crypto = webcrypto;
+
 // ---------------------------------------------------------------------------
 // Firebase Cloud Messaging — server-side push via REST API
 // ---------------------------------------------------------------------------

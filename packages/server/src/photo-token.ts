@@ -63,8 +63,8 @@ export function verifyPhotoToken(
 
   try {
     return crypto.timingSafeEqual(
-      Buffer.from(signature, 'hex'),
-      Buffer.from(expectedSig, 'hex'),
+      new Uint8Array(Buffer.from(signature, 'hex')),
+      new Uint8Array(Buffer.from(expectedSig, 'hex')),
     );
   } catch {
     return false;
