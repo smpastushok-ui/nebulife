@@ -138,6 +138,8 @@ export class GameEngine {
   showHomePlanetScene(_startHidden = false) {
     this.clearScenes();
     this.camera.detach();
+    // Home intro — no PixiJS animation needed, throttle to 30 FPS
+    this.app.ticker.maxFPS = 30;
     this.callbacks.onSceneChange('home-intro');
   }
 
@@ -230,6 +232,8 @@ export class GameEngine {
     this.galaxyScene.container.x = this.app.screen.width / 2;
     this.galaxyScene.container.y = this.app.screen.height * 0.45;
     this.camera.resetToFit(200);
+    // Galaxy idle — throttle to 30 FPS to save battery
+    this.app.ticker.maxFPS = 30;
     this.callbacks.onSceneChange('galaxy');
   }
 
@@ -274,6 +278,8 @@ export class GameEngine {
 
     // Fit all planets on screen
     this.camera.resetToFit(maxExtent);
+    // System view has planet orbits — run at full 60 FPS
+    this.app.ticker.maxFPS = 0;
     this.callbacks.onSceneChange('system');
   }
 
@@ -508,6 +514,11 @@ export class GameEngine {
 
   resume() {
     this.app.ticker.start();
+  }
+
+  /** Cap frame rate (e.g. 30 for idle scenes, 0 = uncapped/60) */
+  setMaxFPS(fps: number) {
+    this.app.ticker.maxFPS = fps;
   }
 
   /* ── Cinematic mode ──────────────────────────────────────── */

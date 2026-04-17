@@ -1406,11 +1406,20 @@ export class GalaxyScene {
 
     // Animate all system nodes
     for (const [, node] of this.systemNodes) {
-      // Tier 3 (hidden): skip rendering entirely, just ensure alpha is 0
+      // Tier 3 (hidden): hide container from PixiJS render tree entirely.
+      // Once alpha reaches ~0 we set visible=false — no draw calls, no transforms.
       if (node.visibilityTier === 3) {
-        node.container.alpha += (0 - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
+        if (node.container.alpha > 0.01) {
+          node.container.alpha += (0 - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
+          if (node.container.alpha <= 0.01) {
+            node.container.alpha = 0;
+            node.container.visible = false;
+          }
+        }
         continue;
       }
+      // Ensure previously hidden Tier 3 nodes become visible again when tier changes
+      if (!node.container.visible) node.container.visible = true;
 
       node.container.alpha += (node.baseAlpha - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
       animateExpand(node);
