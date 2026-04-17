@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { levelProgress, MAX_PLAYER_LEVEL } from '@nebulife/core';
 import { playSfx } from '../../audio/SfxPlayer.js';
+import { getPushPermissionStatus } from '../../notifications/push-service.js';
 
 // ---------------------------------------------------------------------------
 // PlayerPage — Full-screen player profile overlay
@@ -453,8 +454,8 @@ export function PlayerPage({
                 </div>
               )}
 
-              {/* Push notifications toggle */}
-              {onTogglePushNotif && (
+              {/* Push notifications toggle — hidden when platform doesn't support Web Push */}
+              {onTogglePushNotif && getPushPermissionStatus() !== 'unsupported' && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 11, color: '#8899aa' }}>
                     {i18n.language === 'en' ? 'Push notifications' : 'Push-сповіщення'}
