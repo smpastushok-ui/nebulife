@@ -98,9 +98,9 @@ const _tmpVec3A = new THREE.Vector3();
 const _tmpVec3B = new THREE.Vector3();
 const _tmpVec2 = new THREE.Vector2();
 
-// Visualization
-const STARS_PER_CLUSTER = 260;
-const CORE_STARS_PER_CLUSTER = 160;
+// Visualization (reduced from 260/160 to save GPU on mobile — visually similar density)
+const STARS_PER_CLUSTER = 80;
+const CORE_STARS_PER_CLUSTER = 50;
 const CLUSTER_VIS_RADIUS = 40;
 const SCALE = 1.0;
 
