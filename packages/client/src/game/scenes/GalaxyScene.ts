@@ -234,6 +234,16 @@ export class GalaxyScene {
   private liteSkipIds = new Set<string>();
   /** Animation time accumulator for orb pulse (seconds) */
   private liteAnimT = 0;
+  /** Screen size for viewport culling (set by GameEngine, defaults to a generous box) */
+  private screenW = 800;
+  private screenH = 1200;
+  /** Last camera position when redrawn — triggers redraw when it changes >50px */
+  private lastCamX = 0;
+  private lastCamY = 0;
+  private lastCamScale = 1;
+  /** Pulse animations along edges (research-complete signal) */
+  private edgePulses: Array<{ ax: number; ay: number; bx: number; by: number; t: number; color: number }> = [];
+  private pulseGfx: Graphics | null = null;
 
   constructor(
     rings: GalaxyRing[],
@@ -247,6 +257,7 @@ export class GalaxyScene {
     groupCount?: number,
     playerGroupIndex?: number,
     playerIndex?: number,
+    private onLiteOrbTap?: (lite: LiteSystem) => void,
     private onSelect?: (system: StarSystem, screenPos?: { x: number; y: number }) => void,
     private onDoubleClick?: (system: StarSystem) => void,
     private onTelescopeClick?: (system: StarSystem) => void,
@@ -435,9 +446,50 @@ export class GalaxyScene {
 
     // Static base layer — pulse handled in update() via alpha multiplier
     this.liteOrbsGfx = new Graphics();
+    this.liteOrbsGfx.eventMode = 'static';
+    this.liteOrbsGfx.cursor = 'pointer';
+    this.liteOrbsGfx.on('pointertap', (e) => {
+      const local = e.getLocalPosition(this.container);
+      this.handleLiteOrbTap(local.x, local.y);
+    });
     this.redrawLiteOrbs();
     // Insert behind everything but above connections
     this.container.addChildAt(this.liteOrbsGfx, 2);
+
+    // Edge pulse overlay — drawn ABOVE connections so light wave is visible
+    this.pulseGfx = new Graphics();
+    this.container.addChildAt(this.pulseGfx, 3);
+  }
+
+  /**
+   * Hit-test a tap on the lite-orbs layer: find the closest orb to (worldX, worldY)
+   * within a 24-pixel radius, then notify via callback so App.tsx can show a
+   * preview toast (spectral colour + estimate of planets).
+   */
+  private handleLiteOrbTap(worldX: number, worldY: number): void {
+    let closest: LiteSystem | null = null;
+    let closestDist2 = 24 * 24; // tap radius in world units (matches orb size)
+    for (const lite of this.liteSystems) {
+      if (this.liteSkipIds.has(lite.id)) continue;
+      const x = lite.position.x * PX_PER_LY;
+      const y = lite.position.y * PX_PER_LY;
+      const dx = x - worldX;
+      const dy = y - worldY;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < closestDist2) {
+        closestDist2 = d2;
+        closest = lite;
+      }
+    }
+    if (closest && this.onLiteOrbTap) {
+      this.onLiteOrbTap(closest);
+    }
+  }
+
+  /** Spawn a light pulse along an edge from (ax,ay) to (bx,by). Used on
+   *  research-complete to give visible feedback through the cluster web. */
+  spawnEdgePulse(ax: number, ay: number, bx: number, by: number, color: number = 0xffaa55): void {
+    this.edgePulses.push({ ax, ay, bx, by, t: 0, color });
   }
 
   /**
@@ -508,10 +560,36 @@ export class GalaxyScene {
     return gfx;
   }
 
+  /** Update screen dimensions used for viewport culling (called by GameEngine on resize). */
+  setScreenSize(w: number, h: number): void {
+    this.screenW = w;
+    this.screenH = h;
+  }
+
+  /** Compute world-space viewport bounds from container transform + screen size. */
+  private getViewportBounds(): { minX: number; maxX: number; minY: number; maxY: number } {
+    const scale = this.container.scale.x || 1;
+    const offsetX = this.container.x;
+    const offsetY = this.container.y;
+    // World coordinate of screen (0,0) is (-offsetX/scale, -offsetY/scale)
+    const minX = -offsetX / scale;
+    const minY = -offsetY / scale;
+    const maxX = (this.screenW - offsetX) / scale;
+    const maxY = (this.screenH - offsetY) / scale;
+    return { minX, maxX, minY, maxY };
+  }
+
   private redrawLiteOrbs(): void {
     if (!this.liteOrbsGfx) return;
     const g = this.liteOrbsGfx;
     g.clear();
+
+    // Viewport culling — generous 200px margin so off-screen orbs near edges
+    // remain rendered when player pans slightly (avoids visible pop-in)
+    const vp = this.getViewportBounds();
+    const margin = 200;
+    const minX = vp.minX - margin, maxX = vp.maxX + margin;
+    const minY = vp.minY - margin, maxY = vp.maxY + margin;
 
     const t = this.liteAnimT;
     for (const lite of this.liteSystems) {
@@ -519,6 +597,8 @@ export class GalaxyScene {
 
       const x = lite.position.x * PX_PER_LY;
       const y = lite.position.y * PX_PER_LY;
+      // Skip orbs outside viewport (with margin)
+      if (x < minX || x > maxX || y < minY || y > maxY) continue;
 
       // Pulse: slow desync per orb (0.65..1.05 alpha multiplier)
       const pulseA = 0.85 + 0.20 * Math.sin(t * 0.6 + lite.pulsePhase);
@@ -1524,13 +1604,40 @@ export class GalaxyScene {
 
     if (this.accretionDisk) this.accretionDisk.rotation += deltaMs * 0.0003;
 
-    // Lite orbs pulse — redraw every ~6 frames (≈100ms at 60fps) for cheap throttling
+    // Lite orbs pulse — redraw on pulse tick (10Hz) OR when camera panned >50px
     if (this.liteOrbsGfx) {
       this.liteAnimT += dt;
-      // Redraw at low frequency: pulse is slow, no need for per-frame redraw
-      if (Math.floor(this.liteAnimT * 10) !== Math.floor((this.liteAnimT - dt) * 10)) {
+      const camMoved = Math.abs(this.container.x - this.lastCamX) > 50
+        || Math.abs(this.container.y - this.lastCamY) > 50
+        || Math.abs(this.container.scale.x - this.lastCamScale) > 0.05;
+      const pulseTick = Math.floor(this.liteAnimT * 10) !== Math.floor((this.liteAnimT - dt) * 10);
+      if (camMoved || pulseTick) {
+        this.lastCamX = this.container.x;
+        this.lastCamY = this.container.y;
+        this.lastCamScale = this.container.scale.x;
         this.redrawLiteOrbs();
       }
+    }
+
+    // Edge pulses (light wave traveling along player→core edges)
+    if (this.pulseGfx && this.edgePulses.length > 0) {
+      const pg = this.pulseGfx;
+      pg.clear();
+      const PULSE_DURATION = 0.8; // seconds
+      this.edgePulses = this.edgePulses.filter(p => {
+        p.t += dt;
+        if (p.t >= PULSE_DURATION) return false;
+        const progress = p.t / PULSE_DURATION;
+        // Bright dot traveling along the line
+        const x = p.ax + (p.bx - p.ax) * progress;
+        const y = p.ay + (p.by - p.ay) * progress;
+        const fadeAlpha = 1 - Math.pow(progress, 2); // ease-out
+        pg.circle(x, y, 4);
+        pg.fill({ color: p.color, alpha: fadeAlpha * 0.9 });
+        pg.circle(x, y, 8);
+        pg.fill({ color: p.color, alpha: fadeAlpha * 0.3 });
+        return true;
+      });
     }
     if (this.backdropContainer) this.backdropContainer.rotation += deltaMs * 0.000012;
 
