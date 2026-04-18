@@ -614,12 +614,20 @@ function AppInner() {
     setTimeout(() => setHarvestFxQueue((q) => q.filter((x) => x.id !== id)), 900);
   }, []);
 
-  /** Schedule a debounced game state sync to server (5s delay). */
+  /** Schedule a debounced game state sync to server (1.5s delay; was 5s).
+   *  Critical events (research completion, evacuation) call syncNowToServer instead. */
   const scheduleSyncToServer = useCallback(() => {
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
       syncGameStateRef.current();
-    }, 5000);
+    }, 1500);
+  }, []);
+
+  /** Immediate sync — bypasses debounce. Used after critical state changes
+   *  so research progress / evacuations survive an immediate APK kill. */
+  const syncNowToServer = useCallback(() => {
+    if (syncTimeoutRef.current) { clearTimeout(syncTimeoutRef.current); syncTimeoutRef.current = null; }
+    syncGameStateRef.current();
   }, []);
 
   useEffect(() => {
@@ -2247,6 +2255,10 @@ function AppInner() {
 
         if (changed) {
           engine.setResearchState(current);
+          // Critical save: research session just completed → push to server
+          // immediately (don't wait for debounce). This protects against APK
+          // kill / uninstall right after a system finishes researching.
+          syncNowToServer();
           return current;
         }
         return prev;
@@ -2254,7 +2266,7 @@ function AppInner() {
     }, 500);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [syncNowToServer]);
 
   // Sync research state to engine when it changes
   useEffect(() => {
@@ -4097,6 +4109,23 @@ function AppInner() {
   useEffect(() => {
     interstitialManager.sessionStartTime = Date.now();
   }, []);
+
+  // ── Capacitor App lifecycle — flush sync IMMEDIATELY when app pauses ──
+  // On Android Capacitor, beforeunload doesn't fire when user swipes the app
+  // away or the OS kills the process. CapApp.appStateChange (active=false)
+  // fires reliably right BEFORE the system pauses the WebView, giving us a
+  // window to push pending research/quark progress to the server.
+  // Critical for preventing "last 3 systems unsaved on uninstall" data loss.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const handle = CapApp.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) {
+        // App went to background — flush any pending debounced sync immediately
+        syncNowToServer();
+      }
+    });
+    return () => { handle.then(h => h.remove()).catch(() => {}); };
+  }, [syncNowToServer]);
 
   // ── Android hardware back button ────────────────────────────────────────
   useEffect(() => {

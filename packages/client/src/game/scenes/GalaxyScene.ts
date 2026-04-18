@@ -408,6 +408,17 @@ export class GalaxyScene {
 
     this.buildConnectionEdges();
 
+    // Restore in-progress research animations on every scene rebuild —
+    // when player navigates Galaxy → System → Galaxy the scanArc/atomOrbit
+    // graphics are nullified by buildSysNode and never re-created without
+    // an explicit updateSystemVisual call. Iterate active research slots and
+    // trigger visual rebuild so the spinning ring shows up immediately.
+    for (const slot of this.researchState.slots) {
+      if (slot.systemId) {
+        this.updateSystemVisual(slot.systemId, this.researchState);
+      }
+    }
+
     /* ── Background cluster visualization ── */
     // New: Lite orbs for all 1,450 cluster systems (fuzzy colored pulsing orbs).
     // Skips ids that already have a real SystemNode (no double-render).
