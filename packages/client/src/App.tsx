@@ -4658,9 +4658,10 @@ function AppInner() {
     });
   }
 
-  // Arena button — golden spaceship icon, unlocks at level 30
-  // Opens the Hangar intermediate page (not Arena directly)
-  const ARENA_MIN_LEVEL = 30;
+  // Arena button — golden spaceship icon. Normally unlocks at level 30 but
+  // temporarily opened from L1 for playtesting (user request). Flip the
+  // constant back to 30 when hangar is ready for gated release.
+  const ARENA_MIN_LEVEL = 1;
   const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
   toolGroups.push({
     type: 'buttons',
