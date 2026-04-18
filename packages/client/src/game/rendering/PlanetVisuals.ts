@@ -246,27 +246,67 @@ function deriveCloudColor(composition: Record<string, number>): number {
   return 0xdde0e4;
 }
 
-/** Derive gas giant band colors from temperature */
-function deriveGasGiantColors(tempK: number): { c1: number; c2: number } {
-  if (tempK > 1000) {
-    // Hot Jupiter — deep reds / oranges
-    return { c1: 0xcc5522, c2: 0x883311 };
-  }
-  if (tempK > 400) {
-    // Warm — orange / tan
-    return { c1: 0xcc9955, c2: 0x886633 };
-  }
-  // Cold — brown / tan (Saturn-like)
-  return { c1: 0xaa8855, c2: 0x665533 };
+/**
+ * Per-seed gas-giant palette pool. Each entry = (band1, band2). Index picked
+ * deterministically from seed within the temperature bracket.
+ */
+const GAS_GIANT_PALETTES = {
+  hot: [
+    { c1: 0xcc5522, c2: 0x883311 }, // deep red Jupiter-fire
+    { c1: 0xdd6633, c2: 0x991100 }, // bright magma
+    { c1: 0xaa3322, c2: 0x551100 }, // burnt cherry
+    { c1: 0xff8844, c2: 0xcc4422 }, // glowing orange
+    { c1: 0x884422, c2: 0x441100 }, // dark blood-iron
+  ],
+  warm: [
+    { c1: 0xcc9955, c2: 0x886633 }, // classic warm tan
+    { c1: 0xddbb77, c2: 0xaa8844 }, // golden Jupiter
+    { c1: 0xeebb88, c2: 0xbb7744 }, // creamy peach
+    { c1: 0xaa7744, c2: 0x664422 }, // amber bronze
+    { c1: 0xddcc99, c2: 0x998866 }, // sandy beige
+    { c1: 0xcc8866, c2: 0x995544 }, // copper salmon
+  ],
+  cold: [
+    { c1: 0xaa8855, c2: 0x665533 }, // classic brown Saturn
+    { c1: 0xccaa77, c2: 0x886644 }, // pastel butterscotch
+    { c1: 0x998866, c2: 0x554433 }, // muted khaki
+    { c1: 0xbb9977, c2: 0x776655 }, // dusty mocha
+    { c1: 0x887755, c2: 0x443322 }, // dark walnut
+    { c1: 0xddccaa, c2: 0xaa9977 }, // light sepia (Saturn pastel)
+    { c1: 0x665544, c2: 0x332211 }, // espresso
+  ],
+};
+
+/** Derive gas giant band colors from temperature + per-seed variation. */
+function deriveGasGiantColors(tempK: number, seed: number): { c1: number; c2: number } {
+  const bucket = tempK > 1000 ? GAS_GIANT_PALETTES.hot
+    : tempK > 400 ? GAS_GIANT_PALETTES.warm
+    : GAS_GIANT_PALETTES.cold;
+  const idx = Math.abs(seed) % bucket.length;
+  return bucket[idx];
 }
 
-/** Derive ice giant visual config */
-function deriveIceGiantColors(tempK: number): { c1: number; c2: number } {
-  if (tempK > 200) {
-    return { c1: 0x5588aa, c2: 0x336688 };
-  }
-  // Very cold — deep blue (Neptune-like)
-  return { c1: 0x3366aa, c2: 0x224488 };
+const ICE_GIANT_PALETTES = {
+  warmer: [
+    { c1: 0x5588aa, c2: 0x336688 }, // Uranus-like teal
+    { c1: 0x66aabb, c2: 0x336699 }, // bright cyan-blue
+    { c1: 0x77aacc, c2: 0x4477aa }, // pastel sky
+    { c1: 0x4488aa, c2: 0x225577 }, // muted teal
+  ],
+  cold: [
+    { c1: 0x3366aa, c2: 0x224488 }, // Neptune deep blue
+    { c1: 0x4477bb, c2: 0x335599 }, // royal blue
+    { c1: 0x2255aa, c2: 0x113377 }, // navy abyss
+    { c1: 0x5577cc, c2: 0x2244aa }, // electric blue
+    { c1: 0x3344aa, c2: 0x111166 }, // midnight ink
+  ],
+};
+
+/** Derive ice giant band colors with per-seed variation. */
+function deriveIceGiantColors(tempK: number, seed: number): { c1: number; c2: number } {
+  const bucket = tempK > 200 ? ICE_GIANT_PALETTES.warmer : ICE_GIANT_PALETTES.cold;
+  const idx = Math.abs(seed) % bucket.length;
+  return bucket[idx];
 }
 
 /**
@@ -364,8 +404,8 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   else if (!planet.hasLife && waterCoverage < 0.05) surfaceType = 4;     // barren
 
   // --- Gas/Ice giant ---
-  const gasColors = isGas ? deriveGasGiantColors(tempK) : { c1: 0, c2: 0 };
-  const iceColors = isIce ? deriveIceGiantColors(tempK) : { c1: 0, c2: 0 };
+  const gasColors = isGas ? deriveGasGiantColors(tempK, planet.seed) : { c1: 0, c2: 0 };
+  const iceColors = isIce ? deriveIceGiantColors(tempK, planet.seed) : { c1: 0, c2: 0 };
 
   return {
     surfaceBaseColor,
