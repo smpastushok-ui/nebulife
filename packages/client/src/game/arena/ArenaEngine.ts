@@ -3278,17 +3278,35 @@ export class ArenaEngine {
         }
       });
 
+      // Compute 3D aim toward current target (so bots shoot UP at flying
+      // players). AI aimDir is XZ-only; we add a vertical component from
+      // the target's actual Y position and renormalize.
+      let aimX = input.aimDir.x;
+      let aimY = 0;
+      let aimZ = input.aimDir.z;
+      if (brainTarget?.alive) {
+        const tdx = brainTarget.pos.x - bot.pos.x;
+        const tdy = brainTarget.pos.y - bot.pos.y;
+        const tdz = brainTarget.pos.z - bot.pos.z;
+        const tlen = Math.sqrt(tdx * tdx + tdy * tdy + tdz * tdz);
+        if (tlen > 0.1) {
+          aimX = tdx / tlen;
+          aimY = tdy / tlen;
+          aimZ = tdz / tlen;
+        }
+      }
+
       // Fire bullets — blocked during invulnerability window (same rule as
       // damage receipt). Previously invulnerable respawned bots could still
       // pour shots while immune to return fire, which felt unfair.
       if (input.firing && bot.fireCooldown <= 0 && !isInvulnerable) {
-        this.fireBotBullet(bot, input.aimDir.x, input.aimDir.z);
+        this.fireBotBullet(bot, aimX, aimY, aimZ);
         bot.fireCooldown = 0.3 + Math.random() * 0.15; // 0.3–0.45s between shots
       }
 
       // Fire missile occasionally — also blocked while invulnerable
       if (input.firing && !isInvulnerable && (bot.missileAmmo ?? 0) > 0 && bot.missileCooldown <= 0 && Math.random() < 0.02) {
-        this.fireBotMissile(bot, input.aimDir.x, input.aimDir.z);
+        this.fireBotMissile(bot, aimX, aimZ);
         bot.missileAmmo = (bot.missileAmmo ?? 1) - 1;
         bot.missileCooldown = 5 + Math.random() * 3; // 5-8s between missiles
       }
@@ -3461,18 +3479,22 @@ export class ArenaEngine {
     }
   }
 
-  private fireBotBullet(bot: BotShip, dirX: number, dirZ: number): void {
+  private fireBotBullet(bot: BotShip, dirX: number, dirY: number, dirZ: number): void {
     const idx = this.botBulletFreeList.pop();
     if (idx === undefined) return;
 
     let dx = dirX;
+    let dy = dirY;
     let dz = dirZ;
-    if (dx === 0 && dz === 0) { dx = 0; dz = -1; }
+    const len2 = dx * dx + dy * dy + dz * dz;
+    if (len2 < 0.01) { dx = 0; dy = 0; dz = -1; }
 
     const b = this.botBullets[idx];
     b.x = bot.pos.x + dx * (SHIP_RADIUS + 3);
+    b.y = bot.pos.y + dy * (SHIP_RADIUS + 3);
     b.z = bot.pos.z + dz * (SHIP_RADIUS + 3);
     b.vx = dx * this.BOT_BULLET_SPEED;
+    b.vy = dy * this.BOT_BULLET_SPEED;
     b.vz = dz * this.BOT_BULLET_SPEED;
     b.age = 0;
     b.active = true;
@@ -3512,6 +3534,7 @@ export class ArenaEngine {
       if (!b.active) continue;
 
       b.x += b.vx * dt;
+      b.y += b.vy * dt;
       b.z += b.vz * dt;
       b.age += dt;
       b.rotX += b.rotSpX * dt;
@@ -3519,7 +3542,11 @@ export class ArenaEngine {
       b.rotZ += b.rotSpZ * dt;
 
       const distSq = b.x * b.x + b.z * b.z;
-      if (b.age >= this.BOT_BULLET_LIFETIME || distSq > (ARENA_HALF + 50) * (ARENA_HALF + 50)) {
+      if (
+        b.age >= this.BOT_BULLET_LIFETIME ||
+        distSq > (ARENA_HALF + 50) * (ARENA_HALF + 50) ||
+        Math.abs(b.y) > ARENA_HEIGHT_HALF + 50
+      ) {
         b.active = false;
         this.botBulletFreeList.push(i);
         dummy.position.set(0, -1000, 0);
@@ -3530,7 +3557,7 @@ export class ArenaEngine {
         continue;
       }
 
-      dummy.position.set(b.x, 4, b.z);
+      dummy.position.set(b.x, b.y, b.z);
       dummy.scale.set(1, 1, 1);
       dummy.rotation.set(b.rotX, b.rotY, b.rotZ);
       dummy.updateMatrix();
@@ -3558,9 +3585,10 @@ export class ArenaEngine {
         if (b.ownerTeam !== 'neutral' && bot.team === b.ownerTeam) continue;
 
         const dx = b.x - bot.pos.x;
+        const dy = b.y - bot.pos.y;
         const dz = b.z - bot.pos.z;
         const minDist = SHIP_SHOT_RADIUS + this.BOT_BULLET_RADIUS;
-        if (dx * dx + dz * dz < minDist * minDist) {
+        if (dx * dx + dy * dy + dz * dz < minDist * minDist) {
           b.active = false;
           this.botBulletFreeList.push(bi);
           dummy.position.set(0, -1000, 0);
@@ -3590,9 +3618,10 @@ export class ArenaEngine {
       // Check against player (in team mode: only enemies; in FFA: all bots)
       if (!this.playerDead && (b.ownerTeam === 'neutral' || b.ownerTeam !== this.playerTeam)) {
         const dx = b.x - this.playerPos.x;
+        const dy = b.y - this.playerPos.y;
         const dz = b.z - this.playerPos.z;
         const minDist = SHIP_SHOT_RADIUS + this.BOT_BULLET_RADIUS;
-        if (dx * dx + dz * dz < minDist * minDist) {
+        if (dx * dx + dy * dy + dz * dz < minDist * minDist) {
           b.active = false;
           this.botBulletFreeList.push(bi);
           dummy.position.set(0, -1000, 0);
@@ -3642,9 +3671,10 @@ export class ArenaEngine {
         if (this.teamMode && bot.team === this.playerTeam) continue;
 
         const dx = b.x - bot.pos.x;
+        const dy = b.y - bot.pos.y;
         const dz = b.z - bot.pos.z;
         const minDist = SHIP_SHOT_RADIUS + this.BULLET_RADIUS;
-        if (dx * dx + dz * dz < minDist * minDist) {
+        if (dx * dx + dy * dy + dz * dz < minDist * minDist) {
           // Deactivate bullet
           b.active = false;
           this.bulletFreeList.push(bi);
