@@ -1,5 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-const CACHE_NAME = 'nebulife-v2';
+// v3: TPS arena — force cache eviction so new JS bundle + GLB ship models load
+const CACHE_NAME = 'nebulife-v3';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
