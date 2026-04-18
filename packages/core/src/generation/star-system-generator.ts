@@ -35,13 +35,15 @@ function generateOrbitalSlots(
     slots.push(Math.round(distance * 10000) / 10000);
   }
 
-  // Sort and ensure minimum separation (proportional to distance for realistic spacing)
-  // Real planetary systems have gaps scaling with orbital distance (Hill sphere ~ a * (M_p/3M_*)^(1/3))
+  // Sort and ensure minimum separation (proportional to distance for realistic spacing).
+  // Must account for orbital ECCENTRICITY: with max e=0.08 (see planet-generator.ts),
+  // an orbit's apoapsis is a*(1+e) and the next orbit's periapsis is a*(1-e). To
+  // prevent visual ellipse overlap we need: a₂*(1-e) > a₁*(1+e) → a₂ > a₁ * 1.174.
+  // We use 30% inflation factor (a₂ ≥ 1.30·a₁) for a comfortable margin.
   slots.sort((a, b) => a - b);
   for (let i = 1; i < slots.length; i++) {
-    // Minimum gap: 20% of inner orbit or 0.15 AU, whichever is larger.
-    // Prevents unrealistic crowding of neighboring orbits, especially for outer planets.
-    const minGap = Math.max(0.15, slots[i - 1] * 0.20);
+    // Minimum gap: 30% of inner orbit (covers max-e overlap) or 0.20 AU absolute
+    const minGap = Math.max(0.20, slots[i - 1] * 0.30);
     if (slots[i] - slots[i - 1] < minGap) {
       slots[i] = slots[i - 1] + minGap + rng.nextFloat(0, minGap * 0.3);
     }
