@@ -87,11 +87,16 @@ export async function signInAsGuest(): Promise<User> {
   return cred.user;
 }
 
-/** Sign in with Google popup (web) or native Capacitor plugin. */
+/** Sign in with Google popup (web) or native Capacitor plugin.
+ *  Always clears the cached native Google account first so the OS account
+ *  picker actually appears — otherwise the plugin silently re-uses the
+ *  previously-signed-in account, which made "switch user" impossible. */
 export async function signInWithGoogle(): Promise<User | null> {
   const a = requireAuth();
   if (Capacitor.isNativePlatform()) {
     const GoogleAuth = await getNativeGoogleAuth();
+    // Clear any cached credential so Android shows the account chooser.
+    try { await GoogleAuth.signOut(); } catch { /* first-time: no session */ }
     const googleUser = await GoogleAuth.signIn();
     const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
     const result = await signInWithCredential(a, credential);
@@ -153,8 +158,16 @@ export function getCurrentUser(): User | null {
   return auth.currentUser;
 }
 
-/** Sign out the current user. */
+/** Sign out the current user. On native, ALSO clears the Google plugin's
+ *  cached credential, otherwise signing in with Google right after sign-out
+ *  silently returns the same account (no account-chooser dialog). */
 export async function signOut(): Promise<void> {
   if (!auth) return;
   await auth.signOut();
+  if (Capacitor.isNativePlatform() && isGoogleSignInAvailable()) {
+    try {
+      const GoogleAuth = await getNativeGoogleAuth();
+      await GoogleAuth.signOut();
+    } catch { /* non-critical — may not be signed into Google */ }
+  }
 }
