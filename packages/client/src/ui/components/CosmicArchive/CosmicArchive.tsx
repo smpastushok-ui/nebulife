@@ -143,10 +143,10 @@ export interface CosmicArchiveProps {
 
 const overlayStyle: React.CSSProperties = {
   position: 'fixed',
-  top: 40,
-  left: 0,
-  right: 0,
-  bottom: 0,
+  top: 'calc(40px + env(safe-area-inset-top, 0px))',
+  left: 'env(safe-area-inset-left, 0px)',
+  right: 'env(safe-area-inset-right, 0px)',
+  bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
   zIndex: 9600,
   background: 'rgba(2, 5, 16, 0.98)',
   fontFamily: 'monospace',
