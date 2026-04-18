@@ -41,7 +41,12 @@ export function isGoogleSignInAvailable(): boolean {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GoogleAuthAny = any;
 
-async function getNativeGoogleAuth(): Promise<GoogleAuthAny> {
+// CRITICAL: must wrap in an object. Returning the Capacitor plugin proxy
+// directly from an async function makes the runtime await `.then()` on it
+// (thenable check), which hits the Capacitor bridge as a native method
+// call and throws: `"GoogleAuth.then()" is not implemented on android`.
+// The object wrapper hides the proxy from the thenable resolver.
+async function getNativeGoogleAuth(): Promise<{ GoogleAuth: GoogleAuthAny }> {
   if (!isGoogleSignInAvailable()) {
     throw new Error('Google Sign-in is not available on this device yet');
   }
@@ -56,7 +61,7 @@ async function getNativeGoogleAuth(): Promise<GoogleAuthAny> {
     });
     _googleAuthInitialized = true;
   }
-  return GoogleAuth;
+  return { GoogleAuth };
 }
 
 function requireAuth() {
@@ -81,15 +86,20 @@ export async function signInAsGuest(): Promise<User> {
 }
 
 /** Sign in with Google popup (web) or native Capacitor plugin.
- *  Always clears the cached native Google account first so the OS account
- *  picker actually appears — otherwise the plugin silently re-uses the
- *  previously-signed-in account, which made "switch user" impossible. */
+ *  Best-effort: clears the cached native Google account first so the OS
+ *  account picker actually appears (wrapped in a 1.5s timeout — some
+ *  device/OS combos never resolve GoogleAuth.signOut() and the whole
+ *  login would hang forever on a spinner). */
 export async function signInWithGoogle(): Promise<User | null> {
   const a = requireAuth();
   if (Capacitor.isNativePlatform()) {
-    const GoogleAuth = await getNativeGoogleAuth();
-    // Clear any cached credential so Android shows the account chooser.
-    try { await GoogleAuth.signOut(); } catch { /* first-time: no session */ }
+    const { GoogleAuth } = await getNativeGoogleAuth();
+    try {
+      await Promise.race([
+        GoogleAuth.signOut(),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+    } catch { /* no session yet — fine */ }
     const googleUser = await GoogleAuth.signIn();
     const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
     const result = await signInWithCredential(a, credential);
@@ -117,7 +127,7 @@ export async function linkGoogleToAnonymous(): Promise<User | null> {
   const user = a.currentUser;
   if (!user) throw new Error('No current user');
   if (Capacitor.isNativePlatform()) {
-    const GoogleAuth = await getNativeGoogleAuth();
+    const { GoogleAuth } = await getNativeGoogleAuth();
     const googleUser = await GoogleAuth.signIn();
     const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
     const result = await linkWithCredential(user, credential);
@@ -159,7 +169,7 @@ export async function signOut(): Promise<void> {
   await auth.signOut();
   if (Capacitor.isNativePlatform() && isGoogleSignInAvailable()) {
     try {
-      const GoogleAuth = await getNativeGoogleAuth();
+      const { GoogleAuth } = await getNativeGoogleAuth();
       await GoogleAuth.signOut();
     } catch { /* non-critical — may not be signed into Google */ }
   }

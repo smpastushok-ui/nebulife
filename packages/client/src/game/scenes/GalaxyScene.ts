@@ -517,65 +517,13 @@ export class GalaxyScene {
    *   - Player → core entry star edges
    * All drawn relative to my home star (origin), so positions match lite-orbs.
    */
-  private buildClusterConnectionsLayer(galaxySeed: number, groupIndex: number, myPlayerIndex: number): Graphics {
-    const gfx = new Graphics();
-    const PX = PX_PER_LY;
-
-    // My home position — used as origin for relative coords
-    const myPos = assignPlayerPosition(galaxySeed, myPlayerIndex);
-
-    // 50 player positions (used for Delaunay)
-    const players: Array<{ x: number; y: number; idx: number }> = [];
-    for (let i = 0; i < 50; i++) {
-      const p = assignPlayerPosition(galaxySeed, i);
-      players.push({ x: p.x - myPos.x, y: p.y - myPos.y, idx: i });
-    }
-
-    // Delaunay edges between players → faint blue links
-    const edges = delaunayEdges(players.map(p => ({ x: p.x, y: p.y })));
-    for (const [a, b] of edges) {
-      const pa = players[a];
-      const pb = players[b];
-      gfx.moveTo(pa.x * PX, pa.y * PX);
-      gfx.lineTo(pb.x * PX, pb.y * PX);
-    }
-    gfx.stroke({ width: 0.6, color: 0x4488aa, alpha: 0.25 });
-
-    // K=4 core mesh — internal galactic-core links
-    const groupSeed = deriveGroupSeed(galaxySeed, groupIndex);
-    const core = generateGalaxyGroupCore(groupSeed);
-    const coreById = new Map<number, { x: number; y: number; depth: number }>();
-    for (const cs of core.systems) {
-      coreById.set(cs.id, { x: cs.position.x - myPos.x, y: cs.position.y - myPos.y, depth: cs.depth });
-    }
-    const drawnCore = new Set<string>();
-    for (const cs of core.systems) {
-      const a = coreById.get(cs.id)!;
-      for (const nid of cs.neighbors) {
-        const key = Math.min(cs.id, nid) + ',' + Math.max(cs.id, nid);
-        if (drawnCore.has(key)) continue;
-        drawnCore.add(key);
-        const b = coreById.get(nid);
-        if (!b) continue;
-        gfx.moveTo(a.x * PX, a.y * PX);
-        gfx.lineTo(b.x * PX, b.y * PX);
-      }
-    }
-    gfx.stroke({ width: 0.4, color: 0xaa6644, alpha: 0.18 });
-
-    // Player → core entry edges (player home → entry star) — gold thin lines
-    for (let i = 0; i < 50; i++) {
-      const entryId = core.entryIds[i];
-      if (entryId === undefined) continue;
-      const entry = coreById.get(entryId);
-      if (!entry) continue;
-      const player = players[i];
-      gfx.moveTo(player.x * PX, player.y * PX);
-      gfx.lineTo(entry.x * PX, entry.y * PX);
-    }
-    gfx.stroke({ width: 0.4, color: 0xffaa55, alpha: 0.12 });
-
-    return gfx;
+  private buildClusterConnectionsLayer(_galaxySeed: number, _groupIndex: number, _myPlayerIndex: number): Graphics {
+    // Cluster-wide decorative web (player Delaunay + K=4 core mesh + player→
+    // core entry lines) used to draw faint blue / brown / gold threads across
+    // the whole cluster. Hidden at the user's request — only the reachable
+    // cyan constellation web should be visible. Kept as an empty-Graphics
+    // stub so callers (GalaxyScene constructor) don't break.
+    return new Graphics();
   }
 
   /** Update screen dimensions used for viewport culling (called by GameEngine on resize). */
@@ -1449,11 +1397,13 @@ export class GalaxyScene {
     this.beamAlpha = 0;
   }
 
-  /** Spawn a floating "+N%" label above a star node */
+  /** Spawn a floating "+N%" label above a star node. Toned-down white
+   *  colour (was gold #ffdd66) so it's a subtle acknowledgement rather
+   *  than a loud "achievement" flash. */
   private spawnResearchGainLabel(node: SystemNode, delta: number) {
     const label = new Text({
       text: `+${Math.round(delta)}%`,
-      style: { fontSize: 10, fill: 0xffdd66, fontFamily: 'monospace' },
+      style: { fontSize: 9, fill: 0xaabbcc, fontFamily: 'monospace' },
       resolution: 2,
     });
     label.anchor.set(0.5, 1);
@@ -1561,20 +1511,18 @@ export class GalaxyScene {
         node.container.addChild(node.atomOrbit);
       }
 
-      // Keep research label in sync with the new state.
-      // Eye ON  → yellow dot while in progress (color set by showResearchLabels).
-      // Eye OFF → numeric % above the star.
+      // Keep research label in sync. Eye ON while in-progress → HIDE label
+      // (halo around the star is enough signal, yellow dot was noise). Eye
+      // OFF → small white % above the star.
       if (node.researchLabel && prog > 0 && prog < 100) {
         if (this.researchLabelsEnabled) {
-          node.researchLabel.text = '●';
-          node.researchLabel.style.fill = 0xffcc44;
-          node.researchLabel.style.fontSize = 8;
+          node.researchLabel.visible = false;
         } else {
           node.researchLabel.text = `${Math.round(prog)}%`;
           node.researchLabel.style.fill = 0xaabbcc;
           node.researchLabel.style.fontSize = 7;
+          node.researchLabel.visible = true;
         }
-        node.researchLabel.visible = true;
       }
     }
 
@@ -1611,36 +1559,30 @@ export class GalaxyScene {
     }
 
     // After a session ends but before completion, state goes back to
-    // 'unexplored' (slot freed). Neither 'researching' nor 'researched'
-    // block ran above → static white label still shows OLD percent.
-    // Refresh it here so the new sum (e.g. 20% → 25%) appears immediately.
+    // 'unexplored' (slot freed). Refresh label with new prog.
+    // Eye ON + partial → hide label (halo is the visual cue).
+    // Eye OFF + partial → small white % above the star.
     if (state !== 'researching' && state !== 'researched') {
       const isPartial = prog > 0 && prog < 100;
       if (isPartial && node.visibilityTier === 1) {
-        if (!node.researchLabel) {
-          node.researchLabel = new Text({
-            text: this.researchLabelsEnabled ? '●' : `${Math.round(prog)}%`,
-            style: {
-              fontSize: this.researchLabelsEnabled ? 8 : 7,
-              fill: this.researchLabelsEnabled ? 0xffcc44 : 0xaabbcc,
-              fontFamily: 'monospace',
-            },
-            resolution: 2,
-          });
-          node.researchLabel.anchor.set(0.5, 1);
-          node.researchLabel.y = -node.baseRadius - 4;
-          node.container.addChild(node.researchLabel);
+        if (this.researchLabelsEnabled) {
+          if (node.researchLabel) node.researchLabel.visible = false;
         } else {
-          if (this.researchLabelsEnabled) {
-            node.researchLabel.text = '●';
-            node.researchLabel.style.fill = 0xffcc44;
-            node.researchLabel.style.fontSize = 8;
+          if (!node.researchLabel) {
+            node.researchLabel = new Text({
+              text: `${Math.round(prog)}%`,
+              style: { fontSize: 7, fill: 0xaabbcc, fontFamily: 'monospace' },
+              resolution: 2,
+            });
+            node.researchLabel.anchor.set(0.5, 1);
+            node.researchLabel.y = -node.baseRadius - 4;
+            node.container.addChild(node.researchLabel);
           } else {
             node.researchLabel.text = `${Math.round(prog)}%`;
             node.researchLabel.style.fill = 0xaabbcc;
             node.researchLabel.style.fontSize = 7;
+            node.researchLabel.visible = true;
           }
-          node.researchLabel.visible = true;
         }
       }
     }
@@ -1901,17 +1843,38 @@ export class GalaxyScene {
       if (node.starState === 'researched' && node.visibilityTier === 1) drawTerritoryAura(node.tx, node.ty);
     }
 
-    // Constellation web — cyan threads between REACHABLE stars only.
-    // A star is "reachable" if visibilityTier===1 AND not yet fully researched.
-    // Home counts as reachable (anchor of the web). Hides all noise lines and
-    // instantly communicates "these are the stars you can explore right now."
+    // Constellation web — cyan threads only to stars the player can research
+    // RIGHT NOW, gated by ring progression:
+    //   Ring 1 → open from start
+    //   Ring 2 → unlocks when ALL Ring 1 stars are 100%
+    //   Ring 3 (neighbor) → unlocks when ALL Ring 2 stars are 100%
+    // So as each ring finishes, the web visibly "grows outward" and the next
+    // ring of halos lights up — matches the tech-tree research gates.
     this.connectionLines.clear();
     const CYAN = 0x7bb8ff;
+
+    // Pre-compute ring-completion flags once per frame.
+    let ring1Done = true, ring2Done = true;
+    for (const [, n] of this.systemNodes) {
+      if (n.nodeType !== 'personal') continue;
+      if (n.system.ownerPlayerId !== null) continue; // skip home
+      const complete = isSystemFullyResearched(this.researchState, n.system.id);
+      if (n.ringIndex === 1 && !complete) ring1Done = false;
+      if (n.ringIndex === 2 && !complete) ring2Done = false;
+    }
+
     const isReachable = (n: SystemNode | null | undefined, isHome: boolean): boolean => {
       if (isHome) return true;
       if (!n) return false;
       if (n.visibilityTier !== 1) return false;
-      return n.starState !== 'researched';
+      if (n.starState === 'researched') return false;
+      // Ring gates — don't light up a ring until the previous one is done.
+      if (n.nodeType === 'personal') {
+        if (n.ringIndex >= 2 && !ring1Done) return false;
+      } else if (n.nodeType === 'neighbor') {
+        if (!ring2Done) return false;
+      }
+      return true;
     };
     for (const edge of this.connectionEdges) {
       const isHome1 = edge.key1 === 'home';
@@ -1927,31 +1890,31 @@ export class GalaxyScene {
       // home would just be the home star alone). Already guaranteed by
       // reach* = home + reachable, and we don't draw home↔home anyway.
 
-      // Slow pulse so the web feels alive without distracting.
-      const pulse = 0.55 + 0.15 * Math.sin(t * 0.0012 + edge.seed);
+      // Subtle pulse — web is a hint, not a spotlight. Alpha ≈ 0.2-0.3.
+      const pulse = 0.22 + 0.08 * Math.sin(t * 0.0012 + edge.seed);
       this.drawWavyLine(
         this.connectionLines, edge.x1, edge.y1, edge.x2, edge.y2, t, edge.seed,
-        pulse, CYAN, 0.85,
+        pulse, CYAN, 0.5,
       );
     }
 
-    // Reachable-halo — soft cyan glow behind every researchable star.
-    // Breathes gently at 0.5Hz to draw the eye without being distracting.
+    // Reachable-halo — subtle cyan hint, only around stars gated by the
+    // same ring-progression rules as the web above. So unreachable rings
+    // stay dark until the player finishes the previous ring.
     if (this.reachableHaloGfx) {
       const halo = this.reachableHaloGfx;
       halo.clear();
       const breath = 0.85 + 0.15 * Math.sin(t * 0.0018);
       const drawHalo = (x: number, y: number, r: number) => {
-        halo.circle(x, y, r * 3.2);
+        halo.circle(x, y, r * 1.6);
+        halo.fill({ color: 0x7bb8ff, alpha: 0.03 * breath });
+        halo.circle(x, y, r * 1.2);
         halo.fill({ color: 0x7bb8ff, alpha: 0.06 * breath });
-        halo.circle(x, y, r * 2.1);
-        halo.fill({ color: 0x7bb8ff, alpha: 0.12 * breath });
-        halo.circle(x, y, r * 1.4);
-        halo.fill({ color: 0x7bb8ff, alpha: 0.18 * breath });
+        halo.circle(x, y, r * 0.9);
+        halo.fill({ color: 0x7bb8ff, alpha: 0.10 * breath });
       };
       for (const [, node] of this.systemNodes) {
-        if (node.visibilityTier !== 1) continue;
-        if (node.starState === 'researched') continue;
+        if (!isReachable(node, false)) continue;
         drawHalo(node.tx, node.ty, node.baseRadius);
       }
     }
@@ -2377,12 +2340,23 @@ export class GalaxyScene {
       let fontSize: number;
 
       if (enabled) {
-        // Colored status dot
-        text = '●';
+        // Eye ON — colored status dot. Yellow "in progress" state removed:
+        // the cyan halo around reachable stars already signals "researchable"
+        // and adding a yellow dot on top looked loud/busy.
+        //   🟢 green = fully researched
+        //   🔴 red   = untouched (0%)
+        //   (in-progress → no dot; halo is enough)
         fontSize = 8;
-        if (isFull)       color = 0x44ff88; // green
-        else if (prog > 0) color = 0xffcc44; // yellow
-        else              color = 0xcc4444; // red
+        if (isFull) {
+          text = '●';
+          color = 0x44ff88;
+        } else if (prog > 0) {
+          if (node.researchLabel) node.researchLabel.visible = false;
+          continue;
+        } else {
+          text = '●';
+          color = 0xcc4444;
+        }
       } else {
         // No eye: only show partial progress as number, hide clean/100%
         if (isFull || prog === 0) {
