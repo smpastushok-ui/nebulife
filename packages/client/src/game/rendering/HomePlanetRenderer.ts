@@ -88,6 +88,12 @@ export function renderPlanetCloseup(
     base.circle(0, 0, radius);
     base.fill({ color: visuals.bandColor2, alpha: 1.0 });
     container.addChild(base);
+  } else if (visuals.isVenusLike) {
+    // Venus-like: opaque cloud shroud — show only atmosphere color, no surface visible
+    const shroud = new Graphics();
+    shroud.circle(0, 0, radius);
+    shroud.fill({ color: visuals.atmosColor, alpha: 1.0 });
+    container.addChild(shroud);
   } else if (visuals.hasOcean) {
     const ocean = new Graphics();
     ocean.circle(0, 0, radius);
@@ -110,6 +116,10 @@ export function renderPlanetCloseup(
     // === Gas/Ice giant: horizontal bands ===
     const surfaceGfx = renderGiantBands(visuals, radius, seed, opts, noise);
     surfaceGroup.addChild(surfaceGfx);
+  } else if (visuals.isVenusLike) {
+    // === Venus-like: subtle swirling cloud bands over solid shroud (cheap) ===
+    const venusGfx = renderVenusShroud(visuals, radius, seed, noise);
+    surfaceGroup.addChild(venusGfx);
   } else {
     // === Rocky/Dwarf: terrain with biomes, ocean, ice, lava ===
     const surfaceGfx = new Graphics();
@@ -415,8 +425,9 @@ export function renderPlanetCloseup(
   }
 
   // --- Layer 6: Clouds (orthographic, no strip) ---
+  // Skip extra cloud layer for Venus-like (renderVenusShroud already produces full cover)
   const cloudGroup = new Container();
-  if (visuals.hasSignificantClouds) {
+  if (visuals.hasSignificantClouds && !visuals.isVenusLike) {
     const cloudGraphics = new Graphics();
     const cloudNoise = new SimplexNoise(seed + 777);
     const cloudStep = opts.cloudStep;
@@ -553,6 +564,24 @@ function renderGiantBands(
           const stormColor = lerpColor(visuals.bandColor2, 0xaa5533, 0.4);
           color = lerpColor(color, stormColor, stormIntensity * 0.5);
         }
+
+        // Great Red Spot: deterministic large elliptical vortex (Jupiter signature).
+        // Position derived from seed so each gas giant has its own unique spot.
+        // GRS is in southern hemisphere ~-22 latitude.
+        const grsCenterY = -0.22 - ((seed % 100) / 1000); // -0.22 to -0.32 lat
+        const grsCenterX = (((seed >> 7) % 100) - 50) / 50 * 0.5; // -0.5..0.5 longitude
+        const grsW = 0.18 + ((seed >> 11) % 50) / 1000; // ~0.18-0.23 horiz radius
+        const grsH = 0.07; // vertical radius (oval)
+        const dxg = sx - grsCenterX;
+        const dyg = sy - grsCenterY;
+        const grsDist = (dxg * dxg) / (grsW * grsW) + (dyg * dyg) / (grsH * grsH);
+        if (grsDist < 1.2 && sz > 0.1) {
+          const grsCore = clamp(1.0 - grsDist, 0, 1);
+          // Edge swirl using rotation noise for ribbon-like flow inside the spot
+          const swirl = noise.fbm3D(dxg * 8, dyg * 12, sz * 4, 2) * 0.3;
+          const grsColor = lerpColor(0xcc4422, 0xffaa66, 0.4 + swirl);
+          color = lerpColor(color, grsColor, grsCore * 0.85);
+        }
       } else {
         // Ice giants: subtle bright spots
         const spotVal = stormNoise.fbm3D(sx * 4, sy * 4, sz * 4, 3);
@@ -580,6 +609,75 @@ function renderGiantBands(
     }
   }
 
+  return gfx;
+}
+
+/**
+ * Venus-like shroud: opaque thick cloud cover with subtle swirling Y-shape pattern.
+ * Much cheaper than rocky terrain — bigger pixelStep, only 2 noise calls per pixel,
+ * no biome/ice/water/crater logic. Visual goal: solid yellow/orange ball with sulphuric
+ * cloud bands and Y-shaped equatorial vortex (real Venus signature in UV imaging).
+ */
+function renderVenusShroud(
+  visuals: PlanetVisualConfig,
+  radius: number,
+  seed: number,
+  noise: SimplexNoise,
+): Graphics {
+  const gfx = new Graphics();
+  const pixelStep = 3; // Larger step → cheaper, fine since shroud is uniform
+  const dotSize = pixelStep * 1.1;
+
+  // Base cloud color (slightly lighter than atmosColor for highlights)
+  const baseColor = visuals.atmosColor;
+  const lightColor = lerpColor(baseColor, 0xffffff, 0.18);
+  const darkColor = lerpColor(baseColor, 0x442200, 0.35);
+  const swirlColor = lerpColor(baseColor, 0xddbb66, 0.5);
+
+  for (let py = -radius; py <= radius; py += pixelStep) {
+    const yFrac = py / radius;
+    const maxXAtY = Math.sqrt(Math.max(0, 1 - yFrac * yFrac)) * radius;
+    if (maxXAtY < 1) continue;
+
+    for (let px = -maxXAtY; px <= maxXAtY; px += pixelStep) {
+      const sx = px / radius;
+      const sy = py / radius;
+      const sz = Math.sqrt(Math.max(0, 1 - sx * sx - sy * sy));
+
+      // Limb darkening
+      const diskDist = Math.sqrt(px * px + py * py);
+      const limbFactor = 1.0 - (diskDist / radius);
+
+      // Single fbm call for cloud structure
+      const cloud = noise.fbm3D(sx * 3 + sy * 0.5, sy * 4, sz * 2, 3);
+
+      // Y-shape equatorial vortex (Venus UV signature)
+      // The Y opens toward equator and tapers at poles
+      const ySignature = Math.sin(sx * 4 + cloud * 2) * (1 - Math.abs(yFrac) * 1.5);
+      const yMask = clamp(ySignature * 0.4 + 0.5, 0, 1);
+
+      // Mix three tones based on cloud value and Y mask
+      let color: number;
+      if (cloud > 0.15) {
+        color = lerpColor(baseColor, lightColor, clamp(cloud * 1.5, 0, 1));
+      } else if (cloud < -0.15) {
+        color = lerpColor(baseColor, darkColor, clamp(-cloud * 1.5, 0, 1));
+      } else {
+        color = baseColor;
+      }
+      color = lerpColor(color, swirlColor, yMask * 0.3);
+
+      // Limb darkening (Venus has very strong limb darkening)
+      const brightness = 0.35 + limbFactor * 0.65;
+      const finalColor = lerpColor(0x331100, color, brightness);
+
+      gfx.circle(px, py, dotSize);
+      gfx.fill({ color: finalColor, alpha: 1.0 });
+    }
+  }
+
+  // Reference seed to silence lint (seed is used implicitly via noise instance)
+  void seed;
   return gfx;
 }
 

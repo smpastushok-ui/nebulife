@@ -20,9 +20,8 @@ function darkenColor(color: number, factor: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
-/** Get primary display color from planet visuals */
-function getPlanetDisplayColor(planet: Planet, star: Star): number {
-  const v = derivePlanetVisuals(planet, star);
+/** Get primary display color from already-derived planet visuals (no double-compute) */
+function getPlanetDisplayColorFromVisuals(v: ReturnType<typeof derivePlanetVisuals>): number {
   if (v.isGasGiant || v.isIceGiant) return v.bandColor1;
   if (v.hasOcean && v.waterCoverage > 0.3) {
     return lerpColor(v.oceanShallow, v.surfaceBaseColor, 0.4);
@@ -55,7 +54,10 @@ function lightenColor(color: number, factor: number): number {
 export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   const container = new Container();
   const visuals = derivePlanetVisuals(planet, star);
-  const color = getPlanetDisplayColor(planet, star);
+  const baseColor = getPlanetDisplayColorFromVisuals(visuals);
+  // Star tint modulation: lit hemisphere takes on star's color (M-dwarf=warm, O/B=cool blue).
+  // Subtle 18% blend keeps planet identity but makes each system feel unique.
+  const color = lerpColor(baseColor, visuals.starTint, 0.18);
   const size = getPlanetSize(planet);
   const isGiant = visuals.isGasGiant || visuals.isIceGiant;
 
@@ -218,20 +220,48 @@ const MOON_COLORS: Record<string, number> = {
 
 /**
  * Render a tiny moon dot for the system view.
- * Composition-driven color with volumetric shading.
+ * Composition-driven color with volumetric shading + crater hint for solid bodies.
+ * Optional seed enables deterministic crater placement & color variation per moon.
  */
-export function renderSystemMoon(compositionType: string, radius: number): Graphics {
+export function renderSystemMoon(compositionType: string, radius: number, seed: number = 0): Graphics {
   const gfx = new Graphics();
-  const color = MOON_COLORS[compositionType] ?? 0x888899;
+  const baseColor = MOON_COLORS[compositionType] ?? 0x888899;
+  // Per-seed color variation: ±10% brightness shift for diversity
+  const variation = ((seed % 100) / 100 - 0.5) * 0.2; // -0.1..+0.1
+  const color = variation > 0
+    ? lightenColor(baseColor, variation)
+    : darkenColor(baseColor, 1 + variation);
+
   // Dark base
   gfx.circle(0, 0, radius);
   gfx.fill({ color: darkenColor(color, 0.4), alpha: 0.9 });
   // Lit side
   gfx.circle(radius * 0.15, 0, radius * 0.85);
   gfx.fill({ color, alpha: 0.85 });
-  // Specular highlight
-  gfx.circle(radius * 0.3, -radius * 0.2, radius * 0.35);
-  gfx.fill({ color: 0xffffff, alpha: 0.2 });
+
+  // Crater hints for rocky/icy moons (3-5 small dark circles, deterministic positions)
+  if ((compositionType === 'rocky' || compositionType === 'icy') && radius > 1.5) {
+    const craterColor = darkenColor(color, 0.55);
+    const craterCount = 3 + (seed % 3); // 3-5 craters
+    let s = (seed * 9301 + 49297) | 0;
+    for (let i = 0; i < craterCount; i++) {
+      s = (s * 1103515245 + 12345) & 0x7fffffff;
+      const angle = (s / 0x7fffffff) * Math.PI * 2;
+      s = (s * 1103515245 + 12345) & 0x7fffffff;
+      const dist = (s / 0x7fffffff) * radius * 0.75;
+      const cx = Math.cos(angle) * dist + radius * 0.1; // slight offset toward lit side
+      const cy = Math.sin(angle) * dist;
+      const cr = radius * (0.10 + (s % 100) / 100 * 0.10); // 10-20% of radius
+      gfx.circle(cx, cy, cr);
+      gfx.fill({ color: craterColor, alpha: 0.5 });
+    }
+  }
+
+  // Specular highlight (smaller for icy/metallic, larger for rocky)
+  const specSize = compositionType === 'metallic' ? 0.45 : compositionType === 'icy' ? 0.30 : 0.35;
+  const specAlpha = compositionType === 'metallic' ? 0.35 : compositionType === 'icy' ? 0.30 : 0.20;
+  gfx.circle(radius * 0.3, -radius * 0.2, radius * specSize);
+  gfx.fill({ color: 0xffffff, alpha: specAlpha });
   // Limb darkening
   if (radius > 2) {
     gfx.circle(0, 0, radius);
