@@ -1912,3 +1912,211 @@ export async function updateClusterPosition(
     WHERE id = ${clusterId}
   `;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cluster shared state — colonization, destruction, presence (migration 013)
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface PlanetClaimRow {
+  cluster_id: string;
+  system_id: string;
+  planet_id: string;
+  owner_player_id: string;
+  claimed_at: string;
+  colony_level: number;
+  terraform_pct: number;
+  owner_name_snapshot: string | null;
+}
+
+export interface PlanetDestructionRow {
+  cluster_id: string;
+  system_id: string;
+  planet_id: string;
+  destroyed_by_player_id: string;
+  destroyed_at: string;
+  orbit_au: number | null;
+  reason: string | null;
+}
+
+export interface PlayerPresenceRow {
+  player_id: string;
+  cluster_id: string | null;
+  last_heartbeat: string;
+  current_scene: string | null;
+  current_system_id: string | null;
+}
+
+export interface ClusterOnlineMember {
+  player_id: string;
+  cluster_id: string;
+  last_heartbeat: string;
+  current_scene: string | null;
+  current_system_id: string | null;
+  player_name: string | null;
+  global_index: number | null;
+}
+
+/** Get all planet claims for a single system within a cluster. */
+export async function getSystemPlanetClaims(
+  clusterId: string,
+  systemId: string,
+): Promise<PlanetClaimRow[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT cluster_id, system_id, planet_id, owner_player_id, claimed_at,
+           colony_level, terraform_pct, owner_name_snapshot
+    FROM planet_claims
+    WHERE cluster_id = ${clusterId} AND system_id = ${systemId}
+  ` as PlanetClaimRow[];
+  return rows;
+}
+
+/** Get all planet claims owned by one player (across all systems in a cluster). */
+export async function getPlayerPlanetClaims(
+  playerId: string,
+): Promise<PlanetClaimRow[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT cluster_id, system_id, planet_id, owner_player_id, claimed_at,
+           colony_level, terraform_pct, owner_name_snapshot
+    FROM planet_claims
+    WHERE owner_player_id = ${playerId}
+    ORDER BY claimed_at DESC
+  ` as PlanetClaimRow[];
+  return rows;
+}
+
+/**
+ * Claim a planet for a player. Idempotent: if the planet is already claimed
+ * by the same player, updates colony_level/terraform_pct. If claimed by
+ * someone else, returns null (caller should show "already colonized").
+ */
+export async function claimPlanet(args: {
+  clusterId: string;
+  systemId: string;
+  planetId: string;
+  ownerPlayerId: string;
+  ownerNameSnapshot?: string | null;
+  colonyLevel?: number;
+  terraformPct?: number;
+}): Promise<PlanetClaimRow | null> {
+  const sql = getSQL();
+  const colonyLevel = args.colonyLevel ?? 1;
+  const terraformPct = args.terraformPct ?? 0;
+  const ownerName = args.ownerNameSnapshot ?? null;
+
+  // Try insert; if conflict on PK, update only when owner matches.
+  const rows = await sql`
+    INSERT INTO planet_claims (
+      cluster_id, system_id, planet_id, owner_player_id,
+      colony_level, terraform_pct, owner_name_snapshot
+    ) VALUES (
+      ${args.clusterId}, ${args.systemId}, ${args.planetId}, ${args.ownerPlayerId},
+      ${colonyLevel}, ${terraformPct}, ${ownerName}
+    )
+    ON CONFLICT (cluster_id, system_id, planet_id) DO UPDATE
+      SET colony_level   = EXCLUDED.colony_level,
+          terraform_pct  = EXCLUDED.terraform_pct,
+          owner_name_snapshot = EXCLUDED.owner_name_snapshot
+      WHERE planet_claims.owner_player_id = EXCLUDED.owner_player_id
+    RETURNING cluster_id, system_id, planet_id, owner_player_id, claimed_at,
+              colony_level, terraform_pct, owner_name_snapshot
+  ` as PlanetClaimRow[];
+  return rows[0] ?? null;
+}
+
+/** Release a planet claim (player abandons colony). */
+export async function releasePlanetClaim(args: {
+  clusterId: string;
+  systemId: string;
+  planetId: string;
+  ownerPlayerId: string;
+}): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    DELETE FROM planet_claims
+    WHERE cluster_id = ${args.clusterId}
+      AND system_id = ${args.systemId}
+      AND planet_id = ${args.planetId}
+      AND owner_player_id = ${args.ownerPlayerId}
+  `;
+}
+
+/** Get all destruction events for a single system within a cluster. */
+export async function getSystemPlanetDestructions(
+  clusterId: string,
+  systemId: string,
+): Promise<PlanetDestructionRow[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT cluster_id, system_id, planet_id, destroyed_by_player_id, destroyed_at,
+           orbit_au, reason
+    FROM planet_destructions
+    WHERE cluster_id = ${clusterId} AND system_id = ${systemId}
+  ` as PlanetDestructionRow[];
+  return rows;
+}
+
+/**
+ * Record a planet destruction event. Idempotent on (cluster, system, planet).
+ * Subsequent destructions for the same planet are no-ops.
+ */
+export async function recordPlanetDestruction(args: {
+  clusterId: string;
+  systemId: string;
+  planetId: string;
+  destroyedByPlayerId: string;
+  orbitAU?: number;
+  reason?: string;
+}): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO planet_destructions (
+      cluster_id, system_id, planet_id, destroyed_by_player_id, orbit_au, reason
+    ) VALUES (
+      ${args.clusterId}, ${args.systemId}, ${args.planetId},
+      ${args.destroyedByPlayerId}, ${args.orbitAU ?? null}, ${args.reason ?? null}
+    )
+    ON CONFLICT (cluster_id, system_id, planet_id) DO NOTHING
+  `;
+}
+
+/**
+ * Update player presence (heartbeat + current location).
+ * Called by client every ~30 seconds.
+ */
+export async function updatePlayerPresence(args: {
+  playerId: string;
+  clusterId: string | null;
+  currentScene: string | null;
+  currentSystemId: string | null;
+}): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO player_presence (
+      player_id, cluster_id, last_heartbeat, current_scene, current_system_id
+    ) VALUES (
+      ${args.playerId}, ${args.clusterId}, NOW(), ${args.currentScene}, ${args.currentSystemId}
+    )
+    ON CONFLICT (player_id) DO UPDATE
+      SET cluster_id        = EXCLUDED.cluster_id,
+          last_heartbeat    = NOW(),
+          current_scene     = EXCLUDED.current_scene,
+          current_system_id = EXCLUDED.current_system_id
+  `;
+}
+
+/** List online cluster members (last_heartbeat within 5 minutes). */
+export async function getClusterOnlineMembers(
+  clusterId: string,
+): Promise<ClusterOnlineMember[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT player_id, cluster_id, last_heartbeat, current_scene, current_system_id,
+           player_name, global_index
+    FROM v_cluster_online_members
+    WHERE cluster_id = ${clusterId}
+    ORDER BY last_heartbeat DESC
+  ` as ClusterOnlineMember[];
+  return rows;
+}

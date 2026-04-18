@@ -129,6 +129,15 @@ export {
   setPlayerCluster,
   getClusterCount,
   updateClusterPosition,
+  // Cluster shared state (migration 013)
+  getSystemPlanetClaims,
+  getPlayerPlanetClaims,
+  claimPlanet,
+  releasePlanetClaim,
+  getSystemPlanetDestructions,
+  recordPlanetDestruction,
+  updatePlayerPresence,
+  getClusterOnlineMembers,
 } from './db.js';
 
 export type {
@@ -151,6 +160,11 @@ export type {
   AcademyProgressRow,
   AcademyLessonRow,
   ClusterRow,
+  // Cluster shared state types
+  PlanetClaimRow,
+  PlanetDestructionRow,
+  PlayerPresenceRow,
+  ClusterOnlineMember,
 } from './db.js';
 
 // Weekly Digest Generator

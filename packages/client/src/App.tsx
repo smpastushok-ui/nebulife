@@ -4,6 +4,12 @@ import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
 import { GameEngine } from './game/GameEngine.js';
 import { UniverseEngine } from './game/UniverseEngine.js';
+import {
+  getSystemSharedState,
+  sendHeartbeat,
+  recordDestruction,
+  getDestroyedPlanetIds,
+} from './multiplayer/cluster-state.js';
 import { WarpTransition } from './ui/components/WarpTransition.js';
 import { CommandBar } from './ui/components/CommandBar/index.js';
 import type { NavigationMenuItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
@@ -182,6 +188,28 @@ export interface GameState {
   showPlanetInfo: boolean;
   playerName: string;
   error: string | null;
+}
+
+/**
+ * Combined destroyed-planet lookup: local (own destruction) + cluster-wide
+ * (other players' destructions from server cache). When a neighbor visits
+ * a system this player has touched, they see the same planets gone.
+ */
+function getDestroyedPlanetIdsForSystem(systemId: string): Set<string> | undefined {
+  const ids = new Set<string>();
+  // Local — instant feedback for own actions
+  try {
+    const raw = localStorage.getItem('nebulife_destroyed_planets');
+    if (raw) {
+      const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
+      for (const d of arr) {
+        if (d.systemId === systemId) ids.add(d.planetId);
+      }
+    }
+  } catch { /* ignore */ }
+  // Cluster-wide — from server cache (populated when scene was entered)
+  for (const id of getDestroyedPlanetIds(systemId)) ids.add(id);
+  return ids.size > 0 ? ids : undefined;
 }
 
 function AppInner() {
@@ -3432,7 +3460,7 @@ function AppInner() {
     if (!evacuationTarget) return;
     awardXP(XP_REWARDS.COLONY_FOUNDED, 'colony_founded');
 
-    // Save old home planet as destroyed
+    // Save old home planet as destroyed (locally for instant UI + cluster-wide for neighbors)
     if (homeInfo) {
       try {
         const raw = localStorage.getItem('nebulife_destroyed_planets');
@@ -3444,6 +3472,14 @@ function AppInner() {
         });
         localStorage.setItem('nebulife_destroyed_planets', JSON.stringify(destroyed));
       } catch { /* ignore */ }
+
+      // Cluster-wide: persist destruction so all neighbors see this planet gone
+      void recordDestruction({
+        systemId: homeInfo.system.id,
+        planetId: homeInfo.planet.id,
+        orbitAU: homeInfo.planet.orbit.semiMajorAxisAU,
+        reason: 'doomsday',
+      });
     }
 
     // Update home planet on server
@@ -3519,6 +3555,33 @@ function AppInner() {
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
   useEffect(() => { currentSceneRef.current = state.scene; }, [state.scene]);
+
+  // ── Cluster shared state — load destroyed planets / colonies on system entry ──
+  // The cluster-state module caches results for 30 s and degrades silently to
+  // empty state if the server is unreachable, so this never blocks the UI.
+  const [, setClusterStateBump] = useState(0);
+  useEffect(() => {
+    if (state.scene !== 'system' || !state.selectedSystem) return;
+    const sysId = state.selectedSystem.id;
+    void getSystemSharedState(sysId).then(() => {
+      // Trigger re-render — destroyed planets need to disappear visually for
+      // ALL viewers, not just the player who destroyed them.
+      setClusterStateBump(b => b + 1);
+    });
+  }, [state.scene, state.selectedSystem?.id]);
+
+  // ── Heartbeat — every 30 s while playing, plus on scene change ──
+  // Sends current scene + system to server; receives online cluster members.
+  useEffect(() => {
+    if (!firebaseUser) return; // not logged in yet
+    const tick = () => {
+      const sysId = state.selectedSystem?.id ?? null;
+      void sendHeartbeat({ currentScene: state.scene ?? null, currentSystemId: sysId });
+    };
+    tick(); // immediate on mount / scene change
+    const interval = setInterval(tick, 30_000);
+    return () => clearInterval(interval);
+  }, [state.scene, state.selectedSystem?.id, firebaseUser]);
 
   // ── System notification helper ────────────────────────────────────────
   const addSystemNotif = useCallback((planetName: string, systemId: string, planetId: string) => {
@@ -5555,15 +5618,7 @@ function AppInner() {
             idx,
             aliases[objectsPanelSystem.id] ?? undefined,
           )}
-          destroyedPlanetIds={(() => {
-            try {
-              const raw = localStorage.getItem('nebulife_destroyed_planets');
-              if (!raw) return undefined;
-              const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
-              const ids = arr.filter(d => d.systemId === objectsPanelSystem.id).map(d => d.planetId);
-              return ids.length > 0 ? new Set(ids) : undefined;
-            } catch { return undefined; }
-          })()}
+          destroyedPlanetIds={getDestroyedPlanetIdsForSystem(objectsPanelSystem.id)}
         />
       )}
 
@@ -5574,15 +5629,7 @@ function AppInner() {
           systemDisplayName={planetDetailTarget.displayName}
           initialPlanetIndex={planetDetailTarget.planetIndex}
           onClose={() => setPlanetDetailTarget(null)}
-          destroyedPlanetIds={(() => {
-            try {
-              const raw = localStorage.getItem('nebulife_destroyed_planets');
-              if (!raw) return undefined;
-              const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
-              const ids = arr.filter(d => d.systemId === planetDetailTarget.system.id).map(d => d.planetId);
-              return ids.length > 0 ? new Set(ids) : undefined;
-            } catch { return undefined; }
-          })()}
+          destroyedPlanetIds={getDestroyedPlanetIdsForSystem(planetDetailTarget.system.id)}
         />
       )}
 
