@@ -136,7 +136,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         onPointerUp={(e) => handlePointerUp(e, false)}
         onPointerCancel={(e) => handlePointerUp(e, false)}
       >
-        <div style={{ ...styles.hint, bottom: `calc(80px + ${safeBottom})`, right: `calc(60px + ${safeRight})` }}>
+        <div style={{ ...styles.hint, bottom: `calc(80px + ${safeBottom})`, right: `calc(110px + ${safeRight})` }}>
           <div style={{ ...styles.hintRing, borderColor: 'rgba(255, 68, 68, 0.2)' }} />
           <span style={{ ...styles.hintLabel, color: 'rgba(255, 68, 68, 0.3)' }}>AIM</span>
         </div>
@@ -145,19 +145,22 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         </div>
       </div>
 
-      {/* Ability buttons -- arranged around right side of AIM ring at 1, 3, 5 o'clock */}
-      {/* WARP -- 1 o'clock (upper-right of ring) */}
+      {/* Ability buttons — arranged around left side of AIM ring at 11, 9, 7 o'clock.
+          Positioned further from the screen edge (65→115px extra) so the right
+          joystick and ability buttons don't clip against rounded corners, system
+          back-gesture zone or device safe-area on landscape. */}
+      {/* WARP — upper-left of the AIM ring */}
       <button
-        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(68px + ${safeRight})`, bottom: `calc(190px + ${safeBottom})`, opacity: warpReady ? 1 : 0.3 }}
+        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(183px + ${safeRight})`, bottom: `calc(190px + ${safeBottom})`, opacity: warpReady ? 1 : 0.3 }}
         onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
         </svg>
       </button>
-      {/* ROCKET -- 3 o'clock (right of ring) */}
+      {/* ROCKET — left of ring */}
       <button
-        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(18px + ${safeRight})`, bottom: `calc(125px + ${safeBottom})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
+        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(220px + ${safeRight})`, bottom: `calc(125px + ${safeBottom})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
         onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -165,9 +168,9 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
           <line x1="7" y1="12" x2="17" y2="12" />
         </svg>
       </button>
-      {/* GRAV -- 5 o'clock (lower-right of ring) */}
+      {/* GRAV — lower-left of ring */}
       <button
-        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(68px + ${safeRight})`, bottom: `calc(60px + ${safeBottom})` }}
+        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(183px + ${safeRight})`, bottom: `calc(60px + ${safeBottom})` }}
         onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -927,23 +927,41 @@ export class ArenaEngine {
     // Input: WASD (desktop) or mobile joystick
     let ax = 0, az = 0;
     if (this.isMobile) {
-      // Local-space strafe: joystick input is relative to ship's facing direction
-      // joystickX (mobileMove.x) = strafe right/left
-      // joystickY (mobileMove.z) = forward/back (negative = up = forward)
+      // Two movement modes depending on right-joystick state:
+      //
+      // 1. Right joystick IDLE → nose-follow: left joystick moves the ship
+      //    in WORLD space (push left → fly left), ship's nose turns to match.
+      //    This is the natural twin-stick default.
+      //
+      // 2. Right joystick ACTIVE → strafe: ship's nose is locked to the aim
+      //    direction from the right joystick; left joystick strafes relative
+      //    to that aim (up = forward along aim, sideways = circle-strafe).
+      //
+      // updateAim() owns rotating the aimDir vector; here we only pick the
+      // movement frame. Keeping the two responsibilities separate avoids the
+      // 90° feedback loop that happens when aim is derived from the left
+      // joystick in local-strafe mode at the same time.
       const jx = this.mobileMove.x;
       const jz = this.mobileMove.z;
       const jLen = Math.sqrt(jx * jx + jz * jz);
       if (jLen > 0.01) {
-        // Forward vector = where the ship is facing (aimDir)
-        const fwdX = this.aimDirX;
-        const fwdZ = this.aimDirZ;
-        // Right vector = perpendicular to forward (CW rotation)
-        const rgtX = -fwdZ;
-        const rgtZ = fwdX;
-        // Convert local input to world-space acceleration
-        // -jz because joystick up (negative) = move forward
-        ax = fwdX * (-jz) + rgtX * jx;
-        az = fwdZ * (-jz) + rgtZ * jx;
+        const aimLen = Math.sqrt(this.mobileAim.x * this.mobileAim.x + this.mobileAim.z * this.mobileAim.z);
+        const rightActive = aimLen > 0.1;
+        if (rightActive) {
+          // Strafe mode — movement frame is the ship's aim direction
+          const fwdX = this.aimDirX;
+          const fwdZ = this.aimDirZ;
+          // Right vector = perpendicular to forward (CW rotation)
+          const rgtX = -fwdZ;
+          const rgtZ = fwdX;
+          // -jz because joystick up (negative) = forward
+          ax = fwdX * (-jz) + rgtX * jx;
+          az = fwdZ * (-jz) + rgtZ * jx;
+        } else {
+          // Nose-follow mode — direct world-space movement (no rotation math)
+          ax = jx;
+          az = jz;
+        }
       }
     } else {
       if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
@@ -1038,17 +1056,22 @@ export class ArenaEngine {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
-      // Right joystick controls aim. Fully manual — no auto-aim.
-      // Previously auto-aim would re-orient the ship to nearest enemy when
-      // the right joystick was idle, but this silently rotated the local
-      // input frame used by the left joystick (strafe is relative to aim),
-      // making "left" become "down" etc. Removed.
+      // Aim resolution (manual — no auto-aim):
+      //   - Right joystick active → aim tracks right joystick (strafe mode)
+      //   - Right idle + left active → aim tracks left joystick (nose-follow)
+      //   - Both idle → keep last aim (ship holds its facing)
       const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
       if (aimLen > 0.1) {
         this.aimDirX = this.mobileAim.x / aimLen;
         this.aimDirZ = this.mobileAim.z / aimLen;
+      } else {
+        const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
+        if (moveLen > 0.1) {
+          this.aimDirX = this.mobileMove.x / moveLen;
+          this.aimDirZ = this.mobileMove.z / moveLen;
+        }
+        // else: keep last aim direction (ship keeps facing)
       }
-      // Idle right joystick → keep last aim direction (no automatic rotation).
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;
       const dz = this.aimPoint.z - this.playerPos.z;
