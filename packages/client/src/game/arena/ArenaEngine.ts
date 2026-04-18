@@ -42,6 +42,13 @@ const SHIP_GLB_RED  = '/arena_ships/red_ship.glb';
 // consistent no matter what Tripo spat out.
 const SHIP_VISUAL_SIZE = 40;
 
+// Tripo ship GLB comes with the nose pointing along +X (ship's own left
+// side appears as "forward"). The gameplay code assumes the nose points
+// along -Z (Three.js forward). Pre-rotate the model by -π/2 around Y so
+// that when the engine sets mesh.rotation.y = atan2(-aimDirX, -aimDirZ),
+// the visible nose tracks the aim direction.
+const SHIP_MODEL_NOSE_OFFSET = -Math.PI / 2;
+
 // Cached loaded scenes. Loaded once on ArenaEngine.init, cloned per ship.
 let _cachedBlueShip: THREE.Group | null = null;
 let _cachedRedShip: THREE.Group | null = null;
@@ -103,10 +110,15 @@ function cloneShipScene(source: THREE.Group): THREE.Group {
       obj.frustumCulled = true;
     }
   });
-  // Wrap in a parent Group so callers can set position/rotation on the wrapper
-  // while _normalizeShipScene's centering offset stays on the model.
+  // Wrap in a parent Group. The wrapper takes position/rotation from the
+  // engine (ship.pos, aim-based rotation.y). An intermediate inner group
+  // applies the one-time nose-orientation offset so the model's visible
+  // nose matches the game's forward-axis convention.
+  const inner = new THREE.Group();
+  inner.rotation.y = SHIP_MODEL_NOSE_OFFSET;
+  inner.add(clone);
   const wrapper = new THREE.Group();
-  wrapper.add(clone);
+  wrapper.add(inner);
   return wrapper;
 }
 
@@ -745,22 +757,10 @@ export class ArenaEngine {
       this.scene.add(this.playerMesh);
     }
 
-    // Glow disc under the ship — purely visual orientation cue.
-    // Additive + depthWrite:false means it sits between floor grid and ship
-    // without z-fighting. Color mutates with active buff (see applyBuffEffects).
-    const glowGeo = new THREE.CircleGeometry(SHIP_RADIUS * 3.5, 24);
-    glowGeo.rotateX(-Math.PI / 2);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: 0x7bb8ff,
-      transparent: true,
-      opacity: 0.35,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    this.disposables.push(glowGeo, glowMat);
-    this.playerGlowMesh = new THREE.Mesh(glowGeo, glowMat);
-    this.playerGlowMesh.position.set(0, 2, 0); // just above floor, below ship
-    this.scene.add(this.playerGlowMesh);
+    // Glow disc removed — served the top-down view to highlight ship position
+    // over the floor grid. In TPS with the grid gone, the disc looked like a
+    // floating puddle under the ship. The HUD crosshair already tells the
+    // player where the ship is.
 
     // Crosshair ring at aim point — desktop only (mobile uses auto-aim).
     const crossGeo = new THREE.RingGeometry(6, 8, 24);
@@ -845,39 +845,45 @@ export class ArenaEngine {
   }
 
   private setupBullets(): void {
-    // 3 pools: small (r=2.5, 60), medium (r=4, 30), large (r=6, 10)
-    const color = 0x998877; // warm rocky gray
-    for (let m = 0; m < 3; m++) {
-      const r = this.BULLET_SIZES[m];
-      const geo = new THREE.IcosahedronGeometry(r, 0);
-      const mat = new THREE.MeshLambertMaterial({ color, flatShading: true });
-      this.disposables.push(geo, mat);
-      const poolSize = this.BULLET_POOL_SIZES[m];
-      const mesh = new THREE.InstancedMesh(geo, mat, poolSize);
-      mesh.frustumCulled = false;
-      const dummy = new THREE.Object3D();
-      for (let i = 0; i < poolSize; i++) {
-        dummy.position.set(0, -1000, 0);
-        dummy.scale.set(0, 0, 0);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(i, dummy.matrix);
-        this.bullets.push({
-          x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false,
-          meshIdx: m, instIdx: i,
-          rotX: Math.random() * Math.PI * 2,
-          rotY: Math.random() * Math.PI * 2,
-          rotZ: Math.random() * Math.PI * 2,
-          rotSpX: (Math.random() - 0.5) * 6,
-          rotSpY: (Math.random() - 0.5) * 6,
-          rotSpZ: (Math.random() - 0.5) * 6,
-        });
-      }
-      mesh.instanceMatrix.needsUpdate = true;
-      this.scene.add(mesh);
-      this.bulletMeshes.push(mesh);
+    // Laser beams — thin cylinder 12 units long oriented along +Y (baked).
+    // InstancedMesh carries a single geometry; per-bullet orientation is
+    // written via setMatrixAt each frame (see updateBullets).
+    // Bullets are additive-blended and emissive-bright (no lighting).
+    const geo = new THREE.CylinderGeometry(0.5, 0.5, 12, 6);
+    // Rotate so the cylinder extends along +Z (forward); then per-frame we
+    // orient via rotation.y. After this bake, local +Z = beam length.
+    geo.rotateX(Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x88ff88,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.disposables.push(geo, mat);
+
+    const totalPool = this.BULLET_POOL; // 100
+    const mesh = new THREE.InstancedMesh(geo, mat, totalPool);
+    mesh.frustumCulled = false;
+
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < totalPool; i++) {
+      dummy.position.set(0, -1000, 0);
+      dummy.scale.set(0, 0, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      this.bullets.push({
+        x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false,
+        meshIdx: 0, instIdx: i,
+        rotX: 0, rotY: 0, rotZ: 0,
+        rotSpX: 0, rotSpY: 0, rotSpZ: 0,
+      });
     }
-    // Populate free-list in reverse so pop() hands out the small-bullet pool first
-    // (preserves prior behavior where small bullets were used most).
+    mesh.instanceMatrix.needsUpdate = true;
+    this.scene.add(mesh);
+    // Single pool now; bulletMeshes[0] is the laser mesh.
+    this.bulletMeshes.push(mesh);
+
     for (let i = this.bullets.length - 1; i >= 0; i--) this.bulletFreeList.push(i);
   }
 
@@ -1385,7 +1391,7 @@ export class ArenaEngine {
 
   private updateBullets(dt: number): void {
     const dummy = _tempDummy;
-    const needsUpdate = [false, false, false];
+    let needsUpdate = false;
 
     for (let i = 0; i < this.bullets.length; i++) {
       const b = this.bullets[i];
@@ -1394,9 +1400,6 @@ export class ArenaEngine {
       b.x += b.vx * dt;
       b.z += b.vz * dt;
       b.age += dt;
-      b.rotX += b.rotSpX * dt;
-      b.rotY += b.rotSpY * dt;
-      b.rotZ += b.rotSpZ * dt;
 
       const dist = Math.sqrt(b.x * b.x + b.z * b.z);
       if (b.age >= this.BULLET_LIFETIME || dist > ARENA_HALF + 50) {
@@ -1405,22 +1408,21 @@ export class ArenaEngine {
         dummy.position.set(0, -1000, 0);
         dummy.scale.set(0, 0, 0);
         dummy.updateMatrix();
-        this.bulletMeshes[b.meshIdx].setMatrixAt(b.instIdx, dummy.matrix);
-        needsUpdate[b.meshIdx] = true;
+        this.bulletMeshes[0].setMatrixAt(b.instIdx, dummy.matrix);
+        needsUpdate = true;
         continue;
       }
 
+      // Laser beam: cylinder local +Z axis aligned with velocity direction.
       dummy.position.set(b.x, 4, b.z);
       dummy.scale.set(1, 1, 1);
-      dummy.rotation.set(b.rotX, b.rotY, b.rotZ);
+      dummy.rotation.set(0, Math.atan2(b.vx, b.vz), 0);
       dummy.updateMatrix();
-      this.bulletMeshes[b.meshIdx].setMatrixAt(b.instIdx, dummy.matrix);
-      needsUpdate[b.meshIdx] = true;
+      this.bulletMeshes[0].setMatrixAt(b.instIdx, dummy.matrix);
+      needsUpdate = true;
     }
 
-    for (let m = 0; m < 3; m++) {
-      if (needsUpdate[m]) this.bulletMeshes[m].instanceMatrix.needsUpdate = true;
-    }
+    if (needsUpdate) this.bulletMeshes[0].instanceMatrix.needsUpdate = true;
   }
 
   // ── Collisions ─────────────────────────────────────────────────────────
@@ -1752,8 +1754,18 @@ export class ArenaEngine {
   // ── Homing missiles ─────────────────────────────────────────────────────
 
   private setupMissiles(): void {
-    const geo = new THREE.ConeGeometry(1, 4, 4);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+    // Missile body — tapered cylinder (thin nose, thicker tail) so the shape
+    // reads as a rocket, not a flat triangle. Baked rotation so local +Z is
+    // the nose direction; engine orients via rotation.y each frame.
+    const geo = new THREE.CylinderGeometry(0.3, 0.9, 5, 8);
+    geo.rotateX(Math.PI / 2); // cylinder axis +Y → +Z (nose forward)
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xcc3333,
+      emissive: 0x441111,
+      emissiveIntensity: 0.6,
+      roughness: 0.4,
+      metalness: 0.6,
+    });
     this.disposables.push(geo, mat);
 
     this.missileMesh = new THREE.InstancedMesh(geo, mat, this.MISSILE_POOL);
@@ -2234,11 +2246,11 @@ export class ArenaEngine {
       m.x += m.vx * dt;
       m.z += m.vz * dt;
 
-      // Visual
+      // Visual — missile body is baked so local +Z is the nose direction.
+      // Just orient rotation.y toward velocity for a head-first look.
       dummy.position.set(m.x, 4, m.z);
       dummy.scale.set(1.5, 1.5, 1.5);
-      dummy.rotation.set(-Math.PI / 2, 0, 0);
-      dummy.rotateY(m.angle);
+      dummy.rotation.set(0, Math.atan2(m.vx, m.vz), 0);
       dummy.updateMatrix();
       this.missileMesh.setMatrixAt(i, dummy.matrix);
       needsUpdate = true;
