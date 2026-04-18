@@ -213,13 +213,16 @@ function handlePatrol(
   allShips: ShipEntity[],
   params: DifficultyParams,
 ): PatrolResult {
-  // Check for nearby enemies first
+  // Check for nearby enemies first — transition into chase with an actual
+  // pursue vector instead of moveDir=0 (otherwise the bot freezes for one
+  // decision interval on state transition).
   const nearest = findNearestEnemy(self, allShips);
   if (nearest && vec2Dist(self.pos, nearest.pos) < RANGE_DETECT) {
+    const pursueDir = vec2Norm(vec2Sub(nearest.pos, self.pos));
     return {
       nextState: 'chase',
-      moveDir: { x: 0, z: 0 },
-      aimDir: { x: 0, z: 1 },
+      moveDir: pursueDir,
+      aimDir: applyAimError(pursueDir, brain, params.aimOffsetRad),
       firing: false,
       dash: false,
       newWaypoint: brain.waypoint,
@@ -475,15 +478,18 @@ function handleFlee(
   allShips: ShipEntity[],
   params: DifficultyParams,
 ): PatrolResult {
-  // Rally when HP recovers
+  // Rally when HP recovers — start heading to the new waypoint immediately
+  // (moveDir=0 would stall the bot on transition).
   if (self.hp / self.maxHp > HP_RALLY_THRESHOLD) {
+    const newWp = randomWaypoint();
+    const toWp = vec2Norm(vec2Sub(newWp, self.pos));
     return {
       nextState: 'patrol',
-      moveDir: { x: 0, z: 0 },
-      aimDir: { x: 0, z: 1 },
+      moveDir: toWp,
+      aimDir: applyAimError(toWp, brain, params.aimOffsetRad),
       firing: false,
       dash: false,
-      newWaypoint: randomWaypoint(),
+      newWaypoint: newWp,
       newTargetId: null,
     };
   }

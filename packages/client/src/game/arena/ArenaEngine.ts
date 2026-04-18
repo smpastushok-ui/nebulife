@@ -2767,7 +2767,10 @@ export class ArenaEngine {
         }
       }
 
-      // Anti-edge-stuck: force patrol to center when near boundary
+      // Anti-edge-stuck: force a fresh center-ward waypoint when near boundary.
+      // The actual move-vector override happens below (after AI runs) so a
+      // stale FSM output can't leave the bot drifting outward for a full
+      // decision interval.
       const distFromCenter = Math.sqrt(bot.pos.x * bot.pos.x + bot.pos.z * bot.pos.z);
       if (distFromCenter > ARENA_HALF * 0.70) {
         bot.brain.waypoint = { x: (Math.random() - 0.5) * (ARENA_HALF * 0.4), z: (Math.random() - 0.5) * (ARENA_HALF * 0.4) };
@@ -2810,9 +2813,22 @@ export class ArenaEngine {
       // Run AI FSM
       const input = updateBot(bot.brain, selfEntity, enemies, dt);
 
-      // Apply movement
-      const ax = input.moveDir.x;
-      const az = input.moveDir.z;
+      // Hard edge-rescue override: if the bot is beyond 75% of the arena
+      // radius, replace AI's movement with a direct center-ward vector for
+      // THIS frame. This is the key fix for bots "parking" at the border
+      // for a full decision interval on transitions where AI momentarily
+      // outputs moveDir=0 (e.g. state changes). Aim follows move so the
+      // turn-rate smoothing keeps visuals coherent.
+      let ax = input.moveDir.x;
+      let az = input.moveDir.z;
+      if (distFromCenter > ARENA_HALF * 0.75) {
+        const toCenterX = -bot.pos.x / distFromCenter;
+        const toCenterZ = -bot.pos.z / distFromCenter;
+        ax = toCenterX;
+        az = toCenterZ;
+        input.aimDir.x = toCenterX;
+        input.aimDir.z = toCenterZ;
+      }
       bot.vel.x += ax * SHIP_ACCELERATION * dt;
       bot.vel.z += az * SHIP_ACCELERATION * dt;
       // Frame-rate independent drag: normalised to 60fps equivalent
