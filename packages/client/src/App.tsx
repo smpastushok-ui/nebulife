@@ -1134,11 +1134,14 @@ function AppInner() {
   }, [surfaceTarget]);
 
   // Terminal ambient loop — new user-supplied track (terminal-loop.mp3),
-  // loops at 40% volume while the Cosmic Archive is open. Enabled on both
-  // web and native.
+  // loops at 40% volume while the Cosmic Archive is open. Initial volume
+  // respects the user's persisted mute toggle (nebulife_terminal_muted),
+  // which CosmicArchive also mutates live via setLoopVolume on change.
   useEffect(() => {
     if (showCosmicArchive) {
-      playLoop('terminal-loop.mp3', 0.4);
+      let vol = 0.4;
+      try { if (localStorage.getItem('nebulife_terminal_muted') === '1') vol = 0; } catch { /* ignore */ }
+      playLoop('terminal-loop.mp3', vol);
     } else {
       stopLoop('terminal-loop.mp3');
     }
@@ -5711,7 +5714,9 @@ function AppInner() {
           }}
           onGoHome={() => {
             setShowCosmicArchive(false);
-            handleGoToHomePlanet();
+            // Terminal home button now lands on the SURFACE directly
+            // (was exosphere). Matches bottom-bar Home behaviour.
+            handleGoToHomeSurface();
           }}
           onStartResearch={handleStartResearch}
           canStartResearch={(sysId: string) => {
