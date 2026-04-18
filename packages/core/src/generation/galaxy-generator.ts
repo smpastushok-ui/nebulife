@@ -14,7 +14,7 @@ import type { Planet } from '../types/planet.js';
  *
  * Returns positions in light-years (x, y) relative to center.
  */
-function hexRingPositions(ringIndex: number, centerX: number, centerY: number): { x: number; y: number }[] {
+export function hexRingPositions(ringIndex: number, centerX: number, centerY: number): { x: number; y: number }[] {
   if (ringIndex === 0) {
     return [{ x: centerX, y: centerY }];
   }
@@ -61,7 +61,7 @@ function hexRingPositions(ringIndex: number, centerX: number, centerY: number): 
  * Generate a deterministic seed for a star system at a given position.
  * Ensures that overlapping systems from different players are identical.
  */
-function systemSeedFromPosition(galaxySeed: number, x: number, y: number): number {
+export function systemSeedFromPosition(galaxySeed: number, x: number, y: number): number {
   // Quantize position to avoid floating-point issues
   const qx = Math.round(x * 100);
   const qy = Math.round(y * 100);

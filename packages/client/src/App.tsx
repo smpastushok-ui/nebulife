@@ -2,9 +2,14 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { playSfx, playLoop, stopLoop } from './audio/SfxPlayer.js';
 import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
-import { LanguageSelectScreen } from './ui/components/LanguageSelectScreen.js';
 import { GameEngine } from './game/GameEngine.js';
 import { UniverseEngine } from './game/UniverseEngine.js';
+import {
+  getSystemSharedState,
+  sendHeartbeat,
+  recordDestruction,
+  getDestroyedPlanetIds,
+} from './multiplayer/cluster-state.js';
 import { WarpTransition } from './ui/components/WarpTransition.js';
 import { CommandBar } from './ui/components/CommandBar/index.js';
 import type { NavigationMenuItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
@@ -183,6 +188,28 @@ export interface GameState {
   showPlanetInfo: boolean;
   playerName: string;
   error: string | null;
+}
+
+/**
+ * Combined destroyed-planet lookup: local (own destruction) + cluster-wide
+ * (other players' destructions from server cache). When a neighbor visits
+ * a system this player has touched, they see the same planets gone.
+ */
+function getDestroyedPlanetIdsForSystem(systemId: string): Set<string> | undefined {
+  const ids = new Set<string>();
+  // Local — instant feedback for own actions
+  try {
+    const raw = localStorage.getItem('nebulife_destroyed_planets');
+    if (raw) {
+      const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
+      for (const d of arr) {
+        if (d.systemId === systemId) ids.add(d.planetId);
+      }
+    }
+  } catch { /* ignore */ }
+  // Cluster-wide — from server cache (populated when scene was entered)
+  for (const id of getDestroyedPlanetIds(systemId)) ids.add(id);
+  return ids.size > 0 ? ids : undefined;
 }
 
 function AppInner() {
@@ -2221,8 +2248,15 @@ function AppInner() {
   useEffect(() => {
     if (!canvasRef.current || engineRef.current) return;
 
-    // Read generation index from localStorage (set by server on auth sync / reset)
-    const genIdx = parseInt(localStorage.getItem('nebulife_generation_index') || '0', 10);
+    // playerIndex = server's global_index (deterministic cluster slot) — NOT the
+    // local generation/reset counter. Using science_points here was a bug: after
+    // a "Start Over" reset, the player's science_points incremented and they
+    // suddenly saw a different cluster slot, breaking neighbor consistency for
+    // multiplayer (other players still expected them at the old slot).
+    // Fallback to legacy generation_index when global_index hasn't synced yet
+    // (offline / first-frame race) so single-player still works.
+    const fallbackGenIdx = parseInt(localStorage.getItem('nebulife_generation_index') || '0', 10);
+    const playerIndex = globalPlayerIndexRef.current || fallbackGenIdx;
     const engine = new GameEngine(canvasRef.current, {
       onSystemSelect: (system, screenPos) => {
         setState((prev) => ({ ...prev, selectedSystem: system, selectedPlanet: null }));
@@ -2292,7 +2326,7 @@ function AppInner() {
           setHoverLabelPos(pos);
         }
       },
-    }, genIdx);
+    }, playerIndex);
 
     engine.init().then(() => {
       // Sync restored research state before anything else
@@ -3446,7 +3480,7 @@ function AppInner() {
     if (!evacuationTarget) return;
     awardXP(XP_REWARDS.COLONY_FOUNDED, 'colony_founded');
 
-    // Save old home planet as destroyed
+    // Save old home planet as destroyed (locally for instant UI + cluster-wide for neighbors)
     if (homeInfo) {
       try {
         const raw = localStorage.getItem('nebulife_destroyed_planets');
@@ -3458,6 +3492,14 @@ function AppInner() {
         });
         localStorage.setItem('nebulife_destroyed_planets', JSON.stringify(destroyed));
       } catch { /* ignore */ }
+
+      // Cluster-wide: persist destruction so all neighbors see this planet gone
+      void recordDestruction({
+        systemId: homeInfo.system.id,
+        planetId: homeInfo.planet.id,
+        orbitAU: homeInfo.planet.orbit.semiMajorAxisAU,
+        reason: 'doomsday',
+      });
     }
 
     // Update home planet on server
@@ -3533,6 +3575,33 @@ function AppInner() {
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
   useEffect(() => { currentSceneRef.current = state.scene; }, [state.scene]);
+
+  // ── Cluster shared state — load destroyed planets / colonies on system entry ──
+  // The cluster-state module caches results for 30 s and degrades silently to
+  // empty state if the server is unreachable, so this never blocks the UI.
+  const [, setClusterStateBump] = useState(0);
+  useEffect(() => {
+    if (state.scene !== 'system' || !state.selectedSystem) return;
+    const sysId = state.selectedSystem.id;
+    void getSystemSharedState(sysId).then(() => {
+      // Trigger re-render — destroyed planets need to disappear visually for
+      // ALL viewers, not just the player who destroyed them.
+      setClusterStateBump(b => b + 1);
+    });
+  }, [state.scene, state.selectedSystem?.id]);
+
+  // ── Heartbeat — every 30 s while playing, plus on scene change ──
+  // Sends current scene + system to server; receives online cluster members.
+  useEffect(() => {
+    if (!firebaseUser) return; // not logged in yet
+    const tick = () => {
+      const sysId = state.selectedSystem?.id ?? null;
+      void sendHeartbeat({ currentScene: state.scene ?? null, currentSystemId: sysId });
+    };
+    tick(); // immediate on mount / scene change
+    const interval = setInterval(tick, 30_000);
+    return () => clearInterval(interval);
+  }, [state.scene, state.selectedSystem?.id, firebaseUser]);
 
   // ── System notification helper ────────────────────────────────────────
   const addSystemNotif = useCallback((planetName: string, systemId: string, planetId: string) => {
@@ -5583,15 +5652,7 @@ function AppInner() {
             idx,
             aliases[objectsPanelSystem.id] ?? undefined,
           )}
-          destroyedPlanetIds={(() => {
-            try {
-              const raw = localStorage.getItem('nebulife_destroyed_planets');
-              if (!raw) return undefined;
-              const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
-              const ids = arr.filter(d => d.systemId === objectsPanelSystem.id).map(d => d.planetId);
-              return ids.length > 0 ? new Set(ids) : undefined;
-            } catch { return undefined; }
-          })()}
+          destroyedPlanetIds={getDestroyedPlanetIdsForSystem(objectsPanelSystem.id)}
         />
       )}
 
@@ -5602,15 +5663,7 @@ function AppInner() {
           systemDisplayName={planetDetailTarget.displayName}
           initialPlanetIndex={planetDetailTarget.planetIndex}
           onClose={() => setPlanetDetailTarget(null)}
-          destroyedPlanetIds={(() => {
-            try {
-              const raw = localStorage.getItem('nebulife_destroyed_planets');
-              if (!raw) return undefined;
-              const arr = JSON.parse(raw) as Array<{ planetId: string; systemId: string }>;
-              const ids = arr.filter(d => d.systemId === planetDetailTarget.system.id).map(d => d.planetId);
-              return ids.length > 0 ? new Set(ids) : undefined;
-            } catch { return undefined; }
-          })()}
+          destroyedPlanetIds={getDestroyedPlanetIdsForSystem(planetDetailTarget.system.id)}
         />
       )}
 
@@ -5826,15 +5879,31 @@ function AppInner() {
 // Root export — wraps AppInner with LanguageProvider + language selection
 // ---------------------------------------------------------------------------
 
+/** Detect device language and map to supported app language ('uk' | 'en').
+ *  Ukrainian for uk-* locale; English for everything else. */
+function detectDeviceLanguage(): Language {
+  try {
+    const candidates: string[] = [];
+    if (typeof navigator !== 'undefined') {
+      if (Array.isArray(navigator.languages)) candidates.push(...navigator.languages);
+      if (navigator.language) candidates.push(navigator.language);
+    }
+    for (const raw of candidates) {
+      const code = raw.toLowerCase().split(/[-_]/)[0];
+      if (code === 'uk') return 'uk';
+      if (code === 'en') return 'en';
+    }
+  } catch { /* ignore */ }
+  return 'en';
+}
+
 export function App() {
-  const [languageSelected, setLanguageSelected] = useState(
-    () => localStorage.getItem('nebulife_lang_chosen') === '1',
-  );
   const [savedLang] = useState<Language>(() => {
-    const lang = (localStorage.getItem('nebulife_lang') as Language) || 'uk';
-    // Sync react-i18next to match custom LanguageProvider on every app start.
-    // Without this, react-i18next may fall back to browser locale (e.g. English)
-    // while the custom provider correctly shows Ukrainian.
+    // Priority: explicit user choice → device locale → 'en' fallback.
+    // No language-selection screen — picks correct language on first launch.
+    const stored = localStorage.getItem('nebulife_lang') as Language | null;
+    const lang: Language = stored === 'uk' || stored === 'en' ? stored : detectDeviceLanguage();
+    if (!stored) localStorage.setItem('nebulife_lang', lang);
     void i18n.changeLanguage(lang);
     return lang;
   });
@@ -5843,21 +5912,6 @@ export function App() {
     localStorage.setItem('nebulife_lang', lang);
     void i18n.changeLanguage(lang);
   }, []);
-
-  if (!languageSelected) {
-    return (
-      <LanguageProvider initial="uk">
-        <LanguageSelectScreen
-          onSelect={(lang) => {
-            localStorage.setItem('nebulife_lang', lang);
-            localStorage.setItem('nebulife_lang_chosen', '1');
-            i18n.changeLanguage(lang);
-            setLanguageSelected(true);
-          }}
-        />
-      </LanguageProvider>
-    );
-  }
 
   return (
     <LanguageProvider initial={savedLang} onLanguageChange={handleLanguageChange}>
