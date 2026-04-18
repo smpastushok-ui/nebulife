@@ -152,8 +152,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   }, [t]);
 
   // Team battle level gate
-  // TEMP: lowered to 1 for arena testing — revert to 50 before ship
-  const teamBattleUnlocked = playerLevel >= 1;
+  const teamBattleUnlocked = playerLevel >= 50;
 
   // Training entry (free)
   const handleEnterTraining = useCallback(() => {
