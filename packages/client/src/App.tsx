@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { playSfx, playLoop, stopLoop } from './audio/SfxPlayer.js';
+import { playSfx, playLoop, stopLoop, setLoopVolume } from './audio/SfxPlayer.js';
 import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
 import { GameEngine } from './game/GameEngine.js';
@@ -1141,20 +1141,31 @@ function AppInner() {
     return () => stopLoop('terminal-loop');
   }, [showCosmicArchive]);
 
-  // Play before_trailers music during onboarding, only BEFORE the first
-  // cinematic video plays. After that video ends, the onboarding continues
-  // with more slides — but the music was restarting then, which user found
-  // annoying. The ref flag latches once the video has played, so the loop
-  // never restarts in this session.
-  const beforeTrailersStoppedRef = useRef(false);
+  // Intro melody — 25 s loop, plays through the entire onboarding. 50%
+  // volume when no video is playing; smoothly ducked to 25% while a
+  // cinematic video is running so the video's own audio sits on top,
+  // then ramps back up between videos. Never hard-stopped until
+  // onboarding finishes.
   useEffect(() => {
-    if (cinematicVideoPlaying) beforeTrailersStoppedRef.current = true;
-    if (needsOnboarding && !cinematicVideoPlaying && !beforeTrailersStoppedRef.current) {
-      playLoop('before-trailers', 0.15);
-    } else {
-      stopLoop('before-trailers');
+    if (!needsOnboarding) {
+      stopLoop('before-trailers.mp3');
+      return;
     }
-    return () => stopLoop('before-trailers');
+    const LOUD = 0.5;
+    const DUCKED = 0.25;
+    const FADE_MS = 600;
+    playLoop('before-trailers.mp3', cinematicVideoPlaying ? DUCKED : LOUD);
+    const target = cinematicVideoPlaying ? DUCKED : LOUD;
+    const startVol = cinematicVideoPlaying ? LOUD : DUCKED;
+    const startT = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - startT) / FADE_MS);
+      setLoopVolume('before-trailers.mp3', startVol + (target - startVol) * p);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, [needsOnboarding, cinematicVideoPlaying]);
 
   // Initialise colony tick state when entering surface for the first time
