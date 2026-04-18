@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v4: 3D semi-sphere arena — evict cached bundle so 3D camera + controls load
-const CACHE_NAME = 'nebulife-v4';
+// v5: 3D bots + radar + damage vignette — evict old bundle one more time
+const CACHE_NAME = 'nebulife-v5';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
