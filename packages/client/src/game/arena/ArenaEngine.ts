@@ -8,7 +8,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { playSfx, playLoop, stopLoop, stopAllLoops, setLoopVolume } from '../../audio/SfxPlayer.js';
 import type { ArenaCallbacks, InputState, ShipEntity, MatchPhase, BotShip, BotBullet, Team, TeamMatchResult } from './ArenaTypes.js';
 import {
-  ARENA_SIZE, ARENA_HALF,
+  ARENA_SIZE, ARENA_HALF, ARENA_HEIGHT_HALF, ARENA_GROUND_Y,
   CAMERA_FOV, CAMERA_HEIGHT, CAMERA_DISTANCE, CAMERA_LERP_SPEED,
   CAMERA_BEHIND, CAMERA_UP, CAMERA_LOOK_LEAD, CAMERA_LOOK_UP,
   CAMERA_LERP_POS, CAMERA_LERP_LOOK,
@@ -311,7 +311,7 @@ export class ArenaEngine {
   private playerPos = new THREE.Vector3(0, 0, 0);
 
   // Input (set by ArenaControls)
-  private input: InputState = { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
+  private input: InputState = { moveDir: { x: 0, y: 0, z: 0 }, aimDir: { x: 0, y: 0, z: 1 }, firing: false, dash: false };
 
   // Zoom — multiplier on CAMERA_HEIGHT/DISTANCE. Smaller = closer camera.
   // Default 1.0 paired with lowered HEIGHT/DISTANCE constants for a close view.
@@ -2709,7 +2709,7 @@ export class ArenaEngine {
       dummy.updateMatrix();
       this.botBulletMesh.setMatrixAt(i, dummy.matrix);
       this.botBullets.push({
-        x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false,
+        x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, active: false,
         ownerId: -1, ownerTeam: 'red',
         rotX: Math.random() * Math.PI * 2,
         rotY: Math.random() * Math.PI * 2,
@@ -2833,9 +2833,10 @@ export class ArenaEngine {
         id,
         team,
         name,
-        pos: { x: spawnX, z: spawnZ },
-        vel: { x: 0, z: 0 },
+        pos: { x: spawnX, y: ARENA_GROUND_Y, z: spawnZ },
+        vel: { x: 0, y: 0, z: 0 },
         rotation: 0,
+        pitch: 0,
         hp: 100,
         maxHp: 100,
         alive: true,
@@ -3128,8 +3129,8 @@ export class ArenaEngine {
         id: 0,
         isPlayer: false,
         name: '',
-        pos: { x: 0, z: 0 },
-        vel: { x: 0, z: 0 },
+        pos: { x: 0, y: 0, z: 0 },
+        vel: { x: 0, y: 0, z: 0 },
         rotation: 0,
         radius: SHIP_RADIUS,
         alive: false,
@@ -3202,7 +3203,7 @@ export class ArenaEngine {
    */
   private _selfEntityScratch: ShipEntity = {
     id: 0, isPlayer: false, name: '',
-    pos: { x: 0, z: 0 }, vel: { x: 0, z: 0 },
+    pos: { x: 0, y: 0, z: 0 }, vel: { x: 0, y: 0, z: 0 },
     rotation: 0, radius: SHIP_RADIUS, alive: false,
     hp: 0, maxHp: 0, shield: 0, maxShield: 0, shieldRegenTimer: 0,
     weaponSlots: [], dashCooldown: 0, isDashing: false, dashTimer: 0,

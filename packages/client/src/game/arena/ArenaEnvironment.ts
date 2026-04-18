@@ -3,9 +3,10 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import type { AsteroidEntity, BlackHoleEntity, Entity, Vec2 } from './ArenaTypes.js';
+import type { AsteroidEntity, BlackHoleEntity, Entity, Vec2, Vec3 } from './ArenaTypes.js';
 import {
   ARENA_HALF,
+  ARENA_HEIGHT_HALF,
   ASTEROID_COUNT,
   ASTEROID_DRIFT_MAX,
   ASTEROID_DRIFT_MIN,
@@ -30,17 +31,19 @@ function randRange(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
-// Seeded-ish position within arena bounds (avoids center spawn for asteroids)
-function randomArenaPos(margin: number = 100): Vec2 {
+// Seeded-ish position within arena bounds (avoids center spawn for asteroids).
+// 3D: y is randomized within the semi-sphere vertical extent.
+function randomArenaPos(margin: number = 100): Vec3 {
   const x = randRange(-ARENA_HALF + margin, ARENA_HALF - margin);
   const z = randRange(-ARENA_HALF + margin, ARENA_HALF - margin);
-  return { x, z };
+  const y = randRange(-ARENA_HEIGHT_HALF + margin, ARENA_HEIGHT_HALF - margin);
+  return { x, y, z };
 }
 
-function randomVel(minSpeed: number, maxSpeed: number): Vec2 {
+function randomVel(minSpeed: number, maxSpeed: number): Vec3 {
   const angle = Math.random() * Math.PI * 2;
   const speed = randRange(minSpeed, maxSpeed);
-  return { x: Math.cos(angle) * speed, z: Math.sin(angle) * speed };
+  return { x: Math.cos(angle) * speed, y: 0, z: Math.sin(angle) * speed };
 }
 
 let _nextEntityId = 9000; // offset from ship IDs

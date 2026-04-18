@@ -91,8 +91,8 @@ export function createShipModel(): THREE.Group {
 function _baseShip(overrides: Partial<ShipEntity>): ShipEntity {
   return {
     id: _nextId++,
-    pos: { x: 0, z: 0 },
-    vel: { x: 0, z: 0 },
+    pos: { x: 0, y: 0, z: 0 },
+    vel: { x: 0, y: 0, z: 0 },
     rotation: 0,
     radius: SHIP_RADIUS,
     alive: true,

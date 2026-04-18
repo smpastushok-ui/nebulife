@@ -5,8 +5,13 @@
 import type { WeaponDef, WeaponType } from './ArenaTypes.js';
 
 // Arena dimensions
+// 3D semi-sphere: XZ disc radius = ARENA_HALF, vertical extent = ±ARENA_HEIGHT_HALF.
+// Players can climb/dive within that Y band. The top/bottom caps act like
+// invisible boundaries (same bounce logic as the outer XZ ring).
 export const ARENA_SIZE = 2000;
 export const ARENA_HALF = ARENA_SIZE / 2;
+export const ARENA_HEIGHT_HALF = 400;
+export const ARENA_GROUND_Y = 5; // ships start / respawn around this Y (was the flat "floor" height)
 
 // Match
 export const MAX_SHIPS = 10;

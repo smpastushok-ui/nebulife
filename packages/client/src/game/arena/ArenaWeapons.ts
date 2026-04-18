@@ -91,8 +91,8 @@ export class ProjectilePool {
 
     const entity: ProjectileEntity = {
       id: _nextProjectileId++,
-      pos: { x: pos.x, z: pos.z },
-      vel: { x: vel.x, z: vel.z },
+      pos: { x: pos.x, y: 0, z: pos.z },
+      vel: { x: vel.x, y: 0, z: vel.z },
       rotation: 0,
       radius: def.projectileRadius,
       alive: true,

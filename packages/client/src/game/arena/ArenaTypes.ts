@@ -7,13 +7,20 @@ export interface Vec2 {
   z: number;
 }
 
-// Base entity on XZ plane
+export interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+// Base entity in 3D space (semi-sphere arena).
+// Y is vertical; pos/vel include Y so ships can move up/down.
 export interface Entity {
   id: number;
-  pos: Vec2;
-  vel: Vec2;
-  rotation: number; // radians, Y-axis rotation
-  radius: number;   // collision circle radius
+  pos: Vec3;
+  vel: Vec3;
+  rotation: number; // radians, Y-axis rotation (yaw)
+  radius: number;   // collision sphere radius
   alive: boolean;
 }
 
@@ -66,7 +73,7 @@ export interface AsteroidEntity extends Entity {
 
 // Black hole event
 export interface BlackHoleEntity {
-  pos: Vec2;
+  pos: Vec3;
   pullRadius: number;
   killRadius: number;
   lifetime: number;  // max seconds
@@ -108,8 +115,8 @@ export interface ArenaCallbacks {
 
 // Input state (from controls)
 export interface InputState {
-  moveDir: Vec2;     // normalized movement direction (0,0 if idle)
-  aimDir: Vec2;      // normalized aim direction
+  moveDir: Vec3;     // normalized 3D movement direction (0,0,0 if idle)
+  aimDir: Vec3;      // normalized 3D aim direction (includes pitch Y)
   firing: boolean;
   dash: boolean;
 }
@@ -125,9 +132,10 @@ export interface BotShip {
   id: number;
   team: Team;
   name: string;
-  pos: { x: number; z: number };
-  vel: { x: number; z: number };
-  rotation: number;
+  pos: Vec3;
+  vel: Vec3;
+  rotation: number;    // yaw (Y axis)
+  pitch: number;       // pitch (X axis) — up/down nose tilt
   hp: number;
   maxHp: number;
   alive: boolean;
@@ -149,11 +157,13 @@ export interface BotShip {
   invulnerableUntil: number; // timestamp ms (performance.now()), 0 = not invulnerable
 }
 
-// Bot bullet — separate pool entry with owner tracking
+// Bot bullet — separate pool entry with owner tracking (3D)
 export interface BotBullet {
   x: number;
+  y: number;
   z: number;
   vx: number;
+  vy: number;
   vz: number;
   age: number;
   active: boolean;

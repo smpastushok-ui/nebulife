@@ -541,7 +541,7 @@ export function updateBot(
   dt: number,
 ): InputState {
   if (!self.alive) {
-    return { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
+    return { moveDir: { x: 0, y: 0, z: 0 }, aimDir: { x: 0, y: 0, z: 1 }, firing: false, dash: false };
   }
 
   const params = DIFFICULTY_PARAMS[brain.difficulty];
@@ -600,9 +600,10 @@ export function updateBot(
     brain.waypoint = result.newWaypoint;
   }
 
+  // AI internally works on XZ (Vec2). Lift to Vec3 with y=0 at the boundary.
   const out: InputState = {
-    moveDir: result.moveDir,
-    aimDir:  result.aimDir,
+    moveDir: { x: result.moveDir.x, y: 0, z: result.moveDir.z },
+    aimDir:  { x: result.aimDir.x,  y: 0, z: result.aimDir.z  },
     firing:  result.firing,
     dash:    result.dash,
   };
@@ -626,11 +627,13 @@ function refreshInputAgainstTarget(
     const target = brain.targetId !== null ? getShipById(brain.targetId, allShips) : null;
     if (target) {
       const toTarget = vec2Norm(vec2Sub(target.pos, self.pos));
+      const move = brain.state === 'attack'
+        ? { x: -toTarget.z, z: toTarget.x } // keep orbiting tangentially
+        : toTarget;
+      const aim = applyAimError(toTarget, brain, params.aimOffsetRad);
       return {
-        moveDir: brain.state === 'attack'
-          ? { x: -toTarget.z, z: toTarget.x } // keep orbiting tangentially
-          : toTarget,
-        aimDir: applyAimError(toTarget, brain, params.aimOffsetRad),
+        moveDir: { x: move.x, y: 0, z: move.z },
+        aimDir:  { x: aim.x,  y: 0, z: aim.z  },
         firing: prev.firing,
         dash: false,
       };
