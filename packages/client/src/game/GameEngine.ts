@@ -510,15 +510,19 @@ export class GameEngine {
   }
 
   pause() {
+    if (!this.app?.ticker) return;
     this.app.ticker.stop();
   }
 
   resume() {
+    // Guard against being called before init() finished or after destroy()
+    if (!this.app?.ticker) return;
     this.app.ticker.start();
   }
 
   /** Cap frame rate (e.g. 30 for idle scenes, 0 = uncapped/60) */
   setMaxFPS(fps: number) {
+    if (!this.app?.ticker) return;
     this.app.ticker.maxFPS = fps;
   }
 

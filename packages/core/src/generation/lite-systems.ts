@@ -1,17 +1,19 @@
 // Lite cluster systems — cheap representation for background rendering.
-// Generates star color/size from seed without computing planets/atmosphere.
-// Used by GalaxyScene to render distant unexplored systems as fuzzy orbs.
+// Uses the SAME positioning + seeding as the full StarSystem generator
+// (systemSeedFromPosition + hexRingPositions) so lite orbs match real systems
+// 1:1 by ID/position. When a player approaches, lite can be lazy-upgraded
+// to the full StarSystem without visual jump.
 
 import { SeededRNG } from '../math/rng.js';
 import { SPECTRAL_CLASS_WEIGHTS, STELLAR_CLASSES, type SpectralClass } from '../constants/stellar.js';
 import { generateGalaxyGroupCore } from './galaxy-group-generator.js';
 import { deriveGroupSeed } from './galaxy-map.js';
-import { assignPlayerPosition } from './galaxy-generator.js';
+import { assignPlayerPosition, hexRingPositions, systemSeedFromPosition } from './galaxy-generator.js';
 
 export interface LiteSystem {
   /** Stable id matching full StarSystem.id format ("system-<seed>") */
   id: string;
-  /** World position in light-years (relative to group center for core, or galaxy origin for personal) */
+  /** World position in light-years (relative to my home star) */
   position: { x: number; y: number };
   /** Star color hex (e.g. "#ffbd80") */
   starColor: string;
@@ -32,12 +34,21 @@ export interface LiteSystem {
 const SPECTRAL_ORDER: SpectralClass[] = ['O', 'B', 'A', 'F', 'G', 'K', 'M'];
 const SPECTRAL_WEIGHTS = SPECTRAL_ORDER.map(c => SPECTRAL_CLASS_WEIGHTS[c]);
 
-/** Pick a spectral class color cheaply without full star generation */
-function pickStarColor(rng: SeededRNG): { color: string; sizeMul: number } {
-  const cls = rng.weightedChoice(SPECTRAL_ORDER, SPECTRAL_WEIGHTS);
+/**
+ * Pick star color the SAME way generateStar does so lite orbs match the full
+ * system color. Both use weightedChoice over spectral classes seeded from the
+ * star seed; we replicate the first two steps without generating planets.
+ */
+function pickStarColorFromSeed(starSeed: number): { color: string; sizeMul: number } {
+  // Mirror star-system-generator.ts:80 — `starSeed = rng.deriveSeed(0)` from
+  // the SeededRNG(systemSeed). Then star-generator.ts:50 picks spectral class.
+  const sysRng = new SeededRNG(starSeed);
+  const starRng = new SeededRNG(sysRng.deriveSeed(0));
+  const cls = starRng.weightedChoice(SPECTRAL_ORDER, SPECTRAL_WEIGHTS);
   const candidates = STELLAR_CLASSES.filter(s => s.spectralClass === cls);
-  const data = candidates[rng.nextInt(0, candidates.length - 1)];
-  // O/B (massive hot) larger visual size; M (cool dwarf) smaller
+  // Pick a sub-type within class — generator interpolates, but for orb color
+  // taking the median entry is close enough and 10x cheaper.
+  const data = candidates[Math.floor(candidates.length / 2)];
   const sizeMul = cls === 'O' ? 1.8 : cls === 'B' ? 1.5 : cls === 'A' ? 1.3
     : cls === 'F' || cls === 'G' ? 1.0 : cls === 'K' ? 0.85 : 0.7;
   return { color: data.colorHex, sizeMul };
@@ -45,11 +56,12 @@ function pickStarColor(rng: SeededRNG): { color: string; sizeMul: number } {
 
 /**
  * Generate lite representation of all 1,450 cluster systems.
+ * Positions, IDs, and star colors match the full StarSystem generator 1:1.
  *
  * @param galaxySeed Master galaxy seed
  * @param groupIndex Which cluster (0..groupCount-1)
  * @param myPlayerIndex This player's index in the cluster (used to compute relative positions)
- * @returns Array of LiteSystem with positions in LY relative to my home star
+ * @param playersPerGroup Cluster size (50)
  */
 export function generateLiteClusterSystems(
   galaxySeed: number,
@@ -64,47 +76,29 @@ export function generateLiteClusterSystems(
   const myPos = assignPlayerPosition(galaxySeed, myPlayerIndex);
 
   // ── 950 personal systems (50 players × 19 systems each) ──
-  // Reuse the same hex-grid logic from galaxy-generator without full planet gen.
   for (let pi = 0; pi < playersPerGroup; pi++) {
     const playerPos = assignPlayerPosition(galaxySeed, pi);
-    // Per-player seed derived deterministically (matches galaxy-generator.ts)
-    const playerSeed = (galaxySeed * 31 + pi * 7919) | 0;
 
-    // Ring 0 (home): 1 system at player position
-    {
-      const rng = new SeededRNG(playerSeed ^ 0x100);
-      const { color, sizeMul } = pickStarColor(rng);
-      const sysSeed = rng.nextInt(0, 0x7fffffff);
-      result.push({
-        id: `system-${sysSeed}`,
-        position: { x: playerPos.x - myPos.x, y: playerPos.y - myPos.y },
-        starColor: color,
-        starSize: 2.5 * sizeMul,
-        pulsePhase: rng.nextFloat(0, Math.PI * 2),
-        ownerIndex: pi,
-        ringIndex: 0,
-        nodeType: 'personal',
-        seed: sysSeed,
-      });
-    }
+    // Ring 0 (home), Ring 1 (6 systems @5LY), Ring 2 (12 systems @10LY) — exact same hex layout
+    for (let ringIdx = 0; ringIdx <= 2; ringIdx++) {
+      const positions = hexRingPositions(ringIdx, playerPos.x, playerPos.y);
+      for (const pos of positions) {
+        // Same seed function the real generator uses → identical IDs & stars
+        const sysSeed = systemSeedFromPosition(galaxySeed, pos.x, pos.y);
+        const { color, sizeMul } = pickStarColorFromSeed(sysSeed);
+        // Skip if duplicate (overlapping rings between adjacent players)
+        const id = `system-${sysSeed}`;
+        if (result.some(r => r.id === id)) continue;
 
-    // Ring 1 (6 systems at 5 LY) and Ring 2 (12 systems at 10 LY) — hex spokes
-    for (let ringIdx = 1; ringIdx <= 2; ringIdx++) {
-      const count = ringIdx === 1 ? 6 : 12;
-      const distLY = ringIdx === 1 ? 5 : 10;
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        const px = playerPos.x + Math.cos(angle) * distLY;
-        const py = playerPos.y + Math.sin(angle) * distLY;
-        const rng = new SeededRNG(playerSeed ^ ((ringIdx * 1000 + i) | 0));
-        const { color, sizeMul } = pickStarColor(rng);
-        const sysSeed = rng.nextInt(0, 0x7fffffff);
+        // Phase from seed for deterministic but desync-ed pulse
+        const pulsePhase = ((sysSeed * 0.0001) % (Math.PI * 2));
+
         result.push({
-          id: `system-${sysSeed}`,
-          position: { x: px - myPos.x, y: py - myPos.y },
+          id,
+          position: { x: pos.x - myPos.x, y: pos.y - myPos.y },
           starColor: color,
-          starSize: (1.6 + ringIdx * 0.2) * sizeMul,
-          pulsePhase: rng.nextFloat(0, Math.PI * 2),
+          starSize: ringIdx === 0 ? 2.5 * sizeMul : (1.6 + ringIdx * 0.2) * sizeMul,
+          pulsePhase,
           ownerIndex: pi,
           ringIndex: ringIdx,
           nodeType: 'personal',
@@ -115,27 +109,27 @@ export function generateLiteClusterSystems(
   }
 
   // ── 500 core systems (galactic core mesh) ──
+  // Core systems live in their own coordinate space (group center as origin).
+  // Use group's own seed; ID format matches generateCoreStarSystem in
+  // galaxy-group-generator.ts:247: `core-${id}-${seed}`.
   const core = generateGalaxyGroupCore(groupSeed);
-  // Core systems are positioned around the cluster center; we use group center as anchor.
-  // For now, position core systems near the cluster center with their core layout.
-  const groupCenterPos = { x: 0, y: 0 }; // Core is at galactic core, project as relative cluster center
-
   for (const sys of core.systems) {
-    const rng = new SeededRNG(sys.id);
-    const { color, sizeMul } = pickStarColor(rng);
+    const sysSeed = sys.id; // numeric id 0..499 used by core generator as seed
+    const { color, sizeMul } = pickStarColorFromSeed(sysSeed);
+    const pulsePhase = ((sysSeed * 0.7919) % (Math.PI * 2));
     result.push({
-      id: `system-core-${sys.id}`,
+      id: `core-${sys.id}-${sysSeed}`,
       position: {
-        x: groupCenterPos.x + sys.position.x - myPos.x,
-        y: groupCenterPos.y + sys.position.y - myPos.y,
+        x: sys.position.x - myPos.x,
+        y: sys.position.y - myPos.y,
       },
       starColor: color,
       starSize: (sys.depth === 0 ? 2.2 : 1.4) * sizeMul,
-      pulsePhase: rng.nextFloat(0, Math.PI * 2),
+      pulsePhase,
       ownerIndex: -1,
       ringIndex: 4 + sys.depth, // 4=entry, 5+=deeper core
       nodeType: 'core',
-      seed: sys.id,
+      seed: sysSeed,
     });
   }
 
@@ -146,4 +140,3 @@ export function generateLiteClusterSystems(
 export function hexColorToInt(hex: string): number {
   return parseInt(hex.replace('#', ''), 16);
 }
-

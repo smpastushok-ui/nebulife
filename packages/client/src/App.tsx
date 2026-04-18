@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { playSfx, playLoop, stopLoop } from './audio/SfxPlayer.js';
 import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
-import { LanguageSelectScreen } from './ui/components/LanguageSelectScreen.js';
 import { GameEngine } from './game/GameEngine.js';
 import { UniverseEngine } from './game/UniverseEngine.js';
 import { WarpTransition } from './ui/components/WarpTransition.js';
@@ -2201,8 +2200,15 @@ function AppInner() {
   useEffect(() => {
     if (!canvasRef.current || engineRef.current) return;
 
-    // Read generation index from localStorage (set by server on auth sync / reset)
-    const genIdx = parseInt(localStorage.getItem('nebulife_generation_index') || '0', 10);
+    // playerIndex = server's global_index (deterministic cluster slot) — NOT the
+    // local generation/reset counter. Using science_points here was a bug: after
+    // a "Start Over" reset, the player's science_points incremented and they
+    // suddenly saw a different cluster slot, breaking neighbor consistency for
+    // multiplayer (other players still expected them at the old slot).
+    // Fallback to legacy generation_index when global_index hasn't synced yet
+    // (offline / first-frame race) so single-player still works.
+    const fallbackGenIdx = parseInt(localStorage.getItem('nebulife_generation_index') || '0', 10);
+    const playerIndex = globalPlayerIndexRef.current || fallbackGenIdx;
     const engine = new GameEngine(canvasRef.current, {
       onSystemSelect: (system, screenPos) => {
         setState((prev) => ({ ...prev, selectedSystem: system, selectedPlanet: null }));
@@ -2272,7 +2278,7 @@ function AppInner() {
           setHoverLabelPos(pos);
         }
       },
-    }, genIdx);
+    }, playerIndex);
 
     engine.init().then(() => {
       // Sync restored research state before anything else
@@ -5792,15 +5798,31 @@ function AppInner() {
 // Root export — wraps AppInner with LanguageProvider + language selection
 // ---------------------------------------------------------------------------
 
+/** Detect device language and map to supported app language ('uk' | 'en').
+ *  Ukrainian for uk-* locale; English for everything else. */
+function detectDeviceLanguage(): Language {
+  try {
+    const candidates: string[] = [];
+    if (typeof navigator !== 'undefined') {
+      if (Array.isArray(navigator.languages)) candidates.push(...navigator.languages);
+      if (navigator.language) candidates.push(navigator.language);
+    }
+    for (const raw of candidates) {
+      const code = raw.toLowerCase().split(/[-_]/)[0];
+      if (code === 'uk') return 'uk';
+      if (code === 'en') return 'en';
+    }
+  } catch { /* ignore */ }
+  return 'en';
+}
+
 export function App() {
-  const [languageSelected, setLanguageSelected] = useState(
-    () => localStorage.getItem('nebulife_lang_chosen') === '1',
-  );
   const [savedLang] = useState<Language>(() => {
-    const lang = (localStorage.getItem('nebulife_lang') as Language) || 'uk';
-    // Sync react-i18next to match custom LanguageProvider on every app start.
-    // Without this, react-i18next may fall back to browser locale (e.g. English)
-    // while the custom provider correctly shows Ukrainian.
+    // Priority: explicit user choice → device locale → 'en' fallback.
+    // No language-selection screen — picks correct language on first launch.
+    const stored = localStorage.getItem('nebulife_lang') as Language | null;
+    const lang: Language = stored === 'uk' || stored === 'en' ? stored : detectDeviceLanguage();
+    if (!stored) localStorage.setItem('nebulife_lang', lang);
     void i18n.changeLanguage(lang);
     return lang;
   });
@@ -5809,21 +5831,6 @@ export function App() {
     localStorage.setItem('nebulife_lang', lang);
     void i18n.changeLanguage(lang);
   }, []);
-
-  if (!languageSelected) {
-    return (
-      <LanguageProvider initial="uk">
-        <LanguageSelectScreen
-          onSelect={(lang) => {
-            localStorage.setItem('nebulife_lang', lang);
-            localStorage.setItem('nebulife_lang_chosen', '1');
-            i18n.changeLanguage(lang);
-            setLanguageSelected(true);
-          }}
-        />
-      </LanguageProvider>
-    );
-  }
 
   return (
     <LanguageProvider initial={savedLang} onLanguageChange={handleLanguageChange}>
