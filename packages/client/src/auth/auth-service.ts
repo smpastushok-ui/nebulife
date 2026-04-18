@@ -38,32 +38,25 @@ export function isGoogleSignInAvailable(): boolean {
   return Capacitor.isPluginAvailable('GoogleAuth');
 }
 
-/**
- * Load the native GoogleAuth plugin. Returns a plain wrapper object (NOT the
- * raw plugin proxy) because Capacitor plugin proxies are "thenable" (they
- * respond to any method including `.then`). If you return the proxy from an
- * async function, the runtime tries to .then() it to resolve, which triggers
- * `"GoogleAuth.then() is not implemented on android"`.
- */
-async function getNativeGoogleAuth(): Promise<{
-  signIn: () => Promise<{ authentication: { idToken: string } }>;
-}> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GoogleAuthAny = any;
+
+async function getNativeGoogleAuth(): Promise<GoogleAuthAny> {
   if (!isGoogleSignInAvailable()) {
     throw new Error('Google Sign-in is not available on this device yet');
   }
   // @ts-ignore — module only available in native Capacitor builds, not on Vercel
   const mod = await import('@codetrix-studio/capacitor-google-auth');
-  const plugin = mod.GoogleAuth;
+  const GoogleAuth: GoogleAuthAny = mod.GoogleAuth;
   if (!_googleAuthInitialized) {
-    plugin.initialize({
+    GoogleAuth.initialize({
       clientId: GOOGLE_WEB_CLIENT_ID,
       scopes: ['profile', 'email'],
       grantOfflineAccess: true,
     });
     _googleAuthInitialized = true;
   }
-  // Wrap methods instead of returning the thenable plugin proxy directly.
-  return { signIn: () => plugin.signIn() };
+  return GoogleAuth;
 }
 
 function requireAuth() {
