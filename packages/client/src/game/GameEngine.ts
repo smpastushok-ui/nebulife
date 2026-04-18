@@ -235,13 +235,18 @@ export class GameEngine {
 
     // Enable camera zoom/pan for galaxy hex grid
     this.camera.attach(this.galaxyScene.container);
-    this.camera.setMinScale(0.4);
-    // Pan bounds: limit movement to galaxy backdrop area
-    this.camera.setPanBounds(250);
+    // Lowered min scale (was 0.4) — allow full cluster overview at startup
+    this.camera.setMinScale(0.12);
+    // Pan bounds widened so player can wander to neighbor/core systems
+    this.camera.setPanBounds(1200);
     // Position HOME at center of screen
     this.galaxyScene.container.x = this.app.screen.width / 2;
     this.galaxyScene.container.y = this.app.screen.height * 0.45;
-    this.camera.resetToFit(200);
+    // Fit full cluster radius (~800 px world) on screen — was 200 (only own 19 systems).
+    // Player sees the impressive 1450-star plane immediately, can zoom in to home.
+    this.camera.resetToFit(800);
+    // Force lite-orbs redraw with correct viewport now that camera is positioned
+    this.galaxyScene.refreshLiteOrbs();
     // Galaxy idle — throttle to 30 FPS to save battery
     this.app.ticker.maxFPS = 30;
     this.callbacks.onSceneChange('galaxy');
