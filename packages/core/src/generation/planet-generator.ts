@@ -125,7 +125,9 @@ export function generatePlanet(
   const vEsc = calcEscapeVelocity(massKg, radiusM) / 1000; // km/s
 
   // Orbital parameters
-  const eccentricity = rng.nextFloat(0, 0.15);
+  // Eccentricity capped at 0.08 to prevent visual orbit ellipses from overlapping
+  // (paired with minGap=30% in star-system-generator.ts:generateOrbitalSlots)
+  const eccentricity = rng.nextFloat(0, 0.08);
   const orbit: OrbitalParameters = {
     semiMajorAxisAU: orbitalDistanceAU,
     eccentricity,
