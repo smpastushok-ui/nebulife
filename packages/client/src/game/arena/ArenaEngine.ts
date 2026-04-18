@@ -204,7 +204,7 @@ export class ArenaEngine {
 
   // Engine exhaust particles (InstancedMesh pool)
   private exhaustMesh!: THREE.InstancedMesh;
-  private exhaustParticles: { x: number; z: number; vx: number; vz: number; age: number; active: boolean; scale: number }[] = [];
+  private exhaustParticles: { x: number; y: number; z: number; vx: number; vy: number; vz: number; age: number; active: boolean; scale: number }[] = [];
   private exhaustFreeList: number[] = []; // stack of free indices (O(1) spawn)
   private readonly EXHAUST_POOL = 60;
   private readonly EXHAUST_LIFETIME = 0.4;
@@ -1632,7 +1632,7 @@ export class ArenaEngine {
       this.playerBuffs = this.playerBuffs.filter(b => b.type !== 'SHIELD');
       this.applyBuffEffects(); // hides shield mesh
       // Visible shield-break flash
-      this.spawnHitEffect(this.playerPos.x, this.playerPos.z);
+      this.spawnHitEffect(this.playerPos.x, this.playerPos.z, this.playerPos.y);
       playSfx('arena-shield-break', 0.14);
       // Push back from impact
       this.playerVelX *= -0.4;
@@ -1655,7 +1655,7 @@ export class ArenaEngine {
     this.playerBuffs = [];
     this.applyBuffEffects();
     // Spawn explosion VFX at death position
-    this.spawnExplosion(this.playerPos.x, this.playerPos.z);
+    this.spawnExplosion(this.playerPos.x, this.playerPos.z, this.playerPos.y);
     this.playerVelX = 0;
     this.playerVelZ = 0;
   }
@@ -1702,7 +1702,7 @@ export class ArenaEngine {
           // Bullet hit asteroid — spawn hit VFX
           b.active = false;
           this.bulletFreeList.push(bi);
-          this.spawnHitEffect(b.x, b.z);
+          this.spawnHitEffect(b.x, b.z, b.y);
           playSfx('asteroid-explosion', 0.3);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
@@ -1842,7 +1842,7 @@ export class ArenaEngine {
       dummy.scale.set(0, 0, 0);
       dummy.updateMatrix();
       this.exhaustMesh.setMatrixAt(i, dummy.matrix);
-      this.exhaustParticles.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false, scale: 1 });
+      this.exhaustParticles.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, active: false, scale: 1 });
       this.exhaustFreeList.push(i);
     }
     this.exhaustMesh.instanceMatrix.needsUpdate = true;
@@ -1853,12 +1853,14 @@ export class ArenaEngine {
     const idx = this.exhaustFreeList.pop();
     if (idx === undefined) return;
 
-    // Backward direction = inverted aim direction
+    // Backward direction = inverted aim direction (3D)
     let backX = -this.aimDirX;
+    let backY = -this.aimDirY;
     let backZ = -this.aimDirZ;
-    // Fallback
-    if (backX === 0 && backZ === 0) {
+    const blen = Math.sqrt(backX * backX + backY * backY + backZ * backZ);
+    if (blen < 0.01) {
       backX = -Math.cos(this.playerMesh.rotation.y);
+      backY = 0;
       backZ = Math.sin(this.playerMesh.rotation.y);
     }
 
@@ -1867,8 +1869,10 @@ export class ArenaEngine {
 
     const p = this.exhaustParticles[idx];
     p.x = this.playerPos.x + backX * offsetDist + spread * backZ * 3;
+    p.y = this.playerPos.y + backY * offsetDist;
     p.z = this.playerPos.z + backZ * offsetDist + spread * backX * 3;
     p.vx = backX * 60 + this.playerVelX * 0.3;
+    p.vy = backY * 60 + this.playerVelY * 0.3;
     p.vz = backZ * 60 + this.playerVelZ * 0.3;
     p.age = 0;
     p.scale = 0.8 + Math.random() * 0.4;
@@ -1876,10 +1880,13 @@ export class ArenaEngine {
   }
 
   private updateExhaust(dt: number): void {
-    // Spawn when thrusting
+    // Spawn when thrusting (XZ or vertical)
     const isThrusting = this.isMobile
-      ? (Math.abs(this.mobileMove.x) > 0.1 || Math.abs(this.mobileMove.z) > 0.1)
-      : (this.keys.has('w') || this.keys.has('a') || this.keys.has('s') || this.keys.has('d'));
+      ? (Math.abs(this.mobileMove.x) > 0.1 ||
+         Math.abs(this.mobileMove.z) > 0.1 ||
+         Math.abs(this.mobileVerticalThrust) > 0.1)
+      : (this.keys.has('w') || this.keys.has('a') || this.keys.has('s') || this.keys.has('d') ||
+         this.keys.has(' ') || this.keys.has('control') || this.keys.has('shift'));
 
     if (isThrusting) {
       this.exhaustSpawnTimer -= dt;
@@ -1898,6 +1905,7 @@ export class ArenaEngine {
       if (!p.active) continue;
 
       p.x += p.vx * dt;
+      p.y += p.vy * dt;
       p.z += p.vz * dt;
       p.age += dt;
 
@@ -1915,7 +1923,7 @@ export class ArenaEngine {
       // Shrink + fade over lifetime
       const t = p.age / this.EXHAUST_LIFETIME;
       const s = p.scale * (1 - t);
-      dummy.position.set(p.x, 2, p.z);
+      dummy.position.set(p.x, p.y, p.z);
       dummy.scale.set(s, s, s);
       dummy.updateMatrix();
       this.exhaustMesh.setMatrixAt(i, dummy.matrix);
@@ -2530,7 +2538,7 @@ export class ArenaEngine {
 
           // Direct hit damage
           bot.hp -= this.MISSILE_DAMAGE;
-          this.spawnHitEffect(m.x, m.z);
+          this.spawnHitEffect(m.x, m.z, m.y);
           playSfx('missile-hit', 0.2);
 
           if (bot.hp <= 0) {
@@ -2584,7 +2592,7 @@ export class ArenaEngine {
 
   // ── VFX (hit flashes + explosions + debris) ─────────────────────────────
 
-  private spawnHitEffect(x: number, z: number): void {
+  private spawnHitEffect(x: number, z: number, y: number = ARENA_GROUND_Y): void {
     // Lazy-init shared resources on first use.
     if (!this.hitGeoShared) {
       this.hitGeoShared = new THREE.PlaneGeometry(8, 8);
@@ -2592,9 +2600,6 @@ export class ArenaEngine {
       this.disposables.push(this.hitGeoShared);
     }
     if (!this.hitMatShared) {
-      // NOTE: shared material means opacity fade must be applied per-frame via
-      // mesh.userData (not material.opacity). We set opacity=1 once here and
-      // use a per-Mesh scale-fade instead of opacity-fade for the hit effect.
       this.hitMatShared = new THREE.MeshBasicMaterial({
         color: 0x44ffaa,
         transparent: true,
@@ -2605,19 +2610,21 @@ export class ArenaEngine {
       this.disposables.push(this.hitMatShared);
     }
     const mesh = new THREE.Mesh(this.hitGeoShared, this.hitMatShared);
-    mesh.position.set(x, 3, z);
+    mesh.position.set(x, y, z);
     mesh.rotation.y = Math.random() * Math.PI * 2;
     this.scene.add(mesh);
     this.vfxPool.push({ mesh, age: 0, life: 0.2, type: 'hit', shared: true });
   }
 
-  private spawnExplosion(x: number, z: number): void {
-    // Volume falls off with distance from player (0.65 at origin, ~0.1 at arena edge)
-    const dist = Math.sqrt((x - this.playerPos.x) ** 2 + (z - this.playerPos.z) ** 2);
+  private spawnExplosion(x: number, z: number, y: number = ARENA_GROUND_Y): void {
+    // Volume + shake fall off with 3D distance from player.
+    const dx = x - this.playerPos.x;
+    const dy = y - this.playerPos.y;
+    const dz = z - this.playerPos.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
     const vol = Math.max(0.1, 0.65 * (1 - dist / (ARENA_HALF * 2)));
     playSfx('arena-explosion', vol);
 
-    // Camera shake — intensity falls with distance (no shake past 400 units)
     const shakeFalloff = Math.max(0, 1 - dist / 400);
     if (shakeFalloff > 0) {
       this.shakeAmount = Math.max(this.shakeAmount, 6 * shakeFalloff);
@@ -2633,7 +2640,7 @@ export class ArenaEngine {
       opacity: 1,
     });
     const flashMesh = new THREE.Mesh(flashGeo, flashMat);
-    flashMesh.position.set(x, 4, z);
+    flashMesh.position.set(x, y, z);
     this.scene.add(flashMesh);
     this.vfxPool.push({ mesh: flashMesh, age: 0, life: 0.8, type: 'flash', scaleSpeed: 2.0 });
 
@@ -2649,7 +2656,7 @@ export class ArenaEngine {
       side: THREE.DoubleSide,
     });
     const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-    ringMesh.position.set(x, 3, z);
+    ringMesh.position.set(x, y, z);
     this.scene.add(ringMesh);
     this.vfxPool.push({ mesh: ringMesh, age: 0, life: 1.0, type: 'flash', scaleSpeed: 3.0 });
 
@@ -2663,7 +2670,7 @@ export class ArenaEngine {
         color: new THREE.Color(shade, shade * 0.8, shade * 0.6),
       });
       const debMesh = new THREE.Mesh(debGeo, debMat);
-      debMesh.position.set(x, 3, z);
+      debMesh.position.set(x, y, z);
 
       const angle = Math.random() * Math.PI * 2;
       const speed = 50 + Math.random() * 50;
@@ -3630,7 +3637,7 @@ export class ArenaEngine {
           this.botBulletMesh.setMatrixAt(bi, dummy.matrix);
           this.botBulletMesh.instanceMatrix.needsUpdate = true;
 
-          this.spawnHitEffect(b.x, b.z);
+          this.spawnHitEffect(b.x, b.z, b.y);
 
           // Find shooter bot to credit damage
           const shooterBot = this.botShips.find(s => s.id === b.ownerId);
@@ -3663,7 +3670,7 @@ export class ArenaEngine {
           this.botBulletMesh.setMatrixAt(bi, dummy.matrix);
           this.botBulletMesh.instanceMatrix.needsUpdate = true;
 
-          this.spawnHitEffect(b.x, b.z);
+          this.spawnHitEffect(b.x, b.z, b.y);
 
           if (performance.now() >= this.invulnerableUntil) {
             this.playerHp -= this.BOT_BULLET_DAMAGE;
@@ -3717,7 +3724,7 @@ export class ArenaEngine {
           this.bulletMeshes[b.meshIdx].setMatrixAt(b.instIdx, dummy.matrix);
           this.bulletMeshes[b.meshIdx].instanceMatrix.needsUpdate = true;
 
-          this.spawnHitEffect(b.x, b.z);
+          this.spawnHitEffect(b.x, b.z, b.y);
 
           if (performance.now() >= bot.invulnerableUntil) {
             const dmg = this.BULLET_DAMAGE * this.playerDamageMult;
@@ -3881,7 +3888,7 @@ export class ArenaEngine {
     bot.mesh.visible = false;
     bot.nickSprite.visible = false;
 
-    this.spawnExplosion(bot.pos.x, bot.pos.z);
+    this.spawnExplosion(bot.pos.x, bot.pos.z, bot.pos.y);
 
     if (killer) {
       killer.kills++;
