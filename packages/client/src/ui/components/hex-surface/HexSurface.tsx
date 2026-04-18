@@ -457,7 +457,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // ── Render ──────────────────────────────────────────────────────────────
 
     const bgImage = PLANET_BG[planet.type];
-    const hexPlanetSize: HexPlanetSize = getPlanetSize(planet.radiusEarth);
+    const hexPlanetSize: HexPlanetSize = getPlanetSize(planet);
 
     return (
       <div
