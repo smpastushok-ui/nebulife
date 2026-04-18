@@ -48,14 +48,32 @@
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
   <script>
-    // Register service worker for PWA
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+    // Register service worker for PWA (web only).
+    // On Capacitor native (APK / iOS) the SW is skipped and any previously
+    // registered one is unregistered + its caches purged — otherwise the
+    // WebView would serve a STALE index.html from the SW cache that still
+    // referenced removed chunk hashes, making the app look "frozen on an
+    // old version" even after uninstall + reinstall.
+    (function () {
+      var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+      if (!('serviceWorker' in navigator)) return;
+      if (isNative) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister(); });
+        }).catch(function () {});
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) { caches.delete(k); });
+          }).catch(function () {});
+        }
+        return;
+      }
+      window.addEventListener('load', function () {
         navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-          .then((reg) => { reg.update(); })
-          .catch(() => {});
+          .then(function (reg) { reg.update(); })
+          .catch(function () {});
       });
-    }
+    })();
   </script>
 </body>
 </html>
