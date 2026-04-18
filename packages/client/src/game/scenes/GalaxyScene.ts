@@ -148,6 +148,9 @@ export class GalaxyScene {
   private beamGfx: Graphics;
   private nodesLayer: Container;
   private territoryGfx: Graphics;
+  /** Soft cyan halo drawn behind every reachable-but-not-yet-researched star.
+   *  Communicates "you can explore this now" at a glance. */
+  private reachableHaloGfx: Graphics | null = null;
 
   /** MST + extra edges for wavy connection line rendering */
   private connectionEdges: Array<{ x1: number; y1: number; x2: number; y2: number; seed: number; key1: string; key2: string }> = [];
@@ -291,6 +294,10 @@ export class GalaxyScene {
     this.container.addChild(this.territoryGfx);
     this.connectionLines = new Graphics();
     this.container.addChild(this.connectionLines);
+    // Reachable-halo layer sits between connection lines and star nodes so
+    // the cyan glow reads as "aura around the star" not "patch on top".
+    this.reachableHaloGfx = new Graphics();
+    this.container.addChild(this.reachableHaloGfx);
     this.beamGfx = new Graphics();
     this.container.addChild(this.beamGfx);
     this.nodesLayer = new Container();
@@ -1017,6 +1024,8 @@ export class GalaxyScene {
   private drawWavyLine(
     g: Graphics, x1: number, y1: number, x2: number, y2: number,
     t: number, seed: number, alpha: number,
+    color: number = 0x2e4466,
+    width: number = 0.65,
   ) {
     const dx = x2 - x1, dy = y2 - y1;
     const len = Math.hypot(dx, dy);
@@ -1032,7 +1041,7 @@ export class GalaxyScene {
       const w2 = amp * 0.38 * env * Math.sin(s * Math.PI * 7 - t * 0.00105 + seed * 2.1);
       g.lineTo(x1 + dx * s + nx * (w1 + w2), y1 + dy * s + ny * (w1 + w2));
     }
-    g.stroke({ width: 0.65, color: 0x2e4466, alpha });
+    g.stroke({ width, color, alpha });
   }
 
   /**
@@ -1892,39 +1901,59 @@ export class GalaxyScene {
       if (node.starState === 'researched' && node.visibilityTier === 1) drawTerritoryAura(node.tx, node.ty);
     }
 
-    // Wavy connection lines — blue threads between stars
+    // Constellation web — cyan threads between REACHABLE stars only.
+    // A star is "reachable" if visibilityTier===1 AND not yet fully researched.
+    // Home counts as reachable (anchor of the web). Hides all noise lines and
+    // instantly communicates "these are the stars you can explore right now."
     this.connectionLines.clear();
+    const CYAN = 0x7bb8ff;
+    const isReachable = (n: SystemNode | null | undefined, isHome: boolean): boolean => {
+      if (isHome) return true;
+      if (!n) return false;
+      if (n.visibilityTier !== 1) return false;
+      return n.starState !== 'researched';
+    };
     for (const edge of this.connectionEdges) {
-      // Get visibility tier for both endpoints
-      const node1 = edge.key1 === 'home' ? this.homeNode : this.systemNodes.get(edge.key1);
-      const node2 = edge.key2 === 'home' ? this.homeNode : this.systemNodes.get(edge.key2);
-      const tier1 = node1?.visibilityTier ?? 1;
-      const tier2 = node2?.visibilityTier ?? 1;
+      const isHome1 = edge.key1 === 'home';
+      const isHome2 = edge.key2 === 'home';
+      const node1 = isHome1 ? this.homeNode : this.systemNodes.get(edge.key1);
+      const node2 = isHome2 ? this.homeNode : this.systemNodes.get(edge.key2);
+      const reach1 = isReachable(node1, isHome1);
+      const reach2 = isReachable(node2, isHome2);
+      // Skip edges where either endpoint is NOT reachable — keeps the view
+      // clean and avoids the previous "spiderweb noise" of faded lines.
+      if (!reach1 || !reach2) continue;
+      // At least one endpoint must be an actual exploration target (home-to-
+      // home would just be the home star alone). Already guaranteed by
+      // reach* = home + reachable, and we don't draw home↔home anyway.
 
-      // Skip edges where either endpoint is Tier 3 (hidden)
-      if (tier1 === 3 || tier2 === 3) continue;
+      // Slow pulse so the web feels alive without distracting.
+      const pulse = 0.55 + 0.15 * Math.sin(t * 0.0012 + edge.seed);
+      this.drawWavyLine(
+        this.connectionLines, edge.x1, edge.y1, edge.x2, edge.y2, t, edge.seed,
+        pulse, CYAN, 0.85,
+      );
+    }
 
-      const st1 = edge.key1 === 'home' ? 'home' : this.systemNodes.get(edge.key1)?.starState ?? 'unexplored';
-      const st2 = edge.key2 === 'home' ? 'home' : this.systemNodes.get(edge.key2)?.starState ?? 'unexplored';
-      const ri1 = edge.key1 === 'home' ? 0 : (this.systemNodes.get(edge.key1)?.ringIndex ?? 0);
-      const ri2 = edge.key2 === 'home' ? 0 : (this.systemNodes.get(edge.key2)?.ringIndex ?? 0);
-      // Skip edges between two deep-unexplored systems
-      if (st1 === 'unexplored' && ri1 >= 2 && st2 === 'unexplored' && ri2 >= 2) continue;
-      const vis = (st: string, ri: number) =>
-        st === 'home' || st === 'researched' ? 1.0 :
-        st === 'researching' ? 0.7 :
-        ri >= 2 ? 0.22 : 0.46;
-      let alpha = Math.min(vis(st1, ri1), vis(st2, ri2)) * 0.28;
-
-      // If either endpoint is Tier 2 (faded), reduce edge alpha further
-      if (tier1 === 2 || tier2 === 2) {
-        const minTierAlpha = Math.min(
-          tier1 === 2 ? 0.3 : 1.0,
-          tier2 === 2 ? 0.3 : 1.0,
-        );
-        alpha = alpha * minTierAlpha * 0.5;
+    // Reachable-halo — soft cyan glow behind every researchable star.
+    // Breathes gently at 0.5Hz to draw the eye without being distracting.
+    if (this.reachableHaloGfx) {
+      const halo = this.reachableHaloGfx;
+      halo.clear();
+      const breath = 0.85 + 0.15 * Math.sin(t * 0.0018);
+      const drawHalo = (x: number, y: number, r: number) => {
+        halo.circle(x, y, r * 3.2);
+        halo.fill({ color: 0x7bb8ff, alpha: 0.06 * breath });
+        halo.circle(x, y, r * 2.1);
+        halo.fill({ color: 0x7bb8ff, alpha: 0.12 * breath });
+        halo.circle(x, y, r * 1.4);
+        halo.fill({ color: 0x7bb8ff, alpha: 0.18 * breath });
+      };
+      for (const [, node] of this.systemNodes) {
+        if (node.visibilityTier !== 1) continue;
+        if (node.starState === 'researched') continue;
+        drawHalo(node.tx, node.ty, node.baseRadius);
       }
-      this.drawWavyLine(this.connectionLines, edge.x1, edge.y1, edge.x2, edge.y2, t, edge.seed, alpha);
     }
 
     this.beamGfx.clear(); // keep clear — beam removed from design
