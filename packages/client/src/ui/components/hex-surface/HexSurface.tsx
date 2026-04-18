@@ -540,7 +540,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             perspective: 800,
           }}>
             {(planet.name ?? 'PLANET').toUpperCase().split('').map((ch, i, arr) => {
-              const dur = 0.8 + (i / Math.max(arr.length - 1, 1)) * 2.2;
+              // Simple staggered fade-in. Previous nebuNeonSpin used rotateX(-1440°)
+              // + filter: blur(10px) per letter — each letter got its own GPU layer
+              // and the blur composite was running on every frame, burning GPU on
+              // macOS for the whole 0.8-3s animation. Fade+translateY is compositor-
+              // friendly and visually similar.
+              const delay = 0.4 + (i / Math.max(arr.length - 1, 1)) * 0.35;
               return (
                 <span key={i} style={{
                   display: 'inline-block',
@@ -548,8 +553,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
                   fontSize: 13,
                   fontWeight: 'bold',
                   letterSpacing: '0.5px',
-                  textShadow: '0 0 5px rgba(68,136,170,0.7), 0 0 12px rgba(68,136,170,0.4)',
-                  animation: `nebuNeonSpin ${dur}s cubic-bezier(0.1,0.9,0.2,1) 0.4s forwards`,
+                  textShadow: '0 0 5px rgba(68,136,170,0.6)',
+                  animation: `nebuFadeUp 0.6s ease-out ${delay}s forwards`,
                   opacity: 0,
                   whiteSpace: 'pre',
                 }}>{ch}</span>
