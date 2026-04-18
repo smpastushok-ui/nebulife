@@ -522,16 +522,18 @@ export class GameEngine {
 
   private clearScenes() {
     // Reset camera constraints (overridden in system scene)
-    this.camera.setMinScale(0.1);
-    this.camera.setPanBounds(null);
+    this.camera?.setMinScale(0.1);
+    this.camera?.setPanBounds(null);
 
+    // HMR can tear the PixiJS app down while a scene reference still exists —
+    // guard every access to `this.app?.stage` before removing children.
     if (this.galaxyScene) {
-      this.app.stage.removeChild(this.galaxyScene.container);
+      try { this.app?.stage?.removeChild(this.galaxyScene.container); } catch { /* already removed */ }
       this.galaxyScene.destroy();
       this.galaxyScene = null;
     }
     if (this.systemScene) {
-      this.app.stage.removeChild(this.systemScene.container);
+      try { this.app?.stage?.removeChild(this.systemScene.container); } catch { /* already removed */ }
       this.systemScene.destroy();
       this.systemScene = null;
     }
