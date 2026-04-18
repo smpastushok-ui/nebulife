@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authFetch, apiFetch } from '../../auth/api-client.js';
+import { signOut } from '../../auth/auth-service.js';
 
 // ---------------------------------------------------------------------------
 // CallsignModal — required after first auth, sets unique player name
@@ -68,6 +69,8 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
       setError(t('callsign.invalid_format'));
       return;
     }
+    // Only block if check confirmed taken; if check failed (network/server),
+    // proceed and let the server-side set-callsign endpoint validate uniqueness.
     if (available === false) {
       setError(t('callsign.taken'));
       return;
@@ -96,8 +99,20 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
     }
   };
 
+  /** Escape hatch — sign out and return to AuthScreen. Critical when offline /
+   *  server unreachable so player isn't trapped. */
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch { /* ignore — Firebase will fire onAuthChange null anyway */ }
+    // Hard reload to reset all client state
+    window.location.reload();
+  };
+
   const isValid = CALLSIGN_RE.test(value);
-  const canSubmit = isValid && available === true && !submitting && !checking;
+  // Allow submit when check explicitly succeeded OR check is null (failed/skipped)
+  // — server will reject duplicates with proper error.
+  const canSubmit = isValid && available !== false && !submitting && !checking;
 
   return (
     <div style={overlayStyle}>
@@ -152,6 +167,16 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
         <div style={rulesStyle}>
           {t('callsign.rules')}
         </div>
+
+        {/* Escape: sign out → back to AuthScreen. Always available so the user
+            cannot get trapped if the network or check-callsign endpoint fails. */}
+        <button
+          style={signOutBtnStyle}
+          onClick={handleSignOut}
+          disabled={submitting}
+        >
+          {t('auth.sign_out', { defaultValue: 'Вийти' })}
+        </button>
       </div>
     </div>
   );
@@ -233,3 +258,16 @@ function feedbackStyle(color: string): React.CSSProperties {
     textAlign: 'center',
   };
 }
+
+const signOutBtnStyle: React.CSSProperties = {
+  marginTop: 4,
+  padding: '8px 0',
+  background: 'transparent',
+  border: '1px solid #443344',
+  color: '#886677',
+  fontSize: 10,
+  fontFamily: 'monospace',
+  borderRadius: 3,
+  cursor: 'pointer',
+  letterSpacing: '0.05em',
+};
