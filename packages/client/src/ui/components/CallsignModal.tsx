@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { authFetch } from '../../auth/api-client.js';
+import { authFetch, apiFetch } from '../../auth/api-client.js';
 
 // ---------------------------------------------------------------------------
 // CallsignModal — required after first auth, sets unique player name
@@ -36,7 +36,7 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
 
     setChecking(true);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_BASE}/auth/check-callsign?callsign=${encodeURIComponent(callsign)}`,
       );
       const data = await res.json();
@@ -47,7 +47,7 @@ export function CallsignModal({ onComplete }: CallsignModalProps) {
     } finally {
       setChecking(false);
     }
-  }, []);
+  }, [t]);
 
   const handleChange = (val: string) => {
     // Allow only valid characters

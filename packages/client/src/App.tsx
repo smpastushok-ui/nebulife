@@ -104,7 +104,7 @@ import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updateP
 import type { DiscoveryData } from './api/player-api.js';
 import { requestPushPermission, startForegroundListener } from './notifications/push-service.js';
 import { onAuthChange, signOut } from './auth/auth-service.js';
-import { authFetch } from './auth/api-client.js';
+import { authFetch, apiFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
 import { AuthScreen } from './ui/components/AuthScreen.js';
 import { CallsignModal } from './ui/components/CallsignModal.js';
@@ -3674,7 +3674,7 @@ function AppInner() {
   useEffect(() => {
     const handleOpenDigest = async (_e: Event) => {
       try {
-        const res = await fetch('/api/digest/latest', {
+        const res = await apiFetch('/api/digest/latest', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('nebulife_firebase_token') ?? ''}` },
         });
         if (!res.ok) {
@@ -3773,7 +3773,7 @@ function AppInner() {
   // ── Fetch latest digest (for new-digest indicator) ────────────────────
   useEffect(() => {
     const token = localStorage.getItem('nebulife_firebase_token') ?? '';
-    fetch('/api/digest/latest', { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch('/api/digest/latest', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.digest?.weekDate) setLatestDigestWeekDate(data.digest.weekDate as string);
