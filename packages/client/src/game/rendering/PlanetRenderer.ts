@@ -162,21 +162,38 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   // Add lighting group to container
   container.addChild(lightingGroup);
 
-  // === Ring system for massive gas giants ===
-  if (planet.type === 'gas-giant' && planet.massEarth > 50) {
+  // === Ring system for massive gas giants + occasional ice giants ===
+  // Per-seed ring tone + width + presence of Cassini gap. Seeded RNG so the same
+  // planet always renders identically across sessions.
+  const wantsRings = planet.type === 'gas-giant' && planet.massEarth > 50
+    || (planet.type === 'ice-giant' && (planet.seed % 5 === 0)); // ~20% of ice giants
+  if (wantsRings) {
+    const seed = planet.seed;
+    // 4 ring tone palettes, picked deterministically from seed.
+    const palettes = [
+      { outer: 0xccbb99, mid: 0xddccaa, inner: 0xaa9977 }, // classic Saturn cream
+      { outer: 0xbbaaaa, mid: 0xddcccc, inner: 0x998877 }, // dusty rose
+      { outer: 0x99aabb, mid: 0xbbccdd, inner: 0x778899 }, // icy silver-blue
+      { outer: 0xddccbb, mid: 0xeeddcc, inner: 0xbbaa99 }, // pale gold
+    ];
+    const pal = palettes[Math.abs(seed) % palettes.length];
     const ringGfx = new Graphics();
     // Outer ring
     ringGfx.ellipse(0, 0, size * 1.9, size * 0.35 * Y_COMPRESS);
-    ringGfx.stroke({ width: 3, color: 0xccbb99, alpha: 0.15 });
-    // Main ring
+    ringGfx.stroke({ width: 3, color: pal.outer, alpha: 0.18 });
+    // Main bright ring
     ringGfx.ellipse(0, 0, size * 1.7, size * 0.32 * Y_COMPRESS);
-    ringGfx.stroke({ width: 2.5, color: 0xddccaa, alpha: 0.25 });
+    ringGfx.stroke({ width: 2.5, color: pal.mid, alpha: 0.30 });
     // Inner ring
     ringGfx.ellipse(0, 0, size * 1.45, size * 0.27 * Y_COMPRESS);
-    ringGfx.stroke({ width: 1.5, color: 0xaa9977, alpha: 0.2 });
-    // Gap ring
-    ringGfx.ellipse(0, 0, size * 1.55, size * 0.29 * Y_COMPRESS);
-    ringGfx.stroke({ width: 0.5, color: 0x020510, alpha: 0.3 });
+    ringGfx.stroke({ width: 1.5, color: pal.inner, alpha: 0.22 });
+
+    // Cassini-style gap — ~70% of ringed planets get one. Position varies a bit per seed.
+    if (seed % 10 < 7) {
+      const gapAt = 1.55 + ((seed >> 3) % 10) / 100; // 1.55..1.64 size mul
+      ringGfx.ellipse(0, 0, size * gapAt, size * (gapAt * 0.18) * Y_COMPRESS);
+      ringGfx.stroke({ width: 1.0, color: 0x020510, alpha: 0.55 });
+    }
     container.addChild(ringGfx);
   }
 

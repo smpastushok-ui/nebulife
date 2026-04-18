@@ -509,7 +509,14 @@ function renderGiantBands(
   const dotSize = pixelStep * 1.05;
 
   const isGas = visuals.isGasGiant;
-  const bandCount = isGas ? 14 : 10;
+  // Per-seed band count variance: 10..16 for gas, 8..12 for ice. Some giants
+  // get tight pinstripes, others wide bold zones.
+  const baseBandCount = isGas ? 14 : 10;
+  const bandCount = baseBandCount + ((seed % 7) - 3); // ±3 jitter
+  // Per-seed displacement intensity: from gentle (0.06) to extremely chaotic (0.25)
+  const dispScale = 0.06 + ((seed >> 5) % 100) / 100 * 0.19;
+  // Per-seed flow direction phase — some have prominent zonal lines, others smooth
+  const flowSign = (seed & 1) === 0 ? 1 : -1;
 
   // Darker base for limb darkening
   const darkBase = isGas ? 0x1a1008 : 0x0a1020;
@@ -531,8 +538,8 @@ function renderGiantBands(
       const diskDist = Math.sqrt(px * px + py * py);
       const limbFactor = 1.0 - (diskDist / radius);
 
-      // Band position with noise displacement (wavy band edges)
-      const displacement = noise.fbm3D(sx * 2, sy * 0.5, sz * 2, 3) * 0.12;
+      // Band position with noise displacement (per-seed chaotic wavy edges)
+      const displacement = noise.fbm3D(sx * 2 * flowSign, sy * 0.5, sz * 2, 3) * dispScale;
       const bandPos = (yFrac * 0.5 + 0.5 + displacement) * bandCount;
       const bandIndex = Math.floor(bandPos);
       const bandFrac = bandPos - bandIndex;
@@ -598,6 +605,23 @@ function renderGiantBands(
         const polarDarken = clamp((absLat - 0.7) / 0.3, 0, 1);
         const polarColor = isGas ? 0x443322 : 0x223344;
         color = lerpColor(color, polarColor, polarDarken * 0.5);
+      }
+
+      // Saturn-style hexagonal polar vortex — ~25% of gas giants get one,
+      // determined by seed. Renders a darker hex outline at one of the poles.
+      if (isGas && (seed % 4 === 0) && absLat > 0.55) {
+        const hexCenterY = (seed % 8 < 4) ? -0.85 : 0.85; // pick which pole
+        const dyHex = sy - hexCenterY;
+        const dxHex = sx;
+        const distFromHexCenter = Math.sqrt(dxHex * dxHex + dyHex * dyHex);
+        const hexRadius = 0.15;
+        // 6-fold symmetric darkening — emphasises hex edges
+        const angle = Math.atan2(dyHex, dxHex);
+        const hexLobe = Math.cos(angle * 6) * 0.5 + 0.5; // 0..1, peaks at 6 hex corners
+        if (distFromHexCenter < hexRadius * 1.4) {
+          const hexBlend = clamp(1 - distFromHexCenter / (hexRadius * 1.4), 0, 1) * (0.5 + hexLobe * 0.5);
+          color = lerpColor(color, 0x331122, hexBlend * 0.45);
+        }
       }
 
       // Apply limb darkening

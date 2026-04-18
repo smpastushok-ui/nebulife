@@ -663,19 +663,20 @@ export class GalaxyScene {
         break;
       }
       case 2: {
-        // Faded — visible. Neighbors stay clickable so player can preview them
-        // (and get a "research ast-probe to unlock" hint on click). Core stays
-        // non-interactive until BFS chain reaches them.
+        // Visible "next ring" — must clearly read as a third ring to the player.
+        // Neighbors stay fully clickable (player can tap → "Need ast-probe tech"
+        // hint). Core stays non-interactive until BFS chain reaches them.
         if (node.nodeType === 'neighbor') {
-          node.baseAlpha = 0.55;
+          node.baseAlpha = 0.85;          // bumped 0.55 → 0.85 (clearly visible)
           node.container.eventMode = 'static';
           node.container.cursor = 'pointer';
+          // Show name label so the third ring reads as "real systems", not background
+          node.nameLabel.visible = true;
         } else {
-          node.baseAlpha = 0.3;
+          node.baseAlpha = 0.45;          // bumped 0.30 → 0.45
           node.container.eventMode = 'none';
+          node.nameLabel.visible = false;
         }
-        // Hide labels and glow for Tier 2
-        node.nameLabel.visible = false;
         if (node.researchLabel) node.researchLabel.visible = false;
         if (node.scanArc) node.scanArc.visible = false;
         if (node.atomOrbit) node.atomOrbit.visible = false;
