@@ -3138,14 +3138,29 @@ export class ArenaEngine {
         input.aimDir.x = toCenterX;
         input.aimDir.z = toCenterZ;
       }
+
+      // Vertical steering — bot rises/dives toward its current target's Y
+      // (or drifts toward Y=0 in patrol). AI itself stays 2D on XZ; we
+      // inject Y movement here so bots can match the player's altitude.
+      let ay = 0;
+      const brainTarget = bot.brain.targetId !== null
+        ? allShipEntities.find(s => s.id === bot.brain.targetId)
+        : undefined;
+      const targetY = brainTarget?.alive ? brainTarget.pos.y : ARENA_GROUND_Y;
+      const dy = targetY - bot.pos.y;
+      // Deadband so bots don't wobble around an exact match
+      if (Math.abs(dy) > 20) ay = Math.sign(dy);
+
       bot.vel.x += ax * SHIP_ACCELERATION * dt;
       bot.vel.z += az * SHIP_ACCELERATION * dt;
+      bot.vel.y += ay * SHIP_ACCELERATION * 0.5 * dt; // slower climb/dive
       // Frame-rate independent drag: normalised to 60fps equivalent
       const frameDrag = Math.pow(SHIP_DRAG, dt * 60);
       bot.vel.x *= frameDrag;
+      bot.vel.y *= frameDrag;
       bot.vel.z *= frameDrag;
 
-      // Clamp speed
+      // Clamp speed (XZ)
       const speed = Math.sqrt(bot.vel.x * bot.vel.x + bot.vel.z * bot.vel.z);
       if (speed > SHIP_MAX_SPEED) {
         bot.vel.x = (bot.vel.x / speed) * SHIP_MAX_SPEED;
@@ -3172,7 +3187,18 @@ export class ArenaEngine {
       }
 
       bot.pos.x += bot.vel.x * dt;
+      bot.pos.y += bot.vel.y * dt;
       bot.pos.z += bot.vel.z * dt;
+
+      // Y cap bounce (same as player) so bots can't escape the semi-sphere
+      const yCap = ARENA_HEIGHT_HALF - SHIP_RADIUS;
+      if (bot.pos.y > yCap) {
+        bot.pos.y = yCap;
+        if (bot.vel.y > 0) bot.vel.y = -bot.vel.y * 0.3;
+      } else if (bot.pos.y < -yCap) {
+        bot.pos.y = -yCap;
+        if (bot.vel.y < 0) bot.vel.y = -bot.vel.y * 0.3;
+      }
 
       // Soft center pull — gradual force toward center when far out
       const distFromCenterPost = Math.sqrt(bot.pos.x * bot.pos.x + bot.pos.z * bot.pos.z);
