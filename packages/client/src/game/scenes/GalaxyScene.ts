@@ -1876,24 +1876,34 @@ export class GalaxyScene {
       }
       return true;
     };
-    for (const edge of this.connectionEdges) {
-      const isHome1 = edge.key1 === 'home';
-      const isHome2 = edge.key2 === 'home';
-      const node1 = isHome1 ? this.homeNode : this.systemNodes.get(edge.key1);
-      const node2 = isHome2 ? this.homeNode : this.systemNodes.get(edge.key2);
-      const reach1 = isReachable(node1, isHome1);
-      const reach2 = isReachable(node2, isHome2);
-      // Skip edges where either endpoint is NOT reachable — keeps the view
-      // clean and avoids the previous "spiderweb noise" of faded lines.
-      if (!reach1 || !reach2) continue;
-      // At least one endpoint must be an actual exploration target (home-to-
-      // home would just be the home star alone). Already guaranteed by
-      // reach* = home + reachable, and we don't draw home↔home anyway.
 
-      // Subtle pulse — web is a hint, not a spotlight. Alpha ≈ 0.2-0.3.
-      const pulse = 0.22 + 0.08 * Math.sin(t * 0.0012 + edge.seed);
+    // Build cyan web dynamically: for EACH reachable target, connect it to
+    // the nearest "anchor" — home or any already-researched star. Guarantees
+    // every reachable star has at least one visible path back to known
+    // territory (previously only 4 home-adjacent Ring 1 stars had lines, and
+    // other Ring 1 stars whose edges went to Ring 2 looked orphaned).
+    const anchors: Array<{ x: number; y: number; seed: number }> = [];
+    if (this.homeNode) {
+      anchors.push({ x: this.homeNode.tx ?? 0, y: this.homeNode.ty ?? 0, seed: 0 });
+    }
+    for (const [, node] of this.systemNodes) {
+      if (node.starState === 'researched' && node.visibilityTier === 1) {
+        anchors.push({ x: node.tx, y: node.ty, seed: node.system.seed * 0.00031 });
+      }
+    }
+    for (const [, node] of this.systemNodes) {
+      if (!isReachable(node, false)) continue;
+      // Find nearest anchor
+      let bestD = Infinity, bestA = anchors[0];
+      for (const a of anchors) {
+        const d = (a.x - node.tx) * (a.x - node.tx) + (a.y - node.ty) * (a.y - node.ty);
+        if (d < bestD) { bestD = d; bestA = a; }
+      }
+      if (!bestA) continue;
+      const seed = bestA.seed + node.system.seed * 0.00017;
+      const pulse = 0.22 + 0.08 * Math.sin(t * 0.0012 + seed);
       this.drawWavyLine(
-        this.connectionLines, edge.x1, edge.y1, edge.x2, edge.y2, t, edge.seed,
+        this.connectionLines, bestA.x, bestA.y, node.tx, node.ty, t, seed,
         pulse, CYAN, 0.5,
       );
     }
