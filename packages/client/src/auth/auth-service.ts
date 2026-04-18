@@ -38,12 +38,16 @@ export function isGoogleSignInAvailable(): boolean {
   return Capacitor.isPluginAvailable('GoogleAuth');
 }
 
-async function getNativeGoogleAuth() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GoogleAuthAny = any;
+
+async function getNativeGoogleAuth(): Promise<GoogleAuthAny> {
   if (!isGoogleSignInAvailable()) {
     throw new Error('Google Sign-in is not available on this device yet');
   }
   // @ts-ignore — module only available in native Capacitor builds, not on Vercel
-  const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+  const mod = await import('@codetrix-studio/capacitor-google-auth');
+  const GoogleAuth: GoogleAuthAny = mod.GoogleAuth;
   if (!_googleAuthInitialized) {
     GoogleAuth.initialize({
       clientId: GOOGLE_WEB_CLIENT_ID,
