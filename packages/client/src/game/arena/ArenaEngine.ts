@@ -4,18 +4,21 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { playSfx, playLoop, stopLoop, stopAllLoops, setLoopVolume } from '../../audio/SfxPlayer.js';
 import type { ArenaCallbacks, InputState, ShipEntity, MatchPhase, BotShip, BotBullet, Team, TeamMatchResult } from './ArenaTypes.js';
 import {
   ARENA_SIZE, ARENA_HALF,
   CAMERA_FOV, CAMERA_HEIGHT, CAMERA_DISTANCE, CAMERA_LERP_SPEED,
+  CAMERA_BEHIND, CAMERA_UP, CAMERA_LOOK_LEAD, CAMERA_LOOK_UP,
+  CAMERA_LERP_POS, CAMERA_LERP_LOOK,
   MAX_PIXEL_RATIO, STARFIELD_COUNT,
   BOT_COUNT, MATCH_DURATION, COUNTDOWN_SECONDS,
   ASTEROID_COUNT, ASTEROID_MIN_RADIUS, ASTEROID_MAX_RADIUS,
   SHIP_MAX_SPEED, SHIP_ACCELERATION, SHIP_DRAG, SHIP_RADIUS, SHIP_SHOT_RADIUS,
   TEAM_BLUE_BOTS, TEAM_RED_BOTS, BOT_BULLET_POOL, BOT_RESPAWN_DELAY,
   BOT_NAMES, TEAM_SCORE_ENEMY_KILL, TEAM_SCORE_DEATH, TEAM_KILL_LIMIT,
-  TRAINING_BOT_COUNT, TRAINING_ASTEROID_COUNT,
+  TRAINING_BOT_COUNT, TRAINING_BLUE_ALLIES, TRAINING_RED_ENEMIES, TRAINING_ASTEROID_COUNT,
 } from './ArenaConstants.js';
 import { createBotBrain, updateBot } from './ArenaAI.js';
 
@@ -29,6 +32,83 @@ const SHIP_FILES: Record<string, string> = {
   ship2: '/arena_ships/star_ship2.webp',
   ship3: '/arena_ships/star_ship3.webp',
 };
+
+// GLB models — blue for player + blue team, red for enemies.
+const SHIP_GLB_BLUE = '/arena_ships/blue_ship.glb';
+const SHIP_GLB_RED  = '/arena_ships/red_ship.glb';
+
+// Target bounding-box size of a loaded ship in world units. Models are
+// auto-scaled so their longest axis matches this. Keeps gameplay radii
+// consistent no matter what Tripo spat out.
+const SHIP_VISUAL_SIZE = 40;
+
+// Cached loaded scenes. Loaded once on ArenaEngine.init, cloned per ship.
+let _cachedBlueShip: THREE.Group | null = null;
+let _cachedRedShip: THREE.Group | null = null;
+
+function _normalizeShipScene(scene: THREE.Group): THREE.Group {
+  // Compute bounding box of loaded model and rescale so longest axis = SHIP_VISUAL_SIZE.
+  // Also recenter around origin so pivot is at center of mass.
+  const box = new THREE.Box3().setFromObject(scene);
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+  const longestAxis = Math.max(size.x, size.y, size.z);
+  if (longestAxis > 0) {
+    const factor = SHIP_VISUAL_SIZE / longestAxis;
+    scene.scale.setScalar(factor);
+    // Recenter: after scaling, translate so center is at origin.
+    scene.position.set(-center.x * factor, -center.y * factor, -center.z * factor);
+  }
+  return scene;
+}
+
+/**
+ * Load + cache the two team ship GLBs. Returns when both are ready.
+ * Falls back silently if a file is missing — caller should check for null.
+ */
+async function preloadShipModels(): Promise<void> {
+  if (_cachedBlueShip && _cachedRedShip) return;
+  const loader = new GLTFLoader();
+  const load = (url: string) => new Promise<THREE.Group | null>((resolve) => {
+    loader.load(
+      url,
+      (gltf) => resolve(_normalizeShipScene(gltf.scene)),
+      undefined,
+      () => resolve(null),
+    );
+  });
+  const [blue, red] = await Promise.all([load(SHIP_GLB_BLUE), load(SHIP_GLB_RED)]);
+  _cachedBlueShip = blue;
+  _cachedRedShip = red;
+}
+
+/**
+ * Clone a cached ship scene. Materials are cloned too so tint/opacity can be
+ * mutated per-instance without bleeding into other ships.
+ */
+function cloneShipScene(source: THREE.Group): THREE.Group {
+  const clone = source.clone(true);
+  clone.traverse((obj) => {
+    if (obj instanceof THREE.Mesh) {
+      if (Array.isArray(obj.material)) {
+        obj.material = obj.material.map((m) => m.clone());
+      } else if (obj.material) {
+        obj.material = obj.material.clone();
+      }
+      obj.castShadow = false;
+      obj.receiveShadow = false;
+      // Frustum culling is correct for GLB (has proper bounding sphere)
+      obj.frustumCulled = true;
+    }
+  });
+  // Wrap in a parent Group so callers can set position/rotation on the wrapper
+  // while _normalizeShipScene's centering offset stays on the model.
+  const wrapper = new THREE.Group();
+  wrapper.add(clone);
+  return wrapper;
+}
 
 // Power-up types (mirrors server arena-matchmaker for Phase 2 compat)
 export type PowerUpType = 'WARP' | 'DAMAGE_UP' | 'SLOW_LASER' | 'SHIELD' | 'HEALTH';
@@ -234,6 +314,10 @@ export class ArenaEngine {
   // camera motion gentle without affecting gameplay aim.
   private camAimX = 0;
   private camAimZ = -1;
+  // Smoothed lookAt (independent lerp from position — faster so aim stays centered)
+  private camLookX = 0;
+  private camLookY = 0;
+  private camLookZ = 0;
   // Camera shake (screen kick on explosions)
   private shakeAmount = 0;   // current intensity (units)
   private shakeDecay = 6;    // per second exponential decay
@@ -304,10 +388,17 @@ export class ArenaEngine {
   // ── Lifecycle ──────────────────────────────────────────────────────────
 
   async init(): Promise<void> {
+    // Preload GLB ship models before setting up any ship entity.
+    // Failures fall back to the sprite path inside setupPlayerShip.
+    await preloadShipModels();
+
     this.setupRenderer();
     this.setupScene();
     this.setupCamera();
-    this.setupFloor();
+    // Floor grid removed — incompatible with TPS chase-cam angle (user sees
+    // the floor at an oblique angle and it reads as static "ice", hurting
+    // speed perception). Starfield alone gives better motion cues.
+    // this.setupFloor();
     this.setupBoundary();
     this.setupStarfield();
     this.setupLights();
@@ -620,29 +711,39 @@ export class ArenaEngine {
   }
 
   private setupPlayerShip(): void {
-    // 2D sprite ship — nose = top of image, ship selected via constructor shipId
-    const loader = new THREE.TextureLoader();
-    const shipFile = SHIP_FILES[this.shipId] ?? SHIP_FILES.ship1;
-    const texture = loader.load(shipFile);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    this.disposables.push(texture);
+    // Player always gets the blue GLB in TPS mode. Falls back to the old
+    // sprite path if the GLB failed to load (network / asset missing).
+    if (_cachedBlueShip) {
+      const group = cloneShipScene(_cachedBlueShip);
+      // Add to scene as a Mesh-like object. ArenaEngine touches
+      // playerMesh.position/rotation/visible/material — all work on Groups
+      // except .material. We expose a small mesh-like shim below.
+      this.playerMesh = group as unknown as THREE.Mesh;
+      group.position.set(0, 5, 0);
+      this.scene.add(group);
+    } else {
+      // Sprite fallback (legacy)
+      const loader = new THREE.TextureLoader();
+      const shipFile = SHIP_FILES[this.shipId] ?? SHIP_FILES.ship1;
+      const texture = loader.load(shipFile);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      this.disposables.push(texture);
 
-    // Visual sprite size is independent of SHIP_RADIUS (physics).
-    // 5x gives clear silhouette detail at default camera distance.
-    const size = SHIP_RADIUS * 5;
-    const geo = new THREE.PlaneGeometry(size, size);
-    geo.rotateX(-Math.PI / 2); // Bake rotation into geometry once — no per-frame rotation.x
-    const mat = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      alphaTest: 0.5, // Fix Z-fighting with overlapping transparent sprites
-      side: THREE.DoubleSide,
-    });
-    this.disposables.push(geo, mat);
+      const size = SHIP_RADIUS * 5;
+      const geo = new THREE.PlaneGeometry(size, size);
+      geo.rotateX(-Math.PI / 2);
+      const mat = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        alphaTest: 0.5,
+        side: THREE.DoubleSide,
+      });
+      this.disposables.push(geo, mat);
 
-    this.playerMesh = new THREE.Mesh(geo, mat);
-    this.playerMesh.position.set(0, 5, 0);
-    this.scene.add(this.playerMesh);
+      this.playerMesh = new THREE.Mesh(geo, mat);
+      this.playerMesh.position.set(0, 5, 0);
+      this.scene.add(this.playerMesh);
+    }
 
     // Glow disc under the ship — purely visual orientation cue.
     // Additive + depthWrite:false means it sits between floor grid and ship
@@ -878,40 +979,53 @@ export class ArenaEngine {
         break;
     }
 
-    // Camera follows player with smooth damping + zoom.
+    // TPS chase camera.
     //
-    // Dynamic features (none affect input/controls):
-    //   - cameraBreath: 1.0 at rest → up to 1.25 at full speed (zoom out when moving fast)
-    //   - lead: camera target shifts ~60 units in aim direction so player sees more of
-    //           what's ahead; smooth because aimDirX/Z are already smoothed each frame
-    //   - shake: decays exponentially after spawnExplosion pushes shakeAmount up
+    //   camPos   = ship - aimDir * BEHIND + UP * UP_OFF
+    //   lookAt   = ship + aimDir * LEAD   + UP * LOOK_UP
+    //
+    // Smoothing: position lerps slower than lookAt so the crosshair stays
+    // centered even when the camera is still catching up behind the ship.
+    // Warp widens FOV + pushes camera farther back for speed-sense.
     const speed = Math.sqrt(this.playerVelX * this.playerVelX + this.playerVelZ * this.playerVelZ);
     const maxSpd = SHIP_MAX_SPEED * this.playerSpeedMult * (this.warpActive ? this.WARP_SPEED_MULT : 1);
     const speedRatio = Math.min(1, speed / (maxSpd > 0 ? maxSpd : SHIP_MAX_SPEED));
-    const targetBreath = 1 + speedRatio * 0.25;
-    this.cameraBreath += (targetBreath - this.cameraBreath) * Math.min(1, dt * 3);
 
-    // Smooth aim for camera (prevents sideways jumps when player flicks aim)
-    const camAimLerp = Math.min(1, dt * 3);
+    // Smoothed aim used for camera (prevents snap-rotations)
+    const camAimLerp = Math.min(1, dt * 4);
     this.camAimX += (this.aimDirX - this.camAimX) * camAimLerp;
     this.camAimZ += (this.aimDirZ - this.camAimZ) * camAimLerp;
 
-    const leadDist = 40; // reduced from 60 — less motion sickness on mobile
-    _camTarget.set(
-      this.playerPos.x + this.camAimX * leadDist,
-      0,
-      this.playerPos.z + this.camAimZ * leadDist,
-    );
+    // Warp effect — slide back + widen FOV
+    const warpFactor = this.warpActive ? 1.0 : Math.max(0, speedRatio - 0.6) * 2.0;
+    const behindDist = CAMERA_BEHIND + warpFactor * 15;
+    const upDist = CAMERA_UP + warpFactor * 2;
+    const targetFov = CAMERA_FOV + warpFactor * 10;
+    if (Math.abs(this.camera.fov - targetFov) > 0.1) {
+      this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, dt * 4);
+      this.camera.updateProjectionMatrix();
+    }
 
-    const camZoom = this.zoomLevel * this.cameraBreath;
+    // Target camera position — directly behind ship along -aimDir
     _tempVec3.set(
-      this.playerPos.x + this.camAimX * leadDist,
-      CAMERA_HEIGHT * camZoom,
-      this.playerPos.z + this.camAimZ * leadDist + CAMERA_DISTANCE * camZoom,
+      this.playerPos.x - this.camAimX * behindDist,
+      upDist,
+      this.playerPos.z - this.camAimZ * behindDist,
     );
-    this.camera.position.lerp(_tempVec3, CAMERA_LERP_SPEED);
+    this.camera.position.lerp(_tempVec3, CAMERA_LERP_POS);
 
-    // Shake — additive offset on top of lerped position (no GC)
+    // LookAt target — ahead of ship along +aimDir
+    _camTarget.set(
+      this.playerPos.x + this.camAimX * CAMERA_LOOK_LEAD,
+      CAMERA_LOOK_UP,
+      this.playerPos.z + this.camAimZ * CAMERA_LOOK_LEAD,
+    );
+    // Smooth lookAt too (store in a member for next frame)
+    this.camLookX += (_camTarget.x - this.camLookX) * CAMERA_LERP_LOOK;
+    this.camLookY += (_camTarget.y - this.camLookY) * CAMERA_LERP_LOOK;
+    this.camLookZ += (_camTarget.z - this.camLookZ) * CAMERA_LERP_LOOK;
+
+    // Shake — additive offset on top of lerped position
     if (this.shakeAmount > 0.01) {
       this.camera.position.x += (Math.random() - 0.5) * this.shakeAmount;
       this.camera.position.y += (Math.random() - 0.5) * this.shakeAmount * 0.5;
@@ -919,7 +1033,7 @@ export class ArenaEngine {
       this.shakeAmount *= Math.max(0, 1 - this.shakeDecay * dt);
     }
 
-    this.camera.lookAt(_camTarget);
+    this.camera.lookAt(this.camLookX, this.camLookY, this.camLookZ);
   }
 
   // ── Player movement (WASD) ──────────────────────────────────────────────
@@ -1056,14 +1170,24 @@ export class ArenaEngine {
       glowMat.opacity = pulse;
     }
 
-    // Flicker effect during invulnerability window
-    const mat = this.playerMesh.material as THREE.MeshBasicMaterial;
-    if (performance.now() < this.invulnerableUntil) {
-      mat.opacity = 0.4 + Math.sin(performance.now() * 0.01) * 0.3;
-      mat.transparent = true;
-    } else if (mat.opacity !== 1) {
-      mat.opacity = 1;
-    }
+    // Flicker effect during invulnerability window.
+    // Works for both the GLB-group path and the old sprite Mesh path by
+    // traversing children and applying opacity to all materials.
+    const invulnerable = performance.now() < this.invulnerableUntil;
+    const targetOpacity = invulnerable
+      ? 0.4 + Math.sin(performance.now() * 0.01) * 0.3
+      : 1;
+    this.playerMesh.traverse((obj) => {
+      if (obj instanceof THREE.Mesh && obj.material && !Array.isArray(obj.material)) {
+        const m = obj.material as THREE.Material & { opacity?: number; transparent?: boolean };
+        if (invulnerable) {
+          m.transparent = true;
+          m.opacity = targetOpacity;
+        } else if (m.opacity !== undefined && m.opacity !== 1) {
+          m.opacity = 1;
+        }
+      }
+    });
 
     // Dynamic fly loop volume: silent when stopped, grows with speed
     const curSpeed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
@@ -2652,26 +2776,35 @@ export class ArenaEngine {
         labelColor = '#cc9944';
       }
 
-      // Pick a random ship texture for this bot
-      const tex = shipTextures[id % shipTextures.length];
+      // GLB path: red for enemies/red team, blue for allies/blue team.
+      // Neutral (FFA training) = red so they read as "enemy" to player.
+      const source = (team === 'red' || team === 'neutral') ? _cachedRedShip : _cachedBlueShip;
 
-      // Flat plane geometry with texture + team color tint.
-      // Size must match player ship (SHIP_RADIUS * 5) — see setupPlayerShip.
-      const size = SHIP_RADIUS * 5;
-      const geo = new THREE.PlaneGeometry(size, size);
-      geo.rotateX(-Math.PI / 2);
-      const mat = new THREE.MeshBasicMaterial({
-        map: tex,
-        color: tintColor,
-        transparent: true,
-        alphaTest: 0.1,
-        opacity: 0.9,
-        side: THREE.DoubleSide,
-      });
-      this.disposables.push(geo, mat);
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(0, 5, 0);
-      this.scene.add(mesh);
+      let mesh: THREE.Mesh;
+      if (source) {
+        const group = cloneShipScene(source);
+        mesh = group as unknown as THREE.Mesh;
+        group.position.set(0, 5, 0);
+        this.scene.add(group);
+      } else {
+        // Fallback: sprite path (legacy)
+        const tex = shipTextures[id % shipTextures.length];
+        const size = SHIP_RADIUS * 5;
+        const geo = new THREE.PlaneGeometry(size, size);
+        geo.rotateX(-Math.PI / 2);
+        const mat = new THREE.MeshBasicMaterial({
+          map: tex,
+          color: tintColor,
+          transparent: true,
+          alphaTest: 0.1,
+          opacity: 0.9,
+          side: THREE.DoubleSide,
+        });
+        this.disposables.push(geo, mat);
+        mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(0, 5, 0);
+        this.scene.add(mesh);
+      }
 
       const nickSprite = this.createNickSprite(name, labelColor);
       this.scene.add(nickSprite);
@@ -2727,9 +2860,13 @@ export class ArenaEngine {
         this.botShips.push(spawnBot(botId++, 'red', TEAM_BLUE_BOTS + i));
       }
     } else {
-      // Training FFA: 6 neutral easy bots
-      for (let i = 0; i < TRAINING_BOT_COUNT; i++) {
-        this.botShips.push(spawnBot(botId++, 'neutral', i));
+      // Training TPS: 3v3 — 2 blue allies + 3 red enemies (player is blue).
+      this.playerTeam = 'blue';
+      for (let i = 0; i < TRAINING_BLUE_ALLIES; i++) {
+        this.botShips.push(spawnBot(botId++, 'blue', i));
+      }
+      for (let i = 0; i < TRAINING_RED_ENEMIES; i++) {
+        this.botShips.push(spawnBot(botId++, 'red', TRAINING_BLUE_ALLIES + i));
       }
     }
   }
@@ -2924,15 +3061,23 @@ export class ArenaEngine {
       bot.mesh.rotation.y = bot.rotation;
       bot.nickSprite.position.set(bot.pos.x, 20, bot.pos.z - 15);
 
-      // Flicker effect during invulnerability window
+      // Flicker effect during invulnerability window.
+      // Handles both GLB group and sprite mesh paths by traversing children.
       const isInvulnerable = performance.now() < bot.invulnerableUntil;
-      const botMat = bot.mesh.material as THREE.MeshBasicMaterial;
-      if (isInvulnerable) {
-        botMat.opacity = 0.4 + Math.sin(performance.now() * 0.01) * 0.3;
-        botMat.transparent = true;
-      } else if (botMat.opacity !== 0.9) {
-        botMat.opacity = 0.9;
-      }
+      const op = isInvulnerable
+        ? 0.4 + Math.sin(performance.now() * 0.01) * 0.3
+        : 0.9;
+      bot.mesh.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.material && !Array.isArray(obj.material)) {
+          const m = obj.material as THREE.Material & { opacity?: number; transparent?: boolean };
+          if (isInvulnerable) {
+            m.transparent = true;
+            m.opacity = op;
+          } else if (m.opacity !== undefined && m.opacity !== op) {
+            m.opacity = op;
+          }
+        }
+      });
 
       // Fire bullets — blocked during invulnerability window (same rule as
       // damage receipt). Previously invulnerable respawned bots could still
@@ -3074,9 +3219,10 @@ export class ArenaEngine {
     return e;
   }
 
-  /** Return the team for any ship id (0 = player = blue) */
+  /** Return the team for any ship id (0 = player, team from playerTeam) */
   private getEntityTeam(id: number): Team {
-    if (id === 0) return this.teamMode ? this.playerTeam : 'neutral';
+    // Player always has a team now (both training and team mode use 3v3 teams).
+    if (id === 0) return this.playerTeam;
     const bot = this.botShips.find(b => b.id === id);
     return bot ? bot.team : 'red';
   }

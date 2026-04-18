@@ -120,9 +120,13 @@ export const TEAM_RED_BOTS = 5;            // enemies
 export const BOT_BULLET_POOL = 300;        // global bot bullet pool
 export const BOT_RESPAWN_DELAY = 5;        // seconds
 
-// Training FFA bots
-export const TRAINING_BOT_COUNT = 6;
-export const TRAINING_ASTEROID_COUNT = 35;
+// Training bots — TPS mode uses 3v3 (player + 2 blue allies vs 3 red enemies).
+// Kept the flat constant name for backwards compatibility with serialized
+// match results and telemetry; see setupBotShips for the actual split.
+export const TRAINING_BOT_COUNT = 5; // 2 blue allies + 3 red enemies, plus the player = 6 ships
+export const TRAINING_BLUE_ALLIES = 2;
+export const TRAINING_RED_ENEMIES = 3;
+export const TRAINING_ASTEROID_COUNT = 30;
 
 // Bot names pool
 export const BOT_NAMES = [
@@ -130,11 +134,18 @@ export const BOT_NAMES = [
   'PULSAR', 'QUASAR', 'ZENITH', 'ECLIPSE', 'PHOTON', 'STELLAR', 'COSMIC',
 ];
 
-// Camera
-// Lowered further from 500/450 → 380/340 for a close, detailed view of the
-// ship. Angle shifts to ~48° (clear side profile). Users can still zoom out
-// with the wheel if they want a wider battlefield overview.
-export const CAMERA_FOV = 55;
+// Camera — TPS chase cam.
+// Camera sits BEHIND the ship along -aimDir; ship appears at ~center-bottom
+// of the screen with game-space stretching ahead. Wider FOV vs the old
+// overhead view for a flight feel.
+export const CAMERA_FOV = 65;
+export const CAMERA_BEHIND = 35;      // units behind ship along -aimDir
+export const CAMERA_UP = 12;          // units above ship
+export const CAMERA_LOOK_LEAD = 50;   // lookAt shifts forward along +aimDir
+export const CAMERA_LOOK_UP = 3;
+export const CAMERA_LERP_POS = 0.12;  // position damping (higher = snappier)
+export const CAMERA_LERP_LOOK = 0.18; // lookAt damping (faster than pos so aim stays centered)
+// Legacy constants kept for code paths not yet migrated off.
 export const CAMERA_HEIGHT = 380;
 export const CAMERA_DISTANCE = 340;
 export const CAMERA_LERP_SPEED = 0.05;

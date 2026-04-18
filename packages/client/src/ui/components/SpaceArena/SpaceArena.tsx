@@ -285,6 +285,26 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         }
       `}</style>
 
+      {/* TPS chase-cam crosshair — always centered, fades when dead */}
+      {ready && !isDead && (
+        <div style={{
+          position: 'absolute',
+          left: '50%', top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 24, height: 24,
+          pointerEvents: 'none',
+          zIndex: 3,
+        }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#44ffaa" strokeWidth="1.5" strokeLinecap="round" opacity="0.85">
+            <circle cx="12" cy="12" r="2" />
+            <line x1="12" y1="2" x2="12" y2="7" />
+            <line x1="12" y1="17" x2="12" y2="22" />
+            <line x1="2" y1="12" x2="7" y2="12" />
+            <line x1="17" y1="12" x2="22" y2="12" />
+          </svg>
+        </div>
+      )}
+
       {/* HUD overlay */}
       {ready && (
         <div style={{
