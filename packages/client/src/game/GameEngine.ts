@@ -157,9 +157,10 @@ export class GameEngine {
       this.researchState,
       this._neighborSystems,
       this._coreSystems,
-      false, // expandedVisible: neighbor/core hidden by default
+      true, // expandedVisible: neighbor/core always rendered; Tier system controls fade/hide
       this.groupCount,
       this.playerGroupIndex,
+      this.playerIndex,
       (system, screenPos) => {
         // New directional layout — no camera animation needed
         this.callbacks.onSystemSelect(system, screenPos);

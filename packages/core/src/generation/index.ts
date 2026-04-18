@@ -23,6 +23,7 @@ export {
 } from './galaxy-topology.js';
 export { generateGalaxyGroupCore, generateCoreStarSystem } from './galaxy-group-generator.js';
 export { delaunayEdges, type Point2D } from './delaunay.js';
+export { generateLiteClusterSystems, hexColorToInt, type LiteSystem } from './lite-systems.js';
 export {
   deriveGroupSeed,
   derivePlayerSeed,

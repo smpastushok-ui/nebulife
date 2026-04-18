@@ -1,6 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebulife/core';
-import { getResearchProgress, isSystemFullyResearched, SeededRNG, computeGroupPosition } from '@nebulife/core';
+import { getResearchProgress, isSystemFullyResearched, SeededRNG, computeGroupPosition, generateLiteClusterSystems, hexColorToInt, type LiteSystem } from '@nebulife/core';
 import type { TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
 import { tStatic } from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
@@ -227,6 +227,14 @@ export class GalaxyScene {
   /** Whether neighbor/core systems should be shown at all (toggled by UI) */
   private neighborCoreEnabled = false;
 
+  /** Lite orbs layer (1,450 fuzzy colored orbs for full cluster visualization) */
+  private liteOrbsGfx: Graphics | null = null;
+  private liteSystems: LiteSystem[] = [];
+  /** IDs of lite orbs to skip (because a real SystemNode already covers them) */
+  private liteSkipIds = new Set<string>();
+  /** Animation time accumulator for orb pulse (seconds) */
+  private liteAnimT = 0;
+
   constructor(
     rings: GalaxyRing[],
     galaxySeed: number,
@@ -238,6 +246,7 @@ export class GalaxyScene {
     expandedVisible?: boolean,
     groupCount?: number,
     playerGroupIndex?: number,
+    playerIndex?: number,
     private onSelect?: (system: StarSystem, screenPos?: { x: number; y: number }) => void,
     private onDoubleClick?: (system: StarSystem) => void,
     private onTelescopeClick?: (system: StarSystem) => void,
@@ -378,6 +387,13 @@ export class GalaxyScene {
     this.buildConnectionEdges();
 
     /* ── Background cluster visualization ── */
+    // New: Lite orbs for all 1,450 cluster systems (fuzzy colored pulsing orbs).
+    // Skips ids that already have a real SystemNode (no double-render).
+    if (playerIndex !== undefined && playerGroupIndex !== undefined) {
+      this.buildLiteOrbsLayer(galaxySeed, playerGroupIndex, playerIndex);
+    }
+
+    // Keep distant cluster background for far galaxy clusters (only if multi-group)
     if (groupCount && groupCount > 1) {
       this.buildClusterBackground(
         galaxySeed,
@@ -386,6 +402,55 @@ export class GalaxyScene {
         playerCenterX,
         playerCenterY,
       );
+    }
+  }
+
+  /* ── Lite orbs layer (Phase 1: full 1,450 cluster systems) ────── */
+
+  private buildLiteOrbsLayer(galaxySeed: number, groupIndex: number, playerIndex: number) {
+    // Generate lite metadata for all 1,450 cluster systems
+    this.liteSystems = generateLiteClusterSystems(galaxySeed, groupIndex, playerIndex, 50);
+
+    // Mark IDs covered by real SystemNodes so we don't render orbs under them
+    this.liteSkipIds.clear();
+    for (const id of this.systemNodes.keys()) this.liteSkipIds.add(id);
+    if (this.homeNode) this.liteSkipIds.add(this.homeNode.system.id);
+
+    // Static base layer — pulse handled in update() via alpha multiplier
+    this.liteOrbsGfx = new Graphics();
+    this.redrawLiteOrbs();
+    // Insert behind everything (after bgStars at index 0)
+    this.container.addChildAt(this.liteOrbsGfx, 1);
+  }
+
+  private redrawLiteOrbs(): void {
+    if (!this.liteOrbsGfx) return;
+    const g = this.liteOrbsGfx;
+    g.clear();
+
+    const t = this.liteAnimT;
+    for (const lite of this.liteSystems) {
+      if (this.liteSkipIds.has(lite.id)) continue;
+
+      const x = lite.position.x * PX_PER_LY;
+      const y = lite.position.y * PX_PER_LY;
+
+      // Pulse: slow desync per orb
+      const pulseA = 0.5 + 0.3 * Math.sin(t * 0.6 + lite.pulsePhase);
+      const pulseR = 1 + 0.15 * Math.sin(t * 0.4 + lite.pulsePhase * 1.7);
+
+      const baseAlpha = lite.nodeType === 'core' ? 0.18 : 0.32;
+      const alpha = baseAlpha * pulseA;
+      const radius = lite.starSize * pulseR;
+      const color = hexColorToInt(lite.starColor);
+
+      // Soft outer glow (blur effect via 3 concentric circles)
+      g.circle(x, y, radius * 3.5);
+      g.fill({ color, alpha: alpha * 0.08 });
+      g.circle(x, y, radius * 2);
+      g.fill({ color, alpha: alpha * 0.18 });
+      g.circle(x, y, radius);
+      g.fill({ color, alpha });
     }
   }
 
@@ -596,9 +661,17 @@ export class GalaxyScene {
         break;
       }
       case 2: {
-        // Faded — visible but non-interactive
-        node.baseAlpha = 0.3;
-        node.container.eventMode = 'none';
+        // Faded — visible. Neighbors stay clickable so player can preview them
+        // (and get a "research ast-probe to unlock" hint on click). Core stays
+        // non-interactive until BFS chain reaches them.
+        if (node.nodeType === 'neighbor') {
+          node.baseAlpha = 0.55;
+          node.container.eventMode = 'static';
+          node.container.cursor = 'pointer';
+        } else {
+          node.baseAlpha = 0.3;
+          node.container.eventMode = 'none';
+        }
         // Hide labels and glow for Tier 2
         node.nameLabel.visible = false;
         if (node.researchLabel) node.researchLabel.visible = false;
@@ -1362,6 +1435,15 @@ export class GalaxyScene {
     }
 
     if (this.accretionDisk) this.accretionDisk.rotation += deltaMs * 0.0003;
+
+    // Lite orbs pulse — redraw every ~6 frames (≈100ms at 60fps) for cheap throttling
+    if (this.liteOrbsGfx) {
+      this.liteAnimT += dt;
+      // Redraw at low frequency: pulse is slow, no need for per-frame redraw
+      if (Math.floor(this.liteAnimT * 10) !== Math.floor((this.liteAnimT - dt) * 10)) {
+        this.redrawLiteOrbs();
+      }
+    }
     if (this.backdropContainer) this.backdropContainer.rotation += deltaMs * 0.000012;
 
     this.updateTwinkleStars(t);
