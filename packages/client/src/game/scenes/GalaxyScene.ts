@@ -435,20 +435,22 @@ export class GalaxyScene {
       const x = lite.position.x * PX_PER_LY;
       const y = lite.position.y * PX_PER_LY;
 
-      // Pulse: slow desync per orb
-      const pulseA = 0.5 + 0.3 * Math.sin(t * 0.6 + lite.pulsePhase);
+      // Pulse: slow desync per orb (0.65..1.05 alpha multiplier)
+      const pulseA = 0.85 + 0.20 * Math.sin(t * 0.6 + lite.pulsePhase);
       const pulseR = 1 + 0.15 * Math.sin(t * 0.4 + lite.pulsePhase * 1.7);
 
-      const baseAlpha = lite.nodeType === 'core' ? 0.18 : 0.32;
+      // Stronger base so orbs read as "stars" not noise. Core slightly dimmer.
+      const baseAlpha = lite.nodeType === 'core' ? 0.45 : 0.70;
       const alpha = baseAlpha * pulseA;
-      const radius = lite.starSize * pulseR;
+      // 2× larger so orbs ≈ 3-7 px visible (was 1-4 px = invisible at 30 FPS)
+      const radius = lite.starSize * 2.0 * pulseR;
       const color = hexColorToInt(lite.starColor);
 
       // Soft outer glow (blur effect via 3 concentric circles)
       g.circle(x, y, radius * 3.5);
-      g.fill({ color, alpha: alpha * 0.08 });
+      g.fill({ color, alpha: alpha * 0.10 });
       g.circle(x, y, radius * 2);
-      g.fill({ color, alpha: alpha * 0.18 });
+      g.fill({ color, alpha: alpha * 0.25 });
       g.circle(x, y, radius);
       g.fill({ color, alpha });
     }
