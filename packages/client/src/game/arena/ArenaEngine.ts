@@ -54,6 +54,8 @@ export class ArenaEngine {
 
   // Player ship
   private playerMesh!: THREE.Mesh;
+  private playerGlowMesh!: THREE.Mesh; // additive disc under ship — orientation/status cue
+  private crosshairMesh!: THREE.Mesh;  // ring marker at aim point (desktop only)
   private playerVelX = 0;
   private playerVelZ = 0;
   private playerBankAngle = 0;
@@ -92,11 +94,18 @@ export class ArenaEngine {
     vel?: { x: number; z: number };
     rotSpeed?: { x: number; y: number; z: number };
     scaleSpeed?: number;
+    shared?: boolean; // true = geo/mat are shared, skip dispose on cleanup
   }[] = [];
+
+  // Shared resources for hit-effect (most frequent VFX — ~2-5/sec under fire).
+  // Using shared geo+material removes 2 allocations per hit, which adds up on mobile.
+  private hitGeoShared: THREE.PlaneGeometry | null = null;
+  private hitMatShared: THREE.MeshBasicMaterial | null = null;
 
   // Engine exhaust particles (InstancedMesh pool)
   private exhaustMesh!: THREE.InstancedMesh;
   private exhaustParticles: { x: number; z: number; vx: number; vz: number; age: number; active: boolean; scale: number }[] = [];
+  private exhaustFreeList: number[] = []; // stack of free indices (O(1) spawn)
   private readonly EXHAUST_POOL = 60;
   private readonly EXHAUST_LIFETIME = 0.4;
   private exhaustSpawnTimer = 0;
@@ -104,6 +113,7 @@ export class ArenaEngine {
   // Missiles (homing, limited turn rate, ammo-based)
   private missileMesh!: THREE.InstancedMesh;
   private missiles: { x: number; z: number; vx: number; vz: number; age: number; active: boolean; angle: number; targetId: number | null }[] = [];
+  private missileFreeList: number[] = [];
   private readonly MISSILE_POOL = 20;
   private readonly MISSILE_SPEED = 400;
   private readonly MISSILE_LIFETIME = 3;
@@ -167,6 +177,7 @@ export class ArenaEngine {
   private bullets: { x: number; z: number; vx: number; vz: number; age: number; active: boolean;
     meshIdx: number; instIdx: number; rotX: number; rotY: number; rotZ: number;
     rotSpX: number; rotSpY: number; rotSpZ: number }[] = [];
+  private bulletFreeList: number[] = []; // O(1) free-index stack
   private readonly BULLET_POOL = 100;
   private readonly BULLET_SIZES = [2.5, 4.0, 6.0];
   private readonly BULLET_POOL_SIZES = [60, 30, 10]; // total = 100
@@ -210,11 +221,16 @@ export class ArenaEngine {
   // Input (set by ArenaControls)
   private input: InputState = { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
 
-  // Zoom
-  private zoomLevel = 1.0;
+  // Zoom — default 1.3 gives a closer default view so ship details read clearly.
+  // Dynamic "breath": cameraBreath lerps with speed ratio to pull back during warp.
+  private zoomLevel = 1.3;
   private readonly ZOOM_MIN = 0.4;
   private readonly ZOOM_MAX = 2.0;
   private readonly ZOOM_SPEED = 0.1;
+  private cameraBreath = 1.0; // smoothed 1.0..1.25 based on speed
+  // Camera shake (screen kick on explosions)
+  private shakeAmount = 0;   // current intensity (units)
+  private shakeDecay = 6;    // per second exponential decay
 
   // Keyboard state
   private keys = new Set<string>();
@@ -243,6 +259,7 @@ export class ArenaEngine {
   // Bot bullets (separate pool)
   private botBulletMesh!: THREE.InstancedMesh;
   private botBullets: BotBullet[] = [];
+  private botBulletFreeList: number[] = [];
   private readonly BOT_BULLET_POOL = BOT_BULLET_POOL;
   private readonly BOT_BULLET_SPEED = 700;
   private readonly BOT_BULLET_LIFETIME = 0.8;
@@ -604,7 +621,9 @@ export class ArenaEngine {
     texture.colorSpace = THREE.SRGBColorSpace;
     this.disposables.push(texture);
 
-    const size = SHIP_RADIUS * 3;
+    // Visual sprite size is independent of SHIP_RADIUS (physics).
+    // 5x gives clear silhouette detail at default camera distance.
+    const size = SHIP_RADIUS * 5;
     const geo = new THREE.PlaneGeometry(size, size);
     geo.rotateX(-Math.PI / 2); // Bake rotation into geometry once — no per-frame rotation.x
     const mat = new THREE.MeshBasicMaterial({
@@ -618,6 +637,40 @@ export class ArenaEngine {
     this.playerMesh = new THREE.Mesh(geo, mat);
     this.playerMesh.position.set(0, 5, 0);
     this.scene.add(this.playerMesh);
+
+    // Glow disc under the ship — purely visual orientation cue.
+    // Additive + depthWrite:false means it sits between floor grid and ship
+    // without z-fighting. Color mutates with active buff (see applyBuffEffects).
+    const glowGeo = new THREE.CircleGeometry(SHIP_RADIUS * 3.5, 24);
+    glowGeo.rotateX(-Math.PI / 2);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0x7bb8ff,
+      transparent: true,
+      opacity: 0.35,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.disposables.push(glowGeo, glowMat);
+    this.playerGlowMesh = new THREE.Mesh(glowGeo, glowMat);
+    this.playerGlowMesh.position.set(0, 2, 0); // just above floor, below ship
+    this.scene.add(this.playerGlowMesh);
+
+    // Crosshair ring at aim point — desktop only (mobile uses auto-aim).
+    const crossGeo = new THREE.RingGeometry(6, 8, 24);
+    crossGeo.rotateX(-Math.PI / 2);
+    const crossMat = new THREE.MeshBasicMaterial({
+      color: 0x44ffaa,
+      transparent: true,
+      opacity: 0.65,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.disposables.push(crossGeo, crossMat);
+    this.crosshairMesh = new THREE.Mesh(crossGeo, crossMat);
+    this.crosshairMesh.position.set(0, 3, 0);
+    this.crosshairMesh.visible = false; // toggled in updateAim based on isMobile
+    this.scene.add(this.crosshairMesh);
 
     // Nickname label above ship
     const nickCanvas = document.createElement('canvas');
@@ -716,6 +769,9 @@ export class ArenaEngine {
       this.scene.add(mesh);
       this.bulletMeshes.push(mesh);
     }
+    // Populate free-list in reverse so pop() hands out the small-bullet pool first
+    // (preserves prior behavior where small bullets were used most).
+    for (let i = this.bullets.length - 1; i >= 0; i--) this.bulletFreeList.push(i);
   }
 
 
@@ -815,14 +871,42 @@ export class ArenaEngine {
         break;
     }
 
-    // Camera follows player with smooth damping + zoom
-    _camTarget.set(this.playerPos.x, 0, this.playerPos.z);
+    // Camera follows player with smooth damping + zoom.
+    //
+    // Dynamic features (none affect input/controls):
+    //   - cameraBreath: 1.0 at rest → up to 1.25 at full speed (zoom out when moving fast)
+    //   - lead: camera target shifts ~60 units in aim direction so player sees more of
+    //           what's ahead; smooth because aimDirX/Z are already smoothed each frame
+    //   - shake: decays exponentially after spawnExplosion pushes shakeAmount up
+    const speed = Math.sqrt(this.playerVelX * this.playerVelX + this.playerVelZ * this.playerVelZ);
+    const maxSpd = SHIP_MAX_SPEED * this.playerSpeedMult * (this.warpActive ? this.WARP_SPEED_MULT : 1);
+    const speedRatio = Math.min(1, speed / (maxSpd > 0 ? maxSpd : SHIP_MAX_SPEED));
+    const targetBreath = 1 + speedRatio * 0.25;
+    this.cameraBreath += (targetBreath - this.cameraBreath) * Math.min(1, dt * 3);
+
+    const leadDist = 60;
+    _camTarget.set(
+      this.playerPos.x + this.aimDirX * leadDist,
+      0,
+      this.playerPos.z + this.aimDirZ * leadDist,
+    );
+
+    const camZoom = this.zoomLevel * this.cameraBreath;
     _tempVec3.set(
-      this.playerPos.x,
-      CAMERA_HEIGHT * this.zoomLevel,
-      this.playerPos.z + CAMERA_DISTANCE * this.zoomLevel,
+      this.playerPos.x + this.aimDirX * leadDist,
+      CAMERA_HEIGHT * camZoom,
+      this.playerPos.z + this.aimDirZ * leadDist + CAMERA_DISTANCE * camZoom,
     );
     this.camera.position.lerp(_tempVec3, CAMERA_LERP_SPEED);
+
+    // Shake — additive offset on top of lerped position (no GC)
+    if (this.shakeAmount > 0.01) {
+      this.camera.position.x += (Math.random() - 0.5) * this.shakeAmount;
+      this.camera.position.y += (Math.random() - 0.5) * this.shakeAmount * 0.5;
+      this.camera.position.z += (Math.random() - 0.5) * this.shakeAmount;
+      this.shakeAmount *= Math.max(0, 1 - this.shakeDecay * dt);
+    }
+
     this.camera.lookAt(_camTarget);
   }
 
@@ -909,6 +993,14 @@ export class ArenaEngine {
     this.playerMesh.position.set(this.playerPos.x, 5, this.playerPos.z);
     this.playerNickSprite.position.set(this.playerPos.x, 20, this.playerPos.z - 15);
 
+    // Glow disc follows ship; gentle pulse on opacity for "alive" feel.
+    if (this.playerGlowMesh) {
+      this.playerGlowMesh.position.set(this.playerPos.x, 2, this.playerPos.z);
+      const glowMat = this.playerGlowMesh.material as THREE.MeshBasicMaterial;
+      const pulse = 0.3 + Math.sin(performance.now() * 0.004) * 0.08;
+      glowMat.opacity = pulse;
+    }
+
     // Flicker effect during invulnerability window
     const mat = this.playerMesh.material as THREE.MeshBasicMaterial;
     if (performance.now() < this.invulnerableUntil) {
@@ -989,6 +1081,18 @@ export class ArenaEngine {
     const targetBank = Math.max(-0.3, Math.min(0.3, -angleDelta * 3));
     this.playerBankAngle += (targetBank - this.playerBankAngle) * Math.min(1, dt * 8);
     // Note: rotation.z doesn't work well with baked geo.rotateX — skip bank for now
+
+    // Crosshair — desktop only, positioned at the raycast aim point (this.aimPoint
+    // is updated by onMouseMove). Hidden on mobile where auto-aim handles it.
+    if (this.crosshairMesh) {
+      if (this.isMobile || this.playerDead) {
+        this.crosshairMesh.visible = false;
+      } else {
+        this.crosshairMesh.visible = true;
+        this.crosshairMesh.position.set(this.aimPoint.x, 3, this.aimPoint.z);
+        this.crosshairMesh.rotation.y += dt * 1.5;
+      }
+    }
   }
 
   // ── Auto-aim: find nearest alive enemy bot ─────────────────────────────
@@ -1075,8 +1179,8 @@ export class ArenaEngine {
   }
 
   private fireBullet(): void {
-    const idx = this.bullets.findIndex(b => !b.active);
-    if (idx === -1) return;
+    const idx = this.bulletFreeList.pop();
+    if (idx === undefined) return;
 
     // Use aim direction vector (already normalized)
     let dirX = this.aimDirX;
@@ -1114,6 +1218,7 @@ export class ArenaEngine {
       const dist = Math.sqrt(b.x * b.x + b.z * b.z);
       if (b.age >= this.BULLET_LIFETIME || dist > ARENA_HALF + 50) {
         b.active = false;
+        this.bulletFreeList.push(i);
         dummy.position.set(0, -1000, 0);
         dummy.scale.set(0, 0, 0);
         dummy.updateMatrix();
@@ -1200,6 +1305,7 @@ export class ArenaEngine {
     this.respawnTimer = this.RESPAWN_TIME;
     this.playerMesh.visible = false;
     this.playerNickSprite.visible = false;
+    if (this.playerGlowMesh) this.playerGlowMesh.visible = false;
     // Clear all buffs on death
     this.playerBuffs = [];
     this.applyBuffEffects();
@@ -1227,6 +1333,7 @@ export class ArenaEngine {
       playLoop('fly', 0.0); // starts silent, volume tied to speed
       this.playerMesh.visible = true;
       this.playerNickSprite.visible = true;
+      if (this.playerGlowMesh) this.playerGlowMesh.visible = true;
     }
   }
 
@@ -1245,6 +1352,7 @@ export class ArenaEngine {
         if (dist < a.radius + this.BULLET_RADIUS) {
           // Bullet hit asteroid — spawn hit VFX
           b.active = false;
+          this.bulletFreeList.push(bi);
           this.spawnHitEffect(b.x, b.z);
           playSfx('asteroid-explosion', 0.3);
           dummy.position.set(0, -1000, 0);
@@ -1376,14 +1484,15 @@ export class ArenaEngine {
       dummy.updateMatrix();
       this.exhaustMesh.setMatrixAt(i, dummy.matrix);
       this.exhaustParticles.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false, scale: 1 });
+      this.exhaustFreeList.push(i);
     }
     this.exhaustMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(this.exhaustMesh);
   }
 
   private spawnExhaust(): void {
-    const idx = this.exhaustParticles.findIndex(p => !p.active);
-    if (idx === -1) return;
+    const idx = this.exhaustFreeList.pop();
+    if (idx === undefined) return;
 
     // Backward direction = inverted aim direction
     let backX = -this.aimDirX;
@@ -1435,6 +1544,7 @@ export class ArenaEngine {
 
       if (p.age >= this.EXHAUST_LIFETIME) {
         p.active = false;
+        this.exhaustFreeList.push(i);
         dummy.position.set(0, -1000, 0);
         dummy.scale.set(0, 0, 0);
         dummy.updateMatrix();
@@ -1473,6 +1583,7 @@ export class ArenaEngine {
       dummy.updateMatrix();
       this.missileMesh.setMatrixAt(i, dummy.matrix);
       this.missiles.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false, angle: 0, targetId: null });
+      this.missileFreeList.push(i);
     }
     this.missileMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(this.missileMesh);
@@ -1793,6 +1904,16 @@ export class ArenaEngine {
     if (this.playerShieldMesh) {
       this.playerShieldMesh.visible = hasShield;
     }
+
+    // Glow disc color follows buff state (cheap visual feedback)
+    if (this.playerGlowMesh) {
+      const glowMat = this.playerGlowMesh.material as THREE.MeshBasicMaterial;
+      const color =
+        this.playerLaserColor === 'red'  ? 0xff5544 :
+        this.playerLaserColor === 'blue' ? 0x44aaff :
+        0x7bb8ff;
+      glowMat.color.setHex(color);
+    }
   }
 
   fireMissile(): void {
@@ -1804,8 +1925,8 @@ export class ArenaEngine {
     if (this.missileAmmo === this.MISSILE_MAX_AMMO - 1) {
       this.missileReloadTimer = this.MISSILE_RELOAD_TIME / this.MISSILE_MAX_AMMO;
     }
-    const idx = this.missiles.findIndex(m => !m.active);
-    if (idx === -1) return;
+    const idx = this.missileFreeList.pop();
+    if (idx === undefined) return;
 
     const m = this.missiles[idx];
     // Use (x, -z) convention to match velocity recalc + homing in updateMissiles
@@ -1899,6 +2020,7 @@ export class ArenaEngine {
       m.age += dt;
       if (m.age >= this.MISSILE_LIFETIME) {
         m.active = false;
+        this.missileFreeList.push(i);
         dummy.position.set(0, -1000, 0);
         dummy.scale.set(0, 0, 0);
         dummy.updateMatrix();
@@ -1957,6 +2079,7 @@ export class ArenaEngine {
         if (dist < a.radius + this.MISSILE_RADIUS) {
           // Missile hit asteroid — AoE: damage all nearby asteroids
           m.active = false;
+          this.missileFreeList.push(mi);
           playSfx('missile-hit', 0.2);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
@@ -2012,6 +2135,7 @@ export class ArenaEngine {
         if (distSq < rSum * rSum) {
           // Hit — deactivate missile
           m.active = false;
+          this.missileFreeList.push(mi);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();
@@ -2075,20 +2199,30 @@ export class ArenaEngine {
   // ── VFX (hit flashes + explosions + debris) ─────────────────────────────
 
   private spawnHitEffect(x: number, z: number): void {
-    const geo = new THREE.PlaneGeometry(8, 8);
-    geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0x44ffaa,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      opacity: 1,
-    });
-    const mesh = new THREE.Mesh(geo, mat);
+    // Lazy-init shared resources on first use.
+    if (!this.hitGeoShared) {
+      this.hitGeoShared = new THREE.PlaneGeometry(8, 8);
+      this.hitGeoShared.rotateX(-Math.PI / 2);
+      this.disposables.push(this.hitGeoShared);
+    }
+    if (!this.hitMatShared) {
+      // NOTE: shared material means opacity fade must be applied per-frame via
+      // mesh.userData (not material.opacity). We set opacity=1 once here and
+      // use a per-Mesh scale-fade instead of opacity-fade for the hit effect.
+      this.hitMatShared = new THREE.MeshBasicMaterial({
+        color: 0x44ffaa,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 1,
+      });
+      this.disposables.push(this.hitMatShared);
+    }
+    const mesh = new THREE.Mesh(this.hitGeoShared, this.hitMatShared);
     mesh.position.set(x, 3, z);
     mesh.rotation.y = Math.random() * Math.PI * 2;
     this.scene.add(mesh);
-    this.vfxPool.push({ mesh, age: 0, life: 0.2, type: 'hit' });
+    this.vfxPool.push({ mesh, age: 0, life: 0.2, type: 'hit', shared: true });
   }
 
   private spawnExplosion(x: number, z: number): void {
@@ -2096,6 +2230,12 @@ export class ArenaEngine {
     const dist = Math.sqrt((x - this.playerPos.x) ** 2 + (z - this.playerPos.z) ** 2);
     const vol = Math.max(0.1, 0.65 * (1 - dist / (ARENA_HALF * 2)));
     playSfx('arena-explosion', vol);
+
+    // Camera shake — intensity falls with distance (no shake past 400 units)
+    const shakeFalloff = Math.max(0, 1 - dist / 400);
+    if (shakeFalloff > 0) {
+      this.shakeAmount = Math.max(this.shakeAmount, 6 * shakeFalloff);
+    }
     // Central flash — circular
     const flashGeo = new THREE.CircleGeometry(18, 16);
     flashGeo.rotateX(-Math.PI / 2);
@@ -2160,8 +2300,12 @@ export class ArenaEngine {
 
       if (vfx.age >= vfx.life) {
         this.scene.remove(vfx.mesh);
-        vfx.mesh.geometry.dispose();
-        (vfx.mesh.material as THREE.Material).dispose();
+        // Shared geo/mat are lifetime-owned by the engine (tracked in
+        // disposables). Only dispose for unique per-spawn resources.
+        if (!vfx.shared) {
+          vfx.mesh.geometry.dispose();
+          (vfx.mesh.material as THREE.Material).dispose();
+        }
         this.vfxPool.splice(i, 1);
         continue;
       }
@@ -2169,10 +2313,11 @@ export class ArenaEngine {
       const t = vfx.age / vfx.life; // 0..1
 
       if (vfx.type === 'hit') {
-        // Shrink + fade
+        // Shrink only (material is shared — cannot mutate opacity per-instance).
+        // The additive-blended plane still looks like a fading flash because
+        // shrinking to 0 in 0.2s gives the same perceptual effect.
         const s = 1 - t;
         vfx.mesh.scale.set(s, s, s);
-        (vfx.mesh.material as THREE.MeshBasicMaterial).opacity = 1 - t;
       } else if (vfx.type === 'flash') {
         // Grow + fade
         const s = 1 + t * (vfx.scaleSpeed ?? 2);
@@ -2376,6 +2521,7 @@ export class ArenaEngine {
         rotSpY: (Math.random() - 0.5) * 5,
         rotSpZ: (Math.random() - 0.5) * 5,
       });
+      this.botBulletFreeList.push(i);
     }
     this.botBulletMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(this.botBulletMesh);
@@ -2717,92 +2863,127 @@ export class ArenaEngine {
     }
   }
 
-  /** Build ShipEntity[] from all bots + player for AI look-up */
+  /**
+   * Build ShipEntity[] from all bots + player for AI look-up.
+   *
+   * Hot path — called every frame. Previously created ~10 fresh objects (with
+   * nested {x,z} pos/vel, plus empty weaponSlots arrays) per frame = ~600
+   * allocs/sec under team mode. Now mutates a persistent buffer; only grows
+   * when the bot roster changes.
+   */
+  private _shipEntityBuffer: (ShipEntity & { id: number; alive: boolean })[] = [];
+  private _shipEntityLen = 0;
   private buildShipEntityList(): (ShipEntity & { id: number; alive: boolean })[] {
-    const list: (ShipEntity & { id: number; alive: boolean })[] = [];
+    const buf = this._shipEntityBuffer;
+    const needed = 1 + this.botShips.length;
 
-    // Add player (id = 0, team blue)
-    list.push({
-      id: 0,
-      isPlayer: true,
-      name: 'PLAYER',
-      pos: { x: this.playerPos.x, z: this.playerPos.z },
-      vel: { x: this.playerVelX, z: this.playerVelZ },
-      rotation: this.playerAimAngle,
-      radius: SHIP_RADIUS,
-      alive: !this.playerDead,
-      hp: this.playerHp,
-      maxHp: this.PLAYER_MAX_HP,
-      shield: 0,
-      maxShield: 0,
-      shieldRegenTimer: 0,
-      weaponSlots: [],
-      dashCooldown: this.warpCooldownTimer,
-      isDashing: this.warpActive,
-      dashTimer: 0,
-      modelGroup: null,
-      kills: this.stats.kills,
-      deaths: this.stats.deaths,
-      damageDealt: 0,
-    });
-
-    // Add all bots
-    for (const bot of this.botShips) {
-      list.push({
-        id: bot.id,
+    // Grow buffer on demand (one-time allocations after warm-up).
+    while (buf.length < needed) {
+      buf.push({
+        id: 0,
         isPlayer: false,
-        name: bot.name,
-        pos: { ...bot.pos },
-        vel: { ...bot.vel },
-        rotation: bot.rotation,
+        name: '',
+        pos: { x: 0, z: 0 },
+        vel: { x: 0, z: 0 },
+        rotation: 0,
         radius: SHIP_RADIUS,
-        alive: bot.alive,
-        hp: bot.hp,
-        maxHp: bot.maxHp,
+        alive: false,
+        hp: 0,
+        maxHp: 0,
         shield: 0,
         maxShield: 0,
         shieldRegenTimer: 0,
-        weaponSlots: [],
-        dashCooldown: bot.dashCooldown,
-        isDashing: bot.isDashing,
+        weaponSlots: [], // shared empty array — AI treats it read-only
+        dashCooldown: 0,
+        isDashing: false,
         dashTimer: 0,
         modelGroup: null,
-        kills: bot.kills,
-        deaths: bot.deaths,
-        damageDealt: bot.damageDealt,
+        kills: 0,
+        deaths: 0,
+        damageDealt: 0,
       });
     }
-    return list;
+
+    // Slot 0 = player
+    const p = buf[0];
+    p.id = 0;
+    p.isPlayer = true;
+    p.name = 'PLAYER';
+    p.pos.x = this.playerPos.x;
+    p.pos.z = this.playerPos.z;
+    p.vel.x = this.playerVelX;
+    p.vel.z = this.playerVelZ;
+    p.rotation = this.playerAimAngle;
+    p.alive = !this.playerDead;
+    p.hp = this.playerHp;
+    p.maxHp = this.PLAYER_MAX_HP;
+    p.dashCooldown = this.warpCooldownTimer;
+    p.isDashing = this.warpActive;
+    p.kills = this.stats.kills;
+    p.deaths = this.stats.deaths;
+
+    // Slots 1..N = bots
+    for (let i = 0; i < this.botShips.length; i++) {
+      const bot = this.botShips[i];
+      const e = buf[i + 1];
+      e.id = bot.id;
+      e.isPlayer = false;
+      e.name = bot.name;
+      e.pos.x = bot.pos.x;
+      e.pos.z = bot.pos.z;
+      e.vel.x = bot.vel.x;
+      e.vel.z = bot.vel.z;
+      e.rotation = bot.rotation;
+      e.alive = bot.alive;
+      e.hp = bot.hp;
+      e.maxHp = bot.maxHp;
+      e.dashCooldown = bot.dashCooldown;
+      e.isDashing = bot.isDashing;
+      e.kills = bot.kills;
+      e.deaths = bot.deaths;
+      e.damageDealt = bot.damageDealt;
+    }
+
+    // Trim length marker — callers use .length, so if we shrink, truncate
+    if (buf.length > needed) buf.length = needed;
+    this._shipEntityLen = needed;
+    return buf;
   }
 
-  /** Convert a BotShip to ShipEntity for AI consumption */
+  /**
+   * Convert a BotShip to ShipEntity for AI consumption.
+   * Reuses a single persistent scratch object — AI must consume and discard
+   * before the next call (which it does — used synchronously in updateBot()).
+   */
+  private _selfEntityScratch: ShipEntity = {
+    id: 0, isPlayer: false, name: '',
+    pos: { x: 0, z: 0 }, vel: { x: 0, z: 0 },
+    rotation: 0, radius: SHIP_RADIUS, alive: false,
+    hp: 0, maxHp: 0, shield: 0, maxShield: 0, shieldRegenTimer: 0,
+    weaponSlots: [], dashCooldown: 0, isDashing: false, dashTimer: 0,
+    modelGroup: null, kills: 0, deaths: 0, damageDealt: 0,
+  };
   private botToShipEntity(
     bot: BotShip,
     _allEntities: (ShipEntity & { id: number; alive: boolean })[],
   ): ShipEntity {
-    return {
-      id: bot.id,
-      isPlayer: false,
-      name: bot.name,
-      pos: { ...bot.pos },
-      vel: { ...bot.vel },
-      rotation: bot.rotation,
-      radius: SHIP_RADIUS,
-      alive: bot.alive,
-      hp: bot.hp,
-      maxHp: bot.maxHp,
-      shield: 0,
-      maxShield: 0,
-      shieldRegenTimer: 0,
-      weaponSlots: [],
-      dashCooldown: bot.dashCooldown,
-      isDashing: bot.isDashing,
-      dashTimer: 0,
-      modelGroup: null,
-      kills: bot.kills,
-      deaths: bot.deaths,
-      damageDealt: bot.damageDealt,
-    };
+    const e = this._selfEntityScratch;
+    e.id = bot.id;
+    e.name = bot.name;
+    e.pos.x = bot.pos.x;
+    e.pos.z = bot.pos.z;
+    e.vel.x = bot.vel.x;
+    e.vel.z = bot.vel.z;
+    e.rotation = bot.rotation;
+    e.alive = bot.alive;
+    e.hp = bot.hp;
+    e.maxHp = bot.maxHp;
+    e.dashCooldown = bot.dashCooldown;
+    e.isDashing = bot.isDashing;
+    e.kills = bot.kills;
+    e.deaths = bot.deaths;
+    e.damageDealt = bot.damageDealt;
+    return e;
   }
 
   /** Return the team for any ship id (0 = player = blue) */
@@ -2848,8 +3029,8 @@ export class ArenaEngine {
   }
 
   private fireBotBullet(bot: BotShip, dirX: number, dirZ: number): void {
-    const idx = this.botBullets.findIndex(b => !b.active);
-    if (idx === -1) return;
+    const idx = this.botBulletFreeList.pop();
+    if (idx === undefined) return;
 
     let dx = dirX;
     let dz = dirZ;
@@ -2870,8 +3051,8 @@ export class ArenaEngine {
   }
 
   private fireBotMissile(bot: BotShip, dirX: number, dirZ: number): void {
-    const idx = this.missiles.findIndex(m => !m.active);
-    if (idx === -1) return;
+    const idx = this.missileFreeList.pop();
+    if (idx === undefined) return;
 
     let dx = dirX;
     let dz = dirZ;
@@ -2907,6 +3088,7 @@ export class ArenaEngine {
       const distSq = b.x * b.x + b.z * b.z;
       if (b.age >= this.BOT_BULLET_LIFETIME || distSq > (ARENA_HALF + 50) * (ARENA_HALF + 50)) {
         b.active = false;
+        this.botBulletFreeList.push(i);
         dummy.position.set(0, -1000, 0);
         dummy.scale.set(0, 0, 0);
         dummy.updateMatrix();
@@ -2947,6 +3129,7 @@ export class ArenaEngine {
         const minDist = SHIP_RADIUS + this.BOT_BULLET_RADIUS;
         if (dx * dx + dz * dz < minDist * minDist) {
           b.active = false;
+          this.botBulletFreeList.push(bi);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();
@@ -2978,6 +3161,7 @@ export class ArenaEngine {
         const minDist = SHIP_RADIUS + this.BOT_BULLET_RADIUS;
         if (dx * dx + dz * dz < minDist * minDist) {
           b.active = false;
+          this.botBulletFreeList.push(bi);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();
@@ -3030,6 +3214,7 @@ export class ArenaEngine {
         if (dx * dx + dz * dz < minDist * minDist) {
           // Deactivate bullet
           b.active = false;
+          this.bulletFreeList.push(bi);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
           dummy.updateMatrix();

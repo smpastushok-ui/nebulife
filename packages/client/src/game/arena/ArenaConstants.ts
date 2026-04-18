@@ -127,9 +127,11 @@ export const BOT_NAMES = [
 ];
 
 // Camera
+// Lowered HEIGHT 800→500 and DISTANCE 600→450 to bring ship closer and
+// show more of its side profile (angle shifts from ~53° top-down to ~48°).
 export const CAMERA_FOV = 55;
-export const CAMERA_HEIGHT = 800;
-export const CAMERA_DISTANCE = 600;
+export const CAMERA_HEIGHT = 500;
+export const CAMERA_DISTANCE = 450;
 export const CAMERA_LERP_SPEED = 0.05;
 
 // Rendering
