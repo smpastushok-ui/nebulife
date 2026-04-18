@@ -5157,26 +5157,9 @@ function AppInner() {
         />
       )}
 
-      {/* Hover star research % — floating label above hovered star (no radial menu open) */}
-      {hoveredStarInfo && hoverLabelPos && !radialSystem && state.scene === 'galaxy' && (
-        <div
-          style={{
-            position: 'fixed',
-            left: hoverLabelPos.x,
-            top: hoverLabelPos.y - 28,
-            transform: 'translateX(-50%)',
-            pointerEvents: 'none',
-            zIndex: 24,
-            fontFamily: 'monospace',
-            fontSize: 10,
-            color: '#ffdd66',
-            textShadow: '0 0 8px rgba(255,210,60,0.5)',
-            letterSpacing: '0.06em',
-          }}
-        >
-          {displayedProgress}%
-        </div>
-      )}
+      {/* Hover % label disabled — per-star research % is already shown
+          as a small white/yellow dot above each star by the PixiJS scene
+          (eye-toggle mode). A bright gold hover label was too loud. */}
 
       {/* Galaxy Warp Hyperspace Overlay */}
       {galaxyWarpPhase === 'hyperspace' && (
