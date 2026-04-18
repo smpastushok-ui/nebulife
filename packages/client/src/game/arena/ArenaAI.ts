@@ -23,6 +23,10 @@ export interface BotBrain {
   decisionTimer: number; // seconds until next decision tick
   difficulty: BotDifficulty;
   attackTimer: number;   // seconds spent attacking current target
+  // Persistent aim-error offset so the bot doesn't visibly jitter each tick.
+  // Rerolled every ~1.5s inside the FSM rather than applied fresh per-frame.
+  aimErrorAngle: number;
+  aimErrorTimer: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,6 +127,8 @@ export function createBotBrain(difficulty: BotDifficulty): BotBrain {
     decisionTimer: 0,
     difficulty,
     attackTimer: 0,
+    aimErrorAngle: 0,
+    aimErrorTimer: 0,
   };
 }
 
@@ -152,10 +158,16 @@ function getShipById(id: number, allShips: ShipEntity[]): ShipEntity | null {
 // Aim with difficulty-based inaccuracy
 // ---------------------------------------------------------------------------
 
-function applyAimError(aimDir: Vec2, offsetRad: number): Vec2 {
+/**
+ * Apply persistent aim error. The offset angle is stored on `brain` and only
+ * rerolled periodically (handled in updateBot). Calling this every frame no
+ * longer randomizes the aim direction — that was the source of the visible
+ * nose-jitter during cruising.
+ */
+function applyAimError(aimDir: Vec2, brain: BotBrain, offsetRad: number): Vec2 {
   if (offsetRad <= 0) return aimDir;
-  // Random angle in [-offsetRad, +offsetRad]
-  const angle = (pseudoRand() * 2 - 1) * offsetRad;
+  // Clamp stored angle to current difficulty's max offset (safety if difficulty changed)
+  const angle = Math.max(-offsetRad, Math.min(offsetRad, brain.aimErrorAngle));
   return rotateVec2(aimDir, angle);
 }
 
@@ -198,16 +210,19 @@ function handlePatrol(
   const toWaypoint = vec2Sub(waypoint, self.pos);
   const distToWaypoint = vec2Len(toWaypoint);
 
-  // Pick new waypoint when close enough
+  // Pick new waypoint when close enough — and immediately aim movement at it
+  // so the bot never has a moment of "arrived → stopped".
   let newWaypoint = waypoint;
   if (distToWaypoint < 40) {
     newWaypoint = randomWaypoint();
+    waypoint = newWaypoint;
   }
 
-  const moveDir = distToWaypoint > 1 ? vec2Norm(toWaypoint) : { x: 0, z: 0 };
+  // Always move toward the (possibly just-picked) waypoint.
+  const moveDir = vec2Norm(vec2Sub(waypoint, self.pos));
   // Aim in direction of travel
   const rawAim = moveDir.x !== 0 || moveDir.z !== 0 ? moveDir : { x: 0, z: 1 };
-  const aimDir = applyAimError(rawAim, params.aimOffsetRad);
+  const aimDir = applyAimError(rawAim, brain, params.aimOffsetRad);
 
   return {
     nextState: 'patrol',
@@ -286,7 +301,7 @@ function handleChase(
     return {
       nextState: 'attack',
       moveDir: tangent,
-      aimDir: applyAimError(toTargetNorm, params.aimOffsetRad),
+      aimDir: applyAimError(toTargetNorm, brain, params.aimOffsetRad),
       firing: true,
       dash: false,
       newWaypoint: brain.waypoint,
@@ -296,7 +311,7 @@ function handleChase(
 
   const toTarget = vec2Sub(target.pos, self.pos);
   const moveDir = vec2Norm(toTarget);
-  const rawAim = applyAimError(moveDir, params.aimOffsetRad);
+  const rawAim = applyAimError(moveDir, brain, params.aimOffsetRad);
 
   return {
     nextState: 'chase',
@@ -365,10 +380,12 @@ function handleAttack(
 
   const dist = vec2Dist(self.pos, target.pos);
   if (dist > RANGE_DISENGAGE) {
+    // Target ran too far — chase it instead of standing still.
+    const pursueDir = vec2Norm(vec2Sub(target.pos, self.pos));
     return {
       nextState: 'chase',
-      moveDir: { x: 0, z: 0 },
-      aimDir: { x: 0, z: 1 },
+      moveDir: pursueDir,
+      aimDir: applyAimError(pursueDir, brain, params.aimOffsetRad),
       firing: false,
       dash: false,
       newWaypoint: brain.waypoint,
@@ -403,7 +420,7 @@ function handleAttack(
 
   // Aim directly at target (with error)
   const rawAim = toTargetNorm;
-  const aimDir = applyAimError(rawAim, params.aimOffsetRad);
+  const aimDir = applyAimError(rawAim, brain, params.aimOffsetRad);
 
   // Dodge: if enemy is very close (within 60 units) and dash is available, burst away
   const shouldDash = dist < 60 && self.dashCooldown <= 0;
@@ -458,7 +475,7 @@ function handleFlee(
   }
 
   // Aim away from threat (no need to fire while fleeing)
-  const aimDir = applyAimError(fleeDir, params.aimOffsetRad * 2);
+  const aimDir = applyAimError(fleeDir, brain, params.aimOffsetRad * 2);
 
   return {
     nextState: 'flee',
@@ -475,6 +492,9 @@ function handleFlee(
 // Main update — mutates brain in place, returns InputState
 // ---------------------------------------------------------------------------
 
+/** Persistent output buffer reused by updateBot between FSM ticks. */
+const _lastBotInput = new WeakMap<BotBrain, InputState>();
+
 export function updateBot(
   brain: BotBrain,
   self: ShipEntity,
@@ -487,6 +507,14 @@ export function updateBot(
 
   const params = DIFFICULTY_PARAMS[brain.difficulty];
 
+  // Reroll the persistent aim-error offset every ~1.5s so bots don't hold a
+  // constant miss forever but also don't jitter every frame.
+  brain.aimErrorTimer -= dt;
+  if (brain.aimErrorTimer <= 0) {
+    brain.aimErrorAngle = (pseudoRand() * 2 - 1) * params.aimOffsetRad;
+    brain.aimErrorTimer = 1.5;
+  }
+
   // Tick decision timer
   brain.decisionTimer -= dt;
   const shouldDecide = brain.decisionTimer <= 0;
@@ -494,11 +522,17 @@ export function updateBot(
     brain.decisionTimer = params.decisionInterval;
   }
 
-  // Only run FSM on decision ticks (between ticks keep last output)
+  // Between ticks — replay the last FSM output rather than running a
+  // simplified parallel path (which previously caused noticeable course
+  // changes at each decision tick). Move/aim targets recompute at the bot's
+  // current position in the engine, so replaying is safe.
   if (!shouldDecide) {
-    // Between ticks: compute a simple movement continuation so the bot
-    // doesn't freeze — use current state without re-evaluating transitions.
-    return computeContinuationInput(brain, self, allShips, params);
+    const prev = _lastBotInput.get(brain);
+    if (prev) {
+      // Refresh aim/move vectors against current target to avoid stale angles
+      // when the target moves between ticks.
+      return refreshInputAgainstTarget(prev, brain, self, allShips, params);
+    }
   }
 
   let result: PatrolResult;
@@ -527,80 +561,45 @@ export function updateBot(
     brain.waypoint = result.newWaypoint;
   }
 
-  return {
+  const out: InputState = {
     moveDir: result.moveDir,
     aimDir:  result.aimDir,
     firing:  result.firing,
     dash:    result.dash,
   };
+  _lastBotInput.set(brain, out);
+  return out;
 }
 
-// ---------------------------------------------------------------------------
-// Between-tick continuation — keeps the bot moving without full re-evaluation
-// ---------------------------------------------------------------------------
-
-function computeContinuationInput(
+/**
+ * Between FSM ticks, re-orient move/aim toward the current target position
+ * so moving enemies don't appear to be "ignored" until the next decision.
+ * When the bot has no live target, fall back to the last output unchanged.
+ */
+function refreshInputAgainstTarget(
+  prev: InputState,
   brain: BotBrain,
   self: ShipEntity,
   allShips: ShipEntity[],
   params: DifficultyParams,
 ): InputState {
-  switch (brain.state) {
-    case 'patrol': {
-      const waypoint = brain.waypoint ?? { x: 0, z: 0 };
-      const toWaypoint = vec2Sub(waypoint, self.pos);
-      const moveDir = vec2Len(toWaypoint) > 1 ? vec2Norm(toWaypoint) : { x: 0, z: 0 };
-      const aimDir = moveDir.x !== 0 || moveDir.z !== 0
-        ? applyAimError(moveDir, params.aimOffsetRad)
-        : { x: 0, z: 1 };
-      return { moveDir, aimDir, firing: false, dash: false };
-    }
-    case 'chase': {
-      const target = brain.targetId !== null ? getShipById(brain.targetId, allShips) : null;
-      if (!target) {
-        // No target — keep moving toward waypoint instead of freezing
-        const wp = brain.waypoint ?? { x: 0, z: 0 };
-        const toWp = vec2Sub(wp, self.pos);
-        const md = vec2Len(toWp) > 1 ? vec2Norm(toWp) : { x: 0, z: 1 };
-        return { moveDir: md, aimDir: md, firing: false, dash: false };
-      }
-      const moveDir = vec2Norm(vec2Sub(target.pos, self.pos));
-      return { moveDir, aimDir: applyAimError(moveDir, params.aimOffsetRad), firing: false, dash: false };
-    }
-    case 'attack': {
-      const target = brain.targetId !== null ? getShipById(brain.targetId, allShips) : null;
-      if (!target) {
-        const wp = brain.waypoint ?? { x: 0, z: 0 };
-        const toWp = vec2Sub(wp, self.pos);
-        const md = vec2Len(toWp) > 1 ? vec2Norm(toWp) : { x: 0, z: 1 };
-        return { moveDir: md, aimDir: md, firing: false, dash: false };
-      }
+  if (brain.state === 'attack' || brain.state === 'chase') {
+    const target = brain.targetId !== null ? getShipById(brain.targetId, allShips) : null;
+    if (target) {
       const toTarget = vec2Norm(vec2Sub(target.pos, self.pos));
-      const tangent: Vec2 = { x: -toTarget.z, z: toTarget.x };
       return {
-        moveDir: tangent,
-        aimDir: applyAimError(toTarget, params.aimOffsetRad),
-        firing: true,
+        moveDir: brain.state === 'attack'
+          ? { x: -toTarget.z, z: toTarget.x } // keep orbiting tangentially
+          : toTarget,
+        aimDir: applyAimError(toTarget, brain, params.aimOffsetRad),
+        firing: prev.firing,
         dash: false,
       };
     }
-    case 'flee': {
-      const nearest = findNearestEnemy(self, allShips);
-      if (!nearest) {
-        // No enemy — move toward center to recover
-        const toCenter = vec2Sub({ x: 0, z: 0 }, self.pos);
-        const md = vec2Len(toCenter) > 1 ? vec2Norm(toCenter) : { x: 0, z: 1 };
-        return { moveDir: md, aimDir: md, firing: false, dash: false };
-      }
-      const awayDir = vec2Norm(vec2Scale(vec2Sub(nearest.pos, self.pos), -1));
-      return {
-        moveDir: awayDir,
-        aimDir: applyAimError(awayDir, params.aimOffsetRad * 2),
-        firing: false,
-        dash: self.dashCooldown <= 0,
-      };
-    }
-    default:
-      return { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
   }
+  return prev;
 }
+
+// computeContinuationInput was replaced by refreshInputAgainstTarget —
+// between-tick behavior is now a light refresh of the last FSM output
+// instead of a parallel state machine.

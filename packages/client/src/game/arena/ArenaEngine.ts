@@ -974,9 +974,23 @@ export class ArenaEngine {
     const len = Math.sqrt(ax * ax + az * az);
     if (len > 0) { ax /= len; az /= len; }
 
+    // Sync-boost: when player pushes both joysticks in roughly the same
+    // direction (dot > 0.8 ≈ within ~37°), grant +30% acceleration and top
+    // speed — rewards committed forward runs while firing.
+    let syncBoost = 1.0;
+    if (this.isMobile) {
+      const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
+      const movLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
+      if (aimLen > 0.1 && movLen > 0.1) {
+        const dot = (this.mobileAim.x * this.mobileMove.x + this.mobileAim.z * this.mobileMove.z) /
+                    (aimLen * movLen);
+        if (dot > 0.8) syncBoost = 1.3;
+      }
+    }
+
     // Accelerate (power-up speed multiplier applies to acceleration too)
-    this.playerVelX += ax * SHIP_ACCELERATION * this.playerSpeedMult * dt;
-    this.playerVelZ += az * SHIP_ACCELERATION * this.playerSpeedMult * dt;
+    this.playerVelX += ax * SHIP_ACCELERATION * this.playerSpeedMult * syncBoost * dt;
+    this.playerVelZ += az * SHIP_ACCELERATION * this.playerSpeedMult * syncBoost * dt;
 
     // Drag
     this.playerVelX *= SHIP_DRAG;
@@ -1060,17 +1074,37 @@ export class ArenaEngine {
       //   - Right joystick active → aim tracks right joystick (strafe mode)
       //   - Right idle + left active → aim tracks left joystick (nose-follow)
       //   - Both idle → keep last aim (ship holds its facing)
+      let desiredX = this.aimDirX;
+      let desiredZ = this.aimDirZ;
       const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
       if (aimLen > 0.1) {
-        this.aimDirX = this.mobileAim.x / aimLen;
-        this.aimDirZ = this.mobileAim.z / aimLen;
+        desiredX = this.mobileAim.x / aimLen;
+        desiredZ = this.mobileAim.z / aimLen;
       } else {
         const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
         if (moveLen > 0.1) {
-          this.aimDirX = this.mobileMove.x / moveLen;
-          this.aimDirZ = this.mobileMove.z / moveLen;
+          desiredX = this.mobileMove.x / moveLen;
+          desiredZ = this.mobileMove.z / moveLen;
         }
-        // else: keep last aim direction (ship keeps facing)
+      }
+
+      // Cap turn-rate so aim cannot snap 180° instantly. MAX_TURN_RATE chosen
+      // so a full 180° flip takes ~0.4s — fast enough to feel responsive,
+      // slow enough that collision physics and the camera don't whiplash.
+      const MAX_TURN_RATE = Math.PI / 0.4; // rad/sec
+      const curAngle = Math.atan2(this.aimDirX, this.aimDirZ);
+      const desAngle = Math.atan2(desiredX, desiredZ);
+      let diff = desAngle - curAngle;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      const maxStep = MAX_TURN_RATE * dt;
+      if (Math.abs(diff) > maxStep) {
+        const newAngle = curAngle + Math.sign(diff) * maxStep;
+        this.aimDirX = Math.sin(newAngle);
+        this.aimDirZ = Math.cos(newAngle);
+      } else {
+        this.aimDirX = desiredX;
+        this.aimDirZ = desiredZ;
       }
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;
@@ -2688,12 +2722,12 @@ export class ArenaEngine {
 
   // ── Team Battle: update bots ─────────────────────────────────────────────
 
+  // Reused enemy buffer — avoids per-frame .filter() allocations.
+  private _enemyScratch: (ShipEntity & { id: number; alive: boolean })[] = [];
+
   private updateBotShips(dt: number): void {
     // Build ShipEntity array for AI (all alive bots + player as enemy of red)
     const allShipEntities = this.buildShipEntityList();
-
-    // Target distribution: limit max 2 bots per target to prevent clustering
-    const targetCounts = new Map<number, number>();
 
     for (const bot of this.botShips) {
       if (!bot.alive) {
@@ -2740,31 +2774,27 @@ export class ArenaEngine {
       // Build self as ShipEntity for AI
       const selfEntity = this.botToShipEntity(bot, allShipEntities);
 
-      // Build enemies for AI: filter to opposite team, prefer less-chased targets
-      // For neutral (FFA training): everyone is an enemy (different id)
-      const enemyEntities = allShipEntities.filter(s => {
-        if (!s.alive) return false;
-        if (s.id === bot.id) return false;
-        if (bot.team === 'neutral') return true; // FFA: everyone is an enemy
-        // Team mode: bots only target opposite team
-        const sTeam = this.getEntityTeam(s.id);
-        return sTeam !== bot.team;
-      });
-
-      // Sort enemies to prefer those fewer bots are already chasing
-      enemyEntities.sort((a, b) => {
-        const ca = targetCounts.get(a.id) ?? 0;
-        const cb = targetCounts.get(b.id) ?? 0;
-        return ca - cb;
-      });
+      // Build enemy list into persistent buffer (no per-frame allocations).
+      // In FFA (neutral) every other ship is an enemy; team-mode filters out
+      // same-team mates. The previous target-clustering sort was removed —
+      // AI's findNearestEnemy picks 360° by distance so the sort never
+      // affected selection, only added unnecessary bot-to-bot contention
+      // that caused visible target-switching jitter.
+      const enemies = this._enemyScratch;
+      enemies.length = 0;
+      for (let i = 0; i < allShipEntities.length; i++) {
+        const s = allShipEntities[i];
+        if (!s.alive) continue;
+        if (s.id === bot.id) continue;
+        if (bot.team !== 'neutral') {
+          const sTeam = this.getEntityTeam(s.id);
+          if (sTeam === bot.team) continue;
+        }
+        enemies.push(s);
+      }
 
       // Run AI FSM
-      const input = updateBot(bot.brain, selfEntity, enemyEntities, dt);
-
-      // Track target counts to prevent clustering
-      if (bot.brain.targetId !== null) {
-        targetCounts.set(bot.brain.targetId, (targetCounts.get(bot.brain.targetId) ?? 0) + 1);
-      }
+      const input = updateBot(bot.brain, selfEntity, enemies, dt);
 
       // Apply movement
       const ax = input.moveDir.x;
@@ -2843,9 +2873,20 @@ export class ArenaEngine {
       // Bot-asteroid collision (bounce)
       this.checkBotAsteroidCollision(bot);
 
-      // Update rotation from aim direction
+      // Smoothly rotate toward the AI's desired aim direction.
+      // Previously `bot.rotation` snapped to the new angle instantly which —
+      // combined with AI decision ticks every 0.2–0.8s — made bots twitch
+      // their nose around even while cruising straight. Cap the turn rate at
+      // ~360°/sec; close-range rotation stays responsive, large flips take
+      // ~0.5s.
       if (input.aimDir.x !== 0 || input.aimDir.z !== 0) {
-        bot.rotation = Math.atan2(-input.aimDir.x, -input.aimDir.z);
+        const desired = Math.atan2(-input.aimDir.x, -input.aimDir.z);
+        const BOT_TURN_RATE = 2 * Math.PI; // rad/sec
+        let diff = desired - bot.rotation;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        const step = BOT_TURN_RATE * dt;
+        bot.rotation += Math.abs(diff) < step ? diff : Math.sign(diff) * step;
       }
 
       // Update mesh
@@ -2854,22 +2895,25 @@ export class ArenaEngine {
       bot.nickSprite.position.set(bot.pos.x, 20, bot.pos.z - 15);
 
       // Flicker effect during invulnerability window
+      const isInvulnerable = performance.now() < bot.invulnerableUntil;
       const botMat = bot.mesh.material as THREE.MeshBasicMaterial;
-      if (performance.now() < bot.invulnerableUntil) {
+      if (isInvulnerable) {
         botMat.opacity = 0.4 + Math.sin(performance.now() * 0.01) * 0.3;
         botMat.transparent = true;
       } else if (botMat.opacity !== 0.9) {
         botMat.opacity = 0.9;
       }
 
-      // Fire bullets if AI says so and cooldown elapsed
-      if (input.firing && bot.fireCooldown <= 0) {
+      // Fire bullets — blocked during invulnerability window (same rule as
+      // damage receipt). Previously invulnerable respawned bots could still
+      // pour shots while immune to return fire, which felt unfair.
+      if (input.firing && bot.fireCooldown <= 0 && !isInvulnerable) {
         this.fireBotBullet(bot, input.aimDir.x, input.aimDir.z);
         bot.fireCooldown = 0.3 + Math.random() * 0.15; // 0.3–0.45s between shots
       }
 
-      // Fire missile occasionally (every ~5-8 seconds when in attack mode and has ammo)
-      if (input.firing && (bot.missileAmmo ?? 0) > 0 && bot.missileCooldown <= 0 && Math.random() < 0.02) {
+      // Fire missile occasionally — also blocked while invulnerable
+      if (input.firing && !isInvulnerable && (bot.missileAmmo ?? 0) > 0 && bot.missileCooldown <= 0 && Math.random() < 0.02) {
         this.fireBotMissile(bot, input.aimDir.x, input.aimDir.z);
         bot.missileAmmo = (bot.missileAmmo ?? 1) - 1;
         bot.missileCooldown = 5 + Math.random() * 3; // 5-8s between missiles
