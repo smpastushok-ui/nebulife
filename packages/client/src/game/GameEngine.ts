@@ -417,27 +417,37 @@ export class GameEngine {
   private computeNeighborSystems(): Array<{ system: StarSystem; ownerIndex: number }> {
     const result: Array<{ system: StarSystem; ownerIndex: number }> = [];
 
-    // Get positions of all players in the cluster
+    // CRITICAL: Delaunay must run over THIS cluster's players only. Previously
+    // this loop used 0..49 as if they were global indices, so a player with
+    // global_index >= 50 (anyone past first cluster) got zero neighbors —
+    // `a === this.playerIndex` never matched because Delaunay edges only
+    // contained slot indices 0..49. Use the cluster offset (groupIndex*50)
+    // to generate positions for the 50 players that SHARE this cluster.
+    const base = this.playerGroupIndex * PLAYERS_PER_GROUP;
     const positions: Array<{ x: number; y: number; idx: number }> = [];
-    for (let i = 0; i < PLAYERS_PER_GROUP; i++) {
-      const pos = assignPlayerPosition(this.galaxySeed, i);
-      positions.push({ x: pos.x, y: pos.y, idx: i });
+    for (let slot = 0; slot < PLAYERS_PER_GROUP; slot++) {
+      const globalIdx = base + slot;
+      const pos = assignPlayerPosition(this.galaxySeed, globalIdx);
+      positions.push({ x: pos.x, y: pos.y, idx: globalIdx });
     }
 
-    // Use Delaunay to find natural neighbors of this player
+    // Use Delaunay to find natural neighbors of this player. Edges are indices
+    // INTO `positions` (0..49 = slot in cluster), so we map via positions[i].idx
+    // to recover the real global index.
     const points = positions.map(p => ({ x: p.x, y: p.y }));
     const edges = delaunayEdges(points);
 
-    // Find which positions are neighbors of this.playerIndex
-    const myNeighborIndices = new Set<number>();
+    const mySlot = this.playerIndex - base; // 0..49
+    const myNeighborSlots = new Set<number>();
     for (const [a, b] of edges) {
-      if (a === this.playerIndex) myNeighborIndices.add(b);
-      if (b === this.playerIndex) myNeighborIndices.add(a);
+      if (a === mySlot) myNeighborSlots.add(b);
+      if (b === mySlot) myNeighborSlots.add(a);
     }
 
-    // For each neighbor, generate their Ring 2 systems
-    for (const ni of myNeighborIndices) {
-      const neighborPos = positions[ni];
+    // For each neighbor (by cluster slot), generate their Ring 2 systems
+    for (const slot of myNeighborSlots) {
+      const neighborPos = positions[slot];
+      const ni = neighborPos.idx; // real global index for the ownerPlayerId tag
       const neighborRings = generatePlayerRings(
         this.galaxySeed, neighborPos.x, neighborPos.y, `player-${ni}`,
       );
