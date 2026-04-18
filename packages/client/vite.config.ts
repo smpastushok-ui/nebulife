@@ -9,12 +9,6 @@ export default defineConfig({
       '@nebulife/core': path.resolve(__dirname, '../core/src'),
     },
   },
-  build: {
-    rollupOptions: {
-      // Capacitor-only plugins — not available during Vercel web build
-      external: ['@codetrix-studio/capacitor-google-auth'],
-    },
-  },
   server: {
     port: 3000,
   },
