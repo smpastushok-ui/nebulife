@@ -63,12 +63,17 @@ function radiusFromMassRocky(massEarth: number): number {
   return Math.pow(massEarth, 0.55);
 }
 
-/** Mass-radius for gas giants (Earth units) */
+/** Mass-radius for gas giants (Earth units) — smooth transition at Jupiter mass.
+ * Below ~300 Me radius grows; above, degeneracy pressure flattens it. We blend
+ * the two regimes with smoothstep to avoid the discontinuity that previously
+ * caused a ~40% jump from 8.0→11.2 Re at exactly 300 Me. */
 function radiusFromMassGiant(massEarth: number): number {
-  // Jupiter is ~318 Earth masses, ~11.2 Earth radii
-  if (massEarth < 300) return 3.0 + Math.pow(massEarth / 10, 0.45);
-  // Above Jupiter mass, radius stays roughly constant (degeneracy pressure)
-  return 11.2 * Math.pow(massEarth / 318, -0.04);
+  const lowR = 3.0 + Math.pow(Math.max(massEarth, 1) / 10, 0.45);
+  const highR = 11.2 * Math.pow(Math.max(massEarth, 1) / 318, -0.04);
+  // Smoothstep blend zone: 250..400 Me
+  const t = Math.max(0, Math.min(1, (massEarth - 250) / 150));
+  const s = t * t * (3 - 2 * t);
+  return lowR * (1 - s) + highR * s;
 }
 
 /** Generate magnetic field */
@@ -143,39 +148,33 @@ export function generatePlanet(
 
   // Generate atmosphere first (needed for greenhouse)
   const isHabitable = isInHabitableZone(orbitalDistanceAU, star.habitableZone, false);
-  // Pre-check: will this planet have life? (need to know for O2 in atmosphere)
-  const lifeCheckRng = rng.child(999);
-  const preLifeRoll = isHabitable && massEarth >= 0.3 && massEarth <= 5 && type === 'rocky';
 
-  const atmosphere = generateAtmosphere(
-    rng.child(1001),
-    massKg,
-    radiusM,
-    eqTemp,
-    zone,
-    preLifeRoll && lifeCheckRng.next() < 0.15, // rough pre-check
-  );
+  // First-pass atmosphere WITHOUT O2 hint — needed to compute surfaceTemp+habitability
+  // before the canonical life roll. We then re-roll atmosphere if life is confirmed,
+  // so atmosphere & life flag are always consistent (fixes BUG-3).
+  let atmosphere = generateAtmosphere(rng.child(1001), massKg, radiusM, eqTemp, zone, false);
+  let greenhouse = atmosphere?.greenhouse ?? 0;
+  let surfaceTempK = Math.round(surfaceTemperatureWithGreenhouse(eqTemp, greenhouse));
 
-  const greenhouse = atmosphere?.greenhouse ?? 0;
-  const surfaceTempK = Math.round(surfaceTemperatureWithGreenhouse(eqTemp, greenhouse));
-
-  // Hydrosphere
   const hydrosphere = generateHydrosphere(rng.child(1002), surfaceTempK, atmosphere, zone, massEarth);
-
-  // Magnetic field
   const magneticField = generateMagneticField(rng.child(1003), massEarth, type);
-
-  // Resources
   const resources = generateResources(rng.child(1004), type, zone, massEarth, surfaceTempK, atmosphere);
-
-  // Habitability
   const habitability = calculateHabitability(surfaceTempK, atmosphere, hydrosphere, magneticField, gravity);
 
-  // Life
+  // Canonical life roll (single source of truth)
   const lifeResult = rollForLife(rng.child(1005), habitability.overall, star.ageGyr);
 
-  // Moons
-  const moons = generateMoons(rng.child(1006), type, massEarth);
+  // If life is confirmed AND planet eligible, regenerate atmosphere with O2 hint
+  // so we never get hasLife=true without breathable atmosphere.
+  const lifeEligible = isHabitable && massEarth >= 0.3 && massEarth <= 5 && type === 'rocky';
+  if (lifeResult.hasLife && lifeEligible) {
+    atmosphere = generateAtmosphere(rng.child(1001), massKg, radiusM, eqTemp, zone, true);
+    greenhouse = atmosphere?.greenhouse ?? 0;
+    surfaceTempK = Math.round(surfaceTemperatureWithGreenhouse(eqTemp, greenhouse));
+  }
+
+  // Moons (inherit parent surface temp for realistic moon temperatures)
+  const moons = generateMoons(rng.child(1006), type, massEarth, surfaceTempK);
 
   // Terraform difficulty
   const terraformDifficulty = 1 - habitability.overall;
@@ -210,7 +209,7 @@ export function generatePlanet(
 }
 
 /** Generate moons for a planet with Kepler-correct orbital periods */
-function generateMoons(rng: SeededRNG, type: PlanetType, massEarth: number): Moon[] {
+function generateMoons(rng: SeededRNG, type: PlanetType, massEarth: number, parentSurfaceTempK: number): Moon[] {
   let moonCount: number;
 
   if (type === 'gas-giant') {
@@ -279,7 +278,12 @@ function generateMoons(rng: SeededRNG, type: PlanetType, massEarth: number): Moo
       compositionType,
       orbitalRadiusKm: round(orbitalRadiusKm, 0),
       orbitalPeriodDays: round(periodDays, 3),
-      surfaceTempK: Math.round(moonRng.nextFloat(50, 300)),
+      // Moon temperature inherits from parent planet (same orbital distance from star)
+      // with small variation for tidal heating / albedo differences. Inner moons of
+      // gas giants get slight tidal-heat bonus.
+      surfaceTempK: Math.round(
+        Math.max(20, parentSurfaceTempK * moonRng.nextFloat(0.85, 1.15) + (i === 0 && type === 'gas-giant' ? 25 : 0)),
+      ),
       hasAtmosphere: moonRadiusKm > 1000 && moonRng.nextBool(0.2),
       tidallyLocked: moonRng.nextBool(0.7),
     });
