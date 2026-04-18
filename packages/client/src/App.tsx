@@ -2261,11 +2261,29 @@ function AppInner() {
     engineRef.current?.setResearchState(researchState);
   }, [researchState]);
 
-  // Sync effective max ring to engine (controls BFS depth into galactic core)
+  // Sync effective max ring to engine (controls BFS depth into galactic core).
+  //
+  // Auto-promotion: if the player has fully researched ALL their personal Ring 2
+  // systems, bump effectiveMaxRing by +1 even without ast-probe tech. This makes
+  // neighbor systems (ringIndex=3) jump from Tier 2 (faded) to Tier 1 (full
+  // visibility + interactive) — visually rewarding the player for completing
+  // their personal exploration. The actual research-start gate is independent
+  // (ast-probe still required to scan neighbors), so no progression is broken.
   useEffect(() => {
     const maxRingAdd = getEffectValue(techTreeState, 'max_ring_add', 0);
-    engineRef.current?.setEffectiveMaxRing(HOME_RESEARCH_MAX_RING + maxRingAdd);
-  }, [techTreeState]);
+    let effectiveMax = HOME_RESEARCH_MAX_RING + maxRingAdd;
+
+    // Check if all personal Ring 2 systems are fully researched
+    if (effectiveMax === HOME_RESEARCH_MAX_RING && researchState) {
+      const ring2Systems = engineRef.current?.getAllSystems?.()
+        .filter(s => s.ringIndex === HOME_RESEARCH_MAX_RING && s.ownerPlayerId === null);
+      if (ring2Systems && ring2Systems.length > 0) {
+        const allRing2Done = ring2Systems.every(s => isSystemFullyResearched(researchState, s.id));
+        if (allRing2Done) effectiveMax += 1; // Light up the third ring
+      }
+    }
+    engineRef.current?.setEffectiveMaxRing(effectiveMax);
+  }, [techTreeState, researchState]);
 
   // Animated counter: count up to hoveredStarInfo.progress over ~900ms
   useEffect(() => {
