@@ -1628,6 +1628,22 @@ function AppInner() {
   /** Hydrate full game state from server on login (cross-platform sync). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hydrateGameStateFromServer = useCallback((player: any) => {
+    // Sync preferred_language from server so the game UI matches the
+    // language the player originally picked, even if the device locale
+    // returns something different (common on Android WebView where
+    // navigator.language can disagree with system language).
+    try {
+      const serverLang = player?.preferred_language;
+      if (serverLang && (serverLang === 'uk' || serverLang === 'en')) {
+        const current = localStorage.getItem('nebulife_lang');
+        if (current !== serverLang) {
+          localStorage.setItem('nebulife_lang', serverLang);
+          setLanguage(serverLang as Language);
+          void i18n.changeLanguage(serverLang);
+        }
+      }
+    } catch { /* ignore */ }
+
     const gs = player?.game_state as Partial<SyncedGameState> | undefined;
     if (!gs || typeof gs !== 'object') return;
 
@@ -5902,21 +5918,38 @@ function AppInner() {
 // ---------------------------------------------------------------------------
 
 /** Detect device language and map to supported app language ('uk' | 'en').
- *  Ukrainian for uk-* locale; English for everything else. */
+ *  Consults navigator.languages, navigator.language, and Intl locale.
+ *  If any of them say Ukrainian → 'uk'. Only explicit 'en' → 'en'.
+ *  Target audience is Ukrainian, so default on ambiguity is 'uk'. */
 function detectDeviceLanguage(): Language {
   try {
     const candidates: string[] = [];
     if (typeof navigator !== 'undefined') {
       if (Array.isArray(navigator.languages)) candidates.push(...navigator.languages);
       if (navigator.language) candidates.push(navigator.language);
+      // Some webviews expose userLanguage instead of language
+      const nav = navigator as Navigator & { userLanguage?: string };
+      if (nav.userLanguage) candidates.push(nav.userLanguage);
     }
+    // Intl.DateTimeFormat resolved locale — often correct even when navigator lies
+    try {
+      const intlLoc = Intl.DateTimeFormat().resolvedOptions().locale;
+      if (intlLoc) candidates.push(intlLoc);
+    } catch { /* ignore */ }
+
+    // Ukrainian wins if any candidate starts with uk (target audience)
     for (const raw of candidates) {
       const code = raw.toLowerCase().split(/[-_]/)[0];
       if (code === 'uk') return 'uk';
+    }
+    // Only default to 'en' if candidates explicitly say English
+    for (const raw of candidates) {
+      const code = raw.toLowerCase().split(/[-_]/)[0];
       if (code === 'en') return 'en';
     }
   } catch { /* ignore */ }
-  return 'en';
+  // Unknown → Ukrainian (primary audience) rather than English
+  return 'uk';
 }
 
 export function App() {
