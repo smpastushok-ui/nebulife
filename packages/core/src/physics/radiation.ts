@@ -26,11 +26,15 @@ export function equilibriumTemperature(
 
 /**
  * Surface temperature with greenhouse effect.
- * Earth: greenhouse adds ~33K above equilibrium (255K → 288K).
- * greenhouseFactor: 0 = no atmosphere, 1 = Earth-like, >1 = Venus-like
+ * Multiplicative model: T_s = T_eq * (1 + 0.13 * g)
+ * - g=0 → no atmosphere (T_s = T_eq)
+ * - g=1 → Earth-like (~+13% over T_eq, e.g. 255 → 288K)
+ * - g=15 → Venus-like (~+195% over T_eq, e.g. 230 → 678K, real Venus ~735K)
+ * Hard-clamped to prevent runaway: g capped at 25 internally.
  */
 export function surfaceTemperatureWithGreenhouse(equilibriumTempK: number, greenhouseFactor: number): number {
-  return equilibriumTempK + 33 * greenhouseFactor;
+  const g = Math.min(Math.max(greenhouseFactor, 0), 25);
+  return equilibriumTempK * (1 + 0.13 * g);
 }
 
 /** Blackbody peak wavelength (Wien's law): λ_max = b / T (meters) */

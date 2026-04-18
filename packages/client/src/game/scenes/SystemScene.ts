@@ -372,7 +372,7 @@ export class SystemScene {
         const moon = planet.moons[i];
         const moonRadius = Math.max(2, Math.min(5, moon.radiusKm / 500));
         const moonOrbitR = planetSize + 6 + i * 8;
-        const moonGfx = renderSystemMoon(moon.compositionType, moonRadius);
+        const moonGfx = renderSystemMoon(moon.compositionType, moonRadius, moon.seed);
         const moonStartAngle = (moon.seed % 360) * Math.PI / 180;
         // Per-moon orbital inclination for visual diversity
         const inclination = (moonRng.next() - 0.5) * 0.4;

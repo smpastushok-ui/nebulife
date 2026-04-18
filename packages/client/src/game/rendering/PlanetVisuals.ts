@@ -55,6 +55,8 @@ export interface PlanetVisualConfig {
   hasRivers: boolean;
   isGasGiant: boolean;
   isIceGiant: boolean;
+  /** Venus-like: CO2-dense atmosphere → opaque cloud shroud, surface invisible */
+  isVenusLike: boolean;
 
   // Surface-level rendering (top-down view)
   volcanism: number;       // 0..1 continuous volcanism intensity
@@ -124,15 +126,21 @@ function deriveAtmosColor(composition: Record<string, number>): number {
   return 0x667788;
 }
 
-/** Derive atmosphere opacity from surface pressure.
- *  Thinner → nearly invisible; thicker → clearly visible haze. */
-function deriveAtmosOpacity(pressureAtm: number): number {
+/** Derive atmosphere opacity from surface pressure and composition.
+ *  Thinner → nearly invisible; thicker → clearly visible haze.
+ *  CO2-dominant high-pressure (Venus-like) gets a boost to render full opaque shroud. */
+function deriveAtmosOpacity(pressureAtm: number, composition?: Record<string, number>): number {
+  const co2 = composition?.['CO2'] ?? 0;
+  // Venus-like: CO2-dense atmosphere creates fully opaque cloud shroud
+  if (co2 > 0.5 && pressureAtm > 10) {
+    return Math.min(0.95, 0.55 + (pressureAtm - 10) / 90 * 0.40);          // 0.55..0.95
+  }
   if (pressureAtm < 0.01) return 0;                                         // invisible
-  if (pressureAtm > 80) return 0.38;                                        // very dense (Venus+)
-  if (pressureAtm >= 10) return 0.18 + (pressureAtm - 10) / 70 * 0.20;     // 0.18..0.38
-  if (pressureAtm >= 1)  return 0.06 + (pressureAtm - 1)  / 9  * 0.12;     // 0.06..0.18
-  if (pressureAtm >= 0.1) return 0.015 + (pressureAtm - 0.1) / 0.9 * 0.045; // 0.015..0.06
-  return 0.003 + pressureAtm / 0.1 * 0.012;                                  // 0.003..0.015
+  if (pressureAtm > 80) return 0.45;                                        // very dense
+  if (pressureAtm >= 10) return 0.20 + (pressureAtm - 10) / 70 * 0.25;     // 0.20..0.45
+  if (pressureAtm >= 1)  return 0.08 + (pressureAtm - 1)  / 9  * 0.12;     // 0.08..0.20
+  if (pressureAtm >= 0.1) return 0.02 + (pressureAtm - 0.1) / 0.9 * 0.06;  // 0.02..0.08
+  return 0.003 + pressureAtm / 0.1 * 0.017;                                  // 0.003..0.02
 }
 
 /** Derive surface base color from temperature (for rocky/dwarf planets without life) */
@@ -278,7 +286,13 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   // --- Atmosphere ---
   const hasAtmosphere = atmo !== null;
   const atmosColor = hasAtmosphere ? deriveAtmosColor(atmo.composition) : 0x667788;
-  const atmosOpacity = hasAtmosphere ? deriveAtmosOpacity(atmo.surfacePressureAtm) : 0;
+  const atmosOpacity = hasAtmosphere ? deriveAtmosOpacity(atmo.surfacePressureAtm, atmo.composition) : 0;
+  // Venus-like detection: CO2-dominant + thick atmosphere → full opaque cloud shroud,
+  // surface invisible, planet appears as solid yellow/orange ball.
+  const isVenusLike = hasAtmosphere
+    && (atmo.composition['CO2'] ?? 0) > 0.5
+    && atmo.surfacePressureAtm > 10
+    && (planet.type === 'rocky' || planet.type === 'terrestrial');
   const atmosRingCount = hasAtmosphere
     ? (atmo.surfacePressureAtm < 0.01 ? 0 : atmo.surfacePressureAtm > 1 ? 10 : atmo.surfacePressureAtm > 0.1 ? 6 : 3)
     : 0;
@@ -307,12 +321,15 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   const landThreshold = hasOcean ? deriveLandThreshold(waterCoverage) : -1; // -1 = no ocean, all land
 
   // --- Clouds ---
+  // Venus-like CO2-dense atmospheres always have full cloud cover regardless of water.
   const hasSignificantClouds = hasAtmosphere && atmo.surfacePressureAtm > 0.1
-    && (waterCoverage > 0 || isGas || isIce);
+    && (waterCoverage > 0 || isGas || isIce || isVenusLike);
   const cloudDensity = hasSignificantClouds
     ? (isGas || isIce)
       ? 0.6  // Gas/ice giants have thick cloud bands
-      : clamp(Math.sqrt(atmo.surfacePressureAtm) * waterCoverage * 1.2, 0, 1)
+      : isVenusLike
+        ? 1.0  // Venus-like: complete opaque cloud shroud
+        : clamp(Math.sqrt(atmo.surfacePressureAtm) * waterCoverage * 1.2, 0, 1)
     : 0;
   const cloudColor = hasAtmosphere ? deriveCloudColor(atmo.composition) : 0xdde0e4;
 
@@ -384,6 +401,7 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
     craterRimColor,
     isGasGiant: isGas,
     isIceGiant: isIce,
+    isVenusLike,
 
     volcanism,
     windIntensity,

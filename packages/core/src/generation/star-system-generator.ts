@@ -7,11 +7,25 @@ import type { StarSystem, AsteroidBelt } from '../types/universe.js';
 /**
  * Generate orbital slots using modified Titius-Bode rule with noise.
  * a_n = baseAU + spacing * 2^n  (with random perturbation)
+ *
+ * Slots are scaled to the star's habitable zone so M-dwarfs (HZ at 0.03-0.1 AU)
+ * actually get planets in HZ, while O-stars (HZ at 30+ AU) don't have all planets
+ * crammed into the inner system.
  */
-function generateOrbitalSlots(rng: SeededRNG, count: number, starRadiusSolar: number): number[] {
-  const minDistAU = Math.max(0.05, starRadiusSolar * 0.01); // Minimum safe distance
-  const baseAU = rng.nextFloat(0.1, 0.4);
-  const spacing = rng.nextFloat(0.15, 0.4);
+function generateOrbitalSlots(
+  rng: SeededRNG,
+  count: number,
+  starRadiusSolar: number,
+  hzInnerAU: number,
+  hzOuterAU: number,
+): number[] {
+  const minDistAU = Math.max(0.02, starRadiusSolar * 0.01); // Minimum safe distance
+  // Anchor base AU to ~30-80% of HZ inner edge so first planet often sits inner zone or HZ
+  const hzMid = (hzInnerAU + hzOuterAU) * 0.5;
+  const baseAU = Math.max(minDistAU, hzInnerAU * rng.nextFloat(0.3, 0.8));
+  // Spacing scales with HZ width (proxy for stellar luminosity)
+  const spacingScale = Math.max(0.05, hzMid * 0.25);
+  const spacing = rng.nextFloat(spacingScale * 0.6, spacingScale * 1.4);
 
   const slots: number[] = [];
   for (let n = 0; n < count; n++) {
@@ -85,8 +99,14 @@ export function generateStarSystem(
     rng.nextGaussianClamped(MEAN_PLANETS, 2, MIN_PLANETS, MAX_PLANETS),
   );
 
-  // 3. Orbital slots
-  const slots = generateOrbitalSlots(rng.child(1), planetCount, star.radiusSolar);
+  // 3. Orbital slots — scaled to this star's habitable zone
+  const slots = generateOrbitalSlots(
+    rng.child(1),
+    planetCount,
+    star.radiusSolar,
+    star.habitableZone.innerOptimisticAU,
+    star.habitableZone.outerOptimisticAU,
+  );
 
   // 4. Planets
   const planets = slots.map((distanceAU, i) => {
