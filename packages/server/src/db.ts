@@ -43,6 +43,9 @@ export interface PlayerRow {
   cluster_id: string | null;
 }
 
+/** Starter wallet for new players (per Game Bible §0.4-bis: 20⚛ = 2 free photos) */
+export const STARTER_QUARKS = 20;
+
 export async function createPlayer(player: {
   id: string;
   name: string;
@@ -52,7 +55,7 @@ export async function createPlayer(player: {
   const sql = getSQL();
   const rows = await sql`
     INSERT INTO players (id, name, home_system_id, home_planet_id, game_phase, last_login, quarks)
-    VALUES (${player.id}, ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), 0)
+    VALUES (${player.id}, ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), ${STARTER_QUARKS})
     ON CONFLICT (id) DO NOTHING
     RETURNING *
   `;
@@ -617,7 +620,7 @@ export async function createPlayerWithAuth(player: {
     const rows = await sql`
       INSERT INTO players (id, firebase_uid, auth_provider, email, name, home_system_id, home_planet_id, game_phase, last_login, quarks)
       VALUES (${player.id}, ${player.firebaseUid}, ${player.authProvider}, ${player.email ?? null},
-              ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), 0)
+              ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), ${STARTER_QUARKS})
       ON CONFLICT (id) DO UPDATE SET
         last_login = NOW(),
         firebase_uid = COALESCE(players.firebase_uid, EXCLUDED.firebase_uid),
@@ -2119,4 +2122,57 @@ export async function getClusterOnlineMembers(
     ORDER BY last_heartbeat DESC
   ` as ClusterOnlineMember[];
   return rows;
+}
+
+/** Daily login bonus amount (per Game Bible §0.4-bis: tighter free-AI control) */
+export const DAILY_LOGIN_BONUS = 1;
+
+/**
+ * Award daily login bonus if last_login was on a different calendar day (UTC).
+ * Idempotent: calling twice on the same day is a no-op.
+ *
+ * Returns { credited: number, newBalance: number, streak: number }.
+ * If credited=0, the player has already received today's bonus.
+ */
+export async function claimDailyLoginBonus(playerId: string): Promise<{
+  credited: number;
+  newBalance: number;
+  streak: number;
+}> {
+  const sql = getSQL();
+
+  // Atomic: check last_login day != today; if so, credit and update.
+  // We compare UTC dates to avoid timezone games.
+  const rows = await sql`
+    WITH cur AS (
+      SELECT quarks, login_streak, last_login,
+             DATE(last_login AT TIME ZONE 'UTC') AS last_day,
+             DATE(NOW()        AT TIME ZONE 'UTC') AS today
+      FROM players WHERE id = ${playerId}
+    ),
+    upd AS (
+      UPDATE players p
+      SET quarks       = p.quarks + CASE WHEN cur.last_day < cur.today THEN ${DAILY_LOGIN_BONUS} ELSE 0 END,
+          login_streak = CASE
+                          WHEN cur.last_day = cur.today - INTERVAL '1 day' THEN p.login_streak + 1
+                          WHEN cur.last_day < cur.today - INTERVAL '1 day' THEN 1
+                          ELSE p.login_streak
+                        END,
+          last_login   = NOW()
+      FROM cur
+      WHERE p.id = ${playerId}
+      RETURNING p.quarks, p.login_streak, cur.last_day, cur.today
+    )
+    SELECT quarks, login_streak,
+           CASE WHEN last_day < today THEN ${DAILY_LOGIN_BONUS} ELSE 0 END AS credited
+    FROM upd
+  ` as Array<{ quarks: number; login_streak: number; credited: number }>;
+
+  const row = rows[0];
+  if (!row) return { credited: 0, newBalance: 0, streak: 0 };
+  return {
+    credited: row.credited,
+    newBalance: row.quarks,
+    streak: row.login_streak,
+  };
 }

@@ -978,6 +978,15 @@
     "show_research_pct": "Show research %",
     "hide_research_pct": "Hide research %"
   },
+  "quark_toast": {
+    "starter": "starter wallet",
+    "daily-login": "daily login bonus",
+    "ad-reward": "ad reward",
+    "quiz": "correct answer",
+    "refund": "refund",
+    "topup": "top-up",
+    "gift": "gift"
+  },
   "resource_display": {
     "observatories_title": "Observatories — research stations",
     "research_data_title": "Research data — resource for scanning systems",
