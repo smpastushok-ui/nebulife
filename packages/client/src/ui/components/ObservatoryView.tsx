@@ -19,6 +19,7 @@ import {
 import { PixelReveal } from './PixelReveal.js';
 import { ScientificReport } from './ScientificReport.js';
 import { PhotoModal } from './PhotoModal.js';
+import { playLoop, stopLoop } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // ObservatoryView — Full-screen observatory terminal that:
@@ -71,6 +72,18 @@ export function ObservatoryView({
     const text = generateScientificReport(discovery, system, system.seed, lang);
     setReportText(text);
   }, [discovery, system, lang]);
+
+  // Quantum-focus ambient loop — plays during the Kling submit + poll phases
+  // (before the photo starts revealing). User-supplied audio file.
+  useEffect(() => {
+    const isProcessing = phase === 'submitting' || phase === 'awaiting';
+    if (isProcessing) {
+      playLoop('quantum-focus.mp3', 0.4);
+    } else {
+      stopLoop('quantum-focus.mp3');
+    }
+    return () => stopLoop('quantum-focus.mp3');
+  }, [phase]);
 
   // Main pipeline: submit → poll → download → reveal
   useEffect(() => {
@@ -168,6 +181,11 @@ export function ObservatoryView({
         display: 'flex',
         flexDirection: 'column',
         pointerEvents: 'auto',
+        // Pad for device safe-areas (notches, home indicator). The title /
+        // "signal received" block was slipping behind the status bar on
+        // phones with cutouts.
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
       {/* ── Phase: Submitting / Awaiting ─────────────────────── */}

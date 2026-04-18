@@ -122,14 +122,38 @@ export function PhotoModal({
       );
 
       // Native (Android / iOS) — use Capacitor Share plugin.
-      // It opens the OS share sheet which handles image download + attachment
-      // correctly, bypassing WebView CORS restrictions.
+      // To get the IMAGE PREVIEW in Telegram / Instagram / WhatsApp the image
+      // must be attached as a local file. Sharing just `url` results in a
+      // plain link without thumbnail. We download the image into the app
+      // cache, then pass its local content:// URI as `files[0]`.
       if (Capacitor.isNativePlatform()) {
         const { Share } = await import('@capacitor/share');
+        let localFileUri: string | undefined;
+        try {
+          const { Filesystem, Directory } = await import('@capacitor/filesystem');
+          const res = await fetch(imageUrl);
+          const blob = await res.blob();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(',')[1] ?? '');
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          });
+          const tmpName = `share-${discovery.id.slice(0, 8)}.png`;
+          const writeRes = await Filesystem.writeFile({
+            path: tmpName,
+            data: base64,
+            directory: Directory.Cache,
+          });
+          localFileUri = writeRes.uri;
+        } catch (err) {
+          console.warn('[PhotoModal] share: failed to stage image for preview, falling back to URL only:', err);
+        }
         await Share.share({
           title: shareTitle,
           text: shareText,
-          url: shareUrl,
+          url: localFileUri ?? shareUrl,
+          ...(localFileUri ? { files: [localFileUri] } : {}),
           dialogTitle: shareTitle,
         });
         setShared(true);
@@ -176,14 +200,15 @@ export function PhotoModal({
   const handleDownload = useCallback(async () => {
     const filename = `nebulife-${discovery.type}-${discovery.id.slice(0, 8)}.png`;
 
-    // Native (Android / iOS) — save via Capacitor Filesystem to the public
-    // Pictures / Documents directory so the photo appears in the system
-    // Gallery. Regular <a download> doesn't trigger a download inside a
-    // Capacitor WebView (no download manager), so we must use the plugin.
+    // Native (Android / iOS) — save via Capacitor Filesystem to Documents.
+    // Directory.ExternalStorage hit Android 10+ scoped-storage restrictions
+    // (silent failures, no file actually persisted). Documents works on both
+    // platforms without extra permissions and is visible in the Files app.
+    // User also sees a success indicator (setShared reuses the share-confirm
+    // visual on the Download button).
     if (Capacitor.isNativePlatform()) {
       try {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        // Fetch image as base64
         const res = await fetch(imageUrl);
         const blob = await res.blob();
         const base64 = await new Promise<string>((resolve, reject) => {
@@ -192,24 +217,23 @@ export function PhotoModal({
           reader.onerror = () => reject(reader.error);
           reader.readAsDataURL(blob);
         });
-
-        // Android: Directory.ExternalStorage + "Pictures/Nebulife/…" puts it
-        // into the system Gallery. iOS: Directory.Documents is visible via
-        // the Files app (Photos library requires a Photos-permission plugin
-        // which we'll add later if needed).
-        await Filesystem.writeFile({
-          path: `Pictures/Nebulife/${filename}`,
+        const writeRes = await Filesystem.writeFile({
+          path: `Nebulife/${filename}`,
           data: base64,
-          directory: Directory.ExternalStorage,
+          directory: Directory.Documents,
           recursive: true,
         });
+        console.info('[PhotoModal] saved to', writeRes.uri);
       } catch (err) {
         console.warn('[PhotoModal] native download failed:', err);
-        // Last-resort fallback: open image URL in external browser
+        // Fallback: share sheet (lets user save via Photos / Files app).
         try {
-          const { App } = await import('@capacitor/app');
-          // @ts-expect-error — openUrl not in public typings but works in runtime
-          await App.openUrl?.({ url: imageUrl });
+          const { Share } = await import('@capacitor/share');
+          await Share.share({
+            title: filename,
+            url: imageUrl,
+            dialogTitle: filename,
+          });
         } catch {
           window.open(imageUrl, '_blank');
         }
