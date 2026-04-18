@@ -2383,6 +2383,17 @@ function AppInner() {
           setHoverLabelPos(pos);
         }
       },
+      onLiteOrbTap: (lite) => {
+        // Quick preview toast: tap a faraway star → see its color hint + ring info.
+        // Player can't research it without traveling closer (different mechanic).
+        const ringName = lite.nodeType === 'core'
+          ? (lang === 'uk' ? 'галактичне ядро' : 'galactic core')
+          : lite.ownerIndex === playerIndex
+            ? (lang === 'uk' ? 'твоя система' : 'your system')
+            : (lang === 'uk' ? `сусід (гравець #${lite.ownerIndex})` : `neighbor (player #${lite.ownerIndex})`);
+        setToastMessage(`✦  ${ringName}  •  ${lite.starColor}`);
+        setTimeout(() => setToastMessage(null), 2500);
+      },
     }, playerIndex);
 
     engine.init().then(() => {

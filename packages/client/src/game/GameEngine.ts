@@ -32,6 +32,8 @@ export interface GameCallbacks {
   onRadialClose?: () => void;
   /** Called when a star is hovered (systemId + researchProgress 0-100), null when unhovered */
   onHoverSystem?: (systemId: string | null, progress: number) => void;
+  /** Called when a faraway lite-orb (background star) is tapped — shows preview info */
+  onLiteOrbTap?: (lite: import('@nebulife/core').LiteSystem) => void;
 }
 
 export class GameEngine {
@@ -161,6 +163,10 @@ export class GameEngine {
       this.groupCount,
       this.playerGroupIndex,
       this.playerIndex,
+      // Lite-orb tap: forward as a system-select callback so existing UI handles it
+      (lite) => {
+        if (this.callbacks.onLiteOrbTap) this.callbacks.onLiteOrbTap(lite);
+      },
       (system, screenPos) => {
         // New directional layout — no camera animation needed
         this.callbacks.onSystemSelect(system, screenPos);
@@ -223,6 +229,9 @@ export class GameEngine {
 
     // Force resize to fix stale viewport dimensions after overlay transitions
     this.app.resize();
+
+    // Pass screen size to GalaxyScene so viewport culling for lite-orbs works
+    this.galaxyScene.setScreenSize(this.app.screen.width, this.app.screen.height);
 
     // Enable camera zoom/pan for galaxy hex grid
     this.camera.attach(this.galaxyScene.container);
