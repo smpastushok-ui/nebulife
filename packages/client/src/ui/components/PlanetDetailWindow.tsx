@@ -412,11 +412,20 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
     }
 
     // --- Ambient light ---
-    const ambient = new THREE.AmbientLight(0x223344, 0.7);
+    // Brighter ambient + softer directional + fill light from opposite side
+    // so both hemispheres read clearly on every planet (dark side was too
+    // buried, and different planets rendered inconsistently). Diagonal
+    // fill is 35% strength so day-side still has direction.
+    const ambient = new THREE.AmbientLight(0x445566, 1.2);
     scene.add(ambient);
-    const dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 1.0);
     dirLight.position.copy(STAR_SPRITE_POSITION);
     scene.add(dirLight);
+    const fillLight = new THREE.DirectionalLight(0x8899aa, 0.45);
+    fillLight.position.set(
+      -STAR_SPRITE_POSITION.x, STAR_SPRITE_POSITION.y + 1, -STAR_SPRITE_POSITION.z,
+    );
+    scene.add(fillLight);
 
     // --- Animation ---
     let lastTime = performance.now();
@@ -752,7 +761,9 @@ export function PlanetDetailWindow({
         onClick={onClose}
       />
 
-      {/* Main window */}
+      {/* Main window — padded for device safe-areas so the top bar (planet
+          name + prev/next triangles) and bottom info don't slip under the
+          phone status bar / home indicator. */}
       <div
         style={{
           position: 'fixed',
@@ -763,6 +774,10 @@ export function PlanetDetailWindow({
           fontFamily: 'monospace',
           animation: 'pdwIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both',
           pointerEvents: 'none',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
         }}
         onClick={(e) => e.stopPropagation()}
       >

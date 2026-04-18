@@ -374,9 +374,12 @@ function TelescopeButton({ onClick, generating }: { onClick: () => void; generat
       <span>
         {generating ? t('telescope.processing_panorama') : t('telescope.panorama_cost')}
         {!generating && (
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }}>
-            <circle cx="8" cy="8" r="7" stroke="#7bb8ff" strokeWidth="1.5" fill="rgba(68,136,170,0.15)" />
-            <text x="8" y="11.5" textAnchor="middle" fill="#7bb8ff" fontSize="9" fontFamily="monospace" fontWeight="bold">Q</text>
+          // Blue atom (quarks) icon — was a plain "Q" letter, visually noisy.
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.2" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 3 }}>
+            <circle cx="8" cy="8" r="1.6" fill="#7bb8ff" />
+            <ellipse cx="8" cy="8" rx="6.8" ry="2.8" />
+            <ellipse cx="8" cy="8" rx="6.8" ry="2.8" transform="rotate(60 8 8)" />
+            <ellipse cx="8" cy="8" rx="6.8" ry="2.8" transform="rotate(-60 8 8)" />
           </svg>
         )}
       </span>

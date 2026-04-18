@@ -1880,25 +1880,52 @@ export class GalaxyScene {
       return true;
     };
 
-    // Build cyan web dynamically: for EACH reachable target, connect it to
-    // the nearest "anchor" — home OR any already-researched star OR the
-    // new post-evacuation home (identified by ownerPlayerId !== null on a
-    // regular node, since the scene's homeNode reference may be stale when
-    // the scene was built before evacuation mutated ownerPlayerId).
-    const anchors: Array<{ x: number; y: number; seed: number }> = [];
+    // Build cyan web dynamically. Two kinds of edges:
+    //  (a) TRAIL — persistent line from home (or new home after evac) to
+    //      every researched star, so the "discovered path" stays visible
+    //      and grows outward as rings complete. Rendered slightly dimmer.
+    //  (b) REACH — live line from the nearest anchor (home / researched)
+    //      to each reachable-but-not-yet-researched target. Pulsing brighter.
+    const anchors: Array<{ x: number; y: number; seed: number; isHome: boolean }> = [];
+    let homeAnchor: { x: number; y: number; seed: number; isHome: boolean } | null = null;
     if (this.homeNode) {
-      anchors.push({ x: this.homeNode.tx ?? 0, y: this.homeNode.ty ?? 0, seed: 0 });
+      homeAnchor = { x: this.homeNode.tx ?? 0, y: this.homeNode.ty ?? 0, seed: 0, isHome: true };
+      anchors.push(homeAnchor);
     }
     for (const [, node] of this.systemNodes) {
       const isNewHome = node.system.ownerPlayerId !== null;
       const isResearched = node.starState === 'researched' && node.visibilityTier === 1;
       if (isNewHome || isResearched) {
-        anchors.push({ x: node.tx, y: node.ty, seed: node.system.seed * 0.00031 });
+        const anchor = { x: node.tx, y: node.ty, seed: node.system.seed * 0.00031, isHome: isNewHome };
+        anchors.push(anchor);
+        if (isNewHome) homeAnchor = anchor;
       }
     }
+
+    // (a) Persistent trail — each researched (non-home) star links to its
+    //     nearest "previous" anchor (home or closer-to-home researched).
+    //     This keeps old paths visible after research completes.
+    for (const [, node] of this.systemNodes) {
+      const isHome = node.system.ownerPlayerId !== null;
+      const isResearched = node.starState === 'researched' && node.visibilityTier === 1;
+      if (isHome || !isResearched) continue;
+      let bestD = Infinity, bestA = homeAnchor;
+      for (const a of anchors) {
+        if (a.x === node.tx && a.y === node.ty) continue; // skip self
+        const d = (a.x - node.tx) * (a.x - node.tx) + (a.y - node.ty) * (a.y - node.ty);
+        if (d < bestD) { bestD = d; bestA = a; }
+      }
+      if (!bestA) continue;
+      const seed = bestA.seed + node.system.seed * 0.00011;
+      this.drawWavyLine(
+        this.connectionLines, bestA.x, bestA.y, node.tx, node.ty, t, seed,
+        0.18, CYAN, 0.35,
+      );
+    }
+
+    // (b) Reachable targets — pulsing cyan to next exploration goal.
     for (const [, node] of this.systemNodes) {
       if (!isReachable(node, false)) continue;
-      // Find nearest anchor
       let bestD = Infinity, bestA = anchors[0];
       for (const a of anchors) {
         const d = (a.x - node.tx) * (a.x - node.tx) + (a.y - node.ty) * (a.y - node.ty);
