@@ -4638,7 +4638,7 @@ function AppInner() {
       items: [{
         id: 'go-home',
         label: '',
-        icon: React.createElement('svg', { width: 18, height: 18, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round' },
+        icon: React.createElement('svg', { width: 34, height: 34, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round' },
           React.createElement('path', { d: 'M4 10 L10 4 L16 10' }),
           React.createElement('rect', { x: '7', y: '10', width: '6', height: '6' }),
           React.createElement('path', { d: 'M3 17 L6 15 L14 15 L17 17', opacity: '0.5' }),
@@ -4718,7 +4718,7 @@ function AppInner() {
       // launchpad (replaces the old star-shaped crest, which read as
       // generic rather than hangar-specific).
       icon: (
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke={arenaUnlocked ? 'currentColor' : '#665533'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: arenaUnlocked ? 1 : 0.5 }}>
+        <svg width="34" height="34" viewBox="0 0 20 20" fill="none" stroke={arenaUnlocked ? 'currentColor' : '#665533'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: arenaUnlocked ? 1 : 0.5 }}>
           <path d="M10 4 L12 7 L12 12 L8 12 L8 7 Z" />
           <circle cx="10" cy="8" r="0.7" />
           <path d="M8 12 L6 15 M12 12 L14 15" />
@@ -4986,8 +4986,10 @@ function AppInner() {
         />
       )}
 
-      {/* Left-side scene controls — galaxy */}
-      {state.scene === 'galaxy' && (
+      {/* Left-side scene controls — galaxy. Hidden when surface is open
+          (surface has its own left panel — two stacked panels would show
+          otherwise, which user reported as "extra menu appeared"). */}
+      {state.scene === 'galaxy' && !surfaceTarget && (
         <SceneControlsPanel
           onBack={handleGoToHomePlanet}
           onCenter={() => engineRef.current?.galaxyCenterOnOrigin()}
@@ -5008,8 +5010,8 @@ function AppInner() {
         />
       )}
 
-      {/* Left-side scene controls — system */}
-      {state.scene === 'system' && (
+      {/* Left-side scene controls — system (also hidden on surface) */}
+      {state.scene === 'system' && !surfaceTarget && (
         <SceneControlsPanel
           onBack={handleBackToGalaxy}
           onCenter={() => engineRef.current?.systemCenterOnOrigin()}
