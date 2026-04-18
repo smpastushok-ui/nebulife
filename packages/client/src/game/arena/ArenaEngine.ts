@@ -53,20 +53,27 @@ let _cachedBlueShip: THREE.Group | null = null;
 let _cachedRedShip: THREE.Group | null = null;
 
 function _normalizeShipScene(scene: THREE.Group): THREE.Group {
-  // Compute bounding box of loaded model and rescale so longest axis = SHIP_VISUAL_SIZE.
-  // Also recenter around origin so pivot is at center of mass.
+  // Compute bounding box of loaded model and rescale so longest axis =
+  // SHIP_VISUAL_SIZE. Recenter so pivot is at the origin. Guard factor
+  // against pathological boxes so a broken model can't nuke the scene.
   const box = new THREE.Box3().setFromObject(scene);
   const size = new THREE.Vector3();
   const center = new THREE.Vector3();
   box.getSize(size);
   box.getCenter(center);
   const longestAxis = Math.max(size.x, size.y, size.z);
-  if (longestAxis > 0) {
-    const factor = SHIP_VISUAL_SIZE / longestAxis;
-    scene.scale.setScalar(factor);
-    // Recenter: after scaling, translate so center is at origin.
-    scene.position.set(-center.x * factor, -center.y * factor, -center.z * factor);
+  let factor = 1;
+  if (longestAxis > 0.0001) {
+    factor = SHIP_VISUAL_SIZE / longestAxis;
+    // Clamp so nothing too tiny/huge slips through.
+    if (factor < 0.001 || factor > 10000) factor = 1;
   }
+  scene.scale.setScalar(factor);
+  scene.position.set(-center.x * factor, -center.y * factor, -center.z * factor);
+  // One-time diagnostic so we can see the scale on each reload.
+  // eslint-disable-next-line no-console
+  console.log('[arena] ship GLB normalized:',
+    { sizeX: +size.x.toFixed(2), sizeY: +size.y.toFixed(2), sizeZ: +size.z.toFixed(2), factor: +factor.toFixed(3) });
   return scene;
 }
 
@@ -3970,6 +3977,31 @@ export class ArenaEngine {
       id: b.id, name: b.name, team: b.team,
       hp: b.hp, maxHp: b.maxHp, alive: b.alive,
     }));
+  }
+
+  /**
+   * Snapshot of positions + aim for a top-down radar HUD.
+   * Player is placed at (0,0,0) in radar space; bots are offset by their
+   * position minus the player's, with the player's yaw zeroed out so
+   * "up on radar" always means "ahead of the ship".
+   */
+  getRadarSnapshot(): {
+    aimYaw: number; // radians (0 = facing -Z world)
+    player: { x: number; y: number; z: number };
+    bots: { id: number; team: Team; alive: boolean; dx: number; dy: number; dz: number }[];
+  } {
+    return {
+      aimYaw: Math.atan2(this.camAimX, this.camAimZ),
+      player: { x: this.playerPos.x, y: this.playerPos.y, z: this.playerPos.z },
+      bots: this.botShips.map(b => ({
+        id: b.id,
+        team: b.team,
+        alive: b.alive,
+        dx: b.pos.x - this.playerPos.x,
+        dy: b.pos.y - this.playerPos.y,
+        dz: b.pos.z - this.playerPos.z,
+      })),
+    };
   }
 
   // ── Public getters ─────────────────────────────────────────────────────

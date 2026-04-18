@@ -36,6 +36,12 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const [lockState, setLockState] = useState<{ targetId: number | null; progress: number; locked: boolean } | null>(null);
   const [lockScreenPos, setLockScreenPos] = useState<{ x: number; y: number } | null>(null);
   const [matchResult, setMatchResult] = useState<TeamMatchResult | null>(null);
+  // Radar snapshot — refreshed at 10 Hz for the mini-map HUD.
+  const [radar, setRadar] = useState<{
+    aimYaw: number;
+    playerY: number;
+    bots: { id: number; team: 'blue' | 'red' | 'neutral'; alive: boolean; dx: number; dy: number; dz: number }[];
+  } | null>(null);
 
   // Landscape orientation lock for mobile
   const [isPortrait, setIsPortrait] = useState(() => mobile && window.innerHeight > window.innerWidth);
@@ -149,6 +155,18 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     }, 200);
     return () => clearInterval(id);
   }, [ready, teamMode]);
+
+  // Poll radar snapshot (10 Hz — smooth enough, cheap)
+  useEffect(() => {
+    if (!ready) return;
+    const id = setInterval(() => {
+      const e = engineRef.current;
+      if (!e || typeof e.getRadarSnapshot !== 'function') return;
+      const snap = e.getRadarSnapshot();
+      setRadar({ aimYaw: snap.aimYaw, playerY: snap.player.y, bots: snap.bots });
+    }, 100);
+    return () => clearInterval(id);
+  }, [ready]);
 
   // Poll lock-on state (50ms — fast for smooth tracking)
   useEffect(() => {
@@ -287,6 +305,56 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           100% { opacity: 1; }
         }
       `}</style>
+
+      {/* Mini radar — top-left. Top-down XZ projection of ship neighborhood,
+          rotated so "up" = ahead. Y offset encoded in the dot size (bigger =
+          higher than player). Range = 700 world units. */}
+      {ready && radar && (
+        <div style={{
+          position: 'absolute',
+          top: `calc(12px + env(safe-area-inset-top, 0px))`,
+          left: `calc(12px + env(safe-area-inset-left, 0px))`,
+          width: 120, height: 120,
+          pointerEvents: 'none', zIndex: 4,
+          background: 'rgba(5,10,20,0.55)',
+          border: '1px solid rgba(100,140,180,0.35)',
+          borderRadius: '50%',
+          overflow: 'hidden',
+        }}>
+          <svg width="120" height="120" viewBox="-60 -60 120 120" style={{ display: 'block' }}>
+            {/* Range rings */}
+            <circle cx="0" cy="0" r="55" fill="none" stroke="rgba(100,140,180,0.25)" strokeWidth="0.5" />
+            <circle cx="0" cy="0" r="30" fill="none" stroke="rgba(100,140,180,0.18)" strokeWidth="0.5" />
+            {/* Forward cone */}
+            <path d="M0,0 L-20,-50 L20,-50 Z" fill="rgba(68,255,170,0.08)" stroke="rgba(68,255,170,0.2)" strokeWidth="0.5" />
+            {/* Ship dot (player always center, facing up) */}
+            <path d="M0,-4 L-3,3 L3,3 Z" fill="#aaddff" stroke="#ffffff" strokeWidth="0.5" />
+            {/* Bot dots — yaw-aligned */}
+            {radar.bots.filter(b => b.alive).map(b => {
+              const cos = Math.cos(-radar.aimYaw);
+              const sin = Math.sin(-radar.aimYaw);
+              // Rotate world delta into ship-relative frame so +Y on radar = ship forward
+              const rx = b.dx * cos - b.dz * sin;
+              const rz = b.dx * sin + b.dz * cos;
+              const scale = 55 / 700; // 700 world units → 55 radar units
+              const x = rx * scale;
+              const y = -rz * scale; // world -Z = up on radar
+              const outOfRange = Math.abs(x) > 55 || Math.abs(y) > 55;
+              if (outOfRange) return null;
+              const yBand = b.dy > 40 ? 3.5 : b.dy < -40 ? 1.5 : 2.5;
+              const color = b.team === 'blue' ? '#4488ff' : b.team === 'red' ? '#ff4444' : '#ffaa44';
+              return <circle key={b.id} cx={x} cy={y} r={yBand} fill={color} />;
+            })}
+          </svg>
+          <div style={{
+            position: 'absolute', bottom: 2, right: 4,
+            color: '#8899aa', fontSize: 9, fontFamily: 'monospace',
+            textShadow: '0 0 2px rgba(0,0,0,0.9)',
+          }}>
+            Y {radar.playerY >= 0 ? '+' : ''}{radar.playerY.toFixed(0)}
+          </div>
+        </div>
+      )}
 
       {/* TPS chase-cam crosshair — always centered, fades when dead */}
       {ready && !isDead && (
