@@ -1,10 +1,10 @@
 import React from 'react';
 
-// TerminalAnimatedIcon — icon content for the CommandBar Terminal button.
-// Layout: 4 corner squares around a centered "ТЕРМIНАЛ" label. When the
-// parent sets `converging` true the 4 squares slide toward the centre and
-// the label fades — played when the user taps the button, right before
-// the archive overlay mounts. Purely visual; no internal button tag.
+// TerminalAnimatedIcon — inline icon for the CommandBar Terminal button:
+// 4 corner cubes + centered "ТЕРМIНАЛ" text. When parent sets `converging`
+// true the text fades and the 4 cubes slide toward the centre. Explicit
+// 78×22 host box so no stretching/deformation — earlier SVG viewBox with
+// preserveAspectRatio="none" produced squished squares on real buttons.
 
 interface Props {
   label: string;
@@ -12,61 +12,47 @@ interface Props {
 }
 
 export function TerminalAnimatedIcon({ label, converging }: Props) {
-  const cubeSize = 5;
-  const corners = [
-    { x: 1,                  y: 0,                 dx: 10.5,  dy: 5.5 },
-    { x: 30 - cubeSize - 1,  y: 0,                 dx: -10.5, dy: 5.5 },
-    { x: 1,                  y: 16 - cubeSize,     dx: 10.5,  dy: -5.5 },
-    { x: 30 - cubeSize - 1,  y: 16 - cubeSize,     dx: -10.5, dy: -5.5 },
-  ];
+  const cubeBase: React.CSSProperties = {
+    position: 'absolute',
+    width: 6, height: 6,
+    border: '1px solid currentColor',
+    boxSizing: 'border-box',
+    pointerEvents: 'none',
+    transition: 'transform 0.55s cubic-bezier(0.55, 0, 0.35, 1)',
+  };
+  // dx/dy = distance each cube must travel to reach centre
+  const dx = 30;
+  const dy = 5;
   return (
     <span
       style={{
         position: 'relative',
-        display: 'inline-block',
-        width: 60,
-        height: 18,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 78,
+        height: 22,
+        color: 'currentColor',
+        pointerEvents: 'none',
       }}
     >
+      <span style={{ ...cubeBase, top: 0,    left: 0,    transform: converging ? `translate(${dx}px,${dy}px) scale(0.6)` : 'none' }} />
+      <span style={{ ...cubeBase, top: 0,    right: 0,   transform: converging ? `translate(${-dx}px,${dy}px) scale(0.6)` : 'none' }} />
+      <span style={{ ...cubeBase, bottom: 0, left: 0,    transform: converging ? `translate(${dx}px,${-dy}px) scale(0.6)` : 'none' }} />
+      <span style={{ ...cubeBase, bottom: 0, right: 0,   transform: converging ? `translate(${-dx}px,${-dy}px) scale(0.6)` : 'none' }} />
       <span
         style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           fontFamily: 'monospace',
-          fontSize: 9,
-          letterSpacing: 1.5,
+          fontSize: 9.5,
+          letterSpacing: 0.6,
           color: 'currentColor',
           opacity: converging ? 0 : 1,
           transition: 'opacity 0.18s ease-out',
-          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
         }}
       >
         {label}
       </span>
-      <svg
-        width="100%" height="100%" viewBox="0 0 30 16"
-        preserveAspectRatio="none"
-        style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
-      >
-        {corners.map((c, i) => (
-          <rect
-            key={i}
-            x={c.x} y={c.y}
-            width={cubeSize} height={cubeSize}
-            fill="none" stroke="currentColor" strokeWidth="1"
-            style={{
-              transform: converging
-                ? `translate(${c.dx}px, ${c.dy}px) scale(0.5)`
-                : 'translate(0,0) scale(1)',
-              transformOrigin: `${c.x + cubeSize / 2}px ${c.y + cubeSize / 2}px`,
-              transition: 'transform 0.55s cubic-bezier(0.55, 0, 0.35, 1)',
-            }}
-          />
-        ))}
-      </svg>
     </span>
   );
 }
