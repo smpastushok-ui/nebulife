@@ -840,11 +840,14 @@ export class GalaxyScene {
 
     switch (tier) {
       case 1: {
-        // Full visibility — restore normal alpha based on node type
+        // Full visibility — brightest. After auto-promote (Ring 2 fully done)
+        // neighbors JUMP from faded tier-2 (0.55) to full brightness (1.0), so
+        // the player visibly sees "a new ring lit up".
         if (node.nodeType === 'neighbor') {
-          node.baseAlpha = 0.45;
+          node.baseAlpha = 1.0;
+          node.nameLabel.visible = true;
         } else if (node.nodeType === 'core') {
-          node.baseAlpha = 0.35;
+          node.baseAlpha = 0.75;
         }
         // Personal nodes keep their calculated baseAlpha
         node.container.eventMode = 'static';
@@ -852,17 +855,16 @@ export class GalaxyScene {
         break;
       }
       case 2: {
-        // Visible "next ring" — must clearly read as a third ring to the player.
+        // Visible "next ring" faded — reads as a third ring to the player.
         // Neighbors stay fully clickable (player can tap → "Need ast-probe tech"
         // hint). Core stays non-interactive until BFS chain reaches them.
         if (node.nodeType === 'neighbor') {
-          node.baseAlpha = 0.85;          // bumped 0.55 → 0.85 (clearly visible)
+          node.baseAlpha = 0.55;
           node.container.eventMode = 'static';
           node.container.cursor = 'pointer';
-          // Show name label so the third ring reads as "real systems", not background
           node.nameLabel.visible = true;
         } else {
-          node.baseAlpha = 0.45;          // bumped 0.30 → 0.45
+          node.baseAlpha = 0.35;
           node.container.eventMode = 'none';
           node.nameLabel.visible = false;
         }
