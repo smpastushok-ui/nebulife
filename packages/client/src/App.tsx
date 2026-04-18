@@ -10,6 +10,7 @@ import {
   recordDestruction,
   getDestroyedPlanetIds,
 } from './multiplayer/cluster-state.js';
+import { QuarkToastRenderer, enqueueQuarkToast } from './ui/components/QuarkToastQueue.js';
 import { WarpTransition } from './ui/components/WarpTransition.js';
 import { CommandBar } from './ui/components/CommandBar/index.js';
 import type { NavigationMenuItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
@@ -188,6 +189,39 @@ export interface GameState {
   showPlanetInfo: boolean;
   playerName: string;
   error: string | null;
+}
+
+/**
+ * One-shot starter wallet toast — fires the FIRST time a player loads the app.
+ * `nebulife_starter_toast_shown` flag in localStorage prevents repeats across
+ * sessions on the same device.
+ */
+function maybeShowStarterToast(currentBalance: number): void {
+  try {
+    if (localStorage.getItem('nebulife_starter_toast_shown') === '1') return;
+    if (currentBalance <= 0) return; // Server hasn't credited starter yet
+    enqueueQuarkToast({ amount: currentBalance, reason: 'starter' });
+    localStorage.setItem('nebulife_starter_toast_shown', '1');
+  } catch { /* ignore */ }
+}
+
+/**
+ * Daily login bonus — call once on app load. Server is idempotent per UTC day,
+ * so multiple calls in the same day return credited=0 and we don't toast.
+ * Updates the local quarks balance optimistically (server is source of truth).
+ */
+async function claimDailyLoginBonusOnce(): Promise<void> {
+  try {
+    const res = await authFetch('/api/player/login-bonus', { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json() as { credited: number; newBalance: number; streak: number };
+    if (data.credited > 0) {
+      // Push the new balance into the global quarks state via the same event
+      // bus other modules use, then toast it.
+      window.dispatchEvent(new CustomEvent('nebulife:quark-balance', { detail: data.newBalance }));
+      enqueueQuarkToast({ amount: data.credited, reason: 'daily-login' });
+    }
+  } catch { /* network error — silent */ }
 }
 
 /**
@@ -1923,6 +1957,8 @@ function AppInner() {
             try { localStorage.setItem('nebulife_generation_index', String(created.science_points ?? 0)); } catch { /* ignore */ }
             hydrateGameStateFromServer(created);
             setState((prev) => ({ ...prev, playerName: created.callsign || created.name || 'Explorer' }));
+            // First-ever account → starter wallet toast (fires once per device)
+            maybeShowStarterToast(created.quarks ?? 0);
           } else {
             setQuarks(existing.quarks ?? 0);
             if (existing.global_index != null) globalPlayerIndexRef.current = existing.global_index;
@@ -1932,6 +1968,8 @@ function AppInner() {
             // Initialize RevenueCat IAP (no-op on web)
             initIAP(id!).catch(() => { /* non-critical */ });
           }
+          // Daily login bonus check — fires once per UTC day (server-side idempotent)
+          claimDailyLoginBonusOnce().catch(() => { /* soft-fail */ });
           // Fetch universe info for group count
           fetchUniverseInfo().then(info => {
             universeGroupCountRef.current = info.groupCount;
@@ -1977,6 +2015,9 @@ function AppInner() {
               hydrateGameStateFromServer(player);
               setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
               setNeedsCallsign(!player.callsign);
+              // Starter wallet (first registration) + daily login bonus check
+              maybeShowStarterToast(player.quarks ?? 0);
+              claimDailyLoginBonusOnce().catch(() => { /* soft-fail */ });
               // Fetch universe info for group count
               fetchUniverseInfo().then(info => {
                 universeGroupCountRef.current = info.groupCount;
@@ -2006,6 +2047,8 @@ function AppInner() {
                     localStorage.setItem('nebulife_pro_daily_date', todayDate);
                     if (quarksData.newBalance !== undefined) {
                       setQuarks(quarksData.newBalance);
+                      const credited = typeof quarksData.credited === 'number' ? quarksData.credited : 5;
+                      enqueueQuarkToast({ amount: credited, reason: 'gift' });
                     }
                   }
                 }
@@ -3575,6 +3618,16 @@ function AppInner() {
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
   useEffect(() => { currentSceneRef.current = state.scene; }, [state.scene]);
+
+  // Listen for global quark balance updates (e.g. from daily login bonus)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const newBalance = (e as CustomEvent<number>).detail;
+      if (typeof newBalance === 'number') setQuarks(newBalance);
+    };
+    window.addEventListener('nebulife:quark-balance', handler);
+    return () => window.removeEventListener('nebulife:quark-balance', handler);
+  }, []);
 
   // ── Cluster shared state — load destroyed planets / colonies on system entry ──
   // The cluster-state module caches results for 30 s and degrades silently to
@@ -5614,6 +5667,9 @@ function AppInner() {
           onClose={() => setDigestModalImages(null)}
         />
       )}
+
+      {/* Quark accrual toast queue (singleton renderer; enqueueQuarkToast from anywhere) */}
+      <QuarkToastRenderer />
 
       {/* Toast notification */}
       {toastMessage && (

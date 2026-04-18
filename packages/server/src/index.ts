@@ -139,6 +139,10 @@ export {
   recordPlanetDestruction,
   updatePlayerPresence,
   getClusterOnlineMembers,
+  // Quark economy (Game Bible §0.4-bis)
+  STARTER_QUARKS,
+  DAILY_LOGIN_BONUS,
+  claimDailyLoginBonus,
 } from './db.js';
 
 export type {

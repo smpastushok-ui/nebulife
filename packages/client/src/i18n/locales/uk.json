@@ -976,6 +976,15 @@
     "show_research_pct": "Показати % дослідженості",
     "hide_research_pct": "Сховати % дослідженості"
   },
+  "quark_toast": {
+    "starter": "стартова матерія",
+    "daily-login": "щоденний бонус",
+    "ad-reward": "реклама",
+    "quiz": "правильна відповідь",
+    "refund": "повернення",
+    "topup": "поповнення",
+    "gift": "подарунок"
+  },
   "resource_display": {
     "observatories_title": "Обсерваторії — дослідницькі станції",
     "research_data_title": "Дані досліджень — ресурс для сканування систем",
