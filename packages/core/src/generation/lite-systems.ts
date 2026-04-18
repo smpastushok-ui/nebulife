@@ -87,7 +87,11 @@ export function generateLiteClusterSystems(
     const pi = base + slot;
     const playerPos = assignPlayerPosition(galaxySeed, pi);
 
-    // Ring 0 (home), Ring 1 (6 systems @5LY), Ring 2 (12 systems @10LY) — exact same hex layout
+    // Ring 0 (home), Ring 1 (6 systems @5LY), Ring 2 (12 systems @10LY) — hex
+    // layout with per-star deterministic jitter so the rendered cluster doesn't
+    // read as a rigid honeycomb. Matches the jitter in GalaxyScene.buildSysNode
+    // (±2 LY / ±36 screen-px at PX_PER_LY=18) so our own cluster's real nodes
+    // and other clusters' lite-orbs look equally organic.
     for (let ringIdx = 0; ringIdx <= 2; ringIdx++) {
       const positions = hexRingPositions(ringIdx, playerPos.x, playerPos.y);
       for (const pos of positions) {
@@ -98,12 +102,21 @@ export function generateLiteClusterSystems(
         const id = `system-${sysSeed}`;
         if (result.some(r => r.id === id)) continue;
 
+        // Deterministic jitter — skip Ring 0 (player home stays on-grid so
+        // its halo/territory aura doesn't wander).
+        let jx = 0, jy = 0;
+        if (ringIdx > 0) {
+          const jrng = new SeededRNG(sysSeed);
+          jx = (jrng.next() - 0.5) * 4.0; // ±2 LY
+          jy = (jrng.next() - 0.5) * 4.0;
+        }
+
         // Phase from seed for deterministic but desync-ed pulse
         const pulsePhase = ((sysSeed * 0.0001) % (Math.PI * 2));
 
         result.push({
           id,
-          position: { x: pos.x - myPos.x, y: pos.y - myPos.y },
+          position: { x: pos.x + jx - myPos.x, y: pos.y + jy - myPos.y },
           starColor: color,
           starSize: ringIdx === 0 ? 2.5 * sizeMul : (1.6 + ringIdx * 0.2) * sizeMul,
           pulsePhase,
