@@ -264,6 +264,18 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   });
   const [visible, setVisible] = useState(false);
 
+  // Terminal-loop mute toggle, persisted per device. Effect at the top of
+  // the component applies the volume (0 when muted, 0.4 otherwise).
+  const [terminalMuted, setTerminalMuted] = useState<boolean>(() => {
+    try { return localStorage.getItem('nebulife_terminal_muted') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    // Dynamic import so we don't bloat the initial chunk.
+    import('../../../audio/SfxPlayer.js').then(({ setLoopVolume }) => {
+      setLoopVolume('terminal-loop.mp3', terminalMuted ? 0 : 0.4);
+    }).catch(() => { /* ignore */ });
+  }, [terminalMuted]);
+
   // Expose programmatic navigation for tutorial
   useImperativeHandle(ref, () => ({
     navigateTo(main: string, sub: string) {
@@ -613,31 +625,64 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           </button>
         </div>
 
-        {/* Right: Close button (1.5x larger) */}
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none',
-            border: '1px solid #334455',
-            borderRadius: 3,
-            color: '#667788',
-            fontFamily: 'monospace',
-            fontSize: 18,
-            padding: '6px 14px',
-            cursor: 'pointer',
-            transition: 'color 0.15s, border-color 0.15s',
-          }}
-          onMouseEnter={(e) => {
-            (e.target as HTMLElement).style.color = '#aabbcc';
-            (e.target as HTMLElement).style.borderColor = '#667788';
-          }}
-          onMouseLeave={(e) => {
-            (e.target as HTMLElement).style.color = '#667788';
-            (e.target as HTMLElement).style.borderColor = '#334455';
-          }}
-        >
-          X
-        </button>
+        {/* Right: mute toggle + close button. Close has the same footprint
+            as the top-left nav icons and a red border so it reads as
+            "exit/destructive". Mute state persists on device only. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={() => {
+              const next = !terminalMuted;
+              setTerminalMuted(next);
+              try { localStorage.setItem('nebulife_terminal_muted', next ? '1' : '0'); } catch { /* ignore */ }
+            }}
+            style={{
+              ...headerIconBtnStyle,
+              color: terminalMuted ? '#cc4444' : '#667788',
+              borderColor: terminalMuted ? 'rgba(204,68,68,0.4)' : 'rgba(51,68,85,0.3)',
+            }}
+            title={terminalMuted ? t('common.unmute') : t('common.mute')}
+          >
+            {terminalMuted ? (
+              // speaker with slash
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6H5L8 3V13L5 10H3Z" />
+                <line x1="11" y1="6" x2="14" y2="9" />
+                <line x1="14" y1="6" x2="11" y2="9" />
+                <line x1="1" y1="1" x2="15" y2="15" opacity="0.9" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6H5L8 3V13L5 10H3Z" />
+                <path d="M10.5 5.5 Q12 8 10.5 10.5" />
+                <path d="M12.5 4 Q15 8 12.5 12" opacity="0.6" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              ...headerIconBtnStyle,
+              color: '#cc4444',
+              borderColor: 'rgba(204,68,68,0.55)',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#ff6666';
+              e.currentTarget.style.borderColor = '#ff6666';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#cc4444';
+              e.currentTarget.style.borderColor = 'rgba(204,68,68,0.55)';
+            }}
+            title={t('common.close')}
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="4" y1="4" x2="12" y2="12" />
+              <line x1="12" y1="4" x2="4" y2="12" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Main tabs */}

@@ -1,6 +1,8 @@
 {
   "common": {
     "close": "Close",
+    "mute": "Mute sound",
+    "unmute": "Unmute sound",
     "back": "Back",
     "skip": "Skip",
     "confirm": "Confirm",
