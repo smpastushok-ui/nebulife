@@ -1866,6 +1866,9 @@ export class GalaxyScene {
     const isReachable = (n: SystemNode | null | undefined, isHome: boolean): boolean => {
       if (isHome) return true;
       if (!n) return false;
+      // Any star currently flagged as the player's home (incl. post-evacuation
+      // relocation) is NOT a research target — it's the anchor of the web.
+      if (n.system.ownerPlayerId !== null) return false;
       if (n.visibilityTier !== 1) return false;
       if (n.starState === 'researched') return false;
       // Ring gates — don't light up a ring until the previous one is done.
@@ -1878,16 +1881,18 @@ export class GalaxyScene {
     };
 
     // Build cyan web dynamically: for EACH reachable target, connect it to
-    // the nearest "anchor" — home or any already-researched star. Guarantees
-    // every reachable star has at least one visible path back to known
-    // territory (previously only 4 home-adjacent Ring 1 stars had lines, and
-    // other Ring 1 stars whose edges went to Ring 2 looked orphaned).
+    // the nearest "anchor" — home OR any already-researched star OR the
+    // new post-evacuation home (identified by ownerPlayerId !== null on a
+    // regular node, since the scene's homeNode reference may be stale when
+    // the scene was built before evacuation mutated ownerPlayerId).
     const anchors: Array<{ x: number; y: number; seed: number }> = [];
     if (this.homeNode) {
       anchors.push({ x: this.homeNode.tx ?? 0, y: this.homeNode.ty ?? 0, seed: 0 });
     }
     for (const [, node] of this.systemNodes) {
-      if (node.starState === 'researched' && node.visibilityTier === 1) {
+      const isNewHome = node.system.ownerPlayerId !== null;
+      const isResearched = node.starState === 'researched' && node.visibilityTier === 1;
+      if (isNewHome || isResearched) {
         anchors.push({ x: node.tx, y: node.ty, seed: node.system.seed * 0.00031 });
       }
     }
