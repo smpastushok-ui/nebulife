@@ -1,6 +1,6 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Text, BlurFilter } from 'pixi.js';
 import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebulife/core';
-import { getResearchProgress, isSystemFullyResearched, SeededRNG, computeGroupPosition, generateLiteClusterSystems, hexColorToInt, type LiteSystem } from '@nebulife/core';
+import { getResearchProgress, isSystemFullyResearched, SeededRNG, computeGroupPosition, generateLiteClusterSystems, hexColorToInt, type LiteSystem, delaunayEdges, generateGalaxyGroupCore, deriveGroupSeed, assignPlayerPosition } from '@nebulife/core';
 import type { TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
 import { tStatic } from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
@@ -330,11 +330,19 @@ export class GalaxyScene {
         node.baseRadius *= 0.7;
         node.nameLabel.style.fill = 0x445566;
         node.container.alpha = node.baseAlpha;
+        // Soft blur — neighbor systems read as "out of focus / further away"
+        // even at full Tier 1 brightness. Player sees colour + size but knows
+        // they're not as close/clear as personal systems.
+        node.container.filters = [new BlurFilter({ strength: 2, quality: 2 })];
         this.systemNodes.set(system.id, node);
       }
     }
 
     /* ── Core systems (galactic core mesh, progressive BFS depth) ── */
+    // Core SystemNodes are HIDDEN — far-away core stars are represented by
+    // colored dots in the lite-orbs layer instead. We still process the
+    // metadata (coreEntryIds, coreNeighborGraph) so BFS-based unlocking
+    // logic keeps working when the player gets close enough.
     if (coreSystems) {
       // Build coreId->systemId mapping for neighbor graph construction
       const coreIdToSysId = new Map<number, string>();
@@ -364,10 +372,13 @@ export class GalaxyScene {
         const node = this.buildSysNode(system, tx, ty, system.ringIndex);
         node.nodeType = 'core';
         node.coreId = coreId;
-        node.baseAlpha = expandedVisible ? 0.35 : 0;
+        // Hidden by default — lite-orbs layer represents these visually.
+        // Tier system can still promote them when BFS chain reaches them.
+        node.baseAlpha = 0;
         node.baseRadius *= 0.6;
         node.nameLabel.style.fill = 0x554433;
-        node.container.alpha = node.baseAlpha;
+        node.container.alpha = 0;
+        node.container.visible = false; // skip rendering entirely
         this.systemNodes.set(system.id, node);
       }
 
@@ -416,11 +427,85 @@ export class GalaxyScene {
     for (const id of this.systemNodes.keys()) this.liteSkipIds.add(id);
     if (this.homeNode) this.liteSkipIds.add(this.homeNode.system.id);
 
+    // Connections layer FIRST (drawn behind orbs) — Delaunay player edges +
+    // K=4 core mesh + player→core links. Mirrors the 3D UniverseEngine
+    // visualization. Gives the cluster a visible "civilization web".
+    const connectionsGfx = this.buildClusterConnectionsLayer(galaxySeed, groupIndex, playerIndex);
+    this.container.addChildAt(connectionsGfx, 1);
+
     // Static base layer — pulse handled in update() via alpha multiplier
     this.liteOrbsGfx = new Graphics();
     this.redrawLiteOrbs();
-    // Insert behind everything (after bgStars at index 0)
-    this.container.addChildAt(this.liteOrbsGfx, 1);
+    // Insert behind everything but above connections
+    this.container.addChildAt(this.liteOrbsGfx, 2);
+  }
+
+  /**
+   * Build the connection lines layer mirroring the 3D UniverseEngine cluster:
+   *   - Delaunay edges between adjacent players (Ring 2 ↔ Ring 2)
+   *   - K=4 core mesh edges (500 systems)
+   *   - Player → core entry star edges
+   * All drawn relative to my home star (origin), so positions match lite-orbs.
+   */
+  private buildClusterConnectionsLayer(galaxySeed: number, groupIndex: number, myPlayerIndex: number): Graphics {
+    const gfx = new Graphics();
+    const PX = PX_PER_LY;
+
+    // My home position — used as origin for relative coords
+    const myPos = assignPlayerPosition(galaxySeed, myPlayerIndex);
+
+    // 50 player positions (used for Delaunay)
+    const players: Array<{ x: number; y: number; idx: number }> = [];
+    for (let i = 0; i < 50; i++) {
+      const p = assignPlayerPosition(galaxySeed, i);
+      players.push({ x: p.x - myPos.x, y: p.y - myPos.y, idx: i });
+    }
+
+    // Delaunay edges between players → faint blue links
+    const edges = delaunayEdges(players.map(p => ({ x: p.x, y: p.y })));
+    for (const [a, b] of edges) {
+      const pa = players[a];
+      const pb = players[b];
+      gfx.moveTo(pa.x * PX, pa.y * PX);
+      gfx.lineTo(pb.x * PX, pb.y * PX);
+    }
+    gfx.stroke({ width: 0.6, color: 0x4488aa, alpha: 0.25 });
+
+    // K=4 core mesh — internal galactic-core links
+    const groupSeed = deriveGroupSeed(galaxySeed, groupIndex);
+    const core = generateGalaxyGroupCore(groupSeed);
+    const coreById = new Map<number, { x: number; y: number; depth: number }>();
+    for (const cs of core.systems) {
+      coreById.set(cs.id, { x: cs.position.x - myPos.x, y: cs.position.y - myPos.y, depth: cs.depth });
+    }
+    const drawnCore = new Set<string>();
+    for (const cs of core.systems) {
+      const a = coreById.get(cs.id)!;
+      for (const nid of cs.neighbors) {
+        const key = Math.min(cs.id, nid) + ',' + Math.max(cs.id, nid);
+        if (drawnCore.has(key)) continue;
+        drawnCore.add(key);
+        const b = coreById.get(nid);
+        if (!b) continue;
+        gfx.moveTo(a.x * PX, a.y * PX);
+        gfx.lineTo(b.x * PX, b.y * PX);
+      }
+    }
+    gfx.stroke({ width: 0.4, color: 0xaa6644, alpha: 0.18 });
+
+    // Player → core entry edges (player home → entry star) — gold thin lines
+    for (let i = 0; i < 50; i++) {
+      const entryId = core.entryIds[i];
+      if (entryId === undefined) continue;
+      const entry = coreById.get(entryId);
+      if (!entry) continue;
+      const player = players[i];
+      gfx.moveTo(player.x * PX, player.y * PX);
+      gfx.lineTo(entry.x * PX, entry.y * PX);
+    }
+    gfx.stroke({ width: 0.4, color: 0xffaa55, alpha: 0.12 });
+
+    return gfx;
   }
 
   private redrawLiteOrbs(): void {
