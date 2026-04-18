@@ -12,7 +12,7 @@ import {
   MAX_PIXEL_RATIO, STARFIELD_COUNT,
   BOT_COUNT, MATCH_DURATION, COUNTDOWN_SECONDS,
   ASTEROID_COUNT, ASTEROID_MIN_RADIUS, ASTEROID_MAX_RADIUS,
-  SHIP_MAX_SPEED, SHIP_ACCELERATION, SHIP_DRAG, SHIP_RADIUS,
+  SHIP_MAX_SPEED, SHIP_ACCELERATION, SHIP_DRAG, SHIP_RADIUS, SHIP_SHOT_RADIUS,
   TEAM_BLUE_BOTS, TEAM_RED_BOTS, BOT_BULLET_POOL, BOT_RESPAWN_DELAY,
   BOT_NAMES, TEAM_SCORE_ENEMY_KILL, TEAM_SCORE_DEATH, TEAM_KILL_LIMIT,
   TRAINING_BOT_COUNT, TRAINING_ASTEROID_COUNT,
@@ -869,6 +869,7 @@ export class ArenaEngine {
         this.checkBotBulletShipCollisions();
         this.checkPlayerBulletBotCollisions();
         this.checkPlayerBotPhysicalCollisions();
+        this.checkBotBotPhysicalCollisions();
         if (this.teamMode) {
           this.checkTeamMatchEnd();
         }
@@ -947,7 +948,18 @@ export class ArenaEngine {
       if (jLen > 0.01) {
         const aimLen = Math.sqrt(this.mobileAim.x * this.mobileAim.x + this.mobileAim.z * this.mobileAim.z);
         const rightActive = aimLen > 0.1;
+
+        // Sync detection — both joysticks point in roughly the same direction.
+        // In that case we SKIP strafe mode and fly directly in world-space,
+        // otherwise the strafe math ("left up = forward toward aim") would
+        // send the ship backwards from aim when both sticks push e.g. down.
+        let synced = false;
         if (rightActive) {
+          const dot = (this.mobileAim.x * jx + this.mobileAim.z * jz) / (aimLen * jLen);
+          synced = dot > 0.8;
+        }
+
+        if (rightActive && !synced) {
           // Strafe mode — movement frame is the ship's aim direction
           const fwdX = this.aimDirX;
           const fwdZ = this.aimDirZ;
@@ -958,7 +970,7 @@ export class ArenaEngine {
           ax = fwdX * (-jz) + rgtX * jx;
           az = fwdZ * (-jz) + rgtZ * jx;
         } else {
-          // Nose-follow mode — direct world-space movement (no rotation math)
+          // Nose-follow (or synced) — direct world-space movement
           ax = jx;
           az = jz;
         }
@@ -2177,7 +2189,9 @@ export class ArenaEngine {
         const dx = m.x - bot.pos.x;
         const dz = m.z - bot.pos.z;
         const distSq = dx * dx + dz * dz;
-        const rSum = this.MISSILE_RADIUS + SHIP_RADIUS;
+        // Uses SHIP_SHOT_RADIUS (larger than physical) so projectiles that
+        // visually strike the sprite's wings/fuselage register as hits.
+        const rSum = this.MISSILE_RADIUS + SHIP_SHOT_RADIUS;
 
         if (distSq < rSum * rSum) {
           // Hit — deactivate missile
@@ -3184,7 +3198,7 @@ export class ArenaEngine {
 
         const dx = b.x - bot.pos.x;
         const dz = b.z - bot.pos.z;
-        const minDist = SHIP_RADIUS + this.BOT_BULLET_RADIUS;
+        const minDist = SHIP_SHOT_RADIUS + this.BOT_BULLET_RADIUS;
         if (dx * dx + dz * dz < minDist * minDist) {
           b.active = false;
           this.botBulletFreeList.push(bi);
@@ -3216,7 +3230,7 @@ export class ArenaEngine {
       if (!this.playerDead && (b.ownerTeam === 'neutral' || b.ownerTeam !== this.playerTeam)) {
         const dx = b.x - this.playerPos.x;
         const dz = b.z - this.playerPos.z;
-        const minDist = SHIP_RADIUS + this.BOT_BULLET_RADIUS;
+        const minDist = SHIP_SHOT_RADIUS + this.BOT_BULLET_RADIUS;
         if (dx * dx + dz * dz < minDist * minDist) {
           b.active = false;
           this.botBulletFreeList.push(bi);
@@ -3268,7 +3282,7 @@ export class ArenaEngine {
 
         const dx = b.x - bot.pos.x;
         const dz = b.z - bot.pos.z;
-        const minDist = SHIP_RADIUS + this.BULLET_RADIUS;
+        const minDist = SHIP_SHOT_RADIUS + this.BULLET_RADIUS;
         if (dx * dx + dz * dz < minDist * minDist) {
           // Deactivate bullet
           b.active = false;
@@ -3296,6 +3310,70 @@ export class ArenaEngine {
             }
           }
           break; // bullet consumed
+        }
+      }
+    }
+  }
+
+  /**
+   * Bot-vs-bot physical collision: bots pushed apart + velocity cancelled along
+   * the contact normal, and each takes proportional ram damage from impact
+   * speed (same formula as ship-asteroid). Prevents bots from stacking on top
+   * of each other while all chasing the same target. O(N²) over ≤9 bots.
+   */
+  private checkBotBotPhysicalCollisions(): void {
+    if (this.botShips.length < 2) return;
+    const rSum = SHIP_RADIUS * 2;
+    for (let i = 0; i < this.botShips.length - 1; i++) {
+      const a = this.botShips[i];
+      if (!a.alive) continue;
+      for (let j = i + 1; j < this.botShips.length; j++) {
+        const b = this.botShips[j];
+        if (!b.alive) continue;
+        // Friendly fire OFF — same-team bots separate without damage.
+        const sameTeam = a.team !== 'neutral' && a.team === b.team;
+
+        const dx = b.pos.x - a.pos.x;
+        const dz = b.pos.z - a.pos.z;
+        const distSq = dx * dx + dz * dz;
+        if (distSq >= rSum * rSum || distSq < 0.01) continue;
+
+        const dist = Math.sqrt(distSq);
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const overlap = rSum - dist;
+
+        // Separate
+        a.pos.x -= nx * overlap * 0.5;
+        a.pos.z -= nz * overlap * 0.5;
+        b.pos.x += nx * overlap * 0.5;
+        b.pos.z += nz * overlap * 0.5;
+
+        // Cancel converging velocity component
+        const dvx = a.vel.x - b.vel.x;
+        const dvz = a.vel.z - b.vel.z;
+        const relN = dvx * nx + dvz * nz;
+        if (relN > 0) {
+          a.vel.x -= relN * nx;
+          a.vel.z -= relN * nz;
+          b.vel.x += relN * nx;
+          b.vel.z += relN * nz;
+        }
+
+        // Ram damage (only enemy bots)
+        if (sameTeam) continue;
+        const relSpeed = Math.sqrt(dvx * dvx + dvz * dvz);
+        if (relSpeed > 50) {
+          const dmg = Math.min(40, (relSpeed - 50) * 0.4);
+          const now = performance.now();
+          if (now >= a.invulnerableUntil) {
+            a.hp -= dmg;
+            if (a.hp <= 0) this.killBot(a, null);
+          }
+          if (now >= b.invulnerableUntil) {
+            b.hp -= dmg;
+            if (b.hp <= 0) this.killBot(b, null);
+          }
         }
       }
     }

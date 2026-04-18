@@ -24,7 +24,11 @@ export const SHIELD_REGEN_DELAY = 4;   // seconds after last damage
 export const SHIP_MAX_SPEED = 200;     // units/s
 export const SHIP_ACCELERATION = 400;  // units/s^2
 export const SHIP_DRAG = 0.97;         // velocity multiplier per frame (60fps)
-export const SHIP_RADIUS = 8;          // collision radius
+export const SHIP_RADIUS = 8;          // physical collision radius (ship-ship, ship-asteroid)
+// Visual sprite is SHIP_RADIUS * 5 = 40u. The physical radius stays small so
+// ramming physics feel tight, but shots need a bigger hitbox so lasers that
+// visually strike the wings/fuselage actually register. Half the sprite size.
+export const SHIP_SHOT_RADIUS = 18;    // projectile collision radius
 
 // Dash
 export const DASH_SPEED = 600;        // units/s burst

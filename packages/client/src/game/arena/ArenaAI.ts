@@ -164,6 +164,28 @@ function getShipById(id: number, allShips: ShipEntity[]): ShipEntity | null {
  * longer randomizes the aim direction — that was the source of the visible
  * nose-jitter during cruising.
  */
+/**
+ * Separation steering — sum of unit-vectors pointing away from any other
+ * live ship within `radius`, weighted linearly by proximity. Returned as a
+ * world-space vector (NOT normalized — magnitude encodes crowding pressure).
+ * Used to prevent bots stacking on each other while chasing the same target.
+ */
+function computeSeparation(self: ShipEntity, allShips: ShipEntity[], radius: number): Vec2 {
+  let x = 0, z = 0;
+  for (const other of allShips) {
+    if (other.id === self.id || !other.alive) continue;
+    const dx = self.pos.x - other.pos.x;
+    const dz = self.pos.z - other.pos.z;
+    const dSq = dx * dx + dz * dz;
+    if (dSq > radius * radius || dSq < 0.01) continue;
+    const d = Math.sqrt(dSq);
+    const w = 1 - d / radius;
+    x += (dx / d) * w;
+    z += (dz / d) * w;
+  }
+  return { x, z };
+}
+
 function applyAimError(aimDir: Vec2, brain: BotBrain, offsetRad: number): Vec2 {
   if (offsetRad <= 0) return aimDir;
   // Clamp stored angle to current difficulty's max offset (safety if difficulty changed)
@@ -310,8 +332,12 @@ function handleChase(
   }
 
   const toTarget = vec2Sub(target.pos, self.pos);
-  const moveDir = vec2Norm(toTarget);
-  const rawAim = applyAimError(moveDir, brain, params.aimOffsetRad);
+  const pursueDir = vec2Norm(toTarget);
+  // Blend separation in during chase so converging bots don't clump while
+  // racing to the same target.
+  const separation = computeSeparation(self, allShips, 70);
+  const moveDir = vec2Norm(vec2Add(pursueDir, vec2Scale(separation, 1.5)));
+  const rawAim = applyAimError(pursueDir, brain, params.aimOffsetRad);
 
   return {
     nextState: 'chase',
@@ -411,10 +437,17 @@ function handleAttack(
   }
 
   const radialDir = toTargetNorm;
+  // Blend: tangent orbit + radial adjust + separation from other ships.
+  // Separation radius 80u — bots won't push each other apart unless already
+  // crowding the same slice of the target's orbit.
+  const separation = computeSeparation(self, allShips, 80);
   const moveDir = vec2Norm(
     vec2Add(
-      vec2Scale(tangent, STRAFE_ANGULAR_SPEED),
-      vec2Scale(radialDir, radialComponent),
+      vec2Add(
+        vec2Scale(tangent, STRAFE_ANGULAR_SPEED),
+        vec2Scale(radialDir, radialComponent),
+      ),
+      vec2Scale(separation, 2.0),
     ),
   );
 
