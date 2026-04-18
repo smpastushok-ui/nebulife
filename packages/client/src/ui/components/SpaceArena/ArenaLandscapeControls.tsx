@@ -6,6 +6,8 @@ interface ArenaLandscapeControlsProps {
   onDash: () => void;
   onFireMissile?: () => void;
   onGravPush?: () => void;
+  /** -1..+1 vertical thrust. +1 climb while held, -1 dive. */
+  onVertical?: (v: number) => void;
   missileAmmo?: number;
   warpReady?: boolean;
   /** When true, container is CSS-rotated 90° CW (portrait → landscape). */
@@ -16,7 +18,7 @@ const MAX_RADIUS = 60;
 const DEADZONE = 10; // pixels, for firing threshold
 
 export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
-  onMove, onAim, onDash, onFireMissile, onGravPush,
+  onMove, onAim, onDash, onFireMissile, onGravPush, onVertical,
   missileAmmo = 10, warpReady = true, needRotate = false,
 }) => {
   // Convert viewport coords → container-local when CSS-rotated
@@ -176,6 +178,28 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="4" />
           <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
+        </svg>
+      </button>
+      {/* CLIMB (up arrow) — left edge of screen, thumb reach */}
+      <button
+        style={{ ...styles.abilityBtn, position: 'absolute', left: `calc(30px + ${safeLeft})`, bottom: `calc(230px + ${safeBottom})`, width: 44, height: 44, borderRadius: 22 }}
+        onPointerDown={(e) => { e.stopPropagation(); onVertical?.(1); }}
+        onPointerUp={(e) => { e.stopPropagation(); onVertical?.(0); }}
+        onPointerCancel={(e) => { e.stopPropagation(); onVertical?.(0); }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#88ddff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 15l6-6 6 6" />
+        </svg>
+      </button>
+      {/* DIVE (down arrow) */}
+      <button
+        style={{ ...styles.abilityBtn, position: 'absolute', left: `calc(30px + ${safeLeft})`, bottom: `calc(175px + ${safeBottom})`, width: 44, height: 44, borderRadius: 22 }}
+        onPointerDown={(e) => { e.stopPropagation(); onVertical?.(-1); }}
+        onPointerUp={(e) => { e.stopPropagation(); onVertical?.(0); }}
+        onPointerCancel={(e) => { e.stopPropagation(); onVertical?.(0); }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#88ddff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
     </div>

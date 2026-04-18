@@ -148,7 +148,9 @@ export class ArenaEngine {
   private playerGlowMesh!: THREE.Mesh; // additive disc under ship — orientation/status cue
   private crosshairMesh!: THREE.Mesh;  // ring marker at aim point (desktop only)
   private playerVelX = 0;
+  private playerVelY = 0;  // vertical velocity (semi-sphere Y axis)
   private playerVelZ = 0;
+  private playerPitch = 0; // visual nose tilt up/down (X-axis rotation, smoothed)
   private playerBankAngle = 0;
   private playerNickSprite!: THREE.Sprite;
   private playerDead = false;
@@ -259,13 +261,14 @@ export class ArenaEngine {
   private playerExtraShield = 0; // absorbs one lethal hit while > 0
   private playerShieldMesh: THREE.Mesh | null = null;
 
-  // Asteroids
+  // Asteroids (3D position)
   private asteroidMesh!: THREE.InstancedMesh;
-  private asteroidData: { x: number; z: number; vx: number; vz: number; radius: number; rot: number; rotSpeed: number; hp: number; alive: boolean; respawnTimer: number }[] = [];
+  private asteroidData: { x: number; y: number; z: number; vx: number; vy: number; vz: number; radius: number; rot: number; rotSpeed: number; hp: number; alive: boolean; respawnTimer: number }[] = [];
 
   // Bullets (asteroid fragments) — 3-pool InstancedMesh: small/medium/large
   private bulletMeshes: THREE.InstancedMesh[] = [];
-  private bullets: { x: number; z: number; vx: number; vz: number; age: number; active: boolean;
+  private bullets: { x: number; y: number; z: number; vx: number; vy: number; vz: number;
+    age: number; active: boolean;
     meshIdx: number; instIdx: number; rotX: number; rotY: number; rotZ: number;
     rotSpX: number; rotSpY: number; rotSpZ: number }[] = [];
   private bulletFreeList: number[] = []; // O(1) free-index stack
@@ -280,13 +283,20 @@ export class ArenaEngine {
   private fireCooldownTimer = 0;
   private mouseDown = false;
 
-  // Mouse aim
+  // Mouse aim — desktop 3D is pointer-lock-based (FPS-style yaw+pitch).
+  // The old XZ-plane raycaster is kept as a fallback for when pointer lock
+  // is unavailable or declined.
   private raycaster = new THREE.Raycaster();
   private aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private mouseNDC = new THREE.Vector2();
   private aimPoint = new THREE.Vector3(0, 0, 100);
-  private _mouseHit = new THREE.Vector3(); // reused in onMouseMove (no GC)
+  private _mouseHit = new THREE.Vector3();
   private playerAimAngle = 0;
+  private pointerLocked = false;
+  private mouseMoveX = 0; // pixels accumulated since last updateAim
+  private mouseMoveY = 0;
+  private readonly MOUSE_SENS = 0.0022; // radians per pixel
+  private readonly MAX_PITCH = Math.PI / 2.2; // clamp so we don't flip upside down
 
   // Collision temp
   private readonly ASTEROID_HP_MAX = 5;
@@ -294,6 +304,11 @@ export class ArenaEngine {
   // Mobile joystick input
   private mobileMove = { x: 0, z: 0 };
   private mobileAim = { x: 0, z: 0 };
+  // Vertical thrust from mobile (set by ArenaLandscapeControls in Phase 5).
+  // Range -1..+1; positive climbs.
+  private mobileVerticalThrust = 0;
+  // Pitch rate from mobile right-stick Y (Phase 5). Range -1..+1.
+  private mobilePitchRate = 0;
   private mobileFiring = false;
   private isMobile = false;
 
@@ -307,7 +322,7 @@ export class ArenaEngine {
   private invulnerableUntil = 0;
 
   // Player ship position for camera follow
-  private playerPos = new THREE.Vector3(0, 0, 0);
+  private playerPos = new THREE.Vector3(0, ARENA_GROUND_Y, 0);
 
   // Input (set by ArenaControls)
   private input: InputState = { moveDir: { x: 0, y: 0, z: 0 }, aimDir: { x: 0, y: 0, z: 1 }, firing: false, dash: false };
@@ -329,6 +344,8 @@ export class ArenaEngine {
   private camLookX = 0;
   private camLookY = 0;
   private camLookZ = 0;
+  // Smoothed camera aim Y component (pitch) — separate from camAimX/Z
+  private camAimY = 0;
   // Camera shake (screen kick on explosions)
   private shakeAmount = 0;   // current intensity (units)
   private shakeDecay = 6;    // per second exponential decay
@@ -392,7 +409,14 @@ export class ArenaEngine {
     this.onKeyDownBound = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());
     this.onKeyUpBound = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
     this.onMouseMoveBound = this.onMouseMove.bind(this);
-    this.onMouseDownBound = () => { this.mouseDown = true; };
+    this.onMouseDownBound = () => {
+      this.mouseDown = true;
+      // Lock pointer on first click so desktop 3D aim (yaw+pitch) works.
+      // Already-locked clicks just fire. Mobile or fallback: ignore.
+      if (!this.pointerLocked && !this.isMobile) {
+        this.renderer.domElement.requestPointerLock?.();
+      }
+    };
     this.onMouseUpBound = () => { this.mouseDown = false; };
   }
 
@@ -431,6 +455,7 @@ export class ArenaEngine {
     this.renderer.domElement.addEventListener('mousemove', this.onMouseMoveBound);
     this.renderer.domElement.addEventListener('mousedown', this.onMouseDownBound);
     this.renderer.domElement.addEventListener('mouseup', this.onMouseUpBound);
+    document.addEventListener('pointerlockchange', this.onPointerLockChange);
 
     this.visible = true;
     this.clock.start();
@@ -451,6 +476,10 @@ export class ArenaEngine {
     this.renderer?.domElement?.removeEventListener('mousemove', this.onMouseMoveBound);
     this.renderer?.domElement?.removeEventListener('mousedown', this.onMouseDownBound);
     this.renderer?.domElement?.removeEventListener('mouseup', this.onMouseUpBound);
+    document.removeEventListener('pointerlockchange', this.onPointerLockChange);
+    if (document.pointerLockElement === this.renderer?.domElement) {
+      document.exitPointerLock?.();
+    }
 
     // Dispose all tracked geometry/material/textures
     for (const d of this.disposables) {
@@ -507,8 +536,21 @@ export class ArenaEngine {
   }
 
   setMobileAim(x: number, y: number, firing: boolean): void {
+    // Right stick stays XZ-only (2D yaw direction). Pitch and vertical thrust
+    // come from dedicated climb/dive buttons in the HUD — easier to dose on
+    // touch than mixing pitch into the aim stick.
     this.mobileAim = { x, z: y };
     this.mobileFiring = firing;
+  }
+
+  /** Mobile vertical thrust (+1 climb, -1 dive) AND pitch rate. Single axis
+   *  from the climb/dive button pair — holding "up" both tilts the nose up
+   *  and thrusts upward, holding "down" dives. Set from the HUD. */
+  setMobileVertical(v: number): void {
+    const clamped = Math.max(-1, Math.min(1, v));
+    this.mobileVerticalThrust = clamped;
+    // Mirror as pitch rate so the nose tilts while climbing/diving.
+    this.mobilePitchRate = -clamped; // +1 climb = nose up = pitch up (negative in our convention)
   }
 
   triggerDash(): void {
@@ -817,13 +859,19 @@ export class ArenaEngine {
       const dist = 100 + Math.random() * (ARENA_HALF - 150);
       const x = Math.cos(angle) * dist;
       const z = Math.sin(angle) * dist;
+      // Scatter through the 3D semi-sphere, biased toward the middle so
+      // there's always action at player eye level while the ceiling/floor
+      // feel navigable but sparser.
+      const yNorm = (Math.random() * 2 - 1); // -1..+1
+      const y = yNorm * (ARENA_HEIGHT_HALF - 60) * 0.85;
       const radius = ASTEROID_MIN_RADIUS + Math.random() * (ASTEROID_MAX_RADIUS - ASTEROID_MIN_RADIUS);
       const vAngle = Math.random() * Math.PI * 2;
       const speed = 5 + Math.random() * 10;
 
       this.asteroidData.push({
-        x, z,
+        x, y, z,
         vx: Math.cos(vAngle) * speed,
+        vy: (Math.random() - 0.5) * 4, // gentle vertical drift
         vz: Math.sin(vAngle) * speed,
         radius,
         rot: Math.random() * Math.PI * 2,
@@ -833,7 +881,7 @@ export class ArenaEngine {
         respawnTimer: 0,
       });
 
-      dummy.position.set(x, radius * 0.3, z);
+      dummy.position.set(x, y, z);
       dummy.scale.set(radius, radius, radius);
       dummy.rotation.set(Math.random(), Math.random(), Math.random());
       dummy.updateMatrix();
@@ -872,7 +920,7 @@ export class ArenaEngine {
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       this.bullets.push({
-        x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false,
+        x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, active: false,
         meshIdx: 0, instIdx: i,
         rotX: 0, rotY: 0, rotZ: 0,
         rotSpX: 0, rotSpY: 0, rotSpZ: 0,
@@ -888,16 +936,25 @@ export class ArenaEngine {
 
 
   private onMouseMove(e: MouseEvent): void {
+    if (this.pointerLocked) {
+      // Pointer-lock mode: accumulate raw movement deltas for updateAim.
+      this.mouseMoveX += e.movementX;
+      this.mouseMoveY += e.movementY;
+      return;
+    }
+    // Fallback: XZ-plane raycaster (used before the user clicks to lock).
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-    // Raycast to Y=0 plane (reuses this._mouseHit — zero GC)
     this.raycaster.setFromCamera(this.mouseNDC, this.camera);
     if (this.raycaster.ray.intersectPlane(this.aimPlane, this._mouseHit)) {
       this.aimPoint.copy(this._mouseHit);
     }
   }
+
+  private onPointerLockChange = (): void => {
+    this.pointerLocked = document.pointerLockElement === this.renderer.domElement;
+  };
 
   // ── Resize handler ─────────────────────────────────────────────────────
 
@@ -996,9 +1053,10 @@ export class ArenaEngine {
     const maxSpd = SHIP_MAX_SPEED * this.playerSpeedMult * (this.warpActive ? this.WARP_SPEED_MULT : 1);
     const speedRatio = Math.min(1, speed / (maxSpd > 0 ? maxSpd : SHIP_MAX_SPEED));
 
-    // Smoothed aim used for camera (prevents snap-rotations)
+    // Smoothed aim used for camera (prevents snap-rotations). 3D: also Y.
     const camAimLerp = Math.min(1, dt * 4);
     this.camAimX += (this.aimDirX - this.camAimX) * camAimLerp;
+    this.camAimY += (this.aimDirY - this.camAimY) * camAimLerp;
     this.camAimZ += (this.aimDirZ - this.camAimZ) * camAimLerp;
 
     // Warp effect — slide back + widen FOV
@@ -1011,18 +1069,23 @@ export class ArenaEngine {
       this.camera.updateProjectionMatrix();
     }
 
-    // Target camera position — directly behind ship along -aimDir
+    // Target camera position — directly behind ship along -aimDir, with
+    // UP contribution perpendicular to the aim vector (so the camera rises
+    // when aiming down and lowers when aiming up — keeps the ship centered
+    // on screen during pitch changes).
+    // Cam position = ship - aimDir * behind + worldUp * upDist
+    // (worldUp = (0,1,0) — no full roll, just vertical offset)
     _tempVec3.set(
       this.playerPos.x - this.camAimX * behindDist,
-      upDist,
+      this.playerPos.y - this.camAimY * behindDist + upDist,
       this.playerPos.z - this.camAimZ * behindDist,
     );
     this.camera.position.lerp(_tempVec3, CAMERA_LERP_POS);
 
-    // LookAt target — ahead of ship along +aimDir
+    // LookAt target — ahead of ship along +aimDir (full 3D)
     _camTarget.set(
       this.playerPos.x + this.camAimX * CAMERA_LOOK_LEAD,
-      CAMERA_LOOK_UP,
+      this.playerPos.y + this.camAimY * CAMERA_LOOK_LEAD + CAMERA_LOOK_UP,
       this.playerPos.z + this.camAimZ * CAMERA_LOOK_LEAD,
     );
     // Smooth lookAt too (store in a member for next frame)
@@ -1101,7 +1164,18 @@ export class ArenaEngine {
       if (this.keys.has('d') || this.keys.has('arrowright')) ax += 1;
     }
 
-    // Normalize diagonal
+    // Vertical thrust (3D) — Space = climb, Ctrl/Shift = dive. Desktop only
+    // for now; mobile vertical control comes via mobileMove.y in Phase 5.
+    let ay = 0;
+    if (!this.isMobile) {
+      if (this.keys.has(' ')) ay += 1;
+      if (this.keys.has('control') || this.keys.has('shift')) ay -= 1;
+    } else {
+      // Mobile passes vertical thrust through mobileMove.y (set in Phase 5).
+      ay = this.mobileVerticalThrust;
+    }
+
+    // Normalize diagonal (XZ)
     const len = Math.sqrt(ax * ax + az * az);
     if (len > 0) { ax /= len; az /= len; }
 
@@ -1122,19 +1196,24 @@ export class ArenaEngine {
     // Accelerate (power-up speed multiplier applies to acceleration too)
     this.playerVelX += ax * SHIP_ACCELERATION * this.playerSpeedMult * syncBoost * dt;
     this.playerVelZ += az * SHIP_ACCELERATION * this.playerSpeedMult * syncBoost * dt;
+    // Vertical — 60% of horizontal accel so climb/dive feel slower than strafe
+    this.playerVelY += ay * SHIP_ACCELERATION * 0.6 * this.playerSpeedMult * syncBoost * dt;
 
-    // Drag
+    // Drag (applied to all three axes)
     this.playerVelX *= SHIP_DRAG;
+    this.playerVelY *= SHIP_DRAG;
     this.playerVelZ *= SHIP_DRAG;
 
-    // Warp: override velocity to forward direction at 2x speed (stacks with power-up)
+    // Warp: override velocity to full aim direction at 2x speed (3D now)
     if (this.warpActive) {
       const warpSpeed = SHIP_MAX_SPEED * this.WARP_SPEED_MULT * this.playerSpeedMult;
       this.playerVelX = this.aimDirX * warpSpeed;
+      this.playerVelY = this.aimDirY * warpSpeed;
       this.playerVelZ = this.aimDirZ * warpSpeed;
     }
 
-    // Clamp speed
+    // Clamp horizontal speed (XZ only — vertical clamped separately with a
+    // lower cap so the ship can't instantly shoot up or down).
     const maxSpd = this.warpActive
       ? SHIP_MAX_SPEED * this.WARP_SPEED_MULT * this.playerSpeedMult
       : SHIP_MAX_SPEED * this.playerSpeedMult;
@@ -1143,19 +1222,23 @@ export class ArenaEngine {
       this.playerVelX = (this.playerVelX / speed) * maxSpd;
       this.playerVelZ = (this.playerVelZ / speed) * maxSpd;
     }
+    const maxVertSpd = maxSpd * 0.7;
+    if (Math.abs(this.playerVelY) > maxVertSpd) {
+      this.playerVelY = Math.sign(this.playerVelY) * maxVertSpd;
+    }
 
-    // Move
+    // Move (3D)
     this.playerPos.x += this.playerVelX * dt;
+    this.playerPos.y += this.playerVelY * dt;
     this.playerPos.z += this.playerVelZ * dt;
 
-    // Arena boundary
+    // XZ ring boundary
     const dist = Math.sqrt(this.playerPos.x ** 2 + this.playerPos.z ** 2);
     if (dist > ARENA_HALF - SHIP_RADIUS) {
       const nx = this.playerPos.x / dist;
       const nz = this.playerPos.z / dist;
       this.playerPos.x = nx * (ARENA_HALF - SHIP_RADIUS);
       this.playerPos.z = nz * (ARENA_HALF - SHIP_RADIUS);
-      // Reflect velocity
       const dot = this.playerVelX * nx + this.playerVelZ * nz;
       this.playerVelX -= 2 * dot * nx;
       this.playerVelZ -= 2 * dot * nz;
@@ -1163,9 +1246,20 @@ export class ArenaEngine {
       this.playerVelZ *= 0.5;
     }
 
+    // Vertical caps (semi-sphere top/bottom). Clamp + reflect the Y velocity
+    // like the XZ ring does so the ship can't phase through the ceiling.
+    const yLimit = ARENA_HEIGHT_HALF - SHIP_RADIUS;
+    if (this.playerPos.y > yLimit) {
+      this.playerPos.y = yLimit;
+      if (this.playerVelY > 0) this.playerVelY = -this.playerVelY * 0.3;
+    } else if (this.playerPos.y < -yLimit) {
+      this.playerPos.y = -yLimit;
+      if (this.playerVelY < 0) this.playerVelY = -this.playerVelY * 0.3;
+    }
+
     // Update mesh + nickname position
-    this.playerMesh.position.set(this.playerPos.x, 5, this.playerPos.z);
-    this.playerNickSprite.position.set(this.playerPos.x, 20, this.playerPos.z - 15);
+    this.playerMesh.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
+    this.playerNickSprite.position.set(this.playerPos.x, this.playerPos.y + 15, this.playerPos.z - 15);
 
     // Glow disc follows ship; gentle pulse on opacity for "alive" feel.
     if (this.playerGlowMesh) {
@@ -1203,9 +1297,11 @@ export class ArenaEngine {
 
   // ── Aim (mouse) ────────────────────────────────────────────────────────
 
-  // Aim direction vector (normalized) — used by fireBullet & spawnExhaust
+  // Aim direction vector (normalized 3D) — used by fireBullet & spawnExhaust.
+  // Now includes Y component so the ship can aim up/down in the semi-sphere.
   private aimDirX = 0;
-  private aimDirZ = -1; // default: facing forward (-Z)
+  private aimDirY = 0;
+  private aimDirZ = -1; // default: facing forward (-Z), level pitch
 
   private updateAim(dt: number): void {
     const prevAngle = this.playerAimAngle;
@@ -1239,21 +1335,51 @@ export class ArenaEngine {
       while (diff > Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
       const maxStep = MAX_TURN_RATE * dt;
+      let newYaw: number;
       if (Math.abs(diff) > maxStep) {
-        const newAngle = curAngle + Math.sign(diff) * maxStep;
-        this.aimDirX = Math.sin(newAngle);
-        this.aimDirZ = Math.cos(newAngle);
+        newYaw = curAngle + Math.sign(diff) * maxStep;
       } else {
-        this.aimDirX = desiredX;
-        this.aimDirZ = desiredZ;
+        newYaw = Math.atan2(desiredX, desiredZ);
       }
+
+      // Pitch on mobile comes from the right-stick Y (mobilePitchRate, rate-
+      // based). Integrate, clamp to ±MAX_PITCH, then recompose aim vector.
+      const curPitchM = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
+      const PITCH_RATE = Math.PI / 1.2; // rad/sec at full stick
+      let newPitchM = curPitchM - this.mobilePitchRate * PITCH_RATE * dt;
+      newPitchM = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, newPitchM));
+      const cp = Math.cos(newPitchM);
+      this.aimDirX = Math.sin(newYaw) * cp;
+      this.aimDirY = Math.sin(newPitchM);
+      this.aimDirZ = Math.cos(newYaw) * cp;
+    } else if (this.pointerLocked) {
+      // Desktop pointer-lock: yaw from mouseX, pitch from mouseY.
+      // Decompose current aim into (yaw, pitch), apply deltas, recompose.
+      const curPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
+      const horizLen = Math.cos(curPitch);
+      const curYaw = (horizLen < 0.0001) ? 0 : Math.atan2(this.aimDirX, this.aimDirZ);
+
+      const newYaw = curYaw + this.mouseMoveX * this.MOUSE_SENS;
+      let newPitch = curPitch - this.mouseMoveY * this.MOUSE_SENS; // screen down = pitch down
+      newPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, newPitch));
+
+      const cp = Math.cos(newPitch);
+      this.aimDirX = Math.sin(newYaw) * cp;
+      this.aimDirY = Math.sin(newPitch);
+      this.aimDirZ = Math.cos(newYaw) * cp;
+
+      // Consume deltas
+      this.mouseMoveX = 0;
+      this.mouseMoveY = 0;
     } else {
+      // Fallback pre-lock: XZ plane raycast (Y stays 0)
       const dx = this.aimPoint.x - this.playerPos.x;
       const dz = this.aimPoint.z - this.playerPos.z;
       const len = Math.sqrt(dx * dx + dz * dz);
       if (len > 1) {
         this.aimDirX = dx / len;
         this.aimDirZ = dz / len;
+        this.aimDirY = 0;
       }
     }
 
@@ -1261,6 +1387,12 @@ export class ArenaEngine {
     // To point nose toward (aimDirX, aimDirZ): rotation.y = atan2(-dirX, -dirZ)
     this.playerAimAngle = Math.atan2(this.aimDirX, this.aimDirZ);
     this.playerMesh.rotation.y = Math.atan2(-this.aimDirX, -this.aimDirZ);
+    // Pitch the ship's nose up/down to match the 3D aim direction.
+    // aimDirY is sin(pitch); mesh.rotation.x rotates around world X, so we
+    // want negative pitch (nose up when aimDirY > 0 in Three.js +Y-up frame).
+    const targetShipPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
+    this.playerPitch += (targetShipPitch - this.playerPitch) * Math.min(1, dt * 6);
+    this.playerMesh.rotation.x = this.playerPitch;
 
     // Bank angle — visual tilt when turning sharply (only on Z axis, no X)
     let angleDelta = this.playerAimAngle - prevAngle;
@@ -1370,19 +1502,23 @@ export class ArenaEngine {
     const idx = this.bulletFreeList.pop();
     if (idx === undefined) return;
 
-    // Use aim direction vector (already normalized)
+    // 3D aim vector already normalized (aimDirX/Y/Z). Fallback: ship facing.
     let dirX = this.aimDirX;
+    let dirY = this.aimDirY;
     let dirZ = this.aimDirZ;
-    // Fallback if aim is zero: shoot forward based on ship rotation
-    if (dirX === 0 && dirZ === 0) {
+    const len2 = dirX * dirX + dirY * dirY + dirZ * dirZ;
+    if (len2 < 0.01) {
       dirX = Math.cos(this.playerMesh.rotation.y);
+      dirY = 0;
       dirZ = -Math.sin(this.playerMesh.rotation.y);
     }
 
     const b = this.bullets[idx];
     b.x = this.playerPos.x + dirX * (SHIP_RADIUS + 3);
+    b.y = this.playerPos.y + dirY * (SHIP_RADIUS + 3);
     b.z = this.playerPos.z + dirZ * (SHIP_RADIUS + 3);
     b.vx = dirX * this.BULLET_SPEED;
+    b.vy = dirY * this.BULLET_SPEED;
     b.vz = dirZ * this.BULLET_SPEED;
     b.age = 0;
     b.active = true;
@@ -1397,11 +1533,16 @@ export class ArenaEngine {
       if (!b.active) continue;
 
       b.x += b.vx * dt;
+      b.y += b.vy * dt;
       b.z += b.vz * dt;
       b.age += dt;
 
       const dist = Math.sqrt(b.x * b.x + b.z * b.z);
-      if (b.age >= this.BULLET_LIFETIME || dist > ARENA_HALF + 50) {
+      if (
+        b.age >= this.BULLET_LIFETIME ||
+        dist > ARENA_HALF + 50 ||
+        Math.abs(b.y) > ARENA_HEIGHT_HALF + 50
+      ) {
         b.active = false;
         this.bulletFreeList.push(i);
         dummy.position.set(0, -1000, 0);
@@ -1413,9 +1554,14 @@ export class ArenaEngine {
       }
 
       // Laser beam: cylinder local +Z axis aligned with velocity direction.
-      dummy.position.set(b.x, 4, b.z);
+      // 3D: compute yaw from XZ projection + pitch from Y component so the
+      // beam leans into the travel direction when firing up/down.
+      const horizSpd = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
+      const yaw = Math.atan2(b.vx, b.vz);
+      const pitch = Math.atan2(b.vy, horizSpd || 0.0001);
+      dummy.position.set(b.x, b.y, b.z);
       dummy.scale.set(1, 1, 1);
-      dummy.rotation.set(0, Math.atan2(b.vx, b.vz), 0);
+      dummy.rotation.set(-pitch, yaw, 0);
       dummy.updateMatrix();
       this.bulletMeshes[0].setMatrixAt(b.instIdx, dummy.matrix);
       needsUpdate = true;
@@ -1507,11 +1653,13 @@ export class ArenaEngine {
       this.playerHp = this.PLAYER_MAX_HP; // restore full HP on respawn
       this.invulnerableUntil = performance.now() + 3000; // 3 seconds invulnerability
       this.callbacks.onPlayerRespawn?.();
-      // Respawn at random safe position on arena edge
+      // Respawn at random safe position on arena edge, at ground altitude
       const angle = Math.random() * Math.PI * 2;
       this.playerPos.x = Math.cos(angle) * (ARENA_HALF * 0.7);
+      this.playerPos.y = ARENA_GROUND_Y;
       this.playerPos.z = Math.sin(angle) * (ARENA_HALF * 0.7);
       this.playerVelX = 0;
+      this.playerVelY = 0;
       this.playerVelZ = 0;
       playSfx('respawn', 0.06);
       playLoop('fly', 0.0); // starts silent, volume tied to speed
@@ -1530,9 +1678,11 @@ export class ArenaEngine {
       for (let ai = 0; ai < this.asteroidData.length; ai++) {
         const a = this.asteroidData[ai];
         if (!a.alive) continue;
+        // 3D distance check — asteroids now have Y spread
         const dx = b.x - a.x;
+        const dy = b.y - a.y;
         const dz = b.z - a.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (dist < a.radius + this.BULLET_RADIUS) {
           // Bullet hit asteroid — spawn hit VFX
           b.active = false;
@@ -1575,14 +1725,16 @@ export class ArenaEngine {
       if (!a.alive) {
         a.respawnTimer -= dt;
         if (a.respawnTimer <= 0) {
-          // Respawn at random edge
+          // Respawn at random edge + random Y in the semi-sphere
           const angle = Math.random() * Math.PI * 2;
           a.x = Math.cos(angle) * (ARENA_HALF - 50);
           a.z = Math.sin(angle) * (ARENA_HALF - 50);
+          a.y = (Math.random() * 2 - 1) * (ARENA_HEIGHT_HALF - 60) * 0.85;
           a.hp = this.ASTEROID_HP_MAX;
           a.alive = true;
           const vA = Math.random() * Math.PI * 2;
           a.vx = Math.cos(vA) * (5 + Math.random() * 10);
+          a.vy = (Math.random() - 0.5) * 4;
           a.vz = Math.sin(vA) * (5 + Math.random() * 10);
         } else {
           continue; // skip hidden asteroid
@@ -1590,12 +1742,20 @@ export class ArenaEngine {
       }
 
       a.x += a.vx * dt;
+      a.y += a.vy * dt;
       a.z += a.vz * dt;
       a.rot += a.rotSpeed * dt;
 
-      // Destroy asteroid that flies past arena bounds (pushed out by grav push,
-      // black hole explosion, or drifted over the edge). Respawn on a fresh
-      // random edge position after a short delay.
+      // Bounce off Y caps so asteroids don't drift out of the playable band
+      if (a.y > ARENA_HEIGHT_HALF - a.radius) {
+        a.y = ARENA_HEIGHT_HALF - a.radius;
+        if (a.vy > 0) a.vy = -a.vy * 0.5;
+      } else if (a.y < -(ARENA_HEIGHT_HALF - a.radius)) {
+        a.y = -(ARENA_HEIGHT_HALF - a.radius);
+        if (a.vy < 0) a.vy = -a.vy * 0.5;
+      }
+
+      // Destroy asteroid that flies past XZ arena bounds
       const d = Math.sqrt(a.x * a.x + a.z * a.z);
       if (d > ARENA_HALF + a.radius) {
         a.alive = false;
@@ -1607,7 +1767,7 @@ export class ArenaEngine {
         continue;
       }
 
-      dummy.position.set(a.x, a.radius * 0.3, a.z);
+      dummy.position.set(a.x, a.y, a.z);
       dummy.scale.set(a.radius, a.radius, a.radius);
       dummy.rotation.set(a.rot * 0.3, a.rot, a.rot * 0.7);
       dummy.updateMatrix();
@@ -2014,7 +2174,7 @@ export class ArenaEngine {
 
     // Sync holographic shield to player position
     if (this.playerShieldMesh && this.playerShieldMesh.visible) {
-      this.playerShieldMesh.position.set(this.playerPos.x, 5, this.playerPos.z);
+      this.playerShieldMesh.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
       this.playerShieldMesh.rotation.y += dt * 0.8;
     }
   }
@@ -3069,9 +3229,10 @@ export class ArenaEngine {
       }
 
       // Update mesh
-      bot.mesh.position.set(bot.pos.x, 5, bot.pos.z);
+      bot.mesh.position.set(bot.pos.x, bot.pos.y, bot.pos.z);
       bot.mesh.rotation.y = bot.rotation;
-      bot.nickSprite.position.set(bot.pos.x, 20, bot.pos.z - 15);
+      bot.mesh.rotation.x = bot.pitch;
+      bot.nickSprite.position.set(bot.pos.x, bot.pos.y + 15, bot.pos.z - 15);
 
       // Flicker effect during invulnerability window.
       // Handles both GLB group and sprite mesh paths by traversing children.
@@ -3646,8 +3807,8 @@ export class ArenaEngine {
     bot.brain.targetId = null;
     bot.mesh.visible = true;
     bot.nickSprite.visible = true;
-    bot.mesh.position.set(bot.pos.x, 5, bot.pos.z);
-    bot.nickSprite.position.set(bot.pos.x, 20, bot.pos.z - 15);
+    bot.mesh.position.set(bot.pos.x, bot.pos.y, bot.pos.z);
+    bot.nickSprite.position.set(bot.pos.x, bot.pos.y + 15, bot.pos.z - 15);
   }
 
   private addKillFeed(killer: string, victim: string): void {

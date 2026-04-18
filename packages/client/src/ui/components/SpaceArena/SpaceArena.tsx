@@ -94,6 +94,9 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const handleGravPush = useCallback(() => {
     engineRef.current?.triggerGravPush();
   }, []);
+  const handleVertical = useCallback((v: number) => {
+    engineRef.current?.setMobileVertical(v);
+  }, []);
 
   // Poll engine state for UI (missile ammo, warp cooldown)
   const [missileAmmo, setMissileAmmo] = useState(10);
@@ -433,6 +436,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           onDash={handleDash}
           onFireMissile={handleFireMissile}
           onGravPush={handleGravPush}
+          onVertical={handleVertical}
           missileAmmo={missileAmmo}
           warpReady={warpReady}
           needRotate={needRotate}
