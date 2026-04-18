@@ -99,6 +99,10 @@ export async function updatePlayer(
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
+    // keepalive ensures the request completes even if the page/app is being
+    // unloaded (APK kill, browser tab close) — critical for saving research
+    // progress right before app termination.
+    keepalive: true,
   });
 
   if (!res.ok) {

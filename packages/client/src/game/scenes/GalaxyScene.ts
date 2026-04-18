@@ -626,10 +626,13 @@ export class GalaxyScene {
       const pulseR = 1 + 0.15 * Math.sin(t * 0.4 + lite.pulsePhase * 1.7);
 
       // Stronger base so orbs read as "stars" not noise. Core slightly dimmer.
-      const baseAlpha = lite.nodeType === 'core' ? 0.45 : 0.70;
+      const baseAlpha = lite.nodeType === 'core' ? 0.55 : 0.85;
       const alpha = baseAlpha * pulseA;
-      // 2× larger so orbs ≈ 3-7 px visible (was 1-4 px = invisible at 30 FPS)
-      const radius = lite.starSize * 2.0 * pulseR;
+      // Scale-compensated: when camera zoomed out, orbs would shrink below 1px
+      // and disappear. Inverse-scale keeps them ≈ 3-7 screen px at every zoom.
+      const scale = this.container.scale.x || 1;
+      const sizeBoost = Math.max(1.0, 0.6 / scale);
+      const radius = lite.starSize * 2.5 * sizeBoost * pulseR;
       const color = hexColorToInt(lite.starColor);
 
       // Soft outer glow (blur effect via 3 concentric circles)
