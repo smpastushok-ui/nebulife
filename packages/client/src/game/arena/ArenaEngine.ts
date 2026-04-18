@@ -42,12 +42,11 @@ const SHIP_GLB_RED  = '/arena_ships/red_ship.glb';
 // consistent no matter what Tripo spat out.
 const SHIP_VISUAL_SIZE = 40;
 
-// Tripo ship GLB comes with the nose pointing along +X (ship's own left
-// side appears as "forward"). The gameplay code assumes the nose points
-// along -Z (Three.js forward). Pre-rotate the model by -π/2 around Y so
-// that when the engine sets mesh.rotation.y = atan2(-aimDirX, -aimDirZ),
-// the visible nose tracks the aim direction.
-const SHIP_MODEL_NOSE_OFFSET = -Math.PI / 2;
+// Tripo ship GLB comes with its nose pointing opposite to the gameplay
+// forward axis. Previous -π/2 had the nose on the left side; after flipping
+// 180° the correct bake is +π/2 — the visible nose now leads in the aim
+// direction set by mesh.rotation.y = atan2(-aimDirX, -aimDirZ).
+const SHIP_MODEL_NOSE_OFFSET = Math.PI / 2;
 
 // Cached loaded scenes. Loaded once on ArenaEngine.init, cloned per ship.
 let _cachedBlueShip: THREE.Group | null = null;
