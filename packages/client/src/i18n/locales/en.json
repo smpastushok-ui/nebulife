@@ -656,6 +656,7 @@
   },
   "auth": {
     "subtitle": "exploring the universe",
+    "sign_out": "Sign out / Change account",
     "legacy_progress": "You have saved progress. Sign in to keep it.",
     "google_login": "Sign in with Google",
     "loading": "Loading...",
