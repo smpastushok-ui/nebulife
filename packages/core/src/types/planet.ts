@@ -6,13 +6,42 @@ import type { PlanetResources } from '../chemistry/minerals.js';
 import type { LifeComplexity } from '../biology/life-probability.js';
 
 export type PlanetType = 'rocky' | 'terrestrial' | 'gas-giant' | 'ice-giant' | 'dwarf';
-export type PlanetSize = 'small' | 'medium' | 'large';
+/**
+ * Surface playfield size — drives the hex-grid layout used for colony building.
+ *  - 'orbital' → Jupiter / Saturn-style giants. No solid surface, player builds
+ *    an orbital station above the cloud tops. Compact 8-cell layout (2+4+2).
+ *  - 'small' → dwarf planets, asteroids, small moons. 16-cell diamond.
+ *  - 'medium' → typical rocky / terrestrial. 30-cell diamond.
+ *  - 'large' → super-Earths and big rocky/ice worlds. 51-cell diamond.
+ */
+export type PlanetSize = 'orbital' | 'small' | 'medium' | 'large';
 export type MoonComposition = 'rocky' | 'icy' | 'metallic' | 'volcanic';
 
-/** Classify planet into size category based on radius. */
-export function getPlanetSize(radiusEarth: number): PlanetSize {
-  if (radiusEarth < 0.5) return 'small';
-  if (radiusEarth <= 1.25) return 'medium';
+/**
+ * Classify a planet into its colony grid size.
+ *
+ * Type takes priority over radius:
+ *  - gas-giant / ice-giant → 'orbital' (no surface)
+ *  - dwarf → 'small' (always tiny regardless of computed radius)
+ *  - everything else → bucketed by radiusEarth
+ *
+ * For backwards compatibility, the function still accepts a bare number
+ * (legacy code passed `getPlanetSize(planet.radiusEarth)`); in that case
+ * gas-giant detection is skipped and only the radius bucket is used.
+ */
+export function getPlanetSize(planetOrRadius: number | { type: PlanetType; radiusEarth: number }): PlanetSize {
+  if (typeof planetOrRadius === 'number') {
+    return bucketByRadius(planetOrRadius);
+  }
+  const { type, radiusEarth } = planetOrRadius;
+  if (type === 'gas-giant' || type === 'ice-giant') return 'orbital';
+  if (type === 'dwarf') return 'small';
+  return bucketByRadius(radiusEarth);
+}
+
+function bucketByRadius(radiusEarth: number): PlanetSize {
+  if (radiusEarth < 0.7) return 'small';
+  if (radiusEarth <= 1.5) return 'medium';
   return 'large';
 }
 

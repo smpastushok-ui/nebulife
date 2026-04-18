@@ -407,7 +407,8 @@ export function useHexState(
   researchData?: number,
   onConsumeResearchData?: (amount: number) => void,
 ): HexStateResult {
-  const planetSize = getPlanetSize(planet.radiusEarth);
+  // Pass full planet so gas-giants → 'orbital' and dwarf → 'small'
+  const planetSize = getPlanetSize(planet);
 
   const [slots, setSlots] = useState<HexSlotData[]>([]);
   const [loading, setLoading] = useState(true);
