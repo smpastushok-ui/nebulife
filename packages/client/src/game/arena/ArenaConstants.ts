@@ -118,7 +118,7 @@ export const BOT_RESPAWN_DELAY = 5;        // seconds
 
 // Training FFA bots
 export const TRAINING_BOT_COUNT = 6;
-export const TRAINING_ASTEROID_COUNT = 10;
+export const TRAINING_ASTEROID_COUNT = 35;
 
 // Bot names pool
 export const BOT_NAMES = [
@@ -127,11 +127,12 @@ export const BOT_NAMES = [
 ];
 
 // Camera
-// Lowered HEIGHT 800→500 and DISTANCE 600→450 to bring ship closer and
-// show more of its side profile (angle shifts from ~53° top-down to ~48°).
+// Lowered further from 500/450 → 380/340 for a close, detailed view of the
+// ship. Angle shifts to ~48° (clear side profile). Users can still zoom out
+// with the wheel if they want a wider battlefield overview.
 export const CAMERA_FOV = 55;
-export const CAMERA_HEIGHT = 500;
-export const CAMERA_DISTANCE = 450;
+export const CAMERA_HEIGHT = 380;
+export const CAMERA_DISTANCE = 340;
 export const CAMERA_LERP_SPEED = 0.05;
 
 // Rendering

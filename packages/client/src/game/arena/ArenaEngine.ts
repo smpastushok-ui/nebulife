@@ -221,13 +221,19 @@ export class ArenaEngine {
   // Input (set by ArenaControls)
   private input: InputState = { moveDir: { x: 0, z: 0 }, aimDir: { x: 0, z: 1 }, firing: false, dash: false };
 
-  // Zoom — default 1.3 gives a closer default view so ship details read clearly.
-  // Dynamic "breath": cameraBreath lerps with speed ratio to pull back during warp.
-  private zoomLevel = 1.3;
+  // Zoom — multiplier on CAMERA_HEIGHT/DISTANCE. Smaller = closer camera.
+  // Default 1.0 paired with lowered HEIGHT/DISTANCE constants for a close view.
+  private zoomLevel = 1.0;
   private readonly ZOOM_MIN = 0.4;
   private readonly ZOOM_MAX = 2.0;
   private readonly ZOOM_SPEED = 0.1;
   private cameraBreath = 1.0; // smoothed 1.0..1.25 based on speed
+  // Smoothed aim direction used only by the camera (lead/target).
+  // aimDirX/Z snap instantly to joystick input — using them raw for camera lead
+  // made the view jump sideways whenever aim changed. Smoothing keeps the
+  // camera motion gentle without affecting gameplay aim.
+  private camAimX = 0;
+  private camAimZ = -1;
   // Camera shake (screen kick on explosions)
   private shakeAmount = 0;   // current intensity (units)
   private shakeDecay = 6;    // per second exponential decay
@@ -884,18 +890,23 @@ export class ArenaEngine {
     const targetBreath = 1 + speedRatio * 0.25;
     this.cameraBreath += (targetBreath - this.cameraBreath) * Math.min(1, dt * 3);
 
-    const leadDist = 60;
+    // Smooth aim for camera (prevents sideways jumps when player flicks aim)
+    const camAimLerp = Math.min(1, dt * 3);
+    this.camAimX += (this.aimDirX - this.camAimX) * camAimLerp;
+    this.camAimZ += (this.aimDirZ - this.camAimZ) * camAimLerp;
+
+    const leadDist = 40; // reduced from 60 — less motion sickness on mobile
     _camTarget.set(
-      this.playerPos.x + this.aimDirX * leadDist,
+      this.playerPos.x + this.camAimX * leadDist,
       0,
-      this.playerPos.z + this.aimDirZ * leadDist,
+      this.playerPos.z + this.camAimZ * leadDist,
     );
 
     const camZoom = this.zoomLevel * this.cameraBreath;
     _tempVec3.set(
-      this.playerPos.x + this.aimDirX * leadDist,
+      this.playerPos.x + this.camAimX * leadDist,
       CAMERA_HEIGHT * camZoom,
-      this.playerPos.z + this.aimDirZ * leadDist + CAMERA_DISTANCE * camZoom,
+      this.playerPos.z + this.camAimZ * leadDist + CAMERA_DISTANCE * camZoom,
     );
     this.camera.position.lerp(_tempVec3, CAMERA_LERP_SPEED);
 
@@ -1027,38 +1038,17 @@ export class ArenaEngine {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
-      // Right joystick active → aim where it points
+      // Right joystick controls aim. Fully manual — no auto-aim.
+      // Previously auto-aim would re-orient the ship to nearest enemy when
+      // the right joystick was idle, but this silently rotated the local
+      // input frame used by the left joystick (strafe is relative to aim),
+      // making "left" become "down" etc. Removed.
       const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
       if (aimLen > 0.1) {
         this.aimDirX = this.mobileAim.x / aimLen;
         this.aimDirZ = this.mobileAim.z / aimLen;
-      } else if (this.botShips.length > 0) {
-        // Right joystick idle + bots present → auto-aim at nearest enemy
-        const target = this.findNearestEnemy();
-        if (target) {
-          const dx = target.pos.x - this.playerPos.x;
-          const dz = target.pos.z - this.playerPos.z;
-          const tLen = Math.sqrt(dx * dx + dz * dz);
-          if (tLen > 1) {
-            this.aimDirX = dx / tLen;
-            this.aimDirZ = dz / tLen;
-          }
-        } else {
-          // No alive enemies → face movement direction
-          const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
-          if (moveLen > 0.1) {
-            this.aimDirX = this.mobileMove.x / moveLen;
-            this.aimDirZ = this.mobileMove.z / moveLen;
-          }
-        }
-      } else {
-        // Solo mode, right joystick idle → keep current aim direction.
-        // Do NOT derive aim from the left joystick: the left joystick input is
-        // already in local-space (relative to current aim), so converting it
-        // back to world-space using aimDir creates a circular dependency that
-        // causes the ship to spin in place.  Ship only turns when the right
-        // joystick is actively pushed.
       }
+      // Idle right joystick → keep last aim direction (no automatic rotation).
     } else {
       const dx = this.aimPoint.x - this.playerPos.x;
       const dz = this.aimPoint.z - this.playerPos.z;
@@ -2594,8 +2584,9 @@ export class ArenaEngine {
       // Pick a random ship texture for this bot
       const tex = shipTextures[id % shipTextures.length];
 
-      // Flat plane geometry (same as player ship) with texture + team color tint
-      const size = SHIP_RADIUS * 3;
+      // Flat plane geometry with texture + team color tint.
+      // Size must match player ship (SHIP_RADIUS * 5) — see setupPlayerShip.
+      const size = SHIP_RADIUS * 5;
       const geo = new THREE.PlaneGeometry(size, size);
       geo.rotateX(-Math.PI / 2);
       const mat = new THREE.MeshBasicMaterial({
