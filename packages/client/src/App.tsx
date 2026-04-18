@@ -13,6 +13,7 @@ import {
 import { QuarkToastRenderer, enqueueQuarkToast } from './ui/components/QuarkToastQueue.js';
 import { WarpTransition } from './ui/components/WarpTransition.js';
 import { CommandBar } from './ui/components/CommandBar/index.js';
+import { TerminalAnimatedIcon } from './ui/components/TerminalAnimatedIcon.js';
 import type { NavigationMenuItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
 import { PlanetInfoPanel } from './ui/components/PlanetInfoPanel.js';
 import { PlanetContextMenu } from './ui/components/PlanetContextMenu.js';
@@ -1067,6 +1068,9 @@ function AppInner() {
   const [showPlayerPage, setShowPlayerPage] = useState(false);
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
+  // Transient flag that animates the 4 corner-cube terminal button icon
+  // toward the centre while the archive overlay is mounting.
+  const [terminalConverging, setTerminalConverging] = useState(false);
   const [showAcademy, setShowAcademy] = useState(false);
   // On refresh: bot arena state is lost (GPU memory), redirect to hangar.
   // For future multiplayer: restore arena session from server instead.
@@ -4608,7 +4612,9 @@ function AppInner() {
     }
   }
 
-  // Home button on non-home scenes (also hide when viewing home planet in planet-view)
+  // Home button — opens the SURFACE of the home planet directly (preferred)
+  // with fallback to planet-view (exosphere) if surface isn't landable yet.
+  // Icon: "Дім 2" (tent-roof with hex ground) from /icon-preview.html.
   if (state.scene !== 'home-intro'
       && !(state.scene === 'planet-view' && state.selectedPlanet?.isHomePlanet)
       && !(surfaceTarget && surfaceTarget.planet.isHomePlanet)) {
@@ -4617,34 +4623,43 @@ function AppInner() {
       items: [{
         id: 'go-home',
         label: '',
-        icon: React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: '1.2', strokeLinecap: 'round', strokeLinejoin: 'round' },
-          // Planet circle
-          React.createElement('circle', { cx: '8', cy: '8', r: '7' }),
-          // House roof inside planet
-          React.createElement('path', { d: 'M5 9L8 6L11 9' }),
-          // House body
-          React.createElement('path', { d: 'M6 9V11.5H10V9' }),
+        icon: React.createElement('svg', { width: 18, height: 18, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round' },
+          React.createElement('path', { d: 'M4 10 L10 4 L16 10' }),
+          React.createElement('rect', { x: '7', y: '10', width: '6', height: '6' }),
+          React.createElement('path', { d: 'M3 17 L6 15 L14 15 L17 17', opacity: '0.5' }),
         ),
         tooltip: t('cmd.home_tooltip'),
-        onClick: handleGoToHomePlanet,
+        onClick: handleGoToHomeSurface,
       }],
     });
   }
 
-  // Global: Terminal button on all scenes
+  // Global: Terminal button on all scenes. Icon = 4 corner cubes + centered
+  // label that converges on press (see TerminalAnimatedIcon). Click plays
+  // the 350ms converge animation and then opens the archive overlay.
   toolGroups.push({
     type: 'buttons',
     items: [{
       id: 'command-center',
-      label: t('cmd.terminal'),
+      label: '',
       variant: 'terminal' as const,
       tooltip: t('cmd.control_center'),
       tutorialId: 'terminal-btn',
-      onClick: () => setShowCosmicArchive(true),
+      icon: <TerminalAnimatedIcon label={t('cmd.terminal')} converging={terminalConverging} />,
+      onClick: () => {
+        if (terminalConverging) return;
+        setTerminalConverging(true);
+        window.setTimeout(() => {
+          setShowCosmicArchive(true);
+          setTerminalConverging(false);
+        }, 350);
+      },
     }],
   });
 
-  // Academy button — visible only after colonization
+  // Academy button — visible only after colonization. Icon "Акад. 2" from
+  // /icon-preview.html (open book). Keeps the existing label for now until
+  // the bottom-bar redesign ships.
   if (evacuationPhase === 'surface') {
     toolGroups.push({
       type: 'buttons',
@@ -4654,6 +4669,10 @@ function AppInner() {
         variant: 'terminal' as const,
         tooltip: t('cmd.academy_tooltip'),
         onClick: () => setShowAcademy(true),
+        icon: React.createElement('svg', { width: 18, height: 18, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round' },
+          React.createElement('path', { d: 'M3 5 Q7 4 10 6 Q13 4 17 5 L17 16 Q13 15 10 16 Q7 15 3 16 Z' }),
+          React.createElement('line', { x1: '10', y1: '6', x2: '10', y2: '16', opacity: '0.4' }),
+        ),
       }],
     });
   }
@@ -4680,11 +4699,15 @@ function AppInner() {
         }
         setShowHangar(true);
       },
+      // "Ангар 3" icon from /icon-preview.html — ship silhouette on a
+      // launchpad (replaces the old star-shaped crest, which read as
+      // generic rather than hangar-specific).
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={arenaUnlocked ? '#ddaa44' : '#665533'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: arenaUnlocked ? 1 : 0.5 }}>
-          <path d="M12 2L15 8L22 9L17 14L18 21L12 18L6 21L7 14L2 9L9 8Z" />
-          <path d="M12 6V14" />
-          <path d="M8 10L12 8L16 10" />
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke={arenaUnlocked ? 'currentColor' : '#665533'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: arenaUnlocked ? 1 : 0.5 }}>
+          <path d="M10 4 L12 7 L12 12 L8 12 L8 7 Z" />
+          <circle cx="10" cy="8" r="0.7" />
+          <path d="M8 12 L6 15 M12 12 L14 15" />
+          <line x1="3" y1="17" x2="17" y2="17" opacity="0.4"/>
         </svg>
       ),
     }],
