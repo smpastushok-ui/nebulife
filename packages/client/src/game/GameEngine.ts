@@ -246,9 +246,11 @@ export class GameEngine {
     // Position HOME at center of screen
     this.galaxyScene.container.x = this.app.screen.width / 2;
     this.galaxyScene.container.y = this.app.screen.height * 0.45;
-    // Fit full cluster radius (~800 px world) on screen — was 200 (only own 19 systems).
-    // Player sees the impressive 1450-star plane immediately, can zoom in to home.
-    this.camera.resetToFit(800);
+    // Initial zoom: fit own 19 systems (Ring 2 radius = 10 LY × PX_PER_LY
+    // ≈ 180 px + jitter + margin). Wide cluster view was disorienting at
+    // entry; player will zoom-out progressively as rings are completed
+    // (ring-completion animation in follow-up release).
+    this.camera.resetToFit(240);
     // Force lite-orbs redraw with correct viewport now that camera is positioned
     this.galaxyScene.refreshLiteOrbs();
     // Galaxy idle — throttle to 30 FPS to save battery

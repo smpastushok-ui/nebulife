@@ -1129,15 +1129,11 @@ function AppInner() {
     return () => stopLoop('planet-loop');
   }, [surfaceTarget]);
 
-  // Play terminal ambient loop while Cosmic Archive is open — native only.
-  // User finds the loop distracting in the desktop browser; on phone the
-  // native ambience feels right. Capacitor.isNativePlatform() → true on APK.
+  // Terminal ambient loop disabled everywhere per user feedback — the loop
+  // is always stopped so it never plays (kept as effect so any previously
+  // started instance from older builds is muted on next mount).
   useEffect(() => {
-    if (showCosmicArchive && Capacitor.isNativePlatform()) {
-      playLoop('terminal-loop', 0.3);
-    } else {
-      stopLoop('terminal-loop');
-    }
+    stopLoop('terminal-loop');
     return () => stopLoop('terminal-loop');
   }, [showCosmicArchive]);
 
@@ -1150,7 +1146,7 @@ function AppInner() {
   useEffect(() => {
     if (cinematicVideoPlaying) beforeTrailersStoppedRef.current = true;
     if (needsOnboarding && !cinematicVideoPlaying && !beforeTrailersStoppedRef.current) {
-      playLoop('before-trailers', 0.5);
+      playLoop('before-trailers', 0.15);
     } else {
       stopLoop('before-trailers');
     }
@@ -4737,7 +4733,9 @@ function AppInner() {
       )}
 
       {/* Doomsday Clock — above command bar (Exodus phase only) */}
-      {/* Phase 1: "СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ..." */}
+      {/* Phase 1: "СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ..." — centered,
+          two lines so the long label doesn't slide behind the chat button
+          on narrow screens. maxWidth bounds the pill for wrapping. */}
       {isExodusPhase && clockPhase === 'syncing' && (
         <div
           style={{
@@ -4756,7 +4754,10 @@ function AppInner() {
             borderRadius: 4,
             animation: 'cmdbar-terminal-pulse 1s infinite',
             pointerEvents: 'none',
-            whiteSpace: 'nowrap',
+            whiteSpace: 'normal',
+            textAlign: 'center',
+            maxWidth: 'min(260px, 80vw)',
+            lineHeight: 1.3,
           }}
         >
           {t('app.exodus.syncing')}
@@ -5851,7 +5852,9 @@ function AppInner() {
             position: 'fixed',
             bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
             right: 'calc(18px + env(safe-area-inset-right, 0px))',
-            zIndex: 9750,
+            // Match the chat button's z-index (ChatWidget.tsx uses 9700) so
+            // the notification dot never stacks above higher overlays.
+            zIndex: 9700,
             display: 'flex',
             alignItems: 'center',
             gap: 4,
