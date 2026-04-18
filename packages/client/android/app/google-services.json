@@ -1,0 +1,114 @@
+{
+  "project_info": {
+    "project_number": "702900049376",
+    "project_id": "nebulife-403f1",
+    "storage_bucket": "nebulife-403f1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:702900049376:android:7326c51eae6bd98dd14785",
+        "android_client_info": {
+          "package_name": "app.nebulife.game"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "702900049376-9abfe8lpgosqdjbnos2lcl26106fst5a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.nebulife.game",
+            "certificate_hash": "b5e78aa2fff9828f7e9884c86718cfaebaabf3d5"
+          }
+        },
+        {
+          "client_id": "702900049376-jp6eeuhkn7rd4scajsn1rccatgc7r05r.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.nebulife.game",
+            "certificate_hash": "dfce69c9511bae1ed123bf825b31ebfcd7e61611"
+          }
+        },
+        {
+          "client_id": "702900049376-taf3k2bdk75r0qs8m38agivmj5i3d95g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.nebulife.game",
+            "certificate_hash": "330602a08c265d306a7ebacae94d5e5e6fa2e505"
+          }
+        },
+        {
+          "client_id": "702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXzaB_shdw686MzINoiP6OX6OEJuoZw3w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "702900049376-bkhn1vmo00ehjv64676rgepuk791a7hc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "nebulife.ios"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:702900049376:android:5c012849c67187bed14785",
+        "android_client_info": {
+          "package_name": "nebulife.android"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "702900049376-hid4pjemp6rttta3cnoirpm4ptdq91bu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "nebulife.android",
+            "certificate_hash": "dfce69c9511bae1ed123bf825b31ebfcd7e61611"
+          }
+        },
+        {
+          "client_id": "702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXzaB_shdw686MzINoiP6OX6OEJuoZw3w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "702900049376-bkhn1vmo00ehjv64676rgepuk791a7hc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "nebulife.ios"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

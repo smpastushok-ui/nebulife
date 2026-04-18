@@ -116,7 +116,9 @@ export const HexGrid = React.memo(function HexGrid({
           width: gridW,
           height: gridH,
           pointerEvents: 'auto',
-          willChange: 'transform',
+          // Removed willChange: 'transform' — it kept a permanent GPU compositor
+          // layer alive even when idle. translate3d() already triggers layer
+          // promotion during active pans, which is enough.
         }}
       >
         {/* Render in pre-sorted Y order (isometric z-index) — no runtime .sort() */}

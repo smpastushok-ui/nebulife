@@ -1045,6 +1045,15 @@ function AppInner() {
   // Keep ref in sync with state
   surfaceTargetRef.current = surfaceTarget;
 
+  // Pause PixiJS ticker while surface is open. Without this, Galaxy/System
+  // scene keeps rendering at 30 FPS under the overlay — Mac heats up and
+  // battery drains. The canvas is already fully covered so there's no
+  // visual reason to keep it animating.
+  useEffect(() => {
+    if (surfaceTarget) engineRef.current?.pause();
+    else engineRef.current?.resume();
+  }, [surfaceTarget]);
+
   /** Quarks (in-game currency) */
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
@@ -1084,15 +1093,6 @@ function AppInner() {
   // themed ambient later. Also respect the user's on/off preference from
   // PlayerPage settings.
   //
-  // Telescope overlay state — declared before ambient effect that references it.
-  const [telescopeOverlay, setTelescopeOverlay] = useState<{
-    phase: 'init' | 'capture' | 'reveal';
-    targetName: string;
-    targetType: 'system' | 'planet';
-    photoUrl: string | null;
-    photoKey: string;
-  } | null>(null);
-
   // Only call pause() / resume() on actual state TRANSITIONS (tracked via
   // prevPausedRef) - not on every re-render. This prevents:
   //   a) resume() being called right after start() on initial mount
@@ -1104,7 +1104,7 @@ function AppInner() {
   useEffect(() => {
     const ambient = ambientRef.current;
     if (!ambient) return;
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || needsOnboarding || !!telescopeOverlay;
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || needsOnboarding;
     const wasPaused = prevAmbientPausedRef.current;
     if (shouldPause && !wasPaused) {
       ambient.pause();
@@ -1112,26 +1112,12 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, needsOnboarding, telescopeOverlay]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, needsOnboarding]);
 
   // Retain last planet context so colony tick can run passively when surface is closed.
-  // Also persist to localStorage so the tick can run immediately after a page reload.
   useEffect(() => {
-    if (surfaceTarget) {
-      colonyPlanetRef.current = surfaceTarget;
-      try { localStorage.setItem('nebulife_colony_planet', JSON.stringify(surfaceTarget)); } catch { /* ignore */ }
-    }
+    if (surfaceTarget) colonyPlanetRef.current = surfaceTarget;
   }, [surfaceTarget]);
-
-  // Restore colony planet ref on startup so passive tick can run without reopening the surface.
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('nebulife_colony_planet');
-      if (saved && !colonyPlanetRef.current) {
-        colonyPlanetRef.current = JSON.parse(saved) as { planet: Planet; star: Star };
-      }
-    } catch { /* ignore */ }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Play planet ambient loop while surface view is active.
   useEffect(() => {
@@ -1143,23 +1129,28 @@ function AppInner() {
     return () => stopLoop('planet-loop');
   }, [surfaceTarget]);
 
-  // Terminal ambient loop removed — no background music in Cosmic Archive.
-
-  // Play quantum-focusing loop during telescope overlay init/capture phases (stops when photo arrives).
+  // Play terminal ambient loop while Cosmic Archive is open — native only.
+  // User finds the loop distracting in the desktop browser; on phone the
+  // native ambience feels right. Capacitor.isNativePlatform() → true on APK.
   useEffect(() => {
-    const phase = telescopeOverlay?.phase;
-    if (phase === 'init' || phase === 'capture') {
-      playLoop('terminal-loop', 0.5);
+    if (showCosmicArchive && Capacitor.isNativePlatform()) {
+      playLoop('terminal-loop', 0.3);
     } else {
       stopLoop('terminal-loop');
     }
     return () => stopLoop('terminal-loop');
-  }, [telescopeOverlay?.phase]);
+  }, [showCosmicArchive]);
 
-  // Play before_trailers music during onboarding, before first cinematic video starts.
+  // Play before_trailers music during onboarding, only BEFORE the first
+  // cinematic video plays. After that video ends, the onboarding continues
+  // with more slides — but the music was restarting then, which user found
+  // annoying. The ref flag latches once the video has played, so the loop
+  // never restarts in this session.
+  const beforeTrailersStoppedRef = useRef(false);
   useEffect(() => {
-    if (needsOnboarding && !cinematicVideoPlaying) {
-      playLoop('before-trailers', 0.3);
+    if (cinematicVideoPlaying) beforeTrailersStoppedRef.current = true;
+    if (needsOnboarding && !cinematicVideoPlaying && !beforeTrailersStoppedRef.current) {
+      playLoop('before-trailers', 0.5);
     } else {
       stopLoop('before-trailers');
     }
@@ -1196,8 +1187,7 @@ function AppInner() {
     });
   }, [surfaceTarget?.planet.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Colony tick — checks every 5s; runColonyTicks counts full 60s ticks internally.
-  // Using 5s avoids floating-point jitter that caused tickCount=0 when interval=60s exactly.
+  // Colony tick — runs every 60s, processes passive building production
   useEffect(() => {
     const id = setInterval(() => {
       const colony = colonyStateRef.current;
@@ -1221,7 +1211,7 @@ function AppInner() {
         }
         setColonyState(result.colony);
       }
-    }, 5_000); // check every 5s; full 60s ticks counted inside runColonyTicks
+    }, COLONY_TICK_INTERVAL_MS);
     return () => clearInterval(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1436,7 +1426,14 @@ function AppInner() {
   const [systemPhotos, setSystemPhotos] = useState<Map<string, SystemPhotoData>>(new Map());
   const [systemMissions, setSystemMissions] = useState<Map<string, SystemMissionData>>(new Map());
 
-  // telescopeOverlay state moved above ambient effect (line ~985)
+  // ── Telescope overlay state ───────────────────────────────────────────
+  const [telescopeOverlay, setTelescopeOverlay] = useState<{
+    phase: 'init' | 'capture' | 'reveal';
+    targetName: string;
+    targetType: 'system' | 'planet';
+    photoUrl: string | null;
+    photoKey: string;
+  } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // ── Digest modal state ──────────────────────────────────────────────
@@ -1991,8 +1988,9 @@ function AppInner() {
             try { localStorage.setItem('nebulife_generation_index', String(created.science_points ?? 0)); } catch { /* ignore */ }
             hydrateGameStateFromServer(created);
             setState((prev) => ({ ...prev, playerName: created.callsign || created.name || 'Explorer' }));
-            // First-ever account → starter wallet toast (fires once per device)
-            maybeShowStarterToast(created.quarks ?? 0);
+            // Starter toast moved to handleOnboardingComplete — firing it
+            // here rendered it under the cinematic intro overlay (z-index
+            // 10005 > 9750) so player couldn't see/click it.
           } else {
             setQuarks(existing.quarks ?? 0);
             if (existing.global_index != null) globalPlayerIndexRef.current = existing.global_index;
@@ -2022,6 +2020,47 @@ function AppInner() {
       setFirebaseUser(user);
       setAuthLoading(false);
       if (user) {
+        // CRITICAL: detect UID change. If a different user just signed in,
+        // the previous user's progress keys are still in localStorage and
+        // would otherwise leak into the new account (level, XP, home,
+        // doomsday clock, evacuation state, etc.). hydrateGameStateFromServer
+        // uses Math.max(local, server) which means the old local values win
+        // and even get pushed back to server, corrupting the new DB row.
+        // Clear all progress keys and reload so the app re-initializes
+        // from a clean slate. UI prefs (lang, ambient volume) are preserved.
+        try {
+          const previousUid = localStorage.getItem('nebulife_last_uid');
+          if (previousUid && previousUid !== user.uid) {
+            const progressKeys = [
+              'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
+              'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
+              'nebulife_colony_resources', 'nebulife_chemical_inventory', 'nebulife_colony_state',
+              'nebulife_exodus_phase', 'nebulife_tutorial_step', 'nebulife_log_entries',
+              'nebulife_onboarding_done', 'nebulife_scene', 'nebulife_nav_system',
+              'nebulife_nav_planet', 'nebulife_destroyed_planets', 'nebulife_favorite_planets',
+              'nebulife_game_started_at', 'nebulife_time_multiplier', 'nebulife_accel_at',
+              'nebulife_game_time_at_accel', 'nebulife_clock_revealed',
+              'nebulife_home_system_id', 'nebulife_home_planet_id', 'nebulife_generation_index',
+              'nebulife_evac_system_id', 'nebulife_evac_planet_id', 'nebulife_evac_forced',
+              'nebulife_evac_phase', 'nebulife_hex_slots',
+              'nebulife_pinned_systems', 'nebulife_system_order',
+              'nebulife_arena_active', 'nebulife_arena_stats', 'nebulife_arena_tutorial_done',
+              'nebulife_hangar_active', 'nebulife_hangar_ship',
+              'nebulife_chat_last_read_global', 'nebulife_chat_last_read_system',
+              'nebulife_last_digest_seen', 'nebulife_starter_toast_shown',
+              'nebulife_player_id',
+            ];
+            progressKeys.forEach(k => localStorage.removeItem(k));
+            Object.keys(localStorage)
+              .filter(k => k.startsWith('nebulife_quiz_') || k.startsWith('harvest_'))
+              .forEach(k => localStorage.removeItem(k));
+            localStorage.setItem('nebulife_last_uid', user.uid);
+            window.location.reload();
+            return;
+          }
+          localStorage.setItem('nebulife_last_uid', user.uid);
+        } catch { /* localStorage disabled — skip guard */ }
+
         playerId.current = user.uid;
         setIsGuest(user.isAnonymous);
         // Show registration reminder for guests (once per session)
@@ -2049,8 +2088,8 @@ function AppInner() {
               hydrateGameStateFromServer(player);
               setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
               setNeedsCallsign(!player.callsign);
-              // Starter wallet (first registration) + daily login bonus check
-              maybeShowStarterToast(player.quarks ?? 0);
+              // Starter toast deferred to handleOnboardingComplete so it
+              // renders after the cinematic intro overlay closes.
               claimDailyLoginBonusOnce().catch(() => { /* soft-fail */ });
               // Fetch universe info for group count
               fetchUniverseInfo().then(info => {
@@ -2541,6 +2580,12 @@ function AppInner() {
     setNeedsOnboarding(false);
     setCinematicActive(false);
     localStorage.setItem('nebulife_onboarding_done', '1');
+
+    // Starter wallet toast now fires AFTER onboarding completes — previously
+    // it was queued during the cinematic intro, but the CinematicIntro overlay
+    // (z-index 10005) covered the toast (z-index 9750), so the player never
+    // saw or could click the +20⚛ confirmation.
+    maybeShowStarterToast(quarks);
 
     // Start timer immediately — don't wait for server hydration or useEffect
     if (gameStartedAt === null) {
@@ -3858,13 +3903,11 @@ function AppInner() {
     navigator.serviceWorker.addEventListener('message', handleSwMessage);
     // Start foreground FCM message listener
     const unsubForeground = startForegroundListener();
-    const handlePushDigest = () => {
+    window.addEventListener('nebulife:push-digest', () => {
       window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
-    };
-    window.addEventListener('nebulife:push-digest', handlePushDigest);
+    });
     return () => {
       navigator.serviceWorker.removeEventListener('message', handleSwMessage);
-      window.removeEventListener('nebulife:push-digest', handlePushDigest);
       unsubForeground?.();
     };
   }, []);
@@ -4621,8 +4664,7 @@ function AppInner() {
 
   // Arena button — golden spaceship icon, unlocks at level 30
   // Opens the Hangar intermediate page (not Arena directly)
-  // TEMP: lowered to 1 for arena testing — revert to 30 before ship
-  const ARENA_MIN_LEVEL = 1;
+  const ARENA_MIN_LEVEL = 30;
   const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
   toolGroups.push({
     type: 'buttons',
@@ -4652,16 +4694,6 @@ function AppInner() {
   });
 
 
-
-  const shutdownBuildingTypes = useMemo(() => {
-    const set = new Set<string>();
-    if (colonyState) {
-      for (const b of colonyState.buildings) {
-        if (b.shutdown) set.add(b.type);
-      }
-    }
-    return set;
-  }, [colonyState]);
 
   if (state.error) {
     return (
@@ -5427,7 +5459,6 @@ function AppInner() {
             setQuarks((prev) => Math.max(0, prev - amount));
           }}
           alphaHarvesterCount={0}
-          shutdownBuildingTypes={shutdownBuildingTypes}
         />
       )}
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}
@@ -5542,7 +5573,6 @@ function AppInner() {
         <ResourceDescriptionModal
           resource={showResourceModal}
           onClose={() => setShowResourceModal(null)}
-          colonyState={colonyState}
         />
       )}
 
@@ -5814,8 +5844,8 @@ function AppInner() {
         <FreeTaskHUD current={tutorialFreeCount} total={2} />
       )}
 
-      {/* Chat unread notification dot — hidden during arena */}
-      {chatUnreadCount > 0 && !showArena && (
+      {/* Chat unread notification dot — visible above chat widget */}
+      {chatUnreadCount > 0 && (
         <div
           style={{
             position: 'fixed',

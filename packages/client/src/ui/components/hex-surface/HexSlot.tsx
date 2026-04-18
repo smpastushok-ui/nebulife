@@ -412,14 +412,17 @@ export const HexSlot = React.memo(function HexSlot({
         pointerEvents: 'none',
       }}
     >
-      {/* Click target — confined to hex shape, never blocked by overflow from neighbors */}
+      {/* Click target — full bounding box (87x100) instead of clipped polygon.
+          Fingers/trackpads often miss the exact hex corners; with clipPath the
+          corners received no events at all. The bounding rect is only ~38%
+          bigger than the polygon, and tessellated hexes leave a small gap
+          between centers, so overlap with neighbors is minimal. */}
       <div
         onClick={handleClick}
         style={{
           position: 'absolute',
           inset: 0,
           zIndex: 100,
-          clipPath: HEX_CLIP,
           cursor: slot.state === 'hidden' ? 'default' : 'pointer',
           pointerEvents: 'auto',
         }}

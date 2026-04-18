@@ -8,10 +8,15 @@
 }
 
 /* Neon spin for planet name letters */
+/* Kept for backwards compatibility — now unused after the HexSurface planet
+   name switched to nebuFadeUp (no blur, no rotateX, no GPU layer per letter). */
 @keyframes nebuNeonSpin {
-  0%   { transform: rotateX(-1440deg); filter: blur(10px); opacity: 0; }
-  10%  { opacity: 1; }
-  100% { transform: rotateX(0deg); filter: blur(0px); opacity: 1; }
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes nebuFadeUp {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 /* Slide-in from right for planet name block */

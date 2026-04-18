@@ -235,10 +235,14 @@ export class GameEngine {
 
     // Enable camera zoom/pan for galaxy hex grid
     this.camera.attach(this.galaxyScene.container);
-    // Lowered min scale (was 0.4) — allow full cluster overview at startup
-    this.camera.setMinScale(0.12);
-    // Pan bounds widened so player can wander to neighbor/core systems
-    this.camera.setPanBounds(1200);
+    // Min scale lowered to 0.045 so mobile portrait (600px wide) can zoom
+    // out enough to see the WHOLE 50-player cluster (~6500 px world-radius).
+    // Was 0.12 which only covered ~40%. Formula: halfScreen / cluster_radius
+    // = 300 / 6516 ≈ 0.046.
+    this.camera.setMinScale(0.045);
+    // Pan bounds widened so player can pan across the entire cluster —
+    // including far neighbors (~6500 px from own home).
+    this.camera.setPanBounds(6000);
     // Position HOME at center of screen
     this.galaxyScene.container.x = this.app.screen.width / 2;
     this.galaxyScene.container.y = this.app.screen.height * 0.45;
