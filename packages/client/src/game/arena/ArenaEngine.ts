@@ -205,7 +205,7 @@ export class ArenaEngine {
 
   // Missiles (homing, limited turn rate, ammo-based)
   private missileMesh!: THREE.InstancedMesh;
-  private missiles: { x: number; z: number; vx: number; vz: number; age: number; active: boolean; angle: number; targetId: number | null }[] = [];
+  private missiles: { x: number; y: number; z: number; vx: number; vy: number; vz: number; age: number; active: boolean; angle: number; targetId: number | null }[] = [];
   private missileFreeList: number[] = [];
   private readonly MISSILE_POOL = 20;
   private readonly MISSILE_SPEED = 400;
@@ -1936,7 +1936,7 @@ export class ArenaEngine {
       dummy.scale.set(0, 0, 0);
       dummy.updateMatrix();
       this.missileMesh.setMatrixAt(i, dummy.matrix);
-      this.missiles.push({ x: 0, z: 0, vx: 0, vz: 0, age: 0, active: false, angle: 0, targetId: null });
+      this.missiles.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, active: false, angle: 0, targetId: null });
       this.missileFreeList.push(i);
     }
     this.missileMesh.instanceMatrix.needsUpdate = true;
@@ -2283,15 +2283,15 @@ export class ArenaEngine {
     if (idx === undefined) return;
 
     const m = this.missiles[idx];
-    // Use (x, -z) convention to match velocity recalc + homing in updateMissiles
     m.angle = Math.atan2(this.aimDirX, -this.aimDirZ);
-    // Use aim direction vector. Fallback decomposes ship rotation
-    // (rotation.y = atan2(-dirX, -dirZ) → dirX = -sin, dirZ = -cos)
     const dirX = this.aimDirX || -Math.sin(this.playerMesh.rotation.y);
+    const dirY = this.aimDirY;
     const dirZ = this.aimDirZ || -Math.cos(this.playerMesh.rotation.y);
     m.x = this.playerPos.x + dirX * (SHIP_RADIUS + 5);
+    m.y = this.playerPos.y + dirY * (SHIP_RADIUS + 5);
     m.z = this.playerPos.z + dirZ * (SHIP_RADIUS + 5);
     m.vx = dirX * this.MISSILE_SPEED;
+    m.vy = dirY * this.MISSILE_SPEED;
     m.vz = dirZ * this.MISSILE_SPEED;
     m.age = 0;
     m.active = true;
@@ -2332,32 +2332,28 @@ export class ArenaEngine {
       this.fireMissile();
     }
 
-    // Find homing target for a missile
-    // If missile has a targetId: home to that specific bot (if alive)
-    // Otherwise: find nearest object (asteroid OR enemy bot) in range 500
-    const findTarget = (mx: number, mz: number, targetId: number | null): { x: number; z: number } | null => {
+    // Find homing target for a missile (3D — includes Y so missiles can
+    // track a climbing enemy up/down).
+    const findTarget = (mx: number, my: number, mz: number, targetId: number | null): { x: number; y: number; z: number } | null => {
       if (targetId !== null) {
         const bot = this.botShips.find(b => b.id === targetId);
-        if (bot && bot.alive) return { x: bot.pos.x, z: bot.pos.z };
-        // Target died — fall through to nearest
+        if (bot && bot.alive) return { x: bot.pos.x, y: bot.pos.y, z: bot.pos.z };
       }
 
-      let best: { x: number; z: number } | null = null;
-      let bestDist = 500; // max homing range
+      let best: { x: number; y: number; z: number } | null = null;
+      let bestDist = 500;
 
-      // Check asteroids
       for (const a of this.asteroidData) {
         if (!a.alive) continue;
-        const d = Math.sqrt((mx - a.x) ** 2 + (mz - a.z) ** 2);
-        if (d < bestDist) { bestDist = d; best = { x: a.x, z: a.z }; }
+        const d = Math.sqrt((mx - a.x) ** 2 + (my - a.y) ** 2 + (mz - a.z) ** 2);
+        if (d < bestDist) { bestDist = d; best = { x: a.x, y: a.y, z: a.z }; }
       }
 
-      // Check enemy bots (in team mode)
       if (this.teamMode) {
         for (const bot of this.botShips) {
           if (!bot.alive || bot.team === this.playerTeam) continue;
-          const d = Math.sqrt((mx - bot.pos.x) ** 2 + (mz - bot.pos.z) ** 2);
-          if (d < bestDist) { bestDist = d; best = { x: bot.pos.x, z: bot.pos.z }; }
+          const d = Math.sqrt((mx - bot.pos.x) ** 2 + (my - bot.pos.y) ** 2 + (mz - bot.pos.z) ** 2);
+          if (d < bestDist) { bestDist = d; best = { x: bot.pos.x, y: bot.pos.y, z: bot.pos.z }; }
         }
       }
 
@@ -2383,33 +2379,50 @@ export class ArenaEngine {
         continue;
       }
 
-      // Homing: limited turn rate toward nearest target
-      const target = findTarget(m.x, m.z, m.targetId);
+      // Homing: limited turn rate toward nearest target (3D).
+      // We rotate the velocity vector directly instead of tracking a scalar
+      // angle so the Y component is honored.
+      const target = findTarget(m.x, m.y, m.z, m.targetId);
       if (target) {
-        const desiredAngle = Math.atan2(target.x - m.x, -(target.z - m.z));
-        let angleDiff = desiredAngle - m.angle;
-        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-
-        const maxTurn = this.MISSILE_TURN_RATE * dt;
-        if (Math.abs(angleDiff) > maxTurn) {
-          m.angle += Math.sign(angleDiff) * maxTurn;
-        } else {
-          m.angle = desiredAngle;
+        const dvx = target.x - m.x;
+        const dvy = target.y - m.y;
+        const dvz = target.z - m.z;
+        const dlen = Math.sqrt(dvx * dvx + dvy * dvy + dvz * dvz);
+        if (dlen > 0.01) {
+          const wantX = dvx / dlen;
+          const wantY = dvy / dlen;
+          const wantZ = dvz / dlen;
+          // Current unit vel
+          const vlen = Math.sqrt(m.vx * m.vx + m.vy * m.vy + m.vz * m.vz) || 0.0001;
+          const curX = m.vx / vlen;
+          const curY = m.vy / vlen;
+          const curZ = m.vz / vlen;
+          // Nudge current toward want by MISSILE_TURN_RATE*dt radians worth.
+          // Cheap approximation: lerp vectors then renormalize.
+          const t = Math.min(1, this.MISSILE_TURN_RATE * dt / Math.PI);
+          let nx = curX + (wantX - curX) * t;
+          let ny = curY + (wantY - curY) * t;
+          let nz = curZ + (wantZ - curZ) * t;
+          const nlen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 0.0001;
+          nx /= nlen; ny /= nlen; nz /= nlen;
+          m.vx = nx * this.MISSILE_SPEED;
+          m.vy = ny * this.MISSILE_SPEED;
+          m.vz = nz * this.MISSILE_SPEED;
+          m.angle = Math.atan2(m.vx, -m.vz); // kept for legacy visuals
         }
       }
 
-      // Update velocity from angle
-      m.vx = Math.sin(m.angle) * this.MISSILE_SPEED;
-      m.vz = -Math.cos(m.angle) * this.MISSILE_SPEED;
       m.x += m.vx * dt;
+      m.y += m.vy * dt;
       m.z += m.vz * dt;
 
-      // Visual — missile body is baked so local +Z is the nose direction.
-      // Just orient rotation.y toward velocity for a head-first look.
-      dummy.position.set(m.x, 4, m.z);
+      // Visual — orient to full 3D velocity (yaw + pitch)
+      const horizSpd = Math.sqrt(m.vx * m.vx + m.vz * m.vz);
+      const yaw = Math.atan2(m.vx, m.vz);
+      const pitch = Math.atan2(m.vy, horizSpd || 0.0001);
+      dummy.position.set(m.x, m.y, m.z);
       dummy.scale.set(1.5, 1.5, 1.5);
-      dummy.rotation.set(0, Math.atan2(m.vx, m.vz), 0);
+      dummy.rotation.set(-pitch, yaw, 0);
       dummy.updateMatrix();
       this.missileMesh.setMatrixAt(i, dummy.matrix);
       needsUpdate = true;
@@ -2428,8 +2441,9 @@ export class ArenaEngine {
         const a = this.asteroidData[ai];
         if (!a.alive) continue;
         const dx = m.x - a.x;
+        const dy = m.y - a.y;
         const dz = m.z - a.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (dist < a.radius + this.MISSILE_RADIUS) {
           // Missile hit asteroid — AoE: damage all nearby asteroids
           m.active = false;
@@ -2441,10 +2455,10 @@ export class ArenaEngine {
           this.missileMesh.setMatrixAt(mi, dummy.matrix);
           this.missileMesh.instanceMatrix.needsUpdate = true;
 
-          // Splash damage in radius 30
+          // Splash damage in radius 30 (3D)
           for (const a2 of this.asteroidData) {
             if (!a2.alive) continue;
-            const d2 = Math.sqrt((m.x - a2.x) ** 2 + (m.z - a2.z) ** 2);
+            const d2 = Math.sqrt((m.x - a2.x) ** 2 + (m.y - a2.y) ** 2 + (m.z - a2.z) ** 2);
             if (d2 < 30) {
               a2.hp -= 3;
               if (a2.hp <= 0) {
@@ -2482,10 +2496,11 @@ export class ArenaEngine {
         if (performance.now() < bot.invulnerableUntil) continue;
 
         const dx = m.x - bot.pos.x;
+        const dy = m.y - bot.pos.y;
         const dz = m.z - bot.pos.z;
-        const distSq = dx * dx + dz * dz;
+        const distSq = dx * dx + dy * dy + dz * dz;
         // Uses SHIP_SHOT_RADIUS (larger than physical) so projectiles that
-        // visually strike the sprite's wings/fuselage register as hits.
+        // visually strike the ship's wings/fuselage register as hits.
         const rSum = this.MISSILE_RADIUS + SHIP_SHOT_RADIUS;
 
         if (distSq < rSum * rSum) {
