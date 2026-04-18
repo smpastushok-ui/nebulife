@@ -192,15 +192,25 @@ export interface GameState {
 }
 
 /**
- * One-shot starter wallet toast — fires the FIRST time a player loads the app.
- * `nebulife_starter_toast_shown` flag in localStorage prevents repeats across
- * sessions on the same device.
+ * One-shot starter wallet toast — fires the FIRST time a BRAND-NEW player
+ * loads the app. Skipped entirely if the balance is above the starter amount
+ * (STARTER_QUARKS=20), which means the player has already earned quarks
+ * from ads / daily bonuses / gameplay and is NOT a fresh account.
+ * `nebulife_starter_toast_shown` in localStorage prevents repeats after
+ * the toast has fired once on this device.
  */
+const STARTER_QUARKS_CLIENT = 20;
 function maybeShowStarterToast(currentBalance: number): void {
   try {
     if (localStorage.getItem('nebulife_starter_toast_shown') === '1') return;
     if (currentBalance <= 0) return; // Server hasn't credited starter yet
-    enqueueQuarkToast({ amount: currentBalance, reason: 'starter' });
+    // Guard against reinstall on existing account: if the player already has
+    // more than the starter amount, they're not a fresh account — skip toast.
+    if (currentBalance > STARTER_QUARKS_CLIENT) {
+      localStorage.setItem('nebulife_starter_toast_shown', '1');
+      return;
+    }
+    enqueueQuarkToast({ amount: STARTER_QUARKS_CLIENT, reason: 'starter' });
     localStorage.setItem('nebulife_starter_toast_shown', '1');
   } catch { /* ignore */ }
 }
@@ -2189,6 +2199,16 @@ function AppInner() {
 
                 // Update galaxy visual
                 engine.updateSystemResearchVisual(slot.systemId, current);
+
+                // If the currently-hovered star is THIS one, refresh the gold %
+                // label — pointerover only fires on hover-enter, so without
+                // this the label stays stale until user unhovers and re-hovers.
+                setHoveredStarInfo((prev) => {
+                  if (!prev || prev.systemId !== slot.systemId) return prev;
+                  const newProg = getResearchProgress(current, slot.systemId);
+                  if (newProg >= 100) return null;
+                  return { systemId: slot.systemId, progress: newProg };
+                });
 
                 // Show discovery choice panel if one was rolled
                 if (result.discovery) {
