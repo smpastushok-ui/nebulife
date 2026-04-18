@@ -1133,12 +1133,16 @@ function AppInner() {
     return () => stopLoop('planet-loop');
   }, [surfaceTarget]);
 
-  // Terminal ambient loop disabled everywhere per user feedback — the loop
-  // is always stopped so it never plays (kept as effect so any previously
-  // started instance from older builds is muted on next mount).
+  // Terminal ambient loop — new user-supplied track (terminal-loop.mp3),
+  // loops at 40% volume while the Cosmic Archive is open. Enabled on both
+  // web and native.
   useEffect(() => {
-    stopLoop('terminal-loop');
-    return () => stopLoop('terminal-loop');
+    if (showCosmicArchive) {
+      playLoop('terminal-loop.mp3', 0.4);
+    } else {
+      stopLoop('terminal-loop.mp3');
+    }
+    return () => stopLoop('terminal-loop.mp3');
   }, [showCosmicArchive]);
 
   // Intro melody — 25 s loop, plays through the entire onboarding. 50%
