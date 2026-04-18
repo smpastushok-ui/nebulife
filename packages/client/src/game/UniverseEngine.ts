@@ -364,12 +364,19 @@ function generateClusterDetail(groupSeed: number): ClusterDetail {
     const homeStar = generateStarFromSeed(new SeededRNG(homeSystemSeed).deriveSeed(0));
     const spec = { cl: homeStar.cl, sub: homeStar.sub, lum: homeStar.lum, color: homeStar.color };
 
+    // Per-star deterministic x/y jitter (±40% of hex spacing ≈ ±2 LY) so the
+    // 19-system cluster doesn't read as a rigid honeycomb when viewed from
+    // cluster-LOD camera. z jitter already existed via gaussian.
+    const JITTER_XY = DETAIL_RING_DISTANCE_LY * 0.4;
     const r1hex = hexRing(hh, 1);
     const r1 = r1hex.map((h, ri) => {
       const p = hexToPixel(h.q, h.r, DETAIL_RING_DISTANCE_LY);
       const sysSeed = playerRng.deriveSeed(ri + 1);
       const star = generateStarFromSeed(new SeededRNG(sysSeed).deriveSeed(0));
-      return { ...p, z: rng.nextGaussian(0, 1.5), color: star.color, lum: star.lum, cl: star.cl, sub: star.sub, systemSeed: sysSeed };
+      const jrng = new SeededRNG(sysSeed);
+      const jx = (jrng.next() - 0.5) * 2 * JITTER_XY;
+      const jy = (jrng.next() - 0.5) * 2 * JITTER_XY;
+      return { x: p.x + jx, y: p.y + jy, z: rng.nextGaussian(0, 1.5), color: star.color, lum: star.lum, cl: star.cl, sub: star.sub, systemSeed: sysSeed };
     });
 
     const r2hex = hexRing(hh, 2);
@@ -377,7 +384,10 @@ function generateClusterDetail(groupSeed: number): ClusterDetail {
       const p = hexToPixel(h.q, h.r, DETAIL_RING_DISTANCE_LY);
       const sysSeed = playerRng.deriveSeed(ri + 7);
       const star = generateStarFromSeed(new SeededRNG(sysSeed).deriveSeed(0));
-      return { ...p, z: rng.nextGaussian(0, 2), color: star.color, lum: star.lum, cl: star.cl, sub: star.sub, systemSeed: sysSeed };
+      const jrng = new SeededRNG(sysSeed);
+      const jx = (jrng.next() - 0.5) * 2 * JITTER_XY;
+      const jy = (jrng.next() - 0.5) * 2 * JITTER_XY;
+      return { x: p.x + jx, y: p.y + jy, z: rng.nextGaussian(0, 2), color: star.color, lum: star.lum, cl: star.cl, sub: star.sub, systemSeed: sysSeed };
     });
 
     players.push({
