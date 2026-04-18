@@ -75,8 +75,16 @@ export function generateLiteClusterSystems(
   // My home position — used as origin for relative coords
   const myPos = assignPlayerPosition(galaxySeed, myPlayerIndex);
 
+  // CRITICAL: `pi` must be a GLOBAL player index, not a cluster slot. Previously
+  // this loop iterated 0..49 treating them as globals, so a player in cluster 1
+  // (global 50..99) saw lite-orbs scattered around CLUSTER 0's player positions
+  // instead of their own cluster. Use the cluster offset to generate globals
+  // for the 50 players sharing this cluster.
+  const base = groupIndex * playersPerGroup;
+
   // ── 950 personal systems (50 players × 19 systems each) ──
-  for (let pi = 0; pi < playersPerGroup; pi++) {
+  for (let slot = 0; slot < playersPerGroup; slot++) {
+    const pi = base + slot;
     const playerPos = assignPlayerPosition(galaxySeed, pi);
 
     // Ring 0 (home), Ring 1 (6 systems @5LY), Ring 2 (12 systems @10LY) — exact same hex layout
