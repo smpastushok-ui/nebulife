@@ -577,6 +577,16 @@ export class GalaxyScene {
     this.screenH = h;
   }
 
+  /** Force redraw of lite orbs with current viewport — called by GameEngine
+   *  after the camera is positioned so initial render is not culled. */
+  refreshLiteOrbs(): void {
+    if (!this.liteOrbsGfx) return;
+    this.lastCamX = this.container.x;
+    this.lastCamY = this.container.y;
+    this.lastCamScale = this.container.scale.x;
+    this.redrawLiteOrbs();
+  }
+
   /** Compute world-space viewport bounds from container transform + screen size. */
   private getViewportBounds(): { minX: number; maxX: number; minY: number; maxY: number } {
     const scale = this.container.scale.x || 1;
@@ -1583,6 +1593,41 @@ export class GalaxyScene {
       if (node.nodeType === 'core') {
         this.recomputeVisibleCoreIds();
         this.applyAllVisibilityTiers();
+      }
+    }
+
+    // After a session ends but before completion, state goes back to
+    // 'unexplored' (slot freed). Neither 'researching' nor 'researched'
+    // block ran above → static white label still shows OLD percent.
+    // Refresh it here so the new sum (e.g. 20% → 25%) appears immediately.
+    if (state !== 'researching' && state !== 'researched') {
+      const isPartial = prog > 0 && prog < 100;
+      if (isPartial && node.visibilityTier === 1) {
+        if (!node.researchLabel) {
+          node.researchLabel = new Text({
+            text: this.researchLabelsEnabled ? '●' : `${Math.round(prog)}%`,
+            style: {
+              fontSize: this.researchLabelsEnabled ? 8 : 7,
+              fill: this.researchLabelsEnabled ? 0xffcc44 : 0xaabbcc,
+              fontFamily: 'monospace',
+            },
+            resolution: 2,
+          });
+          node.researchLabel.anchor.set(0.5, 1);
+          node.researchLabel.y = -node.baseRadius - 4;
+          node.container.addChild(node.researchLabel);
+        } else {
+          if (this.researchLabelsEnabled) {
+            node.researchLabel.text = '●';
+            node.researchLabel.style.fill = 0xffcc44;
+            node.researchLabel.style.fontSize = 8;
+          } else {
+            node.researchLabel.text = `${Math.round(prog)}%`;
+            node.researchLabel.style.fill = 0xaabbcc;
+            node.researchLabel.style.fontSize = 7;
+          }
+          node.researchLabel.visible = true;
+        }
       }
     }
   }
