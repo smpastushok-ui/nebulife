@@ -683,7 +683,7 @@
     "view_panorama": "View Panorama",
     "processing": "Processing...",
     "alpha_hint": "Get a photo from the Alpha telescope. Uses quarks to rent a cutting-edge telescope.",
-    "panorama_cost": "System Photo Panorama · 30",
+    "panorama_cost": "System Photo Panorama · 50",
     "planet_one": "planet",
     "planet_few": "planets",
     "planet_many": "planets",
@@ -1149,7 +1149,7 @@
     "share_btn": "Share",
     "save_btn": "Save to Collection",
     "processing_panorama": "Processing panorama...",
-    "panorama_cost": "Panorama 30"
+    "panorama_cost": "Panorama 50"
   },
   "nav_header": {
     "search_placeholder": "search system...",

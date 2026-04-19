@@ -110,8 +110,8 @@ function buildButtons(props: {
       premTip = t('radial.processing');
       premDim = true;
     } else {
-      premAction = quarks >= 100 ? 'telescope' : 'none';
-      premDim = quarks < 100;
+      premAction = quarks >= 50 ? 'telescope' : 'none';
+      premDim = quarks < 50;
     }
 
     list.push({
