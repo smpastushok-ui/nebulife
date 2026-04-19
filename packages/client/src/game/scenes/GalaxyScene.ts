@@ -929,9 +929,24 @@ export class GalaxyScene {
    */
   setEffectiveMaxRing(maxRing: number): void {
     if (this.effectiveMaxRing === maxRing) return;
+    const prev = this.effectiveMaxRing;
     this.effectiveMaxRing = maxRing;
     this.recomputeVisibleCoreIds();
     this.applyAllVisibilityTiers();
+    // Play ring-unlock animation when tier grows (not on initial set).
+    if (maxRing > prev && prev > 0) {
+      this.playRingUnlock(maxRing);
+    }
+  }
+
+  /** Ring-unlock pulse: highlight newly available stars for 5 s so the
+   *  player visually notices the expansion. Called by setEffectiveMaxRing
+   *  when the tier grows and by auto-promote paths. */
+  private ringUnlockStart = 0;
+  private ringUnlockTarget = 0;
+  playRingUnlock(newRing: number): void {
+    this.ringUnlockStart = this.time;
+    this.ringUnlockTarget = newRing;
   }
 
   /**
@@ -1799,6 +1814,21 @@ export class GalaxyScene {
 
       node.container.alpha += (node.baseAlpha - node.container.alpha) * Math.min(1, ANIM_SPEED * dt);
       animateExpand(node);
+
+      // Ring-unlock pulse: for 5 seconds after a new ring becomes reachable,
+      // stars at that ring pulse scale 1 → 1.35 → 1 every ~0.7s to draw the
+      // eye. Decays linearly after 5 s. Applied ONLY to nodes whose ring
+      // matches the newly-unlocked ring so older rings stay calm.
+      if (this.ringUnlockStart > 0) {
+        const elapsed = t - this.ringUnlockStart;
+        if (elapsed < 5000 && node.ringIndex === this.ringUnlockTarget) {
+          const fade = 1 - elapsed / 5000;
+          const pulse = 1 + 0.35 * fade * Math.sin(elapsed * 0.009);
+          node.container.scale.set(pulse);
+        } else if (elapsed >= 5000 && this.ringUnlockTarget === node.ringIndex) {
+          node.container.scale.set(1);
+        }
+      }
 
       // Tier 2 (faded): simplified rendering — just a minimal dot, skip expensive animations
       if (node.visibilityTier === 2) {

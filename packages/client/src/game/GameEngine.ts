@@ -116,8 +116,21 @@ export class GameEngine {
    * ast-grav-scan (maxRing=4) → depth 5, etc. Capped at 12 (full core).
    */
   setEffectiveMaxRing(maxRing: number) {
+    const prev = this.effectiveMaxRing;
     this.effectiveMaxRing = maxRing;
     this.galaxyScene?.setEffectiveMaxRing(maxRing);
+    // Ring-unlock camera flourish: slight zoom-out over 1.5 s so the
+    // player sees the bigger picture while the new-ring stars pulse
+    // (5 s pulse handled inside GalaxyScene). Only on real growth.
+    if (maxRing > prev && prev > 0) {
+      const currentScale = this.camera.getCurrentScale?.() ?? null;
+      if (currentScale && this.galaxyScene) {
+        const targetScale = Math.max(0.05, currentScale * 0.8);
+        const centerX = this.galaxyScene.container.x;
+        const centerY = this.galaxyScene.container.y;
+        this.camera.animateTo?.(centerX, centerY, targetScale, 1500);
+      }
+    }
   }
 
   /**
