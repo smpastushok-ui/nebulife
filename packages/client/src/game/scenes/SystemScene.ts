@@ -1,8 +1,9 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import type { StarSystem, Planet } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import { renderStar } from '../rendering/StarRenderer.js';
 import { renderPlanet, renderOrbitProjected, renderSystemMoon, getPlanetSize, Y_COMPRESS } from '../rendering/PlanetRenderer.js';
+import { getShipSpriteCanvas, peekShipSpriteCanvas } from '../rendering/ShipSpriteCache.js';
 import { tStatic } from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
 
@@ -80,6 +81,7 @@ export class SystemScene {
   // ── Ship flight ──────────────────────────────────────────────────────
   private shipContainer: Container | null = null;
   private shipGfx: Graphics | null = null;
+  private shipSprite: Sprite | null = null; // GLB-rendered sprite (preferred)
   private shipTrailGfx: Graphics | null = null;
   private shipProgress = 0; // 0→1
   private shipActive = false;
@@ -100,6 +102,10 @@ export class SystemScene {
     this.container = new Container();
     this.container.eventMode = 'static';
     this.container.sortableChildren = true;
+
+    // Kick off GLB → canvas rasterization so the ship sprite is ready by
+    // the time startShipFlight() runs (typically seconds after scene mount).
+    void getShipSpriteCanvas();
 
     // Pre-compute max extent for background sizing
     for (const planet of system.planets) {
@@ -627,9 +633,20 @@ export class SystemScene {
     this.shipTrailGfx = new Graphics();
     this.shipContainer.addChild(this.shipTrailGfx);
 
-    // Ship body (placeholder rectangle with engine glow)
-    this.shipGfx = new Graphics();
-    this.shipContainer.addChild(this.shipGfx);
+    // Ship body — Sprite from the GLB rasterization if available, otherwise
+    // fall back to a procedural Graphics rectangle drawn in updateShip.
+    const canvas = peekShipSpriteCanvas();
+    if (canvas) {
+      this.shipSprite = new Sprite(Texture.from(canvas));
+      this.shipSprite.anchor.set(0.5);
+      // The GLB sprite is 128px; scale down so the ship reads as small
+      // against the system-view planet disks (~40-100px).
+      this.shipSprite.scale.set(0.35);
+      this.shipContainer.addChild(this.shipSprite);
+    } else {
+      this.shipGfx = new Graphics();
+      this.shipContainer.addChild(this.shipGfx);
+    }
   }
 
   /** Get ship flight progress 0→1 */
@@ -645,6 +662,7 @@ export class SystemScene {
       this.shipContainer.destroy({ children: true });
       this.shipContainer = null;
       this.shipGfx = null;
+      this.shipSprite = null;
       this.shipTrailGfx = null;
     }
     this.shipTrailPoints = [];
@@ -668,7 +686,8 @@ export class SystemScene {
 
   /** Update ship position and trail (called from update loop) */
   private updateShip(deltaMs: number) {
-    if (!this.shipActive || !this.shipBezier || !this.shipGfx || !this.shipTrailGfx) return;
+    if (!this.shipActive || !this.shipBezier || !this.shipTrailGfx) return;
+    if (!this.shipGfx && !this.shipSprite) return;
 
     // Advance progress
     this.shipProgress = Math.min(1, this.shipProgress + this.shipSpeed * deltaMs);
@@ -676,7 +695,6 @@ export class SystemScene {
 
     // Store trail point
     this.shipTrailPoints.push({ x: pos.x, y: pos.y });
-    // Keep last 60 trail points
     if (this.shipTrailPoints.length > 60) this.shipTrailPoints.shift();
 
     // Get direction for ship rotation
@@ -686,21 +704,23 @@ export class SystemScene {
     const dy = nextPos.y - pos.y;
     const angle = Math.atan2(dy, dx);
 
-    // Draw ship body using a sub-container for rotation
-    this.shipGfx.clear();
-    this.shipGfx.position.set(pos.x, pos.y);
-    this.shipGfx.rotation = angle;
-    // Ship hull
-    this.shipGfx.roundRect(-8, -3, 16, 6, 2);
-    this.shipGfx.fill({ color: 0xaabbcc, alpha: 0.9 });
-    // Cockpit
-    this.shipGfx.roundRect(4, -2, 5, 4, 1);
-    this.shipGfx.fill({ color: 0x4488ff, alpha: 0.7 });
-    // Engine glow
-    this.shipGfx.circle(-8, 0, 3);
-    this.shipGfx.fill({ color: 0x4488ff, alpha: 0.6 });
-    this.shipGfx.circle(-8, 0, 5);
-    this.shipGfx.fill({ color: 0x4488ff, alpha: 0.2 });
+    // Render ship body — sprite path preferred, graphics fallback.
+    if (this.shipSprite) {
+      this.shipSprite.position.set(pos.x, pos.y);
+      this.shipSprite.rotation = angle;
+    } else if (this.shipGfx) {
+      this.shipGfx.clear();
+      this.shipGfx.position.set(pos.x, pos.y);
+      this.shipGfx.rotation = angle;
+      this.shipGfx.roundRect(-8, -3, 16, 6, 2);
+      this.shipGfx.fill({ color: 0xaabbcc, alpha: 0.9 });
+      this.shipGfx.roundRect(4, -2, 5, 4, 1);
+      this.shipGfx.fill({ color: 0x4488ff, alpha: 0.7 });
+      this.shipGfx.circle(-8, 0, 3);
+      this.shipGfx.fill({ color: 0x4488ff, alpha: 0.6 });
+      this.shipGfx.circle(-8, 0, 5);
+      this.shipGfx.fill({ color: 0x4488ff, alpha: 0.2 });
+    }
 
     // Draw engine trail
     this.shipTrailGfx.clear();

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -846,6 +847,68 @@ interface ShipState {
   speed: number; // progress per ms
 }
 
+// Cached GLB for the evacuation ship. Loaded once on first PlanetGlobeView
+// mount; subsequent ships clone it. Falls back to the procedural cone if
+// the file is missing / still loading.
+// Size: the cone placeholder was ~0.1 units tall; we normalize the GLB to
+// 0.12u longest-axis so the visual footprint stays close to the original.
+const DOOMSDAY_SHIP_GLB = '/arena_ships/blue_ship.glb';
+const DOOMSDAY_SHIP_SIZE = 0.12;
+let _doomsdayShipCache: THREE.Group | null = null;
+let _doomsdayShipLoading: Promise<void> | null = null;
+
+function preloadDoomsdayShip(): Promise<void> {
+  if (_doomsdayShipCache) return Promise.resolve();
+  if (_doomsdayShipLoading) return _doomsdayShipLoading;
+  const loader = new GLTFLoader();
+  _doomsdayShipLoading = new Promise<void>((resolve) => {
+    loader.load(
+      DOOMSDAY_SHIP_GLB,
+      (gltf) => {
+        const scene = gltf.scene;
+        // Normalize scale + center so the model sits with its pivot at origin.
+        const box = new THREE.Box3().setFromObject(scene);
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+        const longest = Math.max(size.x, size.y, size.z);
+        const factor = longest > 0.0001 ? DOOMSDAY_SHIP_SIZE / longest : 1;
+        scene.scale.setScalar(factor);
+        scene.position.set(-center.x * factor, -center.y * factor, -center.z * factor);
+        _doomsdayShipCache = scene;
+        resolve();
+      },
+      undefined,
+      () => resolve(), // fallback to cone placeholder
+    );
+  });
+  return _doomsdayShipLoading;
+}
+
+function cloneDoomsdayShip(): THREE.Object3D | null {
+  if (!_doomsdayShipCache) return null;
+  const clone = _doomsdayShipCache.clone(true);
+  // Clone materials so per-frame disposal in updateShipVisuals (which wipes
+  // children) doesn't free a shared material used by other ship clones.
+  clone.traverse((obj) => {
+    if (obj instanceof THREE.Mesh && obj.material) {
+      obj.material = Array.isArray(obj.material)
+        ? obj.material.map((m) => m.clone())
+        : obj.material.clone();
+      obj.castShadow = false;
+      obj.receiveShadow = false;
+    }
+  });
+  // The Tripo export has its nose along +X; rotate so +Z is forward (the
+  // direction ConeGeometry pointed). Apply via wrapper so lookAt() calls
+  // in the caller still work correctly.
+  const wrapper = new THREE.Group();
+  clone.rotation.y = Math.PI / 2;
+  wrapper.add(clone);
+  return wrapper;
+}
+
 function createShipState(scene: THREE.Scene): ShipState {
   const group = new THREE.Group();
   group.visible = false;
@@ -896,10 +959,16 @@ function updateShipVisuals(ship: ShipState, deltaMs: number) {
       u * u * startPos.z + 2 * u * t * cp.z + t * t * endPos.z,
     );
 
-    // Ship body (small triangle)
-    const shipGeo = new THREE.ConeGeometry(0.03, 0.1, 4);
-    const shipMat = new THREE.MeshBasicMaterial({ color: 0xaabbcc });
-    const shipMesh = new THREE.Mesh(shipGeo, shipMat);
+    // Ship body — GLB if loaded, procedural cone as fallback
+    let shipMesh: THREE.Object3D;
+    const glb = cloneDoomsdayShip();
+    if (glb) {
+      shipMesh = glb;
+    } else {
+      const shipGeo = new THREE.ConeGeometry(0.03, 0.1, 4);
+      const shipMat = new THREE.MeshBasicMaterial({ color: 0xaabbcc });
+      shipMesh = new THREE.Mesh(shipGeo, shipMat);
+    }
     shipMesh.position.copy(pos);
 
     // Orient toward movement direction
@@ -950,9 +1019,16 @@ function updateShipVisuals(ship: ShipState, deltaMs: number) {
     const y = 0;
     const z = Math.sin(ship.orbitAngle) * orbitR * ecc;
 
-    const shipGeo = new THREE.ConeGeometry(0.03, 0.1, 4);
-    const shipMat = new THREE.MeshBasicMaterial({ color: 0xaabbcc });
-    const shipMesh = new THREE.Mesh(shipGeo, shipMat);
+    // Ship body — GLB if loaded, procedural cone as fallback
+    let shipMesh: THREE.Object3D;
+    const glb = cloneDoomsdayShip();
+    if (glb) {
+      shipMesh = glb;
+    } else {
+      const shipGeo = new THREE.ConeGeometry(0.03, 0.1, 4);
+      const shipMat = new THREE.MeshBasicMaterial({ color: 0xaabbcc });
+      shipMesh = new THREE.Mesh(shipGeo, shipMat);
+    }
     shipMesh.position.set(x, y, z);
     shipMesh.rotation.y = -ship.orbitAngle;
     ship.group.add(shipMesh);
@@ -1219,7 +1295,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       scan.group.visible = false;
       scanRef.current = scan;
 
-      // 9. Ship
+      // 9. Ship — kick off GLB preload in background; fallback is the cone.
+      void preloadDoomsdayShip();
       const ship = createShipState(scene);
       shipRef.current = ship;
 
