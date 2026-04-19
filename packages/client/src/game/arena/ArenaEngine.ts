@@ -1393,39 +1393,45 @@ export class ArenaEngine {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
-      // Right stick is rate-based. X → yaw rate, Y → pitch rate.
-      // Stick centered (both |v| < 0.1) holds aim. No auto-aim.
-      const YAW_RATE = Math.PI / 0.8;   // rad/sec at full stick
-      const PITCH_RATE = Math.PI / 1.2; // rad/sec at full stick
+      // Right stick — rate-based. Full rewrite of the sign convention after
+      // the previous code inverted yaw (stick right turned the ship left).
+      //
+      // Convention: aim vector is a 3D unit vector; forward is (0, 0, -1).
+      // Yaw is measured as atan2(aimDirX, -aimDirZ) so forward = 0, right =
+      // +π/2, left = -π/2. Stick right (mobileAim.x > 0) should increase
+      // yaw. Recompose aim from (yaw, pitch) using the MATCHING sin/cos:
+      //   aimDirX =  sin(yaw) * cos(pitch)
+      //   aimDirZ = -cos(yaw) * cos(pitch)
+      // so (yaw=0, pitch=0) → (0, 0, -1) = forward.
+      const YAW_RATE = Math.PI / 0.8;
+      const PITCH_RATE = Math.PI / 1.2;
       const yawStick = Math.abs(this.mobileAim.x) > 0.1 ? this.mobileAim.x : 0;
-      // mobilePitchRate is the raw stick Y. Screen-up (negative) → nose up.
       const pitchStick = Math.abs(this.mobilePitchRate) > 0.1 ? this.mobilePitchRate : 0;
 
       const curPitchM = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
-      const curYawM = Math.atan2(this.aimDirX, this.aimDirZ);
+      const curYawM = Math.atan2(this.aimDirX, -this.aimDirZ);
 
       const newYaw = curYawM + yawStick * YAW_RATE * dt;
       let newPitch = curPitchM - pitchStick * PITCH_RATE * dt;
       newPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, newPitch));
       const cp = Math.cos(newPitch);
-      this.aimDirX = Math.sin(newYaw) * cp;
-      this.aimDirY = Math.sin(newPitch);
-      this.aimDirZ = Math.cos(newYaw) * cp;
+      this.aimDirX =  Math.sin(newYaw) * cp;
+      this.aimDirY =  Math.sin(newPitch);
+      this.aimDirZ = -Math.cos(newYaw) * cp;
     } else if (this.pointerLocked) {
-      // Desktop pointer-lock: yaw from mouseX, pitch from mouseY.
-      // Decompose current aim into (yaw, pitch), apply deltas, recompose.
+      // Desktop pointer-lock — same convention as mobile. Mouse right →
+      // yaw right (positive). Mouse down → pitch down (negative).
       const curPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
-      const horizLen = Math.cos(curPitch);
-      const curYaw = (horizLen < 0.0001) ? 0 : Math.atan2(this.aimDirX, this.aimDirZ);
+      const curYaw = Math.atan2(this.aimDirX, -this.aimDirZ);
 
       const newYaw = curYaw + this.mouseMoveX * this.MOUSE_SENS;
-      let newPitch = curPitch - this.mouseMoveY * this.MOUSE_SENS; // screen down = pitch down
+      let newPitch = curPitch - this.mouseMoveY * this.MOUSE_SENS;
       newPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, newPitch));
 
       const cp = Math.cos(newPitch);
-      this.aimDirX = Math.sin(newYaw) * cp;
-      this.aimDirY = Math.sin(newPitch);
-      this.aimDirZ = Math.cos(newYaw) * cp;
+      this.aimDirX =  Math.sin(newYaw) * cp;
+      this.aimDirY =  Math.sin(newPitch);
+      this.aimDirZ = -Math.cos(newYaw) * cp;
 
       // Consume deltas
       this.mouseMoveX = 0;
