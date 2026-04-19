@@ -4,4 +4,6 @@
     <string name="title_activity_main">Nebulife</string>
     <string name="package_name">app.nebulife.game</string>
     <string name="custom_url_scheme">app.nebulife.game</string>
+    <string name="server_client_id">702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com</string>
+    <string name="admob_app_id">ca-app-pub-3504252081237345~9129352922</string>
 </resources>
