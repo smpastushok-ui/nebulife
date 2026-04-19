@@ -5,8 +5,11 @@
  */
 
 // --- Research ---
-/** Duration of one research session in milliseconds. 30s for dev, 3_600_000 (1h) for prod. */
-export const RESEARCH_DURATION_MS = 30_000;
+/** Duration of one research session in milliseconds. 60s = 1 minute (per
+ *  game design: 1 real day compressed to 1 real hour, so 1h research session
+ *  shrinks 24× to ~150 seconds; we use a flat 60 s for predictable pacing).
+ *  Was 30 s — felt too fast and starter rings were over in <2 min. */
+export const RESEARCH_DURATION_MS = 60_000;
 
 /** Minimum progress gained per research session (%). */
 export const RESEARCH_MIN_PROGRESS = 2;

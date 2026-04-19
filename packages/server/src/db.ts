@@ -43,8 +43,10 @@ export interface PlayerRow {
   cluster_id: string | null;
 }
 
-/** Starter wallet for new players (per Game Bible §0.4-bis: 20⚛ = 2 free photos) */
-export const STARTER_QUARKS = 20;
+/** Starter wallet for new players. 30⚛ — first photo is FREE (handled in
+ *  handleQuantumFocus) so 30 covers ~1 paid photo (25⚛) with a small buffer
+ *  instead of leaving a fresh player short by 5⚛ on their second action. */
+export const STARTER_QUARKS = 30;
 
 export async function createPlayer(player: {
   id: string;
@@ -545,6 +547,25 @@ export async function creditQuarks(
     RETURNING *
   `;
   return rows[0] as PlayerRow;
+}
+
+/** Atomic increment of game_state.researchData (stored inside the JSONB blob).
+ *  Used by ad rewards that grant research data so the value persists even if
+ *  the client crashes between reward grant and the next state sync. */
+export async function creditResearchData(
+  playerId: string,
+  amount: number,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE players
+    SET game_state = jsonb_set(
+      game_state,
+      '{researchData}',
+      to_jsonb(COALESCE((game_state->>'researchData')::float, 0) + ${amount})
+    )
+    WHERE id = ${playerId}
+  `;
 }
 
 // ---------------------------------------------------------------------------
