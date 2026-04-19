@@ -110,19 +110,9 @@ function cloneShipScene(source: THREE.Group): THREE.Group {
       } else if (obj.material) {
         obj.material = obj.material.clone();
       }
-      // Boost emissive on standard/physical materials so the hull self-lights
-      // against the deep-space backdrop. Tripo exports a dark diffuse; without
-      // this the ship is almost invisible in the arena.
-      const boost = (m: THREE.Material) => {
-        const anyM = m as THREE.Material & { emissive?: THREE.Color; emissiveIntensity?: number; color?: THREE.Color };
-        if (anyM.emissive) {
-          // Seed emissive from the diffuse color so tints stay consistent.
-          if (anyM.color) anyM.emissive.copy(anyM.color).multiplyScalar(0.35);
-          anyM.emissiveIntensity = 0.6;
-        }
-      };
-      if (Array.isArray(obj.material)) obj.material.forEach(boost);
-      else if (obj.material) boost(obj.material);
+      // Keep the GLB's original look — emissive boost was removed because
+      // it was bleaching the hull. Scene-level lights (setupLights) now
+      // handle overall visibility.
       obj.castShadow = false;
       obj.receiveShadow = false;
       // Frustum culling is correct for GLB (has proper bounding sphere)
@@ -162,6 +152,9 @@ export class ArenaEngine {
   private floorMesh!: THREE.Mesh;
   private boundaryMesh!: THREE.LineLoop;
   private starfield!: THREE.Points;
+  // Point light that tracks the player — illuminates nearby ships that
+  // the scene-wide directional lights might graze at a bad angle.
+  private playerKeyLight!: THREE.PointLight;
 
   // Player ship
   private playerMesh!: THREE.Mesh;
@@ -851,24 +844,37 @@ export class ArenaEngine {
   }
 
   private setupLights(): void {
-    // Brighter ambient + a punchy key light. Ships were nearly invisible
-    // against the deep-space backdrop; doubling ambient and boosting the
-    // directional makes them read clearly without shadow casting cost.
-    const ambient = new THREE.AmbientLight(0x6688aa, 2.4);
+    // Lighting rig: one strong warm ambient + three directionals at high
+    // intensity from multiple angles. No emissive boost on the ship hulls
+    // — this rig alone has to make the GLBs readable against deep space.
+    const ambient = new THREE.AmbientLight(0x99aabb, 3.2);
     this.scene.add(ambient);
 
-    const dir = new THREE.DirectionalLight(0xffffee, 2.0);
-    dir.position.set(200, 500, 300);
-    dir.castShadow = false; // NO shadows for mobile perf
-    this.scene.add(dir);
+    // Key light — warm, from above-front-right (the "sun").
+    const key = new THREE.DirectionalLight(0xffffee, 3.2);
+    key.position.set(200, 500, 300);
+    key.castShadow = false;
+    this.scene.add(key);
 
-    // A second fill-light from the opposite side, cool-toned, so the
-    // shadowed side of each ship still picks up some color instead of
-    // going fully black.
-    const fill = new THREE.DirectionalLight(0x4488cc, 0.8);
+    // Cool fill from opposite side so the shadow face isn't pitch black.
+    const fill = new THREE.DirectionalLight(0x88aadd, 1.6);
     fill.position.set(-200, 300, -200);
     fill.castShadow = false;
     this.scene.add(fill);
+
+    // Low rim light from below — picks out the underside/wings of ships
+    // flying above the horizon line.
+    const rim = new THREE.DirectionalLight(0xffeecc, 1.0);
+    rim.position.set(0, -300, 0);
+    rim.castShadow = false;
+    this.scene.add(rim);
+
+    // Point light that follows the player so nearby ships read crisply
+    // even when the directional key misses them. Cheap — one vertex
+    // light only affects PBR materials, which GLB ships use.
+    this.playerKeyLight = new THREE.PointLight(0xffffff, 1.6, 300, 1.4);
+    this.playerKeyLight.castShadow = false;
+    this.scene.add(this.playerKeyLight);
   }
 
   private setupPlayerShip(): void {
@@ -1394,6 +1400,16 @@ export class ArenaEngine {
     // Update mesh position
     this.playerMesh.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
     this.playerNickSprite.position.set(this.playerPos.x, this.playerPos.y + 15, this.playerPos.z - 15);
+
+    // Player-following point light — slightly above the ship so the top
+    // surfaces light up; cheap compared to a shadow-casting directional.
+    if (this.playerKeyLight) {
+      this.playerKeyLight.position.set(
+        this.playerPos.x,
+        this.playerPos.y + 40,
+        this.playerPos.z,
+      );
+    }
 
     // Glow disc follows ship; gentle pulse on opacity for "alive" feel.
     if (this.playerGlowMesh) {
