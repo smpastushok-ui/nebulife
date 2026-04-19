@@ -939,11 +939,22 @@ function AppInner() {
   // Handles race condition where server hydration may overwrite slots to [] or state corruption.
   useEffect(() => {
     if (!isExodusPhase && researchState.slots.length === 0) {
+      // Recovery fallback when slots accidentally vanish (race between
+      // sign-in clear + server hydration). Restore the FULL home observatory
+      // count (3) instead of a single slot — single-slot was leaving players
+      // with 0/1 displayed after re-login, instead of the expected 0/3.
+      // Evacuation phase intentionally sets 1 slot elsewhere; that path is
+      // gated by isExodusPhase above and is unaffected.
       setResearchState((prev) => {
         if (prev.slots.length > 0) return prev;
         return {
           ...prev,
-          slots: [{ slotIndex: 0, systemId: null, startedAt: null, sourcePlanetRing: 0 }],
+          slots: Array.from({ length: HOME_OBSERVATORY_COUNT }, (_, i) => ({
+            slotIndex: i,
+            systemId: null,
+            startedAt: null,
+            sourcePlanetRing: 0,
+          })),
         };
       });
     }
