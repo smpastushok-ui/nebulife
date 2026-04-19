@@ -1248,46 +1248,17 @@ export class ArenaEngine {
       //    in WORLD space (push left → fly left), ship's nose turns to match.
       //    This is the natural twin-stick default.
       //
-      // 2. Right joystick ACTIVE → strafe: ship's nose is locked to the aim
-      //    direction from the right joystick; left joystick strafes relative
-      //    to that aim (up = forward along aim, sideways = circle-strafe).
-      //
-      // updateAim() owns rotating the aimDir vector; here we only pick the
-      // movement frame. Keeping the two responsibilities separate avoids the
-      // 90° feedback loop that happens when aim is derived from the left
-      // joystick in local-strafe mode at the same time.
-      const jx = this.mobileMove.x;
+      //   Left stick = pure forward thrust along the ship's current aim.
+      //   Y component of the stick (mobileMove.z < 0 when pushed forward) is
+      //   the magnitude; the direction is always "ship nose forward". This
+      //   replaces the old world-space strafe that sent the ship off-axis
+      //   whenever aim was not (0, 0, -1) in world space.
       const jz = this.mobileMove.z;
-      const jLen = Math.sqrt(jx * jx + jz * jz);
-      if (jLen > 0.01) {
-        const aimLen = Math.sqrt(this.mobileAim.x * this.mobileAim.x + this.mobileAim.z * this.mobileAim.z);
-        const rightActive = aimLen > 0.1;
-
-        // Sync detection — both joysticks point in roughly the same direction.
-        // In that case we SKIP strafe mode and fly directly in world-space,
-        // otherwise the strafe math ("left up = forward toward aim") would
-        // send the ship backwards from aim when both sticks push e.g. down.
-        let synced = false;
-        if (rightActive) {
-          const dot = (this.mobileAim.x * jx + this.mobileAim.z * jz) / (aimLen * jLen);
-          synced = dot > 0.8;
-        }
-
-        if (rightActive && !synced) {
-          // Strafe mode — movement frame is the ship's aim direction
-          const fwdX = this.aimDirX;
-          const fwdZ = this.aimDirZ;
-          // Right vector = perpendicular to forward (CW rotation)
-          const rgtX = -fwdZ;
-          const rgtZ = fwdX;
-          // -jz because joystick up (negative) = forward
-          ax = fwdX * (-jz) + rgtX * jx;
-          az = fwdZ * (-jz) + rgtZ * jx;
-        } else {
-          // Nose-follow (or synced) — direct world-space movement
-          ax = jx;
-          az = jz;
-        }
+      const thrust = -jz; // stick forward = jz<0 → thrust>0
+      if (Math.abs(thrust) > 0.01) {
+        ax = this.aimDirX * thrust;
+        az = this.aimDirZ * thrust;
+        // Vertical component too so diving ship accelerates down along aim.
       }
     } else {
       if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
@@ -1296,20 +1267,28 @@ export class ArenaEngine {
       if (this.keys.has('d') || this.keys.has('arrowright')) ax += 1;
     }
 
-    // Vertical thrust (3D) — Space = climb, Ctrl/Shift = dive. Desktop only
-    // for now; mobile vertical control comes via mobileMove.y in Phase 5.
+    // Vertical thrust.
+    //   Desktop: Space = climb, Ctrl/Shift = dive (world-Y).
+    //   Mobile:  Y component of aim applied to the same thrust as XZ, so if
+    //            the nose is pointed down the ship accelerates downward.
     let ay = 0;
     if (!this.isMobile) {
       if (this.keys.has(' ')) ay += 1;
       if (this.keys.has('control') || this.keys.has('shift')) ay -= 1;
     } else {
-      // Mobile passes vertical thrust through mobileMove.y (set in Phase 5).
-      ay = this.mobileVerticalThrust;
+      const jz = this.mobileMove.z;
+      const thrust = -jz;
+      if (Math.abs(thrust) > 0.01) {
+        ay = this.aimDirY * thrust;
+      }
     }
 
-    // Normalize diagonal (XZ)
-    const len = Math.sqrt(ax * ax + az * az);
-    if (len > 0) { ax /= len; az /= len; }
+    // Normalize diagonal only for desktop (WASD) — mobile ax/az are already
+    // scaled by aim-direction × thrust, which is the intended magnitude.
+    if (!this.isMobile) {
+      const len = Math.sqrt(ax * ax + az * az);
+      if (len > 0) { ax /= len; az /= len; }
+    }
 
     // Sync-boost: when player pushes both joysticks in roughly the same
     // direction (dot > 0.8 ≈ within ~37°), grant +30% acceleration and top
@@ -1529,26 +1508,35 @@ export class ArenaEngine {
       }
     }
 
-    // Rotation: after geo.rotateX(-PI/2), nose faces local -Z
-    // To point nose toward (aimDirX, aimDirZ): rotation.y = atan2(-dirX, -dirZ)
+    // Ship orientation — use lookAt + roll to avoid Euler-order conflicts.
+    //
+    // SHIP_MODEL_NOSE_OFFSET rotates Tripo's local +X nose to local -Z in
+    // the inner wrapper. playerMesh is the outer wrapper; its local -Z is
+    // therefore the nose direction. lookAt() aligns local -Z with the world
+    // direction to (target - position), so after lookAt the ship's nose
+    // points exactly at aim — no smoothing, no Euler order issues, ship
+    // rotates in lockstep with the camera.
     this.playerAimAngle = Math.atan2(this.aimDirX, this.aimDirZ);
-    this.playerMesh.rotation.y = Math.atan2(-this.aimDirX, -this.aimDirZ);
-    // Pitch the ship's nose up/down to match the 3D aim direction.
-    // aimDirY is sin(pitch); mesh.rotation.x rotates around world X, so we
-    // want negative pitch (nose up when aimDirY > 0 in Three.js +Y-up frame).
-    const targetShipPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
-    this.playerPitch += (targetShipPitch - this.playerPitch) * Math.min(1, dt * 6);
-    this.playerMesh.rotation.x = this.playerPitch;
+    _tempVec3.set(
+      this.playerPos.x + this.aimDirX,
+      this.playerPos.y + this.aimDirY,
+      this.playerPos.z + this.aimDirZ,
+    );
+    this.playerMesh.lookAt(_tempVec3);
 
-    // Roll composition: shipRoll (flight-sim bank) is baseline on .rotation.z.
-    // Barrel-roll adds a spinning 2π sweep on top so the visual stacks with
-    // the held bank cleanly.
-    let rollZ = this.shipRoll;
+    // Roll around the local forward axis (-Z after lookAt). Apply as an
+    // additional rotation via rotateOnAxis so it composes with lookAt's
+    // quaternion instead of fighting the Euler .rotation.z slot.
+    let roll = this.shipRoll;
     if (this.barrelRollTimer > 0) {
       const progress = 1 - this.barrelRollTimer / this.BARREL_ROLL_DURATION;
-      rollZ += progress * Math.PI * 2;
+      roll += progress * Math.PI * 2;
     }
-    this.playerMesh.rotation.z = rollZ;
+    if (Math.abs(roll) > 0.0001) {
+      _tempVec3.set(0, 0, -1); // local forward after lookAt
+      this.playerMesh.rotateOnAxis(_tempVec3, roll);
+    }
+    this.playerPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
 
     // Bank angle — visual tilt when turning sharply (only on Z axis, no X)
     let angleDelta = this.playerAimAngle - prevAngle;

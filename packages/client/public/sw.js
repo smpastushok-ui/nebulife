@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v9: stronger scene lights, emissive boost reverted
-const CACHE_NAME = 'nebulife-v9';
+// v10: sector rotation fix, thrust-along-aim, lookAt ship rotation
+const CACHE_NAME = 'nebulife-v10';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [

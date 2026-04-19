@@ -80,20 +80,20 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
     }
 
     if (isLeft) {
-      // Was the initial touch inside the visible hint ring? That enables
-      // thrust for the whole gesture. Sector-only taps (starting outside)
-      // fire weapons but leave thrust off.
+      // Inside-ring check in container-local coords (see handlePointerMove
+      // for the rotation explanation). Both `local` and `hintCenterLocal`
+      // live in the rotated container frame, so angular/position comparisons
+      // match what the user sees.
       leftStartedInside.current = false;
       const hintEl = leftHintRef.current;
       if (hintEl) {
         const rect = hintEl.getBoundingClientRect();
-        // rect in CSS coords; we need the same coordinate space as `local`.
-        // When needRotate the whole container is CSS-rotated, so the hint's
-        // client rect is still in unrotated screen coords — use raw e.client*.
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const ddx = e.clientX - cx;
-        const ddy = e.clientY - cy;
+        const hintCenterLocal = toLocal(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        );
+        const ddx = local.x - hintCenterLocal.x;
+        const ddy = local.y - hintCenterLocal.y;
         const ringR = rect.width / 2;
         if (ddx * ddx + ddy * ddy <= ringR * ringR) {
           leftStartedInside.current = true;
@@ -131,24 +131,30 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
     if (isLeft) {
       // Gesture model:
       //   - Thrust ON only if the press STARTED inside the visible ring.
-      //     Re-pressing on a sector without touching the center = no thrust
-      //     (ship will decelerate via drag) but the weapon still fires.
       //   - Finger inside ring  → pure thrust, no weapon (sector = center).
       //   - Finger outside ring → weapon sector activates (laser / missile /
-      //     warp / dodge). Thrust is still on if the gesture started inside.
+      //     warp / dodge). Thrust stays on if started inside.
+      //
+      // Coordinate correctness: when the container is CSS-rotated (portrait
+      // device held in landscape), screen coords and container coords differ
+      // by a 90° spin. Always work in container-local coords via toLocal()
+      // so the sector mapping (up=LASER, right=WARP, down=DODGE, left=MISSILE)
+      // matches what the user SEES on screen.
       const hintEl = leftHintRef.current;
       let insideRing = false;
       let angle = 0;
       if (hintEl) {
         const rect = hintEl.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const ddx = e.clientX - cx;
-        const ddy = e.clientY - cy;
+        const hintCenterLocal = toLocal(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        );
+        const ddx = local.x - hintCenterLocal.x;
+        const ddy = local.y - hintCenterLocal.y;
         const ringR = rect.width / 2;
         const distFromRingCenter = Math.sqrt(ddx * ddx + ddy * ddy);
         insideRing = distFromRingCenter <= ringR;
-        angle = Math.atan2(-ddy, ddx); // flip Y so up on screen = positive angle
+        angle = Math.atan2(-ddy, ddx); // up on screen = positive angle
       }
 
       const thrust = leftStartedInside.current ? 1 : 0;
