@@ -250,7 +250,13 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         onPointerUp={(e) => handlePointerUp(e, false)}
         onPointerCancel={(e) => handlePointerUp(e, false)}
       >
-        <div style={{ ...styles.hint, bottom: `calc(80px + ${safeBottom})`, right: `calc(110px + ${safeRight})` }}>
+        <div style={{
+          // Right stick lowered so its center (bottom + 45 = 115) matches
+          // the left stick's center (40 + 75 = 115) — sticks on one line.
+          ...styles.hint,
+          bottom: `calc(70px + ${safeBottom})`,
+          right: `calc(110px + ${safeRight})`,
+        }}>
           <div style={{ ...styles.hintRing, borderColor: 'rgba(255, 68, 68, 0.2)' }} />
           <span style={{ ...styles.hintLabel, color: 'rgba(255, 68, 68, 0.3)' }}>AIM</span>
         </div>

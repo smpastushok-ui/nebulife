@@ -8,15 +8,16 @@ import type { WeaponDef, WeaponType } from './ArenaTypes.js';
 // 3D semi-sphere: XZ disc radius = ARENA_HALF, vertical extent = ±ARENA_HEIGHT_HALF.
 // Players can climb/dive within that Y band. The top/bottom caps act like
 // invisible boundaries (same bounce logic as the outer XZ ring).
-export const ARENA_SIZE = 2000;
+// Volume expanded 4× per player request — linear scale ~1.6 (1.6³ ≈ 4.1).
+export const ARENA_SIZE = 3200;
 export const ARENA_HALF = ARENA_SIZE / 2;
-export const ARENA_HEIGHT_HALF = 400;
+export const ARENA_HEIGHT_HALF = 640;
 export const ARENA_GROUND_Y = 5; // ships start / respawn around this Y (was the flat "floor" height)
 
 // Match
 export const MAX_SHIPS = 10;
 export const BOT_COUNT = 4;
-export const MATCH_DURATION = 180; // 3 minutes
+export const MATCH_DURATION = 300; // 5 minutes (per player request)
 export const COUNTDOWN_SECONDS = 3;
 export const RESPAWN_DELAY = 5;    // seconds
 export const INVULNERABILITY_TIME = 3; // seconds after respawn
@@ -116,7 +117,7 @@ export const SCORE_KINETIC_KILL = 150;
 // Team Battle scoring
 export const TEAM_SCORE_ENEMY_KILL = 20;   // score per enemy ship kill
 export const TEAM_SCORE_DEATH = -10;        // score penalty per death
-export const TEAM_KILL_LIMIT = 50;          // kills to win the match
+export const TEAM_KILL_LIMIT = 25;          // kills to win the match
 
 // Team Battle bots
 export const TEAM_BOT_COUNT = 9;           // 4 blue allies + 5 red enemies

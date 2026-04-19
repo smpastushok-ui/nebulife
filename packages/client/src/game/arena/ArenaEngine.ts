@@ -24,6 +24,7 @@ import { createBotBrain, updateBot } from './ArenaAI.js';
 
 // Pre-allocated temp vectors — ZERO allocations in hot path
 const _tempVec3 = new THREE.Vector3();
+const _tempColor = new THREE.Color();
 const _camTarget = new THREE.Vector3();
 const _tempDummy = new THREE.Object3D(); // shared matrix writer for InstancedMesh updates
 
@@ -42,10 +43,11 @@ const SHIP_GLB_RED  = '/arena_ships/red_ship.glb';
 // consistent no matter what Tripo spat out.
 const SHIP_VISUAL_SIZE = 40;
 
-// Tripo ship GLB comes with its nose pointing opposite to the gameplay
-// forward axis. Previous -π/2 had the nose on the left side; after flipping
-// 180° the correct bake is +π/2 — the visible nose now leads in the aim
-// direction set by mesh.rotation.y = atan2(-aimDirX, -aimDirZ).
+// Tripo ship GLB nose offset — π/2 rotates model +X nose to outer's -Z
+// (the forward axis). Bots, which use the Euler rotation path, rely on
+// this offset and the user confirmed bots look correct. Player uses
+// lookAt and compensates for Three.js's +Z-toward-target convention by
+// pointing lookAt at (ship − aim) instead of (ship + aim).
 const SHIP_MODEL_NOSE_OFFSET = Math.PI / 2;
 
 // Cached loaded scenes. Loaded once on ArenaEngine.init, cloned per ship.
@@ -225,6 +227,13 @@ export class ArenaEngine {
   // Missiles (homing, limited turn rate, ammo-based)
   private missileMesh!: THREE.InstancedMesh;
   private missiles: { x: number; y: number; z: number; vx: number; vy: number; vz: number; age: number; active: boolean; angle: number; targetId: number | null }[] = [];
+  // Missile trail — tiny additive spheres dropped behind each missile.
+  // Single pooled InstancedMesh, sphere geo with 4 segments (cheap).
+  private missileTrailMesh!: THREE.InstancedMesh;
+  private missileTrails: { x: number; y: number; z: number; age: number; active: boolean }[] = [];
+  private missileTrailFreeList: number[] = [];
+  private readonly MISSILE_TRAIL_POOL = 80;
+  private readonly MISSILE_TRAIL_LIFETIME = 0.5;
   private missileFreeList: number[] = [];
   private readonly MISSILE_POOL = 20;
   private readonly MISSILE_SPEED = 400;
@@ -265,7 +274,7 @@ export class ArenaEngine {
   };
 
   // Health pickups — green cross, +30 HP
-  private healthPickups: { id: number; x: number; z: number; mesh: THREE.Group; respawnTimer: number; active: boolean }[] = [];
+  private healthPickups: { id: number; x: number; y: number; z: number; mesh: THREE.Group; respawnTimer: number; active: boolean }[] = [];
   private healthPickupCounter = 0;
   private readonly HEALTH_PICKUP_COUNT = 5;
   private readonly HEALTH_PICKUP_HEAL = 30;
@@ -421,9 +430,9 @@ export class ArenaEngine {
   private lockTarget: number | null = null;  // bot id being locked
   private lockTimer = 0;
   private lockLocked = false;  // true when fully locked (3s elapsed)
-  private readonly LOCK_TIME = 1.5;      // seconds to acquire lock
-  private readonly LOCK_RANGE = 400;     // units
-  private readonly LOCK_CONE = 30;       // degrees half-angle from aim direction
+  private readonly LOCK_TIME = 2.0;      // seconds to acquire lock
+  private readonly LOCK_RANGE = 1000;    // units — matches missile flight range (speed×lifetime = 400×3 = 1200)
+  private readonly LOCK_CONE = 25;       // degrees half-angle from aim direction
 
   constructor(container: HTMLElement, callbacks: ArenaCallbacks, shipId: string = 'ship1', teamMode: boolean = false) {
     this.container = container;
@@ -468,6 +477,7 @@ export class ArenaEngine {
     this.setupBullets();
     this.setupExhaust();
     this.setupMissiles();
+    this.setupMissileTrail();
     this.setupHoloShield();
     // Bots: team mode (4 blue + 5 red) or training FFA (6 neutral)
     this.setupBotBullets();
@@ -1106,9 +1116,11 @@ export class ArenaEngine {
         }
         break;
       case 'playing':
-        // Arena is a sandbox — no match end. matchTimer no longer ticks
-        // down and phase never transitions to 'ended' (which would freeze
-        // updatePlayer / updateShooting / updateWarp).
+        // Match timer counts down; HUD reads it via getMatchTimer().
+        // When it hits 0 we also check the kill leader for end conditions.
+        if (this.matchTimer > 0) {
+          this.matchTimer = Math.max(0, this.matchTimer - dt);
+        }
         this.updateDeathRespawn(dt);
         this.updateWarp(dt);
         if (!this.playerDead) {
@@ -1121,6 +1133,7 @@ export class ArenaEngine {
         }
         this.updateBullets(dt);
         this.updateMissiles(dt);
+        this.updateMissileTrail(dt);
         this.updateAsteroids(dt);
         this.updateBlackHole(dt);
         this.updateVFX(dt);
@@ -1136,9 +1149,8 @@ export class ArenaEngine {
         this.checkPlayerBulletBotCollisions();
         this.checkPlayerBotPhysicalCollisions();
         this.checkBotBotPhysicalCollisions();
-        if (this.teamMode) {
-          this.checkTeamMatchEnd();
-        }
+        // Training (3v3) also uses team kill-limit + timer win conditions.
+        this.checkTeamMatchEnd();
         break;
       default:
         break;
@@ -1470,9 +1482,12 @@ export class ArenaEngine {
       const curYawM = Math.atan2(this.aimDirX, -this.aimDirZ);
 
       const newYaw = curYawM + inducedYaw;
-      // pitchStick > 0 when stick pushed down on screen → nose up.
-      // pitchStick < 0 when stick pushed forward/up → nose down.
-      let newPitch = curPitchM + pitchStick * PITCH_RATE * dt;
+      // Pitch convention (flipped per user feedback):
+      //   stick UP on screen (pitchStick<0) → nose UP
+      //   stick DOWN on screen (pitchStick>0) → nose DOWN
+      // i.e. "pull back to climb, push forward to dive" in reverse — the
+      // player wants the stick to "look" where the nose goes.
+      let newPitch = curPitchM - pitchStick * PITCH_RATE * dt;
       newPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, newPitch));
       const cp = Math.cos(newPitch);
       this.aimDirX =  Math.sin(newYaw) * cp;
@@ -1510,17 +1525,17 @@ export class ArenaEngine {
 
     // Ship orientation — use lookAt + roll to avoid Euler-order conflicts.
     //
-    // SHIP_MODEL_NOSE_OFFSET rotates Tripo's local +X nose to local -Z in
-    // the inner wrapper. playerMesh is the outer wrapper; its local -Z is
-    // therefore the nose direction. lookAt() aligns local -Z with the world
-    // direction to (target - position), so after lookAt the ship's nose
-    // points exactly at aim — no smoothing, no Euler order issues, ship
-    // rotates in lockstep with the camera.
+    // Three.js Object3D.lookAt aligns LOCAL +Z with direction-to-target
+    // (Matrix4.lookAt is called with swapped args for generic objects). To
+    // match the inner offset that maps Tripo's +X nose → outer's -Z, we
+    // pass lookAt a target at (ship - aim). Local +Z then points toward
+    // (ship - aim) = opposite of aim, which means local -Z points ALONG
+    // aim — exactly where the ship's nose is.
     this.playerAimAngle = Math.atan2(this.aimDirX, this.aimDirZ);
     _tempVec3.set(
-      this.playerPos.x + this.aimDirX,
-      this.playerPos.y + this.aimDirY,
-      this.playerPos.z + this.aimDirZ,
+      this.playerPos.x - this.aimDirX,
+      this.playerPos.y - this.aimDirY,
+      this.playerPos.z - this.aimDirZ,
     );
     this.playerMesh.lookAt(_tempVec3);
 
@@ -2119,6 +2134,76 @@ export class ArenaEngine {
     this.scene.add(this.missileMesh);
   }
 
+  /**
+   * Missile trail — tiny additive spheres dropped behind each missile one
+   * per frame. Same pool pattern as exhaust: no allocation in the hot path,
+   * free-list for O(1) spawn. Cheap: 4-segment sphere × up to 80 instances.
+   */
+  private setupMissileTrail(): void {
+    const geo = new THREE.SphereGeometry(0.8, 4, 3);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffaa55,
+      transparent: true,
+      opacity: 0.75,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.disposables.push(geo, mat);
+    this.missileTrailMesh = new THREE.InstancedMesh(geo, mat, this.MISSILE_TRAIL_POOL);
+    this.missileTrailMesh.frustumCulled = false;
+
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < this.MISSILE_TRAIL_POOL; i++) {
+      dummy.position.set(0, -1000, 0);
+      dummy.scale.set(0, 0, 0);
+      dummy.updateMatrix();
+      this.missileTrailMesh.setMatrixAt(i, dummy.matrix);
+      this.missileTrails.push({ x: 0, y: 0, z: 0, age: 0, active: false });
+      this.missileTrailFreeList.push(i);
+    }
+    this.missileTrailMesh.instanceMatrix.needsUpdate = true;
+    this.scene.add(this.missileTrailMesh);
+  }
+
+  /** Spawn a single trail particle at (x, y, z). Silently no-op if the
+   *  pool is saturated — oldest particles fade first. */
+  private spawnMissileTrail(x: number, y: number, z: number): void {
+    const idx = this.missileTrailFreeList.pop();
+    if (idx === undefined) return;
+    const p = this.missileTrails[idx];
+    p.x = x; p.y = y; p.z = z; p.age = 0; p.active = true;
+  }
+
+  /** Advance all trail particles, fading + shrinking over their lifetime. */
+  private updateMissileTrail(dt: number): void {
+    const dummy = _tempDummy;
+    let dirty = false;
+    for (let i = 0; i < this.missileTrails.length; i++) {
+      const p = this.missileTrails[i];
+      if (!p.active) continue;
+      p.age += dt;
+      if (p.age >= this.MISSILE_TRAIL_LIFETIME) {
+        p.active = false;
+        this.missileTrailFreeList.push(i);
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        this.missileTrailMesh.setMatrixAt(i, dummy.matrix);
+        dirty = true;
+        continue;
+      }
+      const t = p.age / this.MISSILE_TRAIL_LIFETIME;
+      const s = 1 - t; // shrink from 1 to 0
+      dummy.position.set(p.x, p.y, p.z);
+      dummy.scale.set(s, s, s);
+      dummy.rotation.set(0, 0, 0);
+      dummy.updateMatrix();
+      this.missileTrailMesh.setMatrixAt(i, dummy.matrix);
+      dirty = true;
+    }
+    if (dirty) this.missileTrailMesh.instanceMatrix.needsUpdate = true;
+  }
+
   // ── Power-ups ──────────────────────────────────────────────────────────
 
   private setupHoloShield(): void {
@@ -2162,12 +2247,15 @@ export class ArenaEngine {
       const r = 100 + Math.random() * (ARENA_HALF * 0.7);
       const x = Math.cos(angle) * r;
       const z = Math.sin(angle) * r;
-      group.position.set(x, 5, z);
+      // Pickups scattered through the vertical band so the player has to
+      // climb or dive to collect — not all clustered at ground altitude.
+      const y = (Math.random() * 2 - 1) * (ARENA_HEIGHT_HALF * 0.6);
+      group.position.set(x, y, z);
       this.scene.add(group);
 
       this.healthPickups.push({
         id: this.healthPickupCounter++,
-        x, z, mesh: group, respawnTimer: 0, active: true,
+        x, y, z, mesh: group, respawnTimer: 0, active: true,
       });
     }
   }
@@ -2177,27 +2265,29 @@ export class ArenaEngine {
       if (!hp.active) {
         hp.respawnTimer -= dt;
         if (hp.respawnTimer <= 0) {
-          // Respawn at new random position
           const angle = Math.random() * Math.PI * 2;
           const r = 100 + Math.random() * (ARENA_HALF * 0.7);
           hp.x = Math.cos(angle) * r;
           hp.z = Math.sin(angle) * r;
-          hp.mesh.position.set(hp.x, 5, hp.z);
+          hp.y = (Math.random() * 2 - 1) * (ARENA_HEIGHT_HALF * 0.6);
+          hp.mesh.position.set(hp.x, hp.y, hp.z);
           hp.mesh.visible = true;
           hp.active = true;
         }
         continue;
       }
 
-      // Animate: gentle bob + rotate
-      hp.mesh.position.y = 5 + Math.sin(performance.now() * 0.003 + hp.id) * 2;
+      // Animate: gentle bob + rotate (bob around each pickup's persistent Y)
+      hp.mesh.position.y = hp.y + Math.sin(performance.now() * 0.003 + hp.id) * 2;
       hp.mesh.rotation.y += dt * 1.2;
 
-      // Player collection
+      // Player collection — 3D distance so high-altitude pickups actually
+      // require climbing to grab.
       if (!this.playerDead) {
         const dx = this.playerPos.x - hp.x;
+        const dy = this.playerPos.y - hp.y;
         const dz = this.playerPos.z - hp.z;
-        if (dx * dx + dz * dz < this.HEALTH_PICKUP_RADIUS * this.HEALTH_PICKUP_RADIUS) {
+        if (dx * dx + dy * dy + dz * dz < this.HEALTH_PICKUP_RADIUS * this.HEALTH_PICKUP_RADIUS) {
           this.playerHp = Math.min(this.PLAYER_MAX_HP, this.playerHp + this.HEALTH_PICKUP_HEAL);
           playSfx('arena-powerup', 0.075);
           hp.active = false;
@@ -2206,19 +2296,18 @@ export class ArenaEngine {
         }
       }
 
-      // Bot collection (in team mode)
-      if (this.teamMode) {
-        for (const bot of this.botShips) {
-          if (!bot.alive) continue;
-          const dx = bot.pos.x - hp.x;
-          const dz = bot.pos.z - hp.z;
-          if (dx * dx + dz * dz < this.HEALTH_PICKUP_RADIUS * this.HEALTH_PICKUP_RADIUS) {
-            bot.hp = Math.min(100, bot.hp + this.HEALTH_PICKUP_HEAL);
-            hp.active = false;
-            hp.mesh.visible = false;
-            hp.respawnTimer = this.HEALTH_PICKUP_RESPAWN;
-            break;
-          }
+      // Bot collection (both modes now since training is 3v3)
+      for (const bot of this.botShips) {
+        if (!bot.alive) continue;
+        const dx = bot.pos.x - hp.x;
+        const dy = bot.pos.y - hp.y;
+        const dz = bot.pos.z - hp.z;
+        if (dx * dx + dy * dy + dz * dz < this.HEALTH_PICKUP_RADIUS * this.HEALTH_PICKUP_RADIUS) {
+          bot.hp = Math.min(100, bot.hp + this.HEALTH_PICKUP_HEAL);
+          hp.active = false;
+          hp.mesh.visible = false;
+          hp.respawnTimer = this.HEALTH_PICKUP_RESPAWN;
+          break;
         }
       }
     }
@@ -2592,6 +2681,9 @@ export class ArenaEngine {
       m.y += m.vy * dt;
       m.z += m.vz * dt;
 
+      // Drop a trail particle at the new position each frame.
+      this.spawnMissileTrail(m.x, m.y, m.z);
+
       // Visual — orient to full 3D velocity (yaw + pitch)
       const horizSpd = Math.sqrt(m.vx * m.vx + m.vz * m.vz);
       const yaw = Math.atan2(m.vx, m.vz);
@@ -2960,10 +3052,10 @@ export class ArenaEngine {
 
   private spawnBlackHole(): void {
     playSfx('arena-blackhole', 0.5);
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 200 + Math.random() * (ARENA_HALF - 400);
-    this.blackHolePos.x = Math.cos(angle) * dist;
-    this.blackHolePos.z = Math.sin(angle) * dist;
+    // Black hole always spawns at arena center (per player request) so it's
+    // a landmark hazard everyone can navigate relative to.
+    this.blackHolePos.x = 0;
+    this.blackHolePos.z = 0;
     this.blackHoleActive = true;
     this.blackHoleAge = 0;
 
@@ -3044,12 +3136,26 @@ export class ArenaEngine {
   // ── Team Battle: setup ──────────────────────────────────────────────────
 
   private setupBotBullets(): void {
-    const geo = new THREE.IcosahedronGeometry(3, 0);
-    const mat = new THREE.MeshLambertMaterial({ color: 0x887766, flatShading: true });
+    // Same cylinder-beam geometry as the player laser so bot shots look
+    // like lasers too, not spheres. Colour is set per-instance via
+    // setColorAt so red team fires red beams and blue team fires blue.
+    const geo = new THREE.CylinderGeometry(0.5, 0.5, 10, 6);
+    geo.rotateX(Math.PI / 2); // cylinder axis +Y → +Z so rotation.y steers yaw
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, // white base; per-instance color tints
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
     this.disposables.push(geo, mat);
 
     this.botBulletMesh = new THREE.InstancedMesh(geo, mat, this.BOT_BULLET_POOL);
     this.botBulletMesh.frustumCulled = false;
+    this.botBulletMesh.instanceColor = new THREE.InstancedBufferAttribute(
+      new Float32Array(this.BOT_BULLET_POOL * 3),
+      3,
+    );
 
     const dummy = new THREE.Object3D();
     for (let i = 0; i < this.BOT_BULLET_POOL; i++) {
@@ -3060,12 +3166,8 @@ export class ArenaEngine {
       this.botBullets.push({
         x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, active: false,
         ownerId: -1, ownerTeam: 'red',
-        rotX: Math.random() * Math.PI * 2,
-        rotY: Math.random() * Math.PI * 2,
-        rotZ: Math.random() * Math.PI * 2,
-        rotSpX: (Math.random() - 0.5) * 5,
-        rotSpY: (Math.random() - 0.5) * 5,
-        rotSpZ: (Math.random() - 0.5) * 5,
+        rotX: 0, rotY: 0, rotZ: 0,
+        rotSpX: 0, rotSpY: 0, rotSpZ: 0,
       });
       this.botBulletFreeList.push(i);
     }
@@ -3693,9 +3795,17 @@ export class ArenaEngine {
     b.active = true;
     b.ownerId = bot.id;
     b.ownerTeam = bot.team;
-    b.rotSpX = (Math.random() - 0.5) * 5;
-    b.rotSpY = (Math.random() - 0.5) * 5;
-    b.rotSpZ = (Math.random() - 0.5) * 5;
+
+    // Tint the laser beam by team color via per-instance InstancedMesh color.
+    const teamColor = bot.team === 'red'
+      ? _tempColor.setRGB(1.0, 0.3, 0.3)
+      : bot.team === 'blue'
+        ? _tempColor.setRGB(0.3, 0.6, 1.0)
+        : _tempColor.setRGB(1.0, 0.7, 0.4); // neutral = warm amber
+    this.botBulletMesh.setColorAt(idx, teamColor);
+    if (this.botBulletMesh.instanceColor) {
+      this.botBulletMesh.instanceColor.needsUpdate = true;
+    }
   }
 
   private fireBotMissile(bot: BotShip, dirX: number, dirZ: number): void {
@@ -3732,9 +3842,6 @@ export class ArenaEngine {
       b.y += b.vy * dt;
       b.z += b.vz * dt;
       b.age += dt;
-      b.rotX += b.rotSpX * dt;
-      b.rotY += b.rotSpY * dt;
-      b.rotZ += b.rotSpZ * dt;
 
       const distSq = b.x * b.x + b.z * b.z;
       if (
@@ -3752,9 +3859,13 @@ export class ArenaEngine {
         continue;
       }
 
+      // Laser beam — orient cylinder local +Z along velocity (yaw + pitch).
+      const horizSpd = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
+      const yaw = Math.atan2(b.vx, b.vz);
+      const pitch = Math.atan2(b.vy, horizSpd || 0.0001);
       dummy.position.set(b.x, b.y, b.z);
       dummy.scale.set(1, 1, 1);
-      dummy.rotation.set(b.rotX, b.rotY, b.rotZ);
+      dummy.rotation.set(-pitch, yaw, 0);
       dummy.updateMatrix();
       this.botBulletMesh.setMatrixAt(i, dummy.matrix);
       needsUpdate = true;

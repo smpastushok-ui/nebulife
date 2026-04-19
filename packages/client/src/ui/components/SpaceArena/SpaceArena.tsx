@@ -49,6 +49,11 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     blink: boolean;
   }[]>([]);
   const [playerLocked, setPlayerLocked] = useState(false);
+  // Exit confirmation — opened by the Android back button / browser back.
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  // Live match timer (polled with the rest of the arena state) — used to
+  // draw the HUD countdown in the top score bar.
+  const [matchTimer, setMatchTimer] = useState(0);
   // Damage flash — triggered by a ref bump on each hp drop. Lives for 0.3s.
   const [damageFlash, setDamageFlash] = useState(0);
   const prevHpRef = useRef(hp);
@@ -61,6 +66,23 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     }
     prevHpRef.current = hp;
   }, [hp]);
+
+  // System back button (web + Capacitor) — intercept and show exit prompt
+  // instead of leaving arena immediately. We push a dummy history entry on
+  // mount so the first back press triggers popstate rather than navigating
+  // away from the SPA.
+  useEffect(() => {
+    window.history.pushState({ arena: true }, '');
+    const onPopState = () => {
+      setShowExitConfirm(true);
+      // Re-push so the NEXT back press triggers popstate again (not exit)
+      window.history.pushState({ arena: true }, '');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+    };
+  }, []);
 
   // Landscape orientation lock for mobile
   const [isPortrait, setIsPortrait] = useState(() => mobile && window.innerHeight > window.innerWidth);
@@ -153,13 +175,16 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     return () => clearInterval(id);
   }, [ready]);
 
-  // Poll team kills + kill feed (200ms)
+  // Poll team kills + kill feed + match timer (200ms). Both training (3v3)
+  // and team-battle modes use team scores now, so this runs regardless of
+  // `teamMode`.
   useEffect(() => {
-    if (!ready || !teamMode) return;
+    if (!ready) return;
     const id = setInterval(() => {
       const e = engineRef.current;
       if (!e) return;
       setTeamKills(e.getTeamKills());
+      setMatchTimer(e.getMatchTimer());
       const rawFeed = e.getKillFeed();
       const bots = e.getBotShips();
       const playerTeam = e.getPlayerTeam();
@@ -176,7 +201,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
       })));
     }, 200);
     return () => clearInterval(id);
-  }, [ready, teamMode]);
+  }, [ready]);
 
   // Poll edge markers (10 Hz) — perimeter indicators for bots that are
   // off-screen. For bots on-screen we emit nothing.
@@ -492,30 +517,45 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           fontFamily: 'monospace',
           zIndex: 2,
         }}>
-          {/* Team score bar — top center, team mode only */}
-          {teamMode && (
+          {/* Top score bar — big monospace numbers + timer in the middle.
+              Runs in BOTH training and team-battle modes. */}
+          <div style={{
+            position: 'absolute',
+            top: `calc(10px + env(safe-area-inset-top, 0px))`,
+            left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', alignItems: 'center', gap: 14,
+            fontFamily: 'monospace', zIndex: 3, pointerEvents: 'none',
+            padding: '6px 14px',
+            background: 'rgba(5,10,20,0.55)',
+            border: '1px solid rgba(100,140,180,0.35)',
+            borderRadius: 4,
+            backdropFilter: 'blur(4px)',
+          }}>
+            <span style={{ color: '#4488ff', fontWeight: 'bold', fontSize: 20, textShadow: '0 0 8px rgba(68,136,255,0.6)' }}>
+              {teamKills.blue}
+            </span>
             <div style={{
-              position: 'absolute',
-              top: `calc(12px + env(safe-area-inset-top, 0px))`,
-              left: '50%', transform: 'translateX(-50%)',
-              display: 'flex', alignItems: 'center', gap: 8,
-              fontFamily: 'monospace', fontSize: 11, zIndex: 3, pointerEvents: 'none',
+              color: '#aaccee', fontSize: 12, letterSpacing: 2,
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              minWidth: 64,
             }}>
-              <span style={{ color: '#4488ff', fontWeight: 'bold' }}>BLUE {teamKills.blue}</span>
-              <div style={{
-                width: 200, height: 6, background: 'rgba(10,15,25,0.8)',
-                borderRadius: 3, overflow: 'hidden', display: 'flex',
-              }}>
-                <div style={{ width: `${(teamKills.blue / 100) * 100}%`, background: '#4488ff', transition: 'width 0.3s' }} />
-                <div style={{ flex: 1 }} />
-                <div style={{ width: `${(teamKills.red / 100) * 100}%`, background: '#ff4444', transition: 'width 0.3s' }} />
-              </div>
-              <span style={{ color: '#ff4444', fontWeight: 'bold' }}>{teamKills.red} RED</span>
+              <span style={{ opacity: 0.8 }}>
+                {(() => {
+                  const t = Math.max(0, Math.ceil(matchTimer));
+                  const mm = Math.floor(t / 60);
+                  const ss = t % 60;
+                  return `${mm}:${ss.toString().padStart(2, '0')}`;
+                })()}
+              </span>
+              <span style={{ fontSize: 9, opacity: 0.45, letterSpacing: 3 }}>25 KILLS</span>
             </div>
-          )}
+            <span style={{ color: '#ff4444', fontWeight: 'bold', fontSize: 20, textShadow: '0 0 8px rgba(255,68,68,0.6)' }}>
+              {teamKills.red}
+            </span>
+          </div>
 
-          {/* Kill feed — top right, team mode only (safe area offset) */}
-          {teamMode && killFeed.length > 0 && (
+          {/* Kill feed — top right (always on) */}
+          {killFeed.length > 0 && (
             <div style={{
               position: 'absolute',
               top: `calc(40px + env(safe-area-inset-top, 0px))`,
@@ -626,6 +666,52 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           isMobile={mobile}
           onComplete={() => setShowTutorial(false)}
         />
+      )}
+
+      {/* Exit confirmation — system back button opens this. Player taps
+          "YES" to leave the arena or "NO" to keep fighting. */}
+      {showExitConfirm && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 9000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+          fontFamily: 'monospace',
+        }}>
+          <div style={{
+            background: 'rgba(10,15,25,0.95)',
+            border: '1px solid #446688',
+            padding: 24,
+            borderRadius: 4,
+            minWidth: 260,
+            textAlign: 'center',
+            color: '#aabbcc',
+          }}>
+            <div style={{ fontSize: 14, marginBottom: 18, letterSpacing: 1 }}>
+              EXIT ARENA?
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 22 }}>
+              Are you sure you want to leave?
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                onClick={() => { setShowExitConfirm(false); handleExit(); }}
+                style={{
+                  background: 'transparent', border: '1px solid #cc4444',
+                  color: '#ff8888', padding: '8px 20px', fontSize: 12,
+                  fontFamily: 'monospace', cursor: 'pointer', letterSpacing: 2,
+                }}
+              >YES</button>
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                style={{
+                  background: 'transparent', border: '1px solid #446688',
+                  color: '#aaccee', padding: '8px 20px', fontSize: 12,
+                  fontFamily: 'monospace', cursor: 'pointer', letterSpacing: 2,
+                }}
+              >NO</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Match result overlay — shown when team match ends */}
