@@ -557,12 +557,14 @@ export async function creditResearchData(
   amount: number,
 ): Promise<void> {
   const sql = getSQL();
+  // Field is `research_data` (snake_case) in the JSONB payload — matches the
+  // key used by the client in App.tsx (state load/save + updatePlayer body).
   await sql`
     UPDATE players
     SET game_state = jsonb_set(
       game_state,
-      '{researchData}',
-      to_jsonb(COALESCE((game_state->>'researchData')::float, 0) + ${amount})
+      '{research_data}',
+      to_jsonb(COALESCE((game_state->>'research_data')::float, 0) + ${amount})
     )
     WHERE id = ${playerId}
   `;
