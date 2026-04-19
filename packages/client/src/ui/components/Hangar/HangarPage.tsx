@@ -41,8 +41,8 @@ const SHIP_SLOTS: ShipSlot[] = [
   { id: 'ship1', src: '/arena_ships/star_ship1.webp', locked: false, label: 'FALCON' },
   { id: 'ship2', src: '/arena_ships/star_ship2.webp', locked: false, label: 'VIPER' },
   { id: 'ship3', src: '/arena_ships/star_ship3.webp', locked: false, label: 'PHANTOM' },
-  { id: 'ship4', src: '', locked: true, label: '2D CUSTOM', cost: 50, costLabel: '50 Q' },
-  { id: 'ship5', src: '', locked: true, label: '3D CUSTOM', cost: 500, costLabel: '500 Q' },
+  { id: 'ship4', src: '', locked: true, label: '2D CUSTOM', cost: 50, costLabel: '50 \u269B' },
+  { id: 'ship5', src: '', locked: true, label: '3D CUSTOM', cost: 500, costLabel: '500 \u269B' },
 ];
 
 const SELECTED_SHIP_KEY = 'nebulife_hangar_ship';

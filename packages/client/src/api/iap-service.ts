@@ -50,13 +50,16 @@ export interface IAPPackage {
   quarks: number;
 }
 
-/** Fallback packages — used while loading or if RevenueCat is not configured. */
+/** Fallback packages — used while loading or if RevenueCat is not configured.
+ *  `description` stores an i18n key (e.g. "topup.pack_starter") that the UI
+ *  passes through `t()` — avoids hard-coding Ukrainian copy into the English
+ *  locale rendering. */
 export const FALLBACK_IAP_PACKAGES: IAPPackage[] = [
   {
     identifier: 'quarks_100',
     productIdentifier: 'nebulife_quarks_100',
     title: '100',
-    description: 'Стартовий набір',
+    description: 'topup.pack_starter',
     priceString: '$0.99',
     quarks: 100,
   },
@@ -64,7 +67,7 @@ export const FALLBACK_IAP_PACKAGES: IAPPackage[] = [
     identifier: 'quarks_500',
     productIdentifier: 'nebulife_quarks_500',
     title: '500',
-    description: 'Оптимальний вибір',
+    description: 'topup.pack_optimal',
     priceString: '$3.99',
     quarks: 500,
   },
@@ -72,7 +75,7 @@ export const FALLBACK_IAP_PACKAGES: IAPPackage[] = [
     identifier: 'quarks_2000',
     productIdentifier: 'nebulife_quarks_2000',
     title: '2000',
-    description: 'Найкраще значення',
+    description: 'topup.pack_best_value',
     priceString: '$12.99',
     quarks: 2000,
   },
