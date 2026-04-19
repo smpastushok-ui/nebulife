@@ -221,6 +221,13 @@ export class GalaxyScene {
    */
   private coreEntryIds = new Set<string>();
 
+  /** Hierarchical web parent-lookup state.
+   *  Populated during neighbor/core remap so the capillary web can cascade
+   *  home → Ring1 → Ring2 → Ring3-entry → ... instead of jumping to home. */
+  private ownerEntryMap = new Map<number, { x: number; y: number }>();
+  private coreGateway: { x: number; y: number } | null = null;
+  private neighborOwnerMap = new Map<string, number>();
+
   /**
    * Cached set of visible core system IDs (computed from BFS through explored core systems).
    * Recomputed when researchState or effectiveMaxRing changes.
@@ -369,7 +376,6 @@ export class GalaxyScene {
       // Assign each owner to the Ring 2 entry whose angle is closest to the
       // real direction (homePos → neighborHomePos). Keeps topology intuitive
       // (neighbor to the north appears at the north entry).
-      const ownerEntry = new Map<number, { x: number; y: number }>();
       const takenEntries = new Set<number>();
       for (const ownerIndex of owners) {
         const neighborHome = assignPlayerPosition(galaxySeed, ownerIndex);
@@ -383,14 +389,15 @@ export class GalaxyScene {
         }
         if (bestIdx >= 0) {
           takenEntries.add(bestIdx);
-          ownerEntry.set(ownerIndex, { x: availableEntries[bestIdx].x, y: availableEntries[bestIdx].y });
+          this.ownerEntryMap.set(ownerIndex, { x: availableEntries[bestIdx].x, y: availableEntries[bestIdx].y });
         }
       }
 
       for (const { system, ownerIndex } of neighborSystems) {
         if (this.systemNodes.has(system.id)) continue;
+        this.neighborOwnerMap.set(system.id, ownerIndex);
 
-        const entry = ownerEntry.get(ownerIndex);
+        const entry = this.ownerEntryMap.get(ownerIndex);
         let tx: number, ty: number;
         if (entry) {
           const neighborHome = assignPlayerPosition(galaxySeed, ownerIndex);
@@ -456,6 +463,7 @@ export class GalaxyScene {
       if (ring2Nodes.length > 0) {
         const gw = ring2Nodes[ring2Nodes.length - 1];
         gatewayX = gw.x; gatewayY = gw.y;
+        this.coreGateway = { x: gatewayX, y: gatewayY };
       }
 
       for (const { system, coreId, coreNeighborIds } of coreSystems) {
@@ -1996,16 +2004,15 @@ export class GalaxyScene {
       return true;
     };
 
-    // Build cyan web — ALL threads originate at the mother (home/colonized)
-    // planet. One edge per target. Earlier per-segment routing (via nearest
-    // researched anchor) created a cascading path that looked like a trail
-    // instead of a radial web. User requested: "павутина від материнської
-    // планети ... до всіх, які досліджуються і досліджені".
-    //
-    // Targets:
-    //   (a) Every RESEARCHED non-home star — persistent dim trail 0.35 α.
-    //   (b) Every REACHABLE non-researched star (ring-gated) — pulsing 0.5 α.
-    // Stars behind a still-in-progress ring are filtered out by isReachable.
+    // Build cyan web HIERARCHICALLY — parent lookup per node:
+    //   home    → Ring 1 (6 edges from centre)
+    //   Ring 1  → Ring 2 (each Ring 2 to its nearest Ring 1 neighbour)
+    //   Ring 2  → Ring 3 (neighbor uses its owner's assigned entry from
+    //                     the v138 remap — one Ring 2 star per neighbor)
+    //   Ring 3+ inside a neighbor → nearest same-owner node closer to entry
+    //   Ring 4+ core → nearest same-coreGraph node closer to gateway
+    // Produces the capillary tree-of-branches the user sketched instead of
+    // radiating all threads from home at once.
     let homeX = 0, homeY = 0, hasHome = false;
     if (this.homeNode) {
       homeX = this.homeNode.tx ?? 0;
@@ -2013,37 +2020,96 @@ export class GalaxyScene {
       hasHome = true;
     }
     for (const [, node] of this.systemNodes) {
-      // Evacuation relocates the home to a regular node — use its position
-      // as the anchor so post-evac web starts from the new colony, not the
-      // stale snapshot of this.homeNode.
       if (node.system.ownerPlayerId !== null) {
         homeX = node.tx; homeY = node.ty; hasHome = true;
       }
     }
-    if (!hasHome) {
-      // No home node (very early boot) — skip web this frame.
-      return;
+    if (!hasHome) return;
+
+    // Cache Ring 1 and Ring 2 node positions for parent lookup.
+    const ring1Pos: Array<{ x: number; y: number }> = [];
+    const ring2Pos: Array<{ x: number; y: number }> = [];
+    for (const [, node] of this.systemNodes) {
+      if (node.nodeType !== 'personal') continue;
+      if (node.system.ownerPlayerId !== null) continue;
+      if (node.ringIndex === 1) ring1Pos.push({ x: node.tx, y: node.ty });
+      else if (node.ringIndex === 2) ring2Pos.push({ x: node.tx, y: node.ty });
     }
 
+    const nearestFrom = (x: number, y: number, pool: Array<{ x: number; y: number }>) => {
+      let best: { x: number; y: number } | null = null;
+      let bestD = Infinity;
+      for (const p of pool) {
+        const d = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
+        if (d > 0 && d < bestD) { bestD = d; best = p; }
+      }
+      return best;
+    };
+
+    const findParent = (node: SystemNode): { x: number; y: number } | null => {
+      if (node.ringIndex === 1) return { x: homeX, y: homeY };
+      if (node.nodeType === 'personal' && node.ringIndex === 2) {
+        return nearestFrom(node.tx, node.ty, ring1Pos) ?? { x: homeX, y: homeY };
+      }
+      if (node.nodeType === 'neighbor') {
+        const oi = this.neighborOwnerMap.get(node.system.id);
+        const entry = oi !== undefined ? this.ownerEntryMap.get(oi) : undefined;
+        if (!entry) return null;
+        // Within the neighbor's sub-cluster, attach each node to its nearest
+        // same-owner sibling that is closer to the entry point (forms a
+        // capillary tree inside the cluster).
+        let best: { x: number; y: number } = entry;
+        let bestD = (entry.x - node.tx) * (entry.x - node.tx) + (entry.y - node.ty) * (entry.y - node.ty);
+        for (const [, sibling] of this.systemNodes) {
+          if (sibling === node) continue;
+          if (sibling.nodeType !== 'neighbor') continue;
+          if (this.neighborOwnerMap.get(sibling.system.id) !== oi) continue;
+          const dEntry = (entry.x - sibling.tx) * (entry.x - sibling.tx) + (entry.y - sibling.ty) * (entry.y - sibling.ty);
+          const dMe = (sibling.tx - node.tx) * (sibling.tx - node.tx) + (sibling.ty - node.ty) * (sibling.ty - node.ty);
+          // Only eligible if sibling is CLOSER to entry than we are — that
+          // makes the tree flow outward from the entry.
+          const myDEntry = (entry.x - node.tx) * (entry.x - node.tx) + (entry.y - node.ty) * (entry.y - node.ty);
+          if (dEntry < myDEntry && dMe < bestD) { bestD = dMe; best = { x: sibling.tx, y: sibling.ty }; }
+        }
+        return best;
+      }
+      if (node.nodeType === 'core') {
+        if (!this.coreGateway) return null;
+        // Same capillary approach for core: nearest core node that's closer
+        // to the gateway than we are.
+        let best = this.coreGateway;
+        let bestD = (this.coreGateway.x - node.tx) * (this.coreGateway.x - node.tx) + (this.coreGateway.y - node.ty) * (this.coreGateway.y - node.ty);
+        const myDGateway = bestD;
+        for (const [, sibling] of this.systemNodes) {
+          if (sibling === node) continue;
+          if (sibling.nodeType !== 'core') continue;
+          const dGate = (this.coreGateway.x - sibling.tx) * (this.coreGateway.x - sibling.tx) + (this.coreGateway.y - sibling.ty) * (this.coreGateway.y - sibling.ty);
+          const dMe = (sibling.tx - node.tx) * (sibling.tx - node.tx) + (sibling.ty - node.ty) * (sibling.ty - node.ty);
+          if (dGate < myDGateway && dMe < bestD) { bestD = dMe; best = { x: sibling.tx, y: sibling.ty }; }
+        }
+        return best;
+      }
+      return null;
+    };
+
     for (const [, node] of this.systemNodes) {
-      const isHome = node.system.ownerPlayerId !== null;
-      if (isHome) continue;
+      if (node.system.ownerPlayerId !== null) continue;
       const isResearched = node.starState === 'researched' && node.visibilityTier === 1;
       const reachable = isReachable(node, false);
       if (!isResearched && !reachable) continue;
 
+      const parent = findParent(node);
+      if (!parent) continue;
       const seed = node.system.seed * 0.00017;
       if (isResearched) {
-        // Dim persistent trail
         this.drawWavyLine(
-          this.connectionLines, homeX, homeY, node.tx, node.ty, t, seed,
+          this.connectionLines, parent.x, parent.y, node.tx, node.ty, t, seed,
           0.25, CYAN, 0.4,
         );
       } else {
-        // Pulsing live thread to the next exploration goal
         const pulse = 0.22 + 0.08 * Math.sin(t * 0.0012 + seed);
         this.drawWavyLine(
-          this.connectionLines, homeX, homeY, node.tx, node.ty, t, seed,
+          this.connectionLines, parent.x, parent.y, node.tx, node.ty, t, seed,
           pulse, CYAN, 0.55,
         );
       }
