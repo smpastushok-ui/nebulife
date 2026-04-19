@@ -1146,15 +1146,16 @@ export class ArenaEngine {
       this.playerPos.z - this.camAimZ * behindDist,
     );
 
-    // Track yaw delta for bank roll, then set the lookAt target.
-    const curYaw = Math.atan2(this.camAimX, this.camAimZ);
+    // Track yaw delta for bank roll. Uses the same yaw convention as aim
+    // recomposition: yaw = atan2(X, -Z), so forward = 0 and turning right
+    // increases yaw. Aircraft-style bank — right turn rolls right wing
+    // down, which in Three.js camera space is rotateZ(-bank).
+    const curYaw = Math.atan2(this.camAimX, -this.camAimZ);
     let yawDelta = curYaw - this._lastCamYaw;
     while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
     while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
     this._lastCamYaw = curYaw;
-    // Target bank proportional to yaw rate. Clamp ±25° and smooth so it
-    // doesn't snap when the stick jitters.
-    const targetBank = Math.max(-0.45, Math.min(0.45, -yawDelta / Math.max(dt, 0.0001) * 0.08));
+    const targetBank = Math.max(-0.45, Math.min(0.45, yawDelta / Math.max(dt, 0.0001) * 0.08));
     this.cameraBankAngle += (targetBank - this.cameraBankAngle) * Math.min(1, dt * 6);
 
     _camTarget.set(
