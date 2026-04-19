@@ -42,6 +42,13 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     playerY: number;
     bots: { id: number; team: 'blue' | 'red' | 'neutral'; alive: boolean; dx: number; dy: number; dz: number }[];
   } | null>(null);
+  const [edgeMarkers, setEdgeMarkers] = useState<{
+    id: number; team: 'blue' | 'red' | 'neutral';
+    left: string; top: string;
+    side: 'top' | 'bottom' | 'left' | 'right';
+    blink: boolean;
+  }[]>([]);
+  const [playerLocked, setPlayerLocked] = useState(false);
   // Damage flash — triggered by a ref bump on each hp drop. Lives for 0.3s.
   const [damageFlash, setDamageFlash] = useState(0);
   const prevHpRef = useRef(hp);
@@ -115,6 +122,9 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const handleVertical = useCallback((v: number) => {
     engineRef.current?.setMobileVertical(v);
   }, []);
+  const handleSector = useCallback((sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge') => {
+    engineRef.current?.setMobileSector(sector);
+  }, []);
 
   // Poll engine state for UI (missile ammo, warp cooldown)
   const [missileAmmo, setMissileAmmo] = useState(10);
@@ -168,14 +178,54 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     return () => clearInterval(id);
   }, [ready, teamMode]);
 
-  // Poll radar snapshot (10 Hz — smooth enough, cheap)
+  // Poll edge markers (10 Hz) — perimeter indicators for bots that are
+  // off-screen. For bots on-screen we emit nothing.
   useEffect(() => {
     if (!ready) return;
     const id = setInterval(() => {
       const e = engineRef.current;
-      if (!e || typeof e.getRadarSnapshot !== 'function') return;
-      const snap = e.getRadarSnapshot();
-      setRadar({ aimYaw: snap.aimYaw, playerY: snap.player.y, bots: snap.bots });
+      if (!e || typeof e.getEdgeMarkers !== 'function') return;
+      const raw = e.getEdgeMarkers();
+      // Clamp off-screen bots to the nearest viewport edge.
+      const markers: typeof edgeMarkers = [];
+      for (const m of raw) {
+        if (m.onScreen) continue;
+        // Decide which side is the closest crossing point, then compute
+        // percentage along that side based on the other axis.
+        let side: 'top' | 'bottom' | 'left' | 'right';
+        let left = '50%';
+        let top = '50%';
+        const ax = Math.abs(m.nx);
+        const ay = Math.abs(m.ny);
+        if (ax > ay) {
+          side = m.nx > 0 ? 'right' : 'left';
+          left = side === 'right' ? 'calc(100% - 10px)' : '10px';
+          // Map ny (-1..1) to top 5%..95%
+          const t = Math.max(-1, Math.min(1, m.ny));
+          top = `${50 + t * 45}%`;
+        } else {
+          side = m.ny > 0 ? 'bottom' : 'top';
+          top = side === 'bottom' ? 'calc(100% - 10px)' : '10px';
+          const t = Math.max(-1, Math.min(1, m.nx));
+          left = `${50 + t * 45}%`;
+        }
+        markers.push({
+          id: m.id,
+          team: m.team,
+          left, top, side,
+          blink: m.shooting,
+        });
+      }
+      setEdgeMarkers(markers);
+      // Lock-on alert: any enemy missile chasing the player (id 0)
+      if (typeof e.isPlayerLocked === 'function') {
+        setPlayerLocked(e.isPlayerLocked());
+      }
+      // Radar no longer rendered but kept for altitude readout if needed.
+      if (typeof e.getRadarSnapshot === 'function') {
+        const snap = e.getRadarSnapshot();
+        setRadar({ aimYaw: snap.aimYaw, playerY: snap.player.y, bots: snap.bots });
+      }
     }, 100);
     return () => clearInterval(id);
   }, [ready]);
@@ -298,6 +348,14 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           0% { opacity: 1; }
           100% { opacity: 0; }
         }
+        @keyframes arenaEdgeBlink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0.15; }
+        }
+        @keyframes arenaLockBlink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0.3; }
+        }
         @keyframes arenaDeathFlash {
           0% { opacity: 1; }
           100% { opacity: 0.2; }
@@ -322,53 +380,39 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         }
       `}</style>
 
-      {/* Mini radar — top-left. Top-down XZ projection of ship neighborhood,
-          rotated so "up" = ahead. Y offset encoded in the dot size (bigger =
-          higher than player). Range = 700 world units. */}
-      {ready && radar && (
+      {/* Lock-on alert — red blinking border when an enemy missile is
+          homing on the player. Dodge NOW. */}
+      {ready && playerLocked && !isDead && (
         <div style={{
-          position: 'absolute',
-          top: `calc(12px + env(safe-area-inset-top, 0px))`,
-          left: `calc(12px + env(safe-area-inset-left, 0px))`,
-          width: 120, height: 120,
-          pointerEvents: 'none', zIndex: 4,
-          background: 'rgba(5,10,20,0.55)',
-          border: '1px solid rgba(100,140,180,0.35)',
-          borderRadius: '50%',
-          overflow: 'hidden',
-        }}>
-          <svg width="120" height="120" viewBox="-60 -60 120 120" style={{ display: 'block' }}>
-            {/* Range rings */}
-            <circle cx="0" cy="0" r="55" fill="none" stroke="rgba(100,140,180,0.25)" strokeWidth="0.5" />
-            <circle cx="0" cy="0" r="30" fill="none" stroke="rgba(100,140,180,0.18)" strokeWidth="0.5" />
-            {/* Forward cone */}
-            <path d="M0,0 L-20,-50 L20,-50 Z" fill="rgba(68,255,170,0.08)" stroke="rgba(68,255,170,0.2)" strokeWidth="0.5" />
-            {/* Ship dot (player always center, facing up) */}
-            <path d="M0,-4 L-3,3 L3,3 Z" fill="#aaddff" stroke="#ffffff" strokeWidth="0.5" />
-            {/* Bot dots — yaw-aligned */}
-            {radar.bots.filter(b => b.alive).map(b => {
-              const cos = Math.cos(-radar.aimYaw);
-              const sin = Math.sin(-radar.aimYaw);
-              // Rotate world delta into ship-relative frame so +Y on radar = ship forward
-              const rx = b.dx * cos - b.dz * sin;
-              const rz = b.dx * sin + b.dz * cos;
-              const scale = 55 / 700; // 700 world units → 55 radar units
-              const x = rx * scale;
-              const y = -rz * scale; // world -Z = up on radar
-              const outOfRange = Math.abs(x) > 55 || Math.abs(y) > 55;
-              if (outOfRange) return null;
-              const yBand = b.dy > 40 ? 3.5 : b.dy < -40 ? 1.5 : 2.5;
-              const color = b.team === 'blue' ? '#4488ff' : b.team === 'red' ? '#ff4444' : '#ffaa44';
-              return <circle key={b.id} cx={x} cy={y} r={yBand} fill={color} />;
-            })}
-          </svg>
-          <div style={{
-            position: 'absolute', bottom: 2, right: 4,
-            color: '#8899aa', fontSize: 9, fontFamily: 'monospace',
-            textShadow: '0 0 2px rgba(0,0,0,0.9)',
-          }}>
-            Y {radar.playerY >= 0 ? '+' : ''}{radar.playerY.toFixed(0)}
-          </div>
+          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4,
+          boxShadow: 'inset 0 0 60px rgba(255,40,40,0.6)',
+          border: '3px solid rgba(255,40,40,0.9)',
+          animation: 'arenaLockBlink 0.4s linear infinite',
+        }} />
+      )}
+
+      {/* Edge indicators — tick marks along the viewport perimeter for each
+          bot outside the camera frustum. Red = enemy, blue = ally. If a bot
+          is shooting at you, its tick blinks. Uses screen-space projection
+          from the engine. */}
+      {ready && edgeMarkers.length > 0 && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4 }}>
+          {edgeMarkers.map(m => (
+            <div
+              key={m.id}
+              style={{
+                position: 'absolute',
+                left: m.left, top: m.top,
+                width: m.side === 'top' || m.side === 'bottom' ? 18 : 3,
+                height: m.side === 'top' || m.side === 'bottom' ? 3 : 18,
+                background: m.team === 'blue' ? '#4488ff' : '#ff4444',
+                opacity: m.blink ? undefined : 0.8,
+                animation: m.blink ? 'arenaEdgeBlink 0.5s linear infinite' : undefined,
+                boxShadow: `0 0 6px ${m.team === 'blue' ? '#4488ff' : '#ff4444'}`,
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
+          ))}
         </div>
       )}
 
@@ -394,6 +438,30 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
             ? 'linear-gradient(to bottom, rgba(255,100,40,0.22) 0%, rgba(255,100,40,0) 30%)'
             : 'linear-gradient(to top, rgba(255,100,40,0.22) 0%, rgba(255,100,40,0) 30%)',
         }} />
+      )}
+
+      {/* Player HP bar — centered, under the crosshair. Replaces the
+          in-world "PLAYER" nickname sprite. */}
+      {ready && !isDead && (
+        <div style={{
+          position: 'absolute',
+          left: '50%', top: 'calc(50% + 24px)',
+          transform: 'translateX(-50%)',
+          width: 140, height: 6,
+          background: 'rgba(10,15,25,0.7)',
+          border: '1px solid rgba(100,140,180,0.35)',
+          borderRadius: 3,
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          zIndex: 3,
+        }}>
+          <div style={{
+            width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%`,
+            height: '100%',
+            background: hp > maxHp * 0.5 ? '#44ff88' : hp > maxHp * 0.25 ? '#ffaa44' : '#ff4444',
+            transition: 'width 0.2s, background 0.3s',
+          }} />
+        </div>
       )}
 
       {/* TPS chase-cam crosshair — always centered, fades when dead */}
@@ -545,6 +613,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           onFireMissile={handleFireMissile}
           onGravPush={handleGravPush}
           onVertical={handleVertical}
+          onSector={handleSector}
           missileAmmo={missileAmmo}
           warpReady={warpReady}
           needRotate={needRotate}

@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v5: 3D bots + radar + damage vignette — evict old bundle one more time
-const CACHE_NAME = 'nebulife-v5';
+// v6: rigid chase cam + sector stick + barrel roll + edge indicators
+const CACHE_NAME = 'nebulife-v6';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [

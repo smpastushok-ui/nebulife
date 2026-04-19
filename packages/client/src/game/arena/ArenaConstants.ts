@@ -148,8 +148,11 @@ export const CAMERA_BEHIND = 35;      // units behind ship along -aimDir
 export const CAMERA_UP = 12;          // units above ship
 export const CAMERA_LOOK_LEAD = 50;   // lookAt shifts forward along +aimDir
 export const CAMERA_LOOK_UP = 3;
-export const CAMERA_LERP_POS = 0.12;  // position damping (higher = snappier)
-export const CAMERA_LERP_LOOK = 0.18; // lookAt damping (faster than pos so aim stays centered)
+// Camera is now rigid — attached to the ship's tail. Lerp values kept as
+// constants for reference but the code uses .copy() instead so there is
+// no detach/chase lag when the ship turns sharply.
+export const CAMERA_LERP_POS = 1.0;
+export const CAMERA_LERP_LOOK = 1.0;
 // Legacy constants kept for code paths not yet migrated off.
 export const CAMERA_HEIGHT = 380;
 export const CAMERA_DISTANCE = 340;

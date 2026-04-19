@@ -159,6 +159,12 @@ export class ArenaEngine {
   private playerVelZ = 0;
   private playerPitch = 0; // visual nose tilt up/down (X-axis rotation, smoothed)
   private playerBankAngle = 0;
+  // Barrel-roll evasive maneuver — 360° roll around the ship's forward axis.
+  // Triggered by the "dodge" sector on the left stick or a desktop key.
+  private barrelRollTimer = 0;         // seconds remaining in current roll
+  private barrelRollCooldown = 0;      // seconds until next roll available
+  private readonly BARREL_ROLL_DURATION = 0.6;
+  private readonly BARREL_ROLL_COOLDOWN = 4;
   private playerNickSprite!: THREE.Sprite;
   private playerDead = false;
   private respawnTimer = 0;
@@ -207,7 +213,7 @@ export class ArenaEngine {
   private exhaustParticles: { x: number; y: number; z: number; vx: number; vy: number; vz: number; age: number; active: boolean; scale: number }[] = [];
   private exhaustFreeList: number[] = []; // stack of free indices (O(1) spawn)
   private readonly EXHAUST_POOL = 60;
-  private readonly EXHAUST_LIFETIME = 0.4;
+  private readonly EXHAUST_LIFETIME = 0.9; // longer trail for the blue streak behind the ship
   private exhaustSpawnTimer = 0;
 
   // Missiles (homing, limited turn rate, ammo-based)
@@ -353,6 +359,9 @@ export class ArenaEngine {
   private camLookZ = 0;
   // Smoothed camera aim Y component (pitch) — separate from camAimX/Z
   private camAimY = 0;
+  // Bank-roll state — camera tilts around its forward axis into yaw turns.
+  private _lastCamYaw = 0;
+  private cameraBankAngle = 0;
   // Camera shake (screen kick on explosions)
   private shakeAmount = 0;   // current intensity (units)
   private shakeDecay = 6;    // per second exponential decay
@@ -543,21 +552,44 @@ export class ArenaEngine {
   }
 
   setMobileAim(x: number, y: number, firing: boolean): void {
-    // Right stick stays XZ-only (2D yaw direction). Pitch and vertical thrust
-    // come from dedicated climb/dive buttons in the HUD — easier to dose on
-    // touch than mixing pitch into the aim stick.
+    // Right stick is now rate-based:
+    //   X  → yaw rate  (left = turn left, right = turn right)
+    //   Y  → pitch rate (up on screen = nose up; stick up usually maps to
+    //         joystick y < 0, so we invert sign in updateAim).
+    // Firing triggered while the stick is touched.
     this.mobileAim = { x, z: y };
+    this.mobilePitchRate = y; // stored raw; updateAim decides sign
     this.mobileFiring = firing;
   }
 
-  /** Mobile vertical thrust (+1 climb, -1 dive) AND pitch rate. Single axis
-   *  from the climb/dive button pair — holding "up" both tilts the nose up
-   *  and thrusts upward, holding "down" dives. Set from the HUD. */
+  /** Reserved for future use (e.g. a separate climb/dive button). Not wired
+   *  in the default HUD anymore — pitch comes from the right stick Y. */
   setMobileVertical(v: number): void {
-    const clamped = Math.max(-1, Math.min(1, v));
-    this.mobileVerticalThrust = clamped;
-    // Mirror as pitch rate so the nose tilts while climbing/diving.
-    this.mobilePitchRate = -clamped; // +1 climb = nose up = pitch up (negative in our convention)
+    this.mobileVerticalThrust = Math.max(-1, Math.min(1, v));
+  }
+
+  /** Left-stick sector dispatch. Called every frame the stick is held.
+   *  Triggers continuous (laser) and rate-limited (missile) weapons. */
+  private _mobileSector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge' = 'center';
+  private _missileSectorTimer = 0;
+  setMobileSector(sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge'): void {
+    const prev = this._mobileSector;
+    this._mobileSector = sector;
+    // Laser fire: continuous while in the laser sector.
+    this.mobileFiring = sector === 'laser';
+    // Missile: edge-trigger on enter + repeat every 2s while held.
+    if (sector === 'missile') {
+      if (prev !== 'missile' || this._missileSectorTimer <= 0) {
+        this.fireMissile();
+        this._missileSectorTimer = 2;
+      }
+    } else if (prev === 'missile') {
+      this._missileSectorTimer = 0;
+    }
+    // Warp: edge-trigger on enter only.
+    if (sector === 'warp' && prev !== 'warp') this.triggerDash();
+    // Dodge: edge-trigger on enter only.
+    if (sector === 'dodge' && prev !== 'dodge') this.triggerBarrelRoll();
   }
 
   triggerDash(): void {
@@ -569,10 +601,28 @@ export class ArenaEngine {
     this.warpCooldownTimer = this.WARP_COOLDOWN;
   }
 
+  /**
+   * Barrel roll — 360° roll around the ship's forward axis. Gives a brief
+   * invulnerability window to dodge an incoming missile. Not a warp: the
+   * ship keeps its current velocity, it just spins visually.
+   */
+  triggerBarrelRoll(): void {
+    if (this.playerDead) return;
+    if (this.barrelRollCooldown > 0 || this.barrelRollTimer > 0) return;
+    this.barrelRollTimer = this.BARREL_ROLL_DURATION;
+    this.barrelRollCooldown = this.BARREL_ROLL_COOLDOWN;
+    // Brief invulnerability during the roll.
+    this.invulnerableUntil = Math.max(
+      this.invulnerableUntil,
+      performance.now() + this.BARREL_ROLL_DURATION * 1000,
+    );
+    playSfx('arena-warp', 0.1);
+  }
+
   /** Gravity push — shove nearest asteroid in front of ship at 2x ship speed */
   triggerGravPush(): void {
     if (this.playerDead) return;
-    const pushRange = SHIP_RADIUS * 5;
+    const pushRange = SHIP_RADIUS * 10; // doubled from 5 per player request
     let bestIdx = -1;
     let bestDist = pushRange;
 
@@ -692,22 +742,45 @@ export class ArenaEngine {
   }
 
   private setupBoundary(): void {
-    // Circular arena boundary ring
-    const segments = 64;
-    const points: THREE.Vector3[] = [];
-    for (let i = 0; i <= segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      points.push(new THREE.Vector3(
-        Math.cos(angle) * ARENA_HALF,
-        2,
-        Math.sin(angle) * ARENA_HALF,
-      ));
-    }
-    const geo = new THREE.BufferGeometry().setFromPoints(points);
-    const mat = new THREE.LineBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.5 });
-    this.disposables.push(geo, mat);
+    // Wireframe cylinder cage around the arena. Thin lines so it reads as
+    // "there is a wall here" without drawing the eye. 16 vertical ribs +
+    // 7 horizontal rings spanning ±ARENA_HEIGHT_HALF.
+    const segments = 32;
+    const yRings = 7;
+    const positions: number[] = [];
 
-    this.boundaryMesh = new THREE.LineLoop(geo, mat);
+    // Horizontal rings at evenly spaced Y levels
+    for (let r = 0; r < yRings; r++) {
+      const y = -ARENA_HEIGHT_HALF + (r / (yRings - 1)) * ARENA_HEIGHT_HALF * 2;
+      for (let i = 0; i < segments; i++) {
+        const a1 = (i / segments) * Math.PI * 2;
+        const a2 = ((i + 1) / segments) * Math.PI * 2;
+        positions.push(
+          Math.cos(a1) * ARENA_HALF, y, Math.sin(a1) * ARENA_HALF,
+          Math.cos(a2) * ARENA_HALF, y, Math.sin(a2) * ARENA_HALF,
+        );
+      }
+    }
+    // Vertical ribs every 22.5°
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const x = Math.cos(a) * ARENA_HALF;
+      const z = Math.sin(a) * ARENA_HALF;
+      positions.push(
+        x, -ARENA_HEIGHT_HALF, z,
+        x,  ARENA_HEIGHT_HALF, z,
+      );
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: 0x446688,
+      transparent: true,
+      opacity: 0.18,
+    });
+    this.disposables.push(geo, mat);
+    this.boundaryMesh = new THREE.LineSegments(geo, mat) as unknown as THREE.LineLoop;
     this.scene.add(this.boundaryMesh);
   }
 
@@ -827,24 +900,13 @@ export class ArenaEngine {
     this.crosshairMesh.visible = false; // toggled in updateAim based on isMobile
     this.scene.add(this.crosshairMesh);
 
-    // Nickname label above ship
-    const nickCanvas = document.createElement('canvas');
-    nickCanvas.width = 256;
-    nickCanvas.height = 64;
-    const nCtx = nickCanvas.getContext('2d')!;
-    nCtx.fillStyle = 'transparent';
-    nCtx.clearRect(0, 0, 256, 64);
-    nCtx.font = '24px monospace';
-    nCtx.fillStyle = '#aaddff';
-    nCtx.textAlign = 'center';
-    nCtx.fillText('PLAYER', 128, 40);
-    const nickTex = new THREE.CanvasTexture(nickCanvas);
-    this.disposables.push(nickTex);
-    const nickMat = new THREE.SpriteMaterial({ map: nickTex, transparent: true, depthTest: false });
-    this.disposables.push(nickMat);
-    this.playerNickSprite = new THREE.Sprite(nickMat);
-    this.playerNickSprite.scale.set(30, 8, 1);
-    this.playerNickSprite.position.set(0, 20, 0);
+    // Player nickname removed — HP bar lives in the HUD (SpaceArena.tsx).
+    // Kept the sprite reference as a hidden dummy so the rest of the engine
+    // (visibility toggles on death/respawn) keeps compiling.
+    const _dummyMat = new THREE.SpriteMaterial({ transparent: true, opacity: 0 });
+    this.disposables.push(_dummyMat);
+    this.playerNickSprite = new THREE.Sprite(_dummyMat);
+    this.playerNickSprite.visible = false;
     this.scene.add(this.playerNickSprite);
   }
 
@@ -1060,11 +1122,12 @@ export class ArenaEngine {
     const maxSpd = SHIP_MAX_SPEED * this.playerSpeedMult * (this.warpActive ? this.WARP_SPEED_MULT : 1);
     const speedRatio = Math.min(1, speed / (maxSpd > 0 ? maxSpd : SHIP_MAX_SPEED));
 
-    // Smoothed aim used for camera (prevents snap-rotations). 3D: also Y.
-    const camAimLerp = Math.min(1, dt * 4);
-    this.camAimX += (this.aimDirX - this.camAimX) * camAimLerp;
-    this.camAimY += (this.aimDirY - this.camAimY) * camAimLerp;
-    this.camAimZ += (this.aimDirZ - this.camAimZ) * camAimLerp;
+    // RIGID chase cam — camera copies the aim vector exactly (no lerp) so
+    // the view never lags behind the ship's nose. Bank roll is computed
+    // from yaw change rate so the camera rolls into turns.
+    this.camAimX = this.aimDirX;
+    this.camAimY = this.aimDirY;
+    this.camAimZ = this.aimDirZ;
 
     // Warp effect — slide back + widen FOV
     const warpFactor = this.warpActive ? 1.0 : Math.max(0, speedRatio - 0.6) * 2.0;
@@ -1076,31 +1139,34 @@ export class ArenaEngine {
       this.camera.updateProjectionMatrix();
     }
 
-    // Target camera position — directly behind ship along -aimDir, with
-    // UP contribution perpendicular to the aim vector (so the camera rises
-    // when aiming down and lowers when aiming up — keeps the ship centered
-    // on screen during pitch changes).
-    // Cam position = ship - aimDir * behind + worldUp * upDist
-    // (worldUp = (0,1,0) — no full roll, just vertical offset)
-    _tempVec3.set(
+    // Position: ship - aim * behind + worldUp * upDist (rigid)
+    this.camera.position.set(
       this.playerPos.x - this.camAimX * behindDist,
       this.playerPos.y - this.camAimY * behindDist + upDist,
       this.playerPos.z - this.camAimZ * behindDist,
     );
-    this.camera.position.lerp(_tempVec3, CAMERA_LERP_POS);
 
-    // LookAt target — ahead of ship along +aimDir (full 3D)
+    // Track yaw delta for bank roll, then set the lookAt target.
+    const curYaw = Math.atan2(this.camAimX, this.camAimZ);
+    let yawDelta = curYaw - this._lastCamYaw;
+    while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
+    while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
+    this._lastCamYaw = curYaw;
+    // Target bank proportional to yaw rate. Clamp ±25° and smooth so it
+    // doesn't snap when the stick jitters.
+    const targetBank = Math.max(-0.45, Math.min(0.45, -yawDelta / Math.max(dt, 0.0001) * 0.08));
+    this.cameraBankAngle += (targetBank - this.cameraBankAngle) * Math.min(1, dt * 6);
+
     _camTarget.set(
       this.playerPos.x + this.camAimX * CAMERA_LOOK_LEAD,
       this.playerPos.y + this.camAimY * CAMERA_LOOK_LEAD + CAMERA_LOOK_UP,
       this.playerPos.z + this.camAimZ * CAMERA_LOOK_LEAD,
     );
-    // Smooth lookAt too (store in a member for next frame)
-    this.camLookX += (_camTarget.x - this.camLookX) * CAMERA_LERP_LOOK;
-    this.camLookY += (_camTarget.y - this.camLookY) * CAMERA_LERP_LOOK;
-    this.camLookZ += (_camTarget.z - this.camLookZ) * CAMERA_LERP_LOOK;
+    this.camLookX = _camTarget.x;
+    this.camLookY = _camTarget.y;
+    this.camLookZ = _camTarget.z;
 
-    // Shake — additive offset on top of lerped position
+    // Shake before lookAt so shake can't fight the rigid position.
     if (this.shakeAmount > 0.01) {
       this.camera.position.x += (Math.random() - 0.5) * this.shakeAmount;
       this.camera.position.y += (Math.random() - 0.5) * this.shakeAmount * 0.5;
@@ -1109,6 +1175,11 @@ export class ArenaEngine {
     }
 
     this.camera.lookAt(this.camLookX, this.camLookY, this.camLookZ);
+    // Apply bank AFTER lookAt — rotates camera around its forward axis,
+    // tilting the horizon into the turn the way a banking jet would.
+    if (Math.abs(this.cameraBankAngle) > 0.001) {
+      this.camera.rotateZ(this.cameraBankAngle);
+    }
   }
 
   // ── Player movement (WASD) ──────────────────────────────────────────────
@@ -1264,7 +1335,15 @@ export class ArenaEngine {
       if (this.playerVelY < 0) this.playerVelY = -this.playerVelY * 0.3;
     }
 
-    // Update mesh + nickname position
+    // Barrel-roll tick — decrement timers, the roll angle itself is applied
+    // as an additional rotation.z on the mesh after updateAim has written
+    // the baseline yaw/pitch.
+    if (this.barrelRollTimer > 0) this.barrelRollTimer -= dt;
+    if (this.barrelRollCooldown > 0) this.barrelRollCooldown -= dt;
+    // Missile-sector rate-limit tick (2s repeat while held on missile sector)
+    if (this._missileSectorTimer > 0) this._missileSectorTimer -= dt;
+
+    // Update mesh position
     this.playerMesh.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
     this.playerNickSprite.position.set(this.playerPos.x, this.playerPos.y + 15, this.playerPos.z - 15);
 
@@ -1314,50 +1393,23 @@ export class ArenaEngine {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
-      // Aim resolution (manual — no auto-aim):
-      //   - Right joystick active → aim tracks right joystick (strafe mode)
-      //   - Right idle + left active → aim tracks left joystick (nose-follow)
-      //   - Both idle → keep last aim (ship holds its facing)
-      let desiredX = this.aimDirX;
-      let desiredZ = this.aimDirZ;
-      const aimLen = Math.sqrt(this.mobileAim.x ** 2 + this.mobileAim.z ** 2);
-      if (aimLen > 0.1) {
-        desiredX = this.mobileAim.x / aimLen;
-        desiredZ = this.mobileAim.z / aimLen;
-      } else {
-        const moveLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.z ** 2);
-        if (moveLen > 0.1) {
-          desiredX = this.mobileMove.x / moveLen;
-          desiredZ = this.mobileMove.z / moveLen;
-        }
-      }
-
-      // Cap turn-rate so aim cannot snap 180° instantly. MAX_TURN_RATE chosen
-      // so a full 180° flip takes ~0.4s — fast enough to feel responsive,
-      // slow enough that collision physics and the camera don't whiplash.
-      const MAX_TURN_RATE = Math.PI / 0.4; // rad/sec
-      const curAngle = Math.atan2(this.aimDirX, this.aimDirZ);
-      const desAngle = Math.atan2(desiredX, desiredZ);
-      let diff = desAngle - curAngle;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      const maxStep = MAX_TURN_RATE * dt;
-      let newYaw: number;
-      if (Math.abs(diff) > maxStep) {
-        newYaw = curAngle + Math.sign(diff) * maxStep;
-      } else {
-        newYaw = Math.atan2(desiredX, desiredZ);
-      }
-
-      // Pitch on mobile comes from the right-stick Y (mobilePitchRate, rate-
-      // based). Integrate, clamp to ±MAX_PITCH, then recompose aim vector.
-      const curPitchM = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
+      // Right stick is rate-based. X → yaw rate, Y → pitch rate.
+      // Stick centered (both |v| < 0.1) holds aim. No auto-aim.
+      const YAW_RATE = Math.PI / 0.8;   // rad/sec at full stick
       const PITCH_RATE = Math.PI / 1.2; // rad/sec at full stick
-      let newPitchM = curPitchM - this.mobilePitchRate * PITCH_RATE * dt;
-      newPitchM = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, newPitchM));
-      const cp = Math.cos(newPitchM);
+      const yawStick = Math.abs(this.mobileAim.x) > 0.1 ? this.mobileAim.x : 0;
+      // mobilePitchRate is the raw stick Y. Screen-up (negative) → nose up.
+      const pitchStick = Math.abs(this.mobilePitchRate) > 0.1 ? this.mobilePitchRate : 0;
+
+      const curPitchM = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
+      const curYawM = Math.atan2(this.aimDirX, this.aimDirZ);
+
+      const newYaw = curYawM + yawStick * YAW_RATE * dt;
+      let newPitch = curPitchM - pitchStick * PITCH_RATE * dt;
+      newPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, newPitch));
+      const cp = Math.cos(newPitch);
       this.aimDirX = Math.sin(newYaw) * cp;
-      this.aimDirY = Math.sin(newPitchM);
+      this.aimDirY = Math.sin(newPitch);
       this.aimDirZ = Math.cos(newYaw) * cp;
     } else if (this.pointerLocked) {
       // Desktop pointer-lock: yaw from mouseX, pitch from mouseY.
@@ -1400,6 +1452,16 @@ export class ArenaEngine {
     const targetShipPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
     this.playerPitch += (targetShipPitch - this.playerPitch) * Math.min(1, dt * 6);
     this.playerMesh.rotation.x = this.playerPitch;
+
+    // Barrel-roll: spin the ship around its Z axis (forward) for 360°.
+    // Progress goes 0 → 1 linearly over BARREL_ROLL_DURATION, so the angle
+    // sweep is 2π * (1 - timer/duration).
+    if (this.barrelRollTimer > 0) {
+      const progress = 1 - this.barrelRollTimer / this.BARREL_ROLL_DURATION;
+      this.playerMesh.rotation.z = progress * Math.PI * 2;
+    } else {
+      this.playerMesh.rotation.z = 0;
+    }
 
     // Bank angle — visual tilt when turning sharply (only on Z axis, no X)
     let angleDelta = this.playerAimAngle - prevAngle;
@@ -1829,8 +1891,17 @@ export class ArenaEngine {
   // ── Engine exhaust particles ─────────────────────────────────────────
 
   private setupExhaust(): void {
-    const geo = new THREE.SphereGeometry(1.2, 3, 3);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xff8844, transparent: true, opacity: 0.8 });
+    // Blue engine trail — additive-blended sphere; color matches the ship
+    // tail highlight in the GLB. Bigger than before so the streak reads at
+    // chase-cam distance.
+    const geo = new THREE.SphereGeometry(1.8, 4, 4);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x66bbff,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
     this.disposables.push(geo, mat);
 
     this.exhaustMesh = new THREE.InstancedMesh(geo, mat, this.EXHAUST_POOL);
@@ -3561,7 +3632,9 @@ export class ArenaEngine {
     m.vz = dz * this.MISSILE_SPEED;
     m.age = 0;
     m.active = true;
-    m.targetId = null; // dumb missile — homing finds nearest enemy
+    // Bot missile inherits the bot's current target so the player can tell
+    // when a red missile is locked on them (HUD edge blinks).
+    m.targetId = bot.brain.targetId;
     playSfx('arena-missile', 0.08); // quieter for bots
   }
 
@@ -3992,6 +4065,51 @@ export class ArenaEngine {
    * position minus the player's, with the player's yaw zeroed out so
    * "up on radar" always means "ahead of the ship".
    */
+  /**
+   * Per-bot edge marker for the HUD perimeter indicator.
+   * Each entry carries an off-screen direction (normalized screen-space
+   * vector) OR null if the bot is already within the camera frustum. The
+   * React layer decides which viewport side to clamp to.
+   */
+  private _edgeProjVec = new THREE.Vector3();
+  getEdgeMarkers(): {
+    id: number;
+    team: Team;
+    nx: number; ny: number; // -1..1 screen-space direction
+    onScreen: boolean;
+    shooting: boolean;       // blink if currently targeting player
+    lockedOnPlayer: boolean; // this bot has a 100% lock on the player
+  }[] {
+    const out: { id: number; team: Team; nx: number; ny: number; onScreen: boolean; shooting: boolean; lockedOnPlayer: boolean }[] = [];
+    const now = performance.now();
+    for (const bot of this.botShips) {
+      if (!bot.alive) continue;
+      this._edgeProjVec.set(bot.pos.x, bot.pos.y, bot.pos.z);
+      this._edgeProjVec.project(this.camera);
+      // Also classify "behind camera" — project() gives z > 1 in that case.
+      const behind = this._edgeProjVec.z > 1;
+      const nx = this._edgeProjVec.x;
+      const ny = -this._edgeProjVec.y; // flip so up on screen = -y CSS
+      const onScreen = !behind && Math.abs(nx) < 1 && Math.abs(ny) < 1;
+      // Crude "is this bot shooting at the player?" — bot's recent target is
+      // player (id 0) and recent fire cooldown < 0.2s means they just fired.
+      const shooting = bot.brain.targetId === 0 && bot.fireCooldown > 0 && bot.fireCooldown < 0.2;
+      // Locked on: any missile in flight with targetId=bot — no, that's us
+      // targeting them. Not tracked yet for bots targeting us.
+      void now;
+      out.push({
+        id: bot.id,
+        team: bot.team,
+        nx: behind ? -nx : nx,
+        ny: behind ? 1 : ny, // behind → force to bottom edge
+        onScreen,
+        shooting,
+        lockedOnPlayer: false,
+      });
+    }
+    return out;
+  }
+
   getRadarSnapshot(): {
     aimYaw: number; // radians (0 = facing -Z world)
     player: { x: number; y: number; z: number };
@@ -4027,6 +4145,15 @@ export class ArenaEngine {
   isWarpActive(): boolean { return this.warpActive; }
   getWarpCooldown(): number { return this.warpCooldownTimer; }
   getWarpCooldownTotal(): number { return this.WARP_COOLDOWN; }
+
+  /** True if any active missile is homing on the player (id 0).
+   *  Used by the HUD to flash a red border warning a strike is incoming. */
+  isPlayerLocked(): boolean {
+    for (const m of this.missiles) {
+      if (m.active && m.targetId === 0) return true;
+    }
+    return false;
+  }
 
   /** Returns active power-up buffs with remaining time in ms */
   getPlayerBuffs(): { type: PowerUpType; remainingMs: number }[] {

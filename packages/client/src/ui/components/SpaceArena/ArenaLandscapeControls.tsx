@@ -6,8 +6,12 @@ interface ArenaLandscapeControlsProps {
   onDash: () => void;
   onFireMissile?: () => void;
   onGravPush?: () => void;
-  /** -1..+1 vertical thrust. +1 climb while held, -1 dive. */
+  /** -1..+1 vertical thrust (deprecated — kept for API compat, no-op now). */
   onVertical?: (v: number) => void;
+  /** Left-stick sector — which quadrant the thumb is pulled toward.
+   *  'center' = just thrust, 'laser' = thrust+fire, 'missile' = thrust+missile,
+   *  'warp' = thrust+warp, 'dodge' = thrust+barrel roll. */
+  onSector?: (sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge') => void;
   missileAmmo?: number;
   warpReady?: boolean;
   /** When true, container is CSS-rotated 90° CW (portrait → landscape). */
@@ -18,7 +22,7 @@ const MAX_RADIUS = 60;
 const DEADZONE = 10; // pixels, for firing threshold
 
 export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
-  onMove, onAim, onDash, onFireMissile, onGravPush, onVertical,
+  onMove, onAim, onDash, onFireMissile, onGravPush, onVertical: _onVertical, onSector,
   missileAmmo = 10, warpReady = true, needRotate = false,
 }) => {
   // Convert viewport coords → container-local when CSS-rotated
@@ -85,11 +89,30 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
     const ny = dy / MAX_RADIUS;
 
     if (isLeft) {
-      onMove(nx, ny);
+      // Left stick is now sector-based:
+      //   - Center (near origin) → forward thrust only
+      //   - Up    → laser fire   (thrust + fire)
+      //   - Left  → missile      (thrust + missile pulse every ~2s)
+      //   - Right → warp         (thrust + warp burst)
+      //   - Down  → barrel roll  (thrust + dodge)
+      // Thrust magnitude = how far the thumb is pulled (0..1). Always
+      // forward — no strafe from the left stick in TPS mode.
+      const thrust = Math.min(1, dist / MAX_RADIUS);
+      onMove(0, -thrust); // engine interprets ny<0 as "forward"
+      let sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge' = 'center';
+      if (dist > DEADZONE * 2) {
+        // Screen Y grows downward; flip so "up on screen" = positive angle
+        const angle = Math.atan2(-dy, dx);
+        if (angle > Math.PI / 4 && angle < 3 * Math.PI / 4) sector = 'laser';
+        else if (angle >= -Math.PI / 4 && angle <= Math.PI / 4) sector = 'warp';
+        else if (angle < -Math.PI / 4 && angle > -3 * Math.PI / 4) sector = 'dodge';
+        else sector = 'missile';
+      }
+      onSector?.(sector);
     } else {
       onAim(nx, ny, dist > DEADZONE);
     }
-  }, [onMove, onAim, toLocal]);
+  }, [onMove, onAim, onSector, toLocal]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent, isLeft: boolean) => {
     const pointerIdRef = isLeft ? leftPointerId : rightPointerId;
@@ -102,10 +125,11 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
 
     if (isLeft) {
       onMove(0, 0);
+      onSector?.('center'); // reset sector on release
     } else {
       onAim(0, 0, false);
     }
-  }, [onMove, onAim]);
+  }, [onMove, onAim, onSector]);
 
   const safeBottom = 'env(safe-area-inset-bottom, 20px)';
   const safeRight = 'env(safe-area-inset-right, 20px)';
@@ -121,9 +145,20 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         onPointerUp={(e) => handlePointerUp(e, true)}
         onPointerCancel={(e) => handlePointerUp(e, true)}
       >
-        <div style={{ ...styles.hint, bottom: `calc(80px + ${safeBottom})`, left: `calc(60px + ${safeLeft})` }}>
-          <div style={styles.hintRing} />
-          <span style={styles.hintLabel}>MOVE</span>
+        <div style={{ ...styles.hint, bottom: `calc(80px + ${safeBottom})`, left: `calc(60px + ${safeLeft})`, width: 110, height: 110 }}>
+          <div style={{ ...styles.hintRing, width: 110, height: 110 }} />
+          {/* Sector icons around the ring — labels only; engine reads the
+              sector from handlePointerMove. */}
+          <svg width="110" height="110" viewBox="-55 -55 110 110" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {/* Up: laser (green) */}
+            <text x="0" y="-38" fill="#44ffaa" fontSize="9" textAnchor="middle" fontFamily="monospace">LASER</text>
+            {/* Left: missile (red) */}
+            <text x="-38" y="3" fill="#ff6666" fontSize="9" textAnchor="middle" fontFamily="monospace">MISSILE</text>
+            {/* Right: warp (cyan) */}
+            <text x="38" y="3" fill="#44ddff" fontSize="9" textAnchor="middle" fontFamily="monospace">WARP</text>
+            {/* Down: dodge (yellow) */}
+            <text x="0" y="46" fill="#ffcc44" fontSize="9" textAnchor="middle" fontFamily="monospace">DODGE</text>
+          </svg>
         </div>
         <div ref={leftBaseRef} style={styles.base}>
           <div ref={leftKnobRef} style={styles.knob} />
@@ -180,28 +215,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
           <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
         </svg>
       </button>
-      {/* CLIMB (up arrow) — left edge of screen, thumb reach */}
-      <button
-        style={{ ...styles.abilityBtn, position: 'absolute', left: `calc(30px + ${safeLeft})`, bottom: `calc(230px + ${safeBottom})`, width: 44, height: 44, borderRadius: 22 }}
-        onPointerDown={(e) => { e.stopPropagation(); onVertical?.(1); }}
-        onPointerUp={(e) => { e.stopPropagation(); onVertical?.(0); }}
-        onPointerCancel={(e) => { e.stopPropagation(); onVertical?.(0); }}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#88ddff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 15l6-6 6 6" />
-        </svg>
-      </button>
-      {/* DIVE (down arrow) */}
-      <button
-        style={{ ...styles.abilityBtn, position: 'absolute', left: `calc(30px + ${safeLeft})`, bottom: `calc(175px + ${safeBottom})`, width: 44, height: 44, borderRadius: 22 }}
-        onPointerDown={(e) => { e.stopPropagation(); onVertical?.(-1); }}
-        onPointerUp={(e) => { e.stopPropagation(); onVertical?.(0); }}
-        onPointerCancel={(e) => { e.stopPropagation(); onVertical?.(0); }}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#88ddff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
+      {/* Climb/dive removed — pitch is now part of the right stick Y. */}
     </div>
   );
 };
