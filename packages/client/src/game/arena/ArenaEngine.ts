@@ -4013,6 +4013,10 @@ export class ArenaEngine {
           this.botBulletMesh.instanceMatrix.needsUpdate = true;
 
           this.spawnHitEffect(b.x, b.z, b.y);
+          // Laser on the hull — small camera shake so the player feels
+          // the hit. No screen blink: blinking is reserved for missile
+          // threat warnings (see isPlayerLocked).
+          this.shakeAmount = Math.max(this.shakeAmount, 3);
 
           if (performance.now() >= this.invulnerableUntil) {
             this.playerHp -= this.BOT_BULLET_DAMAGE;
@@ -4446,11 +4450,24 @@ export class ArenaEngine {
     return Math.min(1, s / SHIP_MAX_SPEED);
   }
 
-  /** True if any active missile is homing on the player (id 0).
-   *  Used by the HUD to flash a red border warning a strike is incoming. */
+  /** True if the player is under missile threat — either (a) an enemy
+   *  missile is already in flight with targetId = 0, or (b) an enemy bot
+   *  is currently chasing the player with its missile cooldown almost
+   *  ready (so a strike is seconds away). HUD uses this to blink the
+   *  screen border as a "you're being hunted" warning. */
   isPlayerLocked(): boolean {
+    // (a) missile already airborne toward the player
     for (const m of this.missiles) {
       if (m.active && m.targetId === 0) return true;
+    }
+    // (b) enemy bot targeting the player and about to fire a missile
+    for (const bot of this.botShips) {
+      if (!bot.alive) continue;
+      if (bot.team === this.playerTeam) continue;
+      if (bot.brain.targetId !== 0) continue;
+      const ammo = bot.missileAmmo ?? 0;
+      const cd = bot.missileCooldown ?? 0;
+      if (ammo > 0 && cd < 1.2) return true;
     }
     return false;
   }

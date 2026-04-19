@@ -60,18 +60,8 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   // Live match timer (polled with the rest of the arena state) — used to
   // draw the HUD countdown in the top score bar.
   const [matchTimer, setMatchTimer] = useState(0);
-  // Damage flash — triggered by a ref bump on each hp drop. Lives for 0.3s.
-  const [damageFlash, setDamageFlash] = useState(0);
-  const prevHpRef = useRef(hp);
-  useEffect(() => {
-    if (hp < prevHpRef.current) {
-      setDamageFlash((x) => x + 1);
-      const id = setTimeout(() => setDamageFlash(0), 300);
-      prevHpRef.current = hp;
-      return () => clearTimeout(id);
-    }
-    prevHpRef.current = hp;
-  }, [hp]);
+  // Damage flash removed — lasers now cause camera shake (in engine),
+  // and screen blink is reserved exclusively for missile threats.
 
   // System back button (web + Capacitor) — intercept and show exit prompt
   // instead of leaving arena immediately. We push a dummy history entry on
@@ -509,19 +499,8 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         </div>
       )}
 
-      {/* Damage vignette — red radial flash when HP drops. Keyed by counter
-          so React restarts the fade animation on each hit. */}
-      {ready && !isDead && damageFlash > 0 && (
-        <div
-          key={damageFlash}
-          style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: 'radial-gradient(ellipse at center, rgba(255,30,30,0) 40%, rgba(255,30,30,0.55) 100%)',
-            zIndex: 3,
-            animation: 'arenaDamageFlash 0.3s ease-out forwards',
-          }}
-        />
-      )}
+      {/* Damage vignette removed — see engine.shakeAmount for the laser
+          hit feedback (camera jolt instead of a screen flash). */}
 
       {/* Boundary altitude warning — top/bottom tint when within 60u of cap */}
       {ready && radar && (Math.abs(radar.playerY) > 340) && (

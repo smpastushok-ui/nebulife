@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v14: lock poll works in training, dumb-missile half turn rate
-const CACHE_NAME = 'nebulife-v14';
+// v15: blink only for missile threats; laser hit → camera shake only
+const CACHE_NAME = 'nebulife-v15';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
