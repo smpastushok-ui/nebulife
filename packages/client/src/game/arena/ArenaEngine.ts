@@ -375,6 +375,10 @@ export class ArenaEngine {
   // Bank-roll state — camera tilts around its forward axis into yaw turns.
   private _lastCamYaw = 0;
   private cameraBankAngle = 0;
+  // Ship roll (bank) around the aim direction — aircraft-style. Right stick
+  // X sets a target; roll then induces a natural yaw rate (coordinated turn)
+  // so banking right arcs the ship to the right.
+  private shipRoll = 0;
   // Camera shake (screen kick on explosions)
   private shakeAmount = 0;   // current intensity (units)
   private shakeDecay = 6;    // per second exponential decay
@@ -1163,29 +1167,50 @@ export class ArenaEngine {
       this.camera.updateProjectionMatrix();
     }
 
-    // Position: ship - aim * behind + worldUp * upDist (rigid)
+    // ── Ship-local up (rolled with shipRoll) ────────────────────────────
+    // The camera rides behind the ship along its FORWARD axis and above
+    // along its LOCAL up, so diving (aim.y < 0) slides the camera BEHIND
+    // the tail instead of over the top of the plane. Local up rotates with
+    // shipRoll so the horizon banks into turns.
+    const fwdX = this.camAimX, fwdY = this.camAimY, fwdZ = this.camAimZ;
+    // Horizontal "right" (perpendicular to aim projected into XZ)
+    const hx = -fwdZ, hz = fwdX;
+    const hlen = Math.sqrt(hx * hx + hz * hz);
+    let rightX: number, rightY: number, rightZ: number;
+    if (hlen > 0.01) {
+      rightX = hx / hlen; rightY = 0; rightZ = hz / hlen;
+    } else {
+      // Aim is (nearly) vertical — fall back to world +X as right
+      rightX = 1; rightY = 0; rightZ = 0;
+    }
+    // up = right × forward  (gives conventional "above the plane" vector)
+    let upX = rightY * fwdZ - rightZ * fwdY;
+    let upY = rightZ * fwdX - rightX * fwdZ;
+    let upZ = rightX * fwdY - rightY * fwdX;
+    const ulen = Math.sqrt(upX * upX + upY * upY + upZ * upZ) || 1;
+    upX /= ulen; upY /= ulen; upZ /= ulen;
+
+    // Rodrigues rotation of `up` around `fwd` by shipRoll. Since up⊥fwd,
+    // the formula collapses to: up' = up·cos(r) + (fwd × up)·sin(r).
+    // fwd × up = -right (by basis orientation), so:
+    //   up' = up·cos(r) − right·sin(r)
+    const cr = Math.cos(this.shipRoll);
+    const sr = Math.sin(this.shipRoll);
+    const localUpX = upX * cr - rightX * sr;
+    const localUpY = upY * cr - rightY * sr;
+    const localUpZ = upZ * cr - rightZ * sr;
+
+    // Position: ship + back*behind + localUp*upDist (both in ship frame)
     this.camera.position.set(
-      this.playerPos.x - this.camAimX * behindDist,
-      this.playerPos.y - this.camAimY * behindDist + upDist,
-      this.playerPos.z - this.camAimZ * behindDist,
+      this.playerPos.x - fwdX * behindDist + localUpX * upDist,
+      this.playerPos.y - fwdY * behindDist + localUpY * upDist,
+      this.playerPos.z - fwdZ * behindDist + localUpZ * upDist,
     );
 
-    // Track yaw delta for bank roll. Uses the same yaw convention as aim
-    // recomposition: yaw = atan2(X, -Z), so forward = 0 and turning right
-    // increases yaw. Aircraft-style bank — right turn rolls right wing
-    // down, which in Three.js camera space is rotateZ(-bank).
-    const curYaw = Math.atan2(this.camAimX, -this.camAimZ);
-    let yawDelta = curYaw - this._lastCamYaw;
-    while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
-    while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-    this._lastCamYaw = curYaw;
-    const targetBank = Math.max(-0.45, Math.min(0.45, yawDelta / Math.max(dt, 0.0001) * 0.08));
-    this.cameraBankAngle += (targetBank - this.cameraBankAngle) * Math.min(1, dt * 6);
-
     _camTarget.set(
-      this.playerPos.x + this.camAimX * CAMERA_LOOK_LEAD,
-      this.playerPos.y + this.camAimY * CAMERA_LOOK_LEAD + CAMERA_LOOK_UP,
-      this.playerPos.z + this.camAimZ * CAMERA_LOOK_LEAD,
+      this.playerPos.x + fwdX * CAMERA_LOOK_LEAD + localUpX * CAMERA_LOOK_UP,
+      this.playerPos.y + fwdY * CAMERA_LOOK_LEAD + localUpY * CAMERA_LOOK_UP,
+      this.playerPos.z + fwdZ * CAMERA_LOOK_LEAD + localUpZ * CAMERA_LOOK_UP,
     );
     this.camLookX = _camTarget.x;
     this.camLookY = _camTarget.y;
@@ -1199,12 +1224,10 @@ export class ArenaEngine {
       this.shakeAmount *= Math.max(0, 1 - this.shakeDecay * dt);
     }
 
+    // Feed the ship's local up into the view matrix so the horizon rolls
+    // with the ship. This replaces the old rotateZ bank hack.
+    this.camera.up.set(localUpX, localUpY, localUpZ);
     this.camera.lookAt(this.camLookX, this.camLookY, this.camLookZ);
-    // Apply bank AFTER lookAt — rotates camera around its forward axis,
-    // tilting the horizon into the turn the way a banking jet would.
-    if (Math.abs(this.cameraBankAngle) > 0.001) {
-      this.camera.rotateZ(this.cameraBankAngle);
-    }
   }
 
   // ── Player movement (WASD) ──────────────────────────────────────────────
@@ -1418,26 +1441,43 @@ export class ArenaEngine {
     const prevAngle = this.playerAimAngle;
 
     if (this.isMobile) {
-      // Right stick — rate-based. Full rewrite of the sign convention after
-      // the previous code inverted yaw (stick right turned the ship left).
+      // Flight-sim right stick:
+      //   X  → ROLL (bank) rate — stick right banks right wing down.
+      //   Y  → PITCH rate — stick forward (up on screen, mobilePitchRate<0)
+      //        pitches the nose DOWN; stick back pitches nose UP. Matches
+      //        aircraft yoke convention.
       //
-      // Convention: aim vector is a 3D unit vector; forward is (0, 0, -1).
-      // Yaw is measured as atan2(aimDirX, -aimDirZ) so forward = 0, right =
-      // +π/2, left = -π/2. Stick right (mobileAim.x > 0) should increase
-      // yaw. Recompose aim from (yaw, pitch) using the MATCHING sin/cos:
-      //   aimDirX =  sin(yaw) * cos(pitch)
-      //   aimDirZ = -cos(yaw) * cos(pitch)
-      // so (yaw=0, pitch=0) → (0, 0, -1) = forward.
-      const YAW_RATE = Math.PI / 0.8;
-      const PITCH_RATE = Math.PI / 1.2;
-      const yawStick = Math.abs(this.mobileAim.x) > 0.1 ? this.mobileAim.x : 0;
+      // Banking induces a coordinated yaw turn (sin(roll) × turn rate), so
+      // holding "bank right" arcs the ship to the right without the player
+      // having to push yaw separately.
+      const ROLL_RATE = Math.PI / 0.6;        // rad/sec at full stick
+      const PITCH_RATE = Math.PI / 1.2;       // rad/sec at full stick
+      const TURN_FROM_ROLL = Math.PI / 1.2;   // rad/sec per unit sin(roll)
+      const MAX_ROLL = 1.0;                    // ~57°
+      const rollStick = Math.abs(this.mobileAim.x) > 0.1 ? this.mobileAim.x : 0;
       const pitchStick = Math.abs(this.mobilePitchRate) > 0.1 ? this.mobilePitchRate : 0;
+
+      // Target roll — proportional to stick deflection. When the stick is
+      // centered the target is 0, so shipRoll naturally rolls back to level
+      // (aircraft tend to self-level). When deflected, smooth toward the
+      // target so banks feel weighty instead of snapping.
+      const targetRoll = rollStick * MAX_ROLL;
+      this.shipRoll += (targetRoll - this.shipRoll) * Math.min(1, dt * 4);
+      if (Math.abs(rollStick) > 0.9) {
+        this.shipRoll += Math.sign(rollStick) * ROLL_RATE * dt * 0.2;
+      }
+      this.shipRoll = Math.max(-MAX_ROLL, Math.min(MAX_ROLL, this.shipRoll));
+
+      // Coordinated-turn yaw induced by bank.
+      const inducedYaw = Math.sin(this.shipRoll) * TURN_FROM_ROLL * dt;
 
       const curPitchM = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
       const curYawM = Math.atan2(this.aimDirX, -this.aimDirZ);
 
-      const newYaw = curYawM + yawStick * YAW_RATE * dt;
-      let newPitch = curPitchM - pitchStick * PITCH_RATE * dt;
+      const newYaw = curYawM + inducedYaw;
+      // pitchStick > 0 when stick pushed down on screen → nose up.
+      // pitchStick < 0 when stick pushed forward/up → nose down.
+      let newPitch = curPitchM + pitchStick * PITCH_RATE * dt;
       newPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, newPitch));
       const cp = Math.cos(newPitch);
       this.aimDirX =  Math.sin(newYaw) * cp;
@@ -1484,15 +1524,15 @@ export class ArenaEngine {
     this.playerPitch += (targetShipPitch - this.playerPitch) * Math.min(1, dt * 6);
     this.playerMesh.rotation.x = this.playerPitch;
 
-    // Barrel-roll: spin the ship around its Z axis (forward) for 360°.
-    // Progress goes 0 → 1 linearly over BARREL_ROLL_DURATION, so the angle
-    // sweep is 2π * (1 - timer/duration).
+    // Roll composition: shipRoll (flight-sim bank) is baseline on .rotation.z.
+    // Barrel-roll adds a spinning 2π sweep on top so the visual stacks with
+    // the held bank cleanly.
+    let rollZ = this.shipRoll;
     if (this.barrelRollTimer > 0) {
       const progress = 1 - this.barrelRollTimer / this.BARREL_ROLL_DURATION;
-      this.playerMesh.rotation.z = progress * Math.PI * 2;
-    } else {
-      this.playerMesh.rotation.z = 0;
+      rollZ += progress * Math.PI * 2;
     }
+    this.playerMesh.rotation.z = rollZ;
 
     // Bank angle — visual tilt when turning sharply (only on Z axis, no X)
     let angleDelta = this.playerAimAngle - prevAngle;

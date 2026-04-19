@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v7: yaw signs fix + bigger left stick + belly exhaust + ship lighting
-const CACHE_NAME = 'nebulife-v7';
+// v8: flight-sim roll/pitch + ship-local camera + gesture-based left stick
+const CACHE_NAME = 'nebulife-v8';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [

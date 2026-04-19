@@ -42,11 +42,17 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
     return { x: vy, y: window.innerWidth - vx };
   }, [needRotate]);
 
-  // -- Left joystick (MOVE) --
+  // -- Left joystick (MOVE + sector) --
   const leftBaseRef = useRef<HTMLDivElement>(null);
   const leftKnobRef = useRef<HTMLDivElement>(null);
+  const leftHintRef = useRef<HTMLDivElement>(null); // visible ring — anchor for "inside/outside"
   const leftPointerId = useRef<number | null>(null);
   const leftOrigin = useRef({ x: 0, y: 0 });
+  // Gesture flag: true if the *initial* touch was inside the visible ring.
+  // Thrust stays on while this gesture is ongoing (per press). Releasing
+  // and re-pressing on a sector without hitting the center → thrust OFF,
+  // weapon still fires (ship decelerates naturally via drag).
+  const leftStartedInside = useRef(false);
 
   // -- Right joystick (AIM) --
   const rightBaseRef = useRef<HTMLDivElement>(null);
@@ -73,7 +79,29 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       knobRef.current.style.transform = 'translate(-50%, -50%)';
     }
 
-    if (!isLeft) onAim(0, 0, true);
+    if (isLeft) {
+      // Was the initial touch inside the visible hint ring? That enables
+      // thrust for the whole gesture. Sector-only taps (starting outside)
+      // fire weapons but leave thrust off.
+      leftStartedInside.current = false;
+      const hintEl = leftHintRef.current;
+      if (hintEl) {
+        const rect = hintEl.getBoundingClientRect();
+        // rect in CSS coords; we need the same coordinate space as `local`.
+        // When needRotate the whole container is CSS-rotated, so the hint's
+        // client rect is still in unrotated screen coords — use raw e.client*.
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const ddx = e.clientX - cx;
+        const ddy = e.clientY - cy;
+        const ringR = rect.width / 2;
+        if (ddx * ddx + ddy * ddy <= ringR * ringR) {
+          leftStartedInside.current = true;
+        }
+      }
+    } else {
+      onAim(0, 0, true);
+    }
   }, [onAim, toLocal]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent, isLeft: boolean) => {
@@ -101,20 +129,33 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
     const ny = dy / radius;
 
     if (isLeft) {
-      // Left stick is now sector-based:
-      //   - Center (near origin) → forward thrust only
-      //   - Up    → laser fire   (thrust + fire)
-      //   - Left  → missile      (thrust + missile pulse every ~2s)
-      //   - Right → warp         (thrust + warp burst)
-      //   - Down  → barrel roll  (thrust + dodge)
-      // Thrust magnitude = how far the thumb is pulled (0..1). Always
-      // forward — no strafe from the left stick in TPS mode.
-      const thrust = Math.min(1, dist / LEFT_STICK_RADIUS);
-      onMove(0, -thrust); // engine interprets ny<0 as "forward"
+      // Gesture model:
+      //   - Thrust ON only if the press STARTED inside the visible ring.
+      //     Re-pressing on a sector without touching the center = no thrust
+      //     (ship will decelerate via drag) but the weapon still fires.
+      //   - Finger inside ring  → pure thrust, no weapon (sector = center).
+      //   - Finger outside ring → weapon sector activates (laser / missile /
+      //     warp / dodge). Thrust is still on if the gesture started inside.
+      const hintEl = leftHintRef.current;
+      let insideRing = false;
+      let angle = 0;
+      if (hintEl) {
+        const rect = hintEl.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const ddx = e.clientX - cx;
+        const ddy = e.clientY - cy;
+        const ringR = rect.width / 2;
+        const distFromRingCenter = Math.sqrt(ddx * ddx + ddy * ddy);
+        insideRing = distFromRingCenter <= ringR;
+        angle = Math.atan2(-ddy, ddx); // flip Y so up on screen = positive angle
+      }
+
+      const thrust = leftStartedInside.current ? 1 : 0;
+      onMove(0, -thrust);
+
       let sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge' = 'center';
-      if (dist > DEADZONE * 2) {
-        // Screen Y grows downward; flip so "up on screen" = positive angle
-        const angle = Math.atan2(-dy, dx);
+      if (!insideRing) {
         if (angle > Math.PI / 4 && angle < 3 * Math.PI / 4) sector = 'laser';
         else if (angle >= -Math.PI / 4 && angle <= Math.PI / 4) sector = 'warp';
         else if (angle < -Math.PI / 4 && angle > -3 * Math.PI / 4) sector = 'dodge';
@@ -138,6 +179,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
     if (isLeft) {
       onMove(0, 0);
       onSector?.('center'); // reset sector on release
+      leftStartedInside.current = false;
     } else {
       onAim(0, 0, false);
     }
@@ -157,12 +199,14 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         onPointerUp={(e) => handlePointerUp(e, true)}
         onPointerCancel={(e) => handlePointerUp(e, true)}
       >
-        <div style={{
-          ...styles.hint,
-          bottom: `calc(${LEFT_HINT_BOTTOM}px + ${safeBottom})`,
-          left: `calc(${LEFT_HINT_LEFT}px + ${safeLeft})`,
-          width: LEFT_HINT_SIZE, height: LEFT_HINT_SIZE,
-        }}>
+        <div
+          ref={leftHintRef}
+          style={{
+            ...styles.hint,
+            bottom: `calc(${LEFT_HINT_BOTTOM}px + ${safeBottom})`,
+            left: `calc(${LEFT_HINT_LEFT}px + ${safeLeft})`,
+            width: LEFT_HINT_SIZE, height: LEFT_HINT_SIZE,
+          }}>
           <div style={{ ...styles.hintRing, width: LEFT_HINT_SIZE, height: LEFT_HINT_SIZE }} />
           {/* Sector labels — positioned OUTSIDE the ring on the outer
               perimeter. Using a larger SVG viewbox than the ring itself
