@@ -13,6 +13,9 @@
   ],
   "rewrites": [
     { "source": "/share/:discoveryId", "destination": "/api/share/:discoveryId" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/support", "destination": "/support.html" },
+    { "source": "/auth/apple/callback", "destination": "/api/auth/apple/callback" },
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "crons": [

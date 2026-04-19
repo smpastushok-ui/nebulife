@@ -281,27 +281,29 @@ ${contextText}
 
 Будь поблажливим. SEVERE лише для найгрубіших випадків.`;
 
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: MODERATION_MODEL,
-      contents: prompt,
-      config: { thinkingConfig: { thinkingBudget: 0 } },
-    });
+  // Do NOT catch errors here — let the cron retry/escalate logic handle them.
+  // Silently returning SAFE on failure means abusive reports get auto-dismissed
+  // during Gemini downtime, which defeats the moderation system.
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: MODERATION_MODEL,
+    contents: prompt,
+    config: { thinkingConfig: { thinkingBudget: 0 } },
+  });
 
-    const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    // Strip markdown code fences if present
-    const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleaned) as ModerationResult;
+  const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  // Strip markdown code fences if present
+  const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+  const parsed = JSON.parse(cleaned) as ModerationResult;
 
-    const valid: ModerationVerdict[] = ['SAFE', 'WARN', 'BLOCK', 'SEVERE'];
-    if (!valid.includes(parsed.verdict)) return { verdict: 'SAFE', category: 'SAFE', reason: 'parse error', confidence: 0 };
-
-    return parsed;
-  } catch {
-    // Fail open — never false-ban
-    return { verdict: 'SAFE', category: 'SAFE', reason: 'moderation unavailable', confidence: 0 };
+  const valid: ModerationVerdict[] = ['SAFE', 'WARN', 'BLOCK', 'SEVERE'];
+  if (!valid.includes(parsed.verdict)) {
+    // Gemini returned a malformed verdict. Default to SAFE to avoid false
+    // bans, but tag the reason so it's visible in the reports table.
+    return { verdict: 'SAFE', category: 'SAFE', reason: 'parse error', confidence: 0 };
   }
+
+  return parsed;
 }
 
 // ---------------------------------------------------------------------------

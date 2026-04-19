@@ -1197,8 +1197,9 @@ export interface ReportRow {
   message_content: string;
   channel: string;
   context_json: string | null;
-  status: string; // pending|warned|blocked|severe|dismissed
+  status: string; // pending|pending_admin|warned|blocked|severe|dismissed
   gemini_verdict: string | null;
+  retry_count: number;
   created_at: string;
   reviewed_at: string | null;
 }
@@ -1231,6 +1232,20 @@ export async function getPendingReports(limit: number = 10): Promise<ReportRow[]
   return (await sql`
     SELECT * FROM reports WHERE status = 'pending' ORDER BY created_at ASC LIMIT ${limit}
   `) as ReportRow[];
+}
+
+/** Atomically increment retry_count and return the new value. Used by cron
+ *  when a Gemini moderation call fails so we can escalate after N attempts
+ *  instead of dismissing silently. */
+export async function incrementReportRetry(id: number): Promise<number> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE reports
+    SET retry_count = retry_count + 1
+    WHERE id = ${id}
+    RETURNING retry_count
+  `;
+  return (rows[0]?.retry_count as number | undefined) ?? 0;
 }
 
 export async function updateReport(

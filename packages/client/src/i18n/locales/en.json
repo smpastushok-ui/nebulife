@@ -661,6 +661,7 @@
     "sign_out": "Sign out / Change account",
     "legacy_progress": "You have saved progress. Sign in to keep it.",
     "google_login": "Sign in with Google",
+    "apple_login": "Sign in with Apple",
     "loading": "Loading...",
     "email_password_btn": "Email / Password",
     "or_divider": "or",

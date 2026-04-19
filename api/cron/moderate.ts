@@ -1,6 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getPendingReports, updateReport, chatBanPlayer, saveMessage, getPlayer } from '../../packages/server/src/db.js';
+import { getPendingReports, updateReport, chatBanPlayer, saveMessage, getPlayer, incrementReportRetry } from '../../packages/server/src/db.js';
 import { moderateMessage } from '../../packages/server/src/gemini-client.js';
+import { sendAdminAlert } from '../../packages/server/src/email-client.js';
+
+// After this many consecutive Gemini failures a report is escalated to the
+// admin (manual review) instead of being retried by the cron forever.
+const MAX_GEMINI_RETRIES = 3;
 
 // ---------------------------------------------------------------------------
 // Humorous ban announcement templates
@@ -143,9 +148,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await updateReport(report.id, status, JSON.stringify(result));
       processed++;
     } catch (err) {
-      console.error(`[moderate] Failed to process report ${report.id}:`, err);
-      // Mark as dismissed to avoid reprocessing broken reports indefinitely
-      await updateReport(report.id, 'dismissed', 'error').catch(() => {});
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[moderate] Failed to process report ${report.id}:`, errMsg);
+
+      // Increment retry counter. When the cron recovers (Gemini back online)
+      // the report stays in `pending` and gets picked up on the next tick.
+      const retryCount = await incrementReportRetry(report.id).catch(() => 0);
+
+      if (retryCount >= MAX_GEMINI_RETRIES) {
+        // Gemini has been failing repeatedly — hand this report over to the
+        // admin for manual review. The DB row is left addressable (status
+        // pending_admin) so a future admin tool can surface it.
+        await updateReport(
+          report.id,
+          'pending_admin',
+          JSON.stringify({ error: errMsg, retries: retryCount }),
+        ).catch(() => {});
+
+        // Best-effort email notification to the project owner.
+        const html = `
+          <p><strong>Gemini moderation failed ${retryCount}× on report #${report.id}</strong></p>
+          <p>Last error: <code>${errMsg.replace(/</g, '&lt;')}</code></p>
+          <p>Reported user: <code>${report.reported_id}</code></p>
+          <p>Channel: <code>${report.channel}</code></p>
+          <p>Message content:</p>
+          <blockquote style="border-left: 3px solid #ccc; margin: 0; padding: 8px 12px; background: #f8f8f8;">
+            ${report.message_content.replace(/</g, '&lt;').slice(0, 2000)}
+          </blockquote>
+          <p>Status has been set to <code>pending_admin</code>. Review in the Neon database <code>reports</code> table.</p>
+        `;
+        await sendAdminAlert({
+          subject: `[Nebulife] Moderation escalation — report #${report.id}`,
+          html,
+        }).catch((emailErr) => {
+          console.error(`[moderate] Admin alert delivery failed for report ${report.id}:`, emailErr);
+        });
+      }
+      // Otherwise: leave status=pending; the next cron run (≤ 1 min later)
+      // will retry moderateMessage automatically.
     }
   }
 

@@ -659,6 +659,7 @@
     "sign_out": "Вийти / Змінити акаунт",
     "legacy_progress": "У вас є збережений прогрес. Увійдіть щоб зберегти його.",
     "google_login": "Увiйти з Google",
+    "apple_login": "Увійти через Apple",
     "loading": "Завантаження...",
     "email_password_btn": "Email / Пароль",
     "or_divider": "або",

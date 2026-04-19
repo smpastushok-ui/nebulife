@@ -2,6 +2,7 @@ import {
   signInAnonymously,
   signInWithPopup,
   GoogleAuthProvider,
+  OAuthProvider,
   signInWithCredential,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -20,6 +21,11 @@ import { auth } from './firebase-config.js';
 // ---------------------------------------------------------------------------
 
 const GOOGLE_WEB_CLIENT_ID = '702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com';
+
+// Apple Sign-In Service ID (created in Apple Developer → Identifiers → Services IDs)
+// and registered as OAuth redirect in App Store Connect. Do NOT confuse with App ID.
+const APPLE_SERVICE_ID = 'app.nebulife.service';
+const APPLE_REDIRECT_URI = 'https://www.nebulife.space/auth/apple/callback';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -134,6 +140,96 @@ export async function linkGoogleToAnonymous(): Promise<User | null> {
     return result.user;
   }
   const result = await linkWithPopup(user, googleProvider);
+  return result.user;
+}
+
+// ---------------------------------------------------------------------------
+// Apple Sign-In — required by Apple Guideline 4.8 (any app offering 3rd-party
+// social login must also offer Sign in with Apple). iOS native uses the
+// capacitor-community plugin; web falls back to Firebase OAuth popup.
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AppleAuthAny = any;
+
+// CRITICAL: wrap plugin proxy in an object (see getNativeGoogleAuth above for
+// rationale — returning a proxy from an async function breaks at `.then()`).
+async function getNativeAppleAuth(): Promise<{ SignInWithApple: AppleAuthAny }> {
+  // @ts-ignore — module only available in native Capacitor builds, not on Vercel
+  const mod = await import('@capacitor-community/apple-sign-in');
+  const SignInWithApple: AppleAuthAny = mod.SignInWithApple;
+  return { SignInWithApple };
+}
+
+/** True if Sign in with Apple should be offered on this platform.
+ *  - iOS native: always (Apple requires it alongside any 3rd-party login).
+ *  - Web: always (Firebase OAuthProvider('apple.com') popup).
+ *  - Android native: hidden (Apple button on Google Play is a UX wart and
+ *    Guideline 4.8 only applies to Apple platforms). */
+export function isAppleSignInAvailable(): boolean {
+  if (!Capacitor.isNativePlatform()) return true;
+  return Capacitor.getPlatform() === 'ios';
+}
+
+/** Sign in with Apple — iOS native via capacitor-community plugin,
+ *  web via Firebase popup. Returns the Firebase User once Apple credentials
+ *  have been exchanged for a Firebase credential. */
+export async function signInWithApple(): Promise<User | null> {
+  const a = requireAuth();
+  if (!Capacitor.isNativePlatform()) {
+    const provider = new OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
+    const result = await signInWithPopup(a, provider);
+    return result.user;
+  }
+  const { SignInWithApple } = await getNativeAppleAuth();
+  const rawNonce = crypto.randomUUID();
+  const state = crypto.randomUUID();
+  const res = await SignInWithApple.authorize({
+    clientId: APPLE_SERVICE_ID,
+    redirectURI: APPLE_REDIRECT_URI,
+    scopes: 'email name',
+    state,
+    nonce: rawNonce,
+  });
+  const provider = new OAuthProvider('apple.com');
+  const credential = provider.credential({
+    idToken: res.response.identityToken,
+    rawNonce,
+  });
+  const result = await signInWithCredential(a, credential);
+  return result.user;
+}
+
+/** Link an anonymous account to Apple (preserves UID). Mirrors
+ *  linkGoogleToAnonymous so guests can upgrade without losing progress. */
+export async function linkAppleToAnonymous(): Promise<User | null> {
+  const a = requireAuth();
+  const user = a.currentUser;
+  if (!user) throw new Error('No current user');
+  if (!Capacitor.isNativePlatform()) {
+    const provider = new OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
+    const result = await linkWithPopup(user, provider);
+    return result.user;
+  }
+  const { SignInWithApple } = await getNativeAppleAuth();
+  const rawNonce = crypto.randomUUID();
+  const res = await SignInWithApple.authorize({
+    clientId: APPLE_SERVICE_ID,
+    redirectURI: APPLE_REDIRECT_URI,
+    scopes: 'email name',
+    state: crypto.randomUUID(),
+    nonce: rawNonce,
+  });
+  const provider = new OAuthProvider('apple.com');
+  const credential = provider.credential({
+    idToken: res.response.identityToken,
+    rawNonce,
+  });
+  const result = await linkWithCredential(user, credential);
   return result.user;
 }
 

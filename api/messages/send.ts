@@ -51,9 +51,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Вас тимчасово заблоковано в чаті. Спробуйте пізніше.' });
     }
 
-    // Get sender name
+    // Get sender name (and level for the global gate below)
     const player = await getPlayer(auth.playerId);
     const senderName = player?.callsign || player?.name || 'Explorer';
+
+    // Level gate for the global channel — must match the client ChatWidget
+    // (globalLocked = playerLevel < 10). Enforced server-side so the gate
+    // can't be bypassed by calling the API directly. The JSONB field is
+    // `level` (see App.tsx:4093 — updatePlayer payload uses `level:`).
+    if (channel === 'global') {
+      const level = (player?.game_state as { level?: number } | null)?.level ?? 1;
+      if (level < 10) {
+        return res.status(403).json({ error: 'Загальний чат відкривається з 10 рівня.' });
+      }
+    }
 
     const message = await saveMessage(auth.playerId, senderName, channel, content.trim());
     return res.status(201).json(message);

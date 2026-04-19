@@ -67,7 +67,7 @@ async function _doInit(): Promise<void> {
   }
 
   await AdMob.initialize({
-    initializeForTesting: true, // TODO: set to false for production
+    initializeForTesting: false,
   });
 
   _admobInitialized = true;

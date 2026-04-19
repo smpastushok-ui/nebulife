@@ -145,6 +145,51 @@ function buildHtml(payload: DigestEmailPayload, unsubscribeUrl: string): string 
 }
 
 // ---------------------------------------------------------------------------
+// Admin alert — used by cron/moderate when Gemini moderation is unavailable
+// so the admin (nebulife owner) can manually review pending reports.
+// ADMIN_EMAIL env var must be set; if absent the alert is logged instead of
+// silently dropped so the failure stays visible in Vercel logs.
+// ---------------------------------------------------------------------------
+
+export async function sendAdminAlert(opts: {
+  subject: string;
+  html: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn('[admin-alert] RESEND_API_KEY not set, alert dropped:', opts.subject);
+    return;
+  }
+
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) {
+    console.warn('[admin-alert] ADMIN_EMAIL not set, alert dropped:', opts.subject);
+    return;
+  }
+
+  const fromAddr = process.env.EMAIL_FROM ?? 'Nebulife <noreply@nebulife.space>';
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: fromAddr,
+      to: [adminEmail],
+      subject: opts.subject,
+      html: opts.html,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Admin alert send failed: ${res.status} ${JSON.stringify(err)}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Send
 // ---------------------------------------------------------------------------
 

@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import {
   signInAsGuest,
   signInWithGoogle,
+  signInWithApple,
   signInWithEmail,
   registerWithEmail,
   isGoogleSignInAvailable,
+  isAppleSignInAvailable,
 } from '../../auth/auth-service.js';
 import type { User } from 'firebase/auth';
 
@@ -32,6 +34,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
   const hasLegacyPlayer = !!localStorage.getItem(PLAYER_ID_KEY);
   const googleAvailable = isGoogleSignInAvailable();
+  const appleAvailable = isAppleSignInAvailable();
 
   const handleAuth = async (authFn: () => Promise<User | null>, isNew: boolean) => {
     setError('');
@@ -57,6 +60,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
   const handleGuest = () => handleAuth(() => signInAsGuest(), true);
   const handleGoogle = () => handleAuth(() => signInWithGoogle(), true);
+  const handleApple = () => handleAuth(() => signInWithApple(), true);
 
   const handleEmailLogin = () => {
     if (!email || !password) { setError(t('errors.fillAllFields')); return; }
@@ -90,6 +94,18 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         {/* Landing screen */}
         {screen === 'landing' && (
           <>
+            {appleAvailable && (
+              <button
+                style={appleBtnStyle}
+                onClick={handleApple}
+                disabled={loading}
+                onMouseEnter={hoverIn}
+                onMouseLeave={hoverOut}
+              >
+                {loading ? t('auth.loading') : t('auth.apple_login')}
+              </button>
+            )}
+
             {googleAvailable && (
               <button
                 style={googleBtnStyle}
@@ -309,6 +325,16 @@ const googleBtnStyle: React.CSSProperties = {
   background: 'rgba(50, 90, 120, 0.8)',
   borderColor: '#66aacc',
   color: '#cceeff',
+};
+
+// Apple HIG: Sign in with Apple button uses black fill on light UI and white
+// fill on dark UI. Our AuthScreen is on a deep-space overlay (#020510) so we
+// use the white-fill variant with a soft border matching the rest of the deck.
+const appleBtnStyle: React.CSSProperties = {
+  ...btnStyle,
+  background: 'rgba(245, 245, 245, 0.96)',
+  borderColor: '#ffffff',
+  color: '#000000',
 };
 
 const guestBtnStyle: React.CSSProperties = {
