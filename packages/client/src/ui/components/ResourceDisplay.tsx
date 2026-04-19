@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatShort } from '../../utils/formatNumber.js';
 
 // ---------------------------------------------------------------------------
 // ResourceDisplay -- two HUD elements:
@@ -270,7 +271,7 @@ export function ResourceDisplay({
           onMouseLeave={() => setHoveredItem(null)}
         >
           <ResearchDataIcon />
-          <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{Math.floor(researchData)}</span>
+          <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{formatShort(researchData)}</span>
         </div>
         <div style={dividerStyle} />
 
@@ -285,7 +286,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <MineralsIcon />
-              <span style={{ color: '#aa8855' }}>{minerals}</span>
+              <span style={{ color: '#aa8855' }}>{formatShort(minerals)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -296,7 +297,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <VolatilesIcon />
-              <span style={{ color: '#55aaaa' }}>{volatiles}</span>
+              <span style={{ color: '#55aaaa' }}>{formatShort(volatiles)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -307,7 +308,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <IsotopesIcon />
-              <span style={{ color: '#88aa44' }}>{isotopes}</span>
+              <span style={{ color: '#88aa44' }}>{formatShort(isotopes)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -318,7 +319,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <WaterIcon />
-              <span style={{ color: '#3b82f6' }}>{water}</span>
+              <span style={{ color: '#3b82f6' }}>{formatShort(water)}</span>
             </div>
             <div style={dividerStyle} />
           </>
@@ -332,7 +333,7 @@ export function ResourceDisplay({
           onMouseLeave={() => setHoveredItem(null)}
         >
           <QuarksIcon />
-          <span>{quarks}</span>
+          <span>{formatShort(quarks)}</span>
         </div>
       </div>
     </>
