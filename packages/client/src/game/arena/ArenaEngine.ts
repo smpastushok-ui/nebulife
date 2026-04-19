@@ -1616,6 +1616,7 @@ export class ArenaEngine {
 
   // ── Lock-on targeting ──────────────────────────────────────────────────
 
+  private _lockProj = new THREE.Vector3();
   private updateLockOn(dt: number): void {
     if (this.botShips.length === 0 || this.playerDead) {
       this.lockTarget = null;
@@ -1624,14 +1625,20 @@ export class ArenaEngine {
       return;
     }
 
-    // Find best enemy in lock cone
+    // Pick the closest enemy that is both:
+    //   (a) within missile range, AND
+    //   (b) projected into the CENTRAL 60% of the screen (|NDC| ≤ 0.6),
+    //       so the player can only lock on a ship they actually see
+    //       ahead of them — never behind the camera or at the edges.
+    // The 3D aim-cone check from before is kept as a cheap early-reject
+    // before running the full camera projection.
     const coneRad = this.LOCK_CONE * Math.PI / 180;
+    const coneCos = Math.cos(coneRad);
     let bestBot: number | null = null;
     let bestDist = Infinity;
 
     for (const bot of this.botShips) {
       if (!bot.alive) continue;
-      // Enemies only — same rule as missile homing (never lock on allies).
       if (bot.team === this.playerTeam) continue;
       const dx = bot.pos.x - this.playerPos.x;
       const dy = bot.pos.y - this.playerPos.y;
@@ -1639,30 +1646,29 @@ export class ArenaEngine {
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (dist > this.LOCK_RANGE || dist < 1) continue;
 
-      // 3D cone check via dot product with aim. Works for any altitude —
-      // XZ-only angle comparison used to miss targets above/below the ship.
-      const nx = dx / dist;
-      const ny = dy / dist;
-      const nz = dz / dist;
-      const dot = nx * this.aimDirX + ny * this.aimDirY + nz * this.aimDirZ;
-      const coneCos = Math.cos(coneRad);
-      if (dot > coneCos && dist < bestDist) {
+      // Cheap: aim-cone via dot product
+      const nx = dx / dist, ny = dy / dist, nz = dz / dist;
+      if (nx * this.aimDirX + ny * this.aimDirY + nz * this.aimDirZ < coneCos) continue;
+
+      // Precise: project to NDC and require central 60% of screen
+      this._lockProj.set(bot.pos.x, bot.pos.y, bot.pos.z);
+      this._lockProj.project(this.camera);
+      if (this._lockProj.z > 1) continue;                 // behind camera
+      if (Math.abs(this._lockProj.x) > 0.6) continue;     // left/right edge reject
+      if (Math.abs(this._lockProj.y) > 0.6) continue;     // top/bottom edge reject
+
+      if (dist < bestDist) {
         bestDist = dist;
         bestBot = bot.id;
       }
     }
 
-    // Update lock state
     if (bestBot !== null && bestBot === this.lockTarget) {
-      // Same target — accumulate timer
       this.lockTimer += dt;
-      if (this.lockTimer >= this.LOCK_TIME) {
-        this.lockLocked = true;
-      }
+      if (this.lockTimer >= this.LOCK_TIME) this.lockLocked = true;
     } else {
-      // New target or no target
       this.lockTarget = bestBot;
-      this.lockTimer = bestBot !== null ? 0 : 0;
+      this.lockTimer = 0;
       this.lockLocked = false;
     }
   }
@@ -2660,10 +2666,11 @@ export class ArenaEngine {
       }
 
       let best: { x: number; y: number; z: number } | null = null;
-      // 1200u matches the missile's max flight range (speed × lifetime);
-      // any enemy inside the missile's reachable sphere is a valid target.
-      // The old 500u cap was too small after the arena was expanded 4×.
-      let bestDist = 1200;
+      // Search radius = arena diameter so dumb missiles ALWAYS find the
+      // nearest enemy, even if it's across the map. They may run out of
+      // fuel before reaching, but at least they track instead of flying
+      // forward in a straight line when no bot is within the old 1200u.
+      let bestDist = ARENA_SIZE;
 
       // Enemy ships — priority over asteroids, checked in both training
       // (3v3) and team-battle. Allies excluded.
@@ -4493,8 +4500,15 @@ export class ArenaEngine {
   getBotScreenPos(botId: number): { x: number; y: number } | null {
     const bot = this.botShips.find(b => b.id === botId);
     if (!bot || !bot.alive) return null;
-    const vec = new THREE.Vector3(bot.pos.x, 10, bot.pos.z);
+    // Use the bot's actual Y (was hard-coded to 10, which placed the
+    // rhombus on the horizon instead of on the ship when bots roam
+    // vertically).
+    const vec = new THREE.Vector3(bot.pos.x, bot.pos.y, bot.pos.z);
     vec.project(this.camera);
+    // Behind camera or clearly off-screen → no indicator. Prevents the
+    // "lock rhombus at top-left corner" artifact where the lock target
+    // has walked behind the player.
+    if (vec.z > 1 || Math.abs(vec.x) > 1.2 || Math.abs(vec.y) > 1.2) return null;
     const rect = this.renderer.domElement.getBoundingClientRect();
     return {
       x: (vec.x * 0.5 + 0.5) * rect.width,
