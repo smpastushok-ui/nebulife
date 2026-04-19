@@ -1,12 +1,11 @@
 // ----------------------------------------------------------------------------
 // Short Cyrillic number formatting for the top resource HUD.
-//   0-99        → exact integer           (e.g. 70   → "70")
-//   100-99999   → к (thousands)           (e.g. 100  → "0.1к", 1500 → "1.5к",
-//                                                99999 → "100к")
-//   100000+     → кк (millions)           (e.g. 100000 → "0.1кк",
-//                                                2500000 → "2.5кк", 1e6 → "1кк")
-// Decimals: 1 digit when < 10 in the scaled units, 0 digits otherwise. The
-// trailing ".0" is stripped so "1.0к" never appears — just "1к".
+//   0-999        → exact integer      ("70", "999")
+//   1000-999999  → к (thousands)      ("1к" through "999к", always integer —
+//                                      1000 → "1к", 1999 → "1к", 2000 → "2к")
+//   1000000+     → кк (millions)      ("1кк", "250кк" …)
+// No decimals — floor to integer within the scaled unit. Keeps the HUD
+// glyph width predictable so the value never overflows the pill.
 // ----------------------------------------------------------------------------
 
 export function formatShort(n: number): string {
@@ -14,23 +13,11 @@ export function formatShort(n: number): string {
   const abs = Math.abs(n);
   const sign = n < 0 ? '-' : '';
 
-  if (abs < 100) {
+  if (abs < 1000) {
     return sign + Math.floor(abs).toString();
   }
-
-  let scaled: number;
-  let suffix: string;
-  if (abs >= 100_000) {
-    scaled = abs / 1_000_000;
-    suffix = 'кк';
-  } else {
-    scaled = abs / 1_000;
-    suffix = 'к';
+  if (abs < 1_000_000) {
+    return sign + Math.floor(abs / 1000).toString() + 'к';
   }
-
-  const text = scaled < 10
-    ? (Math.round(scaled * 10) / 10).toFixed(1).replace(/\.0$/, '')
-    : Math.round(scaled).toString();
-
-  return sign + text + suffix;
+  return sign + Math.floor(abs / 1_000_000).toString() + 'кк';
 }
