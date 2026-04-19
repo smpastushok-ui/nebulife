@@ -1880,64 +1880,57 @@ export class GalaxyScene {
       return true;
     };
 
-    // Build cyan web dynamically. Two kinds of edges:
-    //  (a) TRAIL — persistent line from home (or new home after evac) to
-    //      every researched star, so the "discovered path" stays visible
-    //      and grows outward as rings complete. Rendered slightly dimmer.
-    //  (b) REACH — live line from the nearest anchor (home / researched)
-    //      to each reachable-but-not-yet-researched target. Pulsing brighter.
-    const anchors: Array<{ x: number; y: number; seed: number; isHome: boolean }> = [];
-    let homeAnchor: { x: number; y: number; seed: number; isHome: boolean } | null = null;
+    // Build cyan web — ALL threads originate at the mother (home/colonized)
+    // planet. One edge per target. Earlier per-segment routing (via nearest
+    // researched anchor) created a cascading path that looked like a trail
+    // instead of a radial web. User requested: "павутина від материнської
+    // планети ... до всіх, які досліджуються і досліджені".
+    //
+    // Targets:
+    //   (a) Every RESEARCHED non-home star — persistent dim trail 0.35 α.
+    //   (b) Every REACHABLE non-researched star (ring-gated) — pulsing 0.5 α.
+    // Stars behind a still-in-progress ring are filtered out by isReachable.
+    let homeX = 0, homeY = 0, hasHome = false;
     if (this.homeNode) {
-      homeAnchor = { x: this.homeNode.tx ?? 0, y: this.homeNode.ty ?? 0, seed: 0, isHome: true };
-      anchors.push(homeAnchor);
+      homeX = this.homeNode.tx ?? 0;
+      homeY = this.homeNode.ty ?? 0;
+      hasHome = true;
     }
     for (const [, node] of this.systemNodes) {
-      const isNewHome = node.system.ownerPlayerId !== null;
-      const isResearched = node.starState === 'researched' && node.visibilityTier === 1;
-      if (isNewHome || isResearched) {
-        const anchor = { x: node.tx, y: node.ty, seed: node.system.seed * 0.00031, isHome: isNewHome };
-        anchors.push(anchor);
-        if (isNewHome) homeAnchor = anchor;
+      // Evacuation relocates the home to a regular node — use its position
+      // as the anchor so post-evac web starts from the new colony, not the
+      // stale snapshot of this.homeNode.
+      if (node.system.ownerPlayerId !== null) {
+        homeX = node.tx; homeY = node.ty; hasHome = true;
       }
     }
+    if (!hasHome) {
+      // No home node (very early boot) — skip web this frame.
+      return;
+    }
 
-    // (a) Persistent trail — each researched (non-home) star links to its
-    //     nearest "previous" anchor (home or closer-to-home researched).
-    //     This keeps old paths visible after research completes.
     for (const [, node] of this.systemNodes) {
       const isHome = node.system.ownerPlayerId !== null;
+      if (isHome) continue;
       const isResearched = node.starState === 'researched' && node.visibilityTier === 1;
-      if (isHome || !isResearched) continue;
-      let bestD = Infinity, bestA = homeAnchor;
-      for (const a of anchors) {
-        if (a.x === node.tx && a.y === node.ty) continue; // skip self
-        const d = (a.x - node.tx) * (a.x - node.tx) + (a.y - node.ty) * (a.y - node.ty);
-        if (d < bestD) { bestD = d; bestA = a; }
-      }
-      if (!bestA) continue;
-      const seed = bestA.seed + node.system.seed * 0.00011;
-      this.drawWavyLine(
-        this.connectionLines, bestA.x, bestA.y, node.tx, node.ty, t, seed,
-        0.18, CYAN, 0.35,
-      );
-    }
+      const reachable = isReachable(node, false);
+      if (!isResearched && !reachable) continue;
 
-    // (b) Reachable targets — pulsing cyan to next exploration goal.
-    for (const [, node] of this.systemNodes) {
-      if (!isReachable(node, false)) continue;
-      let bestD = Infinity, bestA = anchors[0];
-      for (const a of anchors) {
-        const d = (a.x - node.tx) * (a.x - node.tx) + (a.y - node.ty) * (a.y - node.ty);
-        if (d < bestD) { bestD = d; bestA = a; }
+      const seed = node.system.seed * 0.00017;
+      if (isResearched) {
+        // Dim persistent trail
+        this.drawWavyLine(
+          this.connectionLines, homeX, homeY, node.tx, node.ty, t, seed,
+          0.25, CYAN, 0.4,
+        );
+      } else {
+        // Pulsing live thread to the next exploration goal
+        const pulse = 0.22 + 0.08 * Math.sin(t * 0.0012 + seed);
+        this.drawWavyLine(
+          this.connectionLines, homeX, homeY, node.tx, node.ty, t, seed,
+          pulse, CYAN, 0.55,
+        );
       }
-      if (!bestA) continue;
-      const seed = bestA.seed + node.system.seed * 0.00017;
-      const pulse = 0.22 + 0.08 * Math.sin(t * 0.0012 + seed);
-      this.drawWavyLine(
-        this.connectionLines, bestA.x, bestA.y, node.tx, node.ty, t, seed,
-        pulse, CYAN, 0.5,
-      );
     }
 
     // Reachable-halo — subtle cyan hint, only around stars gated by the
