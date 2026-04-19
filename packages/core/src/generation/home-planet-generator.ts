@@ -204,6 +204,11 @@ export function generateParadisePlanet(star: Star, systemSeed: number, name: str
         { element: 'Ti', abundanceRelative: 0.9, depth: 'deep' },
         { element: 'U', abundanceRelative: 0.4, depth: 'deep' },
         { element: 'Ni', abundanceRelative: 0.9, depth: 'deep' },
+        // Pt is guaranteed on the paradise planet so the L48 genesis_vault
+        // is reachable by the player. Without this, players whose paradise
+        // planet didn't roll Pt unique resource were permanently locked
+        // out of the endgame building.
+        { element: 'Pt', abundanceRelative: 0.3, depth: 'deep' },
       ],
       totalResources: computeEarthLikeTotalResources(1.0),
     },

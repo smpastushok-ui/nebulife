@@ -213,20 +213,22 @@ function processRefineryBuilding(
 ): Record<string, number> {
   const produced: Record<string, number> = {};
 
+  // Each refinery produces an element ONLY if the consumption side actually
+  // had enough resource. Previously elements were emitted unconditionally —
+  // mineral=0 colonies still received Ti/Cu/Fe etc., gas_fractionator with
+  // 0 volatiles produced H/He, isotope_centrifuge with 0 isotopes produced U.
   if (b.type === 'quantum_separator') {
-    // 2 minerals/tick consumed (from def.consumption), produce 1 random element
-    const pool = MINERAL_ELEMENTS;
-    const el = pool[Math.floor(Math.random() * pool.length)];
+    if ((colony.resources.minerals ?? 0) < 2) return produced;
+    const el = MINERAL_ELEMENTS[Math.floor(Math.random() * MINERAL_ELEMENTS.length)];
     colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
     produced[el] = (produced[el] ?? 0) + 1;
   } else if (b.type === 'gas_fractionator') {
-    // 2 volatiles/tick consumed, produce 1 random element
-    const pool = VOLATILE_ELEMENTS;
-    const el = pool[Math.floor(Math.random() * pool.length)];
+    if ((colony.resources.volatiles ?? 0) < 2) return produced;
+    const el = VOLATILE_ELEMENTS[Math.floor(Math.random() * VOLATILE_ELEMENTS.length)];
     colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
     produced[el] = (produced[el] ?? 0) + 1;
   } else if (b.type === 'isotope_centrifuge') {
-    // 1 isotope/tick consumed, produce 0.4 U on average
+    if ((colony.resources.isotopes ?? 0) < 1) return produced;
     if (Math.random() < 0.4) {
       colony.chemicalInventory['U'] = (colony.chemicalInventory['U'] ?? 0) + 1;
       produced['U'] = (produced['U'] ?? 0) + 1;
