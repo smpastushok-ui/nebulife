@@ -1392,23 +1392,24 @@ export class ArenaEngine {
     // Missile-sector rate-limit tick (2s repeat while held on missile sector)
     if (this._missileSectorTimer > 0) this._missileSectorTimer -= dt;
 
-    // Micro-levitation — at idle the ship bobs and sways a bit so it
-    // doesn't look frozen. Amplitude shrinks with velocity so the effect
-    // disappears during real flight (otherwise the bobbing fights the
-    // chase cam).
-    const speedNorm = Math.min(1, Math.sqrt(
+    // Micro-levitation — only when the ship is truly standing still AND
+    // level (no pitch, no roll). Pure lateral sway on world X, no vertical
+    // bob (that's what caused the "on a string" feel during diving).
+    // Smoothly fades in/out via combined idle + level factors.
+    const speedNorm2 = Math.min(1, Math.sqrt(
       this.playerVelX ** 2 + this.playerVelY ** 2 + this.playerVelZ ** 2,
     ) / SHIP_MAX_SPEED);
-    const idleFactor = 1 - speedNorm;
-    const bobAmp = 0.9 * idleFactor;
+    const stillFactor = Math.max(0, 1 - speedNorm2 * 8); // strict "not moving"
+    const levelFactor = Math.max(0, 1 - Math.abs(this.aimDirY) * 3);
+    const rollFactor = Math.max(0, 1 - Math.abs(this.shipRoll) * 3);
+    const idleWeight = stillFactor * levelFactor * rollFactor;
     const nowMs = performance.now();
-    const bobY = Math.sin(nowMs * 0.0018) * bobAmp;
-    const bobX = Math.sin(nowMs * 0.0012 + 1.3) * bobAmp * 0.35;
+    // Slow single-axis sway (world X) — amplitude ~0.4u at full idle.
+    const sway = Math.sin(nowMs * 0.0011) * 0.4 * idleWeight;
 
-    // Update mesh position (idle levitation added)
     this.playerMesh.position.set(
-      this.playerPos.x + bobX,
-      this.playerPos.y + bobY,
+      this.playerPos.x + sway,
+      this.playerPos.y,
       this.playerPos.z,
     );
     this.playerNickSprite.position.set(this.playerPos.x, this.playerPos.y + 15, this.playerPos.z - 15);
@@ -1630,22 +1631,22 @@ export class ArenaEngine {
 
     for (const bot of this.botShips) {
       if (!bot.alive) continue;
-      // In team mode skip allies; in training (neutral) all are enemies
-      if (this.teamMode && bot.team === this.playerTeam) continue;
+      // Enemies only — same rule as missile homing (never lock on allies).
+      if (bot.team === this.playerTeam) continue;
       const dx = bot.pos.x - this.playerPos.x;
+      const dy = bot.pos.y - this.playerPos.y;
       const dz = bot.pos.z - this.playerPos.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist > this.LOCK_RANGE) continue;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist > this.LOCK_RANGE || dist < 1) continue;
 
-      // Check if bot is within aim cone
-      const angleToBot = Math.atan2(dx, -dz);
-      const aimAngle = Math.atan2(this.aimDirX, -this.aimDirZ);
-      let angleDiff = angleToBot - aimAngle;
-      // Normalize to [-PI, PI]
-      while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-      while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-
-      if (Math.abs(angleDiff) < coneRad && dist < bestDist) {
+      // 3D cone check via dot product with aim. Works for any altitude —
+      // XZ-only angle comparison used to miss targets above/below the ship.
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const nz = dz / dist;
+      const dot = nx * this.aimDirX + ny * this.aimDirY + nz * this.aimDirZ;
+      const coneCos = Math.cos(coneRad);
+      if (dot > coneCos && dist < bestDist) {
         bestDist = dist;
         bestBot = bot.id;
       }
@@ -2037,54 +2038,46 @@ export class ArenaEngine {
   }
 
   /**
-   * Spawn one exhaust particle at nozzle index 0..3:
-   *   0, 1 = outer nozzles (blue) — left & right of belly
-   *   2, 3 = inner nozzles (red)  — left & right of belly
-   * All four fire together when the ship is thrusting. Red vs blue
-   * encoded via per-instance color on the InstancedMesh.
+   * Spawn a single small cyan exhaust particle.
+   *   nozzle 0 = left-rear thruster
+   *   nozzle 1 = right-rear thruster
+   * Both emit from the REAR EDGE of the ship (behind the center by
+   * SHIP_RADIUS units) slightly off-axis so you see two streams.
+   * All particles are cyan-blue — no red nozzles per player request.
    */
   private spawnExhaust(nozzle: number = 0): void {
     const idx = this.exhaustFreeList.pop();
     if (idx === undefined) return;
 
-    // Backward direction (3D aim-reversed)
     let backX = -this.aimDirX;
     let backY = -this.aimDirY;
     let backZ = -this.aimDirZ;
     const blen = Math.sqrt(backX * backX + backY * backY + backZ * backZ);
     if (blen < 0.01) { backX = 0; backY = 0; backZ = 1; }
-    // Right vector in world XZ (perpendicular to aim, horizontal)
+    // Horizontal "right" (perpendicular to aim in XZ plane)
     const hx = -this.aimDirZ, hz = this.aimDirX;
     const hlen = Math.sqrt(hx * hx + hz * hz);
     const rightX = hlen > 0.01 ? hx / hlen : 1;
     const rightZ = hlen > 0.01 ? hz / hlen : 0;
 
-    // Nozzle offsets in ship-local "belly" plane. Outer (blue) sit wider
-    // on the wings; inner (red) are closer to the spine.
-    const sideSpread = nozzle < 2 ? 3.2 : 1.3;
-    const sideSign = (nozzle % 2 === 0) ? -1 : 1;
-    const isBlue = nozzle < 2;
-
-    const tailOffset = SHIP_RADIUS * 0.4;
-    const bellyDrop = SHIP_RADIUS * 0.45;
+    const sideSign = nozzle === 0 ? -1 : 1;
+    const sideSpread = SHIP_RADIUS * 0.35; // close together, not wide wings
+    const tailOffset = SHIP_RADIUS * 1.1;  // behind the ship's rear edge
 
     const p = this.exhaustParticles[idx];
     p.x = this.playerPos.x + backX * tailOffset + sideSign * sideSpread * rightX;
-    p.y = this.playerPos.y - bellyDrop + backY * tailOffset * 0.3;
+    p.y = this.playerPos.y + backY * tailOffset;
     p.z = this.playerPos.z + backZ * tailOffset + sideSign * sideSpread * rightZ;
-    // Velocity carries the particle behind the ship (the exhaust stream).
-    p.vx = this.playerVelX * 0.25 + backX * 35;
-    p.vy = this.playerVelY * 0.25 + backY * 25 - 10; // slight drop + back
-    p.vz = this.playerVelZ * 0.25 + backZ * 35;
+    p.vx = this.playerVelX * 0.2 + backX * 22;
+    p.vy = this.playerVelY * 0.2 + backY * 22;
+    p.vz = this.playerVelZ * 0.2 + backZ * 22;
     p.age = 0;
-    p.scale = 0.65 + Math.random() * 0.25;
+    p.scale = 0.28 + Math.random() * 0.1; // SMALL particles (was 0.65+)
     p.active = true;
 
-    // Per-instance color: blue for outer pair, red for inner pair.
-    const c = isBlue
-      ? _tempColor.setRGB(0.3, 0.65, 1.0)
-      : _tempColor.setRGB(1.0, 0.35, 0.3);
-    this.exhaustMesh.setColorAt(idx, c);
+    // All cyan — matches hull accents; no red.
+    _tempColor.setRGB(0.35, 0.7, 1.0);
+    this.exhaustMesh.setColorAt(idx, _tempColor);
     if (this.exhaustMesh.instanceColor) {
       this.exhaustMesh.instanceColor.needsUpdate = true;
     }
@@ -2102,12 +2095,10 @@ export class ArenaEngine {
     if (isThrusting) {
       this.exhaustSpawnTimer -= dt;
       if (this.exhaustSpawnTimer <= 0) {
-        // Fire all four nozzles in unison (2 blue outer + 2 red inner).
+        // Two rear-edge cyan thrusters — small and frequent.
         this.spawnExhaust(0);
         this.spawnExhaust(1);
-        this.spawnExhaust(2);
-        this.spawnExhaust(3);
-        this.exhaustSpawnTimer = 0.045;
+        this.exhaustSpawnTimer = 0.04;
       }
     }
 
@@ -2143,18 +2134,16 @@ export class ArenaEngine {
         continue;
       }
 
-      // Shrink over lifetime. At full thrust, scale Z up and X/Y down so
-      // the particle reads as an elongated streak along velocity.
+      // Shrink over lifetime. Very mild stretch along velocity — small
+      // particles stay small, they just get slightly elongated with thrust
+      // so you can tell it's a jet vs a puff.
       const t = p.age / this.EXHAUST_LIFETIME;
       const base = p.scale * (1 - t);
-      const stretch = 1 + thrustNorm * 2.5;
-      const pinch = 1 - thrustNorm * 0.45;
-      // Orient the particle along velocity so "Z" scale means "along flight".
-      const vLen = Math.sqrt(p.vx * p.vx + p.vy * p.vy + p.vz * p.vz) || 0.0001;
+      const stretch = 1 + thrustNorm * 0.8;
+      const pinch = 1 - thrustNorm * 0.15;
       const yaw = Math.atan2(p.vx, p.vz);
       const horiz = Math.sqrt(p.vx * p.vx + p.vz * p.vz);
       const pitch = Math.atan2(p.vy, horiz || 0.0001);
-      void vLen;
       dummy.position.set(p.x, p.y, p.z);
       dummy.scale.set(base * pinch, base * pinch, base * stretch);
       dummy.rotation.set(-pitch, yaw, 0);
@@ -2671,12 +2660,13 @@ export class ArenaEngine {
       }
 
       let best: { x: number; y: number; z: number } | null = null;
-      let bestDist = 500;
+      // 1200u matches the missile's max flight range (speed × lifetime);
+      // any enemy inside the missile's reachable sphere is a valid target.
+      // The old 500u cap was too small after the arena was expanded 4×.
+      let bestDist = 1200;
 
       // Enemy ships — priority over asteroids, checked in both training
-      // (3v3) and team-battle. Earlier code only scanned bots in teamMode,
-      // which meant missiles without a lock would only track asteroids in
-      // training. Ships are now always valid homing targets.
+      // (3v3) and team-battle. Allies excluded.
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
         if (bot.team === this.playerTeam) continue; // don't home on allies
