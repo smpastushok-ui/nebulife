@@ -2716,14 +2716,18 @@ export class ArenaEngine {
           const wantX = dvx / dlen;
           const wantY = dvy / dlen;
           const wantZ = dvz / dlen;
-          // Current unit vel
           const vlen = Math.sqrt(m.vx * m.vx + m.vy * m.vy + m.vz * m.vz) || 0.0001;
           const curX = m.vx / vlen;
           const curY = m.vy / vlen;
           const curZ = m.vz / vlen;
-          // Nudge current toward want by MISSILE_TURN_RATE*dt radians worth.
-          // Cheap approximation: lerp vectors then renormalize.
-          const t = Math.min(1, this.MISSILE_TURN_RATE * dt / Math.PI);
+          // Locked missiles (m.targetId !== null at fire time) steer at the
+          // full MISSILE_TURN_RATE and track a specific target.
+          // Dumb missiles (no lock) use HALF the turn rate — they chase the
+          // nearest object but a dodging pilot often escapes, matching the
+          // "≈50% hit chance without lock" feel.
+          const dumbFire = m.targetId === null;
+          const effRate = dumbFire ? this.MISSILE_TURN_RATE * 0.5 : this.MISSILE_TURN_RATE;
+          const t = Math.min(1, effRate * dt / Math.PI);
           let nx = curX + (wantX - curX) * t;
           let ny = curY + (wantY - curY) * t;
           let nz = curZ + (wantZ - curZ) * t;
@@ -2732,7 +2736,7 @@ export class ArenaEngine {
           m.vx = nx * this.MISSILE_SPEED;
           m.vy = ny * this.MISSILE_SPEED;
           m.vz = nz * this.MISSILE_SPEED;
-          m.angle = Math.atan2(m.vx, -m.vz); // kept for legacy visuals
+          m.angle = Math.atan2(m.vx, -m.vz);
         }
       }
 

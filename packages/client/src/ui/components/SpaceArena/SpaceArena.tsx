@@ -269,9 +269,12 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     return () => clearInterval(id);
   }, [ready]);
 
-  // Poll lock-on state (50ms — fast for smooth tracking)
+  // Poll lock-on state (50ms — fast for smooth tracking). Training (3v3)
+  // mode needs it too — previously gated on teamMode which is why the HUD
+  // lock rhombus never appeared in training despite the engine running
+  // updateLockOn every frame.
   useEffect(() => {
-    if (!ready || !teamMode) return;
+    if (!ready) return;
     const id = setInterval(() => {
       const e = engineRef.current;
       if (!e) return;
@@ -285,7 +288,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
       }
     }, 50);
     return () => clearInterval(id);
-  }, [ready, teamMode]);
+  }, [ready]);
 
   // Merge session stats into cumulative localStorage on exit
   const handleExit = useCallback(() => {

@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v13: levitation horizontal-only, 2 cyan rear exhausts, 3D lock cone
-const CACHE_NAME = 'nebulife-v13';
+// v14: lock poll works in training, dumb-missile half turn rate
+const CACHE_NAME = 'nebulife-v14';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
