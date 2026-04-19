@@ -331,16 +331,82 @@ export class GalaxyScene {
     }
 
     /* ── Neighbor systems (adjacent players' Ring 2) ── */
-    if (neighborSystems) {
-      for (const { system } of neighborSystems) {
-        // Skip if already present (personal rings may overlap)
+    // Spatial remap: previously each neighbor's 19 systems were drawn at
+    // their TRUE galaxy coordinates, which put them 25-150 LY (450-2700 px)
+    // away — the whole cluster sprawled across thousands of px. User wants
+    // a compact "capillary" web where each neighbor's sub-cluster attaches
+    // to ONE of our Ring 2 systems as a branch entry point. We keep the
+    // neighbor's internal hex layout intact (so the 19 systems read as a
+    // cluster) and just translate the centroid next to the assigned entry.
+    if (neighborSystems && neighborSystems.length > 0) {
+      // Collect our 12 Ring 2 system nodes with their angle around home.
+      const ring2Entries: Array<{ angle: number; x: number; y: number }> = [];
+      for (const [, node] of this.systemNodes) {
+        if (node.nodeType !== 'personal') continue;
+        if (node.system.ownerPlayerId !== null) continue;
+        if (node.ringIndex !== 2) continue;
+        ring2Entries.push({
+          angle: Math.atan2(node.ty, node.tx),
+          x: node.tx,
+          y: node.ty,
+        });
+      }
+      ring2Entries.sort((a, b) => a.angle - b.angle);
+
+      // Group neighbors by ownerIndex so each player gets one entry.
+      const byOwner = new Map<number, { system: StarSystem; ownerIndex: number }[]>();
+      for (const n of neighborSystems) {
+        const arr = byOwner.get(n.ownerIndex) ?? [];
+        arr.push(n);
+        byOwner.set(n.ownerIndex, arr);
+      }
+      const owners = Array.from(byOwner.keys()).sort((a, b) => a - b);
+      // Reserve the 12th Ring 2 entry (largest angle) for the galactic core
+      // branch — neighbors use only the first 11 (or fewer if we have fewer
+      // owners).
+      const availableEntries = ring2Entries.slice(0, Math.max(0, ring2Entries.length - 1));
+
+      // Assign each owner to the Ring 2 entry whose angle is closest to the
+      // real direction (homePos → neighborHomePos). Keeps topology intuitive
+      // (neighbor to the north appears at the north entry).
+      const ownerEntry = new Map<number, { x: number; y: number }>();
+      const takenEntries = new Set<number>();
+      for (const ownerIndex of owners) {
+        const neighborHome = assignPlayerPosition(galaxySeed, ownerIndex);
+        const dir = Math.atan2(neighborHome.y - homeY, neighborHome.x - homeX);
+        let bestIdx = -1, bestDiff = Infinity;
+        for (let i = 0; i < availableEntries.length; i++) {
+          if (takenEntries.has(i)) continue;
+          let diff = Math.abs(availableEntries[i].angle - dir);
+          if (diff > Math.PI) diff = Math.PI * 2 - diff;
+          if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+        }
+        if (bestIdx >= 0) {
+          takenEntries.add(bestIdx);
+          ownerEntry.set(ownerIndex, { x: availableEntries[bestIdx].x, y: availableEntries[bestIdx].y });
+        }
+      }
+
+      for (const { system, ownerIndex } of neighborSystems) {
         if (this.systemNodes.has(system.id)) continue;
 
-        let tx = (system.position.x - homeX) * PX_PER_LY;
-        let ty = (system.position.y - homeY) * PX_PER_LY;
-        const jrng = new SeededRNG(system.seed);
-        tx += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
-        ty += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
+        const entry = ownerEntry.get(ownerIndex);
+        let tx: number, ty: number;
+        if (entry) {
+          const neighborHome = assignPlayerPosition(galaxySeed, ownerIndex);
+          // Keep the neighbor's 19-system internal layout exactly as generated
+          // (so it still looks like their cluster) but translate the centroid
+          // to our Ring 2 entry point.
+          const localX = (system.position.x - neighborHome.x) * PX_PER_LY;
+          const localY = (system.position.y - neighborHome.y) * PX_PER_LY;
+          const jrng = new SeededRNG(system.seed);
+          tx = entry.x + localX + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
+          ty = entry.y + localY + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
+        } else {
+          // Fallback — no entry available. Use real galaxy coords.
+          tx = (system.position.x - homeX) * PX_PER_LY;
+          ty = (system.position.y - homeY) * PX_PER_LY;
+        }
 
         const node = this.buildSysNode(system, tx, ty, 3);
         node.nodeType = 'neighbor';
@@ -348,25 +414,48 @@ export class GalaxyScene {
         node.baseRadius *= 0.7;
         node.nameLabel.style.fill = 0x445566;
         node.container.alpha = node.baseAlpha;
-        // Soft blur — neighbor systems read as "out of focus / further away"
-        // even at full Tier 1 brightness. Player sees colour + size but knows
-        // they're not as close/clear as personal systems.
         node.container.filters = [new BlurFilter({ strength: 2, quality: 2 })];
         this.systemNodes.set(system.id, node);
       }
     }
 
     /* ── Core systems (galactic core mesh, progressive BFS depth) ── */
-    // Core SystemNodes are HIDDEN — far-away core stars are represented by
-    // colored dots in the lite-orbs layer instead. We still process the
-    // metadata (coreEntryIds, coreNeighborGraph) so BFS-based unlocking
-    // logic keeps working when the player gets close enough.
+    // Spatial remap (same reason as neighbors): core systems originally
+    // plotted at true galaxy coords put them thousands of px away. We pick
+    // the 12th Ring 2 system (the one NOT assigned to any neighbor) as the
+    // "core gateway" and translate the entire core cluster's centroid to
+    // sit right next to it. Internal mesh geometry is preserved.
     if (coreSystems) {
       // Build coreId->systemId mapping for neighbor graph construction
       const coreIdToSysId = new Map<number, string>();
       for (const { system, coreId, depth } of coreSystems) {
         coreIdToSysId.set(coreId, system.id);
         if (depth === 0) this.coreEntryIds.add(system.id);
+      }
+
+      // Compute core cluster centroid once — all core tx/ty will be shifted
+      // so this centroid lands on our chosen gateway Ring 2 system.
+      let coreCentroidX = 0, coreCentroidY = 0;
+      for (const { system } of coreSystems) {
+        coreCentroidX += system.position.x;
+        coreCentroidY += system.position.y;
+      }
+      coreCentroidX /= Math.max(1, coreSystems.length);
+      coreCentroidY /= Math.max(1, coreSystems.length);
+
+      // Reuse the 12th Ring 2 entry (highest-angle — the one skipped when
+      // neighbors were assigned).
+      let gatewayX = 0, gatewayY = 0;
+      const ring2Nodes: Array<{ angle: number; x: number; y: number }> = [];
+      for (const [, node] of this.systemNodes) {
+        if (node.nodeType !== 'personal' || node.system.ownerPlayerId !== null) continue;
+        if (node.ringIndex !== 2) continue;
+        ring2Nodes.push({ angle: Math.atan2(node.ty, node.tx), x: node.tx, y: node.ty });
+      }
+      ring2Nodes.sort((a, b) => a.angle - b.angle);
+      if (ring2Nodes.length > 0) {
+        const gw = ring2Nodes[ring2Nodes.length - 1];
+        gatewayX = gw.x; gatewayY = gw.y;
       }
 
       for (const { system, coreId, coreNeighborIds } of coreSystems) {
@@ -378,29 +467,26 @@ export class GalaxyScene {
         }
         this.coreNeighborGraph.set(system.id, neighborSysIds);
 
-        // Skip if already present
         if (this.systemNodes.has(system.id)) continue;
 
-        let tx = (system.position.x - homeX) * PX_PER_LY;
-        let ty = (system.position.y - homeY) * PX_PER_LY;
+        // Keep internal mesh shape, translate centroid to gateway.
+        const localX = (system.position.x - coreCentroidX) * PX_PER_LY;
+        const localY = (system.position.y - coreCentroidY) * PX_PER_LY;
         const jrng = new SeededRNG(system.seed);
-        tx += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
-        ty += (jrng.next() - 0.5) * PX_PER_LY * 4.0;
+        const tx = gatewayX + localX + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
+        const ty = gatewayY + localY + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
 
         const node = this.buildSysNode(system, tx, ty, system.ringIndex);
         node.nodeType = 'core';
         node.coreId = coreId;
-        // Hidden by default — lite-orbs layer represents these visually.
-        // Tier system can still promote them when BFS chain reaches them.
         node.baseAlpha = 0;
         node.baseRadius *= 0.6;
         node.nameLabel.style.fill = 0x554433;
         node.container.alpha = 0;
-        node.container.visible = false; // skip rendering entirely
+        node.container.visible = false;
         this.systemNodes.set(system.id, node);
       }
 
-      // Compute initial visible core IDs
       this.recomputeVisibleCoreIds();
     }
 
