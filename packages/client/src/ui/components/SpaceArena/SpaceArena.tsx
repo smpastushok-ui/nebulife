@@ -49,6 +49,12 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     blink: boolean;
   }[]>([]);
   const [playerLocked, setPlayerLocked] = useState(false);
+  // Normalized player speed 0..1 — used to drive the edge motion-blur
+  // overlay. Polled with the other HUD state.
+  const [speedRatio, setSpeedRatio] = useState(0);
+  // Pre-match countdown (seconds remaining) — 0 when countdown is not
+  // the active phase. Polled with the other HUD state.
+  const [countdownRemaining, setCountdownRemaining] = useState(0);
   // Exit confirmation — opened by the Android back button / browser back.
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   // Live match timer (polled with the rest of the arena state) — used to
@@ -246,6 +252,14 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
       if (typeof e.isPlayerLocked === 'function') {
         setPlayerLocked(e.isPlayerLocked());
       }
+      // Speed ratio — drives the edge motion-blur overlay.
+      if (typeof e.getPlayerSpeedRatio === 'function') {
+        setSpeedRatio(e.getPlayerSpeedRatio());
+      }
+      // Pre-match countdown: 0 once phase is 'playing' or later.
+      if (typeof e.getPhase === 'function' && typeof e.getCountdownTimer === 'function') {
+        setCountdownRemaining(e.getPhase() === 'countdown' ? e.getCountdownTimer() : 0);
+      }
       // Radar no longer rendered but kept for altitude readout if needed.
       if (typeof e.getRadarSnapshot === 'function') {
         const snap = e.getRadarSnapshot();
@@ -301,7 +315,13 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
 
     engine.init().then(() => {
       setReady(true);
-      engine.startMatch();
+      // If the first-time tutorial is open, hold the match in 'waiting'
+      // phase until the player finishes the walkthrough. Countdown is
+      // triggered either after tutorial completes (below) or immediately
+      // for returning players.
+      if (!shouldShowArenaTutorial()) {
+        engine.startMatch();
+      }
     });
 
     return () => {
@@ -381,6 +401,12 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           0%, 50% { opacity: 1; }
           51%, 100% { opacity: 0.3; }
         }
+        @keyframes arenaCountdownPop {
+          0% { transform: scale(0.4); opacity: 0; }
+          20% { transform: scale(1.15); opacity: 1; }
+          80% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(1.5); opacity: 0; }
+        }
         @keyframes arenaDeathFlash {
           0% { opacity: 1; }
           100% { opacity: 0.2; }
@@ -404,6 +430,45 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           100% { opacity: 1; }
         }
       `}</style>
+
+      {/* Pre-match countdown — big 3/2/1 over the arena. Pops in each
+          whole-second tick, fades between. */}
+      {ready && countdownRemaining > 0 && (
+        <div
+          key={`cd-${Math.ceil(countdownRemaining)}`}
+          style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 5,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div style={{
+            fontFamily: 'monospace', fontSize: 96, fontWeight: 'bold',
+            color: countdownRemaining <= 1 ? '#ff8844' : '#aaccee',
+            textShadow: '0 0 24px rgba(0,0,0,0.8), 0 0 48px rgba(100,140,180,0.4)',
+            animation: 'arenaCountdownPop 1s ease-out forwards',
+            letterSpacing: 4,
+          }}>
+            {Math.ceil(countdownRemaining)}
+          </div>
+        </div>
+      )}
+
+      {/* Edge motion blur — radial mask keeps the center sharp while the
+          outer 40% of the viewport gets a subtle backdrop-filter blur.
+          Intensity scales with the player's speed ratio so acceleration
+          reads as the corners streaking back. */}
+      {ready && speedRatio > 0.25 && (
+        <div
+          style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3,
+            backdropFilter: `blur(${(speedRatio - 0.25) * 3.5}px)`,
+            WebkitBackdropFilter: `blur(${(speedRatio - 0.25) * 3.5}px)`,
+            // Radial mask — transparent center, opaque at corners
+            maskImage: 'radial-gradient(circle at center, transparent 35%, black 85%)',
+            WebkitMaskImage: 'radial-gradient(circle at center, transparent 35%, black 85%)',
+          }}
+        />
+      )}
 
       {/* Lock-on alert — red blinking border when an enemy missile is
           homing on the player. Dodge NOW. */}
@@ -465,29 +530,8 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         }} />
       )}
 
-      {/* Player HP bar — centered, under the crosshair. Replaces the
-          in-world "PLAYER" nickname sprite. */}
-      {ready && !isDead && (
-        <div style={{
-          position: 'absolute',
-          left: '50%', top: 'calc(50% + 24px)',
-          transform: 'translateX(-50%)',
-          width: 140, height: 6,
-          background: 'rgba(10,15,25,0.7)',
-          border: '1px solid rgba(100,140,180,0.35)',
-          borderRadius: 3,
-          overflow: 'hidden',
-          pointerEvents: 'none',
-          zIndex: 3,
-        }}>
-          <div style={{
-            width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%`,
-            height: '100%',
-            background: hp > maxHp * 0.5 ? '#44ff88' : hp > maxHp * 0.25 ? '#ffaa44' : '#ff4444',
-            transition: 'width 0.2s, background 0.3s',
-          }} />
-        </div>
-      )}
+      {/* HP bar removed from under the crosshair — now lives in the top
+          cluster above the score bar. */}
 
       {/* TPS chase-cam crosshair — always centered, fades when dead */}
       {ready && !isDead && (
@@ -517,41 +561,73 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           fontFamily: 'monospace',
           zIndex: 2,
         }}>
-          {/* Top score bar — big monospace numbers + timer in the middle.
-              Runs in BOTH training and team-battle modes. */}
+          {/* Top HUD cluster — three stacked rows, all centered:
+              1) nickname (small)
+              2) HP bar (player health, above the score)
+              3) team score + timer (big numbers) */}
           <div style={{
             position: 'absolute',
             top: `calc(10px + env(safe-area-inset-top, 0px))`,
             left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', alignItems: 'center', gap: 14,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
             fontFamily: 'monospace', zIndex: 3, pointerEvents: 'none',
-            padding: '6px 14px',
-            background: 'rgba(5,10,20,0.55)',
-            border: '1px solid rgba(100,140,180,0.35)',
-            borderRadius: 4,
-            backdropFilter: 'blur(4px)',
           }}>
-            <span style={{ color: '#4488ff', fontWeight: 'bold', fontSize: 20, textShadow: '0 0 8px rgba(68,136,255,0.6)' }}>
-              {teamKills.blue}
-            </span>
+            {/* Row 1: nickname */}
             <div style={{
-              color: '#aaccee', fontSize: 12, letterSpacing: 2,
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              minWidth: 64,
+              fontSize: 10, color: '#aaccee', opacity: 0.8,
+              letterSpacing: 3,
+              textShadow: '0 0 4px rgba(0,0,0,0.8)',
             }}>
-              <span style={{ opacity: 0.8 }}>
-                {(() => {
-                  const t = Math.max(0, Math.ceil(matchTimer));
-                  const mm = Math.floor(t / 60);
-                  const ss = t % 60;
-                  return `${mm}:${ss.toString().padStart(2, '0')}`;
-                })()}
-              </span>
-              <span style={{ fontSize: 9, opacity: 0.45, letterSpacing: 3 }}>25 KILLS</span>
+              {(localStorage.getItem('nebulife_name') || 'PLAYER').toUpperCase()}
             </div>
-            <span style={{ color: '#ff4444', fontWeight: 'bold', fontSize: 20, textShadow: '0 0 8px rgba(255,68,68,0.6)' }}>
-              {teamKills.red}
-            </span>
+
+            {/* Row 2: HP bar */}
+            <div style={{
+              width: 160, height: 5,
+              background: 'rgba(10,15,25,0.6)',
+              border: '1px solid rgba(100,140,180,0.25)',
+              borderRadius: 2,
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%`,
+                height: '100%',
+                background: hp > maxHp * 0.5 ? '#44ff88' : hp > maxHp * 0.25 ? '#ffaa44' : '#ff4444',
+                transition: 'width 0.2s, background 0.3s',
+              }} />
+            </div>
+
+            {/* Row 3: score + timer */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: '4px 14px',
+              background: 'rgba(5,10,20,0.55)',
+              border: '1px solid rgba(100,140,180,0.35)',
+              borderRadius: 4,
+              backdropFilter: 'blur(4px)',
+            }}>
+              <span style={{ color: '#4488ff', fontWeight: 'bold', fontSize: 20, textShadow: '0 0 8px rgba(68,136,255,0.6)' }}>
+                {teamKills.blue}
+              </span>
+              <div style={{
+                color: '#aaccee', fontSize: 12, letterSpacing: 2,
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                minWidth: 64,
+              }}>
+                <span style={{ opacity: 0.8 }}>
+                  {(() => {
+                    const t = Math.max(0, Math.ceil(matchTimer));
+                    const mm = Math.floor(t / 60);
+                    const ss = t % 60;
+                    return `${mm}:${ss.toString().padStart(2, '0')}`;
+                  })()}
+                </span>
+                <span style={{ fontSize: 9, opacity: 0.45, letterSpacing: 3 }}>25 KILLS</span>
+              </div>
+              <span style={{ color: '#ff4444', fontWeight: 'bold', fontSize: 20, textShadow: '0 0 8px rgba(255,68,68,0.6)' }}>
+                {teamKills.red}
+              </span>
+            </div>
           </div>
 
           {/* Kill feed — top right (always on) */}
@@ -583,8 +659,10 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         </div>
       )}
 
-      {/* Lock-on indicator — screen-space overlay, team mode only */}
-      {teamMode && lockState && lockState.targetId !== null && (
+      {/* Lock-on indicator — shown in both training (3v3) and team-battle.
+          Thin RED rhombus while locking progresses, GREEN when fully
+          locked (missile will guaranteed-follow the marked player). */}
+      {lockState && lockState.targetId !== null && (
         <div style={{
           position: 'absolute',
           left: lockScreenPos?.x ?? 0,
@@ -592,29 +670,35 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           transform: 'translate(-50%, -50%)',
           zIndex: 3, pointerEvents: 'none',
         }}>
-          {/* Diamond shape */}
+          {/* Diamond (rhombus): red while acquiring → green when locked */}
           <div style={{
-            width: 40, height: 40,
-            border: `2px solid ${lockState.locked ? '#ff4444' : '#ffaa44'}`,
+            width: 36, height: 36,
+            border: `1.5px solid ${lockState.locked ? '#44ff88' : '#ff4444'}`,
             transform: 'rotate(45deg)',
-            transition: 'border-color 0.2s',
+            transition: 'border-color 0.15s',
+            boxShadow: lockState.locked
+              ? '0 0 10px rgba(68,255,136,0.5)'
+              : '0 0 4px rgba(255,68,68,0.3)',
           }} />
-          {/* Lock-on progress bar */}
-          <div style={{
-            width: 40, height: 3, marginTop: 4,
-            background: 'rgba(10,15,25,0.8)', borderRadius: 2,
-          }}>
+          {/* Progress bar only while acquiring (hidden once locked) */}
+          {!lockState.locked && (
             <div style={{
-              width: `${lockState.progress * 100}%`,
-              height: '100%',
-              background: lockState.locked ? '#ff4444' : '#ffaa44',
-              borderRadius: 2, transition: 'width 0.05s',
-            }} />
-          </div>
+              width: 36, height: 2, marginTop: 4,
+              background: 'rgba(10,15,25,0.8)', borderRadius: 1,
+            }}>
+              <div style={{
+                width: `${lockState.progress * 100}%`,
+                height: '100%',
+                background: '#ff4444',
+                borderRadius: 1, transition: 'width 0.05s',
+              }} />
+            </div>
+          )}
           {lockState.locked && (
             <div style={{
-              fontSize: 8, color: '#ff4444', textAlign: 'center',
-              fontFamily: 'monospace', letterSpacing: 2, marginTop: 2,
+              fontSize: 8, color: '#44ff88', textAlign: 'center',
+              fontFamily: 'monospace', letterSpacing: 2, marginTop: 4,
+              textShadow: '0 0 4px rgba(68,255,136,0.6)',
             }}>LOCKED</div>
           )}
         </div>
@@ -660,11 +744,16 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         />
       )}
 
-      {/* First-time tutorial overlay — shown only if localStorage flag not set */}
+      {/* First-time tutorial overlay — shown only if localStorage flag not set.
+          Start the match countdown once the player dismisses the tutorial so
+          they're not dropped into combat immediately after reading the intro. */}
       {showTutorial && (
         <ArenaTutorial
           isMobile={mobile}
-          onComplete={() => setShowTutorial(false)}
+          onComplete={() => {
+            setShowTutorial(false);
+            engineRef.current?.startMatch();
+          }}
         />
       )}
 

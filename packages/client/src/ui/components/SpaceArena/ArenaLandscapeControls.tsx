@@ -257,11 +257,11 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
           bottom: `calc(70px + ${safeBottom})`,
           right: `calc(110px + ${safeRight})`,
         }}>
-          <div style={{ ...styles.hintRing, borderColor: 'rgba(255, 68, 68, 0.2)' }} />
-          <span style={{ ...styles.hintLabel, color: 'rgba(255, 68, 68, 0.3)' }}>AIM</span>
+          <div style={{ ...styles.hintRing, borderColor: 'rgba(68, 255, 136, 0.3)' }} />
+          <span style={{ ...styles.hintLabel, color: 'rgba(68, 255, 136, 0.45)' }}>PILOT</span>
         </div>
-        <div ref={rightBaseRef} style={{ ...styles.base, borderColor: 'rgba(255, 68, 68, 0.4)' }}>
-          <div ref={rightKnobRef} style={{ ...styles.knob, background: 'rgba(255, 68, 68, 0.7)' }} />
+        <div ref={rightBaseRef} style={{ ...styles.base, borderColor: 'rgba(68, 255, 136, 0.45)' }}>
+          <div ref={rightKnobRef} style={{ ...styles.knob, background: 'rgba(68, 255, 136, 0.7)' }} />
         </div>
       </div>
 

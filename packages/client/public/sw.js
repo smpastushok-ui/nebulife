@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v11: ship offset flip, pitch invert, arena 4×, bot lasers, missile trail
-const CACHE_NAME = 'nebulife-v11';
+// v12: 4 exhausts, missile homing fix, levitation, edge blur, HUD repos
+const CACHE_NAME = 'nebulife-v12';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [

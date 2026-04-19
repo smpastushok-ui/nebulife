@@ -155,6 +155,11 @@ export interface BotShip {
   missileCooldown: number;
   missileReloadTimer: number;
   invulnerableUntil: number; // timestamp ms (performance.now()), 0 = not invulnerable
+  // Vertical roaming — when no live target, bots pick an altitude and head
+  // for it, rerolling every few seconds. Keeps the arena feeling 3D even
+  // during patrols.
+  roamY: number;
+  roamYUntil: number; // performance.now() timestamp when we re-roll roamY
 }
 
 // Bot bullet — separate pool entry with owner tracking (3D)

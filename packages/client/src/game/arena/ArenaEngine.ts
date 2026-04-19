@@ -1175,11 +1175,15 @@ export class ArenaEngine {
     this.camAimY = this.aimDirY;
     this.camAimZ = this.aimDirZ;
 
-    // Warp effect — slide back + widen FOV
-    const warpFactor = this.warpActive ? 1.0 : Math.max(0, speedRatio - 0.6) * 2.0;
-    const behindDist = CAMERA_BEHIND + warpFactor * 15;
-    const upDist = CAMERA_UP + warpFactor * 2;
-    const targetFov = CAMERA_FOV + warpFactor * 10;
+    // Warp effect — slide back + widen FOV.
+    // Plus a gentle "breathe": camera sits at rest distance when ship is
+    // idle and pulls back proportional to speed so acceleration reads as
+    // the world receding, not just the starfield streaking.
+    const warpFactor = this.warpActive ? 1.0 : 0;
+    const speedBreathe = Math.min(1, speedRatio * 1.2);
+    const behindDist = CAMERA_BEHIND - 5 + speedBreathe * 15 + warpFactor * 10;
+    const upDist = CAMERA_UP + speedBreathe * 2 + warpFactor * 2;
+    const targetFov = CAMERA_FOV + speedBreathe * 4 + warpFactor * 10;
     if (Math.abs(this.camera.fov - targetFov) > 0.1) {
       this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, dt * 4);
       this.camera.updateProjectionMatrix();
@@ -1388,8 +1392,25 @@ export class ArenaEngine {
     // Missile-sector rate-limit tick (2s repeat while held on missile sector)
     if (this._missileSectorTimer > 0) this._missileSectorTimer -= dt;
 
-    // Update mesh position
-    this.playerMesh.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
+    // Micro-levitation — at idle the ship bobs and sways a bit so it
+    // doesn't look frozen. Amplitude shrinks with velocity so the effect
+    // disappears during real flight (otherwise the bobbing fights the
+    // chase cam).
+    const speedNorm = Math.min(1, Math.sqrt(
+      this.playerVelX ** 2 + this.playerVelY ** 2 + this.playerVelZ ** 2,
+    ) / SHIP_MAX_SPEED);
+    const idleFactor = 1 - speedNorm;
+    const bobAmp = 0.9 * idleFactor;
+    const nowMs = performance.now();
+    const bobY = Math.sin(nowMs * 0.0018) * bobAmp;
+    const bobX = Math.sin(nowMs * 0.0012 + 1.3) * bobAmp * 0.35;
+
+    // Update mesh position (idle levitation added)
+    this.playerMesh.position.set(
+      this.playerPos.x + bobX,
+      this.playerPos.y + bobY,
+      this.playerPos.z,
+    );
     this.playerNickSprite.position.set(this.playerPos.x, this.playerPos.y + 15, this.playerPos.z - 15);
 
     // Player-following point light — slightly above the ship so the top
@@ -1981,12 +2002,13 @@ export class ArenaEngine {
   // ── Engine exhaust particles ─────────────────────────────────────────
 
   private setupExhaust(): void {
-    // Blue engine trail — additive-blended sphere; color matches the ship
-    // tail highlight in the GLB. Bigger than before so the streak reads at
-    // chase-cam distance.
+    // Exhaust — additive-blended sphere, per-instance color so the 4
+    // nozzles on the ship can emit 2 blue + 2 red streams. Sphere is
+    // scaled along Z (travel direction) in updateExhaust so full thrust
+    // stretches each particle into a long thin streak.
     const geo = new THREE.SphereGeometry(1.8, 4, 4);
     const mat = new THREE.MeshBasicMaterial({
-      color: 0x66bbff,
+      color: 0xffffff, // white base; per-instance color tints
       transparent: true,
       opacity: 0.85,
       blending: THREE.AdditiveBlending,
@@ -1996,6 +2018,10 @@ export class ArenaEngine {
 
     this.exhaustMesh = new THREE.InstancedMesh(geo, mat, this.EXHAUST_POOL);
     this.exhaustMesh.frustumCulled = false;
+    this.exhaustMesh.instanceColor = new THREE.InstancedBufferAttribute(
+      new Float32Array(this.EXHAUST_POOL * 3),
+      3,
+    );
 
     const dummy = new THREE.Object3D();
     for (let i = 0; i < this.EXHAUST_POOL; i++) {
@@ -2010,41 +2036,58 @@ export class ArenaEngine {
     this.scene.add(this.exhaustMesh);
   }
 
-  private spawnExhaust(): void {
+  /**
+   * Spawn one exhaust particle at nozzle index 0..3:
+   *   0, 1 = outer nozzles (blue) — left & right of belly
+   *   2, 3 = inner nozzles (red)  — left & right of belly
+   * All four fire together when the ship is thrusting. Red vs blue
+   * encoded via per-instance color on the InstancedMesh.
+   */
+  private spawnExhaust(nozzle: number = 0): void {
     const idx = this.exhaustFreeList.pop();
     if (idx === undefined) return;
 
-    // Exhaust vents from the ship's belly (underside), not the tail. The
-    // backward component still carries the particle behind the ship so it
-    // reads as a trail, but the spawn point is below the ship's center.
+    // Backward direction (3D aim-reversed)
     let backX = -this.aimDirX;
     let backY = -this.aimDirY;
     let backZ = -this.aimDirZ;
     const blen = Math.sqrt(backX * backX + backY * backY + backZ * backZ);
-    if (blen < 0.01) {
-      backX = -Math.cos(this.playerMesh.rotation.y);
-      backY = 0;
-      backZ = Math.sin(this.playerMesh.rotation.y);
-    }
+    if (blen < 0.01) { backX = 0; backY = 0; backZ = 1; }
+    // Right vector in world XZ (perpendicular to aim, horizontal)
+    const hx = -this.aimDirZ, hz = this.aimDirX;
+    const hlen = Math.sqrt(hx * hx + hz * hz);
+    const rightX = hlen > 0.01 ? hx / hlen : 1;
+    const rightZ = hlen > 0.01 ? hz / hlen : 0;
 
-    const spread = (Math.random() - 0.5) * 0.4;
-    const tailOffset = SHIP_RADIUS * 0.5;
-    const bellyDrop = SHIP_RADIUS * 0.6; // how far below the ship's center to spawn
+    // Nozzle offsets in ship-local "belly" plane. Outer (blue) sit wider
+    // on the wings; inner (red) are closer to the spine.
+    const sideSpread = nozzle < 2 ? 3.2 : 1.3;
+    const sideSign = (nozzle % 2 === 0) ? -1 : 1;
+    const isBlue = nozzle < 2;
+
+    const tailOffset = SHIP_RADIUS * 0.4;
+    const bellyDrop = SHIP_RADIUS * 0.45;
 
     const p = this.exhaustParticles[idx];
-    // Belly-offset: spawn BELOW the ship (world -Y), plus a small tail offset
-    // in the backward direction so successive puffs string into a trail.
-    p.x = this.playerPos.x + backX * tailOffset + spread * backZ * 3;
+    p.x = this.playerPos.x + backX * tailOffset + sideSign * sideSpread * rightX;
     p.y = this.playerPos.y - bellyDrop + backY * tailOffset * 0.3;
-    p.z = this.playerPos.z + backZ * tailOffset + spread * backX * 3;
-    // Velocity: mostly straight down from the belly with a dash of the
-    // ship's momentum so the trail leans back as the ship accelerates.
-    p.vx = this.playerVelX * 0.25 + backX * 20;
-    p.vy = -50 + this.playerVelY * 0.25; // mostly downward
-    p.vz = this.playerVelZ * 0.25 + backZ * 20;
+    p.z = this.playerPos.z + backZ * tailOffset + sideSign * sideSpread * rightZ;
+    // Velocity carries the particle behind the ship (the exhaust stream).
+    p.vx = this.playerVelX * 0.25 + backX * 35;
+    p.vy = this.playerVelY * 0.25 + backY * 25 - 10; // slight drop + back
+    p.vz = this.playerVelZ * 0.25 + backZ * 35;
     p.age = 0;
-    p.scale = 0.8 + Math.random() * 0.4;
+    p.scale = 0.65 + Math.random() * 0.25;
     p.active = true;
+
+    // Per-instance color: blue for outer pair, red for inner pair.
+    const c = isBlue
+      ? _tempColor.setRGB(0.3, 0.65, 1.0)
+      : _tempColor.setRGB(1.0, 0.35, 0.3);
+    this.exhaustMesh.setColorAt(idx, c);
+    if (this.exhaustMesh.instanceColor) {
+      this.exhaustMesh.instanceColor.needsUpdate = true;
+    }
   }
 
   private updateExhaust(dt: number): void {
@@ -2059,11 +2102,23 @@ export class ArenaEngine {
     if (isThrusting) {
       this.exhaustSpawnTimer -= dt;
       if (this.exhaustSpawnTimer <= 0) {
-        this.spawnExhaust();
-        this.spawnExhaust(); // 2 per tick
-        this.exhaustSpawnTimer = 0.03; // ~33 per second
+        // Fire all four nozzles in unison (2 blue outer + 2 red inner).
+        this.spawnExhaust(0);
+        this.spawnExhaust(1);
+        this.spawnExhaust(2);
+        this.spawnExhaust(3);
+        this.exhaustSpawnTimer = 0.045;
       }
     }
+
+    // Compute a thrust scalar 0..1 so each particle can be stretched along
+    // its travel axis when the ship is accelerating hard.
+    const shipSpeed = Math.sqrt(
+      this.playerVelX * this.playerVelX +
+      this.playerVelY * this.playerVelY +
+      this.playerVelZ * this.playerVelZ,
+    );
+    const thrustNorm = Math.min(1, shipSpeed / SHIP_MAX_SPEED);
 
     const dummy = _tempDummy;
     let needsUpdate = false;
@@ -2088,11 +2143,21 @@ export class ArenaEngine {
         continue;
       }
 
-      // Shrink + fade over lifetime
+      // Shrink over lifetime. At full thrust, scale Z up and X/Y down so
+      // the particle reads as an elongated streak along velocity.
       const t = p.age / this.EXHAUST_LIFETIME;
-      const s = p.scale * (1 - t);
+      const base = p.scale * (1 - t);
+      const stretch = 1 + thrustNorm * 2.5;
+      const pinch = 1 - thrustNorm * 0.45;
+      // Orient the particle along velocity so "Z" scale means "along flight".
+      const vLen = Math.sqrt(p.vx * p.vx + p.vy * p.vy + p.vz * p.vz) || 0.0001;
+      const yaw = Math.atan2(p.vx, p.vz);
+      const horiz = Math.sqrt(p.vx * p.vx + p.vz * p.vz);
+      const pitch = Math.atan2(p.vy, horiz || 0.0001);
+      void vLen;
       dummy.position.set(p.x, p.y, p.z);
-      dummy.scale.set(s, s, s);
+      dummy.scale.set(base * pinch, base * pinch, base * stretch);
+      dummy.rotation.set(-pitch, yaw, 0);
       dummy.updateMatrix();
       this.exhaustMesh.setMatrixAt(i, dummy.matrix);
       needsUpdate = true;
@@ -2608,18 +2673,22 @@ export class ArenaEngine {
       let best: { x: number; y: number; z: number } | null = null;
       let bestDist = 500;
 
+      // Enemy ships — priority over asteroids, checked in both training
+      // (3v3) and team-battle. Earlier code only scanned bots in teamMode,
+      // which meant missiles without a lock would only track asteroids in
+      // training. Ships are now always valid homing targets.
+      for (const bot of this.botShips) {
+        if (!bot.alive) continue;
+        if (bot.team === this.playerTeam) continue; // don't home on allies
+        const d = Math.sqrt((mx - bot.pos.x) ** 2 + (my - bot.pos.y) ** 2 + (mz - bot.pos.z) ** 2);
+        if (d < bestDist) { bestDist = d; best = { x: bot.pos.x, y: bot.pos.y, z: bot.pos.z }; }
+      }
+
+      // Asteroids — secondary target when no ship is in range.
       for (const a of this.asteroidData) {
         if (!a.alive) continue;
         const d = Math.sqrt((mx - a.x) ** 2 + (my - a.y) ** 2 + (mz - a.z) ** 2);
         if (d < bestDist) { bestDist = d; best = { x: a.x, y: a.y, z: a.z }; }
-      }
-
-      if (this.teamMode) {
-        for (const bot of this.botShips) {
-          if (!bot.alive || bot.team === this.playerTeam) continue;
-          const d = Math.sqrt((mx - bot.pos.x) ** 2 + (my - bot.pos.y) ** 2 + (mz - bot.pos.z) ** 2);
-          if (d < bestDist) { bestDist = d; best = { x: bot.pos.x, y: bot.pos.y, z: bot.pos.z }; }
-        }
       }
 
       return best;
@@ -3306,6 +3375,8 @@ export class ArenaEngine {
         missileCooldown: Math.random() * 3,
         missileReloadTimer: 10,
         invulnerableUntil: 0,
+        roamY: (Math.random() * 2 - 1) * (ARENA_HEIGHT_HALF * 0.6),
+        roamYUntil: performance.now() + 3000 + Math.random() * 4000,
       };
 
       mesh.position.set(spawnX, 5, spawnZ);
@@ -3431,16 +3502,27 @@ export class ArenaEngine {
         input.aimDir.z = toCenterZ;
       }
 
-      // Vertical steering — bot rises/dives toward its current target's Y
-      // (or drifts toward Y=0 in patrol). AI itself stays 2D on XZ; we
-      // inject Y movement here so bots can match the player's altitude.
+      // Vertical steering — bot rises/dives toward its current target's Y,
+      // or toward a personal "roam" altitude when no target exists. Roam
+      // altitude is rerolled every 3–7 s so bots don't all pin to one plane.
       let ay = 0;
       const brainTarget = bot.brain.targetId !== null
         ? allShipEntities.find(s => s.id === bot.brain.targetId)
         : undefined;
-      const targetY = brainTarget?.alive ? brainTarget.pos.y : ARENA_GROUND_Y;
+      const now = performance.now();
+      if (now > bot.roamYUntil) {
+        bot.roamY = (Math.random() * 2 - 1) * (ARENA_HEIGHT_HALF * 0.7);
+        bot.roamYUntil = now + 3000 + Math.random() * 4000;
+      }
+      // Even during chase/attack, add a small offset from roam so bots
+      // don't perfectly stack on the target's altitude (3D spread).
+      const roamOffset = brainTarget?.alive
+        ? Math.sin(now * 0.0005 + bot.id) * 80 // gentle oscillation
+        : 0;
+      const targetY = brainTarget?.alive
+        ? brainTarget.pos.y + roamOffset
+        : bot.roamY;
       const dy = targetY - bot.pos.y;
-      // Deadband so bots don't wobble around an exact match
       if (Math.abs(dy) > 20) ay = Math.sign(dy);
 
       bot.vel.x += ax * SHIP_ACCELERATION * dt;
@@ -4070,13 +4152,20 @@ export class ArenaEngine {
         if (relSpeed > 50) {
           const dmg = Math.min(40, (relSpeed - 50) * 0.4);
           const now = performance.now();
-          if (now >= a.invulnerableUntil) {
-            a.hp -= dmg;
-            if (a.hp <= 0) this.killBot(a, null);
+          const aVulnerable = now >= a.invulnerableUntil;
+          const bVulnerable = now >= b.invulnerableUntil;
+          if (aVulnerable) a.hp = Math.max(0, a.hp - dmg);
+          if (bVulnerable) b.hp = Math.max(0, b.hp - dmg);
+          const aDies = aVulnerable && a.hp <= 0;
+          const bDies = bVulnerable && b.hp <= 0;
+          // Mutual kamikaze → both teams get +1 credit for each kill.
+          if (bDies) {
+            this.killBot(b, a);
+            if (a.team === 'blue' || a.team === 'red') this.teamKills[a.team]++;
           }
-          if (now >= b.invulnerableUntil) {
-            b.hp -= dmg;
-            if (b.hp <= 0) this.killBot(b, null);
+          if (aDies) {
+            this.killBot(a, b);
+            if (b.team === 'blue' || b.team === 'red') this.teamKills[b.team]++;
           }
         }
       }
@@ -4118,27 +4207,42 @@ export class ArenaEngine {
         const relSpeed = Math.sqrt(dvx * dvx + dvy * dvy + dvz * dvz);
         if (relSpeed > 50) {
           const dmg = Math.min(40, (relSpeed - 50) * 0.4);
+          const now = performance.now();
 
-          if (performance.now() >= this.invulnerableUntil) {
-            this.playerHp -= dmg;
-            if (this.playerHp <= 0) {
-              this.playerHp = 0;
-              this.killPlayer();
+          // Apply damage first — we may need both fatalities for the +1/+1
+          // kamikaze rule.
+          const playerVulnerable = now >= this.invulnerableUntil;
+          const botVulnerable = now >= bot.invulnerableUntil;
+
+          if (playerVulnerable) this.playerHp = Math.max(0, this.playerHp - dmg);
+          if (botVulnerable) bot.hp = Math.max(0, bot.hp - dmg);
+
+          const playerDies = playerVulnerable && this.playerHp <= 0;
+          const botDies = botVulnerable && bot.hp <= 0;
+
+          // Credit: player kills bot (always on bot death) + if player also
+          // died in the ram, bot's team gets credit for the player kill too
+          // (mutual kamikaze = +1 each).
+          if (botDies) {
+            this.killBot(bot, null);
+            this.stats.kills++;
+            this.stats.score += TEAM_SCORE_ENEMY_KILL;
+            // Both modes — training is 3v3 now, not FFA
+            if (bot.team === 'red' || bot.team === 'blue') {
+              this.teamKills[this.playerTeam as 'blue' | 'red']++;
             }
+            this.addKillFeed('PLAYER', bot.name);
           }
-
-          if (performance.now() >= bot.invulnerableUntil) {
-            bot.hp -= dmg;
-            if (bot.hp <= 0) {
-              bot.hp = 0;
-              this.killBot(bot, null);
-              this.stats.kills++;
-              this.stats.score += TEAM_SCORE_ENEMY_KILL;
-              if (this.teamMode) {
-                this.teamKills[this.playerTeam as 'blue' | 'red']++;
-              }
-              this.addKillFeed('PLAYER', bot.name);
+          if (playerDies) {
+            // Credit the opposing team with the kill even though killPlayer
+            // wasn't passed an attacker.
+            const enemyTeam: 'blue' | 'red' =
+              this.playerTeam === 'blue' ? 'red' : 'blue';
+            if (bot.team === enemyTeam || bot.team === 'blue' || bot.team === 'red') {
+              this.teamKills[enemyTeam]++;
             }
+            this.addKillFeed(bot.name, 'PLAYER');
+            this.killPlayer();
           }
         }
       }
@@ -4338,6 +4442,15 @@ export class ArenaEngine {
   isWarpActive(): boolean { return this.warpActive; }
   getWarpCooldown(): number { return this.warpCooldownTimer; }
   getWarpCooldownTotal(): number { return this.WARP_COOLDOWN; }
+
+  /** Normalized 0..1 player speed (capped). HUD uses it for the edge
+   *  motion blur overlay so fast flight reads as speed. */
+  getPlayerSpeedRatio(): number {
+    const s = Math.sqrt(
+      this.playerVelX ** 2 + this.playerVelY ** 2 + this.playerVelZ ** 2,
+    );
+    return Math.min(1, s / SHIP_MAX_SPEED);
+  }
 
   /** True if any active missile is homing on the player (id 0).
    *  Used by the HUD to flash a red border warning a strike is incoming. */
