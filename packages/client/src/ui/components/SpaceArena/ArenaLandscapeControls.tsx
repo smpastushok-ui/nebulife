@@ -18,12 +18,23 @@ interface ArenaLandscapeControlsProps {
   needRotate?: boolean;
 }
 
+// Radius of joystick deflection in pixels. Larger = more precision, but
+// also more reach. Right stick keeps 60; left stick gets 75 to match the
+// bigger hint ring introduced below.
 const MAX_RADIUS = 60;
+const LEFT_STICK_RADIUS = 75;
 const DEADZONE = 10; // pixels, for firing threshold
+// Left stick visuals: bigger ring + dropped down + labels on the OUTSIDE.
+const LEFT_HINT_SIZE = 150;
+const LEFT_HINT_BOTTOM = 40; // px above safe-area; lower than right stick
+const LEFT_HINT_LEFT = 80;   // px from screen edge
 
 export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
-  onMove, onAim, onDash, onFireMissile, onGravPush, onVertical: _onVertical, onSector,
-  missileAmmo = 10, warpReady = true, needRotate = false,
+  onMove, onAim,
+  onDash: _onDash, onFireMissile: _onFireMissile, onGravPush: _onGravPush,
+  onVertical: _onVertical, onSector,
+  missileAmmo: _missileAmmo = 10, warpReady: _warpReady = true,
+  needRotate = false,
 }) => {
   // Convert viewport coords → container-local when CSS-rotated
   const toLocal = useCallback((vx: number, vy: number): { x: number; y: number } => {
@@ -75,9 +86,10 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
     let dy = local.y - origin.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist > MAX_RADIUS) {
-      dx = (dx / dist) * MAX_RADIUS;
-      dy = (dy / dist) * MAX_RADIUS;
+    const radius = isLeft ? LEFT_STICK_RADIUS : MAX_RADIUS;
+    if (dist > radius) {
+      dx = (dx / dist) * radius;
+      dy = (dy / dist) * radius;
     }
 
     const knobRef = isLeft ? leftKnobRef : rightKnobRef;
@@ -85,8 +97,8 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       knobRef.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     }
 
-    const nx = dx / MAX_RADIUS;
-    const ny = dy / MAX_RADIUS;
+    const nx = dx / radius;
+    const ny = dy / radius;
 
     if (isLeft) {
       // Left stick is now sector-based:
@@ -97,7 +109,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       //   - Down  → barrel roll  (thrust + dodge)
       // Thrust magnitude = how far the thumb is pulled (0..1). Always
       // forward — no strafe from the left stick in TPS mode.
-      const thrust = Math.min(1, dist / MAX_RADIUS);
+      const thrust = Math.min(1, dist / LEFT_STICK_RADIUS);
       onMove(0, -thrust); // engine interprets ny<0 as "forward"
       let sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge' = 'center';
       if (dist > DEADZONE * 2) {
@@ -145,19 +157,34 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         onPointerUp={(e) => handlePointerUp(e, true)}
         onPointerCancel={(e) => handlePointerUp(e, true)}
       >
-        <div style={{ ...styles.hint, bottom: `calc(80px + ${safeBottom})`, left: `calc(60px + ${safeLeft})`, width: 110, height: 110 }}>
-          <div style={{ ...styles.hintRing, width: 110, height: 110 }} />
-          {/* Sector icons around the ring — labels only; engine reads the
-              sector from handlePointerMove. */}
-          <svg width="110" height="110" viewBox="-55 -55 110 110" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-            {/* Up: laser (green) */}
-            <text x="0" y="-38" fill="#44ffaa" fontSize="9" textAnchor="middle" fontFamily="monospace">LASER</text>
-            {/* Left: missile (red) */}
-            <text x="-38" y="3" fill="#ff6666" fontSize="9" textAnchor="middle" fontFamily="monospace">MISSILE</text>
-            {/* Right: warp (cyan) */}
-            <text x="38" y="3" fill="#44ddff" fontSize="9" textAnchor="middle" fontFamily="monospace">WARP</text>
-            {/* Down: dodge (yellow) */}
-            <text x="0" y="46" fill="#ffcc44" fontSize="9" textAnchor="middle" fontFamily="monospace">DODGE</text>
+        <div style={{
+          ...styles.hint,
+          bottom: `calc(${LEFT_HINT_BOTTOM}px + ${safeBottom})`,
+          left: `calc(${LEFT_HINT_LEFT}px + ${safeLeft})`,
+          width: LEFT_HINT_SIZE, height: LEFT_HINT_SIZE,
+        }}>
+          <div style={{ ...styles.hintRing, width: LEFT_HINT_SIZE, height: LEFT_HINT_SIZE }} />
+          {/* Sector labels — positioned OUTSIDE the ring on the outer
+              perimeter. Using a larger SVG viewbox than the ring itself
+              so text sits 20px beyond the circle's edge. */}
+          <svg
+            width={LEFT_HINT_SIZE + 60}
+            height={LEFT_HINT_SIZE + 60}
+            viewBox={`-${LEFT_HINT_SIZE / 2 + 30} -${LEFT_HINT_SIZE / 2 + 30} ${LEFT_HINT_SIZE + 60} ${LEFT_HINT_SIZE + 60}`}
+            style={{
+              position: 'absolute',
+              left: -30, top: -30,
+              pointerEvents: 'none',
+            }}
+          >
+            {/* Up: laser */}
+            <text x="0" y={-(LEFT_HINT_SIZE / 2) - 12} fill="#44ffaa" fontSize="11" textAnchor="middle" fontFamily="monospace">LASER</text>
+            {/* Left: missile */}
+            <text x={-(LEFT_HINT_SIZE / 2) - 20} y="4" fill="#ff6666" fontSize="11" textAnchor="middle" fontFamily="monospace">MISSILE</text>
+            {/* Right: warp */}
+            <text x={(LEFT_HINT_SIZE / 2) + 18} y="4" fill="#44ddff" fontSize="11" textAnchor="middle" fontFamily="monospace">WARP</text>
+            {/* Down: dodge */}
+            <text x="0" y={(LEFT_HINT_SIZE / 2) + 18} fill="#ffcc44" fontSize="11" textAnchor="middle" fontFamily="monospace">DODGE</text>
           </svg>
         </div>
         <div ref={leftBaseRef} style={styles.base}>
@@ -182,40 +209,9 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         </div>
       </div>
 
-      {/* Ability buttons — arranged around left side of AIM ring at 11, 9, 7 o'clock.
-          Positioned further from the screen edge (65→115px extra) so the right
-          joystick and ability buttons don't clip against rounded corners, system
-          back-gesture zone or device safe-area on landscape. */}
-      {/* WARP — upper-left of the AIM ring */}
-      <button
-        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(183px + ${safeRight})`, bottom: `calc(190px + ${safeBottom})`, opacity: warpReady ? 1 : 0.3 }}
-        onPointerDown={(e) => { e.stopPropagation(); if (warpReady) onDash(); }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={warpReady ? '#44ddff' : '#335566'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
-        </svg>
-      </button>
-      {/* ROCKET — left of ring */}
-      <button
-        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(220px + ${safeRight})`, bottom: `calc(125px + ${safeBottom})`, opacity: missileAmmo > 0 ? 1 : 0.3 }}
-        onPointerDown={(e) => { e.stopPropagation(); if (missileAmmo > 0) onFireMissile?.(); }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={missileAmmo > 0 ? '#ff6666' : '#664444'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2L15 8L12 22L9 8Z" />
-          <line x1="7" y1="12" x2="17" y2="12" />
-        </svg>
-      </button>
-      {/* GRAV — lower-left of ring */}
-      <button
-        style={{ ...styles.abilityBtn, position: 'absolute', right: `calc(183px + ${safeRight})`, bottom: `calc(60px + ${safeBottom})` }}
-        onPointerDown={(e) => { e.stopPropagation(); onGravPush?.(); }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bb88ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2V6M12 18V22M2 12H6M18 12H22" />
-        </svg>
-      </button>
-      {/* Climb/dive removed — pitch is now part of the right stick Y. */}
+      {/* Ability buttons around the right stick removed — warp, missile and
+          gravity are now driven by the left stick sectors. Right stick is
+          aim-only. */}
     </div>
   );
 };

@@ -110,6 +110,19 @@ function cloneShipScene(source: THREE.Group): THREE.Group {
       } else if (obj.material) {
         obj.material = obj.material.clone();
       }
+      // Boost emissive on standard/physical materials so the hull self-lights
+      // against the deep-space backdrop. Tripo exports a dark diffuse; without
+      // this the ship is almost invisible in the arena.
+      const boost = (m: THREE.Material) => {
+        const anyM = m as THREE.Material & { emissive?: THREE.Color; emissiveIntensity?: number; color?: THREE.Color };
+        if (anyM.emissive) {
+          // Seed emissive from the diffuse color so tints stay consistent.
+          if (anyM.color) anyM.emissive.copy(anyM.color).multiplyScalar(0.35);
+          anyM.emissiveIntensity = 0.6;
+        }
+      };
+      if (Array.isArray(obj.material)) obj.material.forEach(boost);
+      else if (obj.material) boost(obj.material);
       obj.castShadow = false;
       obj.receiveShadow = false;
       // Frustum culling is correct for GLB (has proper bounding sphere)
@@ -834,13 +847,24 @@ export class ArenaEngine {
   }
 
   private setupLights(): void {
-    const ambient = new THREE.AmbientLight(0x445566, 1.2);
+    // Brighter ambient + a punchy key light. Ships were nearly invisible
+    // against the deep-space backdrop; doubling ambient and boosting the
+    // directional makes them read clearly without shadow casting cost.
+    const ambient = new THREE.AmbientLight(0x6688aa, 2.4);
     this.scene.add(ambient);
 
-    const dir = new THREE.DirectionalLight(0xaabbcc, 1.0);
+    const dir = new THREE.DirectionalLight(0xffffee, 2.0);
     dir.position.set(200, 500, 300);
     dir.castShadow = false; // NO shadows for mobile perf
     this.scene.add(dir);
+
+    // A second fill-light from the opposite side, cool-toned, so the
+    // shadowed side of each ship still picks up some color instead of
+    // going fully black.
+    const fill = new THREE.DirectionalLight(0x4488cc, 0.8);
+    fill.position.set(-200, 300, -200);
+    fill.castShadow = false;
+    this.scene.add(fill);
   }
 
   private setupPlayerShip(): void {
@@ -1931,7 +1955,9 @@ export class ArenaEngine {
     const idx = this.exhaustFreeList.pop();
     if (idx === undefined) return;
 
-    // Backward direction = inverted aim direction (3D)
+    // Exhaust vents from the ship's belly (underside), not the tail. The
+    // backward component still carries the particle behind the ship so it
+    // reads as a trail, but the spawn point is below the ship's center.
     let backX = -this.aimDirX;
     let backY = -this.aimDirY;
     let backZ = -this.aimDirZ;
@@ -1943,15 +1969,20 @@ export class ArenaEngine {
     }
 
     const spread = (Math.random() - 0.5) * 0.4;
-    const offsetDist = SHIP_RADIUS * 0.7;
+    const tailOffset = SHIP_RADIUS * 0.5;
+    const bellyDrop = SHIP_RADIUS * 0.6; // how far below the ship's center to spawn
 
     const p = this.exhaustParticles[idx];
-    p.x = this.playerPos.x + backX * offsetDist + spread * backZ * 3;
-    p.y = this.playerPos.y + backY * offsetDist;
-    p.z = this.playerPos.z + backZ * offsetDist + spread * backX * 3;
-    p.vx = backX * 60 + this.playerVelX * 0.3;
-    p.vy = backY * 60 + this.playerVelY * 0.3;
-    p.vz = backZ * 60 + this.playerVelZ * 0.3;
+    // Belly-offset: spawn BELOW the ship (world -Y), plus a small tail offset
+    // in the backward direction so successive puffs string into a trail.
+    p.x = this.playerPos.x + backX * tailOffset + spread * backZ * 3;
+    p.y = this.playerPos.y - bellyDrop + backY * tailOffset * 0.3;
+    p.z = this.playerPos.z + backZ * tailOffset + spread * backX * 3;
+    // Velocity: mostly straight down from the belly with a dash of the
+    // ship's momentum so the trail leans back as the ship accelerates.
+    p.vx = this.playerVelX * 0.25 + backX * 20;
+    p.vy = -50 + this.playerVelY * 0.25; // mostly downward
+    p.vz = this.playerVelZ * 0.25 + backZ * 20;
     p.age = 0;
     p.scale = 0.8 + Math.random() * 0.4;
     p.active = true;
