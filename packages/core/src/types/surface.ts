@@ -444,13 +444,17 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   isotope_collector: {
     type: 'isotope_collector', category: 'extraction',
     name: 'Збирач ізотопів',
-    description: 'Пасивний видобуток ізотопів з космічного випромінювання. 9 ISO/год.',
+    description: 'Пасивний видобуток ізотопів з космічного випромінювання. 15 ISO/год.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'minerals', amount: 12 }, { resource: 'volatiles', amount: 5 }],
     levelRequired: 6, techRequired: null, maxPerPlanet: 3,
     energyOutput: 0, energyConsumption: 3, energyStorageAdd: 0,
-    production: [{ resource: 'isotopes', amount: 0.15 }], // 9 isotopes/hour (60 ticks)
+    // Bumped 0.15 → 0.25 (9 → 15 ISO/hr). 3× collectors = 45 ISO/hr,
+    // covers a single isotope_centrifuge consuming 24 ISO/hr (after that
+    // building's rate fix below) with +21 ISO/hr surplus for the U build
+    // cost of fusion_reactor.
+    production: [{ resource: 'isotopes', amount: 0.25 }],
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
@@ -634,14 +638,17 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   isotope_centrifuge: {
     type: 'isotope_centrifuge', category: 'chemistry',
     name: 'Ізотопна центрифуга',
-    description: 'Збагачення ізотопів. 5 ізо -> 2 U. Критично для термояд реактора.',
+    description: 'Збагачення ізотопів. ~10 U/год. Критично для термояд реактора.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'minerals', amount: 50 }, { resource: 'volatiles', amount: 25 }, { resource: 'isotopes', amount: 8 }, { resource: 'U', amount: 3 }],
     levelRequired: 36, techRequired: 'chem-isotope', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 8, energyStorageAdd: 0,
     production: [],
-    consumption: [{ resource: 'isotopes', amount: 1 }], // 5 per 5 ticks
+    // Consumption rebalanced 1.0 → 0.4/tick (60 → 24 ISO/hr) so 3× isotope
+    // collectors (now 45 ISO/hr) cover one centrifuge with surplus instead
+    // of starving it. U output stays ~10/hr (24 ISO × 0.4 chance).
+    consumption: [{ resource: 'isotopes', amount: 0.4 }],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },

@@ -434,7 +434,7 @@ export const PHYSICS_NODES: TechNode[] = [
   {
     id: 'phy-orbital-mech', branch: 'physics',
     name: 'Орбітальна механіка',
-    description: 'Розблоковує Космопорт. +15% швидкість кораблів.',
+    description: 'Розблоковує Космопорт (буд. рів. 35). +15% швидкість кораблів.',
     levelRequired: 25, prerequisiteId: 'phy-drill', epoch: 2, xpReward: 50,
     effects: [
       { type: 'building_unlock', value: 1 },
