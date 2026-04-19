@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { addAdReward, creditQuarks } from '../../packages/server/src/db.js';
+import { addAdReward, creditQuarks, creditResearchData } from '../../packages/server/src/db.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { generatePhotoToken } from '../../packages/server/src/photo-token.js';
 
@@ -84,7 +84,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await creditQuarks(auth.playerId, 5);
       amount = 5;
     } else if (rewardType === 'research_data') {
+      // Persist the +10 RD in the game_state JSONB. Previously this branch
+      // only set `amount = 10` and never wrote anything → player got nothing
+      // despite the ad rewarding 10 RD.
       amount = 10;
+      await creditResearchData(auth.playerId, amount);
     } else if (['discovery_photo', 'planet_photo', 'panorama_photo'].includes(rewardType)) {
       amount = 1;
       const photoToken = generatePhotoToken(auth.playerId, rewardType);

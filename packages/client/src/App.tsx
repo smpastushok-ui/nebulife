@@ -200,7 +200,7 @@ export interface GameState {
  * `nebulife_starter_toast_shown` in localStorage prevents repeats after
  * the toast has fired once on this device.
  */
-const STARTER_QUARKS_CLIENT = 20;
+const STARTER_QUARKS_CLIENT = 30;
 function maybeShowStarterToast(currentBalance: number): void {
   try {
     if (localStorage.getItem('nebulife_starter_toast_shown') === '1') return;
@@ -1225,7 +1225,14 @@ function AppInner() {
       const tileAt = () => undefined;
       const mutableColony: PlanetColonyState = JSON.parse(JSON.stringify(colony));
       const result = runColonyTicks(mutableColony, planetCtx.planet, techTreeStateRef.current, tileAt, Date.now());
-      if (result.researchDataProduced > 0 || result.shutdownIds.length > 0 || Object.keys(result.elementsProduced).length > 0) {
+      const before = colony.resources;
+      const after  = result.colony.resources;
+      const minD = Math.max(0, after.minerals  - before.minerals);
+      const volD = Math.max(0, after.volatiles - before.volatiles);
+      const isoD = Math.max(0, after.isotopes  - before.isotopes);
+      const watD = Math.max(0, after.water     - before.water);
+      const hadResourceDelta = minD + volD + isoD + watD > 0;
+      if (result.researchDataProduced > 0 || result.shutdownIds.length > 0 || Object.keys(result.elementsProduced).length > 0 || hadResourceDelta) {
         if (result.researchDataProduced > 0) {
           setResearchData(prev => prev + result.researchDataProduced);
         }
@@ -1237,6 +1244,20 @@ function AppInner() {
             }
             return next;
           });
+        }
+        // Mirror the tick's net resource production into the React-state
+        // colonyResources so passive building output (mine, water_extractor,
+        // atmo_extractor, etc.) actually reaches the hex-unlock cost UI.
+        // Previously runColonyTicks updated colony.resources but the React
+        // colonyResources state was never touched → mines produced 120 M/h
+        // that nobody could spend.
+        if (hadResourceDelta) {
+          setColonyResources(prev => ({
+            minerals:  prev.minerals  + minD,
+            volatiles: prev.volatiles + volD,
+            isotopes:  prev.isotopes  + isoD,
+            water:     prev.water     + watD,
+          }));
         }
         setColonyState(result.colony);
       }
