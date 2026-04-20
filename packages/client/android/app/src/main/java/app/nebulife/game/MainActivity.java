@@ -7,7 +7,9 @@ import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+        // Register plugins BEFORE super.onCreate so the bridge picks them up.
         registerPlugin(GoogleAuth.class);
+        registerPlugin(ImmersivePlugin.class);
+        super.onCreate(savedInstanceState);
     }
 }

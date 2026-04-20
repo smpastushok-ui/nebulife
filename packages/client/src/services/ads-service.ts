@@ -7,6 +7,19 @@ import { AdMob, RewardAdPluginEvents, RewardAdOptions, AdmobConsentStatus } from
 import { authFetch } from '../auth/api-client.js';
 import { interstitialManager } from './interstitial-manager.js';
 
+// =============================================================================
+// TEMP: ADS_DISABLED_FOR_TESTING
+// -----------------------------------------------------------------------------
+// While testers are trialing the build we SHORT-CIRCUIT every rewarded-ad
+// request so no video ever plays. The server token flow still runs (we hit
+// /api/ads/start + /api/ads/reward with real signed tokens), so rewards are
+// granted exactly as if the user had watched — tester just never sees an ad.
+//
+// **TO RESTORE ADS:** set this flag to `false` (and the identical flag in
+// interstitial-manager.ts). Nothing else needs to change.
+// =============================================================================
+const ADS_DISABLED_FOR_TESTING = true;
+
 // Ad Unit IDs
 // TEST mode: use Google test IDs during development/testing to avoid AdMob violations
 // PRODUCTION: swap to real IDs before release
@@ -104,6 +117,13 @@ type AdResult =
   | { rewarded: false; reason: 'dismissed' | 'no_fill' | 'error' };
 
 async function showRewardedAdWithReason(): Promise<AdResult> {
+  // TEMP: testers — pretend the ad played successfully without showing anything.
+  // Still increments the local daily counter so the existing limit logic stays honest.
+  if (ADS_DISABLED_FOR_TESTING) {
+    incrementDailyCount();
+    return { rewarded: true };
+  }
+
   if (!Capacitor.isNativePlatform()) return { rewarded: false, reason: 'error' };
 
   // Lazy init — first ad request triggers AdMob initialization (~200-500ms one-time cost)
@@ -196,6 +216,9 @@ export async function showMultipleRewardedAds(count: number): Promise<boolean> {
  * Returns false when AdMob has no fill (no ads to show).
  */
 export async function checkAdAvailability(): Promise<boolean> {
+  // TEMP: testers — always "available" so reward buttons stay enabled.
+  if (ADS_DISABLED_FOR_TESTING) return true;
+
   if (!Capacitor.isNativePlatform()) return false;
   await ensureAdMobInitialized();
   try {
@@ -238,6 +261,9 @@ export function getDailyAdCount(): number {
 }
 
 export function canShowAd(): boolean {
+  // TEMP: testers — allow even on web build so reward flows are testable there.
+  if (ADS_DISABLED_FOR_TESTING) return getDailyData().count < DAILY_LIMIT;
+
   if (!Capacitor.isNativePlatform()) return false;
   return getDailyData().count < DAILY_LIMIT;
 }

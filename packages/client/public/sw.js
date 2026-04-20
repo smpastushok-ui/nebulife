@@ -1,7 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v18: training-mode kills credit team score; red-screen only during live
-// missile threat; laser removed from right joystick (left-stick sector only)
-const CACHE_NAME = 'nebulife-v18';
+// v22: signOut no longer hangs on Android (Promise.race timeout restored)
+const CACHE_NAME = 'nebulife-v22';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [

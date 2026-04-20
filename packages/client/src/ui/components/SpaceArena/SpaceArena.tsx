@@ -8,6 +8,7 @@ import { ArenaEngine } from '../../../game/arena/index.js';
 import type { ArenaCallbacks, MatchResult, TeamMatchResult } from '../../../game/arena/index.js';
 import { ArenaLandscapeControls } from './ArenaLandscapeControls.js';
 import { ArenaTutorial, shouldShowArenaTutorial } from './ArenaTutorial.js';
+import { enterImmersive, exitImmersive } from '../../../services/immersive.js';
 
 interface SpaceArenaProps {
   onExit: () => void;
@@ -77,6 +78,25 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     window.addEventListener('popstate', onPopState);
     return () => {
       window.removeEventListener('popstate', onPopState);
+    };
+  }, []);
+
+  // Immersive fullscreen — hide Android system bars (status + nav) for the
+  // duration of the arena ONLY. On Capacitor: native WindowInsetsController.
+  // On web: Fullscreen API (best-effort; may fail without recent user gesture).
+  //
+  // Re-apply on visibility change because Android auto-restores system bars
+  // when the app is backgrounded (home / recents / push). Coming back we
+  // want fullscreen restored immediately.
+  useEffect(() => {
+    enterImmersive();
+    const onVis = () => {
+      if (document.visibilityState === 'visible') enterImmersive();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      exitImmersive();
     };
   }, []);
 

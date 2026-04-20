@@ -1527,10 +1527,20 @@ function AppInner() {
       .catch(() => {});
   }, []);
 
-  /** Logout: sign out from Firebase and reload */
+  /** Logout: sign out from Firebase and reload.
+   *
+   *  Reload runs in `finally` so the user never gets stuck on a stale
+   *  signed-in screen even if signOut throws or its native Promise hangs
+   *  beyond the inner 1.5s timeout. */
   const handleLogout = useCallback(async () => {
-    await signOut();
-    window.location.reload();
+    try {
+      await signOut();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[logout] signOut failed, reloading anyway:', err);
+    } finally {
+      window.location.reload();
+    }
   }, []);
 
   /** Delete account: permanently remove all data + Firebase account */

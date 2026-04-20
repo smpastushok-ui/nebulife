@@ -259,14 +259,29 @@ export function getCurrentUser(): User | null {
 
 /** Sign out the current user. On native, ALSO clears the Google plugin's
  *  cached credential, otherwise signing in with Google right after sign-out
- *  silently returns the same account (no account-chooser dialog). */
+ *  silently returns the same account (no account-chooser dialog).
+ *
+ *  CRITICAL: `GoogleAuth.signOut()` can hang forever on some Android builds
+ *  (the native bridge never posts the resolve). Without the 1.5s `Promise.race`
+ *  timeout this whole function would never settle — and the logout button
+ *  appeared to "do nothing" because `window.location.reload()` in the caller
+ *  was queued after an await that never completed. */
 export async function signOut(): Promise<void> {
   if (!auth) return;
-  await auth.signOut();
+  try {
+    await auth.signOut();
+  } catch (err) {
+    // Don't block reload on Firebase hiccups — logging and continuing is safer.
+    // eslint-disable-next-line no-console
+    console.warn('[auth] Firebase signOut error:', err);
+  }
   if (Capacitor.isNativePlatform() && isGoogleSignInAvailable()) {
     try {
       const { GoogleAuth } = await getNativeGoogleAuth();
-      await GoogleAuth.signOut();
+      await Promise.race([
+        GoogleAuth.signOut(),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
     } catch { /* non-critical — may not be signed into Google */ }
   }
 }

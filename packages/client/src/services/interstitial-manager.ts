@@ -6,6 +6,16 @@
 
 import { Capacitor } from '@capacitor/core';
 
+// =============================================================================
+// TEMP: ADS_DISABLED_FOR_TESTING — see the mirror flag in ads-service.ts.
+// While this is true, canShow() always returns false so no interstitial ever
+// interrupts testers. prepareNext() becomes a no-op, so the AdMob SDK is not
+// initialized at all through this path.
+//
+// **TO RESTORE ADS:** set to `false` here AND in ads-service.ts.
+// =============================================================================
+const ADS_DISABLED_FOR_TESTING = true;
+
 // Interstitial ad unit IDs
 // TEST mode: use Google test IDs during development/testing
 // PRODUCTION: swap to real IDs before release
@@ -31,6 +41,9 @@ class InterstitialManager {
   public sessionStartTime = Date.now();
 
   canShow(): boolean {
+    // TEMP: testers — never trigger an interstitial.
+    if (ADS_DISABLED_FOR_TESTING) return false;
+
     if (this._isPremium) return false;
     if (!Capacitor.isNativePlatform()) return false;
     if (this.sessionAdCount >= this.MAX_ADS_PER_SESSION) return false;
@@ -61,6 +74,9 @@ class InterstitialManager {
   }
 
   async prepareNext(): Promise<void> {
+    // TEMP: testers — skip AdMob preload entirely.
+    if (ADS_DISABLED_FOR_TESTING) return;
+
     if (this._isPremium || !Capacitor.isNativePlatform()) return;
     try {
       // Lazy init AdMob SDK if not yet initialized (avoids eager init at app startup)
