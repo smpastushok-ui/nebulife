@@ -1255,7 +1255,11 @@
     "yearly_label": "Річна",
     "yearly_desc": "Оплата раз на рік",
     "yearly_price": "$39.99/рік",
-    "yearly_save": "−33%"
+    "yearly_save": "−33%",
+    "lifetime_label": "Назавжди",
+    "lifetime_desc": "Один раз — назавжди",
+    "lifetime_price": "$59.99",
+    "lifetime_save": "ТОП"
   },
   "event": {
     "urgent_video": "[ ТЕРМIНОВЕ ВIДЕО-ПОВIДОМЛЕННЯ ]",

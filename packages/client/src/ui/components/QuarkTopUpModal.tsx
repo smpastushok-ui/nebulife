@@ -326,6 +326,41 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
                   {subscribing ? '...' : t('premium.yearly_price')}
                 </div>
               </button>
+              {/* Lifetime (non-consumable) — one-time purchase, no auto-renewal. */}
+              <button
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: 3,
+                  border: '1px solid #44ff88',
+                  background: subscribing ? 'rgba(68,255,136,0.22)' : 'rgba(68,255,136,0.08)',
+                  color: '#88ffbb',
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  cursor: subscribing || !!purchasing ? 'default' : 'pointer',
+                  opacity: subscribing || !!purchasing ? 0.6 : 1,
+                  width: '100%',
+                  textAlign: 'left' as const,
+                  position: 'relative' as const,
+                }}
+                onClick={handleSubscribe}
+                disabled={subscribing || !!purchasing}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: 2 }}>
+                    {t('premium.lifetime_label')}{' '}
+                    <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: 'rgba(68,255,136,0.25)', color: '#aaffcc', marginLeft: 4 }}>
+                      {t('premium.lifetime_save')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#66aa88' }}>{t('premium.lifetime_desc')}</div>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' as const }}>
+                  {subscribing ? '...' : t('premium.lifetime_price')}
+                </div>
+              </button>
             </div>
           )}
         </div>

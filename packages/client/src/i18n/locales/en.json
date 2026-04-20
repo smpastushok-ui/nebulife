@@ -1254,7 +1254,11 @@
     "yearly_label": "Yearly",
     "yearly_desc": "Billed once per year",
     "yearly_price": "$39.99/yr",
-    "yearly_save": "SAVE 33%"
+    "yearly_save": "SAVE 33%",
+    "lifetime_label": "Lifetime",
+    "lifetime_desc": "Pay once, keep forever",
+    "lifetime_price": "$59.99",
+    "lifetime_save": "BEST"
   },
   "event": {
     "urgent_video": "[ URGENT VIDEO MESSAGE ]",
