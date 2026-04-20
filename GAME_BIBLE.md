@@ -375,10 +375,15 @@ Total day-1 artifacts: 3 (1 home free + 2 зі starter)  →
 ## 1. Концепція
 
 **Жанр**: Science-fiction space exploration / survival strategy
-**Платформа**: Web (browser), PixiJS v8 + React
-**Мова інтерфейсу**: Українська
+**Платформа**: Web (browser) + Android + iOS, PixiJS v8 + React + Capacitor
+**Цільова аудиторія**: Глобальна, Західна (US / EU / UK / CA / AU)
+**Основна мова**: **English (EN)** — primary для маркетингу, App Store, SEO, social
+**Друга мова**: **Українська (UK)** — як шана рідній країні автора; повний паритет перекладів, але НЕ таргет-ринок
+**Позиціонування**: Cozy sci-fi exploration game — "spend 30 minutes a day discovering the universe"
 
-**Pitch**: Астероїд летить до твоєї планети. 7 днів. Досліди сусідні зоряні системи, знайди придатну планету, запусти корабель порятунку на 10 000 пасажирів.
+**Важливо для контенту**: всі нові тексти (IAP descriptions, App Store metadata, ASTRA prompts, Academy lessons, screenshots, trailers, social) пишуться ENG-first, потім перекладаються на UK. Український текст НЕ визначає tone — це дзеркало англійського.
+
+**Pitch**: An asteroid is heading for your planet. 7 days. Explore neighboring star systems, find a habitable world, launch a rescue ship for 10,000 passengers.
 
 **Настрій**: Науково-фантастичний, стриманий, атмосферний. Не яскрава аркада — а тихий космос з відчуттям масштабу та самотності. Кожна зірка, планета, супутник — фізично обґрунтовані.
 

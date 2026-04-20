@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+// Load signing config from keystore.properties (gitignored, next to this file)
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "app.nebulife.game"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -18,17 +25,21 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file("../../../../nebulife-release.keystore")
-            storePassword "nebulife2026"
-            keyAlias "nebulife"
-            keyPassword "nebulife2026"
+            if (keystoreProperties['storeFile']) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
         }
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (keystoreProperties['storeFile']) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
