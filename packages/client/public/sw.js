@@ -1,6 +1,7 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v17: missile slerp homing fixed, screen-pos uses canvas dims
-const CACHE_NAME = 'nebulife-v17';
+// v18: training-mode kills credit team score; red-screen only during live
+// missile threat; laser removed from right joystick (left-stick sector only)
+const CACHE_NAME = 'nebulife-v18';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [

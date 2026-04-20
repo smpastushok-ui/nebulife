@@ -100,7 +100,9 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         }
       }
     } else {
-      onAim(0, 0, true);
+      // Right stick is aim-only — NEVER fires the laser. Laser is driven
+      // exclusively by the left stick's "laser" sector now.
+      onAim(0, 0, false);
     }
   }, [onAim, toLocal]);
 
@@ -169,7 +171,8 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       }
       onSector?.(sector);
     } else {
-      onAim(nx, ny, dist > DEADZONE);
+      // Right stick drives pitch/yaw only; laser fire is left-stick sector.
+      onAim(nx, ny, false);
     }
   }, [onMove, onAim, onSector, toLocal]);
 

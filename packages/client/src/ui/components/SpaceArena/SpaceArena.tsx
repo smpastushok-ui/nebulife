@@ -130,7 +130,8 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const handleDash = useCallback(() => {
     engineRef.current?.triggerDash();
   }, []);
-  // Laser fire is now handled by right joystick (aim + auto-fire)
+  // Laser fire is handled exclusively by the left stick's "laser" sector
+  // (top of the ring). Right stick is pitch/yaw only.
   const handleFireMissile = useCallback(() => {
     engineRef.current?.fireMissile();
   }, []);

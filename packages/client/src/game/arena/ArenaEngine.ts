@@ -572,14 +572,15 @@ export class ArenaEngine {
   }
 
   setMobileAim(x: number, y: number, firing: boolean): void {
-    // Right stick is now rate-based:
+    // Right stick is rate-based pitch/yaw:
     //   X  → yaw rate  (left = turn left, right = turn right)
     //   Y  → pitch rate (up on screen = nose up; stick up usually maps to
     //         joystick y < 0, so we invert sign in updateAim).
-    // Firing triggered while the stick is touched.
+    // Laser firing from the right stick was removed — fire now lives on the
+    // left stick's "laser" sector only. We intentionally ignore `firing`.
     this.mobileAim = { x, z: y };
     this.mobilePitchRate = y; // stored raw; updateAim decides sign
-    this.mobileFiring = firing;
+    void firing; // reserved; laser firing handled via setMobileSector('laser')
   }
 
   /** Reserved for future use (e.g. a separate climb/dive button). Not wired
@@ -2873,19 +2874,23 @@ export class ArenaEngine {
             this.killBot(bot, null);
             this.stats.kills++;
             this.stats.score += TEAM_SCORE_ENEMY_KILL;
-            if (this.teamMode) {
-              this.teamKills[this.playerTeam as 'blue' | 'red']++;
+            // Training (3v3) uses team scores too — drop the old teamMode
+            // guard that used to zero out the HUD counter in training.
+            if (this.playerTeam === 'blue' || this.playerTeam === 'red') {
+              this.teamKills[this.playerTeam]++;
             }
             this.addKillFeed('PLAYER', bot.name);
           }
 
-          // AoE splash to nearby enemy bots (radius 30 units)
+          // AoE splash to nearby enemy bots (3D radius 30 units)
           for (const b2 of this.botShips) {
             if (!b2.alive || b2.id === bot.id) continue;
-            // In team mode skip allies; in FFA all are targets
-            if (this.teamMode && b2.team === this.playerTeam) continue;
+            if (b2.team === this.playerTeam) continue; // skip allies in all modes
             if (performance.now() < b2.invulnerableUntil) continue;
-            const d2 = Math.sqrt((m.x - b2.pos.x) ** 2 + (m.z - b2.pos.z) ** 2);
+            const dx2 = m.x - b2.pos.x;
+            const dy2 = m.y - b2.pos.y;
+            const dz2 = m.z - b2.pos.z;
+            const d2 = Math.sqrt(dx2 * dx2 + dy2 * dy2 + dz2 * dz2);
             if (d2 < 30) {
               b2.hp -= 3;
               if (b2.hp <= 0) {
@@ -2893,8 +2898,8 @@ export class ArenaEngine {
                 this.killBot(b2, null);
                 this.stats.kills++;
                 this.stats.score += TEAM_SCORE_ENEMY_KILL;
-                if (this.teamMode) {
-                  this.teamKills[this.playerTeam as 'blue' | 'red']++;
+                if (this.playerTeam === 'blue' || this.playerTeam === 'red') {
+                  this.teamKills[this.playerTeam]++;
                 }
                 this.addKillFeed('PLAYER', b2.name);
               }
@@ -4046,10 +4051,12 @@ export class ArenaEngine {
 
             if (this.playerHp <= 0) {
               this.playerHp = 0;
-              // Credit shooter with kill
+              // Credit shooter with kill. Training (3v3) is also team-based,
+              // so count team kills whenever the shooter has a valid team —
+              // not just in explicit teamMode.
               if (shooterBot) {
                 shooterBot.kills++;
-                if (this.teamMode && (shooterBot.team === 'blue' || shooterBot.team === 'red')) {
+                if (shooterBot.team === 'blue' || shooterBot.team === 'red') {
                   this.teamKills[shooterBot.team]++;
                 }
                 this.addKillFeed(shooterBot.name, 'PLAYER');
@@ -4099,8 +4106,10 @@ export class ArenaEngine {
               this.killBot(bot, null); // player killed bot
               this.stats.kills++;
               this.stats.score += TEAM_SCORE_ENEMY_KILL;
-              if (this.teamMode) {
-                this.teamKills[this.playerTeam as 'blue' | 'red']++;
+              // Training (3v3) uses team scores too — count whenever the
+              // player has a valid team.
+              if (this.playerTeam === 'blue' || this.playerTeam === 'red') {
+                this.teamKills[this.playerTeam]++;
               }
               this.addKillFeed('PLAYER', bot.name);
             }
@@ -4279,8 +4288,9 @@ export class ArenaEngine {
 
     if (killer) {
       killer.kills++;
-      // Only track team kills in team mode (neutral has no team score)
-      if (this.teamMode && (killer.team === 'blue' || killer.team === 'red')) {
+      // Track team kills whenever killer has a valid team. Training (3v3)
+      // is also team-based even though `teamMode` flag stays false.
+      if (killer.team === 'blue' || killer.team === 'red') {
         this.teamKills[killer.team]++;
       }
       this.addKillFeed(killer.name, bot.name);
@@ -4469,24 +4479,18 @@ export class ArenaEngine {
     return Math.min(1, s / SHIP_MAX_SPEED);
   }
 
-  /** True if the player is under missile threat — either (a) an enemy
-   *  missile is already in flight with targetId = 0, or (b) an enemy bot
-   *  is currently chasing the player with its missile cooldown almost
-   *  ready (so a strike is seconds away). HUD uses this to blink the
-   *  screen border as a "you're being hunted" warning. */
+  /** True only while an enemy missile is currently in flight targeting the
+   *  player. HUD uses this to blink the red screen border.
+   *
+   *  The warning auto-clears the instant the missile becomes inactive —
+   *  whether it hits the player, hits something else, or times out — because
+   *  `m.active` flips to false in all those cases. We intentionally DO NOT
+   *  include the "about to fire" pre-warning: per user request, the red
+   *  blink should fire strictly during the missile's flight, not while the
+   *  bot is still acquiring lock. */
   isPlayerLocked(): boolean {
-    // (a) missile already airborne toward the player
     for (const m of this.missiles) {
       if (m.active && m.targetId === 0) return true;
-    }
-    // (b) enemy bot targeting the player and about to fire a missile
-    for (const bot of this.botShips) {
-      if (!bot.alive) continue;
-      if (bot.team === this.playerTeam) continue;
-      if (bot.brain.targetId !== 0) continue;
-      const ammo = bot.missileAmmo ?? 0;
-      const cd = bot.missileCooldown ?? 0;
-      if (ammo > 0 && cd < 1.2) return true;
     }
     return false;
   }
