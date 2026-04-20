@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v22: signOut no longer hangs on Android (Promise.race timeout restored)
-const CACHE_NAME = 'nebulife-v22';
+// v23: vite build-time env guard + .env.example + dev loud firebase warning
+const CACHE_NAME = 'nebulife-v23';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [

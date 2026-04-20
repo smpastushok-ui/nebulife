@@ -46,7 +46,18 @@ if (apiKey) {
     console.warn('Firebase initialization failed:', err);
   }
 } else {
-  console.warn('Firebase not configured — VITE_FIREBASE_API_KEY is missing');
+  // LOUD warning — missing Firebase config means App.tsx will silently fall
+  // into the legacy "Explorer" path (skips AuthScreen entirely). That's a
+  // real bug for testers, so make it obvious in the console.
+  const banner =
+    '\n============================================================\n' +
+    '  FIREBASE NOT CONFIGURED — VITE_FIREBASE_API_KEY is missing.\n' +
+    '  Copy packages/client/.env.example → .env.local and fill in\n' +
+    '  the values from Firebase Console. Without this, login screen\n' +
+    '  will NOT appear and everyone signs in as "Explorer".\n' +
+    '============================================================\n';
+  // eslint-disable-next-line no-console
+  console.error(banner);
 }
 
 export { auth };

@@ -34,6 +34,7 @@
 - **Parallax backgrounds заборонені** — конфліктує з CameraController
 - **DB міграції**: Ніколи НЕ створювати API endpoints для міграцій. Тільки SQL код для Neon SQL Editor
 - **Деплой**: Push лише до `main` branch для production
+- **`.env.local` в кожному worktree**: gitignored → НЕ копіюється при створенні нового worktree. Без нього Firebase init тихо падає, App.tsx активує legacy "Explorer" режим, AuthScreen пропускається. Перед `npm run dev/build` — скопіювати `packages/client/.env.local` з main репо. `vite.config.ts` падає на `vite build` якщо обов'язкових `VITE_FIREBASE_*` не вистачає. Див. `packages/client/.env.example`.
 
 ---
 
