@@ -1244,10 +1244,17 @@
   },
   "premium": {
     "title": "Premium",
-    "no_ads": "No ads",
+    "no_ads": "No ads · 50 daily AI chats · +5 Quarks daily",
     "subscribe": "Subscribe",
     "active": "Premium active",
-    "monthly": "{{price}}/month"
+    "monthly": "{{price}}/month",
+    "monthly_label": "Monthly",
+    "monthly_desc": "Billed every month",
+    "monthly_price": "$4.99/mo",
+    "yearly_label": "Yearly",
+    "yearly_desc": "Billed once per year",
+    "yearly_price": "$39.99/yr",
+    "yearly_save": "SAVE 33%"
   },
   "event": {
     "urgent_video": "[ URGENT VIDEO MESSAGE ]",

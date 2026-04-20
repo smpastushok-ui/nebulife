@@ -245,41 +245,89 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
           border: `1px solid ${isPremiumActive ? 'rgba(68,255,136,0.4)' : '#4488aa'}`,
           background: isPremiumActive ? 'rgba(68,255,136,0.06)' : 'rgba(68,136,170,0.08)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isPremiumActive ? 0 : 8 }}>
-            <div>
+          <div style={{ marginBottom: isPremiumActive ? 0 : 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'monospace', color: isPremiumActive ? '#44ff88' : '#7bb8ff', marginBottom: 2 }}>
                 {t('premium.title')}
               </div>
-              <div style={{ fontSize: 11, color: '#8899aa', fontFamily: 'monospace' }}>
-                {t('premium.no_ads')}
-              </div>
+              {isPremiumActive && (
+                <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#44ff88', fontWeight: 600 }}>
+                  {t('premium.active')}
+                </div>
+              )}
             </div>
-            {isPremiumActive ? (
-              <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#44ff88', fontWeight: 600 }}>
-                {t('premium.active')}
-              </div>
-            ) : (
+            <div style={{ fontSize: 11, color: '#8899aa', fontFamily: 'monospace' }}>
+              {t('premium.no_ads')}
+            </div>
+          </div>
+          {!isPremiumActive && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* Monthly subscription */}
               <button
                 style={{
-                  padding: '8px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
                   borderRadius: 3,
                   border: '1px solid #4488aa',
-                  background: subscribing ? 'rgba(68,136,170,0.3)' : 'rgba(68,136,170,0.18)',
+                  background: subscribing ? 'rgba(68,136,170,0.3)' : 'rgba(68,136,170,0.12)',
                   color: '#7bb8ff',
                   fontFamily: 'monospace',
                   fontSize: 12,
-                  fontWeight: 600,
                   cursor: subscribing || !!purchasing ? 'default' : 'pointer',
                   opacity: subscribing || !!purchasing ? 0.6 : 1,
-                  whiteSpace: 'nowrap' as const,
+                  width: '100%',
+                  textAlign: 'left' as const,
                 }}
                 onClick={handleSubscribe}
                 disabled={subscribing || !!purchasing}
               >
-                {subscribing ? '...' : t('premium.subscribe')}
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: 2 }}>{t('premium.monthly_label')}</div>
+                  <div style={{ fontSize: 10, color: '#8899aa' }}>{t('premium.monthly_desc')}</div>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' as const }}>
+                  {subscribing ? '...' : t('premium.monthly_price')}
+                </div>
               </button>
-            )}
-          </div>
+              {/* Yearly subscription */}
+              <button
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: 3,
+                  border: '1px solid #ddaa44',
+                  background: subscribing ? 'rgba(221,170,68,0.25)' : 'rgba(221,170,68,0.10)',
+                  color: '#ffcc66',
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  cursor: subscribing || !!purchasing ? 'default' : 'pointer',
+                  opacity: subscribing || !!purchasing ? 0.6 : 1,
+                  width: '100%',
+                  textAlign: 'left' as const,
+                  position: 'relative' as const,
+                }}
+                onClick={handleSubscribe}
+                disabled={subscribing || !!purchasing}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: 2 }}>
+                    {t('premium.yearly_label')}{' '}
+                    <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: 'rgba(221,170,68,0.25)', color: '#ffd680', marginLeft: 4 }}>
+                      {t('premium.yearly_save')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#aa9966' }}>{t('premium.yearly_desc')}</div>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' as const }}>
+                  {subscribing ? '...' : t('premium.yearly_price')}
+                </div>
+              </button>
+            </div>
+          )}
         </div>
 
         {loadingPkgs ? (

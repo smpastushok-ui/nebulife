@@ -1245,10 +1245,17 @@
   },
   "premium": {
     "title": "Premium",
-    "no_ads": "Без реклами",
+    "no_ads": "Без реклами · 50 повідомлень AI · +5 Кварків щодня",
     "subscribe": "Підписатись",
     "active": "Premium активний",
-    "monthly": "{{price}}/місяць"
+    "monthly": "{{price}}/місяць",
+    "monthly_label": "Місячна",
+    "monthly_desc": "Оплата щомісяця",
+    "monthly_price": "$4.99/міс",
+    "yearly_label": "Річна",
+    "yearly_desc": "Оплата раз на рік",
+    "yearly_price": "$39.99/рік",
+    "yearly_save": "−33%"
   },
   "event": {
     "urgent_video": "[ ТЕРМIНОВЕ ВIДЕО-ПОВIДОМЛЕННЯ ]",
