@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v16: lock central-60% screen, screen-pos uses bot.y, homing = arena
-const CACHE_NAME = 'nebulife-v16';
+// v17: missile slerp homing fixed, screen-pos uses canvas dims
+const CACHE_NAME = 'nebulife-v17';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [

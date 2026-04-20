@@ -238,7 +238,7 @@ export class ArenaEngine {
   private readonly MISSILE_POOL = 20;
   private readonly MISSILE_SPEED = 400;
   private readonly MISSILE_LIFETIME = 3;
-  private readonly MISSILE_TURN_RATE = 2.5; // radians/sec
+  private readonly MISSILE_TURN_RATE = 4.0; // radians/sec — snappy homing so dodges must be deliberate
   private readonly MISSILE_RADIUS = 2;
   private readonly MISSILE_DAMAGE = 45;
   private readonly MISSILE_COOLDOWN = 0.5; // between individual shots
@@ -2710,9 +2710,15 @@ export class ArenaEngine {
         continue;
       }
 
-      // Homing: limited turn rate toward nearest target (3D).
-      // We rotate the velocity vector directly instead of tracking a scalar
-      // angle so the Y component is honored.
+      // Homing — proper SLERP of velocity toward target direction, capped
+      // at effRate radians per second.
+      //
+      // Previous version used `t = effRate * dt / Math.PI` in a lerp,
+      // which made the effective turn rate 3.14× slower than intended
+      // — that's the "missile curves gently but never catches anything"
+      // the user reported. Switched to spherical interpolation where
+      // `step` is the actual radian rotation per frame and `alpha` is
+      // the fraction of the remaining angle to close this tick.
       const target = findTarget(m.x, m.y, m.z, m.targetId);
       if (target) {
         const dvx = target.x - m.x;
@@ -2727,23 +2733,29 @@ export class ArenaEngine {
           const curX = m.vx / vlen;
           const curY = m.vy / vlen;
           const curZ = m.vz / vlen;
-          // Locked missiles (m.targetId !== null at fire time) steer at the
-          // full MISSILE_TURN_RATE and track a specific target.
-          // Dumb missiles (no lock) use HALF the turn rate — they chase the
-          // nearest object but a dodging pilot often escapes, matching the
-          // "≈50% hit chance without lock" feel.
-          const dumbFire = m.targetId === null;
-          const effRate = dumbFire ? this.MISSILE_TURN_RATE * 0.5 : this.MISSILE_TURN_RATE;
-          const t = Math.min(1, effRate * dt / Math.PI);
-          let nx = curX + (wantX - curX) * t;
-          let ny = curY + (wantY - curY) * t;
-          let nz = curZ + (wantZ - curZ) * t;
-          const nlen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 0.0001;
-          nx /= nlen; ny /= nlen; nz /= nlen;
-          m.vx = nx * this.MISSILE_SPEED;
-          m.vy = ny * this.MISSILE_SPEED;
-          m.vz = nz * this.MISSILE_SPEED;
-          m.angle = Math.atan2(m.vx, -m.vz);
+
+          const dot = Math.max(-1, Math.min(1, curX * wantX + curY * wantY + curZ * wantZ));
+          const angle = Math.acos(dot); // 0 = aligned, π = opposite
+
+          if (angle > 0.001) {
+            const dumbFire = m.targetId === null;
+            const effRate = dumbFire ? this.MISSILE_TURN_RATE * 0.5 : this.MISSILE_TURN_RATE;
+            const step = Math.min(angle, effRate * dt);
+            const alpha = step / angle;
+            // Slerp: sin-weighted blend for great-circle rotation.
+            const sinA = Math.sin(angle);
+            const w1 = Math.sin((1 - alpha) * angle) / sinA;
+            const w2 = Math.sin(alpha * angle) / sinA;
+            let nx = w1 * curX + w2 * wantX;
+            let ny = w1 * curY + w2 * wantY;
+            let nz = w1 * curZ + w2 * wantZ;
+            const nlen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 0.0001;
+            nx /= nlen; ny /= nlen; nz /= nlen;
+            m.vx = nx * this.MISSILE_SPEED;
+            m.vy = ny * this.MISSILE_SPEED;
+            m.vz = nz * this.MISSILE_SPEED;
+            m.angle = Math.atan2(m.vx, -m.vz);
+          }
         }
       }
 
@@ -4500,19 +4512,19 @@ export class ArenaEngine {
   getBotScreenPos(botId: number): { x: number; y: number } | null {
     const bot = this.botShips.find(b => b.id === botId);
     if (!bot || !bot.alive) return null;
-    // Use the bot's actual Y (was hard-coded to 10, which placed the
-    // rhombus on the horizon instead of on the ship when bots roam
-    // vertically).
     const vec = new THREE.Vector3(bot.pos.x, bot.pos.y, bot.pos.z);
     vec.project(this.camera);
-    // Behind camera or clearly off-screen → no indicator. Prevents the
-    // "lock rhombus at top-left corner" artifact where the lock target
-    // has walked behind the player.
-    if (vec.z > 1 || Math.abs(vec.x) > 1.2 || Math.abs(vec.y) > 1.2) return null;
-    const rect = this.renderer.domElement.getBoundingClientRect();
+    // Behind camera (NDC z > 1) or outside the clip rectangle → no marker.
+    if (vec.z > 1 || Math.abs(vec.x) > 1 || Math.abs(vec.y) > 1) return null;
+    // Use canvas clientWidth/Height (unrotated CSS pixels in container
+    // coords). getBoundingClientRect() returns the VISUAL rect after the
+    // landscape CSS rotation, which put the overlay at wrong coords.
+    const canvas = this.renderer.domElement;
+    const w = canvas.clientWidth || canvas.width;
+    const h = canvas.clientHeight || canvas.height;
     return {
-      x: (vec.x * 0.5 + 0.5) * rect.width,
-      y: (-vec.y * 0.5 + 0.5) * rect.height,
+      x: (vec.x * 0.5 + 0.5) * w,
+      y: (-vec.y * 0.5 + 0.5) * h,
     };
   }
 }
