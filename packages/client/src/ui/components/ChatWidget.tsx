@@ -80,7 +80,12 @@ const CHAT_PULSE_KEYFRAMES = `
   100% { opacity: 0; transform: translateY(-28px); }
 }`;
 
-export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, playerLevel = 1 }: ChatWidgetProps) {
+// Exported as React.memo below. ChatWidget is always mounted while the
+// player is in-game, so unrelated App.tsx state changes (tutorial steps,
+// research ticks, countdown, etc.) previously forced a full re-render of
+// the entire chat tree. Memo blocks those; real chat updates come from
+// this component's own internal polling + setState so they still render.
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, playerLevel = 1 }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [tab, setTab] = useState<Tab>('global');
@@ -1065,6 +1070,8 @@ export function ChatWidget({ playerId, playerName, onUnreadChange, systemNotifs 
     </>
   );
 }
+
+export const ChatWidget = React.memo(ChatWidgetInner);
 
 // ---------------------------------------------------------------------------
 // Sub-components

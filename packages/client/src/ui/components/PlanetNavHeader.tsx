@@ -23,7 +23,9 @@ interface PlanetNavHeaderProps {
   onNextSystem?: () => void;
 }
 
-export function PlanetNavHeader({
+// Exported as React.memo below — unrelated App.tsx state changes skip
+// re-rendering this nav header when none of its props changed.
+function PlanetNavHeaderInner({
   currentPlanet,
   prevPlanet,
   nextPlanet,
@@ -266,3 +268,5 @@ export function PlanetNavHeader({
     </div>
   );
 }
+
+export const PlanetNavHeader = React.memo(PlanetNavHeaderInner);

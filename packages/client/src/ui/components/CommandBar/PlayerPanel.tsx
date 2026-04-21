@@ -39,7 +39,10 @@ interface PlayerPanelProps {
   onClick?: () => void;
 }
 
-export function PlayerPanel({ playerName, playerLevel = 1, playerXP = 0, onClick }: PlayerPanelProps) {
+// React.memo — PlayerPanel receives only primitive props, so memo's shallow
+// compare is maximally effective: unrelated App.tsx state changes (tutorial
+// step, research ticks, polling) no longer force a re-render here.
+function PlayerPanelInner({ playerName, playerLevel = 1, playerXP = 0, onClick }: PlayerPanelProps) {
   const progress = levelProgress(playerXP);
   const isMaxLevel = playerLevel >= MAX_PLAYER_LEVEL;
   const [hovered, setHovered] = useState(false);
@@ -100,3 +103,5 @@ export function PlayerPanel({ playerName, playerLevel = 1, playerXP = 0, onClick
     </div>
   );
 }
+
+export const PlayerPanel = React.memo(PlayerPanelInner);

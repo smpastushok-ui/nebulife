@@ -46,7 +46,10 @@ function SearchIcon({ size = 14 }: { size?: number }) {
   );
 }
 
-export function SystemNavHeader({
+// Exported as React.memo below — see end of file. Memo makes unrelated
+// App.tsx state changes (tutorial step, research ticks, polling) skip
+// re-rendering this whole nav header when none of its props changed.
+function SystemNavHeaderInner({
   currentSystem,
   currentAlias,
   prevSystem,
@@ -386,3 +389,5 @@ function TelescopeButton({ onClick, generating }: { onClick: () => void; generat
     </button>
   );
 }
+
+export const SystemNavHeader = React.memo(SystemNavHeaderInner);
