@@ -1,4 +1,4 @@
-import { Container, Graphics, Text, BlurFilter } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
 import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebulife/core';
 import { getResearchProgress, isSystemFullyResearched, SeededRNG, computeGroupPosition, generateLiteClusterSystems, hexColorToInt, type LiteSystem, delaunayEdges, generateGalaxyGroupCore, deriveGroupSeed, assignPlayerPosition } from '@nebulife/core';
 import type { TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
@@ -417,11 +417,14 @@ export class GalaxyScene {
 
         const node = this.buildSysNode(system, tx, ty, 3);
         node.nodeType = 'neighbor';
+        // BlurFilter removed for mobile perf — every filtered container
+        // forced PixiJS into an off-screen render pass, and we had dozens
+        // of neighbors. The darker tint + lower alpha below already read
+        // as "distant/unreachable" without the compositor cost.
         node.baseAlpha = expandedVisible ? 0.45 : 0;
         node.baseRadius *= 0.7;
         node.nameLabel.style.fill = 0x445566;
         node.container.alpha = node.baseAlpha;
-        node.container.filters = [new BlurFilter({ strength: 2, quality: 2 })];
         this.systemNodes.set(system.id, node);
       }
     }
@@ -1127,7 +1130,9 @@ export class GalaxyScene {
     const nl = new Text({
       text: sys.name,
       style: { fontSize: 8, fill: 0x667788, fontFamily: 'monospace' },
-      resolution: 3,
+      // resolution 3 was 3x-oversampling every glyph texture (9× VRAM on
+      // 3× DPR phones). 2 stays crisp at all DPR tiers.
+      resolution: 2,
     });
     nl.anchor.set(0.5, 0);
     nl.y = baseR + 10;
@@ -1213,7 +1218,9 @@ export class GalaxyScene {
           : 0x556677,
         fontFamily: 'monospace',
       },
-      resolution: 3,
+      // resolution 3 was 3x-oversampling every glyph texture. 2 is the
+      // perf/quality sweet spot on mobile.
+      resolution: 2,
     });
     nameLabel.anchor.set(0.5, 0);
     nameLabel.y = effectiveR + 8;
