@@ -9,6 +9,7 @@ import type { ArenaCallbacks, MatchResult, TeamMatchResult } from '../../../game
 import { ArenaLandscapeControls } from './ArenaLandscapeControls.js';
 import { ArenaTutorial, shouldShowArenaTutorial } from './ArenaTutorial.js';
 import { enterImmersive, exitImmersive } from '../../../services/immersive.js';
+import { getDeviceTier } from '../../../utils/device-tier.js';
 
 interface SpaceArenaProps {
   onExit: () => void;
@@ -356,6 +357,20 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
       }
     : { position: 'fixed', inset: 0, zIndex: 9000, background: '#020510' };
 
+  // CSS `filter: blur(...)` on the Three.js canvas forces the GPU to
+  // composit the entire rendered scene into its own layer and run a
+  // convolution blur over it — on low-end Android this alone can cost
+  // 10ms/frame. For low tier we drop the filter; a dimming overlay div
+  // below communicates the same "dead / warping / ended" state cheaply.
+  const lowEnd = getDeviceTier() === 'low';
+  const canvasFilter = lowEnd
+    ? 'none'
+    : matchResult
+      ? 'blur(4px) brightness(0.5) saturate(0.4)'
+      : isDead
+        ? 'blur(3px) brightness(0.35) saturate(0.3)'
+        : isWarping ? 'blur(2px) brightness(1.3)' : 'none';
+
   return (
     <div style={outerStyle}>
       {/* Three.js canvas container — z-index 0 so UI stays on top */}
@@ -363,14 +378,26 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         ref={containerRef}
         style={{
           position: 'absolute', inset: 0, zIndex: 0,
-          filter: matchResult
-            ? 'blur(4px) brightness(0.5) saturate(0.4)'
-            : isDead
-              ? 'blur(3px) brightness(0.35) saturate(0.3)'
-              : isWarping ? 'blur(2px) brightness(1.3)' : 'none',
+          filter: canvasFilter,
           transition: matchResult ? 'filter 0.5s ease-out' : isDead ? 'filter 0.2s ease-out' : 'filter 0.8s ease-in',
         }}
       />
+
+      {/* Low-tier substitute for the canvas filter — plain dimming div.
+          Only applied when the expensive canvas filter is disabled. */}
+      {lowEnd && (matchResult || isDead || isWarping) && (
+        <div
+          style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
+            background: matchResult
+              ? 'rgba(0,0,0,0.55)'
+              : isDead
+                ? 'rgba(40,0,0,0.55)'
+                : /* warping */ 'rgba(0,0,20,0.25)',
+            transition: 'background 0.3s ease-out',
+          }}
+        />
+      )}
 
       {/* Death glitch overlay */}
       {isDead && (
@@ -468,15 +495,19 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
       )}
 
       {/* Edge motion blur — radial mask keeps the center sharp while the
-          outer 40% of the viewport gets a subtle backdrop-filter blur.
-          Intensity scales with the player's speed ratio so acceleration
-          reads as the corners streaking back. */}
-      {ready && speedRatio > 0.25 && (
+          outer 40% gets a static backdrop-filter blur. Previously the blur
+          amount scaled with speedRatio at 10Hz, so the browser recomputed
+          the whole backdrop composite on every tick — that was the single
+          most expensive CSS effect on low-end Android. Now:
+            - low tier: skip entirely (no compositing layer at all)
+            - mid/high: render once with a fixed 3px blur, toggled on/off
+              only when the player crosses the speed threshold (rare). */}
+      {ready && speedRatio > 0.25 && getDeviceTier() !== 'low' && (
         <div
           style={{
             position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3,
-            backdropFilter: `blur(${(speedRatio - 0.25) * 3.5}px)`,
-            WebkitBackdropFilter: `blur(${(speedRatio - 0.25) * 3.5}px)`,
+            backdropFilter: 'blur(3px)',
+            WebkitBackdropFilter: 'blur(3px)',
             // Radial mask — transparent center, opaque at corners
             maskImage: 'radial-gradient(circle at center, transparent 35%, black 85%)',
             WebkitMaskImage: 'radial-gradient(circle at center, transparent 35%, black 85%)',
