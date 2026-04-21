@@ -2060,9 +2060,38 @@ function AppInner() {
       return;
     }
 
+    // Guard against the "AuthScreen flashes between loader and game" flicker:
+    // Firebase fires onAuthStateChanged(null) synchronously at startup with
+    // the DEFAULT persistence (before our async setPersistence(indexedDB*)
+    // finishes restoring the stored user). Then it fires again (user) a few
+    // hundred ms later. Clearing `authLoading` on the first null event would
+    // briefly render <AuthScreen> (with the "You have saved progress" banner
+    // for legacy users) before the real user resolves.
+    //
+    // Strategy: debounce `authLoading=false` on null events by 800ms. Any
+    // subsequent event (including a real user) cancels the pending timer
+    // and resolves immediately. Genuinely logged-out users see an extra
+    // ~0.5s of loading screen — unnoticeable and strictly better than the
+    // flicker experience.
+    let authNullResolveTimer: ReturnType<typeof setTimeout> | null = null;
+
     const unsubscribe = onAuthChange(async (user) => {
       setFirebaseUser(user);
-      setAuthLoading(false);
+
+      if (authNullResolveTimer !== null) {
+        clearTimeout(authNullResolveTimer);
+        authNullResolveTimer = null;
+      }
+
+      if (user) {
+        setAuthLoading(false);
+      } else {
+        authNullResolveTimer = setTimeout(() => {
+          setAuthLoading(false);
+          authNullResolveTimer = null;
+        }, 800);
+      }
+
       if (user) {
         // CRITICAL: detect UID change. If a different user just signed in,
         // the previous user's progress keys are still in localStorage and
@@ -2190,7 +2219,13 @@ function AppInner() {
         setIsGuest(false);
       }
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      if (authNullResolveTimer !== null) {
+        clearTimeout(authNullResolveTimer);
+        authNullResolveTimer = null;
+      }
+    };
   }, []);
 
   // Ensure player data loaded + load 3D models + quarks balance
