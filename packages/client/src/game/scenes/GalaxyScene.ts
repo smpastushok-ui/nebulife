@@ -681,134 +681,164 @@ export class GalaxyScene {
     for (const id of this.systemNodes.keys()) this.liteSkipIds.add(id);
     if (this.homeNode) this.liteSkipIds.add(this.homeNode.system.id);
 
-    // ── Build translated positions for every lite-orb (directional remap) ──
+    // ── Build translated positions — REAL STARRY SKY ────────────────────────
     //
-    // Each zone extends OUTWARD from its attach point so zones never overlap:
-    //   - Own personal orbs: unchanged (already in screen space)
-    //   - Neighbor bushes:   rotated + scaled so the bush grows away from home
-    //   - Core cascade:      projected onto outward axis from gateway, tangent
-    //                        compressed, always pushed further from center
+    // Design intent (per user, 2026-04-22):
+    //   "It should look like a real starry sky by the position of stars, but
+    //    threads will later connect them step-by-step through research, so
+    //    the player knows which direction to move."
+    //
+    // Approach: render each lite orb at its NATURAL LY position, uniformly
+    // scaled. No structured bushes, no cascade, no fan-out. Purely amorphous
+    // cloud. The direction/progression signal comes from the threads layer
+    // (buildClusterConnectionsLayer), which is drawn separately and
+    // progressively revealed by research.
+    //
+    // Post-processing:
+    //   - Hollow out the home area so home + Ring 1 + Ring 2 stay readable
+    //   - Carve narrow radial corridors under each Ring 2 entry + core
+    //     gateway so connection threads can pass through unobstructed
+    //   - MIN_SEP pass (below) prevents star-on-star overlap
     this.translatedLitePositions.clear();
 
-    // Pre-cache neighbor homes and outward angles to avoid recomputing per orb
-    const neighborOutwardAngle = new Map<number, number>(); // ownerIndex → angle
-    for (const [ownerIndex, entry] of this.ownerEntryMap) {
-      // The "outward" direction for this neighbor's bush is simply the direction
-      // from home (0,0) to its Ring 2 entry in screen space.
-      neighborOutwardAngle.set(ownerIndex, Math.atan2(entry.y, entry.x));
+    const CLOUD_SCALE = 0.55;       // uniform LY→px scale for the cloud
+    const MIN_DIST_FROM_HOME = 240; // px — circular hole around home
+    const CORRIDOR_WIDTH = 26;      // px — half-width of wedge under each entry
+    const GATEWAY_CORRIDOR = 40;    // px — wider channel toward core gateway
+
+    // Collect unique outward unit vectors for all Ring 2 entries + gateway
+    // (used to carve radial corridors in the star cloud)
+    const corridors: Array<{ ux: number; uy: number; halfW: number }> = [];
+    const seenKeys = new Set<string>();
+    for (const entry of this.ownerEntryMap.values()) {
+      const k = `${entry.x.toFixed(1)}_${entry.y.toFixed(1)}`;
+      if (seenKeys.has(k)) continue;
+      seenKeys.add(k);
+      const m = Math.hypot(entry.x, entry.y) || 1;
+      corridors.push({ ux: entry.x / m, uy: entry.y / m, halfW: CORRIDOR_WIDTH });
+    }
+    if (this.coreGateway) {
+      const m = Math.hypot(this.coreGateway.x, this.coreGateway.y) || 1;
+      corridors.push({
+        ux: this.coreGateway.x / m,
+        uy: this.coreGateway.y / m,
+        halfW: GATEWAY_CORRIDOR,
+      });
+    }
+    // Also carve corridors along all non-gateway Ring 2 nodes directly
+    // (covers entries not mapped via ownerEntryMap pre-L16)
+    for (const [, node] of this.systemNodes) {
+      if (node.nodeType !== 'personal') continue;
+      if (node.system.ownerPlayerId !== null) continue;
+      if (node.ringIndex !== 2) continue;
+      const k = `${node.tx.toFixed(1)}_${node.ty.toFixed(1)}`;
+      if (seenKeys.has(k)) continue;
+      seenKeys.add(k);
+      const m = Math.hypot(node.tx, node.ty) || 1;
+      corridors.push({ ux: node.tx / m, uy: node.ty / m, halfW: CORRIDOR_WIDTH });
     }
 
-    // Gateway outward unit vector (used for core cascade)
-    let gwUx = 0, gwUy = 0;
-    if (this.coreGateway) {
-      const gdist = Math.hypot(this.coreGateway.x, this.coreGateway.y) || 1;
-      gwUx = this.coreGateway.x / gdist;
-      gwUy = this.coreGateway.y / gdist;
-    }
+    const inCorridor = (tx: number, ty: number): boolean => {
+      for (const c of corridors) {
+        const proj = tx * c.ux + ty * c.uy;
+        if (proj <= 0) continue;
+        const perp = Math.abs(tx * -c.uy + ty * c.ux);
+        if (perp < c.halfW) return true;
+      }
+      return false;
+    };
 
     for (const lite of this.liteSystems) {
       if (this.liteSkipIds.has(lite.id)) continue;
 
       let tx: number, ty: number;
 
+      const jRng = new SeededRNG(lite.seed ^ 0x9E3779B9);
+
       if (lite.ownerIndex === playerIndex) {
-        // ── My own personal cluster — keep position as-is ──────────────────
+        // Personal orbs — keep at natural LY position so home cluster reads
         tx = lite.position.x * PX_PER_LY;
         ty = lite.position.y * PX_PER_LY;
-
-      } else if (lite.nodeType === 'core') {
-        // ── Core cascade — project onto outward/tangent axes ────────────────
-        // Always extends away from home so it never overlaps Ring 1/2.
-        if (!this.coreGateway) continue;
-
-        // Local LY offset relative to core centroid
-        const localX = lite.position.x - coreCentRelX;
-        const localY = lite.position.y - coreCentRelY;
-
-        // Perpendicular (tangent) unit vector
-        const gvx = -gwUy, gvy = gwUx;
-
-        // Project onto outward and tangent axes
-        const distOut = (localX * gwUx + localY * gwUy) * PX_PER_LY * 0.25;
-        const distTan = (localX * gvx  + localY * gvy)  * PX_PER_LY * 0.15;
-
-        // Force outward component positive (cascade always extends away)
-        const signedOut = Math.abs(distOut);
-
-        // Per-orb deterministic jitter for organic feel
-        const cjSeed = lite.seed ^ 0xABCD1234;
-        const cjRng = new SeededRNG(cjSeed);
-        const jitterX = (cjRng.next() - 0.5) * 10;
-        const jitterY = (cjRng.next() - 0.5) * 10;
-
-        // Push 100px beyond gateway so cascade is clearly outside Ring 2
-        const CORE_PUSH = 100;
-        const coreOriginX = this.coreGateway.x + gwUx * CORE_PUSH;
-        const coreOriginY = this.coreGateway.y + gwUy * CORE_PUSH;
-
-        tx = coreOriginX + gwUx * signedOut + gvx * distTan + jitterX;
-        ty = coreOriginY + gwUy * signedOut + gvy * distTan + jitterY;
-
+        // Tiny noise to break regular grid feel
+        tx += (jRng.next() - 0.5) * 6;
+        ty += (jRng.next() - 0.5) * 6;
       } else {
-        // ── Neighbor bush — rotate local layout to grow outward ─────────────
-        const entry = this.ownerEntryMap.get(lite.ownerIndex);
-        if (!entry) continue;
+        // ── Radial-wave layout ─────────────────────────────────────────────
+        // Keep each orb's natural radius from home (LY) so research always
+        // progresses OUTWARD (no stars appearing closer than ones you've
+        // already explored). Shuffle the tangent angle by a seed so it still
+        // looks like a formless starry cloud, not a predictable polar grid.
+        const origRad = Math.hypot(lite.position.x, lite.position.y);
+        const origAng = Math.atan2(lite.position.y, lite.position.x);
 
-        // Outward direction at this entry (angle from home → entry in screen space)
-        const outAngle = neighborOutwardAngle.get(lite.ownerIndex) ?? Math.atan2(entry.y, entry.x);
-        const ux = Math.cos(outAngle), uy = Math.sin(outAngle);
-        // Perpendicular tangent axis
-        const vx = -uy, vy = ux;
+        // Tangent angular shuffle (±26°) — enough to break grid but keep
+        // same radial band.
+        const jAng = (jRng.next() - 0.5) * 0.9;
+        const angle = origAng + jAng;
 
-        // Local offset of orb relative to its neighbor's home in LY
-        const neighborHome = assignPlayerPosition(galaxySeed, lite.ownerIndex);
-        const localLYx = lite.position.x - (neighborHome.x - myPos.x);
-        const localLYy = lite.position.y - (neighborHome.y - myPos.y);
+        // Radial jitter (±12 LY-equivalent) so bands aren't razor-sharp
+        const jRad = (jRng.next() - 0.5) * 0.15; // fraction of radius
+        const radiusPx = origRad * PX_PER_LY * CLOUD_SCALE * (1 + jRad);
 
-        // Magnitude and angle of local offset in LY space
-        const localMag = Math.hypot(localLYx, localLYy);
-        const localAng = Math.atan2(localLYy, localLYx);
+        tx = Math.cos(angle) * radiusPx;
+        ty = Math.sin(angle) * radiusPx;
+      }
 
-        // Angle from neighbor's home direction (raw galaxy coords) to entry
-        // outward direction, so we can re-orient the bush.
-        const neighborDir = Math.atan2(neighborHome.y - myPos.y, neighborHome.x - myPos.x);
-        const rotDelta = outAngle - neighborDir;
-        const rotatedAng = localAng + rotDelta;
-
-        // Scale so 10 LY radius → ~90px (0.5 × PX_PER_LY ≈ 9 px/LY)
-        const BUSH_SCALE = 0.5;
-        const rx = Math.cos(rotatedAng) * localMag * PX_PER_LY * BUSH_SCALE;
-        const ry = Math.sin(rotatedAng) * localMag * PX_PER_LY * BUSH_SCALE;
-
-        // Place bush center 60px outward beyond entry so the bush doesn't
-        // overlap the Ring 2 node itself
-        const NEIGHBOR_PUSH = 60;
-        const nbCenterX = entry.x + ux * NEIGHBOR_PUSH;
-        const nbCenterY = entry.y + uy * NEIGHBOR_PUSH;
-
-        // Transform local (rx, ry) into outward-aligned space: outward bias
-        // keeps the spread mostly away from center; tangent keeps it compact.
-        const TANGENT_COMPRESS = 0.7;
-        tx = nbCenterX + ux * rx + vx * ry * TANGENT_COMPRESS;
-        ty = nbCenterY + uy * rx + vy * ry * TANGENT_COMPRESS;
-
-        // Per-orb jitter for organic feel
-        const njSeed = lite.seed ^ 0x5F3759DF;
-        const njRng = new SeededRNG(njSeed);
-        tx += (njRng.next() - 0.5) * 12;
-        ty += (njRng.next() - 0.5) * 12;
-
-        // Guard: if orb ended up inside the Ring 2 radius, push it further out
-        // along the outward axis until it's safely outside
-        const orbDist = Math.hypot(tx, ty);
-        if (orbDist < 150) {
-          const pushNeeded = 150 - orbDist + 20;
-          tx += ux * pushNeeded;
-          ty += uy * pushNeeded;
-        }
+      // Carve home hole + radial corridors (non-personal orbs only —
+      // personal cluster is expected at the center).
+      if (lite.ownerIndex !== playerIndex) {
+        if (Math.hypot(tx, ty) < MIN_DIST_FROM_HOME) continue;
+        if (inCorridor(tx, ty)) continue;
       }
 
       this.translatedLitePositions.set(lite.id, { x: tx, y: ty });
+    }
+
+    // ── Пост-обробка: розсунути близькі орби, щоб уникнути накладання ───────
+    // Detect pairs closer than MIN_SEP pixels and spread them along their
+    // connecting line. Done once globally after all positions are computed.
+    const MIN_SEP = 14;
+    const entries = Array.from(this.translatedLitePositions.entries());
+    const len = entries.length;
+    // Spatial hash grid for O(N) pairwise separation (cell size = MIN_SEP)
+    const cellSize = MIN_SEP;
+    const grid = new Map<string, number[]>();
+    const keyOf = (x: number, y: number) =>
+      `${Math.floor(x / cellSize)}_${Math.floor(y / cellSize)}`;
+    for (let i = 0; i < len; i++) {
+      const p = entries[i][1];
+      const k = keyOf(p.x, p.y);
+      const arr = grid.get(k) ?? [];
+      arr.push(i);
+      grid.set(k, arr);
+    }
+    for (let i = 0; i < len; i++) {
+      const a = entries[i][1];
+      const cx = Math.floor(a.x / cellSize);
+      const cy = Math.floor(a.y / cellSize);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const neigh = grid.get(`${cx + dx}_${cy + dy}`);
+          if (!neigh) continue;
+          for (const j of neigh) {
+            if (j <= i) continue;
+            const b = entries[j][1];
+            const ddx = b.x - a.x, ddy = b.y - a.y;
+            const d2 = ddx * ddx + ddy * ddy;
+            if (d2 < MIN_SEP * MIN_SEP && d2 > 0.01) {
+              const d = Math.sqrt(d2);
+              const push = (MIN_SEP - d) / 2;
+              const nx = ddx / d, ny = ddy / d;
+              a.x -= nx * push; a.y -= ny * push;
+              b.x += nx * push; b.y += ny * push;
+            }
+          }
+        }
+      }
+    }
+    // Write back adjusted positions
+    for (const [id, pos] of entries) {
+      this.translatedLitePositions.set(id, pos);
     }
 
     // Connections layer FIRST (drawn behind orbs) — Delaunay player edges +
