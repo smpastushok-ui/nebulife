@@ -6,6 +6,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { getDeviceTier } from '../../utils/device-tier.js';
 import type { Planet, Star, StarSystem, Moon } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import {
@@ -1312,14 +1313,22 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       scene.add(dirLight);
 
       // --- Post-processing: bloom for atmosphere glow ---
-      const composer = new EffectComposer(renderer);
-      composer.addPass(new RenderPass(scene, camera));
-      const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(container.clientWidth, container.clientHeight),
-        0.18, 0.35, 0.85,
-      );
-      composer.addPass(bloomPass);
-      composer.addPass(new OutputPass());
+      // Bloom = luminance-threshold + horizontal/vertical Gaussian blur +
+      // composite ≈ 3 extra render passes per frame. On low-end Android
+      // that's 8–15ms/frame, which alone drops us below 30fps. Skip it
+      // there — planet still looks fine without the halo.
+      const tier = getDeviceTier();
+      const useBloom = tier !== 'low';
+      const composer = useBloom ? new EffectComposer(renderer) : null;
+      if (composer) {
+        composer.addPass(new RenderPass(scene, camera));
+        const bloomPass = new UnrealBloomPass(
+          new THREE.Vector2(container.clientWidth, container.clientHeight),
+          0.18, 0.35, 0.85,
+        );
+        composer.addPass(bloomPass);
+        composer.addPass(new OutputPass());
+      }
 
       // --- Animation ---
       let lastTime = performance.now();
@@ -1428,7 +1437,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           (ss.line.material as THREE.LineBasicMaterial).opacity = ss.maxOpacity * (1 - t * 0.7);
         }
 
-        composer.render();
+        if (composer) composer.render();
+        else renderer.render(scene, camera);
       };
 
       animate();
@@ -1441,7 +1451,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h);
-        composer.setSize(w, h);
+        if (composer) composer.setSize(w, h);
       };
       window.addEventListener('resize', onResize);
 

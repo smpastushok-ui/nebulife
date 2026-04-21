@@ -21,6 +21,7 @@ import {
   TRAINING_BOT_COUNT, TRAINING_BLUE_ALLIES, TRAINING_RED_ENEMIES, TRAINING_ASTEROID_COUNT,
 } from './ArenaConstants.js';
 import { createBotBrain, updateBot } from './ArenaAI.js';
+import { getDeviceTier } from '../../utils/device-tier.js';
 
 // Pre-allocated temp vectors — ZERO allocations in hot path
 const _tempVec3 = new THREE.Vector3();
@@ -691,11 +692,19 @@ export class ArenaEngine {
     const W = this.container.clientWidth;
     const H = this.container.clientHeight;
 
+    // Tune renderer to device tier. Low-end Android has MSAA pixel-fill
+    // cost that easily drops us to 30fps — disable it + cap DPR at 1.0
+    // to halve pixel fill on 3× DPR phones. Mid tier keeps AA but still
+    // respects the MAX_PIXEL_RATIO cap. Flagships get the best visuals.
+    const tier = getDeviceTier();
+    const antialias = tier !== 'low';
+    const pixelCap = tier === 'low' ? 1.0 : MAX_PIXEL_RATIO;
+
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias,
       alpha: false,
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelCap));
     this.renderer.setSize(W, H);
     this.renderer.setClearColor(0x020510); // deep space
     this.container.appendChild(this.renderer.domElement);
