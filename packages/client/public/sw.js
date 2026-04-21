@@ -1,7 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v24: Phase A react perf — memo on nav/chat/player, ref-based countdown,
-// memoized navigableSystems + researchBlockReason
-const CACHE_NAME = 'nebulife-v24';
+// v25: Phase A5 + B2/B4 + device-tier + C2/C3/C4 + D1 (low-end perf pass)
+const CACHE_NAME = 'nebulife-v25';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
