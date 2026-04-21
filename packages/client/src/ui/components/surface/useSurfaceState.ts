@@ -381,6 +381,13 @@ export function useSurfaceState(
   const botStateRef         = useRef<BotAnimState | null>(null);
   const lastBotTsRef        = useRef<number>(0);
   const tileDiscoverCounter = useRef<number>(0);
+  // Throttle the React setState call in the bot RAF loop. The ref (used for
+  // imperative reads elsewhere) always tracks the latest 60fps position, but
+  // setBotState only fires every ~50ms = 20Hz. SVG bot animation stays
+  // visually smooth; we save ~66% of React re-renders during bot flight.
+  // Plus we always flush on state transitions (idle↔flying) so UI stays in sync.
+  const lastBotSetStateMs = useRef<number>(0);
+  const BOT_SETSTATE_INTERVAL_MS = 50;
 
   // Keep ref in sync with state for RAF closure
   useEffect(() => {
@@ -625,7 +632,17 @@ export function useSurfaceState(
         targetRow: path.length > 0 ? path[path.length - 1].row : row,
       };
       botStateRef.current = newState;
-      setBotState(newState);
+
+      // Throttle React setState: flush when state transitions (idle↔flying)
+      // OR when ≥50ms since last flush. Intermediate positions are read by
+      // consumers via botStateRef (see `botState` return below — we still
+      // expose state, just don't re-render every frame).
+      const stateChanged = prev.state !== newState.state;
+      const now = performance.now();
+      if (stateChanged || now - lastBotSetStateMs.current >= BOT_SETSTATE_INTERVAL_MS) {
+        lastBotSetStateMs.current = now;
+        setBotState(newState);
+      }
 
       // Discover new tiles when bot crosses a new cell
       if (crossedCell) {
