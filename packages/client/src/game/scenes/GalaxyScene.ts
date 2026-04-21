@@ -681,39 +681,131 @@ export class GalaxyScene {
     for (const id of this.systemNodes.keys()) this.liteSkipIds.add(id);
     if (this.homeNode) this.liteSkipIds.add(this.homeNode.system.id);
 
-    // ── Build translated positions for every lite-orb ──
+    // ── Build translated positions for every lite-orb (directional remap) ──
+    //
+    // Each zone extends OUTWARD from its attach point so zones never overlap:
+    //   - Own personal orbs: unchanged (already in screen space)
+    //   - Neighbor bushes:   rotated + scaled so the bush grows away from home
+    //   - Core cascade:      projected onto outward axis from gateway, tangent
+    //                        compressed, always pushed further from center
     this.translatedLitePositions.clear();
+
+    // Pre-cache neighbor homes and outward angles to avoid recomputing per orb
+    const neighborOutwardAngle = new Map<number, number>(); // ownerIndex → angle
+    for (const [ownerIndex, entry] of this.ownerEntryMap) {
+      // The "outward" direction for this neighbor's bush is simply the direction
+      // from home (0,0) to its Ring 2 entry in screen space.
+      neighborOutwardAngle.set(ownerIndex, Math.atan2(entry.y, entry.x));
+    }
+
+    // Gateway outward unit vector (used for core cascade)
+    let gwUx = 0, gwUy = 0;
+    if (this.coreGateway) {
+      const gdist = Math.hypot(this.coreGateway.x, this.coreGateway.y) || 1;
+      gwUx = this.coreGateway.x / gdist;
+      gwUy = this.coreGateway.y / gdist;
+    }
+
     for (const lite of this.liteSystems) {
       if (this.liteSkipIds.has(lite.id)) continue;
 
       let tx: number, ty: number;
 
-      if (lite.nodeType === 'core') {
-        // Remap: shift entire core cluster so its centroid sits at coreGateway.
-        if (!this.coreGateway) continue; // no Ring 2 yet — skip
-        const localX = lite.position.x - coreCentRelX; // LY relative to centroid
-        const localY = lite.position.y - coreCentRelY;
-        tx = this.coreGateway.x + localX * PX_PER_LY;
-        ty = this.coreGateway.y + localY * PX_PER_LY;
-      } else if (lite.ownerIndex === playerIndex) {
-        // My own personal cluster — keep position as-is (already relative to myHome)
+      if (lite.ownerIndex === playerIndex) {
+        // ── My own personal cluster — keep position as-is ──────────────────
         tx = lite.position.x * PX_PER_LY;
         ty = lite.position.y * PX_PER_LY;
-      } else {
-        // Neighbor player's system — remap onto that owner's Ring 2 entry
-        const entry = this.ownerEntryMap.get(lite.ownerIndex);
-        if (!entry) continue; // no entry assigned for this owner — skip
 
-        // lite.position is relative to myHome (LY). Neighbor's home relative to
-        // myHome = neighborHome - myPos. System's local offset from neighbor's
-        // home = lite.position - (neighborHome - myPos).
+      } else if (lite.nodeType === 'core') {
+        // ── Core cascade — project onto outward/tangent axes ────────────────
+        // Always extends away from home so it never overlaps Ring 1/2.
+        if (!this.coreGateway) continue;
+
+        // Local LY offset relative to core centroid
+        const localX = lite.position.x - coreCentRelX;
+        const localY = lite.position.y - coreCentRelY;
+
+        // Perpendicular (tangent) unit vector
+        const gvx = -gwUy, gvy = gwUx;
+
+        // Project onto outward and tangent axes
+        const distOut = (localX * gwUx + localY * gwUy) * PX_PER_LY * 0.25;
+        const distTan = (localX * gvx  + localY * gvy)  * PX_PER_LY * 0.15;
+
+        // Force outward component positive (cascade always extends away)
+        const signedOut = Math.abs(distOut);
+
+        // Per-orb deterministic jitter for organic feel
+        const cjSeed = lite.seed ^ 0xABCD1234;
+        const cjRng = new SeededRNG(cjSeed);
+        const jitterX = (cjRng.next() - 0.5) * 10;
+        const jitterY = (cjRng.next() - 0.5) * 10;
+
+        // Push 100px beyond gateway so cascade is clearly outside Ring 2
+        const CORE_PUSH = 100;
+        const coreOriginX = this.coreGateway.x + gwUx * CORE_PUSH;
+        const coreOriginY = this.coreGateway.y + gwUy * CORE_PUSH;
+
+        tx = coreOriginX + gwUx * signedOut + gvx * distTan + jitterX;
+        ty = coreOriginY + gwUy * signedOut + gvy * distTan + jitterY;
+
+      } else {
+        // ── Neighbor bush — rotate local layout to grow outward ─────────────
+        const entry = this.ownerEntryMap.get(lite.ownerIndex);
+        if (!entry) continue;
+
+        // Outward direction at this entry (angle from home → entry in screen space)
+        const outAngle = neighborOutwardAngle.get(lite.ownerIndex) ?? Math.atan2(entry.y, entry.x);
+        const ux = Math.cos(outAngle), uy = Math.sin(outAngle);
+        // Perpendicular tangent axis
+        const vx = -uy, vy = ux;
+
+        // Local offset of orb relative to its neighbor's home in LY
         const neighborHome = assignPlayerPosition(galaxySeed, lite.ownerIndex);
-        const neighborHomeRelX = neighborHome.x - myPos.x; // LY rel to myHome
-        const neighborHomeRelY = neighborHome.y - myPos.y;
-        const localX = lite.position.x - neighborHomeRelX; // LY rel to neighborHome
-        const localY = lite.position.y - neighborHomeRelY;
-        tx = entry.x + localX * PX_PER_LY;
-        ty = entry.y + localY * PX_PER_LY;
+        const localLYx = lite.position.x - (neighborHome.x - myPos.x);
+        const localLYy = lite.position.y - (neighborHome.y - myPos.y);
+
+        // Magnitude and angle of local offset in LY space
+        const localMag = Math.hypot(localLYx, localLYy);
+        const localAng = Math.atan2(localLYy, localLYx);
+
+        // Angle from neighbor's home direction (raw galaxy coords) to entry
+        // outward direction, so we can re-orient the bush.
+        const neighborDir = Math.atan2(neighborHome.y - myPos.y, neighborHome.x - myPos.x);
+        const rotDelta = outAngle - neighborDir;
+        const rotatedAng = localAng + rotDelta;
+
+        // Scale so 10 LY radius → ~90px (0.5 × PX_PER_LY ≈ 9 px/LY)
+        const BUSH_SCALE = 0.5;
+        const rx = Math.cos(rotatedAng) * localMag * PX_PER_LY * BUSH_SCALE;
+        const ry = Math.sin(rotatedAng) * localMag * PX_PER_LY * BUSH_SCALE;
+
+        // Place bush center 60px outward beyond entry so the bush doesn't
+        // overlap the Ring 2 node itself
+        const NEIGHBOR_PUSH = 60;
+        const nbCenterX = entry.x + ux * NEIGHBOR_PUSH;
+        const nbCenterY = entry.y + uy * NEIGHBOR_PUSH;
+
+        // Transform local (rx, ry) into outward-aligned space: outward bias
+        // keeps the spread mostly away from center; tangent keeps it compact.
+        const TANGENT_COMPRESS = 0.7;
+        tx = nbCenterX + ux * rx + vx * ry * TANGENT_COMPRESS;
+        ty = nbCenterY + uy * rx + vy * ry * TANGENT_COMPRESS;
+
+        // Per-orb jitter for organic feel
+        const njSeed = lite.seed ^ 0x5F3759DF;
+        const njRng = new SeededRNG(njSeed);
+        tx += (njRng.next() - 0.5) * 12;
+        ty += (njRng.next() - 0.5) * 12;
+
+        // Guard: if orb ended up inside the Ring 2 radius, push it further out
+        // along the outward axis until it's safely outside
+        const orbDist = Math.hypot(tx, ty);
+        if (orbDist < 150) {
+          const pushNeeded = 150 - orbDist + 20;
+          tx += ux * pushNeeded;
+          ty += uy * pushNeeded;
+        }
       }
 
       this.translatedLitePositions.set(lite.id, { x: tx, y: ty });
