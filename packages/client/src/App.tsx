@@ -4463,10 +4463,19 @@ function AppInner() {
 
   // ── System nav header (prev/next navigable systems) ──────────────────
   // All systems navigable — unresearched ones shown blurred via overlay.
-  const navigableSystems: StarSystem[] =
-    state.scene === 'system' && engineRef.current
-      ? engineRef.current.getAllSystems()
-      : [];
+  // Wrapped in useMemo so we don't rebuild the (500–1500-element) array
+  // on every unrelated App re-render. `state.scene` is stable across most
+  // ticks; when scene changes the engine is already in a new state.
+  const navigableSystems: StarSystem[] = useMemo(
+    () =>
+      state.scene === 'system' && engineRef.current
+        ? engineRef.current.getAllSystems()
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- engineRef.current
+    //   is a ref; we intentionally take it at render time. Scene transitions
+    //   force this to recompute because state.scene is in the dep list.
+    [state.scene],
+  );
 
   const currentNavIndex = state.selectedSystem
     ? navigableSystems.findIndex((s) => s.id === state.selectedSystem!.id)
@@ -4517,6 +4526,23 @@ function AppInner() {
       showPlanetInfo: false,
     }));
   }, [state.selectedSystem]);
+
+  // Memoized reason why research is blocked for the currently-open radial
+  // menu system. Previously this was an inline IIFE in JSX that re-ran on
+  // every App render (including every 500ms research tick) and called
+  // engine.getAllSystems() + isRingFullyResearched over all 500+ systems.
+  const radialResearchBlockReason = useMemo<string | null>(() => {
+    if (!radialSystem) return null;
+    if (researchState.slots.length === 0) return t('errors.noObservatories');
+    if (findFreeSlot(researchState) < 0) return t('errors.allSlotsOccupied');
+    if (radialSystem.ringIndex > 1) {
+      const allSys = engineRef.current?.getAllSystems() ?? [];
+      if (!isRingFullyResearched(researchState, allSys, radialSystem.ringIndex - 1)) {
+        return t('research.panel_ring_locked').replace('{ring}', String(radialSystem.ringIndex - 1));
+      }
+    }
+    return null;
+  }, [radialSystem, researchState, t]);
 
   // ── System nav in exosphere (only fully researched systems) ──────────
   const fullyResearchedSystems = useMemo(() => {
@@ -5241,16 +5267,7 @@ function AppInner() {
           // NEVER pass researchProgress to RadialMenu — the bottom gold chip
           // would only duplicate the same value.
           researchProgress={undefined}
-          researchBlockReason={(() => {
-            if (researchState.slots.length === 0) return t('errors.noObservatories');
-            if (findFreeSlot(researchState) < 0) return t('errors.allSlotsOccupied');
-            if (radialSystem.ringIndex > 1) {
-              const allSys = engineRef.current?.getAllSystems() ?? [];
-              if (!isRingFullyResearched(researchState, allSys, radialSystem.ringIndex - 1))
-                return t('research.panel_ring_locked').replace('{ring}', String(radialSystem.ringIndex - 1));
-            }
-            return null;
-          })()}
+          researchBlockReason={radialResearchBlockReason}
           onClose={handleCloseSystemMenu}
           onEnterSystem={handleSystemMenuEnter}
           onObjectsList={handleObjectsList}
