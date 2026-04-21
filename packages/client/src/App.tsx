@@ -2074,8 +2074,25 @@ function AppInner() {
     // ~0.5s of loading screen — unnoticeable and strictly better than the
     // flicker experience.
     let authNullResolveTimer: ReturnType<typeof setTimeout> | null = null;
+    // Auth event version: Firebase can fire `user → null → user` quickly.
+    // The async callback for event A (user) may still be awaiting its DB
+    // register call when event B (null) fires, which spawns a parallel
+    // invocation. If A's post-await writes (playerId.current = user.uid,
+    // setQuarks, etc) run AFTER B's else-branch (playerId.current = ''),
+    // we end up in an inconsistent state: firebaseUser=null but
+    // playerId.current='abc' — the UI then shows AuthScreen AND the game
+    // HUD simultaneously (observed in APK as a rapid flicker between
+    // "saved progress" AuthScreen and the game body).
+    //
+    // Fix: stamp each invocation with a monotonic version. Any ref/state
+    // mutation that happens AFTER an await verifies it's still the latest
+    // event; if a newer event arrived, the stale invocation bails out.
+    let authEventSeq = 0;
 
     const unsubscribe = onAuthChange(async (user) => {
+      const myVersion = ++authEventSeq;
+      const isLatest = () => myVersion === authEventSeq;
+
       setFirebaseUser(user);
 
       if (authNullResolveTimer !== null) {
@@ -2154,6 +2171,10 @@ function AppInner() {
             });
             if (res.ok) {
               const player = await res.json();
+              // Stale-invocation guard: between awaiting the fetch and now,
+              // a newer auth event (null or different user) may have fired.
+              // If so, bail out before stomping newer state with our data.
+              if (!isLatest()) return;
               playerId.current = player.id; // Use DB id (may differ from UID for migrated)
               setQuarks(player.quarks ?? 0);
               if (player.global_index != null) globalPlayerIndexRef.current = player.global_index;
@@ -2214,6 +2235,11 @@ function AppInner() {
           console.error('[Auth] Failed to register player after 3 attempts');
         }
       } else {
+        // Same stale-invocation guard as in the user branch. If a newer
+        // `user` event arrived after this `null` event started processing
+        // (possible on rapid null→user Firebase emissions), skip the reset
+        // so we don't blow away the newer event's playerId.current.
+        if (!isLatest()) return;
         playerId.current = '';
         setNeedsCallsign(false);
         setIsGuest(false);
