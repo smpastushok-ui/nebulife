@@ -1,6 +1,7 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v23: vite build-time env guard + .env.example + dev loud firebase warning
-const CACHE_NAME = 'nebulife-v23';
+// v24: Phase A react perf — memo on nav/chat/player, ref-based countdown,
+// memoized navigableSystems + researchBlockReason
+const CACHE_NAME = 'nebulife-v24';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
