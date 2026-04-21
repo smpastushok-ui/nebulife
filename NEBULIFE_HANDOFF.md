@@ -96,8 +96,11 @@ cd packages/client/android
 
 ### 3.4 Version bump rule
 - **Кожен upload в Play Console** = новий `versionCode`
-- Поточно: `versionCode 141`, `versionName "1.0.141"`
-- Наступний: бампнути до 142 в `packages/client/android/app/build.gradle`
+- Поточно: `versionCode 142`, `versionName "1.0.142"`
+- Наступний: бампнути до 143 в `packages/client/android/app/build.gradle`
+- **Правило:** бампати ДО запуску `./gradlew bundleRelease`, інакше Play відкидає як дублікат.
+  Якщо ти побачив "Version code X has already been used" — бампни ще раз,
+  rebuild, upload.
 
 ### 3.5 Deployment
 - Push ТІЛЬКИ в `main` → Vercel auto-deploy
