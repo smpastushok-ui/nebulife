@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatShort } from '../../utils/formatNumber.js';
+import { LiveCountdown } from './LiveCountdown.js';
 
 // ---------------------------------------------------------------------------
 // ResourceDisplay -- two HUD elements:
@@ -27,10 +28,18 @@ interface ResourceDisplayProps {
   isotopes?: number;
   water?: number;
   onWaterClick?: () => void;
-  /** Countdown timer text (shown when clock is visible) */
-  countdownText?: string;
-  /** Whether countdown is in urgent mode */
-  countdownUrgent?: boolean;
+  /**
+   * Doomsday clock params. When all four are non-null AND `showCountdown`
+   * is true, we render a `<LiveCountdown>` that self-updates via ref — no
+   * React re-render on every game-second tick.
+   */
+  showCountdown?: boolean;
+  gameStartedAt?: number | null;
+  timeMultiplier?: number;
+  accelAt?: number | null;
+  gameTimeAtAccel?: number | null;
+  /** Predicate that returns true to pause the countdown tick (e.g. when surface scene is open). */
+  isCountdownPaused?: () => boolean;
   /** Callback when timer is clicked (e.g. show evacuation) */
   onTimerClick?: () => void;
   /** Observatory slots: how many are currently active */
@@ -168,7 +177,8 @@ export function ResourceDisplay({
   onObservatoriesClick, onResearchDataClick,
   onMineralsClick, onVolatilesClick, onIsotopesClick, onQuarksClick, onWaterClick,
   minerals = 0, volatiles = 0, isotopes = 0, water = 0,
-  countdownText, countdownUrgent = false, onTimerClick,
+  showCountdown = false, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel,
+  isCountdownPaused, onTimerClick,
   observatoryUsed = 0, observatoryTotal = 0,
   highlightResearchData = false,
 }: ResourceDisplayProps) {
@@ -195,8 +205,16 @@ export function ResourceDisplay({
           50% { box-shadow: 0 0 12px rgba(204,68,68,0.6); }
         }
       `}</style>
-      {/* Timer -- above TERMINAL button (bottom bar) */}
-      {countdownText && (
+      {/* Timer -- above TERMINAL button (bottom bar).
+          LiveCountdown self-updates via ref at 24Hz without re-rendering
+          React. The .countdown-urgent CSS class (defined in the <style> tag
+          above) hooks the pulse animation when game time < 2h remains. */}
+      <style>{`
+        .countdown-urgent {
+          animation: cmdbar-terminal-pulse 0.8s infinite;
+        }
+      `}</style>
+      {showCountdown && gameStartedAt != null && timeMultiplier != null && (
         <div
           style={{
             ...panelStyle,
@@ -211,16 +229,14 @@ export function ResourceDisplay({
           onMouseEnter={() => setHoverTimer(true)}
           onMouseLeave={() => setHoverTimer(false)}
         >
-          <span
-            style={{
-              color: '#cc4444',
-              fontWeight: 'bold',
-              letterSpacing: 1,
-              animation: countdownUrgent ? 'cmdbar-terminal-pulse 0.8s infinite' : undefined,
-            }}
-          >
-            {countdownText}
-          </span>
+          <LiveCountdown
+            gameStartedAt={gameStartedAt}
+            timeMultiplier={timeMultiplier}
+            accelAt={accelAt ?? null}
+            gameTimeAtAccel={gameTimeAtAccel ?? 0}
+            isPaused={isCountdownPaused}
+            style={{ color: '#cc4444', fontWeight: 'bold', letterSpacing: 1 }}
+          />
         </div>
       )}
 

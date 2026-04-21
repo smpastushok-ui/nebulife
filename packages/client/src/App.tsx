@@ -67,7 +67,6 @@ import {
   calculateImpactTime,
   remainingTimeFormatted,
   remainingGameSeconds,
-  formatGameTime,
   gameSecondsElapsed,
   BASE_TIME_MULTIPLIER,
   GAME_TOTAL_SECONDS,
@@ -691,8 +690,8 @@ function AppInner() {
     return 0;
   });
 
-  const [countdownText, setCountdownText] = useState('');
-  const [countdownUrgent, setCountdownUrgent] = useState(false);
+  // Countdown text + urgent flag are no longer React state — <LiveCountdown>
+  // inside <ResourceDisplay> self-updates the DOM via ref.
 
   // Clock appearance state machine
   type ClockPhase = 'hidden' | 'syncing' | 'glitch' | 'visible';
@@ -722,26 +721,11 @@ function AppInner() {
     return 'idle';
   });
 
-  // Game-time tick — update every ~42ms for smooth game-second display
-  // Paused during evacuation cutscenes (evacuationPhase !== 'idle')
-  useEffect(() => {
-    if (!isExodusPhase || clockPhase !== 'visible' || gameStartedAt === null || evacuationPhase !== 'idle') return;
-    const startedAt = gameStartedAt; // narrowed to number
-    const tick = () => {
-      // PERF: Skip countdown when surface is open (saves 24 calls/sec)
-      if (surfaceTargetRef.current) return;
-      const gameSecs = remainingGameSeconds(
-        startedAt, Date.now(), timeMultiplier, accelAt, gameTimeAtAccel,
-      );
-      const t = formatGameTime(gameSecs);
-      setCountdownText(t.text);
-      setCountdownUrgent(t.totalGameSeconds < 7200);
-    };
-    tick();
-    // 42ms interval = ~24 ticks per real second, matching game-second frequency
-    const id = setInterval(tick, 42);
-    return () => clearInterval(id);
-  }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, evacuationPhase]);
+  // Doomsday-clock ticking is now handled by <LiveCountdown> inside
+  // ResourceDisplay — it self-updates via ref at 24Hz without re-rendering
+  // any React component. App used to fire 24 setState calls/sec here,
+  // cascading into a full ~6000-line App re-render; that was the single
+  // biggest React-side hotspot on low-end Android.
 
   // Timer expired — force evacuation if no target found yet
   // (the actual useEffect is placed after homeInfo declaration below)
@@ -1627,8 +1611,8 @@ function AppInner() {
     setForcedEvacuation(false);
     setEvacuationPromptDismissed(false);
     setGameStartedAt(null);
-    setCountdownText('');
-    setCountdownUrgent(false);
+    // Countdown text is no longer React state (see LiveCountdown); when
+    // gameStartedAt becomes null the LiveCountdown unmounts, clearing the DOM.
     timerExpiredHandledRef.current = false;
     // Colony + research + progression state (all auto-persisted)
     setColonyResources({ minerals: 0, volatiles: 0, isotopes: 150, water: 0 });
@@ -4807,8 +4791,12 @@ function AppInner() {
         onIsotopesClick={() => setShowResourceModal('isotopes')}
         onWaterClick={() => setShowResourceModal('water')}
         onQuarksClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
-        countdownText={isExodusPhase && clockPhase === 'visible' && countdownText && evacuationPhase === 'idle' ? countdownText : undefined}
-        countdownUrgent={countdownUrgent}
+        showCountdown={isExodusPhase && clockPhase === 'visible' && evacuationPhase === 'idle'}
+        gameStartedAt={gameStartedAt}
+        timeMultiplier={timeMultiplier}
+        accelAt={accelAt}
+        gameTimeAtAccel={gameTimeAtAccel}
+        isCountdownPaused={() => surfaceTargetRef.current !== null}
         onTimerClick={evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed ? () => setEvacuationPromptDismissed(false) : undefined}
         observatoryUsed={researchState.slots.filter(s => s.systemId !== null).length}
         observatoryTotal={researchState.slots.length}
