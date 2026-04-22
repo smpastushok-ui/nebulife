@@ -242,6 +242,12 @@ export class GalaxyScene {
   private liteSystems: LiteSystem[] = [];
   /** IDs of lite orbs to skip (because a real SystemNode already covers them) */
   private liteSkipIds = new Set<string>();
+  /**
+   * Translated screen positions for lite-orbs after capillary remap.
+   * Key = lite.id. Orbs without an entry are skipped (no entry point available).
+   * Populated by buildLiteOrbsLayer, consumed by redrawLiteOrbs + handleLiteOrbTap.
+   */
+  private translatedLitePositions = new Map<string, { x: number; y: number }>();
   /** Animation time accumulator for orb pulse (seconds) */
   private liteAnimT = 0;
   /** Screen size for viewport culling (set by GameEngine, defaults to a generous box) */
@@ -544,14 +550,296 @@ export class GalaxyScene {
 
   /* ── Lite orbs layer (Phase 1: full 1,450 cluster systems) ────── */
 
+  /**
+   * Ensure ownerEntryMap is populated for all Delaunay-neighbor players in this
+   * cluster, even when the full neighborSystems list is not yet available (pre-L16).
+   *
+   * Uses the same angle-matching logic as the neighborSystems block in the
+   * constructor: collect Ring 2 entries, run Delaunay over all 50 cluster player
+   * positions, find the natural neighbors of this player, and assign each to the
+   * closest Ring 2 entry by direction.
+   *
+   * Called from buildLiteOrbsLayer so lite-orbs can be remapped onto the capillary
+   * tree even before the player unlocks neighbor visibility.
+   */
+  private ensureOwnerEntryMap(galaxySeed: number, groupIndex: number, playerIndex: number): void {
+    // If already populated (constructor neighbor loop ran), nothing to do.
+    if (this.ownerEntryMap.size > 0) return;
+
+    // Collect Ring 2 screen positions (same source as constructor neighbor block)
+    const ring2Entries: Array<{ angle: number; x: number; y: number }> = [];
+    for (const [, node] of this.systemNodes) {
+      if (node.nodeType !== 'personal') continue;
+      if (node.system.ownerPlayerId !== null) continue;
+      if (node.ringIndex !== 2) continue;
+      ring2Entries.push({
+        angle: Math.atan2(node.ty, node.tx),
+        x: node.tx,
+        y: node.ty,
+      });
+    }
+    ring2Entries.sort((a, b) => a.angle - b.angle);
+    if (ring2Entries.length === 0) return;
+
+    // Build positions for all 50 players in this cluster (global indices)
+    const PLAYERS_PER_GROUP = 50;
+    const base = groupIndex * PLAYERS_PER_GROUP;
+    const positions: Array<{ x: number; y: number; globalIdx: number }> = [];
+    for (let slot = 0; slot < PLAYERS_PER_GROUP; slot++) {
+      const globalIdx = base + slot;
+      const pos = assignPlayerPosition(galaxySeed, globalIdx);
+      positions.push({ x: pos.x, y: pos.y, globalIdx });
+    }
+
+    // Delaunay to find natural neighbors of this player (slot in cluster)
+    const mySlot = playerIndex - base;
+    const points = positions.map(p => ({ x: p.x, y: p.y }));
+    const edges = delaunayEdges(points);
+    const neighborSlots = new Set<number>();
+    for (const [a, b] of edges) {
+      if (a === mySlot) neighborSlots.add(b);
+      if (b === mySlot) neighborSlots.add(a);
+    }
+
+    // Reserve the last Ring 2 entry for the core gateway — neighbors get first 11
+    const availableEntries = ring2Entries.slice(0, Math.max(0, ring2Entries.length - 1));
+
+    // My home position (used for direction computation)
+    const myPos = assignPlayerPosition(galaxySeed, playerIndex);
+
+    // Assign each neighbor to the Ring 2 entry with closest angle to actual direction
+    const takenEntries = new Set<number>();
+    const neighborGlobalIdxs = Array.from(neighborSlots)
+      .map(slot => positions[slot].globalIdx)
+      .sort((a, b) => a - b);
+
+    for (const ownerIndex of neighborGlobalIdxs) {
+      const neighborHome = assignPlayerPosition(galaxySeed, ownerIndex);
+      const dir = Math.atan2(neighborHome.y - myPos.y, neighborHome.x - myPos.x);
+      let bestIdx = -1, bestDiff = Infinity;
+      for (let i = 0; i < availableEntries.length; i++) {
+        if (takenEntries.has(i)) continue;
+        let diff = Math.abs(availableEntries[i].angle - dir);
+        if (diff > Math.PI) diff = Math.PI * 2 - diff;
+        if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+      }
+      if (bestIdx >= 0) {
+        takenEntries.add(bestIdx);
+        this.ownerEntryMap.set(ownerIndex, { x: availableEntries[bestIdx].x, y: availableEntries[bestIdx].y });
+      }
+    }
+  }
+
+  /**
+   * Ensure coreGateway is set to the highest-angle Ring 2 system even when
+   * coreSystems are not yet available. Called from buildLiteOrbsLayer.
+   */
+  private ensureCoreGateway(): void {
+    if (this.coreGateway !== null) return;
+    const ring2Nodes: Array<{ angle: number; x: number; y: number }> = [];
+    for (const [, node] of this.systemNodes) {
+      if (node.nodeType !== 'personal' || node.system.ownerPlayerId !== null) continue;
+      if (node.ringIndex !== 2) continue;
+      ring2Nodes.push({ angle: Math.atan2(node.ty, node.tx), x: node.tx, y: node.ty });
+    }
+    ring2Nodes.sort((a, b) => a.angle - b.angle);
+    if (ring2Nodes.length > 0) {
+      const gw = ring2Nodes[ring2Nodes.length - 1];
+      this.coreGateway = { x: gw.x, y: gw.y };
+    }
+  }
+
   private buildLiteOrbsLayer(galaxySeed: number, groupIndex: number, playerIndex: number) {
     // Generate lite metadata for all 1,450 cluster systems
     this.liteSystems = generateLiteClusterSystems(galaxySeed, groupIndex, playerIndex, 50);
 
-    // Mark IDs covered by real SystemNodes so we don't render orbs under them
+    // Ensure ownerEntryMap and coreGateway are populated even pre-L16 so the
+    // capillary remap below works regardless of whether neighbor/core unlock has
+    // happened yet. The constructor already calls these if neighborSystems/coreSystems
+    // are present; these helpers are no-ops in that case.
+    this.ensureOwnerEntryMap(galaxySeed, groupIndex, playerIndex);
+    this.ensureCoreGateway();
+
+    // My home galaxy position (LY) — used to convert lite positions back to
+    // absolute LY coords when computing per-neighbor local offsets.
+    const myPos = assignPlayerPosition(galaxySeed, playerIndex);
+
+    // ── Compute core centroid (in lite.position space, i.e. relative to myHome) ──
+    // All core lite-orbs will be shifted so their centroid lands on coreGateway.
+    let coreCentRelX = 0, coreCentRelY = 0, coreCnt = 0;
+    for (const lite of this.liteSystems) {
+      if (lite.nodeType !== 'core') continue;
+      coreCentRelX += lite.position.x;
+      coreCentRelY += lite.position.y;
+      coreCnt++;
+    }
+    if (coreCnt > 0) { coreCentRelX /= coreCnt; coreCentRelY /= coreCnt; }
+
+    // Mark IDs covered by real SystemNodes so we don't render orbs under them.
+    // Must happen BEFORE building translatedLitePositions so skip-checks work.
     this.liteSkipIds.clear();
     for (const id of this.systemNodes.keys()) this.liteSkipIds.add(id);
     if (this.homeNode) this.liteSkipIds.add(this.homeNode.system.id);
+
+    // ── Build translated positions — REAL STARRY SKY ────────────────────────
+    //
+    // Design intent (per user, 2026-04-22):
+    //   "It should look like a real starry sky by the position of stars, but
+    //    threads will later connect them step-by-step through research, so
+    //    the player knows which direction to move."
+    //
+    // Approach: render each lite orb at its NATURAL LY position, uniformly
+    // scaled. No structured bushes, no cascade, no fan-out. Purely amorphous
+    // cloud. The direction/progression signal comes from the threads layer
+    // (buildClusterConnectionsLayer), which is drawn separately and
+    // progressively revealed by research.
+    //
+    // Post-processing:
+    //   - Hollow out the home area so home + Ring 1 + Ring 2 stay readable
+    //   - Carve narrow radial corridors under each Ring 2 entry + core
+    //     gateway so connection threads can pass through unobstructed
+    //   - MIN_SEP pass (below) prevents star-on-star overlap
+    this.translatedLitePositions.clear();
+
+    const CLOUD_SCALE = 0.55;       // uniform LY→px scale for the cloud
+    const MIN_DIST_FROM_HOME = 240; // px — circular hole around home
+    const CORRIDOR_WIDTH = 26;      // px — half-width of wedge under each entry
+    const GATEWAY_CORRIDOR = 40;    // px — wider channel toward core gateway
+
+    // Collect unique outward unit vectors for all Ring 2 entries + gateway
+    // (used to carve radial corridors in the star cloud)
+    const corridors: Array<{ ux: number; uy: number; halfW: number }> = [];
+    const seenKeys = new Set<string>();
+    for (const entry of this.ownerEntryMap.values()) {
+      const k = `${entry.x.toFixed(1)}_${entry.y.toFixed(1)}`;
+      if (seenKeys.has(k)) continue;
+      seenKeys.add(k);
+      const m = Math.hypot(entry.x, entry.y) || 1;
+      corridors.push({ ux: entry.x / m, uy: entry.y / m, halfW: CORRIDOR_WIDTH });
+    }
+    if (this.coreGateway) {
+      const m = Math.hypot(this.coreGateway.x, this.coreGateway.y) || 1;
+      corridors.push({
+        ux: this.coreGateway.x / m,
+        uy: this.coreGateway.y / m,
+        halfW: GATEWAY_CORRIDOR,
+      });
+    }
+    // Also carve corridors along all non-gateway Ring 2 nodes directly
+    // (covers entries not mapped via ownerEntryMap pre-L16)
+    for (const [, node] of this.systemNodes) {
+      if (node.nodeType !== 'personal') continue;
+      if (node.system.ownerPlayerId !== null) continue;
+      if (node.ringIndex !== 2) continue;
+      const k = `${node.tx.toFixed(1)}_${node.ty.toFixed(1)}`;
+      if (seenKeys.has(k)) continue;
+      seenKeys.add(k);
+      const m = Math.hypot(node.tx, node.ty) || 1;
+      corridors.push({ ux: node.tx / m, uy: node.ty / m, halfW: CORRIDOR_WIDTH });
+    }
+
+    const inCorridor = (tx: number, ty: number): boolean => {
+      for (const c of corridors) {
+        const proj = tx * c.ux + ty * c.uy;
+        if (proj <= 0) continue;
+        const perp = Math.abs(tx * -c.uy + ty * c.ux);
+        if (perp < c.halfW) return true;
+      }
+      return false;
+    };
+
+    for (const lite of this.liteSystems) {
+      if (this.liteSkipIds.has(lite.id)) continue;
+
+      let tx: number, ty: number;
+
+      const jRng = new SeededRNG(lite.seed ^ 0x9E3779B9);
+
+      if (lite.ownerIndex === playerIndex) {
+        // Personal orbs — keep at natural LY position so home cluster reads
+        tx = lite.position.x * PX_PER_LY;
+        ty = lite.position.y * PX_PER_LY;
+        // Tiny noise to break regular grid feel
+        tx += (jRng.next() - 0.5) * 6;
+        ty += (jRng.next() - 0.5) * 6;
+      } else {
+        // ── Radial-wave layout ─────────────────────────────────────────────
+        // Keep each orb's natural radius from home (LY) so research always
+        // progresses OUTWARD (no stars appearing closer than ones you've
+        // already explored). Shuffle the tangent angle by a seed so it still
+        // looks like a formless starry cloud, not a predictable polar grid.
+        const origRad = Math.hypot(lite.position.x, lite.position.y);
+        const origAng = Math.atan2(lite.position.y, lite.position.x);
+
+        // Tangent angular shuffle (±26°) — enough to break grid but keep
+        // same radial band.
+        const jAng = (jRng.next() - 0.5) * 0.9;
+        const angle = origAng + jAng;
+
+        // Radial jitter (±12 LY-equivalent) so bands aren't razor-sharp
+        const jRad = (jRng.next() - 0.5) * 0.15; // fraction of radius
+        const radiusPx = origRad * PX_PER_LY * CLOUD_SCALE * (1 + jRad);
+
+        tx = Math.cos(angle) * radiusPx;
+        ty = Math.sin(angle) * radiusPx;
+      }
+
+      // Carve home hole + radial corridors (non-personal orbs only —
+      // personal cluster is expected at the center).
+      if (lite.ownerIndex !== playerIndex) {
+        if (Math.hypot(tx, ty) < MIN_DIST_FROM_HOME) continue;
+        if (inCorridor(tx, ty)) continue;
+      }
+
+      this.translatedLitePositions.set(lite.id, { x: tx, y: ty });
+    }
+
+    // ── Пост-обробка: розсунути близькі орби, щоб уникнути накладання ───────
+    // Detect pairs closer than MIN_SEP pixels and spread them along their
+    // connecting line. Done once globally after all positions are computed.
+    const MIN_SEP = 14;
+    const entries = Array.from(this.translatedLitePositions.entries());
+    const len = entries.length;
+    // Spatial hash grid for O(N) pairwise separation (cell size = MIN_SEP)
+    const cellSize = MIN_SEP;
+    const grid = new Map<string, number[]>();
+    const keyOf = (x: number, y: number) =>
+      `${Math.floor(x / cellSize)}_${Math.floor(y / cellSize)}`;
+    for (let i = 0; i < len; i++) {
+      const p = entries[i][1];
+      const k = keyOf(p.x, p.y);
+      const arr = grid.get(k) ?? [];
+      arr.push(i);
+      grid.set(k, arr);
+    }
+    for (let i = 0; i < len; i++) {
+      const a = entries[i][1];
+      const cx = Math.floor(a.x / cellSize);
+      const cy = Math.floor(a.y / cellSize);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const neigh = grid.get(`${cx + dx}_${cy + dy}`);
+          if (!neigh) continue;
+          for (const j of neigh) {
+            if (j <= i) continue;
+            const b = entries[j][1];
+            const ddx = b.x - a.x, ddy = b.y - a.y;
+            const d2 = ddx * ddx + ddy * ddy;
+            if (d2 < MIN_SEP * MIN_SEP && d2 > 0.01) {
+              const d = Math.sqrt(d2);
+              const push = (MIN_SEP - d) / 2;
+              const nx = ddx / d, ny = ddy / d;
+              a.x -= nx * push; a.y -= ny * push;
+              b.x += nx * push; b.y += ny * push;
+            }
+          }
+        }
+      }
+    }
+    // Write back adjusted positions
+    for (const [id, pos] of entries) {
+      this.translatedLitePositions.set(id, pos);
+    }
 
     // Connections layer FIRST (drawn behind orbs) — Delaunay player edges +
     // K=4 core mesh + player→core links. Mirrors the 3D UniverseEngine
@@ -586,10 +874,11 @@ export class GalaxyScene {
     let closestDist2 = 24 * 24; // tap radius in world units (matches orb size)
     for (const lite of this.liteSystems) {
       if (this.liteSkipIds.has(lite.id)) continue;
-      const x = lite.position.x * PX_PER_LY;
-      const y = lite.position.y * PX_PER_LY;
-      const dx = x - worldX;
-      const dy = y - worldY;
+      // Use capillary-remapped position for hit-testing
+      const pos = this.translatedLitePositions.get(lite.id);
+      if (!pos) continue;
+      const dx = pos.x - worldX;
+      const dy = pos.y - worldY;
       const d2 = dx * dx + dy * dy;
       if (d2 < closestDist2) {
         closestDist2 = d2;
@@ -668,8 +957,11 @@ export class GalaxyScene {
     for (const lite of this.liteSystems) {
       if (this.liteSkipIds.has(lite.id)) continue;
 
-      const x = lite.position.x * PX_PER_LY;
-      const y = lite.position.y * PX_PER_LY;
+      // Use capillary-remapped position; orbs without a mapping are skipped
+      const pos = this.translatedLitePositions.get(lite.id);
+      if (!pos) continue;
+      const x = pos.x;
+      const y = pos.y;
       // Skip orbs outside viewport (with margin)
       if (x < minX || x > maxX || y < minY || y > maxY) continue;
 
