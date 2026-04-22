@@ -248,18 +248,6 @@ export class GalaxyScene {
    * Populated by buildLiteOrbsLayer, consumed by redrawLiteOrbs + handleLiteOrbTap.
    */
   private translatedLitePositions = new Map<string, { x: number; y: number }>();
-  /**
-   * Per-entry MST groups for cluster thread drawing. Each group is rooted at a
-   * Ring 2 entry (or the core gateway) and contains the minimum-spanning-tree
-   * edges that connect every lite-orb assigned to that entry. Consumed by
-   * buildClusterConnectionsLayer which gates rendering by research state.
-   */
-  private clusterMstGroups: Array<{
-    rootSystemId: string | null; // Ring 2 system.id, or null for core gateway
-    rootX: number;
-    rootY: number;
-    edges: Array<{ ax: number; ay: number; bx: number; by: number }>;
-  }> = [];
   /** Animation time accumulator for orb pulse (seconds) */
   private liteAnimT = 0;
   /** Screen size for viewport culling (set by GameEngine, defaults to a generous box) */
@@ -853,96 +841,6 @@ export class GalaxyScene {
       this.translatedLitePositions.set(id, pos);
     }
 
-    // ── Build per-entry MST groups for thread drawing ──────────────────────
-    // Each Ring 2 entry (11 neighbor + 1 core gateway) owns a group of the
-    // nearest lite-orbs. Within each group we run Prim's minimum spanning
-    // tree rooted at the entry so every orb is reached by a unique thread
-    // path (no disconnected stars). Edges stored for conditional rendering
-    // in buildClusterConnectionsLayer (gated by research state).
-    this.clusterMstGroups = [];
-
-    // Collect root nodes: every Ring 2 system in my cluster + gateway
-    const mstRoots: Array<{ rootSystemId: string | null; x: number; y: number }> = [];
-    for (const [, node] of this.systemNodes) {
-      if (node.nodeType !== 'personal') continue;
-      if (node.system.ownerPlayerId !== null) continue;
-      if (node.ringIndex !== 2) continue;
-      mstRoots.push({ rootSystemId: node.system.id, x: node.tx, y: node.ty });
-    }
-    if (this.coreGateway) {
-      // Gateway is one of the Ring 2 entries — find which by exact match and
-      // dedupe so we don't create two groups for the same screen point.
-      const gx = this.coreGateway.x, gy = this.coreGateway.y;
-      const existing = mstRoots.find(r => Math.hypot(r.x - gx, r.y - gy) < 0.5);
-      if (!existing) {
-        mstRoots.push({ rootSystemId: null, x: gx, y: gy });
-      }
-    }
-
-    if (mstRoots.length > 0) {
-      // Gather placed lite positions as plain array once
-      const placedPositions: Array<{ x: number; y: number }> = [];
-      for (const [, p] of this.translatedLitePositions) placedPositions.push(p);
-
-      // Assign each lite-orb to its nearest root (by Euclidean distance)
-      const groupMembers: Array<Array<{ x: number; y: number }>> = mstRoots.map(() => []);
-      for (const p of placedPositions) {
-        let bestI = 0, bestD2 = Infinity;
-        for (let i = 0; i < mstRoots.length; i++) {
-          const dx = p.x - mstRoots[i].x, dy = p.y - mstRoots[i].y;
-          const d2 = dx * dx + dy * dy;
-          if (d2 < bestD2) { bestD2 = d2; bestI = i; }
-        }
-        groupMembers[bestI].push(p);
-      }
-
-      // Prim's MST per group — root is the entry itself, so every orb
-      // transitively connects back to it (and through it, via the existing
-      // home→Ring1→Ring2 web, back to home).
-      for (let gi = 0; gi < mstRoots.length; gi++) {
-        const root = mstRoots[gi];
-        const members = groupMembers[gi];
-        if (members.length === 0) {
-          this.clusterMstGroups.push({
-            rootSystemId: root.rootSystemId,
-            rootX: root.x,
-            rootY: root.y,
-            edges: [],
-          });
-          continue;
-        }
-
-        const inTree: Array<{ x: number; y: number }> = [{ x: root.x, y: root.y }];
-        const remaining = members.slice();
-        const edges: Array<{ ax: number; ay: number; bx: number; by: number }> = [];
-
-        while (remaining.length > 0) {
-          // Find the pair (inTree[i], remaining[j]) with minimum distance
-          let bestI = 0, bestJ = 0, bestD2 = Infinity;
-          for (let i = 0; i < inTree.length; i++) {
-            for (let j = 0; j < remaining.length; j++) {
-              const dx = inTree[i].x - remaining[j].x;
-              const dy = inTree[i].y - remaining[j].y;
-              const d2 = dx * dx + dy * dy;
-              if (d2 < bestD2) { bestD2 = d2; bestI = i; bestJ = j; }
-            }
-          }
-          const parent = inTree[bestI];
-          const child = remaining[bestJ];
-          edges.push({ ax: parent.x, ay: parent.y, bx: child.x, by: child.y });
-          inTree.push(child);
-          remaining.splice(bestJ, 1);
-        }
-
-        this.clusterMstGroups.push({
-          rootSystemId: root.rootSystemId,
-          rootX: root.x,
-          rootY: root.y,
-          edges,
-        });
-      }
-    }
-
     // Connections layer FIRST (drawn behind orbs) — Delaunay player edges +
     // K=4 core mesh + player→core links. Mirrors the 3D UniverseEngine
     // visualization. Gives the cluster a visible "civilization web".
@@ -999,58 +897,19 @@ export class GalaxyScene {
   }
 
   /**
-   * Build the connection threads layer — capillary web drawn from every
-   * fully-researched Ring 2 entry out through its MST. Each lite-orb sits at
-   * the tip of a thread that traces back through its parent chain to the
-   * entry, and the entry itself is visually tied back to home via the
-   * existing Ring-1/Ring-2 web drawn elsewhere.
-   *
-   * Progressive reveal: only MST groups whose root (Ring 2 system) is fully
-   * researched get their edges drawn. Core gateway's group is drawn once
-   * the gateway system is researched.
+   * Build the connection lines layer mirroring the 3D UniverseEngine cluster:
+   *   - Delaunay edges between adjacent players (Ring 2 ↔ Ring 2)
+   *   - K=4 core mesh edges (500 systems)
+   *   - Player → core entry star edges
+   * All drawn relative to my home star (origin), so positions match lite-orbs.
    */
   private buildClusterConnectionsLayer(_galaxySeed: number, _groupIndex: number, _myPlayerIndex: number): Graphics {
-    const g = new Graphics();
-    if (this.clusterMstGroups.length === 0) return g;
-
-    const THREAD_COLOR = 0x4488aa; // accent blue from Game Bible palette
-    const THREAD_ALPHA = 0.28;
-    const THREAD_WIDTH = 1;
-
-    // Resolve gateway system id once (null rootSystemId means "gateway" which
-    // is the Ring 2 entry closest to this.coreGateway).
-    let gatewaySystemId: string | null = null;
-    if (this.coreGateway) {
-      let bestD2 = Infinity;
-      for (const [, node] of this.systemNodes) {
-        if (node.nodeType !== 'personal') continue;
-        if (node.system.ownerPlayerId !== null) continue;
-        if (node.ringIndex !== 2) continue;
-        const dx = node.tx - this.coreGateway.x;
-        const dy = node.ty - this.coreGateway.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < bestD2) { bestD2 = d2; gatewaySystemId = node.system.id; }
-      }
-    }
-
-    let wroteAny = false;
-    for (const group of this.clusterMstGroups) {
-      // Determine which system's research state gates this group
-      const sysId = group.rootSystemId ?? gatewaySystemId;
-      if (!sysId) continue;
-      if (!isSystemFullyResearched(this.researchState, sysId)) continue;
-
-      for (const e of group.edges) {
-        g.moveTo(e.ax, e.ay);
-        g.lineTo(e.bx, e.by);
-        wroteAny = true;
-      }
-    }
-
-    if (wroteAny) {
-      g.stroke({ color: THREAD_COLOR, width: THREAD_WIDTH, alpha: THREAD_ALPHA });
-    }
-    return g;
+    // Cluster-wide decorative web (player Delaunay + K=4 core mesh + player→
+    // core entry lines) used to draw faint blue / brown / gold threads across
+    // the whole cluster. Hidden at the user's request — only the reachable
+    // cyan constellation web should be visible. Kept as an empty-Graphics
+    // stub so callers (GalaxyScene constructor) don't break.
+    return new Graphics();
   }
 
   /** Update screen dimensions used for viewport culling (called by GameEngine on resize). */
