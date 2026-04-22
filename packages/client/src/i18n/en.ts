@@ -350,6 +350,7 @@ export const en: Record<TranslationKey, string> = {
   'pixi.researched': 'Researched!',
   'galaxy.researched': 'Explored!',
   'system.destroyed': '[destroyed]',
+  'pixi.colony_settled_tooltip': 'Settled by: {nick}',
   'pixi.wood':       'Wood',
   'pixi.ore':        'Ore',
   'pixi.gas':        'Gas',

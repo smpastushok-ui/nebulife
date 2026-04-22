@@ -348,6 +348,7 @@ export const uk = {
   'pixi.researched': 'Досліджено!',
   'galaxy.researched': 'Досліджено!',
   'system.destroyed': '[зруйновано]',
+  'pixi.colony_settled_tooltip': 'Заселено: {nick}',
   'pixi.wood':       'Деревина',
   'pixi.ore':        'Руда',
   'pixi.gas':        'Газ',

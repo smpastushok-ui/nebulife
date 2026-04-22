@@ -1067,6 +1067,9 @@ export interface MessageRow {
   sender_name: string;
   content: string;
   created_at: string;
+  /** Message kind. 'text' (default) for normal chat, 'colony_settled' for
+   *  special broadcast when a player founds their second home. */
+  type?: 'text' | 'colony_settled';
 }
 
 export interface DMChannelInfo {
@@ -1077,17 +1080,19 @@ export interface DMChannelInfo {
   last_at: string;
 }
 
-/** Save a chat message. */
+/** Save a chat message. Optional `type` for special broadcasts (defaults to
+ *  'text'). Requires migration 014 to have added the `type` column. */
 export async function saveMessage(
   senderId: string,
   senderName: string,
   channel: string,
   content: string,
+  type: 'text' | 'colony_settled' = 'text',
 ): Promise<MessageRow> {
   const sql = getSQL();
   const rows = await sql`
-    INSERT INTO messages (sender_id, sender_name, channel, content)
-    VALUES (${senderId}, ${senderName}, ${channel}, ${content})
+    INSERT INTO messages (sender_id, sender_name, channel, content, type)
+    VALUES (${senderId}, ${senderName}, ${channel}, ${content}, ${type})
     RETURNING *
   `;
   return rows[0] as MessageRow;
@@ -2050,6 +2055,24 @@ export async function getSystemPlanetClaims(
            colony_level, terraform_pct, owner_name_snapshot
     FROM planet_claims
     WHERE cluster_id = ${clusterId} AND system_id = ${systemId}
+  ` as PlanetClaimRow[];
+  return rows;
+}
+
+/**
+ * Get every planet claim across an entire cluster. Used by the galaxy view
+ * to render small "colonized" markers on neighbors' systems.
+ */
+export async function getClusterPlanetClaims(
+  clusterId: string,
+): Promise<PlanetClaimRow[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT cluster_id, system_id, planet_id, owner_player_id, claimed_at,
+           colony_level, terraform_pct, owner_name_snapshot
+    FROM planet_claims
+    WHERE cluster_id = ${clusterId}
+    ORDER BY claimed_at ASC
   ` as PlanetClaimRow[];
   return rows;
 }

@@ -1204,6 +1204,8 @@
     "cat_system": "СИСТЕМА"
   },
   "chat": {
+    "colony_settled": "Планета {{planet}} заселена {{nick}}",
+    "colony_go_to": "Перейти до планети",
     "title": "Чат",
     "tab_global": "Загальний",
     "tab_system": "Система",

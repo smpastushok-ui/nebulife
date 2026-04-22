@@ -1203,6 +1203,8 @@
     "cat_system": "SYSTEM"
   },
   "chat": {
+    "colony_settled": "Planet {{planet}} settled by {{nick}}",
+    "colony_go_to": "Go to planet",
     "title": "Chat",
     "tab_global": "Global",
     "tab_system": "System",
