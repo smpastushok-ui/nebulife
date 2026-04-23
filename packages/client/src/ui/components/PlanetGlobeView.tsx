@@ -6,7 +6,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { getDeviceTier, shouldRenderNebula } from '../../utils/device-tier.js';
+import { getDeviceTier, shouldRenderNebula, getExosphereLOD } from '../../utils/device-tier.js';
+import type { ExosphereLOD } from '../../utils/device-tier.js';
 import type { Planet, Star, StarSystem, Moon } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import {
@@ -128,11 +129,12 @@ function spectralColor(roll: number, rng: SeededRNG): [number, number, number, n
   return [0.62 + rng.next() * 0.08, 0.72 + rng.next() * 0.08, 1.0, 1.0];
 }
 
-function createStarfield(scene: THREE.Scene, systemSeed: number): {
+function createStarfield(scene: THREE.Scene, systemSeed: number, lod: ExosphereLOD): {
   points: THREE.Points;
   twinkleIndices: number[];
   baseSizes: Float32Array;
   timeUniform: { value: number };
+  twinkleEnabled: boolean;
 } {
   const rng = new SeededRNG(systemSeed * 7333 + 41);
   // --- Star counts ---
@@ -266,7 +268,7 @@ function createStarfield(scene: THREE.Scene, systemSeed: number): {
   // GPUs this is the single biggest frame-time hit at exosphere level.
   // Starfield stays; only the volumetric glow is dropped.
   if (!shouldRenderNebula()) {
-    return { points, twinkleIndices: [], baseSizes: sizes, timeUniform };
+    return { points, twinkleIndices: [], baseSizes: sizes, timeUniform, twinkleEnabled: lod.starfieldTwinkle };
   }
 
   // Use system seed for unique nebula per system
@@ -365,7 +367,7 @@ function createStarfield(scene: THREE.Scene, systemSeed: number): {
   nebulaSphere.renderOrder = -1;
   scene.add(nebulaSphere);
 
-  return { points, twinkleIndices: [], baseSizes: sizes, timeUniform };
+  return { points, twinkleIndices: [], baseSizes: sizes, timeUniform, twinkleEnabled: lod.starfieldTwinkle };
 }
 
 // ---------------------------------------------------------------------------
@@ -453,6 +455,7 @@ function createPlanetSphere(
   scene: THREE.Scene,
   planet: Planet,
   star: Star,
+  lod: ExosphereLOD,
 ): { mesh: THREE.Mesh; uniforms: Record<string, THREE.IUniform> } {
   const visuals = derivePlanetVisuals(planet, star);
   const uniforms = planetVisualsToUniforms(visuals, planet, star);
@@ -460,7 +463,11 @@ function createPlanetSphere(
   const isGas = planet.type === 'gas-giant' || planet.type === 'ice-giant';
   const fragShader = isGas ? gasGiantFrag : rockySurfaceFrag;
 
-  const geometry = new THREE.SphereGeometry(1, 192, 192);
+  // 192×192 → ~74K triangles; low tier drops to 48 (~2.4K), mid to 96 (~18K).
+  // Silhouette is still smooth at 48 because the planet occupies < 40 % of
+  // viewport height and most users never zoom past 2×.
+  const segs = lod.planetSegments;
+  const geometry = new THREE.SphereGeometry(1, segs, segs);
   const material = new THREE.ShaderMaterial({
     vertexShader: planetVertSrc,
     fragmentShader: fragShader,
@@ -480,12 +487,18 @@ function createPlanetSphere(
 function createCloudLayer(
   scene: THREE.Scene,
   planet: Planet,
+  lod: ExosphereLOD,
 ): { mesh: THREE.Mesh; uniform: THREE.IUniform } | null {
+  // Cloud layer is one of the biggest overdraw sources — it's a full
+  // separate shader sphere sitting a hair above the planet surface. Drop
+  // it entirely on low tier; mid/high still get animated clouds.
+  if (!lod.renderClouds) return null;
   if (!planet.atmosphere) return null;
   const params = getCloudParams(planet.atmosphere, planet.type);
   if (!params) return null;
 
-  const geometry = new THREE.SphereGeometry(params.scale, 64, 64);
+  const segs = lod.cloudSegments;
+  const geometry = new THREE.SphereGeometry(params.scale, segs, segs);
   const timeUniform = { value: 0.0 };
   const material = new THREE.ShaderMaterial({
     vertexShader: planetVertSrc,
@@ -516,7 +529,8 @@ function createAtmosphereShell(
   scene: THREE.Scene,
   planet: Planet,
   star: Star,
-): { front: THREE.Mesh; back: THREE.Mesh; uniforms: Record<string, THREE.IUniform> } | null {
+  lod: ExosphereLOD,
+): { front: THREE.Mesh; back: THREE.Mesh | null; uniforms: Record<string, THREE.IUniform> } | null {
   if (!planet.atmosphere) return null;
   const params = getAtmosphereParams(planet.atmosphere, planet.type);
   if (!params) return null;
@@ -532,8 +546,10 @@ function createAtmosphereShell(
     uPressure: { value: Math.min(pressure, 100) },
   };
 
+  const atmSegs = lod.atmosphereSegments;
+
   // --- Front-facing atmosphere (primary glow, visible from day side) ---
-  const geoFront = new THREE.SphereGeometry(params.scale, 48, 48);
+  const geoFront = new THREE.SphereGeometry(params.scale, atmSegs, atmSegs);
   const matFront = new THREE.ShaderMaterial({
     vertexShader: planetVertSrc,
     fragmentShader: atmosphereFrag,
@@ -547,21 +563,27 @@ function createAtmosphereShell(
   scene.add(front);
 
   // --- Back-facing atmosphere (haze ring visible behind planet silhouette) ---
-  const geoBack = new THREE.SphereGeometry(params.scale * 1.008, 48, 48);
-  const matBack = new THREE.ShaderMaterial({
-    vertexShader: planetVertSrc,
-    fragmentShader: atmosphereFrag,
-    uniforms: {
-      ...sharedUniforms,
-      uIntensity: { value: params.intensity * 0.35 },
-    },
-    transparent: true,
-    side: THREE.BackSide,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  const back = new THREE.Mesh(geoBack, matBack);
-  scene.add(back);
+  // Low-tier skips this entirely — loses the soft rim-glow behind the
+  // planet silhouette but saves a full-sphere additive blend pass. The
+  // front atmosphere alone still reads as "has an atmosphere".
+  let back: THREE.Mesh | null = null;
+  if (lod.renderAtmosphereBack) {
+    const geoBack = new THREE.SphereGeometry(params.scale * 1.008, atmSegs, atmSegs);
+    const matBack = new THREE.ShaderMaterial({
+      vertexShader: planetVertSrc,
+      fragmentShader: atmosphereFrag,
+      uniforms: {
+        ...sharedUniforms,
+        uIntensity: { value: params.intensity * 0.35 },
+      },
+      transparent: true,
+      side: THREE.BackSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    back = new THREE.Mesh(geoBack, matBack);
+    scene.add(back);
+  }
 
   return { front, back, uniforms: sharedUniforms };
 }
@@ -573,7 +595,12 @@ function createAtmosphereShell(
 function createRing(
   scene: THREE.Scene,
   planet: Planet,
+  lod: ExosphereLOD,
 ): THREE.Mesh | null {
+  // Ring is optional "wow" detail. Skip on low tier — weak GPUs struggle
+  // with the transparent ring shader's fragment pass on top of the planet.
+  if (!lod.renderRing) return null;
+
   const isGas = planet.type === 'gas-giant';
   const isIce = planet.type === 'ice-giant';
   // Only gas/ice giants with significant mass get rings
@@ -582,7 +609,7 @@ function createRing(
 
   const innerR = 1.2;
   const outerR = 2.2;
-  const geometry = new THREE.RingGeometry(innerR, outerR, 128, 4);
+  const geometry = new THREE.RingGeometry(innerR, outerR, lod.ringSegments, 4);
   const material = new THREE.ShaderMaterial({
     vertexShader: ringVertSrc,
     fragmentShader: ringFrag,
@@ -618,6 +645,7 @@ function createMoons(
   scene: THREE.Scene,
   planet: Planet,
   star: Star,
+  lod: ExosphereLOD,
 ): MoonOrbitData[] {
   const moons = planet.moons;
   if (!moons || moons.length === 0) return [];
@@ -653,19 +681,31 @@ function createMoons(
     // Moon colors
     const { base, high } = getMoonColors(moon.compositionType, moon.surfaceTempK);
 
-    const geometry = new THREE.SphereGeometry(moonR, 32, 32);
-    const material = new THREE.ShaderMaterial({
-      vertexShader: planetVertSrc,
-      fragmentShader: moonSurfaceFrag,
-      uniforms: {
-        uSeed: { value: moon.seed },
-        uBaseColor: { value: base },
-        uHighColor: { value: high },
-        uHasCraters: { value: moon.compositionType !== 'icy' ? 1.0 : 0.5 },
-        uStarDir: { value: starDir },
-        uStarColor: { value: new THREE.Color(star.colorHex) },
-      },
-    });
+    const geometry = new THREE.SphereGeometry(moonR, lod.moonSegments, lod.moonSegments);
+    // Low tier uses plain Lambert-like flat material — saves a shader program
+    // compile + per-moon uniform updates. We average base/high for the tint.
+    let material: THREE.Material;
+    if (lod.moonsFlatShaded) {
+      const tint = new THREE.Color(
+        (base.r + high.r) * 0.5,
+        (base.g + high.g) * 0.5,
+        (base.b + high.b) * 0.5,
+      );
+      material = new THREE.MeshBasicMaterial({ color: tint });
+    } else {
+      material = new THREE.ShaderMaterial({
+        vertexShader: planetVertSrc,
+        fragmentShader: moonSurfaceFrag,
+        uniforms: {
+          uSeed: { value: moon.seed },
+          uBaseColor: { value: base },
+          uHighColor: { value: high },
+          uHasCraters: { value: moon.compositionType !== 'icy' ? 1.0 : 0.5 },
+          uStarDir: { value: starDir },
+          uStarColor: { value: new THREE.Color(star.colorHex) },
+        },
+      });
+    }
 
     const mesh = new THREE.Mesh(geometry, material);
     scene.add(mesh);
@@ -1278,26 +1318,30 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
       // --- Build scene layers ---
 
+      // Device-tier knobs: computed once, passed to every layer-builder.
+      // Controls sphere tesselation + which optional layers render.
+      const lod = getExosphereLOD();
+
       // 1. Starfield
-      const starfield = createStarfield(scene, system.seed);
+      const starfield = createStarfield(scene, system.seed, lod);
 
       // 2. Distant star
       const starGroup = createDistantStar(scene, star, planet);
 
       // 3. Planet sphere
-      const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star);
+      const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod);
 
-      // 4. Cloud layer
-      const cloudResult = createCloudLayer(scene, planet);
+      // 4. Cloud layer (skipped on low tier)
+      const cloudResult = createCloudLayer(scene, planet, lod);
 
-      // 5. Atmosphere (front + back glow with Rayleigh scattering)
-      createAtmosphereShell(scene, planet, star);
+      // 5. Atmosphere (front + optional back glow with Rayleigh scattering)
+      createAtmosphereShell(scene, planet, star, lod);
 
-      // 6. Ring (if applicable)
-      createRing(scene, planet);
+      // 6. Ring (if applicable; skipped on low tier)
+      createRing(scene, planet, lod);
 
       // 7. Moons
-      const moonOrbits = createMoons(scene, planet, star);
+      const moonOrbits = createMoons(scene, planet, star, lod);
 
       // 8. Scanning overlay
       const scan = createScanOverlay(scene);
@@ -1383,8 +1427,13 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         const starScale = 1.0 + (3.0 / camDist - 1.0) * 0.5;
         starGroup.scale.setScalar(starScale);
 
-        // GPU-driven twinkling via uTime uniform
-        starfield.timeUniform.value = elapsed;
+        // GPU-driven twinkling via uTime uniform.
+        // Skipped on low tier — uniform upload is cheap, but the shader
+        // recomputes per-star brightness every pixel; keeping uTime frozen
+        // lets the driver cache the starfield frame-to-frame.
+        if (starfield.twinkleEnabled) {
+          starfield.timeUniform.value = elapsed;
+        }
 
         // Moon orbits — 3D inclined elliptical
         for (const m of moonOrbits) {

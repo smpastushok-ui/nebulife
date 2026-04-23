@@ -86,3 +86,112 @@ export function shouldRenderNebula(): boolean {
   const t = getDeviceTier();
   return t === 'high' || t === 'ultra';
 }
+
+// ---------------------------------------------------------------------------
+// Exosphere level-of-detail
+// ---------------------------------------------------------------------------
+// All tier-scaled parameters for the 3D planet view (PlanetGlobeView) in
+// a single place so balance-changes touch one file. Returned values are
+// consumed by createPlanetSphere, createAtmosphereShell, createCloudLayer,
+// createRing, createMoons, createStarfield.
+//
+// The cuts target the per-frame GPU bottleneck on mobile: shader overdraw
+// (planet + clouds + atm-front + atm-back all hit the same pixels). On low
+// we drop clouds and the back-atmosphere entirely — losing the rim-haze
+// silhouette but keeping the procedural surface + front atmosphere.
+
+export interface ExosphereLOD {
+  /** SphereGeometry width/height segments for the main planet. */
+  planetSegments: number;
+  /** Skip entire cloud shader sphere (biggest single-layer win on low). */
+  renderClouds: boolean;
+  /** If clouds are rendered, their sphere segments. */
+  cloudSegments: number;
+  /** Skip the secondary BackSide atmosphere mesh (halves rim overdraw). */
+  renderAtmosphereBack: boolean;
+  /** Atmosphere shell sphere segments (applied to front; back if enabled). */
+  atmosphereSegments: number;
+  /** Render Saturn-like ring around massive gas/ice giants. */
+  renderRing: boolean;
+  /** Ring tessellation (radial segments). */
+  ringSegments: number;
+  /** Moon sphere segments. */
+  moonSegments: number;
+  /**
+   * Use cheap MeshBasicMaterial (flat shaded) for moons instead of the
+   * per-moon terrain shader. Saves a shader program + uniform updates.
+   */
+  moonsFlatShaded: boolean;
+  /**
+   * Update the starfield twinkle uTime uniform every frame. When false
+   * the stars are still drawn (shader runs once per pixel) but don't
+   * animate — GPU cache stays warm, CPU skips a uniform upload.
+   */
+  starfieldTwinkle: boolean;
+}
+
+export function getExosphereLOD(): ExosphereLOD {
+  const t = getDeviceTier();
+  switch (t) {
+    case 'low':
+      return {
+        planetSegments: 48,
+        renderClouds: false,
+        cloudSegments: 32,
+        renderAtmosphereBack: false,
+        atmosphereSegments: 24,
+        renderRing: false,
+        ringSegments: 48,
+        moonSegments: 16,
+        moonsFlatShaded: true,
+        starfieldTwinkle: false,
+      };
+    case 'mid':
+      return {
+        planetSegments: 96,
+        renderClouds: true,
+        cloudSegments: 32,
+        renderAtmosphereBack: true,
+        atmosphereSegments: 24,
+        renderRing: true,
+        ringSegments: 48,
+        moonSegments: 24,
+        moonsFlatShaded: false,
+        starfieldTwinkle: true,
+      };
+    case 'high':
+      // Flagship mobiles (S22 Ultra, iPhone 14 Pro) still run this scene
+      // on battery + thermal budget. One notch below ultra is a free win:
+      // 128² sphere (17K triangles) is visually indistinguishable from
+      // 192² (74K) at typical camera distance, but saves ~55K triangles
+      // per frame and a chunk of vertex-shader time.
+      return {
+        planetSegments: 128,
+        renderClouds: true,
+        cloudSegments: 48,
+        renderAtmosphereBack: true,
+        atmosphereSegments: 32,
+        renderRing: true,
+        ringSegments: 96,
+        moonSegments: 24,
+        moonsFlatShaded: false,
+        starfieldTwinkle: true,
+      };
+    case 'ultra':
+    default:
+      // Desktop web — full procedural richness. Reserved headroom for
+      // future desktop-only FX (volumetric clouds, SSR, higher bloom).
+      return {
+        planetSegments: 192,
+        renderClouds: true,
+        cloudSegments: 64,
+        renderAtmosphereBack: true,
+        atmosphereSegments: 48,
+        renderRing: true,
+        ringSegments: 128,
+        moonSegments: 32,
+        moonsFlatShaded: false,
+        starfieldTwinkle: true,
+      };
+  }
+}
