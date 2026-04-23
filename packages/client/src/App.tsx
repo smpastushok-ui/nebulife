@@ -5542,14 +5542,17 @@ function AppInner() {
         />
       )}
       {/* PlanetGlobeView — WebGL shader planet (home-intro & planet-view).
-          Fully UNMOUNT when arena/hangar/surface are on top — otherwise the
-          Three.js scene + RAF loop + WebGL context keep burning GPU in the
-          background, heating up mid/low-tier tablets and tanking perf of
-          whatever view just opened on top. Reported by tester:
+          Fully UNMOUNT whenever a full-screen overlay is on top — otherwise
+          the Three.js scene + RAF loop + WebGL context keep burning GPU in
+          the background, heating up mid/low-tier tablets and tanking perf
+          of whatever view just opened on top. Reported by tester:
           "з екзосфери заходити в ангар, термінал чи в арену — нереально
-          грати". */}
+          грати" + follow-up "щоб екзосфера зникала всюди окрім екзосфери".
+          So: only render when NO full-screen overlay is active. */}
       {(state.scene === 'home-intro' || state.scene === 'planet-view') && homeInfo
-        && !showArena && !showHangar && !surfaceTarget && (
+        && !showArena && !showHangar && !surfaceTarget
+        && !showPlayerPage && !showCosmicArchive && !showAcademy
+        && !showChaosModal && !showTopUpModal && (
         <PlanetGlobeView
           ref={globeRef}
           planet={state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet}
