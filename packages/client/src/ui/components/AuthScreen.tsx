@@ -271,10 +271,14 @@ const cardStyle: React.CSSProperties = {
 };
 
 const titleStyle: React.CSSProperties = {
-  fontSize: 22,
+  // clamp scales font between 16px (very narrow ~320px phones) and 22px.
+  // `whiteSpace: nowrap` + responsive size guarantees "N E B U L I F E"
+  // stays on a single line even when letterSpacing puffs the width.
+  fontSize: 'clamp(16px, 5.2vw, 22px)',
   color: '#ccddee',
   textAlign: 'center',
-  letterSpacing: '0.2em',
+  letterSpacing: '0.18em',
+  whiteSpace: 'nowrap',
   marginBottom: 2,
 };
 

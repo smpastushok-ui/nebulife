@@ -127,212 +127,24 @@ function CinematicTypewriter({
 }
 
 // ---------------------------------------------------------------------------
-// Warp star-trail effect (canvas overlay for Stage 1 → 2 transition)
-// 5s total: ramp-up (0-1.5s) → cruise (1.5-3.5s) → fade-out (3.5-5s)
-// During fade-out stars slow down, dim, and stop respawning → smooth exit
-//
-// Perf-tuned for low-end Android:
-//   • Internal canvas resolution capped at 1280×720 equivalent regardless of
-//     device-pixel ratio — on 3× DPR phones this cuts fill-rate ≈ 75%.
-//   • Particle count 150 → 55 — cuts CPU work ~65%.
-//   • Motion-blur fill stays (cheap on low-res canvas) so long streak trails
-//     remain intact without per-particle gradients.
+// WarpOverlay — lightweight CSS fade replacing the former particle canvas.
+// The canvas-based warp hung mid/low-end tablets (heavy fill-rate + RAF +
+// simultaneous Three.js universe render). We now just fade to deep-space
+// black for the transition — same timing, zero GPU cost.
 // ---------------------------------------------------------------------------
-interface WarpParticle {
-  x: number;
-  y: number;
-  angle: number;
-  drift: number;
-  speed: number;
-  size: number;
-  alpha: number;
-  life: number;
-  lifeSpeed: number;
-  dead: boolean;       // marked during fade-out, never respawns
-}
-
-const WARP_DURATION = 7000;
-const WARP_RAMP_END = 2000;     // ramp-up ends at 2s
-const WARP_FADE_START = 5000;   // fade-out begins at 5s
-
-// Perf caps. Canvas is CSS-stretched to the viewport, so the visual coverage
-// stays full-screen — we just render into a smaller backing store.
-const WARP_MAX_WIDTH = 1280;
-const WARP_MAX_HEIGHT = 720;
-const WARP_PARTICLE_COUNT = 55;
-
 function WarpOverlay({ active }: { active: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef(0);
-
-  useEffect(() => {
-    if (!active) {
-      cancelAnimationFrame(rafRef.current);
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Cap backing-store size. Preserves viewport aspect ratio so the warp
-    // stays radially symmetric after CSS upscale.
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const scale = Math.min(WARP_MAX_WIDTH / vw, WARP_MAX_HEIGHT / vh, 1);
-    canvas.width = Math.round(vw * scale);
-    canvas.height = Math.round(vh * scale);
-
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-
-    function spawnParticle(nearCenter: boolean): WarpParticle {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = nearCenter ? (5 + Math.random() * 60) : (20 + Math.random() * 200);
-      return {
-        x: cx + Math.cos(angle) * dist,
-        y: cy + Math.sin(angle) * dist,
-        angle,
-        drift: (Math.random() - 0.5) * 0.04,
-        speed: 1.5 + Math.random() * 4,
-        size: 0.5 + Math.random() * 2,
-        alpha: 0.15 + Math.random() * 0.35,
-        life: nearCenter ? 0 : Math.random() * 0.3,
-        lifeSpeed: 0.003 + Math.random() * 0.006,
-        dead: false,
-      };
-    }
-
-    const particles: WarpParticle[] = [];
-    for (let i = 0; i < WARP_PARTICLE_COUNT; i++) {
-      particles.push(spawnParticle(i < Math.floor(WARP_PARTICLE_COUNT * 0.6)));
-    }
-
-    const startTime = Date.now();
-
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-
-      // Global envelope: ramp-up → cruise → fade-out
-      let envelope: number;
-      if (elapsed < WARP_RAMP_END) {
-        // Smooth ease-in
-        const t = elapsed / WARP_RAMP_END;
-        envelope = t * t; // quadratic ease-in
-      } else if (elapsed < WARP_FADE_START) {
-        envelope = 1;
-      } else {
-        // Smooth ease-out
-        const t = (elapsed - WARP_FADE_START) / (WARP_DURATION - WARP_FADE_START);
-        const clamped = Math.min(1, t);
-        envelope = 1 - clamped * clamped; // quadratic ease-out
-      }
-
-      const isFading = elapsed >= WARP_FADE_START;
-
-      // During fade-out: use CSS opacity to fade the entire canvas to transparent
-      // This reveals the game background underneath smoothly
-      if (isFading && canvas.style.opacity !== '0') {
-        canvas.style.opacity = '0';
-      }
-
-      // Canvas clear — semi-transparent fill creates motion blur trails.
-      // Alpha raised 0.15 → 0.22 because we have ~65% fewer particles; the
-      // faster decay keeps the same perceived density of streaks.
-      ctx.fillStyle = 'rgba(2,5,16,0.22)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Stop animation after duration
-      if (elapsed > WARP_DURATION + 500) return;
-
-      let aliveCount = 0;
-
-      for (const p of particles) {
-        if (p.dead) continue;
-
-        p.life += p.lifeSpeed * envelope;
-
-        // Per-particle fade: fade-in at birth, fade-out at end of life
-        const fadeIn = Math.min(1, p.life * 5);
-        const fadeOutLife = Math.max(0, 1 - (p.life - 0.6) / 0.4);
-        const particleFade = fadeIn * (p.life > 0.6 ? fadeOutLife : 1);
-
-        // Move — speed scales with envelope
-        p.angle += p.drift * 0.1;
-        const moveSpeed = p.speed * envelope * (0.5 + p.life * 1.5);
-        p.x += Math.cos(p.angle) * moveSpeed;
-        p.y += Math.sin(p.angle) * moveSpeed;
-
-        const trailLen = (4 + p.life * 20) * envelope;
-        const drawAlpha = p.alpha * particleFade * envelope;
-        if (drawAlpha < 0.01) continue;
-
-        aliveCount++;
-        const nx = Math.cos(p.angle);
-        const ny = Math.sin(p.angle);
-
-        // Outer glow
-        ctx.strokeStyle = `rgba(140,170,220,${drawAlpha * 0.3})`;
-        ctx.lineWidth = p.size + 2;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x - nx * trailLen * 0.7, p.y - ny * trailLen * 0.7);
-        ctx.stroke();
-
-        // Core trail
-        ctx.strokeStyle = `rgba(200,215,255,${drawAlpha * 0.7})`;
-        ctx.lineWidth = p.size;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x - nx * trailLen, p.y - ny * trailLen);
-        ctx.stroke();
-
-        // Respawn or die
-        const offScreen = p.x < -100 || p.x > canvas.width + 100 || p.y < -100 || p.y > canvas.height + 100;
-        if (p.life >= 1 || offScreen) {
-          if (isFading) {
-            // During fade-out: don't respawn, just mark dead
-            p.dead = true;
-          } else {
-            const newP = spawnParticle(true);
-            p.x = newP.x; p.y = newP.y;
-            p.angle = newP.angle; p.drift = newP.drift;
-            p.speed = newP.speed; p.size = newP.size;
-            p.alpha = newP.alpha; p.life = 0;
-            p.lifeSpeed = newP.lifeSpeed;
-          }
-        }
-      }
-
-      // Continue until all particles are gone or duration exceeded
-      if (aliveCount > 0 || elapsed < WARP_DURATION) {
-        rafRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    animate();
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [active]);
-
   if (!active) return null;
 
   return (
-    <canvas
-      ref={canvasRef}
+    <div
       style={{
         position: 'fixed',
         inset: 0,
-        // CSS stretches the smaller backing store back to full viewport.
-        // Slight blur on upscale is actually desirable here — softens the
-        // streaks without costing extra GPU work.
-        width: '100vw',
-        height: '100vh',
         zIndex: 10002,
         pointerEvents: 'none',
+        background: '#020510',
         opacity: 1,
-        transition: 'opacity 1.5s ease-out',
+        animation: 'cin-warp-fade 2200ms ease-in-out forwards',
       }}
     />
   );
@@ -366,13 +178,19 @@ function VideoPlaceholder({ label }: { label: string }) {
 // ---------------------------------------------------------------------------
 // CinematicVideoSlide - real video element with loading + end fade states
 // ---------------------------------------------------------------------------
-//   - Shows a "loading" overlay (animated dots over starfield) while the
-//     video buffers
-//   - Plays full-quality video once `canplay` fires
+//   - Shows a "loading" overlay (animated dots over starfield) until the
+//     browser reports the video can play through WITHOUT rebuffering
+//     (`canplaythrough` event, readyState === 4). This is stricter than
+//     `canplay` and prevents mid-playback stutter on slow wifi.
+//   - Fallback: if the network is too slow, we still unlock playback after
+//     STALL_TIMEOUT_MS so the user doesn't stare at "loading" forever.
+//     The cinematic schedule takes priority over perfect buffering.
 //   - On `ended`: 1-second brightness fade-to-black, video stays in DOM as
 //     a dark background
 //   - Notifies parent via onPlayingChange so global ambient can mute
 // ---------------------------------------------------------------------------
+const STALL_TIMEOUT_MS = 10_000;
+
 function CinematicVideoSlide({
   src,
   onPlayingChange,
@@ -389,21 +207,46 @@ function CinematicVideoSlide({
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    const handleCanPlay = () => setLoaded(true);
+
+    let unlocked = false;
+    const unlock = () => {
+      if (unlocked) return;
+      unlocked = true;
+      setLoaded(true);
+      // Start playback as soon as we unlock (autoPlay may have been deferred
+      // because the element was hidden while readyState was low).
+      v.play().catch(() => { /* autoplay policy — user will click through */ });
+    };
+
+    // Preferred path: browser reports it can play end-to-end without rebuffer.
+    const handleCanPlayThrough = () => unlock();
+    // Secondary: already buffered enough for current viewport.
+    const handleCanPlay = () => {
+      // Only unlock on plain `canplay` if video is already mostly buffered.
+      // readyState 4 = HAVE_ENOUGH_DATA — same criterion browsers use for
+      // `canplaythrough` but some WebViews never fire that event.
+      if (v.readyState >= 4) unlock();
+    };
     const handlePlay = () => onPlayingChangeRef.current?.(true);
     const handleEnded = () => {
       onPlayingChangeRef.current?.(false);
       setEnded(true);
     };
     const handlePause = () => onPlayingChangeRef.current?.(false);
+
+    v.addEventListener('canplaythrough', handleCanPlayThrough);
     v.addEventListener('canplay', handleCanPlay);
-    v.addEventListener('loadeddata', handleCanPlay);
     v.addEventListener('play', handlePlay);
     v.addEventListener('ended', handleEnded);
     v.addEventListener('pause', handlePause);
+
+    // Safety net — slow wifi should not strand the user on the loading screen.
+    const stallTimer = setTimeout(unlock, STALL_TIMEOUT_MS);
+
     return () => {
+      clearTimeout(stallTimer);
+      v.removeEventListener('canplaythrough', handleCanPlayThrough);
       v.removeEventListener('canplay', handleCanPlay);
-      v.removeEventListener('loadeddata', handleCanPlay);
       v.removeEventListener('play', handlePlay);
       v.removeEventListener('ended', handleEnded);
       v.removeEventListener('pause', handlePause);
@@ -426,6 +269,8 @@ function CinematicVideoSlide({
       <video
         ref={videoRef}
         src={src}
+        // autoPlay is enabled but we only unlock the fade-in once the
+        // browser can play through without stopping. See useEffect above.
         autoPlay
         playsInline
         preload="auto"
@@ -565,6 +410,9 @@ function OnboardingSlides({
   const [slide, setSlide] = useState<OnboardingSlide>(0);
   const [typewriterDone, setTypewriterDone] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
+  // Debounce flag — prevents ghost/double clicks during scene transitions on
+  // low-end Androids where React event loop is blocked by video decode.
+  const [busy, setBusy] = useState(false);
 
   // Start terminal loop on first mount — it will be audible only when slide >= 1
   // Starting on mount (in a click gesture context from "Start" button) ensures
@@ -599,13 +447,20 @@ function OnboardingSlides({
   ], [t, star.name, star.spectralClass, star.subType, star.temperatureK, planet.name]);
 
   const handleNext = () => {
+    if (busy) return;
     if (slide < 3) {
+      setBusy(true);
       setSlide((s) => (s + 1) as OnboardingSlide);
       setTypewriterDone(false);
+      // 600 ms lockout absorbs stray taps that queued up while the main
+      // thread was blocked (video decode, scene swap, React re-render).
+      setTimeout(() => setBusy(false), 600);
     }
   };
 
   const handleFinish = () => {
+    if (busy) return;
+    setBusy(true);
     setFadeOut(true);
     setTimeout(onComplete, 600);
   };
@@ -702,14 +557,17 @@ function OnboardingSlides({
         {slide < 3 && (
           <button
             onClick={handleNext}
+            disabled={busy}
             style={{
               background: 'rgba(30,60,80,0.6)', border: '1px solid #446688', borderRadius: 3,
               color: '#aabbcc', fontFamily: 'monospace', fontSize: 12,
-              padding: '10px 32px', minHeight: 44, cursor: 'pointer',
-              transition: 'background 0.2s, border-color 0.2s',
+              padding: '10px 32px', minHeight: 44,
+              cursor: busy ? 'default' : 'pointer',
+              opacity: busy ? 0.45 : 1,
+              transition: 'background 0.2s, border-color 0.2s, opacity 0.2s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(40,80,110,0.7)'; e.currentTarget.style.borderColor = '#558899'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(30,60,80,0.6)'; e.currentTarget.style.borderColor = '#446688'; }}
+            onMouseEnter={(e) => { if (busy) return; e.currentTarget.style.background = 'rgba(40,80,110,0.7)'; e.currentTarget.style.borderColor = '#558899'; }}
+            onMouseLeave={(e) => { if (busy) return; e.currentTarget.style.background = 'rgba(30,60,80,0.6)'; e.currentTarget.style.borderColor = '#446688'; }}
           >
             {t('cinematic.next')}
           </button>
@@ -717,14 +575,17 @@ function OnboardingSlides({
         {slide === 3 && (
           <button
             onClick={handleFinish}
+            disabled={busy}
             style={{
               background: 'rgba(34,170,68,0.2)', border: '1px solid #44ff88', borderRadius: 3,
               color: '#44ff88', fontFamily: 'monospace', fontSize: 13,
-              padding: '12px 40px', minHeight: 44, cursor: 'pointer',
-              transition: 'background 0.2s',
+              padding: '12px 40px', minHeight: 44,
+              cursor: busy ? 'default' : 'pointer',
+              opacity: busy ? 0.45 : 1,
+              transition: 'background 0.2s, opacity 0.2s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(34,170,68,0.35)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(34,170,68,0.2)'; }}
+            onMouseEnter={(e) => { if (busy) return; e.currentTarget.style.background = 'rgba(34,170,68,0.35)'; }}
+            onMouseLeave={(e) => { if (busy) return; e.currentTarget.style.background = 'rgba(34,170,68,0.2)'; }}
           >
             {t('cinematic.start_mission')}
           </button>
@@ -777,33 +638,57 @@ export function CinematicIntro({
     return () => { mountedRef.current = false; };
   }, []);
 
+  // ── Video cache warm-up ──────────────────────────────────────────────
+  // The onboarding slides play /videos/catastrophe.mp4 (~11 MB) and
+  // /videos/briefing.mp4 (~9 MB). On slow wifi (tester tablet) the default
+  // `preload="auto"` on the <video> element starts decoding before enough
+  // bytes are cached → stuttering playback.
+  //
+  // We kick off a fetch() for both files the moment the intro mounts,
+  // while the user is still reading subtitles (≈4–6 s). By the time they
+  // reach slide 0 the file is either fully in the HTTP cache or close to
+  // it, and the <video> element hits cache instantly. AbortController
+  // lets us cancel if the user speedruns past the intro.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+    const ac = new AbortController();
+    const warm = (url: string) => {
+      fetch(url, { signal: ac.signal, credentials: 'same-origin' })
+        // Drain the body so the full file lands in HTTP cache, not just headers.
+        .then((r) => r.ok ? r.blob() : null)
+        .catch(() => { /* abort or offline — playback will fall back to live stream */ });
+    };
+    warm('/videos/catastrophe.mp4');
+    warm('/videos/briefing.mp4');
+    return () => ac.abort();
+  }, []);
+
   // ── Stage 0: Show Universe scene (Three.js) ──
   useEffect(() => {
     onRequestUniverseScene();
   }, []); // mount only
 
-  // ── Stage 0 → 1 → 2: After player clicks "Почати гру" → warp → home → slides ──
-  // Skips galaxy level — warp covers transition directly to home planet
+  // ── Stage 0 → 1 → 2: After player clicks "Почати гру" → fade → home → slides ──
+  // Former 7s particle-warp replaced by 2.2s CSS fade (killed mid/low-tier tablets).
   useEffect(() => {
     if (!startClicked || stageRef.current !== 0) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
     // Brief pause after button click
-    // Warp is 7s total: ramp 0-2s, cruise 2-5s, fade 5-7s
     timers.push(setTimeout(() => {
       if (!mountedRef.current) return;
       setStage(1);
       setWarpActive(true);
       setStatusVisible(false);
 
-      // At ~2s: switch directly from universe to home planet (warp covers transition)
+      // At ~1.1s (mid-fade): switch from universe to home planet — hidden behind black
       timers.push(setTimeout(() => {
         if (!mountedRef.current) return;
         onLeaveUniverseToGalaxy();
         onRequestHomeScene();
-      }, 2000));
+      }, 1100));
 
-      // At ~5.5s: warp fully faded, home planet visible
+      // At ~2.2s: fade complete, home planet visible
       timers.push(setTimeout(() => {
         if (!mountedRef.current) return;
         setWarpActive(false);
@@ -814,8 +699,8 @@ export function CinematicIntro({
           if (!mountedRef.current) return;
           setStage(3);
           setSlidesVisible(true);
-        }, 1500));
-      }, 5500));
+        }, 800));
+      }, 2200));
     }, 300));
 
     return () => timers.forEach(clearTimeout);
@@ -848,6 +733,12 @@ export function CinematicIntro({
         @keyframes cinematicLoadPulse {
           0%, 100% { opacity: 0.3; transform: scale(0.85); }
           50% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes cin-warp-fade {
+          0%   { opacity: 0; }
+          30%  { opacity: 1; }
+          70%  { opacity: 1; }
+          100% { opacity: 0; }
         }
       `}</style>
 

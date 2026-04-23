@@ -6,7 +6,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { getDeviceTier } from '../../utils/device-tier.js';
+import { getDeviceTier, shouldRenderNebula } from '../../utils/device-tier.js';
 import type { Planet, Star, StarSystem, Moon } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import {
@@ -261,6 +261,14 @@ function createStarfield(scene: THREE.Scene, systemSeed: number): {
   scene.add(points);
 
   // --- Cosmic nebula glow sphere (unresolved star clusters + spectral gradients) ---
+  // Skipped on low/mid-tier devices — the fragment shader is 4-octave FBM
+  // + domain warp, rendered on a 98-radius sphere (32×24 segs). On weak
+  // GPUs this is the single biggest frame-time hit at exosphere level.
+  // Starfield stays; only the volumetric glow is dropped.
+  if (!shouldRenderNebula()) {
+    return { points, twinkleIndices: [], baseSizes: sizes, timeUniform };
+  }
+
   // Use system seed for unique nebula per system
   const seedHash = ((systemSeed * 2654435761) >>> 0) / 4294967296; // Knuth hash → 0-1
   const nebSeedX = seedHash * 500;

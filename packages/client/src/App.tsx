@@ -110,6 +110,8 @@ import { AuthScreen } from './ui/components/AuthScreen.js';
 import { CallsignModal } from './ui/components/CallsignModal.js';
 import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
 import { CinematicIntro } from './ui/components/CinematicIntro.js';
+import { LoadingDots } from './ui/components/LoadingDots.js';
+import { getDeviceTier } from './utils/device-tier.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { DigestModal } from './ui/components/DigestModal.js';
@@ -281,8 +283,15 @@ function AppInner() {
   const [state, setState] = useState<GameState>(() => {
     const savedScene = localStorage.getItem('nebulife_scene') as GameState['scene'] | null;
     const validScenes: GameState['scene'][] = ['home-intro', 'galaxy', 'system', 'planet-view'];
+    // If onboarding isn't complete yet (new player OR post-signout state),
+    // start in 'universe' so the old player's planet/UI doesn't flash through
+    // the intro overlay during the first render. CinematicIntro takes over
+    // scene control from its onRequestUniverseScene callback.
+    const needsIntro = !localStorage.getItem('nebulife_onboarding_done');
     return {
-      scene: savedScene && validScenes.includes(savedScene) ? savedScene : 'home-intro',
+      scene: needsIntro
+        ? 'universe'
+        : savedScene && validScenes.includes(savedScene) ? savedScene : 'home-intro',
       selectedSystem: null,
       selectedPlanet: null,
       planetClickPos: null,
@@ -4706,9 +4715,11 @@ function AppInner() {
   ];
 
   // Build tool groups based on current scene
-  // Hide left SceneControlsPanel when any overlay/modal blocks the view
-  // Hide left SceneControlsPanel only during arena (full-screen takeover)
-  const hideLeftPanel = !!(showArena || showHangar);
+  // Hide left SceneControlsPanel when any overlay/modal blocks the view.
+  // Also hide during cinematic intro / onboarding — otherwise the old
+  // player's zoom/nav controls leak through the intro overlay (reported
+  // as "UI залишилось після sign-out").
+  const hideLeftPanel = !!(showArena || showHangar || cinematicActive || needsOnboarding);
 
   const toolGroups: ToolGroup[] = [];
 
@@ -4861,8 +4872,8 @@ function AppInner() {
       <div ref={universeCanvasRef} id="universe-canvas" style={{ position: 'fixed', inset: 0, zIndex: 1, display: universeVisible ? 'block' : 'none' }} />
       <div ref={canvasRef} id="game-canvas" style={{ display: universeVisible ? 'none' : undefined }} />
 
-      {/* Resource HUD — top center (hidden in arena) */}
-      {!showArena && !showHangar && (<ResourceDisplay
+      {/* Resource HUD — top center (hidden in arena, hangar, and during intro) */}
+      {!showArena && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
         researchData={Math.floor(researchData)}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
@@ -6068,7 +6079,7 @@ function AppInner() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: 'monospace', color: '#556677', fontSize: 12,
         }}>
-          {t('common.loading')}
+          <LoadingDots label={t('common.loading')} />
         </div>
       )}
 
@@ -6102,6 +6113,18 @@ function AppInner() {
           onVideoPlayingChange={setCinematicVideoPlaying}
           onComplete={handleOnboardingComplete}
           onRequestUniverseScene={async () => {
+            // Skip heavy Three.js universe on low/mid-tier devices —
+            // it hangs tablets/mid-range Androids during the intro. On
+            // flagships (S22 Ultra, iPhone 14+) we still show the full
+            // cinematic zoom.
+            const tier = getDeviceTier();
+            if (tier !== 'high') {
+              // Keep PixiJS engine paused + render nothing behind subtitles
+              // (the CinematicIntro gradient covers the black background).
+              engineRef.current?.pause();
+              setState(prev => ({ ...prev, scene: 'universe' }));
+              return;
+            }
             await initUniverseEngine();
             setUniverseVisible(true);
             universeEngineRef.current?.setVisible(true);
