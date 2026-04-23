@@ -1367,10 +1367,17 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // --- Post-processing: bloom for atmosphere glow ---
       // Bloom = luminance-threshold + horizontal/vertical Gaussian blur +
       // composite ≈ 3 extra render passes per frame. On low-end Android
-      // that's 8–15ms/frame, which alone drops us below 30fps. Skip it
-      // there — planet still looks fine without the halo.
+      // that's 8–15ms/frame, which alone drops us below 30fps. Skipped on
+      // both low AND mid — planet still looks fine without the halo, and
+      // mid-tier tablets were overheating running all layers + bloom.
       const tier = getDeviceTier();
-      const useBloom = tier !== 'low';
+      const useBloom = tier !== 'low' && tier !== 'mid';
+      // Auto-rotate keeps requesting new frames even when the planet is
+      // "static". On low-tier we freeze the camera — user can still drag
+      // to look around manually.
+      if (tier === 'low') {
+        controls.autoRotate = false;
+      }
       const composer = useBloom ? new EffectComposer(renderer) : null;
       if (composer) {
         composer.addPass(new RenderPass(scene, camera));
@@ -1386,9 +1393,24 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       let lastTime = performance.now();
       const startTime = performance.now();
 
+      // FPS cap on low/mid — 30 fps is plenty for a mostly-still planet
+      // globe with gentle auto-rotate. Halves the per-frame GPU work +
+      // drops thermal load on tablets. High/ultra run free (vsync).
+      // `tier` is already computed above (bloom gate).
+      const minFrameMs = (tier === 'low' || tier === 'mid') ? 1000 / 30 : 0;
+      let lastRenderedAt = 0;
+
       const animate = () => {
         animFrameRef.current = requestAnimationFrame(animate);
         const now = performance.now();
+
+        // Skip entire frame if tab is hidden OR we're ahead of our FPS cap.
+        // `document.hidden` check prevents background RAF cost when the
+        // whole app is minimised; the FPS cap handles mid/low in-foreground.
+        if (typeof document !== 'undefined' && document.hidden) return;
+        if (minFrameMs > 0 && now - lastRenderedAt < minFrameMs) return;
+        lastRenderedAt = now;
+
         const deltaMs = now - lastTime;
         lastTime = now;
         const elapsed = (now - startTime) * 0.001;
@@ -1465,11 +1487,17 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           updateShipVisuals(shipRef.current, deltaMs);
         }
 
-        // Shooting stars (all modes — realistic cosmic background)
-        nextShootingStarTime -= deltaMs / 1000;
-        if (nextShootingStarTime <= 0) {
-          shootingStars.push(spawnShootingStar(scene));
-          nextShootingStarTime = 5 + Math.random() * 5; // every 5-10s
+        // Shooting stars — spawn + lifecycle. Skipped on low/mid because
+        // every spawn allocates new Line geometry + material, and culling
+        // disposes GPU resources on the main thread. On weak GPUs this
+        // causes periodic frame-time spikes on top of the steady planet
+        // render cost. Starfield already provides "cosmic" atmosphere.
+        if (tier !== 'low' && tier !== 'mid') {
+          nextShootingStarTime -= deltaMs / 1000;
+          if (nextShootingStarTime <= 0) {
+            shootingStars.push(spawnShootingStar(scene));
+            nextShootingStarTime = 5 + Math.random() * 5; // every 5-10s
+          }
         }
 
         for (let i = shootingStars.length - 1; i >= 0; i--) {

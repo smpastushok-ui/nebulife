@@ -5541,8 +5541,15 @@ function AppInner() {
           }}
         />
       )}
-      {/* PlanetGlobeView — WebGL shader planet (home-intro & planet-view) */}
-      {(state.scene === 'home-intro' || state.scene === 'planet-view') && homeInfo && (
+      {/* PlanetGlobeView — WebGL shader planet (home-intro & planet-view).
+          Fully UNMOUNT when arena/hangar/surface are on top — otherwise the
+          Three.js scene + RAF loop + WebGL context keep burning GPU in the
+          background, heating up mid/low-tier tablets and tanking perf of
+          whatever view just opened on top. Reported by tester:
+          "з екзосфери заходити в ангар, термінал чи в арену — нереально
+          грати". */}
+      {(state.scene === 'home-intro' || state.scene === 'planet-view') && homeInfo
+        && !showArena && !showHangar && !surfaceTarget && (
         <PlanetGlobeView
           ref={globeRef}
           planet={state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet}
