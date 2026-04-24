@@ -1062,6 +1062,7 @@
     "ring_neighbors_far": "2-ге коло гравців",
     "ring_sector_core": "Центр зоряного сектору",
     "ring_locked_hint": "досліджіть усі системи попереднього кільця",
+    "unlock_via_quarks_tooltip": "Розблокувати цю систему за {{cost}} 💎",
     "researched_btn": "Досліджено",
     "researching_btn": "Досліджується",
     "research_btn": "Дослідити",
@@ -1316,5 +1317,86 @@
     "completed_badge": "Прочитано",
     "share": "Поділитися",
     "copied": "Скопійовано!"
+  },
+  "ring_unlock": {
+    "banner": "НОВА ЗОНА ДОСТУПНА",
+    "ring_label": "РIНГ {{ring}}",
+    "subtitle": "Капiлярна мережа розширюється"
+  },
+  "surface": {
+    "quarks_unlock": {
+      "title": "ВIДКРИТИ СЛОТ ЗА КВАРКИ",
+      "body": "Не вистачає ресурсiв? Можна миттєво вiдкрити цей слот за 10 кваркiв.",
+      "cancel": "Скасувати",
+      "confirm": "10 💎 ВIДКРИТИ"
+    },
+    "hint_5slots": {
+      "badge": "ПIДКАЗКА",
+      "title": "Колонiя починає дихати",
+      "body": "Ти вiдкрив перших 5 слотiв. Кожен вiдкритий гекс або приносить ресурс, або стає мiсцем для будiвлi. Ресурси падають вiд центру до країв: ближчi слоти — найщедрiшi. Якщо ресурсiв забракне — можна вiдкрити слот за 10 кваркiв. Дослiджуй систематично: повний пояс ресурсiв 1-го рiнгу гарантує усi 4 типи на домашнiй планетi."
+    }
+  },
+  "colony_center": {
+    "title": "ЦЕНТР КОЛОНIЗАЦIЇ",
+    "back": "Повернутись",
+    "tab": {
+      "overview": "Огляд",
+      "colonies": "Колонiї",
+      "production": "Виробництво",
+      "buildings": "Будiвлi",
+      "events": "Подiї",
+      "premium": "Преміум"
+    },
+    "resource": {
+      "minerals": "Мiнерали",
+      "volatiles": "Леткi",
+      "isotopes": "Iзотопи",
+      "water": "Вода",
+      "researchData": "Науковi данi",
+      "energy": "Енергiя"
+    },
+    "overview": {
+      "colonies": "Колонiй",
+      "buildings": "Будiвель",
+      "research": "Науковi данi",
+      "local_resources": "Ресурси: {{planet}}",
+      "energy": "Енергетика",
+      "habitability": "Придатнiсть",
+      "shortfall": "дефiцит {{amount}}",
+      "surplus": "запас {{amount}}",
+      "colony_level": "Рiвень колонiї"
+    },
+    "colonies": {
+      "active": "АКТИВНА",
+      "level": "Рiвень {{n}}",
+      "buildings_count": "{{n}} будiвель",
+      "teleport": "Телепорт",
+      "new_slot_hint": "Нова колонiя — вiдкриється пiсля евакуацiї"
+    },
+    "production": {
+      "scope_this": "Ця колонiя",
+      "scope_all": "Усi колонiї",
+      "no_producers": "Тут поки нiчого не виробляється"
+    },
+    "building_category": {
+      "infrastructure": "Iнфраструктура",
+      "energy": "Енергетика",
+      "extraction": "Видобуток",
+      "science": "Наука",
+      "biosphere": "Бiосфера",
+      "chemistry": "Хiмiя",
+      "premium": "Преміум"
+    },
+    "events": {
+      "empty": "Подiй поки немає"
+    },
+    "premium": {
+      "resource_title": "БУСТ РЕСУРСIВ — 24 ГОД",
+      "resource_desc": "Збiльшує всi показники виробництва цiєї колонiї. Дiє на 24 години тiльки тут.",
+      "time_title": "СКОРОЧЕННЯ ЧАСУ ЗБОРУ — 24 ГОД",
+      "time_desc": "Зменшує кулдаун збору ресурсiв цiєї колонiї. Дiє на 24 години.",
+      "active_boost": "Активний буст: {{sign}}{{pct}}% · залишилось ~{{remaining}} год",
+      "disclaimer": "Буст локальний — дiє тiльки на цiй планетi. Iншi колонiї мають свої окремi апгрейди."
+    }
   }
 }

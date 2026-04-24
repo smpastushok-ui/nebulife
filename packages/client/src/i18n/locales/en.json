@@ -1061,6 +1061,7 @@
     "home_system": "Home System",
     "ring_label": "Ring {{ring}}",
     "ring_locked_hint": "research all systems in the previous ring",
+    "unlock_via_quarks_tooltip": "Unlock this system for {{cost}} 💎",
     "researched_btn": "Researched",
     "researching_btn": "Researching",
     "research_btn": "Research",
@@ -1315,5 +1316,86 @@
     "completed_badge": "Read",
     "share": "Share",
     "copied": "Copied!"
+  },
+  "ring_unlock": {
+    "banner": "NEW ZONE UNLOCKED",
+    "ring_label": "RING {{ring}}",
+    "subtitle": "Capillary network expanding"
+  },
+  "surface": {
+    "quarks_unlock": {
+      "title": "UNLOCK SLOT WITH QUARKS",
+      "body": "Short on resources? You can instantly unlock this slot for 10 quarks.",
+      "cancel": "Cancel",
+      "confirm": "10 💎 UNLOCK"
+    },
+    "hint_5slots": {
+      "badge": "HINT",
+      "title": "Your colony wakes up",
+      "body": "You've unlocked your first 5 slots. Each revealed hex either drops a resource or becomes a build spot. Yields taper from the centre outward — inner slots are the most generous. Running low? Tap any locked hex to pay 10 quarks instead. Work the first ring systematically: on the home planet it's guaranteed to give you all 4 resource types."
+    }
+  },
+  "colony_center": {
+    "title": "COLONY CENTER",
+    "back": "Back",
+    "tab": {
+      "overview": "Overview",
+      "colonies": "Colonies",
+      "production": "Production",
+      "buildings": "Buildings",
+      "events": "Events",
+      "premium": "Premium"
+    },
+    "resource": {
+      "minerals": "Minerals",
+      "volatiles": "Volatiles",
+      "isotopes": "Isotopes",
+      "water": "Water",
+      "researchData": "Research",
+      "energy": "Energy"
+    },
+    "overview": {
+      "colonies": "Colonies",
+      "buildings": "Buildings",
+      "research": "Research",
+      "local_resources": "Resources: {{planet}}",
+      "energy": "Energy",
+      "habitability": "Habitability",
+      "shortfall": "deficit {{amount}}",
+      "surplus": "surplus {{amount}}",
+      "colony_level": "Colony level"
+    },
+    "colonies": {
+      "active": "ACTIVE",
+      "level": "Level {{n}}",
+      "buildings_count": "{{n}} buildings",
+      "teleport": "Teleport",
+      "new_slot_hint": "New colony — unlocks after evacuation"
+    },
+    "production": {
+      "scope_this": "This colony",
+      "scope_all": "All colonies",
+      "no_producers": "Nothing produces this here yet"
+    },
+    "building_category": {
+      "infrastructure": "Infrastructure",
+      "energy": "Energy",
+      "extraction": "Extraction",
+      "science": "Science",
+      "biosphere": "Biosphere",
+      "chemistry": "Chemistry",
+      "premium": "Premium"
+    },
+    "events": {
+      "empty": "No events yet"
+    },
+    "premium": {
+      "resource_title": "RESOURCE BOOST — 24 H",
+      "resource_desc": "Increases all production on this colony. Lasts 24 hours, local only.",
+      "time_title": "HARVEST COOLDOWN CUT — 24 H",
+      "time_desc": "Reduces resource harvest cooldown on this colony. Lasts 24 hours.",
+      "active_boost": "Active boost: {{sign}}{{pct}}% · ~{{remaining}} h left",
+      "disclaimer": "Boost is local — applies to this planet only. Other colonies have their own independent upgrades."
+    }
   }
 }

@@ -38,6 +38,9 @@ interface HexSlotProps {
   y: number;
   zIndex?: number;
   onUnlock: (id: string) => void;
+  /** Called when the player taps a locked hex they can't afford. Parent uses
+   *  this to surface the quarks-pay shortcut. */
+  onInsufficient?: (id: string) => void;
   onHarvest: (id: string) => void;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
@@ -343,6 +346,7 @@ export const HexSlot = React.memo(function HexSlot({
   y,
   zIndex,
   onUnlock,
+  onInsufficient,
   onHarvest,
   onBuild,
   onInspect,
@@ -373,6 +377,8 @@ export const HexSlot = React.memo(function HexSlot({
       if (canAfford) {
         onUnlock(id);
       } else {
+        // Let the parent decide whether to show the "pay 10💎" shortcut.
+        onInsufficient?.(id);
         setInsufficientCost(slot.unlockCost ?? null);
         setInsufficientMsg(true);
         setTimeout(() => setInsufficientMsg(false), 2500);

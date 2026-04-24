@@ -42,7 +42,7 @@ import { TelescopeOverlay } from './ui/components/TelescopeOverlay.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
-import { getCatalogEntry, getCatalogName } from '@nebulife/core';
+import { getCatalogEntry, getCatalogName, BUILDING_DEFS } from '@nebulife/core';
 import { initIAP } from './api/iap-service.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
 import {
@@ -121,6 +121,9 @@ import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
+import { RingUnlockAnimation } from './ui/components/RingUnlockAnimation.js';
+import { ColonyCenterPage, RESOURCE_BOOST_PRICES, TIME_BOOST_PRICES, BOOST_DURATION_MS } from './ui/components/ColonyCenter/ColonyCenterPage.js';
+import type { ColonyCenterPlanet } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import { SpaceAmbient } from './audio/SpaceAmbient.js';
 import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
@@ -1078,6 +1081,42 @@ function AppInner() {
   // toward the centre while the archive overlay is mounting.
   const [terminalConverging, setTerminalConverging] = useState(false);
   const [showAcademy, setShowAcademy] = useState(false);
+  // Colony Center — opened by tapping the colony_hub building on the surface.
+  // Renders ColonyCenterPage (6 tabs: overview / colonies / production /
+  // buildings / events / premium). Closes via the page's own Back button.
+  const [showColonyCenter, setShowColonyCenter] = useState(false);
+  // Per-planet premium boosts (resource +10/20/25%, time -10/20/25%) purchased
+  // with quarks. Map is keyed by planet.id so each colony has independent
+  // boosts. Persisted into game_state.colony_boosts on sync.
+  const [colonyBoosts, setColonyBoosts] = useState<Record<string, {
+    resource?: { pct: number; expiresAt: number };
+    time?:     { pct: number; expiresAt: number };
+  }>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_colony_boosts');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return {};
+  });
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_colony_boosts', JSON.stringify(colonyBoosts)); }
+    catch { /* ignore */ }
+  }, [colonyBoosts]);
+
+  // Systems the player has unlocked via quarks (bypassing the ring-lock
+  // gate). Each entry is a single StarSystem.id; once unlocked it can be
+  // researched normally even if ast-probe tech isn't reached yet.
+  const [quarkUnlockedSystems, setQuarkUnlockedSystems] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_quark_unlocked_systems');
+      if (saved) return new Set(JSON.parse(saved));
+    } catch { /* ignore */ }
+    return new Set();
+  });
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_quark_unlocked_systems', JSON.stringify(Array.from(quarkUnlockedSystems))); }
+    catch { /* ignore */ }
+  }, [quarkUnlockedSystems]);
   // On refresh: bot arena state is lost (GPU memory), redirect to hangar.
   // For future multiplayer: restore arena session from server instead.
   const wasInBotArena = localStorage.getItem('nebulife_arena_active') === '1';
@@ -1129,15 +1168,17 @@ function AppInner() {
     if (surfaceTarget) colonyPlanetRef.current = surfaceTarget;
   }, [surfaceTarget]);
 
-  // Play planet ambient loop while surface view is active.
+  // Play planet ambient loop while surface view is active. Silent when the
+  // hangar or arena is open — even if the player left surfaceTarget set,
+  // the surface scene itself unmounts so audio must stop too.
   useEffect(() => {
-    if (surfaceTarget) {
+    if (surfaceTarget && !showHangar && !showArena) {
       playLoop('planet-loop', 0.1);
     } else {
       stopLoop('planet-loop');
     }
     return () => stopLoop('planet-loop');
-  }, [surfaceTarget]);
+  }, [surfaceTarget, showHangar, showArena]);
 
   // Terminal ambient loop — new user-supplied track (terminal-loop.mp3),
   // loops at 40% volume while the Cosmic Archive is open. Initial volume
@@ -1392,6 +1433,23 @@ function AppInner() {
     return () => clearTimeout(t);
   }, [clockPhase, tutorialStep]);
 
+  // When the tutorial becomes active, force-close every full-screen overlay so
+  // the tutorial pointer lands on the galaxy view it expects. ChatWidget is
+  // closed via its forceCollapsed prop (see JSX below).
+  useEffect(() => {
+    if (!isTutorialActive) return;
+    setShowArena(false);
+    setShowHangar(false);
+    setShowCosmicArchive(false);
+    setShowAcademy(false);
+    setShowPlayerPage(false);
+    setShowChaosModal(false);
+    setShowTopUpModal(false);
+    setShowColonyCenter(false);
+    setSurfaceTarget(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTutorialActive]);
+
   // Fallback: ensure gameStartedAt is set for existing players who completed onboarding
   // Try localStorage first (before server hydration), then create new timestamp after hydration
   useEffect(() => {
@@ -1538,8 +1596,16 @@ function AppInner() {
     }
   }, []);
 
-  /** Delete account: permanently remove all data + Firebase account */
+  /** Delete account: permanently remove all data + Firebase account. Mirrors
+   *  handleStartOver's defensive pattern — disables game-state sync first so
+   *  beforeunload / debounced flushes can't re-write stale localStorage after
+   *  we clear it. Reload happens in finally so the user is never stranded on
+   *  a half-logged-out UI even if the network call or signOut throws. */
   const handleDeleteAccount = useCallback(async () => {
+    // 0. Kill any pending sync so it can't rewrite localStorage after clear.
+    syncGameStateRef.current = () => {};
+    if (syncTimeoutRef.current) { clearTimeout(syncTimeoutRef.current); syncTimeoutRef.current = null; }
+
     try {
       const res = await authFetch('/api/player/delete', {
         method: 'POST',
@@ -1550,12 +1616,14 @@ function AppInner() {
         console.error('Delete failed:', await res.text());
         return;
       }
-      // Clear all local data
-      localStorage.clear();
-      await signOut();
-      window.location.reload();
     } catch (err) {
       console.error('Delete account error:', err);
+    } finally {
+      // Clear every trace. signOut is best-effort — even if it hangs or
+      // throws, we still reload so the next mount starts clean.
+      try { localStorage.clear(); } catch { /* ignore */ }
+      try { await signOut(); } catch (err) { console.warn('[delete] signOut failed:', err); }
+      window.location.reload();
     }
   }, []);
 
@@ -1733,8 +1801,15 @@ function AppInner() {
       if (serverLang && (serverLang === 'uk' || serverLang === 'en')) {
         const current = localStorage.getItem('nebulife_lang');
         const clientExplicit = localStorage.getItem('nebulife_lang_chosen') === '1';
+        // For a brand-new player (first sync after registration) the server
+        // row only carries the migration default 'uk'. We always prefer the
+        // client's locally-detected or picker-chosen language in that case
+        // — otherwise an EN-speaking tester who re-registers after an
+        // account wipe silently ends up on a UK interface.
+        const isFreshPlayer = player?.game_phase === 'onboarding';
         if (current !== serverLang) {
-          if (clientExplicit && (current === 'uk' || current === 'en')) {
+          const clientLangOk = current === 'uk' || current === 'en';
+          if ((clientExplicit || isFreshPlayer) && clientLangOk) {
             // Push client choice up to the server — don't overwrite local.
             void authFetch('/api/player/language', {
               method: 'POST',
@@ -2415,6 +2490,11 @@ function AppInner() {
                       'neighbor';
                     const completionXP = RING_XP_REWARD[zoneKey] ?? XP_REWARDS.RESEARCH_COMPLETE;
                     awardXP(completionXP, 'research_complete');
+                    // Capillary pulse: zip a bead along the home→system edge
+                    // so the player sees the web "reaching" the newly unlocked
+                    // star. spawnEdgePulse is a cheap RAF-sliced visual — the
+                    // 3rd-party-visible side-effect is ~0.8 s of extra draw.
+                    engineRef.current?.pulseCapillaryTo(system.id);
                   }
                 }
 
@@ -2465,6 +2545,11 @@ function AppInner() {
     engineRef.current?.setResearchState(researchState);
   }, [researchState]);
 
+  // Ring-unlock cinematic state — when effectiveMaxRing climbs (tech tree
+  // node completes, or auto-promotion kicks in), play a 6s animation.
+  const [ringUnlockAnim, setRingUnlockAnim] = useState<{ newRing: number } | null>(null);
+  const prevEffectiveMaxRingRef = useRef<number | null>(null);
+
   // Sync effective max ring to engine (controls BFS depth into galactic core).
   //
   // Auto-promotion: if the player has fully researched ALL their personal Ring 2
@@ -2487,7 +2572,51 @@ function AppInner() {
       }
     }
     engineRef.current?.setEffectiveMaxRing(effectiveMax);
-  }, [techTreeState, researchState]);
+
+    // Rising-edge detection — trigger the unlock cinematic only on a real
+    // increase, never on the first mount (prevEffectiveMaxRingRef is null
+    // until the first run finishes), never during onboarding, and never
+    // while another unlock is already playing.
+    const prev = prevEffectiveMaxRingRef.current;
+    if (prev !== null && effectiveMax > prev && !needsOnboarding && !ringUnlockAnim) {
+      setRingUnlockAnim({ newRing: effectiveMax });
+    }
+    prevEffectiveMaxRingRef.current = effectiveMax;
+  }, [techTreeState, researchState, needsOnboarding, ringUnlockAnim]);
+
+  // While the ring-unlock cinematic is playing, force-close every full-screen
+  // overlay so the animation plays on a clean stage (mirrors the tutorial-
+  // activation pattern).
+  useEffect(() => {
+    if (!ringUnlockAnim) return;
+    setShowArena(false);
+    setShowHangar(false);
+    setShowCosmicArchive(false);
+    setShowAcademy(false);
+    setShowPlayerPage(false);
+    setShowChaosModal(false);
+    setShowTopUpModal(false);
+    setShowColonyCenter(false);
+    setSurfaceTarget(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ringUnlockAnim]);
+
+  // Evacuation-prompt gate: when a new evacuation target is picked (trajectory
+  // change message arrives), collapse every full-screen overlay so the prompt
+  // never appears behind the hangar / terminal / academy / surface etc.
+  useEffect(() => {
+    if (!evacuationTarget || evacuationPhase !== 'idle' || evacuationPromptDismissed) return;
+    setShowArena(false);
+    setShowHangar(false);
+    setShowCosmicArchive(false);
+    setShowAcademy(false);
+    setShowPlayerPage(false);
+    setShowChaosModal(false);
+    setShowTopUpModal(false);
+    setShowColonyCenter(false);
+    setSurfaceTarget(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evacuationTarget, evacuationPhase, evacuationPromptDismissed]);
 
   // Animated counter: count up to hoveredStarInfo.progress over ~900ms
   useEffect(() => {
@@ -5064,24 +5193,8 @@ function AppInner() {
               textAlign: 'center',
             }}
           >
-            {/* Video placeholder */}
-            <div
-              style={{
-                width: '100%',
-                aspectRatio: '16/9',
-                border: '1px dashed rgba(204,68,68,0.3)',
-                borderRadius: 4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#667788',
-                fontSize: 11,
-                marginBottom: 20,
-                background: 'rgba(5,10,20,0.5)',
-              }}
-            >
-              {t('event.urgent_broadcast')}
-            </div>
+            {/* Urgent-broadcast video placeholder removed per redesign —
+                the message + CTA carry the urgency on their own. */}
             <div style={{ color: '#cc4444', fontSize: 13, fontWeight: 'bold', marginBottom: 12, letterSpacing: 1 }}>
               {t('event.trajectory_updated')}
             </div>
@@ -5552,10 +5665,15 @@ function AppInner() {
         />
       )}
       {/* Stage 3: Planet approach — no overlay, ship flies in PlanetViewScene */}
-      {/* Stage 4: Ship on orbit — colony founding prompt */}
+      {/* Stage 4: Ship on orbit — colony founding prompt. The heavy exosphere
+          PlanetGlobeView unmounts while this modal is up (see gate above);
+          the modal carries its own lightweight SVG system-with-planets
+          preview so the background stays visually meaningful without the
+          GPU cost of the 3D scene. */}
       {evacuationPhase === 'stage4-orbit' && evacuationTarget && (
         <ColonyFoundingPrompt
           planet={evacuationTarget.planet}
+          system={evacuationTarget.system}
           onFoundColony={handleFoundColony}
         />
       )}
@@ -5592,7 +5710,9 @@ function AppInner() {
       {(state.scene === 'home-intro' || state.scene === 'planet-view') && homeInfo
         && !showArena && !showHangar && !surfaceTarget
         && !showPlayerPage && !showCosmicArchive && !showAcademy
-        && !showChaosModal && !showTopUpModal && (
+        && !showChaosModal && !showTopUpModal
+        && evacuationPhase !== 'stage4-orbit'
+        && !ringUnlockAnim && (
         <PlanetGlobeView
           ref={globeRef}
           planet={state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet}
@@ -5602,8 +5722,10 @@ function AppInner() {
           onDoubleClick={handleGlobeDoubleClick}
         />
       )}
-      {/* Surface View (biosphere level) */}
-      {surfaceTarget && (
+      {/* Surface View (biosphere level) — unmount whenever hangar or arena is
+          up so the surface's audio loop + render pipeline fully release.
+          Without this the planet-loop plays over the hangar/arena ambience. */}
+      {surfaceTarget && !showHangar && !showArena && (
         <SurfaceShaderView
           ref={surfaceViewRef}
           planet={surfaceTarget.planet}
@@ -5673,6 +5795,7 @@ function AppInner() {
             setQuarks((prev) => Math.max(0, prev - amount));
           }}
           alphaHarvesterCount={0}
+          onOpenColonyCenter={() => setShowColonyCenter(true)}
         />
       )}
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}
@@ -5892,7 +6015,12 @@ function AppInner() {
             const sys = (engineRef.current?.getAllSystems() ?? []).find(s => s.id === sysId);
             if (!sys) return false;
             const maxRingAdd = getEffectValue(techTreeStateRef.current, 'max_ring_add', 0);
-            return canStartResearch(researchState, sysId, sys.ringIndex, HOME_RESEARCH_MAX_RING + maxRingAdd);
+            // Quark-unlocked systems bypass the ring gate (but still need
+            // research_data + time to actually scan — fair progression).
+            const effectiveMax = quarkUnlockedSystems.has(sysId)
+              ? Math.max(HOME_RESEARCH_MAX_RING + maxRingAdd, sys.ringIndex ?? 0)
+              : HOME_RESEARCH_MAX_RING + maxRingAdd;
+            return canStartResearch(researchState, sysId, sys.ringIndex, effectiveMax);
           }}
           onRenameSystem={(sysId: string, newName: string) => {
             setAlias({
@@ -5918,6 +6046,18 @@ function AppInner() {
           onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
           systemPhotos={systemPhotos}
           colonyResources={colonyResources}
+          quarks={quarks}
+          isQuarkUnlocked={(sysId) => quarkUnlockedSystems.has(sysId)}
+          onUnlockViaQuarks={(sysId) => {
+            const COST = 30;
+            if (quarks < COST) return;
+            setQuarks((q) => Math.max(0, q - COST));
+            setQuarkUnlockedSystems((prev) => {
+              const next = new Set(prev);
+              next.add(sysId);
+              return next;
+            });
+          }}
         />
       )}
 
@@ -6060,8 +6200,22 @@ function AppInner() {
         <FreeTaskHUD current={tutorialFreeCount} total={2} />
       )}
 
-      {/* Chat unread notification dot — visible above chat widget */}
-      {chatUnreadCount > 0 && (
+      {/* Chat unread notification dot — gated to match ChatWidget visibility
+          so the dot never floats alone over the hangar/arena/cinematic/surface
+          /archive/player-page/academy/onboarding/ring-unlock backgrounds. */}
+      {chatUnreadCount > 0
+        && !authLoading
+        && !needsOnboarding
+        && !needsCallsign
+        && !showArena
+        && !showHangar
+        && !cinematicActive
+        && !surfaceTarget
+        && !showCosmicArchive
+        && !showAcademy
+        && !showPlayerPage
+        && !ringUnlockAnim
+        && (
         <div
           style={{
             position: 'fixed',
@@ -6118,6 +6272,84 @@ function AppInner() {
           lastDigestSeen={lastDigestSeen}
           latestDigestWeekDate={latestDigestWeekDate}
           preferredLanguage={lang}
+          forceCollapsed={isTutorialActive || !!ringUnlockAnim}
+        />
+      )}
+
+      {/* Colony Center — management hub opened via colony_hub inspect. */}
+      {showColonyCenter && surfaceTarget && (() => {
+        const active: ColonyCenterPlanet = {
+          planet: surfaceTarget.planet,
+          star: surfaceTarget.star,
+          system: state.selectedSystem ?? homeInfo?.system ?? ({} as Star) as any,
+          buildings: colonyState?.buildings ?? [],
+          colonyLevel: (colonyState as any)?.colonyLevel ?? 1,
+          habitability: surfaceTarget.planet.habitability?.overall ?? 0,
+          active: true,
+        };
+        // MVP: only 1 real colony (active surface). Multi-colony list pending
+        // server-side second-home-colony merge (migration 014).
+        const allColonies: ColonyCenterPlanet[] = [active];
+
+        // Aggregate per-hour production from buildings. Tick amounts in
+        // BUILDING_DEFS are per-minute → multiply by 60 for /h.
+        const perHour = { minerals: 0, volatiles: 0, isotopes: 0, water: 0, researchData: 0, energy: 0 };
+        let energyProduced = 0;
+        let energyConsumed = 0;
+        for (const b of active.buildings) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const def = (BUILDING_DEFS as Record<string, any>)[b.type];
+          if (!def) continue;
+          for (const p of (def.production ?? []) as Array<{ resource: string; amount: number }>) {
+            if (p.resource in perHour) (perHour as any)[p.resource] += p.amount * 60;
+            if (p.resource === 'energy') energyProduced += p.amount;
+          }
+          for (const c of (def.consumption ?? []) as Array<{ resource: string; amount: number }>) {
+            if (c.resource === 'energy') energyConsumed += c.amount;
+          }
+        }
+
+        return (
+          <ColonyCenterPage
+            active={active}
+            allColonies={allColonies}
+            colonyResources={colonyResources}
+            storageCapacity={200 + active.buildings.filter((b) => b.type === 'resource_storage').length * 200}
+            productionPerHour={perHour}
+            energyBalance={{ produced: Math.round(energyProduced), consumed: Math.round(energyConsumed) }}
+            researchData={Math.floor(researchData)}
+            logEntries={logEntries}
+            quarks={quarks}
+            boosts={colonyBoosts}
+            onBuyBoost={(kind, pct) => {
+              const priceTable = kind === 'resource' ? RESOURCE_BOOST_PRICES : TIME_BOOST_PRICES;
+              const key = String(Math.round(pct * 100));
+              const price = priceTable[key];
+              if (!price || quarks < price) return;
+              setQuarks((q) => Math.max(0, q - price));
+              setColonyBoosts((prev) => ({
+                ...prev,
+                [active.planet.id]: {
+                  ...(prev[active.planet.id] ?? {}),
+                  [kind]: { pct, expiresAt: Date.now() + BOOST_DURATION_MS },
+                },
+              }));
+            }}
+            onTeleport={() => { /* TODO: multi-colony teleport */ }}
+            onClose={() => setShowColonyCenter(false)}
+          />
+        );
+      })()}
+
+      {/* Ring-unlock cinematic — 6s lock-everything-out animation shown when
+          effectiveMaxRing climbs (tech tree + auto-promotion). Phase A grows
+          chaotic capillary threads, Phase B pulses each new tip in sequence.
+          The component swallows all pointer events, so the player can't break
+          out mid-animation. */}
+      {ringUnlockAnim && (
+        <RingUnlockAnimation
+          newRing={ringUnlockAnim.newRing}
+          onComplete={() => setRingUnlockAnim(null)}
         />
       )}
 

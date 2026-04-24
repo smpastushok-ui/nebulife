@@ -221,10 +221,11 @@ export function getExosphereLOD(): ExosphereLOD {
         starfieldDensity: 0.4, // 40 % of full → ~280 stars instead of ~700
         // Strong exposure bump — without bloom + clouds + back-atmosphere
         // the custom planet shader's night side read as nearly black on
-        // tester tablets. 1.8× is high for desktop but looks correct on
+        // tester tablets. 2.2× is high for desktop but looks correct on
         // low-tier mobile screens (OLED phones gamma-shift everything
-        // darker anyway).
-        toneMappingExposure: 1.8,
+        // darker anyway). Bumped 1.8 → 2.2 after tester report "знову
+        // планета дуже темна" on the exosphere view.
+        toneMappingExposure: 2.2,
       };
     case 'mid':
       return {
@@ -242,7 +243,7 @@ export function getExosphereLOD(): ExosphereLOD {
         moonsFlatShaded: false,
         starfieldTwinkle: true,
         starfieldDensity: 0.6, // 60 % of full
-        toneMappingExposure: 1.5, // mid also looked dim — bumped 1.2 → 1.5
+        toneMappingExposure: 1.9, // mid tablets still dim, bumped 1.5 → 1.9
       };
     case 'high':
       // Flagship mobiles (S22 Ultra, iPhone 14 Pro) still run this scene

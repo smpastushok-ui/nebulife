@@ -16,6 +16,7 @@ import React, {
   useCallback,
   useEffect,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState } from '@nebulife/core';
 import { getPlanetSize } from '@nebulife/core';
@@ -73,6 +74,9 @@ interface HexSurfaceProps {
   onConsumeQuarks?:       (amount: number) => void;
   alphaHarvesterCount?:   number;
   shutdownBuildingTypes?: Set<string>;
+  /** Opens the Colony Center hub page — fired when the player inspects the
+   *  `colony_hub` building. Parent wires this to setShowColonyCenter(true). */
+  onOpenColonyCenter?:    () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +157,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onConsumeQuarks,
       alphaHarvesterCount = 0,
       shutdownBuildingTypes,
+      onOpenColonyCenter,
     },
     ref,
   ) {
@@ -264,6 +269,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       handleDroneAmount,
       researchData,
       onConsumeResearchData,
+      quarks,
+      onConsumeQuarks,
     );
 
     // ── Signal ready after initial load ────────────────────────────────────
@@ -314,16 +321,36 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     // ── Action handlers ─────────────────────────────────────────────────────
 
+    // Premium unlock flow — when the player taps a locked hex they can't
+    // afford in colony resources, we surface a confirmation modal offering
+    // the quarks shortcut (see SLOT_UNLOCK_QUARKS_COST in useHexState).
+    const [quarksUnlockSlotId, setQuarksUnlockSlotId] = useState<string | null>(null);
+
     const handleUnlock = useCallback(
       (slotId: string) => {
         const slot = hexState.getSlot(slotId);
+        if (!slot) return;
         const success = hexState.unlockSlot(slotId);
-        if (success && slot) {
-          onHexUnlocked?.(slot.ring);
-        }
+        if (success) onHexUnlocked?.(slot.ring);
       },
       [hexState, onHexUnlocked],
     );
+
+    /** Fired when the player taps a locked hex they can't afford with colony
+     *  resources. If they have enough quarks, show the "Pay 10 💎" modal. */
+    const handleInsufficient = useCallback((slotId: string) => {
+      if ((quarks ?? 0) >= 10) {
+        setQuarksUnlockSlotId(slotId);
+      }
+    }, [quarks]);
+
+    const handleConfirmQuarksUnlock = useCallback(() => {
+      if (!quarksUnlockSlotId) return;
+      const slot = hexState.getSlot(quarksUnlockSlotId);
+      const ok = hexState.unlockSlotWithQuarks(quarksUnlockSlotId);
+      if (ok && slot) onHexUnlocked?.(slot.ring);
+      setQuarksUnlockSlotId(null);
+    }, [hexState, onHexUnlocked, quarksUnlockSlotId]);
 
     const handleHarvest = useCallback(
       (slotId: string) => {
@@ -353,9 +380,15 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       [onBuildPanelChange],
     );
 
-    const handleInspect = useCallback((_slotId: string) => {
-      // Future: show building info popup
-    }, []);
+    const handleInspect = useCallback((slotId: string) => {
+      const slot = hexState.getSlot(slotId);
+      if (!slot) return;
+      // Colony hub → open the Colony Center management screen.
+      if (slot.buildingType === 'colony_hub' && onOpenColonyCenter) {
+        onOpenColonyCenter();
+      }
+      // Future: other building inspect popups
+    }, [hexState, onOpenColonyCenter]);
 
     const handleDestroy = useCallback(
       (slotId: string) => {
@@ -498,6 +531,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           slots={hexState.slots}
           planetSize={hexPlanetSize}
           onUnlock={handleUnlock}
+          onInsufficient={handleInsufficient}
           onHarvest={handleHarvest}
           onBuild={handleBuild}
           onInspect={handleInspect}
@@ -613,7 +647,159 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         >
           BACK
         </button>
+
+        {/* Quarks-pay confirmation modal — shown when the player can't afford
+            a locked hex with colony resources but has >= 10 quarks. */}
+        {quarksUnlockSlotId && (
+          <QuarksUnlockModal
+            onCancel={() => setQuarksUnlockSlotId(null)}
+            onConfirm={handleConfirmQuarksUnlock}
+          />
+        )}
+
+        {/* First-5-unlocks hint — fires once per player once they've cleared
+            5 slots on their home planet. See useFirstFiveHint hook. */}
+        <FirstFiveUnlocksHint
+          homeMatch={typeof window !== 'undefined'
+            && localStorage.getItem('nebulife_home_planet_id') === planet.id}
+          unlockedCount={hexState.slots.filter(s => s.state !== 'locked' && s.state !== 'hidden').length}
+        />
       </div>
     );
   },
 );
+
+// ---------------------------------------------------------------------------
+// Sub-components: quarks-pay modal + first-5-unlocks onboarding hint
+// ---------------------------------------------------------------------------
+
+/** Centered confirmation for the premium slot unlock ("Pay 10 💎"). */
+function QuarksUnlockModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9800,
+        background: 'rgba(2,5,16,0.82)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'monospace',
+      }}
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 320, maxWidth: '86vw',
+          background: 'rgba(10,15,25,0.96)',
+          border: '1px solid #4488aa',
+          borderRadius: 6,
+          padding: 20,
+          textAlign: 'center',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+        }}
+      >
+        <div style={{ fontSize: 10, color: '#4488aa', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+          {t('surface.quarks_unlock.title')}
+        </div>
+        <div style={{ fontSize: 13, color: '#aabbcc', marginBottom: 18, lineHeight: 1.5 }}>
+          {t('surface.quarks_unlock.body')}
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1,
+              background: 'transparent', border: '1px solid #334455',
+              borderRadius: 4, color: '#8899aa',
+              fontFamily: 'monospace', fontSize: 11,
+              padding: '8px 14px', cursor: 'pointer', letterSpacing: 1,
+            }}
+          >
+            {t('surface.quarks_unlock.cancel')}
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              flex: 1,
+              background: 'rgba(68,136,255,0.18)',
+              border: '1px solid #7bb8ff',
+              borderRadius: 4, color: '#7bb8ff',
+              fontFamily: 'monospace', fontSize: 11, fontWeight: 600,
+              padding: '8px 14px', cursor: 'pointer', letterSpacing: 1,
+            }}
+          >
+            {t('surface.quarks_unlock.confirm')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** One-time onboarding hint — appears the moment the player unlocks their
+ *  5th hex on the HOME planet. Persisted via nebulife_surface_5slots_hint_seen
+ *  so it never fires twice for the same account. */
+function FirstFiveUnlocksHint({ homeMatch, unlockedCount }: { homeMatch: boolean; unlockedCount: number }) {
+  const { t } = useTranslation();
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!homeMatch) return;
+    if (unlockedCount < 5) return;
+    try {
+      if (localStorage.getItem('nebulife_surface_5slots_hint_seen') === '1') return;
+      localStorage.setItem('nebulife_surface_5slots_hint_seen', '1');
+    } catch { /* ignore */ }
+    setVisible(true);
+  }, [homeMatch, unlockedCount]);
+
+  if (!visible) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9810,
+        background: 'rgba(2,5,16,0.85)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'monospace',
+      }}
+      onClick={() => setVisible(false)}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 360, maxWidth: '88vw',
+          background: 'rgba(10,15,25,0.97)',
+          border: '1px solid #446688',
+          borderRadius: 6,
+          padding: 22,
+          textAlign: 'left',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.6)',
+        }}
+      >
+        <div style={{ fontSize: 10, color: '#44ff88', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
+          {t('surface.hint_5slots.badge')}
+        </div>
+        <div style={{ fontSize: 15, color: '#ccddee', marginBottom: 12, fontWeight: 600 }}>
+          {t('surface.hint_5slots.title')}
+        </div>
+        <div style={{ fontSize: 12, color: '#8899aa', marginBottom: 18, lineHeight: 1.6 }}>
+          {t('surface.hint_5slots.body')}
+        </div>
+        <button
+          onClick={() => setVisible(false)}
+          style={{
+            width: '100%',
+            background: 'rgba(68,255,136,0.12)',
+            border: '1px solid #44ff88',
+            borderRadius: 4, color: '#44ff88',
+            fontFamily: 'monospace', fontSize: 12, fontWeight: 600,
+            padding: '10px', cursor: 'pointer', letterSpacing: 1,
+          }}
+        >
+          {t('surface.hint_5slots.ok')}
+        </button>
+      </div>
+    </div>
+  );
+}

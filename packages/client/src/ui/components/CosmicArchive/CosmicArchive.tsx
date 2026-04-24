@@ -136,6 +136,12 @@ export interface CosmicArchiveProps {
   systemPhotos?: Map<string, SystemPhotoData>;
   /** Colony resource totals (for Resources tab) */
   colonyResources?: { minerals: number; volatiles: number; isotopes: number; water: number };
+  /** Player quarks balance — for premium unlock buttons. */
+  quarks?: number;
+  /** Instant-unlock ring-locked system via quarks (pricing set in SystemsList). */
+  onUnlockViaQuarks?: (systemId: string) => void;
+  /** True if the given system was already unlocked via quarks (bypasses ring gate). */
+  isQuarkUnlocked?: (systemId: string) => boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +256,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onFavoritesChange,
   systemPhotos,
   colonyResources,
+  quarks,
+  onUnlockViaQuarks,
+  isQuarkUnlocked,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   const { t } = useTranslation();
   const TABS = buildTabs(t);
@@ -469,6 +478,10 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           } : undefined}
           researchData={researchData}
           researchDataCost={researchDataCost}
+          onUnlockViaQuarks={onUnlockViaQuarks}
+          quarkUnlockCost={30}
+          quarksBalance={quarks ?? 0}
+          isQuarkUnlocked={isQuarkUnlocked}
         />
       );
     }

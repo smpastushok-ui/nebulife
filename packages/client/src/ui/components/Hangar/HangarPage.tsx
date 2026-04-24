@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // HangarPage — Combat hangar: ship selection, pilot stats, arena entry
-// Animated entrance, countUp numbers, 5 ship slots (3 open + 2 locked stubs),
-// 3 event modes: Training (free), Team Battle (1Q), Tournament (coming soon),
-// controls reference panel.
+// Animated entrance, countUp numbers, 2 slots (1 default 3D ship + 1 custom 3D
+// ship slot — 500Q, A.I. generation deferred), 3 event modes: Training (free),
+// Team Battle (1Q), Tournament (coming soon), controls reference panel.
 // ---------------------------------------------------------------------------
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -32,20 +32,24 @@ interface ShipSlot {
   id: string;
   src: string;
   locked: boolean;
-  label: string;
+  /** i18n key for the slot label (resolved via t() at render time). */
+  labelKey: string;
+  /** i18n key for a hint shown under the locked preview (optional). */
+  hintKey?: string;
   cost?: number;
   costLabel?: string;
 }
 
+// Single default 3D ship (arena uses blue_ship.glb regardless of id — this slot
+// is the player's default). Custom 3D ship slot is locked for now; A.I.
+// generation pipeline will be added later (500 quarks per unlock).
 const SHIP_SLOTS: ShipSlot[] = [
-  { id: 'ship1', src: '/arena_ships/star_ship1.webp', locked: false, label: 'FALCON' },
-  { id: 'ship2', src: '/arena_ships/star_ship2.webp', locked: false, label: 'VIPER' },
-  { id: 'ship3', src: '/arena_ships/star_ship3.webp', locked: false, label: 'PHANTOM' },
-  { id: 'ship4', src: '', locked: true, label: '2D CUSTOM', cost: 50, costLabel: '50 \u269B' },
-  { id: 'ship5', src: '', locked: true, label: '3D CUSTOM', cost: 500, costLabel: '500 \u269B' },
+  { id: 'ship1', src: '/arena_ships/star_ship1.webp', locked: false, labelKey: 'hangar.ship.default' },
+  { id: 'custom3d', src: '', locked: true, labelKey: 'hangar.ship.custom_3d', hintKey: 'hangar.ship.custom_hint', cost: 500, costLabel: '500 \u269B' },
 ];
 
 const SELECTED_SHIP_KEY = 'nebulife_hangar_ship';
+const VALID_SHIP_IDS = new Set(SHIP_SLOTS.map(s => s.id));
 
 // ── Controls reference data ──────────────────────────────────────────────────
 
@@ -116,10 +120,13 @@ export const HangarPage: React.FC<HangarPageProps> = ({
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // Ship selection
-  const [selectedShip, setSelectedShip] = useState<string>(() =>
-    localStorage.getItem(SELECTED_SHIP_KEY) || SHIP_SLOTS[0].id,
-  );
+  // Ship selection — migrate legacy ids (ship2/ship3/ship4/ship5 from the old
+  // 5-slot roster) to the single default ship. When custom 3D slots ship,
+  // they will be added to SHIP_SLOTS and VALID_SHIP_IDS.
+  const [selectedShip, setSelectedShip] = useState<string>(() => {
+    const saved = localStorage.getItem(SELECTED_SHIP_KEY);
+    return saved && VALID_SHIP_IDS.has(saved) ? saved : SHIP_SLOTS[0].id;
+  });
   useEffect(() => {
     localStorage.setItem(SELECTED_SHIP_KEY, selectedShip);
   }, [selectedShip]);
@@ -241,9 +248,12 @@ export const HangarPage: React.FC<HangarPageProps> = ({
               <div style={{ fontSize: 10, color: '#556677', marginTop: 8 }}>
                 {activeSlot.cost !== undefined ? <>{activeSlot.cost} <QuarkIcon /></> : activeSlot.costLabel}
               </div>
+              {activeSlot.hintKey && (
+                <div style={S.previewHint}>{t(activeSlot.hintKey as Parameters<typeof t>[0])}</div>
+              )}
             </div>
           )}
-          <div style={S.previewName}>{activeSlot.label}</div>
+          <div style={S.previewName}>{t(activeSlot.labelKey as Parameters<typeof t>[0])}</div>
         </div>
 
         {/* ── Ship selector (horizontal scroll) ─────────────────────── */}
@@ -282,7 +292,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                   ...S.cardLabel,
                   color: isActive ? '#7bb8ff' : slot.locked ? '#445566' : '#8899aa',
                 }}>
-                  {slot.label}
+                  {t(slot.labelKey as Parameters<typeof t>[0])}
                 </div>
               </button>
             );
@@ -506,6 +516,10 @@ const S: Record<string, React.CSSProperties> = {
   },
   previewName: {
     fontSize: 10, color: '#667788', letterSpacing: 3, textTransform: 'uppercase',
+  },
+  previewHint: {
+    fontSize: 8, color: '#445566', letterSpacing: 0.5, textAlign: 'center',
+    marginTop: 8, padding: '0 12px', lineHeight: 1.4, maxWidth: 180,
   },
 
   // Ship selector (horizontal)

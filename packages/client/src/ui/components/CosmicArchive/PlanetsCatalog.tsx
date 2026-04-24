@@ -380,7 +380,7 @@ export function PlanetsCatalog({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 44px 44px 44px 36px 28px',
+          gridTemplateColumns: '1fr 44px 44px 36px 28px',
           gap: 0,
           padding: '4px 12px 6px',
           alignItems: 'center',
@@ -414,14 +414,8 @@ export function PlanetsCatalog({
             </svg>
           </HeaderIcon>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderIcon tooltip={t('archive.tooltip_research_progress')}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
-              <circle cx="8" cy="8" r="6" />
-              <path d="M8 4v4l3 2" strokeLinecap="round" />
-            </svg>
-          </HeaderIcon>
-        </div>
+        {/* Research column removed per redesign — Systems view carries the
+            full research UI; Planets catalog is name/class/count only. */}
         {/* Pin column — no header */}
         <div />
         {/* Expand column — no header */}
@@ -461,7 +455,7 @@ export function PlanetsCatalog({
               style={{
                 width: '100%',
                 display: 'grid',
-                gridTemplateColumns: '1fr 44px 44px 44px 36px 28px',
+                gridTemplateColumns: '1fr 44px 44px 36px 28px',
                 gap: 0,
                 alignItems: 'center',
                 padding: '10px 12px',
@@ -564,31 +558,7 @@ export function PlanetsCatalog({
                 {system.planets.length}
               </div>
 
-              {/* Research progress cell */}
-              <div
-                style={{
-                  display: 'flex', justifyContent: 'center', alignItems: 'center',
-                  cursor: !isComplete && onStartResearch && canStartResearch?.(system.id) ? 'pointer' : 'default',
-                }}
-                onClick={(e) => {
-                  if (!isComplete) handleResearchClick(system.id, e);
-                }}
-                title={
-                  isComplete
-                    ? t('archive.researched_tooltip')
-                    : canStartResearch?.(system.id)
-                      ? `${Math.round(progress)}% — ${t("archive.click_to_research")}`
-                      : `${Math.round(progress)}%`
-                }
-              >
-                {getResearchProgress && (
-                  <ResearchProgressIcon
-                    progress={progress}
-                    interactive={!isComplete && !!onStartResearch && (canStartResearch?.(system.id) ?? false)}
-                    isResearching={isSystemResearching?.(system.id)}
-                  />
-                )}
-              </div>
+              {/* Research cell removed — moved exclusively to Systems view. */}
 
               {/* Pin cell */}
               <div

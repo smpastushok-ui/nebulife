@@ -333,6 +333,12 @@ export class GameEngine {
    *  zooming — tester reported it felt useless at mid-zoom. */
   galaxyCenterOnOrigin() { this.camera.focusOnOrigin(110); }
 
+  /** Fire a capillary pulse from home to a system — used by App.tsx on
+   *  research-complete so the player sees the web "reaching" the node. */
+  pulseCapillaryTo(systemId: string, color: number = 0x7bb8ff): void {
+    this.galaxyScene?.pulseFromHomeTo(systemId, color);
+  }
+
   // System camera controls (system scene shares the camera)
   systemZoomIn() { this.camera.zoomBy(1.3); }
   systemZoomOut() { this.camera.zoomBy(0.77); }

@@ -62,6 +62,8 @@ interface ChatWidgetProps {
   onAwardXP?: (amount: number, reason: string) => void;
   /** Player level — global chat send requires level 10+ */
   playerLevel?: number;
+  /** When true, force the widget into collapsed state (e.g. while tutorial is active). */
+  forceCollapsed?: boolean;
 }
 
 type Tab = 'global' | 'dm-list' | 'dm-chat' | 'system' | 'astra';
@@ -86,9 +88,17 @@ const CHAT_PULSE_KEYFRAMES = `
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, playerLevel = 1 }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, playerLevel = 1, forceCollapsed = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
+
+  // When the tutorial (or another external gate) activates, collapse the chat
+  // so it stops covering the tutorial UI. We only react to the rising edge so
+  // the user can still manually close the chat themselves — but any attempt to
+  // keep it open is immediately overridden while forceCollapsed is true.
+  useEffect(() => {
+    if (forceCollapsed && !collapsed) setCollapsed(true);
+  }, [forceCollapsed, collapsed]);
   const [tab, setTab] = useState<Tab>('global');
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [dmChannels, setDmChannels] = useState<DMChannelInfo[]>([]);

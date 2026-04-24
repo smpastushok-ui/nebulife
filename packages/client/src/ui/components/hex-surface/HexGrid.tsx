@@ -7,6 +7,7 @@ interface HexGridProps {
   slots: HexSlotData[];
   planetSize?: HexPlanetSize;
   onUnlock: (id: string) => void;
+  onInsufficient?: (id: string) => void;
   onHarvest: (id: string) => void;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
@@ -23,6 +24,7 @@ export const HexGrid = React.memo(function HexGrid({
   slots,
   planetSize = 'medium',
   onUnlock,
+  onInsufficient,
   onHarvest,
   onBuild,
   onInspect,
@@ -137,6 +139,7 @@ export const HexGrid = React.memo(function HexGrid({
               zIndex={zIndex}
               canAfford={canAffordUnlock(id)}
               onUnlock={onUnlock}
+              onInsufficient={onInsufficient}
               onHarvest={onHarvest}
               onBuild={onBuild}
               onInspect={onInspect}

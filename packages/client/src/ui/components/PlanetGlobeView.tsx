@@ -1376,10 +1376,20 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       let shootingStars: ShootingStar[] = [];
       let nextShootingStarTime = 3 + Math.random() * 7; // 3-10s for first
 
-      // --- Ambient light (very subtle fill) ---
-      const ambient = new THREE.AmbientLight(0x223344, 0.7);
+      // --- Ambient + directional lighting ---
+      // Testers keep reporting the planet/exosphere looks too dark on mid-
+      // and low-tier tablets (no bloom, clamped tone-mapping, camera locked
+      // to the lit side). Bumping ambient fill 0.7 → 1.4 and the key light
+      // 1.2 → 1.8 brightens the sphere across tiers without washing out the
+      // high-end look (bloom still stacks on top on ultra).
+      const ambient = new THREE.AmbientLight(0x334466, 1.4);
       scene.add(ambient);
-      const dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+      // Hemisphere fill — sky-tinted top, deeper-blue bottom. Adds a subtle
+      // rim lift on the un-lit hemisphere so the planet never goes fully
+      // black on mid/low tiers where the key light can't spill around.
+      const hemi = new THREE.HemisphereLight(0x88aaff, 0x112233, 0.45);
+      scene.add(hemi);
+      const dirLight = new THREE.DirectionalLight(0xfff2dd, 1.8);
       dirLight.position.copy(STAR_SPRITE_POSITION);
       scene.add(dirLight);
 

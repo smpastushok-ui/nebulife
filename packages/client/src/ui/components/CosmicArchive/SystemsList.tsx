@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
+import { getDeviceTier } from '../../../utils/device-tier.js';
 
 // Tooltip that appears BELOW the icon (so it's not clipped by top menu)
 function HeaderIcon({ children, tooltip }: { children: React.ReactNode; tooltip: string }) {
@@ -49,6 +50,17 @@ function ensureStyles() {
     @keyframes sys-btn-border-march {
       to { stroke-dashoffset: -12; }
     }
+    /* Lupe CTA — gentle pulse so testers see where to tap. */
+    @keyframes sys-lupe-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(68,136,255,0.55); }
+      50%      { box-shadow: 0 0 0 6px rgba(68,136,255,0);    }
+    }
+    /* 60-second fill for the in-progress progress bar. Runs once per mount
+       per research session — visual only, not tied to the real research tick. */
+    @keyframes sys-research-fill {
+      from { width: 0%; }
+      to   { width: 100%; }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -79,6 +91,14 @@ interface SystemsListProps {
   researchData?: number;
   /** Cost to start research */
   researchDataCost?: number;
+  /** Unlock a ring-locked system by paying quarks — premium shortcut. */
+  onUnlockViaQuarks?: (systemId: string) => void;
+  /** Quarks cost for the per-system unlock (default 30). */
+  quarkUnlockCost?: number;
+  /** Player's current quarks balance — for affordability checks. */
+  quarksBalance?: number;
+  /** True if the given system has already been unlocked via quarks. */
+  isQuarkUnlocked?: (systemId: string) => boolean;
 }
 
 export function SystemsList({
@@ -92,6 +112,10 @@ export function SystemsList({
   isRingLocked,
   researchData = 0,
   researchDataCost = 1,
+  onUnlockViaQuarks,
+  quarkUnlockCost = 30,
+  quarksBalance = 0,
+  isQuarkUnlocked,
 }: SystemsListProps) {
   const { t } = useTranslation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -115,6 +139,18 @@ export function SystemsList({
       if (insufficientTimerRef.current) clearTimeout(insufficientTimerRef.current);
     };
   }, []);
+
+  // Collapsed rings — by default, rings with index >= 2 start collapsed so
+  // players aren't overwhelmed by ~1,400 far-away systems. Home (ring 0) and
+  // first ring (ring 1) stay expanded. Player can toggle by tapping the
+  // ring header; choice persists for the session via this local state.
+  const [collapsedRings, setCollapsedRings] = useState<Set<number>>(() => {
+    // Start with "everything from ring 2 up" collapsed. We don't know the
+    // full ring set here yet, so we populate lazily on first render below.
+    return new Set();
+  });
+  // First-mount: mark all ring>=2 as collapsed once we know which rings exist.
+  const collapsedSeededRef = useRef(false);
 
   const sorted = useMemo(() => {
     return [...allSystems].sort((a, b) => {
@@ -146,6 +182,27 @@ export function SystemsList({
     }
     return groups;
   }, [sorted]);
+
+  // Seed the collapsed set once we know which rings exist — rings 2+ default
+  // to collapsed so the terminal isn't a 1400-row wall on first open.
+  useEffect(() => {
+    if (collapsedSeededRef.current) return;
+    if (ringGroups.length === 0) return;
+    collapsedSeededRef.current = true;
+    const initial = new Set<number>();
+    for (const g of ringGroups) {
+      if (g.ringIndex >= 2) initial.add(g.ringIndex);
+    }
+    setCollapsedRings(initial);
+  }, [ringGroups]);
+
+  const toggleRingCollapse = useCallback((ringIndex: number) => {
+    setCollapsedRings((prev) => {
+      const next = new Set(prev);
+      if (next.has(ringIndex)) next.delete(ringIndex); else next.add(ringIndex);
+      return next;
+    });
+  }, []);
 
   // Track first non-home system for tutorial target
   const firstNonHomeId = useMemo(() => {
@@ -250,12 +307,15 @@ export function SystemsList({
         const ringLabel = group.ringIndex === 0
           ? t('archive.home_system')
           : t('archive.ring_label', { ring: group.ringIndex });
+        const isCollapsed = collapsedRings.has(group.ringIndex);
+        const canCollapse = group.ringIndex >= 2;
 
         return (
           <React.Fragment key={`ring-${group.ringIndex}`}>
-            {/* Ring group header */}
+            {/* Ring group header — rings 2+ are clickable chevrons */}
             {group.ringIndex > 0 && (
-              <div
+              <button
+                onClick={() => { if (canCollapse) toggleRingCollapse(group.ringIndex); }}
                 style={{
                   fontSize: 10,
                   color: locked ? '#445566' : '#667788',
@@ -267,18 +327,36 @@ export function SystemsList({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: 0,
+                  width: '100%',
+                  textAlign: 'left',
+                  cursor: canCollapse ? 'pointer' : 'default',
+                  fontFamily: 'monospace',
                 }}
               >
+                {canCollapse && (
+                  <span style={{
+                    display: 'inline-block',
+                    transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.15s',
+                    color: '#556677',
+                    fontSize: 10,
+                  }}>▾</span>
+                )}
                 <span>{ringLabel}</span>
+                <span style={{ fontSize: 9, color: '#556677', textTransform: 'none', letterSpacing: 0 }}>
+                  ({group.systems.length})
+                </span>
                 {locked && (
                   <span style={{ fontSize: 9, color: '#556677', fontStyle: 'italic', textTransform: 'none', letterSpacing: 0 }}>
                     — {t('archive.ring_locked_hint')}
                   </span>
                 )}
-              </div>
+              </button>
             )}
-
-            {group.systems.map((system) => {
+            {!isCollapsed && group.systems.map((system) => {
               const isHome = system.planets.some((p) => p.isHomePlanet);
               const isHovered = hoveredId === system.id;
               const name = aliases[system.id] || system.name;
@@ -370,18 +448,48 @@ export function SystemsList({
                     <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
                       {isHome ? (
                         <span style={{ color: '#334455', fontSize: 10 }} />
-                      ) : locked ? (
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#445566" strokeWidth="1.2" strokeLinecap="round">
-                          <rect x="3" y="7" width="10" height="8" rx="1.5" />
-                          <path d="M5 7V5a3 3 0 0 1 6 0v2" />
-                        </svg>
+                      ) : locked && !(isQuarkUnlocked?.(system.id) ?? false) ? (
+                        // Ring-locked system — show premium Q-pay shortcut if
+                        // it's wired in, otherwise a plain lock icon. Price
+                        // is the fixed SLOT_UNLOCK_QUARKS_COST equivalent.
+                        onUnlockViaQuarks ? (
+                          <button
+                            title={t('archive.unlock_via_quarks_tooltip', { cost: quarkUnlockCost }) as string}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (quarksBalance >= quarkUnlockCost) {
+                                onUnlockViaQuarks(system.id);
+                              }
+                            }}
+                            disabled={quarksBalance < quarkUnlockCost}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+                              background: quarksBalance >= quarkUnlockCost ? 'rgba(68,136,255,0.14)' : 'rgba(10,15,25,0.4)',
+                              border: `1px solid ${quarksBalance >= quarkUnlockCost ? '#446688' : '#223344'}`,
+                              borderRadius: 3,
+                              color: quarksBalance >= quarkUnlockCost ? '#7bb8ff' : '#445566',
+                              fontFamily: 'monospace',
+                              fontSize: 9,
+                              padding: '2px 6px',
+                              cursor: quarksBalance >= quarkUnlockCost ? 'pointer' : 'not-allowed',
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            {quarkUnlockCost} 💎
+                          </button>
+                        ) : (
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#445566" strokeWidth="1.2" strokeLinecap="round">
+                            <rect x="3" y="7" width="10" height="8" rx="1.5" />
+                            <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+                          </svg>
+                        )
                       ) : fullyResearched ? (
-                        <ResearchedButton onClick={() => onNavigate(system)} />
+                        <ResearchedIcon onClick={() => onNavigate(system)} />
                       ) : researching ? (
-                        <ResearchingButton />
+                        <ResearchingProgress />
                       ) : canResearch ? (
                         <div style={{ position: 'relative' }}>
-                          <ResearchButton
+                          <ResearchLupeButton
                             tutorialId={isFirstNonHome ? 'research-btn-first' : undefined}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -428,60 +536,72 @@ export function SystemsList({
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-/** Green "Досліджено" button — links to system navigation */
-function ResearchedButton({ onClick }: { onClick: () => void }) {
+/** Blue filled circle with a white check — shown for fully-researched systems.
+ *  Stays clickable so the player can still jump into the system from here. */
+function ResearchedIcon({ onClick }: { onClick: () => void }) {
   const { t } = useTranslation();
-  const [hover, setHover] = useState(false);
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      title={t('archive.researched_tooltip')}
+      aria-label={t('archive.researched_btn')}
       style={{
-        background: hover ? 'rgba(68, 255, 136, 0.2)' : 'rgba(68, 255, 136, 0.1)',
-        border: `1px solid ${hover ? 'rgba(68, 255, 136, 0.5)' : 'rgba(68, 255, 136, 0.3)'}`,
-        borderRadius: 3,
-        color: '#44ff88',
-        fontFamily: 'monospace',
-        fontSize: 10,
-        padding: '3px 10px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 22, height: 22, borderRadius: '50%',
+        background: '#4488ff',
+        border: '1px solid #7bb8ff',
         cursor: 'pointer',
-        transition: 'background 0.15s, border-color 0.15s',
+        padding: 0,
+        boxShadow: '0 0 6px rgba(68,136,255,0.35)',
       }}
     >
-      {t('archive.researched_btn')}
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3.5 8.5 L7 12 L12.5 4.5" />
+      </svg>
     </button>
   );
 }
 
-/** Animated "Дослідж." button — shown during active research (background sweep only) */
-function ResearchingButton() {
+/** In-progress progress bar. Visual-only 60s fill animation. For low/mid
+ *  tier devices we use a static 50% bar (no animation, no gradient) to keep
+ *  the list scrolling smooth even with dozens of researching systems. */
+function ResearchingProgress() {
   const { t } = useTranslation();
+  const isLowOrMid = useMemo(() => {
+    const tier = getDeviceTier();
+    return tier === 'low' || tier === 'mid';
+  }, []);
+
   return (
-    <span
+    <div
+      title={t('archive.researching_btn')}
       style={{
-        display: 'inline-block',
-        background: 'linear-gradient(90deg, rgba(68,136,170,0.1), rgba(68,136,170,0.3), rgba(68,136,170,0.1))',
-        backgroundSize: '200% 100%',
-        border: '1px dashed rgba(68, 136, 170, 0.5)',
-        borderRadius: 3,
-        color: '#4488aa',
-        fontFamily: 'monospace',
-        fontSize: 10,
-        padding: '3px 8px',
-        animation: 'sys-btn-sweep 2s linear infinite',
-        pointerEvents: 'none',
-        whiteSpace: 'nowrap',
+        position: 'relative',
+        width: 68, height: 10,
+        background: 'rgba(10,15,25,0.85)',
+        border: '1px solid rgba(68,136,170,0.4)',
+        borderRadius: 5,
         overflow: 'hidden',
       }}
     >
-      {t('archive.researching_btn')}
-    </span>
+      <div
+        style={{
+          position: 'absolute', inset: 0,
+          width: isLowOrMid ? '50%' : undefined,
+          background: isLowOrMid
+            ? 'rgba(68,136,255,0.55)'
+            : 'linear-gradient(90deg, rgba(68,136,255,0.8), rgba(123,184,255,1))',
+          animation: isLowOrMid ? undefined : 'sys-research-fill 60s linear forwards',
+          boxShadow: isLowOrMid ? undefined : '0 0 6px rgba(68,136,255,0.5)',
+        }}
+      />
+    </div>
   );
 }
 
-/** "Дослідити" button with hover animations */
-function ResearchButton({
+/** Blue magnifying-glass CTA — starts research on click. Pulses gently so
+ *  testers know where to tap the first time. */
+function ResearchLupeButton({
   tutorialId,
   onClick,
 }: {
@@ -496,19 +616,23 @@ function ResearchButton({
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      title={t('archive.research_btn')}
+      aria-label={t('archive.research_btn')}
       style={{
-        background: hover ? 'rgba(68, 136, 170, 0.3)' : 'rgba(68, 136, 170, 0.15)',
-        border: `1px solid ${hover ? 'rgba(68, 136, 170, 0.6)' : 'rgba(68, 136, 170, 0.35)'}`,
-        borderRadius: 3,
-        color: '#4488aa',
-        fontFamily: 'monospace',
-        fontSize: 10,
-        padding: '3px 10px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 24, height: 24, borderRadius: '50%',
+        background: hover ? 'rgba(68,136,255,0.32)' : 'rgba(68,136,255,0.18)',
+        border: `1px solid ${hover ? '#7bb8ff' : 'rgba(123,184,255,0.55)'}`,
         cursor: 'pointer',
+        padding: 0,
         transition: 'background 0.15s, border-color 0.15s',
+        animation: hover ? undefined : 'sys-lupe-pulse 1.8s ease-out infinite',
       }}
     >
-      {t('archive.research_btn')}
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.6" strokeLinecap="round">
+        <circle cx="7" cy="7" r="4.2" />
+        <line x1="10.2" y1="10.2" x2="13.5" y2="13.5" />
+      </svg>
     </button>
   );
 }

@@ -28,8 +28,10 @@ export const RESEARCH_PROGRESS_BY_RING: Array<{ min: number; max: number }> = [
   { min: 5, max: 80 },  // diff=0: same ring → avg ~42% → ~3 sessions  (colony bonus)
   { min: 2, max: 50 },  // diff=1: 1 ring away → avg ~26% → ~4 sessions (home→ring1)
   { min: 4, max: 15 },  // diff=2: 2 rings away → avg ~9.5% → ~11 sessions
-  { min: 2, max: 5  },  // diff=3: 3 rings away → avg ~3.5% → ~29 sessions
-  { min: 1, max: 1  },  // diff=4+: fixed 1% → 100 sessions
+  // diff=3+: flat 2-5% per session for ALL deeper targets (was fixed 1% on
+  // diff=4+ which felt like a brick wall for neighbor/core exploration).
+  // Last entry is reused for every higher diff by the lookup in research.ts.
+  { min: 2, max: 5  },  // diff=3+: ~3.5% avg → ~29 sessions regardless of depth
 ];
 
 /** Number of observatories on the home planet. */

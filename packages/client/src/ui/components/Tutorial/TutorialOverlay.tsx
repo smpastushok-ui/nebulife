@@ -350,7 +350,9 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
         )}
       </div>
 
-      {/* Skip button */}
+      {/* Skip button — strong contrast so testers/returning players can find
+          it immediately. Amber-orange accent matches the "secondary action"
+          palette used elsewhere (warnings, tutorial dismissals). */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -361,24 +363,33 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
           top: 'calc(14px + env(safe-area-inset-top, 0px))',
           left: 14,
           zIndex: 10052,
-          background: 'none',
-          border: '1px solid rgba(51, 68, 85, 0.3)',
-          borderRadius: 3,
-          color: '#445566',
+          background: 'rgba(10,15,25,0.92)',
+          border: '1px solid rgba(255,136,68,0.55)',
+          borderRadius: 4,
+          color: '#ffaa66',
           fontFamily: 'monospace',
-          fontSize: 10,
-          padding: '4px 10px',
+          fontSize: 11,
+          letterSpacing: 1,
+          textTransform: 'uppercase',
+          padding: '6px 14px',
           cursor: 'pointer',
-          transition: 'color 0.15s, border-color 0.15s',
+          transition: 'color 0.15s, border-color 0.15s, box-shadow 0.15s, background 0.15s',
           pointerEvents: 'auto',
+          boxShadow: '0 0 10px rgba(255,136,68,0.25)',
         }}
         onMouseEnter={(e) => {
-          (e.target as HTMLElement).style.color = '#778899';
-          (e.target as HTMLElement).style.borderColor = '#556677';
+          const el = e.target as HTMLElement;
+          el.style.color = '#ffcc88';
+          el.style.borderColor = 'rgba(255,136,68,0.85)';
+          el.style.boxShadow = '0 0 16px rgba(255,136,68,0.45)';
+          el.style.background = 'rgba(25,15,5,0.95)';
         }}
         onMouseLeave={(e) => {
-          (e.target as HTMLElement).style.color = '#445566';
-          (e.target as HTMLElement).style.borderColor = 'rgba(51, 68, 85, 0.3)';
+          const el = e.target as HTMLElement;
+          el.style.color = '#ffaa66';
+          el.style.borderColor = 'rgba(255,136,68,0.55)';
+          el.style.boxShadow = '0 0 10px rgba(255,136,68,0.25)';
+          el.style.background = 'rgba(10,15,25,0.92)';
         }}
       >
         {t('tutorial.skip')}

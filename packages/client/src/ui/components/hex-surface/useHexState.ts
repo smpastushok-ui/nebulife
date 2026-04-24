@@ -39,6 +39,9 @@ let _lastFetchTime = 0;
 let _lastFetchData: any = null;
 const CACHE_TTL_MS = 30_000; // 30 seconds
 
+/** Quarks cost to instantly unlock any locked hex slot (premium shortcut). */
+export const SLOT_UNLOCK_QUARKS_COST = 10;
+
 // ---------------------------------------------------------------------------
 // Public interface
 // ---------------------------------------------------------------------------
@@ -49,6 +52,9 @@ export interface HexStateResult {
 
   // Actions
   unlockSlot: (slotId: string) => boolean;
+  /** Premium-pay path: 10 quarks instantly unlocks any locked slot regardless
+   *  of colony-resource cost. Caller must ensure `onConsumeQuarks` is wired. */
+  unlockSlotWithQuarks: (slotId: string) => boolean;
   harvestResource: (slotId: string) => number | null;
   placeBuilding: (slotId: string, type: BuildingType) => boolean;
   removeBuilding: (slotId: string) => void;
@@ -407,6 +413,9 @@ export function useHexState(
   // Research data for hex unlock costs
   researchData?: number,
   onConsumeResearchData?: (amount: number) => void,
+  // Quarks for premium slot unlock (SLOT_UNLOCK_QUARKS_COST per slot).
+  quarks?: number,
+  onConsumeQuarks?: (amount: number) => void,
 ): HexStateResult {
   // Pass full planet so gas-giants → 'orbital' and dwarf → 'small'
   const planetSize = getPlanetSize(planet);
@@ -653,6 +662,64 @@ export function useHexState(
   );
 
   // ---------------------------------------------------------------------------
+  // unlockSlotWithQuarks — premium-pay shortcut for locked hexes. Fixed cost
+  // in quarks (SLOT_UNLOCK_QUARKS_COST) and bypasses colony-resource checks.
+  // Used from the locked-hex UI when the player can't / doesn't want to pay
+  // the regular minerals/volatiles/isotopes/water bill.
+  // ---------------------------------------------------------------------------
+
+  const unlockSlotWithQuarks = useCallback(
+    (slotId: string): boolean => {
+      const slot = slotsRef.current.find((s) => s.id === slotId);
+      if (!slot || slot.state !== 'locked') return false;
+      if ((quarks ?? 0) < SLOT_UNLOCK_QUARKS_COST) return false;
+      if (!onConsumeQuarks) return false;
+
+      onConsumeQuarks(SLOT_UNLOCK_QUARKS_COST);
+
+      // Mirror the same Zone-1 home-planet forced-resource logic so the
+      // first 4 unlocks still guarantee all 4 resource types regardless of
+      // whether the player paid with resources or quarks.
+      let forceResource: ResourceType | undefined;
+      const homePlanetId = typeof window !== 'undefined'
+        ? localStorage.getItem('nebulife_home_planet_id') : null;
+      const isHome = homePlanetId === planet.id;
+      if (isHome && slot.ring === 1) {
+        const zone1Unlocked = slotsRef.current.filter(
+          (s) => s.ring === 1 && s.state !== 'locked' && s.state !== 'hidden',
+        ).length;
+        if (zone1Unlocked === 0) forceResource = 'ore';
+        if (zone1Unlocked === 1) forceResource = 'vent';
+        if (zone1Unlocked === 2) forceResource = 'water';
+        if (zone1Unlocked === 3) forceResource = 'tree';
+      }
+
+      const rolled = rollSlotContents(planet.seed, slotId, forceResource, planetSize);
+
+      updateSlots((prev) => {
+        let next = prev.map((s) => {
+          if (s.id !== slotId) return s;
+          return {
+            ...s,
+            state:           rolled.state,
+            resourceType:    rolled.resourceType,
+            rarity:          rolled.rarity,
+            yieldPerHour:    rolled.yieldPerHour,
+            maxCapacity:     rolled.yieldPerHour ? rolled.yieldPerHour * 12 : undefined,
+            unlockCost:      undefined,
+            lastHarvestedAt: undefined,
+          } as HexSlotData;
+        });
+        next = revealAdjacentHidden(next, slotId, planetSize);
+        return recalculateLockedCosts(next);
+      });
+
+      return true;
+    },
+    [quarks, onConsumeQuarks, planet.id, planet.seed, planetSize, updateSlots],
+  );
+
+  // ---------------------------------------------------------------------------
   // harvestResource
   // ---------------------------------------------------------------------------
 
@@ -893,6 +960,7 @@ export function useHexState(
       slots,
       loading,
       unlockSlot,
+      unlockSlotWithQuarks,
       harvestResource,
       placeBuilding,
       removeBuilding,
@@ -912,6 +980,7 @@ export function useHexState(
       slots,
       loading,
       unlockSlot,
+      unlockSlotWithQuarks,
       harvestResource,
       placeBuilding,
       removeBuilding,

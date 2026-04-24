@@ -896,6 +896,24 @@ export class GalaxyScene {
     this.edgePulses.push({ ax, ay, bx, by, t: 0, color });
   }
 
+  /** World-space position of a system node. Home is at (0, 0). Returns null
+   *  if the system isn't rendered yet. */
+  getSystemWorldPos(systemId: string): { x: number; y: number } | null {
+    if (this.homeNode?.system.id === systemId) return { x: 0, y: 0 };
+    const node = this.systemNodes.get(systemId);
+    if (!node) return null;
+    return { x: node.tx, y: node.ty };
+  }
+
+  /** Fire a capillary pulse from the home star to the just-completed system
+   *  as visual feedback that the capillary web has "reached" that node. If
+   *  the target isn't in the scene, silently no-op. */
+  pulseFromHomeTo(systemId: string, color: number = 0x7bb8ff): void {
+    const to = this.getSystemWorldPos(systemId);
+    if (!to) return;
+    this.spawnEdgePulse(0, 0, to.x, to.y, color);
+  }
+
   /**
    * Build the connection lines layer mirroring the 3D UniverseEngine cluster:
    *   - Delaunay edges between adjacent players (Ring 2 ↔ Ring 2)
