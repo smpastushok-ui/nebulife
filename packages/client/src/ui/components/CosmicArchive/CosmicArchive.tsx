@@ -43,8 +43,9 @@ function buildTabs(t: (key: string) => string): TabDef[] {
       id: 'navigation',
       label: t('archive.tab_navigation'),
       subTabs: [
-        { id: 'planets', label: t('archive.sub_planets') },
+        // Order requested by owner: Systems → Planets → Favorites.
         { id: 'systems', label: t('archive.sub_systems') },
+        { id: 'planets', label: t('archive.sub_planets') },
         { id: 'favorites', label: t('archive.sub_favorites') },
       ],
     },
@@ -258,7 +259,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   const [subTabMap, setSubTabMap] = useState<Record<MainTab, SubTab>>({
     collections: 'cosmos',
     management: 'astronomy',
-    navigation: 'planets',
+    navigation: 'systems', // owner-requested default: Systems tab first
     interaction: 'diplomacy',
     log: 'all-events',
   });

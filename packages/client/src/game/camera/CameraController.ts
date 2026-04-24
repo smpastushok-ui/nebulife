@@ -390,6 +390,21 @@ export class CameraController {
     this.animateTo(0, 0, this.scale, 400);
   }
 
+  /** Smoothly animate to origin AND fit a given world-radius on screen.
+   *  Use when the centre button should also zoom in to a meaningful
+   *  frame (e.g. home star + Ring 1 on the galaxy scene). */
+  focusOnOrigin(worldRadius: number, durationMs = 600) {
+    if (!this.target) return;
+    const w = this.app.screen.width;
+    const h = this.app.screen.height;
+    const halfScreen = Math.min(w, h) / 2;
+    const padding = 0.85;
+    const targetScale = worldRadius > 0
+      ? Math.min(this.maxScale, Math.max(this.minScale, (halfScreen * padding) / worldRadius))
+      : this.scale;
+    this.animateTo(0, 0, targetScale, durationMs);
+  }
+
   /** Enable/disable user input (wheel, drag, pinch) without detaching.
    *  Programmatic animateTo() still works when disabled. */
   setInputEnabled(enabled: boolean) {

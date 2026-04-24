@@ -326,7 +326,12 @@ export class GameEngine {
   // Galaxy camera controls
   galaxyZoomIn() { this.camera.zoomBy(1.3); }
   galaxyZoomOut() { this.camera.zoomBy(0.77); }
-  galaxyCenterOnOrigin() { this.camera.centerOnOrigin(); }
+  /** Center-button target: jump to home star + Ring 1 frame.
+   *  Ring 1 sits at 5 LY × PX_PER_LY (18 px/LY) = 90 px world radius;
+   *  fit ~110 px so Ring 1 entries are visible at the viewport edge with
+   *  a little breathing room. Previously this only re-centered without
+   *  zooming — tester reported it felt useless at mid-zoom. */
+  galaxyCenterOnOrigin() { this.camera.focusOnOrigin(110); }
 
   // System camera controls (system scene shares the camera)
   systemZoomIn() { this.camera.zoomBy(1.3); }

@@ -1718,18 +1718,35 @@ function AppInner() {
   /** Hydrate full game state from server on login (cross-platform sync). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hydrateGameStateFromServer = useCallback((player: any) => {
-    // Sync preferred_language from server so the game UI matches the
-    // language the player originally picked, even if the device locale
-    // returns something different (common on Android WebView where
-    // navigator.language can disagree with system language).
+    // Language sync rules:
+    //   1. If the player made an explicit first-run picker choice
+    //      (`nebulife_lang_chosen === '1'`) AND localStorage differs from
+    //      the server value, push CLIENT → SERVER. Prevents the new-account
+    //      reset loop where the server returns the default 'uk' and wipes
+    //      the player's explicit EN choice on every sign-in (tester:
+    //      "заходжу з 0ля з тим же імейлом обираючи англ —
+    //      мені ставить укр інтерфейс").
+    //   2. Otherwise trust the server — covers cross-device sync
+    //      (pick UK on phone A, log in on phone B, see UK).
     try {
       const serverLang = player?.preferred_language;
       if (serverLang && (serverLang === 'uk' || serverLang === 'en')) {
         const current = localStorage.getItem('nebulife_lang');
+        const clientExplicit = localStorage.getItem('nebulife_lang_chosen') === '1';
         if (current !== serverLang) {
-          localStorage.setItem('nebulife_lang', serverLang);
-          setLanguage(serverLang as Language);
-          void i18n.changeLanguage(serverLang);
+          if (clientExplicit && (current === 'uk' || current === 'en')) {
+            // Push client choice up to the server — don't overwrite local.
+            void authFetch('/api/player/language', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ language: current }),
+            }).catch(() => { /* non-critical */ });
+          } else {
+            // Trust server.
+            localStorage.setItem('nebulife_lang', serverLang);
+            setLanguage(serverLang as Language);
+            void i18n.changeLanguage(serverLang);
+          }
         }
       }
     } catch { /* ignore */ }
@@ -3680,13 +3697,28 @@ function AppInner() {
 
   // ── Evacuation handlers ──────────────────────────────────────────────
   const handleStartEvacuation = useCallback(() => {
-    if (!evacuationTarget) return;
+    if (!evacuationTarget) {
+      // eslint-disable-next-line no-console
+      console.warn('[evac] handleStartEvacuation called with no target — noop');
+      return;
+    }
+    // Diagnostic: lets testers + HANDOFF traces see what system the
+    // evacuation is actually pointing at, so "sent to the same system
+    // I was in before" reports can be verified against actual state.
+    // eslint-disable-next-line no-console
+    console.log('[evac] start → target', {
+      systemId: evacuationTarget.system.id,
+      systemName: evacuationTarget.system.star.name,
+      planetId: evacuationTarget.planet.id,
+      planetName: evacuationTarget.planet.name,
+      currentHome: homeInfo ? { systemId: homeInfo.system.id, planetId: homeInfo.planet.id } : null,
+    });
     playSfx('evac-alarm', 0.25);
     setEvacuationPhase('stage0-launch');
     awardXP(XP_REWARDS.EVACUATION_START, 'evacuation');
     // Immediate sync on critical event
     setTimeout(() => syncGameStateRef.current(), 100);
-  }, [evacuationTarget]);
+  }, [evacuationTarget, homeInfo]);
 
   // Forced evacuation: skip prompt, auto-start immediately
   useEffect(() => {

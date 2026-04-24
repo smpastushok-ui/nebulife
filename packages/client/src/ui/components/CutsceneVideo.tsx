@@ -28,10 +28,27 @@ export function CutsceneVideo({ src, onComplete, onPlayingChange }: CutsceneVide
   onCompleteRef.current = onComplete;
   const completedRef = useRef(false);
 
-  // Wire up video events
+  // Wire up video events.
+  //
+  // Evacuation phases rely on this component calling onComplete() to
+  // advance. If the video fails to load/play (codec mismatch, network
+  // error, missing asset), the phase would previously get stuck forever
+  // and the whole evacuation sequence aborted silently (tester report:
+  // "не послідувало ні анімації ні відео"). We now force-advance on:
+  //   • `error` event — unrecoverable (missing file, decode error, etc.)
+  //   • 25 s watchdog timeout — catches silent failures where no events fire
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
+
+    const forceAdvance = (reason: string) => {
+      if (completedRef.current) return;
+      // eslint-disable-next-line no-console
+      console.warn(`[CutsceneVideo] force-advance (${reason}) for ${src}`);
+      completedRef.current = true;
+      onPlayingChangeRef.current?.(false);
+      onCompleteRef.current();
+    };
 
     const handleCanPlay = () => setLoaded(true);
     const handlePlay = () => onPlayingChangeRef.current?.(true);
@@ -47,19 +64,28 @@ export function CutsceneVideo({ src, onComplete, onPlayingChange }: CutsceneVide
       }, 1300);
     };
     const handlePause = () => onPlayingChangeRef.current?.(false);
+    const handleError = () => forceAdvance('video error');
 
     v.addEventListener('canplay', handleCanPlay);
     v.addEventListener('loadeddata', handleCanPlay);
     v.addEventListener('play', handlePlay);
     v.addEventListener('ended', handleEnded);
     v.addEventListener('pause', handlePause);
+    v.addEventListener('error', handleError);
+
+    // Watchdog: if nothing else fires within 25 s, advance anyway. Covers
+    // edge cases where the element goes silent (e.g. orientation flip on
+    // Android WebView interrupting the video pipeline).
+    const watchdog = setTimeout(() => forceAdvance('watchdog 25s'), 25_000);
 
     return () => {
+      clearTimeout(watchdog);
       v.removeEventListener('canplay', handleCanPlay);
       v.removeEventListener('loadeddata', handleCanPlay);
       v.removeEventListener('play', handlePlay);
       v.removeEventListener('ended', handleEnded);
       v.removeEventListener('pause', handlePause);
+      v.removeEventListener('error', handleError);
       // Ensure parent knows we are no longer playing on unmount
       onPlayingChangeRef.current?.(false);
     };
