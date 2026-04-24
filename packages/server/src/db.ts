@@ -1639,11 +1639,20 @@ export async function deletePlayerData(playerId: string): Promise<void> {
   await sql`DELETE FROM payment_intents WHERE player_id = ${playerId}`;
   await sql`DELETE FROM idempotency_keys WHERE player_id = ${playerId}`;
   await sql`DELETE FROM used_ad_sessions WHERE player_id = ${playerId}`;
+  // Academy progress — quest streak, selected topics, difficulty, completed
+  // lessons history. Previously leaked: when a player re-registered with the
+  // same Firebase UID (delete-account + log back in), the stale row was
+  // reused and progress "resurrected". Deleting ensures a clean slate.
+  await sql`DELETE FROM academy_progress WHERE player_id = ${playerId}`;
+  // Reports filed BY this player — their reporter-side trail. Reports where
+  // this player was the REPORTED party stay intact (moderation audit value).
+  await sql`DELETE FROM reports WHERE reporter_id = ${playerId}`;
 
   // Messages: anonymize sender (keep for chat history integrity)
   await sql`UPDATE messages SET sender_id = 'deleted', sender_name = 'Видалений' WHERE sender_id = ${playerId}`;
 
-  // Finally delete the player record
+  // Finally delete the player record. ON DELETE CASCADE on planet_claims,
+  // planet_destructions, and player_presence auto-cleans those rows.
   await sql`DELETE FROM players WHERE id = ${playerId}`;
 }
 

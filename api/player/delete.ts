@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { deletePlayerData } from '../../packages/server/src/db.js';
 import { deleteFirebaseUser } from '../../packages/server/src/firebase-admin.js';
+import { removePlayerFromCluster } from '../../packages/server/src/cluster-manager.js';
 
 /**
  * POST /api/player/delete
@@ -25,10 +26,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Must confirm deletion with { confirmDelete: true }' });
     }
 
-    // 1. Delete all player data from PostgreSQL
+    // 1. Decrement cluster member count BEFORE the player row is removed
+    //    (removePlayerFromCluster reads player.cluster_id via getPlayer).
+    //    If we did this after deletePlayerData the lookup would return
+    //    null and the cluster counter would stay inflated forever.
+    try {
+      await removePlayerFromCluster(auth.playerId);
+    } catch (err) {
+      // Non-critical — log but continue. Worst case the cluster looks
+      // fuller than it is; a later player still gets assigned correctly.
+      console.warn(`[delete] removePlayerFromCluster failed for ${auth.playerId}:`, err);
+    }
+
+    // 2. Delete all player data from PostgreSQL
     await deletePlayerData(auth.playerId);
 
-    // 2. Delete Firebase account
+    // 3. Delete Firebase account
     try {
       await deleteFirebaseUser(auth.uid);
     } catch (err) {
