@@ -3,6 +3,14 @@ import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet } from '@nebulife/core';
 import type { GameEngine } from '../../game/GameEngine.js';
 import { playSfx, playLoop, stopLoop, setLoopVolume } from '../../audio/SfxPlayer.js';
+import { getDeviceTier } from '../../utils/device-tier.js';
+
+/** On low/mid tablets the initial onboarding path skips the PlanetGlobeView
+ *  background entirely — subtitles + videos play on a plain deep-space
+ *  panel, then on completion we jump straight to the Star Group (galaxy)
+ *  view instead of rendering the 3D home planet. Prevents thermal throttle
+ *  + GPU stall before the user has even started playing. */
+const SIMPLIFIED_ONBOARDING_TIERS = new Set(['low', 'mid']);
 
 // ---------------------------------------------------------------------------
 // CinematicIntro — 5-stage cinematic zoom-in for new players
@@ -467,12 +475,18 @@ function OnboardingSlides({
 
   if (!visible) return null;
 
+  // Low/mid tiers have no planet rendered behind the slides (see CinematicIntro
+  // Stage 1→2 transition) — use a fully opaque deep-space panel so no white
+  // canvas flashes through during React re-renders.
+  const isSimplified = SIMPLIFIED_ONBOARDING_TIERS.has(getDeviceTier());
+  const slidesBg = isSimplified ? '#020510' : 'rgba(2,5,16,0.75)';
+
   return (
     <div style={{
       position: 'fixed',
       inset: 0,
       zIndex: 10005,
-      background: 'rgba(2,5,16,0.75)',
+      background: slidesBg,
       fontFamily: 'monospace',
       display: 'flex',
       flexDirection: 'column',
@@ -674,6 +688,8 @@ export function CinematicIntro({
     if (!startClicked || stageRef.current !== 0) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
+    const simplifiedOnboarding = SIMPLIFIED_ONBOARDING_TIERS.has(getDeviceTier());
+
     // Brief pause after button click
     timers.push(setTimeout(() => {
       if (!mountedRef.current) return;
@@ -681,11 +697,17 @@ export function CinematicIntro({
       setWarpActive(true);
       setStatusVisible(false);
 
-      // At ~1.1s (mid-fade): switch from universe to home planet — hidden behind black
+      // At ~1.1s (mid-fade): swap background.
+      //   • high/ultra → show PlanetGlobeView (home planet behind the slides)
+      //   • low/mid   → stay on the opaque dark warp fade; slides will render
+      //                 on a plain deep-space panel. Avoids spinning up
+      //                 Three.js exosphere before the game has even begun.
       timers.push(setTimeout(() => {
         if (!mountedRef.current) return;
         onLeaveUniverseToGalaxy();
-        onRequestHomeScene();
+        if (!simplifiedOnboarding) {
+          onRequestHomeScene();
+        }
       }, 1100));
 
       // At ~2.2s: fade complete, home planet visible
@@ -710,8 +732,15 @@ export function CinematicIntro({
   const handleSlidesComplete = useCallback(() => {
     setSlidesVisible(false);
     setStage(4);
+    // On low/mid tiers we never opened the PlanetGlobeView exosphere during
+    // onboarding, so there is no planet to drop the player onto. Jump
+    // straight to the Star Group view — that's where they'll spend the
+    // rest of the tutorial anyway.
+    if (SIMPLIFIED_ONBOARDING_TIERS.has(getDeviceTier())) {
+      onRequestGalaxyScene();
+    }
     onComplete();
-  }, [onComplete]);
+  }, [onComplete, onRequestGalaxyScene]);
 
   return (
     <>

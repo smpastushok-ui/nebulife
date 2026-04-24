@@ -138,12 +138,17 @@ function createStarfield(scene: THREE.Scene, systemSeed: number, lod: ExosphereL
 } {
   const rng = new SeededRNG(systemSeed * 7333 + 41);
   // --- Star counts ---
-  const bgCount = 8000;     // tiny dust (denser background)
-  const medCount = 1200;    // medium
-  const brightCount = 200;  // bright prominent
-  const clusterCount = 8;   // cluster regions
-  const clusterStarsEach = 80;
-  const milkyWayCount = 1000; // Milky Way band
+  // Scaled by lod.starfieldDensity: 1.0 = full (~10 500 stars total),
+  // 0.6 on mid, 0.4 on low. Even at 0.4 the sky still looks full — the
+  // human eye can't tell the difference between 10K and 4K procedural
+  // points that densely overlap a seamless background sphere.
+  const density = lod.starfieldDensity;
+  const bgCount = Math.round(8000 * density);     // tiny dust (denser background)
+  const medCount = Math.round(1200 * density);    // medium
+  const brightCount = Math.round(200 * density);  // bright prominent
+  const clusterCount = Math.max(2, Math.round(8 * density));   // cluster regions
+  const clusterStarsEach = Math.round(80 * density);
+  const milkyWayCount = Math.round(1000 * density); // Milky Way band
   const totalCount = bgCount + medCount + brightCount
     + clusterCount * clusterStarsEach + milkyWayCount;
 
@@ -1289,6 +1294,10 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // Start at max zoom-out (~7.5 units = near maxDistance 8) so planet is small on entry
       camera.position.set(-3.76, 2.68, -5.90); // same direction as (-1.4, 1.0, -2.2) but at ~7.5 distance
 
+      // Device-tier knobs: computed once, referenced below by both the
+      // renderer (tone-mapping exposure) and every layer-builder.
+      const lod = getExosphereLOD();
+
       // --- Renderer ---
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -1297,7 +1306,10 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       renderer.setSize(container.clientWidth, container.clientHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.toneMapping = THREE.LinearToneMapping;
-      renderer.toneMappingExposure = 1.0;
+      // Brighter exposure on low/mid compensates for the dropped bloom pass
+      // + cloud/back-atmosphere rim-glow. Without this the planet looks
+      // unnaturally dim on tiers where those layers are skipped.
+      renderer.toneMappingExposure = lod.toneMappingExposure;
       container.appendChild(renderer.domElement);
       rendererRef.current = renderer;
 
@@ -1316,11 +1328,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       const handleDblClick = () => { onDoubleClickRef.current?.(); };
       renderer.domElement.addEventListener('dblclick', handleDblClick);
 
-      // --- Build scene layers ---
-
-      // Device-tier knobs: computed once, passed to every layer-builder.
-      // Controls sphere tesselation + which optional layers render.
-      const lod = getExosphereLOD();
+      // --- Build scene layers (lod declared above, next to renderer) ---
 
       // 1. Starfield
       const starfield = createStarfield(scene, system.seed, lod);

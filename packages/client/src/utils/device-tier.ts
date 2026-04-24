@@ -128,6 +128,18 @@ export interface ExosphereLOD {
    * animate — GPU cache stays warm, CPU skips a uniform upload.
    */
   starfieldTwinkle: boolean;
+  /**
+   * Multiplier applied to the starfield particle counts (bg dust, medium,
+   * bright, clusters, milky-way). 1.0 = full count; 0.5 = half. Fewer
+   * points → smaller BufferGeometry, less vertex-shader work per frame.
+   */
+  starfieldDensity: number;
+  /**
+   * Renderer `toneMappingExposure`. Default 1.0. On low/mid we bump it
+   * slightly higher so the planet + atmosphere read brighter when we've
+   * dropped the bloom pass and cloud/back-atmosphere rim-glow layers.
+   */
+  toneMappingExposure: number;
 }
 
 export function getExosphereLOD(): ExosphereLOD {
@@ -145,11 +157,16 @@ export function getExosphereLOD(): ExosphereLOD {
         moonSegments: 16,
         moonsFlatShaded: true,
         starfieldTwinkle: false,
+        starfieldDensity: 0.4, // 40 % of full → ~280 stars instead of ~700
+        toneMappingExposure: 1.3, // brighten after losing bloom + clouds
       };
     case 'mid':
       return {
         planetSegments: 96,
-        renderClouds: true,
+        // Clouds dropped on mid too — tester reported mid tablets still
+        // heated up. Loses animated cloud band but planet surface + front
+        // atmosphere still read as "living world".
+        renderClouds: false,
         cloudSegments: 32,
         renderAtmosphereBack: true,
         atmosphereSegments: 24,
@@ -158,6 +175,8 @@ export function getExosphereLOD(): ExosphereLOD {
         moonSegments: 24,
         moonsFlatShaded: false,
         starfieldTwinkle: true,
+        starfieldDensity: 0.6, // 60 % of full
+        toneMappingExposure: 1.2, // slight brighten — bloom is off on mid
       };
     case 'high':
       // Flagship mobiles (S22 Ultra, iPhone 14 Pro) still run this scene
@@ -176,6 +195,8 @@ export function getExosphereLOD(): ExosphereLOD {
         moonSegments: 24,
         moonsFlatShaded: false,
         starfieldTwinkle: true,
+        starfieldDensity: 0.85,
+        toneMappingExposure: 1.0,
       };
     case 'ultra':
     default:
@@ -192,6 +213,8 @@ export function getExosphereLOD(): ExosphereLOD {
         moonSegments: 32,
         moonsFlatShaded: false,
         starfieldTwinkle: true,
+        starfieldDensity: 1.0,
+        toneMappingExposure: 1.0,
       };
   }
 }

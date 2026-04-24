@@ -271,13 +271,20 @@ const cardStyle: React.CSSProperties = {
 };
 
 const titleStyle: React.CSSProperties = {
-  // clamp scales font between 16px (very narrow ~320px phones) and 22px.
+  // clamp scales font between 15px (very narrow ~320px phones) and 20px.
   // `whiteSpace: nowrap` + responsive size guarantees "N E B U L I F E"
   // stays on a single line even when letterSpacing puffs the width.
-  fontSize: 'clamp(16px, 5.2vw, 22px)',
+  //
+  // `letter-spacing` adds trailing space AFTER the last letter, which
+  // `text-align: center` then includes in its bounding box → the visible
+  // text shifts slightly to the LEFT and the final "E" was clipping at
+  // the card's right edge on narrow tablets. The negative marginRight
+  // cancels the trailing gap so the visual text is actually centered.
+  fontSize: 'clamp(15px, 4.8vw, 20px)',
   color: '#ccddee',
   textAlign: 'center',
   letterSpacing: '0.18em',
+  marginRight: '-0.18em',
   whiteSpace: 'nowrap',
   marginBottom: 2,
 };
