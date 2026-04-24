@@ -108,7 +108,11 @@ function PlanetNavHeaderInner({
     <div
       style={{
         position: 'fixed',
-        top: 50,
+        // Sit below the resource HUD — same offset as SystemNavHeader so
+        // the two headers don't fight for vertical space. Previously 50px
+        // made the switcher overlap with ResourceDisplay (tester report:
+        // "зоряні системи назви і перемикачі під меню ресурсів").
+        top: 'calc(70px + env(safe-area-inset-top, 0px))',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 60,

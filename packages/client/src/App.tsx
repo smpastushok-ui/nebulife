@@ -4791,7 +4791,13 @@ function AppInner() {
   // Home button — opens the SURFACE of the home planet directly (preferred)
   // with fallback to planet-view (exosphere) if surface isn't landable yet.
   // Icon: "Дім 2" (tent-roof with hex ground) from /icon-preview.html.
-  if (state.scene !== 'home-intro'
+  //
+  // Hidden during exodus phase — the home planet is about to be destroyed
+  // and has no colony on it, so linking to "surface of home" produced a
+  // broken trip (tester: "ще до евакуації чомусь доступна поверхня на
+  // рівні зоряної групи"). Re-appears once colonization completes.
+  if (!isExodusPhase
+      && state.scene !== 'home-intro'
       && !(state.scene === 'planet-view' && state.selectedPlanet?.isHomePlanet)
       && !(surfaceTarget && surfaceTarget.planet.isHomePlanet)) {
     toolGroups.push({

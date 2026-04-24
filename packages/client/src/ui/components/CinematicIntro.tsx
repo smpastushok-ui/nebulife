@@ -3,14 +3,11 @@ import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet } from '@nebulife/core';
 import type { GameEngine } from '../../game/GameEngine.js';
 import { playSfx, playLoop, stopLoop, setLoopVolume } from '../../audio/SfxPlayer.js';
-import { getDeviceTier } from '../../utils/device-tier.js';
-
-/** On low/mid tablets the initial onboarding path skips the PlanetGlobeView
- *  background entirely — subtitles + videos play on a plain deep-space
- *  panel, then on completion we jump straight to the Star Group (galaxy)
- *  view instead of rendering the 3D home planet. Prevents thermal throttle
- *  + GPU stall before the user has even started playing. */
-const SIMPLIFIED_ONBOARDING_TIERS = new Set(['low', 'mid']);
+// All tiers now share one onboarding path: subtitles + videos play with
+// the Star Group (galaxy) view behind them, slides end on the galaxy.
+// Previously only low/mid skipped the PlanetGlobeView exosphere; now it's
+// universal per owner request ("у завантаженні гри і до початку туторіалу
+// треба замінити на всіх тірах замість екзосфери планети — зоряну групу").
 
 // ---------------------------------------------------------------------------
 // CinematicIntro — 5-stage cinematic zoom-in for new players
@@ -543,11 +540,10 @@ function OnboardingSlides({
 
   if (!visible) return null;
 
-  // Low/mid tiers have no planet rendered behind the slides (see CinematicIntro
-  // Stage 1→2 transition) — use a fully opaque deep-space panel so no white
-  // canvas flashes through during React re-renders.
-  const isSimplified = SIMPLIFIED_ONBOARDING_TIERS.has(getDeviceTier());
-  const slidesBg = isSimplified ? '#020510' : 'rgba(2,5,16,0.75)';
+  // Semi-transparent panel so the Star Group (galaxy) view behind the
+  // slides stays faintly visible — adds depth to the subtitles without
+  // distracting. Galaxy is rendered for all tiers now; no tier split.
+  const slidesBg = 'rgba(2,5,16,0.75)';
 
   return (
     <div style={{
@@ -745,8 +741,6 @@ export function CinematicIntro({
     if (!startClicked || stageRef.current !== 0) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
-    const simplifiedOnboarding = SIMPLIFIED_ONBOARDING_TIERS.has(getDeviceTier());
-
     // Brief pause after button click
     timers.push(setTimeout(() => {
       if (!mountedRef.current) return;
@@ -754,17 +748,17 @@ export function CinematicIntro({
       setWarpActive(true);
       setStatusVisible(false);
 
-      // At ~1.1s (mid-fade): swap background.
-      //   • high/ultra → show PlanetGlobeView (home planet behind the slides)
-      //   • low/mid   → stay on the opaque dark warp fade; slides will render
-      //                 on a plain deep-space panel. Avoids spinning up
-      //                 Three.js exosphere before the game has even begun.
+      // At ~1.1s (mid-fade): swap background to Star Group (galaxy).
+      // Unified across all tiers per owner request:
+      // "у завантаженні гри на початку і до початку туторіалу треба
+      // замінити на всіх тірах замість екзосфери планети — зоряну групу".
+      // Before tutorial, player sees the star-cluster they're about to
+      // explore, not a dead home planet that will be destroyed anyway.
+      // onLeaveUniverseToGalaxy already sets scene='galaxy'; no extra
+      // onRequestHomeScene needed.
       timers.push(setTimeout(() => {
         if (!mountedRef.current) return;
         onLeaveUniverseToGalaxy();
-        if (!simplifiedOnboarding) {
-          onRequestHomeScene();
-        }
       }, 1100));
 
       // At ~2.2s: fade complete, home planet visible
@@ -789,13 +783,11 @@ export function CinematicIntro({
   const handleSlidesComplete = useCallback(() => {
     setSlidesVisible(false);
     setStage(4);
-    // On low/mid tiers we never opened the PlanetGlobeView exosphere during
-    // onboarding, so there is no planet to drop the player onto. Jump
-    // straight to the Star Group view — that's where they'll spend the
-    // rest of the tutorial anyway.
-    if (SIMPLIFIED_ONBOARDING_TIERS.has(getDeviceTier())) {
-      onRequestGalaxyScene();
-    }
+    // Land ALL tiers on the Star Group (galaxy) view — exosphere home
+    // planet is not rendered during intro on any tier now. The tutorial
+    // starts from Galaxy anyway, so there's no point staging the player
+    // on a lifeless home planet first.
+    onRequestGalaxyScene();
     onComplete();
   }, [onComplete, onRequestGalaxyScene]);
 
