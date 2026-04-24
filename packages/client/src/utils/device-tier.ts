@@ -39,7 +39,7 @@ function isCapacitorNative(): boolean {
   return !!cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform();
 }
 
-function compute(): DeviceTier {
+function computeAuto(): DeviceTier {
   const nav = typeof navigator !== 'undefined' ? navigator : undefined;
   const cores = nav?.hardwareConcurrency ?? 4;
   // `deviceMemory` is non-standard, available on Chrome-family browsers.
@@ -51,6 +51,67 @@ function compute(): DeviceTier {
   // Desktop web with lots of cores + RAM → ultra. Capacitor native stays 'high'.
   if (!isCapacitorNative() && cores >= 8 && mem >= 8) return 'ultra';
   return 'high';
+}
+
+// ---------------------------------------------------------------------------
+// User override — via first-run PerfTierSelectScreen or later in Settings
+// ---------------------------------------------------------------------------
+// The auto-detection heuristic is unreliable on modern midrange phones
+// because (a) Chrome caps deviceMemory at 8 GB for privacy, and (b) most
+// phones now ship with 8 cores regardless of SoC tier. Vivo V21e with a
+// Helio G96 gets auto-classified as `high` — wrong.
+//
+// The override lets the player explicitly pick Simple/Standard/Full at
+// first launch. It's stored in localStorage and takes precedence over
+// the auto-detected value. Changing the override requires a page reload
+// so the cache + <html data-perf-tier> + injected kill-switch CSS all
+// resync; mid-session flipping would leave half the scene at the old
+// tier's settings.
+
+const OVERRIDE_KEY = 'nebulife_perf_tier';
+
+/** Human-friendly choice that maps onto DeviceTier. */
+export type PerfTierChoice = 'simple' | 'standard' | 'full';
+
+function choiceToTier(choice: PerfTierChoice): DeviceTier {
+  switch (choice) {
+    case 'simple':   return 'low';
+    case 'standard': return 'mid';
+    case 'full':     return 'high';
+  }
+}
+
+function readOverride(): DeviceTier | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(OVERRIDE_KEY);
+    if (raw === 'simple' || raw === 'standard' || raw === 'full') {
+      return choiceToTier(raw);
+    }
+  } catch { /* storage unavailable — fall through to auto */ }
+  return null;
+}
+
+/** Set the user's graphics choice. Caller is responsible for reload. */
+export function setPerfTierChoice(choice: PerfTierChoice): void {
+  try { localStorage.setItem(OVERRIDE_KEY, choice); }
+  catch { /* ignore */ }
+}
+
+/** Remove user override (back to auto-detect on next load). */
+export function clearPerfTierChoice(): void {
+  try { localStorage.removeItem(OVERRIDE_KEY); }
+  catch { /* ignore */ }
+}
+
+/** What did auto-detect pick? Useful for pre-selecting a card in the
+ *  first-run chooser. Ignores any saved override. */
+export function getAutoDetectedTier(): DeviceTier {
+  return computeAuto();
+}
+
+function compute(): DeviceTier {
+  return readOverride() ?? computeAuto();
 }
 
 let cached: DeviceTier | null = null;

@@ -111,7 +111,9 @@ import { CallsignModal } from './ui/components/CallsignModal.js';
 import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
 import { CinematicIntro } from './ui/components/CinematicIntro.js';
 import { LoadingDots } from './ui/components/LoadingDots.js';
-import { getDeviceTier } from './utils/device-tier.js';
+import { PerfTierSelectScreen } from './ui/components/PerfTierSelectScreen.js';
+import { getDeviceTier, setPerfTierChoice } from './utils/device-tier.js';
+import type { PerfTierChoice } from './utils/device-tier.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { DigestModal } from './ui/components/DigestModal.js';
@@ -6238,40 +6240,37 @@ function AppInner() {
  *  If any of them say Ukrainian → 'uk'. Only explicit 'en' → 'en'.
  *  Target audience is Ukrainian, so default on ambiguity is 'uk'. */
 function detectDeviceLanguage(): Language {
+  // English is the default per business decision (target audience is
+  // global EN market; UK is a homage-not-target language). We still
+  // detect an explicit Ukrainian locale so UA players don't have to
+  // tap the UK pill themselves — but anything ambiguous or non-UA
+  // falls through to EN.
   try {
     const candidates: string[] = [];
     if (typeof navigator !== 'undefined') {
       if (Array.isArray(navigator.languages)) candidates.push(...navigator.languages);
       if (navigator.language) candidates.push(navigator.language);
-      // Some webviews expose userLanguage instead of language
       const nav = navigator as Navigator & { userLanguage?: string };
       if (nav.userLanguage) candidates.push(nav.userLanguage);
     }
-    // Intl.DateTimeFormat resolved locale — often correct even when navigator lies
     try {
       const intlLoc = Intl.DateTimeFormat().resolvedOptions().locale;
       if (intlLoc) candidates.push(intlLoc);
     } catch { /* ignore */ }
 
-    // Ukrainian wins if any candidate starts with uk (target audience)
     for (const raw of candidates) {
       const code = raw.toLowerCase().split(/[-_]/)[0];
       if (code === 'uk') return 'uk';
     }
-    // Only default to 'en' if candidates explicitly say English
-    for (const raw of candidates) {
-      const code = raw.toLowerCase().split(/[-_]/)[0];
-      if (code === 'en') return 'en';
-    }
   } catch { /* ignore */ }
-  // Unknown → Ukrainian (primary audience) rather than English
-  return 'uk';
+  return 'en';
 }
 
 export function App() {
-  const [savedLang] = useState<Language>(() => {
+  const [savedLang, setSavedLang] = useState<Language>(() => {
     // Priority: explicit user choice → device locale → 'en' fallback.
-    // No language-selection screen — picks correct language on first launch.
+    // Auto-detect runs first; the combined FirstRunSetupScreen below
+    // lets the player override both language and graphics-tier choice.
     const stored = localStorage.getItem('nebulife_lang') as Language | null;
     const lang: Language = stored === 'uk' || stored === 'en' ? stored : detectDeviceLanguage();
     if (!stored) localStorage.setItem('nebulife_lang', lang);
@@ -6279,10 +6278,60 @@ export function App() {
     return lang;
   });
 
+  // First-launch combined picker (language + graphics tier). Gate is a
+  // single localStorage flag — once set, the screen never appears again
+  // until either the player opens Settings → Reset or localStorage gets
+  // cleared. Existing users upgrading from a previous build (no flag
+  // set yet) WILL see the picker once — considered acceptable because
+  // the auto-detect was unreliable on midrange phones anyway.
+  const [needsFirstRunSetup, setNeedsFirstRunSetup] = useState<boolean>(() => {
+    try { return localStorage.getItem('nebulife_perf_tier_chosen') !== '1'; }
+    catch { return false; }
+  });
+
   const handleLanguageChange = useCallback((lang: Language) => {
     localStorage.setItem('nebulife_lang', lang);
     void i18n.changeLanguage(lang);
   }, []);
+
+  const handleFirstRunSubmit = useCallback((lang: Language, tier: PerfTierChoice) => {
+    // Persist both choices.
+    localStorage.setItem('nebulife_lang', lang);
+    localStorage.setItem('nebulife_lang_chosen', '1');
+    setPerfTierChoice(tier);
+    localStorage.setItem('nebulife_perf_tier_chosen', '1');
+    // Full reload so device-tier.ts cache, <html data-perf-tier> and
+    // the injected kill-switch CSS all pick up the new tier. Without
+    // this the scene below would be half-configured from the old tier.
+    window.location.reload();
+  }, []);
+
+  // Desktop web → auto-detect is always correct (`ultra`). Skip the
+  // picker entirely; no override needed. Dev-only `?force_picker=1`
+  // query-string escape hatch lets us preview the screen in a browser.
+  const forcePicker = typeof window !== 'undefined'
+    && /[?&]force_picker=1\b/.test(window.location.search);
+  const skipPicker = !forcePicker && typeof window !== 'undefined'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    && !((window as any).Capacitor?.isNativePlatform?.());
+
+  if (needsFirstRunSetup && !skipPicker) {
+    // Picker always pre-selects English, even on a Ukrainian device —
+    // per business decision EN is the primary market. One tap on the
+    // UK pill is enough for Ukrainian players to override.
+    return (
+      <PerfTierSelectScreen
+        initialLang="en"
+        onSubmit={handleFirstRunSubmit}
+      />
+    );
+  }
+
+  // Reference setSavedLang so TS doesn't complain about the setter being
+  // unused — kept around for future "reopen picker from Settings" flow.
+  void setSavedLang;
+  void needsFirstRunSetup;
+  void setNeedsFirstRunSetup;
 
   return (
     <LanguageProvider initial={savedLang} onLanguageChange={handleLanguageChange}>

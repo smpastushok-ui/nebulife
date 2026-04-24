@@ -1285,5 +1285,23 @@
     "exit_confirm": "Exit game?",
     "cancel": "Cancel",
     "exit": "Exit"
+  },
+  "perf": {
+    "title": "GRAPHICS",
+    "subtitle": "Choose the mode that fits your device",
+    "recommended": "recommended",
+    "simple": {
+      "title": "SIMPLE",
+      "desc": "For budget phones and older tablets. No clouds, simplified starfield, no rotation."
+    },
+    "standard": {
+      "title": "STANDARD",
+      "desc": "For most devices. Balanced look and smoothness."
+    },
+    "full": {
+      "title": "FULL",
+      "desc": "For flagship devices (Samsung S22+, iPhone 14 Pro+). All effects, full detail."
+    },
+    "change_later_hint": "Can be changed later in Settings"
   }
 }
