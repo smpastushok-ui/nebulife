@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { getAcademyProgress, getCachedLesson, saveCachedLesson } from '../../packages/server/src/db.js';
+import { getAcademyProgress, getCachedLesson, saveCachedLesson, getPlayer } from '../../packages/server/src/db.js';
 import { generateEducationPackage, generateLessonImage } from '../../packages/server/src/education-generator.js';
 
 // Use topic-catalog functions directly since @nebulife/core dist may not be up to date in worktree
@@ -25,6 +25,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ lesson: null, needsOnboarding: true });
     }
 
+    const player = await getPlayer(auth.playerId);
+    const lang: 'uk' | 'en' = player?.preferred_language === 'en' ? 'en' : 'uk';
+
     const today = new Date().toISOString().slice(0, 10);
     const selectedTopics = (progress.selected_topics ?? []) as TopicCategoryId[];
     const completedLessons = (progress.completed_lessons ?? {}) as Record<string, string>;
@@ -41,8 +44,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ lesson: null, error: 'Lesson not found in catalog' });
     }
 
-    // Try to get from cache first (lazy caching)
-    const cached = await getCachedLesson(today, nextLesson.id, progress.difficulty);
+    const topicName = lang === 'en' ? (nextLesson.nameEn ?? nextLesson.nameUk) : nextLesson.nameUk;
+    const categoryName = lang === 'en'
+      ? (lessonInfo.category.nameEn ?? lessonInfo.category.nameUk)
+      : lessonInfo.category.nameUk;
+
+    // Try to get from cache first (lazy caching, language-scoped)
+    const cached = await getCachedLesson(today, nextLesson.id, progress.difficulty, lang);
     if (cached) {
       return res.status(200).json({
         lesson: {
@@ -50,22 +58,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           lessonId: cached.topic_id,
           categoryId: lessonInfo.category.id,
           categoryNameUk: lessonInfo.category.nameUk,
+          categoryNameEn: lessonInfo.category.nameEn,
           lessonNameUk: nextLesson.nameUk,
+          lessonNameEn: nextLesson.nameEn,
           difficulty: cached.difficulty,
           lessonContent: cached.lesson_content,
           lessonImageUrl: cached.lesson_image_url,
           quest: cached.quest_data,
           quiz: cached.quiz_data,
+          language: lang,
         },
       });
     }
 
-    // Generate via Gemini (first request for this topicId + difficulty today)
+    // Generate via Gemini (first request for this topicId + difficulty + lang today)
     const generated = await generateEducationPackage(
       nextLesson.id,
-      nextLesson.nameUk,
-      lessonInfo.category.nameUk,
+      topicName,
+      categoryName,
       progress.difficulty as 'explorer' | 'scientist',
+      lang,
     );
 
     // Generate lesson image via Gemini image model (non-blocking — null on failure)
@@ -73,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? await generateLessonImage(generated.imagePrompt)
       : null;
 
-    // Cache in DB (including image URL if generated)
+    // Cache in DB (including image URL if generated, language-scoped)
     await saveCachedLesson(
       today,
       nextLesson.id,
@@ -82,6 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       lessonImageUrl,
       generated.quest,
       generated.quiz,
+      lang,
     );
 
     return res.status(200).json({
@@ -90,12 +103,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         lessonId: nextLesson.id,
         categoryId: lessonInfo.category.id,
         categoryNameUk: lessonInfo.category.nameUk,
+        categoryNameEn: lessonInfo.category.nameEn,
         lessonNameUk: nextLesson.nameUk,
+        lessonNameEn: nextLesson.nameEn,
         difficulty: progress.difficulty,
         lessonContent: generated.lessonContent,
         lessonImageUrl,
         quest: generated.quest,
         quiz: generated.quiz,
+        language: lang,
       },
     });
   } catch (err) {

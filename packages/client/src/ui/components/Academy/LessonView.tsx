@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { completeLesson } from '../../../api/academy-api.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
@@ -27,13 +28,22 @@ interface LessonViewProps {
 }
 
 export function LessonView({ lesson, progress, onRefresh, playerName }: LessonViewProps) {
+  const { t, i18n } = useTranslation();
   const [marking, setMarking] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const isEn = i18n.language?.startsWith('en');
+  const lessonTitle = lesson
+    ? (isEn ? (lesson.lessonNameEn ?? lesson.lessonNameUk) : lesson.lessonNameUk)
+    : '';
+  const categoryTitle = lesson
+    ? (isEn ? (lesson.categoryNameEn ?? lesson.categoryNameUk) : lesson.categoryNameUk)
+    : '';
 
   const handleShare = () => {
     if (!lesson) return;
     playSfx('ui-click', 0.07);
-    const url = `${window.location.origin}/api/share?lesson=${encodeURIComponent(lesson.lessonId)}&from=${encodeURIComponent(playerName ?? '')}&title=${encodeURIComponent(lesson.lessonNameUk)}`;
+    const url = `${window.location.origin}/api/share?lesson=${encodeURIComponent(lesson.lessonId)}&from=${encodeURIComponent(playerName ?? '')}&title=${encodeURIComponent(lessonTitle)}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
@@ -41,7 +51,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
   };
 
   if (!lesson) {
-    return <div style={styles.empty}>Немає доступного уроку на сьогодні.</div>;
+    return <div style={styles.empty}>{t('academy.empty_today')}</div>;
   }
 
   const isCompleted = progress?.completed_lessons?.[lesson.lessonId];
@@ -64,10 +74,12 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
     <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
-        <span style={styles.categoryBadge}>{lesson.categoryNameUk}</span>
-        <h2 style={styles.title}>{lesson.lessonNameUk}</h2>
+        <span style={styles.categoryBadge}>{categoryTitle}</span>
+        <h2 style={styles.title}>{lessonTitle}</h2>
         <span style={styles.difficulty}>
-          {lesson.difficulty === 'explorer' ? 'Дослідник' : 'Науковець'}
+          {lesson.difficulty === 'explorer'
+            ? t('academy.difficulty_explorer')
+            : t('academy.difficulty_scientist')}
         </span>
       </div>
 
@@ -82,7 +94,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
       {lesson.lessonImageUrl && (
         <img
           src={lesson.lessonImageUrl}
-          alt={lesson.lessonNameUk}
+          alt={lessonTitle}
           style={styles.image}
         />
       )}
@@ -91,19 +103,21 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
       <div style={styles.bottomBar}>
         <div style={styles.bottomLeft}>
           {isCompleted ? (
-            <span style={styles.completedBadge}>Прочитано</span>
+            <span style={styles.completedBadge}>{t('academy.completed_badge')}</span>
           ) : (
             <button
               style={styles.readButton}
               onClick={handleMarkRead}
               disabled={marking}
             >
-              {marking ? 'Зберігаю...' : <span>Прочитано (+1 <QuarksIcon /> +10 XP)</span>}
+              {marking
+                ? t('academy.marking')
+                : <span>{t('academy.mark_read')} (+1 <QuarksIcon /> +10 XP)</span>}
             </button>
           )}
         </div>
         <button style={styles.shareButton} onClick={handleShare} disabled={!lesson}>
-          {copied ? 'Скопійовано!' : 'Поділитися'}
+          {copied ? t('academy.copied') : t('academy.share')}
         </button>
       </div>
     </div>

@@ -1205,6 +1205,7 @@
   },
   "chat": {
     "title": "Чат",
+    "quiz_label": "ВIКТОРИНА",
     "tab_global": "Загальний",
     "tab_system": "Система",
     "minimize": "Згорнути",
@@ -1304,5 +1305,16 @@
       "desc": "Для флагманських моделей (Samsung S22+, iPhone 14 Pro+). Усi ефекти, повна деталiзацiя."
     },
     "change_later_hint": "Пiзнiше змiнити можна в налаштуваннях"
+  },
+  "academy": {
+    "empty_today": "Немає доступного уроку на сьогодні.",
+    "difficulty_explorer": "Дослідник",
+    "difficulty_scientist": "Науковець",
+    "mark_read": "Прочитано",
+    "mark_read_reward": "Прочитано (+1 {{quarks}} +10 XP)",
+    "marking": "Зберігаю...",
+    "completed_badge": "Прочитано",
+    "share": "Поділитися",
+    "copied": "Скопійовано!"
   }
 }

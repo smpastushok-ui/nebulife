@@ -1740,11 +1740,19 @@ export async function getCachedLesson(
   date: string,
   topicId: string,
   difficulty: string,
+  language: 'uk' | 'en' = 'uk',
 ): Promise<AcademyLessonRow | null> {
   const sql = getSQL();
+  // Scope lookup by language so UK players never receive a cached EN
+  // lesson or vice versa. Column exists from 012-language.sql; earlier
+  // this filter was missing, so first-to-generate wins and wrong-lang
+  // players got content in the other language.
   const rows = await sql`
     SELECT * FROM academy_lessons
-    WHERE lesson_date = ${date} AND topic_id = ${topicId} AND difficulty = ${difficulty}
+    WHERE lesson_date = ${date}
+      AND topic_id = ${topicId}
+      AND difficulty = ${difficulty}
+      AND language = ${language}
     LIMIT 1
   `;
   return (rows[0] as AcademyLessonRow) ?? null;
@@ -1758,12 +1766,13 @@ export async function saveCachedLesson(
   lessonImageUrl: string | null,
   questData: unknown,
   quizData: unknown,
+  language: 'uk' | 'en' = 'uk',
 ): Promise<void> {
   const sql = getSQL();
   await sql`
-    INSERT INTO academy_lessons (lesson_date, topic_id, difficulty, lesson_content, lesson_image_url, quest_data, quiz_data)
-    VALUES (${date}, ${topicId}, ${difficulty}, ${lessonContent}, ${lessonImageUrl}, ${JSON.stringify(questData)}::jsonb, ${JSON.stringify(quizData)}::jsonb)
-    ON CONFLICT (lesson_date, topic_id, difficulty) DO NOTHING
+    INSERT INTO academy_lessons (lesson_date, topic_id, difficulty, language, lesson_content, lesson_image_url, quest_data, quiz_data)
+    VALUES (${date}, ${topicId}, ${difficulty}, ${language}, ${lessonContent}, ${lessonImageUrl}, ${JSON.stringify(questData)}::jsonb, ${JSON.stringify(quizData)}::jsonb)
+    ON CONFLICT (lesson_date, topic_id, difficulty, language) DO NOTHING
   `;
 }
 
@@ -1771,6 +1780,24 @@ export async function getOnboardedPlayerIds(): Promise<string[]> {
   const sql = getSQL();
   const rows = await sql`SELECT player_id FROM academy_progress WHERE onboarded = true`;
   return rows.map((r) => (r as { player_id: string }).player_id);
+}
+
+/** Onboarded players with their preferred_language — for lang-aware daily notifications. */
+export async function getOnboardedPlayersWithLang(): Promise<
+  Array<{ id: string; language: 'uk' | 'en' }>
+> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT ap.player_id, p.preferred_language
+    FROM academy_progress ap
+    JOIN players p ON p.id = ap.player_id
+    WHERE ap.onboarded = true
+  `;
+  return rows.map((r) => {
+    const row = r as { player_id: string; preferred_language: string };
+    const lang: 'uk' | 'en' = row.preferred_language === 'en' ? 'en' : 'uk';
+    return { id: row.player_id, language: lang };
+  });
 }
 
 // ---------------------------------------------------------------------------

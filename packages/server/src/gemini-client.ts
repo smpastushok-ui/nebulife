@@ -314,42 +314,60 @@ const DAILY_MODEL = 'gemini-3.1-flash-lite-preview';
 
 /**
  * Generate a daily quiz about space/astrophysics.
- * Returns validated quiz JSON string.
+ * Returns a validated BILINGUAL quiz JSON string with shape:
+ *   {type:"quiz", data:{
+ *     uk:{question, options[], correctIndex, explanation, xpReward},
+ *     en:{question, options[], correctIndex, explanation, xpReward}
+ *   }}
+ * Single Gemini call produces both translations so cron cost stays flat
+ * and every player gets their own language. Client picks the right sub-
+ * object based on i18n.language at render time.
  */
 export async function generateDailyQuiz(): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
 
-  const prompt = `Ти генератор щоденних вікторин для гри Nebulife — космічного симулятора.
-Створи одне оригінальне запитання про космос, астрофізику, планетологію або зоряну навігацію.
-Запитання мають бути різноманітними: від легких до складних, іноді жартівливі.
-Мова: Українська.
+  const prompt = `You are the daily quiz generator for Nebulife — a cozy
+space simulator. Create one original question about space, astrophysics,
+planetology or stellar navigation. Vary the difficulty day to day (easy →
+hard), occasionally playful. The SAME question must be produced in both
+Ukrainian and English with identical meaning; options translated in the
+SAME order so correctIndex matches across languages.
 
-Відповідай ТІЛЬКИ чистим JSON (без markdown, без пояснень):
-{"type":"quiz","data":{"question":"...","options":["...","...","...","..."],"correctIndex":N,"explanation":"...","xpReward":50}}
+Respond with ONLY pure JSON (no markdown, no prose):
+{"type":"quiz","data":{
+  "uk":{"question":"...","options":["...","...","...","..."],"correctIndex":N,"explanation":"...","xpReward":50},
+  "en":{"question":"...","options":["...","...","...","..."],"correctIndex":N,"explanation":"...","xpReward":50}
+}}
 
-Правила:
-- 4 варіанти відповіді
-- ОБОВ'ЯЗКОВО: перемішай варіанти так щоб правильна відповідь була на ВИПАДКОВІЙ позиції (0, 1, 2 або 3), НЕ ЗАВЖДИ ПЕРШОЮ
-- correctIndex: індекс правильної відповіді (0-3), має бути різний кожного разу
-- explanation: коротке (1-2 речення) пояснення правильної відповіді
-- xpReward: завжди 50
-- Одна правильна, одна правдоподібна помилка, одна смішна, одна абсурдна`;
+Rules:
+- Exactly 4 options per language
+- MANDATORY: shuffle so the correct answer lands at a RANDOM index 0..3
+  (not always 0). Use the SAME correctIndex for both uk and en.
+- explanation: 1–2 sentences in the matching language
+- xpReward: always 50 (both versions)
+- One correct, one plausible miss, one humorous, one absurd
+- Tone: in-character bridge AI. English must be native, not a calque.`;
 
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model: DAILY_MODEL,
     contents: prompt,
-    config: { thinkingConfig: { thinkingBudget: 256 } },
+    config: { thinkingConfig: { thinkingBudget: 384 } },
   });
 
   const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
   const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
 
-  // Validate JSON structure
   const parsed = JSON.parse(cleaned);
-  if (parsed?.type !== 'quiz' || !parsed?.data?.question || !Array.isArray(parsed?.data?.options)) {
-    throw new Error('Invalid quiz JSON structure');
+  if (parsed?.type !== 'quiz' || !parsed?.data?.uk || !parsed?.data?.en) {
+    throw new Error('Invalid bilingual quiz JSON structure');
+  }
+  for (const l of ['uk', 'en'] as const) {
+    const d = parsed.data[l];
+    if (!d?.question || !Array.isArray(d?.options) || d.options.length !== 4) {
+      throw new Error(`Invalid ${l} quiz payload`);
+    }
   }
 
   return cleaned;
@@ -359,24 +377,40 @@ export async function generateDailyQuiz(): Promise<string> {
  * Generate a daily fun fact about space.
  * Returns a short fact string in Ukrainian.
  */
+/**
+ * Generate a daily fun fact about space.
+ * Returns a BILINGUAL JSON string: '{"uk":"...","en":"..."}'. The cron
+ * job saves this whole blob to daily_content; clients parse and pick
+ * the right language at render time (same approach as generateDailyQuiz).
+ */
 export async function generateDailyFunFact(): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
 
-  const prompt = `Ти A.S.T.R.A. — бортовий ШІ космічної гри Nebulife.
-Згенеруй один короткий цікавий факт про космос, астрофізику, зірки, планети або Всесвіт.
-Формат: "Командоре, а ви знали, що [факт]?"
-Мова: Українська. Максимум 2-3 речення. Без емодзі. Науково достовірно.
-Кожен факт має бути унікальним і неочікуваним.
-Відповідай ТІЛЬКИ текстом факту, без зайвих пояснень.`;
+  const prompt = `You are A.S.T.R.A. — onboard AI of the cozy space sim Nebulife.
+Produce ONE short, scientifically accurate, unexpected fact about space,
+astrophysics, stars, planets or the universe. Max 2–3 sentences. No emoji.
+Produce the SAME fact in both Ukrainian and English.
+
+Formatting:
+  • Ukrainian form: "Командоре, а ви знали, що <факт>?"
+  • English form:  "Commander, did you know that <fact>?"
+
+Respond with ONLY pure JSON (no markdown):
+{"uk":"...","en":"..."}`;
 
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model: DAILY_MODEL,
     contents: prompt,
-    config: { thinkingConfig: { thinkingBudget: 128 } },
+    config: { thinkingConfig: { thinkingBudget: 192 } },
   });
 
   const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  return text.trim();
+  const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+  const parsed = JSON.parse(cleaned) as { uk?: string; en?: string };
+  if (!parsed.uk || !parsed.en) {
+    throw new Error('Invalid bilingual fun-fact JSON structure');
+  }
+  return cleaned;
 }

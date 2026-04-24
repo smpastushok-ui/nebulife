@@ -25,23 +25,34 @@ export interface GeneratedLesson {
 }
 
 /**
- * Generate a daily education package (lesson + quest + quiz) via Gemini.
+ * Generate a daily education package (lesson + quest + quiz) via Gemini
+ * in the requested language. The `titleUk`/`descriptionUk` field names
+ * in the return type are historical (matching the DB column) — when
+ * lang='en' the VALUES are English; fields stay named "Uk" purely to
+ * avoid a schema migration.
  */
 export async function generateEducationPackage(
   topicId: string,
-  topicNameUk: string,
-  categoryNameUk: string,
+  topicName: string,
+  categoryName: string,
   difficulty: 'explorer' | 'scientist',
+  lang: 'uk' | 'en' = 'uk',
 ): Promise<GeneratedLesson> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
 
-  const difficultyDesc = difficulty === 'explorer'
-    ? 'Дослідник (простий, з аналогіями та порівняннями, зрозумілий підліткам 12+)'
-    : 'Науковець (технічний, з формулами та точними числами, для дорослих)';
+  const isUk = lang === 'uk';
+  const difficultyDesc = isUk
+    ? (difficulty === 'explorer'
+        ? 'Дослідник (простий, з аналогіями та порівняннями, зрозумілий підліткам 12+)'
+        : 'Науковець (технічний, з формулами та точними числами, для дорослих)')
+    : (difficulty === 'explorer'
+        ? 'Explorer (approachable, analogy-driven, readable for teens 12+)'
+        : 'Scientist (technical, with formulas and precise numbers, for adults)');
 
-  const prompt = `Ти A.S.T.R.A. — бортовий ШІ космічної гри Nebulife.
-Сьогоднішній урок: "${topicNameUk}" (категорія: ${categoryNameUk})
+  const prompt = isUk
+    ? `Ти A.S.T.R.A. — бортовий ШІ космічної гри Nebulife.
+Сьогоднішній урок: "${topicName}" (категорія: ${categoryName})
 Рівень складності: ${difficultyDesc}
 Мова: Українська
 
@@ -52,10 +63,7 @@ export async function generateEducationPackage(
     "type": "observation",
     "titleUk": "Коротка назва квесту (5-8 слів)",
     "descriptionUk": "Детальний опис завдання для гравця (1-2 речення)",
-    "criteria": {
-      "type": "observation",
-      "spectralClass": "G"
-    },
+    "criteria": { "type": "observation", "spectralClass": "G" },
     "quarkReward": 1,
     "xpReward": 30
   },
@@ -78,7 +86,43 @@ export async function generateEducationPackage(
 
 Для вікторини: 1 правильна, 1 правдоподібна помилка, 1 смішна/неочікувана, 1 абсурдна.
 Нагороди фіксовані: квест 1 кварк + 30 XP, вікторина 50 XP.
-Відповідай ТІЛЬКИ чистим JSON без markdown.`;
+Відповідай ТІЛЬКИ чистим JSON без markdown.`
+    : `You are A.S.T.R.A. — the onboard AI of the cozy space sim Nebulife.
+Today's lesson: "${topicName}" (category: ${categoryName})
+Difficulty: ${difficultyDesc}
+Language: English
+
+Produce the learning package as JSON:
+{
+  "lesson": "3–5 paragraphs. Open with 'Commander, today we're studying...'. Accurate, engaging, concise. No emoji.",
+  "quest": {
+    "type": "observation",
+    "titleUk": "Quest title (5–8 words, ENGLISH — fieldname is historical)",
+    "descriptionUk": "Detailed task description for the player (1–2 sentences, ENGLISH)",
+    "criteria": { "type": "observation", "spectralClass": "G" },
+    "quarkReward": 1,
+    "xpReward": 30
+  },
+  "quiz": {
+    "question": "One-sentence quiz question tied to the lesson (ENGLISH)",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctIndex": 0,
+    "explanation": "1–2 sentence explanation of the correct answer (ENGLISH)",
+    "xpReward": 50
+  },
+  "imagePrompt": "English prompt for sci-fi educational illustration (10-20 words, realistic style)"
+}
+
+Quest type rules (pick the most fitting):
+- "knowledge": read the lesson. criteria: {"type":"knowledge","readComplete":true}
+- "observation": find a star of a given class. criteria: {"type":"observation","spectralClass":"O"|"B"|"A"|"F"|"G"|"K"|"M"}
+- "exploration": find a planet. criteria: {"type":"exploration","minHabitability":0.5} or {"type":"exploration","planetType":"rocky","hasWater":true}
+- "calculation": compute a physical quantity. criteria: {"type":"calculation","expectedAnswer":{"min":280,"max":300,"unit":"K"}}
+- "photo": basic telemetry photo of a system with given star class. criteria: {"type":"photo","starType":"B"}
+
+Quiz: 1 correct, 1 plausible miss, 1 humorous, 1 absurd.
+Rewards are fixed: quest 1 quark + 30 XP, quiz 50 XP.
+Respond with ONLY pure JSON (no markdown).`;
 
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
@@ -104,7 +148,7 @@ export async function generateEducationPackage(
     lessonContent: parsed.lesson,
     quest: {
       type: parsed.quest.type ?? 'knowledge',
-      titleUk: parsed.quest.titleUk ?? topicNameUk,
+      titleUk: parsed.quest.titleUk ?? topicName,
       descriptionUk: parsed.quest.descriptionUk ?? '',
       criteria: parsed.quest.criteria ?? { type: 'knowledge', readComplete: true },
       quarkReward: 1,

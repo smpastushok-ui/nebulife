@@ -1204,6 +1204,7 @@
   },
   "chat": {
     "title": "Chat",
+    "quiz_label": "QUIZ",
     "tab_global": "Global",
     "tab_system": "System",
     "minimize": "Minimize",
@@ -1303,5 +1304,16 @@
       "desc": "For flagship devices (Samsung S22+, iPhone 14 Pro+). All effects, full detail."
     },
     "change_later_hint": "Can be changed later in Settings"
+  },
+  "academy": {
+    "empty_today": "No lesson available for today.",
+    "difficulty_explorer": "Explorer",
+    "difficulty_scientist": "Scientist",
+    "mark_read": "Mark as read",
+    "mark_read_reward": "Mark as read (+1 {{quarks}} +10 XP)",
+    "marking": "Saving...",
+    "completed_badge": "Read",
+    "share": "Share",
+    "copied": "Copied!"
   }
 }

@@ -25,10 +25,13 @@ export interface DailyLesson {
   lessonId: string;
   categoryId: string;
   categoryNameUk: string;
+  categoryNameEn?: string;
   lessonNameUk: string;
+  lessonNameEn?: string;
   difficulty: string;
   lessonContent: string;
   lessonImageUrl: string | null;
+  language?: 'uk' | 'en';
   quest: {
     type: string;
     titleUk: string;

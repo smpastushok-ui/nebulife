@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18nInstance from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
 import {
   sendMessage,
@@ -1341,7 +1342,7 @@ function DigestCard({ time, parsed }: { time: string; parsed: { weekDate?: strin
 // A.S.T.R.A. sub-components
 // ---------------------------------------------------------------------------
 
-interface QuizData {
+interface QuizLangData {
   question: string;
   options: string[];
   correctIndex: number;
@@ -1349,7 +1350,21 @@ interface QuizData {
   xpReward: number;
 }
 
-function QuizCard({ data, messageId, onAwardXP }: { data: QuizData; messageId: string; onAwardXP?: (amount: number, reason: string) => void }) {
+/** Server quiz payload. Post-v158 it's bilingual `{uk, en}`; legacy single-
+ *  language quizzes are still supported via the flat-object fallback. */
+type QuizPayload = QuizLangData | { uk: QuizLangData; en: QuizLangData };
+
+function resolveQuizData(raw: QuizPayload): QuizLangData {
+  if ('uk' in raw && 'en' in raw) {
+    const lang = (i18nInstance.language?.startsWith('en') ? 'en' : 'uk') as 'uk' | 'en';
+    return raw[lang] ?? raw.uk ?? raw.en;
+  }
+  return raw as QuizLangData;
+}
+
+function QuizCard({ data: rawData, messageId, onAwardXP }: { data: QuizPayload; messageId: string; onAwardXP?: (amount: number, reason: string) => void }) {
+  const { t } = useTranslation();
+  const data = resolveQuizData(rawData);
   // Persist answer per message in localStorage
   const storageKey = `nebulife_quiz_${messageId}`;
   const [selected, setSelected] = useState<number | null>(() => {
@@ -1390,7 +1405,7 @@ function QuizCard({ data, messageId, onAwardXP }: { data: QuizData; messageId: s
       position: 'relative',
     }}>
       <div style={{ color: '#44ffaa', fontSize: 10, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-        ВІКТОРИНА +{data.xpReward} XP
+        {t('chat.quiz_label')} +{data.xpReward} XP
       </div>
       <div style={{ color: '#ccddee', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4' }}>
         {data.question}
@@ -1458,7 +1473,8 @@ function AstraMessageItem({ msg, messageId, onAwardXP }: { msg: AstraMessage; me
   const { t } = useTranslation();
   const isUser = msg.role === 'user';
 
-  // Detect quiz/digest JSON from system/astra messages
+  // Detect quiz/digest/bilingual-plain JSON from system/astra messages
+  let resolvedBodyText: string | null = null;
   if (msg.role === 'model') {
     try {
       const parsed = JSON.parse(msg.text);
@@ -1470,12 +1486,20 @@ function AstraMessageItem({ msg, messageId, onAwardXP }: { msg: AstraMessage; me
                 A.S.T.R.A.
               </span>
             </div>
-            <QuizCard data={parsed.data as QuizData} messageId={messageId} onAwardXP={onAwardXP} />
+            <QuizCard data={parsed.data as QuizPayload} messageId={messageId} onAwardXP={onAwardXP} />
           </div>
         );
       }
       if (parsed?.type === 'digest') {
         return <DigestCard time="" parsed={parsed} />;
+      }
+      // Bilingual plain text (daily fact + future bilingual broadcasts):
+      // stored as {"uk":"...","en":"..."}. Pick the player's language
+      // at render time. Legacy plain-text messages fall through to the
+      // default renderer unchanged.
+      if (typeof parsed === 'object' && parsed && typeof parsed.uk === 'string' && typeof parsed.en === 'string') {
+        const useEn = i18nInstance.language?.startsWith('en');
+        resolvedBodyText = useEn ? parsed.en : parsed.uk;
       }
     } catch { /* not JSON, render normally */ }
   }
@@ -1497,7 +1521,7 @@ function AstraMessageItem({ msg, messageId, onAwardXP }: { msg: AstraMessage; me
         {isUser ? t('chat.you_label') : 'A.S.T.R.A.'}
       </div>
       <div style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-        {msg.text}
+        {resolvedBodyText ?? msg.text}
       </div>
     </div>
   );
