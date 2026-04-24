@@ -1290,13 +1290,24 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         0.1,
         200,
       );
-      // Camera on the STAR side: star is at (-8, 6, -15), so camera on that side
-      // Start at max zoom-out (~7.5 units = near maxDistance 8) so planet is small on entry
-      camera.position.set(-3.76, 2.68, -5.90); // same direction as (-1.4, 1.0, -2.2) but at ~7.5 distance
-
       // Device-tier knobs: computed once, referenced below by both the
       // renderer (tone-mapping exposure) and every layer-builder.
       const lod = getExosphereLOD();
+
+      // Camera position. On high/ultra the default sits on the Z-negative
+      // side and autoRotate sweeps through the lit/dark terminator. On
+      // low/mid we lock rotation (see below) — so we MUST start facing
+      // the lit side or the player stares at a near-black planet forever.
+      // The star sprite lives at (-10, 4, 12); camera direction mirrors
+      // that to keep lit hemisphere in view.
+      const tierForCamera = getDeviceTier();
+      if (tierForCamera === 'low' || tierForCamera === 'mid') {
+        camera.position.set(-3.76, 2.68, 5.90);
+      } else {
+        // Camera on the STAR side: star is at (-8, 6, -15), so camera on that side
+        // Start at max zoom-out (~7.5 units = near maxDistance 8) so planet is small on entry
+        camera.position.set(-3.76, 2.68, -5.90); // same direction as (-1.4, 1.0, -2.2) but at ~7.5 distance
+      }
 
       // --- Renderer ---
       const renderer = new THREE.WebGLRenderer({
@@ -1380,11 +1391,17 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // mid-tier tablets were overheating running all layers + bloom.
       const tier = getDeviceTier();
       const useBloom = tier !== 'low' && tier !== 'mid';
-      // Auto-rotate keeps requesting new frames even when the planet is
-      // "static". On low-tier we freeze the camera — user can still drag
-      // to look around manually.
-      if (tier === 'low') {
+      // Lock camera on low + mid: no auto-rotate, no user drag-rotation,
+      // no pinch/wheel zoom. A fully static camera means the GPU can cache
+      // the transform matrix + skip geometry re-upload across frames —
+      // roughly halves per-frame driver work on mid/low GPUs. User-facing
+      // trade-off: can only see one side of the planet, no zooming. Given
+      // the planet is mostly decorative at this view (exploration happens
+      // elsewhere), this is an acceptable cut for the perf it buys.
+      if (tier === 'low' || tier === 'mid') {
         controls.autoRotate = false;
+        controls.enableRotate = false;
+        controls.enableZoom = false;
       }
       const composer = useBloom ? new EffectComposer(renderer) : null;
       if (composer) {

@@ -186,18 +186,52 @@ function VideoPlaceholder({ label }: { label: string }) {
 // ---------------------------------------------------------------------------
 // CinematicVideoSlide - real video element with loading + end fade states
 // ---------------------------------------------------------------------------
-//   - Shows a "loading" overlay (animated dots over starfield) until the
-//     browser reports the video can play through WITHOUT rebuffering
-//     (`canplaythrough` event, readyState === 4). This is stricter than
-//     `canplay` and prevents mid-playback stutter on slow wifi.
-//   - Fallback: if the network is too slow, we still unlock playback after
-//     STALL_TIMEOUT_MS so the user doesn't stare at "loading" forever.
-//     The cinematic schedule takes priority over perfect buffering.
+//   - Downloads the WHOLE file as a blob before touching <video>. On slow
+//     wifi `canplaythrough` was lying — the browser "estimated" it could
+//     play through but kept stuttering. Blob guarantees 100 % of the bytes
+//     are local before playback starts, so decoding never waits for the
+//     network. This is the only reliable way to prevent stutter on Simple
+//     tier tablets.
+//   - Uses a module-level cache (VIDEO_BLOB_CACHE) so the warm-up fetch in
+//     CinematicIntro populates the same entry the slide reads from. First
+//     slide mount typically sees an already-resolved promise (cache hit).
+//   - Fallback: if network fails entirely, after STALL_TIMEOUT_MS we fall
+//     back to streaming the original URL. Better a stuttery playback than
+//     a permanently-stuck "loading" overlay.
 //   - On `ended`: 1-second brightness fade-to-black, video stays in DOM as
-//     a dark background
-//   - Notifies parent via onPlayingChange so global ambient can mute
+//     a dark background.
+//   - Notifies parent via onPlayingChange so global ambient can mute.
 // ---------------------------------------------------------------------------
-const STALL_TIMEOUT_MS = 10_000;
+const STALL_TIMEOUT_MS = 30_000;
+
+/** Shared cache so warm-up fetch in CinematicIntro and the video slide
+ *  read the same Blob. Values are Promises so concurrent requesters get
+ *  the same in-flight fetch rather than starting duplicate downloads. */
+const VIDEO_BLOB_CACHE: Record<string, Promise<Blob> | Blob> = {};
+
+/** Kick off a full download of the video file. Safe to call multiple times
+ *  — second call reuses the first's Promise. Exported for the warm-up hook
+ *  in CinematicIntro's useEffect. */
+function preloadVideoBlob(url: string): Promise<Blob> {
+  const existing = VIDEO_BLOB_CACHE[url];
+  if (existing) return existing instanceof Blob ? Promise.resolve(existing) : existing;
+  const p = fetch(url, { credentials: 'same-origin' })
+    .then((r) => {
+      if (!r.ok) throw new Error(`fetch ${url}: ${r.status}`);
+      return r.blob();
+    })
+    .then((blob) => {
+      VIDEO_BLOB_CACHE[url] = blob;
+      return blob;
+    })
+    .catch((err) => {
+      // Don't cache failures — next access will retry
+      delete VIDEO_BLOB_CACHE[url];
+      throw err;
+    });
+  VIDEO_BLOB_CACHE[url] = p;
+  return p;
+}
 
 function CinematicVideoSlide({
   src,
@@ -209,32 +243,66 @@ function CinematicVideoSlide({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [loaded, setLoaded] = useState(false);
   const [ended, setEnded] = useState(false);
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
   const onPlayingChangeRef = useRef(onPlayingChange);
   onPlayingChangeRef.current = onPlayingChange;
 
+  // 1. Download the whole file as a blob, then expose it via objectURL.
+  //    This effect runs once per `src`; blob → URL → <video src={url}>.
+  useEffect(() => {
+    let cancelled = false;
+    let createdUrl: string | null = null;
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Safety net: if the blob fetch stalls for STALL_TIMEOUT_MS (very slow
+    // wifi, offline, etc.) fall back to streaming the original URL. A
+    // stuttery playback is better UX than being stuck on "loading" forever.
+    stallTimer = setTimeout(() => {
+      if (cancelled) return;
+      if (!resolvedSrc) {
+        // eslint-disable-next-line no-console
+        console.warn(`[CinematicVideo] blob download timed out, streaming ${src} directly`);
+        setResolvedSrc(src);
+      }
+    }, STALL_TIMEOUT_MS);
+
+    preloadVideoBlob(src)
+      .then((blob) => {
+        if (cancelled) return;
+        createdUrl = URL.createObjectURL(blob);
+        setResolvedSrc(createdUrl);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Same fallback as the timeout — try the original URL.
+        setResolvedSrc(src);
+      });
+
+    return () => {
+      cancelled = true;
+      if (stallTimer) clearTimeout(stallTimer);
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [src]);
+
+  // 2. Once <video> has the blob-backed src, attach play/ended listeners.
+  //    With a local blob, `canplaythrough` fires immediately — there's no
+  //    more network waiting game. We still wait for it before fading the
+  //    frame in, to avoid a visual flash of a half-decoded first frame.
   useEffect(() => {
     const v = videoRef.current;
-    if (!v) return;
+    if (!v || !resolvedSrc) return;
 
     let unlocked = false;
     const unlock = () => {
       if (unlocked) return;
       unlocked = true;
       setLoaded(true);
-      // Start playback as soon as we unlock (autoPlay may have been deferred
-      // because the element was hidden while readyState was low).
       v.play().catch(() => { /* autoplay policy — user will click through */ });
     };
 
-    // Preferred path: browser reports it can play end-to-end without rebuffer.
     const handleCanPlayThrough = () => unlock();
-    // Secondary: already buffered enough for current viewport.
-    const handleCanPlay = () => {
-      // Only unlock on plain `canplay` if video is already mostly buffered.
-      // readyState 4 = HAVE_ENOUGH_DATA — same criterion browsers use for
-      // `canplaythrough` but some WebViews never fire that event.
-      if (v.readyState >= 4) unlock();
-    };
+    const handleCanPlay = () => { if (v.readyState >= 4) unlock(); };
     const handlePlay = () => onPlayingChangeRef.current?.(true);
     const handleEnded = () => {
       onPlayingChangeRef.current?.(false);
@@ -248,20 +316,19 @@ function CinematicVideoSlide({
     v.addEventListener('ended', handleEnded);
     v.addEventListener('pause', handlePause);
 
-    // Safety net — slow wifi should not strand the user on the loading screen.
-    const stallTimer = setTimeout(unlock, STALL_TIMEOUT_MS);
+    // Blob is already 100 % local — readyState will usually be >= 3 by now.
+    // Call the handler once synchronously in case the event already fired.
+    if (v.readyState >= 3) unlock();
 
     return () => {
-      clearTimeout(stallTimer);
       v.removeEventListener('canplaythrough', handleCanPlayThrough);
       v.removeEventListener('canplay', handleCanPlay);
       v.removeEventListener('play', handlePlay);
       v.removeEventListener('ended', handleEnded);
       v.removeEventListener('pause', handlePause);
-      // Ensure parent knows we are no longer playing on unmount
       onPlayingChangeRef.current?.(false);
     };
-  }, [src]);
+  }, [resolvedSrc]);
 
   return (
     <div style={{
@@ -276,9 +343,10 @@ function CinematicVideoSlide({
     }}>
       <video
         ref={videoRef}
-        src={src}
-        // autoPlay is enabled but we only unlock the fade-in once the
-        // browser can play through without stopping. See useEffect above.
+        // resolvedSrc is the blob URL once download finishes; until then
+        // the <video> stays src-less and the loading overlay covers the
+        // area. After fallback timeout we fall back to streaming `src`.
+        src={resolvedSrc ?? undefined}
         autoPlay
         playsInline
         preload="auto"
@@ -652,29 +720,18 @@ export function CinematicIntro({
     return () => { mountedRef.current = false; };
   }, []);
 
-  // ── Video cache warm-up ──────────────────────────────────────────────
-  // The onboarding slides play /videos/catastrophe.mp4 (~11 MB) and
-  // /videos/briefing.mp4 (~9 MB). On slow wifi (tester tablet) the default
-  // `preload="auto"` on the <video> element starts decoding before enough
-  // bytes are cached → stuttering playback.
-  //
-  // We kick off a fetch() for both files the moment the intro mounts,
-  // while the user is still reading subtitles (≈4–6 s). By the time they
-  // reach slide 0 the file is either fully in the HTTP cache or close to
-  // it, and the <video> element hits cache instantly. AbortController
-  // lets us cancel if the user speedruns past the intro.
+  // ── Video blob warm-up ────────────────────────────────────────────────
+  // Kick off a full download of both onboarding videos the moment the
+  // intro mounts, while the user is still reading subtitles (≈4–6 s).
+  // `preloadVideoBlob()` populates a module-level cache keyed by URL;
+  // CinematicVideoSlide reads from the same cache so by the time slide 0
+  // renders the blob is usually already there (cache hit, zero network).
+  // No AbortController needed — the fetch is fire-and-forget and the
+  // module-level cache survives CinematicIntro unmount anyway.
   useEffect(() => {
     if (typeof window === 'undefined' || typeof fetch !== 'function') return;
-    const ac = new AbortController();
-    const warm = (url: string) => {
-      fetch(url, { signal: ac.signal, credentials: 'same-origin' })
-        // Drain the body so the full file lands in HTTP cache, not just headers.
-        .then((r) => r.ok ? r.blob() : null)
-        .catch(() => { /* abort or offline — playback will fall back to live stream */ });
-    };
-    warm('/videos/catastrophe.mp4');
-    warm('/videos/briefing.mp4');
-    return () => ac.abort();
+    preloadVideoBlob('/videos/catastrophe.mp4').catch(() => { /* retry on demand */ });
+    preloadVideoBlob('/videos/briefing.mp4').catch(() => { /* retry on demand */ });
   }, []);
 
   // ── Stage 0: Show Universe scene (Three.js) ──
