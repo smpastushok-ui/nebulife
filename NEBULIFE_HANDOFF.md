@@ -434,6 +434,75 @@ fine. Plan: `.claude/plans/vectorized-waddling-prism.md`. All shipped:
 | Arena lag | ~50% FPS ↑ |
 | Planet view lag | 8–15ms/frame saved |
 
+### Device-tier system — 4 tiers (v150+)
+
+All perf-sensitive code reads from `packages/client/src/utils/device-tier.ts`.
+`getDeviceTier()` returns one of four buckets; everything else —
+`getExosphereLOD()`, the main.tsx global CSS kill-switch, RAF FPS caps —
+is driven by this one value.
+
+| Tier | Auto-detect rule | Typical devices |
+|---|---|---|
+| **low** | `cores ≤ 4` OR `RAM ≤ 3 GB` | Budget Android (Redmi 9/10, Samsung A12), older tablets on Helio P |
+| **mid** | `cores ≤ 6` OR `RAM ≤ 6 GB` | Mid-range 2021–2023 (Redmi Note 11/12, Samsung A34/A54, older iPads) |
+| **high** | Capacitor native + `cores ≥ 8` + `RAM ≥ 8 GB` | Flagship mobiles (S22 Ultra, iPhone 14 Pro+, Pixel 8 Pro) |
+| **ultra** | **NOT** Capacitor (desktop web) + `cores ≥ 8` + `RAM ≥ 8 GB` | Desktop browsers on capable PCs |
+
+**Auto-detect is unreliable on modern midrange** — Chrome caps
+`navigator.deviceMemory` at 8 GB for privacy, and every 2021+ phone
+ships 8 cores regardless of SoC class (Vivo V21e Helio G96 auto-classifies
+as `high`, wrong). To fix, v154 added:
+
+- **User override via first-run picker** (`PerfTierSelectScreen.tsx`).
+  Stored in `localStorage.nebulife_perf_tier` (`simple` | `standard` | `full`
+  → mapped to `low`/`mid`/`high`). Takes precedence over auto-detect.
+- **Picker shown once on Capacitor native only** (gate:
+  `nebulife_perf_tier_chosen !== '1'`). Desktop web always auto-detects
+  `ultra` silently.
+- **Defaults in picker**: `standard` + English (per HANDOFF §1 — target
+  market is EN; Ukrainian is a secondary homage). No "recommended" badge
+  — auto-detect is too unreliable to claim a recommendation.
+- **Reload after submit** so `getDeviceTier()`'s memoized cache,
+  `<html data-perf-tier>` attribute, and the injected kill-switch CSS
+  all pick up the new value at module load.
+
+**What each tier disables** (driven by `getExosphereLOD()` +
+`main.tsx` global CSS + `shouldRenderNebula()` etc.):
+
+| Layer / feature | low | mid | high | ultra |
+|---|---|---|---|---|
+| 3D Universe scene during intro | skip | skip | full | full |
+| PerfTier picker shown | yes | yes | yes | no (web auto-ultra) |
+| Simplified onboarding (no planet bg) | yes | yes | no | no |
+| `<html>` kill-switch CSS | yes | yes | no | no |
+| Backdrop-filter blur | off | off | on | on |
+| Pulse/flash/blink/glow inline CSS anims | off | off | on | on |
+| Transition-duration cap 120ms | yes | yes | no | no |
+| Nebula sphere (shader) | skip | skip | full | full |
+| UnrealBloom post-pass | skip | skip | full | full |
+| Cloud layer shader | skip | skip | full | full |
+| Atmosphere back mesh (overdraw) | skip | full | full | full |
+| Ring (gas giants) | skip | 48 seg | 96 seg | 128 seg |
+| Planet sphere segments | 48² | 96² | 128² | 192² |
+| Atmosphere front segments | 24 | 24 | 32 | 48 |
+| Moon segments + shader | 16² flat | 24² shader | 24² shader | 32² shader |
+| Starfield count multiplier | 0.40 | 0.60 | 0.85 | 1.00 |
+| Starfield twinkle uTime | frozen | live | live | live |
+| Tone-mapping exposure | 1.3× | 1.2× | 1.0× | 1.0× |
+| Shooting stars on exosphere | off | off | on | on |
+| Auto-rotate (OrbitControls) | off | on | on | on |
+| Exosphere RAF cap | 30 fps | 30 fps | vsync | vsync |
+| Arena `antialias` + fullDPR | off + 1.0 | on + 2.0 | on + 2.0 | on + 2.0 |
+| Arena animated backdrop blur | off | off | 10 Hz | 10 Hz |
+
+Implementation spread across commits 0d29929 (v151 unmount), 9e02ec8
+(v152 full-overlay unmount), 555077c (v153 deeper low/mid cuts),
+6b9cbb8 (v154 user-override picker).
+
+**Headroom for 'ultra'** — desktop web tier intentionally matches 'high'
+today. Reserved for future desktop-only FX (volumetric clouds, SSR,
+higher-strength bloom) that would be unrealistic even on S22 Ultra.
+
 ---
 
 ## 9. API REFERENCE
