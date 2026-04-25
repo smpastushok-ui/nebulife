@@ -5659,12 +5659,6 @@ function AppInner() {
         volatiles={colonyResources.volatiles}
         isotopes={colonyResources.isotopes}
         water={colonyResources.water}
-        currentResources={(() => {
-          const activePlanetId = surfaceTarget?.planet.id
-            ?? (state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet.id : null)
-            ?? homeInfo?.planet.id;
-          return activePlanetId ? getResources(activePlanetId) : undefined;
-        })()}
         totalsResources={totalResources()}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
         onObservatoriesClick={() => setShowResourceModal('observatories')}

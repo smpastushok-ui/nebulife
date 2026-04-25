@@ -807,7 +807,12 @@
     "terraform_difficulty": "Складн. терраформ.",
     "colonizable": "Придатна",
     "surface_disabled": "На поверхню — {{reason}}",
-    "go_to_surface": "Спуститися на поверхню"
+    "go_to_surface": "Спуститися на поверхню",
+    "hab_temp": "Темп.",
+    "hab_atm": "Атм.",
+    "hab_water": "Вода",
+    "hab_grav": "Грав.",
+    "hab_rad": "Рад."
   },
   "discovery_notification": {
     "new_discovery": "Нове відкриття!",
@@ -1098,7 +1103,15 @@
     "distance_ly": "{{ly}} с.р.",
     "no_colonies": "Колоній ще немає",
     "terraform_progress": "Терраформ: {{pct}}%",
-    "go_to_btn": "Перейти"
+    "go_to_btn": "Перейти",
+    "filter_life_yes": "Так",
+    "filter_life_no": "Нi",
+    "planet_menu_view": "Переглянути",
+    "planet_menu_favorite": "В обрані",
+    "planet_menu_unfavorite": "Прибрати з обраних",
+    "tf_pct": "Терраформ: {{pct}}%",
+    "quark_shortcuts_show": "Показати ⚛ ярлики",
+    "quark_shortcuts_hide": "Приховати ⚛ ярлики"
   },
   "cinematic": {
     "click_to_skip": "натиснiть щоб пропустити",

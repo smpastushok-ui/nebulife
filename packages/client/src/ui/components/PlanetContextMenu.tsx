@@ -33,7 +33,7 @@ function QuarkIcon() {
 // ---------------------------------------------------------------------------
 
 const MENU_WIDTH = 250;
-const MENU_HEIGHT_APPROX = 340;
+const MENU_HEIGHT_APPROX = 360;
 
 type TabId = 'actions' | 'resources' | 'premium' | 'terraform';
 
@@ -531,13 +531,15 @@ export function PlanetContextMenu({
 
   // Destroyed planets — minimal UI
   if (isDestroyed) {
+    const dLeft = Math.max(8, Math.min(screenPosition.x + 8, window.innerWidth - MENU_WIDTH - 8));
+    const dTop  = Math.max(8, Math.min(screenPosition.y - 20, window.innerHeight - MENU_HEIGHT_APPROX - 8));
     return (
       <>
         <div style={backdropStyle} onClick={backdropActive ? onClose : undefined} />
         <div style={{
           ...menuStyle,
-          left: Math.min(screenPosition.x + 8, window.innerWidth - MENU_WIDTH - 16),
-          top: Math.min(screenPosition.y - 20, window.innerHeight - MENU_HEIGHT_APPROX - 16),
+          left: dLeft,
+          top: dTop,
         }}>
           <div style={{
             padding: '10px 14px 8px', fontSize: 13, color: '#ccddee',
@@ -554,9 +556,9 @@ export function PlanetContextMenu({
     );
   }
 
-  // Clamp to screen
-  const maxX = window.innerWidth - MENU_WIDTH - 16;
-  const maxY = window.innerHeight - MENU_HEIGHT_APPROX - 16;
+  // Clamp to screen — 8px edge gap on all sides
+  const maxX = window.innerWidth - MENU_WIDTH - 8;
+  const maxY = window.innerHeight - MENU_HEIGHT_APPROX - 8;
   const left = Math.max(8, Math.min(screenPosition.x + 8, maxX));
   const top = Math.max(8, Math.min(screenPosition.y - 20, maxY));
 

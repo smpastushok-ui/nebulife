@@ -1,12 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatShort } from '../../utils/formatNumber.js';
 import { LiveCountdown } from './LiveCountdown.js';
 
 // ---------------------------------------------------------------------------
 // ResourceDisplay -- two HUD elements:
-//   1. Timer — fixed top-center
-//   2. Resources — fixed top-right
+//   1. Timer — fixed bottom-center (doomsday clock)
+//   2. Resources — fixed top-center, always shows TOTALS across all colonies
 // ---------------------------------------------------------------------------
 
 interface ColonyResourceValues {
@@ -29,19 +29,17 @@ interface ResourceDisplayProps {
   onVolatilesClick?: () => void;
   onIsotopesClick?: () => void;
   onQuarksClick?: () => void;
-  /** Colony resources (shown after colonization, Phase 2+).
-   *  Legacy flat props kept for callers that don't use the new per-planet API. */
+  /** Legacy flat props kept for callers that don't pass totalsResources. */
   minerals?: number;
   volatiles?: number;
   isotopes?: number;
   water?: number;
   onWaterClick?: () => void;
   /**
-   * Per-planet split: active colony resources (Phase 7B).
-   * When supplied, the HUD shows a toggle pill "This hub | Totals".
-   * "This hub" shows `currentResources`; "Totals" shows `totalsResources`.
+   * Aggregated totals across all colonies (Phase 7B+).
+   * When provided, these values are always displayed (no toggle).
+   * Legacy flat props are used as fallback when totalsResources is absent.
    */
-  currentResources?: ColonyResourceValues;
   totalsResources?: ColonyResourceValues;
   /**
    * Doomsday clock params. When all four are non-null AND `showCountdown`
@@ -65,6 +63,34 @@ interface ResourceDisplayProps {
   highlightResearchData?: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Icon size — responsive to viewport width
+// ---------------------------------------------------------------------------
+
+function useIconSize(): number {
+  const [size, setSize] = useState<number>(() => {
+    if (window.innerWidth < 360) return 10;
+    if (window.innerWidth < 480) return 12;
+    return 14;
+  });
+
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth < 360) setSize(10);
+      else if (window.innerWidth < 480) setSize(12);
+      else setSize(14);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  return size;
+}
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
 const panelStyle: React.CSSProperties = {
   zIndex: 9700,
   display: 'flex',
@@ -75,30 +101,35 @@ const panelStyle: React.CSSProperties = {
   borderRadius: 4,
   padding: '6px 10px',
   fontFamily: 'monospace',
-  fontSize: 11,
   color: '#aabbcc',
   cursor: 'pointer',
   transition: 'border-color 0.2s',
   pointerEvents: 'auto',
+  // Allow the panel to shrink on very narrow screens
+  minWidth: 0,
+  maxWidth: 'calc(100vw - 16px)',
 };
 
 const dividerStyle: React.CSSProperties = {
   width: 1,
   height: 14,
   background: 'rgba(51,68,85,0.6)',
-  margin: '0 10px',
+  margin: '0 8px',
+  flexShrink: 0,
 };
 
 const itemStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 5,
+  gap: 4,
+  flexShrink: 1,
+  minWidth: 0,
 };
 
 /** SVG telescope icon for Observatories */
-function ObservatoryIcon() {
+function ObservatoryIcon({ size }: { size: number }) {
   return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.2">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.2" style={{ flexShrink: 0 }}>
       <circle cx="8" cy="5" r="4" />
       <line x1="8" y1="9" x2="8" y2="14" />
       <line x1="5" y1="14" x2="11" y2="14" />
@@ -109,9 +140,9 @@ function ObservatoryIcon() {
 }
 
 /** SVG radar/scan icon for Research Data */
-function ResearchDataIcon() {
+function ResearchDataIcon({ size }: { size: number }) {
   return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#4488aa" strokeWidth="1.2">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#4488aa" strokeWidth="1.2" style={{ flexShrink: 0 }}>
       <circle cx="8" cy="8" r="6" />
       <circle cx="8" cy="8" r="2" />
       <line x1="8" y1="2" x2="8" y2="5" />
@@ -123,9 +154,9 @@ function ResearchDataIcon() {
 }
 
 /** SVG atom icon for Quarks */
-function QuarksIcon() {
+function QuarksIcon({ size }: { size: number }) {
   return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="rgba(120,160,255,0.7)" strokeWidth="1.2">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="rgba(120,160,255,0.7)" strokeWidth="1.2" style={{ flexShrink: 0 }}>
       <circle cx="8" cy="8" r="2" />
       <ellipse cx="8" cy="8" rx="7" ry="3" />
       <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(60 8 8)" />
@@ -135,9 +166,9 @@ function QuarksIcon() {
 }
 
 /** SVG crystal icon for Minerals */
-function MineralsIcon() {
+function MineralsIcon({ size }: { size: number }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#aa8855" strokeWidth="1.2">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#aa8855" strokeWidth="1.2" style={{ flexShrink: 0 }}>
       <path d="M8 2L13 7L8 14L3 7Z" />
       <line x1="3" y1="7" x2="13" y2="7" />
       <line x1="8" y1="2" x2="5.5" y2="7" />
@@ -147,9 +178,9 @@ function MineralsIcon() {
 }
 
 /** SVG cloud icon for Volatiles */
-function VolatilesIcon() {
+function VolatilesIcon({ size }: { size: number }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#55aaaa" strokeWidth="1.2">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#55aaaa" strokeWidth="1.2" style={{ flexShrink: 0 }}>
       <circle cx="6" cy="9" r="3" />
       <circle cx="10" cy="8" r="3.5" />
       <circle cx="8" cy="6" r="2.5" />
@@ -158,9 +189,9 @@ function VolatilesIcon() {
 }
 
 /** SVG atom icon for Isotopes */
-function IsotopesIcon() {
+function IsotopesIcon({ size }: { size: number }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#88aa44" strokeWidth="1.2">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#88aa44" strokeWidth="1.2" style={{ flexShrink: 0 }}>
       <circle cx="8" cy="8" r="2" />
       <ellipse cx="8" cy="8" rx="6" ry="2.5" />
       <ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(60 8 8)" />
@@ -170,9 +201,9 @@ function IsotopesIcon() {
 }
 
 /** SVG water droplet icon */
-function WaterIcon() {
+function WaterIcon({ size }: { size: number }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.2">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.2" style={{ flexShrink: 0 }}>
       <path d="M8 2C8 2 3 8 3 11C3 13.8 5.2 15 8 15C10.8 15 13 13.8 13 11C13 8 8 2 8 2Z" />
     </svg>
   );
@@ -182,19 +213,25 @@ const clickableItemStyle: React.CSSProperties = {
   ...itemStyle,
   cursor: 'pointer',
   borderRadius: 3,
-  padding: '2px 4px',
-  margin: '-2px -4px',
+  padding: '2px 3px',
+  margin: '-2px -3px',
   transition: 'background 0.15s',
 };
 
-const RESOURCE_VIEW_MODE_KEY = 'nebulife_resource_view_mode';
+// Clamp font-size responsively
+const numStyle: React.CSSProperties = {
+  fontSize: 'clamp(9px, 2.4vw, 12px)',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  minWidth: 0,
+};
 
 export function ResourceDisplay({
   researchData, quarks, isExodusPhase, onClick,
   onObservatoriesClick, onResearchDataClick,
   onMineralsClick, onVolatilesClick, onIsotopesClick, onQuarksClick, onWaterClick,
   minerals = 0, volatiles = 0, isotopes = 0, water = 0,
-  currentResources,
   totalsResources,
   showCountdown = false, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel,
   isCountdownPaused, onTimerClick,
@@ -204,31 +241,13 @@ export function ResourceDisplay({
   const { t } = useTranslation();
   const [hoverTimer, setHoverTimer] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const iconSize = useIconSize();
 
-  // Per-planet toggle: 'this' = active colony, 'all' = totals across all colonies.
-  // Only shown when the parent provides currentResources + totalsResources.
-  const [viewMode, setViewMode] = useState<'this' | 'all'>(() => {
-    try {
-      const saved = localStorage.getItem(RESOURCE_VIEW_MODE_KEY);
-      return saved === 'all' ? 'all' : 'this';
-    } catch {
-      return 'this';
-    }
-  });
-  const toggleViewMode = useCallback(() => {
-    setViewMode((prev) => {
-      const next = prev === 'this' ? 'all' : 'this';
-      try { localStorage.setItem(RESOURCE_VIEW_MODE_KEY, next); } catch { /* ignore */ }
-      return next;
-    });
-  }, []);
-
-  // Resolve display values: prefer per-planet when both currentResources & totalsResources are provided.
-  const hasSplit = currentResources != null && totalsResources != null;
-  const displayMinerals  = hasSplit ? (viewMode === 'this' ? currentResources!.minerals  : totalsResources!.minerals)  : minerals;
-  const displayVolatiles = hasSplit ? (viewMode === 'this' ? currentResources!.volatiles : totalsResources!.volatiles) : volatiles;
-  const displayIsotopes  = hasSplit ? (viewMode === 'this' ? currentResources!.isotopes  : totalsResources!.isotopes)  : isotopes;
-  const displayWater     = hasSplit ? (viewMode === 'this' ? currentResources!.water     : totalsResources!.water)     : water;
+  // Always use totals when available; fall back to legacy flat props otherwise.
+  const displayMinerals  = totalsResources ? totalsResources.minerals  : minerals;
+  const displayVolatiles = totalsResources ? totalsResources.volatiles : volatiles;
+  const displayIsotopes  = totalsResources ? totalsResources.isotopes  : isotopes;
+  const displayWater     = totalsResources ? totalsResources.water     : water;
 
   const makeItemClick = (handler?: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -248,16 +267,13 @@ export function ResourceDisplay({
           0%, 100% { box-shadow: 0 0 4px rgba(204,68,68,0.3); }
           50% { box-shadow: 0 0 12px rgba(204,68,68,0.6); }
         }
-      `}</style>
-      {/* Timer -- above TERMINAL button (bottom bar).
-          LiveCountdown self-updates via ref at 24Hz without re-rendering
-          React. The .countdown-urgent CSS class (defined in the <style> tag
-          above) hooks the pulse animation when game time < 2h remains. */}
-      <style>{`
         .countdown-urgent {
           animation: cmdbar-terminal-pulse 0.8s infinite;
         }
       `}</style>
+
+      {/* Doomsday clock — above TERMINAL button (bottom bar).
+          LiveCountdown self-updates via ref at 24Hz without re-rendering React. */}
       {showCountdown && gameStartedAt != null && timeMultiplier != null && (
         <div
           style={{
@@ -284,7 +300,7 @@ export function ResourceDisplay({
         </div>
       )}
 
-      {/* Resources -- fixed top-center (each item individually clickable) */}
+      {/* Resources — fixed top-center. Always shows totals across all colonies. */}
       <div
         style={{
           ...panelStyle,
@@ -306,8 +322,8 @@ export function ResourceDisplay({
               onMouseEnter={() => setHoveredItem('obs')}
               onMouseLeave={() => setHoveredItem(null)}
             >
-              <ObservatoryIcon />
-              <span style={{ color: observatoryUsed >= observatoryTotal ? '#cc4444' : '#7bb8ff' }}>
+              <ObservatoryIcon size={iconSize} />
+              <span style={{ ...numStyle, color: observatoryUsed >= observatoryTotal ? '#cc4444' : '#7bb8ff' }}>
                 {observatoryUsed}/{observatoryTotal}
               </span>
             </div>
@@ -315,7 +331,7 @@ export function ResourceDisplay({
           </>
         )}
 
-        {/* Research Data -- always visible */}
+        {/* Research Data — always visible */}
         <div
           style={{
             ...itemHoverStyle('rd'),
@@ -330,12 +346,12 @@ export function ResourceDisplay({
           onMouseEnter={() => setHoveredItem('rd')}
           onMouseLeave={() => setHoveredItem(null)}
         >
-          <ResearchDataIcon />
-          <span style={{ color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{formatShort(researchData)}</span>
+          <ResearchDataIcon size={iconSize} />
+          <span style={{ ...numStyle, color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{formatShort(researchData)}</span>
         </div>
         <div style={dividerStyle} />
 
-        {/* Colony resources (Phase 2+) */}
+        {/* Colony resources (Phase 2+) — always totals */}
         {!isExodusPhase && (
           <>
             <div
@@ -345,8 +361,8 @@ export function ResourceDisplay({
               onMouseEnter={() => setHoveredItem('min')}
               onMouseLeave={() => setHoveredItem(null)}
             >
-              <MineralsIcon />
-              <span style={{ color: '#aa8855' }}>{formatShort(displayMinerals)}</span>
+              <MineralsIcon size={iconSize} />
+              <span style={{ ...numStyle, color: '#aa8855' }}>{formatShort(displayMinerals)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -356,8 +372,8 @@ export function ResourceDisplay({
               onMouseEnter={() => setHoveredItem('vol')}
               onMouseLeave={() => setHoveredItem(null)}
             >
-              <VolatilesIcon />
-              <span style={{ color: '#55aaaa' }}>{formatShort(displayVolatiles)}</span>
+              <VolatilesIcon size={iconSize} />
+              <span style={{ ...numStyle, color: '#55aaaa' }}>{formatShort(displayVolatiles)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -367,8 +383,8 @@ export function ResourceDisplay({
               onMouseEnter={() => setHoveredItem('iso')}
               onMouseLeave={() => setHoveredItem(null)}
             >
-              <IsotopesIcon />
-              <span style={{ color: '#88aa44' }}>{formatShort(displayIsotopes)}</span>
+              <IsotopesIcon size={iconSize} />
+              <span style={{ ...numStyle, color: '#88aa44' }}>{formatShort(displayIsotopes)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -378,36 +394,10 @@ export function ResourceDisplay({
               onMouseEnter={() => setHoveredItem('wat')}
               onMouseLeave={() => setHoveredItem(null)}
             >
-              <WaterIcon />
-              <span style={{ color: '#3b82f6' }}>{formatShort(displayWater)}</span>
+              <WaterIcon size={iconSize} />
+              <span style={{ ...numStyle, color: '#3b82f6' }}>{formatShort(displayWater)}</span>
             </div>
             <div style={dividerStyle} />
-            {/* View mode toggle pill — only shown when per-planet split is available */}
-            {hasSplit && (
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleViewMode(); }}
-                title={viewMode === 'this' ? t('resource_display.totals') : t('resource_display.this_colony')}
-                style={{
-                  fontFamily: 'monospace',
-                  fontSize: 9,
-                  background: 'rgba(30,45,65,0.7)',
-                  border: '1px solid #334455',
-                  borderRadius: 3,
-                  color: '#667788',
-                  padding: '2px 6px',
-                  cursor: 'pointer',
-                  letterSpacing: '0.04em',
-                  lineHeight: 1.4,
-                  flexShrink: 0,
-                  transition: 'border-color 0.15s, color 0.15s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#446688'; e.currentTarget.style.color = '#aabbcc'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.color = '#667788'; }}
-              >
-                {viewMode === 'this' ? t('resource_display.this_colony') : t('resource_display.totals')}
-              </button>
-            )}
-            {hasSplit && <div style={dividerStyle} />}
           </>
         )}
 
@@ -418,8 +408,8 @@ export function ResourceDisplay({
           onMouseEnter={() => setHoveredItem('qk')}
           onMouseLeave={() => setHoveredItem(null)}
         >
-          <QuarksIcon />
-          <span>{formatShort(quarks)}</span>
+          <QuarksIcon size={iconSize} />
+          <span style={numStyle}>{formatShort(quarks)}</span>
         </div>
       </div>
     </>

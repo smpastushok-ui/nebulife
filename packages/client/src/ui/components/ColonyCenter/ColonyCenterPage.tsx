@@ -77,6 +77,13 @@ export interface ColonyCenterPageProps {
   logEntries: LogEntry[];
   /** Player premium currency (quarks) — required for boost purchases. */
   quarks: number;
+  /**
+   * Per-planet resource balances — used in the Production tab when the player
+   * switches scope to "All colonies". Key is planet ID.
+   * Optional; when absent the tab falls back to the active colony's
+   * `colonyResources` for both scopes.
+   */
+  colonyResourcesByPlanet?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
   /** Active boosts table for ALL player colonies. */
   boosts: ColonyBoostsByPlanet;
   /** Fires when the player confirms a boost purchase — parent deducts quarks + persists boost. */
@@ -391,7 +398,7 @@ function ColoniesTab({ active, allColonies, onTeleport }: ColonyCenterPageProps)
   );
 }
 
-function ProductionTab({ active, allColonies, productionPerHour, extractionPerHour, storageCapacity, colonyResources }: ColonyCenterPageProps) {
+function ProductionTab({ active, allColonies, productionPerHour, extractionPerHour, storageCapacity, colonyResources, colonyResourcesByPlanet }: ColonyCenterPageProps) {
   const { t } = useTranslation();
   const [scope, setScope] = useState<'this' | 'all'>('this');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -406,17 +413,27 @@ function ProductionTab({ active, allColonies, productionPerHour, extractionPerHo
         buildings: active.buildings,
       };
     }
-    // Merge all colonies — current balances sum, capacity sums, per-hour sums.
-    // For MVP we only have 1 real colony; future multi-colony needs per-colony
-    // resources propagated into `allColonies` items.
+    // Merge all colonies — sum per-planet balances when available, otherwise
+    // fall back to active colony's balance for the single-colony case.
     const buildings = allColonies.flatMap((c) => c.buildings);
+    let totalResources = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+    if (colonyResourcesByPlanet) {
+      for (const res of Object.values(colonyResourcesByPlanet)) {
+        totalResources.minerals  += res.minerals;
+        totalResources.volatiles += res.volatiles;
+        totalResources.isotopes  += res.isotopes;
+        totalResources.water     += res.water;
+      }
+    } else {
+      totalResources = colonyResources;
+    }
     return {
-      resources: colonyResources, // TODO: per-colony resource tracking
+      resources: totalResources,
       capacity: storageCapacity * allColonies.length,
-      perHour: productionPerHour, // TODO: sum from all colonies
+      perHour: productionPerHour,
       buildings,
     };
-  }, [scope, active, allColonies, colonyResources, storageCapacity, productionPerHour]);
+  }, [scope, active, allColonies, colonyResources, colonyResourcesByPlanet, storageCapacity, productionPerHour]);
 
   const resourceKeys = ['minerals', 'volatiles', 'isotopes', 'water'] as const;
 

@@ -412,20 +412,15 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
     }
 
     // --- Ambient light ---
-    // Brighter ambient + softer directional + fill light from opposite side
-    // so both hemispheres read clearly on every planet (dark side was too
-    // buried, and different planets rendered inconsistently). Diagonal
-    // fill is 35% strength so day-side still has direction.
-    const ambient = new THREE.AmbientLight(0x445566, 1.2);
+    // Match PlanetGlobeView lighting exactly so the preview globe looks
+    // consistent with the full-screen view.
+    const ambient = new THREE.AmbientLight(0x5577aa, 2.2);
     scene.add(ambient);
-    const dirLight = new THREE.DirectionalLight(0xffeedd, 1.0);
+    const hemi = new THREE.HemisphereLight(0x7799cc, 0x332211, 0.6);
+    scene.add(hemi);
+    const dirLight = new THREE.DirectionalLight(0xfff2dd, 2.5);
     dirLight.position.copy(STAR_SPRITE_POSITION);
     scene.add(dirLight);
-    const fillLight = new THREE.DirectionalLight(0x8899aa, 0.45);
-    fillLight.position.set(
-      -STAR_SPRITE_POSITION.x, STAR_SPRITE_POSITION.y + 1, -STAR_SPRITE_POSITION.z,
-    );
-    scene.add(fillLight);
 
     // --- Animation ---
     let lastTime = performance.now();

@@ -307,7 +307,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   useEffect(() => {
     // Dynamic import so we don't bloat the initial chunk.
     import('../../../audio/SfxPlayer.js').then(({ setLoopVolume }) => {
-      setLoopVolume('terminal-loop.mp3', terminalMuted ? 0 : 0.4);
+      setLoopVolume('terminal-loop.mp3', terminalMuted ? 0 : 0.3);
     }).catch(() => { /* ignore */ });
   }, [terminalMuted]);
 
@@ -488,6 +488,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           onViewPlanet={handleViewPlanet}
           colonyPlanetIds={colonyPlanetIds ?? new Set()}
           colonySystemIds={colonySystemIds ?? []}
+          terraformStates={terraformStates}
         />
       );
     }

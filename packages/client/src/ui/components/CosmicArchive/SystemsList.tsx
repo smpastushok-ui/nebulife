@@ -3,15 +3,6 @@ import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 import { getDeviceTier } from '../../../utils/device-tier.js';
 
-// Tiny stable string→number hash for seeding per-row animation delays so
-// every researching row has its own orbit phase but stays deterministic
-// across re-renders.
-function hashSystemId(id: string): number {
-  let h = 5381;
-  for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
 // Tooltip that appears BELOW the icon (so it's not clipped by top menu)
 function HeaderIcon({ children, tooltip }: { children: React.ReactNode; tooltip: string }) {
   const [show, setShow] = useState(false);
@@ -59,18 +50,16 @@ function ensureStyles() {
     @keyframes sys-btn-border-march {
       to { stroke-dashoffset: -12; }
     }
-    /* Researching orbit — magnifier travels around the center while the
-       progress arc itself stays static. Each row gets its own animation-delay
-       seeded from the systemId so neighbouring icons don't tick in sync. */
-    @keyframes sys-research-orbit {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
+    /* Researching particle pulse — single dot at centre of the dial that
+       breathes in scale + opacity while research is in progress. */
+    @keyframes sys-research-particle-pulse {
+      0%, 100% { transform: scale(0.8); opacity: 0.6; }
+      50%      { transform: scale(1.3); opacity: 1; }
     }
-    /* Researching pulse — soft scale + glow on the orbiting magnifier so the
-       row visually breathes while research is in progress. */
-    @keyframes sys-research-pulse {
-      0%, 100% { opacity: 0.85; }
-      50%      { opacity: 1; }
+    /* Quark toggle pill — slow blue pulse when shortcuts are off. */
+    @keyframes sys-quark-pill-pulse {
+      0%, 100% { box-shadow: 0 0 3px rgba(68,136,255,0.3); opacity: 0.6; }
+      50%      { box-shadow: 0 0 8px rgba(68,136,255,0.7); opacity: 1; }
     }
   `;
   document.head.appendChild(style);
@@ -249,6 +238,24 @@ export function SystemsList({
 
   const hasResearchCol = !!onStartResearch;
 
+  // Master quark shortcut visibility toggle — persisted in localStorage.
+  // Default off; when on, per-row ⚛ buttons are shown at the LEFT of each row.
+  const [quarkShortcutsVisible, setQuarkShortcutsVisible] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('nebulife_quark_shortcuts_visible') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleQuarkShortcuts = useCallback(() => {
+    setQuarkShortcutsVisible((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('nebulife_quark_shortcuts_visible', next ? '1' : '0'); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
   const handleResearchClick = (systemId: string) => {
     // Check if we have enough data
     if (researchData < researchDataCost) {
@@ -263,15 +270,51 @@ export function SystemsList({
     onStartResearch?.(systemId);
   };
 
+  // Grid column template: optionally prepend a 28px left column for the ⚛ icon.
+  const qColPrefix = hasResearchCol && quarkShortcutsVisible ? '28px ' : '';
+  const gridColsMobile    = hasResearchCol ? `${qColPrefix}1fr 34px 32px 32px 68px` : `${qColPrefix}1fr 34px 32px 32px`;
+  const gridColsDesktop   = hasResearchCol ? `${qColPrefix}1fr 36px 56px 36px 36px 72px` : `${qColPrefix}1fr 36px 56px 36px 36px`;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* Quark shortcuts master toggle — shown only when the research column exists */}
+      {hasResearchCol && onInstantResearch && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          paddingBottom: 6,
+          borderBottom: '1px solid rgba(51, 68, 85, 0.1)',
+          marginBottom: 2,
+        }}>
+          <button
+            onClick={toggleQuarkShortcuts}
+            title={quarkShortcutsVisible
+              ? t('archive.quark_shortcuts_hide')
+              : t('archive.quark_shortcuts_show')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 26, height: 26, borderRadius: '50%',
+              background: quarkShortcutsVisible ? 'rgba(68,136,255,0.22)' : 'rgba(68,136,255,0.07)',
+              border: `1px solid ${quarkShortcutsVisible ? '#4488ff' : 'rgba(123,184,255,0.35)'}`,
+              color: '#7bb8ff',
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              fontSize: 13,
+              lineHeight: 1,
+              padding: 0,
+              animation: quarkShortcutsVisible ? undefined : 'sys-quark-pill-pulse 2.5s ease-in-out infinite',
+            }}
+          >
+            ⚛
+          </button>
+        </div>
+      )}
+
       {/* Header row — SVG icons with tooltips */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile
-            ? (hasResearchCol ? '1fr 34px 32px 32px 68px' : '1fr 34px 32px 32px')
-            : (hasResearchCol ? '1fr 36px 56px 36px 36px 72px' : '1fr 36px 56px 36px 36px'),
+          gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
           gap: isMobile ? 4 : 4,
           padding: isMobile ? '4px 6px' : '6px 8px',
           alignItems: 'center',
@@ -279,6 +322,8 @@ export function SystemsList({
           marginBottom: 4,
         }}
       >
+        {/* Left quark-col placeholder in header */}
+        {hasResearchCol && quarkShortcutsVisible && <div />}
         <span style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1 }}>{t('archive.col_name')}</span>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <HeaderIcon tooltip={t('archive.tooltip_spectral_class')}>
@@ -413,9 +458,7 @@ export function SystemsList({
                   onMouseLeave={() => setHoveredId(null)}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: isMobile
-                      ? (hasResearchCol ? '1fr 34px 32px 32px 68px' : '1fr 34px 32px 32px')
-                      : (hasResearchCol ? '1fr 60px 80px 60px 50px 100px' : '1fr 60px 80px 60px 50px'),
+                    gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
                     gap: isMobile ? 4 : 8,
                     padding: isMobile ? '6px 6px' : '8px 12px',
                     background: researching
@@ -441,6 +484,38 @@ export function SystemsList({
                     opacity: locked ? 0.6 : 1,
                   }}
                 >
+                  {/* Left quark-shortcut column — only when toggle is on */}
+                  {hasResearchCol && quarkShortcutsVisible && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {onInstantResearch && canResearch && !researching && !fullyResearched ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInstantTargetId(system.id);
+                          }}
+                          title={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
+                          aria-label={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: 18, height: 18, borderRadius: '50%',
+                            background: 'rgba(68,136,255,0.10)',
+                            border: '1px solid rgba(123,184,255,0.45)',
+                            color: '#7bb8ff',
+                            cursor: 'pointer',
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                            lineHeight: 1,
+                            padding: 0,
+                          }}
+                        >
+                          ⚛
+                        </button>
+                      ) : (
+                        <div style={{ width: 18, height: 18 }} />
+                      )}
+                    </div>
+                  )}
+
                   {/* Name (clickable to navigate) */}
                   <span
                     style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
@@ -537,10 +612,10 @@ export function SystemsList({
                               }
                             }}
                           />
-                          {/* Quark-shortcut — only on idle (canResearch && !researching && !fullyResearched).
-                              Tiny ⚛ button opens a modal that asks the player to spend
-                              instantResearchCost quarks to skip the research timer. */}
-                          {onInstantResearch && canResearch && !researching && !fullyResearched && (
+                          {/* Quark-shortcut inline — only shown when the master quark toggle is OFF.
+                              When ON, the button is rendered in the dedicated left column instead,
+                              keeping the research column width stable. */}
+                          {onInstantResearch && canResearch && !researching && !fullyResearched && !quarkShortcutsVisible && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -703,21 +778,19 @@ export function SystemsList({
  *
  *  Layout: a 26×26 button. Inside is a circular outline ring (the "track")
  *  drawn at ~30% opacity, plus a foreground progress arc that fills the same
- *  ring based on `progress` (0-100). A small magnifier sits in the centre
- *  for idle/complete states and orbits the ring while researching.
+ *  ring based on `progress` (0-100).
  *
  *  States:
  *   - idle        → faint track, magnifier in centre, no animation. Clicking
  *                   triggers onClick (start research).
- *   - researching → track + partial progress arc. Magnifier orbits the ring;
- *                   orbit phase is seeded from `seedId` so concurrent rows
- *                   stay out of sync.
+ *   - researching → track + partial progress arc + single pulsing particle
+ *                   at the centre of the dial.
  *   - complete    → solid full-opacity ring + centred magnifier on a filled
  *                   blue background. Clicking jumps into the system. */
 function ResearchProgressIcon({
   state,
   progress,
-  seedId,
+  seedId: _seedId,
   tutorialId,
   onClick,
 }: {
@@ -729,9 +802,7 @@ function ResearchProgressIcon({
 }) {
   const { t } = useTranslation();
   const [hover, setHover] = useState(false);
-  // Low/mid tier devices skip the orbit animation to keep ~1,400-row lists
-  // scrolling smooth. The static state still communicates "in progress" via
-  // the partial arc.
+  // Low/mid tier devices skip CSS animations to keep ~1,400-row lists scrolling.
   const skipAnim = useMemo(() => {
     const tier = getDeviceTier();
     return tier === 'low' || tier === 'mid';
@@ -746,12 +817,6 @@ function ResearchProgressIcon({
   // Cap the arc so partial progress always shows at least a sliver, and
   // 100% renders as the full ring.
   const arcLen = state === 'complete' ? circ : Math.max(0, Math.min(circ, (progress / 100) * circ));
-
-  // Per-row animation delay so neighbouring rows orbit out of phase.
-  const orbitDelay = useMemo(() => {
-    if (state !== 'researching') return 0;
-    return -((hashSystemId(seedId) % 1000) / 1000) * 4; // 0..-4s within a 4s loop
-  }, [seedId, state]);
 
   const isComplete = state === 'complete';
   const isResearching = state === 'researching';
@@ -827,41 +892,22 @@ function ResearchProgressIcon({
         )}
       </svg>
 
-      {/* Magnifier — fixed in centre for idle/complete, orbits for researching.
-          The orbit wrapper uses CSS animation; rotating the wrapper around its
-          centre while the magnifier sits at the top of it produces a clean
-          circular orbit. */}
+      {/* Centre element: pulsing particle while researching, magnifier otherwise. */}
       {isResearching ? (
+        /* Single pulsing dot at the exact centre of the dial. */
         <div
           style={{
             position: 'absolute',
-            inset: 0,
-            animation: skipAnim ? undefined : 'sys-research-orbit 4s linear infinite',
-            animationDelay: skipAnim ? undefined : `${orbitDelay}s`,
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: '#7bb8ff',
+            animation: skipAnim ? undefined : 'sys-research-particle-pulse 1.6s ease-in-out infinite',
             transformOrigin: '50% 50%',
           }}
-        >
-          <svg
-            width={9}
-            height={9}
-            viewBox="0 0 16 16"
-            style={{
-              position: 'absolute',
-              top: 1,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              animation: skipAnim ? undefined : 'sys-research-pulse 1.8s ease-in-out infinite',
-            }}
-            fill="none"
-            stroke="#7bb8ff"
-            strokeWidth={2}
-            strokeLinecap="round"
-          >
-            <circle cx="7" cy="7" r="4.2" />
-            <line x1="10.2" y1="10.2" x2="13.5" y2="13.5" />
-          </svg>
-        </div>
+        />
       ) : (
+        /* Static magnifier — idle (clickable to start) or complete (filled bg). */
         <svg
           width={12}
           height={12}

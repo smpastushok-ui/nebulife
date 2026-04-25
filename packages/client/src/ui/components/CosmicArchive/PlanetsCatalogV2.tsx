@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet } from '@nebulife/core';
-import { isTerraformable, nearestColonyDistance } from '@nebulife/core';
+import type { PlanetTerraformState } from '@nebulife/core';
+import { isTerraformable, nearestColonyDistance, getOverallProgress } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,6 +25,14 @@ interface PlanetsCatalogV2Props {
   colonyPlanetIds: Set<string>;
   /** System IDs that contain colony planets — used as "nearest colony" origins. */
   colonySystemIds: string[];
+  /** Optional terraforming state per planet ID — used for filter value display. */
+  terraformStates?: Record<string, PlanetTerraformState>;
+  /** Optional surface navigation callback — opens surface for a planet. */
+  onOpenSurface?: (system: StarSystem, planetId: string) => void;
+  /** Optional favorites toggle callback. */
+  onToggleFavorite?: (planetId: string) => void;
+  /** Set of currently favorited planet IDs. */
+  favoritePlanetIds?: Set<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,8 +65,6 @@ function passesFilter(
       return isTerraformable(planet) && planet.terraformDifficulty > 0;
 
     case 'minerals':
-      // Rocky / terrestrial / dwarf types always have meaningful minerals;
-      // gas/ice-giants have negligible accessible minerals.
       return (
         planet.type === 'rocky' ||
         planet.type === 'terrestrial' ||
@@ -65,7 +72,6 @@ function passesFilter(
       );
 
     case 'isotopes':
-      // Same solid-surface heuristic — isotopes come from the crust.
       return (
         planet.type === 'rocky' ||
         planet.type === 'terrestrial' ||
@@ -86,6 +92,42 @@ function passesFilter(
 
     case 'population':
       return colonyPlanetIds.has(planet.id);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Get filter stat value string for a planet
+// ---------------------------------------------------------------------------
+
+function getFilterStatLabel(
+  planet: Planet,
+  filter: FilterId | null,
+  tfState: PlanetTerraformState | undefined,
+  t: (key: string) => string,
+): string | null {
+  if (!filter || filter === 'population') return null;
+  switch (filter) {
+    case 'terraform': {
+      if (!tfState) return '—';
+      const pct = Math.round(getOverallProgress(tfState));
+      return `${pct}%`;
+    }
+    case 'minerals':
+      return String(Math.round(planet.resources?.totalResources?.minerals ?? 0));
+    case 'isotopes':
+      return String(Math.round(planet.resources?.totalResources?.isotopes ?? 0));
+    case 'water': {
+      const pct = Math.round((planet.hydrosphere?.waterCoverageFraction ?? 0) * 100);
+      return `${pct}%`;
+    }
+    case 'life':
+      return planet.hasLife ? t('archive.filter_life_yes') : t('archive.filter_life_no');
+    case 'volatiles': {
+      const atm = planet.atmosphere?.surfacePressureAtm;
+      return atm != null ? `${atm.toFixed(2)} atm` : '—';
+    }
+    default:
+      return null;
   }
 }
 
@@ -114,11 +156,15 @@ function PlanetCard({
   planet,
   systemName,
   distanceLY,
+  filterStat,
+  isSelected,
   onClick,
 }: {
   planet: Planet;
   systemName: string;
   distanceLY: number | null;
+  filterStat: string | null;
+  isSelected: boolean;
   onClick: () => void;
 }) {
   const { t } = useTranslation();
@@ -143,6 +189,8 @@ function PlanetCard({
       ? t('archive.distance_ly', { ly: distanceLY.toFixed(1) })
       : null;
 
+  const isActive = hover || isSelected;
+
   return (
     <button
       onClick={onClick}
@@ -154,10 +202,12 @@ function PlanetCard({
         alignItems: 'center',
         gap: 6,
         padding: '10px 6px',
-        background: hover
+        background: isActive
           ? 'rgba(30, 45, 65, 0.6)'
           : 'rgba(10, 15, 25, 0.3)',
-        border: hover
+        border: isSelected
+          ? '1px solid #7bb8ff'
+          : isActive
           ? '1px solid rgba(68, 102, 136, 0.5)'
           : '1px solid rgba(51, 68, 85, 0.2)',
         borderRadius: 4,
@@ -219,7 +269,7 @@ function PlanetCard({
       <div
         style={{
           fontSize: 10,
-          color: hover ? '#aabbcc' : '#8899aa',
+          color: isActive ? '#aabbcc' : '#8899aa',
           textAlign: 'center',
           maxWidth: 90,
           overflow: 'hidden',
@@ -231,6 +281,19 @@ function PlanetCard({
       >
         {planet.name}
       </div>
+
+      {/* Filter stat value — shown when a filter is active */}
+      {filterStat !== null && (
+        <div style={{
+          fontSize: 9,
+          color: '#7bb8ff',
+          textAlign: 'center',
+          fontFamily: 'monospace',
+          letterSpacing: 0.3,
+        }}>
+          {filterStat}
+        </div>
+      )}
 
       {/* System name + distance */}
       <div
@@ -374,6 +437,206 @@ function FilterChip({
 }
 
 // ---------------------------------------------------------------------------
+// InlinePlanetMenu — small popup anchored below a card
+// ---------------------------------------------------------------------------
+
+function InlinePlanetMenu({
+  planet,
+  system,
+  isFavorite,
+  canGoToSurface,
+  onViewDetail,
+  onToggleFavorite,
+  onOpenSurface,
+  onClose,
+}: {
+  planet: Planet;
+  system: StarSystem;
+  isFavorite: boolean;
+  canGoToSurface: boolean;
+  onViewDetail: () => void;
+  onToggleFavorite: () => void;
+  onOpenSurface: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: '100%',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        marginTop: 4,
+        zIndex: 40,
+        background: 'rgba(10,15,25,0.97)',
+        border: '1px solid #334455',
+        borderRadius: 4,
+        minWidth: 140,
+        overflow: 'hidden',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        onClick={() => { onViewDetail(); onClose(); }}
+        style={{
+          display: 'block', width: '100%',
+          padding: '8px 12px', background: 'none', border: 'none',
+          color: '#aabbcc', fontFamily: 'monospace', fontSize: 11,
+          textAlign: 'left', cursor: 'pointer',
+          transition: 'background 0.1s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(68,102,136,0.2)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+      >
+        {t('archive.planet_menu_view')}
+      </button>
+      <button
+        onClick={() => { onToggleFavorite(); onClose(); }}
+        style={{
+          display: 'block', width: '100%',
+          padding: '8px 12px', background: 'none', border: 'none',
+          color: isFavorite ? '#7bb8ff' : '#8899aa', fontFamily: 'monospace', fontSize: 11,
+          textAlign: 'left', cursor: 'pointer',
+          transition: 'background 0.1s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(68,102,136,0.2)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+      >
+        {isFavorite ? t('archive.planet_menu_unfavorite') : t('archive.planet_menu_favorite')}
+      </button>
+      <button
+        onClick={() => { if (canGoToSurface) { onOpenSurface(); onClose(); } }}
+        disabled={!canGoToSurface}
+        style={{
+          display: 'block', width: '100%',
+          padding: '8px 12px', background: 'none', border: 'none',
+          color: canGoToSurface ? '#8899aa' : '#445566',
+          fontFamily: 'monospace', fontSize: 11,
+          textAlign: 'left',
+          cursor: canGoToSurface ? 'pointer' : 'not-allowed',
+          transition: 'background 0.1s',
+          opacity: canGoToSurface ? 1 : 0.5,
+        }}
+        onMouseEnter={(e) => { if (canGoToSurface) e.currentTarget.style.background = 'rgba(68,102,136,0.2)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+      >
+        {t('nav.surface_btn')}
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PlanetDetailStrip — inline detail shown below the grid for focused planet
+// ---------------------------------------------------------------------------
+
+function PlanetDetailStrip({
+  planet,
+  tfPct,
+  distanceLY,
+  onClose,
+}: {
+  planet: Planet;
+  tfPct: number | null;
+  distanceLY: number | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+
+  const hab = planet.habitability;
+  const bars: Array<{ key: string; val: number; color: string }> = [
+    { key: 'planet.hab_temp',   val: hab.temperature ?? 0, color: '#ff8844' },
+    { key: 'planet.hab_atm',    val: hab.atmosphere ?? 0, color: '#55aaaa' },
+    { key: 'planet.hab_water',  val: hab.water ?? 0, color: '#3b82f6' },
+    { key: 'planet.hab_grav',   val: hab.gravity ?? 0, color: '#88aa44' },
+    { key: 'planet.hab_rad',    val: hab.magneticField ?? 0, color: '#aa44aa' },
+  ];
+
+  const typeKey: Record<string, string> = {
+    rocky: 'planet.rocky',
+    terrestrial: 'planet.terrestrial',
+    'gas-giant': 'planet.gas_giant',
+    'ice-giant': 'planet.ice_giant',
+    dwarf: 'planet.dwarf',
+  };
+
+  return (
+    <div style={{
+      background: 'rgba(10,15,28,0.95)',
+      border: '1px solid #334455',
+      borderRadius: 4,
+      padding: '12px 14px',
+      fontFamily: 'monospace',
+      marginTop: 10,
+      position: 'relative',
+    }}>
+      {/* Close */}
+      <button
+        onClick={onClose}
+        style={{
+          position: 'absolute', top: 8, right: 8,
+          background: 'none', border: 'none',
+          color: '#556677', fontFamily: 'monospace', fontSize: 12,
+          cursor: 'pointer', padding: '2px 6px',
+          lineHeight: 1,
+        }}
+      >
+        x
+      </button>
+
+      {/* Planet name + type */}
+      <div style={{ fontSize: 12, color: '#aabbcc', marginBottom: 6, fontWeight: 600 }}>
+        {planet.name}
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 10, color: '#667788' }}>
+          {t(typeKey[planet.type] ?? planet.type)}
+        </span>
+        {distanceLY !== null && (
+          <span style={{ fontSize: 10, color: '#4488aa' }}>
+            {t('archive.distance_ly', { ly: distanceLY.toFixed(1) })}
+          </span>
+        )}
+        {tfPct !== null && (
+          <span style={{ fontSize: 10, color: '#44ff88' }}>
+            {t('archive.tf_pct', { pct: tfPct })}
+          </span>
+        )}
+      </div>
+
+      {/* Habitability bars */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {bars.map(({ key, val, color }) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 9, color: '#556677', width: 60, flexShrink: 0, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {t(key)}
+            </span>
+            <div style={{
+              flex: 1, height: 5,
+              background: 'rgba(5,10,20,0.8)',
+              border: '1px solid rgba(51,68,85,0.5)',
+              borderRadius: 3, overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${Math.max(0, Math.min(100, val * 100))}%`,
+                height: '100%',
+                background: color,
+              }} />
+            </div>
+            <span style={{ fontSize: 9, color: '#667788', width: 30, textAlign: 'right', flexShrink: 0 }}>
+              {Math.round(val * 100)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PlanetsCatalogV2
 // ---------------------------------------------------------------------------
 
@@ -385,10 +648,19 @@ export function PlanetsCatalogV2({
   onViewPlanet,
   colonyPlanetIds,
   colonySystemIds,
+  terraformStates,
+  onOpenSurface,
+  onToggleFavorite,
+  favoritePlanetIds,
 }: PlanetsCatalogV2Props) {
-  const [activeFilters, setActiveFilters] = useState<Set<FilterId>>(new Set());
+  // Single-select filter: null = no filter active
+  const [selectedFilter, setSelectedFilter] = useState<FilterId | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Focused planet — drives inline mini-menu and detail strip
+  const [focusedPlanetId, setFocusedPlanetId] = useState<string | null>(null);
+  const [menuOpenForId, setMenuOpenForId] = useState<string | null>(null);
 
   // Build flat list of { system, planet } pairs, sorted by distance from
   // nearest colony. Distance is computed once per system via useMemo.
@@ -417,18 +689,18 @@ export function PlanetsCatalogV2({
     return pairs;
   }, [allSystems, systemDistances]);
 
-  // Apply filters (AND logic)
+  // Apply single filter
   const filteredPairs = useMemo(() => {
-    if (activeFilters.size === 0) return sortedPairs;
+    if (selectedFilter === null) return sortedPairs;
     return sortedPairs.filter(({ planet }) =>
-      [...activeFilters].every((f) => passesFilter(planet, f, colonyPlanetIds)),
+      passesFilter(planet, selectedFilter, colonyPlanetIds),
     );
-  }, [sortedPairs, activeFilters, colonyPlanetIds]);
+  }, [sortedPairs, selectedFilter, colonyPlanetIds]);
 
-  // Reset visible count when filters change
+  // Reset visible count when filter changes
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [activeFilters]);
+  }, [selectedFilter]);
 
   const visiblePairs = filteredPairs.slice(0, visibleCount);
   const hasMore = visibleCount < filteredPairs.length;
@@ -448,25 +720,27 @@ export function PlanetsCatalogV2({
     return () => observer.disconnect();
   }, [hasMore]);
 
+  // Single-select toggle: click active → deselect; click other → switch
   const toggleFilter = useCallback((id: FilterId) => {
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setSelectedFilter((prev) => (prev === id ? null : id));
   }, []);
 
-  const handleViewPlanet = useCallback(
-    (system: StarSystem, planetId: string) => {
-      onViewPlanet(system, planetId);
-    },
-    [onViewPlanet],
-  );
+  const { t } = useTranslation();
+
+  // Close mini-menu when clicking outside any card
+  const handleGridClick = useCallback(() => {
+    setMenuOpenForId(null);
+  }, []);
+
+  // Find focused pair for the detail strip
+  const focusedPair = useMemo(() => {
+    if (!focusedPlanetId) return null;
+    return sortedPairs.find((p) => p.planet.id === focusedPlanetId) ?? null;
+  }, [focusedPlanetId, sortedPairs]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Filter chip bar */}
+      {/* Filter chip bar — single-select */}
       <div
         style={{
           display: 'flex',
@@ -480,7 +754,7 @@ export function PlanetsCatalogV2({
           <FilterChip
             key={f}
             filterId={f}
-            active={activeFilters.has(f)}
+            active={selectedFilter === f}
             onToggle={toggleFilter}
           />
         ))}
@@ -493,25 +767,64 @@ export function PlanetsCatalogV2({
 
       {/* Planet grid */}
       <div
+        onClick={handleGridClick}
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
           gap: 8,
         }}
       >
-        {visiblePairs.map(({ system, planet }) => (
-          <PlanetCard
-            key={planet.id}
-            planet={planet}
-            systemName={aliases[system.id] ?? system.name}
-            distanceLY={
-              colonySystemIds.length > 0
-                ? (systemDistances.get(system.id) ?? null)
-                : null
-            }
-            onClick={() => handleViewPlanet(system, planet.id)}
-          />
-        ))}
+        {visiblePairs.map(({ system, planet }) => {
+          const tfState = terraformStates?.[planet.id];
+          const filterStat = getFilterStatLabel(planet, selectedFilter, tfState, t as (key: string) => string);
+          const distLY = colonySystemIds.length > 0
+            ? (systemDistances.get(system.id) ?? null)
+            : null;
+          const isFavorite = favoritePlanetIds?.has(planet.id) ?? false;
+          const isSelected = focusedPlanetId === planet.id;
+          const menuOpen = menuOpenForId === planet.id;
+          const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
+          const canGoToSurface = isSurfacePlanet && !!onOpenSurface;
+          const tfPct = tfState ? Math.round(getOverallProgress(tfState)) : null;
+
+          return (
+            <div
+              key={planet.id}
+              style={{ position: 'relative' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <PlanetCard
+                planet={planet}
+                systemName={aliases[system.id] ?? system.name}
+                distanceLY={distLY}
+                filterStat={filterStat}
+                isSelected={isSelected}
+                onClick={() => {
+                  if (focusedPlanetId === planet.id) {
+                    // Second click on same card: toggle mini-menu
+                    setMenuOpenForId((prev) => (prev === planet.id ? null : planet.id));
+                  } else {
+                    // First click: focus the card + open menu
+                    setFocusedPlanetId(planet.id);
+                    setMenuOpenForId(planet.id);
+                  }
+                }}
+              />
+              {menuOpen && (
+                <InlinePlanetMenu
+                  planet={planet}
+                  system={system}
+                  isFavorite={isFavorite}
+                  canGoToSurface={canGoToSurface}
+                  onViewDetail={() => onViewPlanet(system, planet.id)}
+                  onToggleFavorite={() => onToggleFavorite?.(planet.id)}
+                  onOpenSurface={() => onOpenSurface?.(system, planet.id)}
+                  onClose={() => setMenuOpenForId(null)}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Empty state */}
@@ -524,12 +837,32 @@ export function PlanetsCatalogV2({
             padding: '40px 0',
           }}
         >
-          —
+          {'\u2014'}
         </div>
       )}
 
       {/* Lazy load sentinel */}
       {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
+
+      {/* Inline detail strip — shown for the focused planet */}
+      {focusedPair && (
+        <PlanetDetailStrip
+          planet={focusedPair.planet}
+          tfPct={(() => {
+            const tf = terraformStates?.[focusedPair.planet.id];
+            return tf ? Math.round(getOverallProgress(tf)) : null;
+          })()}
+          distanceLY={
+            colonySystemIds.length > 0
+              ? (systemDistances.get(focusedPair.system.id) ?? null)
+              : null
+          }
+          onClose={() => {
+            setFocusedPlanetId(null);
+            setMenuOpenForId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

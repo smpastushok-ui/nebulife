@@ -809,7 +809,12 @@
     "terraform_difficulty": "Terraform difficulty",
     "colonizable": "Colonizable",
     "surface_disabled": "To Surface — {{reason}}",
-    "go_to_surface": "Descend to Surface"
+    "go_to_surface": "Descend to Surface",
+    "hab_temp": "Temp.",
+    "hab_atm": "Atm.",
+    "hab_water": "Water",
+    "hab_grav": "Grav.",
+    "hab_rad": "Rad."
   },
   "discovery_notification": {
     "new_discovery": "New Discovery!",
@@ -1097,7 +1102,15 @@
     "distance_ly": "{{ly}} LY",
     "no_colonies": "No colonies yet",
     "terraform_progress": "Terraform: {{pct}}%",
-    "go_to_btn": "Go"
+    "go_to_btn": "Go",
+    "filter_life_yes": "Yes",
+    "filter_life_no": "No",
+    "planet_menu_view": "View",
+    "planet_menu_favorite": "Add to Favorites",
+    "planet_menu_unfavorite": "Remove from Favorites",
+    "tf_pct": "Terraform: {{pct}}%",
+    "quark_shortcuts_show": "Show ⚛ shortcuts",
+    "quark_shortcuts_hide": "Hide ⚛ shortcuts"
   },
   "cinematic": {
     "click_to_skip": "click to skip",
