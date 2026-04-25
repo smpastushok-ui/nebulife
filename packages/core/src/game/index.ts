@@ -166,3 +166,6 @@ export {
   repairCost,
   tickMission,
 } from './fleet-rules.js';
+
+// Surface biome regeneration (Phase 7C stub — real regen is client-side)
+export { regenerateSurfaceForType } from './surface-promote.js';

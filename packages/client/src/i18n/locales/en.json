@@ -1005,6 +1005,8 @@
     "isotopes_title": "Isotopes — energy resource",
     "quarks_title": "Quarks — universal currency",
     "water_title": "Water — life support resource",
+    "this_colony": "This hub",
+    "totals": "Totals",
     "desc": {
       "observatories_name": "Observatories",
       "observatories_desc": "Active research stations in stellar orbits. Each observatory scans a star system, collects spectral data, and detects anomalies.",
@@ -1482,5 +1484,8 @@
       "requires_atmosphere_50": "Requires atmosphere ≥50%",
       "planet_not_terraformable": "Planet cannot be terraformed"
     }
+  },
+  "mission": {
+    "donor_balance": "Available: {{value}}"
   }
 }

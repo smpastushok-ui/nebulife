@@ -18,8 +18,14 @@ interface ColoniesListProps {
   aliases: Record<string, string>;
   /** Planet IDs that have a colony hub or are the home planet. */
   colonyPlanetIds: Set<string>;
-  /** Colony resources keyed by planet ID. */
+  /**
+   * Per-planet resource balances (Phase 7B). Keyed by planet ID.
+   * When provided, every colony row shows its own resources.
+   * @deprecated Pass resourcesByPlanet instead of the old flat colonyResources.
+   */
   colonyResources?: { minerals: number; volatiles: number; isotopes: number; water: number };
+  /** Per-planet resource balances (Phase 7B). Takes priority over colonyResources. */
+  resourcesByPlanet?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
   /** Terraform states keyed by planet ID (may be partial / missing). */
   terraformStates?: Record<string, PlanetTerraformState>;
   onViewPlanet: (system: StarSystem, planetId: string) => void;
@@ -194,6 +200,7 @@ export function ColoniesList({
   aliases,
   colonyPlanetIds,
   colonyResources,
+  resourcesByPlanet,
   terraformStates,
   onViewPlanet,
 }: ColoniesListProps) {
@@ -236,9 +243,11 @@ export function ColoniesList({
         const tfState = terraformStates?.[planet.id];
         const tfPct = tfState ? getOverallProgress(tfState) : null;
 
-        // Resources: for MVP only the home planet / active colony has resources
-        // tracked in colonyResources. For other entries we show nothing.
-        const res = planet.isHomePlanet ? (colonyResources ?? null) : null;
+        // Resources: prefer per-planet map (Phase 7B). Fallback to legacy
+        // flat colonyResources for home planet only (backward compat).
+        const res = resourcesByPlanet
+          ? (resourcesByPlanet[planet.id] ?? null)
+          : planet.isHomePlanet ? (colonyResources ?? null) : null;
 
         return (
           <ColonyRow

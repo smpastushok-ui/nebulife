@@ -17,7 +17,7 @@ import type {
 } from '@nebulife/core';
 import type { TechTreeState } from '@nebulife/core';
 import { MissionDispatchModal } from './MissionDispatchModal.js';
-import type { ColonyResources } from './MissionDispatchModal.js';
+import type { ColonyResources } from './MissionDispatchModal.js'; // kept for re-export compat
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,7 +32,8 @@ export interface TerraformPanelProps {
   donorPlanets: Planet[];
   /** Map from donorPlanetId to LY distance to target planet */
   donorDistances: Map<string, number>;
-  colonyResources: ColonyResources;
+  /** Per-planet resource lookup. Called with the selected donor's planet ID. */
+  getResources: (planetId: string) => ColonyResources;
   shipTier: 0 | 1 | 2 | 3;
   /** Active (non-idle) missions keyed by paramId */
   activeMissionByParam: Partial<Record<TerraformParamId, Mission>>;
@@ -360,7 +361,7 @@ export function TerraformPanel({
   techState,
   donorPlanets,
   donorDistances,
-  colonyResources,
+  getResources,
   shipTier,
   activeMissionByParam,
   onStartParam,
@@ -565,7 +566,7 @@ export function TerraformPanel({
           targetPlanet={planet}
           paramId={dispatchTarget.paramId}
           donorPlanets={donorPlanets}
-          currentResources={colonyResources}
+          getResources={getResources}
           tier={effectiveTier}
           distanceLY={distanceLYForDonor}
           currentProgress={terraformState.params[dispatchTarget.paramId].progress}

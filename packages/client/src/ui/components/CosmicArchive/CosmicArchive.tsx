@@ -138,8 +138,10 @@ export interface CosmicArchiveProps {
   onFavoritesChange?: (favorites: Set<string>) => void;
   /** Telescope photos for collection galleries */
   systemPhotos?: Map<string, SystemPhotoData>;
-  /** Colony resource totals (for Resources tab) */
+  /** Colony resource totals (for Resources tab — should be totalResources() aggregate). */
   colonyResources?: { minerals: number; volatiles: number; isotopes: number; water: number };
+  /** Per-planet resource balances (Phase 7B). Used in ColoniesList rows. */
+  resourcesByPlanet?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
   /** Player quarks balance — for premium unlock buttons. */
   quarks?: number;
   /** Instant-unlock ring-locked system via quarks (pricing set in SystemsList). */
@@ -272,6 +274,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onFavoritesChange,
   systemPhotos,
   colonyResources,
+  resourcesByPlanet,
   quarks,
   onUnlockViaQuarks,
   isQuarkUnlocked,
@@ -471,6 +474,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           aliases={aliases}
           colonyPlanetIds={colonyPlanetIds ?? new Set()}
           colonyResources={colonyResources}
+          resourcesByPlanet={resourcesByPlanet}
           terraformStates={terraformStates}
           onViewPlanet={handleViewPlanet}
         />

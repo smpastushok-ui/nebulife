@@ -2,7 +2,7 @@
 // MissionDispatchModal — dispatch a resource-delivery mission to a planet
 // ---------------------------------------------------------------------------
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet } from '@nebulife/core';
 import {
@@ -28,7 +28,8 @@ export interface MissionDispatchModalProps {
   targetPlanet: Planet;
   paramId: TerraformParamId;
   donorPlanets: Planet[];
-  currentResources: ColonyResources;
+  /** Per-planet resource lookup — called with the selected donor's planet ID. */
+  getResources: (planetId: string) => ColonyResources;
   tier: ShipTier;
   /** Returns distance in LY from the given donor planet to the target */
   distanceLY: (donorPlanetId: string) => number;
@@ -71,7 +72,7 @@ export function MissionDispatchModal({
   targetPlanet,
   paramId,
   donorPlanets,
-  currentResources,
+  getResources,
   tier,
   distanceLY,
   currentProgress,
@@ -85,7 +86,9 @@ export function MissionDispatchModal({
   );
 
   const resource = primaryResourceForParam(paramId);
-  const available = currentResources[resource] ?? 0;
+  // Look up the selected donor's own resource balance (Phase 7B per-planet).
+  const donorResources = getResources(selectedDonorId);
+  const available = donorResources[resource] ?? 0;
   const maxCargo = tierMaxCargo(tier);
 
   // Requirement to complete param from current progress
@@ -96,6 +99,10 @@ export function MissionDispatchModal({
 
   const maxAmount = Math.floor(Math.min(maxCargo, available, requirement > 0 ? requirement : maxCargo));
   const [amount, setAmount] = useState<number>(maxAmount);
+  // When donor changes, clamp amount to the new maxAmount.
+  useEffect(() => {
+    setAmount((prev) => Math.min(prev, maxAmount));
+  }, [maxAmount]);
 
   const selectedDistance = useMemo(
     () => (selectedDonorId ? distanceLY(selectedDonorId) : 0),

@@ -256,3 +256,72 @@ Phase 6  (last)
 ---
 
 ## Готово до старту: Phase 0 + Phase 5 паралельно
+
+---
+
+# Phase 7 — Planet promotion + Multi-colony economy (full variant B)
+
+Decisions locked 2026-04-25:
+1. **Biomes after terraform**: regenerate from same seed using new `type` (B).
+2. **Habitability sub-factors**: recompute the 4 terraformable factors (temperature, atmosphere, water, magneticField) proportionally to terraform progress; gravity stays.
+3. **Completion UX**: 5-second modal with text + sound (mirroring "system researched 100%" SFX) + a light original animation (orbiting glyph + concentric pulse).
+4. **Per-planet resources** (full multi-colony economy): each colony has its own `{minerals, volatiles, isotopes, water}` storage; HUD shows the active colony with optional totals view; terraform missions actually move resources between planet stores.
+
+## Phase 7 sub-phases
+
+### 7A — Per-planet resources foundation
+- `PlanetColonyState.resources` already exists; promote it to canonical store.
+- New top-level App.tsx state `colonyResourcesByPlanet: Record<string, ColonyResources>` (key = planetId). Hydrate from server `players.game_state.colony_resources_by_planet` JSONB.
+- Backwards-compat: on hydration, if old `colony_resources` (single object) is present, migrate it onto `homeInfo.planet.id` so existing players don't lose anything.
+- Helper hooks: `getResources(planetId)`, `addResources(planetId, delta)`, `subtractResources(planetId, delta)`, `totalResources()` (sum across all colonies).
+- DB migration `016-multi-colony.sql`:
+  ```sql
+  ALTER TABLE players ADD COLUMN IF NOT EXISTS colony_resources_by_planet JSONB NOT NULL DEFAULT '{}';
+  ALTER TABLE players ADD COLUMN IF NOT EXISTS planet_overrides JSONB NOT NULL DEFAULT '{}'; -- type/habitability after terraform
+  ```
+- Old `colonyResources` global state stays as derived (computed from totals) for one release for backward-compat with current consumers.
+
+### 7B — Migrate consumers/producers to per-planet API
+- `harvestResource` (useHexState.ts) → adds to `currentSurfacePlanetId` resources (already implicit by surface context — just needs the App.tsx callback to use `addResources(planetId, delta)`).
+- `placeBuilding` cost → subtracts from `currentSurfacePlanetId`.
+- `colony-tick` → run per-planet, accumulating to that planet only.
+- `MissionDispatchModal` → debit from donor planet, not from global pool.
+- `mission tick outbound→unloading` → no longer applies progress to a "global" tank, it just bumps `terraformStates[targetPlanetId]` (terraform doesn't credit a destination resource pool — the param progresses).
+- HUD `ResourceDisplay`:
+  - New compact toggle `Цей хаб / Усього` on the resources cluster (default = active colony's resources).
+  - When viewing `Усього` — show summed totals across all colonies, with per-colony breakdown on tap.
+- `ColoniesList` shows real per-planet resources (no more `—` placeholder).
+- `ColonyCenterPage` — Storage/Production tabs read from active planet's resources.
+
+### 7C — Planet promotion on terraform 100%
+- On `applyDelivery` triggering `getOverallProgress(state) >= 95` (and `state.completedAt === null`):
+  - Set `state.completedAt = Date.now()`.
+  - Compute new `Planet` via `applyTerraformCompletionToPlanet`, but extended:
+    - `type` rocky→terrestrial; dwarf stays dwarf; terrestrial stays.
+    - `habitability.temperature = clamp(base + (state.params.temperature.progress/100) * 0.6, 0, 1)`
+    - `habitability.atmosphere  = clamp(base + (state.params.atmosphere.progress/100) * 0.7, 0, 1)`
+    - `habitability.water       = clamp(base + (state.params.water.progress/100) * 0.6, 0, 1)`
+    - `habitability.magneticField = clamp(base + (state.params.magneticField.progress/100) * 0.8, 0, 1)`
+    - `habitability.gravity` unchanged
+    - `habitability.overall` = recomputed via the existing weighted sum (not a fixed bonus).
+    - `terraformDifficulty = 0`
+  - Persist new planet state into `planet_overrides[planet.id] = { type, habitability, biomeMapVariant }` JSONB on the server.
+  - **Surface biomes**: regenerate `SurfaceMap` with same seed but apply a new `biomeRule` based on new planet type. Helper `regenerateSurfaceForType(planet, oldMap)` keeps elevation but reassigns biomes.
+  - In-memory engine: `engine.updatePlanet(systemId, planetId, newPlanet)` → mutates `system.planets[i]` and refreshes any active scene.
+  - `PlanetGlobeView` — adds `planet.type + planet.habitability.overall` as React `key` so the Three.js scene reinitializes when the planet promotes.
+- On client load: after `Galaxy` generation, traverse `planet_overrides` and apply them onto the generated planets.
+
+### 7D — Completion modal + sound + animation
+- New component `Terraform/CompletionCutscene.tsx` (fixed full-screen, z=10000).
+- Duration: 5 s, then auto-close. Click anywhere skips.
+- Layout:
+  - Backdrop: dark gradient + soft starfield (existing pattern).
+  - Centerpiece: planet name + type promotion text (e.g. `RHEA III • Rocky → Terrestrial`).
+  - Animation: a small planet circle in centre with two concentric expanding pulse rings (CSS keyframes), and 4 orbiting glyphs (one per terraformable param) circling the planet ~720° during the 5 s (`orbitGlyph` keyframe). Glyphs fade in stagger.
+  - Below: "Терраформування завершено" label and overall % (animates 95→100).
+  - Optional: a single XP-reward chip "+500 XP" bottom-right (uses existing `awardXP`).
+- Sound: existing SFX `'research-system-start'` + a longer ambient pad? Reuse `'research-100'` if exists, otherwise reuse `'arena-warning'` at low volume? Audit the SFX folder before picking — pick whatever already exists and matches "system research 100%".
+- After 5 s or skip: `onComplete()` removes modal, App.tsx persists state.
+
+## Phase 8 (deferred) — Multi-colony deep economy
+(After 7D ships and is verified.) Add: trade routes between colonies, per-planet population, planet-specific production multipliers, intra-cluster ship reassignment, etc.

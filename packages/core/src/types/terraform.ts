@@ -71,3 +71,25 @@ export interface ResourceCost {
   isotopes?: number;
   water?: number;
 }
+
+/**
+ * Persisted record of a planet whose type and habitability were mutated by
+ * a successful terraforming completion (Phase 7C).  Stored in
+ * `players.planet_overrides` JSONB (key = planetId) and applied on top of
+ * deterministic planet generation at load time.
+ */
+export interface PlanetOverride {
+  planetId: string;
+  type: 'rocky' | 'terrestrial' | 'dwarf' | 'gas-giant' | 'ice-giant';
+  habitability: {
+    temperature: number;
+    atmosphere: number;
+    water: number;
+    magneticField: number;
+    gravity: number;
+    overall: number;
+  };
+  terraformDifficulty: number;
+  /** Unix-ms timestamp when the planet was promoted. */
+  promotedAt: number;
+}

@@ -98,6 +98,8 @@ export const XP_REWARDS = {
   HEX_UNLOCK_RING1: 15,
   HEX_UNLOCK_RING2: 50,
   HEX_UNLOCK_RING3: 200,
+  /** Planet terraforming fully completed (overall >= 95%) */
+  TERRAFORM_COMPLETED: 500,
 } as const;
 
 // ── Ring-based XP rewards ────────────────────────────────────────────────────

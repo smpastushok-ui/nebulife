@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatShort } from '../../utils/formatNumber.js';
 import { LiveCountdown } from './LiveCountdown.js';
@@ -8,6 +8,13 @@ import { LiveCountdown } from './LiveCountdown.js';
 //   1. Timer — fixed top-center
 //   2. Resources — fixed top-right
 // ---------------------------------------------------------------------------
+
+interface ColonyResourceValues {
+  minerals: number;
+  volatiles: number;
+  isotopes: number;
+  water: number;
+}
 
 interface ResourceDisplayProps {
   researchData: number;
@@ -22,12 +29,20 @@ interface ResourceDisplayProps {
   onVolatilesClick?: () => void;
   onIsotopesClick?: () => void;
   onQuarksClick?: () => void;
-  /** Colony resources (shown after colonization, Phase 2+) */
+  /** Colony resources (shown after colonization, Phase 2+).
+   *  Legacy flat props kept for callers that don't use the new per-planet API. */
   minerals?: number;
   volatiles?: number;
   isotopes?: number;
   water?: number;
   onWaterClick?: () => void;
+  /**
+   * Per-planet split: active colony resources (Phase 7B).
+   * When supplied, the HUD shows a toggle pill "This hub | Totals".
+   * "This hub" shows `currentResources`; "Totals" shows `totalsResources`.
+   */
+  currentResources?: ColonyResourceValues;
+  totalsResources?: ColonyResourceValues;
   /**
    * Doomsday clock params. When all four are non-null AND `showCountdown`
    * is true, we render a `<LiveCountdown>` that self-updates via ref — no
@@ -172,11 +187,15 @@ const clickableItemStyle: React.CSSProperties = {
   transition: 'background 0.15s',
 };
 
+const RESOURCE_VIEW_MODE_KEY = 'nebulife_resource_view_mode';
+
 export function ResourceDisplay({
   researchData, quarks, isExodusPhase, onClick,
   onObservatoriesClick, onResearchDataClick,
   onMineralsClick, onVolatilesClick, onIsotopesClick, onQuarksClick, onWaterClick,
   minerals = 0, volatiles = 0, isotopes = 0, water = 0,
+  currentResources,
+  totalsResources,
   showCountdown = false, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel,
   isCountdownPaused, onTimerClick,
   observatoryUsed = 0, observatoryTotal = 0,
@@ -185,6 +204,31 @@ export function ResourceDisplay({
   const { t } = useTranslation();
   const [hoverTimer, setHoverTimer] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  // Per-planet toggle: 'this' = active colony, 'all' = totals across all colonies.
+  // Only shown when the parent provides currentResources + totalsResources.
+  const [viewMode, setViewMode] = useState<'this' | 'all'>(() => {
+    try {
+      const saved = localStorage.getItem(RESOURCE_VIEW_MODE_KEY);
+      return saved === 'all' ? 'all' : 'this';
+    } catch {
+      return 'this';
+    }
+  });
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => {
+      const next = prev === 'this' ? 'all' : 'this';
+      try { localStorage.setItem(RESOURCE_VIEW_MODE_KEY, next); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  // Resolve display values: prefer per-planet when both currentResources & totalsResources are provided.
+  const hasSplit = currentResources != null && totalsResources != null;
+  const displayMinerals  = hasSplit ? (viewMode === 'this' ? currentResources!.minerals  : totalsResources!.minerals)  : minerals;
+  const displayVolatiles = hasSplit ? (viewMode === 'this' ? currentResources!.volatiles : totalsResources!.volatiles) : volatiles;
+  const displayIsotopes  = hasSplit ? (viewMode === 'this' ? currentResources!.isotopes  : totalsResources!.isotopes)  : isotopes;
+  const displayWater     = hasSplit ? (viewMode === 'this' ? currentResources!.water     : totalsResources!.water)     : water;
 
   const makeItemClick = (handler?: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -302,7 +346,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <MineralsIcon />
-              <span style={{ color: '#aa8855' }}>{formatShort(minerals)}</span>
+              <span style={{ color: '#aa8855' }}>{formatShort(displayMinerals)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -313,7 +357,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <VolatilesIcon />
-              <span style={{ color: '#55aaaa' }}>{formatShort(volatiles)}</span>
+              <span style={{ color: '#55aaaa' }}>{formatShort(displayVolatiles)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -324,7 +368,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <IsotopesIcon />
-              <span style={{ color: '#88aa44' }}>{formatShort(isotopes)}</span>
+              <span style={{ color: '#88aa44' }}>{formatShort(displayIsotopes)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -335,9 +379,35 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <WaterIcon />
-              <span style={{ color: '#3b82f6' }}>{formatShort(water)}</span>
+              <span style={{ color: '#3b82f6' }}>{formatShort(displayWater)}</span>
             </div>
             <div style={dividerStyle} />
+            {/* View mode toggle pill — only shown when per-planet split is available */}
+            {hasSplit && (
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleViewMode(); }}
+                title={viewMode === 'this' ? t('resource_display.totals') : t('resource_display.this_colony')}
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: 9,
+                  background: 'rgba(30,45,65,0.7)',
+                  border: '1px solid #334455',
+                  borderRadius: 3,
+                  color: '#667788',
+                  padding: '2px 6px',
+                  cursor: 'pointer',
+                  letterSpacing: '0.04em',
+                  lineHeight: 1.4,
+                  flexShrink: 0,
+                  transition: 'border-color 0.15s, color 0.15s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#446688'; e.currentTarget.style.color = '#aabbcc'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.color = '#667788'; }}
+              >
+                {viewMode === 'this' ? t('resource_display.this_colony') : t('resource_display.totals')}
+              </button>
+            )}
+            {hasSplit && <div style={dividerStyle} />}
           </>
         )}
 

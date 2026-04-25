@@ -17,7 +17,6 @@ import type { TechTreeState } from './tech-tree.js';
 import {
   TF_BASE_COSTS,
   TF_COMPLETION_THRESHOLD,
-  TF_TARGET_HABITABILITY_BOOST,
   TF_SIZE_MULT,
   planetSizeBucket,
 } from '../constants/terraform.js';
@@ -248,7 +247,18 @@ export function canStartParam(
 /**
  * If the overall progress has reached the completion threshold and
  * `completedAt` is still null, return a new Planet with updated properties
- * (type promotion, habitability boost, difficulty reset).
+ * (type promotion, per-factor habitability recompute, difficulty reset).
+ *
+ * Per-factor recompute (Phase 7C):
+ *   temperature   += (progress/100) × 0.6
+ *   atmosphere    += (progress/100) × 0.7
+ *   water         += (progress/100) × 0.6
+ *   magneticField += (progress/100) × 0.8
+ *   gravity         unchanged (not terraformable)
+ *
+ * Overall is recomputed from the weighted formula (same weights as
+ * calculateHabitability): temperature 0.30, atmosphere 0.25,
+ * water 0.25, magneticField 0.10, gravity 0.10.
  *
  * Returns null when the planet is not yet complete or was already processed.
  */
@@ -259,19 +269,40 @@ export function applyTerraformCompletionToPlanet(
   if (state.completedAt !== null) return null;
   if (getOverallProgress(state) < TF_COMPLETION_THRESHOLD) return null;
 
-  const baseHabitability = planet.habitability.overall;
-  const newOverall = Math.min(0.85, baseHabitability + TF_TARGET_HABITABILITY_BOOST);
+  const base = planet.habitability;
+  const p = state.params;
 
-  // Rocky planets graduate to terrestrial; others keep their type.
-  const newType = planet.type === 'rocky' ? 'terrestrial' : planet.type;
+  const temperature   = clamp(base.temperature   + (p.temperature.progress   / 100) * 0.6, 0, 1);
+  const atmosphere    = clamp(base.atmosphere    + (p.atmosphere.progress    / 100) * 0.7, 0, 1);
+  const water         = clamp(base.water         + (p.water.progress         / 100) * 0.6, 0, 1);
+  const magneticField = clamp(base.magneticField + (p.magneticField.progress / 100) * 0.8, 0, 1);
+  const gravity       = base.gravity; // not terraformable
+
+  const overall = round4(
+    temperature * 0.30 +
+    atmosphere  * 0.25 +
+    water       * 0.25 +
+    magneticField * 0.10 +
+    gravity     * 0.10,
+  );
+
+  // Rocky promotes to terrestrial; dwarf and terrestrial keep their type.
+  const newType: Planet['type'] = planet.type === 'rocky' ? 'terrestrial' : planet.type;
 
   return {
     ...planet,
     type: newType,
     terraformDifficulty: 0,
     habitability: {
-      ...planet.habitability,
-      overall: Math.round(newOverall * 10000) / 10000,
+      ...base,
+      temperature:   round4(temperature),
+      atmosphere:    round4(atmosphere),
+      water:         round4(water),
+      magneticField: round4(magneticField),
+      gravity:       round4(gravity),
+      overall,
     },
   };
 }
+
+function round4(n: number): number { return Math.round(n * 10000) / 10000; }

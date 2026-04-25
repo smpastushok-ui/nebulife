@@ -86,7 +86,7 @@ import {
   COLONY_TICK_INTERVAL_MS,
 } from '@nebulife/core';
 import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding } from '@nebulife/core';
-import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier } from '@nebulife/core';
+import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
 import {
   getInitialTerraformState,
   applyDelivery,
@@ -166,6 +166,7 @@ interface SyncedGameState {
   research_data: number;
   // Colony
   colony_resources: { minerals: number; volatiles: number; isotopes: number; water: number };
+  colony_resources_by_planet?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
   chemical_inventory: Record<string, number>;
   // Game phase
   exodus_phase: boolean;
@@ -197,6 +198,8 @@ interface SyncedGameState {
   // Terraforming
   terraform_states?: Record<string, unknown>;
   fleet?: unknown[];
+  // Planet overrides (type/habitability after successful terraform — Phase 7C)
+  planet_overrides?: Record<string, unknown>;
   // Metadata
   synced_at: number;
   last_regen_time?: number;
@@ -530,6 +533,9 @@ function AppInner() {
   });
   const colonyStateRef = useRef<PlanetColonyState | null>(null);
   colonyStateRef.current = colonyState;
+  // Forward-declared ref so setColonyResources compat wrapper (below) can access homeInfo
+  // even though homeInfo useState is declared later in the component body.
+  const homeInfoRef = useRef<{ system: StarSystem; planet: Planet } | null>(null);
 
   useEffect(() => {
     try {
@@ -537,18 +543,60 @@ function AppInner() {
     } catch { /* ignore */ }
   }, [colonyState]);
 
-  // ── Colony Resources (Phase 2+, after colonization) ───────────────────
-  const [colonyResources, setColonyResources] = useState<{ minerals: number; volatiles: number; isotopes: number; water: number }>(() => {
+  // ── Per-planet resource storage (Phase 7A+) ───────────────────────────
+  // Canonical per-colony resource pool. Key = planet.id.
+  // On first hydration: migrates old global `nebulife_colony_resources` onto
+  // the home planet so existing players don't lose anything.
+  const [colonyResourcesByPlanet, setColonyResourcesByPlanet] = useState<Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>>(() => {
     try {
-      const saved = localStorage.getItem('nebulife_colony_resources');
+      const saved = localStorage.getItem('nebulife_colony_resources_by_planet');
       if (saved) {
-        const parsed = JSON.parse(saved);
-        // Backward compat: old saves without water field default to 0
-        return { water: 0, ...parsed };
+        const parsed = JSON.parse(saved) as Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) return parsed;
       }
     } catch { /* ignore */ }
-    return { minerals: 0, volatiles: 0, isotopes: 150, water: 0 };
+    return {};
   });
+
+  const colonyResourcesByPlanetRef = useRef(colonyResourcesByPlanet);
+  colonyResourcesByPlanetRef.current = colonyResourcesByPlanet;
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_colony_resources_by_planet', JSON.stringify(colonyResourcesByPlanet)); }
+    catch { /* ignore quota */ }
+  }, [colonyResourcesByPlanet]);
+
+  // ── Colony Resources (Phase 2+, after colonization) ───────────────────
+  // Derived from colonyResourcesByPlanet (sum of all planets).
+  // Kept for backward-compat with Phase 7B migration. Old `nebulife_colony_resources`
+  // key is written for any code that reads it directly from localStorage.
+  const colonyResources = useMemo((): { minerals: number; volatiles: number; isotopes: number; water: number } => {
+    const sum = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+    for (const r of Object.values(colonyResourcesByPlanet)) {
+      sum.minerals  += r.minerals;
+      sum.volatiles += r.volatiles;
+      sum.isotopes  += r.isotopes;
+      sum.water     += r.water;
+    }
+    // If per-planet map is empty, fall back to old global localStorage value so
+    // players who haven't been migrated yet still see their resources.
+    if (Object.keys(colonyResourcesByPlanet).length === 0) {
+      try {
+        const raw = localStorage.getItem('nebulife_colony_resources');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { minerals?: number; volatiles?: number; isotopes?: number; water?: number };
+          return {
+            minerals:  parsed.minerals  ?? 0,
+            volatiles: parsed.volatiles ?? 0,
+            isotopes:  parsed.isotopes  ?? 150,
+            water:     parsed.water     ?? 0,
+          };
+        }
+      } catch { /* ignore */ }
+      return { minerals: 0, volatiles: 0, isotopes: 150, water: 0 };
+    }
+    return sum;
+  }, [colonyResourcesByPlanet]);
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(colonyResources)); }
@@ -597,6 +645,59 @@ function AppInner() {
     try { localStorage.setItem('nebulife_fleet', JSON.stringify(fleet)); }
     catch { /* ignore quota */ }
   }, [fleet]);
+
+  // ── Planet overrides — type/habitability mutations after terraform (Phase 7C) ──
+  /** Keyed by planetId.  Persisted to localStorage and synced via game_state JSONB. */
+  const [planetOverrides, setPlanetOverrides] = useState<Record<string, PlanetOverride>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_planet_overrides');
+      if (saved) return JSON.parse(saved) as Record<string, PlanetOverride>;
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_planet_overrides', JSON.stringify(planetOverrides)); }
+    catch { /* ignore quota */ }
+  }, [planetOverrides]);
+
+  /** Planet that just completed terraforming — Phase 7D will render the completion cutscene. */
+  const [pendingTerraformCompletion, setPendingTerraformCompletion] = useState<Planet | null>(null);
+
+  // ── Per-planet resource helpers (Phase 7A) ────────────────────────────
+
+  /** Get resources for a specific planet. Returns empty defaults if not yet populated. */
+  const getResources = useCallback((planetId: string): { minerals: number; volatiles: number; isotopes: number; water: number } => {
+    return colonyResourcesByPlanetRef.current[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+  }, []);
+
+  /** Add (or subtract with negative values) resources for a specific planet. Clamps to 0. */
+  const addResources = useCallback((planetId: string, delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => {
+    setColonyResourcesByPlanet(prev => {
+      const cur = prev[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+      return {
+        ...prev,
+        [planetId]: {
+          minerals:  Math.max(0, cur.minerals  + (delta.minerals  ?? 0)),
+          volatiles: Math.max(0, cur.volatiles + (delta.volatiles ?? 0)),
+          isotopes:  Math.max(0, cur.isotopes  + (delta.isotopes  ?? 0)),
+          water:     Math.max(0, cur.water     + (delta.water     ?? 0)),
+        },
+      };
+    });
+  }, []);
+
+  /** Sum resources across all planet stores. */
+  const totalResources = useCallback((): { minerals: number; volatiles: number; isotopes: number; water: number } => {
+    const sum = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+    for (const r of Object.values(colonyResourcesByPlanetRef.current)) {
+      sum.minerals  += r.minerals;
+      sum.volatiles += r.volatiles;
+      sum.isotopes  += r.isotopes;
+      sum.water     += r.water;
+    }
+    return sum;
+  }, []);
 
   /** Returns the existing terraform state for a planet, or initialises one from the planet's params. */
   const getTerraformState = useCallback((planet: Planet): PlanetTerraformState => {
@@ -675,7 +776,24 @@ function AppInner() {
     awardXPRef.current(amount, reason);
   }, []);
 
-  /** Handle surface resource harvest → update colonyResources + award XP. */
+  /**
+   * Backward-compat setter for colonyResources (Phase 7A bridge).
+   * Routes to the per-planet store keyed by the currently active surface planet
+   * (surfaceTargetRef) or the home planet (homeInfoRef).
+   * Phase 7B will migrate all call-sites to addResources(planetId, delta) directly.
+   */
+  const setColonyResources = useCallback(
+    (updater: ((prev: { minerals: number; volatiles: number; isotopes: number; water: number }) => { minerals: number; volatiles: number; isotopes: number; water: number }) | { minerals: number; volatiles: number; isotopes: number; water: number }) => {
+      const targetId = surfaceTargetRef.current?.planet.id ?? homeInfoRef.current?.planet.id;
+      if (!targetId) return;
+      const cur = colonyResourcesByPlanetRef.current[targetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+      const next = typeof updater === 'function' ? updater(cur) : updater;
+      setColonyResourcesByPlanet(prev => ({ ...prev, [targetId]: next }));
+    },
+    [],
+  );
+
+  /** Handle surface resource harvest → update per-planet resources + award XP. */
   const handleHarvest = useCallback((objectType: SurfaceObjectType) => {
     const yield_ = HARVEST_YIELD[objectType];
     const amount = yield_.base;
@@ -683,12 +801,13 @@ function AppInner() {
               : yield_.group === 'volatile' ? 'volatiles' as const
               : yield_.group === 'water' ? 'water' as const
               : 'isotopes' as const;
-    setColonyResources((prev) => ({ ...prev, [key]: prev[key] + amount }));
+    const planetId = surfaceTargetRef.current?.planet.id ?? homeInfoRef.current?.planet.id;
+    if (planetId) addResources(planetId, { [key]: amount });
     const xpKey = objectType === 'tree' ? 'HARVEST_TREE'
                 : objectType === 'ore' ? 'HARVEST_ORE'
                 : 'HARVEST_VENT'; // water uses same XP as vent
     awardXP(XP_REWARDS[xpKey], `harvest_${objectType}`);
-  }, [awardXP]);
+  }, [awardXP, addResources]);
 
   /** Handle fly-to-HUD animation for harvested resource. */
   const handleHarvestFx = useCallback((type: SurfaceObjectType, sx: number, sy: number) => {
@@ -979,6 +1098,35 @@ function AppInner() {
 
   // ── Home planet info (for navigation from home page) ──────────────
   const [homeInfo, setHomeInfo] = useState<{ system: StarSystem; planet: Planet } | null>(null);
+  // homeInfoRef is forward-declared above (near colonyStateRef) so that setColonyResources
+  // compat wrapper can reference it before this useState is declared.
+  homeInfoRef.current = homeInfo;
+
+  // ── Backwards-compat migration: seed colonyResourcesByPlanet from old global (Phase 7A) ──
+  // Fires once when homeInfo first becomes available. If the per-planet map is empty
+  // (new key not yet written) but the old global `nebulife_colony_resources` exists,
+  // migrate it onto the home planet so existing players don't lose their resources.
+  useEffect(() => {
+    if (!homeInfo) return;
+    if (Object.keys(colonyResourcesByPlanet).length > 0) return; // already migrated
+    try {
+      const raw = localStorage.getItem('nebulife_colony_resources');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { minerals?: number; volatiles?: number; isotopes?: number; water?: number };
+      if (!parsed || typeof parsed !== 'object') return;
+      const migrated = {
+        minerals:  parsed.minerals  ?? 0,
+        volatiles: parsed.volatiles ?? 0,
+        isotopes:  parsed.isotopes  ?? 0,
+        water:     parsed.water     ?? 0,
+      };
+      // Only migrate if there's actually something to migrate
+      if (migrated.minerals + migrated.volatiles + migrated.isotopes + migrated.water > 0) {
+        setColonyResourcesByPlanet({ [homeInfo.planet.id]: migrated });
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeInfo?.planet.id]); // run only when home planet first becomes known
 
   // Home system is always researched by default (player's own star system).
   // This effect ensures it stays researched even after server hydration overwrites state.
@@ -1056,6 +1204,28 @@ function AppInner() {
       pendingHomeRef.current = null;
     }
   }, [serverHydrated, homeInfo]);
+
+  // ── Apply planet overrides onto engine in-memory systems (Phase 7C) ─────────
+  // Runs whenever planetOverrides or homeInfo changes (homeInfo signals engine ready).
+  // Traverses all systems and patches planets whose id appears in planetOverrides.
+  useEffect(() => {
+    if (!homeInfo || !engineRef.current) return;
+    if (Object.keys(planetOverrides).length === 0) return;
+    const systems = engineRef.current.getAllSystems();
+    for (const sys of systems) {
+      for (let i = 0; i < sys.planets.length; i++) {
+        const override = planetOverrides[sys.planets[i].id];
+        if (override) {
+          sys.planets[i] = {
+            ...sys.planets[i],
+            type: override.type,
+            terraformDifficulty: override.terraformDifficulty,
+            habitability: override.habitability,
+          };
+        }
+      }
+    }
+  }, [planetOverrides, homeInfo]); // homeInfo signals engine has finished loading systems
 
   // Timer expired — force evacuation if no target found yet
   const timerExpiredHandledRef = useRef(false);
@@ -1342,19 +1512,16 @@ function AppInner() {
             return next;
           });
         }
-        // Mirror the tick's net resource production into the React-state
-        // colonyResources so passive building output (mine, water_extractor,
-        // atmo_extractor, etc.) actually reaches the hex-unlock cost UI.
-        // Previously runColonyTicks updated colony.resources but the React
-        // colonyResources state was never touched → mines produced 120 M/h
-        // that nobody could spend.
+        // Mirror the tick's net resource production into the per-planet store
+        // so passive building output (mine, water_extractor, atmo_extractor,
+        // etc.) actually reaches the hex-unlock cost UI. Route to the planet
+        // that owns this surface context — surfaceTarget takes priority over
+        // the retained colonyPlanetRef (Phase 7B: per-planet routing).
         if (hadResourceDelta) {
-          setColonyResources(prev => ({
-            minerals:  prev.minerals  + minD,
-            volatiles: prev.volatiles + volD,
-            isotopes:  prev.isotopes  + isoD,
-            water:     prev.water     + watD,
-          }));
+          const targetPlanetId = surfaceTargetRef.current?.planet.id ?? homeInfoRef.current?.planet.id;
+          if (targetPlanetId) {
+            addResources(targetPlanetId, { minerals: minD, volatiles: volD, isotopes: isoD, water: watD });
+          }
         }
         setColonyState(result.colony);
       }
@@ -1386,6 +1553,10 @@ function AppInner() {
 
       let fleetChanged = false;
       let newTerraformStates = terraformStatesRef.current;
+      // Collect at most one planet promotion per tick — queue for post-map state updates.
+      // Use a wrapper array (not let+null) so TS control-flow analysis doesn't narrow to `never`
+      // when the assignment only happens inside a map() callback.
+      const pendingPromotions: Array<{ promotedPlanet: Planet; override: PlanetOverride }> = [];
 
       const nextFleet = currentFleet.map((mission) => {
         if (mission.phase === 'idle') return mission;
@@ -1408,19 +1579,39 @@ function AppInner() {
               ticked.resource,
             );
 
-            // Check for completion — find the planet from engine (best effort)
+            // Phase 7C — check for terraform completion and promote planet
             const engine = engineRef.current;
             let completedState = updatedTf;
-            if (engine && getOverallProgress(updatedTf) >= 95 && updatedTf.completedAt === null) {
+            if (
+              engine &&
+              getOverallProgress(updatedTf) >= 95 &&
+              updatedTf.completedAt === null &&
+              pendingPromotions.length === 0 // only one promotion per tick
+            ) {
               const allSystems = engine.getAllSystems();
               for (const sys of allSystems) {
                 const planet = sys.planets.find((p) => p.id === ticked.targetPlanetId);
                 if (planet) {
-                  const updatedPlanet = applyTerraformCompletionToPlanet(planet, updatedTf);
-                  if (updatedPlanet) {
-                    completedState = { ...updatedTf, completedAt: Date.now() };
-                    // Note: planet.type mutation would require engine/galaxy state update
-                    // (full Phase 5 wiring); for Phase 1 we just mark completion time.
+                  const promotedPlanet = applyTerraformCompletionToPlanet(planet, updatedTf);
+                  if (promotedPlanet) {
+                    const completionTime = Date.now();
+                    completedState = { ...updatedTf, completedAt: completionTime };
+
+                    const override: PlanetOverride = {
+                      planetId: promotedPlanet.id,
+                      type: promotedPlanet.type,
+                      habitability: promotedPlanet.habitability,
+                      terraformDifficulty: promotedPlanet.terraformDifficulty,
+                      promotedAt: completionTime,
+                    };
+
+                    // Mutate in-memory engine planet immediately
+                    const planetIdx = sys.planets.findIndex((p) => p.id === promotedPlanet.id);
+                    if (planetIdx >= 0) {
+                      sys.planets[planetIdx] = promotedPlanet;
+                    }
+
+                    pendingPromotions.push({ promotedPlanet, override });
                   }
                   break;
                 }
@@ -1434,14 +1625,11 @@ function AppInner() {
           }
         }
 
-        // Phase transition: returning → repairing: charge minerals from colony
+        // Phase transition: returning → repairing: charge minerals from donor colony
         if (prevPhase === 'returning' && ticked.phase === 'repairing') {
           const cost = ticked.repairCostMinerals;
           if (cost > 0) {
-            setColonyResources((prev) => ({
-              ...prev,
-              minerals: Math.max(0, prev.minerals - cost),
-            }));
+            addResources(ticked.donorPlanetId, { minerals: -cost });
           }
         }
 
@@ -1461,6 +1649,16 @@ function AppInner() {
 
       if (newTerraformStates !== terraformStatesRef.current) {
         setTerraformStates(newTerraformStates);
+      }
+
+      // Apply planet promotion (React state updates must happen outside map())
+      for (const promo of pendingPromotions) {
+        const promotedPlanet = promo.promotedPlanet;
+        const promotedOverride = promo.override;
+        const promotedId = promotedPlanet.id;
+        setPlanetOverrides((prev) => ({ ...prev, [promotedId]: promotedOverride }));
+        setPendingTerraformCompletion(promotedPlanet);
+        awardXP(XP_REWARDS.TERRAFORM_COMPLETED, 'terraform_completed');
       }
     }, 5000);
 
@@ -1483,11 +1681,8 @@ function AppInner() {
     flightHours: number,
     repairCostMinerals: number,
   ): void => {
-    // Debit resources immediately from global colony resources
-    setColonyResources((prev) => ({
-      ...prev,
-      [resource]: Math.max(0, prev[resource] - amount),
-    }));
+    // Debit resources immediately from the donor colony's per-planet store
+    addResources(donorPlanetId, { [resource]: -amount });
 
     const now = Date.now();
     const mission: Mission = {
@@ -1507,7 +1702,7 @@ function AppInner() {
 
     setFleet((prev) => [...prev, mission]);
     scheduleSyncToServer();
-  }, [scheduleSyncToServer]);
+  }, [scheduleSyncToServer, addResources]);
 
   /**
    * Cancel a mission by ID. Refunds 50% of resource if still in `dispatching`,
@@ -1518,21 +1713,18 @@ function AppInner() {
       const mission = prev.find((m) => m.id === missionId);
       if (!mission) return prev;
 
-      // Refund 50% if still loading at the donor colony
+      // Refund 50% to the donor colony if still loading
       if (mission.phase === 'dispatching') {
         const refund = Math.floor(mission.amount * 0.5);
         if (refund > 0) {
-          setColonyResources((cr) => ({
-            ...cr,
-            [mission.resource]: cr[mission.resource] + refund,
-          }));
+          addResources(mission.donorPlanetId, { [mission.resource]: refund });
         }
       }
 
       return prev.filter((m) => m.id !== missionId);
     });
     scheduleSyncToServer();
-  }, [scheduleSyncToServer]);
+  }, [scheduleSyncToServer, addResources]);
 
   /**
    * Returns all planets that have a colony_hub building (potential donors).
@@ -1945,6 +2137,8 @@ function AppInner() {
       // Terraforming
       'nebulife_terraform_states',
       'nebulife_fleet',
+      // Per-planet resources (Phase 7A)
+      'nebulife_colony_resources_by_planet',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
     // Also remove all quiz answer keys
@@ -1965,7 +2159,7 @@ function AppInner() {
     // gameStartedAt becomes null the LiveCountdown unmounts, clearing the DOM.
     timerExpiredHandledRef.current = false;
     // Colony + research + progression state (all auto-persisted)
-    setColonyResources({ minerals: 0, volatiles: 0, isotopes: 150, water: 0 });
+    setColonyResourcesByPlanet({}); // Phase 7A: resets per-planet map; derived colonyResources follows
     setResearchData(INITIAL_RESEARCH_DATA);
     setPlayerXP(0);
     setPlayerLevel(1);
@@ -2216,9 +2410,29 @@ function AppInner() {
       try { localStorage.setItem('nebulife_research_data', String(loadedValue)); } catch { /* ignore */ }
     }
 
-    // Colony
-    if (gs.colony_resources && typeof gs.colony_resources === 'object') {
-      // Backward compat: old saves without water field default to 0
+    // Colony — Phase 7A: prefer per-planet map; fall back to legacy global object
+    if (gs.colony_resources_by_planet && typeof gs.colony_resources_by_planet === 'object') {
+      const serverMap = gs.colony_resources_by_planet as Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+      if (Object.keys(serverMap).length > 0) {
+        // Max-merge per planet with local values
+        const localMap = (() => { try { return JSON.parse(localStorage.getItem('nebulife_colony_resources_by_planet') ?? 'null') as Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }> | null; } catch { return null; } })();
+        const merged: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }> = { ...(localMap ?? {}) };
+        for (const [pid, sr] of Object.entries(serverMap)) {
+          const lr = merged[pid] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+          merged[pid] = {
+            minerals:  Math.max(sr.minerals  ?? 0, lr.minerals),
+            volatiles: Math.max(sr.volatiles ?? 0, lr.volatiles),
+            isotopes:  Math.max(sr.isotopes  ?? 0, lr.isotopes),
+            water:     Math.max(sr.water     ?? 0, lr.water),
+          };
+        }
+        setColonyResourcesByPlanet(merged);
+        try { localStorage.setItem('nebulife_colony_resources_by_planet', JSON.stringify(merged)); } catch { /* ignore */ }
+      }
+    } else if (gs.colony_resources && typeof gs.colony_resources === 'object') {
+      // Legacy path: server only has the old global object.
+      // Merge with local and persist to the old key so the per-planet migration
+      // effect (triggered by homeInfo) can pick it up when the home planet is known.
       const raw = gs.colony_resources as Record<string, number>;
       const localCR = (() => { try { return JSON.parse(localStorage.getItem('nebulife_colony_resources') ?? 'null'); } catch { return null; } })();
       const cr = {
@@ -2227,8 +2441,23 @@ function AppInner() {
         isotopes: Math.max(raw.isotopes ?? 0, localCR?.isotopes ?? 0),
         water: Math.max(raw.water ?? 0, localCR?.water ?? 0),
       };
-      setColonyResources(cr);
       try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(cr)); } catch { /* ignore */ }
+      // If homeInfo already known, migrate immediately; otherwise migration effect handles it
+      const hpid = homeInfoRef.current?.planet.id;
+      if (hpid) {
+        setColonyResourcesByPlanet(prev => {
+          const existing = prev[hpid] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+          return {
+            ...prev,
+            [hpid]: {
+              minerals:  Math.max(cr.minerals,  existing.minerals),
+              volatiles: Math.max(cr.volatiles, existing.volatiles),
+              isotopes:  Math.max(cr.isotopes,  existing.isotopes),
+              water:     Math.max(cr.water,     existing.water),
+            },
+          };
+        });
+      }
     }
     if (gs.chemical_inventory && typeof gs.chemical_inventory === 'object') {
       const localCI = (() => { try { return JSON.parse(localStorage.getItem('nebulife_chemical_inventory') ?? 'null'); } catch { return null; } })();
@@ -2403,6 +2632,24 @@ function AppInner() {
         if (localFleet.length >= serverFleet.length) return localFleet;
         return serverFleet;
       });
+    }
+
+    // Planet overrides — merge: server wins on a per-planet basis (promotedAt tie-break)
+    if (gs.planet_overrides && typeof gs.planet_overrides === 'object') {
+      const serverOverrides = gs.planet_overrides as Record<string, PlanetOverride>;
+      if (Object.keys(serverOverrides).length > 0) {
+        setPlanetOverrides((localOverrides) => {
+          const merged: Record<string, PlanetOverride> = { ...localOverrides };
+          for (const [pid, serverOv] of Object.entries(serverOverrides)) {
+            const localOv = localOverrides[pid];
+            // Keep whichever override was applied most recently
+            if (!localOv || (serverOv.promotedAt ?? 0) >= (localOv.promotedAt ?? 0)) {
+              merged[pid] = serverOv;
+            }
+          }
+          return merged;
+        });
+      }
     }
 
     // Player meta (notification prefs, language, digest seen)
@@ -4307,6 +4554,27 @@ function AppInner() {
       setTutorialStep(13);
     }
 
+    // Transfer resources from the old home planet to the new colony planet.
+    // The evacuation ship carries the stockpile — one-time handoff (Phase 7B).
+    const newPlanetId = evacuationTarget.planet.id;
+    const oldPlanetId = homeInfo?.planet.id;
+    if (oldPlanetId && oldPlanetId !== newPlanetId) {
+      setColonyResourcesByPlanet((prev) => {
+        const carried = prev[oldPlanetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+        const existing = prev[newPlanetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+        const merged = { ...prev };
+        // Move old planet's resources onto new planet, clear old entry
+        merged[newPlanetId] = {
+          minerals:  existing.minerals  + carried.minerals,
+          volatiles: existing.volatiles + carried.volatiles,
+          isotopes:  existing.isotopes  + carried.isotopes,
+          water:     existing.water     + carried.water,
+        };
+        delete merged[oldPlanetId];
+        return merged;
+      });
+    }
+
     // Open surface view for the colony planet
     setSurfaceTarget({
       planet: evacuationTarget.planet,
@@ -4637,6 +4905,7 @@ function AppInner() {
       research_data: Math.floor(researchData),
       last_regen_time: Date.now(),
       colony_resources: colonyResources,
+      colony_resources_by_planet: colonyResourcesByPlanet,
       chemical_inventory: chemicalInventory,
       exodus_phase: isExodusPhase,
       destroyed_planets: destroyedPlanets,
@@ -4666,6 +4935,8 @@ function AppInner() {
         Object.entries(terraformStates).filter(([, s]) => s.completedAt !== null || getOverallProgress(s) > 0),
       ),
       fleet: fleet.filter((m) => m.phase !== 'idle'),
+      // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
+      planet_overrides: planetOverrides,
       synced_at: Date.now(),
     };
   };
@@ -4709,7 +4980,7 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetOverrides]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -5388,6 +5659,13 @@ function AppInner() {
         volatiles={colonyResources.volatiles}
         isotopes={colonyResources.isotopes}
         water={colonyResources.water}
+        currentResources={(() => {
+          const activePlanetId = surfaceTarget?.planet.id
+            ?? (state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet.id : null)
+            ?? homeInfo?.planet.id;
+          return activePlanetId ? getResources(activePlanetId) : undefined;
+        })()}
+        totalsResources={totalResources()}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
         onObservatoriesClick={() => setShowResourceModal('observatories')}
         onResearchDataClick={() => setShowResourceModal('research_data')}
@@ -5951,7 +6229,7 @@ function AppInner() {
             techState={techTreeStateRef.current}
             donorPlanets={donors}
             donorDistances={donorDistMap}
-            colonyResources={colonyResources}
+            getResources={getResources}
             shipTier={tfTier}
             activeMissionByParam={activeMissionByParam}
             onStartParam={(paramId, donorPlanetId, resource, amount, tier, flightHours, repairCostMinerals) => {
@@ -6101,6 +6379,10 @@ function AppInner() {
         && evacuationPhase !== 'stage4-orbit'
         && !ringUnlockAnim && (
         <PlanetGlobeView
+          key={(() => {
+            const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
+            return `${p.id}-${p.type}-${p.habitability.overall.toFixed(2)}`;
+          })()}
           ref={globeRef}
           planet={state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet}
           star={state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem.star : homeInfo.system.star}
@@ -6153,25 +6435,24 @@ function AppInner() {
           onBuildPanelChange={setSurfaceBuildPanelOpen}
           playerLevel={playerLevel}
           techTreeState={techTreeState}
-          minerals={colonyResources.minerals}
-          volatiles={colonyResources.volatiles}
-          isotopes={colonyResources.isotopes}
-          water={colonyResources.water}
+          minerals={getResources(surfaceTarget.planet.id).minerals}
+          volatiles={getResources(surfaceTarget.planet.id).volatiles}
+          isotopes={getResources(surfaceTarget.planet.id).isotopes}
+          water={getResources(surfaceTarget.planet.id).water}
           chemicalInventory={chemicalInventory}
           onElementChange={handleElementChange}
           onConsumeIsotopes={(amount) => {
-            setColonyResources((prev) => ({
-              ...prev,
-              isotopes: Math.max(0, prev.isotopes - amount),
-            }));
+            const pid = surfaceTarget.planet.id;
+            addResources(pid, { isotopes: -amount });
           }}
           onResourceDeducted={(delta) => {
-            setColonyResources((prev) => ({
-              minerals:  Math.max(0, prev.minerals  + (delta.minerals ?? 0)),
-              volatiles: Math.max(0, prev.volatiles + (delta.volatiles ?? 0)),
-              isotopes:  Math.max(0, prev.isotopes  + (delta.isotopes ?? 0)),
-              water:     Math.max(0, prev.water     + (delta.water ?? 0)),
-            }));
+            const pid = surfaceTarget.planet.id;
+            addResources(pid, {
+              minerals:  delta.minerals  ?? 0,
+              volatiles: delta.volatiles ?? 0,
+              isotopes:  delta.isotopes  ?? 0,
+              water:     delta.water     ?? 0,
+            });
           }}
           researchData={Math.floor(researchData)}
           onConsumeResearchData={(amount) => {
@@ -6188,10 +6469,10 @@ function AppInner() {
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}
       {surfaceTarget && (
         <ResourceWidget
-          minerals={colonyResources.minerals}
-          volatiles={colonyResources.volatiles}
-          isotopes={colonyResources.isotopes}
-          water={colonyResources.water}
+          minerals={getResources(surfaceTarget.planet.id).minerals}
+          volatiles={getResources(surfaceTarget.planet.id).volatiles}
+          isotopes={getResources(surfaceTarget.planet.id).isotopes}
+          water={getResources(surfaceTarget.planet.id).water}
           onRefsReady={setResourceRects}
         />
       )}
@@ -6432,7 +6713,8 @@ function AppInner() {
           favoritePlanets={favoritePlanets}
           onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
           systemPhotos={systemPhotos}
-          colonyResources={colonyResources}
+          colonyResources={totalResources()}
+          resourcesByPlanet={colonyResourcesByPlanet}
           quarks={quarks}
           isQuarkUnlocked={(sysId) => quarkUnlockedSystems.has(sysId)}
           onUnlockViaQuarks={(sysId) => {
@@ -6816,7 +7098,7 @@ function AppInner() {
           <ColonyCenterPage
             active={active}
             allColonies={allColonies}
-            colonyResources={colonyResources}
+            colonyResources={getResources(active.planet.id)}
             storageCapacity={200 + active.buildings.filter((b) => b.type === 'resource_storage').length * 200}
             productionPerHour={perHour}
             extractionPerHour={hexExtractionPerHour}

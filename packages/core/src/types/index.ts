@@ -48,4 +48,5 @@ export type {
   MissionPhase,
   Mission,
   ResourceCost,
+  PlanetOverride,
 } from './terraform.js';

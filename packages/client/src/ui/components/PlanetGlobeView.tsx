@@ -480,9 +480,25 @@ function createPlanetSphere(
   });
 
   const mesh = new THREE.Mesh(geometry, material);
+  // Visual size factor based on the planet's actual radius. Sphere geometry
+  // stays unit-radius; we just scale the mesh — cheap, no re-render of geometry.
+  // Buckets: dwarf (<0.5 R⊕) → 0.55, small (0.5-1 R⊕) → 0.75,
+  //          medium (1-1.5 R⊕) → 0.95, large (≥1.5 R⊕) → 1.15.
+  mesh.scale.setScalar(planetVisualScale(planet));
   scene.add(mesh);
 
   return { mesh, uniforms };
+}
+
+/** Visual radius multiplier for the planet sphere + atmosphere + cloud meshes.
+ *  Uses planet.radiusEarth bucketed into 4 perceptually-distinct sizes so a
+ *  dwarf planet doesn't look identical to a super-Earth. */
+function planetVisualScale(planet: Planet): number {
+  const r = planet.radiusEarth ?? 1;
+  if (r < 0.5) return 0.55;
+  if (r < 1.0) return 0.75;
+  if (r < 1.5) return 0.95;
+  return 1.15;
 }
 
 // ---------------------------------------------------------------------------
@@ -503,7 +519,10 @@ function createCloudLayer(
   if (!params) return null;
 
   const segs = lod.cloudSegments;
-  const geometry = new THREE.SphereGeometry(params.scale, segs, segs);
+  // Cloud + atmosphere shells must follow the same visual scale as the planet
+  // sphere; otherwise a small dwarf planet would have a giant atmosphere.
+  const sizeFactor = planetVisualScale(planet);
+  const geometry = new THREE.SphereGeometry(params.scale * sizeFactor, segs, segs);
   const timeUniform = { value: 0.0 };
   const material = new THREE.ShaderMaterial({
     vertexShader: planetVertSrc,
@@ -553,8 +572,10 @@ function createAtmosphereShell(
 
   const atmSegs = lod.atmosphereSegments;
 
+  // Match the planet sphere size so the glow shell wraps tight, not loose.
+  const atmSizeFactor = planetVisualScale(planet);
   // --- Front-facing atmosphere (primary glow, visible from day side) ---
-  const geoFront = new THREE.SphereGeometry(params.scale, atmSegs, atmSegs);
+  const geoFront = new THREE.SphereGeometry(params.scale * atmSizeFactor, atmSegs, atmSegs);
   const matFront = new THREE.ShaderMaterial({
     vertexShader: planetVertSrc,
     fragmentShader: atmosphereFrag,
@@ -573,7 +594,7 @@ function createAtmosphereShell(
   // front atmosphere alone still reads as "has an atmosphere".
   let back: THREE.Mesh | null = null;
   if (lod.renderAtmosphereBack) {
-    const geoBack = new THREE.SphereGeometry(params.scale * 1.008, atmSegs, atmSegs);
+    const geoBack = new THREE.SphereGeometry(params.scale * 1.008 * atmSizeFactor, atmSegs, atmSegs);
     const matBack = new THREE.ShaderMaterial({
       vertexShader: planetVertSrc,
       fragmentShader: atmosphereFrag,
