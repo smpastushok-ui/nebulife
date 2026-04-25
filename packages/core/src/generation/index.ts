@@ -31,3 +31,7 @@ export {
   assignPlayerToGroup,
   buildGalaxyMap,
 } from './galaxy-map.js';
+export {
+  distanceLY as systemDistanceLY,
+  nearestColonyDistance,
+} from './distances.js';

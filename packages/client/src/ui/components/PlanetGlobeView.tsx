@@ -1382,14 +1382,13 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // to the lit side). Bumping ambient fill 0.7 → 1.4 and the key light
       // 1.2 → 1.8 brightens the sphere across tiers without washing out the
       // high-end look (bloom still stacks on top on ultra).
-      const ambient = new THREE.AmbientLight(0x334466, 1.4);
+      const ambient = new THREE.AmbientLight(0x5577aa, 2.2);
       scene.add(ambient);
-      // Hemisphere fill — sky-tinted top, deeper-blue bottom. Adds a subtle
-      // rim lift on the un-lit hemisphere so the planet never goes fully
-      // black on mid/low tiers where the key light can't spill around.
-      const hemi = new THREE.HemisphereLight(0x88aaff, 0x112233, 0.45);
+      // Hemisphere fill — sky-tinted top, warm-dark bottom. Lifts the dark
+      // hemisphere so the planet never goes fully black.
+      const hemi = new THREE.HemisphereLight(0x7799cc, 0x332211, 0.6);
       scene.add(hemi);
-      const dirLight = new THREE.DirectionalLight(0xfff2dd, 1.8);
+      const dirLight = new THREE.DirectionalLight(0xfff2dd, 2.5);
       dirLight.position.copy(STAR_SPRITE_POSITION);
       scene.add(dirLight);
 

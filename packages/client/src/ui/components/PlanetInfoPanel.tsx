@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet } from '@nebulife/core';
+import { getOverallProgress, isTerraformable } from '@nebulife/core';
+import type { PlanetTerraformState, TerraformParamId } from '@nebulife/core';
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute', right: 16, top: '20%', width: 300,
@@ -75,11 +77,17 @@ function Section({ title, children, defaultOpen = false }: { title: string; chil
   );
 }
 
-export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledReason }: {
+const TERRAFORM_PARAM_IDS: TerraformParamId[] = [
+  'magneticField', 'atmosphere', 'ozone', 'temperature', 'pressure', 'water',
+];
+
+export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledReason, terraformState }: {
   planet: Planet;
   onClose: () => void;
   onSurface?: () => void;
   surfaceDisabledReason?: string;
+  /** Optional: when provided, shows a Terraforming progress section */
+  terraformState?: PlanetTerraformState;
 }) {
   const { t } = useTranslation();
   const hab = planet.habitability;
@@ -168,7 +176,43 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
         <div style={rowStyle}><span>{t('planet_info.hab_gravity')}</span><Bar value={hab.gravity} /></div>
       </Section>
 
-      {/* --- Group 5: Moons --- */}
+      {/* --- Group 5: Terraform progress (when state is provided) --- */}
+      {terraformState && isTerraformable(planet) && (() => {
+        const overallPct = Math.round(getOverallProgress(terraformState));
+        const barColor = overallPct >= 95 ? '#44ff88' : overallPct >= 50 ? '#ddaa44' : '#4488aa';
+        return (
+          <Section title={t('terraform.overall_progress')}>
+            {/* Overall bar */}
+            <div style={{ ...rowStyle, flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                <span>{t('terraform.overall_progress')}</span>
+                <span style={{ color: barColor }}>{overallPct}%</span>
+              </div>
+              <div style={{ width: '100%', height: 5, background: 'rgba(30,40,60,0.5)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ width: `${overallPct}%`, height: '100%', background: barColor, borderRadius: 3 }} />
+              </div>
+            </div>
+            {/* Per-param rows */}
+            {TERRAFORM_PARAM_IDS.map((paramId) => {
+              const pct = Math.round(terraformState.params[paramId].progress);
+              const pColor = pct >= 95 ? '#44ff88' : pct >= 50 ? '#7bb8ff' : '#4488aa';
+              return (
+                <div key={paramId} style={rowStyle}>
+                  <span>{t(`terraform.param.${paramId}`)}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 50, height: 4, background: 'rgba(30,40,60,0.5)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: pColor, borderRadius: 2 }} />
+                    </div>
+                    <span style={{ fontSize: 10, color: pColor, minWidth: 28, textAlign: 'right' }}>{pct}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </Section>
+        );
+      })()}
+
+      {/* --- Group 6: Moons --- */}
       {planet.moons.length > 0 && (
         <Section title={t('planet_info.group_moons', { count: planet.moons.length })}>
           {planet.moons.map(moon => (
@@ -180,7 +224,7 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
         </Section>
       )}
 
-      {/* --- Group 6: Colonization --- */}
+      {/* --- Group 7: Colonization --- */}
       <Section title={t('planet_info.group_colonization')}>
         <div style={rowStyle}>
           <span>{t('planet_info.terraform_difficulty')}</span>

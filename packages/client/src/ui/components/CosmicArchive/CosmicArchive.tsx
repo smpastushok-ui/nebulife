@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch } from '@nebulife/core';
+import type { PlanetTerraformState } from '@nebulife/core';
 import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
 import { PlanetsCatalog, FavoritesPlanetsList } from './PlanetsCatalog';
+import { PlanetsCatalogV2 } from './PlanetsCatalogV2.js';
+import { ColoniesList } from './ColoniesList.js';
 import { SystemsList } from './SystemsList';
 import { SystemLog } from './SystemLog';
 import type { LogEntry } from './SystemLog';
@@ -43,8 +46,9 @@ function buildTabs(t: (key: string) => string): TabDef[] {
       id: 'navigation',
       label: t('archive.tab_navigation'),
       subTabs: [
-        // Order requested by owner: Systems → Planets → Favorites.
+        // Order: Systems → Colonies → Planets (V2) → Favorites.
         { id: 'systems', label: t('archive.sub_systems') },
+        { id: 'colonies', label: t('archive.sub_colonies') },
         { id: 'planets', label: t('archive.sub_planets') },
         { id: 'favorites', label: t('archive.sub_favorites') },
       ],
@@ -148,6 +152,12 @@ export interface CosmicArchiveProps {
   instantResearchCost?: number;
   /** Open the global top-up modal — used by the instant-research popup. */
   onOpenTopUp?: () => void;
+  /** Planet IDs that have a colony (home planet + colony_hub buildings). */
+  colonyPlanetIds?: Set<string>;
+  /** System IDs that contain colony planets — used as distance origins. */
+  colonySystemIds?: string[];
+  /** Terraform states keyed by planet ID. */
+  terraformStates?: Record<string, PlanetTerraformState>;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,6 +278,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onInstantResearch,
   instantResearchCost,
   onOpenTopUp,
+  colonyPlanetIds,
+  colonySystemIds,
+  terraformStates,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   const { t } = useTranslation();
   const TABS = buildTabs(t);
@@ -451,19 +464,26 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       }
       return <PlaceholderTab label={currentSubTab === 'surface' ? t('archive.sub_surface') : t('archive.sub_life')} />;
     }
+    if (mainTab === 'navigation' && currentSubTab === 'colonies') {
+      return (
+        <ColoniesList
+          allSystems={allSystems}
+          aliases={aliases}
+          colonyPlanetIds={colonyPlanetIds ?? new Set()}
+          colonyResources={colonyResources}
+          terraformStates={terraformStates}
+          onViewPlanet={handleViewPlanet}
+        />
+      );
+    }
     if (mainTab === 'navigation' && currentSubTab === 'planets') {
       return (
-        <PlanetsCatalog
+        <PlanetsCatalogV2
           allSystems={allSystems}
           aliases={aliases}
           onViewPlanet={handleViewPlanet}
-          favorites={favorites}
-          onToggleFavorite={toggleFavorite}
-          getResearchProgress={getResearchProgress}
-          onStartResearch={onStartResearch}
-          canStartResearch={canStartResearch}
-          onRenameSystem={onRenameSystem}
-          isSystemResearching={isSystemResearching}
+          colonyPlanetIds={colonyPlanetIds ?? new Set()}
+          colonySystemIds={colonySystemIds ?? []}
         />
       );
     }

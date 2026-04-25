@@ -145,3 +145,24 @@ export {
   createTradeRoute,
 } from './logistics.js';
 export type { LaunchResult, ArrivalEvent } from './logistics.js';
+
+// Terraforming rules
+export {
+  isTerraformable,
+  getInitialTerraformState,
+  computeParamRequirement,
+  applyDelivery,
+  getOverallProgress,
+  canStartParam,
+  applyTerraformCompletionToPlanet,
+} from './terraform-rules.js';
+
+// Fleet rules
+export {
+  tierForBuildings,
+  tierMaxCargo,
+  tierSpeedLY,
+  flightHoursLY,
+  repairCost,
+  tickMission,
+} from './fleet-rules.js';

@@ -86,6 +86,18 @@ import {
   COLONY_TICK_INTERVAL_MS,
 } from '@nebulife/core';
 import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding } from '@nebulife/core';
+import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier } from '@nebulife/core';
+import {
+  getInitialTerraformState,
+  applyDelivery,
+  applyTerraformCompletionToPlanet,
+  getOverallProgress,
+  tickMission,
+  tierForBuildings,
+  systemDistanceLY,
+} from '@nebulife/core';
+import { MissionTracker } from './ui/components/Terraform/MissionTracker.js';
+import { TerraformPanel } from './ui/components/Terraform/TerraformPanel.js';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
@@ -182,6 +194,9 @@ interface SyncedGameState {
   // Home planet (cross-device persistence — belt-and-suspenders backup of direct DB columns)
   home_system_id: string;
   home_planet_id: string;
+  // Terraforming
+  terraform_states?: Record<string, unknown>;
+  fleet?: unknown[];
   // Metadata
   synced_at: number;
   last_regen_time?: number;
@@ -553,6 +568,50 @@ function AppInner() {
     try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(chemicalInventory)); }
     catch { /* ignore */ }
   }, [chemicalInventory]);
+
+  // ── Terraforming state ───────────────────────────────────────────────────
+  /** Terraform progress per planet, keyed by planetId. Persisted to localStorage. */
+  const [terraformStates, setTerraformStates] = useState<Record<string, PlanetTerraformState>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_terraform_states');
+      if (saved) return JSON.parse(saved) as Record<string, PlanetTerraformState>;
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_terraform_states', JSON.stringify(terraformStates)); }
+    catch { /* ignore quota */ }
+  }, [terraformStates]);
+
+  /** Flat array of all terraform delivery missions across all colonies. */
+  const [fleet, setFleet] = useState<Mission[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_fleet');
+      if (saved) return JSON.parse(saved) as Mission[];
+    } catch { /* ignore */ }
+    return [];
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_fleet', JSON.stringify(fleet)); }
+    catch { /* ignore quota */ }
+  }, [fleet]);
+
+  /** Returns the existing terraform state for a planet, or initialises one from the planet's params. */
+  const getTerraformState = useCallback((planet: Planet): PlanetTerraformState => {
+    return terraformStates[planet.id] ?? getInitialTerraformState(planet);
+  }, [terraformStates]);
+
+  /** Returns the active (non-idle) mission for a given planet + param, or null. */
+  const getActiveMissionForParam = useCallback(
+    (targetPlanetId: string, paramId: TerraformParamId): Mission | null => {
+      return fleet.find(
+        (m) => m.targetPlanetId === targetPlanetId && m.paramId === paramId && m.phase !== 'idle',
+      ) ?? null;
+    },
+    [fleet],
+  );
 
   /** Handle element inventory changes (from hex harvest or chemistry buildings) */
   const handleElementChange = useCallback((delta: Record<string, number>) => {
@@ -1077,6 +1136,8 @@ function AppInner() {
   const [showPlayerPage, setShowPlayerPage] = useState(false);
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
+  // Terraform panel — full-screen overlay for a specific planet
+  const [showTerraformPlanet, setShowTerraformPlanet] = useState<Planet | null>(null);
   // Transient flag that animates the 4 corner-cube terminal button icon
   // toward the centre while the archive overlay is mounting.
   const [terminalConverging, setTerminalConverging] = useState(false);
@@ -1308,6 +1369,213 @@ function AppInner() {
   useEffect(() => {
     ambientRef.current?.setVolume(ambientVolume);
   }, [ambientVolume]);
+
+  // ── Terraform mission lifecycle tick (5-second cadence) ──────────────────
+  // Refs let the interval read current state without stale closures.
+  const terraformStatesRef = useRef(terraformStates);
+  terraformStatesRef.current = terraformStates;
+  const fleetRef = useRef(fleet);
+  fleetRef.current = fleet;
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      const currentFleet = fleetRef.current;
+      const nonIdle = currentFleet.filter((m) => m.phase !== 'idle');
+      if (nonIdle.length === 0) return;
+
+      let fleetChanged = false;
+      let newTerraformStates = terraformStatesRef.current;
+
+      const nextFleet = currentFleet.map((mission) => {
+        if (mission.phase === 'idle') return mission;
+
+        const prevPhase = mission.phase;
+        const ticked = tickMission(mission, now);
+
+        if (ticked === mission) return mission; // no change — same ref
+
+        fleetChanged = true;
+
+        // Phase transition: outbound → unloading: apply delivery to terraform state
+        if (prevPhase === 'outbound' && ticked.phase === 'unloading') {
+          const tfState = newTerraformStates[ticked.targetPlanetId];
+          if (tfState) {
+            const updatedTf = applyDelivery(
+              tfState,
+              ticked.paramId,
+              ticked.amount,
+              ticked.resource,
+            );
+
+            // Check for completion — find the planet from engine (best effort)
+            const engine = engineRef.current;
+            let completedState = updatedTf;
+            if (engine && getOverallProgress(updatedTf) >= 95 && updatedTf.completedAt === null) {
+              const allSystems = engine.getAllSystems();
+              for (const sys of allSystems) {
+                const planet = sys.planets.find((p) => p.id === ticked.targetPlanetId);
+                if (planet) {
+                  const updatedPlanet = applyTerraformCompletionToPlanet(planet, updatedTf);
+                  if (updatedPlanet) {
+                    completedState = { ...updatedTf, completedAt: Date.now() };
+                    // Note: planet.type mutation would require engine/galaxy state update
+                    // (full Phase 5 wiring); for Phase 1 we just mark completion time.
+                  }
+                  break;
+                }
+              }
+            }
+
+            newTerraformStates = {
+              ...newTerraformStates,
+              [ticked.targetPlanetId]: completedState,
+            };
+          }
+        }
+
+        // Phase transition: returning → repairing: charge minerals from colony
+        if (prevPhase === 'returning' && ticked.phase === 'repairing') {
+          const cost = ticked.repairCostMinerals;
+          if (cost > 0) {
+            setColonyResources((prev) => ({
+              ...prev,
+              minerals: Math.max(0, prev.minerals - cost),
+            }));
+          }
+        }
+
+        return ticked;
+      });
+
+      // GC: drop missions that have been idle for more than 24 h
+      const GC_MS = 24 * 60 * 60 * 1000;
+      const gcFleet = nextFleet.filter((m) => {
+        if (m.phase !== 'idle') return true;
+        return (now - m.phaseStartedAt) < GC_MS;
+      });
+
+      if (fleetChanged) {
+        setFleet(gcFleet);
+      }
+
+      if (newTerraformStates !== terraformStatesRef.current) {
+        setTerraformStates(newTerraformStates);
+      }
+    }, 5000);
+
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Terraform dispatch callbacks ────────────────────────────────────────
+
+  /**
+   * Create a new mission, debit resources from the donor colony immediately,
+   * and add to fleet. For Phase 1 all colonies share the global colonyResources.
+   */
+  const onStartTerraformParam = useCallback((
+    targetPlanetId: string,
+    paramId: TerraformParamId,
+    donorPlanetId: string,
+    resource: 'minerals' | 'volatiles' | 'isotopes' | 'water',
+    amount: number,
+    tier: TfShipTier,
+    flightHours: number,
+    repairCostMinerals: number,
+  ): void => {
+    // Debit resources immediately from global colony resources
+    setColonyResources((prev) => ({
+      ...prev,
+      [resource]: Math.max(0, prev[resource] - amount),
+    }));
+
+    const now = Date.now();
+    const mission: Mission = {
+      id: `mission-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      donorPlanetId,
+      targetPlanetId,
+      paramId,
+      resource,
+      amount,
+      tier,
+      phase: 'dispatching',
+      startedAt: now,
+      phaseStartedAt: now,
+      flightHours,
+      repairCostMinerals,
+    };
+
+    setFleet((prev) => [...prev, mission]);
+    scheduleSyncToServer();
+  }, [scheduleSyncToServer]);
+
+  /**
+   * Cancel a mission by ID. Refunds 50% of resource if still in `dispatching`,
+   * otherwise no refund.
+   */
+  const onCancelMission = useCallback((missionId: string): void => {
+    setFleet((prev) => {
+      const mission = prev.find((m) => m.id === missionId);
+      if (!mission) return prev;
+
+      // Refund 50% if still loading at the donor colony
+      if (mission.phase === 'dispatching') {
+        const refund = Math.floor(mission.amount * 0.5);
+        if (refund > 0) {
+          setColonyResources((cr) => ({
+            ...cr,
+            [mission.resource]: cr[mission.resource] + refund,
+          }));
+        }
+      }
+
+      return prev.filter((m) => m.id !== missionId);
+    });
+    scheduleSyncToServer();
+  }, [scheduleSyncToServer]);
+
+  /**
+   * Returns all planets that have a colony_hub building (potential donors).
+   * Phase 1: reads hex_slots from localStorage for the current surface planet,
+   * plus any planet stored in colonyPlanetRef.  Multi-colony full support is Phase 2+.
+   */
+  const getColonyPlanets = useCallback((): Planet[] => {
+    const planets: Planet[] = [];
+    const seen = new Set<string>();
+
+    // Check the current surface planet for colony_hub
+    const surfCtx = surfaceTargetRef.current ?? colonyPlanetRef.current;
+    if (surfCtx?.planet) {
+      try {
+        const raw = localStorage.getItem('nebulife_hex_slots');
+        if (raw) {
+          const slots = JSON.parse(raw) as Array<{ state: string; buildingType?: string }>;
+          const hasHub = slots.some(
+            (s) => s.state === 'building' && s.buildingType === 'colony_hub',
+          );
+          if (hasHub && !seen.has(surfCtx.planet.id)) {
+            planets.push(surfCtx.planet);
+            seen.add(surfCtx.planet.id);
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Also include homeInfo planet if it's a colony (exodus phase complete)
+    if (!isExodusPhase && homeInfo?.planet && !seen.has(homeInfo.planet.id)) {
+      planets.push(homeInfo.planet);
+      seen.add(homeInfo.planet.id);
+    }
+
+    return planets;
+  }, [isExodusPhase, homeInfo]);
+
+  /** Open TerraformPanel for a planet (called from PlanetContextMenu). */
+  const onShowTerraform = useCallback((planet: Planet): void => {
+    setState((prev) => ({ ...prev, showPlanetMenu: false }));
+    setShowTerraformPlanet(planet);
+  }, []);
+
   const [arenaStats, setArenaStats] = useState<{
     kills: number;
     asteroidKills: number;
@@ -1674,6 +1942,9 @@ function AppInner() {
       'nebulife_chat_last_read_global',
       'nebulife_chat_last_read_system',
       'nebulife_last_digest_seen',
+      // Terraforming
+      'nebulife_terraform_states',
+      'nebulife_fleet',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
     // Also remove all quiz answer keys
@@ -1704,6 +1975,8 @@ function AppInner() {
     setLogEntries([]);
     setFavoritePlanets(new Set());
     setTutorialStep(0);
+    setTerraformStates({});
+    setFleet([]);
 
     // 3. Save new generation_index AFTER clearing — GameEngine will use it on reload
     localStorage.setItem('nebulife_generation_index', String(newGenerationIndex));
@@ -2089,6 +2362,47 @@ function AppInner() {
       engineRef.current?.updateHomeSystem(finalHomeSystemId, finalHomePlanetId);
       // Store for post-engine-init resolution (in case engine not ready yet)
       pendingHomeRef.current = { systemId: finalHomeSystemId, planetId: finalHomePlanetId };
+    }
+
+    // Terraform states — merge: take Math.max(local.progress, server.progress) per param
+    if (gs.terraform_states && typeof gs.terraform_states === 'object') {
+      const serverTf = gs.terraform_states as Record<string, PlanetTerraformState>;
+      setTerraformStates((localTf) => {
+        const merged: Record<string, PlanetTerraformState> = { ...localTf };
+        for (const [planetId, serverState] of Object.entries(serverTf)) {
+          const localState = localTf[planetId];
+          if (!localState) {
+            merged[planetId] = serverState;
+          } else {
+            // Per-param max merge
+            const params = { ...localState.params };
+            for (const key of Object.keys(serverState.params) as Array<keyof typeof serverState.params>) {
+              params[key] = {
+                progress: Math.max(localState.params[key]?.progress ?? 0, serverState.params[key]?.progress ?? 0),
+                lastDeliveryAt: Math.max(
+                  localState.params[key]?.lastDeliveryAt ?? 0,
+                  serverState.params[key]?.lastDeliveryAt ?? 0,
+                ) || null,
+              };
+            }
+            merged[planetId] = {
+              ...localState,
+              params,
+              completedAt: localState.completedAt ?? serverState.completedAt,
+            };
+          }
+        }
+        return merged;
+      });
+    }
+
+    // Fleet — restore in-flight missions from server (do not overwrite local if local has more)
+    if (Array.isArray(gs.fleet) && (gs.fleet as Mission[]).length > 0) {
+      const serverFleet = gs.fleet as Mission[];
+      setFleet((localFleet) => {
+        if (localFleet.length >= serverFleet.length) return localFleet;
+        return serverFleet;
+      });
     }
 
     // Player meta (notification prefs, language, digest seen)
@@ -4347,6 +4661,11 @@ function AppInner() {
       // Home planet (backup; direct DB columns home_system_id/home_planet_id are authoritative)
       home_system_id: localStorage.getItem('nebulife_home_system_id') ?? '',
       home_planet_id: localStorage.getItem('nebulife_home_planet_id') ?? '',
+      // Terraforming — only persist planets with active progress to save space
+      terraform_states: Object.fromEntries(
+        Object.entries(terraformStates).filter(([, s]) => s.completedAt !== null || getOverallProgress(s) > 0),
+      ),
+      fleet: fleet.filter((m) => m.phase !== 'idle'),
       synced_at: Date.now(),
     };
   };
@@ -4390,7 +4709,7 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -4462,6 +4781,19 @@ function AppInner() {
       if (!isActive) {
         // App went to background — flush any pending debounced sync immediately
         syncNowToServer();
+        // Also pause every running ambient loop. Android WebView keeps
+        // HTMLAudioElement loops playing through the speaker even after the
+        // screen is locked unless we pause them ourselves. SfxPlayer's
+        // visibilitychange listener handles the web flow, but the native
+        // appStateChange callback is the only one that fires reliably when
+        // the user locks the device.
+        void import('./audio/SfxPlayer.js').then(({ pauseAllLoopsForBackground }) => {
+          pauseAllLoopsForBackground?.();
+        }).catch(() => { /* ignore */ });
+      } else {
+        void import('./audio/SfxPlayer.js').then(({ resumeAllLoopsAfterBackground }) => {
+          resumeAllLoopsAfterBackground?.();
+        }).catch(() => { /* ignore */ });
       }
     });
     return () => { handle.then(h => h.remove()).catch(() => {}); };
@@ -5571,6 +5903,8 @@ function AppInner() {
             }
           }}
           canShowAds={isNativePlatform() && canShowAd()}
+          hasGenesisVault={colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false}
+          onShowTerraform={onShowTerraform}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -5579,8 +5913,55 @@ function AppInner() {
           onClose={() => setState((prev) => ({ ...prev, showPlanetInfo: false, selectedPlanet: null }))}
           onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
+          terraformState={terraformStates[state.selectedPlanet.id]}
         />
       )}
+      {/* ── TerraformPanel full-screen overlay ── */}
+      {showTerraformPlanet && (() => {
+        const tfPlanet = showTerraformPlanet;
+        const tfState = terraformStates[tfPlanet.id] ?? getInitialTerraformState(tfPlanet);
+        const hasGenVault = colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false;
+        const donors = getColonyPlanets();
+        // Compute donor distances: find the StarSystem for target and each donor,
+        // then compute distance using systemDistanceLY.
+        const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+        const targetSys = allSystems.find((s) => s.planets.some((p) => p.id === tfPlanet.id));
+        const donorDistMap = new Map<string, number>();
+        if (targetSys) {
+          for (const donor of donors) {
+            const donorSys = allSystems.find((s) => s.planets.some((p) => p.id === donor.id));
+            if (donorSys) {
+              donorDistMap.set(donor.id, systemDistanceLY(targetSys, donorSys));
+            }
+          }
+        }
+        const buildings = colonyState?.buildings ?? [];
+        const tfTier = tierForBuildings(buildings, techTreeStateRef.current.researched);
+        const activeMissionByParam: Partial<Record<TerraformParamId, Mission>> = {};
+        for (const m of fleet) {
+          if (m.targetPlanetId === tfPlanet.id && m.phase !== 'idle') {
+            activeMissionByParam[m.paramId] = m;
+          }
+        }
+        return (
+          <TerraformPanel
+            planet={tfPlanet}
+            terraformState={tfState}
+            hasGenesisVault={hasGenVault}
+            techState={techTreeStateRef.current}
+            donorPlanets={donors}
+            donorDistances={donorDistMap}
+            colonyResources={colonyResources}
+            shipTier={tfTier}
+            activeMissionByParam={activeMissionByParam}
+            onStartParam={(paramId, donorPlanetId, resource, amount, tier, flightHours, repairCostMinerals) => {
+              onStartTerraformParam(tfPlanet.id, paramId, donorPlanetId, resource, amount, tier, flightHours, repairCostMinerals);
+            }}
+            onCancelMission={onCancelMission}
+            onClose={() => setShowTerraformPlanet(null)}
+          />
+        );
+      })()}
       {completedModal && (
         <ResearchCompleteModal
           system={completedModal.system}
@@ -6077,6 +6458,36 @@ function AppInner() {
             setShowCosmicArchive(false);
             if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
           }}
+          colonyPlanetIds={(() => {
+            // Colony planets: home planet + any planet that has a colony_hub
+            // building in colonyState.
+            const ids = new Set<string>();
+            const allSys = engineRef.current?.getAllSystems() ?? [];
+            for (const sys of allSys) {
+              for (const p of sys.planets) {
+                if (p.isHomePlanet) ids.add(p.id);
+              }
+            }
+            if (colonyState?.buildings?.some((b) => b.type === 'colony_hub')) {
+              ids.add(colonyState.planetId);
+            }
+            return ids;
+          })()}
+          colonySystemIds={(() => {
+            const sysIds: string[] = [];
+            const allSys = engineRef.current?.getAllSystems() ?? [];
+            for (const sys of allSys) {
+              for (const p of sys.planets) {
+                if (p.isHomePlanet) { sysIds.push(sys.id); break; }
+              }
+            }
+            if (colonyState?.buildings?.some((b) => b.type === 'colony_hub')) {
+              const colonySys = allSys.find((s) => s.planets.some((p) => p.id === colonyState.planetId));
+              if (colonySys && !sysIds.includes(colonySys.id)) sysIds.push(colonySys.id);
+            }
+            return sysIds;
+          })()}
+          terraformStates={terraformStates}
         />
       )}
 
@@ -6292,6 +6703,23 @@ function AppInner() {
           latestDigestWeekDate={latestDigestWeekDate}
           preferredLanguage={lang}
           forceCollapsed={isTutorialActive || !!ringUnlockAnim}
+        />
+      )}
+
+      {/* Mission Tracker HUD chip — visible when there are terraform missions */}
+      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showHangar && fleet.length > 0 && (
+        <MissionTracker
+          missions={fleet}
+          fleetCapacity={Math.max(1, fleet.length)}
+          getPlanetName={(planetId) => {
+            const engine = engineRef.current;
+            if (!engine) return planetId;
+            for (const sys of engine.getAllSystems()) {
+              const p = sys.planets.find((pl) => pl.id === planetId);
+              if (p) return p.name;
+            }
+            return planetId;
+          }}
         />
       )}
 

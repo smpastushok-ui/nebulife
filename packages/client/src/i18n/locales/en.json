@@ -53,6 +53,9 @@
     "tab_actions": "Actions",
     "tab_resources": "Resources",
     "tab_premium": "Alpha",
+    "tab_terraform": "Terraform",
+    "action_research": "Research",
+    "action_terraform": "Terraforming",
     "resources_label": "Resources",
     "resources_locked_hint": "Detailed analysis available from level 50+",
     "hydrosphere_label": "Hydrosphere",
@@ -1080,7 +1083,19 @@
     "remove_from_favorites": "Remove from Favorites",
     "view_btn": "View",
     "no_favorites": "No favorite planets",
-    "no_favorites_hint": "Click on a planet in the Planets section and select Add to Favorites"
+    "no_favorites_hint": "Click on a planet in the Planets section and select Add to Favorites",
+    "sub_colonies": "Colonies",
+    "filter_terraform": "Terraform",
+    "filter_minerals": "Minerals",
+    "filter_isotopes": "Isotopes",
+    "filter_water": "Water",
+    "filter_life": "Life",
+    "filter_volatiles": "Volatiles",
+    "filter_population": "Population",
+    "distance_ly": "{{ly}} LY",
+    "no_colonies": "No colonies yet",
+    "terraform_progress": "Terraform: {{pct}}%",
+    "go_to_btn": "Go"
   },
   "cinematic": {
     "click_to_skip": "click to skip",
@@ -1402,6 +1417,70 @@
       "time_desc": "Reduces resource harvest cooldown on this colony. Lasts 24 hours.",
       "active_boost": "Active boost: {{sign}}{{pct}}% · ~{{remaining}} h left",
       "disclaimer": "Boost is local — applies to this planet only. Other colonies have their own independent upgrades."
+    }
+  },
+  "terraform": {
+    "dispatch_title": "Deliver {{resource}} to {{planet}}",
+    "donor_label": "Donor colony",
+    "amount_label": "Amount",
+    "available": "available",
+    "distance": "Distance: {{ly}} LY",
+    "eta_oneway": "One-way:",
+    "eta_roundtrip": "Round trip:",
+    "repair_cost": "Repair (minerals):",
+    "ship_tier": "Ship tier:",
+    "btn_dispatch": "Dispatch",
+    "tracker_title": "Active missions",
+    "tracker_chip": "missions",
+    "no_donors": "No available colonies",
+    "no_missions": "No active missions",
+    "coverage_pct": "Covers {{pct}}% of requirement",
+    "requirement": "required: {{amount}}",
+    "phase": {
+      "dispatching": "Loading",
+      "outbound": "Outbound",
+      "unloading": "Unloading",
+      "returning": "Returning",
+      "repairing": "Repairing",
+      "idle": "Idle"
+    },
+    "param": {
+      "magneticField": "Mag. field",
+      "atmosphere": "Atmosphere",
+      "ozone": "Ozone",
+      "temperature": "Temperature",
+      "pressure": "Pressure",
+      "water": "Water"
+    },
+    "param_full": {
+      "magneticField": "Magnetic field",
+      "atmosphere": "Atmosphere",
+      "ozone": "Ozone layer",
+      "temperature": "Temperature",
+      "pressure": "Pressure",
+      "water": "Water"
+    },
+    "resource": {
+      "minerals": "minerals",
+      "volatiles": "volatiles",
+      "isotopes": "isotopes",
+      "water": "water"
+    },
+    "panel_title": "Terraforming — {{planet}}",
+    "overall_progress": "Overall progress",
+    "target_label": "Target: 95%",
+    "action_deliver": "Deliver",
+    "action_stabilize": "Stabilize",
+    "action_activate": "Activate",
+    "cancel_mission": "Cancel",
+    "no_donors_msg": "No colonies with ships",
+    "mission_eta": "ETA",
+    "reason": {
+      "genesis_vault_required": "Requires Genesis Vault",
+      "tech_required": "Requires tech {{tech}}",
+      "requires_magnetic_and_atmosphere_50": "Requires magnetic field & atmosphere ≥50%",
+      "requires_atmosphere_50": "Requires atmosphere ≥50%",
+      "planet_not_terraformable": "Planet cannot be terraformed"
     }
   }
 }

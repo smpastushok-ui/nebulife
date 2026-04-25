@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet, Star, ResourceGroup } from '@nebulife/core';
-import { ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
+import { ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg, isTerraformable } from '@nebulife/core';
 
 /** i18n key for each resource group label */
 const GROUP_T_KEY: Record<ResourceGroup, string> = {
@@ -35,7 +35,7 @@ function QuarkIcon() {
 const MENU_WIDTH = 250;
 const MENU_HEIGHT_APPROX = 340;
 
-type TabId = 'actions' | 'resources' | 'premium';
+type TabId = 'actions' | 'resources' | 'premium' | 'terraform';
 
 /* ────────── Shared styles ────────── */
 
@@ -235,12 +235,21 @@ function PlanetGlobe({ planet, star }: { planet: Planet; star: Star }) {
 
 /* ────────── Tab bar ────────── */
 
-function TabBar({ activeTab, onChange }: { activeTab: TabId; onChange: (t: TabId) => void }) {
+function TabBar({
+  activeTab,
+  onChange,
+  showTerraformTab,
+}: {
+  activeTab: TabId;
+  onChange: (t: TabId) => void;
+  showTerraformTab: boolean;
+}) {
   const { t } = useTranslation();
   const tabs: { id: TabId; label: string; color?: string }[] = [
     { id: 'actions', label: t('planet.tab_actions') },
     { id: 'resources', label: t('planet.tab_resources') },
     { id: 'premium', label: `\u29B3 ${t('planet.tab_premium')}`, color: '#886622' },
+    ...(showTerraformTab ? [{ id: 'terraform' as TabId, label: t('planet.tab_terraform'), color: '#446644' }] : []),
   ];
 
   return (
@@ -250,6 +259,13 @@ function TabBar({ activeTab, onChange }: { activeTab: TabId; onChange: (t: TabId
     }}>
       {tabs.map((tab, i) => {
         const isActive = tab.id === activeTab;
+        const activeColor = tab.color ? '#88cc88' : '#7bb8ff';
+        const activeBg = tab.color
+          ? (tab.id === 'terraform' ? 'rgba(20,40,20,0.3)' : 'rgba(40,28,8,0.3)')
+          : 'rgba(40,70,110,0.2)';
+        const activeBorder = tab.color
+          ? (tab.id === 'terraform' ? '#88cc88' : '#ddaa44')
+          : '#7bb8ff';
         return (
           <button
             key={tab.id}
@@ -261,10 +277,10 @@ function TabBar({ activeTab, onChange }: { activeTab: TabId; onChange: (t: TabId
               fontFamily: 'monospace',
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
-              color: isActive ? (tab.color ? '#ddaa44' : '#7bb8ff') : (tab.color ?? '#556677'),
-              background: isActive ? (tab.color ? 'rgba(40,28,8,0.3)' : 'rgba(40,70,110,0.2)') : 'none',
+              color: isActive ? activeColor : (tab.color ? (tab.id === 'terraform' ? '#448844' : '#886622') : '#556677'),
+              background: isActive ? activeBg : 'none',
               border: 'none',
-              borderBottom: isActive ? `2px solid ${tab.color ? '#ddaa44' : '#7bb8ff'}` : '2px solid transparent',
+              borderBottom: isActive ? `2px solid ${activeBorder}` : '2px solid transparent',
               borderRight: i < tabs.length - 1 ? '1px solid rgba(50,65,85,0.4)' : 'none',
               cursor: 'pointer',
               transition: 'color 0.12s, background 0.12s',
@@ -473,6 +489,8 @@ export function PlanetContextMenu({
   onViewPlanetPhoto,
   playerLevel,
   canShowAds,
+  hasGenesisVault,
+  onShowTerraform,
 }: {
   planet: Planet;
   star: Star;
@@ -491,10 +509,15 @@ export function PlanetContextMenu({
   onViewPlanetPhoto?: () => void;
   playerLevel: number;
   canShowAds?: boolean;
+  /** Whether the player has a Genesis Vault built (enables terraform) */
+  hasGenesisVault?: boolean;
+  /** Called when the player clicks Terraforming — opens full-screen panel */
+  onShowTerraform?: (planet: Planet) => void;
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('actions');
   const [expandedGroup, setExpandedGroup] = useState<ResourceGroup | null>(null);
+  const [researchGroupExpanded, setResearchGroupExpanded] = useState(false);
   // Delay backdrop activation to prevent the touch "click" event (fired after
   // the pointerdown that opened the menu) from immediately closing it on mobile.
   const [backdropActive, setBackdropActive] = useState(false);
@@ -504,6 +527,7 @@ export function PlanetContextMenu({
   }, []);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
+  const showTerraformTab = isTerraformable(planet) && Boolean(hasGenesisVault);
 
   // Destroyed planets — minimal UI
   if (isDestroyed) {
@@ -562,7 +586,7 @@ export function PlanetContextMenu({
         {isSurfacePlanet && <PlanetGlobe planet={planet} star={star} />}
 
         {/* ── Tab bar ── */}
-        <TabBar activeTab={activeTab} onChange={setActiveTab} />
+        <TabBar activeTab={activeTab} onChange={setActiveTab} showTerraformTab={showTerraformTab} />
 
         {/* ── Tab content ── */}
         <div style={{ padding: '4px 0', minHeight: 80 }}>
@@ -574,23 +598,96 @@ export function PlanetContextMenu({
                   ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
                   : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={onSurface} color="#88ccaa" />
               )}
+
+              {/* ── Research collapsible group ── */}
               <div style={{ height: 1, background: 'rgba(50,65,85,0.4)', margin: '4px 0' }} />
-              <MenuItem icon="☰" label={t('planet.characteristics')} onClick={onShowCharacteristics} right="›" />
-              {playerLevel < 30 ? (
-                <MenuItem icon="⊙" label={t('planet.send_probe')} disabled title={t('planet.available_from_level', { level: 30, current: playerLevel })} right="30+" />
-              ) : (
-                <MenuItem icon="⊙" label={t('planet.send_probe')} disabled right={t('planet.coming_soon')} />
+              <button
+                style={{
+                  ...itemStyle,
+                  background: researchGroupExpanded ? itemHoverBg : 'none',
+                  color: '#8899aa',
+                }}
+                onClick={() => setResearchGroupExpanded((v) => !v)}
+              >
+                <span style={{ width: 14, textAlign: 'center', opacity: 0.6, flexShrink: 0 }}>+</span>
+                {t('planet.action_research')}
+                <span style={{ marginLeft: 'auto', fontSize: 9, color: '#556677' }}>
+                  {researchGroupExpanded ? 'v' : '>'}
+                </span>
+              </button>
+              {researchGroupExpanded && (
+                <div style={{ paddingLeft: 16 }}>
+                  <MenuItem
+                    icon="☰"
+                    label={t('planet.characteristics')}
+                    onClick={onShowCharacteristics}
+                    right="›"
+                  />
+                  {playerLevel < 30 ? (
+                    <MenuItem icon="⊙" label={t('planet.send_probe')} disabled title={t('planet.available_from_level', { level: 30, current: playerLevel })} right="30+" />
+                  ) : (
+                    <MenuItem icon="⊙" label={t('planet.send_probe')} disabled right={t('planet.coming_soon')} />
+                  )}
+                  {playerLevel < 40 ? (
+                    <MenuItem icon="▶" label={t('planet.mission')} disabled title={t('planet.available_from_level', { level: 40, current: playerLevel })} right="40+" />
+                  ) : (
+                    <MenuItem icon="▶" label={t('planet.mission')} disabled right={t('planet.coming_soon')} />
+                  )}
+                </div>
               )}
-              {playerLevel < 40 ? (
-                <MenuItem icon="▶" label={t('planet.mission')} disabled title={t('planet.available_from_level', { level: 40, current: playerLevel })} right="40+" />
-              ) : (
-                <MenuItem icon="▶" label={t('planet.mission')} disabled right={t('planet.coming_soon')} />
+
+              {/* ── Terraforming action (conditional) ── */}
+              {isTerraformable(planet) && (
+                <>
+                  <div style={{ height: 1, background: 'rgba(50,65,85,0.4)', margin: '4px 0' }} />
+                  {hasGenesisVault && onShowTerraform ? (
+                    <MenuItem
+                      icon="*"
+                      label={t('planet.action_terraform')}
+                      onClick={() => { onShowTerraform(planet); onClose(); }}
+                      color="#88cc88"
+                    />
+                  ) : (
+                    <MenuItem
+                      icon="*"
+                      label={t('planet.action_terraform')}
+                      disabled
+                      title={t('terraform.reason.genesis_vault_required')}
+                      right={t('terraform.reason.genesis_vault_required')}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
 
           {activeTab === 'resources' && (
             <ResourcesTab planet={planet} playerLevel={playerLevel} expandedGroup={expandedGroup} setExpandedGroup={setExpandedGroup} />
+          )}
+
+          {activeTab === 'terraform' && showTerraformTab && onShowTerraform && (
+            <div style={{ padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, color: '#8899aa', marginBottom: 8 }}>
+                {t('planet.action_terraform')}
+              </div>
+              <button
+                style={{
+                  width: '100%',
+                  padding: '9px 14px',
+                  background: 'rgba(20,40,20,0.6)',
+                  border: '1px solid #446644',
+                  borderRadius: 4,
+                  color: '#88cc88',
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  textAlign: 'left' as const,
+                }}
+                onClick={() => { onShowTerraform(planet); onClose(); }}
+              >
+                {t('planet.action_terraform')} &rarr;
+              </button>
+            </div>
           )}
 
           {activeTab === 'premium' && (

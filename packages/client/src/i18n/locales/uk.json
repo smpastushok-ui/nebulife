@@ -53,6 +53,9 @@
     "tab_actions": "Дії",
     "tab_resources": "Ресурси",
     "tab_premium": "Альфа",
+    "tab_terraform": "Терраформ",
+    "action_research": "Дослідження",
+    "action_terraform": "Терраформування",
     "resources_label": "Ресурси",
     "resources_locked_hint": "Детальний аналіз доступний з 50+ рівня",
     "hydrosphere_label": "Гідросфера",
@@ -1081,7 +1084,19 @@
     "remove_from_favorites": "Видалити з обраних",
     "view_btn": "Переглянути",
     "no_favorites": "Немає обраних планет",
-    "no_favorites_hint": "Клікніть на планету в розділі \"Планети\" та оберіть \"В обрані\""
+    "no_favorites_hint": "Клікніть на планету в розділі \"Планети\" та оберіть \"В обрані\"",
+    "sub_colonies": "Колонії",
+    "filter_terraform": "Терраформ",
+    "filter_minerals": "Мінерали",
+    "filter_isotopes": "Ізотопи",
+    "filter_water": "Вода",
+    "filter_life": "Життя",
+    "filter_volatiles": "Леткі",
+    "filter_population": "Населення",
+    "distance_ly": "{{ly}} с.р.",
+    "no_colonies": "Колоній ще немає",
+    "terraform_progress": "Терраформ: {{pct}}%",
+    "go_to_btn": "Перейти"
   },
   "cinematic": {
     "click_to_skip": "натиснiть щоб пропустити",
@@ -1403,6 +1418,70 @@
       "time_desc": "Зменшує кулдаун збору ресурсiв цiєї колонiї. Дiє на 24 години.",
       "active_boost": "Активний буст: {{sign}}{{pct}}% · залишилось ~{{remaining}} год",
       "disclaimer": "Буст локальний — дiє тiльки на цiй планетi. Iншi колонiї мають свої окремi апгрейди."
+    }
+  },
+  "terraform": {
+    "dispatch_title": "Доставити {{resource}} на {{planet}}",
+    "donor_label": "Колонія-донор",
+    "amount_label": "Кількість",
+    "available": "доступно",
+    "distance": "Відстань: {{ly}} с.р.",
+    "eta_oneway": "Політ туди:",
+    "eta_roundtrip": "Повний цикл:",
+    "repair_cost": "Ремонт (мінерали):",
+    "ship_tier": "Клас корабля:",
+    "btn_dispatch": "Відправити",
+    "tracker_title": "Активні місії",
+    "tracker_chip": "місії",
+    "no_donors": "Немає доступних колоній",
+    "no_missions": "Немає активних місій",
+    "coverage_pct": "Покриває {{pct}}% вимоги",
+    "requirement": "вимога: {{amount}}",
+    "phase": {
+      "dispatching": "Завантаження",
+      "outbound": "Летить до цілі",
+      "unloading": "Розвантаження",
+      "returning": "Повертається",
+      "repairing": "Ремонт",
+      "idle": "Очікує"
+    },
+    "param": {
+      "magneticField": "Магн. поле",
+      "atmosphere": "Атмосфера",
+      "ozone": "Озон",
+      "temperature": "Температура",
+      "pressure": "Тиск",
+      "water": "Вода"
+    },
+    "param_full": {
+      "magneticField": "Магнітне поле",
+      "atmosphere": "Атмосфера",
+      "ozone": "Озоновий шар",
+      "temperature": "Температура",
+      "pressure": "Тиск",
+      "water": "Вода"
+    },
+    "resource": {
+      "minerals": "мінерали",
+      "volatiles": "летючі",
+      "isotopes": "ізотопи",
+      "water": "вода"
+    },
+    "panel_title": "Терраформування — {{planet}}",
+    "overall_progress": "Загальний прогрес",
+    "target_label": "Ціль: 95%",
+    "action_deliver": "Доставити",
+    "action_stabilize": "Стабілізувати",
+    "action_activate": "Активувати",
+    "cancel_mission": "Скасувати",
+    "no_donors_msg": "Немає колонізованих планет з кораблями",
+    "mission_eta": "ETA",
+    "reason": {
+      "genesis_vault_required": "Потребує Ковчег Генезису",
+      "tech_required": "Потребує технологію {{tech}}",
+      "requires_magnetic_and_atmosphere_50": "Потребує магн. поле та атмосферу ≥50%",
+      "requires_atmosphere_50": "Потребує атмосферу ≥50%",
+      "planet_not_terraformable": "Планета не підлягає терраформуванню"
     }
   }
 }

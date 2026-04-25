@@ -40,3 +40,12 @@ export type {
   DailyEducationPackage, ActiveQuest,
   CategoryProgressEntry, AcademyProgress,
 } from './education.js';
+export type {
+  TerraformParamId,
+  TerraformParamState,
+  PlanetTerraformState,
+  ShipTier,
+  MissionPhase,
+  Mission,
+  ResourceCost,
+} from './terraform.js';

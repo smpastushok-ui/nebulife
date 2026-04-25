@@ -240,8 +240,10 @@ export class GameEngine {
     this.app.stage.addChild(this.galaxyScene.container);
     this.activeScene = this.galaxyScene.container;
 
-    // Force resize to fix stale viewport dimensions after overlay transitions
-    this.app.resize();
+    // Force resize to fix stale viewport dimensions after overlay transitions.
+    // PixiJS v8 removed Application.resize() — call renderer.resize() with the
+    // current window size instead. Optional-chaining keeps tests safe.
+    this.app.renderer?.resize?.(window.innerWidth, window.innerHeight);
 
     // Pass screen size to GalaxyScene so viewport culling for lite-orbs works
     this.galaxyScene.setScreenSize(this.app.screen.width, this.app.screen.height);
@@ -274,8 +276,10 @@ export class GameEngine {
   showSystemScene(system: StarSystem) {
     this.clearScenes();
 
-    // Force resize to fix stale viewport dimensions after overlay transitions
-    this.app.resize();
+    // Force resize to fix stale viewport dimensions after overlay transitions.
+    // PixiJS v8 removed Application.resize() — call renderer.resize() with the
+    // current window size instead. Optional-chaining keeps tests safe.
+    this.app.renderer?.resize?.(window.innerWidth, window.innerHeight);
 
     // Check localStorage for destroyed planets in this system
     let destroyedIds: Set<string> | undefined;

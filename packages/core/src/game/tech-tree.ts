@@ -41,7 +41,10 @@ export type TechEffectType =
   | 'regrowth_speed_mult'
   | 'terraforming_speed_mult'
   | 'drone_production_unlock'
-  | 'ship_production_unlock';
+  | 'ship_production_unlock'
+  // Terraforming unlock flags
+  | 'terraform_magnetic_unlock'   // phy-magnetics: enables magnetic field param
+  | 'ship_tier_3_unlock';         // phy-warp-1: enables tier-3 transport ships
 
 export interface TechEffect {
   type: TechEffectType;
@@ -398,6 +401,14 @@ export const PHYSICS_NODES: TechNode[] = [
     iconSymbol: '\u2668', // ♨
   },
   {
+    id: 'phy-magnetics', branch: 'physics',
+    name: 'Магнітна індукція',
+    description: 'Дозволяє терраформування магнітного поля планети.',
+    levelRequired: 22, prerequisiteId: 'phy-thermo-1', epoch: 2, xpReward: 45,
+    effects: [{ type: 'terraform_magnetic_unlock', value: 1 }],
+    iconSymbol: '\u2B21', // ⬡ (hexagon — magnetic coil shape)
+  },
+  {
     id: 'phy-em-field', branch: 'physics',
     name: 'Електромагнітне поле',
     description: 'Розблоковує Радарну вежу. +1 дальність сканування.',
@@ -472,6 +483,14 @@ export const PHYSICS_NODES: TechNode[] = [
       { type: 'energy_output_mult', value: 1.25 },
     ],
     iconSymbol: '\u2622', // ☢
+  },
+  {
+    id: 'phy-warp-1', branch: 'physics',
+    name: 'Варп-двигун I',
+    description: 'Розблоковує транспортний корабель 3-го класу для терраформування.',
+    levelRequired: 42, prerequisiteId: 'phy-fusion', epoch: 3, xpReward: 85,
+    effects: [{ type: 'ship_tier_3_unlock', value: 1 }],
+    iconSymbol: '\u226B', // ≫ (warp-speed chevrons)
   },
   {
     id: 'phy-warp-theory', branch: 'physics',

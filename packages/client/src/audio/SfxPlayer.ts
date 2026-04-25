@@ -114,3 +114,65 @@ export function stopAllLoops(): void {
   }
   loops.clear();
 }
+
+// ── Auto-pause on tab/app background ────────────────────────────────────────
+//
+// Mobile users reported background loops continuing to play after the screen
+// is locked or the app is sent to the background. The browser does pause the
+// AudioContext on its own most of the time, but HTMLAudioElement-based loops
+// keep firing on Android WebView and on iOS PWAs. We bind a `visibilitychange`
+// (and `pagehide`/`pageshow`) listener once at module load and pause every
+// running loop when the document goes hidden, then resume the same loops on
+// return. We track which loops were *running* before pause so we don't
+// accidentally re-start a loop the game already stopped while hidden.
+
+const pausedByVisibility = new Set<string>();
+
+/** Pause every running loop and remember which ones were active. Idempotent.
+ *  Exported so the Capacitor `appStateChange` listener (App.tsx) can trigger
+ *  the same path when the OS locks the device on Android/iOS. */
+export function pauseAllLoopsForBackground() {
+  for (const [name, audio] of loops) {
+    if (!audio.paused) {
+      try { audio.pause(); } catch { /* ignore */ }
+      pausedByVisibility.add(name);
+    }
+  }
+}
+
+/** Resume the loops that were running before the last pause. Loops that the
+ *  game stopped while hidden (e.g. via `stopLoop`) are skipped automatically. */
+export function resumeAllLoopsAfterBackground() {
+  for (const name of pausedByVisibility) {
+    const audio = loops.get(name);
+    if (audio && audio.src) {
+      // Browsers often unlock playback after a user interaction; if play()
+      // rejects we just let it stay paused — the next user click will
+      // re-trigger any autoplay-locked element.
+      void audio.play().catch(() => { /* ignore */ });
+    }
+  }
+  pausedByVisibility.clear();
+}
+
+// Bind once per page — HMR re-imports the module on every save, but stale
+// listeners from a previous version would still fire and reference deleted
+// helpers (Vite leaves them attached). The flag on `window` survives module
+// reloads and prevents accumulation in dev.
+if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+  const w = window as unknown as { __nebulifeAudioBgBound?: boolean };
+  if (!w.__nebulifeAudioBgBound) {
+    w.__nebulifeAudioBgBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        pauseAllLoopsForBackground();
+      } else if (document.visibilityState === 'visible') {
+        resumeAllLoopsAfterBackground();
+      }
+    });
+    // Safari/iOS sometimes fires pagehide without visibilitychange when the
+    // user swipes the app into the background. Treat both as the same event.
+    window.addEventListener('pagehide', () => pauseAllLoopsForBackground());
+    window.addEventListener('pageshow', () => resumeAllLoopsAfterBackground());
+  }
+}
