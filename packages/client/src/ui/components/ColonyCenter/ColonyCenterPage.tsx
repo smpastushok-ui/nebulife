@@ -756,7 +756,7 @@ function BoostSection({
                 {kind === 'time' ? '−' : '+'}{pctStr}%
               </div>
               <div style={{ fontSize: 10, color: canAfford ? '#aabbcc' : '#445566', marginTop: 4 }}>
-                {price} 💎
+                {price} ⚛
               </div>
             </button>
           );
@@ -789,7 +789,7 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9400,
+        zIndex: 9700, // Above ResourceWidget (9500) and other surface HUDs
         background: '#020510',
         fontFamily: 'monospace',
         color: '#aabbcc',
@@ -797,13 +797,17 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
         flexDirection: 'column',
       }}
     >
-      {/* Header */}
+      {/* Header — pushed below the global Resource HUD strip (which sits at
+          top:0 with its own padding). 70px clears that strip on phones; the
+          safe-area inset handles notch/Dynamic-Island devices on top of that.
+          This pattern should be reused for every other building's inspect
+          page so we don't keep re-fixing the same overlap. */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         gap: 10,
         padding: '14px 16px',
-        paddingTop: 'calc(14px + env(safe-area-inset-top, 0px))',
+        paddingTop: 'calc(70px + env(safe-area-inset-top, 0px))',
         borderBottom: '1px solid #1a2a3a',
         flexShrink: 0,
       }}>
@@ -840,7 +844,7 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
           fontSize: 11,
           color: '#7bb8ff',
         }}>
-          💎 {props.quarks}
+          ⚛ {props.quarks}
         </div>
       </div>
 

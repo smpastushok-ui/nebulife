@@ -107,6 +107,48 @@ cd packages/client/android
 - НЕ пушити автоматично після кожного коміту
 - Пушити ТІЛЬКИ коли Сергій скаже "пуш" / "push" / "запуш"
 
+### 3.6 iOS build pipeline (Capacitor 8 SPM)
+
+**Mandatory sequence** (web → sync → archive):
+```bash
+cd /Users/sergijpastusok/Documents/projects/nebulife
+(cd packages/core && npm run build)
+(cd packages/client && npm run build && npx cap sync ios)
+```
+
+Потім Xcode → **Any iOS Device (arm64)** → **Product → Archive** → Organizer → Distribute → App Store Connect → Upload.
+
+**НЕ використовувати** `pod install` — Capacitor 8 перейшов на SPM (Swift Package Manager), CocoaPods не потрібен. Workspace `.xcworkspace` відсутній, відкривати `packages/client/ios/App/App.xcodeproj`.
+
+#### ⚠️ MANDATORY apple-sign-in PATCH (НЕ ПРОПУСКАТИ)
+
+**Проблема:** `@capacitor-community/apple-sign-in@7.1.0` (остання доступна версія) жорстко вимагає `capacitor-swift-pm 7.x`, тоді як решта плагінів (RevenueCat, Capacitor core 8.3) — `8.x`. Без патча Xcode падає з:
+> `Missing package product 'CapApp-SPM'` / `Missing package product 'FirebaseAuth'` / `Package resolution failed: apple-sign-in depends on capacitor-swift-pm 7.0.0..<8.0.0, purchases-capacitor-ui depends on 8.0.0..<9.0.0`
+
+**Fix після КОЖНОГО `npm install` / `npm ci`** (поки не вийде `apple-sign-in@8.x`):
+
+1. Відкрити `node_modules/@capacitor-community/apple-sign-in/Package.swift`
+2. Знайти рядок:
+   ```swift
+   .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "7.0.0")
+   ```
+3. Замінити на:
+   ```swift
+   .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", "7.0.0"..<"9.0.0")
+   ```
+4. В Xcode: **File → Packages → Reset Package Caches** (або з CLI: `rm -rf ~/Library/Caches/org.swift.swiftpm && xcodebuild -resolvePackageDependencies -project packages/client/ios/App/App.xcodeproj -scheme App`)
+
+**Перевіряти перед кожним iOS Archive.** Якщо забув — Archive впаде на резолюції пакетів.
+
+**Довгострокове рішення (TODO):** додати `patch-package`:
+```bash
+npm install --save-dev patch-package
+npx patch-package @capacitor-community/apple-sign-in
+# створиться patches/@capacitor-community+apple-sign-in+7.1.0.patch
+# + додати `"postinstall": "patch-package"` в package.json scripts
+```
+Тоді патч автоматично накладається після кожного `npm install`. Чекати на upstream 8.x теж варіант (Apple Sign In plugin простий, зазвичай швидко адаптується).
+
 ---
 
 ## 4. MONETIZATION PLAN

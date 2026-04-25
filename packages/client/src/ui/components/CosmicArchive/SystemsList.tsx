@@ -307,8 +307,13 @@ export function SystemsList({
         const ringLabel = group.ringIndex === 0
           ? t('archive.home_system')
           : t('archive.ring_label', { ring: group.ringIndex });
-        const isCollapsed = collapsedRings.has(group.ringIndex);
-        const canCollapse = group.ringIndex >= 2;
+        // Rings 2+ are auto-collapsed AND user-toggleable only after the
+        // previous ring is fully researched. While locked the header is
+        // non-clickable and content stays hidden — prevents tester
+        // confusion about deep-core systems before personal exploration.
+        const forceCollapsed = group.ringIndex >= 2 && locked;
+        const isCollapsed = forceCollapsed || collapsedRings.has(group.ringIndex);
+        const canCollapse = group.ringIndex >= 2 && !locked;
 
         return (
           <React.Fragment key={`ring-${group.ringIndex}`}>
@@ -475,7 +480,7 @@ export function SystemsList({
                               letterSpacing: 0.5,
                             }}
                           >
-                            {quarkUnlockCost} 💎
+                            {quarkUnlockCost} ⚛
                           </button>
                         ) : (
                           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#445566" strokeWidth="1.2" strokeLinecap="round">

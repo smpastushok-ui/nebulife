@@ -1061,7 +1061,7 @@
     "home_system": "Home System",
     "ring_label": "Ring {{ring}}",
     "ring_locked_hint": "research all systems in the previous ring",
-    "unlock_via_quarks_tooltip": "Unlock this system for {{cost}} 💎",
+    "unlock_via_quarks_tooltip": "Unlock this system for {{cost}} ⚛",
     "researched_btn": "Researched",
     "researching_btn": "Researching",
     "research_btn": "Research",
@@ -1327,7 +1327,7 @@
       "title": "UNLOCK SLOT WITH QUARKS",
       "body": "Short on resources? You can instantly unlock this slot for 10 quarks.",
       "cancel": "Cancel",
-      "confirm": "10 💎 UNLOCK"
+      "confirm": "10 ⚛ UNLOCK"
     },
     "hint_5slots": {
       "badge": "HINT",

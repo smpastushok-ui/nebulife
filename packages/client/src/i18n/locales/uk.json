@@ -1062,7 +1062,7 @@
     "ring_neighbors_far": "2-ге коло гравців",
     "ring_sector_core": "Центр зоряного сектору",
     "ring_locked_hint": "досліджіть усі системи попереднього кільця",
-    "unlock_via_quarks_tooltip": "Розблокувати цю систему за {{cost}} 💎",
+    "unlock_via_quarks_tooltip": "Розблокувати цю систему за {{cost}} ⚛",
     "researched_btn": "Досліджено",
     "researching_btn": "Досліджується",
     "research_btn": "Дослідити",
@@ -1328,7 +1328,7 @@
       "title": "ВIДКРИТИ СЛОТ ЗА КВАРКИ",
       "body": "Не вистачає ресурсiв? Можна миттєво вiдкрити цей слот за 10 кваркiв.",
       "cancel": "Скасувати",
-      "confirm": "10 💎 ВIДКРИТИ"
+      "confirm": "10 ⚛ ВIДКРИТИ"
     },
     "hint_5slots": {
       "badge": "ПIДКАЗКА",
