@@ -4882,7 +4882,13 @@ function AppInner() {
   // Also hide during cinematic intro / onboarding — otherwise the old
   // player's zoom/nav controls leak through the intro overlay (reported
   // as "UI залишилось після sign-out").
-  const hideLeftPanel = !!(showArena || showHangar || cinematicActive || needsOnboarding);
+  //
+  // Also hide while evacuation cutscenes / ship flights are in progress —
+  // the back-button + zoom panel reads as a "blue square with a ship icon"
+  // floating in the corner during the planet-approach phase, breaking the
+  // cinematic. Stage 1 (system flight) intentionally hides it too so both
+  // ship-flight stages have the same chrome-free background.
+  const hideLeftPanel = !!(showArena || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
 
   const toolGroups: ToolGroup[] = [];
 
@@ -6058,6 +6064,19 @@ function AppInner() {
               return next;
             });
           }}
+          instantResearchCost={30}
+          onInstantResearch={(sysId) => {
+            const COST = 30;
+            if (quarks < COST) return;
+            const sys = (engineRef.current?.getAllSystems() ?? []).find(s => s.id === sysId);
+            if (!sys) return;
+            setQuarks((q) => Math.max(0, q - COST));
+            setResearchState((prev) => completeSystemResearchInstantly(prev, sys));
+          }}
+          onOpenTopUp={() => {
+            setShowCosmicArchive(false);
+            if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
+          }}
         />
       )}
 
@@ -6278,11 +6297,46 @@ function AppInner() {
 
       {/* Colony Center — management hub opened via colony_hub inspect. */}
       {showColonyCenter && surfaceTarget && (() => {
+        // Read fresh hex_slots from localStorage so newly-placed structures
+        // and resource hexes are reflected immediately. colonyState is
+        // only rebuilt on planet change, so without this the Buildings tab
+        // showed "0 / 1" for a colony_hub that was already on the surface.
+        type RawSlot = {
+          id: string;
+          ring: number;
+          index: number;
+          state: string;
+          buildingType?: string;
+          buildingLevel?: number;
+          resourceType?: 'ore' | 'tree' | 'vent' | 'water';
+          yieldPerHour?: number;
+        };
+        let hexSlots: RawSlot[] = [];
+        try {
+          const raw = localStorage.getItem('nebulife_hex_slots');
+          if (raw) hexSlots = JSON.parse(raw) as RawSlot[];
+        } catch { /* ignore */ }
+
+        const liveBuildings: PlacedBuilding[] = hexSlots
+          .filter((s) => s.state === 'building' && s.buildingType)
+          .map((s) => ({
+            id: s.id,
+            type: s.buildingType as BuildingType,
+            x: s.index,
+            y: s.ring,
+            level: s.buildingLevel ?? 1,
+            builtAt: new Date().toISOString(),
+          }));
+
+        // Use the freshly-derived list when present; otherwise fall back to
+        // whatever colonyState had (e.g. before any hex_slots were saved).
+        const buildingsForUi = liveBuildings.length > 0 ? liveBuildings : (colonyState?.buildings ?? []);
+
         const active: ColonyCenterPlanet = {
           planet: surfaceTarget.planet,
           star: surfaceTarget.star,
           system: state.selectedSystem ?? homeInfo?.system ?? ({} as Star) as any,
-          buildings: colonyState?.buildings ?? [],
+          buildings: buildingsForUi,
           colonyLevel: (colonyState as any)?.colonyLevel ?? 1,
           habitability: surfaceTarget.planet.habitability?.overall ?? 0,
           active: true,
@@ -6309,6 +6363,27 @@ function AppInner() {
           }
         }
 
+        // Resource hexes — passive extraction from natural deposits. Each
+        // resource hex has a yieldPerHour (already /h, not /min) and maps
+        // to one of the four colony resources. Without this the Production
+        // tab understated mineral/volatile/water/isotope income because all
+        // surface deposits were ignored.
+        const HEX_RESOURCE_TO_COLONY: Record<'ore' | 'tree' | 'vent' | 'water', 'minerals' | 'volatiles' | 'isotopes' | 'water'> = {
+          ore: 'minerals',
+          vent: 'volatiles',
+          tree: 'isotopes',
+          water: 'water',
+        };
+        const hexExtractionPerHour = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+        for (const s of hexSlots) {
+          if (s.state !== 'resource' || !s.resourceType || !s.yieldPerHour) continue;
+          const colKey = HEX_RESOURCE_TO_COLONY[s.resourceType];
+          if (colKey) {
+            hexExtractionPerHour[colKey] += s.yieldPerHour;
+            perHour[colKey] += s.yieldPerHour;
+          }
+        }
+
         return (
           <ColonyCenterPage
             active={active}
@@ -6316,6 +6391,7 @@ function AppInner() {
             colonyResources={colonyResources}
             storageCapacity={200 + active.buildings.filter((b) => b.type === 'resource_storage').length * 200}
             productionPerHour={perHour}
+            extractionPerHour={hexExtractionPerHour}
             energyBalance={{ produced: Math.round(energyProduced), consumed: Math.round(energyConsumed) }}
             researchData={Math.floor(researchData)}
             logEntries={logEntries}

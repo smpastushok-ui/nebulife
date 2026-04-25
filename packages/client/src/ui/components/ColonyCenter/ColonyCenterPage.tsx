@@ -65,6 +65,10 @@ export interface ColonyCenterPageProps {
   storageCapacity: number;
   /** Per-resource hourly production for the active colony. */
   productionPerHour: { minerals: number; volatiles: number; isotopes: number; water: number; researchData: number; energy: number };
+  /** Passive extraction from resource hexes on the surface (already
+   *  rolled into productionPerHour). Surfaced separately so the
+   *  Production tab can show a "Добування" breakdown row. */
+  extractionPerHour?: { minerals: number; volatiles: number; isotopes: number; water: number };
   /** Net energy balance — produced minus consumed. */
   energyBalance: { produced: number; consumed: number };
   /** researchData balance + hourly income. */
@@ -387,7 +391,7 @@ function ColoniesTab({ active, allColonies, onTeleport }: ColonyCenterPageProps)
   );
 }
 
-function ProductionTab({ active, allColonies, productionPerHour, storageCapacity, colonyResources }: ColonyCenterPageProps) {
+function ProductionTab({ active, allColonies, productionPerHour, extractionPerHour, storageCapacity, colonyResources }: ColonyCenterPageProps) {
   const { t } = useTranslation();
   const [scope, setScope] = useState<'this' | 'all'>('this');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -463,6 +467,7 @@ function ProductionTab({ active, allColonies, productionPerHour, storageCapacity
               <BuildingBreakdown
                 buildings={scopeData.buildings}
                 resourceKey={key}
+                extractionPerHour={extractionPerHour?.[key] ?? 0}
               />
             )}
           </div>
@@ -472,7 +477,12 @@ function ProductionTab({ active, allColonies, productionPerHour, storageCapacity
   );
 }
 
-function BuildingBreakdown({ buildings, resourceKey }: { buildings: PlacedBuilding[]; resourceKey: string }) {
+function BuildingBreakdown({ buildings, resourceKey, extractionPerHour = 0 }: {
+  buildings: PlacedBuilding[];
+  resourceKey: string;
+  /** Combined per-hour yield from natural resource hexes for this resource. */
+  extractionPerHour?: number;
+}) {
   const { t } = useTranslation();
 
   const producers = useMemo(() => {
@@ -499,7 +509,9 @@ function BuildingBreakdown({ buildings, resourceKey }: { buildings: PlacedBuildi
     return Array.from(counts.entries()).sort((a, b) => b[1].perHour - a[1].perHour);
   }, [buildings, resourceKey]);
 
-  if (producers.length === 0) {
+  const hasExtraction = extractionPerHour > 0;
+
+  if (producers.length === 0 && !hasExtraction) {
     return (
       <div style={{ fontSize: 10, color: '#556677', padding: '6px 12px', fontFamily: 'monospace', textAlign: 'center' }}>
         {t('colony_center.production.no_producers')}
@@ -517,6 +529,19 @@ function BuildingBreakdown({ buildings, resourceKey }: { buildings: PlacedBuildi
       marginTop: -1,
       fontFamily: 'monospace',
     }}>
+      {/* Surface-resource extraction row — shown when natural deposits on
+          the planet contribute to this resource. Listed first so the
+          player sees the passive yield distinct from per-building output. */}
+      {hasExtraction && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', fontSize: 10 }}>
+          <span style={{ color: '#aabbcc' }}>
+            {t('colony_center.production.extraction')}
+          </span>
+          <span style={{ color: '#88bb99' }}>
+            +{extractionPerHour.toFixed(1)}/h
+          </span>
+        </div>
+      )}
       {producers.map(([type, data]) => (
         <div key={type} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', fontSize: 10 }}>
           <span style={{ color: '#aabbcc' }}>

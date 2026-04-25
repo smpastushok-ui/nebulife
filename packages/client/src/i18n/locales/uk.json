@@ -1067,6 +1067,11 @@
     "researching_btn": "Досліджується",
     "research_btn": "Дослідити",
     "researched_tooltip": "Досліджено",
+    "instant_research_title": "Дослідити за кварки",
+    "instant_research_desc": "За {{cost}} ⚛ ви можете дослідити цю систему в 1 клік",
+    "instant_research_btn": "Дослідити ({{cost}} ⚛)",
+    "instant_research_tooltip": "Миттєве дослідження за {{cost}} ⚛",
+    "buy_quarks_btn": "Купити кварки",
     "unpin": "Відкріпити",
     "pin": "Закріпити",
     "scanning": "сканування...",
@@ -1376,7 +1381,8 @@
     "production": {
       "scope_this": "Ця колонiя",
       "scope_all": "Усi колонiї",
-      "no_producers": "Тут поки нiчого не виробляється"
+      "no_producers": "Тут поки нiчого не виробляється",
+      "extraction": "Добування"
     },
     "building_category": {
       "infrastructure": "Iнфраструктура",

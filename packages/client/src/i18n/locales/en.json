@@ -1066,6 +1066,11 @@
     "researching_btn": "Researching",
     "research_btn": "Research",
     "researched_tooltip": "Researched",
+    "instant_research_title": "Research with quarks",
+    "instant_research_desc": "For {{cost}} ⚛ you can research this system in 1 click",
+    "instant_research_btn": "Research ({{cost}} ⚛)",
+    "instant_research_tooltip": "Instant research for {{cost}} ⚛",
+    "buy_quarks_btn": "Buy quarks",
     "unpin": "Unpin",
     "pin": "Pin",
     "scanning": "scanning...",
@@ -1375,7 +1380,8 @@
     "production": {
       "scope_this": "This colony",
       "scope_all": "All colonies",
-      "no_producers": "Nothing produces this here yet"
+      "no_producers": "Nothing produces this here yet",
+      "extraction": "Extraction"
     },
     "building_category": {
       "infrastructure": "Infrastructure",

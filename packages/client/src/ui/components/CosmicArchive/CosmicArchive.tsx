@@ -142,6 +142,12 @@ export interface CosmicArchiveProps {
   onUnlockViaQuarks?: (systemId: string) => void;
   /** True if the given system was already unlocked via quarks (bypasses ring gate). */
   isQuarkUnlocked?: (systemId: string) => boolean;
+  /** Instant-research a system in exchange for quarks — wires Q-shortcut popup. */
+  onInstantResearch?: (systemId: string) => void;
+  /** Quarks cost for instant research (default 30). */
+  instantResearchCost?: number;
+  /** Open the global top-up modal — used by the instant-research popup. */
+  onOpenTopUp?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +265,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   quarks,
   onUnlockViaQuarks,
   isQuarkUnlocked,
+  onInstantResearch,
+  instantResearchCost,
+  onOpenTopUp,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   const { t } = useTranslation();
   const TABS = buildTabs(t);
@@ -468,6 +477,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           canStartResearch={canStartResearch}
           isResearching={isSystemResearching}
           isFullyResearched={getResearchProgress ? (sysId: string) => (getResearchProgress(sysId) >= 100) : undefined}
+          getResearchProgress={getResearchProgress}
           isRingLocked={getResearchProgress ? (ringIndex: number) => {
             if (ringIndex <= 1) return false; // Ring 0 (home) and ring 1 always unlocked
             // Ring N locked if ring N-1 has any non-home system not at 100%
@@ -482,6 +492,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           quarkUnlockCost={30}
           quarksBalance={quarks ?? 0}
           isQuarkUnlocked={isQuarkUnlocked}
+          onInstantResearch={onInstantResearch}
+          instantResearchCost={instantResearchCost ?? 30}
+          onOpenTopUp={onOpenTopUp}
         />
       );
     }

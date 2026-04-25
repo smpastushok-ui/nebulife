@@ -3,6 +3,15 @@ import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 import { getDeviceTier } from '../../../utils/device-tier.js';
 
+// Tiny stable string→number hash for seeding per-row animation delays so
+// every researching row has its own orbit phase but stays deterministic
+// across re-renders.
+function hashSystemId(id: string): number {
+  let h = 5381;
+  for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
 // Tooltip that appears BELOW the icon (so it's not clipped by top menu)
 function HeaderIcon({ children, tooltip }: { children: React.ReactNode; tooltip: string }) {
   const [show, setShow] = useState(false);
@@ -50,16 +59,18 @@ function ensureStyles() {
     @keyframes sys-btn-border-march {
       to { stroke-dashoffset: -12; }
     }
-    /* Lupe CTA — gentle pulse so testers see where to tap. */
-    @keyframes sys-lupe-pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(68,136,255,0.55); }
-      50%      { box-shadow: 0 0 0 6px rgba(68,136,255,0);    }
+    /* Researching orbit — magnifier travels around the center while the
+       progress arc itself stays static. Each row gets its own animation-delay
+       seeded from the systemId so neighbouring icons don't tick in sync. */
+    @keyframes sys-research-orbit {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
     }
-    /* 60-second fill for the in-progress progress bar. Runs once per mount
-       per research session — visual only, not tied to the real research tick. */
-    @keyframes sys-research-fill {
-      from { width: 0%; }
-      to   { width: 100%; }
+    /* Researching pulse — soft scale + glow on the orbiting magnifier so the
+       row visually breathes while research is in progress. */
+    @keyframes sys-research-pulse {
+      0%, 100% { opacity: 0.85; }
+      50%      { opacity: 1; }
     }
   `;
   document.head.appendChild(style);
@@ -85,6 +96,9 @@ interface SystemsListProps {
   isResearching?: (systemId: string) => boolean;
   /** Whether a system is fully researched (100%) */
   isFullyResearched?: (systemId: string) => boolean;
+  /** Current research progress 0-100 (drives the progress arc on the
+   *  research icon). Optional — without it the arc falls back to 0. */
+  getResearchProgress?: (systemId: string) => number;
   /** Whether a ring is locked (previous ring not fully researched) */
   isRingLocked?: (ringIndex: number) => boolean;
   /** Current research data balance */
@@ -99,6 +113,14 @@ interface SystemsListProps {
   quarksBalance?: number;
   /** True if the given system has already been unlocked via quarks. */
   isQuarkUnlocked?: (systemId: string) => boolean;
+  /** Instant-research a not-yet-researched system in exchange for quarks.
+   *  Wires the ⚛ shortcut button next to the magnifier in each row. */
+  onInstantResearch?: (systemId: string) => void;
+  /** Quarks cost for an instant research (default 30). */
+  instantResearchCost?: number;
+  /** Open the global TopUp/buy-quarks modal — used by the instant-research
+   *  popup when the player can't afford the shortcut. */
+  onOpenTopUp?: () => void;
 }
 
 export function SystemsList({
@@ -109,6 +131,7 @@ export function SystemsList({
   canStartResearch,
   isResearching,
   isFullyResearched,
+  getResearchProgress,
   isRingLocked,
   researchData = 0,
   researchDataCost = 1,
@@ -116,12 +139,18 @@ export function SystemsList({
   quarkUnlockCost = 30,
   quarksBalance = 0,
   isQuarkUnlocked,
+  onInstantResearch,
+  instantResearchCost = 30,
+  onOpenTopUp,
 }: SystemsListProps) {
   const { t } = useTranslation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [insufficientDataId, setInsufficientDataId] = useState<string | null>(null);
   const insufficientTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  // System currently shown in the "instant research with quarks" confirmation
+  // popup. null when popup is closed.
+  const [instantTargetId, setInstantTargetId] = useState<string | null>(null);
 
   useEffect(() => {
     ensureStyles();
@@ -371,6 +400,10 @@ export function SystemsList({
               const isFirstNonHome = system.id === firstNonHomeId;
               const researching = isResearching?.(system.id) ?? false;
               const fullyResearched = isFullyResearched?.(system.id) ?? false;
+              const progressPct = Math.max(
+                0,
+                Math.min(100, getResearchProgress?.(system.id) ?? (fullyResearched ? 100 : 0)),
+              );
               const showInsufficientData = insufficientDataId === system.id;
 
               return (
@@ -488,19 +521,49 @@ export function SystemsList({
                             <path d="M5 7V5a3 3 0 0 1 6 0v2" />
                           </svg>
                         )
-                      ) : fullyResearched ? (
-                        <ResearchedIcon onClick={() => onNavigate(system)} />
-                      ) : researching ? (
-                        <ResearchingProgress />
-                      ) : canResearch ? (
-                        <div style={{ position: 'relative' }}>
-                          <ResearchLupeButton
-                            tutorialId={isFirstNonHome ? 'research-btn-first' : undefined}
+                      ) : fullyResearched || researching || canResearch ? (
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <ResearchProgressIcon
+                            state={fullyResearched ? 'complete' : researching ? 'researching' : 'idle'}
+                            progress={progressPct}
+                            seedId={system.id}
+                            tutorialId={canResearch && !researching && !fullyResearched && isFirstNonHome ? 'research-btn-first' : undefined}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleResearchClick(system.id);
+                              if (fullyResearched) {
+                                onNavigate(system);
+                              } else if (canResearch && !researching) {
+                                handleResearchClick(system.id);
+                              }
                             }}
                           />
+                          {/* Quark-shortcut — only on idle (canResearch && !researching && !fullyResearched).
+                              Tiny ⚛ button opens a modal that asks the player to spend
+                              instantResearchCost quarks to skip the research timer. */}
+                          {onInstantResearch && canResearch && !researching && !fullyResearched && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInstantTargetId(system.id);
+                              }}
+                              title={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
+                              aria-label={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
+                              style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                width: 18, height: 18, borderRadius: '50%',
+                                background: 'rgba(68,136,255,0.10)',
+                                border: '1px solid rgba(123,184,255,0.45)',
+                                color: '#7bb8ff',
+                                cursor: 'pointer',
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                lineHeight: 1,
+                                padding: 0,
+                              }}
+                            >
+                              ⚛
+                            </button>
+                          )}
                           {showInsufficientData && (
                             <div style={{
                               position: 'absolute',
@@ -535,109 +598,284 @@ export function SystemsList({
           </React.Fragment>
         );
       })}
+
+      {/* Instant-research-via-quarks confirmation popup. Mounted at the end
+          of the list so it overlays everything; pointer-events fall through
+          the dimmed backdrop. */}
+      {instantTargetId && onInstantResearch && (
+        <div
+          onClick={() => setInstantTargetId(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9700,
+            background: 'rgba(2,5,16,0.78)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 360, width: '100%',
+              background: 'rgba(10,15,25,0.98)',
+              border: '1px solid #446688',
+              borderRadius: 6,
+              padding: 20,
+              fontFamily: 'monospace',
+              color: '#aabbcc',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8, color: '#7bb8ff' }}>
+              {t('archive.instant_research_title')}
+            </div>
+            <div style={{ fontSize: 12, color: '#8899aa', marginBottom: 16, lineHeight: 1.5 }}>
+              {t('archive.instant_research_desc', { cost: instantResearchCost })}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                onClick={() => {
+                  if (quarksBalance >= instantResearchCost) {
+                    onInstantResearch(instantTargetId);
+                    setInstantTargetId(null);
+                  }
+                }}
+                disabled={quarksBalance < instantResearchCost}
+                style={{
+                  background: quarksBalance >= instantResearchCost ? 'rgba(68,136,255,0.18)' : 'rgba(10,15,25,0.4)',
+                  border: `1px solid ${quarksBalance >= instantResearchCost ? '#446688' : '#223344'}`,
+                  borderRadius: 3,
+                  color: quarksBalance >= instantResearchCost ? '#7bb8ff' : '#445566',
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  padding: '8px 12px',
+                  cursor: quarksBalance >= instantResearchCost ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {t('archive.instant_research_btn', { cost: instantResearchCost })}
+              </button>
+              {onOpenTopUp && (
+                <button
+                  onClick={() => {
+                    setInstantTargetId(null);
+                    onOpenTopUp();
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #334455',
+                    borderRadius: 3,
+                    color: '#aabbcc',
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('archive.buy_quarks_btn')}
+                </button>
+              )}
+              <button
+                onClick={() => setInstantTargetId(null)}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #334455',
+                  borderRadius: 3,
+                  color: '#667788',
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-/** Blue filled circle with a white check — shown for fully-researched systems.
- *  Stays clickable so the player can still jump into the system from here. */
-function ResearchedIcon({ onClick }: { onClick: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      title={t('archive.researched_tooltip')}
-      aria-label={t('archive.researched_btn')}
-      style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 22, height: 22, borderRadius: '50%',
-        background: '#4488ff',
-        border: '1px solid #7bb8ff',
-        cursor: 'pointer',
-        padding: 0,
-        boxShadow: '0 0 6px rgba(68,136,255,0.35)',
-      }}
-    >
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3.5 8.5 L7 12 L12.5 4.5" />
-      </svg>
-    </button>
-  );
-}
-
-/** In-progress progress bar. Visual-only 60s fill animation. For low/mid
- *  tier devices we use a static 50% bar (no animation, no gradient) to keep
- *  the list scrolling smooth even with dozens of researching systems. */
-function ResearchingProgress() {
-  const { t } = useTranslation();
-  const isLowOrMid = useMemo(() => {
-    const tier = getDeviceTier();
-    return tier === 'low' || tier === 'mid';
-  }, []);
-
-  return (
-    <div
-      title={t('archive.researching_btn')}
-      style={{
-        position: 'relative',
-        width: 68, height: 10,
-        background: 'rgba(10,15,25,0.85)',
-        border: '1px solid rgba(68,136,170,0.4)',
-        borderRadius: 5,
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute', inset: 0,
-          width: isLowOrMid ? '50%' : undefined,
-          background: isLowOrMid
-            ? 'rgba(68,136,255,0.55)'
-            : 'linear-gradient(90deg, rgba(68,136,255,0.8), rgba(123,184,255,1))',
-          animation: isLowOrMid ? undefined : 'sys-research-fill 60s linear forwards',
-          boxShadow: isLowOrMid ? undefined : '0 0 6px rgba(68,136,255,0.5)',
-        }}
-      />
-    </div>
-  );
-}
-
-/** Blue magnifying-glass CTA — starts research on click. Pulses gently so
- *  testers know where to tap the first time. */
-function ResearchLupeButton({
+/** Single research-state icon. One control replaces the previous trio of
+ *  ResearchedIcon / ResearchLupeButton / ResearchingProgress.
+ *
+ *  Layout: a 26×26 button. Inside is a circular outline ring (the "track")
+ *  drawn at ~30% opacity, plus a foreground progress arc that fills the same
+ *  ring based on `progress` (0-100). A small magnifier sits in the centre
+ *  for idle/complete states and orbits the ring while researching.
+ *
+ *  States:
+ *   - idle        → faint track, magnifier in centre, no animation. Clicking
+ *                   triggers onClick (start research).
+ *   - researching → track + partial progress arc. Magnifier orbits the ring;
+ *                   orbit phase is seeded from `seedId` so concurrent rows
+ *                   stay out of sync.
+ *   - complete    → solid full-opacity ring + centred magnifier on a filled
+ *                   blue background. Clicking jumps into the system. */
+function ResearchProgressIcon({
+  state,
+  progress,
+  seedId,
   tutorialId,
   onClick,
 }: {
+  state: 'idle' | 'researching' | 'complete';
+  progress: number;
+  seedId: string;
   tutorialId?: string;
   onClick: (e: React.MouseEvent) => void;
 }) {
   const { t } = useTranslation();
   const [hover, setHover] = useState(false);
+  // Low/mid tier devices skip the orbit animation to keep ~1,400-row lists
+  // scrolling smooth. The static state still communicates "in progress" via
+  // the partial arc.
+  const skipAnim = useMemo(() => {
+    const tier = getDeviceTier();
+    return tier === 'low' || tier === 'mid';
+  }, []);
+
+  // SVG geometry — circle centred at (13,13) with r=10; circumference is
+  // used to compute the dasharray for the progress arc.
+  const r = 10;
+  const cx = 13;
+  const cy = 13;
+  const circ = 2 * Math.PI * r;
+  // Cap the arc so partial progress always shows at least a sliver, and
+  // 100% renders as the full ring.
+  const arcLen = state === 'complete' ? circ : Math.max(0, Math.min(circ, (progress / 100) * circ));
+
+  // Per-row animation delay so neighbouring rows orbit out of phase.
+  const orbitDelay = useMemo(() => {
+    if (state !== 'researching') return 0;
+    return -((hashSystemId(seedId) % 1000) / 1000) * 4; // 0..-4s within a 4s loop
+  }, [seedId, state]);
+
+  const isComplete = state === 'complete';
+  const isResearching = state === 'researching';
+
+  const tooltip = isComplete
+    ? t('archive.researched_tooltip')
+    : isResearching
+      ? t('archive.researching_btn')
+      : t('archive.research_btn');
+  const ariaLabel = isComplete
+    ? t('archive.researched_btn')
+    : isResearching
+      ? t('archive.researching_btn')
+      : t('archive.research_btn');
+
   return (
     <button
       data-tutorial-id={tutorialId}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      title={t('archive.research_btn')}
-      aria-label={t('archive.research_btn')}
+      title={tooltip as string}
+      aria-label={ariaLabel as string}
       style={{
+        position: 'relative',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 24, height: 24, borderRadius: '50%',
-        background: hover ? 'rgba(68,136,255,0.32)' : 'rgba(68,136,255,0.18)',
-        border: `1px solid ${hover ? '#7bb8ff' : 'rgba(123,184,255,0.55)'}`,
+        width: 26, height: 26, borderRadius: '50%',
+        background: isComplete
+          ? '#4488ff'
+          : isResearching
+            ? 'rgba(68,136,255,0.10)'
+            : hover ? 'rgba(68,136,255,0.18)' : 'rgba(68,136,255,0.06)',
+        border: 'none',
         cursor: 'pointer',
         padding: 0,
-        transition: 'background 0.15s, border-color 0.15s',
-        animation: hover ? undefined : 'sys-lupe-pulse 1.8s ease-out infinite',
+        transition: 'background 0.15s',
+        boxShadow: isComplete ? '0 0 6px rgba(68,136,255,0.35)' : undefined,
       }}
     >
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.6" strokeLinecap="round">
-        <circle cx="7" cy="7" r="4.2" />
-        <line x1="10.2" y1="10.2" x2="13.5" y2="13.5" />
+      {/* Track + progress arc. For complete state we still draw the full
+          ring as a solid stroke so the icon reads as "filled" at a glance. */}
+      <svg
+        width={26}
+        height={26}
+        viewBox="0 0 26 26"
+        style={{ position: 'absolute', inset: 0 }}
+      >
+        {/* Base track — faint outline ring (30% opacity for idle/researching,
+            full opacity inside the filled-blue circle for complete). */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill="none"
+          stroke={isComplete ? '#7bb8ff' : '#7bb8ff'}
+          strokeOpacity={isComplete ? 1 : 0.3}
+          strokeWidth={1.4}
+        />
+        {/* Foreground progress arc — drawn as a stroke-dasharray slice. We
+            rotate -90° so progress starts at 12 o'clock. */}
+        {!isComplete && arcLen > 0 && (
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill="none"
+            stroke="#7bb8ff"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+            strokeDasharray={`${arcLen} ${circ}`}
+            transform={`rotate(-90 ${cx} ${cy})`}
+          />
+        )}
       </svg>
+
+      {/* Magnifier — fixed in centre for idle/complete, orbits for researching.
+          The orbit wrapper uses CSS animation; rotating the wrapper around its
+          centre while the magnifier sits at the top of it produces a clean
+          circular orbit. */}
+      {isResearching ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            animation: skipAnim ? undefined : 'sys-research-orbit 4s linear infinite',
+            animationDelay: skipAnim ? undefined : `${orbitDelay}s`,
+            transformOrigin: '50% 50%',
+          }}
+        >
+          <svg
+            width={9}
+            height={9}
+            viewBox="0 0 16 16"
+            style={{
+              position: 'absolute',
+              top: 1,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              animation: skipAnim ? undefined : 'sys-research-pulse 1.8s ease-in-out infinite',
+            }}
+            fill="none"
+            stroke="#7bb8ff"
+            strokeWidth={2}
+            strokeLinecap="round"
+          >
+            <circle cx="7" cy="7" r="4.2" />
+            <line x1="10.2" y1="10.2" x2="13.5" y2="13.5" />
+          </svg>
+        </div>
+      ) : (
+        <svg
+          width={12}
+          height={12}
+          viewBox="0 0 16 16"
+          style={{ position: 'relative', zIndex: 1 }}
+          fill="none"
+          stroke={isComplete ? '#ffffff' : '#7bb8ff'}
+          strokeWidth={isComplete ? 1.8 : 1.6}
+          strokeLinecap="round"
+        >
+          <circle cx="7" cy="7" r="4.2" />
+          <line x1="10.2" y1="10.2" x2="13.5" y2="13.5" />
+        </svg>
+      )}
     </button>
   );
 }
