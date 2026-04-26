@@ -6815,6 +6815,35 @@ function AppInner() {
           })()}
           terraformStates={terraformStates}
           colonyStateByPlanet={colonyState ? { [colonyState.planetId]: colonyState } : undefined}
+          getPlanetResources={getResources}
+          donorPlanets={getColonyPlanets()}
+          colonyBuildings={colonyState?.buildings ?? []}
+          onSendTerraformDelivery={(targetPlanet, paramId) => {
+            // Open terraform panel for this planet, pre-targeting the given param.
+            // For now, we open the full TerraformPanel which handles dispatch.
+            setShowCosmicArchive(false);
+            setShowTerraformPlanet(targetPlanet);
+          }}
+          onCompleteTerraform={(planet) => {
+            // Manual completion trigger — apply if overall progress >= 95
+            const tfState = terraformStates[planet.id];
+            if (!tfState) return;
+            if (getOverallProgress(tfState) < 95) return;
+            const engine = engineRef.current;
+            if (!engine) return;
+            const allSys = engine.getAllSystems();
+            const sys = allSys.find((s) => s.planets.some((p) => p.id === planet.id));
+            if (!sys) return;
+            const promotedPlanet = applyTerraformCompletionToPlanet(planet, tfState);
+            if (promotedPlanet) {
+              const completionTime = Date.now();
+              setTerraformStates((prev) => ({
+                ...prev,
+                [planet.id]: { ...tfState, completedAt: completionTime },
+              }));
+              setPendingTerraformCompletion(promotedPlanet);
+            }
+          }}
           onOpenColonySurface={(planet) => {
             setShowCosmicArchive(false);
             // Find the star system that contains this planet

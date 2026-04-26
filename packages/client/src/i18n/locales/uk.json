@@ -1113,6 +1113,28 @@
     "quark_shortcuts_show": "Показати ⚛ ярлики",
     "quark_shortcuts_hide": "Приховати ⚛ ярлики"
   },
+  "planets_catalog": {
+    "tf_difficulty": "Тех-складність: {{pct}}%",
+    "field_system": "Зоряна система",
+    "field_type": "Тип",
+    "field_size": "Розмір",
+    "field_gravity": "Гравітація",
+    "field_hydro": "Гідросфера",
+    "field_moons": "Супутники",
+    "field_distance": "Відстань: {{ly}} с.р. ({{pc}} пк)",
+    "field_colony": "Колонія",
+    "colony_yes": "Заснована",
+    "colony_no": "Немає",
+    "stocks_title": "Запаси",
+    "tf_section_title": "Терраформування",
+    "btn_send": "Відправити",
+    "btn_terraform_complete": "Терраформувати",
+    "disabled_no_ship": "Потрібен корабель",
+    "disabled_no_resources": "Недостатньо ресурсів",
+    "disabled_need_building": "Потрібна будівля",
+    "disabled_need_level": "Потрібен рівень {{level}}",
+    "disabled_need_tech": "Потрібна технологія {{tech}}"
+  },
   "cinematic": {
     "click_to_skip": "натиснiть щоб пропустити",
     "mission_control": "ЦЕНТР УПРАВЛІННЯ МІСІЯМИ",

@@ -595,9 +595,14 @@ export function planetVisualsToUniforms(
   const cAbundance = clamp((crust['C'] ?? 0) / 0.05, 0, 1);       // Usually trace in crust
   const sAbundance = clamp((crust['S'] ?? 0) / 0.05, 0, 1);       // Usually trace in crust
 
-  // Star light intensity from luminosity
+  // Star light intensity from luminosity.
+  // Floor raised from 0.3 → 0.85 so planets orbiting dim stars (M-class)
+  // or sitting far from their star are still clearly readable in the
+  // PlanetDetailWindow / PlanetGlobeView previews instead of rendering as
+  // near-black silhouettes. Ceiling kept at 2.0 to avoid blow-out on
+  // O/B-class hot inner orbits.
   const distAU = planet.orbit?.semiMajorAxisAU ?? 1;
-  const starIntensity = clamp(Math.pow(star.luminositySolar, 0.25) / Math.sqrt(distAU), 0.3, 2.0);
+  const starIntensity = clamp(Math.pow(star.luminositySolar, 0.25) / Math.sqrt(distAU), 0.85, 2.0);
 
   const base: Record<string, THREE.IUniform> = {
     uSeed: { value: planet.seed },

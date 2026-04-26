@@ -1112,6 +1112,28 @@
     "quark_shortcuts_show": "Show ⚛ shortcuts",
     "quark_shortcuts_hide": "Hide ⚛ shortcuts"
   },
+  "planets_catalog": {
+    "tf_difficulty": "Tech difficulty: {{pct}}%",
+    "field_system": "Star system",
+    "field_type": "Type",
+    "field_size": "Size",
+    "field_gravity": "Gravity",
+    "field_hydro": "Hydrosphere",
+    "field_moons": "Moons",
+    "field_distance": "Distance: {{ly}} LY ({{pc}} pc)",
+    "field_colony": "Colony",
+    "colony_yes": "Founded",
+    "colony_no": "None",
+    "stocks_title": "Stocks",
+    "tf_section_title": "Terraforming",
+    "btn_send": "Dispatch",
+    "btn_terraform_complete": "Terraform",
+    "disabled_no_ship": "Ship required",
+    "disabled_no_resources": "Insufficient resources",
+    "disabled_need_building": "Building required",
+    "disabled_need_level": "Level {{level}} required",
+    "disabled_need_tech": "Tech {{tech}} required"
+  },
   "cinematic": {
     "click_to_skip": "click to skip",
     "mission_control": "MISSION CONTROL CENTER",

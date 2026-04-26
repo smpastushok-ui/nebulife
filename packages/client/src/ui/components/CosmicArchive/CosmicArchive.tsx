@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet } from '@nebulife/core';
-import type { PlanetTerraformState, PlanetColonyState } from '@nebulife/core';
+import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet, PlacedBuilding } from '@nebulife/core';
+import type { PlanetTerraformState, PlanetColonyState, TerraformParamId } from '@nebulife/core';
+import type { ColonyResources } from '../Terraform/MissionDispatchModal.js';
 import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
 import { PlanetsCatalog, FavoritesPlanetsList } from './PlanetsCatalog';
@@ -166,6 +167,16 @@ export interface CosmicArchiveProps {
   onOpenColonySurface?: (planet: Planet) => void;
   /** Open Colony Center for a colony planet (closes archive). */
   onOpenColonyCenter?: (planet: Planet) => void;
+  /** Per-planet resource getter passed to PlanetsCatalogV2 detail panel. */
+  getPlanetResources?: (planetId: string) => ColonyResources;
+  /** Opens MissionDispatchModal for the given target planet + paramId. */
+  onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
+  /** Manually trigger terraform completion for a planet. */
+  onCompleteTerraform?: (planet: Planet) => void;
+  /** Colony planets that can act as donors — passed to dispatch gate checks. */
+  donorPlanets?: Planet[];
+  /** Current buildings on the active colony surface — used for ship-tier computation. */
+  colonyBuildings?: PlacedBuilding[];
 }
 
 // ---------------------------------------------------------------------------
@@ -293,6 +304,11 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   colonyStateByPlanet,
   onOpenColonySurface,
   onOpenColonyCenter,
+  getPlanetResources,
+  onSendTerraformDelivery,
+  onCompleteTerraform,
+  donorPlanets,
+  colonyBuildings,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   const { t } = useTranslation();
   const TABS = buildTabs(t);
@@ -501,6 +517,12 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           colonyPlanetIds={colonyPlanetIds ?? new Set()}
           colonySystemIds={colonySystemIds ?? []}
           terraformStates={terraformStates}
+          getPlanetResources={getPlanetResources}
+          onSendTerraformDelivery={onSendTerraformDelivery}
+          onCompleteTerraform={onCompleteTerraform}
+          donorPlanets={donorPlanets}
+          techTreeState={techTreeState}
+          colonyBuildings={colonyBuildings}
         />
       );
     }
