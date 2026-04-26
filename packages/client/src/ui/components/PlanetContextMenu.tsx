@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet, Star, ResourceGroup } from '@nebulife/core';
 import { ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg, isTerraformable } from '@nebulife/core';
@@ -526,12 +526,43 @@ export function PlanetContextMenu({
     return () => clearTimeout(t);
   }, []);
 
+  // Ref to the menu container — used by useLayoutEffect to measure actual
+  // rendered height and recompute clamped position on every render.
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
+
+  const isDesktop = window.innerWidth >= 768;
+
+  useLayoutEffect(() => {
+    if (!menuRef.current) return;
+    const measuredHeight = menuRef.current.offsetHeight || MENU_HEIGHT_APPROX;
+    const MARGIN = 8;
+
+    // Horizontal: center on mobile, near click on desktop
+    let left: number;
+    if (isDesktop) {
+      const maxX = window.innerWidth - MENU_WIDTH - MARGIN;
+      left = Math.max(MARGIN, Math.min(screenPosition.x + 8, maxX));
+    } else {
+      left = (window.innerWidth - MENU_WIDTH) / 2;
+      left = Math.max(MARGIN, left);
+    }
+
+    // Vertical: try to center around click point, then clamp
+    const idealTop = screenPosition.y - measuredHeight / 2;
+    const top = Math.max(MARGIN, Math.min(idealTop, window.innerHeight - measuredHeight - MARGIN));
+
+    setMenuPos({ left, top });
+  }, [researchGroupExpanded, activeTab, expandedGroup, screenPosition, isDesktop]);
+
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
   const showTerraformTab = isTerraformable(planet) && Boolean(hasGenesisVault);
 
   // Destroyed planets — minimal UI
   if (isDestroyed) {
-    const dLeft = Math.max(8, Math.min(screenPosition.x + 8, window.innerWidth - MENU_WIDTH - 8));
+    const dLeft = isDesktop
+      ? Math.max(8, Math.min(screenPosition.x + 8, window.innerWidth - MENU_WIDTH - 8))
+      : (window.innerWidth - MENU_WIDTH) / 2;
     const dTop  = Math.max(8, Math.min(screenPosition.y - 20, window.innerHeight - MENU_HEIGHT_APPROX - 8));
     return (
       <>
@@ -556,11 +587,13 @@ export function PlanetContextMenu({
     );
   }
 
-  // Clamp to screen — 8px edge gap on all sides
-  const maxX = window.innerWidth - MENU_WIDTH - 8;
-  const maxY = window.innerHeight - MENU_HEIGHT_APPROX - 8;
-  const left = Math.max(8, Math.min(screenPosition.x + 8, maxX));
-  const top = Math.max(8, Math.min(screenPosition.y - 20, maxY));
+  // Initial position estimate (before first layout measurement).
+  // After the first render useLayoutEffect will compute the exact clamped pos.
+  const MARGIN = 8;
+  const left = menuPos?.left ?? (isDesktop
+    ? Math.max(MARGIN, Math.min(screenPosition.x + 8, window.innerWidth - MENU_WIDTH - MARGIN))
+    : (window.innerWidth - MENU_WIDTH) / 2);
+  const top = menuPos?.top ?? Math.max(MARGIN, Math.min(screenPosition.y - MENU_HEIGHT_APPROX / 2, window.innerHeight - MENU_HEIGHT_APPROX - MARGIN));
 
   const PHOTO_COST = 25;
   const canAffordPhoto = quarks >= PHOTO_COST;
@@ -568,7 +601,7 @@ export function PlanetContextMenu({
   return (
     <>
       <div style={backdropStyle} onClick={backdropActive ? onClose : undefined} />
-      <div style={{ ...menuStyle, left, top }}>
+      <div ref={menuRef} style={{ ...menuStyle, left, top }}>
         {/* ── Header: name + HOME tag ── */}
         <div style={{
           padding: '10px 14px 6px', fontSize: 13, color: '#ccddee',

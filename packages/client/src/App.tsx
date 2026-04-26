@@ -1358,6 +1358,9 @@ function AppInner() {
     if (val) localStorage.setItem('nebulife_arena_active', '1');
     else localStorage.removeItem('nebulife_arena_active');
   }, []);
+  // Post-arena popup queue — popups that were deferred while arena was active
+  // are flushed here 1.5 s apart once the arena closes.
+  const [pendingPostArenaPopups, setPendingPostArenaPopups] = useState<Array<() => void>>([]);
   const [showHangar, setShowHangarRaw] = useState(() =>
     localStorage.getItem('nebulife_hangar_active') === '1' || wasInBotArena,
   );
@@ -1367,6 +1370,10 @@ function AppInner() {
     else localStorage.removeItem('nebulife_hangar_active');
   }, []);
   const [arenaTeamMode, setArenaTeamMode] = useState(false);
+
+  // Ref to showArena that stays current inside callbacks without re-creating them.
+  const showArenaRef = useRef(false);
+  useEffect(() => { showArenaRef.current = showArena; }, [showArena]);
 
   // Pause SpaceAmbient when player is on planet surface or inside the
   // Terminal (Cosmic Archive) overlay - those scenes will get their own
@@ -3106,6 +3113,34 @@ function AppInner() {
     engineRef.current?.setResearchState(researchState);
   }, [researchState]);
 
+  // Arena defer queue — if arena is active when a popup fires, push the
+  // callback here instead; drains 1.5 s apart after the arena closes.
+  const enqueueIfArena = useCallback((cb: () => void): boolean => {
+    if (!showArenaRef.current) return false;
+    setPendingPostArenaPopups((prev) => [...prev, cb]);
+    return true;
+  }, []);
+
+  // Drain the queue when arena becomes inactive.
+  const pendingPopupsRef = useRef<Array<() => void>>([]);
+  useEffect(() => { pendingPopupsRef.current = pendingPostArenaPopups; }, [pendingPostArenaPopups]);
+  useEffect(() => {
+    if (showArena) return; // still in arena
+    if (pendingPostArenaPopups.length === 0) return;
+    // Fire each deferred popup with a 1.5 s gap between them.
+    const queue = [...pendingPostArenaPopups];
+    setPendingPostArenaPopups([]);
+    let delay = 1500;
+    for (const cb of queue) {
+      const t = setTimeout(() => cb(), delay);
+      delay += 1500;
+      // Capture t in closure to avoid lint issues (harmless — no cleanup needed
+      // since the component lifetime exceeds these brief delays).
+      void t;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showArena]);
+
   // Ring-unlock cinematic state — when effectiveMaxRing climbs (tech tree
   // node completes, or auto-promotion kicks in), play a 6s animation.
   const [ringUnlockAnim, setRingUnlockAnim] = useState<{ newRing: number } | null>(null);
@@ -3140,10 +3175,15 @@ function AppInner() {
     // while another unlock is already playing.
     const prev = prevEffectiveMaxRingRef.current;
     if (prev !== null && effectiveMax > prev && !needsOnboarding && !ringUnlockAnim) {
-      setRingUnlockAnim({ newRing: effectiveMax });
+      const newRing = effectiveMax;
+      if (enqueueIfArena(() => setRingUnlockAnim({ newRing }))) {
+        // deferred — will fire after arena closes
+      } else {
+        setRingUnlockAnim({ newRing });
+      }
     }
     prevEffectiveMaxRingRef.current = effectiveMax;
-  }, [techTreeState, researchState, needsOnboarding, ringUnlockAnim]);
+  }, [techTreeState, researchState, needsOnboarding, ringUnlockAnim, enqueueIfArena]);
 
   // While the ring-unlock cinematic is playing, force-close every full-screen
   // overlay so the animation plays on a clean stage (mirrors the tutorial-
@@ -3159,6 +3199,13 @@ function AppInner() {
     setShowTopUpModal(false);
     setShowColonyCenter(false);
     setSurfaceTarget(null);
+    // Close planet menu/info/detail overlays as well
+    setState((prev) => ({
+      ...prev,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+    }));
+    setShowTerraformPlanet(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ringUnlockAnim]);
 
@@ -5121,7 +5168,10 @@ function AppInner() {
     if (!state.selectedPlanet || !state.selectedSystem) return;
     const check = canLandOnPlanet(state.selectedPlanet);
     if (!check.allowed) {
-      if (check.chaos) setShowChaosModal(true);
+      if (check.chaos) {
+        if (enqueueIfArena(() => setShowChaosModal(true))) return;
+        setShowChaosModal(true);
+      }
       return;
     }
     playSfx('go-to-exosphera', 0.5);
@@ -5129,7 +5179,7 @@ function AppInner() {
       planet: state.selectedPlanet,
       star: state.selectedSystem.star,
     });
-  }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet]);
+  }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet, enqueueIfArena]);
 
   const handleCloseSurface = useCallback(() => {
     setSurfaceTarget(null);
@@ -7117,6 +7167,10 @@ function AppInner() {
             }}
             onTeleport={() => { /* TODO: multi-colony teleport */ }}
             onClose={() => setShowColonyCenter(false)}
+            onOpenTopUp={() => {
+              setShowColonyCenter(false);
+              if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
+            }}
           />
         );
       })()}

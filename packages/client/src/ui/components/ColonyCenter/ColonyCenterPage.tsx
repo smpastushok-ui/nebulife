@@ -92,6 +92,8 @@ export interface ColonyCenterPageProps {
   onTeleport: (colony: ColonyCenterPlanet) => void;
   /** Close the Colony Center. */
   onClose: () => void;
+  /** Open the global TopUp/buy-quarks modal. */
+  onOpenTopUp?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,8 +132,8 @@ const TABS: TabDef[] = [
   { id: 'colonies',   labelKey: 'colony_center.tab.colonies' },
   { id: 'production', labelKey: 'colony_center.tab.production' },
   { id: 'buildings',  labelKey: 'colony_center.tab.buildings' },
-  { id: 'events',     labelKey: 'colony_center.tab.events' },
   { id: 'premium',    labelKey: 'colony_center.tab.premium' },
+  { id: 'events',     labelKey: 'colony_center.tab.events' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -815,6 +817,7 @@ function BoostSection({
 export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TabId>('overview');
+  const [quarkHover, setQuarkHover] = useState(false);
 
   const isLowTier = useMemo(() => {
     const tier = getDeviceTier();
@@ -878,16 +881,37 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
             {props.active.planet.name}
           </div>
         </div>
-        <div style={{
-          padding: '4px 10px',
-          background: 'rgba(10,15,25,0.8)',
-          border: '1px solid #446688',
-          borderRadius: 3,
-          fontSize: 11,
-          color: '#7bb8ff',
-        }}>
-          ⚛ {props.quarks}
-        </div>
+        {props.onOpenTopUp ? (
+          <button
+            onClick={props.onOpenTopUp}
+            onMouseEnter={() => setQuarkHover(true)}
+            onMouseLeave={() => setQuarkHover(false)}
+            style={{
+              padding: '4px 10px',
+              background: quarkHover ? 'rgba(68,136,255,0.18)' : 'rgba(10,15,25,0.8)',
+              border: '1px solid #446688',
+              borderRadius: 3,
+              fontSize: 11,
+              color: '#7bb8ff',
+              fontFamily: 'monospace',
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+          >
+            ⚛ {props.quarks}
+          </button>
+        ) : (
+          <div style={{
+            padding: '4px 10px',
+            background: 'rgba(10,15,25,0.8)',
+            border: '1px solid #446688',
+            borderRadius: 3,
+            fontSize: 11,
+            color: '#7bb8ff',
+          }}>
+            ⚛ {props.quarks}
+          </div>
+        )}
       </div>
 
       {/* Tab bar — horizontal scroll on narrow screens */}

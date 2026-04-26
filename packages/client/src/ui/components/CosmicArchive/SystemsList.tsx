@@ -270,46 +270,13 @@ export function SystemsList({
     onStartResearch?.(systemId);
   };
 
-  // Grid column template: optionally prepend a 28px left column for the ⚛ icon.
-  const qColPrefix = hasResearchCol && quarkShortcutsVisible ? '28px ' : '';
-  const gridColsMobile    = hasResearchCol ? `${qColPrefix}1fr 34px 32px 32px 68px` : `${qColPrefix}1fr 34px 32px 32px`;
-  const gridColsDesktop   = hasResearchCol ? `${qColPrefix}1fr 36px 56px 36px 36px 72px` : `${qColPrefix}1fr 36px 56px 36px 36px`;
+  // Grid column template — no left quark column any more (⚛ is absolutely
+  // positioned outside the row's right edge when visible).
+  const gridColsMobile    = hasResearchCol ? '1fr 34px 32px 32px 68px' : '1fr 34px 32px 32px';
+  const gridColsDesktop   = hasResearchCol ? '1fr 36px 56px 36px 36px 72px' : '1fr 36px 56px 36px 36px';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Quark shortcuts master toggle — shown only when the research column exists */}
-      {hasResearchCol && onInstantResearch && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          paddingBottom: 6,
-          borderBottom: '1px solid rgba(51, 68, 85, 0.1)',
-          marginBottom: 2,
-        }}>
-          <button
-            onClick={toggleQuarkShortcuts}
-            title={quarkShortcutsVisible
-              ? t('archive.quark_shortcuts_hide')
-              : t('archive.quark_shortcuts_show')}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 26, height: 26, borderRadius: '50%',
-              background: quarkShortcutsVisible ? 'rgba(68,136,255,0.22)' : 'rgba(68,136,255,0.07)',
-              border: `1px solid ${quarkShortcutsVisible ? '#4488ff' : 'rgba(123,184,255,0.35)'}`,
-              color: '#7bb8ff',
-              cursor: 'pointer',
-              fontFamily: 'monospace',
-              fontSize: 13,
-              lineHeight: 1,
-              padding: 0,
-              animation: quarkShortcutsVisible ? undefined : 'sys-quark-pill-pulse 2.5s ease-in-out infinite',
-            }}
-          >
-            ⚛
-          </button>
-        </div>
-      )}
-
       {/* Header row — SVG icons with tooltips */}
       <div
         style={{
@@ -322,8 +289,6 @@ export function SystemsList({
           marginBottom: 4,
         }}
       >
-        {/* Left quark-col placeholder in header */}
-        {hasResearchCol && quarkShortcutsVisible && <div />}
         <span style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1 }}>{t('archive.col_name')}</span>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <HeaderIcon tooltip={t('archive.tooltip_spectral_class')}>
@@ -364,13 +329,37 @@ export function SystemsList({
           </HeaderIcon>
         </div>
         {hasResearchCol && (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4 }}>
             <HeaderIcon tooltip={t('archive.tooltip_research_actions')}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
                 <circle cx="6.5" cy="6.5" r="4.5" />
                 <line x1="10" y1="10" x2="14" y2="14" />
               </svg>
             </HeaderIcon>
+            {onInstantResearch && (
+              <button
+                onClick={toggleQuarkShortcuts}
+                title={quarkShortcutsVisible
+                  ? t('archive.quark_shortcuts_hide')
+                  : t('archive.quark_shortcuts_show')}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 20, height: 20, borderRadius: '50%',
+                  background: quarkShortcutsVisible ? 'rgba(68,136,255,0.22)' : 'rgba(68,136,255,0.07)',
+                  border: `1px solid ${quarkShortcutsVisible ? '#4488ff' : 'rgba(123,184,255,0.35)'}`,
+                  color: '#7bb8ff',
+                  cursor: 'pointer',
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  lineHeight: 1,
+                  padding: 0,
+                  flexShrink: 0,
+                  animation: quarkShortcutsVisible ? undefined : 'sys-quark-pill-pulse 2.5s ease-in-out infinite',
+                }}
+              >
+                ⚛
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -381,13 +370,12 @@ export function SystemsList({
         const ringLabel = group.ringIndex === 0
           ? t('archive.home_system')
           : t('archive.ring_label', { ring: group.ringIndex });
-        // Rings 2+ are auto-collapsed AND user-toggleable only after the
-        // previous ring is fully researched. While locked the header is
-        // non-clickable and content stays hidden — prevents tester
-        // confusion about deep-core systems before personal exploration.
+        // Ring 1+: user-toggleable. Ring 0 (home) is always expanded.
+        // Rings 2+ are force-collapsed while locked (ring 1 is never locked).
+        // Ring 1 defaults to expanded; rings 2+ default to collapsed (see seed effect).
         const forceCollapsed = group.ringIndex >= 2 && locked;
         const isCollapsed = forceCollapsed || collapsedRings.has(group.ringIndex);
-        const canCollapse = group.ringIndex >= 2 && !locked;
+        const canCollapse = group.ringIndex >= 1 && !locked;
 
         return (
           <React.Fragment key={`ring-${group.ringIndex}`}>
@@ -482,39 +470,10 @@ export function SystemsList({
                     animation: researching ? 'sys-row-research-pulse 2.5s ease-in-out infinite' : undefined,
                     position: 'relative',
                     opacity: locked ? 0.6 : 1,
+                    // Allow the absolutely-positioned ⚛ icon to overflow the right edge.
+                    overflow: 'visible',
                   }}
                 >
-                  {/* Left quark-shortcut column — only when toggle is on */}
-                  {hasResearchCol && quarkShortcutsVisible && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {onInstantResearch && canResearch && !researching && !fullyResearched ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setInstantTargetId(system.id);
-                          }}
-                          title={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
-                          aria-label={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            width: 18, height: 18, borderRadius: '50%',
-                            background: 'rgba(68,136,255,0.10)',
-                            border: '1px solid rgba(123,184,255,0.45)',
-                            color: '#7bb8ff',
-                            cursor: 'pointer',
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            lineHeight: 1,
-                            padding: 0,
-                          }}
-                        >
-                          ⚛
-                        </button>
-                      ) : (
-                        <div style={{ width: 18, height: 18 }} />
-                      )}
-                    </div>
-                  )}
 
                   {/* Name (clickable to navigate) */}
                   <span
@@ -558,7 +517,7 @@ export function SystemsList({
 
                   {/* Research action button */}
                   {hasResearchCol && (
-                    <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', overflow: 'visible' }}>
                       {isHome ? (
                         <span style={{ color: '#334455', fontSize: 10 }} />
                       ) : locked && !(isQuarkUnlocked?.(system.id) ?? false) ? (
@@ -597,7 +556,7 @@ export function SystemsList({
                           </svg>
                         )
                       ) : fullyResearched || researching || canResearch ? (
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                           <ResearchProgressIcon
                             state={fullyResearched ? 'complete' : researching ? 'researching' : 'idle'}
                             progress={progressPct}
@@ -612,10 +571,10 @@ export function SystemsList({
                               }
                             }}
                           />
-                          {/* Quark-shortcut inline — only shown when the master quark toggle is OFF.
-                              When ON, the button is rendered in the dedicated left column instead,
-                              keeping the research column width stable. */}
-                          {onInstantResearch && canResearch && !researching && !fullyResearched && !quarkShortcutsVisible && (
+                          {/* ⚛ quark-shortcut: absolutely positioned to the right of the
+                              dial so it doesn't affect the column width. Visible only when
+                              the master toggle is ON and the system is researchable. */}
+                          {onInstantResearch && quarkShortcutsVisible && canResearch && !researching && !fullyResearched && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -624,6 +583,8 @@ export function SystemsList({
                               title={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
                               aria-label={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
                               style={{
+                                position: 'absolute',
+                                right: -22,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 width: 18, height: 18, borderRadius: '50%',
                                 background: 'rgba(68,136,255,0.10)',
@@ -892,7 +853,7 @@ function ResearchProgressIcon({
         )}
       </svg>
 
-      {/* Centre element: pulsing particle while researching, magnifier otherwise. */}
+      {/* Centre element: pulsing particle while researching; eye for complete; magnifier for idle. */}
       {isResearching ? (
         /* Single pulsing dot at the exact centre of the dial. */
         <div
@@ -906,16 +867,32 @@ function ResearchProgressIcon({
             transformOrigin: '50% 50%',
           }}
         />
-      ) : (
-        /* Static magnifier — idle (clickable to start) or complete (filled bg). */
+      ) : isComplete ? (
+        /* Eye icon — indicates the system is fully researched and navigable. */
         <svg
           width={12}
           height={12}
           viewBox="0 0 16 16"
           style={{ position: 'relative', zIndex: 1 }}
           fill="none"
-          stroke={isComplete ? '#ffffff' : '#7bb8ff'}
-          strokeWidth={isComplete ? 1.8 : 1.6}
+          stroke="#ffffff"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M2 7c2-3 5-4 6-4s4 1 6 4c-2 3-5 4-6 4s-4-1-6-4z" />
+          <circle cx="8" cy="7" r="2" />
+        </svg>
+      ) : (
+        /* Static magnifier — idle (clickable to start). */
+        <svg
+          width={12}
+          height={12}
+          viewBox="0 0 16 16"
+          style={{ position: 'relative', zIndex: 1 }}
+          fill="none"
+          stroke="#7bb8ff"
+          strokeWidth={1.6}
           strokeLinecap="round"
         >
           <circle cx="7" cy="7" r="4.2" />
