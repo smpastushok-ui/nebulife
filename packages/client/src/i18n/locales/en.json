@@ -1498,6 +1498,13 @@
       "planet_not_terraformable": "Planet cannot be terraformed"
     }
   },
+  "colonies": {
+    "population": "Population",
+    "buildings": "Buildings",
+    "btn_surface": "Surface",
+    "btn_center": "Center",
+    "no_colonies": "No colonies yet"
+  },
   "mission": {
     "donor_balance": "Available: {{value}}"
   }

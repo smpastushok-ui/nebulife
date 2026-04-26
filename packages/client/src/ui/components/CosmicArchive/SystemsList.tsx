@@ -329,7 +329,7 @@ export function SystemsList({
           </HeaderIcon>
         </div>
         {hasResearchCol && (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4 }}>
+          <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'visible' }}>
             <HeaderIcon tooltip={t('archive.tooltip_research_actions')}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
                 <circle cx="6.5" cy="6.5" r="4.5" />
@@ -343,6 +343,8 @@ export function SystemsList({
                   ? t('archive.quark_shortcuts_hide')
                   : t('archive.quark_shortcuts_show')}
                 style={{
+                  position: 'absolute',
+                  right: -22,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   width: 20, height: 20, borderRadius: '50%',
                   background: quarkShortcutsVisible ? 'rgba(68,136,255,0.22)' : 'rgba(68,136,255,0.07)',
@@ -806,7 +808,7 @@ function ResearchProgressIcon({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         width: 26, height: 26, borderRadius: '50%',
         background: isComplete
-          ? '#4488ff'
+          ? 'rgba(68,136,255,0.35)'
           : isResearching
             ? 'rgba(68,136,255,0.10)'
             : hover ? 'rgba(68,136,255,0.18)' : 'rgba(68,136,255,0.06)',
@@ -814,7 +816,6 @@ function ResearchProgressIcon({
         cursor: 'pointer',
         padding: 0,
         transition: 'background 0.15s',
-        boxShadow: isComplete ? '0 0 6px rgba(68,136,255,0.35)' : undefined,
       }}
     >
       {/* Track + progress arc. For complete state we still draw the full
@@ -870,13 +871,13 @@ function ResearchProgressIcon({
       ) : isComplete ? (
         /* Eye icon — indicates the system is fully researched and navigable. */
         <svg
-          width={12}
-          height={12}
+          width={10}
+          height={10}
           viewBox="0 0 16 16"
           style={{ position: 'relative', zIndex: 1 }}
           fill="none"
-          stroke="#ffffff"
-          strokeWidth={1.8}
+          stroke="#7bb8ff"
+          strokeWidth={1.4}
           strokeLinecap="round"
           strokeLinejoin="round"
         >

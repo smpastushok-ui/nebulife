@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch } from '@nebulife/core';
-import type { PlanetTerraformState } from '@nebulife/core';
+import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet } from '@nebulife/core';
+import type { PlanetTerraformState, PlanetColonyState } from '@nebulife/core';
 import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
 import { PlanetsCatalog, FavoritesPlanetsList } from './PlanetsCatalog';
@@ -160,6 +160,12 @@ export interface CosmicArchiveProps {
   colonySystemIds?: string[];
   /** Terraform states keyed by planet ID. */
   terraformStates?: Record<string, PlanetTerraformState>;
+  /** Colony state per planet — for population + building count display. */
+  colonyStateByPlanet?: Record<string, PlanetColonyState>;
+  /** Navigate directly to a colony planet's surface (closes archive). */
+  onOpenColonySurface?: (planet: Planet) => void;
+  /** Open Colony Center for a colony planet (closes archive). */
+  onOpenColonyCenter?: (planet: Planet) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -284,6 +290,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   colonyPlanetIds,
   colonySystemIds,
   terraformStates,
+  colonyStateByPlanet,
+  onOpenColonySurface,
+  onOpenColonyCenter,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   const { t } = useTranslation();
   const TABS = buildTabs(t);
@@ -476,7 +485,10 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           colonyResources={colonyResources}
           resourcesByPlanet={resourcesByPlanet}
           terraformStates={terraformStates}
+          colonyStateByPlanet={colonyStateByPlanet}
           onViewPlanet={handleViewPlanet}
+          onOpenColonySurface={onOpenColonySurface}
+          onOpenColonyCenter={onOpenColonyCenter}
         />
       );
     }

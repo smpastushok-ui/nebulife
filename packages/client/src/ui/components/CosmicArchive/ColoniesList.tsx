@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, Planet } from '@nebulife/core';
-import type { PlanetTerraformState } from '@nebulife/core';
+import type { StarSystem, Planet, PlanetType } from '@nebulife/core';
+import type { PlanetTerraformState, PlanetColonyState } from '@nebulife/core';
 import { getOverallProgress } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
@@ -20,58 +20,123 @@ interface ColoniesListProps {
   colonyPlanetIds: Set<string>;
   /**
    * Per-planet resource balances (Phase 7B). Keyed by planet ID.
-   * When provided, every colony row shows its own resources.
-   * @deprecated Pass resourcesByPlanet instead of the old flat colonyResources.
+   * @deprecated Pass resourcesByPlanet instead.
    */
   colonyResources?: { minerals: number; volatiles: number; isotopes: number; water: number };
-  /** Per-planet resource balances (Phase 7B). Takes priority over colonyResources. */
+  /** Per-planet resource balances. Takes priority over colonyResources. */
   resourcesByPlanet?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
   /** Terraform states keyed by planet ID (may be partial / missing). */
   terraformStates?: Record<string, PlanetTerraformState>;
+  /** Colony state per planet — used for population + building counts. */
+  colonyStateByPlanet?: Record<string, PlanetColonyState>;
   onViewPlanet: (system: StarSystem, planetId: string) => void;
+  /** Open the planet's surface directly (closes archive). */
+  onOpenColonySurface?: (planet: Planet) => void;
+  /** Open the Colony Center for this planet (closes archive). */
+  onOpenColonyCenter?: (planet: Planet) => void;
 }
 
 // ---------------------------------------------------------------------------
-// Mini resource bar
+// Helpers
 // ---------------------------------------------------------------------------
 
-function ResourceBar({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color: string;
-}) {
-  const displayVal = value >= 10000
-    ? `${(value / 1000).toFixed(1)}k`
-    : String(Math.floor(value));
+/** Gradient colours per planet type for the exosphere thumbnail. */
+const PLANET_GRADIENT: Record<PlanetType, [string, string]> = {
+  'rocky':      ['#aa8855', '#332211'],
+  'terrestrial':['#44aa66', '#113322'],
+  'dwarf':      ['#776655', '#221100'],
+  'gas-giant':  ['#cc9966', '#553311'],
+  'ice-giant':  ['#88aaee', '#223355'],
+};
+
+/** Visible pixel size (within the 64×64 container) by radiusEarth bucket. */
+function planetPixelSize(planet: Planet): number {
+  if (planet.type === 'gas-giant' || planet.type === 'ice-giant') return 64;
+  const r = planet.radiusEarth;
+  if (r < 0.5) return 32;
+  if (r < 1.0) return 44;
+  if (r < 1.5) return 56;
+  return 64;
+}
+
+/** True when planet should show a ring (gas/ice giant or 3+ moons). */
+function hasRing(planet: Planet): boolean {
+  return planet.type === 'gas-giant' || planet.type === 'ice-giant' || planet.moons.length >= 3;
+}
+
+function getPopulation(state: PlanetColonyState | undefined): number {
+  if (!state) return 0;
+  return state.population?.current ?? 0;
+}
+
+function getBuildingCount(state: PlanetColonyState | undefined): number {
+  if (!state) return 0;
+  return state.buildings?.length ?? 0;
+}
+
+function formatNumber(n: number): string {
+  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
+  return String(Math.floor(n));
+}
+
+// ---------------------------------------------------------------------------
+// PlanetThumbnail
+// ---------------------------------------------------------------------------
+
+function PlanetThumbnail({ planet }: { planet: Planet }) {
+  const [glow, setGlow] = useState(false);
+  const size = planetPixelSize(planet);
+  const [from, to] = PLANET_GRADIENT[planet.type] ?? ['#667788', '#223344'];
+  const svgId = `pg-${planet.id}`;
+  const ring = hasRing(planet);
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-      <div
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          background: color,
-          flexShrink: 0,
-        }}
-      />
-      <span style={{ fontSize: 10, color: '#667788', fontFamily: 'monospace' }}>
-        {label}
-      </span>
-      <span
-        style={{
-          fontSize: 10,
-          color: '#8899aa',
-          fontFamily: 'monospace',
-          minWidth: 36,
-          textAlign: 'right',
-        }}
+    <div
+      style={{
+        width: 64,
+        height: 64,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 4,
+        transition: 'box-shadow 0.15s',
+        boxShadow: glow ? '0 0 12px rgba(68,136,255,0.5)' : 'none',
+        cursor: 'default',
+      }}
+      onMouseEnter={() => setGlow(true)}
+      onMouseLeave={() => setGlow(false)}
+    >
+      <svg
+        width={size + (ring ? 16 : 0)}
+        height={size + (ring ? 8 : 0)}
+        viewBox={`0 0 ${size + (ring ? 16 : 0)} ${size + (ring ? 8 : 0)}`}
+        style={{ overflow: 'visible' }}
       >
-        {displayVal}
-      </span>
+        <defs>
+          <radialGradient id={svgId} cx="40%" cy="35%" r="60%">
+            <stop offset="0%" stopColor={from} />
+            <stop offset="100%" stopColor={to} />
+          </radialGradient>
+        </defs>
+        {ring && (
+          <ellipse
+            cx={(size + 16) / 2}
+            cy={(size + 8) / 2}
+            rx={(size + 14) / 2}
+            ry={size * 0.18}
+            fill="none"
+            stroke="rgba(200,170,120,0.4)"
+            strokeWidth={2}
+          />
+        )}
+        <circle
+          cx={(size + (ring ? 16 : 0)) / 2}
+          cy={(size + (ring ? 8 : 0)) / 2}
+          r={size / 2}
+          fill={`url(#${svgId})`}
+        />
+      </svg>
     </div>
   );
 }
@@ -84,110 +149,203 @@ function ColonyRow({
   entry,
   systemName,
   resources,
-  terraformPct,
+  colonyState,
   onGo,
+  onSurface,
+  onCenter,
 }: {
   entry: ColonyEntry;
   systemName: string;
   resources: { minerals: number; volatiles: number; isotopes: number; water: number } | null;
-  terraformPct: number | null;
+  colonyState: PlanetColonyState | undefined;
   onGo: () => void;
+  onSurface?: () => void;
+  onCenter?: () => void;
 }) {
   const { t } = useTranslation();
+  const [hovered, setHovered] = useState(false);
+  const [isMobile] = useState(() => window.innerWidth < 480);
+
+  const population = getPopulation(colonyState);
+  const buildingCount = getBuildingCount(colonyState);
 
   return (
     <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex',
+        flexWrap: 'nowrap',
+        alignItems: 'center',
+        gap: 12,
+        padding: 10,
+        border: '1px solid rgba(51,68,85,0.3)',
+        borderRadius: 4,
+        background: hovered ? 'rgba(68,136,255,0.08)' : 'rgba(10,15,25,0.4)',
+        fontFamily: 'monospace',
+        transition: 'background 0.15s',
+        minWidth: 0,
+      }}
+    >
+      {/* 1. Planet thumbnail */}
+      <PlanetThumbnail planet={entry.planet} />
+
+      {/* 2. Population */}
+      <div style={{ width: 36, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+        {/* Human silhouette icon */}
+        <svg width={12} height={12} viewBox="0 0 16 16" fill="none" stroke="#aabbcc" strokeWidth={1.3} strokeLinecap="round">
+          <circle cx="8" cy="4" r="2.5" />
+          <path d="M3 15 Q3 10 8 10 Q13 10 13 15" />
+        </svg>
+        <span
+          title={t('colonies.population')}
+          style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}
+        >
+          {formatNumber(population)}
+        </span>
+      </div>
+
+      {/* 3. Buildings */}
+      <div style={{ width: 36, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+        {/* House silhouette icon */}
+        <svg width={12} height={12} viewBox="0 0 16 16" fill="none" stroke="#aabbcc" strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 8 L8 2 L14 8" />
+          <path d="M4 8 L4 14 L12 14 L12 8" />
+          <rect x="6" y="10" width="4" height="4" />
+        </svg>
+        <span
+          title={t('colonies.buildings')}
+          style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}
+        >
+          {buildingCount > 0 ? buildingCount : '\u2014'}
+        </span>
+      </div>
+
+      {/* 4. Resources cluster (2x2 grid) */}
+      {resources !== null && (
+        <div style={{
+          width: 88,
+          flexShrink: 0,
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: isMobile ? 2 : 3,
+        }}>
+          {/* Minerals — orange */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#aa8855', flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}>{formatNumber(resources.minerals)}</span>
+          </div>
+          {/* Volatiles — cyan */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#88aaee', flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}>{formatNumber(resources.volatiles)}</span>
+          </div>
+          {/* Isotopes — green-blue */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7bb8ff', flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}>{formatNumber(resources.isotopes)}</span>
+          </div>
+          {/* Water — blue */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#44aa88', flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}>{formatNumber(resources.water)}</span>
+          </div>
+        </div>
+      )}
+      {resources === null && (
+        <div style={{ width: 88, flexShrink: 0 }} />
+      )}
+
+      {/* 5. Action buttons */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', minWidth: 0 }}>
+        {onSurface ? (
+          <ActionButton
+            label={isMobile ? undefined : t('colonies.btn_surface')}
+            title={t('colonies.btn_surface')}
+            onClick={onSurface}
+            icon={
+              <svg width={11} height={11} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 2 L8 12" />
+                <path d="M4 9 L8 13 L12 9" />
+                <path d="M3 14 Q8 11 13 14" />
+              </svg>
+            }
+          />
+        ) : (
+          <ActionButton
+            label={isMobile ? undefined : t('archive.go_to_btn')}
+            title={t('archive.go_to_btn')}
+            onClick={onGo}
+            icon={
+              <svg width={11} height={11} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 3l5 5-5 5" />
+              </svg>
+            }
+          />
+        )}
+        {onCenter && (
+          <ActionButton
+            label={isMobile ? undefined : t('colonies.btn_center')}
+            title={t('colonies.btn_center')}
+            onClick={onCenter}
+            icon={
+              <svg width={11} height={11} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8" cy="8" r="2.5" />
+                <circle cx="8" cy="8" r="6" strokeDasharray="2 2" />
+              </svg>
+            }
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ActionButton
+// ---------------------------------------------------------------------------
+
+function ActionButton({
+  label,
+  title,
+  onClick,
+  icon,
+}: {
+  label: string | undefined;
+  title: string;
+  onClick: () => void;
+  icon: React.ReactNode;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        padding: '10px 14px',
-        background: 'rgba(10, 15, 25, 0.4)',
-        border: '1px solid rgba(51, 68, 85, 0.25)',
-        borderRadius: 4,
+        justifyContent: label ? 'flex-start' : 'center',
+        gap: label ? 5 : 0,
+        height: 28,
+        padding: label ? '0 10px' : '0 8px',
+        background: hover ? 'rgba(68,102,136,0.25)' : 'none',
+        border: '1px solid rgba(68,102,136,0.5)',
+        borderRadius: 3,
+        color: '#7bb8ff',
         fontFamily: 'monospace',
+        fontSize: 11,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        transition: 'background 0.15s, border-color 0.15s',
+        borderColor: hover ? '#7bb8ff' : 'rgba(68,102,136,0.5)',
+        flexShrink: 0,
       }}
     >
-      {/* Planet name + system */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 13,
-            color: entry.planet.isHomePlanet ? '#44ff88' : '#aabbcc',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-          title={entry.planet.name}
-        >
-          {entry.planet.name}
-        </div>
-        <div
-          style={{
-            fontSize: 10,
-            color: '#556677',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-          title={systemName}
-        >
-          {systemName}
-        </div>
-      </div>
-
-      {/* Resources */}
-      {resources !== null && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <ResourceBar label="M" value={resources.minerals} color="#aa8855" />
-          <ResourceBar label="V" value={resources.volatiles} color="#88aaee" />
-          <ResourceBar label="I" value={resources.isotopes} color="#7bb8ff" />
-          <ResourceBar label="W" value={resources.water} color="#44aa88" />
-        </div>
-      )}
-
-      {/* Terraform progress */}
-      <div
-        style={{
-          fontSize: 10,
-          color: '#4488aa',
-          whiteSpace: 'nowrap',
-          minWidth: 90,
-          textAlign: 'right',
-        }}
-      >
-        {terraformPct !== null
-          ? t('archive.terraform_progress', { pct: Math.round(terraformPct) })
-          : '—'}
-      </div>
-
-      {/* Navigate button */}
-      <button
-        onClick={onGo}
-        style={{
-          padding: '5px 12px',
-          background: 'none',
-          border: '1px solid rgba(68, 102, 136, 0.5)',
-          borderRadius: 3,
-          color: '#7bb8ff',
-          fontFamily: 'monospace',
-          fontSize: 11,
-          cursor: 'pointer',
-          flexShrink: 0,
-          transition: 'background 0.15s, border-color 0.15s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(68, 102, 136, 0.25)';
-          e.currentTarget.style.borderColor = '#7bb8ff';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'none';
-          e.currentTarget.style.borderColor = 'rgba(68, 102, 136, 0.5)';
-        }}
-      >
-        {t('archive.go_to_btn')}
-      </button>
-    </div>
+      {icon}
+      {label && <span>{label}</span>}
+    </button>
   );
 }
 
@@ -202,7 +360,10 @@ export function ColoniesList({
   colonyResources,
   resourcesByPlanet,
   terraformStates,
+  colonyStateByPlanet,
   onViewPlanet,
+  onOpenColonySurface,
+  onOpenColonyCenter,
 }: ColoniesListProps) {
   const { t } = useTranslation();
 
@@ -241,13 +402,14 @@ export function ColoniesList({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {entries.map(({ system, planet }) => {
         const tfState = terraformStates?.[planet.id];
-        const tfPct = tfState ? getOverallProgress(tfState) : null;
+        // Keep terraform data for potential future display; not shown in new layout
+        void (tfState ? getOverallProgress(tfState) : null);
 
-        // Resources: prefer per-planet map (Phase 7B). Fallback to legacy
-        // flat colonyResources for home planet only (backward compat).
         const res = resourcesByPlanet
           ? (resourcesByPlanet[planet.id] ?? null)
           : planet.isHomePlanet ? (colonyResources ?? null) : null;
+
+        const state = colonyStateByPlanet?.[planet.id];
 
         return (
           <ColonyRow
@@ -255,8 +417,10 @@ export function ColoniesList({
             entry={{ system, planet }}
             systemName={aliases[system.id] ?? system.name}
             resources={res}
-            terraformPct={tfPct}
+            colonyState={state}
             onGo={() => onViewPlanet(system, planet.id)}
+            onSurface={onOpenColonySurface ? () => onOpenColonySurface(planet) : undefined}
+            onCenter={onOpenColonyCenter ? () => onOpenColonyCenter(planet) : undefined}
           />
         );
       })}

@@ -6814,6 +6814,27 @@ function AppInner() {
             return sysIds;
           })()}
           terraformStates={terraformStates}
+          colonyStateByPlanet={colonyState ? { [colonyState.planetId]: colonyState } : undefined}
+          onOpenColonySurface={(planet) => {
+            setShowCosmicArchive(false);
+            // Find the star system that contains this planet
+            const allSys = engineRef.current?.getAllSystems() ?? [];
+            const sys = allSys.find((s) => s.planets.some((p) => p.id === planet.id));
+            if (sys) {
+              playSfx('go-to-exosphera', 0.5);
+              setSurfaceTarget({ planet, star: sys.star });
+            }
+          }}
+          onOpenColonyCenter={(planet) => {
+            setShowCosmicArchive(false);
+            // Ensure surfaceTarget is set so ColonyCenterPage knows which planet
+            const allSys = engineRef.current?.getAllSystems() ?? [];
+            const sys = allSys.find((s) => s.planets.some((p) => p.id === planet.id));
+            if (sys) {
+              setSurfaceTarget({ planet, star: sys.star });
+            }
+            setShowColonyCenter(true);
+          }}
         />
       )}
 

@@ -1499,6 +1499,13 @@
       "planet_not_terraformable": "Планета не підлягає терраформуванню"
     }
   },
+  "colonies": {
+    "population": "Населення",
+    "buildings": "Будівлі",
+    "btn_surface": "Поверхня",
+    "btn_center": "Центр",
+    "no_colonies": "Колоній ще немає"
+  },
   "mission": {
     "donor_balance": "На колонії: {{value}}"
   }
