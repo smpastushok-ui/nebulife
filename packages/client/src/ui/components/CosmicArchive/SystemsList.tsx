@@ -141,6 +141,9 @@ export function SystemsList({
   // popup. null when popup is closed.
   const [instantTargetId, setInstantTargetId] = useState<string | null>(null);
 
+  // Filter: show only systems where progress < 100 (unresearched)
+  const [filterUnresearched, setFilterUnresearched] = useState(false);
+
   useEffect(() => {
     ensureStyles();
   }, []);
@@ -158,16 +161,26 @@ export function SystemsList({
     };
   }, []);
 
-  // Collapsed rings — by default, rings with index >= 2 start collapsed so
-  // players aren't overwhelmed by ~1,400 far-away systems. Home (ring 0) and
-  // first ring (ring 1) stay expanded. Player can toggle by tapping the
-  // ring header; choice persists for the session via this local state.
+  // Collapsed rings — persisted to localStorage so state survives tab switches.
+  // Key: nebulife_systems_expanded_rings (JSON Record<number, boolean>).
+  // Default: rings 0 and 1 expanded, rings 2+ collapsed.
   const [collapsedRings, setCollapsedRings] = useState<Set<number>>(() => {
-    // Start with "everything from ring 2 up" collapsed. We don't know the
-    // full ring set here yet, so we populate lazily on first render below.
+    try {
+      const raw = localStorage.getItem('nebulife_systems_expanded_rings');
+      if (raw) {
+        const record = JSON.parse(raw) as Record<string, boolean>;
+        const collapsed = new Set<number>();
+        for (const [k, v] of Object.entries(record)) {
+          if (v === false) collapsed.add(Number(k));
+        }
+        return collapsed;
+      }
+    } catch { /* ignore */ }
+    // Default: collapse from ring 2 up (seeded lazily below)
     return new Set();
   });
-  // First-mount: mark all ring>=2 as collapsed once we know which rings exist.
+  // First-mount: mark all ring>=2 as collapsed once we know which rings exist
+  // BUT only if localStorage had no saved preference for them.
   const collapsedSeededRef = useRef(false);
 
   const sorted = useMemo(() => {
@@ -203,21 +216,37 @@ export function SystemsList({
 
   // Seed the collapsed set once we know which rings exist — rings 2+ default
   // to collapsed so the terminal isn't a 1400-row wall on first open.
+  // Only applies rings not already recorded in localStorage.
   useEffect(() => {
     if (collapsedSeededRef.current) return;
     if (ringGroups.length === 0) return;
     collapsedSeededRef.current = true;
-    const initial = new Set<number>();
-    for (const g of ringGroups) {
-      if (g.ringIndex >= 2) initial.add(g.ringIndex);
+
+    let hasSavedPrefs = false;
+    try {
+      hasSavedPrefs = !!localStorage.getItem('nebulife_systems_expanded_rings');
+    } catch { /* ignore */ }
+
+    if (!hasSavedPrefs) {
+      // No saved prefs — apply defaults: ring 2+ collapsed
+      const initial = new Set<number>();
+      for (const g of ringGroups) {
+        if (g.ringIndex >= 2) initial.add(g.ringIndex);
+      }
+      setCollapsedRings(initial);
     }
-    setCollapsedRings(initial);
   }, [ringGroups]);
 
   const toggleRingCollapse = useCallback((ringIndex: number) => {
     setCollapsedRings((prev) => {
       const next = new Set(prev);
       if (next.has(ringIndex)) next.delete(ringIndex); else next.add(ringIndex);
+      // Persist to localStorage as Record<ringIndex, expanded (true) | collapsed (false)>
+      try {
+        const record: Record<string, boolean> = {};
+        for (const ri of next) { record[String(ri)] = false; }
+        localStorage.setItem('nebulife_systems_expanded_rings', JSON.stringify(record));
+      } catch { /* ignore */ }
       return next;
     });
   }, []);
@@ -330,12 +359,27 @@ export function SystemsList({
         </div>
         {hasResearchCol && (
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'visible' }}>
-            <HeaderIcon tooltip={t('archive.tooltip_research_actions')}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
+            {/* Magnifier as active filter button — filters to unresearched (progress < 100) */}
+            <button
+              onClick={() => setFilterUnresearched((v) => !v)}
+              title={filterUnresearched ? t('archive.filter_unresearched_active') : t('archive.tooltip_research_actions')}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 24, height: 24, borderRadius: 3,
+                background: filterUnresearched ? 'rgba(68,136,255,0.22)' : 'transparent',
+                border: filterUnresearched ? '1px solid #446688' : '1px solid transparent',
+                cursor: 'pointer',
+                padding: 0,
+                transition: 'background 0.15s, border-color 0.15s',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"
+                stroke={filterUnresearched ? '#7bb8ff' : '#556677'}
+                strokeWidth="1.2" strokeLinecap="round">
                 <circle cx="6.5" cy="6.5" r="4.5" />
                 <line x1="10" y1="10" x2="14" y2="14" />
               </svg>
-            </HeaderIcon>
+            </button>
             {onInstantResearch && (
               <button
                 onClick={toggleQuarkShortcuts}
@@ -344,7 +388,7 @@ export function SystemsList({
                   : t('archive.quark_shortcuts_show')}
                 style={{
                   position: 'absolute',
-                  right: -22,
+                  right: -10,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   width: 20, height: 20, borderRadius: '50%',
                   background: quarkShortcutsVisible ? 'rgba(68,136,255,0.22)' : 'rgba(68,136,255,0.07)',
@@ -425,7 +469,11 @@ export function SystemsList({
                 )}
               </button>
             )}
-            {!isCollapsed && group.systems.map((system) => {
+            {!isCollapsed && group.systems.filter((system) => {
+              if (!filterUnresearched) return true;
+              const prog = getResearchProgress?.(system.id) ?? (isFullyResearched?.(system.id) ? 100 : 0);
+              return prog < 100;
+            }).map((system) => {
               const isHome = system.planets.some((p) => p.isHomePlanet);
               const isHovered = hoveredId === system.id;
               const name = aliases[system.id] || system.name;

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet, PlanetType } from '@nebulife/core';
 import type { PlanetTerraformState, PlanetColonyState } from '@nebulife/core';
 import { getOverallProgress } from '@nebulife/core';
+import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -221,7 +222,7 @@ function ColonyRow({
         </span>
       </div>
 
-      {/* 4. Resources cluster (2x2 grid) */}
+      {/* 4. Resources cluster (2x2 grid) — uses same icons as TopBar/ResourceDisplay */}
       {resources !== null && (
         <div style={{
           width: 88,
@@ -230,25 +231,25 @@ function ColonyRow({
           gridTemplateColumns: '1fr 1fr',
           gap: isMobile ? 2 : 3,
         }}>
-          {/* Minerals — orange */}
+          {/* Minerals */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#aa8855', flexShrink: 0 }} />
-            <span style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}>{formatNumber(resources.minerals)}</span>
+            <ResourceIcon type="minerals" size={10} />
+            <span style={{ fontSize: 10, color: RESOURCE_COLORS.minerals, fontFamily: 'monospace' }}>{formatNumber(resources.minerals)}</span>
           </div>
-          {/* Volatiles — cyan */}
+          {/* Volatiles */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#88aaee', flexShrink: 0 }} />
-            <span style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}>{formatNumber(resources.volatiles)}</span>
+            <ResourceIcon type="volatiles" size={10} />
+            <span style={{ fontSize: 10, color: RESOURCE_COLORS.volatiles, fontFamily: 'monospace' }}>{formatNumber(resources.volatiles)}</span>
           </div>
-          {/* Isotopes — green-blue */}
+          {/* Isotopes */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7bb8ff', flexShrink: 0 }} />
-            <span style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}>{formatNumber(resources.isotopes)}</span>
+            <ResourceIcon type="isotopes" size={10} />
+            <span style={{ fontSize: 10, color: RESOURCE_COLORS.isotopes, fontFamily: 'monospace' }}>{formatNumber(resources.isotopes)}</span>
           </div>
-          {/* Water — blue */}
+          {/* Water */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#44aa88', flexShrink: 0 }} />
-            <span style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}>{formatNumber(resources.water)}</span>
+            <ResourceIcon type="water" size={10} />
+            <span style={{ fontSize: 10, color: RESOURCE_COLORS.water, fontFamily: 'monospace' }}>{formatNumber(resources.water)}</span>
           </div>
         </div>
       )}

@@ -1111,7 +1111,9 @@
     "planet_menu_unfavorite": "Прибрати з обраних",
     "tf_pct": "Терраформ: {{pct}}%",
     "quark_shortcuts_show": "Показати ⚛ ярлики",
-    "quark_shortcuts_hide": "Приховати ⚛ ярлики"
+    "quark_shortcuts_hide": "Приховати ⚛ ярлики",
+    "filter_unresearched_active": "Фільтр: лише недосліджені (натисніть щоб зняти)",
+    "terraform_impossible": "неможливо"
   },
   "planets_catalog": {
     "tf_difficulty": "Тех-складність: {{pct}}%",
@@ -1133,7 +1135,9 @@
     "disabled_no_resources": "Недостатньо ресурсів",
     "disabled_need_building": "Потрібна будівля",
     "disabled_need_level": "Потрібен рівень {{level}}",
-    "disabled_need_tech": "Потрібна технологія {{tech}}"
+    "disabled_need_tech": "Потрібна технологія {{tech}}",
+    "rename_title": "Перейменувати планету",
+    "field_distance_short": "Відстань"
   },
   "cinematic": {
     "click_to_skip": "натиснiть щоб пропустити",
@@ -1455,7 +1459,16 @@
       "time_desc": "Зменшує кулдаун збору ресурсiв цiєї колонiї. Дiє на 24 години.",
       "active_boost": "Активний буст: {{sign}}{{pct}}% · залишилось ~{{remaining}} год",
       "disclaimer": "Буст локальний — дiє тiльки на цiй планетi. Iншi колонiї мають свої окремi апгрейди."
-    }
+    },
+    "deposits_remaining": "Залишок покладiв",
+    "depleted": "Вичерпано",
+    "planet_richness": "Багатство планети",
+    "stock_pct": "{{pct}}% вiд початкового",
+    "deposit_minerals": "Мiнерали",
+    "deposit_volatiles": "Летки",
+    "deposit_isotopes": "Iзотопи",
+    "deposit_water": "Вода",
+    "production_efficiency_warning": "Видобуток: {{pct}}% (поклади вичерпуються)"
   },
   "terraform": {
     "dispatch_title": "Доставити {{resource}} на {{planet}}",

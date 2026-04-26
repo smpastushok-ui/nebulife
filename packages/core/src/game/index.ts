@@ -169,3 +169,12 @@ export {
 
 // Surface biome regeneration (Phase 7C stub — real regen is client-side)
 export { regenerateSurfaceForType } from './surface-promote.js';
+
+// Planet resource stocks (v168 — finite extraction deposits)
+export {
+  generatePlanetStocks,
+  depleteStock,
+  getDepletionEfficiency,
+  applyLevelDepletion,
+  STOCK_SCALE,
+} from './planet-stocks.js';

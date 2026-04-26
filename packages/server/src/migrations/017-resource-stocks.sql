@@ -1,0 +1,16 @@
+-- v168: Planet resource stocks
+--
+-- Planet resource stocks are stored inside the game_state JSONB column of the
+-- `players` table under the key `planet_resource_stocks`.
+--
+-- Schema: Record<planetId, PlanetResourceStocks>
+--   where PlanetResourceStocks = {
+--     initial: { minerals, volatiles, isotopes, water },
+--     remaining: { minerals, volatiles, isotopes, water }
+--   }
+--
+-- Because `game_state` is already a JSONB column it self-extends to accept any
+-- new nested key — NO schema migration is required.
+-- This file is documentation-only.
+--
+-- No SQL to execute.

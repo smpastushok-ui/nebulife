@@ -194,21 +194,37 @@ export const HEX_CLIP_PATH = 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.
 // Rarity + resource generation (seeded, deterministic)
 // ---------------------------------------------------------------------------
 
+/**
+ * Roll rarity for a resource hex.
+ *
+ * Inner ring (zone 1) — basic odds, lower unique chance:
+ *   legendary 10%, epic 15%, rare 20%, uncommon 25%, common 30%
+ *
+ * Outer ring (zone 2+) — double the unique (legendary) chance:
+ *   legendary 30%, epic 20%, rare 20%, uncommon 15%, common 15%
+ *
+ * The 2x upgrade in legendary chance is the main balance lever that makes
+ * outer hexes worth their 2x higher unlock cost despite having the same
+ * 10-minute respawn timer as inner hexes.
+ */
 export function rollRarity(seed: number, slotId: string, zone: number = 1): Rarity {
   const h = Math.abs(Math.sin(seed * 0.1 + hashStr(slotId) * 0.01)) * 100;
-  // Zone 4+ (outer/corner hexes): boosted epic/legendary chances
-  if (zone >= 4) {
-    if (h < 8) return 'legendary';    // 8% (vs 2%)
-    if (h < 25) return 'epic';        // 17% (vs 8%)
-    if (h < 50) return 'rare';        // 25% (vs 15%)
-    if (h < 75) return 'uncommon';    // 25% (vs 25%)
-    return 'common';                   // 25% (vs 50%)
+
+  if (zone >= 2) {
+    // Outer ring — high unique / legendary drop rate (30%)
+    if (h < 30) return 'legendary';   // 30%
+    if (h < 50) return 'epic';        // 20%
+    if (h < 70) return 'rare';        // 20%
+    if (h < 85) return 'uncommon';    // 15%
+    return 'common';                   // 15%
   }
-  if (h < 2) return 'legendary';
-  if (h < 10) return 'epic';
-  if (h < 25) return 'rare';
-  if (h < 50) return 'uncommon';
-  return 'common';
+
+  // Inner ring (zone 0-1) — modest unique rate (10%)
+  if (h < 10) return 'legendary';     // 10%
+  if (h < 25) return 'epic';          // 15%
+  if (h < 45) return 'rare';          // 20%
+  if (h < 70) return 'uncommon';      // 25%
+  return 'common';                     // 30%
 }
 
 export function rarityYield(rarity: Rarity): number {
@@ -247,19 +263,23 @@ export const RESOURCE_COLORS: Record<ResourceType, string> = {
 
 /**
  * Flat unlock cost per zone.
+ * Zone 1 = inner ring (cheap — starter progression).
+ * Zone 2+ = outer rings — 2x more expensive to unlock because they have
+ * shorter respawn (same as inner, 10 min) but significantly better rarity
+ * odds and higher yield per harvest.
  * Zones 5-8 are corner hexes on large/orbital planets — most expensive.
  */
 export function getUnlockCost(
   zone: number,
   _unlockOrder: number = 0,
 ): { minerals: number; volatiles: number; isotopes: number; water?: number; researchData?: number } {
-  if (zone === 0) return { minerals: 0, volatiles: 0, isotopes: 0 };
-  if (zone === 1) return { minerals: 0, volatiles: 0, isotopes: 10, researchData: 1 };
-  if (zone === 2) return { minerals: 15, volatiles: 10, isotopes: 0, researchData: 2 };
-  if (zone === 3) return { minerals: 30, volatiles: 20, isotopes: 0, water: 5, researchData: 5 };
-  if (zone === 4) return { minerals: 50, volatiles: 30, isotopes: 0, water: 10, researchData: 8 };
+  if (zone === 0) return { minerals: 0,   volatiles: 0,   isotopes: 0                            };
+  if (zone === 1) return { minerals: 0,   volatiles: 0,   isotopes: 10,  researchData: 1         };
+  if (zone === 2) return { minerals: 30,  volatiles: 20,  isotopes: 0,   researchData: 4         }; // was 15/10/0/2
+  if (zone === 3) return { minerals: 60,  volatiles: 40,  isotopes: 0,   water: 10, researchData: 10 }; // was 30/20/0/5/5
+  if (zone === 4) return { minerals: 100, volatiles: 60,  isotopes: 0,   water: 20, researchData: 16 }; // was 50/30/0/10/8
   // Zones 5+ — corner hexes, hardest to reach
-  return { minerals: 80, volatiles: 50, water: 20, isotopes: 10, researchData: 15 };
+  return { minerals: 160, volatiles: 100, isotopes: 20, water: 40, researchData: 30 }; // was 80/50/10/20/15
 }
 
 // ---------------------------------------------------------------------------
@@ -341,17 +361,21 @@ function hashStr(s: string): number {
 // Respawn + harvest math
 // ---------------------------------------------------------------------------
 
-/** Respawn time per zone (ms) */
+/**
+ * Respawn time per zone (ms).
+ * All zones share the same 10-minute cooldown — outer rings are differentiated
+ * by higher unlock cost and better rarity odds, not by a longer wait time.
+ */
 export const ZONE_RESPAWN_MS: Record<number, number> = {
-  0: 600_000,      // zone 0 (hub) — 10 min
-  1: 600_000,      // zone 1 — 10 min
-  2: 1_800_000,    // zone 2 — 30 min
-  3: 7_200_000,    // zone 3 — 2 hours
-  4: 14_400_000,   // zone 4 — 4 hours
-  5: 21_600_000,   // zone 5 — 6 hours
-  6: 21_600_000,   // zone 6 — 6 hours
-  7: 28_800_000,   // zone 7 — 8 hours
-  8: 28_800_000,   // zone 8 — 8 hours (large planet corners)
+  0: 600_000,   // zone 0 (hub)     — 10 min
+  1: 600_000,   // zone 1 (inner)   — 10 min
+  2: 600_000,   // zone 2 (outer)   — 10 min
+  3: 600_000,   // zone 3           — 10 min
+  4: 600_000,   // zone 4           — 10 min
+  5: 600_000,   // zone 5           — 10 min
+  6: 600_000,   // zone 6           — 10 min
+  7: 600_000,   // zone 7           — 10 min
+  8: 600_000,   // zone 8 (corners) — 10 min
 };
 export const RESOURCE_RESPAWN_MS = 600_000; // legacy fallback
 

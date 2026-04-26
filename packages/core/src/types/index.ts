@@ -17,6 +17,7 @@ export type {
 export { BUILDING_DEFS, canPlaceBuilding, getActiveBonuses, REGROWTH_STAGE_MS } from './surface.js';
 export type {
   PlanetEnergyState, StorageState, PopulationState, PlanetColonyState,
+  PlanetResourceStocks,
 } from './colony.js';
 export {
   createEnergyState, createStorageState, getStorageCapacity,

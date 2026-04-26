@@ -169,6 +169,8 @@ export interface CosmicArchiveProps {
   onOpenColonyCenter?: (planet: Planet) => void;
   /** Per-planet resource getter passed to PlanetsCatalogV2 detail panel. */
   getPlanetResources?: (planetId: string) => ColonyResources;
+  /** Finite planet resource stocks (v168) — passed to PlanetsCatalogV2 detail panel. */
+  planetResourceStocks?: Record<string, import('@nebulife/core').PlanetResourceStocks>;
   /** Opens MissionDispatchModal for the given target planet + paramId. */
   onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
   /** Manually trigger terraform completion for a planet. */
@@ -177,6 +179,8 @@ export interface CosmicArchiveProps {
   donorPlanets?: Planet[];
   /** Current buildings on the active colony surface — used for ship-tier computation. */
   colonyBuildings?: PlacedBuilding[];
+  /** Save a custom name for a planet (stored in planetOverrides). */
+  onRenamePlanet?: (planetId: string, newName: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -309,6 +313,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onCompleteTerraform,
   donorPlanets,
   colonyBuildings,
+  onRenamePlanet,
+  planetResourceStocks,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   const { t } = useTranslation();
   const TABS = buildTabs(t);
@@ -518,11 +524,15 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           colonySystemIds={colonySystemIds ?? []}
           terraformStates={terraformStates}
           getPlanetResources={getPlanetResources}
+          planetResourceStocks={planetResourceStocks}
           onSendTerraformDelivery={onSendTerraformDelivery}
           onCompleteTerraform={onCompleteTerraform}
           donorPlanets={donorPlanets}
           techTreeState={techTreeState}
           colonyBuildings={colonyBuildings}
+          onToggleFavorite={toggleFavorite}
+          favoritePlanetIds={favorites}
+          onRenamePlanet={onRenamePlanet}
         />
       );
     }

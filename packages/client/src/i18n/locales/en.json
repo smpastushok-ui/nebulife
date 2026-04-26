@@ -1110,7 +1110,9 @@
     "planet_menu_unfavorite": "Remove from Favorites",
     "tf_pct": "Terraform: {{pct}}%",
     "quark_shortcuts_show": "Show ⚛ shortcuts",
-    "quark_shortcuts_hide": "Hide ⚛ shortcuts"
+    "quark_shortcuts_hide": "Hide ⚛ shortcuts",
+    "filter_unresearched_active": "Filter: unresearched only (click to clear)",
+    "terraform_impossible": "impossible"
   },
   "planets_catalog": {
     "tf_difficulty": "Tech difficulty: {{pct}}%",
@@ -1132,7 +1134,9 @@
     "disabled_no_resources": "Insufficient resources",
     "disabled_need_building": "Building required",
     "disabled_need_level": "Level {{level}} required",
-    "disabled_need_tech": "Tech {{tech}} required"
+    "disabled_need_tech": "Tech {{tech}} required",
+    "rename_title": "Rename planet",
+    "field_distance_short": "Distance"
   },
   "cinematic": {
     "click_to_skip": "click to skip",
@@ -1454,7 +1458,16 @@
       "time_desc": "Reduces resource harvest cooldown on this colony. Lasts 24 hours.",
       "active_boost": "Active boost: {{sign}}{{pct}}% · ~{{remaining}} h left",
       "disclaimer": "Boost is local — applies to this planet only. Other colonies have their own independent upgrades."
-    }
+    },
+    "deposits_remaining": "Deposits remaining",
+    "depleted": "Depleted",
+    "planet_richness": "Planet richness",
+    "stock_pct": "{{pct}}% of initial",
+    "deposit_minerals": "Minerals",
+    "deposit_volatiles": "Volatiles",
+    "deposit_isotopes": "Isotopes",
+    "deposit_water": "Water",
+    "production_efficiency_warning": "Extraction: {{pct}}% (deposits depleting)"
   },
   "terraform": {
     "dispatch_title": "Deliver {{resource}} to {{planet}}",

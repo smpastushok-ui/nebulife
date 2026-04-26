@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, Planet } from '@nebulife/core';
+import type { StarSystem, Planet, PlanetResourceStocks } from '@nebulife/core';
 import type { PlanetTerraformState, TerraformParamId, TechTreeState } from '@nebulife/core';
 import {
   isTerraformable,
@@ -9,9 +9,11 @@ import {
   canStartParam,
   computeParamRequirement,
   tierForBuildings,
+  generatePlanetStocks,
 } from '@nebulife/core';
 import type { ColonyResources } from '../Terraform/MissionDispatchModal.js';
 import type { PlacedBuilding } from '@nebulife/core';
+import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,22 +59,109 @@ interface PlanetsCatalogV2Props {
   techTreeState?: TechTreeState;
   /** Current buildings on the active colony surface (for ship-tier check). */
   colonyBuildings?: PlacedBuilding[];
+  /** Callback to rename a planet (inline edit). Saved in planetOverrides. */
+  onRenamePlanet?: (planetId: string, newName: string) => void;
+  /**
+   * Finite planet resource stocks (v168).
+   * When provided, the detail panel shows stock units rather than colony inventory.
+   */
+  planetResourceStocks?: Record<string, PlanetResourceStocks>;
 }
 
 // ---------------------------------------------------------------------------
-// Planet type → gradient color
+// Realistic planet color based on physical parameters
 // ---------------------------------------------------------------------------
 
-function getPlanetBodyColor(planet: Planet): string {
+function getRealisticPlanetColor(planet: Planet): string {
   if (planet.isHomePlanet) return '#44ff88';
-  switch (planet.type) {
-    case 'rocky': return '#aa8855';
-    case 'terrestrial': return '#44aa66';
-    case 'dwarf': return '#776655';
-    case 'gas-giant': return '#cc9966';
-    case 'ice-giant': return '#88aaee';
-    default: return '#8899aa';
+
+  const tempK = planet.surfaceTempK ?? 300;
+  const water = planet.hydrosphere?.waterCoverageFraction ?? (planet.habitability?.water ?? 0);
+  const atmoP = planet.atmosphere?.surfacePressureAtm ?? 0;
+
+  // Gas giants — from PlanetVisuals palette (seed-based bucket via simple modulo)
+  if (planet.type === 'gas-giant') {
+    if (tempK > 1000) {
+      // hot gas giant — red/orange
+      const reds = ['#cc5522', '#dd6633', '#ff8844', '#aa3322'];
+      return reds[Math.abs(planet.seed ?? 0) % reds.length];
+    }
+    if (tempK > 400) {
+      // warm gas giant — tan/amber
+      const warms = ['#cc9955', '#ddbb77', '#eebb88', '#ccaa77'];
+      return warms[Math.abs(planet.seed ?? 0) % warms.length];
+    }
+    // cold gas giant — brown/butterscotch
+    const colds = ['#aa8855', '#ccaa77', '#998866', '#bb9977'];
+    return colds[Math.abs(planet.seed ?? 0) % colds.length];
   }
+
+  // Ice giants — blue/teal
+  if (planet.type === 'ice-giant') {
+    if (tempK > 200) {
+      const teals = ['#5588aa', '#66aabb', '#77aacc', '#4488aa'];
+      return teals[Math.abs(planet.seed ?? 0) % teals.length];
+    }
+    const navies = ['#3366aa', '#4477bb', '#2255aa', '#5577cc'];
+    return navies[Math.abs(planet.seed ?? 0) % navies.length];
+  }
+
+  // Terrestrial / rocky / dwarf
+  // Water coverage adds blue tones
+  const waterFrac = Math.min(1, water);
+  // Temperature: hot → reddish/yellow, cold → blue-gray, temperate → neutral
+  const co2 = planet.atmosphere?.composition?.['CO2'] ?? 0;
+  const isVenusLike = co2 > 0.5 && atmoP > 10;
+
+  if (isVenusLike) return '#ccaa44'; // Venus-like: opaque yellow cloud cover
+
+  if (tempK > 1200) return '#552200'; // lava world
+  if (tempK > 600) return '#884433';  // scorched red-brown
+
+  // Life-bearing terrestrial with significant water
+  if (planet.hasLife && waterFrac > 0.3 && (planet.type === 'terrestrial' || planet.type === 'rocky')) {
+    // Mix blue (water) with green (life)
+    const b = Math.round(50 + waterFrac * 100);
+    const g = Math.round(100 + Math.min(80, waterFrac * 60));
+    return `rgb(30,${g},${b})`;
+  }
+
+  // Icy/frozen worlds
+  if (tempK < 200) return '#6699bb';  // frozen — blue-gray
+  if (tempK < 250) {
+    // cold rocky with some ice
+    const iceBlend = (250 - tempK) / 50;
+    const r = Math.round(70 + (1 - iceBlend) * 40);
+    const g = Math.round(110 + (1 - iceBlend) * 20);
+    const b = Math.round(160 + iceBlend * 30);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // Water-rich worlds (without life)
+  if (waterFrac > 0.6) return '#2255aa'; // ocean world — deep blue
+  if (waterFrac > 0.2) {
+    // mix blue/brown
+    const b = Math.round(60 + waterFrac * 100);
+    return `rgb(60,${Math.round(80 + waterFrac * 40)},${b})`;
+  }
+
+  // Dry rocky worlds — temperature-based
+  if (tempK > 373) return '#bb7733';  // warm desert
+  if (tempK > 273) {
+    // temperate rock — gray-brown with atmosphere tint
+    const atmosBoost = atmoP > 0.5 ? 10 : 0;
+    return `rgb(${100 + atmosBoost},${90 + atmosBoost},${80})`;
+  }
+
+  // Dwarf — pale, low color saturation
+  if (planet.type === 'dwarf') return '#887766';
+
+  return '#887766'; // default neutral
+}
+
+// Keep old function for backward compat — now delegates to realistic version
+function getPlanetBodyColor(planet: Planet): string {
+  return getRealisticPlanetColor(planet);
 }
 
 // ---------------------------------------------------------------------------
@@ -225,43 +314,7 @@ function CargoShipIcon({ color = '#7bb8ff' }: { color?: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Resource row icons
-// ---------------------------------------------------------------------------
-
-function MineralsIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#aa8855" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="8,2 14,12 2,12" />
-    </svg>
-  );
-}
-
-function VolatilesIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#88aaee" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 12 Q2 8 4 5 Q6 3 8 2 Q10 3 12 5 Q14 8 12 12" />
-      <line x1="8" y1="14" x2="8" y2="12" />
-    </svg>
-  );
-}
-
-function IsotopesIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="8" r="2" />
-      <circle cx="8" cy="8" r="5.5" strokeDasharray="3 2" />
-    </svg>
-  );
-}
-
-function WaterIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#44aabb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 3 C8 3 3 9 3 12 a5 5 0 0 0 10 0 C13 9 8 3 8 3z" />
-    </svg>
-  );
-}
+// Resource icons are now provided by shared ResourceIcon component (../ResourceIcon)
 
 // ---------------------------------------------------------------------------
 // PlanetCard — single grid cell (frameless, circle only)
@@ -269,19 +322,17 @@ function WaterIcon() {
 
 function PlanetCard({
   planet,
-  systemName,
-  distanceLY,
   filterStat,
   activeFilter,
   isSelected,
+  isFavorite,
   onClick,
 }: {
   planet: Planet;
-  systemName: string;
-  distanceLY: number | null;
   filterStat: string | null;
   activeFilter: FilterId | null;
   isSelected: boolean;
+  isFavorite: boolean;
   onClick: () => void;
 }) {
   const { t } = useTranslation();
@@ -289,11 +340,11 @@ function PlanetCard({
 
   const color = getPlanetBodyColor(planet);
 
-  // Radius: clamp radiusEarth to [0.4, 1.2] * 50px = [20px, 60px] diameter
-  const clampedR = Math.max(0.4, Math.min(1.2, planet.radiusEarth));
+  // Radius: clamp radiusEarth to [0.4, 1.0] → diameter 28-50px (more compact)
+  const clampedR = Math.max(0.4, Math.min(1.0, planet.radiusEarth));
   const diameter = Math.round(clampedR * 50);
-  const cx = 40;
-  const cy = 40;
+  const cx = 32;
+  const cy = 32;
   const r = diameter / 2;
 
   const hasRings =
@@ -301,37 +352,45 @@ function PlanetCard({
     planet.type === 'ice-giant' ||
     (planet.moons && planet.moons.length >= 3);
 
-  const distLabel =
-    distanceLY !== null
-      ? t('archive.distance_ly', { ly: distanceLY.toFixed(1) })
-      : null;
-
-  // terraform filter: show only difficulty %, no name/system/distance
+  // Sub-label: for terraform filter show difficulty or "impossible";
+  // for other active filters show filter stat value; otherwise nothing.
+  const terraformNotPossible = !isTerraformable(planet);
   const isTerraformFilter = activeFilter === 'terraform';
+
+  // Type label keys
+  const typeKey: Record<string, string> = {
+    rocky: 'planet.rocky',
+    terrestrial: 'planet.terrestrial',
+    'gas-giant': 'planet.gas_giant',
+    'ice-giant': 'planet.ice_giant',
+    dwarf: 'planet.dwarf',
+  };
+  const typeLabel = t(typeKey[planet.type] ?? planet.type);
 
   return (
     <button
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      title={planet.name}
       style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 4,
-        padding: '8px 4px',
+        gap: 3,
+        padding: '6px 2px',
         background: 'none',
         border: 'none',
         cursor: 'pointer',
         fontFamily: 'monospace',
       }}
     >
-      {/* Circle wrapper — glow goes here, not on outer button */}
+      {/* Circle wrapper — glow goes here */}
       <div
         style={{
           borderRadius: '50%',
-          width: 80,
-          height: 80,
+          width: 64,
+          height: 64,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -344,7 +403,7 @@ function PlanetCard({
         }}
       >
         {/* SVG planet representation */}
-        <svg width="80" height="80" viewBox="0 0 80 80">
+        <svg width="64" height="64" viewBox="0 0 64 64">
           {/* Ring (behind planet) */}
           {hasRings && (
             <ellipse
@@ -354,7 +413,7 @@ function PlanetCard({
               ry={r * 0.38}
               fill="none"
               stroke={`${color}66`}
-              strokeWidth="2"
+              strokeWidth="1.5"
             />
           )}
           {/* Planet body — radial gradient */}
@@ -392,73 +451,62 @@ function PlanetCard({
         </svg>
       </div>
 
-      {/* Sub-label: terraform filter → difficulty%, other filters → stat + name + star, no filter → name + star + distance */}
+      {/* Sub-label: only shown when terraform filter active or non-null filterStat */}
       {isTerraformFilter ? (
-        // Terraform filter: only show difficulty % beneath circle
-        filterStat !== null && (
-          <div style={{
-            fontSize: 10,
-            color: '#7bb8ff',
-            textAlign: 'center',
-            fontFamily: 'monospace',
-            letterSpacing: 0.3,
-          }}>
-            {filterStat}
-          </div>
-        )
+        <div style={{
+          fontSize: 9,
+          color: terraformNotPossible ? '#556677' : '#7bb8ff',
+          textAlign: 'center',
+          fontFamily: 'monospace',
+          letterSpacing: 0.3,
+          maxWidth: 68,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {terraformNotPossible ? t('archive.terraform_impossible') : (filterStat ?? '')}
+        </div>
+      ) : filterStat !== null ? (
+        <div style={{
+          fontSize: 9,
+          color: '#7bb8ff',
+          textAlign: 'center',
+          fontFamily: 'monospace',
+          letterSpacing: 0.3,
+        }}>
+          {filterStat}
+        </div>
       ) : (
-        <>
-          {/* Filter stat (non-terraform filters) */}
-          {filterStat !== null && (
-            <div style={{
-              fontSize: 9,
-              color: '#7bb8ff',
-              textAlign: 'center',
-              fontFamily: 'monospace',
-              letterSpacing: 0.3,
-            }}>
-              {filterStat}
-            </div>
-          )}
-          {/* Planet name */}
-          <div
-            style={{
-              fontSize: 10,
-              color: hover || isSelected ? '#aabbcc' : '#8899aa',
-              textAlign: 'center',
-              maxWidth: 90,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              transition: 'color 0.15s',
-            }}
-            title={planet.name}
-          >
-            {planet.name}
-          </div>
-          {/* System name + distance (only when no filter active) */}
-          {activeFilter === null && (
-            <>
-              <div
-                style={{
-                  fontSize: 9,
-                  color: '#556677',
-                  textAlign: 'center',
-                  maxWidth: 90,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-                title={systemName}
-              >
-                {systemName}
-              </div>
-              {distLabel !== null && (
-                <div style={{ fontSize: 9, color: '#4488aa' }}>{distLabel}</div>
-              )}
-            </>
-          )}
-        </>
+        /* No filter active: show compact type label only */
+        <div style={{
+          fontSize: 9,
+          color: '#556677',
+          textAlign: 'center',
+          fontFamily: 'monospace',
+          maxWidth: 68,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {typeLabel}
+        </div>
+      )}
+      {/* Planet name — only for pinned/favorite planets */}
+      {isFavorite && (
+        <div style={{
+          fontSize: 8,
+          color: '#7bb8ff',
+          textAlign: 'center',
+          fontFamily: 'monospace',
+          maxWidth: 68,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          letterSpacing: 0.2,
+          marginTop: 1,
+        }}>
+          {planet.name}
+        </div>
       )}
     </button>
   );
@@ -900,7 +948,17 @@ interface ExpandedDetailPanelProps {
   getPlanetResources?: (planetId: string) => ColonyResources;
   onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
   onCompleteTerraform?: (planet: Planet) => void;
+  /** Callback when user saves a custom name for the planet */
+  onRenamePlanet?: (planetId: string, newName: string) => void;
+  /** Callback to toggle pin/favorite for a planet */
+  onToggleFavorite?: (planetId: string) => void;
+  /** Whether this planet is currently pinned/favorited */
+  isFavorite?: boolean;
+  /** Callback to open the planet detail view */
+  onViewPlanet?: (system: StarSystem, planetId: string) => void;
   onClose: () => void;
+  /** Finite planet resource stocks for displaying remaining deposit units (v168). */
+  planetResourceStocks?: Record<string, PlanetResourceStocks>;
 }
 
 function ExpandedDetailPanel({
@@ -915,16 +973,52 @@ function ExpandedDetailPanel({
   getPlanetResources,
   onSendTerraformDelivery,
   onCompleteTerraform,
+  onRenamePlanet,
+  onToggleFavorite,
+  isFavorite = false,
+  onViewPlanet,
   onClose,
+  planetResourceStocks,
 }: ExpandedDetailPanelProps) {
   const { t } = useTranslation();
+
+  // Inline rename state
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(planet.name);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renaming]);
+
+  const commitRename = useCallback(() => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== planet.name) {
+      onRenamePlanet?.(planet.id, trimmed);
+    }
+    setRenaming(false);
+  }, [renameValue, planet.id, planet.name, onRenamePlanet]);
 
   const overallPct = tfState ? Math.round(getOverallProgress(tfState)) : 0;
   const showTerraformSection = isTerraformable(planet) && !!tfState;
   const showCompleteButton = showTerraformSection && overallPct >= 95;
 
-  const planetStocks = getPlanetResources ? getPlanetResources(planet.id) : null;
-  const hasColony = colonyPlanetIds.has(planet.id);
+  // Resource stocks — prefer finite planet stocks (v168); fall back to colony inventory
+  const stocksForDisplay: { minerals: number; volatiles: number; isotopes: number; water: number } | null = useMemo(() => {
+    if (planetResourceStocks) {
+      const s = planetResourceStocks[planet.id];
+      if (s) return s.remaining;
+      // No tracked stocks yet — generate initial values deterministically
+      return generatePlanetStocks(planet).initial;
+    }
+    // Fallback: use colony inventory (legacy path)
+    if (getPlanetResources) return getPlanetResources(planet.id);
+    return null;
+  }, [planet, planetResourceStocks, getPlanetResources]);
+  const planetStocks = stocksForDisplay;
 
   const typeKey: Record<string, string> = {
     rocky: 'planet.rocky',
@@ -933,36 +1027,32 @@ function ExpandedDetailPanel({
     'ice-giant': 'planet.ice_giant',
     dwarf: 'planet.dwarf',
   };
+  const typeLabel = t(typeKey[planet.type] ?? planet.type);
 
   const lyNum = distanceLY ?? 0;
   const pcNum = lyNum * 0.30660;
 
-  // Info grid fields
-  const infoFields: Array<{ label: string; value: string }> = [
-    { label: t('planets_catalog.field_system'), value: system.name },
-    { label: t('planets_catalog.field_type'), value: t(typeKey[planet.type] ?? planet.type) },
-    { label: t('planets_catalog.field_size'), value: `${planet.radiusEarth.toFixed(2)} R\u2295` },
+  // Small planet circle color for the header
+  const planetColor = getPlanetBodyColor(planet);
+
+  // Info grid: left column = gravity, moons; right column = other params (no Colony field)
+  const leftFields: Array<{ label: string; value: string }> = [
     { label: t('planets_catalog.field_gravity'), value: `${planet.surfaceGravityG.toFixed(2)} g` },
+    { label: t('planets_catalog.field_moons'), value: String(planet.moons.length) },
+  ];
+  const rightFields: Array<{ label: string; value: string }> = [
+    { label: t('planets_catalog.field_size'), value: `${planet.radiusEarth.toFixed(2)} R\u2295` },
     {
       label: t('planets_catalog.field_hydro'),
       value: planet.hydrosphere
         ? `${Math.round(planet.hydrosphere.waterCoverageFraction * 100)}%`
         : '\u2014',
     },
-    { label: t('planets_catalog.field_moons'), value: String(planet.moons.length) },
     {
-      label: t('planets_catalog.field_distance'),
+      label: t('planets_catalog.field_distance_short'),
       value: distanceLY !== null
-        ? `${lyNum.toFixed(2)} / ${pcNum.toFixed(2)}`
+        ? `${lyNum.toFixed(1)} LY / ${pcNum.toFixed(2)} pc`
         : '\u2014',
-    },
-    {
-      label: t('planets_catalog.field_colony'),
-      value: hasColony ? t('planets_catalog.colony_yes') : t('planets_catalog.colony_no'),
-    },
-    {
-      label: 'Тех-складність',
-      value: `${Math.round((planet.terraformDifficulty ?? 0) * 100)}%`,
     },
   ];
 
@@ -975,18 +1065,144 @@ function ExpandedDetailPanel({
       fontFamily: 'monospace',
       overflow: 'hidden',
       animation: 'nebucatalog-panel-in 0.25s ease-out both',
+      // Fits screen width
+      maxWidth: 'calc(100vw - 32px)',
+      boxSizing: 'border-box',
     }}>
-      {/* 1. Header */}
+      {/* 1. Header: [planet 48px] | [name + type] [pencil] [pin] — close X */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '10px 14px 8px',
+        gap: 10,
+        padding: '8px 12px',
         borderBottom: '1px solid rgba(51,68,85,0.4)',
       }}>
-        <span style={{ fontSize: 14, color: '#ccddee', letterSpacing: '0.05em' }}>
-          {planet.name}
-        </span>
+        {/* Mini planet circle */}
+        <svg width="48" height="48" viewBox="0 0 48 48" style={{ flexShrink: 0 }}>
+          <defs>
+            <radialGradient id={`hdr-${planet.id}`} cx="35%" cy="35%" r="60%">
+              <stop offset="0%" stopColor={`${planetColor}cc`} />
+              <stop offset="100%" stopColor={`${planetColor}55`} />
+            </radialGradient>
+          </defs>
+          <circle cx="24" cy="24" r="20" fill={`url(#hdr-${planet.id})`} stroke={`${planetColor}88`} strokeWidth="1" />
+          {planet.isHomePlanet && (
+            <circle cx="24" cy="24" r="23" fill="none" stroke="#44ff88" strokeWidth="1.2" strokeDasharray="3 3" />
+          )}
+        </svg>
+
+        {/* Name + type */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {renaming ? (
+            <input
+              ref={renameInputRef}
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Escape') { setRenaming(false); setRenameValue(planet.name); }
+              }}
+              style={{
+                fontFamily: 'monospace',
+                fontSize: 13,
+                color: '#ccddee',
+                background: 'rgba(10,20,35,0.9)',
+                border: '1px solid #446688',
+                borderRadius: 3,
+                padding: '2px 6px',
+                outline: 'none',
+                width: '100%',
+                maxWidth: 200,
+              }}
+            />
+          ) : (
+            <div style={{ fontSize: 13, color: '#ccddee', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {planet.name}
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: '#667788', marginTop: 1 }}>
+            {typeLabel}
+          </div>
+        </div>
+
+        {/* Pencil rename button */}
+        {onRenamePlanet && !renaming && (
+          <button
+            onClick={() => { setRenameValue(planet.name); setRenaming(true); }}
+            title={t('planets_catalog.rename_title')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 2,
+              opacity: 0.4,
+              transition: 'opacity 0.15s',
+              lineHeight: 0,
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; }}
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="#aabbcc" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 2 L14 5 L5 14 L2 14 L2 11 Z" />
+              <line x1="9" y1="4" x2="12" y2="7" />
+            </svg>
+          </button>
+        )}
+
+        {/* Pin (favorite) button */}
+        {onToggleFavorite && (
+          <button
+            onClick={() => onToggleFavorite(planet.id)}
+            title={isFavorite ? t('archive.unpin') : t('archive.pin')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 2,
+              opacity: isFavorite ? 1 : 0.35,
+              transition: 'opacity 0.15s',
+              lineHeight: 0,
+              flexShrink: 0,
+              color: isFavorite ? '#7bb8ff' : '#aabbcc',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = isFavorite ? '1' : '0.35'; }}
+          >
+            <svg width="11" height="11" viewBox="0 0 16 16" fill={isFavorite ? '#7bb8ff' : 'none'}
+              stroke={isFavorite ? '#7bb8ff' : '#aabbcc'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 2 L10 6 L14 6.5 L11 9.5 L11.8 14 L8 12 L4.2 14 L5 9.5 L2 6.5 L6 6 Z" />
+            </svg>
+          </button>
+        )}
+
+        {/* Eye — open planet detail view */}
+        {onViewPlanet && (
+          <button
+            onClick={() => { onViewPlanet(system, planet.id); onClose(); }}
+            title={undefined}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 2,
+              opacity: 0.4,
+              transition: 'opacity 0.15s',
+              lineHeight: 0,
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; }}
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="#aabbcc" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 8 C3 4 13 4 15 8 C13 12 3 12 1 8 Z" />
+              <circle cx="8" cy="8" r="2.5" />
+            </svg>
+          </button>
+        )}
+
+        {/* Close */}
         <button
           onClick={onClose}
           style={{
@@ -994,19 +1210,23 @@ function ExpandedDetailPanel({
             border: 'none',
             color: '#556677',
             fontFamily: 'monospace',
-            fontSize: 14,
+            fontSize: 13,
             cursor: 'pointer',
             padding: '0 4px',
             lineHeight: 1,
+            flexShrink: 0,
           }}
         >
-          x
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <line x1="4" y1="4" x2="12" y2="12" />
+            <line x1="12" y1="4" x2="4" y2="12" />
+          </svg>
         </button>
       </div>
 
-      <div style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ padding: '10px 12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* 2. Terraform param list (most important section — shown first) */}
+        {/* 2. Terraform param list */}
         {showTerraformSection && tfState && (
           <div>
             <div style={{
@@ -1034,59 +1254,52 @@ function ExpandedDetailPanel({
           </div>
         )}
 
-        {/* 3. Resource stocks */}
+        {/* 3. Resource stocks — icon + value only, no title/header */}
         {planetStocks && (
-          <div>
-            <div style={{
-              fontSize: 8,
-              color: '#445566',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              marginBottom: 6,
-            }}>
-              {t('planets_catalog.stocks_title')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#8899aa' }}>
+              <ResourceIcon type="minerals" size={12} />
+              <span style={{ color: RESOURCE_COLORS.minerals }}>{Math.round(planetStocks.minerals).toLocaleString()}</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {/* Minerals */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#8899aa' }}>
-                <MineralsIcon />
-                <span style={{ flex: 1 }}>Minerals</span>
-                <span style={{ color: '#aa8855' }}>{Math.round(planetStocks.minerals).toLocaleString()}</span>
-              </div>
-              {/* Volatiles */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#8899aa' }}>
-                <VolatilesIcon />
-                <span style={{ flex: 1 }}>Volatiles</span>
-                <span style={{ color: '#88aaee' }}>{Math.round(planetStocks.volatiles).toLocaleString()}</span>
-              </div>
-              {/* Isotopes */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#8899aa' }}>
-                <IsotopesIcon />
-                <span style={{ flex: 1 }}>Isotopes</span>
-                <span style={{ color: '#7bb8ff' }}>{Math.round(planetStocks.isotopes).toLocaleString()}</span>
-              </div>
-              {/* Water */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#8899aa' }}>
-                <WaterIcon />
-                <span style={{ flex: 1 }}>Water</span>
-                <span style={{ color: '#44aabb' }}>{Math.round(planetStocks.water).toLocaleString()}</span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#8899aa' }}>
+              <ResourceIcon type="volatiles" size={12} />
+              <span style={{ color: RESOURCE_COLORS.volatiles }}>{Math.round(planetStocks.volatiles).toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#8899aa' }}>
+              <ResourceIcon type="isotopes" size={12} />
+              <span style={{ color: RESOURCE_COLORS.isotopes }}>{Math.round(planetStocks.isotopes).toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#8899aa' }}>
+              <ResourceIcon type="water" size={12} />
+              <span style={{ color: RESOURCE_COLORS.water }}>{Math.round(planetStocks.water).toLocaleString()}</span>
             </div>
           </div>
         )}
 
-        {/* 4. Compact info grid */}
+        {/* 4. Info grid — 2 columns: left = gravity+moons; right = size+hydro+distance */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '3px 12px',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '2px 12px',
         }}>
-          {infoFields.map(({ label, value }) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(40,55,75,0.25)', padding: '3px 0' }}>
-              <span style={{ fontSize: 9, color: '#445566' }}>{label}</span>
-              <span style={{ fontSize: 9, color: '#8899aa', textAlign: 'right' }}>{value}</span>
-            </div>
-          ))}
+          {/* Left column */}
+          <div>
+            {leftFields.map(({ label, value }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(40,55,75,0.25)', padding: '3px 0' }}>
+                <span style={{ fontSize: 9, color: '#445566' }}>{label}</span>
+                <span style={{ fontSize: 9, color: '#8899aa' }}>{value}</span>
+              </div>
+            ))}
+          </div>
+          {/* Right column */}
+          <div>
+            {rightFields.map(({ label, value }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(40,55,75,0.25)', padding: '3px 0' }}>
+                <span style={{ fontSize: 9, color: '#445566' }}>{label}</span>
+                <span style={{ fontSize: 9, color: '#8899aa', textAlign: 'right', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* 5. Final terraform button — only if >=95% */}
@@ -1141,6 +1354,8 @@ export function PlanetsCatalogV2({
   donorPlanets = [],
   techTreeState,
   colonyBuildings = [],
+  onRenamePlanet,
+  planetResourceStocks,
 }: PlanetsCatalogV2Props) {
   // Single-select filter: null = no filter active
   const [selectedFilter, setSelectedFilter] = useState<FilterId | null>(null);
@@ -1171,12 +1386,34 @@ export function PlanetsCatalogV2({
       }
     }
     pairs.sort((a, b) => {
+      // Pinned/favorite planets always first
+      const aPin = favoritePlanetIds?.has(a.planet.id) ? 0 : 1;
+      const bPin = favoritePlanetIds?.has(b.planet.id) ? 0 : 1;
+      if (aPin !== bPin) return aPin - bPin;
+
+      // When minerals filter is active (or no filter), sort by minerals descending.
+      // Priority: v168 stock units (remaining) > generated initial stock > colony inventory > raw resource value.
+      if (selectedFilter === 'minerals' || selectedFilter === null) {
+        const getMinerals = (planet: Planet): number => {
+          if (planetResourceStocks) {
+            const s = planetResourceStocks[planet.id];
+            if (s) return s.remaining.minerals;
+            return generatePlanetStocks(planet).initial.minerals;
+          }
+          if (getPlanetResources) return getPlanetResources(planet.id)?.minerals ?? 0;
+          return planet.resources?.totalResources?.minerals ?? 0;
+        };
+        const aMin = getMinerals(a.planet);
+        const bMin = getMinerals(b.planet);
+        if (bMin !== aMin) return bMin - aMin;
+      }
+
       const dA = systemDistances.get(a.system.id) ?? Infinity;
       const dB = systemDistances.get(b.system.id) ?? Infinity;
       return dA - dB;
     });
     return pairs;
-  }, [allSystems, systemDistances]);
+  }, [allSystems, systemDistances, favoritePlanetIds, selectedFilter, getPlanetResources, planetResourceStocks]);
 
   // Apply single filter
   const filteredPairs = useMemo(() => {
@@ -1260,13 +1497,13 @@ export function PlanetsCatalogV2({
         {filteredPairs.length} / {sortedPairs.length}
       </div>
 
-      {/* Planet grid + inline panels */}
+      {/* Planet grid + inline panels — auto-fill sieve layout */}
       <div
         onClick={handleGridClick}
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 12,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))',
+          gap: 8,
         }}
       >
         {visiblePairs.map(({ system, planet }) => {
@@ -1290,11 +1527,10 @@ export function PlanetsCatalogV2({
               >
                 <PlanetCard
                   planet={planet}
-                  systemName={aliases[system.id] ?? system.name}
-                  distanceLY={distLY}
                   filterStat={filterStat}
                   activeFilter={selectedFilter}
                   isSelected={isSelected}
+                  isFavorite={isFavorite}
                   onClick={() => {
                     if (focusedPlanetId === planet.id) {
                       // Second click on same focused card: deselect + close panel
@@ -1335,6 +1571,11 @@ export function PlanetsCatalogV2({
                   getPlanetResources={getPlanetResources}
                   onSendTerraformDelivery={onSendTerraformDelivery}
                   onCompleteTerraform={onCompleteTerraform}
+                  onRenamePlanet={onRenamePlanet}
+                  onToggleFavorite={onToggleFavorite}
+                  isFavorite={isFavorite}
+                  onViewPlanet={onViewPlanet}
+                  planetResourceStocks={planetResourceStocks}
                   onClose={() => {
                     setFocusedPlanetId(null);
                     setMenuOpenForId(null);

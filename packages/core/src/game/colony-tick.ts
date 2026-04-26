@@ -2,7 +2,7 @@
 // Colony tick — master per-planet resource/energy/production update
 // ---------------------------------------------------------------------------
 
-import type { PlanetColonyState } from '../types/colony.js';
+import type { PlanetColonyState, PlanetResourceStocks } from '../types/colony.js';
 import { getStorageCapacity } from '../types/colony.js';
 import type { PlacedBuilding, UniquePlanetResource } from '../types/surface.js';
 import { BUILDING_DEFS } from '../types/surface.js';
@@ -13,6 +13,7 @@ import { computeEnergyBalance, applyEnergyTick, restoreShutdownBuildings } from 
 import type { Planet } from '../types/planet.js';
 import { getTerrainBonus, getSolarEnergyMultiplier, getWindMultiplier, getAtmoMultiplier } from './planet-rules.js';
 import type { SurfaceTile } from '../types/surface.js';
+import { depleteStock } from './planet-stocks.js';
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -28,6 +29,8 @@ export interface ColonyTickResult {
   researchDataProduced: number;
   /** Elements produced by refinery buildings this tick */
   elementsProduced: Record<string, number>;
+  /** Updated planet resource stocks after depletion (undefined if no stocks were passed in) */
+  updatedStocks?: PlanetResourceStocks;
 }
 
 /**
@@ -39,6 +42,8 @@ export interface ColonyTickResult {
  * @param techState - player's tech tree state
  * @param tileAt - function to get the SurfaceTile at building's (x,y)
  * @param now - current timestamp (ms)
+ * @param planetStocks - optional finite planet stocks; when provided, extraction
+ *   buildings will deplete them and have their output scaled by depletion efficiency
  * @returns aggregated tick result
  */
 export function runColonyTicks(
@@ -47,6 +52,7 @@ export function runColonyTicks(
   techState: TechTreeState,
   tileAt: (x: number, y: number) => SurfaceTile | undefined,
   now: number,
+  planetStocks?: PlanetResourceStocks,
 ): ColonyTickResult {
   const elapsed = now - colony.lastTickAt;
   const tickCount = Math.floor(elapsed / COLONY_TICK_INTERVAL_MS);
@@ -58,6 +64,7 @@ export function runColonyTicks(
       restoredIds: [],
       researchDataProduced: 0,
       elementsProduced: {},
+      updatedStocks: planetStocks,
     };
   }
 
@@ -69,14 +76,18 @@ export function runColonyTicks(
   let totalResearchData = 0;
   const totalElements: Record<string, number> = {};
 
+  // Stocks are carried through tick by tick so each tick sees the latest remaining
+  let currentStocks: PlanetResourceStocks | undefined = planetStocks;
+
   for (let t = 0; t < effectiveTicks; t++) {
-    const result = runSingleTick(colony, planet, techState, tileAt);
+    const result = runSingleTick(colony, planet, techState, tileAt, currentStocks);
     totalShutdownIds = [...totalShutdownIds, ...result.shutdownIds];
     totalRestoredIds = [...totalRestoredIds, ...result.restoredIds];
     totalResearchData += result.researchDataProduced;
     for (const [el, amt] of Object.entries(result.elementsProduced)) {
       totalElements[el] = (totalElements[el] ?? 0) + amt;
     }
+    currentStocks = result.updatedStocks;
   }
 
   colony.lastTickAt = colony.lastTickAt + tickCount * COLONY_TICK_INTERVAL_MS;
@@ -87,6 +98,7 @@ export function runColonyTicks(
     restoredIds: totalRestoredIds,
     researchDataProduced: totalResearchData,
     elementsProduced: totalElements,
+    updatedStocks: currentStocks,
   };
 }
 
@@ -94,12 +106,24 @@ export function runColonyTicks(
 // Single tick
 // ---------------------------------------------------------------------------
 
+/** Building types that extract from the finite planet deposit (depleting stocks). */
+const EXTRACTION_BUILDING_TYPES = new Set<string>([
+  'mine',
+  'water_extractor',
+  'atmo_extractor',
+  'deep_drill',
+  'orbital_collector',
+  'isotope_collector',
+  'alpha_harvester',
+]);
+
 function runSingleTick(
   colony: PlanetColonyState,
   planet: Planet,
   techState: TechTreeState,
   tileAt: (x: number, y: number) => SurfaceTile | undefined,
-): { shutdownIds: string[]; restoredIds: string[]; researchDataProduced: number; elementsProduced: Record<string, number> } {
+  planetStocks?: PlanetResourceStocks,
+): { shutdownIds: string[]; restoredIds: string[]; researchDataProduced: number; elementsProduced: Record<string, number>; updatedStocks?: PlanetResourceStocks } {
   const buildings = colony.buildings;
 
   // 1. Recompute energy
@@ -127,6 +151,9 @@ function runSingleTick(
   let researchDataProduced = 0;
   const elementsProduced: Record<string, number> = {};
 
+  // Mutable copy of stocks — will be updated as each extraction building runs
+  let currentStocks: PlanetResourceStocks | undefined = planetStocks;
+
   for (const b of buildings) {
     if (b.shutdown) continue;
     const def = BUILDING_DEFS[b.type];
@@ -145,20 +172,32 @@ function runSingleTick(
       envMult = getAtmoMultiplier(planet.atmosphere.surfacePressureAtm);
     }
 
+    const isExtraction = EXTRACTION_BUILDING_TYPES.has(b.type);
+
     // Produce resources
     for (const prod of def.production) {
       const baseMult = prod.resource === 'minerals' || prod.resource === 'volatiles' || prod.resource === 'isotopes'
         ? miningMult : 1;
-      const amount = prod.amount * baseMult * terrainMult * envMult;
+      const baseAmount = prod.amount * baseMult * terrainMult * envMult;
 
       if (prod.resource === 'researchData') {
-        researchDataProduced += amount;
+        researchDataProduced += baseAmount;
       } else if (prod.resource === 'habitability') {
         // Habitability accumulates differently; skip resource capping
       } else if (prod.resource === 'minerals' || prod.resource === 'volatiles' || prod.resource === 'isotopes' || prod.resource === 'water') {
-        const cap = getStorageCapacity(colony.storage, prod.resource as 'minerals' | 'volatiles' | 'isotopes' | 'water') * storageMult;
-        colony.resources[prod.resource as keyof typeof colony.resources] = Math.min(
-          (colony.resources[prod.resource as keyof typeof colony.resources] ?? 0) + amount,
+        const resourceKey = prod.resource as 'minerals' | 'volatiles' | 'isotopes' | 'water';
+        let amount = baseAmount;
+
+        // Apply depletion for extraction buildings when stocks are tracked
+        if (isExtraction && currentStocks) {
+          const { newStocks, actualExtracted } = depleteStock(currentStocks, resourceKey, baseAmount);
+          currentStocks = newStocks;
+          amount = actualExtracted;
+        }
+
+        const cap = getStorageCapacity(colony.storage, resourceKey) * storageMult;
+        colony.resources[resourceKey] = Math.min(
+          (colony.resources[resourceKey] ?? 0) + amount,
           cap,
         );
       }
@@ -196,7 +235,7 @@ function runSingleTick(
     }
   }
 
-  return { shutdownIds: energyResult.shutdownIds, restoredIds, researchDataProduced, elementsProduced };
+  return { shutdownIds: energyResult.shutdownIds, restoredIds, researchDataProduced, elementsProduced, updatedStocks: currentStocks };
 }
 
 // ---------------------------------------------------------------------------

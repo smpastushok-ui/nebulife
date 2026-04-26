@@ -85,7 +85,7 @@ import {
   createPlanetColonyState,
   COLONY_TICK_INTERVAL_MS,
 } from '@nebulife/core';
-import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding } from '@nebulife/core';
+import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
 import {
   getInitialTerraformState,
@@ -95,6 +95,9 @@ import {
   tickMission,
   tierForBuildings,
   systemDistanceLY,
+  generatePlanetStocks,
+  depleteStock,
+  applyLevelDepletion,
 } from '@nebulife/core';
 import { MissionTracker } from './ui/components/Terraform/MissionTracker.js';
 import { TerraformPanel } from './ui/components/Terraform/TerraformPanel.js';
@@ -200,6 +203,8 @@ interface SyncedGameState {
   fleet?: unknown[];
   // Planet overrides (type/habitability after successful terraform — Phase 7C)
   planet_overrides?: Record<string, unknown>;
+  // Planet resource stocks — finite extraction budgets (v168)
+  planet_resource_stocks?: Record<string, import('@nebulife/core').PlanetResourceStocks>;
   // Metadata
   synced_at: number;
   last_regen_time?: number;
@@ -566,6 +571,26 @@ function AppInner() {
     catch { /* ignore quota */ }
   }, [colonyResourcesByPlanet]);
 
+  // ── Planet Resource Stocks (v168 — finite extraction deposits) ──────────
+  const [planetResourceStocks, setPlanetResourceStocks] = useState<Record<string, PlanetResourceStocks>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_planet_resource_stocks');
+      if (saved) {
+        const parsed = JSON.parse(saved) as Record<string, PlanetResourceStocks>;
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  const planetResourceStocksRef = useRef(planetResourceStocks);
+  planetResourceStocksRef.current = planetResourceStocks;
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_planet_resource_stocks', JSON.stringify(planetResourceStocks)); }
+    catch { /* ignore quota */ }
+  }, [planetResourceStocks]);
+
   // ── Colony Resources (Phase 2+, after colonization) ───────────────────
   // Derived from colonyResourcesByPlanet (sum of all planets).
   // Kept for backward-compat with Phase 7B migration. Old `nebulife_colony_resources`
@@ -747,6 +772,8 @@ function AppInner() {
     } catch { /* ignore */ }
     return 1;
   });
+  const playerLevelRef = useRef(playerLevel);
+  playerLevelRef.current = playerLevel;
 
   const [playerXP, setPlayerXP] = useState<number>(() => {
     try {
@@ -793,16 +820,36 @@ function AppInner() {
     [],
   );
 
-  /** Handle surface resource harvest → update per-planet resources + award XP. */
+  /** Handle surface resource harvest → update per-planet resources + award XP.
+   *  Also depletes the corresponding planet stock when stocks are tracked.
+   *  Map: ore→minerals, vent→volatiles, tree→isotopes, water→water
+   */
   const handleHarvest = useCallback((objectType: SurfaceObjectType) => {
     const yield_ = HARVEST_YIELD[objectType];
-    const amount = yield_.base;
+    const baseAmount = yield_.base;
     const key = yield_.group === 'mineral' ? 'minerals' as const
               : yield_.group === 'volatile' ? 'volatiles' as const
               : yield_.group === 'water' ? 'water' as const
               : 'isotopes' as const;
     const planetId = surfaceTargetRef.current?.planet.id ?? homeInfoRef.current?.planet.id;
-    if (planetId) addResources(planetId, { [key]: amount });
+
+    // Determine stock resource key for harvest type
+    const stockKey: 'minerals' | 'volatiles' | 'isotopes' | 'water' =
+      objectType === 'ore' ? 'minerals'
+      : objectType === 'vent' ? 'volatiles'
+      : objectType === 'tree' ? 'isotopes'
+      : 'water'; // water_pool / water
+
+    let actualAmount: number = baseAmount;
+    if (planetId) {
+      const stocks = planetResourceStocksRef.current[planetId];
+      if (stocks) {
+        const { newStocks, actualExtracted } = depleteStock(stocks, stockKey, baseAmount);
+        actualAmount = actualExtracted;
+        setPlanetResourceStocks(prev => ({ ...prev, [planetId]: newStocks }));
+      }
+      addResources(planetId, { [key]: actualAmount });
+    }
     const xpKey = objectType === 'tree' ? 'HARVEST_TREE'
                 : objectType === 'ore' ? 'HARVEST_ORE'
                 : 'HARVEST_VENT'; // water uses same XP as vent
@@ -1221,6 +1268,8 @@ function AppInner() {
             type: override.type,
             terraformDifficulty: override.terraformDifficulty,
             habitability: override.habitability,
+            // Apply custom name if player renamed the planet
+            ...(override.customName ? { name: override.customName } : {}),
           };
         }
       }
@@ -1422,16 +1471,48 @@ function AppInner() {
   // loops at 40% volume while the Cosmic Archive is open. Initial volume
   // respects the user's persisted mute toggle (nebulife_terminal_muted),
   // which CosmicArchive also mutates live via setLoopVolume on change.
+  //
+  // Surface music crossfade: when both the surface and the terminal are
+  // active simultaneously, duck the planet-loop to avoid two competing
+  // ambients. Fade out over 700 ms when terminal opens; fade back in
+  // (over 700 ms) when terminal closes and surface is still active.
   useEffect(() => {
     if (showCosmicArchive) {
       let vol = 0.4;
       try { if (localStorage.getItem('nebulife_terminal_muted') === '1') vol = 0; } catch { /* ignore */ }
       playLoop('terminal-loop.mp3', vol);
+      // Duck the surface planet-loop if it is currently running
+      if (surfaceTarget && !showHangar && !showArena) {
+        const FADE_STEPS = 14;
+        const FADE_INTERVAL = 50; // ms → total ~700 ms
+        const targetVol = 0;
+        let step = 0;
+        const startVol = 0.1;
+        const timer = setInterval(() => {
+          step++;
+          const newVol = startVol * (1 - step / FADE_STEPS);
+          setLoopVolume('planet-loop', Math.max(targetVol, newVol));
+          if (step >= FADE_STEPS) clearInterval(timer);
+        }, FADE_INTERVAL);
+      }
     } else {
       stopLoop('terminal-loop.mp3');
+      // Restore surface music volume if surface is still active
+      if (surfaceTarget && !showHangar && !showArena) {
+        const FADE_STEPS = 14;
+        const FADE_INTERVAL = 50; // ms → total ~700 ms
+        const targetVol = 0.1;
+        let step = 0;
+        const timer = setInterval(() => {
+          step++;
+          const newVol = targetVol * (step / FADE_STEPS);
+          setLoopVolume('planet-loop', Math.min(targetVol, newVol));
+          if (step >= FADE_STEPS) clearInterval(timer);
+        }, FADE_INTERVAL);
+      }
     }
     return () => stopLoop('terminal-loop.mp3');
-  }, [showCosmicArchive]);
+  }, [showCosmicArchive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Intro melody — 25 s loop, plays through the entire onboarding. 50%
   // volume when no video is playing; smoothly ducked to 25% while a
@@ -1496,9 +1577,20 @@ function AppInner() {
       const colony = colonyStateRef.current;
       const planetCtx = surfaceTargetRef.current ?? colonyPlanetRef.current;
       if (!colony || !planetCtx) return;
+      const planetId = planetCtx.planet.id;
       const tileAt = () => undefined;
       const mutableColony: PlanetColonyState = JSON.parse(JSON.stringify(colony));
-      const result = runColonyTicks(mutableColony, planetCtx.planet, techTreeStateRef.current, tileAt, Date.now());
+
+      // Backwards compat: if no stocks for this planet, generate fresh ones
+      // then apply level-based depletion estimate for existing players.
+      let stocks = planetResourceStocksRef.current[planetId];
+      if (!stocks) {
+        stocks = generatePlanetStocks(planetCtx.planet);
+        stocks = applyLevelDepletion(stocks, playerLevelRef.current ?? 1);
+        setPlanetResourceStocks(prev => ({ ...prev, [planetId]: stocks! }));
+      }
+
+      const result = runColonyTicks(mutableColony, planetCtx.planet, techTreeStateRef.current, tileAt, Date.now(), stocks);
       const before = colony.resources;
       const after  = result.colony.resources;
       const minD = Math.max(0, after.minerals  - before.minerals);
@@ -1531,6 +1623,10 @@ function AppInner() {
           }
         }
         setColonyState(result.colony);
+        // Persist updated stocks after depletion
+        if (result.updatedStocks) {
+          setPlanetResourceStocks(prev => ({ ...prev, [planetId]: result.updatedStocks! }));
+        }
       }
     }, COLONY_TICK_INTERVAL_MS);
     return () => clearInterval(id);
@@ -2659,6 +2755,39 @@ function AppInner() {
       }
     }
 
+    // Planet resource stocks (v168) — take the minimum (more depleted) per resource
+    // so that a player who plays on two devices doesn't regenerate stocks.
+    if (gs.planet_resource_stocks && typeof gs.planet_resource_stocks === 'object') {
+      const serverStocks = gs.planet_resource_stocks as Record<string, PlanetResourceStocks>;
+      if (Object.keys(serverStocks).length > 0) {
+        const localStocks = (() => {
+          try {
+            return JSON.parse(localStorage.getItem('nebulife_planet_resource_stocks') ?? 'null') as Record<string, PlanetResourceStocks> | null;
+          } catch { return null; }
+        })();
+        const merged: Record<string, PlanetResourceStocks> = { ...(localStocks ?? {}) };
+        for (const [pid, serverS] of Object.entries(serverStocks)) {
+          const localS = merged[pid];
+          if (!localS) {
+            merged[pid] = serverS;
+          } else {
+            // Keep the more depleted remaining (minimum) per resource
+            merged[pid] = {
+              initial: serverS.initial,
+              remaining: {
+                minerals:  Math.min(localS.remaining.minerals,  serverS.remaining.minerals),
+                volatiles: Math.min(localS.remaining.volatiles, serverS.remaining.volatiles),
+                isotopes:  Math.min(localS.remaining.isotopes,  serverS.remaining.isotopes),
+                water:     Math.min(localS.remaining.water,     serverS.remaining.water),
+              },
+            };
+          }
+        }
+        setPlanetResourceStocks(merged);
+        try { localStorage.setItem('nebulife_planet_resource_stocks', JSON.stringify(merged)); } catch { /* ignore */ }
+      }
+    }
+
     // Player meta (notification prefs, language, digest seen)
     if (player.email !== undefined) setPlayerEmail(player.email ?? null);
     if (typeof player.email_notifications === 'boolean') setEmailNotifications(player.email_notifications);
@@ -2993,9 +3122,38 @@ function AppInner() {
         const speedMult = getEffectValue(techTreeStateRef.current, 'research_speed_mult', 1.0);
         const effectiveDuration = Math.round(RESEARCH_DURATION_MS * speedMult);
 
+        // Self-heal: if a slot has been "researching" for more than 6 × effectiveDuration
+        // (e.g. stuck due to stale startedAt from an old format or crashed session),
+        // force-complete or reset it. Logs to console so it's visible during debugging.
+        const MAX_STUCK_DURATION = effectiveDuration * 6;
+
         for (const slot of current.slots) {
           if (slot.systemId && slot.startedAt) {
             const elapsed = now - slot.startedAt;
+
+            // Self-heal: detect slots stuck far beyond expected duration
+            if (elapsed > MAX_STUCK_DURATION) {
+              const stuckSystem = engine.getAllSystems().find((s) => s.id === slot.systemId);
+              if (stuckSystem) {
+                console.warn(
+                  `[research self-heal] slot ${slot.slotIndex} stuck for ${Math.round(elapsed / 1000)}s on system "${stuckSystem.name}" (ring ${stuckSystem.ringIndex ?? '?'}). Force-completing session.`,
+                );
+                const result = completeResearchSession(current, slot.slotIndex, stuckSystem, playerStats.totalCompletedSessions, playerStats.totalDiscoveries, playerStats.lastDiscoverySession);
+                current = result.state;
+                changed = true;
+              } else {
+                // System not found in engine — likely stale/dangling reference; clear slot
+                console.warn(
+                  `[research self-heal] slot ${slot.slotIndex} references unknown system "${slot.systemId}". Clearing slot.`,
+                );
+                const slots = current.slots.map((s) =>
+                  s.slotIndex === slot.slotIndex ? { ...s, systemId: null, startedAt: null } : s,
+                );
+                current = { ...current, slots };
+                changed = true;
+              }
+              continue;
+            }
 
             if (elapsed >= effectiveDuration) {
               // Session complete — find the system object
@@ -4984,6 +5142,8 @@ function AppInner() {
       fleet: fleet.filter((m) => m.phase !== 'idle'),
       // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
       planet_overrides: planetOverrides,
+      // Planet resource stocks (v168 — finite extraction deposits; stored in JSONB)
+      planet_resource_stocks: planetResourceStocksRef.current,
       synced_at: Date.now(),
     };
   };
@@ -5027,7 +5187,7 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetOverrides]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetOverrides, planetResourceStocks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -6508,6 +6668,9 @@ function AppInner() {
           }}
           alphaHarvesterCount={0}
           onOpenColonyCenter={() => setShowColonyCenter(true)}
+          shutdownBuildingTypes={colonyState
+            ? new Set(colonyState.buildings.filter(b => b.shutdown).map(b => b.type))
+            : undefined}
         />
       )}
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}
@@ -6655,7 +6818,25 @@ function AppInner() {
                 : 'Research data regenerates automatically (+1/hr) and from surface buildings.'}
             </div>
             <div style={{ fontSize: 8, color: '#445566', lineHeight: 1.3, fontFamily: 'monospace' }}>
-              exact: {researchData.toFixed(4)} | floor: {Math.floor(researchData)} | regen: +{((1 + getEffectValue(techTreeStateRef.current, 'research_data_regen', 0)) / 60).toFixed(4)}/min
+              {(() => {
+                const techBonus = getEffectValue(techTreeStateRef.current, 'research_data_regen', 0);
+                const basePerHour = 1 + techBonus;
+                // Compute building research data contribution per hour from colonyState
+                let bldgPerHour = 0;
+                if (colonyState?.buildings) {
+                  for (const b of colonyState.buildings) {
+                    if (b.shutdown) continue;
+                    const bDef = (BUILDING_DEFS as Record<string, {production?: Array<{resource: string; amount: number}>}>)[b.type];
+                    if (!bDef?.production) continue;
+                    for (const p of bDef.production) {
+                      if (p.resource === 'researchData') bldgPerHour += p.amount * 60;
+                    }
+                  }
+                }
+                const totalPerHour = basePerHour + bldgPerHour;
+                console.log('[research-rate]', { techBonus, basePerHour, bldgPerHour, totalPerHour, buildings: colonyState?.buildings?.length ?? 0 });
+                return `exact: ${researchData.toFixed(4)} | floor: ${Math.floor(researchData)} | regen: +${(basePerHour / 60).toFixed(4)}/min base | bldg: +${bldgPerHour.toFixed(2)}/hr | total: +${totalPerHour.toFixed(2)}/hr`;
+              })()}
             </div>
             <button
               onClick={async () => {
@@ -6816,6 +6997,7 @@ function AppInner() {
           terraformStates={terraformStates}
           colonyStateByPlanet={colonyState ? { [colonyState.planetId]: colonyState } : undefined}
           getPlanetResources={getResources}
+          planetResourceStocks={planetResourceStocks}
           donorPlanets={getColonyPlanets()}
           colonyBuildings={colonyState?.buildings ?? []}
           onSendTerraformDelivery={(targetPlanet, paramId) => {
@@ -6863,6 +7045,38 @@ function AppInner() {
               setSurfaceTarget({ planet, star: sys.star });
             }
             setShowColonyCenter(true);
+          }}
+          onRenamePlanet={(planetId, newName) => {
+            // Save custom planet name into planetOverrides (persisted to server via JSONB)
+            setPlanetOverrides((prev) => {
+              const existing = prev[planetId];
+              // PlanetOverride requires all fields; if entry doesn't exist yet we only
+              // update customName — the override struct needs the required fields.
+              if (existing) {
+                return { ...prev, [planetId]: { ...existing, customName: newName } };
+              }
+              // No existing override: we can't construct a full PlanetOverride without
+              // knowing current planet state. Find the planet and build a minimal entry.
+              const allSys = engineRef.current?.getAllSystems() ?? [];
+              for (const sys of allSys) {
+                const p = sys.planets.find((pl) => pl.id === planetId);
+                if (p) {
+                  return {
+                    ...prev,
+                    [planetId]: {
+                      planetId,
+                      type: p.type,
+                      habitability: p.habitability,
+                      terraformDifficulty: p.terraformDifficulty ?? 0,
+                      promotedAt: 0,
+                      customName: newName,
+                    },
+                  };
+                }
+              }
+              return prev;
+            });
+            scheduleSyncToServer();
           }}
         />
       )}
@@ -7221,6 +7435,7 @@ function AppInner() {
               setShowColonyCenter(false);
               if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
             }}
+            planetStocks={planetResourceStocks[active.planet.id]}
           />
         );
       })()}

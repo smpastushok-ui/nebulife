@@ -92,4 +92,8 @@ export interface PlanetOverride {
   terraformDifficulty: number;
   /** Unix-ms timestamp when the planet was promoted. */
   promotedAt: number;
+  /** Optional custom name set by the player (inline rename feature). */
+  customName?: string;
+  /** Whether the planet is pinned/favorited in the catalog. */
+  pinned?: boolean;
 }

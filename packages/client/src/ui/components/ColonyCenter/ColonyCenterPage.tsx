@@ -12,11 +12,12 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, StarSystem, PlacedBuilding } from '@nebulife/core';
-import { BUILDING_DEFS } from '@nebulife/core';
+import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks } from '@nebulife/core';
+import { BUILDING_DEFS, getDepletionEfficiency } from '@nebulife/core';
 import type { LogEntry } from '../CosmicArchive/SystemLog.js';
 import { getDeviceTier } from '../../../utils/device-tier.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
+import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -94,6 +95,8 @@ export interface ColonyCenterPageProps {
   onClose: () => void;
   /** Open the global TopUp/buy-quarks modal. */
   onOpenTopUp?: () => void;
+  /** Finite planet resource stocks for the active colony planet (v168). */
+  planetStocks?: PlanetResourceStocks;
 }
 
 // ---------------------------------------------------------------------------
@@ -247,6 +250,75 @@ function StatCard({ label, value, accent, sub }: { label: string; value: string 
 // Tab renderers
 // ---------------------------------------------------------------------------
 
+/** Deposit bar color: green >50%, yellow 10-50%, red <10%, gray 0% */
+function depositColor(pct: number): string {
+  if (pct <= 0) return '#445566';
+  if (pct < 10) return '#cc4444';
+  if (pct < 50) return '#ffcc44';
+  return '#44ff88';
+}
+
+function DepositBar({
+  resourceType,
+  remaining,
+  initial,
+}: {
+  resourceType: 'minerals' | 'volatiles' | 'isotopes' | 'water';
+  remaining: number;
+  initial: number;
+}) {
+  const { t } = useTranslation();
+  const pct = initial > 0 ? Math.round((remaining / initial) * 100) : 0;
+  const color = depositColor(pct);
+  const isDepleted = remaining <= 0;
+  const accentColor = RESOURCE_COLORS[resourceType];
+
+  const labelKeyMap: Record<string, string> = {
+    minerals:  'colony_center.deposit_minerals',
+    volatiles: 'colony_center.deposit_volatiles',
+    isotopes:  'colony_center.deposit_isotopes',
+    water:     'colony_center.deposit_water',
+  };
+
+  return (
+    <div style={{
+      background: 'rgba(10,15,25,0.5)',
+      border: '1px solid #233344',
+      borderRadius: 4,
+      padding: '8px 10px',
+      fontFamily: 'monospace',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <ResourceIcon type={resourceType} size={11} />
+          <span style={{ fontSize: 10, color: accentColor, letterSpacing: 0.5 }}>
+            {t(labelKeyMap[resourceType])}
+          </span>
+        </div>
+        <span style={{ fontSize: 9, color: isDepleted ? '#cc4444' : '#8899aa' }}>
+          {isDepleted ? t('colony_center.depleted') : t('colony_center.stock_pct', { pct })}
+        </span>
+      </div>
+      <div style={{
+        position: 'relative',
+        height: 6,
+        background: 'rgba(5,10,20,0.8)',
+        border: '1px solid rgba(51,68,85,0.5)',
+        borderRadius: 3,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          width: `${Math.max(0, Math.min(100, pct))}%`,
+          background: color,
+          opacity: isDepleted ? 0.3 : 0.8,
+        }} />
+      </div>
+    </div>
+  );
+}
+
 function OverviewTab({
   active,
   allColonies,
@@ -255,6 +327,7 @@ function OverviewTab({
   productionPerHour,
   energyBalance,
   researchData,
+  planetStocks,
 }: ColonyCenterPageProps) {
   const { t } = useTranslation();
   const habPct = Math.round((active.habitability ?? 0) * 100);
@@ -289,6 +362,37 @@ function OverviewTab({
         <ResourceBar resourceKey="isotopes" accent={RES_COLOR.isotopes} current={colonyResources.isotopes} capacity={storageCapacity} perHour={productionPerHour.isotopes} />
         <ResourceBar resourceKey="water" accent={RES_COLOR.water} current={colonyResources.water} capacity={storageCapacity} perHour={productionPerHour.water} />
       </div>
+
+      {/* Deposit bars — planet finite stocks (v168) */}
+      {planetStocks && (
+        <div>
+          <div style={{ fontSize: 10, color: '#556677', letterSpacing: 2, textTransform: 'uppercase', paddingTop: 4, marginBottom: 8 }}>
+            {t('colony_center.deposits_remaining')}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+            <DepositBar
+              resourceType="minerals"
+              remaining={planetStocks.remaining.minerals}
+              initial={planetStocks.initial.minerals}
+            />
+            <DepositBar
+              resourceType="volatiles"
+              remaining={planetStocks.remaining.volatiles}
+              initial={planetStocks.initial.volatiles}
+            />
+            <DepositBar
+              resourceType="isotopes"
+              remaining={planetStocks.remaining.isotopes}
+              initial={planetStocks.initial.isotopes}
+            />
+            <DepositBar
+              resourceType="water"
+              remaining={planetStocks.remaining.water}
+              initial={planetStocks.initial.water}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Energy + Habitability */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
@@ -400,10 +504,22 @@ function ColoniesTab({ active, allColonies, onTeleport }: ColonyCenterPageProps)
   );
 }
 
-function ProductionTab({ active, allColonies, productionPerHour, extractionPerHour, storageCapacity, colonyResources, colonyResourcesByPlanet }: ColonyCenterPageProps) {
+function ProductionTab({ active, allColonies, productionPerHour, extractionPerHour, storageCapacity, colonyResources, colonyResourcesByPlanet, planetStocks }: ColonyCenterPageProps) {
   const { t } = useTranslation();
   const [scope, setScope] = useState<'this' | 'all'>('this');
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Compute worst-case extraction efficiency across all 4 resources
+  const extractionEfficiencyPct = useMemo(() => {
+    if (!planetStocks) return 100;
+    const keys: Array<'minerals' | 'volatiles' | 'isotopes' | 'water'> = ['minerals', 'volatiles', 'isotopes', 'water'];
+    let minEff = 1.0;
+    for (const key of keys) {
+      const eff = getDepletionEfficiency(planetStocks.remaining[key], planetStocks.initial[key]);
+      if (eff < minEff) minEff = eff;
+    }
+    return Math.round(minEff * 100);
+  }, [planetStocks]);
 
   // Aggregate across all colonies when scope === 'all'
   const scopeData = useMemo(() => {
@@ -467,6 +583,22 @@ function ProductionTab({ active, allColonies, productionPerHour, extractionPerHo
           </button>
         ))}
       </div>
+
+      {/* Efficiency warning when stocks are depleting (< 100%) */}
+      {extractionEfficiencyPct < 100 && (
+        <div style={{
+          background: 'rgba(204,68,68,0.1)',
+          border: '1px solid rgba(204,68,68,0.4)',
+          borderRadius: 4,
+          padding: '6px 10px',
+          fontFamily: 'monospace',
+          fontSize: 10,
+          color: '#cc8844',
+          letterSpacing: 0.3,
+        }}>
+          {t('colony_center.production_efficiency_warning', { pct: extractionEfficiencyPct })}
+        </div>
+      )}
 
       {/* Per-resource bars — click to expand building breakdown */}
       {resourceKeys.map((key) => {

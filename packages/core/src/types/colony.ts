@@ -5,6 +5,28 @@
 import type { ColonyResources, ChemicalInventory } from './resources.js';
 import type { PlacedBuilding, UniquePlanetResource } from './surface.js';
 
+// ── Planet Resource Stocks ─────────────────────────────────────────────────
+
+/**
+ * Finite planet-level deposits.
+ * Units are the same abstract "U" units used in colony storage (ColonyResources).
+ * `initial` is set once at generation time; `remaining` decreases as extraction buildings run.
+ */
+export interface PlanetResourceStocks {
+  initial: {
+    minerals: number;
+    volatiles: number;
+    isotopes: number;
+    water: number;
+  };
+  remaining: {
+    minerals: number;
+    volatiles: number;
+    isotopes: number;
+    water: number;
+  };
+}
+
 // ── Energy ────────────────────────────────────────────────────────────────
 
 /** Per-planet energy balance computed from buildings each tick */

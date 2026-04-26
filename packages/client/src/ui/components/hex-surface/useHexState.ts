@@ -318,25 +318,28 @@ function rollSlotContents(
   forceResource?: ResourceType,
   size: HexPlanetSize = 'medium',
 ): { state: 'resource' | 'empty'; resourceType?: ResourceType; rarity?: Rarity; yieldPerHour?: number; maxCapacity?: number } {
+  // Compute zone so rarity odds can differentiate inner vs outer ring
+  let zone = 1;
+  if (slotId.startsWith('d')) {
+    const m = slotId.match(/^d(\d+)-(\d+)$/);
+    if (m) zone = computeZone(parseInt(m[1], 10), parseInt(m[2], 10), size);
+  }
+
   if (forceResource) {
-    const rarity = rollRarity(seed, slotId);
+    const rarity = rollRarity(seed, slotId, zone);
     const yieldPerHour = rarityYield(rarity);
     return { state: 'resource', resourceType: forceResource, rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
   }
 
   // Zone 1 always has resources (0% empty) to prevent dead-end start
   // Zone 2+ has 70% resource / 30% empty
-  const isZone1 = slotId.startsWith('d') && (() => {
-    const m = slotId.match(/^d(\d+)-(\d+)$/);
-    if (!m) return false;
-    return computeZone(parseInt(m[1], 10), parseInt(m[2], 10), size) === 1;
-  })();
+  const isZone1 = zone === 1;
 
   const h = Math.abs(Math.sin(seed * 0.17 + stringHash(slotId) * 0.031)) * 100;
 
   if (isZone1 || h < 70) {
     const resourceType = rollResourceType(seed, slotId, undefined, undefined, size);
-    const rarity = rollRarity(seed, slotId);
+    const rarity = rollRarity(seed, slotId, zone);
     const yieldPerHour = rarityYield(rarity);
     return { state: 'resource', resourceType, rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
   }
