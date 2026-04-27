@@ -837,6 +837,7 @@
     "section_habitability": "ПРИДАТНІСТЬ ДО ЖИТТЯ",
     "section_biology": "БІОЛОГІЯ",
     "section_resources": "РЕСУРСИ",
+    "resource_water": "Вода",
     "section_moons": "СУПУТНИКИ ({{count}})",
     "radius": "Радіус",
     "mass": "Маса",

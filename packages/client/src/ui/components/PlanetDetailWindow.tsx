@@ -569,10 +569,21 @@ function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: nu
   const totalRes = planet.resources?.totalResources;
   if (!totalRes) return null;
 
-  const hasAny = totalRes.minerals > 0 || totalRes.volatiles > 0 || totalRes.isotopes > 0;
+  // Compute water mass from hydrosphere (4πr² × coverage × depth × 1000kg/m³)
+  const hydro = planet.hydrosphere;
+  const waterMassKg = hydro && hydro.waterCoverageFraction > 0
+    ? (() => {
+        const radiusM = planet.radiusEarth * 6_371_000;
+        const surfaceArea = 4 * Math.PI * radiusM * radiusM;
+        const volume = surfaceArea * hydro.waterCoverageFraction * (hydro.oceanDepthKm * 1000);
+        return volume * 1000; // kg/m³
+      })()
+    : 0;
+
+  const hasAny = totalRes.minerals > 0 || totalRes.volatiles > 0 || totalRes.isotopes > 0 || waterMassKg > 0;
   if (!hasAny) return null;
 
-  const maxVal = Math.max(totalRes.minerals, totalRes.volatiles, totalRes.isotopes, 1);
+  const maxVal = Math.max(totalRes.minerals, totalRes.volatiles, totalRes.isotopes, waterMassKg, 1);
 
   return (
     <>
@@ -654,6 +665,35 @@ function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: nu
           </div>
         );
       })}
+      {/* Water row — separate (no Mendeleev breakdown) */}
+      {waterMassKg > 0 && (
+        <div style={{ animation: `pdwSlide 0.3s ease-out ${baseDelay + 20 + RESOURCE_GROUPS.length * 30}ms both` }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '5px 0',
+            borderBottom: '1px solid rgba(40,55,75,0.35)',
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'monospace' }}>
+              <span style={{ color: '#3b82f6', fontSize: 9 }}>{'•'}</span>
+              <span style={{ color: '#3b82f6' }}>{t('planet_detail.resource_water')}</span>
+            </span>
+            <span style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace' }}>
+              {formatMassKg(waterMassKg)}
+            </span>
+          </div>
+          <div style={{ padding: '3px 0 2px 16px' }}>
+            <div style={{
+              height: 3, background: 'rgba(30,40,60,0.5)',
+              borderRadius: 2, overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${Math.max(3, (waterMassKg / maxVal) * 100)}%`, height: '100%',
+                background: '#3b82f6', borderRadius: 2, opacity: 0.6,
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -491,7 +491,7 @@ function PlanetCard({
               rx={r * 1.9}
               ry={r * 0.38}
               fill="none"
-              stroke={`${color}66`}
+              stroke={`${color}99`}
               strokeWidth="1.5"
             />
           )}
@@ -507,8 +507,8 @@ function PlanetCard({
                   cy="35%"
                   r="60%"
                 >
-                  <stop offset="0%" stopColor={`${color}cc`} />
-                  <stop offset="100%" stopColor={`${color}66`} />
+                  <stop offset="0%" stopColor={`${color}dd`} />
+                  <stop offset="100%" stopColor={`${color}aa`} />
                 </radialGradient>
               </defs>
               <circle
@@ -516,7 +516,7 @@ function PlanetCard({
                 cy={cy}
                 r={r}
                 fill={`url(#pg-${planet.id})`}
-                stroke={`${color}88`}
+                stroke={`${color}bb`}
                 strokeWidth="1"
               />
             </>
@@ -611,9 +611,11 @@ const FILTER_ICONS: Record<FilterId, React.ReactNode> = {
     </svg>
   ),
   isotopes: (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="8" cy="8" r="2" />
-      <circle cx="8" cy="8" r="5.5" strokeDasharray="3 2" />
+      <ellipse cx="8" cy="8" rx="6" ry="2.5" />
+      <ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(-60 8 8)" />
     </svg>
   ),
   water: (
@@ -627,9 +629,10 @@ const FILTER_ICONS: Record<FilterId, React.ReactNode> = {
     </svg>
   ),
   volatiles: (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 12 Q2 8 4 5 Q6 3 8 2 Q10 3 12 5 Q14 8 12 12" />
-      <line x1="8" y1="14" x2="8" y2="12" />
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="6" cy="9" r="3" />
+      <circle cx="10" cy="8" r="3.5" />
+      <circle cx="8" cy="6" r="2.5" />
     </svg>
   ),
   population: (
@@ -1140,7 +1143,7 @@ function ExpandedDetailPanel({
       maxWidth: 'calc(100vw - 32px)',
       boxSizing: 'border-box',
     }}>
-      {/* 1. Header: [planet 48px] | [name] — close X  (buttons moved to characteristics row) */}
+      {/* 1. Header: [planet 48px] | [name + type] | [pencil] [pin] [eye] | [X close] */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -1168,7 +1171,7 @@ function ExpandedDetailPanel({
           )}
         </svg>
 
-        {/* Name only (type moved to characteristics row) */}
+        {/* Name + type (second line) */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {renaming ? (
             <input
@@ -1197,6 +1200,68 @@ function ExpandedDetailPanel({
             <div style={{ fontSize: 13, color: '#ccddee', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {planet.name}
             </div>
+          )}
+          <div style={{ fontSize: 9, color: '#667788', marginTop: 2, letterSpacing: '0.05em' }}>
+            {typeLabel}
+          </div>
+        </div>
+
+        {/* Action buttons: pencil / pin / eye */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {onRenamePlanet && !renaming && (
+            <button
+              onClick={() => { setRenameValue(planet.name); setRenaming(true); }}
+              title={t('planets_catalog.rename_title')}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: 2, opacity: 0.45, transition: 'opacity 0.15s',
+                lineHeight: 0, flexShrink: 0,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.45'; }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#aabbcc" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 2 L14 5 L5 14 L2 14 L2 11 Z" />
+                <line x1="9" y1="4" x2="12" y2="7" />
+              </svg>
+            </button>
+          )}
+          {onToggleFavorite && (
+            <button
+              onClick={() => onToggleFavorite(planet.id)}
+              title={isFavorite ? t('archive.unpin') : t('archive.pin')}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: 2, opacity: isFavorite ? 1 : 0.4,
+                transition: 'opacity 0.15s', lineHeight: 0, flexShrink: 0,
+                color: isFavorite ? '#7bb8ff' : '#aabbcc',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = isFavorite ? '1' : '0.4'; }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill={isFavorite ? '#7bb8ff' : 'none'}
+                stroke={isFavorite ? '#7bb8ff' : '#aabbcc'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 2 L10 6 L14 6.5 L11 9.5 L11.8 14 L8 12 L4.2 14 L5 9.5 L2 6.5 L6 6 Z" />
+              </svg>
+            </button>
+          )}
+          {onViewPlanet && (
+            <button
+              onClick={() => { onViewPlanet(system, planet.id); onClose(); }}
+              title={t('archive.planet_menu_view')}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: 2, opacity: 0.45, transition: 'opacity 0.15s',
+                lineHeight: 0, flexShrink: 0,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.45'; }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#aabbcc" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 8 C3 4 13 4 15 8 C13 12 3 12 1 8 Z" />
+                <circle cx="8" cy="8" r="2.5" />
+              </svg>
+            </button>
           )}
         </div>
 
@@ -1273,92 +1338,6 @@ function ExpandedDetailPanel({
             </div>
           </div>
         )}
-
-        {/* 4a. Type row: type label LEFT, action buttons RIGHT */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid rgba(40,55,75,0.25)',
-          paddingBottom: 6,
-        }}>
-          <span style={{ fontSize: 10, color: '#8899aa', fontFamily: 'monospace' }}>{typeLabel}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
-            {/* Pencil rename button */}
-            {onRenamePlanet && !renaming && (
-              <button
-                onClick={() => { setRenameValue(planet.name); setRenaming(true); }}
-                title={t('planets_catalog.rename_title')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 2,
-                  opacity: 0.45,
-                  transition: 'opacity 0.15s',
-                  lineHeight: 0,
-                  flexShrink: 0,
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.45'; }}
-              >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#aabbcc" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11 2 L14 5 L5 14 L2 14 L2 11 Z" />
-                  <line x1="9" y1="4" x2="12" y2="7" />
-                </svg>
-              </button>
-            )}
-            {/* Pin (favorite) button */}
-            {onToggleFavorite && (
-              <button
-                onClick={() => onToggleFavorite(planet.id)}
-                title={isFavorite ? t('archive.unpin') : t('archive.pin')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 2,
-                  opacity: isFavorite ? 1 : 0.4,
-                  transition: 'opacity 0.15s',
-                  lineHeight: 0,
-                  flexShrink: 0,
-                  color: isFavorite ? '#7bb8ff' : '#aabbcc',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = isFavorite ? '1' : '0.4'; }}
-              >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill={isFavorite ? '#7bb8ff' : 'none'}
-                  stroke={isFavorite ? '#7bb8ff' : '#aabbcc'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 2 L10 6 L14 6.5 L11 9.5 L11.8 14 L8 12 L4.2 14 L5 9.5 L2 6.5 L6 6 Z" />
-                </svg>
-              </button>
-            )}
-            {/* Eye — open planet detail view */}
-            {onViewPlanet && (
-              <button
-                onClick={() => { onViewPlanet(system, planet.id); onClose(); }}
-                title={t('archive.planet_menu_view')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 2,
-                  opacity: 0.45,
-                  transition: 'opacity 0.15s',
-                  lineHeight: 0,
-                  flexShrink: 0,
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.45'; }}
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#aabbcc" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 8 C3 4 13 4 15 8 C13 12 3 12 1 8 Z" />
-                  <circle cx="8" cy="8" r="2.5" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
 
         {/* 4b. Info grid — 2 columns: left = gravity+moons; right = size+hydro+distance */}
         <div style={{
@@ -1474,6 +1453,19 @@ export function PlanetsCatalogV2({
       const aPin = favoritePlanetIds?.has(a.planet.id) ? 0 : 1;
       const bPin = favoritePlanetIds?.has(b.planet.id) ? 0 : 1;
       if (aPin !== bPin) return aPin - bPin;
+
+      // Terraform filter: sort by terraformDifficulty ascending, impossible last
+      if (selectedFilter === 'terraform') {
+        const isTerraformImpossible = (p: Planet): boolean =>
+          !isTerraformable(p) || (p.terraformDifficulty ?? 0) > 0.85;
+        const aImp = isTerraformImpossible(a.planet) ? 1 : 0;
+        const bImp = isTerraformImpossible(b.planet) ? 1 : 0;
+        if (aImp !== bImp) return aImp - bImp;
+        // Both terraformable or both impossible — sort by difficulty ascending
+        const aDiff = a.planet.terraformDifficulty ?? 1;
+        const bDiff = b.planet.terraformDifficulty ?? 1;
+        if (aDiff !== bDiff) return aDiff - bDiff;
+      }
 
       // When minerals filter is active (or no filter), sort by minerals descending.
       // Priority: v168 stock units (remaining) > generated initial stock > colony inventory > raw resource value.

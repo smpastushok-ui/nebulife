@@ -204,7 +204,7 @@ function IsotopesIcon({ size }: { size: number }) {
 function WaterIcon({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.2" style={{ flexShrink: 0 }}>
-      <path d="M8 2C8 2 3 8 3 11C3 13.8 5.2 15 8 15C10.8 15 13 13.8 13 11C13 8 8 2 8 2Z" />
+      <path d="M8 3C8 3 4 8.5 4 11C4 13.2 5.8 14 8 14C10.2 14 12 13.2 12 11C12 8.5 8 3 8 3Z" />
     </svg>
   );
 }

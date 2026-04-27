@@ -839,6 +839,7 @@
     "section_habitability": "HABITABILITY",
     "section_biology": "BIOLOGY",
     "section_resources": "RESOURCES",
+    "resource_water": "Water",
     "section_moons": "MOONS ({{count}})",
     "radius": "Radius",
     "mass": "Mass",

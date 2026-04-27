@@ -518,12 +518,15 @@ export function PlanetContextMenu({
   const [activeTab, setActiveTab] = useState<TabId>('actions');
   const [expandedGroup, setExpandedGroup] = useState<ResourceGroup | null>(null);
   const [researchGroupExpanded, setResearchGroupExpanded] = useState(false);
-  // Delay backdrop activation to prevent the touch "click" event (fired after
-  // the pointerdown that opened the menu) from immediately closing it on mobile.
+  // Delay backdrop + menu items activation to prevent the touch "click" event
+  // (fired ~100ms after the pointerdown that opened the menu) from immediately
+  // closing the menu or triggering navigation on mobile.
   const [backdropActive, setBackdropActive] = useState(false);
+  const [itemsActive, setItemsActive] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setBackdropActive(true), 150);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => setBackdropActive(true), 150);
+    const t2 = setTimeout(() => setItemsActive(true), 220);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   // Ref to the menu container — used by useLayoutEffect to measure actual
@@ -627,11 +630,11 @@ export function PlanetContextMenu({
         <div style={{ padding: '4px 0', minHeight: 80 }}>
           {activeTab === 'actions' && (
             <>
-              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={onViewPlanet} color="#88ccaa" />
+              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={itemsActive ? onViewPlanet : undefined} color="#88ccaa" />
               {isSurfacePlanet && onSurface && (
                 surfaceDisabledReason
                   ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
-                  : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={onSurface} color="#88ccaa" />
+                  : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={itemsActive ? onSurface : undefined} color="#88ccaa" />
               )}
 
               {/* ── Research collapsible group ── */}
