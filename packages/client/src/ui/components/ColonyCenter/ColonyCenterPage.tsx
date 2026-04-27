@@ -696,7 +696,7 @@ function BuildingBreakdown({ buildings, resourceKey, extractionPerHour = 0 }: {
       {producers.map(([type, data]) => (
         <div key={type} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', fontSize: 10 }}>
           <span style={{ color: '#aabbcc' }}>
-            ×{data.count} {type}
+            ×{data.count} {t(`building.${type}.name`, type)}
           </span>
           <span style={{ color: '#88bb99' }}>
             +{data.perHour.toFixed(1)}/h
@@ -754,7 +754,7 @@ function BuildingsTab({ active }: ColonyCenterPageProps) {
                     fontSize: 11,
                     color: built ? '#aabbcc' : '#556677',
                   }}>
-                    <span>{type}</span>
+                    <span>{t(`building.${type}.name`, type)}</span>
                     <span style={{ fontSize: 10, color: built ? '#44ff88' : '#445566' }}>
                       {count} / {def.maxPerPlanet ?? '∞'}
                     </span>

@@ -6813,29 +6813,37 @@ function AppInner() {
               {t('research.insufficient_data')}
             </div>
             <div style={{ fontSize: 9, color: '#556677', lineHeight: 1.4, borderTop: '1px solid #223344', paddingTop: 10 }}>
-              {lang === 'uk'
-                ? 'Дослідницькі дані генеруються автоматично (+1/год) та будівлями на поверхні.'
-                : 'Research data regenerates automatically (+1/hr) and from surface buildings.'}
+              {t('research.regen_hint')}
             </div>
             <div style={{ fontSize: 8, color: '#445566', lineHeight: 1.3, fontFamily: 'monospace' }}>
               {(() => {
                 const techBonus = getEffectValue(techTreeStateRef.current, 'research_data_regen', 0);
                 const basePerHour = 1 + techBonus;
-                // Compute building research data contribution per hour from colonyState
+                // Compute building research data contribution per hour.
+                // Use colonyState when available (surface loaded), otherwise
+                // fall back to hex_slots localStorage so the rate is correct
+                // even when the player views this modal from the galaxy view.
                 let bldgPerHour = 0;
-                if (colonyState?.buildings) {
-                  for (const b of colonyState.buildings) {
-                    if (b.shutdown) continue;
-                    const bDef = (BUILDING_DEFS as Record<string, {production?: Array<{resource: string; amount: number}>}>)[b.type];
-                    if (!bDef?.production) continue;
-                    for (const p of bDef.production) {
-                      if (p.resource === 'researchData') bldgPerHour += p.amount * 60;
-                    }
+                const bldgsForRate: Array<{type: string; shutdown?: boolean}> = colonyState?.buildings ?? (() => {
+                  try {
+                    const raw = localStorage.getItem('nebulife_hex_slots');
+                    if (!raw) return [];
+                    return (JSON.parse(raw) as Array<{state: string; buildingType?: string}>)
+                      .filter((s) => s.state === 'building' && s.buildingType)
+                      .map((s) => ({ type: s.buildingType! }));
+                  } catch { return []; }
+                })();
+                for (const b of bldgsForRate) {
+                  if (b.shutdown) continue;
+                  const bDef = (BUILDING_DEFS as Record<string, {production?: Array<{resource: string; amount: number}>}>)[b.type];
+                  if (!bDef?.production) continue;
+                  for (const p of bDef.production) {
+                    if (p.resource === 'researchData') bldgPerHour += p.amount * 60;
                   }
                 }
                 const totalPerHour = basePerHour + bldgPerHour;
-                console.log('[research-rate]', { techBonus, basePerHour, bldgPerHour, totalPerHour, buildings: colonyState?.buildings?.length ?? 0 });
-                return `exact: ${researchData.toFixed(4)} | floor: ${Math.floor(researchData)} | regen: +${(basePerHour / 60).toFixed(4)}/min base | bldg: +${bldgPerHour.toFixed(2)}/hr | total: +${totalPerHour.toFixed(2)}/hr`;
+                console.log('[research-rate]', { techBonus, basePerHour, bldgPerHour, totalPerHour, buildings: bldgsForRate.length });
+                return `exact: ${researchData.toFixed(4)} | floor: ${Math.floor(researchData)} | base: +${basePerHour.toFixed(1)}/hr | bldg: +${bldgPerHour.toFixed(1)}/hr | total: +${totalPerHour.toFixed(1)}/hr`;
               })()}
             </div>
             <button

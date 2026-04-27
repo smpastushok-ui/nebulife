@@ -197,6 +197,7 @@ export const uk = {
   'research.type.gas_giant':     'Газовий гігант',
   'research.type.ice_giant':     'Крижаний гігант',
   'research.insufficient_data':  'Недостатньо дослідницьких даних. Зберіть більше даних досліджуючи галактику.',
+  'research.regen_hint':         'Дані генеруються автоматично (+1/год) та будівлями на поверхні.',
   'research.watch_ad':           'Дивитись рекламу',
   'research.data_received':      '+10 даних!',
 

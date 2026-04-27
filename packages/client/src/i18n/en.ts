@@ -199,6 +199,7 @@ export const en: Record<TranslationKey, string> = {
   'research.type.gas_giant':     'Gas Giant',
   'research.type.ice_giant':     'Ice Giant',
   'research.insufficient_data':  'Insufficient research data. Collect more data by exploring the galaxy.',
+  'research.regen_hint':         'Data regenerates automatically (+1/hr) and from surface buildings.',
   'research.watch_ad':           'Watch ad',
   'research.data_received':      '+10 Data!',
 

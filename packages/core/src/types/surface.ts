@@ -466,7 +466,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   research_lab: {
     type: 'research_lab', category: 'science',
     name: 'Лабораторія',
-    description: 'Наукові дослідження. Генерує дані досліджень.',
+    description: 'Наукові дослідження. +3 дані дослідж./год.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'minerals', amount: 8 }, { resource: 'volatiles', amount: 5 }],
@@ -476,7 +476,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     ],
     levelRequired: 5, techRequired: null, maxPerPlanet: 3,
     energyOutput: 0, energyConsumption: 3, energyStorageAdd: 0,
-    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE }], // 1 data/hour
+    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 3 }], // 3 data/hour
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
@@ -485,13 +485,13 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   observatory: {
     type: 'observatory', category: 'science',
     name: 'Обсерваторія',
-    description: 'Спостереження за космосом. Слоти для сесій досліджень.',
+    description: 'Спостереження за космосом. +5 дані дослідж./год. Слоти для сесій.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: HIGH_TERRAIN,
     cost: [{ resource: 'minerals', amount: 10 }, { resource: 'volatiles', amount: 5 }, { resource: 'isotopes', amount: 2 }],
     levelRequired: 2, techRequired: 'ast-radio-1', maxPerPlanet: 4, // 3 base + tech unlocks
     energyOutput: 0, energyConsumption: 2, energyStorageAdd: 0,
-    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 2 }], // 2 data/hour
+    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 5 }], // 5 data/hour
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
@@ -514,13 +514,13 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   orbital_telescope: {
     type: 'orbital_telescope', category: 'science',
     name: 'Орбітальний телескоп',
-    description: 'Генерує 3 дані досліджень за тік. +10% відкриттів у системі.',
+    description: '+8 дані дослідж./год. +10% відкриттів у системі.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: ALL_TERRAIN,
     cost: [{ resource: 'minerals', amount: 45 }, { resource: 'volatiles', amount: 25 }, { resource: 'isotopes', amount: 8 }],
     levelRequired: 28, techRequired: 'ast-deep-radar', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 6, energyStorageAdd: 0,
-    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 3 }], // 3 data/hour
+    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 8 }], // 8 data/hour
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
@@ -529,13 +529,13 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   quantum_computer: {
     type: 'quantum_computer', category: 'science',
     name: 'Квантовий комп\'ютер',
-    description: 'Генерує 5 даних досліджень за тік. Зменшує час досліджень на 20%.',
+    description: '+15 дані дослідж./год. Зменшує час досліджень на 20%.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'minerals', amount: 60 }, { resource: 'volatiles', amount: 35 }, { resource: 'isotopes', amount: 10 }, { resource: 'Ti', amount: 5 }],
     levelRequired: 38, techRequired: 'phy-quantum', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 10, energyStorageAdd: 0,
-    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 5 }], // 5 data/hour
+    production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 15 }], // 15 data/hour
     consumption: [{ resource: 'water', amount: 0.03 }], // cooling
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,

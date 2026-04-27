@@ -145,15 +145,15 @@
     },
     "isotope_collector": {
       "name": "Isotope Collector",
-      "desc": "Passive isotope extraction from cosmic radiation. 9 ISO/hr."
+      "desc": "Passive isotope extraction from cosmic radiation. 15 ISO/hr."
     },
     "research_lab": {
       "name": "Research Lab",
-      "desc": "Scientific research. Generates research data."
+      "desc": "Scientific research. +3 research data/hr."
     },
     "observatory": {
       "name": "Observatory",
-      "desc": "Space observation. Research session slots."
+      "desc": "Space observation. +5 research data/hr. Research session slots."
     },
     "radar_tower": {
       "name": "Radar Tower",
@@ -161,11 +161,11 @@
     },
     "orbital_telescope": {
       "name": "Orbital Telescope",
-      "desc": "Generates 3 research data per tick. +10% system discoveries."
+      "desc": "+8 research data/hr. +10% system discoveries."
     },
     "quantum_computer": {
       "name": "Quantum Computer",
-      "desc": "Generates 5 research data per tick. -20% research time."
+      "desc": "+15 research data/hr. -20% research time."
     },
     "greenhouse": {
       "name": "Greenhouse",
@@ -509,6 +509,7 @@
     "panel_no_slots": "No free observatories",
     "actions_unavailable": "Actions unavailable",
     "insufficient_data": "Insufficient research data. Collect more data by exploring the galaxy.",
+    "regen_hint": "Data regenerates automatically (+1/hr) and from surface buildings.",
     "watch_ad": "Watch ad",
     "data_received": "+10 Data!"
   },
