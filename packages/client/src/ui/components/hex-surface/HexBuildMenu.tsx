@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BuildingType, PlanetType } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
+import { ResourceIcon, type ResourceType } from '../ResourceIcon.js';
 
 // Alpha harvester escalating quarks price
 const ALPHA_HARVESTER_PRICES = [50, 103, 206]; // 1st=$1.20, 2nd=$2.50, 3rd+=$5.00
@@ -24,27 +25,16 @@ interface HexBuildMenuProps {
   onClose: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Resource cost icons — SVG icons matching ResourceDisplay (top HUD)
-// ---------------------------------------------------------------------------
-
-const RESOURCE_SVG: Record<string, (s: number) => React.ReactElement> = {
-  minerals: (s) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="#aa8855" strokeWidth="1.2"><path d="M8 2L13 7L8 14L3 7Z" /><line x1="3" y1="7" x2="13" y2="7" /></svg>,
-  volatiles: (s) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="#55aaaa" strokeWidth="1.2"><circle cx="6" cy="9" r="3" /><circle cx="10" cy="8" r="3.5" /><circle cx="8" cy="6" r="2.5" /></svg>,
-  isotopes: (s) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="#88aa44" strokeWidth="1.2"><circle cx="8" cy="8" r="2" /><ellipse cx="8" cy="8" rx="6" ry="2.5" /><ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(60 8 8)" /></svg>,
-  water: (s) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.2"><path d="M8 2C8 2 3 8 3 11C3 13.8 5.2 15 8 15C10.8 15 13 13.8 13 11C13 8 8 2 8 2Z" /></svg>,
-};
-
 function CostIcons({ cost }: { cost: { resource: string; amount: number }[] }) {
   if (cost.length === 0) return <span style={{ fontSize: 7, color: '#4488aa' }}>FREE</span>;
+  const resourceTypes = new Set<ResourceType>(['minerals', 'volatiles', 'isotopes', 'water']);
   return (
     <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
       {cost.map((c) => {
-        const iconFn = RESOURCE_SVG[c.resource];
-        if (!iconFn) return null;
+        if (!resourceTypes.has(c.resource as ResourceType)) return null;
         return (
           <span key={c.resource} style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {iconFn(10)}
+            <ResourceIcon type={c.resource as ResourceType} size={10} />
             <span style={{ fontSize: 7, color: '#aabbcc' }}>{c.amount}</span>
           </span>
         );

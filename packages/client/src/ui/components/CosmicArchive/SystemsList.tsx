@@ -199,19 +199,20 @@ export function SystemsList({
     });
   }, [allSystems, aliases]);
 
-  // Group by ring for section headers
+  // Group by ring for section headers. Use a Map keyed by ringIndex so that
+  // home-first sorting (which can break ring contiguity when home has
+  // ringIndex>0) doesn't produce duplicate groups with the same key.
   const ringGroups = useMemo(() => {
-    const groups: { ringIndex: number; systems: StarSystem[] }[] = [];
-    let current: (typeof groups)[0] | null = null;
+    const map = new Map<number, StarSystem[]>();
     for (const sys of sorted) {
       const ri = sys.ringIndex ?? 0;
-      if (!current || current.ringIndex !== ri) {
-        current = { ringIndex: ri, systems: [] };
-        groups.push(current);
-      }
-      current.systems.push(sys);
+      const arr = map.get(ri) ?? [];
+      arr.push(sys);
+      map.set(ri, arr);
     }
-    return groups;
+    return Array.from(map.entries())
+      .map(([ringIndex, systems]) => ({ ringIndex, systems }))
+      .sort((a, b) => a.ringIndex - b.ringIndex);
   }, [sorted]);
 
   // Seed the collapsed set once we know which rings exist — rings 2+ default

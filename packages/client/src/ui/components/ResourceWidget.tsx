@@ -7,6 +7,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { ResourceIcon, RESOURCE_COLORS } from './ResourceIcon.js';
 
 interface ResourceWidgetProps {
   minerals:  number;
@@ -21,15 +22,6 @@ interface ResourceWidgetProps {
     water:     DOMRect;
   }) => void;
 }
-
-const ICON_STYLE: React.CSSProperties = {
-  display:        'inline-block',
-  width:          8,
-  height:         8,
-  borderRadius:   1,
-  marginRight:    5,
-  verticalAlign:  'middle',
-};
 
 const ITEM_BASE: React.CSSProperties = {
   display:        'flex',
@@ -144,8 +136,8 @@ export const ResourceWidget: React.FC<ResourceWidgetProps> = ({
         ref={minRef}
         style={{ ...ITEM_BASE, transform: popMin ? 'scale(1.22)' : 'scale(1)' }}
       >
-        <span style={{ ...ICON_STYLE, background: '#998877' }} />
-        <span style={{ color: '#bbaa99', minWidth: 22, textAlign: 'right' }}>{minerals}</span>
+        <ResourceIcon type="minerals" size={11} />
+        <span style={{ color: RESOURCE_COLORS.minerals, minWidth: 22, textAlign: 'right' }}>{minerals}</span>
       </div>
 
       <div style={dividerStyle} />
@@ -155,8 +147,8 @@ export const ResourceWidget: React.FC<ResourceWidgetProps> = ({
         ref={volRef}
         style={{ ...ITEM_BASE, transform: popVol ? 'scale(1.22)' : 'scale(1)' }}
       >
-        <span style={{ ...ICON_STYLE, background: '#44aaff', borderRadius: '50%' }} />
-        <span style={{ color: '#99ccee', minWidth: 22, textAlign: 'right' }}>{volatiles}</span>
+        <ResourceIcon type="volatiles" size={11} />
+        <span style={{ color: RESOURCE_COLORS.volatiles, minWidth: 22, textAlign: 'right' }}>{volatiles}</span>
       </div>
 
       <div style={dividerStyle} />
@@ -166,8 +158,8 @@ export const ResourceWidget: React.FC<ResourceWidgetProps> = ({
         ref={isoRef}
         style={{ ...ITEM_BASE, transform: popIso ? 'scale(1.22)' : 'scale(1)' }}
       >
-        <span style={{ ...ICON_STYLE, background: '#ffdd44', transform: 'rotate(45deg)', display: 'inline-block' }} />
-        <span style={{ color: '#eedd88', minWidth: 22, textAlign: 'right' }}>{isotopes}</span>
+        <ResourceIcon type="isotopes" size={11} />
+        <span style={{ color: RESOURCE_COLORS.isotopes, minWidth: 22, textAlign: 'right' }}>{isotopes}</span>
       </div>
 
       <div style={dividerStyle} />
@@ -177,18 +169,8 @@ export const ResourceWidget: React.FC<ResourceWidgetProps> = ({
         ref={watRef}
         style={{ ...ITEM_BASE, transform: popWat ? 'scale(1.22)' : 'scale(1)' }}
       >
-        {/* Water droplet icon: circle with pointed bottom via clip-path */}
-        <span style={{
-          display:       'inline-block',
-          width:         8,
-          height:        10,
-          marginRight:   5,
-          verticalAlign: 'middle',
-          background:    '#3b82f6',
-          borderRadius:  '50% 50% 50% 50% / 60% 60% 40% 40%',
-          clipPath:      'polygon(50% 0%, 100% 60%, 85% 100%, 15% 100%, 0% 60%)',
-        }} />
-        <span style={{ color: '#6699cc', minWidth: 22, textAlign: 'right' }}>{water}</span>
+        <ResourceIcon type="water" size={11} />
+        <span style={{ color: RESOURCE_COLORS.water, minWidth: 22, textAlign: 'right' }}>{water}</span>
       </div>
     </div>
   );

@@ -18,41 +18,41 @@ export function ResourceIcon({ type, size = 12 }: ResourceIconProps) {
     case 'minerals':
       return (
         <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
-          stroke="#aa8855" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"
+          stroke="#aa8855" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"
           style={{ flexShrink: 0 }}>
-          <path d="M8 2L13 7L8 14L3 7Z" />
-          <line x1="3" y1="7" x2="13" y2="7" />
-          <line x1="8" y1="2" x2="5.5" y2="7" />
-          <line x1="8" y1="2" x2="10.5" y2="7" />
+          <path d="M8 2.2 L13 7.5 L10.8 14 H5.2 L3 7.5 Z" />
+          <path d="M8 2.2 V14 M3 7.5 H13 M5.2 14 L8 7.5 L10.8 14" opacity="0.58" />
         </svg>
       );
     case 'volatiles':
       return (
         <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
-          stroke="#55aaaa" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"
+          stroke="#55aaaa" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
           style={{ flexShrink: 0 }}>
-          <circle cx="6" cy="9" r="3" />
-          <circle cx="10" cy="8" r="3.5" />
-          <circle cx="8" cy="6" r="2.5" />
+          <circle cx="8" cy="8.5" r="4.1" />
+          <path d="M2.7 7.8 C5 5.2 11 5.2 13.3 7.8" opacity="0.6" />
+          <path d="M2.9 10.3 C5.3 12.5 10.7 12.5 13.1 10.3" opacity="0.45" />
+          <path d="M5 5 C6.5 3.9 9.5 3.9 11 5" opacity="0.35" />
         </svg>
       );
     case 'isotopes':
       return (
         <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
-          stroke="#88aa44" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"
+          stroke="#88aa44" strokeWidth="1.05" strokeLinecap="round" strokeLinejoin="round"
           style={{ flexShrink: 0 }}>
-          <circle cx="8" cy="8" r="2" />
-          <ellipse cx="8" cy="8" rx="6" ry="2.5" />
-          <ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(60 8 8)" />
-          <ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(-60 8 8)" />
+          <circle cx="8" cy="8" r="1.55" fill="currentColor" stroke="none" opacity="0.55" />
+          <ellipse cx="8" cy="8" rx="6.4" ry="2.55" />
+          <ellipse cx="8" cy="8" rx="6.4" ry="2.55" transform="rotate(60 8 8)" />
+          <ellipse cx="8" cy="8" rx="6.4" ry="2.55" transform="rotate(-60 8 8)" />
         </svg>
       );
     case 'water':
       return (
         <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
-          stroke="#3b82f6" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"
+          stroke="#3b82f6" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"
           style={{ flexShrink: 0 }}>
-          <path d="M8 3C8 3 4 8.5 4 11C4 13.2 5.8 14 8 14C10.2 14 12 13.2 12 11C12 8.5 8 3 8 3Z" />
+          <path d="M8 2.4 C8 2.4 3.8 7.6 3.8 10.8 A4.2 4.2 0 0 0 12.2 10.8 C12.2 7.6 8 2.4 8 2.4 Z" />
+          <path d="M5.7 11.6 C6.9 12.5 9.1 12.5 10.3 11.6" opacity="0.55" />
         </svg>
       );
   }
