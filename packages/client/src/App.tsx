@@ -820,41 +820,58 @@ function AppInner() {
     [],
   );
 
-  /** Handle surface resource harvest → update per-planet resources + award XP.
-   *  Also depletes the corresponding planet stock when stocks are tracked.
-   *  Map: ore→minerals, vent→volatiles, tree→isotopes, water→water
+  /**
+   * Surface harvest FX + type-based XP callback (v169).
+   *
+   * Resource addition and planet stock depletion have been moved to
+   * handleHarvestFull which receives the actual rarity-based yield amount.
+   * This callback now only awards fixed type-based XP for differentiated
+   * harvest bonuses (tree/ore/vent).
+   *
+   * Note: onHarvestAmount (wired inline) also awards XP = actual yield amount.
    */
   const handleHarvest = useCallback((objectType: SurfaceObjectType) => {
+    const xpKey = objectType === 'tree' ? 'HARVEST_TREE'
+                : objectType === 'ore' ? 'HARVEST_ORE'
+                : 'HARVEST_VENT';
+    awardXP(XP_REWARDS[xpKey], `harvest_${objectType}`);
+  }, [awardXP]);
+
+  /**
+   * Authoritative hex-surface harvest handler (v169 single path).
+   *
+   * Receives the actual rarity-based yield amount from HexSurface (via the
+   * onHarvestFull callback) instead of the fixed HARVEST_YIELD base value.
+   *
+   * This is the ONLY path that adds resources and depletes planet stocks
+   * for hex harvests.  The old onResourceChange path in useHexState has been
+   * removed to prevent double-counting.
+   */
+  const handleHarvestFull = useCallback((objectType: SurfaceObjectType, amount: number) => {
     const yield_ = HARVEST_YIELD[objectType];
-    const baseAmount = yield_.base;
     const key = yield_.group === 'mineral' ? 'minerals' as const
               : yield_.group === 'volatile' ? 'volatiles' as const
               : yield_.group === 'water' ? 'water' as const
               : 'isotopes' as const;
     const planetId = surfaceTargetRef.current?.planet.id ?? homeInfoRef.current?.planet.id;
 
-    // Determine stock resource key for harvest type
     const stockKey: 'minerals' | 'volatiles' | 'isotopes' | 'water' =
       objectType === 'ore' ? 'minerals'
       : objectType === 'vent' ? 'volatiles'
       : objectType === 'tree' ? 'isotopes'
-      : 'water'; // water_pool / water
+      : 'water';
 
-    let actualAmount: number = baseAmount;
+    let actualAmount: number = amount;
     if (planetId) {
       const stocks = planetResourceStocksRef.current[planetId];
       if (stocks) {
-        const { newStocks, actualExtracted } = depleteStock(stocks, stockKey, baseAmount);
+        const { newStocks, actualExtracted } = depleteStock(stocks, stockKey, amount);
         actualAmount = actualExtracted;
         setPlanetResourceStocks(prev => ({ ...prev, [planetId]: newStocks }));
       }
       addResources(planetId, { [key]: actualAmount });
     }
-    const xpKey = objectType === 'tree' ? 'HARVEST_TREE'
-                : objectType === 'ore' ? 'HARVEST_ORE'
-                : 'HARVEST_VENT'; // water uses same XP as vent
-    awardXP(XP_REWARDS[xpKey], `harvest_${objectType}`);
-  }, [awardXP, addResources]);
+  }, [addResources]);
 
   /** Handle fly-to-HUD animation for harvested resource. */
   const handleHarvestFx = useCallback((type: SurfaceObjectType, sx: number, sy: number) => {
@@ -6627,6 +6644,7 @@ function AppInner() {
             }
           }}
           onHarvest={handleHarvest}
+          onHarvestFull={handleHarvestFull}
           onHarvestFx={handleHarvestFx}
           onHexUnlocked={(ring) => {
             const xp = ring === 1 ? XP_REWARDS.HEX_UNLOCK_RING1 : ring === 2 ? XP_REWARDS.HEX_UNLOCK_RING2 : XP_REWARDS.HEX_UNLOCK_RING3;

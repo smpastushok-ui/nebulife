@@ -22,15 +22,23 @@ import type { PlanetResourceStocks } from '../types/colony.js';
  * Multiply raw kg values from PlanetResources.totalResources by these factors
  * to get abstract game units.
  *
- * Calibrated so that an Earth-like rocky planet (1 M_Earth, inner zone) yields:
- *   minerals  ~50 000 U   (3.0e22 kg → ×1.667e-18)
- *   volatiles ~30 000 U   (2.5e21 kg → ×1.200e-17)
- *   isotopes  ~ 5 000 U   (1.2e18 kg → ×4.167e-15)
+ * Calibrated so that an Earth-like rocky planet (1 M_Earth, habitable zone)
+ * yields the target game budgets:
+ *   minerals  ~50 000 U   — raw ~5.80e22 kg (O now correctly counted as
+ *                           mineral: bound oxygen in silicates is rock-forming
+ *                           matter, not atmospheric gas)
+ *   volatiles ~30 000 U   — raw ~1.88e21 kg (S, H, C, N, halogens; no O)
+ *   isotopes  ~ 5 000 U   — raw ~3.17e15 kg with a large gameplay multiplier
+ *                           (U/Th are ppb-level in crust; multiplier ensures
+ *                           isotopes remain a playable resource, not 13 units)
+ *
+ * v169 recalibration: O moved from volatile → mineral group, so both scales
+ * had to be recomputed.  Isotope scale increased ~379× for playability.
  */
 export const STOCK_SCALE = {
-  minerals:  50_000 / 3.0e22,
-  volatiles: 30_000 / 2.5e21,
-  isotopes:   5_000 / 1.2e18,
+  minerals:  50_000 / 5.80e22,   // was 50_000/3.0e22 (O was in volatiles)
+  volatiles: 30_000 / 1.88e21,   // was 30_000/2.5e21 (was inflated by bound O)
+  isotopes:   5_000 / 3.17e15,   // was 5_000/1.2e18 — large gameplay multiplier
 } as const;
 
 /**
@@ -41,11 +49,30 @@ export const STOCK_SCALE = {
  * Reference: 40 000 U = Earth-equivalent.
  * water_extractor produces 1 U/tick = 60 U/hr.
  * 5 × water_extractors → 300 U/hr → ~133 h to exhaust Earth-level stocks.
+ *
+ * v169: also count frozen water (ice caps) and subsurface oceans.
+ *   - Ice caps: treated as shallow liquid-equivalent at ICE_EQUIVALENT_DEPTH_KM.
+ *   - Subsurface ocean (Europa-like): flat SUBSURFACE_OCEAN_BONUS units,
+ *     representing a Europa-like internal ocean accessible via deep drill.
  */
 const WATER_STOCK_EARTH_REFERENCE = 40_000;
-const WATER_COVERAGE_REF   = 0.71;
-const WATER_DEPTH_REF_KM   = 3.7;
-const WATER_RADIUS_REF     = 1.0; // R_Earth
+const WATER_COVERAGE_REF    = 0.71;
+const WATER_DEPTH_REF_KM    = 3.7;
+const WATER_RADIUS_REF      = 1.0; // R_Earth
+
+/**
+ * Effective depth (km) used when computing ice-cap water stock.
+ * Ice caps are shallower/less extractable than open ocean, so we use
+ * a smaller equivalent depth compared to WATER_DEPTH_REF_KM.
+ */
+const ICE_EQUIVALENT_DEPTH_KM  = 10.0;  // km of ice/snow equivalent depth
+
+/**
+ * Flat water bonus for a confirmed subsurface ocean (Europa-style).
+ * Represents a significant but inaccessible-by-surface-extractors deposit;
+ * accessible only via deep_drill or future tech.
+ */
+const SUBSURFACE_OCEAN_BONUS = 15_000;  // U
 
 // ---------------------------------------------------------------------------
 // Generation
@@ -71,30 +98,58 @@ export function generatePlanetStocks(planet: Planet): PlanetResourceStocks {
 
   // ── Water ─────────────────────────────────────────────────────────────────
   // Water stock is REAL extractable water by physical type:
-  //   - gas-giant:   0 (no solid surface, water is unreachable in deep core)
+  //   - gas-giant:   0 (no solid surface; water unreachable in deep core)
   //   - ice-giant:   small atmospheric collection only (≤ 15% of volatiles)
-  //   - rocky/terrestrial/dwarf with hydrosphere: surface area × coverage × depth formula
-  //   - rocky without hydrosphere: 0 (no water — habitability.water is a TARGET score, not a stock)
+  //   - rocky/terrestrial/dwarf: three possible contributions (any combination):
+  //       1. Liquid hydrosphere (waterCoverageFraction > 0): area × depth × r²
+  //       2. Ice caps (iceCapFraction > 0): ice treated as shallow equivalent
+  //       3. Subsurface ocean (hasSubsurfaceOcean): flat bonus (Europa-like)
+  //   - no hydrosphere at all → 0 (habitability.water is a target score, not stock)
+  //
+  // v169: frozen water (ice caps, subsurface) now contributes to water stock.
   let water = 0;
 
   if (planet.type === 'gas-giant') {
     water = 0;
   } else if (planet.type === 'ice-giant') {
     // Atmospheric water collection — much less than volatiles since most water
-    // is locked deep in the mantle ice/ammonia layer
+    // is locked deep in the mantle ice/ammonia layer.
     water = Math.round(volatiles * 0.15);
   } else {
-    // rocky / terrestrial / dwarf — only count actual hydrosphere water
+    // rocky / terrestrial / dwarf
     const hyd = planet.hydrosphere;
-    if (hyd && hyd.waterCoverageFraction > 0) {
-      const coverageRatio = hyd.waterCoverageFraction / WATER_COVERAGE_REF;
-      const depthRatio    = (hyd.oceanDepthKm > 0 ? hyd.oceanDepthKm : 1) / WATER_DEPTH_REF_KM;
-      const radiusRatio   = (planet.radiusEarth > 0 ? planet.radiusEarth : 1) / WATER_RADIUS_REF;
-      water = Math.round(
-        WATER_STOCK_EARTH_REFERENCE * coverageRatio * depthRatio * radiusRatio * radiusRatio,
-      );
+    if (hyd) {
+      const r = planet.radiusEarth > 0 ? planet.radiusEarth : 1;
+      const radiusRatio = r / WATER_RADIUS_REF;
+
+      // 1. Liquid hydrosphere contribution
+      if (hyd.waterCoverageFraction > 0) {
+        const coverageRatio = hyd.waterCoverageFraction / WATER_COVERAGE_REF;
+        const depthRatio    = (hyd.oceanDepthKm > 0 ? hyd.oceanDepthKm : 1) / WATER_DEPTH_REF_KM;
+        water += Math.round(
+          WATER_STOCK_EARTH_REFERENCE * coverageRatio * depthRatio * radiusRatio * radiusRatio,
+        );
+      }
+
+      // 2. Ice cap contribution (iceCapFraction > 0)
+      // Treated as liquid-equivalent at ICE_EQUIVALENT_DEPTH_KM.
+      // Ice is extractable via mining/melting; shallower per-unit than open ocean.
+      if (hyd.iceCapFraction > 0) {
+        const iceCoverageRatio = hyd.iceCapFraction / WATER_COVERAGE_REF;
+        const iceDepthRatio    = ICE_EQUIVALENT_DEPTH_KM / WATER_DEPTH_REF_KM;
+        water += Math.round(
+          WATER_STOCK_EARTH_REFERENCE * iceCoverageRatio * iceDepthRatio * radiusRatio * radiusRatio,
+        );
+      }
+
+      // 3. Subsurface ocean bonus (Europa-like)
+      // Flat bonus representing an internal liquid ocean; not affected by surface radius
+      // since it scales with internal structure rather than surface area.
+      if (hyd.hasSubsurfaceOcean) {
+        water += SUBSURFACE_OCEAN_BONUS;
+      }
     }
-    // No hydrosphere → no water stock (habitability.water is a future-state score, not current resource)
+    // No hydrosphere at all → water stays 0
   }
 
   const stocks: PlanetResourceStocks = {

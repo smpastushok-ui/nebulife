@@ -58,6 +58,16 @@ interface HexSurfaceProps {
   onHarvestFx?:           (objectType: SurfaceObjectType, sx: number, sy: number) => void;
   onHexUnlocked?:         (ring: number) => void;
   onHarvestAmount?:       (amount: number) => void;
+  /**
+   * Authoritative harvest callback — fires with both objectType AND actual
+   * rarity-based yield amount so that App.tsx can:
+   *   1. Add exactly this amount to colony resources
+   *   2. Deplete exactly this amount from planet stock
+   *   3. Award proportional elements
+   * This replaces the old onResourceChange path in useHexState which caused
+   * double-counting (hook added resources AND App.tsx added them again).
+   */
+  onHarvestFull?:         (objectType: SurfaceObjectType, amount: number) => void;
   playerLevel?:           number;
   techTreeState?:         TechTreeState;
   minerals?:              number;
@@ -84,10 +94,14 @@ interface HexSurfaceProps {
 // ---------------------------------------------------------------------------
 
 const RESOURCE_TO_OBJECT: Record<string, SurfaceObjectType> = {
-  tree:  'tree',
-  ore:   'ore',
-  vent:  'vent',
-  water: 'water',
+  tree:       'tree',
+  ore:        'ore',
+  vent:       'vent',
+  water:      'water',
+  // New v169 types: map to nearest SurfaceObjectType for FX/PixiJS compat.
+  // crystal and bio_fossil yield isotopes (same as tree) so they use 'tree' FX.
+  crystal:    'tree',
+  bio_fossil: 'tree',
 };
 
 // ---------------------------------------------------------------------------
@@ -141,6 +155,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onHarvestFx,
       onHexUnlocked,
       onHarvestAmount,
+      onHarvestFull,
       playerLevel = 1,
       techTreeState,
       minerals: _minerals,
@@ -254,6 +269,14 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onHarvestAmount?.(amount);
     }, [onHarvestAmount]);
 
+    /** Authoritative drone harvest — calls onHarvestFull for resource + depletion. */
+    const handleDroneHarvestFull = useCallback((resourceType: string, amount: number) => {
+      const objType = RESOURCE_TO_OBJECT[resourceType] as SurfaceObjectType | undefined;
+      if (objType) {
+        onHarvestFull?.(objType, amount);
+      }
+    }, [onHarvestFull]);
+
     const hexState = useHexState(
       planet,
       star,
@@ -271,6 +294,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onConsumeResearchData,
       quarks,
       onConsumeQuarks,
+      handleDroneHarvestFull,
     );
 
     // ── Signal ready after initial load ────────────────────────────────────
@@ -359,6 +383,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         if (amount !== null && slot?.resourceType) {
           const objType = RESOURCE_TO_OBJECT[slot.resourceType] as SurfaceObjectType | undefined;
           if (objType) {
+            // onHarvestFull: authoritative path — resources + depletion + elements
+            // handled in App.tsx with the actual rarity-based yield amount.
+            // This replaces the old onResourceChange path in useHexState that
+            // was adding resources a second time (double-count).
+            onHarvestFull?.(objType, amount);
+            // onHarvest: kept for visual FX / legacy compatibility; no resource logic
             onHarvest?.(objType);
             onHarvestFx?.(objType, window.innerWidth / 2, window.innerHeight / 2);
           }
@@ -366,7 +396,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           if (amount > 0) onHarvestAmount?.(amount);
         }
       },
-      [hexState, onHarvest, onHarvestFx, onHarvestAmount],
+      [hexState, onHarvest, onHarvestFx, onHarvestAmount, onHarvestFull],
     );
 
     const handleBuild = useCallback(

@@ -14,6 +14,7 @@ import type { Planet } from '../types/planet.js';
 import { getTerrainBonus, getSolarEnergyMultiplier, getWindMultiplier, getAtmoMultiplier } from './planet-rules.js';
 import type { SurfaceTile } from '../types/surface.js';
 import { depleteStock } from './planet-stocks.js';
+import { SeededRNG } from '../math/rng.js';
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -79,8 +80,13 @@ export function runColonyTicks(
   // Stocks are carried through tick by tick so each tick sees the latest remaining
   let currentStocks: PlanetResourceStocks | undefined = planetStocks;
 
+  // Base tick index: derive from planet seed and current time bucket so that
+  // refinery element selection is deterministic given the same inputs.
+  const baseTick = Math.floor(colony.lastTickAt / COLONY_TICK_INTERVAL_MS);
+
   for (let t = 0; t < effectiveTicks; t++) {
-    const result = runSingleTick(colony, planet, techState, tileAt, currentStocks);
+    const tickIndex = baseTick + t;
+    const result = runSingleTick(colony, planet, techState, tileAt, currentStocks, tickIndex);
     totalShutdownIds = [...totalShutdownIds, ...result.shutdownIds];
     totalRestoredIds = [...totalRestoredIds, ...result.restoredIds];
     totalResearchData += result.researchDataProduced;
@@ -123,6 +129,7 @@ function runSingleTick(
   techState: TechTreeState,
   tileAt: (x: number, y: number) => SurfaceTile | undefined,
   planetStocks?: PlanetResourceStocks,
+  tickIndex: number = 0,
 ): { shutdownIds: string[]; restoredIds: string[]; researchDataProduced: number; elementsProduced: Record<string, number>; updatedStocks?: PlanetResourceStocks } {
   const buildings = colony.buildings;
 
@@ -213,9 +220,17 @@ function runSingleTick(
   }
 
   // 5. Refinery batch processing: quantum_separator, gas_fractionator, isotope_centrifuge
-  for (const b of buildings) {
+  // Seeded RNG: planet.seed × tickIndex × buildingIndex → deterministic element selection.
+  // planet.seed may be 0 on legacy objects; fall back to Date.now() fraction to avoid a
+  // degenerate all-zero RNG (still non-deterministic but avoids silent brokenness).
+  const planetSeed = (planet.seed ?? 0) || (Date.now() & 0xffff);
+  for (let bi = 0; bi < buildings.length; bi++) {
+    const b = buildings[bi];
     if (b.shutdown) continue;
-    const elems = processRefineryBuilding(b, colony);
+    // Unique seed per (planet, tick, building position in array)
+    const refinerySeed = ((planetSeed * 1000003) ^ (tickIndex * 65537) ^ (bi * 16777619)) >>> 0;
+    const refineryRng = new SeededRNG(refinerySeed);
+    const elems = processRefineryBuilding(b, colony, refineryRng);
     for (const [el, amt] of Object.entries(elems)) {
       elementsProduced[el] = (elementsProduced[el] ?? 0) + amt;
     }
@@ -244,11 +259,20 @@ function runSingleTick(
 
 /** Element pools that refineries can produce */
 const MINERAL_ELEMENTS = ['Fe', 'Cu', 'Ti', 'Al', 'Si', 'Ni'];
-const VOLATILE_ELEMENTS = ['H', 'He', 'N', 'O', 'C', 'S'];
+const VOLATILE_ELEMENTS = ['H', 'He', 'N', 'C', 'S'];  // O removed: it is now a mineral element
 
+/**
+ * Process one refinery building for a single tick.
+ *
+ * @param rng - SeededRNG instance seeded from (planet.seed × tickIndex × buildingIndex).
+ *   Replaces Math.random() so element selection is deterministic per tick.
+ *   Backward-compat: if rng is not provided (old call-sites), falls back to
+ *   Math.random() with a console warning — migrate call-sites progressively.
+ */
 function processRefineryBuilding(
   b: PlacedBuilding,
   colony: PlanetColonyState,
+  rng: SeededRNG,
 ): Record<string, number> {
   const produced: Record<string, number> = {};
 
@@ -258,17 +282,20 @@ function processRefineryBuilding(
   // 0 volatiles produced H/He, isotope_centrifuge with 0 isotopes produced U.
   if (b.type === 'quantum_separator') {
     if ((colony.resources.minerals ?? 0) < 2) return produced;
-    const el = MINERAL_ELEMENTS[Math.floor(Math.random() * MINERAL_ELEMENTS.length)];
+    const idx = rng.nextInt(0, MINERAL_ELEMENTS.length - 1);
+    const el = MINERAL_ELEMENTS[idx];
     colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
     produced[el] = (produced[el] ?? 0) + 1;
   } else if (b.type === 'gas_fractionator') {
     if ((colony.resources.volatiles ?? 0) < 2) return produced;
-    const el = VOLATILE_ELEMENTS[Math.floor(Math.random() * VOLATILE_ELEMENTS.length)];
+    const idx = rng.nextInt(0, VOLATILE_ELEMENTS.length - 1);
+    const el = VOLATILE_ELEMENTS[idx];
     colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
     produced[el] = (produced[el] ?? 0) + 1;
   } else if (b.type === 'isotope_centrifuge') {
     if ((colony.resources.isotopes ?? 0) < 1) return produced;
-    if (Math.random() < 0.4) {
+    // 40% chance to produce U; rng.next() < 0.4 is deterministic
+    if (rng.next() < 0.4) {
       colony.chemicalInventory['U'] = (colony.chemicalInventory['U'] ?? 0) + 1;
       produced['U'] = (produced['U'] ?? 0) + 1;
     }

@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Planet, Star, BuildingType, PlacedBuilding } from '@nebulife/core';
-import { BUILDING_DEFS, computeHarvestElements } from '@nebulife/core';
+import { BUILDING_DEFS, computeHarvestElements, SeededRNG } from '@nebulife/core';
 import {
   placeBuilding as apiPlaceBuilding,
   removeBuilding as apiRemoveBuilding,
@@ -17,6 +17,7 @@ import type {
   ResourceType,
   Rarity,
   HexPlanetSize,
+  PlanetContext,
 } from './hex-utils.js';
 import {
   getUnlockCost,
@@ -80,10 +81,12 @@ export interface HexStateResult {
 // ---------------------------------------------------------------------------
 
 const RESOURCE_TO_COLONY: Record<ResourceType, keyof { minerals: number; volatiles: number; isotopes: number; water: number }> = {
-  ore:   'minerals',
-  tree:  'isotopes',  // trees produce isotopes (biomass fuel)
-  vent:  'volatiles',
-  water: 'water',
+  ore:        'minerals',
+  tree:       'isotopes',   // trees produce isotopes (biomass fuel)
+  vent:       'volatiles',
+  water:      'water',
+  crystal:    'isotopes',   // abiotic mineral crystals → isotope group (rare energy minerals)
+  bio_fossil: 'isotopes',   // preserved organics → isotope group (ancient biomass fuel traces)
 };
 
 // ---------------------------------------------------------------------------
@@ -309,6 +312,41 @@ function fixDiamondSlots(slots: HexSlotData[], size: HexPlanetSize = 'medium'): 
 }
 
 // ---------------------------------------------------------------------------
+// Planet context extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract PlanetContext from a Planet object for planet-aware resource rolling.
+ * All fields are optional with safe defaults so old planet objects (missing fields)
+ * do not break — they fall back to the pre-v169 behaviour (permissive, all types allowed).
+ *
+ * volcanism is approximated from surface temperature + zone when not present:
+ * inner zone or hot surface (>700K) → high volcanism.
+ */
+function extractPlanetContext(p: { type?: string; hasLife?: boolean; habitability?: { overall?: number }; surfaceTempK?: number; hydrosphere?: { waterCoverageFraction?: number; iceCapFraction?: number; hasSubsurfaceOcean?: boolean } | null; zone?: string } | null | undefined): PlanetContext | undefined {
+  if (!p) return undefined;
+
+  const tempK = p.surfaceTempK ?? 300;
+  const zone = (p as any).zone as string | undefined;
+
+  // Approximate volcanism: hot inner zone planets have more volcanic activity
+  const volcanism = (tempK > 700 || zone === 'inner') ? 0.7
+                  : (tempK > 400) ? 0.4
+                  : 0.1;
+
+  return {
+    type: p.type,
+    hasLife: p.hasLife ?? false,
+    habitabilityOverall: p.habitability?.overall ?? 0,
+    surfaceTempK: tempK,
+    volcanism,
+    waterCoverageFraction: p.hydrosphere?.waterCoverageFraction ?? 0,
+    iceCapFraction: p.hydrosphere?.iceCapFraction ?? 0,
+    hasSubsurfaceOcean: p.hydrosphere?.hasSubsurfaceOcean ?? false,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Deterministic resource roll helpers
 // ---------------------------------------------------------------------------
 
@@ -317,6 +355,7 @@ function rollSlotContents(
   slotId: string,
   forceResource?: ResourceType,
   size: HexPlanetSize = 'medium',
+  planetContext?: PlanetContext,
 ): { state: 'resource' | 'empty'; resourceType?: ResourceType; rarity?: Rarity; yieldPerHour?: number; maxCapacity?: number } {
   // Compute zone so rarity odds can differentiate inner vs outer ring
   let zone = 1;
@@ -325,9 +364,13 @@ function rollSlotContents(
     if (m) zone = computeZone(parseInt(m[1], 10), parseInt(m[2], 10), size);
   }
 
+  // Deterministic RNG for yield randomisation: seeded by planet seed + slot hash.
+  // This replaces Math.random() in rarityYield so that same planet+slot → same yield.
+  const yieldRng = new SeededRNG((seed ^ (stringHash(slotId) * 2654435761)) >>> 0);
+
   if (forceResource) {
     const rarity = rollRarity(seed, slotId, zone);
-    const yieldPerHour = rarityYield(rarity);
+    const yieldPerHour = rarityYield(rarity, yieldRng);
     return { state: 'resource', resourceType: forceResource, rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
   }
 
@@ -338,9 +381,9 @@ function rollSlotContents(
   const h = Math.abs(Math.sin(seed * 0.17 + stringHash(slotId) * 0.031)) * 100;
 
   if (isZone1 || h < 70) {
-    const resourceType = rollResourceType(seed, slotId, undefined, undefined, size);
+    const resourceType = rollResourceType(seed, slotId, undefined, undefined, size, planetContext);
     const rarity = rollRarity(seed, slotId, zone);
-    const yieldPerHour = rarityYield(rarity);
+    const yieldPerHour = rarityYield(rarity, yieldRng);
     return { state: 'resource', resourceType, rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
   }
   return { state: 'empty' };
@@ -419,6 +462,13 @@ export function useHexState(
   // Quarks for premium slot unlock (SLOT_UNLOCK_QUARKS_COST per slot).
   quarks?: number,
   onConsumeQuarks?: (amount: number) => void,
+  /**
+   * Authoritative drone harvest callback — carries the actual ResourceType
+   * and rarity-based yield amount so that App.tsx can update resources +
+   * deplete planet stock (single-path, same as the manual onHarvestFull).
+   * Must be the last optional parameter to maintain backward compat ordering.
+   */
+  onDroneHarvestFull?: (resourceType: ResourceType, amount: number) => void,
 ): HexStateResult {
   // Pass full planet so gas-giants → 'orbital' and dwarf → 'small'
   const planetSize = getPlanetSize(planet);
@@ -646,7 +696,7 @@ export function useHexState(
       }
 
       // Roll slot contents
-      const rolled = rollSlotContents(planet.seed, slotId, forceResource, planetSize);
+      const rolled = rollSlotContents(planet.seed, slotId, forceResource, planetSize, extractPlanetContext(planet));
 
       updateSlots((prev) => {
         // Apply unlock
@@ -720,7 +770,7 @@ export function useHexState(
         if (zone1Unlocked === 3) forceResource = 'tree';
       }
 
-      const rolled = rollSlotContents(planet.seed, slotId, forceResource, planetSize);
+      const rolled = rollSlotContents(planet.seed, slotId, forceResource, planetSize, extractPlanetContext(planet));
 
       updateSlots((prev) => {
         let next = prev.map((s) => {
@@ -763,8 +813,11 @@ export function useHexState(
         prev.map((s) => s.id === slotId ? { ...s, lastHarvestedAt: now } : s),
       );
 
-      const colonyKey = RESOURCE_TO_COLONY[slot.resourceType];
-      onResourceChange?.({ [colonyKey]: yieldAmount });
+      // NOTE: Resource addition and planet stock depletion are handled
+      // exclusively by App.tsx via the onHarvestFull callback (single path).
+      // DO NOT call onResourceChange here — that caused double-counting where
+      // both useHexState and App.tsx added to colony resources simultaneously.
+      // onResourceChange is still used for unlock slot costs and building costs.
 
       if (onElementChange && planet.resources) {
         const elements = computeHarvestElements(slot.resourceType, yieldAmount, planet.resources);
@@ -773,7 +826,7 @@ export function useHexState(
 
       return yieldAmount;
     },
-    [onResourceChange, onElementChange, planet.resources, updateSlots],
+    [onElementChange, planet.resources, updateSlots],
   );
 
   // ---------------------------------------------------------------------------
@@ -890,6 +943,8 @@ export function useHexState(
   droneHarvestRef.current = onDroneHarvest;
   const droneHarvestAmountRef = useRef(onDroneHarvestAmount);
   droneHarvestAmountRef.current = onDroneHarvestAmount;
+  const droneHarvestFullRef = useRef(onDroneHarvestFull);
+  droneHarvestFullRef.current = onDroneHarvestFull;
   const harvestResourceRef = useRef(harvestResource);
   harvestResourceRef.current = harvestResource;
 
@@ -952,9 +1007,11 @@ export function useHexState(
       const target = ready[0];
       const amount = harvestResourceRef.current(target.id);
       if (amount !== null && target.resourceType) {
-        const objType = RESOURCE_TO_COLONY[target.resourceType];
-        droneHarvestRef.current?.(objType);
+        const colonyKey = RESOURCE_TO_COLONY[target.resourceType];
+        droneHarvestRef.current?.(colonyKey);
         droneHarvestAmountRef.current?.(amount);
+        // Authoritative resource + depletion path (replaces old onResourceChange)
+        droneHarvestFullRef.current?.(target.resourceType, amount);
       }
 
       // Schedule next harvest in 10s (if more ready)

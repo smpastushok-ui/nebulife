@@ -4,8 +4,41 @@ export const HEX_W = Math.ceil(Math.sqrt(3) * HEX_RADIUS);
 export const HEX_H = HEX_RADIUS * 2;
 
 export type HexState = 'hidden' | 'locked' | 'resource' | 'empty' | 'building' | 'harvester';
-export type ResourceType = 'tree' | 'ore' | 'vent' | 'water';
+/**
+ * Surface hex resource types.
+ *  - tree:       biological matter (plants, organic compounds) — requires life or high habitability
+ *  - ore:        mineral deposits — available on any rocky surface
+ *  - vent:       volcanic/gas vents — more common on hot/volcanic worlds
+ *  - water:      liquid or frozen water — requires hydrosphere, ice caps, or subsurface ocean
+ *  - crystal:    abiotic mineral crystals — found on cold/dead rocky worlds; yields isotopes
+ *  - bio_fossil: preserved organic material on dead worlds; yields isotopes (trace biosignatures)
+ *
+ * crystal and bio_fossil are yielded as isotopes, same as tree, but appear on worlds without life.
+ */
+export type ResourceType = 'tree' | 'ore' | 'vent' | 'water' | 'crystal' | 'bio_fossil';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+/**
+ * Minimal planet context passed to rollResourceType for planet-aware slot generation.
+ * Uses optional fields for backward compatibility with existing planet objects
+ * that may not have all properties.
+ */
+export interface PlanetContext {
+  /** Planet type: 'rocky' | 'terrestrial' | 'gas-giant' | 'ice-giant' | 'dwarf' */
+  type?: string;
+  /** Whether the planet has confirmed life */
+  hasLife?: boolean;
+  /** Overall habitability 0-1 */
+  habitabilityOverall?: number;
+  /** Surface temperature in Kelvin */
+  surfaceTempK?: number;
+  /** Volcanic activity / geological activity 0-1 — derived from planet data if available */
+  volcanism?: number;
+  /** Hydrosphere data */
+  waterCoverageFraction?: number;
+  iceCapFraction?: number;
+  hasSubsurfaceOcean?: boolean;
+}
 
 export type HexPlanetSize = 'orbital' | 'small' | 'medium' | 'large';
 
@@ -227,13 +260,27 @@ export function rollRarity(seed: number, slotId: string, zone: number = 1): Rari
   return 'common';                     // 30%
 }
 
-export function rarityYield(rarity: Rarity): number {
+/**
+ * Compute yield per hour for a given rarity.
+ *
+ * Accepts an optional SeededRNG so the result is deterministic when the
+ * caller passes a seeded instance.  Falls back to Math.random() for legacy
+ * call-sites that have not yet been migrated (avoid breaking changes).
+ *
+ * v169: all primary call-sites in rollSlotContents pass a SeededRNG derived
+ * from planet.seed × slotId hash, eliminating Math.random() from the core path.
+ */
+export function rarityYield(rarity: Rarity, rng?: { nextInt: (min: number, max: number) => number }): number {
+  const roll = rng
+    ? (min: number, max: number) => rng.nextInt(min, max)
+    : (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
+
   switch (rarity) {
-    case 'legendary': return 9 + Math.floor(Math.random() * 2);
-    case 'epic':      return 7 + Math.floor(Math.random() * 2);
-    case 'rare':      return 5 + Math.floor(Math.random() * 2);
-    case 'uncommon':  return 3 + Math.floor(Math.random() * 2);
-    default:          return 1 + Math.floor(Math.random() * 2);
+    case 'legendary': return roll(9, 10);
+    case 'epic':      return roll(7, 8);
+    case 'rare':      return roll(5, 6);
+    case 'uncommon':  return roll(3, 4);
+    default:          return roll(1, 2);
   }
 }
 
@@ -251,10 +298,12 @@ export const RARITY_COLORS: Record<Rarity, string> = {
 };
 
 export const RESOURCE_COLORS: Record<ResourceType, string> = {
-  tree:  '#22c55e',
-  ore:   '#a0845e',
-  vent:  '#22d3ee',
-  water: '#3b82f6',
+  tree:       '#22c55e',
+  ore:        '#a0845e',
+  vent:       '#22d3ee',
+  water:      '#3b82f6',
+  crystal:    '#a78bfa',  // violet — abiotic mineral crystals
+  bio_fossil: '#d97706',  // amber — preserved organic traces
 };
 
 // ---------------------------------------------------------------------------
@@ -287,11 +336,22 @@ export function getUnlockCost(
 // ---------------------------------------------------------------------------
 
 /**
- * Roll resource type for a diamond hex with geographic bias.
- * Top rows (0-2): +tree (isotopes)
- * Bottom rows (7-9): +ore (minerals)
- * Edge columns (first or last in row): +water
- * Center area: balanced / +vent
+ * Roll resource type for a diamond hex with geographic AND planet-aware bias.
+ *
+ * Planet context rules (v169):
+ *   water  — only if planet has liquid water (waterCoverageFraction > 0.05),
+ *             or ice (iceCapFraction > 0.1), or a subsurface ocean.
+ *             On dry worlds, water slots become 'ore' (or 'vent' on hot worlds).
+ *   tree   — only if planet has life (hasLife === true) OR habitability >= 0.4.
+ *             On dead worlds, tree slots become 'crystal' (cold/abiotic) or
+ *             'bio_fossil' (evidence of past life, when surfaceTempK < 400).
+ *   vent   — more common on hot/volcanic worlds (surfaceTempK > 400 or volcanism > 0.5).
+ *   ore    — available on any rocky surface.
+ *
+ * Geographic bias is still applied for the base distribution, then planet rules
+ * override specific type choices when they are physically impossible.
+ *
+ * Backward compat: if planetContext is omitted, behaviour is identical to pre-v169.
  */
 export function rollResourceType(
   seed: number,
@@ -299,6 +359,7 @@ export function rollResourceType(
   row?: number,
   col?: number,
   size: HexPlanetSize = 'medium',
+  planet?: PlanetContext,
 ): ResourceType {
   const h = Math.abs(Math.sin(seed * 0.3 + hashStr(slotId) * 0.07)) * 100;
 
@@ -313,6 +374,43 @@ export function rollResourceType(
     }
   }
 
+  // ── Planet-aware availability flags ──────────────────────────────────────
+  // Defaults are permissive (true) so that missing context = old behaviour.
+  const canHaveWater = planet
+    ? ((planet.waterCoverageFraction ?? 0) > 0.05)
+      || ((planet.iceCapFraction ?? 0) > 0.1)
+      || (planet.hasSubsurfaceOcean === true)
+    : true;
+
+  const canHaveTree = planet
+    ? (planet.hasLife === true) || ((planet.habitabilityOverall ?? 0) >= 0.4)
+    : true;
+
+  // Hot or volcanic worlds get more vents
+  const ventBias = planet
+    ? ((planet.surfaceTempK ?? 300) > 400 || (planet.volcanism ?? 0) > 0.5 ? 1.5 : 1.0)
+    : 1.0;
+
+  /**
+   * Substitute type when a rolled type is not available on this planet.
+   * Replacement rules are physically motivated:
+   *   water unavailable  → ore (solid deposit instead of water)
+   *   tree unavailable   → bio_fossil if tempK < 400 (preserved organics on dead world),
+   *                        crystal otherwise (abiotic mineral formations)
+   */
+  const substitute = (type: ResourceType): ResourceType => {
+    if (type === 'water' && !canHaveWater) {
+      // Hot world: vent instead of dry ore
+      return ((planet?.surfaceTempK ?? 300) > 400) ? 'vent' : 'ore';
+    }
+    if (type === 'tree' && !canHaveTree) {
+      return ((planet?.surfaceTempK ?? 300) < 400) ? 'bio_fossil' : 'crystal';
+    }
+    return type;
+  };
+
+  // ── Geographic bias ───────────────────────────────────────────────────────
+
   if (r !== undefined && c !== undefined) {
     const widths = PLANET_LAYOUTS[size];
     const totalRows = widths.length;
@@ -321,34 +419,34 @@ export function rollResourceType(
     const isTopArea = r <= Math.floor(totalRows * 0.25);
     const isBottomArea = r >= Math.ceil(totalRows * 0.75);
 
-    // Edge columns: strong water bias
+    // Edge columns: strong water bias (coastal/ocean border)
     if (isEdgeCol) {
-      if (h < 50) return 'water';
-      if (h < 70) return 'vent';
-      if (h < 85) return 'tree';
+      if (h < 50) return substitute('water');
+      if (h < 70 * ventBias / 1.0) return substitute('vent');
+      if (h < 85) return substitute('tree');
       return 'ore';
     }
-    // Top rows: tree bias
+    // Top rows: tree bias (highlands, forest)
     if (isTopArea) {
-      if (h < 50) return 'tree';
+      if (h < 50) return substitute('tree');
       if (h < 70) return 'ore';
-      if (h < 85) return 'vent';
-      return 'water';
+      if (h < 85 * ventBias) return substitute('vent');
+      return substitute('water');
     }
-    // Bottom rows: ore bias
+    // Bottom rows: ore bias (lowlands, mining)
     if (isBottomArea) {
       if (h < 50) return 'ore';
-      if (h < 70) return 'tree';
-      if (h < 85) return 'vent';
-      return 'water';
+      if (h < 70) return substitute('tree');
+      if (h < 85 * ventBias) return substitute('vent');
+      return substitute('water');
     }
   }
 
   // Center / default: balanced with slight vent bias
-  if (h < 30) return 'tree';
+  if (h < 30) return substitute('tree');
   if (h < 55) return 'ore';
-  if (h < 80) return 'vent';
-  return 'water';
+  if (h < 80 * ventBias) return substitute('vent');
+  return substitute('water');
 }
 
 function hashStr(s: string): number {
