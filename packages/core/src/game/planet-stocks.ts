@@ -70,26 +70,31 @@ export function generatePlanetStocks(planet: Planet): PlanetResourceStocks {
   const isotopes  = Math.round(Math.max(0, rawIsotopes  * STOCK_SCALE.isotopes));
 
   // ── Water ─────────────────────────────────────────────────────────────────
-  // Derive from hydrosphere if available; otherwise use habitability.water as a
-  // fraction proxy, or zero.
+  // Water stock is REAL extractable water by physical type:
+  //   - gas-giant:   0 (no solid surface, water is unreachable in deep core)
+  //   - ice-giant:   small atmospheric collection only (≤ 15% of volatiles)
+  //   - rocky/terrestrial/dwarf with hydrosphere: surface area × coverage × depth formula
+  //   - rocky without hydrosphere: 0 (no water — habitability.water is a TARGET score, not a stock)
   let water = 0;
-  const hyd = planet.hydrosphere;
-  if (hyd && hyd.waterCoverageFraction > 0) {
-    const coverageRatio = hyd.waterCoverageFraction / WATER_COVERAGE_REF;
-    const depthRatio    = (hyd.oceanDepthKm > 0 ? hyd.oceanDepthKm : 1) / WATER_DEPTH_REF_KM;
-    const radiusRatio   = (planet.radiusEarth > 0 ? planet.radiusEarth : 1) / WATER_RADIUS_REF;
-    water = Math.round(
-      WATER_STOCK_EARTH_REFERENCE * coverageRatio * depthRatio * radiusRatio * radiusRatio,
-    );
-  } else {
-    // Fallback: use habitability water score (0..1) as a 0..8000 U proxy
-    const habWater = planet.habitability?.water ?? 0;
-    water = Math.round(habWater * 8_000);
-  }
 
-  // Gas giants and ice giants have no solid-surface water; use volatiles proxy
-  if (planet.type === 'gas-giant' || planet.type === 'ice-giant') {
-    water = Math.round(volatiles * 0.3);
+  if (planet.type === 'gas-giant') {
+    water = 0;
+  } else if (planet.type === 'ice-giant') {
+    // Atmospheric water collection — much less than volatiles since most water
+    // is locked deep in the mantle ice/ammonia layer
+    water = Math.round(volatiles * 0.15);
+  } else {
+    // rocky / terrestrial / dwarf — only count actual hydrosphere water
+    const hyd = planet.hydrosphere;
+    if (hyd && hyd.waterCoverageFraction > 0) {
+      const coverageRatio = hyd.waterCoverageFraction / WATER_COVERAGE_REF;
+      const depthRatio    = (hyd.oceanDepthKm > 0 ? hyd.oceanDepthKm : 1) / WATER_DEPTH_REF_KM;
+      const radiusRatio   = (planet.radiusEarth > 0 ? planet.radiusEarth : 1) / WATER_RADIUS_REF;
+      water = Math.round(
+        WATER_STOCK_EARTH_REFERENCE * coverageRatio * depthRatio * radiusRatio * radiusRatio,
+      );
+    }
+    // No hydrosphere → no water stock (habitability.water is a future-state score, not current resource)
   }
 
   const stocks: PlanetResourceStocks = {
