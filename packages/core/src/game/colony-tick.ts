@@ -109,6 +109,27 @@ export function runColonyTicks(
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Stable deterministic hash of a planet ID string (djb2 variant).
+ *
+ * Used as a fallback seed for legacy Planet objects where `seed === 0`
+ * (planets generated before the `seed` field was introduced in v167).
+ * This guarantees deterministic refinery element selection for any planet
+ * regardless of its age, without ever resorting to Date.now() or Math.random().
+ */
+function hashPlanetId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+  }
+  // >>> 0 converts to unsigned 32-bit int — safe positive seed for SeededRNG
+  return h >>> 0;
+}
+
+// ---------------------------------------------------------------------------
 // Single tick
 // ---------------------------------------------------------------------------
 
@@ -221,9 +242,13 @@ function runSingleTick(
 
   // 5. Refinery batch processing: quantum_separator, gas_fractionator, isotope_centrifuge
   // Seeded RNG: planet.seed × tickIndex × buildingIndex → deterministic element selection.
-  // planet.seed may be 0 on legacy objects; fall back to Date.now() fraction to avoid a
-  // degenerate all-zero RNG (still non-deterministic but avoids silent brokenness).
-  const planetSeed = (planet.seed ?? 0) || (Date.now() & 0xffff);
+  // Determinism is critical: NEVER use Date.now() / Math.random() here.
+  // Legacy planets may have seed=0 (e.g. planets generated before v167 seed field was
+  // added). In that case we derive a stable seed from planet.id via djb2 hash, which
+  // is deterministic for a given planet and survives server restarts / reloads.
+  const planetSeed = (planet.seed ?? 0) !== 0
+    ? (planet.seed as number)
+    : hashPlanetId(planet.id);
   for (let bi = 0; bi < buildings.length; bi++) {
     const b = buildings[bi];
     if (b.shutdown) continue;
@@ -264,10 +289,12 @@ const VOLATILE_ELEMENTS = ['H', 'He', 'N', 'C', 'S'];  // O removed: it is now a
 /**
  * Process one refinery building for a single tick.
  *
- * @param rng - SeededRNG instance seeded from (planet.seed × tickIndex × buildingIndex).
- *   Replaces Math.random() so element selection is deterministic per tick.
- *   Backward-compat: if rng is not provided (old call-sites), falls back to
- *   Math.random() with a console warning — migrate call-sites progressively.
+ * @param b      - the placed building to process
+ * @param colony - mutable colony state; chemicalInventory is updated in-place
+ * @param rng    - SeededRNG instance seeded from (planetSeed × tickIndex × buildingIndex).
+ *   Element selection is fully deterministic: the same inputs always produce the
+ *   same element. There is no Math.random() fallback — determinism is a hard
+ *   requirement. Seed derivation is handled by the caller (runSingleTick).
  */
 function processRefineryBuilding(
   b: PlacedBuilding,

@@ -1,10 +1,15 @@
 /**
- * v169 Balance Validation — Planet Resource Stocks
+ * v169 Balance Validation — Planet Resource Stocks (integration test)
  *
  * This file is NOT compiled into production builds (it lives in __validate__/).
- * Run manually in Node.js after a build to verify stock calibration:
+ * Run manually after a build to verify stock calibration:
  *
- *   node -r ts-node/register packages/client/src/__validate__/check-balance.ts
+ *   npx tsx packages/client/src/__validate__/check-balance.ts
+ *
+ * IMPORTANT: This is an integration test — it calls the REAL generatePlanetStocks()
+ * and ELEMENT_GROUP from @nebulife/core so that any change to production code
+ * (STOCK_SCALE, element group classification, water logic) is immediately caught here.
+ * Do NOT re-implement formulas inline.
  *
  * Expected ranges (v169 calibration after O→mineral fix):
  *   Earth-like (rocky, habitable):  minerals ~50k, volatiles ~30k, isotopes ~5k, water ~40k
@@ -13,90 +18,196 @@
  *   Jupiter-like (gas-giant): water = 0, volatiles huge
  */
 
+import { generatePlanetStocks, ELEMENT_GROUP } from '@nebulife/core';
+import type { Planet } from '@nebulife/core';
+
 // ---------------------------------------------------------------------------
-// Inline reference computations (mirrors STOCK_SCALE logic)
-// These numbers come from the actual calibration done in planet-stocks.ts v169
+// Mock Planet builder
 // ---------------------------------------------------------------------------
+// Constructs minimal Planet objects that satisfy generatePlanetStocks().
+// The function only reads: planet.type, planet.resources.totalResources,
+// planet.hydrosphere, planet.radiusEarth.
+// All other required Planet fields are stubbed with safe zero-values.
 
-const EARTH_MASS = 5.972e24; // kg
-const EXTRACTABILITY_ROCKY = 0.01;
-
-// STOCK_SCALE (v169)
-const SCALE_M = 50_000 / 5.80e22;
-const SCALE_V = 30_000 / 1.88e21;
-const SCALE_I =  5_000 / 3.17e15;
-
-// Water constants
-const WATER_REF    = 40_000;
-const COV_REF      = 0.71;
-const DEPTH_REF    = 3.7;
-const ICE_DEPTH    = 10.0;
-const SUBSURFACE   = 15_000;
-
-// ROCKY_PLANET_COMPOSITION (from elements.ts)
-const ROCKY: Record<string, number> = {
-  Fe: 0.321, O: 0.301, Si: 0.151, Mg: 0.139,
-  S: 0.029, Ni: 0.018, Ca: 0.015, Al: 0.014,
-  Na: 0.002, Cr: 0.005, Mn: 0.003, P: 0.001,
-  K: 0.0002, Ti: 0.0008, Co: 0.0009, H: 0.0006,
-  C: 0.0007, N: 0.00002, Cl: 0.0002,
-  U: 0.000000013, Th: 0.00000004, Ra: 1e-13, Pu: 1e-16,
-};
-
-// v169 group classification
-const MINERAL_ELS = new Set(['Fe','Al','Si','Ti','Cu','Ni','Zn','Mg','Ca','Na','K','Cr','Mn','Co','W','Au','Ag','Pt','Li','Be','V','Ba','Sr','Sn','O']);
-const VOLATILE_ELS = new Set(['H','He','C','N','S','P','Ar','Ne','Kr','Xe','Cl','F','Se']);
-const ISOTOPE_ELS = new Set(['U','Th','Pu','Ra']);
-
-function computeRockyStocks(massEarth: number, mineralMult: number, volatileMult: number): {
-  minerals: number; volatiles: number; isotopes: number;
-} {
-  let m = 0, v = 0, i = 0;
-  for (const [el, frac] of Object.entries(ROCKY)) {
-    const mass = massEarth * EARTH_MASS * frac * EXTRACTABILITY_ROCKY;
-    const isMin = MINERAL_ELS.has(el);
-    const isVol = VOLATILE_ELS.has(el);
-    const isIso = ISOTOPE_ELS.has(el);
-    if (isMin) m += mass * mineralMult;
-    if (isVol) v += mass * volatileMult;
-    if (isIso) i += mass; // no multiplier — scale handles playability
-  }
-  return {
-    minerals: Math.round(m * SCALE_M),
-    volatiles: Math.round(v * SCALE_V),
-    isotopes:  Math.round(i * SCALE_I),
+function makePlanet(overrides: {
+  id?: string;
+  type: Planet['type'];
+  radiusEarth: number;
+  resources: {
+    totalResources: {
+      minerals: number;
+      volatiles: number;
+      isotopes: number;
+      elements: Record<string, number>;
+    };
   };
-}
-
-function computeWater(
-  radiusEarth: number,
-  waterCoverageFraction: number,
-  oceanDepthKm: number,
-  iceCapFraction: number,
-  hasSubsurfaceOcean: boolean,
-): number {
-  const r = radiusEarth;
-  const radRatio = r / 1.0;
-  let water = 0;
-  if (waterCoverageFraction > 0) {
-    water += Math.round(WATER_REF * (waterCoverageFraction / COV_REF) * (oceanDepthKm / DEPTH_REF) * radRatio * radRatio);
-  }
-  if (iceCapFraction > 0) {
-    water += Math.round(WATER_REF * (iceCapFraction / COV_REF) * (ICE_DEPTH / DEPTH_REF) * radRatio * radRatio);
-  }
-  if (hasSubsurfaceOcean) {
-    water += SUBSURFACE;
-  }
-  return water;
+  hydrosphere?: Planet['hydrosphere'];
+}): Planet {
+  return {
+    id: overrides.id ?? 'test-planet',
+    seed: 12345,
+    name: 'Test Planet',
+    type: overrides.type,
+    zone: 'habitable',
+    massEarth: 1,
+    radiusEarth: overrides.radiusEarth,
+    densityGCm3: 5.5,
+    surfaceGravityG: 1,
+    escapeVelocityKmS: 11.2,
+    orbit: {
+      semiMajorAxisAU: 1,
+      eccentricity: 0,
+      inclinationDeg: 0,
+      argumentOfPeriapsisDeg: 0,
+      longitudeOfAscendingNodeDeg: 0,
+      meanAnomalyDeg: 0,
+      periodYears: 1,
+      periodDays: 365,
+    },
+    equilibriumTempK: 255,
+    surfaceTempK: 288,
+    albedo: 0.3,
+    atmosphere: null,
+    hydrosphere: overrides.hydrosphere ?? null,
+    magneticField: { strengthT: 5e-5, hasMagnetosphere: false },
+    resources: {
+      crustComposition: {},
+      deposits: [],
+      ...overrides.resources,
+    },
+    habitability: {
+      temperature: 0.8,
+      atmosphere: 0.8,
+      water: 0.7,
+      magneticField: 0.8,
+      gravity: 0.9,
+      overall: 0.8,
+    },
+    hasLife: false,
+    lifeComplexity: 'none',
+    moons: [],
+    isHomePlanet: false,
+    isColonizable: true,
+    terraformDifficulty: 0.2,
+  } as Planet;
 }
 
 // ---------------------------------------------------------------------------
-// Test cases
+// Planet mock objects (physics-grounded values matching v169 calibration)
+// ---------------------------------------------------------------------------
+
+// ── Earth-like (1 M_E, habitable zone, rocky, liquid oceans) ──────────────
+// totalResources come from ROCKY_PLANET_COMPOSITION × 1 M_Earth × 0.01 extractability
+// Values used here match the STOCK_SCALE anchor point in planet-stocks.ts.
+const EARTH_MINERALS_KG  = 5.80e22;   // raw mineral kg (O included as mineral, v169)
+const EARTH_VOLATILES_KG = 1.88e21;   // raw volatile kg (O excluded, v169)
+const EARTH_ISOTOPES_KG  = 3.17e15;   // raw isotope kg (U/Th/Pu/Ra ppb-range)
+
+const earthPlanet = makePlanet({
+  id: 'earth-like',
+  type: 'terrestrial',
+  radiusEarth: 1.0,
+  resources: {
+    totalResources: {
+      minerals: EARTH_MINERALS_KG,
+      volatiles: EARTH_VOLATILES_KG,
+      isotopes: EARTH_ISOTOPES_KG,
+      elements: {},
+    },
+  },
+  hydrosphere: {
+    waterCoverageFraction: 0.71,
+    oceanDepthKm: 3.7,
+    iceCapFraction: 0.02,
+    hasSubsurfaceOcean: false,
+  },
+});
+
+// ── Mars-like (0.107 M_E, inner/habitable zone, small ice caps, no liquid) ─
+const MARS_SCALE = 0.107; // M_Earth
+const marsPlanet = makePlanet({
+  id: 'mars-like',
+  type: 'rocky',
+  radiusEarth: 0.53,
+  resources: {
+    totalResources: {
+      // Inner zone mineral x1.2, volatile x0.3 multipliers applied at generation
+      minerals: EARTH_MINERALS_KG * MARS_SCALE * 1.2,
+      volatiles: EARTH_VOLATILES_KG * MARS_SCALE * 0.3,
+      isotopes: EARTH_ISOTOPES_KG * MARS_SCALE,
+      elements: {},
+    },
+  },
+  hydrosphere: {
+    waterCoverageFraction: 0,
+    oceanDepthKm: 0,
+    iceCapFraction: 0.05,
+    hasSubsurfaceOcean: false,
+  },
+});
+
+// ── Europa-like (0.008 M_E, dwarf, icy, subsurface ocean) ─────────────────
+const EUROPA_SCALE = 0.008;
+const europaPlanet = makePlanet({
+  id: 'europa-like',
+  type: 'dwarf',
+  radiusEarth: 0.245,
+  resources: {
+    totalResources: {
+      // Outer zone mineral x0.8, volatile x2.0
+      minerals: EARTH_MINERALS_KG * EUROPA_SCALE * 0.8,
+      volatiles: EARTH_VOLATILES_KG * EUROPA_SCALE * 2.0,
+      isotopes: EARTH_ISOTOPES_KG * EUROPA_SCALE,
+      elements: {},
+    },
+  },
+  hydrosphere: {
+    waterCoverageFraction: 0,
+    oceanDepthKm: 0,
+    iceCapFraction: 0.9,   // almost entirely ice-covered
+    hasSubsurfaceOcean: true,
+  },
+});
+
+// ── Jupiter-like (gas-giant) — water MUST be 0 ────────────────────────────
+const jupiterPlanet = makePlanet({
+  id: 'jupiter-like',
+  type: 'gas-giant',
+  radiusEarth: 11.2,
+  resources: {
+    totalResources: {
+      minerals: 0,
+      volatiles: 5.0e26,  // Jupiter-class: mostly H/He
+      isotopes: 0,
+      elements: {},
+    },
+  },
+  hydrosphere: null,
+});
+
+// ── Neptune-like (ice-giant) — water = small fraction of volatiles ─────────
+const neptunePlanet = makePlanet({
+  id: 'neptune-like',
+  type: 'ice-giant',
+  radiusEarth: 3.9,
+  resources: {
+    totalResources: {
+      minerals: 0,
+      volatiles: 2.0e24,  // ice-giant: ices + gas
+      isotopes: 0,
+      elements: {},
+    },
+  },
+  hydrosphere: null,
+});
+
+// ---------------------------------------------------------------------------
+// Run integration tests
 // ---------------------------------------------------------------------------
 
 interface TestCase {
   name: string;
-  minerals?: [number, number];  // [min, max] expected range
+  minerals?: [number, number];
   volatiles?: [number, number];
   isotopes?: [number, number];
   water?: [number, number];
@@ -107,72 +218,6 @@ interface TestCase {
     water?: number;
   };
 }
-
-const tests: TestCase[] = [];
-
-// ── Earth-like (1 M_E, habitable zone, no perturbation) ────────────────────
-{
-  const stocks = computeRockyStocks(1.0, 1.0, 1.0);
-  const water = computeWater(1.0, 0.71, 3.7, 0.02, false);
-  tests.push({
-    name: 'Earth-like (1.0 M_E, habitable)',
-    // minerals ~50k (±20% for zone perturbation range 0.5–1.5)
-    minerals: [35_000, 65_000],
-    // volatiles ~30k (±20%)
-    volatiles: [20_000, 40_000],
-    // isotopes ~5k (±20%)
-    isotopes: [3_500, 7_000],
-    // water ~40k (±20%)
-    water: [30_000, 52_000],
-    actual: { ...stocks, water },
-  });
-}
-
-// ── Mars-like (0.107 M_E, inner/habitable, volatile depleted) ──────────────
-{
-  // inner zone: mineral x1.2, volatile x0.3 (average perturbation = 1.0)
-  const stocks = computeRockyStocks(0.107, 1.2, 0.3);
-  const water = computeWater(0.53, 0, 0, 0.05, false);
-  tests.push({
-    name: 'Mars-like (0.107 M_E, inner, volatile x0.3)',
-    minerals: [3_000, 9_000],
-    volatiles: [200, 1_500],
-    isotopes: [200, 1_000],
-    water: [0, 3_000],  // small ice cap
-    actual: { ...stocks, water },
-  });
-}
-
-// ── Europa-like (dwarf, outer zone, icy, subsurface ocean) ─────────────────
-{
-  const stocks = computeRockyStocks(0.008, 0.8, 2.0);  // outer: volatile x2, mineral x0.8
-  // iceCapFraction ~0.9, radius ~0.245 R_E, subsurface ocean = true
-  const water = computeWater(0.245, 0, 0, 0.9, true);
-  tests.push({
-    name: 'Europa-like (0.008 M_E, dwarf, icy, subsurface)',
-    minerals: [100, 600],
-    volatiles: [100, 900],
-    isotopes: [10, 100],
-    // Water: ice cap ~8k + subsurface 15k = ~23k; must be > 5k
-    water: [5_000, 35_000],
-    actual: { ...stocks, water },
-  });
-}
-
-// ── Gas-giant (Jupiter-like) ───────────────────────────────────────────────
-{
-  // gas-giant: water = 0 by rule; volatiles huge (H+He dominate)
-  // We only check water = 0 here
-  tests.push({
-    name: 'Jupiter-like (gas-giant)',
-    water: [0, 0],  // must be exactly 0
-    actual: { water: 0 },  // enforced by planet type check in planet-stocks.ts
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Run
-// ---------------------------------------------------------------------------
 
 let passed = 0;
 let failed = 0;
@@ -188,18 +233,119 @@ function check(testName: string, resource: string, actual: number, range: [numbe
   }
 }
 
-console.log('\n=== v169 Planet Resource Balance Validation ===\n');
+console.log('\n=== v169 Planet Resource Balance Validation (integration) ===\n');
 
-for (const t of tests) {
-  console.log(`[${t.name}]`);
-  if (t.minerals !== undefined && t.actual.minerals !== undefined)
-    check(t.name, 'minerals', t.actual.minerals, t.minerals);
-  if (t.volatiles !== undefined && t.actual.volatiles !== undefined)
-    check(t.name, 'volatiles', t.actual.volatiles, t.volatiles);
-  if (t.isotopes !== undefined && t.actual.isotopes !== undefined)
-    check(t.name, 'isotopes', t.actual.isotopes, t.isotopes);
-  if (t.water !== undefined && t.actual.water !== undefined)
-    check(t.name, 'water', t.actual.water, t.water);
+// ── Test 1: Earth-like ─────────────────────────────────────────────────────
+{
+  const stocks = generatePlanetStocks(earthPlanet);
+  const tc: TestCase = {
+    name: 'Earth-like (1.0 M_E, habitable)',
+    minerals: [35_000, 65_000],  // anchor ~50k, ±30% for generation variation
+    volatiles: [20_000, 40_000], // anchor ~30k, ±30%
+    isotopes:  [3_500,  7_000],  // anchor ~5k, ±30%
+    water:     [30_000, 52_000], // anchor ~40k (ocean + tiny ice cap)
+    actual: { ...stocks.initial },
+  };
+  console.log(`[${tc.name}]`);
+  if (tc.minerals) check(tc.name, 'minerals', tc.actual.minerals!, tc.minerals);
+  if (tc.volatiles) check(tc.name, 'volatiles', tc.actual.volatiles!, tc.volatiles);
+  if (tc.isotopes) check(tc.name, 'isotopes', tc.actual.isotopes!, tc.isotopes);
+  if (tc.water) check(tc.name, 'water', tc.actual.water!, tc.water);
+  console.log('');
+}
+
+// ── Test 2: Mars-like ──────────────────────────────────────────────────────
+{
+  const stocks = generatePlanetStocks(marsPlanet);
+  const tc: TestCase = {
+    name: 'Mars-like (0.107 M_E, inner, volatile x0.3)',
+    minerals: [3_000, 9_000],
+    volatiles: [200, 1_500],
+    isotopes:  [200, 1_000],
+    water:     [0, 3_000],  // small ice cap only
+    actual: { ...stocks.initial },
+  };
+  console.log(`[${tc.name}]`);
+  if (tc.minerals) check(tc.name, 'minerals', tc.actual.minerals!, tc.minerals);
+  if (tc.volatiles) check(tc.name, 'volatiles', tc.actual.volatiles!, tc.volatiles);
+  if (tc.isotopes) check(tc.name, 'isotopes', tc.actual.isotopes!, tc.isotopes);
+  if (tc.water) check(tc.name, 'water', tc.actual.water!, tc.water);
+  console.log('');
+}
+
+// ── Test 3: Europa-like ────────────────────────────────────────────────────
+{
+  const stocks = generatePlanetStocks(europaPlanet);
+  const tc: TestCase = {
+    name: 'Europa-like (0.008 M_E, dwarf, icy, subsurface)',
+    minerals: [100, 600],
+    volatiles: [100, 900],
+    isotopes:  [10, 100],
+    // Ice cap (r=0.245, f=0.9) ≈ 8k  +  subsurface bonus 15k = ~23k; must be > 5k
+    water:     [5_000, 35_000],
+    actual: { ...stocks.initial },
+  };
+  console.log(`[${tc.name}]`);
+  if (tc.minerals) check(tc.name, 'minerals', tc.actual.minerals!, tc.minerals);
+  if (tc.volatiles) check(tc.name, 'volatiles', tc.actual.volatiles!, tc.volatiles);
+  if (tc.isotopes) check(tc.name, 'isotopes', tc.actual.isotopes!, tc.isotopes);
+  if (tc.water) check(tc.name, 'water', tc.actual.water!, tc.water);
+  console.log('');
+}
+
+// ── Test 4: Jupiter-like (gas-giant water must be exactly 0) ───────────────
+{
+  const stocks = generatePlanetStocks(jupiterPlanet);
+  const tc: TestCase = {
+    name: 'Jupiter-like (gas-giant)',
+    water: [0, 0],  // gas-giant rule: no surface extractable water
+    actual: { water: stocks.initial.water },
+  };
+  console.log(`[${tc.name}]`);
+  if (tc.water) check(tc.name, 'water', tc.actual.water!, tc.water);
+  console.log('');
+}
+
+// ── Test 5: Neptune-like (ice-giant water = 15% of volatiles) ─────────────
+{
+  const stocks = generatePlanetStocks(neptunePlanet);
+  const expectedWater = Math.round(stocks.initial.volatiles * 0.15);
+  const tc: TestCase = {
+    name: 'Neptune-like (ice-giant, water = 15% of volatiles)',
+    // water must be exactly 15% of volatiles (as per planet-stocks.ts rule)
+    water: [Math.round(expectedWater * 0.99), Math.round(expectedWater * 1.01)],
+    actual: { water: stocks.initial.water },
+  };
+  console.log(`[${tc.name}]`);
+  if (tc.water) check(tc.name, 'water', tc.actual.water!, tc.water);
+  console.log('');
+}
+
+// ── Test 6: ELEMENT_GROUP sanity (O must be mineral, S must be volatile, U isotope) ──
+{
+  console.log('[ELEMENT_GROUP classification]');
+  const assertions: Array<[string, string]> = [
+    ['O',  'mineral'],   // v169 fix: bound oxygen in silicates is mineral
+    ['Fe', 'mineral'],
+    ['Si', 'mineral'],
+    ['H',  'volatile'],
+    ['S',  'volatile'],
+    ['C',  'volatile'],
+    ['U',  'isotope'],
+    ['Th', 'isotope'],
+    ['Ra', 'isotope'],
+  ];
+  for (const [el, expectedGroup] of assertions) {
+    const actual = ELEMENT_GROUP[el];
+    const ok = actual === expectedGroup;
+    if (ok) {
+      console.log(`  PASS  ELEMENT_GROUP[${el}] === '${expectedGroup}'`);
+      passed++;
+    } else {
+      console.error(`  FAIL  ELEMENT_GROUP[${el}] === '${actual}' (expected '${expectedGroup}')`);
+      failed++;
+    }
+  }
   console.log('');
 }
 

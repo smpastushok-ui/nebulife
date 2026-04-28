@@ -71,7 +71,10 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
         onClick={handleToggle}
         style={{
           ...toolButtonBase,
-          padding: '4px 10px',
+          width: 'clamp(44px, 13vw, 54px)',
+          height: 54,
+          minHeight: 54,
+          padding: 0,
           gap: 6,
           color: open ? '#aaccee' : toolButtonBase.color,
           borderColor: open ? 'rgba(100, 160, 220, 0.4)' : toolButtonBase.borderColor,

@@ -474,7 +474,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         }}
         style={{
           position: 'fixed',
-          bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))',
           right: 'calc(16px + env(safe-area-inset-right, 0px))',
           zIndex: 9700,
           background: totalUnread > 0 ? 'rgba(8,16,32,0.97)' : 'rgba(10,15,25,0.96)',

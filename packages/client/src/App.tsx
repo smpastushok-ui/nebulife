@@ -285,48 +285,34 @@ function getDestroyedPlanetIdsForSystem(systemId: string): Set<string> | undefin
   return ids.size > 0 ? ids : undefined;
 }
 
-type CommandModeIconKind = 'surface' | 'terminal' | 'arena';
+type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena';
 
 function CommandModeIcon({
   kind,
-  label,
   active = false,
   disabled = false,
 }: {
   kind: CommandModeIconKind;
-  label: string;
   active?: boolean;
   disabled?: boolean;
 }) {
   const iconStyle: React.CSSProperties = {
-    width: 26,
-    height: 24,
+    width: 29,
+    height: 27,
     opacity: disabled ? 0.5 : 1,
     transform: active ? 'translateY(-1px)' : 'none',
     transition: 'transform 0.22s ease, opacity 0.22s ease',
   };
 
-  const labelStyle: React.CSSProperties = {
-    fontFamily: 'monospace',
-    fontSize: 9,
-    letterSpacing: 1.4,
-    lineHeight: 1,
-    textTransform: 'uppercase',
-    color: 'currentColor',
-    opacity: disabled ? 0.55 : 0.95,
-    whiteSpace: 'nowrap',
-  };
-
   return (
     <span
       style={{
-        width: 78,
-        height: 42,
+        width: '100%',
+        minWidth: 0,
+        height: 34,
         display: 'inline-flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 4,
         pointerEvents: 'none',
       }}
     >
@@ -348,6 +334,13 @@ function CommandModeIcon({
           <rect x="18.8" y="12" width="2.8" height="1.8" fill="currentColor" stroke="none" opacity={active ? 1 : 0.75} />
         </svg>
       )}
+      {kind === 'academy' && (
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 5.5 C8.2 4.2 11.2 4.4 14 6.2 C16.8 4.4 19.8 4.2 23 5.5 V18.5 C19.8 17.2 16.8 17.4 14 19.2 C11.2 17.4 8.2 17.2 5 18.5 Z" />
+          <path d="M14 6.2 V19.2" opacity="0.45" />
+          <path d="M14 8.9 L15.1 11.1 L17.5 11.5 L15.75 13.1 L16.2 15.4 L14 14.25 L11.8 15.4 L12.25 13.1 L10.5 11.5 L12.9 11.1 Z" fill="currentColor" fillOpacity="0.22" />
+        </svg>
+      )}
       {kind === 'arena' && (
         <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="14" cy="12" r="7.5" opacity="0.65" />
@@ -357,7 +350,6 @@ function CommandModeIcon({
           <path d="M23.5 16.5 C20.8 20.2 15.6 21.3 11.5 19.3" opacity="0.35" />
         </svg>
       )}
-      <span style={labelStyle}>{label}</span>
     </span>
   );
 }
@@ -5847,7 +5839,7 @@ function AppInner() {
         id: 'go-home',
         label: t('cmd.surface_title'),
         variant: 'terminal' as const,
-        icon: <CommandModeIcon kind="surface" label={t('cmd.surface_title')} />,
+        icon: <CommandModeIcon kind="surface" />,
         tooltip: t('cmd.home_tooltip'),
         onClick: handleGoToHomeSurface,
       }],
@@ -5864,7 +5856,7 @@ function AppInner() {
       variant: 'terminal' as const,
       tooltip: t('cmd.control_center'),
       tutorialId: 'terminal-btn',
-      icon: <CommandModeIcon kind="terminal" label={t('cmd.terminal')} active={terminalConverging} />,
+      icon: <CommandModeIcon kind="terminal" active={terminalConverging} />,
       onClick: () => {
         if (terminalConverging) return;
         setTerminalConverging(true);
@@ -5876,25 +5868,22 @@ function AppInner() {
     }],
   });
 
-  // Academy button — visible only after colonization. Icon "Акад. 2" from
-  // /icon-preview.html (open book). Keeps the existing label for now until
-  // the bottom-bar redesign ships.
-  if (evacuationPhase === 'surface') {
-    toolGroups.push({
-      type: 'buttons',
-      items: [{
-        id: 'academy',
-        label: t('cmd.academy'),
-        variant: 'terminal' as const,
-        tooltip: t('cmd.academy_tooltip'),
-        onClick: () => setShowAcademy(true),
-        icon: React.createElement('svg', { width: 18, height: 18, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round' },
-          React.createElement('path', { d: 'M3 5 Q7 4 10 6 Q13 4 17 5 L17 16 Q13 15 10 16 Q7 15 3 16 Z' }),
-          React.createElement('line', { x1: '10', y1: '6', x2: '10', y2: '16', opacity: '0.4' }),
-        ),
-      }],
-    });
-  }
+  // Academy placeholder — visible in the unified dock, opens a lightweight
+  // stub toast until the Academy entry point is finalized for the new nav.
+  toolGroups.push({
+    type: 'buttons',
+    items: [{
+      id: 'academy',
+      label: t('cmd.academy'),
+      variant: 'terminal' as const,
+      tooltip: t('cmd.academy_tooltip'),
+      onClick: () => {
+        setToastMessage(t('hangar.event.coming_soon'));
+        setTimeout(() => setToastMessage(null), 2200);
+      },
+      icon: <CommandModeIcon kind="academy" />,
+    }],
+  });
 
   // Arena button. Normally unlocks at level 30 but
   // temporarily opened from L1 for playtesting (user request). Flip the
@@ -5918,7 +5907,7 @@ function AppInner() {
         }
         setShowHangar(true);
       },
-      icon: <CommandModeIcon kind="arena" label={t('cmd.arena')} disabled={!arenaUnlocked} />,
+      icon: <CommandModeIcon kind="arena" disabled={!arenaUnlocked} />,
     }],
   });
 
@@ -7327,7 +7316,7 @@ function AppInner() {
         <div
           style={{
             position: 'fixed',
-            bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
+            bottom: 'calc(110px + env(safe-area-inset-bottom, 0px))',
             right: 'calc(18px + env(safe-area-inset-right, 0px))',
             // Match the chat button's z-index (ChatWidget.tsx uses 9700) so
             // the notification dot never stacks above higher overlays.

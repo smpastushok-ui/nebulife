@@ -35,21 +35,37 @@ export const barStyle: React.CSSProperties = {
   bottom: 0,
   left: 0,
   right: 0,
-  minHeight: 48,
+  minHeight: 62,
   height: 'auto',
-  background: 'rgba(5, 10, 20, 0.92)',
-  backdropFilter: 'blur(12px)',
-  WebkitBackdropFilter: 'blur(12px)',
-  borderTop: '1px solid rgba(60, 100, 160, 0.15)',
+  background: 'linear-gradient(180deg, rgba(3, 7, 14, 0.72), rgba(2, 5, 10, 0.96))',
+  borderTop: '1px solid rgba(60, 100, 160, 0.12)',
   zIndex: 9500,
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '0 12px',
+  justifyContent: 'center',
+  padding: '6px 10px',
   paddingBottom: 'env(safe-area-inset-bottom, 0px)',
   fontFamily: 'monospace',
   color: '#8899aa',
   pointerEvents: 'auto',
+};
+
+export const dockStyle: React.CSSProperties = {
+  width: 'min(100%, 560px)',
+  minHeight: 58,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 5,
+  padding: '4px 6px',
+  boxSizing: 'border-box',
+  background: 'rgba(5, 10, 20, 0.92)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  border: '1px solid rgba(60, 100, 160, 0.18)',
+  borderRadius: 8,
+  boxShadow: '0 -6px 24px rgba(0, 0, 0, 0.35)',
+  overflow: 'hidden',
 };
 
 export const sectionLeft: React.CSSProperties = {
@@ -65,16 +81,19 @@ export const sectionCenter: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 4,
+  gap: 5,
   flex: '1 1 auto',
+  minWidth: 0,
   overflow: 'hidden',
 };
 
 export const sectionRight: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 12,
+  justifyContent: 'flex-end',
+  gap: 0,
   flex: '0 0 auto',
+  minWidth: 0,
 };
 
 /* ------------------------------------------------------------------ */
@@ -114,7 +133,10 @@ export const toolButtonAccent: React.CSSProperties = {
 
 export const toolButtonTerminal: React.CSSProperties = {
   ...toolButtonBase,
-  padding: '8px 14px',
+  width: 'clamp(46px, 14vw, 62px)',
+  padding: '6px 4px',
+  minHeight: 54,
+  boxSizing: 'border-box',
   color: '#aaccee',
   borderColor: 'rgba(68, 136, 170, 0.5)',
   borderTop: '2px solid #4488aa',

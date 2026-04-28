@@ -41,7 +41,10 @@ export function SceneTools({ groups, scene }: SceneToolsProps) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: group.type === 'zoom' ? 3 : 6,
+            justifyContent: 'center',
+            gap: group.type === 'zoom' ? 3 : 5,
+            minWidth: 0,
+            flex: group.type === 'zoom' ? '0 0 auto' : '1 1 auto',
             animation: 'cmdbar-fade-in 0.3s ease-out',
             animationFillMode: 'both',
           }}

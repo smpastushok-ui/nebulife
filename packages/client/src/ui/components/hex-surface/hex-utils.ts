@@ -386,7 +386,11 @@ export function rollResourceType(
     ? (planet.hasLife === true) || ((planet.habitabilityOverall ?? 0) >= 0.4)
     : true;
 
-  // Hot or volcanic worlds get more vents
+  // Hot or volcanic worlds get more vents.
+  // ventBias=1.5 is intentional for hot/volcanic worlds — it shifts the vent
+  // probability threshold upward so vents are significantly more likely.
+  // All threshold comparisons using ventBias are clamped to 100 so that the
+  // vent branch never becomes a guaranteed outcome (avoids 100%+ thresholds).
   const ventBias = planet
     ? ((planet.surfaceTempK ?? 300) > 400 || (planet.volcanism ?? 0) > 0.5 ? 1.5 : 1.0)
     : 1.0;
@@ -422,7 +426,7 @@ export function rollResourceType(
     // Edge columns: strong water bias (coastal/ocean border)
     if (isEdgeCol) {
       if (h < 50) return substitute('water');
-      if (h < 70 * ventBias / 1.0) return substitute('vent');
+      if (h < Math.min(100, 70 * ventBias)) return substitute('vent');
       if (h < 85) return substitute('tree');
       return 'ore';
     }
@@ -430,14 +434,14 @@ export function rollResourceType(
     if (isTopArea) {
       if (h < 50) return substitute('tree');
       if (h < 70) return 'ore';
-      if (h < 85 * ventBias) return substitute('vent');
+      if (h < Math.min(100, 85 * ventBias)) return substitute('vent');
       return substitute('water');
     }
     // Bottom rows: ore bias (lowlands, mining)
     if (isBottomArea) {
       if (h < 50) return 'ore';
       if (h < 70) return substitute('tree');
-      if (h < 85 * ventBias) return substitute('vent');
+      if (h < Math.min(100, 85 * ventBias)) return substitute('vent');
       return substitute('water');
     }
   }
@@ -445,7 +449,7 @@ export function rollResourceType(
   // Center / default: balanced with slight vent bias
   if (h < 30) return substitute('tree');
   if (h < 55) return 'ore';
-  if (h < 80 * ventBias) return substitute('vent');
+  if (h < Math.min(100, 80 * ventBias)) return substitute('vent');
   return substitute('water');
 }
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import type { CommandBarProps } from './types.js';
-import { barStyle, KEYFRAMES_CSS } from './styles.js';
+import { barStyle, dockStyle, KEYFRAMES_CSS } from './styles.js';
 import { NavigationMenu } from './NavigationMenu.js';
 import { SceneTools } from './SceneTools.js';
 import { PlayerPanel } from './PlayerPanel.js';
@@ -38,25 +38,27 @@ export function CommandBar({
 
   return (
     <div style={barStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '0 0 auto', overflow: 'visible' }}>
-        <NavigationMenu
-          items={navigationItems}
-          onNavigate={onNavigate}
-          disabled={navigationDisabled}
+      <div style={dockStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', flex: '0 0 auto', minWidth: 0, overflow: 'visible' }}>
+          <NavigationMenu
+            items={navigationItems}
+            onNavigate={onNavigate}
+            disabled={navigationDisabled}
+          />
+        </div>
+
+        <SceneTools
+          groups={toolGroups}
+          scene={scene}
+        />
+
+        <PlayerPanel
+          playerName={playerName}
+          playerLevel={playerLevel}
+          playerXP={playerXP}
+          onClick={onOpenPlayerPage}
         />
       </div>
-
-      <SceneTools
-        groups={toolGroups}
-        scene={scene}
-      />
-
-      <PlayerPanel
-        playerName={playerName}
-        playerLevel={playerLevel}
-        playerXP={playerXP}
-        onClick={onOpenPlayerPage}
-      />
     </div>
   );
 }
