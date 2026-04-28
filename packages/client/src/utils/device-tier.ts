@@ -201,6 +201,17 @@ export interface ExosphereLOD {
    * dropped the bloom pass and cloud/back-atmosphere rim-glow layers.
    */
   toneMappingExposure: number;
+  /**
+   * Cheap in-surface cloud/haze suggestion used only when the full cloud
+   * sphere is disabled. This is a few shader ops inside the planet pass,
+   * not an extra transparent mesh, so low/mid get atmosphere depth without
+   * the overdraw cost of the full cloud layer.
+   */
+  inlineCloudVeil: number;
+  /** Multiplier for atmosphere shader intensity; no extra geometry. */
+  atmosphereIntensityScale: number;
+  /** Contrast/detail multiplier inside planet shaders; keeps one pass. */
+  surfaceDetailBoost: number;
 }
 
 export function getExosphereLOD(): ExosphereLOD {
@@ -226,6 +237,9 @@ export function getExosphereLOD(): ExosphereLOD {
         // darker anyway). Bumped 1.8 → 2.2 after tester report "знову
         // планета дуже темна" on the exosphere view.
         toneMappingExposure: 2.2,
+        inlineCloudVeil: 0.18,
+        atmosphereIntensityScale: 1.35,
+        surfaceDetailBoost: 0.92,
       };
     case 'mid':
       return {
@@ -244,6 +258,9 @@ export function getExosphereLOD(): ExosphereLOD {
         starfieldTwinkle: true,
         starfieldDensity: 0.6, // 60 % of full
         toneMappingExposure: 1.9, // mid tablets still dim, bumped 1.5 → 1.9
+        inlineCloudVeil: 0.26,
+        atmosphereIntensityScale: 1.18,
+        surfaceDetailBoost: 1.0,
       };
     case 'high':
       // Flagship mobiles (S22 Ultra, iPhone 14 Pro) still run this scene
@@ -264,6 +281,9 @@ export function getExosphereLOD(): ExosphereLOD {
         starfieldTwinkle: true,
         starfieldDensity: 0.85,
         toneMappingExposure: 1.0,
+        inlineCloudVeil: 0.0,
+        atmosphereIntensityScale: 1.08,
+        surfaceDetailBoost: 1.12,
       };
     case 'ultra':
     default:
@@ -282,6 +302,9 @@ export function getExosphereLOD(): ExosphereLOD {
         starfieldTwinkle: true,
         starfieldDensity: 1.0,
         toneMappingExposure: 1.0,
+        inlineCloudVeil: 0.0,
+        atmosphereIntensityScale: 1.12,
+        surfaceDetailBoost: 1.22,
       };
   }
 }

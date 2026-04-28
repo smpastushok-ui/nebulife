@@ -12,6 +12,8 @@ interface TechNodeCardProps {
   status: TechNodeStatus;
   playerLevel: number;
   prerequisiteName?: string;
+  branchAccent?: string;
+  branchSoft?: string;
   onResearch: () => void;
 }
 
@@ -21,7 +23,6 @@ const lockedBg = 'rgba(10,15,25,0.5)';
 const lockedBorder = 'rgba(51,68,85,0.2)';
 
 const availableBg = 'rgba(15,25,40,0.7)';
-const availableBorder = '#446688';
 
 const researchedBg = 'rgba(20,35,25,0.5)';
 const researchedBorder = 'rgba(68,255,136,0.3)';
@@ -31,6 +32,8 @@ export function TechNodeCard({
   status,
   playerLevel,
   prerequisiteName,
+  branchAccent = '#4488aa',
+  branchSoft = 'rgba(68,136,170,0.14)',
   onResearch,
 }: TechNodeCardProps) {
   const { t } = useTranslation();
@@ -56,13 +59,14 @@ export function TechNodeCard({
   const borderColor = isResearched
     ? researchedBorder
     : isAvailable
-      ? availableBorder
+      ? branchAccent
       : lockedBorder;
 
   const nameColor = isResearched ? '#44ff88' : isAvailable ? '#aaccee' : '#445566';
   const textColor = isResearched ? '#88ccaa' : isAvailable ? '#aabbcc' : '#334455';
-  const iconColor = isResearched ? '#44ff88' : isAvailable ? '#4488aa' : '#334455';
+  const iconColor = isResearched ? '#44ff88' : isAvailable ? branchAccent : '#334455';
   const metaColor = isResearched ? '#668877' : isAvailable ? '#667788' : '#2a3344';
+  const activeGlow = isResearched ? 'rgba(68,255,136,0.14)' : branchSoft;
 
   return (
     <div
@@ -72,17 +76,36 @@ export function TechNodeCard({
         maxWidth: 280,
         width: '100%',
         padding: '14px 16px',
-        background: hovered && !isLocked ? 'rgba(20,30,45,0.8)' : bg,
+        background: hovered && !isLocked
+          ? `radial-gradient(circle at 16% 12%, ${activeGlow}, transparent 42%), rgba(12,22,35,0.74)`
+          : isLocked
+            ? bg
+            : `radial-gradient(circle at 14% 10%, ${activeGlow}, transparent 38%), ${bg}`,
         border: `1px solid ${borderColor}`,
-        borderRadius: 4,
+        borderRadius: 7,
         fontFamily: 'monospace',
-        transition: 'background 0.15s, border-color 0.15s',
+        boxShadow: isLocked ? undefined : `inset 0 0 18px rgba(255,255,255,0.018), 0 0 ${isAvailable ? 16 : 10}px ${activeGlow}`,
+        transition: 'background 0.15s, border-color 0.15s, box-shadow 0.15s',
         animation: isAvailable ? 'tech-node-pulse 2.5s ease-in-out infinite' : undefined,
       }}
     >
       {/* Header: icon + name */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <span style={{ fontSize: 18, color: iconColor, lineHeight: 1 }}>
+        <span
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 7,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 16,
+            color: iconColor,
+            lineHeight: 1,
+            border: `1px solid ${isLocked ? 'rgba(51,68,85,0.18)' : `${iconColor}44`}`,
+            background: isLocked ? 'rgba(5,10,18,0.24)' : `radial-gradient(circle at 50% 38%, ${activeGlow}, rgba(5,10,18,0.35))`,
+          }}
+        >
           {isResearched ? '\u2713' : node.iconSymbol}
         </span>
         <span style={{ fontSize: 12, color: nameColor, fontWeight: 600 }}>

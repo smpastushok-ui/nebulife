@@ -65,6 +65,14 @@ const HUD_BLUE = 0x4488aa;
 const SHIP_BLUE = 0x4488ff;
 const DEEP_SPACE = 0x020510;
 
+function colorFromHexNumber(color: number): THREE.Color {
+  return new THREE.Color(
+    ((color >> 16) & 0xff) / 255,
+    ((color >> 8) & 0xff) / 255,
+    (color & 0xff) / 255,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Starfield
 // ---------------------------------------------------------------------------
@@ -464,6 +472,11 @@ function createPlanetSphere(
 ): { mesh: THREE.Mesh; uniforms: Record<string, THREE.IUniform> } {
   const visuals = derivePlanetVisuals(planet, star);
   const uniforms = planetVisualsToUniforms(visuals, planet, star);
+  uniforms.uInlineClouds = {
+    value: !lod.renderClouds && visuals.hasSignificantClouds ? lod.inlineCloudVeil * Math.max(0.35, visuals.cloudDensity) : 0.0,
+  };
+  uniforms.uInlineCloudColor = { value: colorFromHexNumber(visuals.cloudColor) };
+  uniforms.uSurfaceDetailBoost = { value: lod.surfaceDetailBoost };
 
   const isGas = planet.type === 'gas-giant' || planet.type === 'ice-giant';
   const fragShader = isGas ? gasGiantFrag : rockySurfaceFrag;
@@ -564,7 +577,7 @@ function createAtmosphereShell(
 
   const sharedUniforms: Record<string, THREE.IUniform> = {
     uColor: { value: params.color },
-    uIntensity: { value: params.intensity },
+    uIntensity: { value: params.intensity * lod.atmosphereIntensityScale },
     uPower: { value: params.power },
     uStarDir: { value: starDir },
     uPressure: { value: Math.min(pressure, 100) },

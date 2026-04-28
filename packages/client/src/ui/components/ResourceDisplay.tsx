@@ -130,12 +130,15 @@ const itemStyle: React.CSSProperties = {
 /** SVG telescope icon for Observatories */
 function ObservatoryIcon({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.2" style={{ flexShrink: 0 }}>
-      <circle cx="8" cy="5" r="4" />
-      <line x1="8" y1="9" x2="8" y2="14" />
-      <line x1="5" y1="14" x2="11" y2="14" />
-      <line x1="4" y1="11" x2="8" y2="9" />
-      <line x1="12" y1="11" x2="8" y2="9" />
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+      stroke="#7bb8ff" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
+      style={{ flexShrink: 0 }}>
+      <path d="M3 11.2 A5 5 0 0 1 13 11.2" />
+      <path d="M2.3 13.4 H13.7" />
+      <path d="M4 11.2 H12" opacity="0.55" />
+      <path d="M7.6 6.3 L10.7 3.8 L12.2 5.3 L9.1 7.8" />
+      <path d="M7.6 6.3 V11.2" opacity="0.55" />
+      <path d="M3.9 3.4 H5.7 M4.8 2.5 V4.3" opacity="0.72" />
     </svg>
   );
 }

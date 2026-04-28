@@ -28,6 +28,9 @@ uniform float uTime;
 uniform float uAlbedo;
 uniform float uSurfaceTempK;
 uniform float uHasRivers;
+uniform float uInlineClouds;
+uniform vec3  uInlineCloudColor;
+uniform float uSurfaceDetailBoost;
 
 // --- Resource/geology uniforms ---
 uniform float uFeAbundance;
@@ -851,8 +854,22 @@ void main() {
   // Albedo
   lit *= 0.72 + uAlbedo * 0.45;
 
+  // Low/mid tiers skip the separate transparent cloud sphere to avoid
+  // overdraw. This in-pass veil suggests weather using one cheap noise layer,
+  // so mobile still gets atmospheric depth without another mesh.
+  if (uInlineClouds > 0.001) {
+    float weather = noise3(n * vec3(5.0, 1.7, 5.0) + seedOff + vec3(6100.0));
+    float streak = noise3(n * vec3(12.0, 2.4, 12.0) + seedOff + vec3(6200.0));
+    float cloudMask = smoothstep(0.48, 0.72, weather) * (0.55 + streak * 0.45);
+    cloudMask *= smoothstep(0.03, 0.35, dayFactor);
+    cloudMask *= 1.0 - smoothstep(0.82, 0.98, latitude) * 0.35;
+    vec3 veilColor = mix(vec3(1.0), uInlineCloudColor, 0.18);
+    lit = mix(lit, veilColor * max(lit, vec3(0.34)), cloudMask * uInlineClouds);
+  }
+
   // === Subtle contrast boost ===
-  lit = lit * 1.08;
+  float contrast = clamp(uSurfaceDetailBoost, 0.75, 1.35);
+  lit = mix(vec3(0.5), lit, contrast) * 1.08;
   lit = max(lit, vec3(0.0));
 
 

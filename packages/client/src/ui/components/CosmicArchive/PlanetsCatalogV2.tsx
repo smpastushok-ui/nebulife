@@ -376,13 +376,31 @@ function CargoShipIcon({ color = '#7bb8ff' }: { color?: string }) {
 // EarthLikePlanetSVG — fixed ocean+continent look for all earth-like planets
 // ---------------------------------------------------------------------------
 
-function EarthLikePlanetSVG({ r, cx, cy, planetId }: { r: number; cx: number; cy: number; planetId: string }) {
-  const clipId = `el-clip-${planetId}`;
-  const gradId = `el-grad-${planetId}`;
+function safeSvgId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+function seededUnit(seed: number, salt: number): number {
+  const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function seededRange(seed: number, salt: number, min: number, max: number): number {
+  return min + seededUnit(seed, salt) * (max - min);
+}
+
+function EarthLikePlanetSVG({ r, cx, cy, planet }: { r: number; cx: number; cy: number; planet: Planet }) {
+  const seed = Math.abs(planet.seed ?? 0);
+  const safeId = safeSvgId(planet.id);
+  const clipId = `el-clip-${safeId}`;
+  const gradId = `el-grad-${safeId}`;
   // Scale continent paths relative to r (designed at r=24)
   const s = r / 24;
   const tx = cx - 24 * s;
   const ty = cy - 24 * s;
+  const landTilt = seededRange(seed, 1, -18, 18);
+  const cloudTilt = seededRange(seed, 2, -12, 12);
+  const iceOpacity = 0.22 + seededUnit(seed, 3) * 0.18;
   return (
     <g>
       <defs>
@@ -399,17 +417,181 @@ function EarthLikePlanetSVG({ r, cx, cy, planetId }: { r: number; cx: number; cy
       <circle cx={cx} cy={cy} r={r} fill={`url(#${gradId})`} />
       {/* Continent shapes — simple fixed paths scaled */}
       <g clipPath={`url(#${clipId})`} transform={`translate(${tx},${ty}) scale(${s})`}>
-        {/* Main continent */}
-        <path d="M20 18 L28 14 L34 16 L36 22 L32 28 L26 30 L20 26 Z" fill="#4a7a44" fillOpacity="0.75" />
-        {/* Second land mass */}
-        <path d="M30 32 L36 30 L40 34 L38 40 L32 40 L28 36 Z" fill="#5a8a50" fillOpacity="0.7" />
-        {/* Small island */}
-        <path d="M14 30 L18 28 L20 32 L16 34 Z" fill="#4a7a44" fillOpacity="0.65" />
+        <g transform={`rotate(${landTilt} 24 24)`}>
+          {/* Main continent */}
+          <path d="M20 18 L28 14 L34 16 L36 22 L32 28 L26 30 L20 26 Z" fill="#4a7a44" fillOpacity="0.75" />
+          {/* Second land mass */}
+          <path d="M30 32 L36 30 L40 34 L38 40 L32 40 L28 36 Z" fill="#5a8a50" fillOpacity="0.7" />
+          {/* Small islands */}
+          <path d="M14 30 L18 28 L20 32 L16 34 Z" fill="#4a7a44" fillOpacity="0.65" />
+          <path d={`M${10 + seededUnit(seed, 4) * 7} ${16 + seededUnit(seed, 5) * 9} l4 -2 l3 3 l-3 4 l-5 -1 Z`} fill="#5f8d55" fillOpacity="0.42" />
+        </g>
         {/* North ice cap hint */}
-        <path d="M18 8 L30 8 L32 12 L28 14 L20 14 L16 12 Z" fill="#cce8f0" fillOpacity="0.35" />
+        <path d="M18 8 L30 8 L32 12 L28 14 L20 14 L16 12 Z" fill="#cce8f0" fillOpacity={iceOpacity} />
+        <g transform={`rotate(${cloudTilt} 24 24)`}>
+          <path d="M7 21 C16 16 30 18 41 13" stroke="#d7f3ff" strokeWidth="1.6" strokeOpacity="0.2" fill="none" />
+          <path d="M9 33 C19 29 30 35 42 30" stroke="#d7f3ff" strokeWidth="1.2" strokeOpacity="0.15" fill="none" />
+        </g>
       </g>
       {/* Atmosphere glow */}
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#5599cc" strokeWidth="1" strokeOpacity="0.5" />
+    </g>
+  );
+}
+
+function getPlanetDiameter(planet: Planet): number {
+  const radius = Math.max(0.12, planet.radiusEarth || 1);
+  if (planet.type === 'gas-giant') {
+    return Math.round(76 + Math.min(1, Math.log10(radius) / 1.1) * 18);
+  }
+  if (planet.type === 'ice-giant') {
+    return Math.round(68 + Math.min(1, Math.log10(radius + 0.4) / 0.9) * 14);
+  }
+  if (planet.type === 'dwarf') {
+    return Math.round(28 + Math.min(1, radius / 0.75) * 12);
+  }
+  return Math.round(40 + Math.min(1, radius / 1.8) * 22);
+}
+
+function getShadeColor(planet: Planet, base: string): string {
+  if (planet.type === 'gas-giant') return planet.surfaceTempK > 1000 ? '#5a241a' : '#5f4a34';
+  if (planet.type === 'ice-giant') return '#183a66';
+  if (planet.type === 'dwarf') return '#55564d';
+  if ((planet.surfaceTempK ?? 300) > 600) return '#3f241a';
+  if (isEarthLike(planet)) return '#0b2e4c';
+  return luminanceSafe(base);
+}
+
+function PlanetSurfaceSVG({
+  planet,
+  color,
+  r,
+  cx,
+  cy,
+}: {
+  planet: Planet;
+  color: string;
+  r: number;
+  cx: number;
+  cy: number;
+}) {
+  const safeId = safeSvgId(planet.id);
+  const gradId = `pg-${safeId}`;
+  const clipId = `pc-${safeId}`;
+  const shade = getShadeColor(planet, color);
+  const seed = Math.abs(planet.seed ?? 0);
+  const tempK = planet.surfaceTempK ?? 300;
+  const water = planet.hydrosphere?.waterCoverageFraction ?? planet.habitability?.water ?? 0;
+  const atmo = planet.atmosphere?.surfacePressureAtm ?? 0;
+  const isGiant = planet.type === 'gas-giant' || planet.type === 'ice-giant';
+  const isHot = tempK > 600;
+  const hasClouds = atmo > 0.4 || water > 0.25;
+  const surfaceTilt = seededRange(seed, 7, -16, 16);
+  const bandSkew = seededRange(seed, 8, -0.16, 0.16);
+  const spotY = seededRange(seed, 9, -0.28, 0.28);
+
+  const bandColors = planet.type === 'gas-giant'
+    ? tempK > 1000
+      ? ['#ff9a55', '#9a3f27', '#d0703d', '#6f3026']
+      : ['#d6b37a', '#8f724d', '#c69a62', '#6d5941']
+    : ['#8cc7d9', '#416d9d', '#6ba7c4', '#254d80'];
+
+  return (
+    <g>
+      <defs>
+        <radialGradient id={gradId} cx="34%" cy="30%" r="76%">
+          <stop offset="0%" stopColor="#d7ecff" stopOpacity={planet.type === 'ice-giant' ? 0.38 : 0.22} />
+          <stop offset="28%" stopColor={color} stopOpacity="0.96" />
+          <stop offset="74%" stopColor={shade} stopOpacity="0.98" />
+          <stop offset="100%" stopColor="#06101d" stopOpacity="1" />
+        </radialGradient>
+        <clipPath id={clipId}>
+          <circle cx={cx} cy={cy} r={r} />
+        </clipPath>
+      </defs>
+
+      <circle cx={cx} cy={cy} r={r} fill={`url(#${gradId})`} />
+
+      <g clipPath={`url(#${clipId})`}>
+        {isGiant ? (
+          <g transform={`rotate(${surfaceTilt} ${cx} ${cy})`}>
+            {[-0.52, -0.31, -0.11, 0.1, 0.29, 0.48].map((offset, i) => (
+              <path
+                key={offset}
+                d={`M${cx - r * 1.18} ${cy + r * offset} C ${cx - r * 0.45} ${cy + r * (offset - 0.09 + bandSkew)}, ${cx + r * 0.36} ${cy + r * (offset + 0.12 - bandSkew * 0.7)}, ${cx + r * 1.18} ${cy + r * (offset + 0.02 + bandSkew * 0.35)}`}
+                stroke={bandColors[i % bandColors.length]}
+                strokeWidth={Math.max(3, r * (0.11 + (i % 2) * 0.035))}
+                strokeOpacity={(planet.type === 'ice-giant' ? 0.22 : 0.35) + seededUnit(seed, i + 20) * 0.16}
+                fill="none"
+              />
+            ))}
+            <path
+              d={`M${cx - r * 1.05} ${cy + r * seededRange(seed, 30, -0.05, 0.22)} C ${cx - r * 0.2} ${cy + r * seededRange(seed, 31, -0.22, 0.26)}, ${cx + r * 0.18} ${cy + r * seededRange(seed, 32, -0.28, 0.18)}, ${cx + r * 1.05} ${cy + r * seededRange(seed, 33, -0.03, 0.25)}`}
+              stroke="#f4e2bb"
+              strokeWidth={Math.max(1.2, r * 0.035)}
+              strokeOpacity={planet.type === 'gas-giant' ? 0.22 : 0.12}
+              fill="none"
+            />
+            {planet.type === 'gas-giant' && (
+              <ellipse
+                cx={cx + r * seededRange(seed, 10, 0.18, 0.42)}
+                cy={cy + r * spotY}
+                rx={r * 0.24}
+                ry={r * seededRange(seed, 11, 0.08, 0.14)}
+                fill={tempK > 1000 ? '#ffb06a' : '#d9a05f'}
+                opacity="0.24"
+                transform={`rotate(${seededRange(seed, 12, -10, 10)} ${cx + r * 0.34} ${cy + r * spotY})`}
+              />
+            )}
+          </g>
+        ) : (
+          <>
+            {isHot && (
+              <>
+                <path d={`M${cx - r * seededRange(seed, 13, 0.62, 0.32)} ${cy - r * 0.15} L${cx - r * 0.12} ${cy + r * seededRange(seed, 14, -0.02, 0.18)} L${cx - r * 0.28} ${cy + r * 0.48}`} stroke="#ff8844" strokeWidth="1.1" strokeOpacity="0.42" />
+                <path d={`M${cx + r * 0.08} ${cy - r * 0.55} L${cx + r * seededRange(seed, 15, 0.18, 0.38)} ${cy - r * 0.12} L${cx + r * 0.18} ${cy + r * seededRange(seed, 16, 0.2, 0.44)}`} stroke="#cc5522" strokeWidth="1" strokeOpacity="0.34" />
+              </>
+            )}
+            {!isHot && !isEarthLike(planet) && (
+              <>
+                {[0, 1, 2].map((i) => (
+                  <ellipse
+                    key={i}
+                    cx={cx + r * seededRange(seed, 40 + i, -0.48, 0.42)}
+                    cy={cy + r * seededRange(seed, 50 + i, -0.42, 0.45)}
+                    rx={r * seededRange(seed, 60 + i, 0.1, 0.32)}
+                    ry={r * seededRange(seed, 70 + i, 0.06, 0.18)}
+                    fill={i === 1 ? '#000000' : '#ffffff'}
+                    opacity={i === 1 ? 0.1 : planet.type === 'dwarf' ? 0.09 : 0.06}
+                    transform={`rotate(${seededRange(seed, 80 + i, -28, 28)} ${cx} ${cy})`}
+                  />
+                ))}
+              </>
+            )}
+            {hasClouds && (
+              <>
+                <path
+                  d={`M${cx - r * 0.78} ${cy - r * seededRange(seed, 90, 0.02, 0.2)} C ${cx - r * 0.3} ${cy - r * seededRange(seed, 91, 0.16, 0.34)}, ${cx + r * 0.08} ${cy + r * seededRange(seed, 92, -0.02, 0.13)}, ${cx + r * 0.76} ${cy - r * seededRange(seed, 93, 0.04, 0.2)}`}
+                  stroke="#d7f3ff"
+                  strokeWidth={Math.max(1, r * 0.055)}
+                  strokeOpacity="0.24"
+                  fill="none"
+                />
+                <path
+                  d={`M${cx - r * 0.64} ${cy + r * seededRange(seed, 94, 0.12, 0.32)} C ${cx - r * 0.08} ${cy + r * seededRange(seed, 95, 0.03, 0.24)}, ${cx + r * 0.36} ${cy + r * seededRange(seed, 96, 0.2, 0.42)}, ${cx + r * 0.72} ${cy + r * seededRange(seed, 97, 0.04, 0.24)}`}
+                  stroke="#d7f3ff"
+                  strokeWidth={Math.max(0.8, r * 0.035)}
+                  strokeOpacity="0.16"
+                  fill="none"
+                />
+              </>
+            )}
+          </>
+        )}
+      </g>
+
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#d5efff" strokeWidth="0.9" strokeOpacity={isGiant ? 0.26 : 0.18} />
+      <ellipse cx={cx - r * 0.24} cy={cy - r * 0.3} rx={r * 0.32} ry={r * 0.2} fill="#ffffff" opacity="0.12" />
     </g>
   );
 }
@@ -455,12 +637,15 @@ function PlanetCard({
   const color = getPlanetBodyColor(planet);
   const earthLike = isEarthLike(planet);
 
-  // Continuous size map: 36-72px diameter based on radiusEarth
-  // Gas/ice giants tend to be >3x Earth so they get max size
-  const diameter = Math.round(36 + Math.min(planet.radiusEarth, 2.5) * 14);
-  const cx = 36;
-  const cy = 36;
+  // Visual scale keeps Earth-sized worlds readable while letting giants feel massive.
+  const diameter = getPlanetDiameter(planet);
+  const canvas = 96;
+  const cx = canvas / 2;
+  const cy = canvas / 2;
   const r = diameter / 2;
+  const safePlanetId = safeSvgId(planet.id);
+  const seed = Math.abs(planet.seed ?? 0);
+  const ringTilt = seededRange(seed, 120, -24, 18);
 
   const hasRings =
     planet.type === 'gas-giant' ||
@@ -484,7 +669,7 @@ function PlanetCard({
         flexDirection: 'column',
         alignItems: 'center',
         gap: 3,
-        padding: '6px 2px',
+        padding: '4px 2px 6px',
         background: 'none',
         border: 'none',
         cursor: 'pointer',
@@ -495,11 +680,12 @@ function PlanetCard({
       <div
         style={{
           borderRadius: '50%',
-          width: 72,
-          height: 72,
+          width: canvas,
+          height: canvas,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          filter: hover || isSelected ? 'saturate(1.12)' : 'saturate(0.98)',
           animation: isSelected
             ? 'nebucatalog-focus-pulse 1.8s ease-in-out infinite'
             : hover
@@ -509,45 +695,44 @@ function PlanetCard({
         }}
       >
         {/* SVG planet representation */}
-        <svg width="72" height="72" viewBox="0 0 72 72">
+        <svg width={canvas} height={canvas} viewBox={`0 0 ${canvas} ${canvas}`} style={{ overflow: 'visible' }}>
+          <defs>
+            <filter id={`planet-shadow-${safePlanetId}`} x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="0" stdDeviation={planet.type === 'gas-giant' ? '2.2' : '1.5'} floodColor={color} floodOpacity="0.28" />
+            </filter>
+          </defs>
           {/* Ring (behind planet) */}
           {hasRings && (
-            <ellipse
-              cx={cx}
-              cy={cy}
-              rx={r * 1.9}
-              ry={r * 0.38}
-              fill="none"
-              stroke={`${color}99`}
-              strokeWidth="1.5"
-            />
-          )}
-          {/* Planet body */}
-          {earthLike ? (
-            <EarthLikePlanetSVG r={r} cx={cx} cy={cy} planetId={planet.id} />
-          ) : (
-            <>
-              <defs>
-                <radialGradient
-                  id={`pg-${planet.id}`}
-                  cx="35%"
-                  cy="35%"
-                  r="60%"
-                >
-                  <stop offset="0%" stopColor={`${color}dd`} />
-                  <stop offset="100%" stopColor={`${color}aa`} />
-                </radialGradient>
-              </defs>
-              <circle
+            <g transform={`rotate(${ringTilt} ${cx} ${cy})`} opacity={planet.type === 'gas-giant' ? 0.44 : 0.28}>
+              <ellipse
                 cx={cx}
                 cy={cy}
-                r={r}
-                fill={`url(#pg-${planet.id})`}
-                stroke={`${color}bb`}
-                strokeWidth="1"
+                rx={r * seededRange(seed, 121, 1.34, 1.58)}
+                ry={r * seededRange(seed, 122, 0.25, 0.36)}
+                fill="none"
+                stroke={`${color}aa`}
+                strokeWidth="1.25"
               />
-            </>
+              <ellipse
+                cx={cx}
+                cy={cy}
+                rx={r * seededRange(seed, 123, 1.54, 1.78)}
+                ry={r * seededRange(seed, 124, 0.34, 0.43)}
+                fill="none"
+                stroke="#c9d6e6"
+                strokeOpacity="0.22"
+                strokeWidth="0.8"
+              />
+            </g>
           )}
+          <g filter={`url(#planet-shadow-${safePlanetId})`}>
+            {/* Planet body */}
+            {earthLike ? (
+              <EarthLikePlanetSVG r={r} cx={cx} cy={cy} planet={planet} />
+            ) : (
+              <PlanetSurfaceSVG planet={planet} color={color} r={r} cx={cx} cy={cy} />
+            )}
+          </g>
           {/* Home planet indicator */}
           {planet.isHomePlanet && (
             <circle
@@ -571,7 +756,7 @@ function PlanetCard({
           textAlign: 'center',
           fontFamily: 'monospace',
           letterSpacing: 0.3,
-          maxWidth: 72,
+          maxWidth: 88,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -596,7 +781,7 @@ function PlanetCard({
           color: '#7bb8ff',
           textAlign: 'center',
           fontFamily: 'monospace',
-          maxWidth: 72,
+          maxWidth: 88,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -1208,17 +1393,9 @@ function ExpandedDetailPanel({
         {/* Mini planet circle */}
         <svg width="48" height="48" viewBox="0 0 48 48" style={{ flexShrink: 0 }}>
           {isEarthLike(planet) ? (
-            <EarthLikePlanetSVG r={20} cx={24} cy={24} planetId={`hdr-${planet.id}`} />
+            <EarthLikePlanetSVG r={20} cx={24} cy={24} planet={planet} />
           ) : (
-            <>
-              <defs>
-                <radialGradient id={`hdr-${planet.id}`} cx="35%" cy="35%" r="60%">
-                  <stop offset="0%" stopColor={`${planetColor}cc`} />
-                  <stop offset="100%" stopColor={`${planetColor}66`} />
-                </radialGradient>
-              </defs>
-              <circle cx="24" cy="24" r="20" fill={`url(#hdr-${planet.id})`} stroke={`${planetColor}88`} strokeWidth="1" />
-            </>
+            <PlanetSurfaceSVG planet={planet} color={planetColor} r={20} cx={24} cy={24} />
           )}
           {planet.isHomePlanet && (
             <circle cx="24" cy="24" r="23" fill="none" stroke="#44ff88" strokeWidth="1.2" strokeDasharray="3 3" />
@@ -1636,8 +1813,9 @@ export function PlanetsCatalogV2({
         onClick={handleGridClick}
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))',
-          gap: 8,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+          columnGap: 8,
+          rowGap: 10,
         }}
       >
         {visiblePairs.map(({ system, planet }) => {

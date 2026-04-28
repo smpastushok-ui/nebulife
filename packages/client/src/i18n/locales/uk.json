@@ -742,6 +742,7 @@
     "epoch_2": "Епоха II: Рівні 16–34",
     "epoch_3": "Епоха III: Рівні 35–50",
     "epoch_fallback": "Епоха {{epoch}}",
+    "nodes_count": "{{count}} технологій",
     "needs_level": "Потрібно: Рів. {{level}}",
     "needs_tech": "Потрібно: {{tech}}",
     "locked": "Заблоковано",

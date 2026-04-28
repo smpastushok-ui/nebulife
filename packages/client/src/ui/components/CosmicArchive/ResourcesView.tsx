@@ -7,6 +7,7 @@ import {
   RESOURCE_GROUPS,
 } from '@nebulife/core';
 import type { ResourceGroup } from '@nebulife/core';
+import { ResourceIcon, RESOURCE_COLORS, type ResourceType } from '../ResourceIcon.js';
 
 /** i18n key for each resource group label */
 const GROUP_T_KEY: Record<ResourceGroup, string> = {
@@ -28,6 +29,12 @@ interface ResourcesViewProps {
 
 /** Map resource group to the corresponding ColonyResources key */
 const GROUP_KEY: Record<ResourceGroup, 'minerals' | 'volatiles' | 'isotopes'> = {
+  mineral:  'minerals',
+  volatile: 'volatiles',
+  isotope:  'isotopes',
+};
+
+const GROUP_ICON_TYPE: Record<ResourceGroup, ResourceType> = {
   mineral:  'minerals',
   volatile: 'volatiles',
   isotope:  'isotopes',
@@ -55,7 +62,7 @@ const WATER_MOLECULES_EN = [
   { symbol: 'D\u2082O', name: 'Heavy water',   color: '#7799cc' },
 ];
 
-const WATER_COLOR = '#3b82f6';
+const WATER_COLOR = RESOURCE_COLORS.water;
 
 export function ResourcesView({ minerals, volatiles, isotopes, water }: ResourcesViewProps) {
   const { t, i18n } = useTranslation();
@@ -85,6 +92,8 @@ export function ResourcesView({ minerals, volatiles, isotopes, water }: Resource
     >
       {RESOURCE_GROUPS.map((group) => {
         const color    = GROUP_COLORS[group];
+        const iconType = GROUP_ICON_TYPE[group];
+        const accent   = RESOURCE_COLORS[iconType];
         const label    = t(GROUP_T_KEY[group]);
         const total    = totals[GROUP_KEY[group]];
         const elements = getGroupElementsSorted(group);
@@ -102,7 +111,7 @@ export function ResourcesView({ minerals, volatiles, isotopes, water }: Resource
                 width: '100%',
                 padding: '8px 10px',
                 background: 'rgba(15,25,40,0.5)',
-                border: `1px solid ${color}44`,
+                border: `1px solid ${accent}44`,
                 borderRadius: 4,
                 cursor: 'pointer',
                 fontFamily: 'monospace',
@@ -113,19 +122,10 @@ export function ResourcesView({ minerals, volatiles, isotopes, water }: Resource
                 {isOpen ? 'v' : '>'}
               </span>
 
-              {/* Color dot */}
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: color,
-                  flexShrink: 0,
-                }}
-              />
+              <ResourceIcon type={iconType} size={14} />
 
               {/* Group name */}
-              <span style={{ color, fontSize: 12, fontWeight: 600, flex: 1, textAlign: 'left' }}>
+              <span style={{ color: accent, fontSize: 12, fontWeight: 600, flex: 1, textAlign: 'left' }}>
                 {label}
               </span>
 
@@ -223,18 +223,7 @@ export function ResourcesView({ minerals, volatiles, isotopes, water }: Resource
             {isWaterOpen ? 'v' : '>'}
           </span>
 
-          {/* Color dot — droplet shape */}
-          <span
-            style={{
-              display: 'inline-block',
-              width: 8,
-              height: 10,
-              background: WATER_COLOR,
-              borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
-              clipPath: 'polygon(50% 0%, 100% 60%, 85% 100%, 15% 100%, 0% 60%)',
-              flexShrink: 0,
-            }}
-          />
+          <ResourceIcon type="water" size={14} />
 
           {/* Label */}
           <span style={{ color: WATER_COLOR, fontSize: 12, fontWeight: 600, flex: 1, textAlign: 'left' }}>

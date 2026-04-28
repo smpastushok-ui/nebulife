@@ -744,6 +744,7 @@
     "epoch_2": "Epoch II: Levels 16-34",
     "epoch_3": "Epoch III: Levels 35-50",
     "epoch_fallback": "Epoch {{epoch}}",
+    "nodes_count": "{{count}} technologies",
     "needs_level": "Requires: Lvl. {{level}}",
     "needs_tech": "Requires: {{tech}}",
     "locked": "Locked",
