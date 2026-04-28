@@ -19,6 +19,7 @@ export const uk = {
   'cmd.home_tooltip':    'Домiвка',
   'cmd.surface':         'На поверхню',
   'cmd.surface_title':   'Поверхня',
+  'cmd.arena':           'АРЕНА',
   'cmd.fly_cluster':     'Полетiти до мого скупчення',
   'cmd.fly_center':      'Полетiти до центру галактики',
   'cmd.fly_star':        'Полетiти до моєї зiрки',

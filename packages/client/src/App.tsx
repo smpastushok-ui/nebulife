@@ -13,8 +13,7 @@ import {
 import { QuarkToastRenderer, enqueueQuarkToast } from './ui/components/QuarkToastQueue.js';
 import { WarpTransition } from './ui/components/WarpTransition.js';
 import { CommandBar } from './ui/components/CommandBar/index.js';
-import { TerminalAnimatedIcon } from './ui/components/TerminalAnimatedIcon.js';
-import type { NavigationMenuItem, ToolItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
+import type { NavigationMenuItem, ToolGroup, ExtendedScene } from './ui/components/CommandBar/index.js';
 import { PlanetInfoPanel } from './ui/components/PlanetInfoPanel.js';
 import { PlanetContextMenu } from './ui/components/PlanetContextMenu.js';
 import { SystemContextMenu } from './ui/components/SystemContextMenu.js';
@@ -284,6 +283,83 @@ function getDestroyedPlanetIdsForSystem(systemId: string): Set<string> | undefin
   // Cluster-wide — from server cache (populated when scene was entered)
   for (const id of getDestroyedPlanetIds(systemId)) ids.add(id);
   return ids.size > 0 ? ids : undefined;
+}
+
+type CommandModeIconKind = 'surface' | 'terminal' | 'arena';
+
+function CommandModeIcon({
+  kind,
+  label,
+  active = false,
+  disabled = false,
+}: {
+  kind: CommandModeIconKind;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+}) {
+  const iconStyle: React.CSSProperties = {
+    width: 26,
+    height: 24,
+    opacity: disabled ? 0.5 : 1,
+    transform: active ? 'translateY(-1px)' : 'none',
+    transition: 'transform 0.22s ease, opacity 0.22s ease',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontFamily: 'monospace',
+    fontSize: 9,
+    letterSpacing: 1.4,
+    lineHeight: 1,
+    textTransform: 'uppercase',
+    color: 'currentColor',
+    opacity: disabled ? 0.55 : 0.95,
+    whiteSpace: 'nowrap',
+  };
+
+  return (
+    <span
+      style={{
+        width: 78,
+        height: 42,
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        pointerEvents: 'none',
+      }}
+    >
+      {kind === 'surface' && (
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 3 L25 8.8 L14 14.6 L3 8.8 Z" />
+          <path d="M3 8.8 V14.2 L14 20 L25 14.2 V8.8" opacity="0.45" />
+          <path d="M8.5 10.6 L12 8.4 L15.3 10.3 L19.7 7.9" opacity="0.65" />
+          <path d="M14 14.6 V20" opacity="0.35" />
+          <circle cx="19.5" cy="7.9" r="1.2" fill="currentColor" stroke="none" />
+        </svg>
+      )}
+      {kind === 'terminal' && (
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="4" width="20" height="15" rx="2.2" />
+          <path d="M8 9 L10.4 11 L8 13" />
+          <path d="M13 13 H19" opacity={active ? 0.25 : 0.65} />
+          <path d="M13 9 H20" opacity={active ? 0.25 : 0.45} />
+          <rect x="18.8" y="12" width="2.8" height="1.8" fill="currentColor" stroke="none" opacity={active ? 1 : 0.75} />
+        </svg>
+      )}
+      {kind === 'arena' && (
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="14" cy="12" r="7.5" opacity="0.65" />
+          <path d="M14 4 V7 M14 17 V20 M6 12 H9 M19 12 H22" opacity="0.55" />
+          <path d="M14 8.2 L17.8 16 L14 14.2 L10.2 16 Z" fill="currentColor" fillOpacity="0.16" />
+          <path d="M4.5 7.5 C7.2 3.8 12.4 2.7 16.5 4.7" opacity="0.35" />
+          <path d="M23.5 16.5 C20.8 20.2 15.6 21.3 11.5 19.3" opacity="0.35" />
+        </svg>
+      )}
+      <span style={labelStyle}>{label}</span>
+    </span>
+  );
 }
 
 function AppInner() {
@@ -5753,9 +5829,9 @@ function AppInner() {
     }
   }
 
-  // Home button — opens the SURFACE of the home planet directly (preferred)
+  // Surface button — opens the SURFACE of the home planet directly (preferred)
   // with fallback to planet-view (exosphere) if surface isn't landable yet.
-  // Icon: "Дім 2" (tent-roof with hex ground) from /icon-preview.html.
+  // Uses the shared bottom-bar tech-tile icon style.
   //
   // Hidden during exodus phase — the home planet is about to be destroyed
   // and has no colony on it, so linking to "surface of home" produced a
@@ -5769,30 +5845,26 @@ function AppInner() {
       type: 'buttons',
       items: [{
         id: 'go-home',
-        label: '',
-        icon: React.createElement('svg', { width: 34, height: 34, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round' },
-          React.createElement('path', { d: 'M4 10 L10 4 L16 10' }),
-          React.createElement('rect', { x: '7', y: '10', width: '6', height: '6' }),
-          React.createElement('path', { d: 'M3 17 L6 15 L14 15 L17 17', opacity: '0.5' }),
-        ),
+        label: t('cmd.surface_title'),
+        variant: 'terminal' as const,
+        icon: <CommandModeIcon kind="surface" label={t('cmd.surface_title')} />,
         tooltip: t('cmd.home_tooltip'),
         onClick: handleGoToHomeSurface,
       }],
     });
   }
 
-  // Global: Terminal button on all scenes. Icon = 4 corner cubes + centered
-  // label that converges on press (see TerminalAnimatedIcon). Click plays
-  // the 350ms converge animation and then opens the archive overlay.
+  // Global: Terminal button on all scenes. Uses the same compact tech-tile
+  // visual language as Surface and Arena.
   toolGroups.push({
     type: 'buttons',
     items: [{
       id: 'command-center',
-      label: '',
+      label: t('cmd.terminal'),
       variant: 'terminal' as const,
       tooltip: t('cmd.control_center'),
       tutorialId: 'terminal-btn',
-      icon: <TerminalAnimatedIcon label={t('cmd.terminal')} converging={terminalConverging} />,
+      icon: <CommandModeIcon kind="terminal" label={t('cmd.terminal')} active={terminalConverging} />,
       onClick: () => {
         if (terminalConverging) return;
         setTerminalConverging(true);
@@ -5824,7 +5896,7 @@ function AppInner() {
     });
   }
 
-  // Arena button — golden spaceship icon. Normally unlocks at level 30 but
+  // Arena button. Normally unlocks at level 30 but
   // temporarily opened from L1 for playtesting (user request). Flip the
   // constant back to 30 when hangar is ready for gated release.
   const ARENA_MIN_LEVEL = 1;
@@ -5833,7 +5905,7 @@ function AppInner() {
     type: 'buttons',
     items: [{
       id: 'arena',
-      label: '',
+      label: t('cmd.arena'),
       variant: 'terminal' as const,
       tooltip: t('cmd.arena_tooltip'),
       onClick: () => {
@@ -5846,17 +5918,7 @@ function AppInner() {
         }
         setShowHangar(true);
       },
-      // "Ангар 3" icon from /icon-preview.html — ship silhouette on a
-      // launchpad (replaces the old star-shaped crest, which read as
-      // generic rather than hangar-specific).
-      icon: (
-        <svg width="34" height="34" viewBox="0 0 20 20" fill="none" stroke={arenaUnlocked ? 'currentColor' : '#665533'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: arenaUnlocked ? 1 : 0.5 }}>
-          <path d="M10 4 L12 7 L12 12 L8 12 L8 7 Z" />
-          <circle cx="10" cy="8" r="0.7" />
-          <path d="M8 12 L6 15 M12 12 L14 15" />
-          <line x1="3" y1="17" x2="17" y2="17" opacity="0.4"/>
-        </svg>
-      ),
+      icon: <CommandModeIcon kind="arena" label={t('cmd.arena')} disabled={!arenaUnlocked} />,
     }],
   });
 

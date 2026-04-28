@@ -32,6 +32,11 @@
     "fly_galaxy_center": "Fly to Galaxy Center",
     "fly_my_star": "Fly to My Star"
   },
+  "cmd": {
+    "terminal": "TERMINAL",
+    "surface_title": "Surface",
+    "arena": "ARENA"
+  },
   "rarity": {
     "common": "Standard Event",
     "uncommon": "Anomaly",

@@ -32,6 +32,11 @@
     "fly_galaxy_center": "Полетiти до центру галактики",
     "fly_my_star": "Полетiти до моєї зiрки"
   },
+  "cmd": {
+    "terminal": "ТЕРМІНАЛ",
+    "surface_title": "Поверхня",
+    "arena": "АРЕНА"
+  },
   "rarity": {
     "common": "Штатна подія",
     "uncommon": "Аномалія",

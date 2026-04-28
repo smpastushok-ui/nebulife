@@ -21,6 +21,7 @@ export const en: Record<TranslationKey, string> = {
   'cmd.home_tooltip':    'Home',
   'cmd.surface':         'To Surface',
   'cmd.surface_title':   'Surface',
+  'cmd.arena':           'ARENA',
   'cmd.fly_cluster':     'Fly to my cluster',
   'cmd.fly_center':      'Fly to galaxy center',
   'cmd.fly_star':        'Fly to my star',
