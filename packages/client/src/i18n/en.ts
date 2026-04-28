@@ -532,4 +532,8 @@ export const en: Record<TranslationKey, string> = {
   'app.exit_confirm': 'Exit game?',
   'app.cancel':       'Cancel',
   'app.exit':         'Exit',
+
+  // Scene controls
+  'scene_controls.zoom_in':  'Zoom in',
+  'scene_controls.zoom_out': 'Zoom out',
 };

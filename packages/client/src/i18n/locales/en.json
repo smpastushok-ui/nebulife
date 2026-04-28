@@ -1400,7 +1400,8 @@
     "hint_5slots": {
       "badge": "HINT",
       "title": "Your colony wakes up",
-      "body": "You've unlocked your first 5 slots. Each revealed hex either drops a resource or becomes a build spot. Yields taper from the centre outward — inner slots are the most generous. Running low? Tap any locked hex to pay 10 quarks instead. Work the first ring systematically: on the home planet it's guaranteed to give you all 4 resource types."
+      "body": "You've unlocked your first 5 slots. Each revealed hex either drops a resource or becomes a build spot. Yields taper from the centre outward — inner slots are the most generous. Running low? Tap any locked hex to pay 10 quarks instead. Work the first ring systematically: on the home planet it's guaranteed to give you all 4 resource types.",
+      "ok": "GOT IT"
     }
   },
   "colony_center": {

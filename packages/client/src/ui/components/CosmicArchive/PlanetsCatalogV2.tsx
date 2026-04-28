@@ -626,48 +626,67 @@ const FILTERS: FilterId[] = [
 
 const FILTER_ICONS: Record<FilterId, React.ReactNode> = {
   terraform: (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="8" r="6" />
-      <path d="M5 10 Q8 5 11 10" />
-      <line x1="8" y1="2" x2="8" y2="4" />
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="9" r="5.8" />
+      <path d="M4.7 10.8 C6.6 7.9 9.4 7.1 13.2 8.1" opacity="0.75" />
+      <path d="M8.8 12.1 C10.1 10.7 11.1 10.1 12.9 9.8" opacity="0.55" />
+      <path d="M9 2.2 V4.2 M15.8 9 H13.8" opacity="0.55" />
     </svg>
   ),
   minerals: (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="8,2 14,12 2,12" />
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2.5 L14 8.2 L11.8 15 H6.2 L4 8.2 Z" />
+      <path d="M9 2.5 L9 15 M4 8.2 H14 M6.2 15 L9 8.2 L11.8 15" opacity="0.55" />
     </svg>
   ),
   isotopes: (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="8" r="2" />
-      <ellipse cx="8" cy="8" rx="6" ry="2.5" />
-      <ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(60 8 8)" />
-      <ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(-60 8 8)" />
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="9" r="1.7" fill="currentColor" stroke="none" opacity="0.6" />
+      <ellipse cx="9" cy="9" rx="7" ry="2.8" />
+      <ellipse cx="9" cy="9" rx="7" ry="2.8" transform="rotate(60 9 9)" />
+      <ellipse cx="9" cy="9" rx="7" ry="2.8" transform="rotate(-60 9 9)" />
     </svg>
   ),
   water: (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 3 C8 3 3 9 3 12 a5 5 0 0 0 10 0 C13 9 8 3 8 3z" />
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2.5 C9 2.5 4.3 8.1 4.3 11.4 A4.7 4.7 0 0 0 13.7 11.4 C13.7 8.1 9 2.5 9 2.5 Z" />
+      <path d="M6.4 12.3 C7.7 13.3 10.3 13.3 11.6 12.3" opacity="0.55" />
     </svg>
   ),
   life: (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 14 C8 14 2 10 2 6 a4 4 0 0 1 8 0 a4 4 0 0 1 4-2 c0 2-2 4-6 10z" />
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 15 V9" />
+      <path d="M9 9 C6.2 8.8 4.6 7.3 4.1 4.7 C6.8 4.7 8.4 6.1 9 9 Z" />
+      <path d="M9 10 C11.9 9.7 13.7 8 14 5.2 C11.1 5.3 9.6 7 9 10 Z" />
+      <path d="M6.5 13.8 H11.5" opacity="0.55" />
     </svg>
   ),
   volatiles: (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="6" cy="9" r="3" />
-      <circle cx="10" cy="8" r="3.5" />
-      <circle cx="8" cy="6" r="2.5" />
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="9" r="4.2" />
+      <path d="M3 8.2 C5.5 5.3 12.5 5.3 15 8.2" opacity="0.6" />
+      <path d="M3 11 C5.8 13.5 12.2 13.5 15 11" opacity="0.45" />
+      <path d="M5.4 5.2 C6.9 3.8 11.1 3.8 12.6 5.2" opacity="0.35" />
     </svg>
   ),
   population: (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="5" r="3" />
-      <path d="M2 15 C2 11 14 11 14 15" />
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 13.5 H14.5" />
+      <path d="M4.5 13.5 V10.2 C4.5 7.7 6.5 5.7 9 5.7 C11.5 5.7 13.5 7.7 13.5 10.2 V13.5" />
+      <path d="M7 13.5 V10.6 H11 V13.5" />
+      <path d="M6.2 6.2 L9 3.8 L11.8 6.2" opacity="0.55" />
     </svg>
   ),
+};
+
+const FILTER_ACCENTS: Record<FilterId, string> = {
+  terraform: '#7bb8ff',
+  minerals: '#aa8855',
+  isotopes: '#88aa44',
+  water: '#3b82f6',
+  life: '#44ff88',
+  volatiles: '#55aaaa',
+  population: '#aaccff',
 };
 
 function FilterChip({
@@ -692,6 +711,9 @@ function FilterChip({
     volatiles: 'archive.filter_volatiles',
     population: 'archive.filter_population',
   };
+  const accent = FILTER_ACCENTS[filterId];
+  const label = t(labelKey[filterId]);
+  const expanded = active || showLabel;
 
   return (
     <button
@@ -700,33 +722,38 @@ function FilterChip({
       onMouseLeave={() => { setHover(false); setShowLabel(false); }}
       onTouchStart={() => setShowLabel(true)}
       onTouchEnd={() => setTimeout(() => setShowLabel(false), 1200)}
-      title={t(labelKey[filterId])}
+      title={label}
+      aria-label={label}
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: showLabel ? 5 : 0,
-        padding: showLabel ? '6px 10px' : '6px 8px',
+        justifyContent: 'center',
+        gap: expanded ? 6 : 0,
+        minWidth: expanded ? 0 : 44,
+        height: 44,
+        padding: expanded ? '0 12px' : 0,
         background: active
-          ? 'rgba(68, 102, 136, 0.35)'
+          ? `linear-gradient(180deg, ${accent}24, rgba(10, 18, 32, 0.56))`
           : hover
-          ? 'rgba(30, 45, 65, 0.5)'
-          : 'rgba(10, 15, 25, 0.3)',
+            ? 'rgba(20, 38, 58, 0.42)'
+            : 'rgba(5, 10, 20, 0.2)',
         border: active
-          ? '1px solid #446688'
-          : '1px solid rgba(51, 68, 85, 0.4)',
-        borderRadius: 16,
-        color: active ? '#7bb8ff' : hover ? '#8899aa' : '#556677',
+          ? `1px solid ${accent}aa`
+          : '1px solid rgba(68, 102, 136, 0.36)',
+        borderRadius: 22,
+        color: active ? accent : hover ? '#aabbcc' : '#667788',
         fontFamily: 'monospace',
         fontSize: 10,
         cursor: 'pointer',
-        transition: 'all 0.15s',
+        transition: 'background 0.15s, border-color 0.15s, color 0.15s, min-width 0.15s, padding 0.15s',
         whiteSpace: 'nowrap',
         flexShrink: 0,
+        boxShadow: active ? `0 0 14px ${accent}1f` : 'none',
       }}
     >
       {FILTER_ICONS[filterId]}
-      {showLabel && (
-        <span style={{ letterSpacing: 0.3 }}>{t(labelKey[filterId])}</span>
+      {expanded && (
+        <span style={{ letterSpacing: 0.4, color: active ? '#ccddee' : '#8899aa' }}>{label}</span>
       )}
     </button>
   );
@@ -1579,11 +1606,15 @@ export function PlanetsCatalogV2({
       <div
         style={{
           display: 'flex',
-          gap: 6,
-          flexWrap: 'wrap',
-          paddingBottom: 10,
-          borderBottom: '1px solid rgba(51, 68, 85, 0.2)',
+          gap: 7,
+          flexWrap: 'nowrap',
+          overflowX: 'auto',
+          padding: '2px 2px 12px',
+          borderBottom: '1px solid rgba(51, 68, 85, 0.24)',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
         }}
+        data-swipe-tabs=""
       >
         {FILTERS.map((f) => (
           <FilterChip

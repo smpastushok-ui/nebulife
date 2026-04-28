@@ -278,11 +278,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     return () => { if (iv) clearInterval(iv); };
   }, [collapsed]);
 
-  // Notify parent of unread count changes (system + astra only — global excluded)
+  // Notify parent of all unread chat activity so the collapsed comms button
+  // does not look idle while global messages are waiting.
   const unreadSystem = systemNotifs.filter(n => !n.read).length;
   useEffect(() => {
-    onUnreadChange?.(unreadSystem + unreadAstra);
-  }, [unreadSystem, unreadAstra, onUnreadChange]);
+    onUnreadChange?.(unreadGlobal + unreadSystem + unreadAstra);
+  }, [unreadGlobal, unreadSystem, unreadAstra, onUnreadChange]);
 
   // Mark system notifs as read when viewing system tab
   useEffect(() => {
@@ -458,9 +459,22 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
   // ── Collapsed state ──
   if (collapsed) {
-    const totalUnread = unreadSystem + unreadAstra; // global excluded from badge
+    const totalUnread = unreadGlobal + unreadSystem + unreadAstra;
+    const chatIcon = (
+      <svg width="23" height="21" viewBox="0 0 24 22" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M8.5 14.5 L12 5 L15.5 14.5" />
+        <path d="M10.2 10.2 H13.8" />
+        <path d="M6.2 7.8 C4.8 9.1 4 10.9 4 12.8" opacity="0.5" />
+        <path d="M17.8 7.8 C19.2 9.1 20 10.9 20 12.8" opacity="0.5" />
+        <path d="M3.3 4.8 C1.9 6.9 1.2 9.3 1.2 11.9" opacity="0.32" />
+        <path d="M20.7 4.8 C22.1 6.9 22.8 9.3 22.8 11.9" opacity="0.32" />
+        <path d="M7 17 H17" opacity="0.7" />
+      </svg>
+    );
     return (
       <button
+        title={t('chat.title')}
+        aria-label={t('chat.title')}
         onClick={() => {
           playSfx('ui-click', 0.07);
           // Auto-select the tab with unread messages (priority: system > astra > global)
@@ -469,37 +483,47 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
           } else if (unreadAstra > 0) {
             setTab('astra');
             setSeenDigestWeekDate(latestDigestWeekDate); // mark as read immediately
+          } else if (unreadGlobal > 0) {
+            setTab('global');
           }
           setCollapsed(false);
         }}
         style={{
           position: 'fixed',
-          bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(62px + env(safe-area-inset-bottom, 0px))',
           right: 'calc(16px + env(safe-area-inset-right, 0px))',
           zIndex: 9700,
-          background: totalUnread > 0 ? 'rgba(8,16,32,0.97)' : 'rgba(10,15,25,0.96)',
-          border: `1px solid ${totalUnread > 0 ? 'rgba(68,136,255,0.35)' : '#334455'}`,
-          borderRadius: 6,
-          color: totalUnread > 0 ? '#88bbff' : '#aabbcc',
+          width: 48,
+          height: 48,
+          boxSizing: 'border-box',
+          background: totalUnread > 0
+            ? 'linear-gradient(180deg, rgba(18, 38, 58, 0.62), rgba(5, 10, 20, 0.58))'
+            : 'linear-gradient(180deg, rgba(12, 24, 40, 0.50), rgba(5, 10, 20, 0.50))',
+          border: `1px solid ${totalUnread > 0 ? 'rgba(120, 184, 255, 0.62)' : 'rgba(68, 102, 136, 0.5)'}`,
+          borderRadius: 3,
+          color: totalUnread > 0 ? '#88bbff' : '#9fb8d0',
           fontFamily: 'monospace',
-          fontSize: 11,
-          padding: '6px 14px',
+          padding: 0,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
+          justifyContent: 'center',
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.24)',
           ...(totalUnread > 0 ? { animation: 'chat-neon-pulse 2s ease-in-out infinite' } : {}),
         }}
       >
-        {t('chat.title')}
+        {chatIcon}
         {totalUnread > 0 && (
           <span style={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
             background: unreadSystem > 0 ? '#4488aa' : '#44ff88',
             color: '#020510',
-            fontSize: 9,
+            fontSize: 8,
             fontWeight: 'bold',
             borderRadius: 8,
-            padding: '1px 5px',
+            padding: '1px 4px',
             minWidth: 14,
             textAlign: 'center',
           }}>

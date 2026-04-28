@@ -25,7 +25,6 @@ import { useHexState } from './useHexState.js';
 import { HexGrid } from './HexGrid.js';
 import type { HexPlanetSize } from './hex-utils.js';
 import { HexBuildMenu, getAlphaHarvesterPrice } from './HexBuildMenu.js';
-import { SurfaceDPad } from '../SurfaceDPad.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
@@ -591,12 +590,6 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             onClose={handleBuildClose}
           />
         )}
-
-        {/* Zoom controls (bottom-left) */}
-        <SurfaceDPad
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-        />
 
         {/* Planet name load sound — plays once on surface mount */}
         <PlanetNameSound />

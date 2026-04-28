@@ -21,8 +21,8 @@ export const KEYFRAMES_CSS = `
 }
 
 @keyframes cmdbar-terminal-pulse {
-  0%, 100% { border-top-color: rgba(68, 136, 170, 0.5); }
-  50%      { border-top-color: rgba(120, 184, 255, 0.8); }
+  0%, 100% { border-color: rgba(68, 102, 136, 0.42); }
+  50%      { border-color: rgba(120, 184, 255, 0.62); }
 }
 `;
 
@@ -35,37 +35,36 @@ export const barStyle: React.CSSProperties = {
   bottom: 0,
   left: 0,
   right: 0,
-  minHeight: 62,
+  minHeight: 50,
   height: 'auto',
-  background: 'linear-gradient(180deg, rgba(3, 7, 14, 0.72), rgba(2, 5, 10, 0.96))',
-  borderTop: '1px solid rgba(60, 100, 160, 0.12)',
+  background: 'linear-gradient(180deg, rgba(3, 7, 14, 0.24), rgba(2, 5, 10, 0.72))',
+  borderTop: '1px solid rgba(51, 68, 85, 0.36)',
   zIndex: 9500,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '6px 10px',
-  paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+  padding: '4px 8px calc(4px + env(safe-area-inset-bottom, 0px))',
   fontFamily: 'monospace',
   color: '#8899aa',
   pointerEvents: 'auto',
 };
 
 export const dockStyle: React.CSSProperties = {
-  width: 'min(100%, 560px)',
-  minHeight: 58,
+  width: 'min(100%, 520px)',
+  minHeight: 48,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 5,
-  padding: '4px 6px',
+  gap: 4,
+  padding: '3px 5px',
   boxSizing: 'border-box',
-  background: 'rgba(5, 10, 20, 0.92)',
-  backdropFilter: 'blur(12px)',
-  WebkitBackdropFilter: 'blur(12px)',
-  border: '1px solid rgba(60, 100, 160, 0.18)',
-  borderRadius: 8,
-  boxShadow: '0 -6px 24px rgba(0, 0, 0, 0.35)',
-  overflow: 'hidden',
+  background: 'rgba(5, 10, 20, 0.58)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
+  border: '1px solid rgba(51, 68, 85, 0.7)',
+  borderRadius: 5,
+  boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.22)',
+  overflow: 'visible',
 };
 
 export const sectionLeft: React.CSSProperties = {
@@ -81,7 +80,7 @@ export const sectionCenter: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 5,
+  gap: 4,
   flex: '1 1 auto',
   minWidth: 0,
   overflow: 'hidden',
@@ -106,8 +105,8 @@ export const toolButtonBase: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'rgba(20, 30, 50, 0.6)',
-  border: '1px solid rgba(60, 100, 160, 0.25)',
+  background: 'rgba(10, 18, 32, 0.38)',
+  border: '1px solid rgba(68, 102, 136, 0.42)',
   borderRadius: 3,
   color: '#8899aa',
   fontFamily: 'monospace',
@@ -133,23 +132,22 @@ export const toolButtonAccent: React.CSSProperties = {
 
 export const toolButtonTerminal: React.CSSProperties = {
   ...toolButtonBase,
-  width: 'clamp(46px, 14vw, 62px)',
-  padding: '6px 4px',
-  minHeight: 54,
+  width: 'clamp(42px, 11.5vw, 48px)',
+  height: 44,
+  padding: '4px 3px',
+  minHeight: 44,
   boxSizing: 'border-box',
-  color: '#aaccee',
-  borderColor: 'rgba(68, 136, 170, 0.5)',
-  borderTop: '2px solid #4488aa',
-  background: 'rgba(20, 40, 65, 0.7)',
+  color: '#9fb8d0',
+  borderColor: 'rgba(68, 102, 136, 0.5)',
+  background: 'rgba(10, 18, 32, 0.42)',
   letterSpacing: 1.5,
   fontSize: 11,
-  animation: 'cmdbar-terminal-pulse 3s ease-in-out infinite',
 };
 
 export const toolButtonActive: React.CSSProperties = {
-  borderColor: 'rgba(120, 184, 255, 0.5)',
+  borderColor: 'rgba(120, 184, 255, 0.62)',
   color: '#aaccee',
-  animation: 'cmdbar-glow 2s ease-in-out infinite',
+  background: 'rgba(20, 38, 58, 0.5)',
 };
 
 export const zoomButtonStyle: React.CSSProperties = {

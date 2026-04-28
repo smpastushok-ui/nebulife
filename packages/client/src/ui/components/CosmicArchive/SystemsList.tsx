@@ -312,10 +312,11 @@ export function SystemsList({
           display: 'grid',
           gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
           gap: isMobile ? 4 : 4,
-          padding: isMobile ? '4px 6px' : '6px 8px',
+          padding: isMobile ? '5px 8px 7px' : '6px 10px 8px',
           alignItems: 'center',
-          borderBottom: '1px solid rgba(51, 68, 85, 0.2)',
-          marginBottom: 4,
+          borderBottom: '1px solid rgba(51, 68, 85, 0.24)',
+          background: 'rgba(5, 10, 20, 0.28)',
+          marginBottom: 6,
         }}
       >
         <span style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1 }}>{t('archive.col_name')}</span>
@@ -434,14 +435,13 @@ export function SystemsList({
                   color: locked ? '#445566' : '#667788',
                   textTransform: 'uppercase',
                   letterSpacing: 1.5,
-                  padding: isMobile ? '10px 6px 4px' : '12px 8px 4px',
-                  borderBottom: '1px solid rgba(51, 68, 85, 0.15)',
-                  marginBottom: 2,
+                  padding: isMobile ? '12px 8px 6px' : '14px 10px 6px',
+                  marginBottom: 4,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  background: 'transparent',
-                  border: 'none',
+                  background: locked ? 'transparent' : 'rgba(5, 10, 20, 0.18)',
+                  border: '1px solid rgba(51, 68, 85, 0.12)',
                   borderRadius: 0,
                   width: '100%',
                   textAlign: 'left',
@@ -498,18 +498,18 @@ export function SystemsList({
                     display: 'grid',
                     gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
                     gap: isMobile ? 4 : 8,
-                    padding: isMobile ? '6px 6px' : '8px 12px',
+                    padding: isMobile ? '7px 8px' : '8px 12px',
                     background: researching
                       ? undefined
                       : isHovered
-                        ? 'rgba(25, 35, 50, 0.5)'
-                        : 'rgba(10, 15, 25, 0.3)',
+                        ? 'rgba(20, 38, 58, 0.42)'
+                        : 'rgba(5, 10, 20, 0.18)',
                     border: isMobile
                       ? 'none'
                       : researching
-                        ? '1px solid rgba(68, 136, 170, 0.25)'
-                        : '1px solid rgba(51, 68, 85, 0.15)',
-                    borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.1)' : undefined,
+                        ? '1px solid rgba(68, 136, 170, 0.28)'
+                        : '1px solid rgba(51, 68, 85, 0.18)',
+                    borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.14)' : undefined,
                     borderRadius: isMobile ? 0 : 3,
                     fontFamily: 'monospace',
                     fontSize: 11,

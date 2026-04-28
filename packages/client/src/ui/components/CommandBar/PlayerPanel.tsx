@@ -9,7 +9,7 @@ import { playSfx } from '../../../audio/SfxPlayer.js';
 
 function PlayerBadgeSVG({ color }: { color: string }) {
   return (
-    <svg width="16" height="18" viewBox="0 0 16 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="21" height="23" viewBox="0 0 16 18" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Shield shape */}
       <path
         d="M8 1L14 3.5V8C14 11.5 11.5 14.5 8 16.5C4.5 14.5 2 11.5 2 8V3.5L8 1Z"
@@ -60,25 +60,33 @@ function PlayerPanelInner({ playerName, playerLevel = 1, playerXP = 0, onClick }
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          justifyContent: 'center',
           gap: 3,
-          width: 'clamp(44px, 13vw, 54px)',
-          background: hovered ? 'rgba(30, 50, 80, 0.5)' : 'none',
-          border: `1px solid ${hovered ? 'rgba(68,136,170,0.4)' : 'transparent'}`,
-          borderRadius: 4,
-          padding: '4px 6px',
-          minHeight: 46,
+          width: 'clamp(42px, 11.5vw, 48px)',
+          height: 44,
+          boxSizing: 'border-box',
+          position: 'relative',
+          background: hovered ? 'rgba(20, 38, 58, 0.5)' : 'rgba(10, 18, 32, 0.42)',
+          border: `1px solid ${hovered ? 'rgba(120, 184, 255, 0.62)' : 'rgba(68, 102, 136, 0.5)'}`,
+          borderRadius: 3,
+          padding: '3px 5px',
+          minHeight: 44,
           cursor: 'pointer',
-          transition: 'background 0.15s, border-color 0.15s',
+          transition: 'all 0.2s',
         }}
       >
         {/* Badge + level row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <PlayerBadgeSVG color={accentColor} />
           <span style={{
-            fontSize: 10,
+            position: 'absolute',
+            top: 5,
+            right: 6,
+            fontSize: 9,
             color: accentColor,
             fontFamily: 'monospace',
             letterSpacing: 0.5,
+            lineHeight: 1,
           }}>
             {playerLevel}
           </span>
@@ -87,7 +95,7 @@ function PlayerPanelInner({ playerName, playerLevel = 1, playerXP = 0, onClick }
         <div style={{
           width: '100%',
           minWidth: 36,
-          height: 2,
+          height: 1,
           background: 'rgba(51, 68, 85, 0.5)',
           borderRadius: 1,
           overflow: 'hidden',

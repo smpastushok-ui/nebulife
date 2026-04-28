@@ -530,6 +530,10 @@ export const uk = {
   'app.exit_confirm': 'Вийти з гри?',
   'app.cancel':       'Скасувати',
   'app.exit':         'Вийти',
+
+  // Scene controls
+  'scene_controls.zoom_in':  'Наблизити',
+  'scene_controls.zoom_out': 'Віддалити',
 } as const;
 
 export type TranslationKey = keyof typeof uk;

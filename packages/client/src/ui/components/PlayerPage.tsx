@@ -128,6 +128,33 @@ export function PlayerPage({
   const progress = levelProgress(playerXP);
   const isMaxLevel = playerLevel >= MAX_PLAYER_LEVEL;
   const accentColor = isMaxLevel ? '#44ff88' : '#4488aa';
+  const panelStyle: React.CSSProperties = {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '14px 16px',
+    background: 'linear-gradient(180deg, rgba(10, 18, 32, 0.72), rgba(5, 10, 20, 0.66))',
+    border: '1px solid rgba(68, 102, 136, 0.42)',
+    borderRadius: 5,
+    boxShadow: '0 8px 28px rgba(0, 0, 0, 0.22)',
+  };
+  const sectionLabelStyle: React.CSSProperties = {
+    fontSize: 10,
+    color: '#667788',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  };
+  const actionButtonStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '9px 0',
+    background: 'rgba(20, 38, 58, 0.44)',
+    border: '1px solid rgba(68, 136, 170, 0.42)',
+    borderRadius: 3,
+    color: '#aaccee',
+    fontFamily: 'monospace',
+    fontSize: 11,
+    cursor: 'pointer',
+    transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+  };
 
   const handleTopUp = () => {
     playSfx('ui-click', 0.07);
@@ -158,7 +185,7 @@ export function PlayerPage({
         position: 'fixed',
         inset: 0,
         zIndex: 9700,
-        background: 'rgba(2, 5, 16, 0.98)',
+        background: 'radial-gradient(circle at 50% -10%, rgba(68, 136, 170, 0.13), transparent 36%), rgba(2, 5, 16, 0.97)',
         fontFamily: 'monospace',
         display: 'flex',
         flexDirection: 'column',
@@ -173,13 +200,13 @@ export function PlayerPage({
           position: 'absolute',
           top: 'calc(14px + env(safe-area-inset-top, 0px))',
           right: 'calc(14px + env(safe-area-inset-right, 0px))',
-          background: 'none',
-          border: '1px solid rgba(51,68,85,0.3)',
+          background: 'rgba(10, 18, 32, 0.44)',
+          border: '1px solid rgba(68,102,136,0.42)',
           borderRadius: 3,
-          color: '#556677',
+          color: '#8899aa',
           fontFamily: 'monospace',
           fontSize: 11,
-          padding: '4px 12px',
+          padding: '6px 12px',
           cursor: 'pointer',
           transition: 'color 0.15s, border-color 0.15s',
           zIndex: 1,
@@ -189,8 +216,8 @@ export function PlayerPage({
           (e.target as HTMLElement).style.borderColor = '#556677';
         }}
         onMouseLeave={(e) => {
-          (e.target as HTMLElement).style.color = '#556677';
-          (e.target as HTMLElement).style.borderColor = 'rgba(51,68,85,0.3)';
+          (e.target as HTMLElement).style.color = '#8899aa';
+          (e.target as HTMLElement).style.borderColor = 'rgba(68,102,136,0.42)';
         }}
       >
         {t('common.close')}
@@ -198,16 +225,20 @@ export function PlayerPage({
 
       {/* Content card */}
       <div style={{
-        maxWidth: 340,
+        maxWidth: 420,
         width: '100%',
-        paddingTop: 48,
-        paddingLeft: 24,
-        paddingRight: 24,
-        paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+        boxSizing: 'border-box',
+        marginTop: 'calc(44px + env(safe-area-inset-top, 0px))',
+        marginBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+        padding: '22px 20px',
+        background: 'linear-gradient(180deg, rgba(5, 10, 20, 0.72), rgba(5, 10, 20, 0.48))',
+        border: '1px solid rgba(51, 68, 85, 0.62)',
+        borderRadius: 8,
+        boxShadow: '0 18px 48px rgba(0, 0, 0, 0.34)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 24,
+        gap: 16,
       }}>
         {/* Avatar */}
         <AvatarSVG color={accentColor} />
@@ -269,11 +300,7 @@ export function PlayerPage({
 
         {/* Quarks section */}
         <div style={{
-          width: '100%',
-          padding: '14px 16px',
-          background: 'rgba(10,15,25,0.6)',
-          border: '1px solid rgba(51,68,85,0.2)',
-          borderRadius: 4,
+          ...panelStyle,
           display: 'flex',
           flexDirection: 'column',
           gap: 12,
@@ -305,22 +332,15 @@ export function PlayerPage({
           <button
             onClick={handleTopUp}
             style={{
-              width: '100%',
-              padding: '8px 0',
-              background: 'rgba(68,102,136,0.15)',
-              border: '1px solid rgba(68,136,170,0.35)',
-              borderRadius: 3,
-              color: '#aaccee',
-              fontFamily: 'monospace',
-              fontSize: 11,
-              cursor: 'pointer',
-              transition: 'background 0.15s',
+              ...actionButtonStyle,
             }}
             onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.background = 'rgba(68,102,136,0.3)';
+              (e.target as HTMLElement).style.background = 'rgba(30, 60, 88, 0.58)';
+              (e.target as HTMLElement).style.borderColor = 'rgba(120, 184, 255, 0.54)';
             }}
             onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.background = 'rgba(68,102,136,0.15)';
+              (e.target as HTMLElement).style.background = actionButtonStyle.background as string;
+              (e.target as HTMLElement).style.borderColor = 'rgba(68, 136, 170, 0.42)';
             }}
           >
             {t('player.top_up_quarks')}
@@ -344,24 +364,18 @@ export function PlayerPage({
           <button
             onClick={() => { playSfx('ui-click', 0.07); onLinkAccount(); }}
             style={{
-              width: '100%',
+              ...actionButtonStyle,
               padding: '12px 0',
-              background: 'rgba(68,136,170,0.15)',
-              border: '1px solid #4488aa',
-              borderRadius: 3,
               color: '#7bb8ff',
-              fontFamily: 'monospace',
               fontSize: 12,
               fontWeight: 'bold',
               letterSpacing: 1,
-              cursor: 'pointer',
-              transition: 'background 0.15s',
             }}
             onMouseEnter={(e) => {
               (e.target as HTMLElement).style.background = 'rgba(68,136,170,0.25)';
             }}
             onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.background = 'rgba(68,136,170,0.15)';
+              (e.target as HTMLElement).style.background = actionButtonStyle.background as string;
             }}
           >
             {t('player.create_account', 'CREATE ACCOUNT')}
@@ -380,23 +394,15 @@ export function PlayerPage({
         <button
           onClick={() => { playSfx('ui-click', 0.07); onLogout(); }}
           style={{
-            width: '100%',
-            padding: '10px 0',
-            background: 'rgba(20,30,50,0.5)',
-            border: '1px solid rgba(51,68,85,0.3)',
-            borderRadius: 3,
+            ...actionButtonStyle,
             color: '#8899aa',
-            fontFamily: 'monospace',
-            fontSize: 11,
-            cursor: 'pointer',
-            transition: 'background 0.15s, color 0.15s',
           }}
           onMouseEnter={(e) => {
             (e.target as HTMLElement).style.background = 'rgba(30,45,70,0.5)';
             (e.target as HTMLElement).style.color = '#aabbcc';
           }}
           onMouseLeave={(e) => {
-            (e.target as HTMLElement).style.background = 'rgba(20,30,50,0.5)';
+            (e.target as HTMLElement).style.background = actionButtonStyle.background as string;
             (e.target as HTMLElement).style.color = '#8899aa';
           }}
         >
@@ -408,16 +414,12 @@ export function PlayerPage({
           <>
             <div style={{ width: '100%', height: 1, background: 'rgba(51,68,85,0.3)' }} />
             <div style={{
-              width: '100%',
-              padding: '14px 16px',
-              background: 'rgba(10,15,25,0.6)',
-              border: '1px solid rgba(51,68,85,0.2)',
-              borderRadius: 4,
+              ...panelStyle,
               display: 'flex',
               flexDirection: 'column',
               gap: 10,
             }}>
-              <div style={{ fontSize: 10, color: '#556677', letterSpacing: 0.5 }}>
+              <div style={sectionLabelStyle}>
                 {i18n.language === 'en' ? 'NOTIFICATIONS' : 'СПОВІЩЕННЯ'}
               </div>
 
@@ -491,16 +493,13 @@ export function PlayerPage({
             {/* Audio section */}
             {onChangeAmbientVolume && (
               <div style={{
+                ...panelStyle,
                 marginTop: 12,
-                padding: '14px 16px',
-                background: 'rgba(10,15,25,0.6)',
-                border: '1px solid rgba(51,68,85,0.2)',
-                borderRadius: 4,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 10,
               }}>
-                <div style={{ fontSize: 10, color: '#556677', letterSpacing: 0.5 }}>
+                <div style={sectionLabelStyle}>
                   {i18n.language === 'en' ? 'AUDIO' : 'АУДІО'}
                 </div>
 

@@ -297,9 +297,9 @@ function CommandModeIcon({
   disabled?: boolean;
 }) {
   const iconStyle: React.CSSProperties = {
-    width: 29,
-    height: 27,
-    opacity: disabled ? 0.5 : 1,
+    width: 23,
+    height: 21,
+    opacity: disabled ? 0.45 : 0.78,
     transform: active ? 'translateY(-1px)' : 'none',
     transition: 'transform 0.22s ease, opacity 0.22s ease',
   };
@@ -309,7 +309,7 @@ function CommandModeIcon({
       style={{
         width: '100%',
         minWidth: 0,
-        height: 34,
+        height: 28,
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -317,7 +317,7 @@ function CommandModeIcon({
       }}
     >
       {kind === 'surface' && (
-        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 3 L25 8.8 L14 14.6 L3 8.8 Z" />
           <path d="M3 8.8 V14.2 L14 20 L25 14.2 V8.8" opacity="0.45" />
           <path d="M8.5 10.6 L12 8.4 L15.3 10.3 L19.7 7.9" opacity="0.65" />
@@ -326,7 +326,7 @@ function CommandModeIcon({
         </svg>
       )}
       {kind === 'terminal' && (
-        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
           <rect x="4" y="4" width="20" height="15" rx="2.2" />
           <path d="M8 9 L10.4 11 L8 13" />
           <path d="M13 13 H19" opacity={active ? 0.25 : 0.65} />
@@ -335,14 +335,14 @@ function CommandModeIcon({
         </svg>
       )}
       {kind === 'academy' && (
-        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
           <path d="M5 5.5 C8.2 4.2 11.2 4.4 14 6.2 C16.8 4.4 19.8 4.2 23 5.5 V18.5 C19.8 17.2 16.8 17.4 14 19.2 C11.2 17.4 8.2 17.2 5 18.5 Z" />
           <path d="M14 6.2 V19.2" opacity="0.45" />
           <path d="M14 8.9 L15.1 11.1 L17.5 11.5 L15.75 13.1 L16.2 15.4 L14 14.25 L11.8 15.4 L12.25 13.1 L10.5 11.5 L12.9 11.1 Z" fill="currentColor" fillOpacity="0.22" />
         </svg>
       )}
       {kind === 'arena' && (
-        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="14" cy="12" r="7.5" opacity="0.65" />
           <path d="M14 4 V7 M14 17 V20 M6 12 H9 M19 12 H22" opacity="0.55" />
           <path d="M14 8.2 L17.8 16 L14 14.2 L10.2 16 Z" fill="currentColor" fillOpacity="0.16" />
@@ -5911,6 +5911,18 @@ function AppInner() {
     }],
   });
 
+  // Surface already owns the "surface" state, so that button disappears there.
+  // Keep the remaining trio composed around Terminal instead of leaving a
+  // lopsided gap: Academy | Terminal | Arena.
+  if (effectiveScene === 'surface') {
+    const terminalIndex = toolGroups.findIndex(group => group.items[0]?.id === 'command-center');
+    const academyIndex = toolGroups.findIndex(group => group.items[0]?.id === 'academy');
+    if (terminalIndex >= 0 && academyIndex > terminalIndex) {
+      const [academyGroup] = toolGroups.splice(academyIndex, 1);
+      toolGroups.splice(terminalIndex, 0, academyGroup);
+    }
+  }
+
 
 
   if (state.error) {
@@ -6226,21 +6238,37 @@ function AppInner() {
           onBack={handleCloseSurface}
           backLabel={t('common.back')}
           hidden={hideLeftPanel}
-          extraButtons={[{
-            title: t('nav.exosphere'),
-            icon: (
-              <svg
-                width="14" height="14" viewBox="0 0 16 16"
-                fill="none" stroke="currentColor" strokeWidth="1.2"
-                style={{ animation: 'nebu-planet-spin 5s linear infinite', transformOrigin: '50% 50%', display: 'block' }}
-              >
-                <circle cx="8" cy="8" r="5.5" />
-                <ellipse cx="8" cy="8" rx="5.5" ry="2.2" />
-                <line x1="2.5" y1="8" x2="13.5" y2="8" strokeWidth="0.8" strokeOpacity="0.5" />
-              </svg>
-            ),
-            onClick: handleCloseSurface,
-          }]}
+          extraButtons={[
+            {
+              title: t('nav.exosphere'),
+              icon: (
+                <svg
+                  width="14" height="14" viewBox="0 0 16 16"
+                  fill="none" stroke="currentColor" strokeWidth="1.2"
+                  style={{ animation: 'nebu-planet-spin 5s linear infinite', transformOrigin: '50% 50%', display: 'block' }}
+                >
+                  <circle cx="8" cy="8" r="5.5" />
+                  <ellipse cx="8" cy="8" rx="5.5" ry="2.2" />
+                  <line x1="2.5" y1="8" x2="13.5" y2="8" strokeWidth="0.8" strokeOpacity="0.5" />
+                </svg>
+              ),
+              onClick: handleCloseSurface,
+            },
+            {
+              title: t('scene_controls.zoom_in'),
+              icon: (
+                <span style={{ fontSize: 18, lineHeight: 1, fontWeight: 600 }}>+</span>
+              ),
+              onClick: () => surfaceViewRef.current?.zoomIn(),
+            },
+            {
+              title: t('scene_controls.zoom_out'),
+              icon: (
+                <span style={{ fontSize: 18, lineHeight: 1, fontWeight: 600 }}>{'\u2212'}</span>
+              ),
+              onClick: () => surfaceViewRef.current?.zoomOut(),
+            },
+          ]}
         />
       )}
 

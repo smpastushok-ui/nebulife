@@ -194,7 +194,7 @@ const overlayStyle: React.CSSProperties = {
   right: 'env(safe-area-inset-right, 0px)',
   bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
   zIndex: 9600,
-  background: 'rgba(2, 5, 16, 0.98)',
+  background: 'radial-gradient(circle at 50% -18%, rgba(68, 136, 170, 0.12), transparent 36%), linear-gradient(180deg, rgba(2, 5, 16, 0.96), rgba(1, 3, 10, 0.98))',
   fontFamily: 'monospace',
   display: 'flex',
   flexDirection: 'column',
@@ -205,16 +205,20 @@ const headerStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  padding: '16px 24px 12px',
-  borderBottom: '1px solid rgba(51, 68, 85, 0.4)',
+  padding: '10px 14px 9px',
+  borderBottom: '1px solid rgba(51, 68, 85, 0.34)',
+  background: 'rgba(5, 10, 20, 0.36)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
   flexShrink: 0,
 };
 
 const mainTabBarStyle: React.CSSProperties = {
   display: 'flex',
-  gap: 2,
-  padding: '0 24px',
-  borderBottom: '1px solid rgba(51, 68, 85, 0.3)',
+  gap: 4,
+  padding: '0 12px',
+  borderBottom: '1px solid rgba(51, 68, 85, 0.26)',
+  background: 'rgba(5, 10, 20, 0.24)',
   flexShrink: 0,
   overflowX: 'auto',
   WebkitOverflowScrolling: 'touch',
@@ -224,11 +228,11 @@ const mainTabBarStyle: React.CSSProperties = {
 
 const subTabBarStyle: React.CSSProperties = {
   display: 'flex',
-  gap: 2,
-  padding: '0 24px',
-  borderBottom: '1px solid rgba(51, 68, 85, 0.2)',
+  gap: 4,
+  padding: '0 12px',
+  borderBottom: '1px solid rgba(51, 68, 85, 0.22)',
   flexShrink: 0,
-  background: 'rgba(8, 12, 22, 0.5)',
+  background: 'rgba(8, 12, 22, 0.34)',
   overflowX: 'auto',
   WebkitOverflowScrolling: 'touch',
   scrollbarWidth: 'none',
@@ -238,16 +242,18 @@ const subTabBarStyle: React.CSSProperties = {
 const contentStyle: React.CSSProperties = {
   flex: 1,
   overflow: 'auto',
-  padding: '20px 24px',
+  padding: '14px 14px 20px',
 };
 
 const headerIconBtnStyle: React.CSSProperties = {
-  background: 'none',
-  border: '1px solid rgba(51, 68, 85, 0.3)',
+  width: 34,
+  height: 34,
+  background: 'rgba(10, 18, 32, 0.42)',
+  border: '1px solid rgba(68, 102, 136, 0.38)',
   borderRadius: 3,
-  color: '#667788',
+  color: '#8899aa',
   cursor: 'pointer',
-  padding: '4px 6px',
+  padding: 0,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -653,8 +659,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     >
       {/* Header */}
       <div style={headerStyle}>
-        {/* Left: Back + Title + Quick nav icons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Left: Back + title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           {/* Back button */}
           <button
             onClick={handleBack}
@@ -665,8 +671,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
               e.currentTarget.style.borderColor = '#667788';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#667788';
-              e.currentTarget.style.borderColor = 'rgba(51, 68, 85, 0.3)';
+              e.currentTarget.style.color = '#8899aa';
+              e.currentTarget.style.borderColor = 'rgba(68, 102, 136, 0.38)';
             }}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -675,10 +681,18 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           </button>
 
           {/* Title */}
-          <span style={{ fontSize: 15, color: '#ccddee', letterSpacing: 1 }}>
-            {t('archive.title')}
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span style={{ fontSize: 14, color: '#ccddee', letterSpacing: 1.6, lineHeight: 1.2 }}>
+              {t('archive.title')}
+            </span>
+            <span style={{ fontSize: 9, color: '#556677', letterSpacing: 1.1, textTransform: 'uppercase', marginTop: 2 }}>
+              {currentTabDef.label} / {currentTabDef.subTabs.find((s) => s.id === currentSubTab)?.label ?? currentSubTab}
+            </span>
+          </div>
+        </div>
 
+        {/* Right: quick nav + mute + close */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Quick nav: home */}
           <button
             onClick={handleGoHome}
@@ -689,8 +703,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
               e.currentTarget.style.borderColor = '#44ff88';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#667788';
-              e.currentTarget.style.borderColor = 'rgba(51, 68, 85, 0.3)';
+              e.currentTarget.style.color = '#8899aa';
+              e.currentTarget.style.borderColor = 'rgba(68, 102, 136, 0.38)';
             }}
           >
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
@@ -709,8 +723,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
               e.currentTarget.style.borderColor = '#667788';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#667788';
-              e.currentTarget.style.borderColor = 'rgba(51, 68, 85, 0.3)';
+              e.currentTarget.style.color = '#8899aa';
+              e.currentTarget.style.borderColor = 'rgba(68, 102, 136, 0.38)';
             }}
           >
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
@@ -719,12 +733,6 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
               <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" />
             </svg>
           </button>
-        </div>
-
-        {/* Right: mute toggle + close button. Close has the same footprint
-            as the top-left nav icons and a red border so it reads as
-            "exit/destructive". Mute state persists on device only. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button
             onClick={() => {
               const next = !terminalMuted;
@@ -734,7 +742,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
             style={{
               ...headerIconBtnStyle,
               color: terminalMuted ? '#cc4444' : '#667788',
-              borderColor: terminalMuted ? 'rgba(204,68,68,0.4)' : 'rgba(51,68,85,0.3)',
+              borderColor: terminalMuted ? 'rgba(204,68,68,0.42)' : 'rgba(68,102,136,0.38)',
             }}
             title={terminalMuted ? t('common.unmute') : t('common.mute')}
           >
@@ -845,18 +853,23 @@ function TabButton({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        background: 'none',
+        background: active
+          ? 'linear-gradient(180deg, rgba(20, 38, 58, 0.62), rgba(10, 18, 32, 0.36))'
+          : hover
+            ? 'rgba(20, 30, 45, 0.34)'
+            : 'transparent',
         border: 'none',
         borderBottom: active
-          ? '2px solid #446688'
-          : '2px solid transparent',
-        padding: small ? '8px 14px' : '10px 18px',
+          ? '1px solid rgba(120, 184, 255, 0.72)'
+          : '1px solid transparent',
+        borderRadius: '4px 4px 0 0',
+        padding: small ? '8px 14px' : '9px 18px',
         fontFamily: 'monospace',
         fontSize: small ? 11 : 12,
-        color: dimmed ? '#334455' : active ? '#ccddee' : hover ? '#8899aa' : '#556677',
+        color: dimmed ? '#334455' : active ? '#ccddee' : hover ? '#aabbcc' : '#667788',
         cursor: 'pointer',
-        transition: 'color 0.15s, border-color 0.15s',
-        letterSpacing: small ? 0 : 0.5,
+        transition: 'color 0.15s, border-color 0.15s, background 0.15s',
+        letterSpacing: small ? 0.2 : 0.8,
         whiteSpace: 'nowrap',
         flexShrink: 0,
       }}

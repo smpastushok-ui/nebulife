@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { NavigationMenuItem } from './types.js';
-import { toolButtonBase } from './styles.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 
 interface NavigationMenuProps {
@@ -9,12 +8,12 @@ interface NavigationMenuProps {
   disabled?: boolean;
 }
 
-const compassIcon = (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
-    <circle cx="8" cy="8" r="7" />
-    <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" />
-    <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2" />
-    <path d="M6.5 6.5L5 11l4.5-1.5L11 5z" strokeWidth="0" fill="currentColor" opacity="0.3" />
+const screenSwitcherIcon = (
+  <svg width="23" height="20" viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 6.5 H18.5 V15 H7 Z" />
+    <path d="M10 3.5 H21.5 V12" opacity="0.45" />
+    <path d="M4 9.5 H15.5 V18 H4 Z" opacity="0.65" />
+    <path d="M21 15 L24 12 L21 9" opacity="0.7" />
   </svg>
 );
 
@@ -69,21 +68,42 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
       <button
         ref={btnRef}
         onClick={handleToggle}
+        title={activeItem?.label}
         style={{
-          ...toolButtonBase,
-          width: 'clamp(44px, 13vw, 54px)',
-          height: 54,
-          minHeight: 54,
+          width: 'clamp(42px, 11.5vw, 48px)',
+          height: 44,
+          minHeight: 44,
           padding: 0,
-          gap: 6,
-          color: open ? '#aaccee' : toolButtonBase.color,
-          borderColor: open ? 'rgba(100, 160, 220, 0.4)' : toolButtonBase.borderColor,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          background: open ? 'rgba(20, 38, 58, 0.5)' : 'rgba(10, 18, 32, 0.42)',
+          border: `1px solid ${open ? 'rgba(120, 184, 255, 0.62)' : 'rgba(68, 102, 136, 0.5)'}`,
+          borderRadius: 3,
+          color: open ? '#aaccee' : '#9fb8d0',
+          fontFamily: 'monospace',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          transition: 'all 0.2s',
           opacity: disabled ? 0.4 : 1,
           pointerEvents: disabled ? 'none' as const : 'auto' as const,
         }}
       >
-        {activeItem?.icon ?? compassIcon}
-        <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style={{ opacity: 0.5, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
+        {screenSwitcherIcon}
+        <svg
+          width="8"
+          height="8"
+          viewBox="0 0 8 8"
+          fill="currentColor"
+          style={{
+            position: 'absolute',
+            right: 4,
+            bottom: 4,
+            opacity: 0.45,
+            transform: open ? 'rotate(180deg)' : undefined,
+            transition: 'transform 0.15s',
+          }}
+        >
           <path d="M1 5.5L4 2.5L7 5.5" stroke="currentColor" fill="none" strokeWidth="1.2" />
         </svg>
       </button>
