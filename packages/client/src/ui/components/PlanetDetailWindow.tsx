@@ -563,20 +563,27 @@ function NavBtn({
 
 // ─── Resources section for characteristics panel ─────────────────────────────
 
+// Water molar mass breakdown: H₂O = 18 g/mol → H fraction = 2/18 = 0.1111, O fraction = 16/18 = 0.8889
+const WATER_H_FRACTION = 2 / 18;   // 11.11%
+const WATER_O_FRACTION = 16 / 18;  // 88.89%
+
 function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: number }) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState<ResourceGroup | null>(null);
+  const [expanded, setExpanded] = useState<ResourceGroup | 'water' | null>(null);
   const totalRes = planet.resources?.totalResources;
   if (!totalRes) return null;
 
-  // Compute water mass from hydrosphere (4πr² × coverage × depth × 1000kg/m³)
+  // Compute water mass from hydrosphere (4πr² × coverage × depth × 1000 kg/m³)
+  // Earth check: r=6371km, surface=5.1e14 m², coverage=0.71, depth=3.7km
+  //   volume = 5.1e14 × 0.71 × 3700 = 1.34e18 m³
+  //   mass   = 1.34e18 × 1000 = 1.34e21 kg = 1.34 Ет  ✓
   const hydro = planet.hydrosphere;
-  const waterMassKg = hydro && hydro.waterCoverageFraction > 0
+  const waterMassKg = hydro && hydro.waterCoverageFraction > 0 && hydro.oceanDepthKm > 0
     ? (() => {
         const radiusM = planet.radiusEarth * 6_371_000;
         const surfaceArea = 4 * Math.PI * radiusM * radiusM;
-        const volume = surfaceArea * hydro.waterCoverageFraction * (hydro.oceanDepthKm * 1000);
-        return volume * 1000; // kg/m³
+        const volume = surfaceArea * Math.min(0.95, hydro.waterCoverageFraction) * (hydro.oceanDepthKm * 1000);
+        return volume * 1000; // water density 1000 kg/m³
       })()
     : 0;
 
@@ -665,35 +672,74 @@ function ResourcesSection({ planet, baseDelay }: { planet: Planet; baseDelay: nu
           </div>
         );
       })}
-      {/* Water row — separate (no Mendeleev breakdown) */}
-      {waterMassKg > 0 && (
-        <div style={{ animation: `pdwSlide 0.3s ease-out ${baseDelay + 20 + RESOURCE_GROUPS.length * 30}ms both` }}>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '5px 0',
-            borderBottom: '1px solid rgba(40,55,75,0.35)',
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'monospace' }}>
-              <span style={{ color: '#3b82f6', fontSize: 9 }}>{'•'}</span>
-              <span style={{ color: '#3b82f6' }}>{t('planet_detail.resource_water')}</span>
-            </span>
-            <span style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace' }}>
-              {formatMassKg(waterMassKg)}
-            </span>
-          </div>
-          <div style={{ padding: '3px 0 2px 16px' }}>
-            <div style={{
-              height: 3, background: 'rgba(30,40,60,0.5)',
-              borderRadius: 2, overflow: 'hidden',
-            }}>
-              <div style={{
-                width: `${Math.max(3, (waterMassKg / maxVal) * 100)}%`, height: '100%',
-                background: '#3b82f6', borderRadius: 2, opacity: 0.6,
-              }} />
+      {/* Water row — expandable H₂O element breakdown */}
+      {waterMassKg > 0 && (() => {
+        const waterColor = '#3b82f6';
+        const isWaterExpanded = expanded === 'water';
+        const waterBarPct = Math.max(3, (waterMassKg / maxVal) * 100);
+        // H₂O breakdown by mass: H = 11.11%, O = 88.89%
+        const hMass = waterMassKg * WATER_H_FRACTION;
+        const oMass = waterMassKg * WATER_O_FRACTION;
+        return (
+          <div style={{ animation: `pdwSlide 0.3s ease-out ${baseDelay + 20 + RESOURCE_GROUPS.length * 30}ms both` }}>
+            <div
+              onClick={() => setExpanded(isWaterExpanded ? null : 'water')}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '5px 0', cursor: 'pointer',
+                borderBottom: '1px solid rgba(40,55,75,0.35)',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'monospace' }}>
+                <span style={{ color: waterColor, fontSize: 9 }}>{isWaterExpanded ? 'v' : '>'}</span>
+                <span style={{ color: waterColor }}>{t('planet_detail.resource_water')}</span>
+              </span>
+              <span style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace' }}>
+                {formatMassKg(waterMassKg)}
+              </span>
             </div>
+            <div style={{ padding: '3px 0 2px 16px' }}>
+              <div style={{
+                height: 3, background: 'rgba(30,40,60,0.5)',
+                borderRadius: 2, overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${waterBarPct}%`, height: '100%',
+                  background: waterColor, borderRadius: 2, opacity: 0.6,
+                }} />
+              </div>
+            </div>
+            {/* Expanded: H and O element breakdown */}
+            {isWaterExpanded && (
+              <div style={{ padding: '2px 0 6px 16px' }}>
+                {([['H', hMass, WATER_H_FRACTION], ['O', oMass, WATER_O_FRACTION]] as [string, number, number][]).map(([sym, mass, frac]) => {
+                  const elBarPct = Math.max(2, frac * 100);
+                  return (
+                    <div key={sym} style={{
+                      display: 'flex', alignItems: 'center',
+                      padding: '2px 0', fontSize: 10,
+                    }}>
+                      <span style={{ width: 24, color: '#667788', fontSize: 9, fontFamily: 'monospace' }}>{sym}</span>
+                      <div style={{
+                        flex: 1, height: 2, background: 'rgba(30,40,60,0.3)',
+                        borderRadius: 1, marginRight: 8, overflow: 'hidden',
+                      }}>
+                        <div style={{
+                          width: `${elBarPct}%`, height: '100%',
+                          background: waterColor, borderRadius: 1, opacity: 0.4,
+                        }} />
+                      </div>
+                      <span style={{ fontSize: 9, color: '#556677', fontFamily: 'monospace' }}>
+                        {formatMassKg(mass)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 }
@@ -1054,7 +1100,7 @@ export function PlanetDetailWindow({
                 <Section label={t('planet_detail.section_hydrosphere')} delay={480} />
                 <CharRow
                   label={t('planet_detail.water_coverage')}
-                  value={`${(p.hydrosphere!.waterCoverageFraction * 100).toFixed(1)}%`}
+                  value={`${(Math.min(0.95, p.hydrosphere!.waterCoverageFraction) * 100).toFixed(1)}%`}
                   color="#4488aa"
                   delay={500}
                 />

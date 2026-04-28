@@ -10,7 +10,7 @@ import {
   placeBuilding as apiPlaceBuilding,
   removeBuilding as apiRemoveBuilding,
 } from '../../../api/surface-api.js';
-import { getPlayer, updatePlayer } from '../../../api/player-api.js';
+import { getPlayer, updatePlayer, spendQuarks } from '../../../api/player-api.js';
 import type {
   HexSlotData,
   HexState,
@@ -438,6 +438,9 @@ export function useHexState(
     (newSlots: HexSlotData[]) => {
       // Always persist to localStorage immediately (survives app close / reload)
       try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(newSlots)); } catch { /* ignore */ }
+      // Bust player data cache so that re-entry within 30s fetches fresh server state
+      // instead of returning stale cached data that would overwrite localStorage.
+      _lastFetchTime = 0;
       // Debounce server save
       if (saveTimerRef.current !== null) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
@@ -508,11 +511,20 @@ export function useHexState(
 
         if (Array.isArray(saved) && saved.length > 0) {
           const serverSlots = validateAndMigrate(saved as HexSlotData[]);
-          // Fix 5: Only update if different from current (skip identical server data)
+          // Prefer the more-progressed version (higher unlocked count) to avoid
+          // stale server data overwriting freshly unlocked localStorage state.
+          const countUnlocked = (ss: HexSlotData[]) =>
+            ss.filter(s => s.state !== 'locked' && s.state !== 'hidden').length;
+          const serverProgress = countUnlocked(serverSlots);
+          const localProgress = countUnlocked(slotsRef.current);
           if (JSON.stringify(serverSlots) !== JSON.stringify(slotsRef.current)) {
-            setSlots(serverSlots);
-            // Sync localStorage with server truth
-            try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(serverSlots)); } catch { /* ignore */ }
+            if (serverProgress >= localProgress) {
+              // Server is at least as advanced — use server as truth
+              setSlots(serverSlots);
+              // Sync localStorage with server truth
+              try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(serverSlots)); } catch { /* ignore */ }
+            }
+            // else: local has more progress (e.g., just unlocked, server not saved yet) — keep local
           }
         } else {
           // No server data — check if localStorage already loaded slots
@@ -678,7 +690,18 @@ export function useHexState(
       if ((quarks ?? 0) < SLOT_UNLOCK_QUARKS_COST) return false;
       if (!onConsumeQuarks) return false;
 
+      // Optimistically update local state immediately (no UX delay)
       onConsumeQuarks(SLOT_UNLOCK_QUARKS_COST);
+      // Persist quark deduction to server so it survives re-login / re-entry.
+      // Also bust the player data cache so next surface mount sees correct balance.
+      _lastFetchTime = 0;
+      spendQuarks(SLOT_UNLOCK_QUARKS_COST, 'hex_slot_unlock').then((result) => {
+        if (result === null) {
+          // Server rejected (insufficient funds or error) — this is a race;
+          // local state already updated so leave as-is but log for debugging.
+          console.warn('[useHexState] spendQuarks server call failed for slot', slotId);
+        }
+      });
 
       // Mirror the same Zone-1 home-planet forced-resource logic so the
       // first 4 unlocks still guarantee all 4 resource types regardless of

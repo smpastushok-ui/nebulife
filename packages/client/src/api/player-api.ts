@@ -114,6 +114,28 @@ export async function updatePlayer(
 }
 
 /**
+ * Atomically deduct quarks for in-game purchases (surface hex unlock, etc.).
+ * Returns new balance, or null if insufficient funds.
+ */
+export async function spendQuarks(
+  amount: number,
+  reason: string,
+): Promise<{ ok: true; newBalance: number } | null> {
+  try {
+    const res = await authFetch(`${API_BASE}/player/spend-quarks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, reason }),
+    });
+    if (res.status === 402) return null;
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Register or clear the player's FCM push token.
  */
 export async function updateFcmToken(playerId: string, token: string | null): Promise<void> {

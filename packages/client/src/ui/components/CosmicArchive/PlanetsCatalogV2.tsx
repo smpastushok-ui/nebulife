@@ -83,6 +83,33 @@ function isEarthLike(planet: Planet): boolean {
   return water > 0.3;
 }
 
+// ---------------------------------------------------------------------------
+// toHex — convert rgb(r,g,b) components to #rrggbb hex string.
+// All color branches must return hex so SVG stopColor suffixes like
+// `${color}dd` and `${color}aa` remain valid CSS color values.
+// ---------------------------------------------------------------------------
+function toHex(r: number, g: number, b: number): string {
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  const h = (n: number) => clamp(n).toString(16).padStart(2, '0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+// ---------------------------------------------------------------------------
+// luminanceSafe — ensure returned color has perceived luminance >= 0.12
+// (prevents near-black planets from being invisible on the dark background).
+// ---------------------------------------------------------------------------
+function luminanceSafe(hex: string): string {
+  // Parse #rrggbb
+  if (hex.length !== 7 || hex[0] !== '#') return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Relative luminance (sRGB, simplified)
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  if (lum < 0.12) return '#888777'; // fallback to neutral mid-gray
+  return hex;
+}
+
 function getRealisticPlanetColor(planet: Planet): string {
   if (planet.isHomePlanet) return '#44ff88';
 
@@ -134,37 +161,37 @@ function getRealisticPlanetColor(planet: Planet): string {
 
   // Life-bearing terrestrial with significant water
   if (planet.hasLife && waterFrac > 0.3 && (planet.type === 'terrestrial' || planet.type === 'rocky')) {
-    // Mix blue (water) with green (life)
+    // Mix blue (water) with green (life) — returned as hex to allow alpha suffix in SVG
     const b = Math.round(80 + waterFrac * 80);
     const g = Math.round(120 + Math.min(70, waterFrac * 55));
-    return `rgb(40,${g},${b})`;
+    return luminanceSafe(toHex(40, g, b));
   }
 
   // Icy/frozen worlds
   if (tempK < 200) return '#6699bb';  // frozen — blue-gray
   if (tempK < 250) {
-    // cold rocky with some ice
+    // cold rocky with some ice — hex to allow alpha suffix in SVG
     const iceBlend = (250 - tempK) / 50;
     const r = Math.round(80 + (1 - iceBlend) * 40);
     const g = Math.round(115 + (1 - iceBlend) * 20);
     const b = Math.round(160 + iceBlend * 25);
-    return `rgb(${r},${g},${b})`;
+    return luminanceSafe(toHex(r, g, b));
   }
 
   // Water-rich worlds (without life)
   if (waterFrac > 0.6) return '#2255aa'; // ocean world — deep blue
   if (waterFrac > 0.2) {
-    // mix blue/brown
+    // mix blue/brown — hex to allow alpha suffix in SVG
     const b = Math.round(80 + waterFrac * 80);
-    return `rgb(70,${Math.round(95 + waterFrac * 35)},${b})`;
+    return luminanceSafe(toHex(70, Math.round(95 + waterFrac * 35), b));
   }
 
   // Dry rocky worlds — temperature-based
   if (tempK > 373) return '#bb7733';  // warm desert
   if (tempK > 273) {
-    // temperate rock — gray-brown with atmosphere tint
+    // temperate rock — gray-brown with atmosphere tint — hex for SVG alpha compat
     const atmosBoost = atmoP > 0.5 ? 10 : 0;
-    return `rgb(${110 + atmosBoost},${100 + atmosBoost},${88})`;
+    return luminanceSafe(toHex(110 + atmosBoost, 100 + atmosBoost, 88));
   }
 
   // Dwarf — pale, low color saturation
@@ -174,7 +201,7 @@ function getRealisticPlanetColor(planet: Planet): string {
   if (planet.type === 'rocky') return '#888777';
   if (planet.type === 'terrestrial') return '#5588aa';
 
-  return '#888777'; // default neutral (was #887766 — slightly warmer now)
+  return '#888777'; // default neutral
 }
 
 // Keep old function for backward compat — now delegates to realistic version
@@ -1119,7 +1146,7 @@ function ExpandedDetailPanel({
     {
       label: t('planets_catalog.field_hydro'),
       value: planet.hydrosphere
-        ? `${Math.round(planet.hydrosphere.waterCoverageFraction * 100)}%`
+        ? `${Math.round(Math.min(0.95, planet.hydrosphere.waterCoverageFraction) * 100)}%`
         : '\u2014',
     },
     {
