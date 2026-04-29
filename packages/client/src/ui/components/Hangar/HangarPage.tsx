@@ -6,6 +6,8 @@
 // ---------------------------------------------------------------------------
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { useT } from '../../../i18n/index.js';
 import { playLoop, stopLoop, playSfx } from '../../../audio/SfxPlayer.js';
 
@@ -29,27 +31,52 @@ interface HangarPageProps {
 // ── Ship slots ───────────────────────────────────────────────────────────────
 
 interface ShipSlot {
-  id: string;
-  src: string;
+  id: 'blue' | 'red';
+  team: 'blue' | 'red';
+  glbSrc: string;
   locked: boolean;
   /** i18n key for the slot label (resolved via t() at render time). */
   labelKey: string;
+  descKey: string;
+  accent: string;
+  softAccent: string;
   /** i18n key for a hint shown under the locked preview (optional). */
   hintKey?: string;
   cost?: number;
   costLabel?: string;
 }
 
-// Single default 3D ship (arena uses blue_ship.glb regardless of id — this slot
-// is the player's default). Custom 3D ship slot is locked for now; A.I.
-// generation pipeline will be added later (500 quarks per unlock).
+// Real arena GLB ships. Selecting one also selects the player's team color.
 const SHIP_SLOTS: ShipSlot[] = [
-  { id: 'ship1', src: '/arena_ships/star_ship1.webp', locked: false, labelKey: 'hangar.ship.default' },
-  { id: 'custom3d', src: '', locked: true, labelKey: 'hangar.ship.custom_3d', hintKey: 'hangar.ship.custom_hint', cost: 500, costLabel: '500 \u269B' },
+  {
+    id: 'blue',
+    team: 'blue',
+    glbSrc: '/arena_ships/blue_ship.glb',
+    locked: false,
+    labelKey: 'hangar.ship.blue_3d',
+    descKey: 'hangar.ship.blue_desc',
+    accent: '#7bb8ff',
+    softAccent: 'rgba(68,136,170,0.18)',
+  },
+  {
+    id: 'red',
+    team: 'red',
+    glbSrc: '/arena_ships/red_ship.glb',
+    locked: false,
+    labelKey: 'hangar.ship.red_3d',
+    descKey: 'hangar.ship.red_desc',
+    accent: '#ff8844',
+    softAccent: 'rgba(255,136,68,0.15)',
+  },
 ];
 
 const SELECTED_SHIP_KEY = 'nebulife_hangar_ship';
+const SELECTED_TEAM_KEY = 'nebulife_arena_team';
 const VALID_SHIP_IDS = new Set(SHIP_SLOTS.map(s => s.id));
+
+function isShipSlotId(value: string | null): value is ShipSlot['id'] {
+  return value === 'blue' || value === 'red';
+}
 
 // ── Controls reference data ──────────────────────────────────────────────────
 
@@ -120,18 +147,18 @@ export const HangarPage: React.FC<HangarPageProps> = ({
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // Ship selection — migrate legacy ids (ship2/ship3/ship4/ship5 from the old
-  // 5-slot roster) to the single default ship. When custom 3D slots ship,
-  // they will be added to SHIP_SLOTS and VALID_SHIP_IDS.
-  const [selectedShip, setSelectedShip] = useState<string>(() => {
+  // Ship selection — migrate legacy ids (ship1/ship2/custom3d from older
+  // rosters) to the blue GLB fighter.
+  const [selectedShip, setSelectedShip] = useState<'blue' | 'red'>(() => {
     const saved = localStorage.getItem(SELECTED_SHIP_KEY);
-    return saved && VALID_SHIP_IDS.has(saved) ? saved : SHIP_SLOTS[0].id;
+    return isShipSlotId(saved) && VALID_SHIP_IDS.has(saved) ? saved : SHIP_SLOTS[0].id;
   });
+  const activeSlot = SHIP_SLOTS.find(s => s.id === selectedShip) ?? SHIP_SLOTS[0];
+
   useEffect(() => {
     localStorage.setItem(SELECTED_SHIP_KEY, selectedShip);
-  }, [selectedShip]);
-
-  const activeSlot = SHIP_SLOTS.find(s => s.id === selectedShip) ?? SHIP_SLOTS[0];
+    localStorage.setItem(SELECTED_TEAM_KEY, activeSlot.team);
+  }, [activeSlot.team, selectedShip]);
 
   // Backward compat: old localStorage may have missileKills
   const stats = arenaStats;
@@ -194,6 +221,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
     <div style={S.root}>
       <div style={S.starfield} />
       <div style={S.vignette} />
+      <div style={S.hangarRibs} />
 
       <div style={S.scroll}>
         {/* ── Header ────────────────────────────────────────────────── */}
@@ -235,25 +263,30 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 
         {/* ── Ship preview ──────────────────────────────────────────── */}
         <div style={{
-          ...S.previewWrap,
+          ...S.bayWrap,
+          borderColor: activeSlot.team === 'blue' ? '#446688' : '#664433',
+          background: `radial-gradient(circle at 50% 35%, ${activeSlot.softAccent}, transparent 44%), linear-gradient(180deg, rgba(7,12,22,0.92), rgba(3,7,14,0.96))`,
           opacity: mounted ? 1 : 0,
-          transform: mounted ? 'scale(1)' : 'scale(0.85)',
+          transform: mounted ? 'scale(1)' : 'scale(0.94)',
           transition: 'opacity 0.5s ease 0.4s, transform 0.5s ease 0.4s',
         }}>
-          {!activeSlot.locked && activeSlot.src ? (
-            <img src={activeSlot.src} alt="ship" style={S.previewImg} />
-          ) : (
-            <div style={S.previewLocked}>
-              <LockIcon />
-              <div style={{ fontSize: 10, color: '#556677', marginTop: 8 }}>
-                {activeSlot.cost !== undefined ? <>{activeSlot.cost} <QuarkIcon /></> : activeSlot.costLabel}
-              </div>
-              {activeSlot.hintKey && (
-                <div style={S.previewHint}>{t(activeSlot.hintKey as Parameters<typeof t>[0])}</div>
-              )}
+          <div style={S.bayHeader}>
+            <div>
+              <div style={S.bayKicker}>{t('hangar.bay_ready' as Parameters<typeof t>[0])}</div>
+              <div style={{ ...S.previewName, color: activeSlot.accent }}>{t(activeSlot.labelKey as Parameters<typeof t>[0])}</div>
             </div>
-          )}
-          <div style={S.previewName}>{t(activeSlot.labelKey as Parameters<typeof t>[0])}</div>
+            <div style={{ ...S.teamChip, borderColor: activeSlot.accent, color: activeSlot.accent }}>
+              {t('hangar.team_color' as Parameters<typeof t>[0])}: {activeSlot.team.toUpperCase()}
+            </div>
+          </div>
+          <ShipModelPreview modelUrl={activeSlot.glbSrc} accent={activeSlot.accent} />
+          <div style={S.shipTelemetry}>
+            <div style={S.shipTelemetryRow}>
+              <span>{t('hangar.chassis_status' as Parameters<typeof t>[0])}</span>
+              <strong style={{ color: activeSlot.accent }}>{t('hangar.ship_selected')}</strong>
+            </div>
+            <div style={S.shipDesc}>{t(activeSlot.descKey as Parameters<typeof t>[0])}</div>
+          </div>
         </div>
 
         {/* ── Ship selector (horizontal scroll) ─────────────────────── */}
@@ -269,31 +302,25 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 key={slot.id}
                 style={{
                   ...S.shipCard,
-                  border: isActive ? '2px solid #7bb8ff' : '1px solid #223344',
+                  border: isActive ? `2px solid ${slot.accent}` : '1px solid #223344',
                   background: isActive
-                    ? 'linear-gradient(135deg, rgba(68,136,170,0.15), rgba(30,50,80,0.3))'
+                    ? `linear-gradient(135deg, ${slot.softAccent}, rgba(10,15,25,0.92))`
                     : 'linear-gradient(135deg, rgba(10,15,25,0.8), rgba(20,30,50,0.6))',
-                  boxShadow: isActive ? '0 0 16px rgba(123,184,255,0.2), inset 0 0 20px rgba(68,136,170,0.1)' : 'none',
+                  boxShadow: isActive ? `0 0 16px ${slot.softAccent}, inset 0 0 20px ${slot.softAccent}` : 'none',
                   opacity: mounted ? 1 : 0,
                   transform: mounted ? 'translateY(0)' : 'translateY(20px)',
                   transition: `opacity 0.4s ease ${0.7 + i * 0.08}s, transform 0.4s ease ${0.7 + i * 0.08}s, border-color 0.2s, box-shadow 0.2s`,
                 }}
                 onClick={() => handleShipClick(slot)}
               >
-                {slot.locked ? (
-                  <div style={S.lockedSlot}>
-                    <LockIcon />
-                    <div style={S.lockedCost}>{slot.cost !== undefined ? <>{slot.cost} <QuarkIcon /></> : slot.costLabel}</div>
-                  </div>
-                ) : (
-                  <img src={slot.src} alt={slot.id} style={S.cardImg} />
-                )}
+                <ShipGlyph color={slot.accent} />
                 <div style={{
                   ...S.cardLabel,
-                  color: isActive ? '#7bb8ff' : slot.locked ? '#445566' : '#8899aa',
+                  color: isActive ? slot.accent : '#8899aa',
                 }}>
                   {t(slot.labelKey as Parameters<typeof t>[0])}
                 </div>
+                <div style={{ ...S.cardTeam, color: slot.accent }}>{slot.team.toUpperCase()}</div>
               </button>
             );
           })}
@@ -422,6 +449,123 @@ function StatCell({ label, value, color }: { label: string; value: number; color
   );
 }
 
+function ShipModelPreview({ modelUrl, accent }: { modelUrl: string; accent: string }) {
+  const mountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = mountRef.current;
+    if (!host) return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 1000);
+    camera.position.set(0, 36, 120);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.8));
+    renderer.setSize(host.clientWidth || 280, host.clientHeight || 220);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    host.appendChild(renderer.domElement);
+
+    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    key.position.set(80, 110, 90);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0x88aadd, 1.35);
+    fill.position.set(-100, 60, -80);
+    scene.add(fill);
+    const rim = new THREE.PointLight(new THREE.Color(accent), 2.8, 240);
+    rim.position.set(-55, 24, 52);
+    scene.add(rim);
+
+    const ringGeo = new THREE.RingGeometry(42, 44, 96);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(accent),
+      transparent: true,
+      opacity: 0.28,
+      side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = -24;
+    scene.add(ring);
+
+    let model: THREE.Group | null = null;
+    let raf = 0;
+    let disposed = false;
+
+    const resize = () => {
+      const width = host.clientWidth || 280;
+      const height = host.clientHeight || 220;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    };
+    const ro = new ResizeObserver(resize);
+    ro.observe(host);
+
+    new GLTFLoader().load(modelUrl, (gltf) => {
+      if (disposed) return;
+      model = gltf.scene;
+      const box = new THREE.Box3().setFromObject(model);
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+      const longest = Math.max(size.x, size.y, size.z);
+      const scale = longest > 0.0001 ? 78 / longest : 1;
+      model.scale.setScalar(scale);
+      model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+      model.rotation.y = Math.PI / 2;
+      model.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.frustumCulled = false;
+        }
+      });
+      scene.add(model);
+    });
+
+    const animate = () => {
+      raf = requestAnimationFrame(animate);
+      const time = performance.now() * 0.00035;
+      if (model) {
+        model.rotation.y = Math.PI / 2 + Math.sin(time) * 0.12 + time * 0.45;
+        model.rotation.x = Math.sin(time * 1.4) * 0.035;
+      }
+      ring.rotation.z += 0.002;
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          const mat = obj.material;
+          if (Array.isArray(mat)) mat.forEach(m => m.dispose());
+          else mat?.dispose();
+        }
+      });
+      renderer.dispose();
+      renderer.domElement.remove();
+    };
+  }, [accent, modelUrl]);
+
+  return <div ref={mountRef} style={S.modelPreview} />;
+}
+
+function ShipGlyph({ color }: { color: string }) {
+  return (
+    <svg width="58" height="58" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <path d="M32 7l9 24 13 9-14 4-8 13-8-13-14-4 13-9 9-24z" fill={color} fillOpacity="0.14" stroke={color} strokeWidth="1.4" />
+      <path d="M25 39l-9 11 12-4M39 39l9 11-12-4M29 27h6M27 33h10" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M32 46v9" stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
+    </svg>
+  );
+}
+
 function LockIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#556677" strokeWidth="1.5" strokeLinecap="round">
@@ -446,7 +590,8 @@ function QuarkIcon() {
 
 const S: Record<string, React.CSSProperties> = {
   root: {
-    position: 'fixed', inset: 0, background: '#020510',
+    position: 'fixed', inset: 0,
+    background: 'radial-gradient(circle at 50% 18%, rgba(68,136,170,0.16), transparent 34%), linear-gradient(180deg, #020510 0%, #050a14 58%, #020510 100%)',
     zIndex: 9500, fontFamily: 'monospace', color: '#aabbcc', overflow: 'hidden',
   },
   starfield: {
@@ -460,7 +605,14 @@ const S: Record<string, React.CSSProperties> = {
   },
   vignette: {
     position: 'absolute', inset: 0, pointerEvents: 'none',
-    background: 'radial-gradient(ellipse at center, transparent 20%, rgba(2,5,16,0.7) 80%)',
+    background: 'radial-gradient(ellipse at center, transparent 18%, rgba(2,5,16,0.72) 82%)',
+  },
+  hangarRibs: {
+    position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.34,
+    backgroundImage: `
+      linear-gradient(90deg, transparent 0 10%, rgba(68,136,170,0.20) 10% 10.4%, transparent 10.4% 89.6%, rgba(68,136,170,0.20) 89.6% 90%, transparent 90%),
+      repeating-linear-gradient(180deg, transparent 0 78px, rgba(51,68,85,0.22) 79px, transparent 80px),
+      radial-gradient(ellipse at 50% 42%, transparent 0 28%, rgba(123,184,255,0.10) 29%, transparent 30%)`,
   },
   scroll: {
     position: 'relative', zIndex: 2, flex: 1, overflow: 'auto',
@@ -501,42 +653,60 @@ const S: Record<string, React.CSSProperties> = {
   statLabel: { fontSize: 7, color: '#556677', letterSpacing: 1.5, textTransform: 'uppercase' },
 
   // Ship preview
-  previewWrap: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    padding: '20px 16px 8px', gap: 8,
+  bayWrap: {
+    display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+    margin: '12px 16px 0', padding: '12px', gap: 10,
+    border: '1px solid #334455', borderRadius: 8, overflow: 'hidden',
+    boxShadow: 'inset 0 0 40px rgba(68,136,170,0.06), 0 12px 30px rgba(0,0,0,0.25)',
   },
-  previewImg: {
-    width: 140, height: 140, objectFit: 'contain',
-    filter: 'drop-shadow(0 0 16px rgba(123,184,255,0.3))',
+  bayHeader: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 10, borderBottom: '1px solid rgba(51,68,85,0.65)', paddingBottom: 9,
   },
-  previewLocked: {
-    width: 140, height: 140, display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center',
-    background: 'rgba(10,15,25,0.6)', border: '1px dashed #334455', borderRadius: 6,
+  bayKicker: {
+    fontSize: 8, color: '#667788', letterSpacing: 2, textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  teamChip: {
+    border: '1px solid #446688', borderRadius: 999, padding: '5px 8px',
+    fontSize: 8, letterSpacing: 1.2, textTransform: 'uppercase',
+    background: 'rgba(5,10,20,0.72)', whiteSpace: 'nowrap',
+  },
+  modelPreview: {
+    width: '100%', height: 240, position: 'relative',
+    borderRadius: 6, overflow: 'hidden',
+    background: 'radial-gradient(circle at 50% 52%, rgba(123,184,255,0.10), transparent 42%), linear-gradient(180deg, rgba(2,5,16,0.25), rgba(2,5,16,0.76))',
   },
   previewName: {
-    fontSize: 10, color: '#667788', letterSpacing: 3, textTransform: 'uppercase',
+    fontSize: 15, color: '#667788', letterSpacing: 3, textTransform: 'uppercase',
   },
-  previewHint: {
-    fontSize: 8, color: '#445566', letterSpacing: 0.5, textAlign: 'center',
-    marginTop: 8, padding: '0 12px', lineHeight: 1.4, maxWidth: 180,
+  shipTelemetry: {
+    borderTop: '1px solid rgba(51,68,85,0.55)', paddingTop: 9,
+  },
+  shipTelemetryRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 12, fontSize: 8, color: '#667788', letterSpacing: 1.4, textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  shipDesc: {
+    fontSize: 9, color: '#8899aa', lineHeight: 1.45, letterSpacing: 0.4,
   },
 
   // Ship selector (horizontal)
   selectorScroll: {
-    display: 'flex', gap: 10, padding: '8px 16px',
+    display: 'flex', gap: 10, padding: '10px 16px 8px',
     overflowX: 'auto', scrollSnapType: 'x mandatory',
     flexShrink: 0,
   },
   shipCard: {
-    flex: '0 0 auto', width: 90, display: 'flex', flexDirection: 'column',
+    flex: '0 0 auto', width: 132, display: 'flex', flexDirection: 'column',
     alignItems: 'center', gap: 6, padding: '10px 6px 8px',
     borderRadius: 6, cursor: 'pointer', fontFamily: 'monospace',
     scrollSnapAlign: 'center',
     transition: 'border-color 0.2s, box-shadow 0.2s',
   },
-  cardImg: { width: 52, height: 52, objectFit: 'contain' },
-  cardLabel: { fontSize: 7, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center' },
+  cardLabel: { fontSize: 8, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center' },
+  cardTeam: { fontSize: 7, letterSpacing: 2, textTransform: 'uppercase', textAlign: 'center' },
   lockedSlot: {
     width: 52, height: 52, display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center',

@@ -13,9 +13,14 @@ export function LandingPage() {
     { code: '04', title: t('landing.features.cluster_title'), body: t('landing.features.cluster_body') },
   ];
   const stats = [
-    { value: '1,450', label: t('landing.stats.systems') },
     { value: '50', label: t('landing.stats.players') },
-    { value: '7D', label: t('landing.stats.arc') },
+    { value: '1,450', label: t('landing.stats.systems') },
+    { value: '8,000+', label: t('landing.stats.planets') },
+  ];
+  const universeFacts = [
+    { value: t('landing.universe.fact_1_value'), label: t('landing.universe.fact_1_label') },
+    { value: t('landing.universe.fact_2_value'), label: t('landing.universe.fact_2_label') },
+    { value: t('landing.universe.fact_3_value'), label: t('landing.universe.fact_3_label') },
   ];
   const proofCards = [
     { title: t('landing.proof.exosphere'), body: t('landing.proof.exosphere_body'), tone: 'planet' },
@@ -76,16 +81,39 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className="landing-orbital" aria-label={t('landing.visual_label')}>
-          <div className="landing-orbit landing-orbit-one" />
-          <div className="landing-orbit landing-orbit-two" />
-          <div className="landing-planet">
-            <span className="landing-planet-cloud landing-planet-cloud-a" />
-            <span className="landing-planet-cloud landing-planet-cloud-b" />
-            <span className="landing-planet-glow" />
-          </div>
+        <div className="landing-galaxy-stage" aria-label={t('landing.visual_label')}>
+          <div className="landing-galaxy-core" />
+          <div className="landing-galaxy-arm landing-galaxy-arm-a" />
+          <div className="landing-galaxy-arm landing-galaxy-arm-b" />
+          <div className="landing-galaxy-arm landing-galaxy-arm-c" />
+          <div className="landing-galaxy-ring landing-galaxy-ring-one" />
+          <div className="landing-galaxy-ring landing-galaxy-ring-two" />
+          <div className="landing-galaxy-node landing-node-a" />
+          <div className="landing-galaxy-node landing-node-b" />
+          <div className="landing-galaxy-node landing-node-c" />
           <div className="landing-scan landing-scan-a">{t('landing.visual_scan_a')}</div>
           <div className="landing-scan landing-scan-b">{t('landing.visual_scan_b')}</div>
+        </div>
+      </section>
+
+      <section className="landing-section landing-universe-panel">
+        <div className="landing-section-head">
+          <span>{t('landing.universe.label')}</span>
+          <h2>{t('landing.universe.title')}</h2>
+        </div>
+        <p className="landing-text">{t('landing.universe.body')}</p>
+        <div className="landing-universe-grid">
+          {universeFacts.map((item) => (
+            <div className="landing-universe-stat" key={item.label}>
+              <strong>{item.value}</strong>
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="landing-mystery-line">
+          <span>{t('landing.universe.mystery_a')}</span>
+          <span>{t('landing.universe.mystery_b')}</span>
+          <span>{t('landing.universe.mystery_c')}</span>
         </div>
       </section>
 

@@ -1557,9 +1557,9 @@
     "kk": "kk"
   },
   "landing": {
-    "badge": "Early Test Build",
-    "title": "Explore a living AI galaxy",
-    "subtitle": "Nebulife is a live space simulation where each player explores a deterministic star cluster, discovers unique worlds, and helps evacuate civilization in a 7-day survival arc.",
+    "badge": "Early Mobile Test",
+    "title": "Enter a living galaxy that keeps expanding",
+    "subtitle": "Nebulife is not a map with levels. It is a procedural, AI-powered universe where every tester begins inside one cluster, then helps reveal a much larger cosmos hidden beyond the signal.",
     "nav_label": "Nebulife landing navigation",
     "nav_testers": "Mobile testers",
     "nav_play": "Web soon",
@@ -1573,9 +1573,9 @@
     "testers_label": "Open test",
     "flow_label": "Mission sequence",
     "proof_label": "Live modules",
-    "visual_label": "Procedural planet scanner",
-    "visual_scan_a": "Cluster sync: 50 pilots",
-    "visual_scan_b": "Exosphere scan: live",
+    "visual_label": "Living galaxy scanner",
+    "visual_scan_a": "One cluster: 50 pilots",
+    "visual_scan_b": "8,000+ worlds online",
     "why_title": "Why Nebulife feels different",
     "testers_title": "Test Nebulife on Android and iOS",
     "testers_body": "We are collecting mobile testers first: onboarding, battery, performance, exosphere quality, terminal UX, and Academy flow. Join the Telegram group to get builds, notes, and feedback calls.",
@@ -1586,7 +1586,22 @@
     "stats": {
       "systems": "systems per cluster",
       "players": "players per test cluster",
+      "planets": "planets and moons per cluster",
       "arc": "survival arc"
+    },
+    "universe": {
+      "label": "Beyond the first signal",
+      "title": "A cluster is only the doorway",
+      "body": "Each 50-player group receives a living cluster with 1,450 stars and more than 8,000 planets and moons. But that is only the local frontier. Nebulife is designed as an expanding universe: new clusters, new discoveries, new AI artifacts, and unknown routes deeper into the core.",
+      "fact_1_value": "1 cluster",
+      "fact_1_label": "your first civilization-scale test zone",
+      "fact_2_value": "1,450 stars",
+      "fact_2_label": "deterministic systems shared by your group",
+      "fact_3_value": "8,000+ worlds",
+      "fact_3_label": "planets and moons waiting for scans, colonies, and anomalies",
+      "mystery_a": "unknown core routes",
+      "mystery_b": "AI-generated expeditions",
+      "mystery_c": "first discoveries belong to testers"
     },
     "features": {
       "live_title": "Living Galaxy",
@@ -1595,8 +1610,8 @@
       "ai_body": "Generate mission artifacts like photos and reports from your own planets.",
       "learn_title": "Real Astronomy",
       "learn_body": "Academy turns sessions into actual science learning with adaptive difficulty.",
-      "cluster_title": "50-Player Clusters",
-      "cluster_body": "You are not alone: each cluster is a deterministic social ecosystem."
+      "cluster_title": "Clustered Infinite Universe",
+      "cluster_body": "Fifty testers share one cluster, but the architecture keeps opening new star fields beyond it."
     },
     "flow": {
       "step_1": "Start on your home planet and open your star map.",

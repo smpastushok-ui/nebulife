@@ -39,6 +39,10 @@ const SHIP_FILES: Record<string, string> = {
 const SHIP_GLB_BLUE = '/arena_ships/blue_ship.glb';
 const SHIP_GLB_RED  = '/arena_ships/red_ship.glb';
 
+function teamFromShipId(shipId: string): Team {
+  return shipId === 'red' || shipId === 'red_ship' ? 'red' : 'blue';
+}
+
 // Target bounding-box size of a loaded ship in world units. Models are
 // auto-scaled so their longest axis matches this. Keeps gameplay radii
 // consistent no matter what Tripo spat out.
@@ -440,6 +444,7 @@ export class ArenaEngine {
     this.callbacks = callbacks;
     this.shipId = shipId;
     this.teamMode = teamMode;
+    this.playerTeam = teamFromShipId(shipId);
     this.onResizeBound = this.onResize.bind(this);
     this.onWheelBound = this.onWheel.bind(this);
     this.onKeyDownBound = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());
@@ -898,10 +903,11 @@ export class ArenaEngine {
   }
 
   private setupPlayerShip(): void {
-    // Player always gets the blue GLB in TPS mode. Falls back to the old
+    // Player gets the GLB selected in the hangar. Falls back to the old
     // sprite path if the GLB failed to load (network / asset missing).
-    if (_cachedBlueShip) {
-      const group = cloneShipScene(_cachedBlueShip);
+    const selectedModel = this.playerTeam === 'red' ? _cachedRedShip : _cachedBlueShip;
+    if (selectedModel) {
+      const group = cloneShipScene(selectedModel);
       // Add to scene as a Mesh-like object. ArenaEngine touches
       // playerMesh.position/rotation/visible/material — all work on Groups
       // except .material. We expose a small mesh-like shim below.
@@ -3412,23 +3418,24 @@ export class ArenaEngine {
       return bot;
     };
 
+    const allyTeam: 'blue' | 'red' = this.playerTeam === 'red' ? 'red' : 'blue';
+    const enemyTeam: 'blue' | 'red' = allyTeam === 'blue' ? 'red' : 'blue';
     let botId = 1000;
     if (this.teamMode) {
-      // Team mode: 4 blue allies + 5 red enemies
+      // Team mode: player-selected wing allies + opposite wing enemies.
       for (let i = 0; i < TEAM_BLUE_BOTS; i++) {
-        this.botShips.push(spawnBot(botId++, 'blue', i));
+        this.botShips.push(spawnBot(botId++, allyTeam, i));
       }
       for (let i = 0; i < TEAM_RED_BOTS; i++) {
-        this.botShips.push(spawnBot(botId++, 'red', TEAM_BLUE_BOTS + i));
+        this.botShips.push(spawnBot(botId++, enemyTeam, TEAM_BLUE_BOTS + i));
       }
     } else {
-      // Training TPS: 3v3 — 2 blue allies + 3 red enemies (player is blue).
-      this.playerTeam = 'blue';
+      // Training TPS: 3v3 — allies use selected wing, enemies use opposite wing.
       for (let i = 0; i < TRAINING_BLUE_ALLIES; i++) {
-        this.botShips.push(spawnBot(botId++, 'blue', i));
+        this.botShips.push(spawnBot(botId++, allyTeam, i));
       }
       for (let i = 0; i < TRAINING_RED_ENEMIES; i++) {
-        this.botShips.push(spawnBot(botId++, 'red', TRAINING_BLUE_ALLIES + i));
+        this.botShips.push(spawnBot(botId++, enemyTeam, TRAINING_BLUE_ALLIES + i));
       }
     }
   }
