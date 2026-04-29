@@ -7,6 +7,13 @@ const TESTER_LEAD_EMAIL_KEY = 'nebulife_tester_lead_email';
 type ProofTone = 'planet' | 'galaxy' | 'terminal' | 'surface' | 'academy';
 type ShowcaseTone = 'planet' | 'photo' | 'ships';
 
+const LANDING_IMAGES = {
+  hero: '/landing/landing-hero.jpg',
+  planets: '/landing/landing-planets.jpg',
+  expedition: '/landing/landing-expedition.jpg',
+  arena: '/landing/landing-arena.jpg',
+};
+
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
@@ -85,24 +92,27 @@ export function LandingPage() {
     { value: t('landing.universe.fact_2_value'), label: t('landing.universe.fact_2_label') },
     { value: t('landing.universe.fact_3_value'), label: t('landing.universe.fact_3_label') },
   ];
-  const showcaseCards: { tone: ShowcaseTone; eyebrow: string; title: string; body: string }[] = [
+  const showcaseCards: { tone: ShowcaseTone; eyebrow: string; title: string; body: string; image: string }[] = [
     {
       tone: 'planet',
       eyebrow: t('landing.showcase.planet_eyebrow'),
       title: t('landing.showcase.planet_title'),
       body: t('landing.showcase.planet_body'),
+      image: LANDING_IMAGES.planets,
     },
     {
       tone: 'photo',
       eyebrow: t('landing.showcase.photo_eyebrow'),
       title: t('landing.showcase.photo_title'),
       body: t('landing.showcase.photo_body'),
+      image: LANDING_IMAGES.expedition,
     },
     {
       tone: 'ships',
       eyebrow: t('landing.showcase.ships_eyebrow'),
       title: t('landing.showcase.ships_title'),
       body: t('landing.showcase.ships_body'),
+      image: LANDING_IMAGES.arena,
     },
   ];
   const proofCards = [
@@ -256,30 +266,8 @@ export function LandingPage() {
         </div>
 
         <div className="landing-galaxy-stage landing-cosmos-window" aria-label={t('landing.visual_label')}>
+          <img className="landing-hero-image" src={LANDING_IMAGES.hero} alt="" aria-hidden="true" loading="eager" />
           <div className="landing-window-grid" aria-hidden="true" />
-          <div className="landing-galaxy-orchestra" aria-hidden="true">
-            <div className="landing-galaxy-core" />
-            <div className="landing-galaxy-arm landing-galaxy-arm-a" />
-            <div className="landing-galaxy-arm landing-galaxy-arm-b" />
-            <div className="landing-galaxy-arm landing-galaxy-arm-c" />
-            <div className="landing-galaxy-ring landing-galaxy-ring-one" />
-            <div className="landing-galaxy-ring landing-galaxy-ring-two" />
-            <div className="landing-galaxy-node landing-node-a" />
-            <div className="landing-galaxy-node landing-node-b" />
-            <div className="landing-galaxy-node landing-node-c" />
-          </div>
-          <div className="landing-hero-planet" aria-hidden="true">
-            <div className="landing-planet-clouds" />
-            <div className="landing-planet-ring" />
-          </div>
-          <div className="landing-photo-stack" aria-hidden="true">
-            <div className="landing-photo-card landing-photo-card-a" />
-            <div className="landing-photo-card landing-photo-card-b" />
-          </div>
-          <div className="landing-ship-duel" aria-hidden="true">
-            <span className="landing-ship landing-ship-blue" />
-            <span className="landing-ship landing-ship-red" />
-          </div>
           <div className="landing-scan landing-scan-a">{t('landing.visual_scan_a')}</div>
           <div className="landing-scan landing-scan-b">{t('landing.visual_scan_b')}</div>
           <div className="landing-scan landing-scan-c">{t('landing.visual_scan_c')}</div>
@@ -296,28 +284,7 @@ export function LandingPage() {
           {showcaseCards.map((item) => (
             <article className={`landing-showcase-card landing-showcase-${item.tone}`} key={item.title}>
               <div className="landing-showcase-visual" aria-hidden="true">
-                {item.tone === 'planet' && (
-                  <>
-                    <span className="landing-mini-planet landing-mini-earth" />
-                    <span className="landing-mini-planet landing-mini-jupiter" />
-                    <span className="landing-mini-planet landing-mini-ice" />
-                  </>
-                )}
-                {item.tone === 'photo' && (
-                  <>
-                    <span className="landing-ai-photo landing-ai-photo-one" />
-                    <span className="landing-ai-photo landing-ai-photo-two" />
-                    <span className="landing-ai-photo landing-ai-photo-three" />
-                  </>
-                )}
-                {item.tone === 'ships' && (
-                  <>
-                    <span className="landing-arena-ship landing-arena-blue" />
-                    <span className="landing-arena-ship landing-arena-red" />
-                    <span className="landing-arena-asteroid landing-arena-asteroid-a" />
-                    <span className="landing-arena-asteroid landing-arena-asteroid-b" />
-                  </>
-                )}
+                <img src={item.image} alt="" loading="lazy" />
               </div>
               <div className="landing-showcase-copy">
                 <span>{item.eyebrow}</span>
