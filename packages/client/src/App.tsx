@@ -7354,6 +7354,7 @@ function AppInner() {
       {showArena && (
         <SpaceArena
           teamMode={arenaTeamMode}
+          onAwardXP={awardXP}
           onExit={() => {
             setShowArena(false);
             setArenaTeamMode(false);

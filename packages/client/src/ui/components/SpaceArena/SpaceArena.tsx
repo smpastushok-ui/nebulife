@@ -14,12 +14,15 @@ import { getDeviceTier } from '../../../utils/device-tier.js';
 interface SpaceArenaProps {
   onExit: () => void;
   onMatchEnd?: (result: MatchResult) => void;
+  onAwardXP?: (amount: number, reason: string) => void;
   teamMode?: boolean;
 }
 
 const isMobileDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const ARENA_XP_PER_KILL = 10;
+const ARENA_XP_WIN_BONUS = 50;
 
-export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaProps) {
+export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: SpaceArenaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<ArenaEngine | null>(null);
   const [ready, setReady] = useState(false);
@@ -62,6 +65,8 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   // Live match timer (polled with the rest of the arena state) — used to
   // draw the HUD countdown in the top score bar.
   const [matchTimer, setMatchTimer] = useState(0);
+  const awardedKillsRef = useRef(0);
+  const matchEndAwardedRef = useRef(false);
   // Damage flash removed — lasers now cause camera shake (in engine),
   // and screen blink is reserved exclusively for missile threats.
 
@@ -129,6 +134,13 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const callbacks = useRef<ArenaCallbacks>({
     onMatchEnd: (result) => {
       onMatchEnd?.(result);
+      if (!matchEndAwardedRef.current && (result as TeamMatchResult).teamMode) {
+        matchEndAwardedRef.current = true;
+        const teamResult = result as TeamMatchResult;
+        if (teamResult.winningTeam === teamResult.playerTeam) {
+          onAwardXP?.(ARENA_XP_WIN_BONUS, 'arena_win');
+        }
+      }
       if ((result as TeamMatchResult).teamMode) {
         setMatchResult(result as TeamMatchResult);
       }
@@ -188,7 +200,13 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     const id = setInterval(() => {
       const e = engineRef.current;
       if (!e || typeof e.getArenaStats !== 'function') return;
-      setSessionStats(e.getArenaStats());
+      const stats = e.getArenaStats();
+      if (stats.kills > awardedKillsRef.current) {
+        const newKills = stats.kills - awardedKillsRef.current;
+        awardedKillsRef.current = stats.kills;
+        onAwardXP?.(newKills * ARENA_XP_PER_KILL, 'arena_kill');
+      }
+      setSessionStats(stats);
     }, 500);
     return () => clearInterval(id);
   }, [ready]);
