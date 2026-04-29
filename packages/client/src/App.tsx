@@ -3235,6 +3235,44 @@ function AppInner() {
                 const result = completeResearchSession(current, slot.slotIndex, stuckSystem, playerStats.totalCompletedSessions, playerStats.totalDiscoveries, playerStats.lastDiscoverySession);
                 current = result.state;
                 changed = true;
+
+                // Keep self-healed completions behaviorally identical to normal
+                // timer completions. Previously these only updated the galaxy
+                // label ("researched") and skipped the completion popup.
+                setPlayerStats((ps) => ({
+                  totalCompletedSessions: ps.totalCompletedSessions + 1,
+                  totalDiscoveries: ps.totalDiscoveries + (result.discovery ? 1 : 0),
+                  lastDiscoverySession: result.discovery ? ps.totalCompletedSessions + 1 : ps.lastDiscoverySession,
+                }));
+                engine.updateSystemResearchVisual(slot.systemId, current);
+                setHoveredStarInfo((prev) => {
+                  if (!prev || prev.systemId !== slot.systemId) return prev;
+                  const newProg = getResearchProgress(current, slot.systemId);
+                  if (newProg >= 100) return null;
+                  return { systemId: slot.systemId, progress: newProg };
+                });
+                if (result.discovery) {
+                  const discEntry = getCatalogEntry(result.discovery.type) as CatalogEntry | undefined;
+                  const discName = discEntry ? getCatalogName(discEntry, i18n.language) : result.discovery.type;
+                  setDiscoveryQueue(q => [...q, { discovery: result.discovery!, system: stuckSystem }]);
+                  addLogEntry('science',
+                    t('app.log.observatory_signal').replace('{name}', discName).replace('{system}', stuckSystem.name),
+                    { systemId: stuckSystem.id, objectType: result.discovery.type, discoveryRef: result.discovery },
+                  );
+                  const rarityBonus = XP_REWARDS.DISCOVERY_RARITY_BONUS[result.discovery.rarity] ?? 0;
+                  awardXP(XP_REWARDS.DISCOVERY_BASE + rarityBonus, 'discovery');
+                }
+                awardXP(SESSION_XP, 'research_session');
+                interstitialManager.tryShow();
+                if (result.isNowComplete) {
+                  const research = current.systems[stuckSystem.id];
+                  if (research) {
+                    setCompletedModalQueue(q => [...q, { system: stuckSystem, research }]);
+                    const completionXP = getSystemResearchCompletionXP(stuckSystem) ?? XP_REWARDS.RESEARCH_COMPLETE;
+                    awardXP(completionXP, 'research_complete');
+                    engineRef.current?.pulseCapillaryTo(stuckSystem.id);
+                  }
+                }
               } else {
                 // System not found in engine — likely stale/dangling reference; clear slot
                 console.warn(

@@ -268,6 +268,204 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           </div>
         )}
 
+        {!isMobile ? (
+          <div style={S.desktopDock}>
+            <div style={{
+              ...S.bayWrap,
+              ...S.desktopBayWrap,
+              borderColor: activeSlot.team === 'blue' ? '#446688' : '#664433',
+              background: `radial-gradient(circle at 50% 35%, ${activeSlot.softAccent}, transparent 44%), linear-gradient(180deg, rgba(7,12,22,0.92), rgba(3,7,14,0.96))`,
+              opacity: mounted ? 1 : 0,
+              transform: mounted ? 'scale(1)' : 'scale(0.94)',
+              transition: 'opacity 0.5s ease 0.4s, transform 0.5s ease 0.4s',
+            }}>
+              <div style={S.bayHeader}>
+                <div>
+                  <div style={S.bayKicker}>{t('hangar.bay_ready' as Parameters<typeof t>[0])}</div>
+                  <div style={{ ...S.previewName, color: activeSlot.accent }}>{t(activeSlot.labelKey as Parameters<typeof t>[0])}</div>
+                </div>
+                <div style={{ ...S.teamChip, borderColor: activeSlot.accent, color: activeSlot.accent }}>
+                  {t('hangar.team_color' as Parameters<typeof t>[0])}: {activeSlot.team.toUpperCase()}
+                </div>
+              </div>
+              <ShipModelPreview modelUrl={activeSlot.glbSrc} accent={activeSlot.accent} />
+              <div style={S.shipTelemetry}>
+                <div style={S.shipTelemetryRow}>
+                  <span>{t('hangar.chassis_status' as Parameters<typeof t>[0])}</span>
+                  <strong style={{ color: activeSlot.accent }}>{t('hangar.ship_selected')}</strong>
+                </div>
+                <div style={S.shipDesc}>{t(activeSlot.descKey as Parameters<typeof t>[0])}</div>
+              </div>
+            </div>
+
+            <div style={S.desktopOps}>
+              <div style={{
+                ...S.selectorScroll,
+                ...S.desktopSelector,
+                opacity: mounted ? 1 : 0,
+                transition: 'opacity 0.5s ease 0.6s',
+              }}>
+                {SHIP_SLOTS.map((slot, i) => {
+                  const isActive = slot.id === selectedShip;
+                  return (
+                    <button
+                      key={slot.id}
+                      style={{
+                        ...S.shipCard,
+                        ...S.desktopShipCard,
+                        border: isActive ? `2px solid ${slot.accent}` : '1px solid #223344',
+                        background: isActive
+                          ? `linear-gradient(135deg, ${slot.softAccent}, rgba(10,15,25,0.92))`
+                          : 'linear-gradient(135deg, rgba(10,15,25,0.8), rgba(20,30,50,0.6))',
+                        boxShadow: isActive ? `0 0 16px ${slot.softAccent}, inset 0 0 20px ${slot.softAccent}` : 'none',
+                        opacity: mounted ? 1 : 0,
+                        transform: mounted ? 'translateY(0)' : 'translateY(20px)',
+                        transition: `opacity 0.4s ease ${0.7 + i * 0.08}s, transform 0.4s ease ${0.7 + i * 0.08}s, border-color 0.2s, box-shadow 0.2s`,
+                      }}
+                      onClick={() => handleShipClick(slot)}
+                    >
+                      <ShipGlyph color={slot.accent} />
+                      <div style={{
+                        ...S.cardLabel,
+                        color: isActive ? slot.accent : '#8899aa',
+                      }}>
+                        {t(slot.labelKey as Parameters<typeof t>[0])}
+                      </div>
+                      <div style={{ ...S.cardTeam, color: slot.accent }}>{slot.team.toUpperCase()}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                style={{
+                  ...S.customShipCta,
+                  ...S.desktopFlushBlock,
+                  opacity: mounted ? 1 : 0,
+                  transform: mounted ? 'translateY(0)' : 'translateY(14px)',
+                }}
+                onClick={handleCustomShipOrder}
+              >
+                <span style={S.customShipCtaIcon}>
+                  <ShipGlyph color="#c6dbf2" />
+                  <span style={S.customPlus}>+</span>
+                </span>
+                <span style={S.customShipCtaText}>
+                  <strong>{t('hangar.ship.custom_3d')}</strong>
+                  <small>{t('hangar.ship.custom_hint' as Parameters<typeof t>[0])}</small>
+                </span>
+                <span style={S.customShipCtaCost}>
+                  {CUSTOM_SHIP_COST}
+                  <QuarkIcon />
+                </span>
+              </button>
+
+              <div
+                style={{
+                  ...S.quickLaunchPanel,
+                  ...S.desktopFlushBlock,
+                  borderColor: `${activeSlot.accent}55`,
+                  opacity: mounted ? 1 : 0,
+                  transform: mounted ? 'translateY(0)' : 'translateY(14px)',
+                }}
+              >
+                <div style={S.quickLaunchCopy}>
+                  <span style={S.quickLaunchKicker}>{t('hangar.ship_selected')}</span>
+                  <strong style={{ color: activeSlot.accent }}>
+                    {t(activeSlot.labelKey as Parameters<typeof t>[0])}
+                  </strong>
+                  <small style={S.quickLaunchHint}>{t('hangar.event.training_desc')}</small>
+                </div>
+                <button
+                  style={{
+                    ...S.quickLaunchButton,
+                    color: activeSlot.accent,
+                    borderColor: `${activeSlot.accent}88`,
+                    boxShadow: `0 0 18px ${activeSlot.softAccent}`,
+                  }}
+                  onClick={handleEnterTraining}
+                >
+                  {t('hangar.event.training_enter')}
+                </button>
+              </div>
+
+              <div style={{
+                ...S.controlsSection,
+                ...S.desktopFlushBlock,
+                opacity: mounted ? 1 : 0,
+                transition: 'opacity 0.5s ease 0.75s',
+              }}>
+                <button style={S.controlsHeader} onClick={handleToggleControls}>
+                  <span style={S.controlsTitle}>{t('hangar.controls.title')}</span>
+                  <span style={{ ...S.controlsChevron, transform: controlsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </span>
+                </button>
+                {controlsOpen && (
+                  <div style={S.controlsGrid}>
+                    {CONTROLS.map(row => (
+                      <React.Fragment key={row.keyLabel}>
+                        <div style={S.controlKey}>{row.keyLabel}</div>
+                        <div style={S.controlAction}>{t(row.actionKey as Parameters<typeof t>[0])}</div>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{
+                ...S.entrySection,
+                ...S.desktopFlushBlock,
+                borderColor: teamBattleUnlocked && onEnterTeamBattle ? '#446644' : '#223344',
+                opacity: mounted ? (teamBattleUnlocked ? 1 : 0.5) : 0,
+                transition: 'opacity 0.5s ease 1.0s',
+              }}>
+                <div style={{ ...S.entryTitle, color: teamBattleUnlocked && onEnterTeamBattle ? '#88dd88' : '#667788' }}>
+                  {t('hangar.event.team_battle')}{!teamBattleUnlocked ? ' (L50)' : ''}
+                </div>
+                <div style={S.entryDesc}>{t('hangar.event.team_battle_desc')}</div>
+                {teamBattleUnlocked && onEnterTeamBattle ? (
+                  <div style={S.entryButtons}>
+                    <button style={S.entryQuark} onClick={handleEnterTeamBattle}>
+                      1{' '}
+                      <QuarkIcon />
+                    </button>
+                  </div>
+                ) : !teamBattleUnlocked ? (
+                  <div style={S.entryButtons}>
+                    <button
+                      style={{ ...S.entryQuark, opacity: 0.4, cursor: 'not-allowed', animation: 'none' }}
+                      onClick={handleEnterTeamBattle}
+                    >
+                      <LockIcon />
+                      <span style={{ marginLeft: 4 }}>L50</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div style={S.comingSoon}>{t('hangar.event.coming_soon')}</div>
+                )}
+              </div>
+
+              <div style={{
+                ...S.tournamentCard,
+                ...S.desktopFlushBlock,
+                opacity: mounted ? 0.35 : 0,
+                transition: 'opacity 0.5s ease 1.1s',
+              }}>
+                <div style={{ fontSize: 11, color: '#556677', letterSpacing: 1, textTransform: 'uppercase' }}>
+                  {t('hangar.event.tournament')}
+                </div>
+                <div style={{ fontSize: 8, color: '#445566', marginTop: 4 }}>
+                  {t('hangar.event.tournament_desc')}
+                </div>
+                <div style={S.comingSoon}>{t('hangar.event.coming_soon')}</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
         {/* ── Ship preview ──────────────────────────────────────────── */}
         <div style={{
           ...S.bayWrap,
@@ -460,6 +658,8 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           </div>
           <div style={S.comingSoon}>{t('hangar.event.coming_soon')}</div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Toast */}
@@ -665,6 +865,37 @@ const S: Record<string, React.CSSProperties> = {
     WebkitOverflowScrolling: 'touch',
     display: 'flex', flexDirection: 'column',
     padding: '0 0 calc(72px + env(safe-area-inset-bottom, 0px))',
+  },
+  desktopDock: {
+    width: 'min(1180px, calc(100vw - 72px))',
+    margin: '18px auto 0',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(520px, 1fr) minmax(360px, 430px)',
+    gap: 18,
+    alignItems: 'start',
+  },
+  desktopBayWrap: {
+    margin: 0,
+    minHeight: 'calc(100vh - 210px)',
+  },
+  desktopOps: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  desktopSelector: {
+    padding: 0,
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    overflow: 'visible',
+    scrollSnapType: 'none',
+  },
+  desktopShipCard: {
+    width: 'auto',
+    minHeight: 104,
+  },
+  desktopFlushBlock: {
+    margin: 0,
   },
 
   // Header
