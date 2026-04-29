@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { DailyLesson } from '../../../api/academy-api.js';
+import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { answerQuiz } from '../../../api/academy-api.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { interstitialManager } from '../../../services/interstitial-manager.js';
@@ -31,11 +31,12 @@ function injectXpKeyframes() {
 
 interface QuizViewProps {
   lesson: DailyLesson | null;
+  progress: AcademyProgress | null;
   onRefresh: () => void;
   onAwardXP?: (amount: number, reason: string) => void;
 }
 
-export function QuizView({ lesson, onRefresh, onAwardXP }: QuizViewProps) {
+export function QuizView({ lesson, progress, onRefresh, onAwardXP }: QuizViewProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [result, setResult] = useState<{
     correct: boolean;
@@ -43,14 +44,43 @@ export function QuizView({ lesson, onRefresh, onAwardXP }: QuizViewProps) {
     explanation: string;
     xpAwarded: number;
     quarksAwarded: number;
+    alreadyAnswered?: boolean;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showXP, setShowXP] = useState(false);
   const injectedRef = useRef(false);
+  const liveAnsweredLessonRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!injectedRef.current) { injectXpKeyframes(); injectedRef.current = true; }
   }, []);
+
+  useEffect(() => {
+    if (!lesson) {
+      setSelectedIndex(null);
+      setResult(null);
+      return;
+    }
+
+    const savedAnswer = progress?.category_progress?.__quiz_answers?.[lesson.lessonId];
+    if (savedAnswer && liveAnsweredLessonRef.current === lesson.lessonId) return;
+    if (!savedAnswer) {
+      setSelectedIndex(null);
+      setResult(null);
+      liveAnsweredLessonRef.current = null;
+      return;
+    }
+
+    setSelectedIndex(savedAnswer.answerIndex);
+    setResult({
+      correct: savedAnswer.correct,
+      correctIndex: savedAnswer.correctIndex,
+      explanation: savedAnswer.explanation,
+      xpAwarded: 0,
+      quarksAwarded: 0,
+      alreadyAnswered: true,
+    });
+  }, [lesson, progress]);
 
   if (!lesson) {
     return <div style={styles.empty}>Немає вікторини на сьогодні.</div>;
@@ -64,6 +94,9 @@ export function QuizView({ lesson, onRefresh, onAwardXP }: QuizViewProps) {
     setSubmitting(true);
     try {
       const res = await answerQuiz(lesson.lessonId, index);
+      liveAnsweredLessonRef.current = lesson.lessonId;
+      const answerIndex = res.answerIndex ?? index;
+      setSelectedIndex(answerIndex);
       setResult(res);
       if (res.correct) {
         playSfx('quiz-correct', 0.35);
@@ -126,7 +159,11 @@ export function QuizView({ lesson, onRefresh, onAwardXP }: QuizViewProps) {
         <div style={styles.resultBlock}>
           <div style={result.correct ? styles.resultCorrect : styles.resultWrong}>
             {result.correct
-              ? <span>Правильно! +{result.quarksAwarded} <QuarksIcon /> +{result.xpAwarded} XP</span>
+              ? (
+                result.alreadyAnswered
+                  ? <span>Правильно! Вікторину вже зараховано.</span>
+                  : <span>Правильно! +{result.quarksAwarded} <QuarksIcon /> +{result.xpAwarded} XP</span>
+              )
               : 'Неправильно'}
           </div>
           <p style={styles.explanation}>{result.explanation}</p>

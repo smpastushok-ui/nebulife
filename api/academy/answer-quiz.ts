@@ -2,6 +2,19 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { getAcademyProgress, updateAcademyProgress, getCachedLesson, updatePlayer, getPlayer } from '../../packages/server/src/db.js';
 
+interface QuizAnswerRecord {
+  answerIndex: number;
+  correct: boolean;
+  correctIndex: number;
+  explanation: string;
+  answeredAt: string;
+}
+
+interface AcademyCategoryProgress {
+  __quiz_answers?: Record<string, QuizAnswerRecord>;
+  [key: string]: unknown;
+}
+
 /**
  * POST /api/academy/answer-quiz
  * Body: { lessonId: string, answerIndex: number }
@@ -22,9 +35,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const progress = await getAcademyProgress(auth.playerId);
     if (!progress) return res.status(404).json({ error: 'No academy progress' });
 
+    const categoryProgress = (progress.category_progress ?? {}) as AcademyCategoryProgress;
+    const quizAnswers = categoryProgress.__quiz_answers ?? {};
+    const existingAnswer = quizAnswers[lessonId];
+    if (existingAnswer) {
+      return res.status(200).json({
+        correct: existingAnswer.correct,
+        correctIndex: existingAnswer.correctIndex,
+        explanation: existingAnswer.explanation,
+        xpAwarded: 0,
+        quarksAwarded: 0,
+        answerIndex: existingAnswer.answerIndex,
+        answeredAt: existingAnswer.answeredAt,
+        alreadyAnswered: true,
+      });
+    }
+
+    const player = await getPlayer(auth.playerId);
+    const lang: 'uk' | 'en' = player?.preferred_language === 'en' ? 'en' : 'uk';
+
     // Get cached lesson to check correct answer
     const today = new Date().toISOString().slice(0, 10);
-    const lesson = await getCachedLesson(today, lessonId, progress.difficulty);
+    const lesson = await getCachedLesson(today, lessonId, progress.difficulty, lang);
     if (!lesson) {
       return res.status(404).json({ error: 'Lesson not found in cache' });
     }
@@ -35,9 +67,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Update stats
     const totalAnswered = (progress.total_quizzes_answered ?? 0) + 1;
     const totalCorrect = (progress.total_quizzes_correct ?? 0) + (isCorrect ? 1 : 0);
+    const answerRecord: QuizAnswerRecord = {
+      answerIndex,
+      correct: isCorrect,
+      correctIndex: quizData.correctIndex,
+      explanation: quizData.explanation,
+      answeredAt: new Date().toISOString(),
+    };
+
     await updateAcademyProgress(auth.playerId, {
       total_quizzes_answered: totalAnswered,
       total_quizzes_correct: totalCorrect,
+      category_progress: {
+        ...categoryProgress,
+        __quiz_answers: {
+          ...quizAnswers,
+          [lessonId]: answerRecord,
+        },
+      },
     });
 
     // Award XP for correct answer
@@ -46,7 +93,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (isCorrect) {
       xpAwarded = 50;
       quarksAwarded = 2;
-      const player = await getPlayer(auth.playerId);
       if (player) {
         await updatePlayer(auth.playerId, { science_points: (player.science_points ?? 0) + xpAwarded });
       }
@@ -60,6 +106,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       explanation: quizData.explanation,
       xpAwarded,
       quarksAwarded,
+      answerIndex,
+      answeredAt: answerRecord.answeredAt,
+      alreadyAnswered: false,
     });
   } catch (err) {
     console.error('[academy/answer-quiz]', err);

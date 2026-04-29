@@ -162,6 +162,7 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
               {tab === 'quiz' && (
                 <QuizView
                   lesson={lesson}
+                  progress={progress}
                   onRefresh={handleRefresh}
                   onAwardXP={onAwardXP}
                 />

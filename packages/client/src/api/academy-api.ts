@@ -16,7 +16,15 @@ export interface AcademyProgress {
   total_quests_completed: number;
   total_quizzes_correct: number;
   total_quizzes_answered: number;
-  category_progress: Record<string, unknown>;
+  category_progress: Record<string, unknown> & {
+    __quiz_answers?: Record<string, {
+      answerIndex: number;
+      correct: boolean;
+      correctIndex: number;
+      explanation: string;
+      answeredAt: string;
+    }>;
+  };
   onboarded: boolean;
 }
 
@@ -132,6 +140,9 @@ export async function answerQuiz(
   explanation: string;
   xpAwarded: number;
   quarksAwarded: number;
+  answerIndex?: number;
+  answeredAt?: string;
+  alreadyAnswered?: boolean;
 }> {
   const res = await authFetch('/api/academy/answer-quiz', {
     method: 'POST',
