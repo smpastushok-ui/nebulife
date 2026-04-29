@@ -44,6 +44,15 @@ export function LandingPage() {
   };
   const currentLanguage = i18n.language.startsWith('uk') ? 'uk' : 'en';
 
+  React.useEffect(() => {
+    document.documentElement.classList.add('landing-page-active');
+    document.body.classList.add('landing-page-active');
+    return () => {
+      document.documentElement.classList.remove('landing-page-active');
+      document.body.classList.remove('landing-page-active');
+    };
+  }, []);
+
   return (
     <main className="landing-root">
       <div className="landing-stars" aria-hidden="true" />

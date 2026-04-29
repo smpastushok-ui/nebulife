@@ -1,3 +1,21 @@
+.landing-page-active,
+html.landing-page-active,
+body.landing-page-active {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior-y: auto !important;
+  touch-action: pan-y manipulation !important;
+}
+
+html.landing-page-active #root {
+  height: auto !important;
+  min-height: 100vh !important;
+  overflow: visible !important;
+  position: relative !important;
+}
+
 .landing-root {
   position: relative;
   min-height: 100vh;
@@ -268,6 +286,7 @@
   background:
     radial-gradient(circle, #f8f7ff 0 8%, #7bb8ff 18%, rgba(68, 136, 170, 0.34) 48%, transparent 72%);
   box-shadow: 0 0 34px rgba(213, 230, 255, 0.72), 0 0 90px rgba(123, 184, 255, 0.28);
+  animation: landingCoreBreath 5.4s ease-in-out infinite;
 }
 
 .landing-galaxy-arm {
@@ -282,18 +301,21 @@
 
 .landing-galaxy-arm-a {
   transform: rotate(-18deg) scaleX(1.36);
+  animation: landingGalaxyDriftA 38s linear infinite;
 }
 
 .landing-galaxy-arm-b {
   inset: 17%;
   opacity: 0.72;
   transform: rotate(49deg) scaleX(1.18);
+  animation: landingGalaxyDriftB 46s linear infinite;
 }
 
 .landing-galaxy-arm-c {
   inset: 28%;
   opacity: 0.56;
   transform: rotate(103deg) scaleX(1.52);
+  animation: landingGalaxyDriftC 56s linear infinite;
 }
 
 .landing-galaxy-ring {
@@ -305,12 +327,14 @@
 .landing-galaxy-ring-one {
   inset: 7%;
   transform: rotate(-18deg) scaleX(1.14);
+  animation: landingRingDrift 32s linear infinite;
 }
 
 .landing-galaxy-ring-two {
   inset: 22%;
   border-color: rgba(68, 255, 136, 0.12);
   transform: rotate(28deg) scaleX(1.38);
+  animation: landingRingDriftReverse 44s linear infinite;
 }
 
 .landing-galaxy-node {
@@ -337,6 +361,44 @@
   left: 43%;
   background: #44ff88;
   box-shadow: 0 0 18px rgba(68, 255, 136, 0.64);
+}
+
+@keyframes landingCoreBreath {
+  0%, 100% { transform: scale(0.94); opacity: 0.78; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes landingGalaxyDriftA {
+  from { transform: rotate(-18deg) scaleX(1.36); }
+  to { transform: rotate(342deg) scaleX(1.36); }
+}
+
+@keyframes landingGalaxyDriftB {
+  from { transform: rotate(49deg) scaleX(1.18); }
+  to { transform: rotate(-311deg) scaleX(1.18); }
+}
+
+@keyframes landingGalaxyDriftC {
+  from { transform: rotate(103deg) scaleX(1.52); }
+  to { transform: rotate(463deg) scaleX(1.52); }
+}
+
+@keyframes landingRingDrift {
+  from { transform: rotate(-18deg) scaleX(1.14); }
+  to { transform: rotate(342deg) scaleX(1.14); }
+}
+
+@keyframes landingRingDriftReverse {
+  from { transform: rotate(28deg) scaleX(1.38); }
+  to { transform: rotate(-332deg) scaleX(1.38); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-galaxy-core,
+  .landing-galaxy-arm,
+  .landing-galaxy-ring {
+    animation: none;
+  }
 }
 
 .landing-scan {
