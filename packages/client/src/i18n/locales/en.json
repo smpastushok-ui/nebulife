@@ -1555,5 +1555,67 @@
   "format": {
     "k": "k",
     "kk": "kk"
+  },
+  "landing": {
+    "badge": "Early Test Build",
+    "title": "Explore a living AI galaxy",
+    "subtitle": "Nebulife is a live space simulation where each player explores a deterministic star cluster, discovers unique worlds, and helps evacuate civilization in a 7-day survival arc.",
+    "nav_label": "Nebulife landing navigation",
+    "nav_testers": "Mobile testers",
+    "nav_play": "Web soon",
+    "lang_label": "Language",
+    "lang_uk": "UK",
+    "lang_en": "EN",
+    "cta_play": "Web version soon",
+    "cta_testers": "Join Android / iOS testers",
+    "cta_enter": "Join the mobile test",
+    "section_label": "Signal received",
+    "testers_label": "Open test",
+    "flow_label": "Mission sequence",
+    "proof_label": "Live modules",
+    "visual_label": "Procedural planet scanner",
+    "visual_scan_a": "Cluster sync: 50 pilots",
+    "visual_scan_b": "Exosphere scan: live",
+    "why_title": "Why Nebulife feels different",
+    "testers_title": "Test Nebulife on Android and iOS",
+    "testers_body": "We are collecting mobile testers first: onboarding, battery, performance, exosphere quality, terminal UX, and Academy flow. Join the Telegram group to get builds, notes, and feedback calls.",
+    "flow_title": "Gameplay loop",
+    "proof_title": "What you will test",
+    "final_title": "Ready for first mobile contact",
+    "final_subtitle": "Join the Android and iOS test group now. The browser version will open later when the mobile test is stable.",
+    "stats": {
+      "systems": "systems per cluster",
+      "players": "players per test cluster",
+      "arc": "survival arc"
+    },
+    "features": {
+      "live_title": "Living Galaxy",
+      "live_body": "AI-generated events, weekly digests, and evolving discoveries keep the universe fresh.",
+      "ai_title": "AI Expeditions",
+      "ai_body": "Generate mission artifacts like photos and reports from your own planets.",
+      "learn_title": "Real Astronomy",
+      "learn_body": "Academy turns sessions into actual science learning with adaptive difficulty.",
+      "cluster_title": "50-Player Clusters",
+      "cluster_body": "You are not alone: each cluster is a deterministic social ecosystem."
+    },
+    "flow": {
+      "step_1": "Start on your home planet and open your star map.",
+      "step_2": "Run observatory research sessions to reveal systems.",
+      "step_3": "Inspect exospheres and compare worlds by habitability.",
+      "step_4": "Launch expeditions and generate AI-driven discovery artifacts.",
+      "step_5": "Build colony infrastructure and prepare evacuation decisions."
+    },
+    "proof": {
+      "exosphere": "Real-time exosphere view",
+      "exosphere_body": "Inspect planet-scale atmosphere, rings, clouds, storms, and surface signatures.",
+      "galaxy": "Procedural galaxy navigation",
+      "galaxy_body": "Move through a deterministic cluster where every star has a place and purpose.",
+      "terminal": "Command terminal and research tree",
+      "terminal_body": "Plan research branches, compare discoveries, and control your expedition flow.",
+      "surface": "Surface economy and colony building",
+      "surface_body": "Build a colony from terrain, resources, energy, and survival constraints.",
+      "academy": "Academy lessons and quizzes",
+      "academy_body": "Learn real astronomy through adaptive missions connected to your progress."
+    }
   }
 }

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './i18n/index.js';
 import { App } from './App.js';
 import { getDeviceTier } from './utils/device-tier.js';
+import { LandingPage } from './ui/landing/LandingPage.js';
 
 // ---------------------------------------------------------------------------
 // Perf-tier root attribute + global CSS kill-switch
@@ -112,8 +113,38 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   }
 }
 
+function shouldRenderGame(pathname: string, search: string): boolean {
+  // Capacitor native shell (Android/iOS AAB/IPA) loads the app from
+  // capacitor://localhost — pathname there is '/' and there are no query
+  // params. The landing page is web-only; native users must always see the
+  // game directly. Detect by Capacitor global injected by the runtime.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cap = (window as any).Capacitor;
+  if (cap && (cap.isNativePlatform?.() || cap.platform === 'android' || cap.platform === 'ios')) {
+    return true;
+  }
+  if (pathname === '/play' || pathname.startsWith('/play/')) return true;
+  const params = new URLSearchParams(search);
+  return params.get('play') === '1';
+}
+
+function RootRouter() {
+  const [routeKey, setRouteKey] = React.useState(() => `${window.location.pathname}${window.location.search}`);
+
+  React.useEffect(() => {
+    const onPopstate = () => setRouteKey(`${window.location.pathname}${window.location.search}`);
+    window.addEventListener('popstate', onPopstate);
+    return () => window.removeEventListener('popstate', onPopstate);
+  }, []);
+
+  if (shouldRenderGame(window.location.pathname, window.location.search)) {
+    return <App key={`app:${routeKey}`} />;
+  }
+  return <LandingPage />;
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
-    <App />
+    <RootRouter />
   </ErrorBoundary>,
 );
