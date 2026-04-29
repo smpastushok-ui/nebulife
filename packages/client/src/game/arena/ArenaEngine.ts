@@ -775,8 +775,7 @@ export class ArenaEngine {
     const mat = new THREE.MeshBasicMaterial({
       map: texture,
       side: THREE.BackSide,
-      transparent: true,
-      opacity: 0.82,
+      transparent: false,
       depthWrite: false,
       depthTest: false,
       fog: false,

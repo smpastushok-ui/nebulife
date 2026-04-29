@@ -494,11 +494,11 @@ export function SystemsList({
               const canResearch = locked || fullyResearched ? false : (canStartResearch?.(system.id) ?? false);
               const isFirstNonHome = system.id === firstNonHomeId;
               const statusColor = fullyResearched
-                ? '#44ff88'
+                ? '#7fd9a6'
                 : researching
-                  ? '#7bb8ff'
+                  ? '#78a8d8'
                   : canResearch
-                    ? '#ffcc66'
+                    ? '#d7b36a'
                     : locked
                       ? '#556677'
                       : '#667788';
@@ -524,11 +524,11 @@ export function SystemsList({
                     gap: isMobile ? 4 : 8,
                     padding: isMobile ? '7px 8px' : '8px 12px',
                     background: fullyResearched
-                      ? 'linear-gradient(90deg, rgba(68,255,136,0.055), rgba(5,10,20,0.18))'
+                      ? 'linear-gradient(90deg, rgba(96,180,130,0.035), rgba(5,10,20,0.18))'
                       : researching
                         ? undefined
                         : canResearch
-                          ? 'linear-gradient(90deg, rgba(255,204,102,0.055), rgba(5,10,20,0.18))'
+                          ? 'linear-gradient(90deg, rgba(215,179,106,0.035), rgba(5,10,20,0.18))'
                           : isHovered
                             ? 'rgba(20, 38, 58, 0.42)'
                             : 'rgba(5, 10, 20, 0.18)',
@@ -536,7 +536,7 @@ export function SystemsList({
                       ? 'none'
                       : researching
                         ? '1px solid rgba(68, 136, 170, 0.35)'
-                        : `1px solid ${fullyResearched ? 'rgba(68,255,136,0.22)' : canResearch ? 'rgba(255,204,102,0.20)' : 'rgba(51, 68, 85, 0.18)'}`,
+                        : `1px solid ${fullyResearched ? 'rgba(127,217,166,0.16)' : canResearch ? 'rgba(215,179,106,0.15)' : 'rgba(51, 68, 85, 0.18)'}`,
                     borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.14)' : undefined,
                     borderRadius: isMobile ? 0 : 3,
                     fontFamily: 'monospace',
@@ -564,7 +564,7 @@ export function SystemsList({
                           background: starColor,
                           flexShrink: 0,
                           boxShadow: isHome
-                            ? '0 0 0 3px rgba(68,255,136,0.34), 0 0 12px rgba(68,255,136,0.55)'
+                            ? '0 0 0 2px rgba(127,217,166,0.20), 0 0 10px rgba(127,217,166,0.28)'
                             : `0 0 10px ${starColor}44`,
                         }}
                       />
@@ -575,8 +575,8 @@ export function SystemsList({
                         <span style={{
                           marginLeft: 'auto',
                           color: statusColor,
-                          border: `1px solid ${statusColor}44`,
-                          background: `${statusColor}12`,
+                          border: `1px solid ${statusColor}26`,
+                          background: `${statusColor}0c`,
                           borderRadius: 999,
                           padding: '2px 7px',
                           fontSize: 9,
@@ -601,8 +601,8 @@ export function SystemsList({
                           width: `${progressPct}%`,
                           height: '100%',
                           borderRadius: 999,
-                          background: `linear-gradient(90deg, ${statusColor}, ${fullyResearched ? '#aaffcc' : '#7bb8ff'})`,
-                          boxShadow: progressPct > 0 ? `0 0 10px ${statusColor}55` : undefined,
+                          background: `linear-gradient(90deg, ${statusColor}, ${fullyResearched ? '#b7dcc7' : '#7fa7ca'})`,
+                          boxShadow: progressPct > 0 ? `0 0 6px ${statusColor}28` : undefined,
                           transition: 'width 0.25s ease',
                         }} />
                         {researching && (
@@ -612,7 +612,7 @@ export function SystemsList({
                             left: 0,
                             width: '32%',
                             height: '100%',
-                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
+                            background: 'linear-gradient(90deg, transparent, rgba(180,215,245,0.26), transparent)',
                             animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
                           }} />
                         )}
@@ -942,13 +942,13 @@ function ResearchProgressIcon({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         width: 34, height: 34, borderRadius: '50%',
         background: isComplete
-          ? 'rgba(68,255,136,0.14)'
+          ? 'rgba(127,217,166,0.075)'
           : isResearching
-            ? 'rgba(68,136,255,0.14)'
+            ? 'rgba(123,168,216,0.09)'
             : disabled
               ? 'rgba(68,102,136,0.045)'
-              : hover ? 'rgba(68,136,255,0.18)' : 'rgba(68,136,255,0.06)',
-        border: `1px solid ${isComplete ? 'rgba(68,255,136,0.42)' : isResearching ? 'rgba(123,184,255,0.42)' : disabled ? 'rgba(68,102,136,0.20)' : 'rgba(123,184,255,0.30)'}`,
+              : hover ? 'rgba(123,168,216,0.13)' : 'rgba(68,136,255,0.045)',
+        border: `1px solid ${isComplete ? 'rgba(127,217,166,0.28)' : isResearching ? 'rgba(123,184,255,0.32)' : disabled ? 'rgba(68,102,136,0.18)' : 'rgba(123,184,255,0.24)'}`,
         cursor: disabled ? 'default' : 'pointer',
         padding: 0,
         transition: 'background 0.15s, border-color 0.15s',
@@ -970,8 +970,8 @@ function ResearchProgressIcon({
           cy={cy}
           r={r}
           fill="none"
-          stroke={isComplete ? '#44ff88' : disabled ? '#556677' : '#7bb8ff'}
-          strokeOpacity={isComplete ? 1 : disabled ? 0.34 : 0.3}
+          stroke={isComplete ? '#7fd9a6' : disabled ? '#556677' : '#7bb8ff'}
+          strokeOpacity={isComplete ? 0.7 : disabled ? 0.3 : 0.26}
           strokeWidth={1.4}
         />
         {/* Foreground progress arc — drawn as a stroke-dasharray slice. We
@@ -982,7 +982,7 @@ function ResearchProgressIcon({
             cy={cy}
             r={r}
             fill="none"
-            stroke={isResearching ? '#7bb8ff' : '#ffcc66'}
+            stroke={isResearching ? '#78a8d8' : '#d7b36a'}
             strokeWidth={1.6}
             strokeLinecap="round"
             strokeDasharray={`${arcLen} ${circ}`}
@@ -1000,7 +1000,7 @@ function ResearchProgressIcon({
             width: 6,
             height: 6,
             borderRadius: '50%',
-            background: '#7bb8ff',
+            background: '#78a8d8',
             animation: skipAnim ? undefined : 'sys-research-particle-pulse 1.6s ease-in-out infinite',
             transformOrigin: '50% 50%',
           }}
@@ -1013,7 +1013,7 @@ function ResearchProgressIcon({
           viewBox="0 0 16 16"
           style={{ position: 'relative', zIndex: 1 }}
           fill="none"
-          stroke="#44ff88"
+          stroke="#7fd9a6"
           strokeWidth={1.4}
           strokeLinecap="round"
           strokeLinejoin="round"

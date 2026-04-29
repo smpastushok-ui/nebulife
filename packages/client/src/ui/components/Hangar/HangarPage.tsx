@@ -355,6 +355,58 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           </button>
         </div>
 
+        <button
+          style={{
+            ...S.customShipCta,
+            opacity: mounted ? 1 : 0,
+            transform: mounted ? 'translateY(0)' : 'translateY(14px)',
+          }}
+          onClick={handleCustomShipOrder}
+        >
+          <span style={S.customShipCtaIcon}>
+            <ShipGlyph color="#c6dbf2" />
+            <span style={S.customPlus}>+</span>
+          </span>
+          <span style={S.customShipCtaText}>
+            <strong>{t('hangar.ship.custom_3d')}</strong>
+            <small>{t('hangar.ship.custom_hint' as Parameters<typeof t>[0])}</small>
+          </span>
+          <span style={S.customShipCtaCost}>
+            {CUSTOM_SHIP_COST}
+            <QuarkIcon />
+          </span>
+        </button>
+
+        <div
+          style={{
+            ...S.quickLaunchPanel,
+            gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
+            borderColor: `${activeSlot.accent}55`,
+            opacity: mounted ? 1 : 0,
+            transform: mounted ? 'translateY(0)' : 'translateY(14px)',
+          }}
+        >
+          <div style={S.quickLaunchCopy}>
+            <span style={S.quickLaunchKicker}>{t('hangar.ship_selected')}</span>
+            <strong style={{ color: activeSlot.accent }}>
+              {t(activeSlot.labelKey as Parameters<typeof t>[0])}
+            </strong>
+            <small style={S.quickLaunchHint}>{t('hangar.event.training_desc')}</small>
+          </div>
+          <button
+            style={{
+              ...S.quickLaunchButton,
+              width: isMobile ? '100%' : undefined,
+              color: activeSlot.accent,
+              borderColor: `${activeSlot.accent}88`,
+              boxShadow: `0 0 18px ${activeSlot.softAccent}`,
+            }}
+            onClick={handleEnterTraining}
+          >
+            {t('hangar.event.training_enter')}
+          </button>
+        </div>
+
         {/* ── Controls panel (desktop only) ─────────────────────── */}
         {!isMobile && (
           <div style={{
@@ -765,6 +817,89 @@ const S: Record<string, React.CSSProperties> = {
     color: '#7bb8ff',
     fontSize: 13,
     lineHeight: 1,
+  },
+  customShipCta: {
+    margin: '8px 16px 2px',
+    padding: '9px 10px',
+    display: 'grid',
+    gridTemplateColumns: '38px 1fr auto',
+    alignItems: 'center',
+    gap: 10,
+    border: '1px solid rgba(123,184,255,0.30)',
+    borderRadius: 6,
+    background: 'linear-gradient(135deg, rgba(10,18,30,0.88), rgba(20,32,48,0.70))',
+    boxShadow: 'inset 0 0 18px rgba(123,184,255,0.055)',
+    color: '#c6dbf2',
+    cursor: 'pointer',
+    fontFamily: 'monospace',
+    textAlign: 'left',
+    transition: 'opacity 0.4s ease 0.92s, transform 0.4s ease 0.92s, border-color 0.2s, box-shadow 0.2s',
+  },
+  customShipCtaIcon: {
+    position: 'relative',
+    width: 36,
+    height: 36,
+    display: 'grid',
+    placeItems: 'center',
+    borderRadius: 5,
+    background: 'rgba(198,219,242,0.055)',
+    border: '1px solid rgba(198,219,242,0.12)',
+  },
+  customShipCtaText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 3,
+  },
+  customShipCtaCost: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    color: '#7bb8ff',
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  quickLaunchPanel: {
+    margin: '10px 16px 2px',
+    padding: '11px 12px',
+    display: 'grid',
+    gridTemplateColumns: '1fr auto',
+    alignItems: 'center',
+    gap: 12,
+    border: '1px solid rgba(123,184,255,0.34)',
+    borderRadius: 7,
+    background: 'linear-gradient(135deg, rgba(5,10,20,0.92), rgba(16,26,42,0.82))',
+    boxShadow: 'inset 0 0 22px rgba(123,184,255,0.05)',
+    fontFamily: 'monospace',
+    transition: 'opacity 0.4s ease 1s, transform 0.4s ease 1s, border-color 0.2s',
+  },
+  quickLaunchCopy: {
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0,
+    gap: 3,
+  },
+  quickLaunchKicker: {
+    color: '#667788',
+    fontSize: 8,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
+  quickLaunchHint: {
+    color: '#8899aa',
+    fontSize: 9,
+    lineHeight: 1.35,
+  },
+  quickLaunchButton: {
+    minHeight: 42,
+    padding: '0 16px',
+    border: '1px solid rgba(123,184,255,0.55)',
+    borderRadius: 5,
+    background: 'linear-gradient(135deg, rgba(20,34,52,0.88), rgba(8,14,24,0.96))',
+    fontFamily: 'monospace',
+    fontSize: 10,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    cursor: 'pointer',
   },
 
   // Controls panel
