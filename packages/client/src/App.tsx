@@ -71,7 +71,7 @@ import {
   GAME_TOTAL_SECONDS,
   levelFromXP,
   XP_REWARDS,
-  RING_XP_REWARD,
+  getSystemResearchCompletionXP,
   SESSION_XP,
   HARVEST_YIELD,
   createTechTreeState,
@@ -2026,7 +2026,11 @@ function AppInner() {
   });
   const [tutorialFreeCount, setTutorialFreeCount] = useState(0);
   const [tutorialSubStep, setTutorialSubStep] = useState(0);
-  const isTutorialActive = tutorialStep >= 0 && tutorialStep <= 12;
+  const activeTutorialStep = tutorialStep >= 0 && tutorialStep < TUTORIAL_STEPS.length
+    ? TUTORIAL_STEPS[tutorialStep]
+    : null;
+  const isTutorialActive = activeTutorialStep !== null;
+  const tutorialCompleteStep = TUTORIAL_STEPS.length;
 
   // Reset clock state when entering onboarding (account reset scenario)
   useEffect(() => {
@@ -3298,13 +3302,7 @@ function AppInner() {
                   const research = current.systems[system.id];
                   if (research) {
                     setCompletedModalQueue(q => [...q, { system, research }]);
-                    // Determine zone key from system.ringIndex
-                    const ri = system.ringIndex ?? 0;
-                    const zoneKey =
-                      ri <= 1 ? 'ring0-1' :
-                      ri === 2 ? 'ring2' :
-                      'neighbor';
-                    const completionXP = RING_XP_REWARD[zoneKey] ?? XP_REWARDS.RESEARCH_COMPLETE;
+                    const completionXP = getSystemResearchCompletionXP(system) ?? XP_REWARDS.RESEARCH_COMPLETE;
                     awardXP(completionXP, 'research_complete');
                     // Capillary pulse: zip a bead along the home→system edge
                     // so the player sees the web "reaching" the newly unlocked
@@ -3839,6 +3837,11 @@ function AppInner() {
       const allSystems = engineRef.current?.getAllSystems() ?? [];
       if (!isRingFullyResearched(researchState, allSystems, targetRing - 1)) return;
     }
+    const maxRingAdd = getEffectValue(techTreeStateRef.current, 'max_ring_add', 0);
+    const effectiveMax = quarkUnlockedSystems.has(systemId)
+      ? Math.max(HOME_RESEARCH_MAX_RING + maxRingAdd, targetRing)
+      : HOME_RESEARCH_MAX_RING + maxRingAdd;
+    if (!canStartResearch(researchState, systemId, targetRing, effectiveMax)) return;
     const slotIdx = findBestSlotForSystem(researchState, targetRing);
     if (slotIdx < 0) return;
     setResearchData((prev) => prev - RESEARCH_DATA_COST);
@@ -3850,20 +3853,20 @@ function AppInner() {
       return next;
     });
 
-    // Tutorial: track research starts for steps 6 and 8
+    // Tutorial: track research starts for first scan and free-task scans.
     if (isTutorialActive) {
-      if (tutorialStep === 6) {
-        // First research completed — advance to step 7 (HUD info)
-        setTutorialStep(7);
+      const currentTutorial = TUTORIAL_STEPS[tutorialStep];
+      if (currentTutorial?.id === 'first-research') {
+        const hudStep = TUTORIAL_STEPS.findIndex((step) => step.id === 'hud-info');
+        setTutorialStep(hudStep >= 0 ? hudStep : tutorialStep + 1);
         setTutorialSubStep(0);
-      } else if (tutorialStep === 8) {
-        // Free task — increment counter
+      } else if (currentTutorial?.id === 'free-task') {
         setTutorialFreeCount((prev) => {
           const n = prev + 1;
-          if (n >= 2) {
-            // Completed free task — advance to step 9 (anomaly)
+          if (n >= (currentTutorial.freeTaskTotal ?? 1)) {
+            const anomalyStep = TUTORIAL_STEPS.findIndex((step) => step.id === 'anomaly');
             setTimeout(() => {
-              setTutorialStep(9);
+              setTutorialStep(anomalyStep >= 0 ? anomalyStep : tutorialStep + 1);
               setTutorialSubStep(0);
             }, 500);
           }
@@ -3871,7 +3874,7 @@ function AppInner() {
         });
       }
     }
-  }, [researchData, researchState, isTutorialActive, tutorialStep, t]);
+  }, [researchData, researchState, quarkUnlockedSystems, isTutorialActive, tutorialStep, t]);
 
   // --- Tech Tree: research a technology ---
   const handleResearchTech = useCallback((techId: string) => {
@@ -3882,7 +3885,6 @@ function AppInner() {
 
     const newState = researchTech(techTreeState, techId);
     setTechTreeState(newState);
-    awardXP(node.xpReward, 'tech_researched');
     addLogEntry('system', t('app.log.tech_researched').replace('{name}', node.name));
 
     // Queue toast notification (will appear after any active level-up banner)
@@ -3897,9 +3899,10 @@ function AppInner() {
     ]);
 
     // Expand research slots if observatory/concurrent effects changed
-    const extraSlots =
-      getEffectValue(newState, 'observatory_count_add', 0) +
-      getEffectValue(newState, 'concurrent_research_add', 0);
+    const homeObservatorySlots = isExodusPhase
+      ? getEffectValue(newState, 'observatory_count_add', 0)
+      : 0;
+    const extraSlots = homeObservatorySlots + getEffectValue(newState, 'concurrent_research_add', 0);
     // During exodus phase, base = HOME_OBSERVATORY_COUNT (built-in observatories on home planet).
     // After evacuation+colonization, base = current slot count (observatories built by player).
     setResearchState((prev) => {
@@ -4517,6 +4520,9 @@ function AppInner() {
             };
             setDiscoveryQueue(q => [{ discovery: fakeDiscovery, system: nonHomeSys }, ...q]);
           }
+        } else if (action === 'complete-tutorial') {
+          setTutorialStep(tutorialCompleteStep);
+          return;
         }
       }
     }
@@ -4525,9 +4531,9 @@ function AppInner() {
     const nextStep = tutorialStep + 1;
     setTutorialSubStep(0);
 
-    if (nextStep > 12) {
+    if (nextStep >= TUTORIAL_STEPS.length) {
       // Tutorial complete
-      setTutorialStep(13);
+      setTutorialStep(tutorialCompleteStep);
       return;
     }
 
@@ -4563,11 +4569,11 @@ function AppInner() {
     } else {
       activateStep(nextStep);
     }
-  }, [isTutorialActive, tutorialStep, tutorialSubStep]);
+  }, [isTutorialActive, tutorialStep, tutorialSubStep, tutorialCompleteStep]);
 
   const handleTutorialSkip = useCallback(() => {
-    setTutorialStep(13);
-  }, []);
+    setTutorialStep(tutorialCompleteStep);
+  }, [tutorialCompleteStep]);
 
   const handleSaveToGallery = useCallback((discoveryId: string, imageUrl: string) => {
     // Find the active discovery (from observatory or telemetry)
@@ -4633,8 +4639,7 @@ function AppInner() {
       unblockPopupQueue(5000);
       // Clear highlight after animation
       setTimeout(() => setHighlightedGalleryType(null), 3000);
-      // Advance tutorial step 11 → 12 (save photo to gallery)
-      if (tutorialStep === 11) {
+      if (TUTORIAL_STEPS[tutorialStep]?.id === 'save-gallery') {
         handleTutorialAdvance();
       }
     }
@@ -4846,7 +4851,7 @@ function AppInner() {
 
     // Ensure tutorial is complete after colonization
     if (isTutorialActive) {
-      setTutorialStep(13);
+      setTutorialStep(tutorialCompleteStep);
     }
 
     // Transfer resources from the old home planet to the new colony planet.
@@ -6387,6 +6392,7 @@ function AppInner() {
           allSystems={engineRef.current?.getAllSystems() ?? []}
           activeSlotTimerText={activeSlotTimer}
           researchData={Math.floor(researchData)}
+          maxResearchRing={HOME_RESEARCH_MAX_RING + getEffectValue(techTreeStateRef.current, 'max_ring_add', 0)}
           onStartResearch={handleStartResearch}
           onClose={() => setShowSystemResearch(false)}
         />
@@ -6710,10 +6716,14 @@ function AppInner() {
           onClose={handleCloseSurface}
           onBuildingCountChange={setSurfaceBuildingCount}
           onBuildingPlaced={(type?: BuildingType) => {
-            // After evacuation, each colony_hub or observatory adds 1 research slot
-            if (!isExodusPhase && (type === 'colony_hub' || type === 'observatory')) {
+            // After evacuation, each built science installation adds one real scan slot.
+            // The building catalog maxPerPlanet remains the hard cap.
+            if (!isExodusPhase && (type === 'colony_hub' || type === 'observatory' || type === 'orbital_telescope')) {
               setResearchState((prev) => {
-                const newSlot = { slotIndex: prev.slots.length, systemId: null, startedAt: null, sourcePlanetRing: 0 };
+                const sourcePlanetRing = engineRef.current?.getAllSystems()
+                  .find((sys) => sys.planets.some((planet) => planet.id === surfaceTarget.planet.id))
+                  ?.ringIndex ?? 0;
+                const newSlot = { slotIndex: prev.slots.length, systemId: null, startedAt: null, sourcePlanetRing };
                 const updated = { ...prev, slots: [...prev.slots, newSlot] };
                 try { localStorage.setItem('nebulife_research_state', JSON.stringify(updated)); } catch { /* ignore */ }
                 return updated;
@@ -7320,16 +7330,16 @@ function AppInner() {
       )}
 
       {/* Tutorial overlay */}
-      {isTutorialActive && tutorialStep !== 8 && TUTORIAL_STEPS[tutorialStep] && (
+      {isTutorialActive && activeTutorialStep?.type !== 'free-task' && activeTutorialStep && (
         <TutorialOverlay
-          step={TUTORIAL_STEPS[tutorialStep]}
+          step={activeTutorialStep}
           subStepIndex={tutorialSubStep}
           onAdvance={handleTutorialAdvance}
           onSkip={handleTutorialSkip}
         />
       )}
-      {isTutorialActive && tutorialStep === 8 && (
-        <FreeTaskHUD current={tutorialFreeCount} total={2} />
+      {isTutorialActive && activeTutorialStep?.type === 'free-task' && (
+        <FreeTaskHUD current={tutorialFreeCount} total={activeTutorialStep.freeTaskTotal ?? 1} />
       )}
 
       {/* Chat unread notification dot — gated to match ChatWidget visibility
@@ -7404,7 +7414,7 @@ function AppInner() {
           lastDigestSeen={lastDigestSeen}
           latestDigestWeekDate={latestDigestWeekDate}
           preferredLanguage={lang}
-          forceCollapsed={isTutorialActive || !!ringUnlockAnim}
+          forceCollapsed={(isTutorialActive && activeTutorialStep?.id !== 'astra-handoff') || !!ringUnlockAnim}
         />
       )}
 
@@ -7664,7 +7674,7 @@ function AppInner() {
       )}
 
       {/* Guest registration reminder */}
-      {showGuestReminder && isGuest && !showLinkModal && !needsCallsign && !needsOnboarding && tutorialStep > 12 && (
+      {showGuestReminder && isGuest && !showLinkModal && !needsCallsign && !needsOnboarding && tutorialStep >= tutorialCompleteStep && (
         <GuestRegistrationReminder
           onDismiss={() => setShowGuestReminder(false)}
           onOpenEmailAuth={() => {

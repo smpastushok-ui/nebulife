@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TutorialStepConfig } from './tutorialSteps';
+import { TUTORIAL_STEPS, type TutorialStepConfig } from './tutorialSteps';
 
 // ---------------------------------------------------------------------------
 // TutorialOverlay — Spotlight + tooltip overlay for interactive tutorial
@@ -271,7 +271,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
             letterSpacing: 1,
           }}
         >
-          {t('tutorial.step_counter', { step: step.id === 'terminal' ? 1 : parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: 13 })}
+          {t('tutorial.step_counter', { step: step.id === 'terminal' ? 1 : parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: TUTORIAL_STEPS.length })}
         </div>
 
         {/* Text */}
@@ -401,16 +401,13 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 /** Map step id to its 0-based number for display */
 const STEP_NUMBER_MAP: Record<string, number> = {
   'terminal': 0,
-  'nav-planets': 1,
-  'expand-star': 2,
-  'add-fav': 3,
-  'check-fav': 4,
-  'go-systems': 5,
-  'first-research': 6,
-  'hud-info': 7,
-  'free-task': 8,
-  'anomaly': 9,
-  'quantum': 10,
-  'save-gallery': 11,
-  'gallery-final': 12,
+  'go-systems': 1,
+  'first-research': 2,
+  'hud-info': 3,
+  'free-task': 4,
+  'anomaly': 5,
+  'quantum': 6,
+  'save-gallery': 7,
+  'gallery-final': 8,
+  'astra-handoff': 9,
 };

@@ -473,6 +473,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     );
     return (
       <button
+        data-tutorial-id="chat-open-btn"
         title={t('chat.title')}
         aria-label={t('chat.title')}
         onClick={() => {

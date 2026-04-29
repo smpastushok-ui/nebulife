@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Tutorial step configuration — 13 interactive steps
+// Tutorial step configuration — first-hour A.S.T.R.A. guided activation
 // ---------------------------------------------------------------------------
 
 export interface TutorialSubStep {
@@ -34,7 +34,6 @@ export interface TutorialStepConfig {
 }
 
 export const TUTORIAL_STEPS: TutorialStepConfig[] = [
-  // 0 — Click the TERMINAL button in CommandBar
   {
     id: 'terminal',
     type: 'click',
@@ -43,48 +42,14 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     tooltipPos: 'top',
     onComplete: ['open-archive'],
   },
-  // 1 — Navigate to Planets sub-tab
-  {
-    id: 'nav-planets',
-    type: 'click',
-    target: 'subtab-planets',
-    text: 'tutorial.step_nav_planets_text',
-    tooltipPos: 'bottom',
-    onActivate: ['open-archive', 'navigate-navigation-planets'],
-  },
-  // 2 — Expand home star row
-  {
-    id: 'expand-star',
-    type: 'click',
-    target: 'star-row-home',
-    text: 'tutorial.step_expand_star_text',
-    tooltipPos: 'right',
-  },
-  // 3 — Add home planet to favorites
-  {
-    id: 'add-fav',
-    type: 'click',
-    target: 'fav-toggle-home',
-    text: 'tutorial.step_add_fav_text',
-    tooltipPos: 'right',
-  },
-  // 4 — Check favorites tab
-  {
-    id: 'check-fav',
-    type: 'click',
-    target: 'subtab-favorites',
-    text: 'tutorial.step_check_fav_text',
-    tooltipPos: 'bottom',
-  },
-  // 5 — Go to Systems tab
   {
     id: 'go-systems',
     type: 'click',
     target: 'subtab-systems',
     text: 'tutorial.step_go_systems_text',
     tooltipPos: 'bottom',
+    onActivate: ['open-archive', 'navigate-navigation-systems'],
   },
-  // 6 — Start first research
   {
     id: 'first-research',
     type: 'click',
@@ -93,7 +58,6 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     tooltipPos: 'left',
     onActivate: ['open-archive', 'navigate-navigation-systems'],
   },
-  // 7 — HUD info (2 sub-steps: observatories + research data)
   {
     id: 'hud-info',
     type: 'info',
@@ -115,7 +79,6 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
       },
     ],
   },
-  // 8 — Free task: start 2 more research sessions
   {
     id: 'free-task',
     type: 'free-task',
@@ -124,7 +87,6 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     tooltipPos: 'top',
     freeTaskTotal: 2,
   },
-  // 9 — Anomaly storyline message
   {
     id: 'anomaly',
     type: 'info',
@@ -134,7 +96,6 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     nextLabel: 'tutorial.step_anomaly_next',
     onComplete: ['trigger-discovery'],
   },
-  // 10 — Quantum Focus (click the button in DiscoveryChoicePanel)
   {
     id: 'quantum',
     type: 'click',
@@ -142,7 +103,6 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     text: 'tutorial.step_quantum_text',
     tooltipPos: 'left',
   },
-  // 11 — Save photo to gallery (wait until photo is generated and button appears)
   {
     id: 'save-gallery',
     type: 'click',
@@ -151,7 +111,6 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     tooltipPos: 'top',
     waitForTarget: true,
   },
-  // 12 — Final info in Archive gallery (2s delay after photo saved)
   {
     id: 'gallery-final',
     type: 'info',
@@ -161,5 +120,13 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     nextLabel: 'tutorial.step_gallery_final_next',
     onActivate: ['open-archive', 'navigate-collections-cosmos'],
     activateDelay: 2000,
+  },
+  {
+    id: 'astra-handoff',
+    type: 'click',
+    target: 'chat-open-btn',
+    text: 'tutorial.step_astra_handoff_text',
+    tooltipPos: 'left',
+    onComplete: ['complete-tutorial'],
   },
 ];

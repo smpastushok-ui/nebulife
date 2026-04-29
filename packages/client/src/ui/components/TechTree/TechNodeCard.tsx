@@ -118,7 +118,7 @@ export function TechNodeCard({
         {techDesc}
       </div>
 
-      {/* Meta: level + XP */}
+      {/* Meta: level + unlock mode */}
       <div
         style={{
           display: 'flex',
@@ -131,7 +131,7 @@ export function TechNodeCard({
       >
         <span>{t('tech_tree.level_label')} {node.levelRequired}</span>
         <span style={{ color: isLocked ? '#1a2233' : '#334455' }}>|</span>
-        <span>XP: +{node.xpReward}</span>
+        <span>{t('tech_tree.auto_integrated')}</span>
       </div>
 
       {/* Locked reason */}

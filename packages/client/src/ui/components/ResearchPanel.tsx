@@ -114,6 +114,7 @@ export function ResearchPanel({
   allSystems,
   activeSlotTimerText,
   researchData,
+  maxResearchRing,
   onStartResearch,
   onClose,
 }: {
@@ -122,6 +123,7 @@ export function ResearchPanel({
   allSystems: StarSystem[];
   activeSlotTimerText: string | null;
   researchData: number;
+  maxResearchRing?: number;
   onStartResearch: (systemId: string) => void;
   onClose: () => void;
 }) {
@@ -133,8 +135,9 @@ export function ResearchPanel({
   // Ring gating: Ring N requires all Ring N-1 systems to be 100% researched
   const ringLocked = system.ringIndex > 1
     && !isRingFullyResearched(researchState, allSystems, system.ringIndex - 1);
+  const techLocked = maxResearchRing !== undefined && system.ringIndex > maxResearchRing;
   const hasData = researchData >= RESEARCH_DATA_COST;
-  const canStart = !ringLocked && hasData && canStartResearch(researchState, system.id, system.ringIndex);
+  const canStart = !ringLocked && !techLocked && hasData && canStartResearch(researchState, system.id, system.ringIndex, maxResearchRing);
   const isComplete = isSystemFullyResearched(researchState, system.id);
 
   return (
@@ -230,6 +233,8 @@ export function ResearchPanel({
               ? t('research.panel_insufficient_data')
               : ringLocked
                 ? t('research.panel_ring_locked', { ring: system.ringIndex - 1 })
+                : techLocked
+                  ? t('research.panel_ring_locked', { ring: system.ringIndex })
                 : t('research.panel_no_slots')}
         </button>
       )}

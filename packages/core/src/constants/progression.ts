@@ -3,14 +3,15 @@
 // ---------------------------------------------------------------------------
 
 import type { DiscoveryRarity } from '../game/discovery.js';
+import type { StarSystem } from '../types/universe.js';
 
 /** Maximum player level. */
 export const MAX_PLAYER_LEVEL = 99;
 
 // ── XP curve ────────────────────────────────────────────────────────────────
 
-const XP_CURVE_BASE = 100;
-const XP_CURVE_EXPONENT = 1.3;
+const XP_CURVE_BASE = 75;
+const XP_CURVE_EXPONENT = 1.22;
 
 /**
  * XP required to advance FROM level `level` TO `level + 1`.
@@ -65,41 +66,41 @@ export function levelProgress(totalXP: number): number {
 
 export const XP_REWARDS = {
   /** Research session completes (system fully researched) */
-  RESEARCH_COMPLETE: 30,
+  RESEARCH_COMPLETE: 120,
   /** Discovery detected (base, before rarity bonus) */
-  DISCOVERY_BASE: 20,
+  DISCOVERY_BASE: 35,
   /** Additional XP per rarity tier */
   DISCOVERY_RARITY_BONUS: {
     common: 0,
-    uncommon: 10,
-    rare: 30,
-    epic: 60,
-    legendary: 100,
+    uncommon: 25,
+    rare: 75,
+    epic: 160,
+    legendary: 320,
   } as Record<DiscoveryRarity, number>,
   /** Free telemetry scan chosen */
-  TELEMETRY_SCAN: 10,
+  TELEMETRY_SCAN: 15,
   /** Observatory (quantum focus) scan chosen */
-  OBSERVATORY_SCAN: 15,
+  OBSERVATORY_SCAN: 25,
   /** Photo/telemetry saved to gallery */
-  GALLERY_SAVE: 5,
+  GALLERY_SAVE: 10,
   /** Building placed on colony surface */
-  BUILDING_PLACED: 15,
+  BUILDING_PLACED: 35,
   /** Evacuation launched (milestone) */
-  EVACUATION_START: 200,
+  EVACUATION_START: 450,
   /** Colony founded on new planet (milestone) */
-  COLONY_FOUNDED: 500,
+  COLONY_FOUNDED: 1200,
   /** 3D model generated */
-  MODEL_3D_GENERATED: 25,
+  MODEL_3D_GENERATED: 80,
   /** Surface resource harvesting */
-  HARVEST_TREE: 2,
-  HARVEST_ORE: 2,
-  HARVEST_VENT: 3,
+  HARVEST_TREE: 3,
+  HARVEST_ORE: 4,
+  HARVEST_VENT: 5,
   /** Hex ring slot unlock XP by ring */
-  HEX_UNLOCK_RING1: 15,
-  HEX_UNLOCK_RING2: 50,
-  HEX_UNLOCK_RING3: 200,
+  HEX_UNLOCK_RING1: 35,
+  HEX_UNLOCK_RING2: 120,
+  HEX_UNLOCK_RING3: 320,
   /** Planet terraforming fully completed (overall >= 95%) */
-  TERRAFORM_COMPLETED: 500,
+  TERRAFORM_COMPLETED: 1600,
 } as const;
 
 // ── Ring-based XP rewards ────────────────────────────────────────────────────
@@ -109,14 +110,31 @@ export const XP_REWARDS = {
  * Key matches zone name used at call sites.
  */
 export const RING_XP_REWARD: Record<string, number> = {
-  'ring0-1': 30,     // Personal Ring 0-1
-  'ring2': 50,       // Personal Ring 2
-  'neighbor': 100,   // Neighbor player systems
-  'core-0': 200,     // Core entry (depth 0)
-  'core-1-4': 300,   // Shallow core
-  'core-5-8': 400,   // Mid core
-  'core-9-12': 500,  // Deep core
+  'ring0-1': 120,    // Personal Ring 0-1
+  'ring2': 220,      // Personal Ring 2
+  'neighbor': 450,   // Neighbor player systems
+  'core-0': 700,     // Core entry (depth 0)
+  'core-1-4': 1000,  // Shallow core
+  'core-5-8': 1350,  // Mid core
+  'core-9-12': 1800, // Deep core
 };
 
 /** XP awarded per research session (regardless of completion). */
-export const SESSION_XP = 5;
+export const SESSION_XP = 12;
+
+/** Return the balanced completion XP bucket for a researched system. */
+export function getSystemResearchCompletionXP(system: Pick<StarSystem, 'id' | 'ringIndex'>): number {
+  const ringIndex = system.ringIndex ?? 0;
+  if (ringIndex <= 1) return RING_XP_REWARD['ring0-1'];
+  if (ringIndex === 2) return RING_XP_REWARD.ring2;
+
+  if (system.id.startsWith('core-')) {
+    const coreDepth = Math.max(0, ringIndex - 3);
+    if (coreDepth === 0) return RING_XP_REWARD['core-0'];
+    if (coreDepth <= 4) return RING_XP_REWARD['core-1-4'];
+    if (coreDepth <= 8) return RING_XP_REWARD['core-5-8'];
+    return RING_XP_REWARD['core-9-12'];
+  }
+
+  return RING_XP_REWARD.neighbor;
+}
