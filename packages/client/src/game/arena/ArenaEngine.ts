@@ -29,6 +29,27 @@ const _tempColor = new THREE.Color();
 const _camTarget = new THREE.Vector3();
 const _tempDummy = new THREE.Object3D(); // shared matrix writer for InstancedMesh updates
 
+type AsteroidKind = 'shard' | 'boulder' | 'monolith';
+const ARENA_SHIP_MAX_HP = 120; // survives two missiles plus one laser hit at current damage values
+type AsteroidDatum = {
+  x: number; y: number; z: number;
+  vx: number; vy: number; vz: number;
+  radius: number;
+  scaleX: number; scaleY: number; scaleZ: number;
+  rot: number;
+  rotSpeed: number;
+  hp: number;
+  alive: boolean;
+  respawnTimer: number;
+  kind: AsteroidKind;
+  meshIdx: number;
+  instIdx: number;
+  dustCooldown: number;
+};
+
+const ASTEROID_KINDS: AsteroidKind[] = ['shard', 'boulder', 'monolith'];
+const ASTEROID_KIND_MESH_IDX: Record<AsteroidKind, number> = { shard: 0, boulder: 1, monolith: 2 };
+
 const SHIP_FILES: Record<string, string> = {
   ship1: '/arena_ships/star_ship1.webp',
   ship2: '/arena_ships/star_ship2.webp',
@@ -295,8 +316,11 @@ export class ArenaEngine {
   private playerShieldMesh: THREE.Mesh | null = null;
 
   // Asteroids (3D position)
-  private asteroidMesh!: THREE.InstancedMesh;
-  private asteroidData: { x: number; y: number; z: number; vx: number; vy: number; vz: number; radius: number; rot: number; rotSpeed: number; hp: number; alive: boolean; respawnTimer: number }[] = [];
+  private asteroidMeshes: THREE.InstancedMesh[] = [];
+  private asteroidData: AsteroidDatum[] = [];
+  private asteroidHaloMesh: THREE.InstancedMesh | null = null;
+  private asteroidHaloBindings: { asteroidIndex: number; radius: number; phase: number }[] = [];
+  private asteroidMicroDebris: THREE.Points | null = null;
 
   // Bullets (asteroid fragments) — 3-pool InstancedMesh: small/medium/large
   private bulletMeshes: THREE.InstancedMesh[] = [];
@@ -342,7 +366,6 @@ export class ArenaEngine {
   private mobileVerticalThrust = 0;
   // Pitch rate from mobile right-stick Y (Phase 5). Range -1..+1.
   private mobilePitchRate = 0;
-  private mobileFiring = false;
   private isMobile = false;
 
   // Game state
@@ -425,8 +448,8 @@ export class ArenaEngine {
   private readonly BOT_BULLET_DAMAGE = 12;
 
   // Player HP for team mode
-  private playerHp = 100;
-  private readonly PLAYER_MAX_HP = 100;
+  private playerHp = ARENA_SHIP_MAX_HP;
+  private readonly PLAYER_MAX_HP = ARENA_SHIP_MAX_HP;
 
   // Kill feed (last 5 kills)
   private killFeed: { killer: string; victim: string; time: number }[] = [];
@@ -480,6 +503,7 @@ export class ArenaEngine {
     this.setupLights();
     this.setupPlayerShip();
     this.setupAsteroids();
+    this.setupAsteroidAtmosphere();
     this.setupBullets();
     this.setupExhaust();
     this.setupMissiles();
@@ -582,11 +606,11 @@ export class ArenaEngine {
     //   X  → yaw rate  (left = turn left, right = turn right)
     //   Y  → pitch rate (up on screen = nose up; stick up usually maps to
     //         joystick y < 0, so we invert sign in updateAim).
-    // Laser firing from the right stick was removed — fire now lives on the
-    // left stick's "laser" sector only. We intentionally ignore `firing`.
+    // Laser firing is automatic when an enemy enters the central sight cone.
+    // The right stick only pilots the nose/bank.
     this.mobileAim = { x, z: y };
     this.mobilePitchRate = y; // stored raw; updateAim decides sign
-    void firing; // reserved; laser firing handled via setMobileSector('laser')
+    void firing; // reserved for future manual-fire modes
   }
 
   /** Reserved for future use (e.g. a separate climb/dive button). Not wired
@@ -597,13 +621,11 @@ export class ArenaEngine {
 
   /** Left-stick sector dispatch. Called every frame the stick is held.
    *  Triggers continuous (laser) and rate-limited (missile) weapons. */
-  private _mobileSector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge' = 'center';
+  private _mobileSector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity' = 'center';
   private _missileSectorTimer = 0;
-  setMobileSector(sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge'): void {
+  setMobileSector(sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity'): void {
     const prev = this._mobileSector;
     this._mobileSector = sector;
-    // Laser fire: continuous while in the laser sector.
-    this.mobileFiring = sector === 'laser';
     // Missile: edge-trigger on enter + repeat every 2s while held.
     if (sector === 'missile') {
       if (prev !== 'missile' || this._missileSectorTimer <= 0) {
@@ -617,6 +639,8 @@ export class ArenaEngine {
     if (sector === 'warp' && prev !== 'warp') this.triggerDash();
     // Dodge: edge-trigger on enter only.
     if (sector === 'dodge' && prev !== 'dodge') this.triggerBarrelRoll();
+    // Gravity push: edge-trigger on enter only.
+    if (sector === 'gravity' && prev !== 'gravity') this.triggerGravPush();
   }
 
   triggerDash(): void {
@@ -970,54 +994,255 @@ export class ArenaEngine {
     this.scene.add(this.playerNickSprite);
   }
 
-  private setupAsteroids(): void {
-    // InstancedMesh — 1 draw call for all asteroids
-    // Training mode uses fewer asteroids (ambiance only)
-    const asteroidCount = this.teamMode ? ASTEROID_COUNT : TRAINING_ASTEROID_COUNT;
-    const geo = new THREE.IcosahedronGeometry(1, 1);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.8, metalness: 0.2 });
-    this.disposables.push(geo, mat);
+  private createAsteroidGeometry(kind: AsteroidKind): THREE.IcosahedronGeometry {
+    const geo = new THREE.IcosahedronGeometry(1, kind === 'shard' ? 0 : 1);
+    const pos = geo.getAttribute('position') as THREE.BufferAttribute;
+    const sharpness = kind === 'shard' ? 0.58 : kind === 'monolith' ? 0.28 : 0.38;
+    const stretchY = kind === 'monolith' ? 1.38 : kind === 'shard' ? 0.72 : 1.0;
 
-    this.asteroidMesh = new THREE.InstancedMesh(geo, mat, asteroidCount);
-    this.asteroidMesh.castShadow = false;
-    this.asteroidMesh.receiveShadow = false;
+    // One-time deterministic-looking deformation: cheap faceted silhouettes,
+    // still one shared geometry per asteroid kind.
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      const n = Math.sin((i + 1) * 12.9898 + x * 78.233 + z * 37.719) * 43758.5453;
+      const r = 1 + ((n - Math.floor(n)) - 0.5) * sharpness;
+      pos.setXYZ(i, x * r, y * r * stretchY, z * r);
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  private writeAsteroidMatrix(index: number, dummy: THREE.Object3D = _tempDummy): void {
+    const a = this.asteroidData[index];
+    const mesh = this.asteroidMeshes[a.meshIdx];
+    if (!mesh) return;
+
+    dummy.position.set(a.x, a.y, a.z);
+    dummy.scale.set(a.radius * a.scaleX, a.radius * a.scaleY, a.radius * a.scaleZ);
+    dummy.rotation.set(a.rot * 0.3, a.rot, a.rot * 0.7);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(a.instIdx, dummy.matrix);
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  private hideAsteroid(index: number, dummy: THREE.Object3D = _tempDummy): void {
+    const a = this.asteroidData[index];
+    const mesh = this.asteroidMeshes[a.meshIdx];
+    if (!mesh) return;
+    dummy.position.set(0, -1000, 0);
+    dummy.scale.set(0, 0, 0);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(a.instIdx, dummy.matrix);
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  private chooseAsteroidKind(index: number, tier: ReturnType<typeof getDeviceTier>): AsteroidKind {
+    if (tier === 'low') return index % 4 === 0 ? 'monolith' : 'boulder';
+    const r = Math.random();
+    if (r < 0.24) return 'shard';
+    if (r > 0.82) return 'monolith';
+    return 'boulder';
+  }
+
+  private configureAsteroidShape(kind: AsteroidKind): { radius: number; scaleX: number; scaleY: number; scaleZ: number; speed: number; rotSpeed: number } {
+    if (kind === 'shard') {
+      return {
+        radius: ASTEROID_MIN_RADIUS + Math.random() * 10,
+        scaleX: 0.55 + Math.random() * 0.35,
+        scaleY: 0.75 + Math.random() * 0.45,
+        scaleZ: 1.55 + Math.random() * 0.75,
+        speed: 11 + Math.random() * 13,
+        rotSpeed: (Math.random() - 0.5) * 4.2,
+      };
+    }
+    if (kind === 'monolith') {
+      return {
+        radius: ASTEROID_MAX_RADIUS * 0.9 + Math.random() * 18,
+        scaleX: 0.95 + Math.random() * 0.35,
+        scaleY: 1.35 + Math.random() * 0.75,
+        scaleZ: 0.8 + Math.random() * 0.45,
+        speed: 2.5 + Math.random() * 6,
+        rotSpeed: (Math.random() - 0.5) * 0.85,
+      };
+    }
+    return {
+      radius: ASTEROID_MIN_RADIUS + Math.random() * (ASTEROID_MAX_RADIUS - ASTEROID_MIN_RADIUS),
+      scaleX: 0.82 + Math.random() * 0.48,
+      scaleY: 0.78 + Math.random() * 0.58,
+      scaleZ: 0.85 + Math.random() * 0.52,
+      speed: 5 + Math.random() * 10,
+      rotSpeed: (Math.random() - 0.5) * 2,
+    };
+  }
+
+  private setupAsteroids(): void {
+    // Instanced asteroid families: 3 draw calls max, but each family has its
+    // own faceted silhouette/material. This keeps mobile cost low while making
+    // the arena read like a real debris field instead of cloned pebbles.
+    const asteroidCount = this.teamMode ? ASTEROID_COUNT : TRAINING_ASTEROID_COUNT;
+    const tier = getDeviceTier();
+    const asteroidMaterials: Record<AsteroidKind, THREE.MeshStandardMaterial> = {
+      shard: new THREE.MeshStandardMaterial({ color: 0x6f8794, roughness: 0.9, metalness: 0.08 }),
+      boulder: new THREE.MeshStandardMaterial({ color: 0x596879, roughness: 0.86, metalness: 0.14 }),
+      monolith: new THREE.MeshStandardMaterial({ color: 0x71665b, roughness: 0.92, metalness: 0.10 }),
+    };
 
     const dummy = new THREE.Object3D();
+    for (const kind of ASTEROID_KINDS) {
+      const geo = this.createAsteroidGeometry(kind);
+      const mat = asteroidMaterials[kind];
+      this.disposables.push(geo, mat);
+      const mesh = new THREE.InstancedMesh(geo, mat, asteroidCount);
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      mesh.frustumCulled = false;
+      for (let i = 0; i < asteroidCount; i++) {
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      this.asteroidMeshes[ASTEROID_KIND_MESH_IDX[kind]] = mesh;
+      this.scene.add(mesh);
+    }
+
+    const nextInstIdx = [0, 0, 0];
     for (let i = 0; i < asteroidCount; i++) {
+      const kind = this.chooseAsteroidKind(i, tier);
+      const meshIdx = ASTEROID_KIND_MESH_IDX[kind];
+      const instIdx = nextInstIdx[meshIdx]++;
       const angle = Math.random() * Math.PI * 2;
-      const dist = 100 + Math.random() * (ARENA_HALF - 150);
+      const laneBias = kind === 'monolith' ? 0.42 + Math.random() * 0.42 : Math.random();
+      const dist = 100 + laneBias * (ARENA_HALF - 150);
       const x = Math.cos(angle) * dist;
       const z = Math.sin(angle) * dist;
-      // Scatter through the 3D semi-sphere, biased toward the middle so
-      // there's always action at player eye level while the ceiling/floor
-      // feel navigable but sparser.
-      const yNorm = (Math.random() * 2 - 1); // -1..+1
-      const y = yNorm * (ARENA_HEIGHT_HALF - 60) * 0.85;
-      const radius = ASTEROID_MIN_RADIUS + Math.random() * (ASTEROID_MAX_RADIUS - ASTEROID_MIN_RADIUS);
+      const yNorm = (Math.random() * 2 - 1);
+      const y = yNorm * (ARENA_HEIGHT_HALF - 60) * (kind === 'monolith' ? 0.55 : 0.85);
+      const shape = this.configureAsteroidShape(kind);
       const vAngle = Math.random() * Math.PI * 2;
-      const speed = 5 + Math.random() * 10;
 
       this.asteroidData.push({
         x, y, z,
-        vx: Math.cos(vAngle) * speed,
-        vy: (Math.random() - 0.5) * 4, // gentle vertical drift
-        vz: Math.sin(vAngle) * speed,
-        radius,
+        vx: Math.cos(vAngle) * shape.speed,
+        vy: (Math.random() - 0.5) * (kind === 'shard' ? 7 : 4),
+        vz: Math.sin(vAngle) * shape.speed,
+        radius: shape.radius,
+        scaleX: shape.scaleX,
+        scaleY: shape.scaleY,
+        scaleZ: shape.scaleZ,
         rot: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 2,
-        hp: this.ASTEROID_HP_MAX,
+        rotSpeed: shape.rotSpeed,
+        hp: this.ASTEROID_HP_MAX + (kind === 'monolith' ? 3 : kind === 'shard' ? -1 : 0),
         alive: true,
         respawnTimer: 0,
+        kind,
+        meshIdx,
+        instIdx,
+        dustCooldown: Math.random() * 2,
       });
 
-      dummy.position.set(x, y, z);
-      dummy.scale.set(radius, radius, radius);
-      dummy.rotation.set(Math.random(), Math.random(), Math.random());
-      dummy.updateMatrix();
-      this.asteroidMesh.setMatrixAt(i, dummy.matrix);
+      this.writeAsteroidMatrix(i, dummy);
     }
-    this.asteroidMesh.instanceMatrix.needsUpdate = true;
-    this.scene.add(this.asteroidMesh);
+  }
+
+  private setupAsteroidAtmosphere(): void {
+    const tier = getDeviceTier();
+    if (tier === 'low') return;
+
+    const haloLimit = tier === 'mid' ? 6 : 10;
+    const haloTargets = this.asteroidData
+      .map((a, asteroidIndex) => ({ a, asteroidIndex }))
+      .filter(({ a }) => a.kind === 'monolith')
+      .sort((left, right) => right.a.radius - left.a.radius)
+      .slice(0, haloLimit);
+
+    if (haloTargets.length > 0) {
+      const haloGeo = new THREE.RingGeometry(1.35, 2.8, 36);
+      const haloMat = new THREE.MeshBasicMaterial({
+        color: 0x7bb8ff,
+        transparent: true,
+        opacity: tier === 'mid' ? 0.08 : 0.12,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      this.disposables.push(haloGeo, haloMat);
+
+      this.asteroidHaloMesh = new THREE.InstancedMesh(haloGeo, haloMat, haloTargets.length);
+      this.asteroidHaloMesh.frustumCulled = false;
+      this.asteroidHaloBindings = haloTargets.map(({ asteroidIndex, a }) => ({
+        asteroidIndex,
+        radius: a.radius * (2.2 + Math.random() * 1.2),
+        phase: Math.random() * Math.PI * 2,
+      }));
+      this.scene.add(this.asteroidHaloMesh);
+    }
+
+    const debrisCount = tier === 'mid' ? 70 : 120;
+    const positions = new Float32Array(debrisCount * 3);
+    const colors = new Float32Array(debrisCount * 3);
+    const anchors = haloTargets.length > 0 ? haloTargets : this.asteroidData.map((a, asteroidIndex) => ({ a, asteroidIndex })).slice(0, 8);
+    for (let i = 0; i < debrisCount; i++) {
+      const anchor = anchors[i % Math.max(1, anchors.length)]?.a;
+      const i3 = i * 3;
+      const angle = Math.random() * Math.PI * 2;
+      const height = (Math.random() - 0.5) * 90;
+      const spread = anchor ? anchor.radius * (2.8 + Math.random() * 4.8) : 80 + Math.random() * 400;
+      positions[i3] = (anchor?.x ?? 0) + Math.cos(angle) * spread;
+      positions[i3 + 1] = (anchor?.y ?? 0) + height;
+      positions[i3 + 2] = (anchor?.z ?? 0) + Math.sin(angle) * spread;
+      colors[i3] = 0.42 + Math.random() * 0.22;
+      colors[i3 + 1] = 0.50 + Math.random() * 0.20;
+      colors[i3 + 2] = 0.58 + Math.random() * 0.22;
+    }
+    const debrisGeo = new THREE.BufferGeometry();
+    debrisGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    debrisGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const debrisMat = new THREE.PointsMaterial({
+      size: tier === 'mid' ? 2.0 : 2.6,
+      sizeAttenuation: true,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.48,
+      depthWrite: false,
+    });
+    this.disposables.push(debrisGeo, debrisMat);
+    this.asteroidMicroDebris = new THREE.Points(debrisGeo, debrisMat);
+    this.scene.add(this.asteroidMicroDebris);
+
+    this.updateAsteroidAtmosphere(0);
+  }
+
+  private updateAsteroidAtmosphere(dt: number): void {
+    if (this.asteroidHaloMesh) {
+      const dummy = _tempDummy;
+      for (let i = 0; i < this.asteroidHaloBindings.length; i++) {
+        const binding = this.asteroidHaloBindings[i];
+        const a = this.asteroidData[binding.asteroidIndex];
+        if (!a?.alive) {
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.set(0, 0, 0);
+        } else {
+          binding.phase += dt * 0.2;
+          const pulse = 1 + Math.sin(binding.phase) * 0.035;
+          dummy.position.set(a.x, a.y, a.z);
+          dummy.scale.set(binding.radius * pulse, binding.radius * pulse, binding.radius * pulse);
+          dummy.rotation.set(Math.PI / 2 + a.rot * 0.08, a.rot * 0.12, binding.phase * 0.15);
+        }
+        dummy.updateMatrix();
+        this.asteroidHaloMesh.setMatrixAt(i, dummy.matrix);
+      }
+      this.asteroidHaloMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    if (this.asteroidMicroDebris) {
+      this.asteroidMicroDebris.rotation.y += dt * 0.004;
+      this.asteroidMicroDebris.rotation.x += dt * 0.0015;
+    }
   }
 
   private setupBullets(): void {
@@ -1167,6 +1392,14 @@ export class ArenaEngine {
         this.checkBotBotPhysicalCollisions();
         // Training (3v3) also uses team kill-limit + timer win conditions.
         this.checkTeamMatchEnd();
+        this.callbacks.onStatsUpdate(
+          this.playerHp,
+          this.PLAYER_MAX_HP,
+          this.playerExtraShield,
+          this.POWERUP_SHIELD_HP,
+          this.stats.kills,
+          this.stats.deaths,
+        );
         break;
       default:
         break;
@@ -1693,12 +1926,35 @@ export class ArenaEngine {
 
   private updateShooting(dt: number): void {
     this.fireCooldownTimer = Math.max(0, this.fireCooldownTimer - dt);
-    const isFiring = this.isMobile ? this.mobileFiring : this.mouseDown;
+    const isFiring = this.hasEnemyInAutoFireCone();
     if (isFiring && this.fireCooldownTimer <= 0) {
       playSfx('arena-laser', 0.1);
       this.fireBullet();
       this.fireCooldownTimer = this.FIRE_COOLDOWN;
     }
+  }
+
+  private hasEnemyInAutoFireCone(): boolean {
+    const aimLen = Math.sqrt(this.aimDirX ** 2 + this.aimDirY ** 2 + this.aimDirZ ** 2);
+    if (aimLen < 0.01) return false;
+    const ax = this.aimDirX / aimLen;
+    const ay = this.aimDirY / aimLen;
+    const az = this.aimDirZ / aimLen;
+    const coneDot = 0.985; // ~10 degrees: central HUD zone only
+    const maxRange = 1150;
+
+    for (const bot of this.botShips) {
+      if (!bot.alive) continue;
+      if (bot.team === this.playerTeam) continue;
+      const dx = bot.pos.x - this.playerPos.x;
+      const dy = bot.pos.y - this.playerPos.y;
+      const dz = bot.pos.z - this.playerPos.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist <= 0.01 || dist > maxRange) continue;
+      const dot = (dx / dist) * ax + (dy / dist) * ay + (dz / dist) * az;
+      if (dot >= coneDot) return true;
+    }
+    return false;
   }
 
   private fireBullet(): void {
@@ -1899,6 +2155,7 @@ export class ArenaEngine {
           b.active = false;
           this.bulletFreeList.push(bi);
           this.spawnHitEffect(b.x, b.z, b.y);
+          this.spawnAsteroidHitSparks(a, b.x, b.y, b.z);
           playSfx('asteroid-explosion', 0.3);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
@@ -1913,11 +2170,8 @@ export class ArenaEngine {
             a.respawnTimer = 10; // seconds
             this.stats.asteroidKills++;
             this.stats.score += 5;
-            dummy.position.set(0, -1000, 0);
-            dummy.scale.set(0, 0, 0);
-            dummy.updateMatrix();
-            this.asteroidMesh.setMatrixAt(ai, dummy.matrix);
-            this.asteroidMesh.instanceMatrix.needsUpdate = true;
+            this.spawnAsteroidDestroyBurst(a);
+            this.hideAsteroid(ai, dummy);
           }
           break; // bullet consumed
         }
@@ -1956,6 +2210,7 @@ export class ArenaEngine {
       a.y += a.vy * dt;
       a.z += a.vz * dt;
       a.rot += a.rotSpeed * dt;
+      if (a.dustCooldown > 0) a.dustCooldown = Math.max(0, a.dustCooldown - dt);
 
       // Bounce off Y caps so asteroids don't drift out of the playable band
       if (a.y > ARENA_HEIGHT_HALF - a.radius) {
@@ -1971,18 +2226,11 @@ export class ArenaEngine {
       if (d > ARENA_HALF + a.radius) {
         a.alive = false;
         a.respawnTimer = 5;
-        dummy.position.set(0, -1000, 0);
-        dummy.scale.set(0, 0, 0);
-        dummy.updateMatrix();
-        this.asteroidMesh.setMatrixAt(i, dummy.matrix);
+        this.hideAsteroid(i, dummy);
         continue;
       }
 
-      dummy.position.set(a.x, a.y, a.z);
-      dummy.scale.set(a.radius, a.radius, a.radius);
-      dummy.rotation.set(a.rot * 0.3, a.rot, a.rot * 0.7);
-      dummy.updateMatrix();
-      this.asteroidMesh.setMatrixAt(i, dummy.matrix);
+      this.writeAsteroidMatrix(i, dummy);
     }
 
     // Asteroid-asteroid elastic pushback (O(N²), N≈25 — trivial cost)
@@ -2019,7 +2267,7 @@ export class ArenaEngine {
       }
     }
 
-    this.asteroidMesh.instanceMatrix.needsUpdate = true;
+    this.updateAsteroidAtmosphere(dt);
   }
 
   // ── Engine exhaust particles ─────────────────────────────────────────
@@ -2060,12 +2308,9 @@ export class ArenaEngine {
   }
 
   /**
-   * Spawn a single small cyan exhaust particle.
-   *   nozzle 0 = left-rear thruster
-   *   nozzle 1 = right-rear thruster
-   * Both emit from the REAR EDGE of the ship (behind the center by
-   * SHIP_RADIUS units) slightly off-axis so you see two streams.
-   * All particles are cyan-blue — no red nozzles per player request.
+   * Spawn a small team-colored exhaust particle from a rear edge thruster.
+   * Red ships use wider red edge streams so the exhaust matches the GLB
+   * nozzle positions; blue keeps the tighter cyan twin trail.
    */
   private spawnExhaust(nozzle: number = 0): void {
     const idx = this.exhaustFreeList.pop();
@@ -2083,22 +2328,22 @@ export class ArenaEngine {
     const rightZ = hlen > 0.01 ? hz / hlen : 0;
 
     const sideSign = nozzle === 0 ? -1 : 1;
-    const sideSpread = SHIP_RADIUS * 0.35; // close together, not wide wings
-    const tailOffset = SHIP_RADIUS * 1.1;  // behind the ship's rear edge
+    const isRed = this.playerTeam === 'red';
+    const sideSpread = SHIP_RADIUS * (isRed ? 0.58 : 0.35);
+    const tailOffset = SHIP_RADIUS * (isRed ? 1.22 : 1.1);
 
     const p = this.exhaustParticles[idx];
     p.x = this.playerPos.x + backX * tailOffset + sideSign * sideSpread * rightX;
     p.y = this.playerPos.y + backY * tailOffset;
     p.z = this.playerPos.z + backZ * tailOffset + sideSign * sideSpread * rightZ;
-    p.vx = this.playerVelX * 0.2 + backX * 22;
-    p.vy = this.playerVelY * 0.2 + backY * 22;
-    p.vz = this.playerVelZ * 0.2 + backZ * 22;
+    p.vx = this.playerVelX * 0.2 + backX * (isRed ? 26 : 22) + sideSign * rightX * (isRed ? 1.8 : 0.7);
+    p.vy = this.playerVelY * 0.2 + backY * (isRed ? 26 : 22);
+    p.vz = this.playerVelZ * 0.2 + backZ * (isRed ? 26 : 22) + sideSign * rightZ * (isRed ? 1.8 : 0.7);
     p.age = 0;
     p.scale = 0.28 + Math.random() * 0.1; // SMALL particles (was 0.65+)
     p.active = true;
 
-    // All cyan — matches hull accents; no red.
-    _tempColor.setRGB(0.35, 0.7, 1.0);
+    _tempColor.setRGB(isRed ? 1.0 : 0.35, isRed ? 0.24 : 0.7, isRed ? 0.14 : 1.0);
     this.exhaustMesh.setColorAt(idx, _tempColor);
     if (this.exhaustMesh.instanceColor) {
       this.exhaustMesh.instanceColor.needsUpdate = true;
@@ -2379,7 +2624,7 @@ export class ArenaEngine {
         const dy = bot.pos.y - hp.y;
         const dz = bot.pos.z - hp.z;
         if (dx * dx + dy * dy + dz * dz < this.HEALTH_PICKUP_RADIUS * this.HEALTH_PICKUP_RADIUS) {
-          bot.hp = Math.min(100, bot.hp + this.HEALTH_PICKUP_HEAL);
+          bot.hp = Math.min(bot.maxHp, bot.hp + this.HEALTH_PICKUP_HEAL);
           hp.active = false;
           hp.mesh.visible = false;
           hp.respawnTimer = this.HEALTH_PICKUP_RESPAWN;
@@ -2814,6 +3059,7 @@ export class ArenaEngine {
           // Missile hit asteroid — AoE: damage all nearby asteroids
           m.active = false;
           this.missileFreeList.push(mi);
+          this.spawnAsteroidHitSparks(a, m.x, m.y, m.z);
           playSfx('missile-hit', 0.2);
           dummy.position.set(0, -1000, 0);
           dummy.scale.set(0, 0, 0);
@@ -2833,11 +3079,8 @@ export class ArenaEngine {
                 this.stats.asteroidKills++;
                 this.stats.score += 10;
                 const idx2 = this.asteroidData.indexOf(a2);
-                dummy.position.set(0, -1000, 0);
-                dummy.scale.set(0, 0, 0);
-                dummy.updateMatrix();
-                this.asteroidMesh.setMatrixAt(idx2, dummy.matrix);
-                this.asteroidMesh.instanceMatrix.needsUpdate = true;
+                this.spawnAsteroidDestroyBurst(a2);
+                this.hideAsteroid(idx2, dummy);
               }
             }
           }
@@ -2938,6 +3181,40 @@ export class ArenaEngine {
   }
 
   // ── VFX (hit flashes + explosions + debris) ─────────────────────────────
+
+  private spawnAsteroidHitSparks(a: AsteroidDatum, x: number, y: number, z: number): void {
+    if (a.dustCooldown > 0) return;
+    a.dustCooldown = a.kind === 'monolith' ? 0.28 : 0.45;
+
+    const sparkCount = a.kind === 'monolith' ? 3 : 2;
+    for (let i = 0; i < sparkCount; i++) {
+      const jitter = a.radius * 0.22;
+      this.spawnHitEffect(
+        x + (Math.random() - 0.5) * jitter,
+        z + (Math.random() - 0.5) * jitter,
+        y + (Math.random() - 0.5) * jitter,
+      );
+    }
+  }
+
+  private spawnAsteroidDestroyBurst(a: AsteroidDatum): void {
+    if (a.kind !== 'shard') {
+      this.spawnExplosion(a.x, a.z, a.y);
+    } else {
+      this.spawnHitEffect(a.x, a.z, a.y);
+    }
+
+    const burstCount = a.kind === 'monolith' ? 5 : 3;
+    for (let i = 0; i < burstCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = a.radius * (0.35 + Math.random() * 0.9);
+      this.spawnHitEffect(
+        a.x + Math.cos(angle) * dist,
+        a.z + Math.sin(angle) * dist,
+        a.y + (Math.random() - 0.5) * a.radius,
+      );
+    }
+  }
 
   private spawnHitEffect(x: number, z: number, y: number = ARENA_GROUND_Y): void {
     // Lazy-init shared resources on first use.
@@ -3390,8 +3667,8 @@ export class ArenaEngine {
         vel: { x: 0, y: 0, z: 0 },
         rotation: 0,
         pitch: 0,
-        hp: 100,
-        maxHp: 100,
+        hp: ARENA_SHIP_MAX_HP,
+        maxHp: ARENA_SHIP_MAX_HP,
         alive: true,
         respawnTimer: 0,
         mesh,

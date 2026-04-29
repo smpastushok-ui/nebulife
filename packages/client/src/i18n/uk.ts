@@ -40,8 +40,8 @@ export const uk = {
   'arena.tutorial.step2.body_mobile':  'Лiвий джойстик (нижнiй-лiвий кут екрана). Перетягни палець у потрiбний напрям.',
 
   'arena.tutorial.step3.title':        'Прицiл та стрiльба',
-  'arena.tutorial.step3.body_desktop': 'Мишка задає прицiл. Лiва кнопка миши - постiйний лазер.',
-  'arena.tutorial.step3.body_mobile':  'Кнопка LASER - постiйний лазер. Напрям пострiлу спiвпадає з рухом.',
+  'arena.tutorial.step3.body_desktop': 'Мишка задає прицiл. Лазер стрiляє автоматично, коли ворог входить у центральну зону прицiлу.',
+  'arena.tutorial.step3.body_mobile':  'Правий джойстик керує носом корабля. Лазер стрiляє автоматично, коли ворог входить у центральну зону прицiлу.',
 
   'arena.tutorial.step4.title':        'Ракети',
   'arena.tutorial.step4.body_desktop': 'Клавiша E або Space - ракета з самонаведенням. Боєзапас 10, перезарядка 6с за штуку.',
@@ -101,7 +101,7 @@ export const uk = {
   'hangar.controls.title':         'Управлiння',
   'hangar.controls.move':          'Рух',
   'hangar.controls.aim':           'Прицiл',
-  'hangar.controls.laser':         'Лазерний iмпульс',
+  'hangar.controls.laser':         'Автолазер у центральнiй зонi прицiлу',
   'hangar.controls.missile':       'Ракета',
   'hangar.controls.warp':          'Варп-ривок',
   'hangar.controls.gravity':       'Гравiтацiйний поштовх',

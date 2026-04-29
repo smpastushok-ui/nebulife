@@ -9,9 +9,9 @@ interface ArenaLandscapeControlsProps {
   /** -1..+1 vertical thrust (deprecated — kept for API compat, no-op now). */
   onVertical?: (v: number) => void;
   /** Left-stick sector — which quadrant the thumb is pulled toward.
-   *  'center' = just thrust, 'laser' = thrust+fire, 'missile' = thrust+missile,
-   *  'warp' = thrust+warp, 'dodge' = thrust+barrel roll. */
-  onSector?: (sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge') => void;
+   *  'center' = just thrust, outer quadrants trigger utility actions.
+   *  Laser fire is automatic when an enemy is in the central sight cone. */
+  onSector?: (sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity') => void;
   missileAmmo?: number;
   warpReady?: boolean;
   /** When true, container is CSS-rotated 90° CW (portrait → landscape). */
@@ -140,7 +140,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       // Coordinate correctness: when the container is CSS-rotated (portrait
       // device held in landscape), screen coords and container coords differ
       // by a 90° spin. Always work in container-local coords via toLocal()
-      // so the sector mapping (up=LASER, right=WARP, down=DODGE, left=MISSILE)
+      // so the sector mapping (up=GRAVITY, right=WARP, down=DODGE, left=MISSILE)
       // matches what the user SEES on screen.
       const hintEl = leftHintRef.current;
       let insideRing = false;
@@ -162,9 +162,9 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       const thrust = leftStartedInside.current ? 1 : 0;
       onMove(0, -thrust);
 
-      let sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge' = 'center';
+      let sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity' = 'center';
       if (!insideRing) {
-        if (angle > Math.PI / 4 && angle < 3 * Math.PI / 4) sector = 'laser';
+        if (angle > Math.PI / 4 && angle < 3 * Math.PI / 4) sector = 'gravity';
         else if (angle >= -Math.PI / 4 && angle <= Math.PI / 4) sector = 'warp';
         else if (angle < -Math.PI / 4 && angle > -3 * Math.PI / 4) sector = 'dodge';
         else sector = 'missile';
@@ -217,28 +217,10 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
             width: LEFT_HINT_SIZE, height: LEFT_HINT_SIZE,
           }}>
           <div style={{ ...styles.hintRing, width: LEFT_HINT_SIZE, height: LEFT_HINT_SIZE }} />
-          {/* Sector labels — positioned OUTSIDE the ring on the outer
-              perimeter. Using a larger SVG viewbox than the ring itself
-              so text sits 20px beyond the circle's edge. */}
-          <svg
-            width={LEFT_HINT_SIZE + 60}
-            height={LEFT_HINT_SIZE + 60}
-            viewBox={`-${LEFT_HINT_SIZE / 2 + 30} -${LEFT_HINT_SIZE / 2 + 30} ${LEFT_HINT_SIZE + 60} ${LEFT_HINT_SIZE + 60}`}
-            style={{
-              position: 'absolute',
-              left: -30, top: -30,
-              pointerEvents: 'none',
-            }}
-          >
-            {/* Up: laser */}
-            <text x="0" y={-(LEFT_HINT_SIZE / 2) - 12} fill="#44ffaa" fontSize="11" textAnchor="middle" fontFamily="monospace">LASER</text>
-            {/* Left: missile */}
-            <text x={-(LEFT_HINT_SIZE / 2) - 20} y="4" fill="#ff6666" fontSize="11" textAnchor="middle" fontFamily="monospace">MISSILE</text>
-            {/* Right: warp */}
-            <text x={(LEFT_HINT_SIZE / 2) + 18} y="4" fill="#44ddff" fontSize="11" textAnchor="middle" fontFamily="monospace">WARP</text>
-            {/* Down: dodge */}
-            <text x="0" y={(LEFT_HINT_SIZE / 2) + 18} fill="#ffcc44" fontSize="11" textAnchor="middle" fontFamily="monospace">DODGE</text>
-          </svg>
+          <AbilityGlyph kind="gravity" color="#bb88ff" style={{ top: -28, left: '50%', transform: 'translateX(-50%)' }} />
+          <AbilityGlyph kind="missile" color="#ff6666" style={{ left: -30, top: '50%', transform: 'translateY(-50%)' }} />
+          <AbilityGlyph kind="warp" color="#44ddff" style={{ right: -30, top: '50%', transform: 'translateY(-50%)' }} />
+          <AbilityGlyph kind="dodge" color="#ffcc44" style={{ bottom: -30, left: '50%', transform: 'translateX(-50%)' }} />
         </div>
         <div ref={leftBaseRef} style={styles.base}>
           <div ref={leftKnobRef} style={styles.knob} />
@@ -275,6 +257,47 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
   );
 };
 
+function AbilityGlyph({
+  kind,
+  color,
+  style,
+}: {
+  kind: 'gravity' | 'missile' | 'warp' | 'dodge';
+  color: string;
+  style: React.CSSProperties;
+}) {
+  return (
+    <div style={{ ...styles.sectorGlyph, borderColor: `${color}66`, boxShadow: `0 0 14px ${color}22`, ...style }}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        {kind === 'gravity' && (
+          <>
+            <circle cx="12" cy="12" r="3.2" />
+            <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.4 6.4l2.8 2.8M14.8 14.8l2.8 2.8M17.6 6.4l-2.8 2.8M9.2 14.8l-2.8 2.8" />
+          </>
+        )}
+        {kind === 'missile' && (
+          <>
+            <path d="M12 3l4 7-4 11-4-11 4-7z" />
+            <path d="M8.5 13H5M19 13h-3.5M10 18l-2 3M14 18l2 3" />
+          </>
+        )}
+        {kind === 'warp' && (
+          <>
+            <path d="M4 12h10M10 6l6 6-6 6" />
+            <path d="M17 5c2.2 3.8 2.2 10.2 0 14" opacity="0.75" />
+          </>
+        )}
+        {kind === 'dodge' && (
+          <>
+            <path d="M7 6l-4 6 4 6M17 6l4 6-4 6" />
+            <path d="M10 8l4 4-4 4" opacity="0.85" />
+          </>
+        )}
+      </svg>
+    </div>
+  );
+}
+
 const styles: Record<string, React.CSSProperties> = {
   hint: {
     position: 'absolute',
@@ -288,7 +311,8 @@ const styles: Record<string, React.CSSProperties> = {
     width: 90,
     height: 90,
     borderRadius: '50%',
-    border: '2px dashed rgba(255, 255, 255, 0.15)',
+    border: '1.5px dashed rgba(123, 184, 255, 0.24)',
+    boxShadow: 'inset 0 0 18px rgba(68,136,170,0.10), 0 0 18px rgba(68,136,170,0.08)',
   },
   hintLabel: {
     fontFamily: 'monospace',
@@ -317,6 +341,19 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '50%',
     transform: 'translate(-50%, -50%)',
     boxShadow: '0 0 15px rgba(0,0,0,0.5)',
+  },
+  sectorGlyph: {
+    position: 'absolute',
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    background: 'linear-gradient(180deg, rgba(8,14,24,0.82), rgba(4,9,18,0.58))',
+    border: '1px solid rgba(100,140,180,0.28)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+    backdropFilter: 'blur(4px)',
   },
   abilityBtn: {
     position: 'absolute' as const,

@@ -5,6 +5,7 @@ import './landing.css';
 const TESTER_GROUP_URL = 'https://t.me/+IT3QjV5a-tQ0ZDZi';
 const TESTER_LEAD_EMAIL_KEY = 'nebulife_tester_lead_email';
 type ProofTone = 'planet' | 'galaxy' | 'terminal' | 'surface' | 'academy';
+type ShowcaseTone = 'planet' | 'photo' | 'ships';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -83,6 +84,26 @@ export function LandingPage() {
     { value: t('landing.universe.fact_1_value'), label: t('landing.universe.fact_1_label') },
     { value: t('landing.universe.fact_2_value'), label: t('landing.universe.fact_2_label') },
     { value: t('landing.universe.fact_3_value'), label: t('landing.universe.fact_3_label') },
+  ];
+  const showcaseCards: { tone: ShowcaseTone; eyebrow: string; title: string; body: string }[] = [
+    {
+      tone: 'planet',
+      eyebrow: t('landing.showcase.planet_eyebrow'),
+      title: t('landing.showcase.planet_title'),
+      body: t('landing.showcase.planet_body'),
+    },
+    {
+      tone: 'photo',
+      eyebrow: t('landing.showcase.photo_eyebrow'),
+      title: t('landing.showcase.photo_title'),
+      body: t('landing.showcase.photo_body'),
+    },
+    {
+      tone: 'ships',
+      eyebrow: t('landing.showcase.ships_eyebrow'),
+      title: t('landing.showcase.ships_title'),
+      body: t('landing.showcase.ships_body'),
+    },
   ];
   const proofCards = [
     { code: '01', title: t('landing.proof.exosphere'), body: t('landing.proof.exosphere_body'), tone: 'planet' as const },
@@ -199,7 +220,7 @@ export function LandingPage() {
 
   return (
     <main className="landing-root">
-      <div className="landing-stars" aria-hidden="true" />
+      <div className="landing-nebula" aria-hidden="true" />
       <nav className="landing-nav" aria-label={t('landing.nav_label')}>
         <a className="landing-logo" href="/">
           <span className="landing-logo-mark" aria-hidden="true" />
@@ -234,18 +255,77 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className="landing-galaxy-stage" aria-label={t('landing.visual_label')}>
-          <div className="landing-galaxy-core" />
-          <div className="landing-galaxy-arm landing-galaxy-arm-a" />
-          <div className="landing-galaxy-arm landing-galaxy-arm-b" />
-          <div className="landing-galaxy-arm landing-galaxy-arm-c" />
-          <div className="landing-galaxy-ring landing-galaxy-ring-one" />
-          <div className="landing-galaxy-ring landing-galaxy-ring-two" />
-          <div className="landing-galaxy-node landing-node-a" />
-          <div className="landing-galaxy-node landing-node-b" />
-          <div className="landing-galaxy-node landing-node-c" />
+        <div className="landing-galaxy-stage landing-cosmos-window" aria-label={t('landing.visual_label')}>
+          <div className="landing-window-grid" aria-hidden="true" />
+          <div className="landing-galaxy-orchestra" aria-hidden="true">
+            <div className="landing-galaxy-core" />
+            <div className="landing-galaxy-arm landing-galaxy-arm-a" />
+            <div className="landing-galaxy-arm landing-galaxy-arm-b" />
+            <div className="landing-galaxy-arm landing-galaxy-arm-c" />
+            <div className="landing-galaxy-ring landing-galaxy-ring-one" />
+            <div className="landing-galaxy-ring landing-galaxy-ring-two" />
+            <div className="landing-galaxy-node landing-node-a" />
+            <div className="landing-galaxy-node landing-node-b" />
+            <div className="landing-galaxy-node landing-node-c" />
+          </div>
+          <div className="landing-hero-planet" aria-hidden="true">
+            <div className="landing-planet-clouds" />
+            <div className="landing-planet-ring" />
+          </div>
+          <div className="landing-photo-stack" aria-hidden="true">
+            <div className="landing-photo-card landing-photo-card-a" />
+            <div className="landing-photo-card landing-photo-card-b" />
+          </div>
+          <div className="landing-ship-duel" aria-hidden="true">
+            <span className="landing-ship landing-ship-blue" />
+            <span className="landing-ship landing-ship-red" />
+          </div>
           <div className="landing-scan landing-scan-a">{t('landing.visual_scan_a')}</div>
           <div className="landing-scan landing-scan-b">{t('landing.visual_scan_b')}</div>
+          <div className="landing-scan landing-scan-c">{t('landing.visual_scan_c')}</div>
+        </div>
+      </section>
+
+      <section className="landing-section landing-showcase-panel">
+        <div className="landing-section-head">
+          <span>{t('landing.showcase.label')}</span>
+          <h2>{t('landing.showcase.title')}</h2>
+        </div>
+        <p className="landing-text">{t('landing.showcase.body')}</p>
+        <div className="landing-showcase-grid">
+          {showcaseCards.map((item) => (
+            <article className={`landing-showcase-card landing-showcase-${item.tone}`} key={item.title}>
+              <div className="landing-showcase-visual" aria-hidden="true">
+                {item.tone === 'planet' && (
+                  <>
+                    <span className="landing-mini-planet landing-mini-earth" />
+                    <span className="landing-mini-planet landing-mini-jupiter" />
+                    <span className="landing-mini-planet landing-mini-ice" />
+                  </>
+                )}
+                {item.tone === 'photo' && (
+                  <>
+                    <span className="landing-ai-photo landing-ai-photo-one" />
+                    <span className="landing-ai-photo landing-ai-photo-two" />
+                    <span className="landing-ai-photo landing-ai-photo-three" />
+                  </>
+                )}
+                {item.tone === 'ships' && (
+                  <>
+                    <span className="landing-arena-ship landing-arena-blue" />
+                    <span className="landing-arena-ship landing-arena-red" />
+                    <span className="landing-arena-asteroid landing-arena-asteroid-a" />
+                    <span className="landing-arena-asteroid landing-arena-asteroid-b" />
+                  </>
+                )}
+              </div>
+              <div className="landing-showcase-copy">
+                <span>{item.eyebrow}</span>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 

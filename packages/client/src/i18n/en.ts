@@ -42,8 +42,8 @@ export const en: Record<TranslationKey, string> = {
   'arena.tutorial.step2.body_mobile':  'Left joystick (bottom-left corner of the screen). Drag your finger in the desired direction.',
 
   'arena.tutorial.step3.title':        'Aim and shoot',
-  'arena.tutorial.step3.body_desktop': 'Mouse sets the aim. Left mouse button - continuous laser.',
-  'arena.tutorial.step3.body_mobile':  'LASER button - continuous laser. Fire direction matches movement.',
+  'arena.tutorial.step3.body_desktop': 'Mouse sets the aim. The laser fires automatically when an enemy enters the central sight zone.',
+  'arena.tutorial.step3.body_mobile':  'Right joystick controls the nose. The laser fires automatically when an enemy enters the central sight zone.',
 
   'arena.tutorial.step4.title':        'Missiles',
   'arena.tutorial.step4.body_desktop': 'E or Space - homing missile. 10 ammo, 6s reload per unit.',
@@ -103,7 +103,7 @@ export const en: Record<TranslationKey, string> = {
   'hangar.controls.title':         'Controls',
   'hangar.controls.move':          'Movement',
   'hangar.controls.aim':           'Aim direction',
-  'hangar.controls.laser':         'Laser pulse',
+  'hangar.controls.laser':         'Auto laser in central sight zone',
   'hangar.controls.missile':       'Fire missile',
   'hangar.controls.warp':          'Warp dash',
   'hangar.controls.gravity':       'Gravity push',

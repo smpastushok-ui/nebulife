@@ -1136,6 +1136,7 @@ function AppInner() {
 
   /** Popup queue gate — true while telemetry/observatory is active; cleared with delay after close */
   const [popupQueueBlocked, setPopupQueueBlocked] = useState(false);
+  const [arenaPopupGate, setArenaPopupGate] = useState(false);
   const popupBlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Schedule unblock: blocked immediately → unblocked after delayMs (5s for save, 2s for close) */
   const unblockPopupQueue = useCallback((delayMs: number) => {
@@ -1169,6 +1170,7 @@ function AppInner() {
     && !telemetryTarget
     && !observatoryTarget
     && !popupQueueBlocked
+    && !arenaPopupGate
     ? discoveryQueue[0] : null;
 
   /**
@@ -1180,6 +1182,7 @@ function AppInner() {
     && !observatoryTarget
     && !pendingDiscovery
     && !popupQueueBlocked
+    && !arenaPopupGate
     ? completedModalQueue[0] : null;
 
   /**
@@ -1189,11 +1192,11 @@ function AppInner() {
   useEffect(() => {
     if (levelUpNotification !== null) return; // Already showing one
     if (levelUpQueue.length === 0) return;
-    if (telemetryTarget || observatoryTarget || pendingDiscovery || completedModal || popupQueueBlocked) return;
+    if (telemetryTarget || observatoryTarget || pendingDiscovery || completedModal || popupQueueBlocked || arenaPopupGate) return;
     const [next, ...rest] = levelUpQueue;
     setLevelUpNotification(next);
     setLevelUpQueue(rest);
-  }, [levelUpNotification, levelUpQueue, telemetryTarget, observatoryTarget, pendingDiscovery, completedModal, popupQueueBlocked]);
+  }, [levelUpNotification, levelUpQueue, telemetryTarget, observatoryTarget, pendingDiscovery, completedModal, popupQueueBlocked, arenaPopupGate]);
 
   // Flush pending research toasts one at a time.
   // Wait until level-up banner is fully dismissed, then show first pending toast.
@@ -1203,6 +1206,7 @@ function AppInner() {
     if (researchToasts.length > 0) return; // current toast still visible — wait
     if (levelUpNotification !== null) return; // level-up banner still visible — wait
     if (levelUpQueue.length > 0) return; // level-up banner about to show — wait
+    if (arenaPopupGate) return; // never slide game popups over the arena
 
     const timer = setTimeout(() => {
       setPendingResearchToasts((pending) => {
@@ -1213,7 +1217,7 @@ function AppInner() {
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [pendingResearchToasts, researchToasts, levelUpNotification, levelUpQueue]);
+  }, [pendingResearchToasts, researchToasts, levelUpNotification, levelUpQueue, arenaPopupGate]);
 
   /** Gallery: map object_type → existing DiscoveryData (with photo) for duplicate check */
   const [galleryMap, setGalleryMap] = useState<Map<string, DiscoveryData>>(new Map());
@@ -1489,6 +1493,7 @@ function AppInner() {
   const [showArena, setShowArenaRaw] = useState(false); // never auto-restore bot arena
   const setShowArena = useCallback((val: boolean) => {
     setShowArenaRaw(val);
+    setArenaPopupGate(val);
     if (val) localStorage.setItem('nebulife_arena_active', '1');
     else localStorage.removeItem('nebulife_arena_active');
   }, []);
@@ -6069,7 +6074,7 @@ function AppInner() {
       )}
 
       {/* Speed-up twist modal — "trajectory updated" */}
-      {showSpeedUpTwist && (
+      {showSpeedUpTwist && !arenaPopupGate && (
         <div
           style={{
             position: 'fixed',
@@ -6145,10 +6150,12 @@ function AppInner() {
       )}
 
       {/* Level-up banner */}
-      <LevelUpBanner
-        level={levelUpNotification}
-        onDone={() => setLevelUpNotification(null)}
-      />
+      {!arenaPopupGate && (
+        <LevelUpBanner
+          level={levelUpNotification}
+          onDone={() => setLevelUpNotification(null)}
+        />
+      )}
 
       {/* Left-side scene controls — home-intro */}
       {state.scene === 'home-intro' && !surfaceTarget && (
@@ -6591,7 +6598,7 @@ function AppInner() {
         />
       )}
       {/* Gallery compare modal (when cell is occupied) */}
-      {galleryCompare && (
+      {galleryCompare && !arenaPopupGate && (
         <GalleryCompareModal
           newDiscovery={galleryCompare.newDiscovery}
           newImageUrl={galleryCompare.newImageUrl}
@@ -7258,10 +7265,10 @@ function AppInner() {
       )}
 
       {/* Quark accrual toast queue (singleton renderer; enqueueQuarkToast from anywhere) */}
-      <QuarkToastRenderer />
+      {!arenaPopupGate && <QuarkToastRenderer />}
 
       {/* Toast notification */}
-      {toastMessage && (
+      {toastMessage && !arenaPopupGate && (
         <div style={{
           position: 'fixed',
           bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
@@ -7550,7 +7557,7 @@ function AppInner() {
           chaotic capillary threads, Phase B pulses each new tip in sequence.
           The component swallows all pointer events, so the player can't break
           out mid-animation. */}
-      {ringUnlockAnim && (
+      {ringUnlockAnim && !arenaPopupGate && (
         <RingUnlockAnimation
           newRing={ringUnlockAnim.newRing}
           onComplete={() => setRingUnlockAnim(null)}

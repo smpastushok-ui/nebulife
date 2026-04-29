@@ -88,7 +88,7 @@ interface ControlRow {
 const CONTROLS: ControlRow[] = [
   { keyLabel: 'WASD / Arrows', actionKey: 'hangar.controls.move' },
   { keyLabel: 'Mouse',          actionKey: 'hangar.controls.aim' },
-  { keyLabel: 'Left Click',     actionKey: 'hangar.controls.laser' },
+  { keyLabel: 'Auto',           actionKey: 'hangar.controls.laser' },
   { keyLabel: 'E / Space',      actionKey: 'hangar.controls.missile' },
   { keyLabel: 'Shift',          actionKey: 'hangar.controls.warp' },
   { keyLabel: 'G',              actionKey: 'hangar.controls.gravity' },
@@ -457,8 +457,8 @@ function ShipModelPreview({ modelUrl, accent }: { modelUrl: string; accent: stri
     if (!host) return;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 1000);
-    camera.position.set(0, 36, 120);
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 1000);
+    camera.position.set(0, 38, 138);
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance' });
@@ -512,7 +512,7 @@ function ShipModelPreview({ modelUrl, accent }: { modelUrl: string; accent: stri
       box.getSize(size);
       box.getCenter(center);
       const longest = Math.max(size.x, size.y, size.z);
-      const scale = longest > 0.0001 ? 78 / longest : 1;
+      const scale = longest > 0.0001 ? 70 / longest : 1;
       model.scale.setScalar(scale);
       model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
       model.rotation.y = Math.PI / 2;
@@ -593,6 +593,7 @@ const S: Record<string, React.CSSProperties> = {
     position: 'fixed', inset: 0,
     background: 'radial-gradient(circle at 50% 18%, rgba(68,136,170,0.16), transparent 34%), linear-gradient(180deg, #020510 0%, #050a14 58%, #020510 100%)',
     zIndex: 9500, fontFamily: 'monospace', color: '#aabbcc', overflow: 'hidden',
+    display: 'flex', flexDirection: 'column',
   },
   starfield: {
     position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.7,
@@ -615,8 +616,11 @@ const S: Record<string, React.CSSProperties> = {
       radial-gradient(ellipse at 50% 42%, transparent 0 28%, rgba(123,184,255,0.10) 29%, transparent 30%)`,
   },
   scroll: {
-    position: 'relative', zIndex: 2, flex: 1, overflow: 'auto',
-    display: 'flex', flexDirection: 'column', padding: '0 0 24px',
+    position: 'relative', zIndex: 2, flex: 1, minHeight: 0,
+    overflowX: 'hidden', overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    display: 'flex', flexDirection: 'column',
+    padding: '0 0 calc(72px + env(safe-area-inset-bottom, 0px))',
   },
 
   // Header
@@ -656,7 +660,7 @@ const S: Record<string, React.CSSProperties> = {
   bayWrap: {
     display: 'flex', flexDirection: 'column', alignItems: 'stretch',
     margin: '12px 16px 0', padding: '12px', gap: 10,
-    border: '1px solid #334455', borderRadius: 8, overflow: 'hidden',
+    border: '1px solid #334455', borderRadius: 8, overflow: 'visible',
     boxShadow: 'inset 0 0 40px rgba(68,136,170,0.06), 0 12px 30px rgba(0,0,0,0.25)',
   },
   bayHeader: {
@@ -673,8 +677,8 @@ const S: Record<string, React.CSSProperties> = {
     background: 'rgba(5,10,20,0.72)', whiteSpace: 'nowrap',
   },
   modelPreview: {
-    width: '100%', height: 240, position: 'relative',
-    borderRadius: 6, overflow: 'hidden',
+    width: '100%', height: 268, position: 'relative',
+    borderRadius: 6, overflow: 'visible',
     background: 'radial-gradient(circle at 50% 52%, rgba(123,184,255,0.10), transparent 42%), linear-gradient(180deg, rgba(2,5,16,0.25), rgba(2,5,16,0.76))',
   },
   previewName: {

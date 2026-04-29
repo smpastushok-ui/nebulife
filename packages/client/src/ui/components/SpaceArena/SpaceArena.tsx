@@ -24,7 +24,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const engineRef = useRef<ArenaEngine | null>(null);
   const [ready, setReady] = useState(false);
   const [hp, setHp] = useState(100);
-  const [maxHp] = useState(100);
+  const [maxHp, setMaxHp] = useState(100);
   const [shield, setShield] = useState(50);
   const [maxShield] = useState(50);
   const [kills, setKills] = useState(0);
@@ -135,7 +135,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
     },
     onExit: () => onExit(),
     onStatsUpdate: (h, mh, s, ms, k, d) => {
-      setHp(h); setShield(s); setKills(k); setDeaths(d);
+      setHp(h); setMaxHp(mh); setShield(s); setKills(k); setDeaths(d);
     },
     onPlayerDeath: () => setIsDead(true),
     onPlayerRespawn: () => setIsDead(false),
@@ -162,7 +162,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
   const handleVertical = useCallback((v: number) => {
     engineRef.current?.setMobileVertical(v);
   }, []);
-  const handleSector = useCallback((sector: 'center' | 'laser' | 'missile' | 'warp' | 'dodge') => {
+  const handleSector = useCallback((sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity') => {
     engineRef.current?.setMobileSector(sector);
   }, []);
 
@@ -463,12 +463,17 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
           100% { transform: translateX(0); opacity: 0.08; }
         }
         @keyframes arenaMatchEndIn {
-          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+          0% { opacity: 0; transform: translate(-50%, -46%) scale(0.9); filter: blur(8px); }
+          65% { opacity: 1; transform: translate(-50%, -50%) scale(1.02); filter: blur(0); }
           100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
         @keyframes arenaMatchEndBgIn {
           0% { opacity: 0; }
           100% { opacity: 1; }
+        }
+        @keyframes arenaWinnerPulse {
+          0%, 100% { opacity: 0.72; transform: translateX(-50%) scaleX(0.88); }
+          50% { opacity: 1; transform: translateX(-50%) scaleX(1); }
         }
       `}</style>
 
@@ -852,51 +857,79 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
             {/* Dim backdrop */}
             <div style={{
               position: 'absolute', inset: 0, zIndex: 50,
-              background: 'rgba(2,5,16,0.75)',
-              backdropFilter: 'blur(6px)',
-              WebkitBackdropFilter: 'blur(6px)',
-              animation: 'arenaMatchEndBgIn 0.4s ease-out forwards',
+              background: `radial-gradient(circle at 50% 44%, ${winnerColor}18, transparent 30%), linear-gradient(120deg, rgba(68,136,255,0.13), transparent 35%, rgba(255,68,68,0.12)), rgba(2,5,16,0.82)`,
+              backdropFilter: 'blur(7px) saturate(0.85)',
+              WebkitBackdropFilter: 'blur(7px) saturate(0.85)',
+              animation: 'arenaMatchEndBgIn 0.55s ease-out forwards',
             }} />
             {/* Results panel */}
             <div style={{
               position: 'absolute',
               top: '50%', left: '50%',
               zIndex: 51,
-              width: 'min(580px, 92vw)',
-              background: 'rgba(10,15,25,0.96)',
-              border: '1px solid #334455',
-              borderRadius: 6,
+              width: 'min(680px, 92vw)',
+              maxHeight: 'calc(100dvh - 40px)',
+              overflowY: 'auto',
+              background: 'linear-gradient(180deg, rgba(11,18,31,0.96), rgba(4,9,18,0.96))',
+              border: `1px solid ${winnerColor}66`,
+              borderRadius: 10,
               fontFamily: 'monospace',
               padding: '28px 24px 20px',
-              animation: 'arenaMatchEndIn 0.4s ease-out forwards',
+              color: '#aabbcc',
+              boxShadow: `0 0 42px ${winnerColor}22, inset 0 0 48px rgba(68,136,170,0.08)`,
+              animation: 'arenaMatchEndIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards',
             }}>
+              <div style={{
+                position: 'absolute',
+                top: 10,
+                left: '50%',
+                width: '62%',
+                height: 1,
+                background: `linear-gradient(90deg, transparent, ${winnerColor}, transparent)`,
+                animation: 'arenaWinnerPulse 2.6s ease-in-out infinite',
+                pointerEvents: 'none',
+              }} />
               {/* Winner title */}
               <div style={{
                 textAlign: 'center',
-                fontSize: 26,
+                fontSize: 24,
                 fontWeight: 'bold',
                 color: winnerColor,
-                letterSpacing: 4,
-                marginBottom: 4,
-                textShadow: `0 0 18px ${winnerColor}88`,
+                letterSpacing: 6,
+                marginBottom: 6,
+                textShadow: `0 0 18px ${winnerColor}99`,
               }}>
                 {winnerLabel}
               </div>
               {/* Score line */}
               <div style={{
-                textAlign: 'center',
-                fontSize: 13,
-                color: '#667788',
-                letterSpacing: 2,
-                marginBottom: 20,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 16,
+                marginBottom: 18,
               }}>
-                <span style={{ color: blueColor }}>{r.blueKills}</span>
-                {' — '}
-                <span style={{ color: redColor }}>{r.redKills}</span>
+                <div style={{
+                  minWidth: 86, padding: '8px 14px', textAlign: 'center',
+                  border: `1px solid ${blueColor}44`, borderRadius: 6,
+                  background: 'rgba(68,136,255,0.08)',
+                }}>
+                  <div style={{ color: blueColor, fontSize: 24, fontWeight: 'bold' }}>{r.blueKills}</div>
+                  <div style={{ color: '#6688aa', fontSize: 8, letterSpacing: 3 }}>BLUE</div>
+                </div>
+                <div style={{ color: '#556677', fontSize: 10, letterSpacing: 3 }}>TARGET 25</div>
+                <div style={{
+                  minWidth: 86, padding: '8px 14px', textAlign: 'center',
+                  border: `1px solid ${redColor}44`, borderRadius: 6,
+                  background: 'rgba(255,68,68,0.08)',
+                }}>
+                  <div style={{ color: redColor, fontSize: 24, fontWeight: 'bold' }}>{r.redKills}</div>
+                  <div style={{ color: '#aa6666', fontSize: 8, letterSpacing: 3 }}>RED</div>
+                </div>
               </div>
 
               {/* Divider */}
-              <div style={{ borderTop: '1px solid #223344', marginBottom: 16 }} />
+              <div style={{ borderTop: '1px solid rgba(68,136,170,0.25)', marginBottom: 16 }} />
 
               {/* Two-column player list */}
               <div style={{ display: 'flex', gap: 12 }}>
@@ -906,14 +939,15 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
                     color: blueColor, fontSize: 10, letterSpacing: 3,
                     fontWeight: 'bold', marginBottom: 8, paddingBottom: 4,
                     borderBottom: `1px solid ${blueColor}44`,
+                    textShadow: `0 0 10px ${blueColor}66`,
                   }}>
                     BLUE  {r.blueKills} kills
                   </div>
                   {bluePlayers.map(p => (
                     <div key={p.id} style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '4px 6px', marginBottom: 2,
-                      borderRadius: 3,
+                      padding: '6px 8px', marginBottom: 3,
+                      borderRadius: 5,
                       background: p.name === 'PLAYER' ? 'rgba(68,136,255,0.12)' : 'transparent',
                       border: p.name === 'PLAYER' ? '1px solid rgba(68,136,255,0.3)' : '1px solid transparent',
                     }}>
@@ -940,14 +974,15 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
                     color: redColor, fontSize: 10, letterSpacing: 3,
                     fontWeight: 'bold', marginBottom: 8, paddingBottom: 4,
                     borderBottom: `1px solid ${redColor}44`,
+                    textShadow: `0 0 10px ${redColor}66`,
                   }}>
                     RED  {r.redKills} kills
                   </div>
                   {redPlayers.map(p => (
                     <div key={p.id} style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '4px 6px', marginBottom: 2,
-                      borderRadius: 3,
+                      padding: '6px 8px', marginBottom: 3,
+                      borderRadius: 5,
                       background: p.name === 'PLAYER' ? 'rgba(255,68,68,0.12)' : 'transparent',
                       border: p.name === 'PLAYER' ? '1px solid rgba(255,68,68,0.3)' : '1px solid transparent',
                     }}>
@@ -977,7 +1012,7 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
               </div>
 
               {/* Divider */}
-              <div style={{ borderTop: '1px solid #223344', margin: '16px 0 14px' }} />
+              <div style={{ borderTop: '1px solid rgba(68,136,170,0.25)', margin: '16px 0 14px' }} />
 
               {/* Exit button */}
               <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -988,11 +1023,12 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
                     fontSize: 12,
                     letterSpacing: 3,
                     color: '#aabbcc',
-                    background: 'rgba(30,45,65,0.7)',
-                    border: '1px solid #446688',
-                    borderRadius: 3,
-                    padding: '8px 32px',
+                    background: `linear-gradient(135deg, ${winnerColor}1f, rgba(20,30,50,0.72))`,
+                    border: `1px solid ${winnerColor}88`,
+                    borderRadius: 5,
+                    padding: '9px 34px',
                     cursor: 'pointer',
+                    boxShadow: `0 0 16px ${winnerColor}22`,
                   }}
                 >
                   EXIT
