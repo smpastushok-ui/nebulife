@@ -279,6 +279,11 @@ export function LandingPage() {
   return (
     <main className="landing-root" ref={rootRef}>
       <div className="landing-nebula" aria-hidden="true" />
+      <div className="landing-shooting-stars" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
       <nav className="landing-nav" aria-label={t('landing.nav_label')}>
         <a className="landing-logo" href="/">
           <span className="landing-logo-mark" aria-hidden="true" />
@@ -329,16 +334,6 @@ export function LandingPage() {
             <span />
           </div>
           <div className="landing-light-sweep" aria-hidden="true" />
-          <div className="landing-briefing">
-            <span>{t('landing.visual_label')}</span>
-            <strong>{t('landing.hero_brief_title')}</strong>
-            <p>{t('landing.hero_brief_body')}</p>
-            <div className="landing-briefing-metrics">
-              <span>{t('landing.visual_scan_a')}</span>
-              <span>{t('landing.visual_scan_b')}</span>
-              <span>{t('landing.visual_scan_c')}</span>
-            </div>
-          </div>
         </div>
       </section>
 

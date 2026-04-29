@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // HangarPage — Combat hangar: ship selection, pilot stats, arena entry
-// Animated entrance, countUp numbers, 2 slots (1 default 3D ship + 1 custom 3D
-// ship slot — 500Q, A.I. generation deferred), 3 event modes: Training (free),
+// Animated entrance, countUp numbers, 2 team ships + custom 3D ship order
+// placeholder, 3 event modes: Training (free),
 // Team Battle (1Q), Tournament (coming soon), controls reference panel.
 // ---------------------------------------------------------------------------
 
@@ -72,6 +72,7 @@ const SHIP_SLOTS: ShipSlot[] = [
 
 const SELECTED_SHIP_KEY = 'nebulife_hangar_ship';
 const SELECTED_TEAM_KEY = 'nebulife_arena_team';
+const CUSTOM_SHIP_COST = 49;
 const VALID_SHIP_IDS = new Set(SHIP_SLOTS.map(s => s.id));
 
 function isShipSlotId(value: string | null): value is ShipSlot['id'] {
@@ -215,6 +216,12 @@ export const HangarPage: React.FC<HangarPageProps> = ({
     setControlsOpen(prev => !prev);
   }, []);
 
+  const handleCustomShipOrder = useCallback(() => {
+    playSfx('ui-click', 0.07);
+    setToast(t('hangar.ship.custom_hint' as Parameters<typeof t>[0]));
+    setTimeout(() => setToast(null), 3000);
+  }, [t]);
+
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
@@ -324,6 +331,28 @@ export const HangarPage: React.FC<HangarPageProps> = ({
               </button>
             );
           })}
+          <button
+            style={{
+              ...S.shipCard,
+              ...S.customShipCard,
+              opacity: mounted ? 1 : 0,
+              transform: mounted ? 'translateY(0)' : 'translateY(20px)',
+              transition: 'opacity 0.4s ease 0.86s, transform 0.4s ease 0.86s, border-color 0.2s, box-shadow 0.2s',
+            }}
+            onClick={handleCustomShipOrder}
+          >
+            <div style={S.lockedSlot}>
+              <ShipGlyph color="#c6dbf2" />
+              <span style={S.customPlus}>+</span>
+            </div>
+            <div style={{ ...S.cardLabel, color: '#c6dbf2' }}>
+              {t('hangar.ship.custom_3d')}
+            </div>
+            <div style={S.lockedCost}>
+              {CUSTOM_SHIP_COST}
+              <QuarkIcon />
+            </div>
+          </button>
         </div>
 
         {/* ── Controls panel (desktop only) ─────────────────────── */}
@@ -712,10 +741,31 @@ const S: Record<string, React.CSSProperties> = {
   cardLabel: { fontSize: 8, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center' },
   cardTeam: { fontSize: 7, letterSpacing: 2, textTransform: 'uppercase', textAlign: 'center' },
   lockedSlot: {
+    position: 'relative',
     width: 52, height: 52, display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center',
   },
   lockedCost: { fontSize: 8, color: '#4488aa', marginTop: 4, letterSpacing: 1 },
+  customShipCard: {
+    border: '1px dashed rgba(198,219,242,0.42)',
+    background: 'linear-gradient(135deg, rgba(198,219,242,0.10), rgba(10,15,25,0.78))',
+    boxShadow: 'inset 0 0 22px rgba(123,184,255,0.06)',
+  },
+  customPlus: {
+    position: 'absolute',
+    right: 1,
+    bottom: 1,
+    width: 18,
+    height: 18,
+    border: '1px solid rgba(123,184,255,0.58)',
+    borderRadius: '50%',
+    display: 'grid',
+    placeItems: 'center',
+    background: 'rgba(5,10,20,0.92)',
+    color: '#7bb8ff',
+    fontSize: 13,
+    lineHeight: 1,
+  },
 
   // Controls panel
   controlsSection: {
