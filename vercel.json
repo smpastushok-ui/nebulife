@@ -16,7 +16,9 @@
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/support", "destination": "/support.html" },
     { "source": "/auth/apple/callback", "destination": "/api/auth/apple/callback" },
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/play", "destination": "/index.html" },
+    { "source": "/play/(.*)", "destination": "/index.html" }
   ],
   "crons": [
     { "path": "/api/cron/moderate", "schedule": "* * * * *" },
