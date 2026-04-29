@@ -3,9 +3,71 @@ import { useTranslation } from 'react-i18next';
 import './landing.css';
 
 const TESTER_GROUP_URL = 'https://t.me/+IT3QjV5a-tQ0ZDZi';
+const TESTER_LEAD_EMAIL_KEY = 'nebulife_tester_lead_email';
+type ProofTone = 'planet' | 'galaxy' | 'terminal' | 'surface' | 'academy';
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function ProofGlyph({ tone }: { tone: ProofTone }) {
+  if (tone === 'planet') {
+    return (
+      <svg viewBox="0 0 72 72" aria-hidden="true">
+        <circle cx="36" cy="36" r="16" />
+        <path d="M18 38c9 7 27 8 39 1" />
+        <path d="M22 28c10-5 23-6 34 0" />
+        <path d="M14 36c0-15 10-27 22-27s22 12 22 27-10 27-22 27-22-12-22-27Z" className="soft" />
+      </svg>
+    );
+  }
+  if (tone === 'galaxy') {
+    return (
+      <svg viewBox="0 0 72 72" aria-hidden="true">
+        <circle cx="36" cy="36" r="3" />
+        <path d="M36 20c12 0 20 6 20 13 0 9-12 13-24 11-10-2-16-7-16-13 0-8 9-11 20-11Z" />
+        <path d="M18 47c10-9 31-14 39-7" />
+        <path d="M24 25c8 9 28 14 35 5" className="soft" />
+      </svg>
+    );
+  }
+  if (tone === 'terminal') {
+    return (
+      <svg viewBox="0 0 72 72" aria-hidden="true">
+        <rect x="14" y="16" width="44" height="38" rx="3" />
+        <path d="M21 27h10M21 36h30M21 45h22" />
+        <path d="M46 27l5 4-5 4" className="soft" />
+      </svg>
+    );
+  }
+  if (tone === 'surface') {
+    return (
+      <svg viewBox="0 0 72 72" aria-hidden="true">
+        <path d="M36 12l22 12-22 12-22-12 22-12Z" />
+        <path d="M14 34l22 12 22-12" />
+        <path d="M14 44l22 12 22-12" />
+        <path d="M36 36v20" className="soft" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 72 72" aria-hidden="true">
+      <path d="M18 20h36v32H18z" />
+      <path d="M25 29h22M25 37h16M25 45h10" />
+      <circle cx="50" cy="45" r="6" className="soft" />
+      <path d="M46 45h8M50 41v8" className="soft" />
+    </svg>
+  );
+}
 
 export function LandingPage() {
   const { t, i18n } = useTranslation();
+  const [isLeadOpen, setIsLeadOpen] = React.useState(false);
+  const [leadEmail, setLeadEmail] = React.useState(() => localStorage.getItem(TESTER_LEAD_EMAIL_KEY) ?? '');
+  const [leadError, setLeadError] = React.useState('');
+  const [leadWebsite, setLeadWebsite] = React.useState('');
+  const [isLeadSubmitting, setIsLeadSubmitting] = React.useState(false);
+  const [isTesterUnlocked, setIsTesterUnlocked] = React.useState(() => Boolean(localStorage.getItem(TESTER_LEAD_EMAIL_KEY)));
   const features = [
     { code: '01', title: t('landing.features.live_title'), body: t('landing.features.live_body') },
     { code: '02', title: t('landing.features.ai_title'), body: t('landing.features.ai_body') },
@@ -23,11 +85,11 @@ export function LandingPage() {
     { value: t('landing.universe.fact_3_value'), label: t('landing.universe.fact_3_label') },
   ];
   const proofCards = [
-    { title: t('landing.proof.exosphere'), body: t('landing.proof.exosphere_body'), tone: 'planet' },
-    { title: t('landing.proof.galaxy'), body: t('landing.proof.galaxy_body'), tone: 'galaxy' },
-    { title: t('landing.proof.terminal'), body: t('landing.proof.terminal_body'), tone: 'terminal' },
-    { title: t('landing.proof.surface'), body: t('landing.proof.surface_body'), tone: 'surface' },
-    { title: t('landing.proof.academy'), body: t('landing.proof.academy_body'), tone: 'academy' },
+    { code: '01', title: t('landing.proof.exosphere'), body: t('landing.proof.exosphere_body'), tone: 'planet' as const },
+    { code: '02', title: t('landing.proof.galaxy'), body: t('landing.proof.galaxy_body'), tone: 'galaxy' as const },
+    { code: '03', title: t('landing.proof.terminal'), body: t('landing.proof.terminal_body'), tone: 'terminal' as const },
+    { code: '04', title: t('landing.proof.surface'), body: t('landing.proof.surface_body'), tone: 'surface' as const },
+    { code: '05', title: t('landing.proof.academy'), body: t('landing.proof.academy_body'), tone: 'academy' as const },
   ];
   const flow = [
     t('landing.flow.step_1'),
@@ -43,6 +105,66 @@ export function LandingPage() {
     void i18n.changeLanguage(lang);
   };
   const currentLanguage = i18n.language.startsWith('uk') ? 'uk' : 'en';
+
+  const openLead = () => {
+    setLeadError('');
+    setIsLeadOpen(true);
+  };
+
+  const submitLead = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedEmail = leadEmail.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      setLeadError(t('landing.lead.invalid'));
+      return;
+    }
+
+    setIsLeadSubmitting(true);
+    setLeadError('');
+    try {
+      const response = await fetch('/api/tester-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          language: currentLanguage,
+          source: 'landing_mobile_test',
+          website: leadWebsite,
+        }),
+      });
+      if (!response.ok) throw new Error('Lead request failed');
+
+      localStorage.setItem(TESTER_LEAD_EMAIL_KEY, normalizedEmail);
+      setLeadEmail(normalizedEmail);
+      setIsTesterUnlocked(true);
+      // GA4 policy does not allow sending PII, so the email stays local.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).gtag?.('event', 'tester_lead_submitted', {
+        event_category: 'landing',
+        event_label: 'mobile_test',
+      });
+    } catch {
+      setLeadError(t('landing.lead.save_error'));
+    } finally {
+      setIsLeadSubmitting(false);
+    }
+  };
+
+  const renderTesterCta = (label: string, extraClassName = '') => {
+    if (isTesterUnlocked) {
+      return (
+        <a className={`landing-btn landing-btn-primary ${extraClassName}`} href={TESTER_GROUP_URL} target="_blank" rel="noreferrer">
+          {t('landing.lead.open_test')}
+        </a>
+      );
+    }
+
+    return (
+      <button className={`landing-btn landing-btn-primary ${extraClassName}`} type="button" onClick={openLead}>
+        {label}
+      </button>
+    );
+  };
 
   React.useEffect(() => {
     document.documentElement.classList.add('landing-page-active');
@@ -84,7 +206,7 @@ export function LandingPage() {
           Nebulife
         </a>
         <div className="landing-nav-actions">
-          <a href={TESTER_GROUP_URL} target="_blank" rel="noreferrer">{t('landing.nav_testers')}</a>
+          <button type="button" onClick={openLead}>{t('landing.nav_testers')}</button>
           <span className="landing-nav-soon">{t('landing.nav_play')}</span>
           <div className="landing-lang" aria-label={t('landing.lang_label')}>
             <button type="button" className={currentLanguage === 'uk' ? 'active' : ''} onClick={() => setLanguage('uk')}>{t('landing.lang_uk')}</button>
@@ -99,7 +221,7 @@ export function LandingPage() {
           <h1>{t('landing.title')}</h1>
           <p>{t('landing.subtitle')}</p>
           <div className="landing-actions">
-            <a className="landing-btn landing-btn-primary" href={TESTER_GROUP_URL} target="_blank" rel="noreferrer">{t('landing.cta_testers')}</a>
+            {renderTesterCta(t('landing.cta_testers'))}
             <span className="landing-btn landing-btn-secondary landing-btn-disabled">{t('landing.cta_play')}</span>
           </div>
           <div className="landing-stats">
@@ -171,7 +293,7 @@ export function LandingPage() {
         </div>
         <p className="landing-text">{t('landing.testers_body')}</p>
         <div className="landing-actions">
-          <a className="landing-btn landing-btn-primary" href={TESTER_GROUP_URL} target="_blank" rel="noreferrer">{t('landing.cta_testers')}</a>
+          {renderTesterCta(t('landing.cta_testers'))}
           <span className="landing-btn landing-btn-secondary landing-btn-disabled">{t('landing.cta_play')}</span>
         </div>
       </section>
@@ -194,7 +316,12 @@ export function LandingPage() {
         <div className="landing-proof-grid">
           {proofCards.map((item) => (
             <article className={`landing-proof-card landing-proof-${item.tone}`} key={item.title}>
-              <div className="landing-proof-visual" aria-hidden="true" />
+              <div className="landing-proof-top">
+                <span>{item.code}</span>
+                <div className="landing-proof-visual">
+                  <ProofGlyph tone={item.tone} />
+                </div>
+              </div>
               <h3>{item.title}</h3>
               <p>{item.body}</p>
             </article>
@@ -206,10 +333,58 @@ export function LandingPage() {
         <h2>{t('landing.final_title')}</h2>
         <p>{t('landing.final_subtitle')}</p>
         <div className="landing-actions">
-          <a className="landing-btn landing-btn-primary" href={TESTER_GROUP_URL} target="_blank" rel="noreferrer">{t('landing.cta_enter')}</a>
+          {renderTesterCta(t('landing.cta_enter'))}
           <span className="landing-btn landing-btn-secondary landing-btn-disabled">{t('landing.cta_play')}</span>
         </div>
       </section>
+
+      {isLeadOpen && (
+        <div className="landing-lead-overlay" role="dialog" aria-modal="true" aria-labelledby="landing-lead-title">
+          <div className="landing-lead-modal">
+            <button className="landing-lead-close" type="button" onClick={() => setIsLeadOpen(false)} aria-label={t('landing.lead.close')}>x</button>
+            <div className="landing-section-head">
+              <span>{t('landing.lead.label')}</span>
+              <h2 id="landing-lead-title">{t('landing.lead.title')}</h2>
+            </div>
+            <p>{t('landing.lead.body')}</p>
+            <form className="landing-lead-form" onSubmit={submitLead}>
+              <div className="landing-honeypot" aria-hidden="true">
+                <label htmlFor="landing-lead-website">Website</label>
+                <input
+                  id="landing-lead-website"
+                  type="text"
+                  value={leadWebsite}
+                  onChange={(event) => setLeadWebsite(event.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
+              <label htmlFor="landing-lead-email">{t('landing.lead.email_label')}</label>
+              <input
+                id="landing-lead-email"
+                type="email"
+                value={leadEmail}
+                onChange={(event) => setLeadEmail(event.target.value)}
+                placeholder={t('landing.lead.email_placeholder')}
+                autoComplete="email"
+                disabled={isLeadSubmitting || isTesterUnlocked}
+              />
+              <div className="landing-lead-consent">{t('landing.lead.consent')}</div>
+              {leadError && <div className="landing-lead-error">{leadError}</div>}
+              <button className="landing-btn landing-btn-primary" type="submit" disabled={isLeadSubmitting || isTesterUnlocked}>
+                {isLeadSubmitting ? t('landing.lead.saving') : t('landing.lead.submit')}
+              </button>
+            </form>
+            {isTesterUnlocked && (
+              <div className="landing-lead-unlocked">
+                <strong>{t('landing.lead.ready_title')}</strong>
+                <span>{t('landing.lead.ready_body')}</span>
+                <a className="landing-btn landing-btn-primary" href={TESTER_GROUP_URL} target="_blank" rel="noreferrer">{t('landing.lead.open_test')}</a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
