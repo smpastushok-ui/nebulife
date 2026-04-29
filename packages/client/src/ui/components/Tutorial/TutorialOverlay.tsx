@@ -50,6 +50,19 @@ function ensureStyles() {
 const ASTRA_VIDEO_URL = '/astra/astra-video.mp4';
 const ASTRA_PORTRAIT_URL = '/astra/astra-portrait.jpg';
 
+function getAstraVoiceClip(stepId: string, subStepIndex: number): string | null {
+  if (stepId === 'terminal') return 'probudzhennya_ua';
+  if (stepId === 'go-systems') return 'terminal_ua';
+  if (stepId === 'first-research') return 'pershii_vybir_ua';
+  if (stepId === 'hud-info') return subStepIndex === 0 ? 'pershe_scanuvannya_ua' : 'pershi_rezultat_ua';
+  if (stepId === 'anomaly') return 'persha_znahidka_ua';
+  if (stepId === 'quantum') return 'quantum_focus_ua';
+  if (stepId === 'save-gallery') return 'pershe_photo_ua';
+  if (stepId === 'gallery-final') return 'galery_ua';
+  if (stepId === 'astra-handoff') return 'peredacha_chat_ua';
+  return null;
+}
+
 interface TutorialOverlayProps {
   step: TutorialStepConfig;
   subStepIndex: number;
@@ -58,12 +71,14 @@ interface TutorialOverlayProps {
 }
 
 export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: TutorialOverlayProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
+  const [voicePlaying, setVoicePlaying] = useState(false);
   const rafRef = useRef<number>(0);
   const prevTargetRef = useRef<string>('');
+  const voiceRef = useRef<HTMLAudioElement | null>(null);
 
   // Determine current target and text based on sub-steps
   const currentTarget = step.subSteps && step.subSteps.length > 0
@@ -86,10 +101,39 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
   const isAutoStep = step.type === 'auto';
   const isWaiting = step.waitForTarget && !targetRect;
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
+  const voiceClip = getAstraVoiceClip(step.id, subStepIndex);
+  const voiceSrc = i18n.language.startsWith('uk') && voiceClip
+    ? `/astra/voice/${voiceClip}.webm`
+    : null;
 
   useEffect(() => {
     ensureStyles();
   }, []);
+
+  const playVoice = useCallback(() => {
+    if (!voiceSrc) return;
+
+    voiceRef.current?.pause();
+    const audio = new Audio(voiceSrc);
+    audio.volume = 0.86;
+    voiceRef.current = audio;
+    setVoicePlaying(true);
+    audio.onended = () => setVoicePlaying(false);
+    audio.onerror = () => setVoicePlaying(false);
+    void audio.play().catch(() => {
+      setVoicePlaying(false);
+    });
+  }, [voiceSrc]);
+
+  useEffect(() => {
+    if (!voiceSrc) return;
+    playVoice();
+    return () => {
+      voiceRef.current?.pause();
+      voiceRef.current = null;
+      setVoicePlaying(false);
+    };
+  }, [playVoice, voiceSrc]);
 
   // Track transitions between targets
   useEffect(() => {
@@ -345,22 +389,55 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 7,
+            justifyContent: 'space-between',
+            gap: 10,
             marginBottom: 10,
-            color: '#7bb8ff',
-            fontSize: 9,
-            letterSpacing: 1.4,
-            textTransform: 'uppercase',
           }}>
-            <span style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: '#7bb8ff',
-              boxShadow: '0 0 9px rgba(123,184,255,0.65)',
-              animation: 'astra-soft-pulse 2.4s ease-in-out infinite',
-            }} />
-            {t('tutorial.astra_status')}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              minWidth: 0,
+              color: '#7bb8ff',
+              fontSize: 9,
+              letterSpacing: 1.4,
+              textTransform: 'uppercase',
+            }}>
+              <span style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: '#7bb8ff',
+                boxShadow: '0 0 9px rgba(123,184,255,0.65)',
+                animation: 'astra-soft-pulse 2.4s ease-in-out infinite',
+              }} />
+              {t('tutorial.astra_status')}
+            </div>
+            {voiceSrc && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  playVoice();
+                }}
+                title={t('tutorial.astra_voice_replay')}
+                aria-label={t('tutorial.astra_voice_replay')}
+                style={{
+                  width: 28,
+                  height: 24,
+                  border: '1px solid rgba(123,184,255,0.30)',
+                  borderRadius: 4,
+                  background: voicePlaying ? 'rgba(123,184,255,0.16)' : 'rgba(68,102,136,0.12)',
+                  color: '#9cc9ee',
+                  cursor: 'pointer',
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  lineHeight: 1,
+                }}
+              >
+                {voicePlaying ? '||' : '>'}
+              </button>
+            )}
           </div>
 
           {/* Text */}
