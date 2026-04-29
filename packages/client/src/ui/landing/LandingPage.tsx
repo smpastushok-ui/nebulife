@@ -329,9 +329,16 @@ export function LandingPage() {
             <span />
           </div>
           <div className="landing-light-sweep" aria-hidden="true" />
-          <div className="landing-scan landing-scan-a">{t('landing.visual_scan_a')}</div>
-          <div className="landing-scan landing-scan-b">{t('landing.visual_scan_b')}</div>
-          <div className="landing-scan landing-scan-c">{t('landing.visual_scan_c')}</div>
+          <div className="landing-briefing">
+            <span>{t('landing.visual_label')}</span>
+            <strong>{t('landing.hero_brief_title')}</strong>
+            <p>{t('landing.hero_brief_body')}</p>
+            <div className="landing-briefing-metrics">
+              <span>{t('landing.visual_scan_a')}</span>
+              <span>{t('landing.visual_scan_b')}</span>
+              <span>{t('landing.visual_scan_c')}</span>
+            </div>
+          </div>
         </div>
       </section>
 
