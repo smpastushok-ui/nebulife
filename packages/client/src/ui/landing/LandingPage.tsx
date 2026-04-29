@@ -322,11 +322,6 @@ export function LandingPage() {
           <img className="landing-hero-image" src={LANDING_IMAGES.hero} alt="" aria-hidden="true" loading="eager" />
           <CosmicDust />
           <div className="landing-window-grid" aria-hidden="true" />
-          <div className="landing-orbit-lines" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
           <div className="landing-signal-map" aria-hidden="true">
             <span />
             <span />
