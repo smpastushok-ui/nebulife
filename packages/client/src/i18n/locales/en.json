@@ -1559,7 +1559,7 @@
   "landing": {
     "badge": "Early Mobile Test",
     "title": "Enter a living galaxy that keeps expanding",
-    "subtitle": "Nebulife is not a map with levels. It is a procedural, AI-powered universe where every tester begins inside one cluster, then helps reveal a much larger cosmos hidden beyond the signal.",
+    "subtitle": "Nebulife is not a map with levels. It is a procedural universe with stellar physics, orbital mechanics and planetary chemistry, where every tester begins inside one cluster, then helps reveal a much larger cosmos hidden beyond the signal.",
     "nav_label": "Nebulife landing navigation",
     "nav_testers": "Mobile testers",
     "nav_play": "Web soon",
@@ -1583,6 +1583,19 @@
     "proof_title": "What you will test",
     "final_title": "Ready for first mobile contact",
     "final_subtitle": "Join the Android and iOS test group now. The browser version will open later when the mobile test is stable.",
+    "lead": {
+      "label": "Tester lead",
+      "title": "Leave your email to start testing",
+      "body": "We will use this contact to understand who joined the early mobile test. After email confirmation, the test group button appears here.",
+      "email_label": "Email",
+      "email_placeholder": "pilot@example.com",
+      "submit": "Unlock test access",
+      "invalid": "Enter a valid email to continue.",
+      "ready_title": "Test access unlocked",
+      "ready_body": "The mobile tester group is ready. Join it to receive Android and iOS build instructions.",
+      "open_test": "Open tester group",
+      "close": "Close"
+    },
     "stats": {
       "systems": "systems per cluster",
       "players": "players per test cluster",
@@ -1592,7 +1605,7 @@
     "universe": {
       "label": "Beyond the first signal",
       "title": "A cluster is only the doorway",
-      "body": "Each 50-player group receives a living cluster with 1,450 stars and more than 8,000 planets and moons. But that is only the local frontier. Nebulife is designed as an expanding universe: new clusters, new discoveries, new AI artifacts, and unknown routes deeper into the core.",
+      "body": "Each 50-player group receives a living cluster with 1,450 stars and more than 8,000 planets and moons. But that is only the local frontier. Nebulife is designed as an expanding universe: new clusters, new discoveries, scientific expedition artifacts, and unknown routes deeper into the core.",
       "fact_1_value": "1 cluster",
       "fact_1_label": "your first civilization-scale test zone",
       "fact_2_value": "1,450 stars",
@@ -1600,14 +1613,14 @@
       "fact_3_value": "8,000+ worlds",
       "fact_3_label": "planets and moons waiting for scans, colonies, and anomalies",
       "mystery_a": "unknown core routes",
-      "mystery_b": "AI-generated expeditions",
+      "mystery_b": "scientific expeditions",
       "mystery_c": "first discoveries belong to testers"
     },
     "features": {
       "live_title": "Living Galaxy",
-      "live_body": "AI-generated events, weekly digests, and evolving discoveries keep the universe fresh.",
-      "ai_title": "AI Expeditions",
-      "ai_body": "Generate mission artifacts like photos and reports from your own planets.",
+      "live_body": "Procedural events, weekly digests, and evolving discoveries keep the universe fresh.",
+      "ai_title": "Scientific Expeditions",
+      "ai_body": "Collect mission artifacts — exosphere imagery and field reports tied to your own planets.",
       "learn_title": "Real Astronomy",
       "learn_body": "Academy turns sessions into actual science learning with adaptive difficulty.",
       "cluster_title": "Clustered Infinite Universe",
@@ -1617,7 +1630,7 @@
       "step_1": "Start on your home planet and open your star map.",
       "step_2": "Run observatory research sessions to reveal systems.",
       "step_3": "Inspect exospheres and compare worlds by habitability.",
-      "step_4": "Launch expeditions and generate AI-driven discovery artifacts.",
+      "step_4": "Launch expeditions and collect scientific discovery artifacts.",
       "step_5": "Build colony infrastructure and prepare evacuation decisions."
     },
     "proof": {
