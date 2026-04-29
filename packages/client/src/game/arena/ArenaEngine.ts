@@ -339,7 +339,6 @@ export class ArenaEngine {
   private readonly BULLET_DAMAGE = 15;
   private readonly FIRE_COOLDOWN = 0.25;
   private fireCooldownTimer = 0;
-  private mouseDown = false;
 
   // Mouse aim — desktop 3D is pointer-lock-based (FPS-style yaw+pitch).
   // The old XZ-plane raycaster is kept as a fallback for when pointer lock
@@ -353,6 +352,9 @@ export class ArenaEngine {
   private pointerLocked = false;
   private mouseMoveX = 0; // pixels accumulated since last updateAim
   private mouseMoveY = 0;
+  private mouseTargetYaw = 0;
+  private mouseTargetPitch = 0;
+  private mouseTargetReady = false;
   private readonly MOUSE_SENS = 0.0022; // radians per pixel
   private readonly MAX_PITCH = Math.PI / 2.2; // clamp so we don't flip upside down
 
@@ -425,6 +427,7 @@ export class ArenaEngine {
   private onMouseMoveBound: (e: MouseEvent) => void;
   private onMouseDownBound: (e: MouseEvent) => void;
   private onMouseUpBound: (e: MouseEvent) => void;
+  private onContextMenuBound: (e: MouseEvent) => void;
 
   // Track all disposables for cleanup
   private disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
@@ -474,15 +477,19 @@ export class ArenaEngine {
     this.onKeyDownBound = this.onKeyDown.bind(this);
     this.onKeyUpBound = this.onKeyUp.bind(this);
     this.onMouseMoveBound = this.onMouseMove.bind(this);
-    this.onMouseDownBound = () => {
-      this.mouseDown = true;
+    this.onMouseDownBound = (e: MouseEvent) => {
+      e.preventDefault();
       // Lock pointer on first click so desktop 3D aim (yaw+pitch) works.
       // Already-locked clicks just fire. Mobile or fallback: ignore.
       if (!this.pointerLocked && !this.isMobile) {
         this.renderer.domElement.requestPointerLock?.();
       }
+      if (this.playerDead || this.isMobile) return;
+      if (e.button === 0) this.triggerDash();
+      if (e.button === 2) this.fireMissile();
     };
-    this.onMouseUpBound = () => { this.mouseDown = false; };
+    this.onMouseUpBound = () => {};
+    this.onContextMenuBound = (e: MouseEvent) => e.preventDefault();
   }
 
   private isArenaControlKey(key: string): boolean {
@@ -512,10 +519,14 @@ export class ArenaEngine {
   }
 
   private hasKeyboardAimInput(): boolean {
-    return this.keys.has('arrowup')
+    // Desktop web now pilots with the mouse. Keep arrows inactive so accidental
+    // page/navigation keys do not fight pointer-lock aiming.
+    return this.isMobile && (
+      this.keys.has('arrowup')
       || this.keys.has('arrowdown')
       || this.keys.has('arrowleft')
-      || this.keys.has('arrowright');
+      || this.keys.has('arrowright')
+    );
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -556,6 +567,7 @@ export class ArenaEngine {
     this.renderer.domElement.addEventListener('mousemove', this.onMouseMoveBound);
     this.renderer.domElement.addEventListener('mousedown', this.onMouseDownBound);
     this.renderer.domElement.addEventListener('mouseup', this.onMouseUpBound);
+    this.renderer.domElement.addEventListener('contextmenu', this.onContextMenuBound);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
 
     this.visible = true;
@@ -577,6 +589,7 @@ export class ArenaEngine {
     this.renderer?.domElement?.removeEventListener('mousemove', this.onMouseMoveBound);
     this.renderer?.domElement?.removeEventListener('mousedown', this.onMouseDownBound);
     this.renderer?.domElement?.removeEventListener('mouseup', this.onMouseUpBound);
+    this.renderer?.domElement?.removeEventListener('contextmenu', this.onContextMenuBound);
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     if (document.pointerLockElement === this.renderer?.domElement) {
       document.exitPointerLock?.();
@@ -866,11 +879,11 @@ export class ArenaEngine {
   }
 
   private setupBoundary(): void {
-    // Wireframe cylinder cage around the arena. Thin lines so it reads as
-    // "there is a wall here" without drawing the eye. 16 vertical ribs +
-    // 7 horizontal rings spanning ±ARENA_HEIGHT_HALF.
+    // Wireframe cylinder cage around the arena. The top/bottom caps are
+    // slightly denser/brighter than the mid rings so vertical limits are easy
+    // to read while flying in the 3D volume.
     const segments = 32;
-    const yRings = 7;
+    const yRings = 9;
     const positions: number[] = [];
 
     // Horizontal rings at evenly spaced Y levels
@@ -901,11 +914,39 @@ export class ArenaEngine {
     const mat = new THREE.LineBasicMaterial({
       color: 0x446688,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.22,
     });
     this.disposables.push(geo, mat);
     this.boundaryMesh = new THREE.LineSegments(geo, mat) as unknown as THREE.LineLoop;
     this.scene.add(this.boundaryMesh);
+
+    const capPositions: number[] = [];
+    for (const y of [-ARENA_HEIGHT_HALF, ARENA_HEIGHT_HALF]) {
+      for (let radiusStep = 1; radiusStep <= 4; radiusStep++) {
+        const radius = (ARENA_HALF * radiusStep) / 4;
+        for (let i = 0; i < segments; i++) {
+          const a1 = (i / segments) * Math.PI * 2;
+          const a2 = ((i + 1) / segments) * Math.PI * 2;
+          capPositions.push(
+            Math.cos(a1) * radius, y, Math.sin(a1) * radius,
+            Math.cos(a2) * radius, y, Math.sin(a2) * radius,
+          );
+        }
+      }
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        capPositions.push(0, y, 0, Math.cos(a) * ARENA_HALF, y, Math.sin(a) * ARENA_HALF);
+      }
+    }
+    const capGeo = new THREE.BufferGeometry();
+    capGeo.setAttribute('position', new THREE.Float32BufferAttribute(capPositions, 3));
+    const capMat = new THREE.LineBasicMaterial({
+      color: 0x7bb8ff,
+      transparent: true,
+      opacity: 0.16,
+    });
+    this.disposables.push(capGeo, capMat);
+    this.scene.add(new THREE.LineSegments(capGeo, capMat));
   }
 
   private setupStarfield(): void {
@@ -1482,12 +1523,16 @@ export class ArenaEngine {
     const maxSpd = SHIP_MAX_SPEED * this.playerSpeedMult * (this.warpActive ? this.WARP_SPEED_MULT : 1);
     const speedRatio = Math.min(1, speed / (maxSpd > 0 ? maxSpd : SHIP_MAX_SPEED));
 
-    // RIGID chase cam — camera copies the aim vector exactly (no lerp) so
-    // the view never lags behind the ship's nose. Bank roll is computed
-    // from yaw change rate so the camera rolls into turns.
-    this.camAimX = this.aimDirX;
-    this.camAimY = this.aimDirY;
-    this.camAimZ = this.aimDirZ;
+    // Smooth chase cam — follow the ship nose with a light inertial delay so
+    // desktop mouse aim does not feel like the whole world snaps every frame.
+    const camFollow = Math.min(1, dt * 7);
+    this.camAimX += (this.aimDirX - this.camAimX) * camFollow;
+    this.camAimY += (this.aimDirY - this.camAimY) * camFollow;
+    this.camAimZ += (this.aimDirZ - this.camAimZ) * camFollow;
+    const camAimLen = Math.sqrt(this.camAimX ** 2 + this.camAimY ** 2 + this.camAimZ ** 2) || 1;
+    this.camAimX /= camAimLen;
+    this.camAimY /= camAimLen;
+    this.camAimZ /= camAimLen;
 
     // Warp effect — slide back + widen FOV.
     // Plus a gentle "breathe": camera sits at rest distance when ship is
@@ -1832,14 +1877,26 @@ export class ArenaEngine {
       this.aimDirY =  Math.sin(newPitch);
       this.aimDirZ = -Math.cos(newYaw) * cp;
     } else if (this.pointerLocked) {
-      // Desktop pointer-lock — same convention as mobile. Mouse right →
-      // yaw right (positive). Mouse down → pitch down (negative).
+      // Desktop pointer-lock — mouse steers the target, ship eases toward it.
+      // This keeps web control precise without the instant snap that made the
+      // ship feel harsher than the mobile right-stick flight model.
       const curPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
       const curYaw = Math.atan2(this.aimDirX, -this.aimDirZ);
+      if (!this.mouseTargetReady) {
+        this.mouseTargetYaw = curYaw;
+        this.mouseTargetPitch = curPitch;
+        this.mouseTargetReady = true;
+      }
 
-      const newYaw = curYaw + this.mouseMoveX * this.MOUSE_SENS;
-      let newPitch = curPitch - this.mouseMoveY * this.MOUSE_SENS;
-      newPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, newPitch));
+      this.mouseTargetYaw += this.mouseMoveX * this.MOUSE_SENS;
+      this.mouseTargetPitch -= this.mouseMoveY * this.MOUSE_SENS;
+      this.mouseTargetPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, this.mouseTargetPitch));
+      let yawDelta = this.mouseTargetYaw - curYaw;
+      while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
+      while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
+      const aimFollow = Math.min(1, dt * 5.5);
+      const newYaw = curYaw + yawDelta * aimFollow;
+      const newPitch = curPitch + (this.mouseTargetPitch - curPitch) * aimFollow;
 
       const cp = Math.cos(newPitch);
       this.aimDirX =  Math.sin(newYaw) * cp;
@@ -1850,6 +1907,7 @@ export class ArenaEngine {
       this.mouseMoveX = 0;
       this.mouseMoveY = 0;
     } else {
+      this.mouseTargetReady = false;
       // Fallback pre-lock: XZ plane raycast (Y stays 0). Arrow keys above
       // take priority, so keyboard-only web control works without mouse lock.
       const dx = this.aimPoint.x - this.playerPos.x;
@@ -1900,10 +1958,10 @@ export class ArenaEngine {
     this.playerBankAngle += (targetBank - this.playerBankAngle) * Math.min(1, dt * 8);
     // Note: rotation.z doesn't work well with baked geo.rotateX — skip bank for now
 
-    // Crosshair — desktop only, positioned at the raycast aim point (this.aimPoint
-    // is updated by onMouseMove). Hidden on mobile where auto-aim handles it.
+    // Crosshair — desktop only. In pointer-lock mode it stays in the centre:
+    // the mouse rotates the ship/camera instead of moving a 2D cursor.
     if (this.crosshairMesh) {
-      if (this.isMobile || this.playerDead) {
+      if (this.isMobile || this.playerDead || this.pointerLocked) {
         this.crosshairMesh.visible = false;
       } else {
         this.crosshairMesh.visible = true;

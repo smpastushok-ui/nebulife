@@ -821,12 +821,13 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
         }}>
           {[
             ['W A S D', 'MOVE'],
-            ['ARROWS', 'PILOT'],
-            ['SPACE', 'MISSILE'],
-            ['SHIFT', 'WARP'],
+            ['MOUSE', 'AIM / PILOT'],
+            ['LMB', 'WARP'],
+            ['RMB', 'MISSILE'],
+            ['SPACE / SHIFT', 'BACKUP'],
             ['TAB', 'ROLL'],
           ].map(([keysLabel, action]) => (
-            <div key={action} style={{ display: 'grid', gridTemplateColumns: '76px 1fr', alignItems: 'center', gap: 9 }}>
+            <div key={action} style={{ display: 'grid', gridTemplateColumns: '92px 1fr', alignItems: 'center', gap: 9 }}>
               <span style={{
                 color: '#c8d7e5',
                 fontSize: 10,
