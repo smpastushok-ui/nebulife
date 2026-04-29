@@ -25,9 +25,30 @@ function ensureStyles() {
       from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes astra-panel-enter {
+      from { opacity: 0; transform: translateX(28px) scale(0.985); clip-path: inset(0 0 0 100%); }
+      to { opacity: 1; transform: translateX(0) scale(1); clip-path: inset(0 0 0 0); }
+    }
+    @keyframes astra-panel-enter-mobile {
+      from { opacity: 0; transform: translateY(26px) scale(0.985); clip-path: inset(100% 0 0 0); }
+      to { opacity: 1; transform: translateY(0) scale(1); clip-path: inset(0 0 0 0); }
+    }
+    @keyframes astra-scan-line {
+      0%, 62% { transform: translateY(-130%); opacity: 0; }
+      68% { opacity: 0.45; }
+      86% { opacity: 0.18; }
+      100% { transform: translateY(130%); opacity: 0; }
+    }
+    @keyframes astra-soft-pulse {
+      0%, 100% { opacity: 0.72; }
+      50% { opacity: 1; }
+    }
   `;
   document.head.appendChild(style);
 }
+
+const ASTRA_VIDEO_URL = '/astra/astra-video.mp4';
+const ASTRA_PORTRAIT_URL = '/astra/astra-portrait.jpg';
 
 interface TutorialOverlayProps {
   step: TutorialStepConfig;
@@ -40,6 +61,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
   const { t } = useTranslation();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [transitioning, setTransitioning] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const rafRef = useRef<number>(0);
   const prevTargetRef = useRef<string>('');
 
@@ -63,6 +85,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
   const isInfoStep = step.type === 'info';
   const isAutoStep = step.type === 'auto';
   const isWaiting = step.waitForTarget && !targetRect;
+  const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
 
   useEffect(() => {
     ensureStyles();
@@ -134,56 +157,25 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
     [targetRect, currentTarget, isInfoStep, isAutoStep, onAdvance],
   );
 
-  // Tooltip positioning — screen-aware: never overflows any edge
-  const getTooltipStyle = (): React.CSSProperties => {
-    if (!targetRect) {
+  // A.S.T.R.A. panel positioning — side panel on desktop, bottom card on mobile.
+  const getAstraPanelStyle = (): React.CSSProperties => {
+    if (isCompact) {
       return {
         position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
+        left: 10,
+        right: 10,
+        bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+        maxHeight: '46vh',
       };
     }
 
-    const MARGIN = 12;
-    const GAP = 10;
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-
-    const centerX = targetRect.left + targetRect.width / 2;
-    const centerY = targetRect.top + targetRect.height / 2;
-
-    // Vertical: place tooltip below if element is in top half, above if in bottom half
-    const placeBelow = centerY < H / 2;
-    // Horizontal: anchor to left edge of element if element is in left half,
-    //             anchor to right edge of element if element is in right half
-    //             so tooltip stays on the SAME side and away from the opposite edge
-    const elementInLeftHalf = centerX <= W / 2;
-
-    const style: React.CSSProperties = {
+    return {
       position: 'fixed',
-      maxWidth: Math.min(320, W - MARGIN * 2),
+      top: 'calc(74px + env(safe-area-inset-top, 0px))',
+      right: 14,
+      width: 330,
+      maxHeight: 'calc(100vh - 108px)',
     };
-
-    // Vertical anchor
-    if (placeBelow) {
-      style.top = targetRect.bottom + GAP;
-    } else {
-      style.bottom = H - targetRect.top + GAP;
-    }
-
-    // Horizontal anchor — clamp to screen edges
-    if (elementInLeftHalf) {
-      // Left-align tooltip to the element's left edge
-      const ideal = Math.max(MARGIN, targetRect.left);
-      style.left = ideal;
-    } else {
-      // Right-align tooltip to the element's right edge
-      const ideal = Math.max(MARGIN, W - targetRect.right);
-      style.right = ideal;
-    }
-
-    return style;
   };
 
   // Spotlight style
@@ -241,113 +233,179 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
         />
       )}
 
-      {/* Tooltip */}
+      {/* A.S.T.R.A. hologram panel */}
       <div
         style={{
-          ...getTooltipStyle(),
+          ...getAstraPanelStyle(),
           zIndex: 10051,
-          maxWidth: 320,
-          padding: '16px 20px',
-          background: 'rgba(10, 15, 25, 0.96)',
-          border: '1px solid #446688',
-          borderRadius: 6,
+          display: 'grid',
+          gridTemplateColumns: isCompact ? '84px 1fr' : '1fr',
+          gap: isCompact ? 10 : 12,
+          padding: isCompact ? '10px 10px 12px' : '12px',
+          background: 'linear-gradient(145deg, rgba(5,10,20,0.94), rgba(13,22,36,0.9))',
+          border: '1px solid rgba(123,184,255,0.30)',
+          borderRadius: 8,
           fontFamily: 'monospace',
-          fontSize: 12,
-          lineHeight: 1.7,
           color: '#aabbcc',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-          animation: 'tut-tooltip-enter 0.35s ease-out',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.55), inset 0 0 24px rgba(123,184,255,0.055)',
+          animation: `${isCompact ? 'astra-panel-enter-mobile' : 'astra-panel-enter'} 0.48s ease-out`,
           pointerEvents: 'auto',
+          overflow: isCompact ? 'auto' : 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Step indicator */}
         <div
           style={{
-            fontSize: 9,
-            color: '#556677',
-            marginBottom: 8,
-            textTransform: 'uppercase',
-            letterSpacing: 1,
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            background: 'linear-gradient(90deg, transparent, rgba(123,184,255,0.18), transparent)',
+            animation: 'astra-scan-line 5.4s ease-in-out infinite',
+          }}
+        />
+        <span style={{ ...ASTRA_CORNER, top: 6, left: 6, borderRight: 0, borderBottom: 0 }} />
+        <span style={{ ...ASTRA_CORNER, top: 6, right: 6, borderLeft: 0, borderBottom: 0 }} />
+        <span style={{ ...ASTRA_CORNER, bottom: 6, left: 6, borderRight: 0, borderTop: 0 }} />
+        <span style={{ ...ASTRA_CORNER, bottom: 6, right: 6, borderLeft: 0, borderTop: 0 }} />
+
+        <div
+          style={{
+            position: 'relative',
+            height: isCompact ? 116 : 250,
+            borderRadius: 6,
+            overflow: 'hidden',
+            border: '1px solid rgba(123,184,255,0.22)',
+            background: 'rgba(2,5,16,0.72)',
           }}
         >
-          {t('tutorial.step_counter', { step: step.id === 'terminal' ? 1 : parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: TUTORIAL_STEPS.length })}
-        </div>
-
-        {/* Text */}
-        <div style={{ marginBottom: isInfoStep || isAutoStep ? 14 : 0 }}>
-          {t(currentText)}
-        </div>
-
-        {/* "Next" button for info steps */}
-        {(isInfoStep || isAutoStep) && currentNextLabel && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdvance();
-            }}
+          {videoFailed ? (
+            <img
+              src={ASTRA_PORTRAIT_URL}
+              alt={t('tutorial.astra_alt')}
+              draggable={false}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: isCompact ? '50% 18%' : '50% 16%',
+                display: 'block',
+                filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
+              }}
+            />
+          ) : (
+            <video
+              src={ASTRA_VIDEO_URL}
+              poster={ASTRA_PORTRAIT_URL}
+              aria-label={t('tutorial.astra_alt')}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              onError={() => setVideoFailed(true)}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: isCompact ? '50% 18%' : '50% 16%',
+                display: 'block',
+                filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
+              }}
+            />
+          )}
+          <div
             style={{
-              display: 'block',
-              width: '100%',
-              padding: '8px 0',
-              background: 'rgba(68, 102, 136, 0.2)',
-              border: '1px solid #446688',
-              borderRadius: 3,
-              color: '#aaccee',
-              fontFamily: 'monospace',
-              fontSize: 11,
-              cursor: 'pointer',
-              transition: 'background 0.15s',
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg, rgba(2,5,16,0.02), rgba(2,5,16,0.36))',
+              boxShadow: 'inset 0 0 28px rgba(123,184,255,0.10)',
             }}
-            onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.background = 'rgba(68, 102, 136, 0.35)';
-            }}
-            onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.background = 'rgba(68, 102, 136, 0.2)';
+          />
+        </div>
+
+        <div style={{ position: 'relative', minWidth: 0 }}>
+          {/* Step indicator */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              marginBottom: 8,
+              color: '#667788',
+              fontSize: 8,
+              letterSpacing: 1.2,
+              textTransform: 'uppercase',
             }}
           >
-            {t(currentNextLabel)}
-          </button>
-        )}
-
-        {/* Click hint for click steps */}
-        {step.type === 'click' && targetRect && (
-          <div style={{ fontSize: 10, color: '#556677', marginTop: 8 }}>
-            {t('tutorial.click_hint')}
+            <span>{t('tutorial.astra_unit')}</span>
+            <span>{t('tutorial.step_counter', { step: step.id === 'terminal' ? 1 : parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: TUTORIAL_STEPS.length })}</span>
           </div>
-        )}
 
-        {/* Fallback Next button for click steps when element not found */}
-        {step.type === 'click' && !targetRect && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdvance();
-            }}
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '8px 0',
-              marginTop: 14,
-              background: 'rgba(68, 102, 136, 0.2)',
-              border: '1px solid #446688',
-              borderRadius: 3,
-              color: '#aaccee',
-              fontFamily: 'monospace',
-              fontSize: 11,
-              cursor: 'pointer',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.background = 'rgba(68, 102, 136, 0.35)';
-            }}
-            onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.background = 'rgba(68, 102, 136, 0.2)';
-            }}
-          >
-            {t('tutorial.next')}
-          </button>
-        )}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 7,
+            marginBottom: 10,
+            color: '#7bb8ff',
+            fontSize: 9,
+            letterSpacing: 1.4,
+            textTransform: 'uppercase',
+          }}>
+            <span style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#7bb8ff',
+              boxShadow: '0 0 9px rgba(123,184,255,0.65)',
+              animation: 'astra-soft-pulse 2.4s ease-in-out infinite',
+            }} />
+            {t('tutorial.astra_status')}
+          </div>
+
+          {/* Text */}
+          <div style={{
+            marginBottom: isInfoStep || isAutoStep || (step.type === 'click' && !targetRect) ? 12 : 0,
+            color: '#c1d4e8',
+            fontSize: isCompact ? 11 : 12,
+            lineHeight: 1.65,
+          }}>
+            {t(currentText)}
+          </div>
+
+          {/* "Next" button for info steps */}
+          {(isInfoStep || isAutoStep) && currentNextLabel && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdvance();
+              }}
+              style={ASTRA_BUTTON_STYLE}
+            >
+              {t(currentNextLabel)}
+            </button>
+          )}
+
+          {/* Click hint for click steps */}
+          {step.type === 'click' && targetRect && (
+            <div style={{ fontSize: 10, color: '#667788', marginTop: 8 }}>
+              {t('tutorial.click_hint')}
+            </div>
+          )}
+
+          {/* Fallback Next button for click steps when element not found */}
+          {step.type === 'click' && !targetRect && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdvance();
+              }}
+              style={ASTRA_BUTTON_STYLE}
+            >
+              {t('tutorial.next')}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Skip button — strong contrast so testers/returning players can find
@@ -397,6 +455,29 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
     </>
   );
 }
+
+const ASTRA_CORNER: React.CSSProperties = {
+  position: 'absolute',
+  width: 16,
+  height: 16,
+  border: '1px solid rgba(123,184,255,0.42)',
+  pointerEvents: 'none',
+};
+
+const ASTRA_BUTTON_STYLE: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  padding: '8px 0',
+  background: 'rgba(68, 102, 136, 0.18)',
+  border: '1px solid rgba(123,184,255,0.34)',
+  borderRadius: 4,
+  color: '#aaccee',
+  fontFamily: 'monospace',
+  fontSize: 11,
+  letterSpacing: 1,
+  cursor: 'pointer',
+  textTransform: 'uppercase',
+};
 
 /** Map step id to its 0-based number for display */
 const STEP_NUMBER_MAP: Record<string, number> = {
