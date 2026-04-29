@@ -118,7 +118,7 @@ export function SystemResearchOverlay({
           - (complete state never renders because parent gates progress<100) */}
       <button
         onClick={() => {
-          if (canResearch && !isResearching) {
+          if (canResearch) {
             playSfx('research-system-start', 0.25);
             onStartResearch?.();
           } else if (!canResearch && !isResearching) {
@@ -127,13 +127,17 @@ export function SystemResearchOverlay({
         }}
         aria-disabled={!interactive}
         aria-label={
-          isResearching
-            ? (t('research.overlay_in_progress') as string)
+          canResearch
+            ? (t('research.overlay_start_btn') as string)
+            : isResearching
+              ? (t('research.overlay_in_progress') as string)
             : (t('research.overlay_start_btn') as string)
         }
         title={
-          isResearching
-            ? (t('research.overlay_in_progress') as string)
+          canResearch
+            ? (t('research.overlay_start_btn') as string)
+            : isResearching
+              ? (t('research.overlay_in_progress') as string)
             : (t('research.overlay_start_btn') as string)
         }
         style={{
@@ -145,7 +149,7 @@ export function SystemResearchOverlay({
           border: `2px solid ${isResearching ? '#7bb8ff' : canResearch ? '#446688' : '#334455'}`,
           padding: 0,
           overflow: 'hidden',
-          cursor: canResearch && !isResearching ? 'pointer' : isResearching ? 'default' : 'not-allowed',
+          cursor: canResearch ? 'pointer' : isResearching ? 'default' : 'not-allowed',
           // Outer neon ring pulse only while research is in progress.
           animation: isResearching ? 'nebu-research-dial-glow 2.2s ease-in-out infinite' : undefined,
           transition: 'border-color 0.2s',
@@ -206,7 +210,7 @@ export function SystemResearchOverlay({
         }}
       >
         {isResearching
-          ? t('research.overlay_in_progress')
+          ? (canResearch ? t('research.overlay_start_btn') : t('research.overlay_in_progress'))
           : canResearch
             ? t('research.overlay_start_btn')
             : t('research.panel_insufficient_data')}

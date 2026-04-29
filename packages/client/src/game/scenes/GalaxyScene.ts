@@ -2262,45 +2262,67 @@ export class GalaxyScene {
       }
     }
 
-    // Territory glow — soft minimal aura under explored / currently scanned
-    // systems. This marks the frontier without painting heavy regions over
-    // the map's dark minimalist background.
+    // Territory zone — one barely visible continuous region around the
+    // player's personal star web. Avoid per-star bubbles so the player reads
+    // the outer frontier as a single area, not isolated circles.
     this.territoryGfx.clear();
-    const drawTerritoryAura = (x: number, y: number, mode: 'home' | 'researched' | 'researching') => {
-      const N = 6;
-      const maxR = mode === 'researching' ? 58 : 52;
-      const color = mode === 'researching' ? 0x274f7a : mode === 'home' ? 0x2a4d66 : 0x1a4060;
-      const ringColor = mode === 'researching' ? 0x7bb8ff : 0x446688;
-      const baseAlpha = mode === 'researching' ? 0.070 : 0.055;
-      // Shadow (offset down-right slightly)
-      for (let ci = N; ci >= 1; ci--) {
-        const f = ci / N;
-        const a = 0.07 * Math.exp(-f * 3.5);
-        if (a > 0.003) {
-          this.territoryGfx.circle(x + 2, y + 3, maxR * f);
-          this.territoryGfx.fill({ color: 0x000000, alpha: a });
-        }
-      }
-      // Territory fill (warm teal tint, very low alpha)
-      for (let ci = N; ci >= 1; ci--) {
-        const f = ci / N;
-        const a = baseAlpha * Math.exp(-f * 2.8);
-        if (a > 0.003) {
-          this.territoryGfx.circle(x, y, maxR * f);
-          this.territoryGfx.fill({ color, alpha: a });
-        }
-      }
-      if (mode !== 'home') {
-        this.territoryGfx.circle(x, y, maxR * 0.78);
-        this.territoryGfx.stroke({ color: ringColor, alpha: mode === 'researching' ? 0.12 : 0.07, width: 0.55 });
-      }
-    };
-    if (this.homeNode) drawTerritoryAura(this.homeNode.tx ?? 0, this.homeNode.ty ?? 0, 'home');
+    const territoryPoints: Array<{ x: number; y: number }> = [];
+    if (this.homeNode) territoryPoints.push({ x: this.homeNode.tx ?? 0, y: this.homeNode.ty ?? 0 });
     for (const [, node] of this.systemNodes) {
-      if (node.visibilityTier !== 1) continue;
-      if (node.starState === 'researched') drawTerritoryAura(node.tx, node.ty, 'researched');
-      else if (node.starState === 'researching') drawTerritoryAura(node.tx, node.ty, 'researching');
+      if (node.nodeType !== 'personal') continue;
+      if (node.system.ownerPlayerId !== null) continue;
+      if (node.visibilityTier === 3) continue;
+      territoryPoints.push({ x: node.tx, y: node.ty });
     }
+    if (territoryPoints.length >= 3) {
+      const sorted = [...territoryPoints].sort((a, b) => a.x === b.x ? a.y - b.y : a.x - b.x);
+      const cross = (o: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }) =>
+        (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+      const lower: Array<{ x: number; y: number }> = [];
+      for (const p of sorted) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+        lower.push(p);
+      }
+      const upper: Array<{ x: number; y: number }> = [];
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        const p = sorted[i];
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+        upper.push(p);
+      }
+      const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
+      const cx = hull.reduce((sum, p) => sum + p.x, 0) / hull.length;
+      const cy = hull.reduce((sum, p) => sum + p.y, 0) / hull.length;
+      const expanded = hull.map((p) => {
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        const len = Math.max(1, Math.hypot(dx, dy));
+        const pad = 42;
+        return { x: p.x + (dx / len) * pad, y: p.y + (dy / len) * pad };
+      });
+
+      const drawHull = (points: Array<{ x: number; y: number }>, alpha: number, color: number) => {
+        this.territoryGfx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) this.territoryGfx.lineTo(points[i].x, points[i].y);
+        this.territoryGfx.closePath();
+        this.territoryGfx.fill({ color, alpha });
+      };
+      drawHull(expanded, 0.035, 0x10263a);
+      drawHull(expanded, 0.018, 0x1a4060);
+      this.territoryGfx.moveTo(expanded[0].x, expanded[0].y);
+      for (let i = 1; i < expanded.length; i++) this.territoryGfx.lineTo(expanded[i].x, expanded[i].y);
+      this.territoryGfx.closePath();
+      this.territoryGfx.stroke({ color: 0x446688, alpha: 0.055, width: 0.8 });
+    } else if (territoryPoints.length > 0) {
+      let cx = 0, cy = 0;
+      for (const p of territoryPoints) { cx += p.x; cy += p.y; }
+      cx /= territoryPoints.length; cy /= territoryPoints.length;
+      let radius = 80;
+      for (const p of territoryPoints) radius = Math.max(radius, Math.hypot(p.x - cx, p.y - cy) + 42);
+      this.territoryGfx.circle(cx, cy, radius);
+      this.territoryGfx.fill({ color: 0x10263a, alpha: 0.03 });
+      this.territoryGfx.circle(cx, cy, radius);
+      this.territoryGfx.stroke({ color: 0x446688, alpha: 0.045, width: 0.8 });
+      }
 
     // Constellation web — cyan threads only to stars the player can research
     // RIGHT NOW, gated by ring progression:

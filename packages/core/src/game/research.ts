@@ -220,8 +220,9 @@ export function canStartResearch(
   // Already fully researched?
   const sys = state.systems[systemId];
   if (sys?.isComplete) return false;
-  // Already being researched in a slot?
-  if (state.slots.some((s) => s.systemId === systemId)) return false;
+  // A system may be researched by multiple observatories in parallel. Each
+  // occupied slot represents one independent telescope stream toward the same
+  // cumulative system progress.
   // Any free slot?
   return state.slots.some((s) => s.systemId === null);
 }
@@ -366,9 +367,12 @@ export function completeResearchSession(
     },
   };
 
-  // Clear slot
+  // Clear the completed slot. If this session finished the system, release any
+  // other parallel streams that were still pointed at the now-complete target.
   const slots = state.slots.map((s) =>
-    s.slotIndex === slotIndex ? { ...s, systemId: null, startedAt: null } : s,
+    s.slotIndex === slotIndex || (isNowComplete && s.systemId === systemId)
+      ? { ...s, systemId: null, startedAt: null }
+      : s,
   );
 
   return {

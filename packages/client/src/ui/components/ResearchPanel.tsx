@@ -200,14 +200,14 @@ export function ResearchPanel({
       )}
 
       {/* Research data balance */}
-      {!isComplete && !isResearching && (
+      {!isComplete && (
         <div style={{ fontSize: 10, color: '#667788', marginTop: 8, textAlign: 'right' }}>
           {t('research.panel_research_data')}: <span style={{ color: hasData ? '#4488aa' : '#cc4444' }}>{researchData}</span>
         </div>
       )}
 
       {/* Action button */}
-      {!isComplete && !isResearching && (
+      {!isComplete && (
         <button
           style={{
             ...(canStart ? btnStyle : btnDisabledStyle),
@@ -235,13 +235,9 @@ export function ResearchPanel({
                 ? t('research.panel_ring_locked', { ring: system.ringIndex - 1 })
                 : techLocked
                   ? t('research.panel_ring_locked', { ring: system.ringIndex })
+                : isResearching
+                  ? t('research.overlay_in_progress')
                 : t('research.panel_no_slots')}
-        </button>
-      )}
-
-      {isResearching && (
-        <button style={{ ...btnStyle, background: 'rgba(40,80,120,0.3)', cursor: 'default' }} disabled>
-          {t('research.overlay_in_progress')}
         </button>
       )}
     </div>

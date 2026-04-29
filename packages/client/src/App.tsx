@@ -3222,7 +3222,11 @@ function AppInner() {
 
         for (const slot of current.slots) {
           if (slot.systemId && slot.startedAt) {
-            const elapsed = now - slot.startedAt;
+            const liveSlot = current.slots.find((s) => s.slotIndex === slot.slotIndex);
+            if (!liveSlot || liveSlot.systemId !== slot.systemId || liveSlot.startedAt !== slot.startedAt) {
+              continue;
+            }
+            const elapsed = now - liveSlot.startedAt;
 
             // Self-heal: detect slots stuck far beyond expected duration
             if (elapsed > MAX_STUCK_DURATION) {
@@ -3426,8 +3430,7 @@ function AppInner() {
 
   // Ring-unlock growth is map-native: the camera frames the galaxy map while
   // GalaxyScene grows real parent→system threads to newly available stars.
-  const prevEffectiveMaxRingRef = useRef<number | null>(null);
-  const prevPersonalUnlockedRingRef = useRef<number | null>(null);
+  const playedRingUnlocksRef = useRef<Set<number>>(new Set());
 
   const enqueueRingUnlocks = useCallback((rings: number[]) => {
     const uniqueRings = Array.from(new Set(rings)).filter(ring => ring > 0);
@@ -3467,36 +3470,7 @@ function AppInner() {
       }
     }
     engineRef.current?.setEffectiveMaxRing(effectiveMax);
-
-    // Rising-edge detection — trigger the unlock cinematic only on a real
-    // increase, never on the first mount (prevEffectiveMaxRingRef is null
-    // until the first run finishes), never during onboarding, and never
-    // while another unlock is already playing.
-    const prev = prevEffectiveMaxRingRef.current;
-    if (prev !== null && effectiveMax > prev && !needsOnboarding) {
-      const unlockedRings = Array.from({ length: effectiveMax - prev }, (_, index) => prev + index + 1);
-      enqueueRingUnlocks(unlockedRings);
-    }
-    prevEffectiveMaxRingRef.current = effectiveMax;
-  }, [techTreeState, researchState, needsOnboarding, enqueueRingUnlocks]);
-
-  // Personal ring gate cinematic. effectiveMaxRing starts at Ring 2, so the
-  // regular effectiveMax animation cannot catch the important moment when
-  // Ring 1 is fully researched and Ring 2 first becomes actionable.
-  useEffect(() => {
-    const allSystems = engineRef.current?.getAllSystems?.() ?? [];
-    const ring1Systems = allSystems.filter(s => s.ringIndex === 1 && s.ownerPlayerId === null);
-    const unlockedPersonalRing = ring1Systems.length > 0
-      && ring1Systems.every(s => isSystemFullyResearched(researchState, s.id))
-      ? 2
-      : 1;
-
-    const prev = prevPersonalUnlockedRingRef.current;
-    if (prev !== null && unlockedPersonalRing > prev && !needsOnboarding) {
-      enqueueRingUnlocks([unlockedPersonalRing]);
-    }
-    prevPersonalUnlockedRingRef.current = unlockedPersonalRing;
-  }, [researchState, needsOnboarding, enqueueRingUnlocks]);
+  }, [techTreeState, researchState]);
 
   // Evacuation-prompt gate: when a new evacuation target is picked (trajectory
   // change message arrives), collapse every full-screen overlay so the prompt
@@ -3982,12 +3956,35 @@ function AppInner() {
     scheduleSyncToServer();
   }, [playerLevel, techTreeState, awardXP, isExodusPhase, scheduleSyncToServer]);
 
+  const triggerRingUnlockAfterCompletion = useCallback((system: StarSystem) => {
+    if (needsOnboarding || system.ringIndex < 1) return;
+
+    const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+    const completedRingSystems = allSystems.filter(
+      s => s.ringIndex === system.ringIndex && s.ownerPlayerId === null,
+    );
+    const completedWholeRing = completedRingSystems.length > 0
+      && completedRingSystems.every(s => isSystemFullyResearched(researchState, s.id));
+
+    const nextRing = system.ringIndex + 1;
+    if (!completedWholeRing || playedRingUnlocksRef.current.has(nextRing)) return;
+
+    playedRingUnlocksRef.current.add(nextRing);
+    enqueueRingUnlocks([nextRing]);
+  }, [enqueueRingUnlocks, needsOnboarding, researchState]);
+
+  const dismissCompletedModal = useCallback((system: StarSystem) => {
+    triggerRingUnlockAfterCompletion(system);
+    setCompletedModalQueue(q => q.slice(1));
+  }, [triggerRingUnlockAfterCompletion]);
+
   const handleViewResearchedSystem = useCallback(() => {
     if (!completedModal) return;
+    const system = completedModal.system;
     handleEnterSystem(completedModal.system);
-    setState((prev) => ({ ...prev, selectedSystem: completedModal.system }));
-    setCompletedModalQueue(q => q.slice(1));
-  }, [completedModal, handleEnterSystem]);
+    setState((prev) => ({ ...prev, selectedSystem: system }));
+    dismissCompletedModal(system);
+  }, [completedModal, dismissCompletedModal, handleEnterSystem]);
 
   // ── Planet access checks ────────────────────────────────────────────
   // Surface landing: blocked before first evacuation; after — home planet or level 50+
@@ -6677,7 +6674,7 @@ function AppInner() {
           system={completedModal.system}
           research={completedModal.research}
           onViewSystem={handleViewResearchedSystem}
-          onClose={() => setCompletedModalQueue(q => q.slice(1))}
+          onClose={() => dismissCompletedModal(completedModal.system)}
         />
       )}
       {/* Research technology toast notifications (slide-in from right) */}
