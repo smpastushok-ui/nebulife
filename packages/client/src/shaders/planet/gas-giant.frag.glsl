@@ -12,6 +12,10 @@ uniform vec3  uStarColor;
 uniform float uStarIntensity;
 uniform float uTime;
 uniform float uAlbedo;
+uniform float uInlineClouds;
+uniform vec3  uInlineCloudColor;
+uniform float uSurfaceDetailBoost;
+uniform float uExosphereQuality;
 
 varying vec3 vPosition;
 varying vec3 vNormal;
@@ -132,6 +136,22 @@ void main() {
   float flow = fbm(vec3(n.x * 6.0 + n.y * 2.0, n.y * 3.0, n.z * 6.0) + seedOff + driftOff, 3);
   color = mix(color, mix(color, uBandColor1, 0.3), abs(flow - 0.5) * 0.2);
 
+  // Desktop/high-end: Jupiter-like nested filaments and curled band edges.
+  // Guarded by uExosphereQuality so low/mid keep the cheaper base shader.
+  if (uExosphereQuality > 0.45) {
+    float q = smoothstep(0.45, 1.0, uExosphereQuality);
+    float filamentA = noise3(n * vec3(52.0, 7.0, 52.0) + seedOff + driftOff * 2.2);
+    float filamentB = noise3(n * vec3(96.0, 11.0, 96.0) + seedOff + driftOff * 3.1 + vec3(17.0));
+    float ribbon = smoothstep(0.44, 0.54, filamentA) * smoothstep(0.74, 0.50, filamentB);
+    ribbon *= smoothstep(0.22, 0.03, edgeDist) + smoothstep(0.34, 0.76, coarseDetail) * 0.28;
+    vec3 cream = mix(vec3(0.95, 0.84, 0.64), vec3(0.82, 0.46, 0.22), smoothstep(0.35, 0.75, fineStreak));
+    color = mix(color, cream, ribbon * q * (uIsGasGiant > 0.5 ? 0.22 : 0.10));
+
+    float pearl = smoothstep(0.72, 0.88, warpedFbm(n * vec3(9.0, 18.0, 9.0) + seedOff + vec3(880.0) + driftOff, 3));
+    pearl *= smoothstep(0.08, 0.34, absLat) * (1.0 - smoothstep(0.70, 0.92, absLat));
+    color = mix(color, mix(color, vec3(0.95, 0.90, 0.78), 0.55), pearl * q * (uIsGasGiant > 0.5 ? 0.16 : 0.06));
+  }
+
   // === Great Spot (persistent large oval storm) ===
   if (uIsGasGiant > 0.5) {
     // Deterministic spot position from seed
@@ -160,6 +180,25 @@ void main() {
       vec3 spotColor = mix(spotEdge, spotCore, smoothstep(0.8, 0.2, spotDist));
 
       color = mix(color, spotColor, spotMask * 0.75);
+    }
+  }
+
+  if (uExosphereQuality > 0.7 && uIsGasGiant > 0.5) {
+    float q = smoothstep(0.7, 1.0, uExosphereQuality);
+    for (int i = 0; i < 4; i++) {
+      float fi = float(i);
+      float s = uSeed + 210.0 + fi * 37.0;
+      float ovalLat = hashSeed(s + 1.0) * 1.05 - 0.52;
+      float ovalLon = hashSeed(s + 2.0) * 6.28318;
+      float ovalSize = 0.035 + hashSeed(s + 3.0) * 0.045;
+      float lon = atan(n.z, n.x) + driftTime * (0.28 + fi * 0.05);
+      float dx = mod(lon - ovalLon + 3.14159, 6.28318) - 3.14159;
+      float dy = n.y - ovalLat;
+      float ovalDist = sqrt(dx * dx / (ovalSize * ovalSize * 3.2) + dy * dy / (ovalSize * ovalSize));
+      float ovalMask = smoothstep(1.25, 0.15, ovalDist);
+      float swirl = sin(atan(dy, dx) * (2.0 + fi) - ovalDist * 10.0 + uTime * 0.006);
+      vec3 ovalColor = mix(vec3(0.92, 0.78, 0.58), vec3(0.62, 0.28, 0.16), smoothstep(-0.2, 0.8, swirl));
+      color = mix(color, ovalColor, ovalMask * q * 0.28);
     }
   }
 
@@ -242,7 +281,19 @@ void main() {
   float rimDot = max(dot(vNormal, vViewDir), 0.0);
   float limbDarken = smoothstep(0.0, 0.5, rimDot);
 
-  vec3 darkBase = uIsGasGiant > 0.5 ? vec3(0.10, 0.06, 0.03) : vec3(0.04, 0.06, 0.13);
+  // When low/mid tiers skip the separate cloud layer, fold a very light
+  // upper-haze veil into the existing band shader. It reuses band detail,
+  // so it adds no extra transparent pass.
+  if (uInlineClouds > 0.001) {
+    float veil = smoothstep(0.42, 0.72, coarseDetail) * smoothstep(-0.05, 0.45, daylight);
+    veil *= 0.65 + fineStreak * 0.35;
+    color = mix(color, mix(vec3(1.0), uInlineCloudColor, 0.22), veil * uInlineClouds * 0.65);
+  }
+
+  float detailContrast = clamp(uSurfaceDetailBoost, 0.88, 1.08);
+  color = mix(vec3(0.22), color, detailContrast);
+
+  vec3 darkBase = uIsGasGiant > 0.5 ? vec3(0.16, 0.11, 0.07) : vec3(0.08, 0.12, 0.20);
   vec3 lit = mix(darkBase, color, 0.25 + limbDarken * 0.75);
   lit *= mix(vec3(0.05), uStarColor * uStarIntensity, dayFactor);
   lit *= 0.6 + uAlbedo * 0.8;

@@ -235,17 +235,18 @@ void main() {
   vec3 fineNorm = normalize(cloudNorm + vec3((fnc - fnx) * 2.5, 0.0, (fnc - fnz) * 2.5));
   float fineShade = smoothstep(-0.15, 0.4, dot(fineNorm, L));
   cloudShade = cloudShade * 0.55 + fineShade * 0.45;
+  cloudShade = max(cloudShade, 0.42);
 
   // BRIGHT WHITE base with subtle planet-type tint
   vec3 baseWhite = mix(vec3(1.0), uCloudColor, 0.15);
-  float dayBright = 0.35 + daylight * 0.65;
+  float dayBright = 0.55 + daylight * 0.45;
   vec3 litCloudColor = baseWhite * dayBright * cloudShade
-                      + baseWhite * vec3(dayBright * 0.75, dayBright * 0.77, dayBright * 0.82) * (1.0 - cloudShade);
+                      + baseWhite * vec3(dayBright * 0.88, dayBright * 0.90, dayBright * 0.94) * (1.0 - cloudShade);
 
   // Density-dependent brightening: thick cores pure cotton-white
   float cottonBoost = densityGrad * densityGrad * daylight;
   litCloudColor += vec3(0.20) * cottonBoost;
-  litCloudColor = mix(litCloudColor * 0.80, litCloudColor, densityGrad);
+  litCloudColor = mix(litCloudColor * 0.94, litCloudColor, densityGrad);
 
   // Puffy pixel grain: subtle brightness variation per pixel
   float puff1 = noise3(n * 40.0 + windOffset * 2.0 + seedOff + vec3(600.0));

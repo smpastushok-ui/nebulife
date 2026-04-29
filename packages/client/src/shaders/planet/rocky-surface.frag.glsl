@@ -31,6 +31,7 @@ uniform float uHasRivers;
 uniform float uInlineClouds;
 uniform vec3  uInlineCloudColor;
 uniform float uSurfaceDetailBoost;
+uniform float uExosphereQuality;
 
 // --- Resource/geology uniforms ---
 uniform float uFeAbundance;
@@ -695,6 +696,17 @@ void main() {
       color = mix(color, lakeColor, lakeMask * 0.9);
     }
 
+    // Desktop/high-end variation: extra archipelagos and salt/mineral flats
+    // derived from water, temperature and chemistry. No extra textures.
+    if (uExosphereQuality > 0.55 && uHasOcean > 0.5 && h > -0.035 && h < 0.045) {
+      float q = smoothstep(0.55, 1.0, uExosphereQuality);
+      float islandNoise = warpedFbm(n * noiseScale * 2.2 + seedOff + vec3(2450.0), 4);
+      float islandMask = smoothstep(0.58, 0.72, islandNoise) * smoothstep(0.045, -0.010, abs(h - 0.005));
+      islandMask *= 0.35 + smoothstep(0.2, 0.65, noise3(n * 34.0 + seedOff + vec3(2480.0))) * 0.65;
+      vec3 reefColor = mix(vec3(0.20, 0.58, 0.62), vec3(0.75, 0.67, 0.48), smoothstep(270.0, 330.0, uSurfaceTempK));
+      color = mix(color, reefColor, islandMask * q * (uHasBiomes > 0.5 ? 0.32 : 0.18));
+    }
+
     // Desert sand dunes (low moisture, low elevation, warm planet)
     if (uHasBiomes > 0.5 && moisture < -0.1 && h < 0.2 && uSurfaceTempK > 280.0) {
       float dunePattern = noise3(n * vec3(8.0, 2.0, 8.0) + seedOff + vec3(555.0));
@@ -702,6 +714,15 @@ void main() {
       vec3 duneBright = uBiomeDesert * 1.2;
       vec3 duneShadow = uBiomeDesert * 0.65;
       color = mix(color, mix(duneShadow, duneBright, dune), smoothstep(-0.1, -0.25, moisture) * 0.6);
+    }
+
+    if (uExosphereQuality > 0.65 && uHasLava < 0.5 && uHasOcean < 0.5) {
+      float q = smoothstep(0.65, 1.0, uExosphereQuality);
+      float mineralVein = abs(noise3(n * vec3(18.0, 5.0, 18.0) + seedOff + vec3(3600.0)) - 0.5);
+      float veinMask = smoothstep(0.020, 0.0, mineralVein);
+      vec3 ironDust = mix(vec3(0.46, 0.25, 0.17), vec3(0.72, 0.54, 0.38), uSiAbundance);
+      vec3 sulfurDust = mix(ironDust, vec3(0.66, 0.58, 0.24), uSAbundance * 0.7);
+      color = mix(color, sulfurDust, veinMask * q * 0.20);
     }
 
   }
@@ -864,12 +885,12 @@ void main() {
     cloudMask *= smoothstep(0.03, 0.35, dayFactor);
     cloudMask *= 1.0 - smoothstep(0.82, 0.98, latitude) * 0.35;
     vec3 veilColor = mix(vec3(1.0), uInlineCloudColor, 0.18);
-    lit = mix(lit, veilColor * max(lit, vec3(0.34)), cloudMask * uInlineClouds);
+    lit = mix(lit, veilColor * max(lit, vec3(0.46)), cloudMask * uInlineClouds * 0.75);
   }
 
   // === Subtle contrast boost ===
-  float contrast = clamp(uSurfaceDetailBoost, 0.75, 1.35);
-  lit = mix(vec3(0.5), lit, contrast) * 1.08;
+  float contrast = clamp(uSurfaceDetailBoost, 0.88, 1.08);
+  lit = mix(vec3(0.18), lit, contrast) * 1.06;
   lit = max(lit, vec3(0.0));
 
 

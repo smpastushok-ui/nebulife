@@ -14,6 +14,7 @@ uniform float uIntensity;
 uniform float uPower;
 uniform vec3  uStarDir;       // normalized direction TO the star
 uniform float uPressure;      // surface pressure in atm
+uniform float uLayerStrength; // subtle stratified exosphere detail per LOD
 
 varying vec3 vNormal;
 varying vec3 vViewDir;
@@ -95,6 +96,14 @@ void main() {
   // ---- 8. Pressure-dependent density ----
   float densityMul = 0.6 + clamp(uPressure, 0.0, 5.0) * 0.08;
   baseAlpha *= densityMul;
+
+  // ---- 9. Thin stratified shell detail ----
+  // Cheap analytic bands: no texture, no extra mesh. On high/ultra this
+  // gives the limb a real "stacked air" feel; low/mid keep it very faint.
+  float latBand = sin((vPosition.y + uPressure * 0.013) * 22.0) * 0.5 + 0.5;
+  float fineBand = sin((vPosition.y * 47.0) + (vPosition.x - vPosition.z) * 4.0) * 0.5 + 0.5;
+  float shellLayers = smoothstep(0.42, 0.86, latBand) * 0.7 + smoothstep(0.72, 0.96, fineBand) * 0.3;
+  baseAlpha *= 1.0 + shellLayers * uLayerStrength * pow(limb, 1.4);
 
   baseAlpha = clamp(baseAlpha, 0.0, 0.85);
 

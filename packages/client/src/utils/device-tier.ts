@@ -210,8 +210,15 @@ export interface ExosphereLOD {
   inlineCloudVeil: number;
   /** Multiplier for atmosphere shader intensity; no extra geometry. */
   atmosphereIntensityScale: number;
+  /** Cheap latitude-stratified atmosphere detail inside the atmosphere pass. */
+  atmosphereLayerStrength: number;
   /** Contrast/detail multiplier inside planet shaders; keeps one pass. */
   surfaceDetailBoost: number;
+  /**
+   * Desktop/high-end shader richness. Kept near zero on low/mid so extra
+   * storm/ring/terrain detail branches stay effectively disabled there.
+   */
+  exosphereQuality: number;
 }
 
 export function getExosphereLOD(): ExosphereLOD {
@@ -239,7 +246,9 @@ export function getExosphereLOD(): ExosphereLOD {
         toneMappingExposure: 2.2,
         inlineCloudVeil: 0.18,
         atmosphereIntensityScale: 1.35,
+        atmosphereLayerStrength: 0.08,
         surfaceDetailBoost: 0.92,
+        exosphereQuality: 0.0,
       };
     case 'mid':
       return {
@@ -260,7 +269,9 @@ export function getExosphereLOD(): ExosphereLOD {
         toneMappingExposure: 1.9, // mid tablets still dim, bumped 1.5 → 1.9
         inlineCloudVeil: 0.26,
         atmosphereIntensityScale: 1.18,
+        atmosphereLayerStrength: 0.12,
         surfaceDetailBoost: 1.0,
+        exosphereQuality: 0.15,
       };
     case 'high':
       // Flagship mobiles (S22 Ultra, iPhone 14 Pro) still run this scene
@@ -283,7 +294,9 @@ export function getExosphereLOD(): ExosphereLOD {
         toneMappingExposure: 1.0,
         inlineCloudVeil: 0.0,
         atmosphereIntensityScale: 1.08,
-        surfaceDetailBoost: 1.12,
+        atmosphereLayerStrength: 0.18,
+        surfaceDetailBoost: 1.03,
+        exosphereQuality: 0.65,
       };
     case 'ultra':
     default:
@@ -304,7 +317,9 @@ export function getExosphereLOD(): ExosphereLOD {
         toneMappingExposure: 1.0,
         inlineCloudVeil: 0.0,
         atmosphereIntensityScale: 1.12,
-        surfaceDetailBoost: 1.22,
+        atmosphereLayerStrength: 0.24,
+        surfaceDetailBoost: 1.05,
+        exosphereQuality: 1.0,
       };
   }
 }

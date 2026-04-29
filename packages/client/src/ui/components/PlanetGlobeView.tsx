@@ -477,6 +477,7 @@ function createPlanetSphere(
   };
   uniforms.uInlineCloudColor = { value: colorFromHexNumber(visuals.cloudColor) };
   uniforms.uSurfaceDetailBoost = { value: lod.surfaceDetailBoost };
+  uniforms.uExosphereQuality = { value: lod.exosphereQuality };
 
   const isGas = planet.type === 'gas-giant' || planet.type === 'ice-giant';
   const fragShader = isGas ? gasGiantFrag : rockySurfaceFrag;
@@ -581,6 +582,7 @@ function createAtmosphereShell(
     uPower: { value: params.power },
     uStarDir: { value: starDir },
     uPressure: { value: Math.min(pressure, 100) },
+    uLayerStrength: { value: lod.atmosphereLayerStrength },
   };
 
   const atmSegs = lod.atmosphereSegments;
@@ -652,6 +654,11 @@ function createRing(
   const material = new THREE.ShaderMaterial({
     vertexShader: ringVertSrc,
     fragmentShader: ringFrag,
+    uniforms: {
+      uSeed: { value: planet.seed },
+      uQuality: { value: lod.exosphereQuality },
+      uIsIceGiant: { value: isIce ? 1.0 : 0.0 },
+    },
     transparent: true,
     side: THREE.DoubleSide,
     depthWrite: false,
