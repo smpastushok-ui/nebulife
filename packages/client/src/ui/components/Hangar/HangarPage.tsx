@@ -331,28 +331,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
               </button>
             );
           })}
-          <button
-            style={{
-              ...S.shipCard,
-              ...S.customShipCard,
-              opacity: mounted ? 1 : 0,
-              transform: mounted ? 'translateY(0)' : 'translateY(20px)',
-              transition: 'opacity 0.4s ease 0.86s, transform 0.4s ease 0.86s, border-color 0.2s, box-shadow 0.2s',
-            }}
-            onClick={handleCustomShipOrder}
-          >
-            <div style={S.lockedSlot}>
-              <ShipGlyph color="#c6dbf2" />
-              <span style={S.customPlus}>+</span>
-            </div>
-            <div style={{ ...S.cardLabel, color: '#c6dbf2' }}>
-              {t('hangar.ship.custom_3d')}
-            </div>
-            <div style={S.lockedCost}>
-              {CUSTOM_SHIP_COST}
-              <QuarkIcon />
-            </div>
-          </button>
         </div>
 
         <button
@@ -434,21 +412,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
             )}
           </div>
         )}
-
-        {/* ── TRAINING event card ───────────────────────────────────── */}
-        <div style={{
-          ...S.entrySection,
-          opacity: mounted ? 1 : 0,
-          transition: 'opacity 0.5s ease 0.9s',
-        }}>
-          <div style={S.entryTitle}>{t('hangar.event.training')}</div>
-          <div style={S.entryDesc}>{t('hangar.event.training_desc')}</div>
-          <div style={S.entryButtons}>
-            <button style={S.entryFree} onClick={handleEnterTraining}>
-              {t('hangar.event.training_enter')}
-            </button>
-          </div>
-        </div>
 
         {/* ── TEAM BATTLE event card ────────────────────────────────── */}
         <div style={{

@@ -141,6 +141,7 @@ export function SystemsList({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [insufficientDataId, setInsufficientDataId] = useState<string | null>(null);
   const insufficientTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSystemTapRef = useRef<{ id: string; at: number } | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   // System currently shown in the "instant research with quarks" confirmation
   // popup. null when popup is closed.
@@ -303,6 +304,11 @@ export function SystemsList({
       return;
     }
     onStartResearch?.(systemId);
+  };
+
+  const handleSystemRowResearch = (systemId: string, canResearch: boolean, researching: boolean, fullyResearched: boolean) => {
+    if (!canResearch || researching || fullyResearched) return;
+    handleResearchClick(systemId);
   };
 
   // Grid column template — no left quark column any more (⚛ is absolutely
@@ -518,6 +524,16 @@ export function SystemsList({
                   key={system.id}
                   onMouseEnter={() => setHoveredId(system.id)}
                   onMouseLeave={() => setHoveredId(null)}
+                  onDoubleClick={() => handleSystemRowResearch(system.id, canResearch, researching, fullyResearched)}
+                  onTouchEnd={(e) => {
+                    const now = Date.now();
+                    const prev = lastSystemTapRef.current;
+                    lastSystemTapRef.current = { id: system.id, at: now };
+                    if (prev?.id === system.id && now - prev.at < 360) {
+                      e.preventDefault();
+                      handleSystemRowResearch(system.id, canResearch, researching, fullyResearched);
+                    }
+                  }}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
@@ -548,6 +564,7 @@ export function SystemsList({
                     animation: researching ? 'sys-row-research-pulse 2.5s ease-in-out infinite' : undefined,
                     position: 'relative',
                     opacity: locked ? 0.6 : 1,
+                    cursor: canResearch && !researching && !fullyResearched ? 'copy' : undefined,
                     // Allow the absolutely-positioned ⚛ icon to overflow the right edge.
                     overflow: 'visible',
                   }}

@@ -35,6 +35,14 @@ export interface TutorialStepConfig {
 
 export const TUTORIAL_STEPS: TutorialStepConfig[] = [
   {
+    id: 'awakening',
+    type: 'info',
+    target: '',
+    text: 'tutorial.step_awakening_text',
+    tooltipPos: 'top',
+    nextLabel: 'tutorial.step_awakening_next',
+  },
+  {
     id: 'terminal',
     type: 'click',
     target: 'terminal-btn',

@@ -50,16 +50,44 @@ function ensureStyles() {
 const ASTRA_VIDEO_URL = '/astra/astra-video.mp4';
 const ASTRA_PORTRAIT_URL = '/astra/astra-portrait.jpg';
 
-function getAstraVoiceClip(stepId: string, subStepIndex: number): string | null {
-  if (stepId === 'terminal') return 'probudzhennya_ua';
-  if (stepId === 'go-systems') return 'terminal_ua';
-  if (stepId === 'first-research') return 'pershii_vybir_ua';
-  if (stepId === 'hud-info') return subStepIndex === 0 ? 'pershe_scanuvannya_ua' : 'pershi_rezultat_ua';
-  if (stepId === 'anomaly') return 'persha_znahidka_ua';
-  if (stepId === 'quantum') return 'quantum_focus_ua';
-  if (stepId === 'save-gallery') return 'pershe_photo_ua';
-  if (stepId === 'gallery-final') return 'galery_ua';
-  if (stepId === 'astra-handoff') return 'peredacha_chat_ua';
+function getAstraVoiceClip(stepId: string, subStepIndex: number, language: string): string | null {
+  const isUkrainian = language.startsWith('uk');
+  const clips = isUkrainian
+    ? {
+      awakening: 'probudzhennya_ua',
+      terminal: 'terminal_ua',
+      firstChoice: 'pershii_vybir_ua',
+      firstScan: 'pershe_scanuvannya_ua',
+      firstResult: 'pershi_rezultat_ua',
+      firstDiscovery: 'persha_znahidka_ua',
+      quantum: 'quantum_focus_ua',
+      firstPhoto: 'pershe_photo_ua',
+      gallery: 'galery_ua',
+      handoff: 'peredacha_chat_ua',
+    }
+    : {
+      awakening: 'Awakening_en',
+      terminal: 'Terminal_en',
+      firstChoice: 'First_Choice_en',
+      firstScan: 'First_Scan_en',
+      firstResult: 'First_Result_en',
+      firstDiscovery: 'First_Discovery_en',
+      quantum: 'Quantum_Focus_en',
+      firstPhoto: 'First_Photo_en',
+      gallery: 'gallery_en',
+      handoff: 'Chat_Handoff_en',
+    };
+
+  if (stepId === 'awakening') return clips.awakening;
+  if (stepId === 'terminal') return clips.terminal;
+  if (stepId === 'go-systems') return clips.firstChoice;
+  if (stepId === 'first-research') return clips.firstScan;
+  if (stepId === 'hud-info') return subStepIndex === 0 ? clips.firstResult : null;
+  if (stepId === 'anomaly') return clips.firstDiscovery;
+  if (stepId === 'quantum') return clips.quantum;
+  if (stepId === 'save-gallery') return clips.firstPhoto;
+  if (stepId === 'gallery-final') return clips.gallery;
+  if (stepId === 'astra-handoff') return clips.handoff;
   return null;
 }
 
@@ -101,8 +129,8 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
   const isAutoStep = step.type === 'auto';
   const isWaiting = step.waitForTarget && !targetRect;
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
-  const voiceClip = getAstraVoiceClip(step.id, subStepIndex);
-  const voiceSrc = i18n.language.startsWith('uk') && voiceClip
+  const voiceClip = getAstraVoiceClip(step.id, subStepIndex, i18n.language);
+  const voiceSrc = voiceClip
     ? `/astra/voice/${voiceClip}.webm`
     : null;
 
@@ -383,7 +411,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
             }}
           >
             <span>{t('tutorial.astra_unit')}</span>
-            <span>{t('tutorial.step_counter', { step: step.id === 'terminal' ? 1 : parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: TUTORIAL_STEPS.length })}</span>
+            <span>{t('tutorial.step_counter', { step: parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: TUTORIAL_STEPS.length })}</span>
           </div>
 
           <div style={{
@@ -558,14 +586,15 @@ const ASTRA_BUTTON_STYLE: React.CSSProperties = {
 
 /** Map step id to its 0-based number for display */
 const STEP_NUMBER_MAP: Record<string, number> = {
-  'terminal': 0,
-  'go-systems': 1,
-  'first-research': 2,
-  'hud-info': 3,
-  'free-task': 4,
-  'anomaly': 5,
-  'quantum': 6,
-  'save-gallery': 7,
-  'gallery-final': 8,
-  'astra-handoff': 9,
+  'awakening': 0,
+  'terminal': 1,
+  'go-systems': 2,
+  'first-research': 3,
+  'hud-info': 4,
+  'free-task': 5,
+  'anomaly': 6,
+  'quantum': 7,
+  'save-gallery': 8,
+  'gallery-final': 9,
+  'astra-handoff': 10,
 };

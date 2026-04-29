@@ -5337,6 +5337,62 @@ function AppInner() {
     };
   }, [universeVisible]);
 
+  // Keep the display awake while the game is foregrounded. This prevents the
+  // OS/browser idle dim from interrupting long reading, research, or tutorial
+  // moments. Unsupported browsers simply ignore the request.
+  useEffect(() => {
+    type WakeLockSentinel = {
+      release: () => Promise<void>;
+      addEventListener: (type: 'release', listener: () => void) => void;
+    };
+    type WakeLockNavigator = Navigator & {
+      wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinel> };
+    };
+
+    let wakeLock: WakeLockSentinel | null = null;
+    let cancelled = false;
+
+    const requestWakeLock = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const api = (navigator as WakeLockNavigator).wakeLock;
+      if (!api || wakeLock) return;
+      try {
+        wakeLock = await api.request('screen');
+        wakeLock.addEventListener('release', () => {
+          wakeLock = null;
+        });
+        if (cancelled) {
+          void wakeLock.release().catch(() => {});
+          wakeLock = null;
+        }
+      } catch {
+        // Wake Lock is permission/browser dependent; gameplay must continue.
+      }
+    };
+
+    const releaseWakeLock = () => {
+      if (!wakeLock) return;
+      void wakeLock.release().catch(() => {});
+      wakeLock = null;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void requestWakeLock();
+      } else {
+        releaseWakeLock();
+      }
+    };
+
+    void requestWakeLock();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseWakeLock();
+    };
+  }, []);
+
   // ── AdMob session start (SDK init is lazy — happens on first ad request) ─
   useEffect(() => {
     interstitialManager.sessionStartTime = Date.now();

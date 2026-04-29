@@ -263,6 +263,16 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
       if (stopped) return;
       try {
         const lastRead = localStorage.getItem('nebulife_chat_last_read_global');
+        if (!lastRead) {
+          const latest = await getMessages('global', 1);
+          const latestTs = latest[latest.length - 1]?.created_at;
+          if (latestTs) {
+            localStorage.setItem('nebulife_chat_last_read_global', latestTs);
+            lastReadRef.current = latestTs;
+          }
+          setUnreadGlobal(0);
+          return;
+        }
         const msgs = await getMessages('global', 50, lastRead || undefined);
         setUnreadGlobal(msgs.length);
       } catch (err) {
