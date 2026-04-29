@@ -9,11 +9,11 @@ interface NavigationMenuProps {
 }
 
 const screenSwitcherIcon = (
-  <svg width="23" height="20" viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M7 6.5 H18.5 V15 H7 Z" />
-    <path d="M10 3.5 H21.5 V12" opacity="0.45" />
-    <path d="M4 9.5 H15.5 V18 H4 Z" opacity="0.65" />
-    <path d="M21 15 L24 12 L21 9" opacity="0.7" />
+  <svg width="23" height="22" viewBox="0 0 28 26" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 7.5 H19 V16 H7 Z" />
+    <path d="M11 4.5 H23 V13" opacity="0.42" />
+    <path d="M4 10.5 H16 V19 H4 Z" opacity="0.66" />
+    <path d="M21.5 17.5 L24.5 14.5 L21.5 11.5" opacity="0.78" />
   </svg>
 );
 
@@ -70,7 +70,7 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
         onClick={handleToggle}
         title={activeItem?.label}
         style={{
-          width: 'clamp(42px, 11.5vw, 48px)',
+          width: 'clamp(48px, 12vw, 54px)',
           height: 44,
           minHeight: 44,
           padding: 0,
@@ -78,7 +78,9 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          background: open ? 'rgba(20, 38, 58, 0.5)' : 'rgba(10, 18, 32, 0.42)',
+          background: open
+            ? 'linear-gradient(180deg, rgba(30, 58, 88, 0.50), rgba(10, 18, 32, 0.58))'
+            : 'linear-gradient(180deg, rgba(10, 18, 32, 0.48), rgba(5, 10, 20, 0.42))',
           border: `1px solid ${open ? 'rgba(120, 184, 255, 0.62)' : 'rgba(68, 102, 136, 0.5)'}`,
           borderRadius: 3,
           color: open ? '#aaccee' : '#9fb8d0',
@@ -90,22 +92,19 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
         }}
       >
         {screenSwitcherIcon}
-        <svg
-          width="8"
-          height="8"
-          viewBox="0 0 8 8"
-          fill="currentColor"
+        <span
           style={{
             position: 'absolute',
-            right: 4,
-            bottom: 4,
-            opacity: 0.45,
-            transform: open ? 'rotate(180deg)' : undefined,
-            transition: 'transform 0.15s',
+            right: 5,
+            top: 5,
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            border: `1px solid ${open ? 'rgba(123,184,255,0.90)' : 'rgba(123,184,255,0.42)'}`,
+            background: open ? 'rgba(123,184,255,0.35)' : 'rgba(123,184,255,0.08)',
+            boxShadow: open ? '0 0 8px rgba(123,184,255,0.42)' : undefined,
           }}
-        >
-          <path d="M1 5.5L4 2.5L7 5.5" stroke="currentColor" fill="none" strokeWidth="1.2" />
-        </svg>
+        />
       </button>
 
       {/* Dropdown menu */}

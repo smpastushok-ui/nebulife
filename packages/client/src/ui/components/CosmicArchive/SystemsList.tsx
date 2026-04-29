@@ -61,6 +61,11 @@ function ensureStyles() {
       0%, 100% { box-shadow: 0 0 3px rgba(68,136,255,0.3); opacity: 0.6; }
       50%      { box-shadow: 0 0 8px rgba(68,136,255,0.7); opacity: 1; }
     }
+    @keyframes sys-scan-flow {
+      from { transform: translateX(-100%); opacity: 0.15; }
+      50%  { opacity: 0.65; }
+      to   { transform: translateX(260%); opacity: 0.08; }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -302,8 +307,8 @@ export function SystemsList({
 
   // Grid column template — no left quark column any more (⚛ is absolutely
   // positioned outside the row's right edge when visible).
-  const gridColsMobile    = hasResearchCol ? '1fr 34px 32px 32px 68px' : '1fr 34px 32px 32px';
-  const gridColsDesktop   = hasResearchCol ? '1fr 36px 56px 36px 36px 72px' : '1fr 36px 56px 36px 36px';
+  const gridColsMobile    = hasResearchCol ? 'minmax(0,1fr) 30px 28px 28px 78px' : 'minmax(0,1fr) 30px 28px 28px';
+  const gridColsDesktop   = hasResearchCol ? 'minmax(0,1fr) 36px 56px 36px 36px 88px' : 'minmax(0,1fr) 36px 56px 36px 36px';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -480,14 +485,32 @@ export function SystemsList({
               const name = aliases[system.id] || system.name;
               const starColor =
                 SPECTRAL_COLORS[system.star.spectralClass?.[0] ?? 'G'] ?? '#fff4e8';
-              const canResearch = locked ? false : (canStartResearch?.(system.id) ?? false);
-              const isFirstNonHome = system.id === firstNonHomeId;
               const researching = isResearching?.(system.id) ?? false;
-              const fullyResearched = isFullyResearched?.(system.id) ?? false;
               const progressPct = Math.max(
                 0,
-                Math.min(100, getResearchProgress?.(system.id) ?? (fullyResearched ? 100 : 0)),
+                Math.min(100, getResearchProgress?.(system.id) ?? (isFullyResearched?.(system.id) ? 100 : 0)),
               );
+              const fullyResearched = progressPct >= 100 || (isFullyResearched?.(system.id) ?? false);
+              const canResearch = locked || fullyResearched ? false : (canStartResearch?.(system.id) ?? false);
+              const isFirstNonHome = system.id === firstNonHomeId;
+              const statusColor = fullyResearched
+                ? '#44ff88'
+                : researching
+                  ? '#7bb8ff'
+                  : canResearch
+                    ? '#ffcc66'
+                    : locked
+                      ? '#556677'
+                      : '#667788';
+              const statusLabel = fullyResearched
+                ? t('archive.status_complete')
+                : researching
+                  ? t('archive.status_scanning')
+                  : canResearch
+                    ? t('archive.status_ready')
+                    : locked
+                      ? t('archive.status_locked')
+                      : t('archive.status_waiting');
               const showInsufficientData = insufficientDataId === system.id;
 
               return (
@@ -500,16 +523,20 @@ export function SystemsList({
                     gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
                     gap: isMobile ? 4 : 8,
                     padding: isMobile ? '7px 8px' : '8px 12px',
-                    background: researching
-                      ? undefined
-                      : isHovered
-                        ? 'rgba(20, 38, 58, 0.42)'
-                        : 'rgba(5, 10, 20, 0.18)',
+                    background: fullyResearched
+                      ? 'linear-gradient(90deg, rgba(68,255,136,0.055), rgba(5,10,20,0.18))'
+                      : researching
+                        ? undefined
+                        : canResearch
+                          ? 'linear-gradient(90deg, rgba(255,204,102,0.055), rgba(5,10,20,0.18))'
+                          : isHovered
+                            ? 'rgba(20, 38, 58, 0.42)'
+                            : 'rgba(5, 10, 20, 0.18)',
                     border: isMobile
                       ? 'none'
                       : researching
-                        ? '1px solid rgba(68, 136, 170, 0.28)'
-                        : '1px solid rgba(51, 68, 85, 0.18)',
+                        ? '1px solid rgba(68, 136, 170, 0.35)'
+                        : `1px solid ${fullyResearched ? 'rgba(68,255,136,0.22)' : canResearch ? 'rgba(255,204,102,0.20)' : 'rgba(51, 68, 85, 0.18)'}`,
                     borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.14)' : undefined,
                     borderRadius: isMobile ? 0 : 3,
                     fontFamily: 'monospace',
@@ -526,23 +553,75 @@ export function SystemsList({
                   }}
                 >
 
-                  {/* Name (clickable to navigate) */}
-                  <span
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                    onClick={() => onNavigate(system)}
-                  >
-                    <span
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        background: starColor,
-                        flexShrink: 0,
-                        boxShadow: isHome ? '0 0 0 3px rgba(68,255,136,0.5), 0 0 0 1px #44ff88' : undefined,
-                      }}
-                    />
-                    <span>{name}</span>
-                  </span>
+                  {/* Name + research state */}
+                  <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => onNavigate(system)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <span
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: '50%',
+                          background: starColor,
+                          flexShrink: 0,
+                          boxShadow: isHome
+                            ? '0 0 0 3px rgba(68,255,136,0.34), 0 0 12px rgba(68,255,136,0.55)'
+                            : `0 0 10px ${starColor}44`,
+                        }}
+                      />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: locked ? '#667788' : '#c6d8ee' }}>
+                        {name}
+                      </span>
+                      {!isMobile && (
+                        <span style={{
+                          marginLeft: 'auto',
+                          color: statusColor,
+                          border: `1px solid ${statusColor}44`,
+                          background: `${statusColor}12`,
+                          borderRadius: 999,
+                          padding: '2px 7px',
+                          fontSize: 9,
+                          letterSpacing: 0.8,
+                          textTransform: 'uppercase',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {statusLabel}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
+                      <div style={{
+                        position: 'relative',
+                        flex: 1,
+                        height: 4,
+                        overflow: 'hidden',
+                        borderRadius: 999,
+                        background: 'rgba(51,68,85,0.26)',
+                      }}>
+                        <div style={{
+                          width: `${progressPct}%`,
+                          height: '100%',
+                          borderRadius: 999,
+                          background: `linear-gradient(90deg, ${statusColor}, ${fullyResearched ? '#aaffcc' : '#7bb8ff'})`,
+                          boxShadow: progressPct > 0 ? `0 0 10px ${statusColor}55` : undefined,
+                          transition: 'width 0.25s ease',
+                        }} />
+                        {researching && (
+                          <span style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '32%',
+                            height: '100%',
+                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
+                            animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
+                          }} />
+                        )}
+                      </div>
+                      <span style={{ color: statusColor, fontSize: 10, minWidth: 34, textAlign: 'right' }}>
+                        {Math.round(progressPct)}%
+                      </span>
+                    </div>
+                  </div>
 
                   {/* Spectral class */}
                   <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
@@ -606,12 +685,14 @@ export function SystemsList({
                             <path d="M5 7V5a3 3 0 0 1 6 0v2" />
                           </svg>
                         )
-                      ) : fullyResearched || researching || canResearch ? (
+                      ) : fullyResearched || researching || !locked ? (
                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                           <ResearchProgressIcon
                             state={fullyResearched ? 'complete' : researching ? 'researching' : 'idle'}
                             progress={progressPct}
                             seedId={system.id}
+                            disabled={!fullyResearched && !researching && !canResearch}
+                            tooltip={!fullyResearched && !researching && !canResearch ? statusLabel : undefined}
                             tutorialId={canResearch && !researching && !fullyResearched && isFirstNonHome ? 'research-btn-first' : undefined}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -803,12 +884,16 @@ function ResearchProgressIcon({
   state,
   progress,
   seedId: _seedId,
+  disabled = false,
+  tooltip: tooltipOverride,
   tutorialId,
   onClick,
 }: {
   state: 'idle' | 'researching' | 'complete';
   progress: number;
   seedId: string;
+  disabled?: boolean;
+  tooltip?: string;
   tutorialId?: string;
   onClick: (e: React.MouseEvent) => void;
 }) {
@@ -833,11 +918,11 @@ function ResearchProgressIcon({
   const isComplete = state === 'complete';
   const isResearching = state === 'researching';
 
-  const tooltip = isComplete
+  const tooltip = tooltipOverride ?? (isComplete
     ? t('archive.researched_tooltip')
     : isResearching
       ? t('archive.researching_btn')
-      : t('archive.research_btn');
+      : t('archive.research_btn'));
   const ariaLabel = isComplete
     ? t('archive.researched_btn')
     : isResearching
@@ -855,16 +940,19 @@ function ResearchProgressIcon({
       style={{
         position: 'relative',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 26, height: 26, borderRadius: '50%',
+        width: 34, height: 34, borderRadius: '50%',
         background: isComplete
-          ? 'rgba(68,136,255,0.35)'
+          ? 'rgba(68,255,136,0.14)'
           : isResearching
-            ? 'rgba(68,136,255,0.10)'
-            : hover ? 'rgba(68,136,255,0.18)' : 'rgba(68,136,255,0.06)',
-        border: 'none',
-        cursor: 'pointer',
+            ? 'rgba(68,136,255,0.14)'
+            : disabled
+              ? 'rgba(68,102,136,0.045)'
+              : hover ? 'rgba(68,136,255,0.18)' : 'rgba(68,136,255,0.06)',
+        border: `1px solid ${isComplete ? 'rgba(68,255,136,0.42)' : isResearching ? 'rgba(123,184,255,0.42)' : disabled ? 'rgba(68,102,136,0.20)' : 'rgba(123,184,255,0.30)'}`,
+        cursor: disabled ? 'default' : 'pointer',
         padding: 0,
-        transition: 'background 0.15s',
+        transition: 'background 0.15s, border-color 0.15s',
+        opacity: disabled ? 0.62 : 1,
       }}
     >
       {/* Track + progress arc. For complete state we still draw the full
@@ -873,7 +961,7 @@ function ResearchProgressIcon({
         width={26}
         height={26}
         viewBox="0 0 26 26"
-        style={{ position: 'absolute', inset: 0 }}
+        style={{ position: 'absolute', inset: 4 }}
       >
         {/* Base track — faint outline ring (30% opacity for idle/researching,
             full opacity inside the filled-blue circle for complete). */}
@@ -882,8 +970,8 @@ function ResearchProgressIcon({
           cy={cy}
           r={r}
           fill="none"
-          stroke={isComplete ? '#7bb8ff' : '#7bb8ff'}
-          strokeOpacity={isComplete ? 1 : 0.3}
+          stroke={isComplete ? '#44ff88' : disabled ? '#556677' : '#7bb8ff'}
+          strokeOpacity={isComplete ? 1 : disabled ? 0.34 : 0.3}
           strokeWidth={1.4}
         />
         {/* Foreground progress arc — drawn as a stroke-dasharray slice. We
@@ -894,7 +982,7 @@ function ResearchProgressIcon({
             cy={cy}
             r={r}
             fill="none"
-            stroke="#7bb8ff"
+            stroke={isResearching ? '#7bb8ff' : '#ffcc66'}
             strokeWidth={1.6}
             strokeLinecap="round"
             strokeDasharray={`${arcLen} ${circ}`}
@@ -925,7 +1013,7 @@ function ResearchProgressIcon({
           viewBox="0 0 16 16"
           style={{ position: 'relative', zIndex: 1 }}
           fill="none"
-          stroke="#7bb8ff"
+          stroke="#44ff88"
           strokeWidth={1.4}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -941,7 +1029,7 @@ function ResearchProgressIcon({
           viewBox="0 0 16 16"
           style={{ position: 'relative', zIndex: 1 }}
           fill="none"
-          stroke="#7bb8ff"
+          stroke={disabled ? '#556677' : '#7bb8ff'}
           strokeWidth={1.6}
           strokeLinecap="round"
         >
