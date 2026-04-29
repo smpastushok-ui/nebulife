@@ -53,6 +53,7 @@ export class GameEngine {
   private researchState: ResearchState = { slots: [], systems: {} };
   private _neighborSystems: Array<{ system: StarSystem; ownerIndex: number }> = [];
   private _coreSystems: Array<{ system: StarSystem; coreId: number; depth: number; coreNeighborIds: number[] }> = [];
+  private pendingRingUnlocks: number[] = [];
 
   /** Galaxy-wide cluster info for background visualization */
   private groupCount = 1;
@@ -116,21 +117,10 @@ export class GameEngine {
    * ast-grav-scan (maxRing=4) → depth 5, etc. Capped at 12 (full core).
    */
   setEffectiveMaxRing(maxRing: number) {
-    const prev = this.effectiveMaxRing;
     this.effectiveMaxRing = maxRing;
     this.galaxyScene?.setEffectiveMaxRing(maxRing);
-    // Ring-unlock camera flourish: slight zoom-out over 1.5 s so the
-    // player sees the bigger picture while the new-ring stars pulse
-    // (5 s pulse handled inside GalaxyScene). Only on real growth.
-    if (maxRing > prev && prev > 0) {
-      const currentScale = this.camera.getCurrentScale?.() ?? null;
-      if (currentScale && this.galaxyScene) {
-        const targetScale = Math.max(0.05, currentScale * 0.8);
-        const centerX = this.galaxyScene.container.x;
-        const centerY = this.galaxyScene.container.y;
-        this.camera.animateTo?.(centerX, centerY, targetScale, 1500);
-      }
-    }
+    // App.tsx owns the rising-edge trigger so arena/popup deferral stays in
+    // one place. This setter only updates tier visibility.
   }
 
   /**
@@ -268,6 +258,13 @@ export class GameEngine {
     this.camera.resetToFit(240);
     // Force lite-orbs redraw with correct viewport now that camera is positioned
     this.galaxyScene.refreshLiteOrbs();
+    if (this.pendingRingUnlocks.length > 0) {
+      const pending = [...this.pendingRingUnlocks];
+      this.pendingRingUnlocks = [];
+      pending.forEach((ring, index) => {
+        window.setTimeout(() => this.playRingUnlock(ring), index * 900);
+      });
+    }
     // Galaxy idle — throttle to 30 FPS to save battery
     this.app.ticker.maxFPS = 30;
     this.callbacks.onSceneChange('galaxy');
@@ -341,6 +338,16 @@ export class GameEngine {
    *  research-complete so the player sees the web "reaching" the node. */
   pulseCapillaryTo(systemId: string, color: number = 0x7bb8ff): void {
     this.galaxyScene?.pulseFromHomeTo(systemId, color);
+  }
+
+  /** Start the map-native ring growth animation and frame its real nodes. */
+  playRingUnlock(newRing: number): void {
+    if (!this.galaxyScene) {
+      this.pendingRingUnlocks.push(newRing);
+      return;
+    }
+    this.galaxyScene.playRingUnlock(newRing);
+    this.camera.focusOnOrigin(this.galaxyScene.getUnlockFrameRadius(newRing), 1800);
   }
 
   // System camera controls (system scene shares the camera)

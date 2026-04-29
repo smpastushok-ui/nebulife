@@ -12,12 +12,13 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks } from '@nebulife/core';
+import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks, BuildingType } from '@nebulife/core';
 import { BUILDING_DEFS, getDepletionEfficiency } from '@nebulife/core';
 import type { LogEntry } from '../CosmicArchive/SystemLog.js';
 import { getDeviceTier } from '../../../utils/device-tier.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
+import { BuildingDetailPanel } from './BuildingDetailPanel.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -97,6 +98,8 @@ export interface ColonyCenterPageProps {
   onOpenTopUp?: () => void;
   /** Finite planet resource stocks for the active colony planet (v168). */
   planetStocks?: PlanetResourceStocks;
+  onResourceChange?: (delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => void;
+  onResearchDataChange?: (delta: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -707,7 +710,7 @@ function BuildingBreakdown({ buildings, resourceKey, extractionPerHour = 0 }: {
   );
 }
 
-function BuildingsTab({ active }: ColonyCenterPageProps) {
+function BuildingsTab({ active, onInspectBuilding }: ColonyCenterPageProps & { onInspectBuilding: (type: BuildingType) => void }) {
   const { t } = useTranslation();
 
   // Group by category, count per type
@@ -742,7 +745,8 @@ function BuildingsTab({ active }: ColonyCenterPageProps) {
               {entries.map(({ type, count, def }) => {
                 const built = count > 0;
                 return (
-                  <div key={type} style={{
+                  <button key={type} type="button" onClick={() => onInspectBuilding(type as BuildingType)} style={{
+                    width: '100%',
                     background: built ? 'rgba(20,30,45,0.5)' : 'rgba(10,15,25,0.3)',
                     border: `1px solid ${built ? '#334455' : '#223344'}`,
                     borderRadius: 3,
@@ -753,12 +757,14 @@ function BuildingsTab({ active }: ColonyCenterPageProps) {
                     alignItems: 'center',
                     fontSize: 11,
                     color: built ? '#aabbcc' : '#556677',
+                    cursor: 'pointer',
+                    textAlign: 'left',
                   }}>
-                    <span>{t(`building.${type}.name`, type)}</span>
+                    <span>{t(`buildings.${type}.name`, { defaultValue: def.name })}</span>
                     <span style={{ fontSize: 10, color: built ? '#44ff88' : '#445566' }}>
                       {count} / {def.maxPerPlanet ?? '∞'}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -950,6 +956,7 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TabId>('overview');
   const [quarkHover, setQuarkHover] = useState(false);
+  const [inspectBuildingType, setInspectBuildingType] = useState<BuildingType | null>(null);
 
   const isLowTier = useMemo(() => {
     const tier = getDeviceTier();
@@ -1092,10 +1099,24 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
         {tab === 'overview'   && <OverviewTab {...props} />}
         {tab === 'colonies'   && <ColoniesTab {...props} />}
         {tab === 'production' && <ProductionTab {...props} />}
-        {tab === 'buildings'  && <BuildingsTab {...props} />}
+        {tab === 'buildings'  && <BuildingsTab {...props} onInspectBuilding={setInspectBuildingType} />}
         {tab === 'events'     && <EventsTab {...props} />}
         {tab === 'premium'    && <PremiumTab {...props} />}
       </div>
+      {inspectBuildingType && (
+        <BuildingDetailPanel
+          planet={props.active.planet}
+          buildingType={inspectBuildingType}
+          buildings={props.active.buildings}
+          colonyResources={props.colonyResources}
+          researchData={props.researchData}
+          planetStocks={props.planetStocks}
+          onClose={() => setInspectBuildingType(null)}
+          onOpenColonyCenter={() => setInspectBuildingType(null)}
+          onResourceChange={props.onResourceChange}
+          onResearchDataChange={props.onResearchDataChange}
+        />
+      )}
     </div>
   );
 };

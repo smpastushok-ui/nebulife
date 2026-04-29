@@ -15,10 +15,11 @@ import React, {
   useRef,
   useCallback,
   useEffect,
+  useMemo,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState } from '@nebulife/core';
+import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks } from '@nebulife/core';
 import { getPlanetSize } from '@nebulife/core';
 
 import { useHexState } from './useHexState.js';
@@ -26,6 +27,7 @@ import { HexGrid } from './HexGrid.js';
 import type { HexPlanetSize } from './hex-utils.js';
 import { HexBuildMenu, getAlphaHarvesterPrice } from './HexBuildMenu.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
+import { BuildingDetailPanel } from '../ColonyCenter/BuildingDetailPanel.js';
 
 // ---------------------------------------------------------------------------
 // Public types (re-exported so App.tsx imports work unchanged)
@@ -83,6 +85,7 @@ interface HexSurfaceProps {
   onConsumeQuarks?:       (amount: number) => void;
   alphaHarvesterCount?:   number;
   shutdownBuildingTypes?: Set<string>;
+  planetStocks?:          PlanetResourceStocks;
   /** Opens the Colony Center hub page — fired when the player inspects the
    *  `colony_hub` building. Parent wires this to setShowColonyCenter(true). */
   onOpenColonyCenter?:    () => void;
@@ -171,6 +174,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onConsumeQuarks,
       alphaHarvesterCount = 0,
       shutdownBuildingTypes,
+      planetStocks,
       onOpenColonyCenter,
     },
     ref,
@@ -207,6 +211,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       screenX: number;
       screenY: number;
     } | null>(null);
+    const [detailSlotId, setDetailSlotId] = useState<string | null>(null);
 
     // ── Drag / pan tracking ─────────────────────────────────────────────────
     const rAFRef = useRef<number | null>(null);
@@ -409,14 +414,38 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       [onBuildPanelChange],
     );
 
+    const buildingsForDetail = useMemo<PlacedBuilding[]>(() => (
+      hexState.slots
+        .filter((s) => s.state === 'building' && s.buildingType)
+        .map((s) => ({
+          id: `${playerId}-${s.id}-${s.buildingType}`,
+          type: s.buildingType as BuildingType,
+          x: s.index,
+          y: s.ring,
+          level: s.buildingLevel ?? 1,
+          builtAt: new Date().toISOString(),
+          shutdown: shutdownBuildingTypes?.has(s.buildingType ?? ''),
+        }))
+    ), [hexState.slots, playerId, shutdownBuildingTypes]);
+
+    const detailBuilding = useMemo(() => {
+      if (!detailSlotId) return null;
+      const slot = hexState.getSlot(detailSlotId);
+      if (!slot?.buildingType) return null;
+      return buildingsForDetail.find((b) => b.id === `${playerId}-${detailSlotId}-${slot.buildingType}`) ?? null;
+    }, [buildingsForDetail, detailSlotId, hexState, playerId]);
+
     const handleInspect = useCallback((slotId: string) => {
       const slot = hexState.getSlot(slotId);
       if (!slot) return;
       // Colony hub → open the Colony Center management screen.
       if (slot.buildingType === 'colony_hub' && onOpenColonyCenter) {
         onOpenColonyCenter();
+        return;
       }
-      // Future: other building inspect popups
+      if (slot.state === 'building' && slot.buildingType) {
+        setDetailSlotId(slotId);
+      }
     }, [hexState, onOpenColonyCenter]);
 
     const handleDestroy = useCallback(
@@ -588,6 +617,27 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             alphaHarvesterCount={alphaHarvesterCount}
             onSelect={handleBuildSelect}
             onClose={handleBuildClose}
+          />
+        )}
+
+        {detailBuilding && (
+          <BuildingDetailPanel
+            planet={planet}
+            building={detailBuilding}
+            buildings={buildingsForDetail}
+            colonyResources={colonyResourcesRef.current}
+            researchData={researchData ?? 0}
+            planetStocks={planetStocks}
+            onClose={() => setDetailSlotId(null)}
+            onOpenColonyCenter={onOpenColonyCenter}
+            onResourceChange={handleResourceChange}
+            onResearchDataChange={(delta) => {
+              if (delta < 0) onConsumeResearchData?.(Math.abs(delta));
+            }}
+            onUpgrade={async () => {
+              const upgraded = await hexState.upgradeBuilding(detailSlotId ?? '');
+              return upgraded ?? undefined;
+            }}
           />
         )}
 

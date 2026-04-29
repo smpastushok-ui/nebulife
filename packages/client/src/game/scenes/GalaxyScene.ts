@@ -1250,14 +1250,9 @@ export class GalaxyScene {
    */
   setEffectiveMaxRing(maxRing: number): void {
     if (this.effectiveMaxRing === maxRing) return;
-    const prev = this.effectiveMaxRing;
     this.effectiveMaxRing = maxRing;
     this.recomputeVisibleCoreIds();
     this.applyAllVisibilityTiers();
-    // Play ring-unlock animation when tier grows (not on initial set).
-    if (maxRing > prev && prev > 0) {
-      this.playRingUnlock(maxRing);
-    }
   }
 
   /** Ring-unlock pulse: highlight newly available stars for 5 s so the
@@ -1412,6 +1407,18 @@ export class GalaxyScene {
       g.lineTo(x1 + dx * s + nx * (w1 + w2), y1 + dy * s + ny * (w1 + w2));
     }
     g.stroke({ width, color, alpha });
+  }
+
+  /** Frame radius that contains newly available branches up to a ring. */
+  getUnlockFrameRadius(ring: number): number {
+    let maxR = ring <= 2 ? ring * 120 : ring * 220;
+    for (const [, node] of this.systemNodes) {
+      if (node.system.ownerPlayerId !== null) continue;
+      if (node.ringIndex > ring) continue;
+      if (node.visibilityTier === 3) continue;
+      maxR = Math.max(maxR, Math.hypot(node.tx, node.ty) + 160);
+    }
+    return Math.min(4200, Math.max(260, maxR));
   }
 
   /**
@@ -2255,11 +2262,16 @@ export class GalaxyScene {
       }
     }
 
-    // Territory glow — soft aura under explored systems (home + researched)
+    // Territory glow — soft minimal aura under explored / currently scanned
+    // systems. This marks the frontier without painting heavy regions over
+    // the map's dark minimalist background.
     this.territoryGfx.clear();
-    const drawTerritoryAura = (x: number, y: number) => {
+    const drawTerritoryAura = (x: number, y: number, mode: 'home' | 'researched' | 'researching') => {
       const N = 6;
-      const maxR = 52;
+      const maxR = mode === 'researching' ? 58 : 52;
+      const color = mode === 'researching' ? 0x274f7a : mode === 'home' ? 0x2a4d66 : 0x1a4060;
+      const ringColor = mode === 'researching' ? 0x7bb8ff : 0x446688;
+      const baseAlpha = mode === 'researching' ? 0.070 : 0.055;
       // Shadow (offset down-right slightly)
       for (let ci = N; ci >= 1; ci--) {
         const f = ci / N;
@@ -2272,16 +2284,22 @@ export class GalaxyScene {
       // Territory fill (warm teal tint, very low alpha)
       for (let ci = N; ci >= 1; ci--) {
         const f = ci / N;
-        const a = 0.055 * Math.exp(-f * 2.8);
+        const a = baseAlpha * Math.exp(-f * 2.8);
         if (a > 0.003) {
           this.territoryGfx.circle(x, y, maxR * f);
-          this.territoryGfx.fill({ color: 0x1a4060, alpha: a });
+          this.territoryGfx.fill({ color, alpha: a });
         }
       }
+      if (mode !== 'home') {
+        this.territoryGfx.circle(x, y, maxR * 0.78);
+        this.territoryGfx.stroke({ color: ringColor, alpha: mode === 'researching' ? 0.12 : 0.07, width: 0.55 });
+      }
     };
-    if (this.homeNode) drawTerritoryAura(this.homeNode.tx ?? 0, this.homeNode.ty ?? 0);
+    if (this.homeNode) drawTerritoryAura(this.homeNode.tx ?? 0, this.homeNode.ty ?? 0, 'home');
     for (const [, node] of this.systemNodes) {
-      if (node.starState === 'researched' && node.visibilityTier === 1) drawTerritoryAura(node.tx, node.ty);
+      if (node.visibilityTier !== 1) continue;
+      if (node.starState === 'researched') drawTerritoryAura(node.tx, node.ty, 'researched');
+      else if (node.starState === 'researching') drawTerritoryAura(node.tx, node.ty, 'researching');
     }
 
     // Constellation web — cyan threads only to stars the player can research
@@ -2320,6 +2338,11 @@ export class GalaxyScene {
       }
       return true;
     };
+
+    const unlockElapsed = this.ringUnlockStart > 0 ? t - this.ringUnlockStart : Infinity;
+    const unlockActive = unlockElapsed >= 0 && unlockElapsed < 4800;
+    const branchGrow = unlockActive ? easeOutQuad(Math.min(1, unlockElapsed / 1800)) : 1;
+    const branchGlow = unlockActive ? Math.max(0, 1 - unlockElapsed / 4800) : 0;
 
     // Build cyan web HIERARCHICALLY — parent lookup per node:
     //   home    → Ring 1 (6 edges from centre)
@@ -2418,17 +2441,28 @@ export class GalaxyScene {
       const parent = findParent(node);
       if (!parent) continue;
       const seed = node.system.seed * 0.00017;
+      const isUnlockNode = unlockActive
+        && node.ringIndex === this.ringUnlockTarget
+        && node.visibilityTier === 1;
+      const endX = isUnlockNode ? parent.x + (node.tx - parent.x) * branchGrow : node.tx;
+      const endY = isUnlockNode ? parent.y + (node.ty - parent.y) * branchGrow : node.ty;
       if (isResearched) {
         this.drawWavyLine(
-          this.connectionLines, parent.x, parent.y, node.tx, node.ty, t, seed,
-          0.25, CYAN, 0.4,
+          this.connectionLines, parent.x, parent.y, endX, endY, t, seed,
+          isUnlockNode ? 0.35 + branchGlow * 0.35 : 0.25, CYAN, isUnlockNode ? 0.55 : 0.4,
         );
       } else {
         const pulse = 0.22 + 0.08 * Math.sin(t * 0.0012 + seed);
         this.drawWavyLine(
-          this.connectionLines, parent.x, parent.y, node.tx, node.ty, t, seed,
-          pulse, CYAN, 0.55,
+          this.connectionLines, parent.x, parent.y, endX, endY, t, seed,
+          isUnlockNode ? pulse + branchGlow * 0.30 : pulse, CYAN, isUnlockNode ? 0.75 : 0.55,
         );
+      }
+      if (isUnlockNode && branchGrow < 1) {
+        this.connectionLines.circle(endX, endY, 2.5 + branchGlow * 2);
+        this.connectionLines.fill({ color: CYAN, alpha: 0.35 + branchGlow * 0.35 });
+        this.connectionLines.circle(endX, endY, 7 + branchGlow * 4);
+        this.connectionLines.fill({ color: CYAN, alpha: 0.08 + branchGlow * 0.12 });
       }
     }
 

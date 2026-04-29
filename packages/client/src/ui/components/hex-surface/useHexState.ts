@@ -9,6 +9,7 @@ import { BUILDING_DEFS, computeHarvestElements, SeededRNG } from '@nebulife/core
 import {
   placeBuilding as apiPlaceBuilding,
   removeBuilding as apiRemoveBuilding,
+  upgradeBuilding as apiUpgradeBuilding,
 } from '../../../api/surface-api.js';
 import { getPlayer, updatePlayer, spendQuarks } from '../../../api/player-api.js';
 import type {
@@ -58,6 +59,7 @@ export interface HexStateResult {
   unlockSlotWithQuarks: (slotId: string) => boolean;
   harvestResource: (slotId: string) => number | null;
   placeBuilding: (slotId: string, type: BuildingType) => boolean;
+  upgradeBuilding: (slotId: string) => Promise<PlacedBuilding | null>;
   removeBuilding: (slotId: string) => void;
   destroyResource: (slotId: string) => void;
 
@@ -882,6 +884,31 @@ export function useHexState(
   );
 
   // ---------------------------------------------------------------------------
+  // upgradeBuilding
+  // ---------------------------------------------------------------------------
+
+  const upgradeBuilding = useCallback(
+    async (slotId: string): Promise<PlacedBuilding | null> => {
+      const slot = slotsRef.current.find((s) => s.id === slotId);
+      if (!slot || slot.state !== 'building' || !slot.buildingType) return null;
+
+      const buildingId = `${playerId}-${slotId}-${slot.buildingType}`;
+      const upgraded = await apiUpgradeBuilding(playerId, buildingId);
+
+      updateSlots((prev) =>
+        prev.map((s) =>
+          s.id === slotId
+            ? { ...s, buildingLevel: upgraded.level }
+            : s,
+        ),
+      );
+
+      return upgraded;
+    },
+    [playerId, updateSlots],
+  );
+
+  // ---------------------------------------------------------------------------
   // removeBuilding
   // ---------------------------------------------------------------------------
 
@@ -1046,6 +1073,7 @@ export function useHexState(
       unlockSlotWithQuarks,
       harvestResource,
       placeBuilding,
+      upgradeBuilding,
       removeBuilding,
       destroyResource,
       canAffordUnlock,
@@ -1066,6 +1094,7 @@ export function useHexState(
       unlockSlotWithQuarks,
       harvestResource,
       placeBuilding,
+      upgradeBuilding,
       removeBuilding,
       destroyResource,
       canAffordUnlock,

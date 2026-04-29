@@ -135,7 +135,6 @@ import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
-import { RingUnlockAnimation } from './ui/components/RingUnlockAnimation.js';
 import { ColonyCenterPage, RESOURCE_BOOST_PRICES, TIME_BOOST_PRICES, BOOST_DURATION_MS } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import type { ColonyCenterPlanet } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import { SpaceAmbient } from './audio/SpaceAmbient.js';
@@ -3425,10 +3424,8 @@ function AppInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showArena]);
 
-  // Ring-unlock cinematic state — when effectiveMaxRing climbs (tech tree
-  // node completes, or auto-promotion kicks in), play a short animation.
-  const [ringUnlockAnim, setRingUnlockAnim] = useState<{ newRing: number } | null>(null);
-  const [ringUnlockQueue, setRingUnlockQueue] = useState<number[]>([]);
+  // Ring-unlock growth is map-native: the camera frames the galaxy map while
+  // GalaxyScene grows real parent→system threads to newly available stars.
   const prevEffectiveMaxRingRef = useRef<number | null>(null);
   const prevPersonalUnlockedRingRef = useRef<number | null>(null);
 
@@ -3437,28 +3434,16 @@ function AppInner() {
     if (uniqueRings.length === 0) return;
 
     const startOrQueue = () => {
-      setRingUnlockAnim((current) => {
-        if (current) {
-          setRingUnlockQueue(prev => [...prev, ...uniqueRings]);
-          return current;
-        }
-        const [first, ...rest] = uniqueRings;
-        if (rest.length > 0) setRingUnlockQueue(prev => [...prev, ...rest]);
-        return { newRing: first };
+      uniqueRings.forEach((ring, index) => {
+        window.setTimeout(() => {
+          engineRef.current?.playRingUnlock(ring);
+        }, index * 900);
       });
     };
 
     if (enqueueIfArena(startOrQueue)) return;
     startOrQueue();
   }, [enqueueIfArena]);
-
-  const completeRingUnlock = useCallback(() => {
-    setRingUnlockQueue((queue) => {
-      const [next, ...rest] = queue;
-      setRingUnlockAnim(next ? { newRing: next } : null);
-      return rest;
-    });
-  }, []);
 
   // Sync effective max ring to engine (controls BFS depth into galactic core).
   //
@@ -3488,12 +3473,12 @@ function AppInner() {
     // until the first run finishes), never during onboarding, and never
     // while another unlock is already playing.
     const prev = prevEffectiveMaxRingRef.current;
-    if (prev !== null && effectiveMax > prev && !needsOnboarding && !ringUnlockAnim) {
+    if (prev !== null && effectiveMax > prev && !needsOnboarding) {
       const unlockedRings = Array.from({ length: effectiveMax - prev }, (_, index) => prev + index + 1);
       enqueueRingUnlocks(unlockedRings);
     }
     prevEffectiveMaxRingRef.current = effectiveMax;
-  }, [techTreeState, researchState, needsOnboarding, ringUnlockAnim, enqueueRingUnlocks]);
+  }, [techTreeState, researchState, needsOnboarding, enqueueRingUnlocks]);
 
   // Personal ring gate cinematic. effectiveMaxRing starts at Ring 2, so the
   // regular effectiveMax animation cannot catch the important moment when
@@ -3507,35 +3492,11 @@ function AppInner() {
       : 1;
 
     const prev = prevPersonalUnlockedRingRef.current;
-    if (prev !== null && unlockedPersonalRing > prev && !needsOnboarding && !ringUnlockAnim) {
+    if (prev !== null && unlockedPersonalRing > prev && !needsOnboarding) {
       enqueueRingUnlocks([unlockedPersonalRing]);
     }
     prevPersonalUnlockedRingRef.current = unlockedPersonalRing;
-  }, [researchState, needsOnboarding, ringUnlockAnim, enqueueRingUnlocks]);
-
-  // While the ring-unlock cinematic is playing, force-close every full-screen
-  // overlay so the animation plays on a clean stage (mirrors the tutorial-
-  // activation pattern).
-  useEffect(() => {
-    if (!ringUnlockAnim) return;
-    setShowArena(false);
-    setShowHangar(false);
-    setShowCosmicArchive(false);
-    setShowAcademy(false);
-    setShowPlayerPage(false);
-    setShowChaosModal(false);
-    setShowTopUpModal(false);
-    setShowColonyCenter(false);
-    setSurfaceTarget(null);
-    // Close planet menu/info/detail overlays as well
-    setState((prev) => ({
-      ...prev,
-      showPlanetMenu: false,
-      showPlanetInfo: false,
-    }));
-    setShowTerraformPlanet(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ringUnlockAnim]);
+  }, [researchState, needsOnboarding, enqueueRingUnlocks]);
 
   // Evacuation-prompt gate: when a new evacuation target is picked (trajectory
   // change message arrives), collapse every full-screen overlay so the prompt
@@ -6827,8 +6788,7 @@ function AppInner() {
         && !showArena && !showHangar && !surfaceTarget
         && !showPlayerPage && !showCosmicArchive && !showAcademy
         && !showChaosModal && !showTopUpModal
-        && evacuationPhase !== 'stage4-orbit'
-        && !ringUnlockAnim && (
+        && evacuationPhase !== 'stage4-orbit' && (
         <PlanetGlobeView
           key={(() => {
             const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
@@ -6920,6 +6880,7 @@ function AppInner() {
           }}
           alphaHarvesterCount={0}
           onOpenColonyCenter={() => setShowColonyCenter(true)}
+          planetStocks={planetResourceStocks[surfaceTarget.planet.id]}
           shutdownBuildingTypes={colonyState
             ? new Set(colonyState.buildings.filter(b => b.shutdown).map(b => b.type))
             : undefined}
@@ -7494,7 +7455,6 @@ function AppInner() {
         && !showCosmicArchive
         && !showAcademy
         && !showPlayerPage
-        && !ringUnlockAnim
         && (
         <div
           style={{
@@ -7552,7 +7512,7 @@ function AppInner() {
           lastDigestSeen={lastDigestSeen}
           latestDigestWeekDate={latestDigestWeekDate}
           preferredLanguage={lang}
-          forceCollapsed={(isTutorialActive && activeTutorialStep?.id !== 'astra-handoff') || !!ringUnlockAnim}
+          forceCollapsed={isTutorialActive && activeTutorialStep?.id !== 'astra-handoff'}
         />
       )}
 
@@ -7598,7 +7558,7 @@ function AppInner() {
         const liveBuildings: PlacedBuilding[] = hexSlots
           .filter((s) => s.state === 'building' && s.buildingType)
           .map((s) => ({
-            id: s.id,
+            id: `${playerId.current}-${s.id}-${s.buildingType}`,
             type: s.buildingType as BuildingType,
             x: s.index,
             y: s.ring,
@@ -7696,21 +7656,11 @@ function AppInner() {
               if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
             }}
             planetStocks={planetResourceStocks[active.planet.id]}
+            onResourceChange={(delta) => addResources(active.planet.id, delta)}
+            onResearchDataChange={(delta) => setResearchData((prev) => Math.max(0, prev + delta))}
           />
         );
       })()}
-
-      {/* Ring-unlock cinematic — 6s lock-everything-out animation shown when
-          effectiveMaxRing climbs (tech tree + auto-promotion). Phase A grows
-          chaotic capillary threads, Phase B pulses each new tip in sequence.
-          The component swallows all pointer events, so the player can't break
-          out mid-animation. */}
-      {ringUnlockAnim && !arenaPopupGate && (
-        <RingUnlockAnimation
-          newRing={ringUnlockAnim.newRing}
-          onComplete={completeRingUnlock}
-        />
-      )}
 
       {/* Auth: Loading screen */}
       {authLoading && (
