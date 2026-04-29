@@ -1406,6 +1406,14 @@
     "systems_online": "{{count}} systems online"
   },
   "surface": {
+    "unlock_cost": "cost",
+    "unlock_cost_short": {
+      "minerals": "MIN",
+      "volatiles": "VOL",
+      "isotopes": "ISO",
+      "water": "H2O",
+      "researchData": "SCI"
+    },
     "quarks_unlock": {
       "title": "UNLOCK SLOT WITH QUARKS",
       "body": "Short on resources? You can instantly unlock this slot for 10 quarks.",

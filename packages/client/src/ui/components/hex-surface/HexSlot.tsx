@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import './hex-animations.css';
 import type { HexSlotData, Rarity } from './hex-utils';
 import {
@@ -13,20 +14,42 @@ import { playSfx } from '../../../audio/SfxPlayer.js';
 import { BUILDING_DEFS } from '@nebulife/core';
 
 // Resource icons matching ResourceDisplay (top HUD)
-const COST_ICONS: Record<string, (s: number) => React.ReactElement> = {
-  minerals: (s) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="#aa8855" strokeWidth="1.2"><path d="M8 2L13 7L8 14L3 7Z" /><line x1="3" y1="7" x2="13" y2="7" /></svg>,
-  volatiles: (s) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="#55aaaa" strokeWidth="1.2"><circle cx="6" cy="9" r="3" /><circle cx="10" cy="8" r="3.5" /><circle cx="8" cy="6" r="2.5" /></svg>,
-  isotopes: (s) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="#88aa44" strokeWidth="1.2"><circle cx="8" cy="8" r="2" /><ellipse cx="8" cy="8" rx="6" ry="2.5" /><ellipse cx="8" cy="8" rx="6" ry="2.5" transform="rotate(60 8 8)" /></svg>,
-  water: (s) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.2"><path d="M8 2C8 2 3 8 3 11C3 13.8 5.2 15 8 15C10.8 15 13 13.8 13 11C13 8 8 2 8 2Z" /></svg>,
-  researchData: (s) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="#4488aa" strokeWidth="1.2"><circle cx="8" cy="8" r="6" /><circle cx="8" cy="8" r="2" /><line x1="8" y1="2" x2="8" y2="5" /><line x1="8" y1="11" x2="8" y2="14" /></svg>,
+const COST_COLORS: Record<string, string> = {
+  minerals: '#aa8855',
+  volatiles: '#55aaaa',
+  isotopes: '#88aa44',
+  water: '#3b82f6',
+  researchData: '#4488aa',
 };
 
-function CostIcon({ type, amount, size = 9 }: { type: string; amount: number; size?: number }) {
-  const icon = COST_ICONS[type];
+function CostIcon({ type, amount }: { type: string; amount: number }) {
+  const { t } = useTranslation();
+  const label = t(`surface.unlock_cost_short.${type}`, { defaultValue: type.slice(0, 3).toUpperCase() });
+  const title = t(`colony_center.resource.${type}`, { defaultValue: type });
+  const color = COST_COLORS[type] ?? '#8899aa';
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      {icon ? icon(size) : null}
-      <span style={{ fontSize: 7, color: '#aabbcc', fontFamily: 'monospace' }}>{amount}</span>
+    <span
+      title={`${title}: ${amount}`}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 4,
+        minWidth: 34,
+        padding: '1px 3px',
+        borderRadius: 3,
+        background: 'rgba(3, 8, 14, 0.72)',
+        border: `1px solid ${color}55`,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.45)',
+      }}
+    >
+      <span style={{
+        fontSize: 6,
+        color,
+        letterSpacing: 0.5,
+        fontFamily: 'monospace',
+      }}>{label}</span>
+      <span style={{ fontSize: 8, color: '#d7e8f4', fontFamily: 'monospace' }}>{amount}</span>
     </span>
   );
 }
@@ -37,7 +60,7 @@ interface HexSlotProps {
   x: number;
   y: number;
   zIndex?: number;
-  onUnlock: (id: string) => void;
+  onUnlock: (id: string) => boolean;
   /** Called when the player taps a locked hex they can't afford. Parent uses
    *  this to surface the quarks-pay shortcut. */
   onInsufficient?: (id: string) => void;
@@ -90,6 +113,7 @@ function LockedContent({
   slot: HexSlotData;
   canAfford: boolean;
 }) {
+  const { t } = useTranslation();
   const cost = slot.unlockCost;
   return (
     <div
@@ -115,14 +139,32 @@ function LockedContent({
       {cost && (
         <div style={{
           position: 'relative', zIndex: 1,
-          display: 'flex', flexDirection: 'column', gap: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
           alignItems: 'center',
+          maxWidth: '92%',
         }}>
-          {cost.minerals > 0 && <CostIcon type="minerals" amount={cost.minerals} />}
-          {cost.volatiles > 0 && <CostIcon type="volatiles" amount={cost.volatiles} />}
-          {cost.isotopes > 0 && <CostIcon type="isotopes" amount={cost.isotopes} />}
-          {(cost.water ?? 0) > 0 && <CostIcon type="water" amount={cost.water!} />}
-          {(cost.researchData ?? 0) > 0 && <CostIcon type="researchData" amount={cost.researchData!} />}
+          <div style={{
+            fontSize: 6,
+            color: canAfford ? '#9fc7dd' : '#886a55',
+            letterSpacing: 0.8,
+            textTransform: 'uppercase',
+            textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+          }}>
+            {t('surface.unlock_cost')}
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: 2,
+          }}>
+            {cost.minerals > 0 && <CostIcon type="minerals" amount={cost.minerals} />}
+            {cost.volatiles > 0 && <CostIcon type="volatiles" amount={cost.volatiles} />}
+            {cost.isotopes > 0 && <CostIcon type="isotopes" amount={cost.isotopes} />}
+            {(cost.water ?? 0) > 0 && <CostIcon type="water" amount={cost.water!} />}
+            {(cost.researchData ?? 0) > 0 && <CostIcon type="researchData" amount={cost.researchData!} />}
+          </div>
         </div>
       )}
     </div>
@@ -374,9 +416,8 @@ export const HexSlot = React.memo(function HexSlot({
   // Main click handler — uses id to call stable parent callbacks
   const handleClick = () => {
     if (slot.state === 'locked') {
-      if (canAfford) {
-        onUnlock(id);
-      } else {
+      const unlocked = onUnlock(id);
+      if (!unlocked) {
         // Let the parent decide whether to show the "pay 10💎" shortcut.
         onInsufficient?.(id);
         setInsufficientCost(slot.unlockCost ?? null);

@@ -3,11 +3,21 @@ import { getHexPositions, HEX_RADIUS } from './hex-utils';
 import type { HexSlotData, HexPlanetSize } from './hex-utils';
 import { HexSlot } from './HexSlot';
 
+const LANDSCAPE_COLS: Record<HexPlanetSize, number> = {
+  orbital: 4,
+  small: 5,
+  medium: 6,
+  large: 8,
+};
+
+const LANDSCAPE_STEP_X = 132;
+const LANDSCAPE_STEP_Y = 128;
+
 interface HexGridProps {
   slots: HexSlotData[];
   planetSize?: HexPlanetSize;
   horizontal?: boolean;
-  onUnlock: (id: string) => void;
+  onUnlock: (id: string) => boolean;
   onInsufficient?: (id: string) => void;
   onHarvest: (id: string) => void;
   onBuild: (id: string) => void;
@@ -43,13 +53,23 @@ export const HexGrid = React.memo(function HexGrid({
     const basePositions = getHexPositions(planetSize);
     if (!horizontal) return basePositions;
 
-    return basePositions.map((p) => ({
-      ...p,
-      // Desktop/web uses a landscape surface so the colony occupies the wide
-      // viewport instead of collapsing into a narrow vertical column.
-      x: p.y,
-      y: -p.x,
-    }));
+    const cols = LANDSCAPE_COLS[planetSize];
+    return basePositions
+      .slice()
+      .sort((a, b) => a.row - b.row || a.col - b.col)
+      .map((p, index) => {
+        const row = Math.floor(index / cols);
+        const col = index % cols;
+        const stagger = row % 2 === 1 ? LANDSCAPE_STEP_X * 0.5 : 0;
+
+        return {
+          ...p,
+          // Desktop/web uses a separate staggered formation. Slot ids and ring
+          // data stay untouched, so saves and unlock logic remain compatible.
+          x: col * LANDSCAPE_STEP_X + stagger,
+          y: row * LANDSCAPE_STEP_Y,
+        };
+      });
   }, [horizontal, planetSize]);
 
   // Find bounding box to auto-center the grid

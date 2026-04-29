@@ -113,6 +113,13 @@ const RESOURCE_TO_OBJECT: Record<string, SurfaceObjectType> = {
 const ZOOM_MIN  = 0.5;
 const ZOOM_MAX  = 2.0;
 const ZOOM_STEP = 0.2;
+const DESKTOP_HEX_COLUMNS: Record<HexPlanetSize, number> = {
+  orbital: 4,
+  small: 5,
+  medium: 6,
+  large: 8,
+};
+const DESKTOP_HEX_STEP_X = 132;
 
 // Planet type → background image mapping (module-level to avoid allocation per render)
 const PLANET_BG: Partial<Record<string, string>> = {
@@ -197,9 +204,9 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       const pSize = getPlanetSize(planet.radiusEarth);
       const desktop = window.innerWidth >= 900;
       const positions = getHexPositions(pSize);
-      const minX = Math.min(...positions.map(p => desktop ? p.y : p.x));
-      const maxX = Math.max(...positions.map(p => desktop ? p.y : p.x));
-      const gridW = maxX - minX + HEX_RADIUS * 2;
+      const gridW = desktop
+        ? (DESKTOP_HEX_COLUMNS[pSize] - 1) * DESKTOP_HEX_STEP_X + (DESKTOP_HEX_STEP_X * 0.5) + HEX_RADIUS * 2
+        : Math.max(...positions.map(p => p.x)) - Math.min(...positions.map(p => p.x)) + HEX_RADIUS * 2;
       return Math.min(desktop ? 1.15 : 0.8, (window.innerWidth - (desktop ? 160 : 24)) / gridW);
     })());
     const panXRef = useRef(0);
@@ -372,9 +379,10 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     const handleUnlock = useCallback(
       (slotId: string) => {
         const slot = hexState.getSlot(slotId);
-        if (!slot) return;
+        if (!slot) return false;
         const success = hexState.unlockSlot(slotId);
         if (success) onHexUnlocked?.(slot.ring);
+        return success;
       },
       [hexState, onHexUnlocked],
     );

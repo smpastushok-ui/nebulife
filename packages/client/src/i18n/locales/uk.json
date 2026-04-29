@@ -1407,6 +1407,14 @@
     "systems_online": "{{count}} систем активовано"
   },
   "surface": {
+    "unlock_cost": "вартiсть",
+    "unlock_cost_short": {
+      "minerals": "МIН",
+      "volatiles": "ЛЕТ",
+      "isotopes": "IЗО",
+      "water": "H2O",
+      "researchData": "НАУ"
+    },
     "quarks_unlock": {
       "title": "ВIДКРИТИ СЛОТ ЗА КВАРКИ",
       "body": "Не вистачає ресурсiв? Можна миттєво вiдкрити цей слот за 10 кваркiв.",

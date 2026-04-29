@@ -481,6 +481,10 @@ export function useHexState(
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slotsRef = useRef<HexSlotData[]>([]);
   slotsRef.current = slots;
+  const colonyResourcesRef = useRef(colonyResources);
+  const researchDataRef = useRef(researchData);
+  colonyResourcesRef.current = colonyResources;
+  researchDataRef.current = researchData;
 
   // ---------------------------------------------------------------------------
   // Persist to DB (debounced 2s)
@@ -648,13 +652,13 @@ export function useHexState(
     (slotId: string): boolean => {
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'locked' || !slot.unlockCost) return false;
-      if (!canAffordCost(colonyResources, slot.unlockCost)) return false;
+      if (!canAffordCost(colonyResourcesRef.current, slot.unlockCost)) return false;
       // Check research data requirement
       const rdCost = slot.unlockCost.researchData ?? 0;
-      if (rdCost > 0 && (researchData ?? 0) < rdCost) return false;
+      if (rdCost > 0 && (researchDataRef.current ?? 0) < rdCost) return false;
       return true;
     },
-    [colonyResources, researchData],
+    [],
   );
 
   // ---------------------------------------------------------------------------
@@ -665,10 +669,10 @@ export function useHexState(
     (slotId: string): boolean => {
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'locked' || !slot.unlockCost) return false;
-      if (!canAffordCost(colonyResources, slot.unlockCost)) return false;
+      if (!canAffordCost(colonyResourcesRef.current, slot.unlockCost)) return false;
       // Check research data
       const rdCost = slot.unlockCost.researchData ?? 0;
-      if (rdCost > 0 && (researchData ?? 0) < rdCost) return false;
+      if (rdCost > 0 && (researchDataRef.current ?? 0) < rdCost) return false;
 
       // Deduct resources
       onResourceChange?.({
