@@ -274,7 +274,8 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
           return;
         }
         const msgs = await getMessages('global', 50, lastRead || undefined);
-        setUnreadGlobal(msgs.length);
+        const unreadFromOthers = msgs.filter((msg) => msg.sender_id !== playerId);
+        setUnreadGlobal(unreadFromOthers.length);
       } catch (err) {
         if (err instanceof Error && /40[13]/.test(err.message)) {
           stopped = true;
@@ -286,7 +287,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     checkUnread();
     iv = setInterval(checkUnread, 10000);
     return () => { if (iv) clearInterval(iv); };
-  }, [collapsed]);
+  }, [collapsed, playerId]);
 
   // Notify parent of all unread chat activity so the collapsed comms button
   // does not look idle while global messages are waiting.
@@ -314,6 +315,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     if (!collapsed && tab === 'global' && messages.length > 0) {
       const lastTs = messages[messages.length - 1].created_at;
       localStorage.setItem('nebulife_chat_last_read_global', lastTs);
+      lastReadRef.current = lastTs;
       setUnreadGlobal(0);
     }
   }, [collapsed, tab, messages]);
@@ -327,6 +329,11 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     try {
       const msg = await sendMessage(activeChannel, input.trim());
       setMessages((prev) => [...prev, msg]);
+      if (activeChannel === 'global') {
+        localStorage.setItem('nebulife_chat_last_read_global', msg.created_at);
+        lastReadRef.current = msg.created_at;
+        setUnreadGlobal(0);
+      }
       playSfx('chat-send', 0.25);
       setInput('');
     } catch (err) {
@@ -497,6 +504,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
           } else if (unreadGlobal > 0) {
             setTab('global');
           }
+          if (tab === 'global' || unreadGlobal > 0) setUnreadGlobal(0);
           setCollapsed(false);
         }}
         style={{
