@@ -2392,6 +2392,13 @@ export class GalaxyScene {
         return nearestFrom(node.tx, node.ty, ring1Pos) ?? { x: homeX, y: homeY };
       }
       if (node.nodeType === 'neighbor') {
+        // First neighbor ring must visibly grow from the nearest outer
+        // personal Ring 2 star. Using the owner entry coordinate alone was
+        // mathematically correct but visually ambiguous when many threads
+        // crossed near the target.
+        if (node.ringIndex === 3) {
+          return nearestFrom(node.tx, node.ty, ring2Pos);
+        }
         const oi = this.neighborOwnerMap.get(node.system.id);
         const entry = oi !== undefined ? this.ownerEntryMap.get(oi) : undefined;
         if (!entry) return null;

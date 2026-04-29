@@ -3865,6 +3865,28 @@ function AppInner() {
     setState((prev) => ({ ...prev, scene: 'system', selectedSystem: system }));
   }, []);
 
+  const getEffectiveResearchMaxRing = useCallback((allSystems: StarSystem[], targetSystemId?: string): number => {
+    const maxRingAdd = getEffectValue(techTreeStateRef.current, 'max_ring_add', 0);
+    const targetRing = targetSystemId
+      ? allSystems.find((s) => s.id === targetSystemId)?.ringIndex
+      : undefined;
+    let effectiveMax = HOME_RESEARCH_MAX_RING + maxRingAdd;
+
+    if (effectiveMax === HOME_RESEARCH_MAX_RING) {
+      const ring2Systems = allSystems.filter(
+        (s) => s.ringIndex === HOME_RESEARCH_MAX_RING && s.ownerPlayerId === null,
+      );
+      if (ring2Systems.length > 0 && ring2Systems.every((s) => isSystemFullyResearched(researchState, s.id))) {
+        effectiveMax += 1;
+      }
+    }
+
+    if (targetSystemId && quarkUnlockedSystems.has(targetSystemId) && targetRing !== undefined) {
+      effectiveMax = Math.max(effectiveMax, targetRing);
+    }
+    return effectiveMax;
+  }, [quarkUnlockedSystems, researchState]);
+
   const handleStartResearch = useCallback((systemId: string) => {
     if (!hasResearchData(Math.floor(researchData))) {
       setShowGetResearchData(true);
@@ -3880,10 +3902,8 @@ function AppInner() {
       const allSystems = engineRef.current?.getAllSystems() ?? [];
       if (!isRingFullyResearched(researchState, allSystems, targetRing - 1)) return;
     }
-    const maxRingAdd = getEffectValue(techTreeStateRef.current, 'max_ring_add', 0);
-    const effectiveMax = quarkUnlockedSystems.has(systemId)
-      ? Math.max(HOME_RESEARCH_MAX_RING + maxRingAdd, targetRing)
-      : HOME_RESEARCH_MAX_RING + maxRingAdd;
+    const allSystems = engineRef.current?.getAllSystems() ?? [];
+    const effectiveMax = getEffectiveResearchMaxRing(allSystems, systemId);
     if (!canStartResearch(researchState, systemId, targetRing, effectiveMax)) return;
     const slotIdx = findBestSlotForSystem(researchState, targetRing);
     if (slotIdx < 0) return;
@@ -3917,7 +3937,7 @@ function AppInner() {
         });
       }
     }
-  }, [researchData, researchState, quarkUnlockedSystems, isTutorialActive, tutorialStep, t]);
+  }, [researchData, researchState, getEffectiveResearchMaxRing, isTutorialActive, tutorialStep, t]);
 
   // --- Tech Tree: research a technology ---
   const handleResearchTech = useCallback((techId: string) => {
@@ -6491,7 +6511,7 @@ function AppInner() {
           allSystems={engineRef.current?.getAllSystems() ?? []}
           activeSlotTimerText={activeSlotTimer}
           researchData={Math.floor(researchData)}
-          maxResearchRing={HOME_RESEARCH_MAX_RING + getEffectValue(techTreeStateRef.current, 'max_ring_add', 0)}
+          maxResearchRing={getEffectiveResearchMaxRing(engineRef.current?.getAllSystems() ?? [])}
           onStartResearch={handleStartResearch}
           onClose={() => setShowSystemResearch(false)}
         />
@@ -7126,14 +7146,10 @@ function AppInner() {
           }}
           onStartResearch={handleStartResearch}
           canStartResearch={(sysId: string) => {
-            const sys = (engineRef.current?.getAllSystems() ?? []).find(s => s.id === sysId);
+            const allSystems = engineRef.current?.getAllSystems() ?? [];
+            const sys = allSystems.find(s => s.id === sysId);
             if (!sys) return false;
-            const maxRingAdd = getEffectValue(techTreeStateRef.current, 'max_ring_add', 0);
-            // Quark-unlocked systems bypass the ring gate (but still need
-            // research_data + time to actually scan — fair progression).
-            const effectiveMax = quarkUnlockedSystems.has(sysId)
-              ? Math.max(HOME_RESEARCH_MAX_RING + maxRingAdd, sys.ringIndex ?? 0)
-              : HOME_RESEARCH_MAX_RING + maxRingAdd;
+            const effectiveMax = getEffectiveResearchMaxRing(allSystems, sysId);
             return canStartResearch(researchState, sysId, sys.ringIndex, effectiveMax);
           }}
           onRenameSystem={(sysId: string, newName: string) => {

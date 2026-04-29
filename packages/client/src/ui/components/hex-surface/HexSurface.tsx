@@ -197,7 +197,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       const pSize = getPlanetSize(planet.radiusEarth);
       const maxW = ({ orbital: 4, small: 4, medium: 5, large: 6 } as Record<string, number>)[pSize] ?? 5;
       const gridW = (maxW - 1) * 99 + 100; // EFF_W(99) * (cols-1) + HEX_RADIUS*2(100)
-      return Math.min(0.8, (window.innerWidth - 24) / gridW);
+      const desktop = window.innerWidth >= 900;
+      return Math.min(desktop ? 1.15 : 0.8, (window.innerWidth - (desktop ? 160 : 24)) / gridW);
     })());
     const panXRef = useRef(0);
     const panYRef = useRef(0);
@@ -216,11 +217,23 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // ── Drag / pan tracking ─────────────────────────────────────────────────
     const rAFRef = useRef<number | null>(null);
     const dragRef = useRef<{
+      pointerId: number;
       startX: number;
       startY: number;
       startPanX: number;
       startPanY: number;
       moved: boolean;
+    } | null>(null);
+    const activePointersRef = useRef(new Map<number, { x: number; y: number }>());
+    const pinchRef = useRef<{
+      startDist: number;
+      startZoom: number;
+      startPanX: number;
+      startPanY: number;
+      centerX: number;
+      centerY: number;
+      screenCenterX: number;
+      screenCenterY: number;
     } | null>(null);
 
     // ── Colony resources ─────────────────────────────────────────────────────
@@ -481,23 +494,76 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
+      activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activePointersRef.current.size >= 2) {
+        const pointers = Array.from(activePointersRef.current.values()).slice(0, 2);
+        const dx = pointers[0].x - pointers[1].x;
+        const dy = pointers[0].y - pointers[1].y;
+        const rect = e.currentTarget.getBoundingClientRect();
+        pinchRef.current = {
+          startDist: Math.max(1, Math.hypot(dx, dy)),
+          startZoom: zoomRef.current,
+          startPanX: panXRef.current,
+          startPanY: panYRef.current,
+          centerX: (pointers[0].x + pointers[1].x) / 2,
+          centerY: (pointers[0].y + pointers[1].y) / 2,
+          screenCenterX: rect.left + rect.width / 2,
+          screenCenterY: rect.top + rect.height / 2,
+        };
+        dragRef.current = null;
+        (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+        return;
+      }
       dragRef.current = {
+        pointerId: e.pointerId,
         startX: e.clientX,
         startY: e.clientY,
         startPanX: panXRef.current,
         startPanY: panYRef.current,
         moved: false,
       };
-      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
     }, []);
 
     const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+      if (activePointersRef.current.has(e.pointerId)) {
+        activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+      if (pinchRef.current && activePointersRef.current.size >= 2) {
+        const pointers = Array.from(activePointersRef.current.values()).slice(0, 2);
+        const dx = pointers[0].x - pointers[1].x;
+        const dy = pointers[0].y - pointers[1].y;
+        const dist = Math.max(1, Math.hypot(dx, dy));
+        const nextZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pinchRef.current.startZoom * (dist / pinchRef.current.startDist)));
+        const centerX = (pointers[0].x + pointers[1].x) / 2;
+        const centerY = (pointers[0].y + pointers[1].y) / 2;
+        const anchorX = pinchRef.current.centerX - pinchRef.current.screenCenterX;
+        const anchorY = pinchRef.current.centerY - pinchRef.current.screenCenterY;
+        const centerDriftX = (centerX - pinchRef.current.centerX) / nextZoom;
+        const centerDriftY = (centerY - pinchRef.current.centerY) / nextZoom;
+
+        zoomRef.current = parseFloat(nextZoom.toFixed(3));
+        panXRef.current = pinchRef.current.startPanX
+          + anchorX * (1 / nextZoom - 1 / pinchRef.current.startZoom)
+          + centerDriftX;
+        panYRef.current = pinchRef.current.startPanY
+          + anchorY * (1 / nextZoom - 1 / pinchRef.current.startZoom)
+          + centerDriftY;
+        if (rAFRef.current) cancelAnimationFrame(rAFRef.current);
+        rAFRef.current = requestAnimationFrame(() => {
+          applyTransformToDOM(panXRef.current, panYRef.current, zoomRef.current);
+        });
+        return;
+      }
       if (!dragRef.current) return;
+      if (dragRef.current.pointerId !== e.pointerId) return;
       const z = zoomRef.current;
       const dx = (e.clientX - dragRef.current.startX) / z;
       const dy = (e.clientY - dragRef.current.startY) / z;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
         dragRef.current.moved = true;
+        if (!(e.currentTarget as HTMLDivElement).hasPointerCapture(e.pointerId)) {
+          (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+        }
       }
       if (dragRef.current.moved) {
         panXRef.current = dragRef.current.startPanX + dx;
@@ -510,8 +576,13 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       }
     }, [applyTransformToDOM]);
 
-    const handlePointerUp = useCallback((_e: React.PointerEvent<HTMLDivElement>) => {
-      dragRef.current = null;
+    const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+      activePointersRef.current.delete(e.pointerId);
+      if (activePointersRef.current.size < 2) pinchRef.current = null;
+      if (dragRef.current?.pointerId === e.pointerId) dragRef.current = null;
+      if ((e.currentTarget as HTMLDivElement).hasPointerCapture(e.pointerId)) {
+        (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+      }
       if (rAFRef.current) { cancelAnimationFrame(rAFRef.current); rAFRef.current = null; }
     }, []);
 
@@ -548,6 +619,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // ── Render ──────────────────────────────────────────────────────────────
 
     const bgImage = PLANET_BG[planet.type];
+    const isDesktopSurface = typeof window !== 'undefined' && window.innerWidth >= 900;
     const hexPlanetSize: HexPlanetSize = getPlanetSize(planet);
 
     return (
@@ -574,13 +646,14 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             position: 'absolute',
             inset: 0,
             backgroundImage: `url(${bgImage})`,
-            backgroundSize: 'contain',
+            backgroundSize: isDesktopSurface ? 'cover' : 'contain',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             pointerEvents: 'none',
             transform: 'translateZ(0)',
             zIndex: 0,
-            opacity: 0.5,
+            opacity: isDesktopSurface ? 0.42 : 0.5,
+            filter: isDesktopSurface ? 'blur(2px) saturate(0.92) brightness(0.82)' : undefined,
           }} />
         )}
 
