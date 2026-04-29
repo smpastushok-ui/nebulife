@@ -1176,10 +1176,9 @@ export class GalaxyScene {
     if (node.nodeType === 'core') {
       // Not in visible set (not reachable via explored chain) -> hidden
       if (!this.visibleCoreIds.has(node.system.id)) return 3;
-      // In visible set: apply ring-based tier
-      if (ri <= maxRing) return 1;
-      if (ri === maxRing + 1) return 2;
-      return 3;
+      // Core no longer behaves as strict rings. Once a core node is revealed
+      // by the explored branch graph, it becomes directly actionable.
+      return 1;
     }
 
     return 3;
@@ -1260,9 +1259,46 @@ export class GalaxyScene {
    *  when the tier grows and by auto-promote paths. */
   private ringUnlockStart = 0;
   private ringUnlockTarget = 0;
+  private branchUnlockStart = 0;
+  private branchUnlockSourceId: string | null = null;
+  private branchUnlockTargets = new Set<string>();
   playRingUnlock(newRing: number): void {
     this.ringUnlockStart = this.time;
     this.ringUnlockTarget = newRing;
+  }
+
+  playBranchUnlock(sourceSystemId: string): void {
+    const source = this.systemNodes.get(sourceSystemId);
+    if (!source) return;
+
+    const candidates: SystemNode[] = [];
+    const graphTargets = this.coreNeighborGraph.get(sourceSystemId) ?? [];
+    for (const id of graphTargets) {
+      const node = this.systemNodes.get(id);
+      if (node && node.visibilityTier === 1 && !isSystemFullyResearched(this.researchState, node.system.id)) {
+        candidates.push(node);
+      }
+    }
+
+    if (candidates.length === 0) {
+      for (const [, node] of this.systemNodes) {
+        if (node === source) continue;
+        if (node.system.ownerPlayerId !== null) continue;
+        if (node.visibilityTier !== 1) continue;
+        if (node.ringIndex < Math.max(4, source.ringIndex + 1)) continue;
+        if (isSystemFullyResearched(this.researchState, node.system.id)) continue;
+        candidates.push(node);
+      }
+    }
+
+    candidates.sort((a, b) => (
+      (a.tx - source.tx) * (a.tx - source.tx) + (a.ty - source.ty) * (a.ty - source.ty)
+      - ((b.tx - source.tx) * (b.tx - source.tx) + (b.ty - source.ty) * (b.ty - source.ty))
+    ));
+
+    this.branchUnlockStart = this.time;
+    this.branchUnlockSourceId = sourceSystemId;
+    this.branchUnlockTargets = new Set(candidates.slice(0, 5).map((node) => node.system.id));
   }
 
   /**
@@ -2161,6 +2197,16 @@ export class GalaxyScene {
           node.container.scale.set(1);
         }
       }
+      if (this.branchUnlockStart > 0 && this.branchUnlockTargets.has(node.system.id)) {
+        const elapsed = t - this.branchUnlockStart;
+        if (elapsed < 4200) {
+          const fade = 1 - elapsed / 4200;
+          const pulse = 1 + 0.28 * fade * Math.sin(elapsed * 0.011);
+          node.container.scale.set(pulse);
+        } else {
+          node.container.scale.set(1);
+        }
+      }
 
       // Tier 2 (faded): simplified rendering — just a minimal dot, skip expensive animations
       if (node.visibilityTier === 2) {
@@ -2363,8 +2409,12 @@ export class GalaxyScene {
 
     const unlockElapsed = this.ringUnlockStart > 0 ? t - this.ringUnlockStart : Infinity;
     const unlockActive = unlockElapsed >= 0 && unlockElapsed < 4800;
+    const branchUnlockElapsed = this.branchUnlockStart > 0 ? t - this.branchUnlockStart : Infinity;
+    const branchUnlockActive = branchUnlockElapsed >= 0 && branchUnlockElapsed < 4200;
     const branchGrow = unlockActive ? easeOutQuad(Math.min(1, unlockElapsed / 1800)) : 1;
     const branchGlow = unlockActive ? Math.max(0, 1 - unlockElapsed / 4800) : 0;
+    const localBranchGrow = branchUnlockActive ? easeOutQuad(Math.min(1, branchUnlockElapsed / 1400)) : 1;
+    const localBranchGlow = branchUnlockActive ? Math.max(0, 1 - branchUnlockElapsed / 4200) : 0;
 
     // Build cyan web HIERARCHICALLY — parent lookup per node:
     //   home    → Ring 1 (6 edges from centre)
@@ -2414,12 +2464,13 @@ export class GalaxyScene {
         return nearestFrom(node.tx, node.ty, ring1Pos) ?? { x: homeX, y: homeY };
       }
       if (node.nodeType === 'neighbor') {
-        // First neighbor ring must visibly grow from the nearest outer
-        // personal Ring 2 star. Using the owner entry coordinate alone was
-        // mathematically correct but visually ambiguous when many threads
-        // crossed near the target.
         if (node.ringIndex === 3) {
-          return nearestFrom(node.tx, node.ty, ring2Pos);
+          const oi = this.neighborOwnerMap.get(node.system.id);
+          const entry = oi !== undefined ? this.ownerEntryMap.get(oi) : undefined;
+          // First neighbor star must grow from the exact Ring 2 gateway that
+          // owns this neighbor branch. Nearest-screen fallback can make a lone
+          // Ring 3 node appear connected from a random crossing thread.
+          return entry ?? nearestFrom(node.tx, node.ty, ring2Pos);
         }
         const oi = this.neighborOwnerMap.get(node.system.id);
         const entry = oi !== undefined ? this.ownerEntryMap.get(oi) : undefined;
@@ -2467,31 +2518,38 @@ export class GalaxyScene {
       const reachable = isReachable(node, false);
       if (!isResearched && !reachable) continue;
 
-      const parent = findParent(node);
+      const branchSource = this.branchUnlockSourceId ? this.systemNodes.get(this.branchUnlockSourceId) : null;
+      const isBranchUnlockNode = branchUnlockActive && this.branchUnlockTargets.has(node.system.id) && !!branchSource;
+      const parent = isBranchUnlockNode && branchSource
+        ? { x: branchSource.tx, y: branchSource.ty }
+        : findParent(node);
       if (!parent) continue;
       const seed = node.system.seed * 0.00017;
       const isUnlockNode = unlockActive
         && node.ringIndex === this.ringUnlockTarget
         && node.visibilityTier === 1;
-      const endX = isUnlockNode ? parent.x + (node.tx - parent.x) * branchGrow : node.tx;
-      const endY = isUnlockNode ? parent.y + (node.ty - parent.y) * branchGrow : node.ty;
+      const grow = isBranchUnlockNode ? localBranchGrow : branchGrow;
+      const glow = isBranchUnlockNode ? localBranchGlow : branchGlow;
+      const animatedBranch = isUnlockNode || isBranchUnlockNode;
+      const endX = animatedBranch ? parent.x + (node.tx - parent.x) * grow : node.tx;
+      const endY = animatedBranch ? parent.y + (node.ty - parent.y) * grow : node.ty;
       if (isResearched) {
         this.drawWavyLine(
           this.connectionLines, parent.x, parent.y, endX, endY, t, seed,
-          isUnlockNode ? 0.35 + branchGlow * 0.35 : 0.25, CYAN, isUnlockNode ? 0.55 : 0.4,
+          animatedBranch ? 0.35 + glow * 0.35 : 0.25, CYAN, animatedBranch ? 0.55 : 0.4,
         );
       } else {
         const pulse = 0.22 + 0.08 * Math.sin(t * 0.0012 + seed);
         this.drawWavyLine(
           this.connectionLines, parent.x, parent.y, endX, endY, t, seed,
-          isUnlockNode ? pulse + branchGlow * 0.30 : pulse, CYAN, isUnlockNode ? 0.75 : 0.55,
+          animatedBranch ? pulse + glow * 0.30 : pulse, CYAN, animatedBranch ? 0.75 : 0.55,
         );
       }
-      if (isUnlockNode && branchGrow < 1) {
-        this.connectionLines.circle(endX, endY, 2.5 + branchGlow * 2);
-        this.connectionLines.fill({ color: CYAN, alpha: 0.35 + branchGlow * 0.35 });
-        this.connectionLines.circle(endX, endY, 7 + branchGlow * 4);
-        this.connectionLines.fill({ color: CYAN, alpha: 0.08 + branchGlow * 0.12 });
+      if (animatedBranch && grow < 1) {
+        this.connectionLines.circle(endX, endY, 2.5 + glow * 2);
+        this.connectionLines.fill({ color: CYAN, alpha: 0.35 + glow * 0.35 });
+        this.connectionLines.circle(endX, endY, 7 + glow * 4);
+        this.connectionLines.fill({ color: CYAN, alpha: 0.08 + glow * 0.12 });
       }
     }
 
