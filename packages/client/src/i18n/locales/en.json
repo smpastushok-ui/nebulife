@@ -1402,7 +1402,8 @@
   "ring_unlock": {
     "banner": "NEW ZONE UNLOCKED",
     "ring_label": "RING {{ring}}",
-    "subtitle": "Capillary network expanding"
+    "subtitle": "Capillary network expanding",
+    "systems_online": "{{count}} systems online"
   },
   "surface": {
     "quarks_unlock": {

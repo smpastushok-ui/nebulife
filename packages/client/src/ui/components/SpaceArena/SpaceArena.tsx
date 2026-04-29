@@ -783,6 +783,52 @@ export function SpaceArena({ onExit, onMatchEnd, teamMode = false }: SpaceArenaP
         />
       )}
 
+      {!mobile && ready && !matchResult && (
+        <div style={{
+          position: 'absolute',
+          left: `calc(18px + env(safe-area-inset-left, 0px))`,
+          bottom: `calc(18px + env(safe-area-inset-bottom, 0px))`,
+          zIndex: 4,
+          pointerEvents: 'none',
+          fontFamily: 'monospace',
+          color: '#8fa6ba',
+          display: 'grid',
+          gap: 7,
+          padding: '10px 12px',
+          background: 'linear-gradient(135deg, rgba(5,10,20,0.62), rgba(10,18,30,0.36))',
+          border: '1px solid rgba(100,140,180,0.22)',
+          borderRadius: 5,
+          boxShadow: '0 0 18px rgba(0,0,0,0.35)',
+          backdropFilter: 'blur(8px)',
+        }}>
+          {[
+            ['W A S D', 'MOVE'],
+            ['ARROWS', 'PILOT'],
+            ['SPACE', 'MISSILE'],
+            ['SHIFT', 'WARP'],
+            ['TAB', 'ROLL'],
+          ].map(([keysLabel, action]) => (
+            <div key={action} style={{ display: 'grid', gridTemplateColumns: '76px 1fr', alignItems: 'center', gap: 9 }}>
+              <span style={{
+                color: '#c8d7e5',
+                fontSize: 10,
+                letterSpacing: 1.2,
+                padding: '3px 6px',
+                border: '1px solid rgba(123,184,255,0.24)',
+                borderRadius: 3,
+                background: 'rgba(2,5,16,0.55)',
+                textAlign: 'center',
+              }}>
+                {keysLabel}
+              </span>
+              <span style={{ fontSize: 9, letterSpacing: 2.2, color: '#667788' }}>
+                {action}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* First-time tutorial overlay — shown only if localStorage flag not set.
           Start the match countdown once the player dismisses the tutorial so
           they're not dropped into combat immediately after reading the intro. */}

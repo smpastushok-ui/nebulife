@@ -471,8 +471,8 @@ export class ArenaEngine {
     this.playerTeam = teamFromShipId(shipId);
     this.onResizeBound = this.onResize.bind(this);
     this.onWheelBound = this.onWheel.bind(this);
-    this.onKeyDownBound = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());
-    this.onKeyUpBound = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
+    this.onKeyDownBound = this.onKeyDown.bind(this);
+    this.onKeyUpBound = this.onKeyUp.bind(this);
     this.onMouseMoveBound = this.onMouseMove.bind(this);
     this.onMouseDownBound = () => {
       this.mouseDown = true;
@@ -483,6 +483,39 @@ export class ArenaEngine {
       }
     };
     this.onMouseUpBound = () => { this.mouseDown = false; };
+  }
+
+  private isArenaControlKey(key: string): boolean {
+    return [
+      'w', 'a', 's', 'd',
+      'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+      ' ', 'shift', 'tab',
+    ].includes(key);
+  }
+
+  private onKeyDown(e: KeyboardEvent): void {
+    const key = e.key.toLowerCase();
+    if (this.isArenaControlKey(key)) e.preventDefault();
+    const wasPressed = this.keys.has(key);
+    this.keys.add(key);
+
+    if (wasPressed || this.playerDead) return;
+    if (key === 'shift') this.triggerDash();
+    if (key === 'tab') this.triggerBarrelRoll();
+    if (key === ' ') this.fireMissile();
+  }
+
+  private onKeyUp(e: KeyboardEvent): void {
+    const key = e.key.toLowerCase();
+    if (this.isArenaControlKey(key)) e.preventDefault();
+    this.keys.delete(key);
+  }
+
+  private hasKeyboardAimInput(): boolean {
+    return this.keys.has('arrowup')
+      || this.keys.has('arrowdown')
+      || this.keys.has('arrowleft')
+      || this.keys.has('arrowright');
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -1533,11 +1566,12 @@ export class ArenaEngine {
     this.camera.lookAt(this.camLookX, this.camLookY, this.camLookZ);
   }
 
-  // ── Player movement (WASD) ──────────────────────────────────────────────
+  // ── Player movement (left stick / WASD) ─────────────────────────────────
 
   private updatePlayer(dt: number): void {
-    // Input: WASD (desktop) or mobile joystick
+    // Input: WASD (desktop) or mobile joystick.
     let ax = 0, az = 0;
+    let ay = 0;
     if (this.isMobile) {
       // Two movement modes depending on right-joystick state:
       //
@@ -1556,35 +1590,32 @@ export class ArenaEngine {
         ax = this.aimDirX * thrust;
         az = this.aimDirZ * thrust;
         // Vertical component too so diving ship accelerates down along aim.
-      }
-    } else {
-      if (this.keys.has('w') || this.keys.has('arrowup'))    az -= 1;
-      if (this.keys.has('s') || this.keys.has('arrowdown'))  az += 1;
-      if (this.keys.has('a') || this.keys.has('arrowleft'))  ax -= 1;
-      if (this.keys.has('d') || this.keys.has('arrowright')) ax += 1;
-    }
-
-    // Vertical thrust.
-    //   Desktop: Space = climb, Ctrl/Shift = dive (world-Y).
-    //   Mobile:  Y component of aim applied to the same thrust as XZ, so if
-    //            the nose is pointed down the ship accelerates downward.
-    let ay = 0;
-    if (!this.isMobile) {
-      if (this.keys.has(' ')) ay += 1;
-      if (this.keys.has('control') || this.keys.has('shift')) ay -= 1;
-    } else {
-      const jz = this.mobileMove.z;
-      const thrust = -jz;
-      if (Math.abs(thrust) > 0.01) {
         ay = this.aimDirY * thrust;
       }
+    } else {
+      const forwardInput = (this.keys.has('w') ? 1 : 0) - (this.keys.has('s') ? 1 : 0);
+      const strafeInput = (this.keys.has('d') ? 1 : 0) - (this.keys.has('a') ? 1 : 0);
+
+      if (forwardInput !== 0) {
+        ax += this.aimDirX * forwardInput;
+        ay += this.aimDirY * forwardInput;
+        az += this.aimDirZ * forwardInput;
+      }
+
+      if (strafeInput !== 0) {
+        const flatLen = Math.sqrt(this.aimDirX ** 2 + this.aimDirZ ** 2) || 1;
+        const rightX = -this.aimDirZ / flatLen;
+        const rightZ = this.aimDirX / flatLen;
+        ax += rightX * strafeInput;
+        az += rightZ * strafeInput;
+      }
     }
 
-    // Normalize diagonal only for desktop (WASD) — mobile ax/az are already
+    // Normalize diagonal only for desktop (WASD) — mobile values are already
     // scaled by aim-direction × thrust, which is the intended magnitude.
     if (!this.isMobile) {
-      const len = Math.sqrt(ax * ax + az * az);
-      if (len > 0) { ax /= len; az /= len; }
+      const len = Math.sqrt(ax * ax + ay * ay + az * az);
+      if (len > 0) { ax /= len; ay /= len; az /= len; }
     }
 
     // Sync-boost: when player pushes both joysticks in roughly the same
@@ -1750,7 +1781,7 @@ export class ArenaEngine {
   private updateAim(dt: number): void {
     const prevAngle = this.playerAimAngle;
 
-    if (this.isMobile) {
+    if (this.isMobile || this.hasKeyboardAimInput()) {
       // Flight-sim right stick:
       //   X  → ROLL (bank) rate — stick right banks right wing down.
       //   Y  → PITCH rate — stick forward (up on screen, mobilePitchRate<0)
@@ -1764,8 +1795,12 @@ export class ArenaEngine {
       const PITCH_RATE = Math.PI / 1.2;       // rad/sec at full stick
       const TURN_FROM_ROLL = Math.PI / 1.2;   // rad/sec per unit sin(roll)
       const MAX_ROLL = 1.0;                    // ~57°
-      const rollStick = Math.abs(this.mobileAim.x) > 0.1 ? this.mobileAim.x : 0;
-      const pitchStick = Math.abs(this.mobilePitchRate) > 0.1 ? this.mobilePitchRate : 0;
+      const keyboardRoll = (this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('arrowleft') ? 1 : 0);
+      const keyboardPitch = (this.keys.has('arrowdown') ? 1 : 0) - (this.keys.has('arrowup') ? 1 : 0);
+      const rawRoll = this.isMobile ? this.mobileAim.x : keyboardRoll;
+      const rawPitch = this.isMobile ? this.mobilePitchRate : keyboardPitch;
+      const rollStick = Math.abs(rawRoll) > 0.1 ? rawRoll : 0;
+      const pitchStick = Math.abs(rawPitch) > 0.1 ? rawPitch : 0;
 
       // Target roll — proportional to stick deflection. When the stick is
       // centered the target is 0, so shipRoll naturally rolls back to level
@@ -1815,7 +1850,8 @@ export class ArenaEngine {
       this.mouseMoveX = 0;
       this.mouseMoveY = 0;
     } else {
-      // Fallback pre-lock: XZ plane raycast (Y stays 0)
+      // Fallback pre-lock: XZ plane raycast (Y stays 0). Arrow keys above
+      // take priority, so keyboard-only web control works without mouse lock.
       const dx = this.aimPoint.x - this.playerPos.x;
       const dz = this.aimPoint.z - this.playerPos.z;
       const len = Math.sqrt(dx * dx + dz * dz);
@@ -2943,11 +2979,6 @@ export class ArenaEngine {
           this.missileReloadTimer = 0;
         }
       }
-    }
-
-    // Fire missile with E key or Space (blocked while dead)
-    if (!this.playerDead && this.missileCooldownTimer <= 0 && this.missileAmmo > 0 && (this.keys.has('e') || this.keys.has(' '))) {
-      this.fireMissile();
     }
 
     // Find homing target for a missile (3D — includes Y so missiles can

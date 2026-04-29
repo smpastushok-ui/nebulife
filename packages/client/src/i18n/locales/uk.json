@@ -1403,7 +1403,8 @@
   "ring_unlock": {
     "banner": "НОВА ЗОНА ДОСТУПНА",
     "ring_label": "РIНГ {{ring}}",
-    "subtitle": "Капiлярна мережа розширюється"
+    "subtitle": "Капiлярна мережа розширюється",
+    "systems_online": "{{count}} систем активовано"
   },
   "surface": {
     "quarks_unlock": {

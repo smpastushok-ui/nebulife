@@ -1,18 +1,18 @@
 // ---------------------------------------------------------------------------
-// RingUnlockAnimation — full-screen 6s cinematic shown when the player's
+// RingUnlockAnimation — full-screen 4.8s cinematic shown when the player's
 // effectiveMaxRing jumps up (e.g. after an ast-probe tech completes).
 //
-// Phase A (0–3s): chaotic capillary threads grow from the centre outward —
+// Phase A (0-2.4s): chaotic capillary threads grow from the centre outward —
 //   a "nervous system is reaching farther" demonstration of the new zone
 //   becoming reachable. 28 branches, each with random start-angle, length,
 //   curvature and spawn delay so the growth never looks mechanical.
 //
-// Phase B (3–6s): each newly accessible system (tip of a branch) pulses
-//   once in sequence, quickly rippling outward like a sonar ping.
+// Phase B (2.4-4.8s): the unlocked orbital ring resolves into system nodes
+//   and pulses once in sequence, so the player reads it as "new systems".
 //
 // Input is blocked through a transparent full-screen div. All overlays are
 // expected to be pre-closed by the caller. The component calls `onComplete`
-// after 6000ms so App.tsx can release the UI lock.
+// after 4800ms so App.tsx can release the UI lock.
 // ---------------------------------------------------------------------------
 
 import React, { useEffect, useRef } from 'react';
@@ -31,8 +31,9 @@ interface Branch {
   pulseOffset: number;
 }
 
-const TOTAL_DURATION_MS = 6000;
-const PHASE_A_MS = 3000;
+const TOTAL_DURATION_MS = 4800;
+const PHASE_A_MS = 2400;
+const MAX_DPR = 2;
 
 function rand(a: number, b: number): number {
   return a + Math.random() * (b - a);
@@ -42,6 +43,16 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function getRingNodeCount(ring: number): number {
+  if (ring <= 0) return 1;
+  if (ring <= 2) return ring * 6;
+  return Math.min(42, 12 + (ring - 2) * 8);
+}
+
 export interface RingUnlockAnimationProps {
   newRing: number;
   onComplete: () => void;
@@ -49,6 +60,7 @@ export interface RingUnlockAnimationProps {
 
 export const RingUnlockAnimation: React.FC<RingUnlockAnimationProps> = ({ newRing, onComplete }) => {
   const { t } = useTranslation();
+  const unlockedNodeCount = getRingNodeCount(newRing);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef<number | null>(null);
@@ -62,7 +74,7 @@ export const RingUnlockAnimation: React.FC<RingUnlockAnimationProps> = ({ newRin
     if (!ctx) return;
 
     // ── Setup: DPR-aware canvas + branch seeding ──────────────────────────
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     let cssW = 0;
     let cssH = 0;
 
@@ -76,7 +88,7 @@ export const RingUnlockAnimation: React.FC<RingUnlockAnimationProps> = ({ newRin
     };
 
     const seedBranches = () => {
-      const count = 28;
+      const count = newRing <= 2 ? 24 : 32;
       const maxReach = Math.min(cssW, cssH) * 0.46;
       const cx = cssW / 2;
       const cy = cssH / 2;
@@ -85,8 +97,8 @@ export const RingUnlockAnimation: React.FC<RingUnlockAnimationProps> = ({ newRin
         const angle = (i / count) * Math.PI * 2 + rand(-0.18, 0.18);
         const baseLength = maxReach * rand(0.65, 1.0);
         const curve = rand(-1, 1);
-        const spawnDelay = rand(0, 2.4);
-        const growDuration = rand(0.55, 1.0);
+        const spawnDelay = rand(0, 1.75);
+        const growDuration = rand(0.45, 0.8);
         // Resolve tip position once, so the pulse in phase B lines up with
         // where the growing branch actually ended.
         const tipX = cx + Math.cos(angle) * baseLength + curve * 40 * Math.sin(angle);
@@ -107,6 +119,11 @@ export const RingUnlockAnimation: React.FC<RingUnlockAnimationProps> = ({ newRin
 
       const cx = cssW / 2;
       const cy = cssH / 2;
+      const minDim = Math.min(cssW, cssH);
+      const unlockedRadius = Math.max(96, minDim * 0.34);
+      const nodeCount = getRingNodeCount(newRing);
+      const phaseA = Math.min(1, elapsed / PHASE_A_MS);
+      const phaseB = Math.max(0, Math.min(1, (elapsed - PHASE_A_MS) / (TOTAL_DURATION_MS - PHASE_A_MS)));
 
       // Background — slight vignette on top of the body's #020510 so the
       // animation reads as a dedicated cinematic rather than a popup.
@@ -116,6 +133,42 @@ export const RingUnlockAnimation: React.FC<RingUnlockAnimationProps> = ({ newRin
       grad.addColorStop(1, 'rgba(2,5,16,0.95)');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, cssW, cssH);
+
+      // Quiet star dust: cheap fixed math, no stored particles, just enough
+      // depth to make the unlock feel cosmic instead of a flat modal.
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 90; i++) {
+        const x = (Math.sin(i * 91.7) * 0.5 + 0.5) * cssW;
+        const y = (Math.sin(i * 47.3 + 2.1) * 0.5 + 0.5) * cssH;
+        const twinkle = 0.22 + 0.2 * Math.sin(elapsedSec * 1.8 + i);
+        ctx.fillStyle = `rgba(150,185,220,${twinkle})`;
+        ctx.fillRect(x, y, i % 7 === 0 ? 1.4 : 0.8, i % 7 === 0 ? 1.4 : 0.8);
+      }
+      ctx.restore();
+
+      // The actual unlocked ring. This is the readability layer: the player
+      // should instantly understand that a new orbital band became active.
+      const ringReveal = easeInOutCubic(phaseA);
+      const ringAlpha = 0.1 + ringReveal * 0.55;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(elapsedSec * 0.05);
+      ctx.beginPath();
+      ctx.arc(0, 0, unlockedRadius * ringReveal, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(123,184,255,${ringAlpha})`;
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 10]);
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = 'rgba(123,184,255,0.35)';
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(0, 0, unlockedRadius * 0.58 * ringReveal, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(68,255,136,${0.08 + ringReveal * 0.16})`;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      ctx.restore();
 
       // ── Phase A: grow branches from centre ──
       const inPhaseA = elapsed < PHASE_A_MS;
@@ -167,14 +220,44 @@ export const RingUnlockAnimation: React.FC<RingUnlockAnimationProps> = ({ newRin
       }
       ctx.shadowBlur = 0;
 
-      // ── Phase B: sequential radial pulses at every tip ──
+      // Newly unlocked system nodes on the ring. These are separate from the
+      // organic capillaries because the reward should be concrete and readable.
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < nodeCount; i++) {
+        const angle = (i / nodeCount) * Math.PI * 2 - Math.PI / 2 + Math.sin(i * 1.7) * 0.035;
+        const activeWindow = Math.max(0, Math.min(1, (phaseB - i / nodeCount * 0.62) / 0.2));
+        const nodePulse = activeWindow > 0 && activeWindow < 1 ? Math.sin(activeWindow * Math.PI) : 0;
+        const r = unlockedRadius + Math.sin(i * 2.3) * 7;
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        const baseAlpha = inPhaseA ? ringReveal * 0.35 : 0.48 + nodePulse * 0.45;
+
+        ctx.beginPath();
+        ctx.arc(x, y, 2.4 + nodePulse * 2.4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(190,220,255,${baseAlpha})`;
+        ctx.shadowBlur = 10 + nodePulse * 18;
+        ctx.shadowColor = nodePulse > 0.15 ? 'rgba(68,255,136,0.75)' : 'rgba(123,184,255,0.45)';
+        ctx.fill();
+
+        if (nodePulse > 0.05) {
+          ctx.beginPath();
+          ctx.arc(x, y, 8 + nodePulse * 28, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(68,255,136,${(1 - activeWindow) * 0.45})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // ── Phase B: sequential radial pulses at every capillary tip ──
       if (!inPhaseA) {
-        const phaseBSec = elapsedSec - PHASE_A_MS / 1000; // 0..3
+        const phaseBSec = elapsedSec - PHASE_A_MS / 1000; // 0..2.4
         for (const b of branchesRef.current) {
           // Each tip gets a 0.9s pulse window starting at its own offset.
           // Offsets are spread across 0..0.85 so the last pulse still has a
           // full 0.9s envelope before the 3s window closes.
-          const pulseStart = b.pulseOffset * (3 - 0.9);
+          const pulseStart = b.pulseOffset * (2.4 - 0.9);
           const pt = (phaseBSec - pulseStart) / 0.9;
           if (pt < 0 || pt > 1) {
             // Draw a dim marker so the tip doesn't disappear before its turn.
@@ -221,7 +304,7 @@ export const RingUnlockAnimation: React.FC<RingUnlockAnimationProps> = ({ newRin
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       window.removeEventListener('resize', resize);
     };
-  }, [onComplete]);
+  }, [newRing, onComplete]);
 
   return (
     <div
@@ -279,6 +362,9 @@ export const RingUnlockAnimation: React.FC<RingUnlockAnimationProps> = ({ newRin
         </div>
         <div style={{ fontSize: 10, color: '#445566', marginTop: 14, letterSpacing: 3 }}>
           {t('ring_unlock.subtitle')}
+        </div>
+        <div style={{ fontSize: 11, color: '#7fd9a6', marginTop: 18, letterSpacing: 4 }}>
+          {t('ring_unlock.systems_online', { count: unlockedNodeCount })}
         </div>
       </div>
 

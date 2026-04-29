@@ -3426,9 +3426,39 @@ function AppInner() {
   }, [showArena]);
 
   // Ring-unlock cinematic state — when effectiveMaxRing climbs (tech tree
-  // node completes, or auto-promotion kicks in), play a 6s animation.
+  // node completes, or auto-promotion kicks in), play a short animation.
   const [ringUnlockAnim, setRingUnlockAnim] = useState<{ newRing: number } | null>(null);
+  const [ringUnlockQueue, setRingUnlockQueue] = useState<number[]>([]);
   const prevEffectiveMaxRingRef = useRef<number | null>(null);
+  const prevPersonalUnlockedRingRef = useRef<number | null>(null);
+
+  const enqueueRingUnlocks = useCallback((rings: number[]) => {
+    const uniqueRings = Array.from(new Set(rings)).filter(ring => ring > 0);
+    if (uniqueRings.length === 0) return;
+
+    const startOrQueue = () => {
+      setRingUnlockAnim((current) => {
+        if (current) {
+          setRingUnlockQueue(prev => [...prev, ...uniqueRings]);
+          return current;
+        }
+        const [first, ...rest] = uniqueRings;
+        if (rest.length > 0) setRingUnlockQueue(prev => [...prev, ...rest]);
+        return { newRing: first };
+      });
+    };
+
+    if (enqueueIfArena(startOrQueue)) return;
+    startOrQueue();
+  }, [enqueueIfArena]);
+
+  const completeRingUnlock = useCallback(() => {
+    setRingUnlockQueue((queue) => {
+      const [next, ...rest] = queue;
+      setRingUnlockAnim(next ? { newRing: next } : null);
+      return rest;
+    });
+  }, []);
 
   // Sync effective max ring to engine (controls BFS depth into galactic core).
   //
@@ -3459,15 +3489,29 @@ function AppInner() {
     // while another unlock is already playing.
     const prev = prevEffectiveMaxRingRef.current;
     if (prev !== null && effectiveMax > prev && !needsOnboarding && !ringUnlockAnim) {
-      const newRing = effectiveMax;
-      if (enqueueIfArena(() => setRingUnlockAnim({ newRing }))) {
-        // deferred — will fire after arena closes
-      } else {
-        setRingUnlockAnim({ newRing });
-      }
+      const unlockedRings = Array.from({ length: effectiveMax - prev }, (_, index) => prev + index + 1);
+      enqueueRingUnlocks(unlockedRings);
     }
     prevEffectiveMaxRingRef.current = effectiveMax;
-  }, [techTreeState, researchState, needsOnboarding, ringUnlockAnim, enqueueIfArena]);
+  }, [techTreeState, researchState, needsOnboarding, ringUnlockAnim, enqueueRingUnlocks]);
+
+  // Personal ring gate cinematic. effectiveMaxRing starts at Ring 2, so the
+  // regular effectiveMax animation cannot catch the important moment when
+  // Ring 1 is fully researched and Ring 2 first becomes actionable.
+  useEffect(() => {
+    const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+    const ring1Systems = allSystems.filter(s => s.ringIndex === 1 && s.ownerPlayerId === null);
+    const unlockedPersonalRing = ring1Systems.length > 0
+      && ring1Systems.every(s => isSystemFullyResearched(researchState, s.id))
+      ? 2
+      : 1;
+
+    const prev = prevPersonalUnlockedRingRef.current;
+    if (prev !== null && unlockedPersonalRing > prev && !needsOnboarding && !ringUnlockAnim) {
+      enqueueRingUnlocks([unlockedPersonalRing]);
+    }
+    prevPersonalUnlockedRingRef.current = unlockedPersonalRing;
+  }, [researchState, needsOnboarding, ringUnlockAnim, enqueueRingUnlocks]);
 
   // While the ring-unlock cinematic is playing, force-close every full-screen
   // overlay so the animation plays on a clean stage (mirrors the tutorial-
@@ -7664,7 +7708,7 @@ function AppInner() {
       {ringUnlockAnim && !arenaPopupGate && (
         <RingUnlockAnimation
           newRing={ringUnlockAnim.newRing}
-          onComplete={() => setRingUnlockAnim(null)}
+          onComplete={completeRingUnlock}
         />
       )}
 
