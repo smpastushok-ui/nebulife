@@ -14,8 +14,18 @@ const LANDING_IMAGES = {
   arena: '/landing/landing-arena.jpg',
 };
 
+const DUST_POINTS = Array.from({ length: 18 }, (_, index) => index);
+
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function CosmicDust() {
+  return (
+    <div className="landing-dust" aria-hidden="true">
+      {DUST_POINTS.map((index) => <span key={index} />)}
+    </div>
+  );
 }
 
 function ProofGlyph({ tone }: { tone: ProofTone }) {
@@ -70,6 +80,7 @@ function ProofGlyph({ tone }: { tone: ProofTone }) {
 
 export function LandingPage() {
   const { t, i18n } = useTranslation();
+  const rootRef = React.useRef<HTMLElement | null>(null);
   const [isLeadOpen, setIsLeadOpen] = React.useState(false);
   const [leadEmail, setLeadEmail] = React.useState(() => localStorage.getItem(TESTER_LEAD_EMAIL_KEY) ?? '');
   const [leadError, setLeadError] = React.useState('');
@@ -206,6 +217,43 @@ export function LandingPage() {
     };
   }, []);
 
+  React.useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+
+    root.classList.add('landing-motion-ready');
+
+    const animatedBlocks = Array.from(root.querySelectorAll('.landing-animate-window'));
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) entry.target.classList.add('landing-in-view');
+      }
+    }, { threshold: 0.2 });
+    animatedBlocks.forEach((block) => observer.observe(block));
+
+    let raf = 0;
+    const updatePointer = (event: PointerEvent) => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        raf = 0;
+        const x = (event.clientX / window.innerWidth - 0.5) * 2;
+        const y = (event.clientY / window.innerHeight - 0.5) * 2;
+        root.style.setProperty('--landing-pointer-x', x.toFixed(3));
+        root.style.setProperty('--landing-pointer-y', y.toFixed(3));
+      });
+    };
+
+    window.addEventListener('pointermove', updatePointer, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('pointermove', updatePointer);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, []);
+
   // Google Analytics 4 — landing-only. Not loaded on /play and not in
   // Capacitor native shell (LandingPage never mounts there). Idempotent
   // guard prevents duplicate script tags on remount during HMR.
@@ -229,7 +277,7 @@ export function LandingPage() {
   }, []);
 
   return (
-    <main className="landing-root">
+    <main className="landing-root" ref={rootRef}>
       <div className="landing-nebula" aria-hidden="true" />
       <nav className="landing-nav" aria-label={t('landing.nav_label')}>
         <a className="landing-logo" href="/">
@@ -265,9 +313,22 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className="landing-galaxy-stage landing-cosmos-window" aria-label={t('landing.visual_label')}>
+        <div className="landing-galaxy-stage landing-cosmos-window landing-animate-window" aria-label={t('landing.visual_label')}>
           <img className="landing-hero-image" src={LANDING_IMAGES.hero} alt="" aria-hidden="true" loading="eager" />
+          <CosmicDust />
           <div className="landing-window-grid" aria-hidden="true" />
+          <div className="landing-orbit-lines" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="landing-signal-map" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="landing-light-sweep" aria-hidden="true" />
           <div className="landing-scan landing-scan-a">{t('landing.visual_scan_a')}</div>
           <div className="landing-scan landing-scan-b">{t('landing.visual_scan_b')}</div>
           <div className="landing-scan landing-scan-c">{t('landing.visual_scan_c')}</div>
@@ -282,9 +343,11 @@ export function LandingPage() {
         <p className="landing-text">{t('landing.showcase.body')}</p>
         <div className="landing-showcase-grid">
           {showcaseCards.map((item) => (
-            <article className={`landing-showcase-card landing-showcase-${item.tone}`} key={item.title}>
+            <article className={`landing-showcase-card landing-showcase-${item.tone} landing-animate-window`} key={item.title}>
               <div className="landing-showcase-visual" aria-hidden="true">
                 <img src={item.image} alt="" loading="lazy" />
+                <CosmicDust />
+                <div className="landing-light-sweep" aria-hidden="true" />
               </div>
               <div className="landing-showcase-copy">
                 <span>{item.eyebrow}</span>
