@@ -6,6 +6,7 @@ import { HexSlot } from './HexSlot';
 interface HexGridProps {
   slots: HexSlotData[];
   planetSize?: HexPlanetSize;
+  horizontal?: boolean;
   onUnlock: (id: string) => void;
   onInsufficient?: (id: string) => void;
   onHarvest: (id: string) => void;
@@ -23,6 +24,7 @@ interface HexGridProps {
 export const HexGrid = React.memo(function HexGrid({
   slots,
   planetSize = 'medium',
+  horizontal = false,
   onUnlock,
   onInsufficient,
   onHarvest,
@@ -37,7 +39,18 @@ export const HexGrid = React.memo(function HexGrid({
   shutdownBuildingTypes,
 }: HexGridProps) {
   // Compute hex positions for this planet size
-  const positions = useMemo(() => getHexPositions(planetSize), [planetSize]);
+  const positions = useMemo(() => {
+    const basePositions = getHexPositions(planetSize);
+    if (!horizontal) return basePositions;
+
+    return basePositions.map((p) => ({
+      ...p,
+      // Desktop/web uses a landscape surface so the colony occupies the wide
+      // viewport instead of collapsing into a narrow vertical column.
+      x: p.y,
+      y: -p.x,
+    }));
+  }, [horizontal, planetSize]);
 
   // Find bounding box to auto-center the grid
   const { minX, minY, maxX, maxY } = useMemo(() => {

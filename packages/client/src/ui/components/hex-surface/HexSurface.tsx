@@ -24,7 +24,7 @@ import { getPlanetSize } from '@nebulife/core';
 
 import { useHexState } from './useHexState.js';
 import { HexGrid } from './HexGrid.js';
-import type { HexPlanetSize } from './hex-utils.js';
+import { getHexPositions, HEX_RADIUS, type HexPlanetSize } from './hex-utils.js';
 import { HexBuildMenu, getAlphaHarvesterPrice } from './HexBuildMenu.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { BuildingDetailPanel } from '../ColonyCenter/BuildingDetailPanel.js';
@@ -195,9 +195,11 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // Prevents left/right hex tile clipping on narrow mobile screens.
     const zoomRef = useRef((() => {
       const pSize = getPlanetSize(planet.radiusEarth);
-      const maxW = ({ orbital: 4, small: 4, medium: 5, large: 6 } as Record<string, number>)[pSize] ?? 5;
-      const gridW = (maxW - 1) * 99 + 100; // EFF_W(99) * (cols-1) + HEX_RADIUS*2(100)
       const desktop = window.innerWidth >= 900;
+      const positions = getHexPositions(pSize);
+      const minX = Math.min(...positions.map(p => desktop ? p.y : p.x));
+      const maxX = Math.max(...positions.map(p => desktop ? p.y : p.x));
+      const gridW = maxX - minX + HEX_RADIUS * 2;
       return Math.min(desktop ? 1.15 : 0.8, (window.innerWidth - (desktop ? 160 : 24)) / gridW);
     })());
     const panXRef = useRef(0);
@@ -661,6 +663,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         <HexGrid
           slots={hexState.slots}
           planetSize={hexPlanetSize}
+          horizontal={isDesktopSurface}
           onUnlock={handleUnlock}
           onInsufficient={handleInsufficient}
           onHarvest={handleHarvest}
