@@ -779,6 +779,37 @@ function AppInner() {
     });
   }, []);
 
+  /** Spend from the shared colony pool, preferring the active planet first. */
+  const spendResourcesAcrossPlanets = useCallback((
+    preferredPlanetId: string,
+    delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>,
+  ) => {
+    const keys = ['minerals', 'volatiles', 'isotopes', 'water'] as const;
+    setColonyResourcesByPlanet(prev => {
+      const next = { ...prev };
+      for (const key of keys) {
+        let remaining = Math.max(0, -(delta[key] ?? 0));
+        if (remaining <= 0) continue;
+
+        const spendFrom = (planetId: string) => {
+          if (remaining <= 0) return;
+          const cur = next[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+          const available = Math.max(0, cur[key] ?? 0);
+          const spent = Math.min(available, remaining);
+          if (spent <= 0) return;
+          next[planetId] = { ...cur, [key]: available - spent };
+          remaining -= spent;
+        };
+
+        spendFrom(preferredPlanetId);
+        for (const planetId of Object.keys(next)) {
+          if (planetId !== preferredPlanetId) spendFrom(planetId);
+        }
+      }
+      return next;
+    });
+  }, []);
+
   /** Sum resources across all planet stores. */
   const totalResources = useCallback((): { minerals: number; volatiles: number; isotopes: number; water: number } => {
     const sum = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
@@ -3845,17 +3876,25 @@ function AppInner() {
       ? allSystems.find((s) => s.id === targetSystemId)?.ringIndex
       : undefined;
     let effectiveMax = HOME_RESEARCH_MAX_RING + maxRingAdd;
+    const ring2Systems = allSystems.filter(
+      (s) => s.ringIndex === HOME_RESEARCH_MAX_RING && s.ownerPlayerId === null,
+    );
+    const ring2Done = ring2Systems.length > 0
+      && ring2Systems.every((s) => isSystemFullyResearched(researchState, s.id));
 
     if (effectiveMax === HOME_RESEARCH_MAX_RING) {
-      const ring2Systems = allSystems.filter(
-        (s) => s.ringIndex === HOME_RESEARCH_MAX_RING && s.ownerPlayerId === null,
-      );
-      if (ring2Systems.length > 0 && ring2Systems.every((s) => isSystemFullyResearched(researchState, s.id))) {
+      if (ring2Done) {
         effectiveMax += 1;
       }
     }
 
     if (targetSystemId && quarkUnlockedSystems.has(targetSystemId) && targetRing !== undefined) {
+      effectiveMax = Math.max(effectiveMax, targetRing);
+    }
+    // Core/deep systems are no longer unlocked as strict rings. GalaxyScene
+    // controls their reachability through the branch graph; if a core target is
+    // visible enough to be selected, do not block it on max-ring math.
+    if (targetRing !== undefined && targetRing >= 4 && ring2Done) {
       effectiveMax = Math.max(effectiveMax, targetRing);
     }
     return effectiveMax;
@@ -3871,8 +3910,9 @@ function AppInner() {
     // Resolve the target system's ring to find the closest observatory slot
     const targetSystem = engineRef.current?.getAllSystems()?.find((s) => s.id === systemId);
     const targetRing = targetSystem?.ringIndex ?? 1;
-    // Block ring N if ring N-1 is not fully researched
-    if (targetRing > 1) {
+    // Personal/neighbor gates are true rings. Core/deep systems branch from
+    // researched stars instead, so Ring 4+ must not wait for a whole previous ring.
+    if (targetRing > 1 && targetRing <= 3) {
       const allSystems = engineRef.current?.getAllSystems() ?? [];
       if (!isRingFullyResearched(researchState, allSystems, targetRing - 1)) return;
     }
@@ -3958,6 +3998,11 @@ function AppInner() {
 
   const triggerRingUnlockAfterCompletion = useCallback((system: StarSystem) => {
     if (needsOnboarding || system.ringIndex < 1) return;
+
+    if (system.ringIndex >= 3) {
+      engineRef.current?.playBranchUnlock(system.id);
+      return;
+    }
 
     const allSystems = engineRef.current?.getAllSystems?.() ?? [];
     const completedRingSystems = allSystems.filter(
@@ -5792,7 +5837,7 @@ function AppInner() {
     if (!radialSystem) return null;
     if (researchState.slots.length === 0) return t('errors.noObservatories');
     if (findFreeSlot(researchState) < 0) return t('errors.allSlotsOccupied');
-    if (radialSystem.ringIndex > 1) {
+    if (radialSystem.ringIndex > 1 && radialSystem.ringIndex <= 3) {
       const allSys = engineRef.current?.getAllSystems() ?? [];
       if (!isRingFullyResearched(researchState, allSys, radialSystem.ringIndex - 1)) {
         return t('research.panel_ring_locked').replace('{ring}', String(radialSystem.ringIndex - 1));
@@ -6508,7 +6553,7 @@ function AppInner() {
           allSystems={engineRef.current?.getAllSystems() ?? []}
           activeSlotTimerText={activeSlotTimer}
           researchData={Math.floor(researchData)}
-          maxResearchRing={getEffectiveResearchMaxRing(engineRef.current?.getAllSystems() ?? [])}
+          maxResearchRing={getEffectiveResearchMaxRing(engineRef.current?.getAllSystems() ?? [], state.selectedSystem.id)}
           onStartResearch={handleStartResearch}
           onClose={() => setShowSystemResearch(false)}
         />
@@ -6868,10 +6913,10 @@ function AppInner() {
           onBuildPanelChange={setSurfaceBuildPanelOpen}
           playerLevel={playerLevel}
           techTreeState={techTreeState}
-          minerals={getResources(surfaceTarget.planet.id).minerals}
-          volatiles={getResources(surfaceTarget.planet.id).volatiles}
-          isotopes={getResources(surfaceTarget.planet.id).isotopes}
-          water={getResources(surfaceTarget.planet.id).water}
+          minerals={colonyResources.minerals}
+          volatiles={colonyResources.volatiles}
+          isotopes={colonyResources.isotopes}
+          water={colonyResources.water}
           chemicalInventory={chemicalInventory}
           onElementChange={handleElementChange}
           onConsumeIsotopes={(amount) => {
@@ -6880,7 +6925,7 @@ function AppInner() {
           }}
           onResourceDeducted={(delta) => {
             const pid = surfaceTarget.planet.id;
-            addResources(pid, {
+            spendResourcesAcrossPlanets(pid, {
               minerals:  delta.minerals  ?? 0,
               volatiles: delta.volatiles ?? 0,
               isotopes:  delta.isotopes  ?? 0,

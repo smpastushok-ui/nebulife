@@ -430,10 +430,24 @@ function canAffordCost(
   chemInv?: Record<string, number>,
   elementCosts?: Record<string, number>,
 ): boolean {
-  if (resources.minerals < (cost.minerals ?? 0)) return false;
-  if (resources.volatiles < (cost.volatiles ?? 0)) return false;
-  if (resources.isotopes < (cost.isotopes ?? 0)) return false;
-  if (resources.water < (cost.water ?? 0)) return false;
+  const amount = (value: unknown): number => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (typeof value !== 'string') return 0;
+    const raw = value.trim().toLowerCase().replace(/\s/g, '').replace(',', '.');
+    const match = raw.match(/^(-?\d+(?:\.\d+)?)(кк|kk|m|м|к|k)?$/);
+    if (!match) return Number(raw) || 0;
+    const base = Number(match[1]);
+    const suffix = match[2];
+    if (!Number.isFinite(base)) return 0;
+    if (suffix === 'кк' || suffix === 'kk' || suffix === 'm' || suffix === 'м') return base * 1_000_000;
+    if (suffix === 'к' || suffix === 'k') return base * 1_000;
+    return base;
+  };
+
+  if (amount(resources.minerals) < (cost.minerals ?? 0)) return false;
+  if (amount(resources.volatiles) < (cost.volatiles ?? 0)) return false;
+  if (amount(resources.isotopes) < (cost.isotopes ?? 0)) return false;
+  if (amount(resources.water) < (cost.water ?? 0)) return false;
   if (elementCosts && chemInv) {
     for (const [el, amount] of Object.entries(elementCosts)) {
       if ((chemInv[el] ?? 0) < amount) return false;

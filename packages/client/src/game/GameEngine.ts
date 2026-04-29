@@ -4,7 +4,6 @@ import {
   assignPlayerPosition,
   assignPlayerToGroup,
   isSystemFullyResearched,
-  delaunayEdges,
   deriveGroupSeed,
   PLAYERS_PER_GROUP,
   generateGalaxyGroupCore,
@@ -54,6 +53,7 @@ export class GameEngine {
   private _neighborSystems: Array<{ system: StarSystem; ownerIndex: number }> = [];
   private _coreSystems: Array<{ system: StarSystem; coreId: number; depth: number; coreNeighborIds: number[] }> = [];
   private pendingRingUnlocks: number[] = [];
+  private pendingBranchUnlocks: string[] = [];
 
   /** Galaxy-wide cluster info for background visualization */
   private groupCount = 1;
@@ -107,6 +107,7 @@ export class GameEngine {
 
   setResearchState(state: ResearchState) {
     this.researchState = state;
+    this.galaxyScene?.setResearchState(state);
   }
 
   /**
@@ -265,6 +266,13 @@ export class GameEngine {
         window.setTimeout(() => this.playRingUnlock(ring), index * 900);
       });
     }
+    if (this.pendingBranchUnlocks.length > 0) {
+      const pending = [...this.pendingBranchUnlocks];
+      this.pendingBranchUnlocks = [];
+      pending.forEach((systemId, index) => {
+        window.setTimeout(() => this.playBranchUnlock(systemId), index * 450);
+      });
+    }
     // Galaxy idle — throttle to 30 FPS to save battery
     this.app.ticker.maxFPS = 30;
     this.callbacks.onSceneChange('galaxy');
@@ -348,6 +356,15 @@ export class GameEngine {
     }
     this.galaxyScene.playRingUnlock(newRing);
     this.camera.focusOnOrigin(this.galaxyScene.getUnlockFrameRadius(newRing), 1800);
+  }
+
+  /** From core onward, grow local branches from the completed star to nearby newly revealed nodes. */
+  playBranchUnlock(sourceSystemId: string): void {
+    if (!this.galaxyScene) {
+      this.pendingBranchUnlocks.push(sourceSystemId);
+      return;
+    }
+    this.galaxyScene.playBranchUnlock(sourceSystemId);
   }
 
   // System camera controls (system scene shares the camera)
@@ -472,35 +489,24 @@ export class GameEngine {
       positions.push({ x: pos.x, y: pos.y, idx: globalIdx });
     }
 
-    // Use Delaunay to find natural neighbors of this player. Edges are indices
-    // INTO `positions` (0..49 = slot in cluster), so we map via positions[i].idx
-    // to recover the real global index.
-    const points = positions.map(p => ({ x: p.x, y: p.y }));
-    const edges = delaunayEdges(points);
-
-    const mySlot = this.playerIndex - base; // 0..49
-    const myNeighborSlots = new Set<number>();
-    for (const [a, b] of edges) {
-      if (a === mySlot) myNeighborSlots.add(b);
-      if (b === mySlot) myNeighborSlots.add(a);
-    }
-
-    // For each neighbor (by cluster slot), generate their Ring 2 systems
-    for (const slot of myNeighborSlots) {
+    // The third expansion layer is not just Delaunay-adjacent players. It is
+    // the entry layer to all 49 other players in this cluster: each neighbor
+    // contributes their full 19-system local cluster, remapped onto our map.
+    for (let slot = 0; slot < PLAYERS_PER_GROUP; slot++) {
+      if (slot === this.playerIndex - base) continue;
       const neighborPos = positions[slot];
       const ni = neighborPos.idx; // real global index for the ownerPlayerId tag
       const neighborRings = generatePlayerRings(
         this.galaxySeed, neighborPos.x, neighborPos.y, `player-${ni}`,
       );
-      // Take only Ring 2 (outermost ring, index 2)
-      const ring2 = neighborRings.find(r => r.ringIndex === 2);
-      if (ring2) {
-        for (const sys of ring2.starSystems) {
+      for (const ring of neighborRings) {
+        for (const sys of ring.starSystems) {
           // Skip if already in personal systems (overlapping positions)
           if (!this.rings.some(r => r.starSystems.some(s => s.id === sys.id))) {
-            // Override ringIndex to 3 so neighbor systems require ast-probe tech
-            // (Phase 2 gate: L10-20, ast-probe grants max_ring_add +1 → effectiveMaxRing=3)
-            sys.ringIndex = 3;
+            // Foreign branch depth on this player's map:
+            // neighbor Ring 2 -> our Ring 3 entry, Ring 1 -> deeper, home -> final node.
+            sys.ringIndex = 3 + (2 - ring.ringIndex);
+            sys.ownerPlayerId = null;
             result.push({ system: sys, ownerIndex: ni });
           }
         }

@@ -220,6 +220,7 @@ export class GalaxyScene {
    * Entry stars are always visible (Tier 1/2 depending on effectiveMaxRing).
    */
   private coreEntryIds = new Set<string>();
+  private primaryCoreEntryId: string | null = null;
 
   /** Hierarchical web parent-lookup state.
    *  Populated during neighbor/core remap so the capillary web can cascade
@@ -383,6 +384,7 @@ export class GalaxyScene {
       // real direction (homePos → neighborHomePos). Keeps topology intuitive
       // (neighbor to the north appears at the north entry).
       const takenEntries = new Set<number>();
+      const ownerAnchorMap = new Map<number, { x: number; y: number }>();
       for (const ownerIndex of owners) {
         const neighborHome = assignPlayerPosition(galaxySeed, ownerIndex);
         const dir = Math.atan2(neighborHome.y - homeY, neighborHome.x - homeX);
@@ -397,6 +399,26 @@ export class GalaxyScene {
           takenEntries.add(bestIdx);
           this.ownerEntryMap.set(ownerIndex, { x: availableEntries[bestIdx].x, y: availableEntries[bestIdx].y });
         }
+
+        const systems = byOwner.get(ownerIndex) ?? [];
+        const inwardDir = Math.atan2(homeY - neighborHome.y, homeX - neighborHome.x);
+        let anchor = systems[0]?.system.position;
+        let anchorDiff = Infinity;
+        for (const { system } of systems) {
+          // The entry into a neighbor branch is one of their Ring 2 systems:
+          // choose the outer star facing our home direction, then translate
+          // that exact generated system onto this player's Ring 2 gateway.
+          const dx = system.position.x - neighborHome.x;
+          const dy = system.position.y - neighborHome.y;
+          if (Math.hypot(dx, dy) < 7) continue;
+          let diff = Math.abs(Math.atan2(dy, dx) - inwardDir);
+          if (diff > Math.PI) diff = Math.PI * 2 - diff;
+          if (diff < anchorDiff) {
+            anchorDiff = diff;
+            anchor = system.position;
+          }
+        }
+        if (anchor) ownerAnchorMap.set(ownerIndex, { x: anchor.x, y: anchor.y });
       }
 
       for (const { system, ownerIndex } of neighborSystems) {
@@ -407,11 +429,12 @@ export class GalaxyScene {
         let tx: number, ty: number;
         if (entry) {
           const neighborHome = assignPlayerPosition(galaxySeed, ownerIndex);
+          const branchAnchor = ownerAnchorMap.get(ownerIndex) ?? neighborHome;
           // Keep the neighbor's 19-system internal layout exactly as generated
-          // (so it still looks like their cluster) but translate the centroid
-          // to our Ring 2 entry point.
-          const localX = (system.position.x - neighborHome.x) * PX_PER_LY;
-          const localY = (system.position.y - neighborHome.y) * PX_PER_LY;
+          // (same star IDs/planet parameters) but translate the chosen Ring 2
+          // gateway star onto our Ring 2 entry point.
+          const localX = (system.position.x - branchAnchor.x) * PX_PER_LY;
+          const localY = (system.position.y - branchAnchor.y) * PX_PER_LY;
           const jrng = new SeededRNG(system.seed);
           tx = entry.x + localX + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
           ty = entry.y + localY + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
@@ -421,7 +444,7 @@ export class GalaxyScene {
           ty = (system.position.y - homeY) * PX_PER_LY;
         }
 
-        const node = this.buildSysNode(system, tx, ty, 3);
+        const node = this.buildSysNode(system, tx, ty, system.ringIndex);
         node.nodeType = 'neighbor';
         // BlurFilter removed for mobile perf — every filtered container
         // forced PixiJS into an off-screen render pass, and we had dozens
@@ -439,25 +462,31 @@ export class GalaxyScene {
     // Spatial remap (same reason as neighbors): core systems originally
     // plotted at true galaxy coords put them thousands of px away. We pick
     // the 12th Ring 2 system (the one NOT assigned to any neighbor) as the
-    // "core gateway" and translate the entire core cluster's centroid to
-    // sit right next to it. Internal mesh geometry is preserved.
+    // "core gateway" and translate the player's actual core entry star onto
+    // it. Internal mesh geometry is preserved, but the first thread no longer
+    // stretches from the gateway to a distant mesh centroid offset.
     if (coreSystems) {
       // Build coreId->systemId mapping for neighbor graph construction
       const coreIdToSysId = new Map<number, string>();
+      let coreAnchorX = 0;
+      let coreAnchorY = 0;
+      let hasCoreAnchor = false;
       for (const { system, coreId, depth } of coreSystems) {
         coreIdToSysId.set(coreId, system.id);
-        if (depth === 0) this.coreEntryIds.add(system.id);
+        if (depth === 0) {
+          this.coreEntryIds.add(system.id);
+          if (!this.primaryCoreEntryId) this.primaryCoreEntryId = system.id;
+          if (!hasCoreAnchor) {
+            coreAnchorX = system.position.x;
+            coreAnchorY = system.position.y;
+            hasCoreAnchor = true;
+          }
+        }
       }
-
-      // Compute core cluster centroid once — all core tx/ty will be shifted
-      // so this centroid lands on our chosen gateway Ring 2 system.
-      let coreCentroidX = 0, coreCentroidY = 0;
-      for (const { system } of coreSystems) {
-        coreCentroidX += system.position.x;
-        coreCentroidY += system.position.y;
+      if (!hasCoreAnchor && coreSystems[0]) {
+        coreAnchorX = coreSystems[0].system.position.x;
+        coreAnchorY = coreSystems[0].system.position.y;
       }
-      coreCentroidX /= Math.max(1, coreSystems.length);
-      coreCentroidY /= Math.max(1, coreSystems.length);
 
       // Reuse the 12th Ring 2 entry (highest-angle — the one skipped when
       // neighbors were assigned).
@@ -475,7 +504,7 @@ export class GalaxyScene {
         this.coreGateway = { x: gatewayX, y: gatewayY };
       }
 
-      for (const { system, coreId, coreNeighborIds } of coreSystems) {
+      for (const { system, coreId, depth, coreNeighborIds } of coreSystems) {
         // Build core neighbor graph (systemId -> neighbor systemIds)
         const neighborSysIds: string[] = [];
         for (const nid of coreNeighborIds) {
@@ -486,14 +515,16 @@ export class GalaxyScene {
 
         if (this.systemNodes.has(system.id)) continue;
 
-        // Keep internal mesh shape, translate centroid to gateway.
-        const localX = (system.position.x - coreCentroidX) * PX_PER_LY;
-        const localY = (system.position.y - coreCentroidY) * PX_PER_LY;
+        // Keep internal mesh shape, translate player's entry star to gateway.
+        const localX = (system.position.x - coreAnchorX) * PX_PER_LY;
+        const localY = (system.position.y - coreAnchorY) * PX_PER_LY;
         const jrng = new SeededRNG(system.seed);
         const tx = gatewayX + localX + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
         const ty = gatewayY + localY + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
 
         const node = this.buildSysNode(system, tx, ty, system.ringIndex);
+        node.ringIndex = 4 + Math.min(depth, 9);
+        node.system.ringIndex = node.ringIndex;
         node.nodeType = 'core';
         node.coreId = coreId;
         node.baseAlpha = 0;
@@ -1109,17 +1140,14 @@ export class GalaxyScene {
   private recomputeVisibleCoreIds(): void {
     this.visibleCoreIds.clear();
 
-    // Start with all entry stars (depth 0)
-    for (const entryId of this.coreEntryIds) {
-      this.visibleCoreIds.add(entryId);
-    }
+    // Start with the player's own core entry only. Other depth-0 entries
+    // belong to other players' routes and should not appear as extra spokes.
+    if (this.primaryCoreEntryId) this.visibleCoreIds.add(this.primaryCoreEntryId);
 
     // BFS: for each fully researched core system, add its direct neighbors
     const queue: string[] = [];
-    for (const entryId of this.coreEntryIds) {
-      if (isSystemFullyResearched(this.researchState, entryId)) {
-        queue.push(entryId);
-      }
+    if (this.primaryCoreEntryId && isSystemFullyResearched(this.researchState, this.primaryCoreEntryId)) {
+      queue.push(this.primaryCoreEntryId);
     }
 
     const processed = new Set<string>();
@@ -1165,15 +1193,29 @@ export class GalaxyScene {
       return 3;
     }
 
-    // Neighbor systems: ringIndex is always 3 (set in computeNeighborSystems)
+    // Neighbor branches: Ring 3 is the entry layer into each of the 49
+    // foreign players. Their inner systems are revealed by researching outward
+    // branch nodes, not by global ring waves.
     if (node.nodeType === 'neighbor') {
-      if (ri <= maxRing) return 1;
-      if (ri === maxRing + 1) return 2;
+      if (maxRing < 3) return ri === 3 ? 2 : 3;
+      if (ri === 3) return 1;
+      if (ri > 3) {
+        const owner = this.neighborOwnerMap.get(node.system.id);
+        if (owner === undefined) return 3;
+        for (const [, sibling] of this.systemNodes) {
+          if (sibling.nodeType !== 'neighbor') continue;
+          if (this.neighborOwnerMap.get(sibling.system.id) !== owner) continue;
+          if (sibling.ringIndex !== ri - 1) continue;
+          if (isSystemFullyResearched(this.researchState, sibling.system.id)) return 1;
+        }
+      }
       return 3;
     }
 
     // Core systems: must be in visibleCoreIds AND satisfy ring-based tier
     if (node.nodeType === 'core') {
+      // Core opens only after the personal/neighbor expansion reaches Ring 3.
+      if (maxRing < 3) return 3;
       // Not in visible set (not reachable via explored chain) -> hidden
       if (!this.visibleCoreIds.has(node.system.id)) return 3;
       // Core no longer behaves as strict rings. Once a core node is revealed
@@ -1281,8 +1323,28 @@ export class GalaxyScene {
     }
 
     if (candidates.length === 0) {
+      if (source.nodeType === 'neighbor') {
+        const owner = this.neighborOwnerMap.get(source.system.id);
+        for (const [, node] of this.systemNodes) {
+          if (node === source) continue;
+          if (node.nodeType !== 'neighbor') continue;
+          if (this.neighborOwnerMap.get(node.system.id) !== owner) continue;
+          if (node.ringIndex !== source.ringIndex + 1) continue;
+          if (node.visibilityTier !== 1) continue;
+          if (isSystemFullyResearched(this.researchState, node.system.id)) continue;
+          candidates.push(node);
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
       for (const [, node] of this.systemNodes) {
         if (node === source) continue;
+        if (source.nodeType === 'neighbor' && node.nodeType !== 'neighbor') continue;
+        if (
+          source.nodeType === 'neighbor'
+          && this.neighborOwnerMap.get(node.system.id) !== this.neighborOwnerMap.get(source.system.id)
+        ) continue;
         if (node.system.ownerPlayerId !== null) continue;
         if (node.visibilityTier !== 1) continue;
         if (node.ringIndex < Math.max(4, source.ringIndex + 1)) continue;
@@ -2057,6 +2119,12 @@ export class GalaxyScene {
     }
   }
 
+  setResearchState(researchState: ResearchState): void {
+    this.researchState = researchState;
+    this.recomputeVisibleCoreIds();
+    this.applyAllVisibilityTiers();
+  }
+
   /* ── Frame update ──────────────────────────────────────────── */
 
   update(deltaMs: number) {
@@ -2464,17 +2532,9 @@ export class GalaxyScene {
         return nearestFrom(node.tx, node.ty, ring1Pos) ?? { x: homeX, y: homeY };
       }
       if (node.nodeType === 'neighbor') {
-        if (node.ringIndex === 3) {
-          const oi = this.neighborOwnerMap.get(node.system.id);
-          const entry = oi !== undefined ? this.ownerEntryMap.get(oi) : undefined;
-          // First neighbor star must grow from the exact Ring 2 gateway that
-          // owns this neighbor branch. Nearest-screen fallback can make a lone
-          // Ring 3 node appear connected from a random crossing thread.
-          return entry ?? nearestFrom(node.tx, node.ty, ring2Pos);
-        }
         const oi = this.neighborOwnerMap.get(node.system.id);
         const entry = oi !== undefined ? this.ownerEntryMap.get(oi) : undefined;
-        if (!entry) return null;
+        if (!entry) return nearestFrom(node.tx, node.ty, ring2Pos);
         // Within the neighbor's sub-cluster, attach each node to its nearest
         // same-owner sibling that is closer to the entry point (forms a
         // capillary tree inside the cluster).

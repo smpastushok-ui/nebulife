@@ -132,8 +132,9 @@ export function ResearchPanel({
   const research = getSystemResearch(researchState, system.id);
   const obs = research?.observation;
   const isResearching = researchState.slots.some((s) => s.systemId === system.id);
-  // Ring gating: Ring N requires all Ring N-1 systems to be 100% researched
-  const ringLocked = system.ringIndex > 1
+  // Ring gating applies only to personal/neighbor rings. Core/deep systems
+  // (Ring 4+) are unlocked by branch graph from researched stars.
+  const ringLocked = system.ringIndex > 1 && system.ringIndex <= 3
     && !isRingFullyResearched(researchState, allSystems, system.ringIndex - 1);
   const techLocked = maxResearchRing !== undefined && system.ringIndex > maxResearchRing;
   const hasData = researchData >= RESEARCH_DATA_COST;
