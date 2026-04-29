@@ -59,6 +59,7 @@ const SHIP_FILES: Record<string, string> = {
 // GLB models — blue for player + blue team, red for enemies.
 const SHIP_GLB_BLUE = '/arena_ships/blue_ship.glb';
 const SHIP_GLB_RED  = '/arena_ships/red_ship.glb';
+const ARENA_BACKDROP_URL = '/arena/arena-backdrop.jpg';
 
 function teamFromShipId(shipId: string): Team {
   return shipId === 'red' || shipId === 'red_ship' ? 'red' : 'blue';
@@ -494,6 +495,7 @@ export class ArenaEngine {
     this.setupRenderer();
     this.setupScene();
     this.setupCamera();
+    this.setupBackdrop();
     // Floor grid removed — incompatible with TPS chase-cam angle (user sees
     // the floor at an oblique angle and it reads as static "ice", hurting
     // speed perception). Starfield alone gives better motion cues.
@@ -755,6 +757,37 @@ export class ArenaEngine {
     this.camera = new THREE.PerspectiveCamera(CAMERA_FOV, W / H, 1, 15000);
     this.camera.position.set(0, CAMERA_HEIGHT, CAMERA_DISTANCE);
     this.camera.lookAt(0, 0, 0);
+  }
+
+  private setupBackdrop(): void {
+    const tier = getDeviceTier();
+    if (tier === 'low') return;
+
+    const segments = 48;
+    const rings = 24;
+    const texture = new THREE.TextureLoader().load(ARENA_BACKDROP_URL);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+
+    const geo = new THREE.SphereGeometry(12000, segments, rings);
+    const mat = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.BackSide,
+      transparent: true,
+      opacity: 0.82,
+      depthWrite: false,
+      depthTest: false,
+      fog: false,
+    });
+    this.disposables.push(texture, geo, mat);
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = 'arena_panoramic_backdrop';
+    mesh.renderOrder = -100;
+    mesh.rotation.y = -Math.PI / 2;
+    this.scene.add(mesh);
   }
 
   private setupFloor(): void {
