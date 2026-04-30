@@ -67,7 +67,8 @@
 #### ⚔️ Вектор E — "Clans + territory control" (Q3)
 - Cluster = natural clan (50 гравців). Dopuscaćме можливість leader elections.
 - Territorial control: alliance контролює core zone → passive resource bonus.
-- PvP: arena вже live (L50+), expand у territorial defense / raid.
+- PvP: arena вже live (L50+), expand у territorial defense.
+- PvE: Carrier Raid як другий Hangar-режим — 1 гравець + 4 AI wingmen проти носія, модулів і хвиль дронів.
 - Trade: marketplace для rare life-forms, AI-photos, 3D models.
 - Мета: ARPU ×5 через premium clan subscriptions ($4.99 → leader perks).
 
@@ -1061,6 +1062,7 @@ GET /api/surface/status/:id (polling кожні 5с)
 
 - **HangarPage** — preview обраного корабля (Babylon.js ArcRotateCamera)
 - **ArenaEngine** — замість дефолтних Three.js кораблів використовує `.glb` гравця як mesh для його ship entity
+- **RaidEngine** — використовує `.glb` гравця з Hangar, а союзники/вороги/носій процедурні та mobile-capped
 - **SystemScene** — невеликий ship icon біля player home (при navigation)
 - **Clan banner** — flagship клану відображається на cluster map (якщо clan owner підключив)
 

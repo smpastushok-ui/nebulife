@@ -58,6 +58,13 @@
 - Заснування колонії
 - Видобуток ресурсів на супутниках
 
+### Hangar PvE: Carrier Raid
+- Окремий режим поруч з існуючою Space Arena, не замінює арену.
+- Склад: 1 корабель гравця з Hangar + 4 процедурні AI wingmen.
+- Ціль: великий carrier з модулями (`hangar_bay`, `shield_emitter`, `turret_cluster`, `reactor_core`).
+- Бій: хвилі малих процедурних дронів, знищення щитів відкриває reactor phase.
+- Mobile budget: Tripo/GLB тільки для корабля гравця; масові союзники/вороги та carrier — процедурні low-poly meshes.
+
 ---
 
 ## 3. Universe Generation

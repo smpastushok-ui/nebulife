@@ -249,14 +249,21 @@ export class GameEngine {
     // Pan bounds widened so player can pan across the entire cluster —
     // including far neighbors (~6500 px from own home).
     this.camera.setPanBounds(6000);
+    // Position HOME inside the mobile safe area: below the resource HUD and
+    // above the bottom CommandBar/chat controls so stars do not start under UI.
+    const isPortraitMobile = window.innerWidth < 700 && window.innerHeight > window.innerWidth;
+    const galaxySafeTop = isPortraitMobile ? 92 : 0;
+    const galaxySafeBottom = isPortraitMobile ? 150 : 0;
+    const safeCenterY = galaxySafeTop + (this.app.screen.height - galaxySafeTop - galaxySafeBottom) / 2;
+    const initialFitRadius = isPortraitMobile ? 330 : 320;
     // Position HOME at center of screen
     this.galaxyScene.container.x = this.app.screen.width / 2;
-    this.galaxyScene.container.y = this.app.screen.height * 0.45;
+    this.galaxyScene.container.y = isPortraitMobile ? safeCenterY : this.app.screen.height * 0.45;
     // Initial zoom: fit own 19 systems (Ring 2 radius = 10 LY × PX_PER_LY
     // ≈ 180 px + jitter + margin). Wide cluster view was disorienting at
     // entry; player will zoom-out progressively as rings are completed
     // (ring-completion animation in follow-up release).
-    this.camera.resetToFit(240);
+    this.camera.resetToFit(initialFitRadius);
     // Force lite-orbs redraw with correct viewport now that camera is positioned
     this.galaxyScene.refreshLiteOrbs();
     if (this.pendingRingUnlocks.length > 0) {

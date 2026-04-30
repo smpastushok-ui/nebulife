@@ -26,6 +26,7 @@ interface HangarPageProps {
   onBack: () => void;
   onEnterArena: () => void;
   onEnterTeamBattle?: () => void;
+  onEnterRaid?: () => void;
 }
 
 // ── Ship slots ───────────────────────────────────────────────────────────────
@@ -129,6 +130,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   onBack,
   onEnterArena,
   onEnterTeamBattle,
+  onEnterRaid,
 }) => {
   const { t } = useT();
   const [mounted, setMounted] = useState(false);
@@ -210,6 +212,16 @@ export const HangarPage: React.FC<HangarPageProps> = ({
       setTimeout(() => setToast(null), 2500);
     }
   }, [onEnterTeamBattle, t, teamBattleUnlocked]);
+
+  const handleEnterRaid = useCallback(() => {
+    playSfx('ui-click', 0.07);
+    if (onEnterRaid) {
+      onEnterRaid();
+    } else {
+      setToast(t('hangar.event.coming_soon'));
+      setTimeout(() => setToast(null), 2500);
+    }
+  }, [onEnterRaid, t]);
 
   const handleToggleControls = useCallback(() => {
     playSfx('ui-click', 0.07);
@@ -387,6 +399,24 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 >
                   {t('hangar.event.training_enter')}
                 </button>
+              </div>
+
+              <div style={{
+                ...S.entrySection,
+                ...S.desktopFlushBlock,
+                borderColor: onEnterRaid ? '#445566' : '#223344',
+                opacity: mounted ? 1 : 0,
+                transition: 'opacity 0.5s ease 0.95s',
+              }}>
+                <div style={{ ...S.entryTitle, color: '#7bb8ff' }}>
+                  {t('hangar.event.raid')}
+                </div>
+                <div style={S.entryDesc}>{t('hangar.event.raid_desc')}</div>
+                <div style={S.entryButtons}>
+                  <button style={S.entryRaid} onClick={handleEnterRaid}>
+                    {t('hangar.event.raid_enter')}
+                  </button>
+                </div>
               </div>
 
               <div style={{
@@ -581,6 +611,23 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           >
             {t('hangar.event.training_enter')}
           </button>
+        </div>
+
+        <div style={{
+          ...S.entrySection,
+          borderColor: onEnterRaid ? '#445566' : '#223344',
+          opacity: mounted ? 1 : 0,
+          transition: 'opacity 0.5s ease 0.95s',
+        }}>
+          <div style={{ ...S.entryTitle, color: '#7bb8ff' }}>
+            {t('hangar.event.raid')}
+          </div>
+          <div style={S.entryDesc}>{t('hangar.event.raid_desc')}</div>
+          <div style={S.entryButtons}>
+            <button style={S.entryRaid} onClick={handleEnterRaid}>
+              {t('hangar.event.raid_enter')}
+            </button>
+          </div>
         </div>
 
         {/* ── Controls panel (desktop only) ─────────────────────── */}
@@ -1159,6 +1206,15 @@ const S: Record<string, React.CSSProperties> = {
     color: '#7bb8ff', fontFamily: 'monospace', fontSize: 11,
     letterSpacing: 2, cursor: 'pointer', textTransform: 'uppercase',
     animation: 'hangarPulse 2s ease-in-out infinite',
+  },
+  entryRaid: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '10px 28px',
+    background: 'linear-gradient(135deg, rgba(68,136,170,0.18), rgba(12,22,36,0.86))',
+    border: '1px solid #446688', borderRadius: 4,
+    color: '#7bb8ff', fontFamily: 'monospace', fontSize: 11,
+    letterSpacing: 2, cursor: 'pointer', textTransform: 'uppercase',
+    animation: 'hangarPulse 2.4s ease-in-out infinite',
   },
 
   // Tournament

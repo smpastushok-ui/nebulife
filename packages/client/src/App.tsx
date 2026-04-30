@@ -135,6 +135,7 @@ import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
+import { CarrierRaid } from './ui/components/Raid/CarrierRaid.js';
 import { ColonyCenterPage, RESOURCE_BOOST_PRICES, TIME_BOOST_PRICES, BOOST_DURATION_MS } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import type { ColonyCenterPlanet } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import { SpaceAmbient } from './audio/SpaceAmbient.js';
@@ -1530,6 +1531,11 @@ function AppInner() {
     if (val) localStorage.setItem('nebulife_arena_active', '1');
     else localStorage.removeItem('nebulife_arena_active');
   }, []);
+  const [showRaid, setShowRaidRaw] = useState(false);
+  const setShowRaid = useCallback((val: boolean) => {
+    setShowRaidRaw(val);
+    setArenaPopupGate(val);
+  }, []);
   // Post-arena popup queue — popups that were deferred while arena was active
   // are flushed here 1.5 s apart once the arena closes.
   const [pendingPostArenaPopups, setPendingPostArenaPopups] = useState<Array<() => void>>([]);
@@ -1546,14 +1552,14 @@ function AppInner() {
 
   // Ref to showArena that stays current inside callbacks without re-creating them.
   const showArenaRef = useRef(false);
-  useEffect(() => { showArenaRef.current = showArena; }, [showArena]);
+  useEffect(() => { showArenaRef.current = showArena || showRaid; }, [showArena, showRaid]);
 
   useEffect(() => {
     if (!showCosmicArchive) return;
-    if (showArena || showHangar || showAcademy || showPlayerPage || showColonyCenter || showTerraformPlanet) {
+    if (showArena || showRaid || showHangar || showAcademy || showPlayerPage || showColonyCenter || showTerraformPlanet) {
       setShowCosmicArchive(false);
     }
-  }, [showArena, showHangar, showAcademy, showPlayerPage, showColonyCenter, showTerraformPlanet, showCosmicArchive]);
+  }, [showArena, showRaid, showHangar, showAcademy, showPlayerPage, showColonyCenter, showTerraformPlanet, showCosmicArchive]);
 
   // Pause SpaceAmbient when player is on planet surface or inside the
   // Terminal (Cosmic Archive) overlay - those scenes will get their own
@@ -1571,7 +1577,7 @@ function AppInner() {
   useEffect(() => {
     const ambient = ambientRef.current;
     if (!ambient) return;
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || needsOnboarding;
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || needsOnboarding;
     const wasPaused = prevAmbientPausedRef.current;
     if (shouldPause && !wasPaused) {
       ambient.pause();
@@ -1579,7 +1585,7 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, needsOnboarding]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, needsOnboarding]);
 
   // Retain last planet context so colony tick can run passively when surface is closed.
   useEffect(() => {
@@ -1590,13 +1596,13 @@ function AppInner() {
   // hangar or arena is open — even if the player left surfaceTarget set,
   // the surface scene itself unmounts so audio must stop too.
   useEffect(() => {
-    if (surfaceTarget && !showHangar && !showArena) {
+    if (surfaceTarget && !showHangar && !showArena && !showRaid) {
       playLoop('planet-loop', 0.1);
     } else {
       stopLoop('planet-loop');
     }
     return () => stopLoop('planet-loop');
-  }, [surfaceTarget, showHangar, showArena]);
+  }, [surfaceTarget, showHangar, showArena, showRaid]);
 
   // Terminal ambient loop — new user-supplied track (terminal-loop.mp3),
   // loops at 40% volume while the Cosmic Archive is open. Initial volume
@@ -1613,7 +1619,7 @@ function AppInner() {
       try { if (localStorage.getItem('nebulife_terminal_muted') === '1') vol = 0; } catch { /* ignore */ }
       playLoop('terminal-loop.mp3', vol);
       // Duck the surface planet-loop if it is currently running
-      if (surfaceTarget && !showHangar && !showArena) {
+      if (surfaceTarget && !showHangar && !showArena && !showRaid) {
         const FADE_STEPS = 14;
         const FADE_INTERVAL = 50; // ms → total ~700 ms
         const targetVol = 0;
@@ -1629,7 +1635,7 @@ function AppInner() {
     } else {
       stopLoop('terminal-loop.mp3');
       // Restore surface music volume if surface is still active
-      if (surfaceTarget && !showHangar && !showArena) {
+      if (surfaceTarget && !showHangar && !showArena && !showRaid) {
         const FADE_STEPS = 14;
         const FADE_INTERVAL = 50; // ms → total ~700 ms
         const targetVol = 0.1;
@@ -2137,6 +2143,7 @@ function AppInner() {
   useEffect(() => {
     if (!isTutorialActive) return;
     setShowArena(false);
+    setShowRaid(false);
     setShowHangar(false);
     setShowCosmicArchive(false);
     setShowAcademy(false);
@@ -3454,7 +3461,7 @@ function AppInner() {
   const pendingPopupsRef = useRef<Array<() => void>>([]);
   useEffect(() => { pendingPopupsRef.current = pendingPostArenaPopups; }, [pendingPostArenaPopups]);
   useEffect(() => {
-    if (showArena) return; // still in arena
+    if (showArena || showRaid) return; // still in arena/raid
     if (pendingPostArenaPopups.length === 0) return;
     // Fire each deferred popup with a 1.5 s gap between them.
     const queue = [...pendingPostArenaPopups];
@@ -3468,7 +3475,7 @@ function AppInner() {
       void t;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showArena]);
+  }, [showArena, showRaid]);
 
   // Ring-unlock growth is map-native: the camera frames the galaxy map while
   // GalaxyScene grows real parent→system threads to newly available stars.
@@ -3519,7 +3526,8 @@ function AppInner() {
   // never appears behind the hangar / terminal / academy / surface etc.
   useEffect(() => {
     if (!evacuationTarget || evacuationPhase !== 'idle' || evacuationPromptDismissed) return;
-    setShowArena(false);
+      setShowArena(false);
+      setShowRaid(false);
     setShowHangar(false);
     setShowCosmicArchive(false);
     setShowAcademy(false);
@@ -5972,7 +5980,7 @@ function AppInner() {
   // floating in the corner during the planet-approach phase, breaking the
   // cinematic. Stage 1 (system flight) intentionally hides it too so both
   // ship-flight stages have the same chrome-free background.
-  const hideLeftPanel = !!(showArena || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
+  const hideLeftPanel = !!(showArena || showRaid || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
 
   const toolGroups: ToolGroup[] = [];
 
@@ -6127,7 +6135,7 @@ function AppInner() {
       <div ref={canvasRef} id="game-canvas" style={{ display: universeVisible ? 'none' : undefined }} />
 
       {/* Resource HUD — top center (hidden in arena, hangar, and during intro) */}
-      {!showArena && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
+      {!showArena && !showRaid && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
         researchData={Math.floor(researchData)}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
@@ -6316,7 +6324,7 @@ function AppInner() {
       />
 
       {/* CommandBar — visible at bottom (hidden during cinematic intro) */}
-      {!cinematicActive && !showArena && !showHangar && (
+      {!cinematicActive && !showArena && !showRaid && !showHangar && (
         <CommandBar
           scene={effectiveScene}
           navigationItems={navigationItems}
@@ -6862,7 +6870,7 @@ function AppInner() {
           грати" + follow-up "щоб екзосфера зникала всюди окрім екзосфери".
           So: only render when NO full-screen overlay is active. */}
       {(state.scene === 'home-intro' || state.scene === 'planet-view') && homeInfo
-        && !showArena && !showHangar && !surfaceTarget
+        && !showArena && !showRaid && !showHangar && !surfaceTarget
         && !showPlayerPage && !showCosmicArchive && !showAcademy
         && !showChaosModal && !showTopUpModal
         && evacuationPhase !== 'stage4-orbit' && (
@@ -6882,7 +6890,7 @@ function AppInner() {
       {/* Surface View (biosphere level) — unmount whenever hangar or arena is
           up so the surface's audio loop + render pipeline fully release.
           Without this the planet-loop plays over the hangar/arena ambience. */}
-      {surfaceTarget && !showHangar && !showArena && (
+      {surfaceTarget && !showHangar && !showArena && !showRaid && (
         <SurfaceShaderView
           ref={surfaceViewRef}
           planet={surfaceTarget.planet}
@@ -7385,7 +7393,7 @@ function AppInner() {
       )}
 
       {/* Hangar — intermediate page between main game and Space Arena */}
-      {showHangar && !showArena && (
+      {showHangar && !showArena && !showRaid && (
         <HangarPage
           playerLevel={playerLevel}
           arenaStats={arenaStats}
@@ -7402,6 +7410,12 @@ function AppInner() {
             setShowHangar(false);
             setShowArena(true);
           }}
+          onEnterRaid={() => {
+            syncGameStateRef.current(); // push latest state to server before raid
+            setArenaTeamMode(false);
+            setShowHangar(false);
+            setShowRaid(true);
+          }}
         />
       )}
 
@@ -7414,6 +7428,18 @@ function AppInner() {
             setShowArena(false);
             setArenaTeamMode(false);
             // Return to Hangar after arena exit
+            setShowHangar(true);
+            interstitialManager.tryShow();
+          }}
+        />
+      )}
+
+      {/* Carrier Raid */}
+      {showRaid && (
+        <CarrierRaid
+          onAwardXP={awardXP}
+          onExit={() => {
+            setShowRaid(false);
             setShowHangar(true);
             interstitialManager.tryShow();
           }}
@@ -7518,6 +7544,7 @@ function AppInner() {
         && !needsOnboarding
         && !needsCallsign
         && !showArena
+        && !showRaid
         && !showHangar
         && !cinematicActive
         && !surfaceTarget
@@ -7558,7 +7585,7 @@ function AppInner() {
       )}
 
       {/* Chat widget (visible when authenticated, not in onboarding/arena/hangar) */}
-      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showHangar && playerId.current && (
+      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showRaid && !showHangar && playerId.current && (
         <ChatWidget
           playerId={playerId.current}
           playerName={state.playerName}
@@ -7586,7 +7613,7 @@ function AppInner() {
       )}
 
       {/* Mission Tracker HUD chip — visible when there are terraform missions */}
-      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showHangar && fleet.length > 0 && (
+      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showRaid && !showHangar && fleet.length > 0 && (
         <MissionTracker
           missions={fleet}
           fleetCapacity={Math.max(1, fleet.length)}

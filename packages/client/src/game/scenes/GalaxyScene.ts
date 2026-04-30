@@ -73,7 +73,7 @@ const SPECTRAL_PARTICLE_COLOR: Record<string, number> = {
 /* ── Layout constants ──────────────────────────────────────────── */
 
 /** Pixels per light-year for hex->screen conversion */
-const PX_PER_LY = 20;
+const PX_PER_LY = 26;
 
 /** Easing speed for alpha transitions */
 const ANIM_SPEED = 5;
@@ -807,7 +807,7 @@ export class GalaxyScene {
     // ── Пост-обробка: розсунути близькі орби, щоб уникнути накладання ───────
     // Detect pairs closer than MIN_SEP pixels and spread them along their
     // connecting line. Done once globally after all positions are computed.
-    const MIN_SEP = 14;
+    const MIN_SEP = 24;
     const entries = Array.from(this.translatedLitePositions.entries());
     const len = entries.length;
     // Spatial hash grid for O(N) pairwise separation (cell size = MIN_SEP)
