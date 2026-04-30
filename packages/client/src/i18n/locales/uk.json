@@ -1086,7 +1086,9 @@
     "researching_btn": "Досліджується",
     "research_btn": "Дослідити",
     "researched_tooltip": "Досліджено",
-    "status_complete": "100% досліджено",
+    "status_complete": "Досліджено",
+    "status_100_researched": "100% досліджена",
+    "show_next_systems": "Показати наступні {{count}} · ще {{remaining}}",
     "status_scanning": "Сканується",
     "status_ready": "Готово",
     "status_locked": "Закрито",
@@ -1548,13 +1550,11 @@
     "action_result_no_deposit": "До цiєї будiвлi ще не пiдключено скiнченний поклад.",
     "action_result_power": "Енергомаршрут стабiльний. Критичнi споживачi мають прiоритет при дефiцитi.",
     "action_result_chemistry": "Цикл завершено: леткi роздiлено на iзотопнi слiди та конденсовану воду.",
-    "upgrade": "Покращення",
-    "upgrade_desc": "Поточний backend безпечно зберiгає наступний рiвень будiвлi. Масштабування виробництва буде розширено в наступному економiчному проходi.",
-    "upgrade_aggregate_desc": "Вiдкрий конкретний модуль на поверхнi, щоб покращити його.",
-    "upgrade_button": "Покращити до L{{level}}",
-    "upgrade_busy": "Покращення...",
-    "upgrade_started": "Покращення збережено. Рiвень оновиться у локальному станi поверхнi.",
-    "upgrade_failed": "Не вдалося покращити"
+    "isotope_depleted_warning": "Поклади iзотопiв на цiй планетi вичерпанi. Будувати цей видобувач тут зараз немає сенсу.",
+    "danger_zone": "Демонтаж",
+    "demolish": "Зруйнувати будiвлю",
+    "demolish_desc": "Модуль буде прибрано з поверхнi. Ресурси за будiвництво не повертаються.",
+    "demolish_confirm": "Пiдтвердити демонтаж"
   },
   "terraform": {
     "dispatch_title": "Доставити {{resource}} на {{planet}}",
@@ -1619,6 +1619,9 @@
       "requires_atmosphere_50": "Потребує атмосферу ≥50%",
       "planet_not_terraformable": "Планета не підлягає терраформуванню"
     }
+  },
+  "hex": {
+    "isotope_depleted_warning": "Ізотопи вичерпані"
   },
   "colonies": {
     "population": "Населення",

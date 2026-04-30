@@ -489,9 +489,11 @@ export class GameEngine {
       positions.push({ x: pos.x, y: pos.y, idx: globalIdx });
     }
 
-    // The third expansion layer is not just Delaunay-adjacent players. It is
-    // the entry layer to all 49 other players in this cluster: each neighbor
-    // contributes their full 19-system local cluster, remapped onto our map.
+    // The third expansion layer is the entry layer to all 49 other players in
+    // this cluster. Each neighbor contributes ONE gateway star at Ring 3, then
+    // a small branch behind it. We intentionally do not import their full
+    // 19-star hexagon because that made every neighbor look like 12 simultaneous
+    // paths instead of a single frontier branch.
     for (let slot = 0; slot < PLAYERS_PER_GROUP; slot++) {
       if (slot === this.playerIndex - base) continue;
       const neighborPos = positions[slot];
@@ -499,17 +501,46 @@ export class GameEngine {
       const neighborRings = generatePlayerRings(
         this.galaxySeed, neighborPos.x, neighborPos.y, `player-${ni}`,
       );
-      for (const ring of neighborRings) {
-        for (const sys of ring.starSystems) {
-          // Skip if already in personal systems (overlapping positions)
-          if (!this.rings.some(r => r.starSystems.some(s => s.id === sys.id))) {
-            // Foreign branch depth on this player's map:
-            // neighbor Ring 2 -> our Ring 3 entry, Ring 1 -> deeper, home -> final node.
-            sys.ringIndex = 3 + (2 - ring.ringIndex);
-            sys.ownerPlayerId = null;
-            result.push({ system: sys, ownerIndex: ni });
-          }
+
+      const alreadyPersonal = (sys: StarSystem) => this.rings.some(r => r.starSystems.some(s => s.id === sys.id));
+      const ring0 = neighborRings.find(r => r.ringIndex === 0)?.starSystems[0];
+      const ring1 = neighborRings.find(r => r.ringIndex === 1)?.starSystems ?? [];
+      const ring2 = neighborRings.find(r => r.ringIndex === 2)?.starSystems ?? [];
+      const inwardDir = Math.atan2(this.playerPos.y - neighborPos.y, this.playerPos.x - neighborPos.x);
+
+      let gateway = ring2[0];
+      let gatewayDiff = Infinity;
+      for (const sys of ring2) {
+        const dx = sys.position.x - neighborPos.x;
+        const dy = sys.position.y - neighborPos.y;
+        let diff = Math.abs(Math.atan2(dy, dx) - inwardDir);
+        if (diff > Math.PI) diff = Math.PI * 2 - diff;
+        if (diff < gatewayDiff) {
+          gatewayDiff = diff;
+          gateway = sys;
         }
+      }
+
+      const branchInner = [...ring1]
+        .sort((a, b) => {
+          if (!gateway) return 0;
+          const da = Math.hypot(a.position.x - gateway.position.x, a.position.y - gateway.position.y);
+          const db = Math.hypot(b.position.x - gateway.position.x, b.position.y - gateway.position.y);
+          return da - db;
+        })
+        .slice(0, 3);
+
+      const branchSystems = [
+        gateway ? { system: gateway, ringIndex: 3 } : null,
+        ...branchInner.map((system) => ({ system, ringIndex: 4 })),
+        ring0 ? { system: ring0, ringIndex: 5 } : null,
+      ].filter(Boolean) as Array<{ system: StarSystem; ringIndex: number }>;
+
+      for (const { system, ringIndex } of branchSystems) {
+        if (alreadyPersonal(system)) continue;
+        system.ringIndex = ringIndex;
+        system.ownerPlayerId = null;
+        result.push({ system, ownerIndex: ni });
       }
     }
 

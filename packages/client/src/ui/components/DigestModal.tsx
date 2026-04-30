@@ -26,18 +26,22 @@ export function DigestModal({ images, weekDate, onClose }: DigestModalProps) {
         alignItems: 'center',
         justifyContent: 'center',
         fontFamily: 'monospace',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        padding: '18px 12px',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'relative',
-          maxWidth: 400,
-          maxHeight: '90vh',
+          width: 'min(100%, 400px)',
+          maxHeight: 'none',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: 12,
+          margin: 'auto',
         }}
       >
         {/* Header */}

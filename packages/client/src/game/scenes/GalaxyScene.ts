@@ -344,14 +344,11 @@ export class GalaxyScene {
       }
     }
 
-    /* ── Neighbor systems (adjacent players' Ring 2) ── */
-    // Spatial remap: previously each neighbor's 19 systems were drawn at
-    // their TRUE galaxy coordinates, which put them 25-150 LY (450-2700 px)
-    // away — the whole cluster sprawled across thousands of px. User wants
-    // a compact "capillary" web where each neighbor's sub-cluster attaches
-    // to ONE of our Ring 2 systems as a branch entry point. We keep the
-    // neighbor's internal hex layout intact (so the 19 systems read as a
-    // cluster) and just translate the centroid next to the assigned entry.
+    /* ── Neighbor systems (49 compact branch entries) ── */
+    // Ring 3 represents one gateway star per neighboring player, distributed
+    // across the player's 12 outer systems like a small 12-arm galaxy. Deeper
+    // neighbor systems are compact branch nodes, not the neighbor's full
+    // 19-star hexagon.
     if (neighborSystems && neighborSystems.length > 0) {
       // Collect our 12 Ring 2 system nodes with their angle around home.
       const ring2Entries: Array<{ angle: number; x: number; y: number }> = [];
@@ -375,69 +372,51 @@ export class GalaxyScene {
         byOwner.set(n.ownerIndex, arr);
       }
       const owners = Array.from(byOwner.keys()).sort((a, b) => a - b);
-      // Reserve the 12th Ring 2 entry (largest angle) for the galactic core
-      // branch — neighbors use only the first 11 (or fewer if we have fewer
-      // owners).
-      const availableEntries = ring2Entries.slice(0, Math.max(0, ring2Entries.length - 1));
+      const availableEntries = ring2Entries;
 
-      // Assign each owner to the Ring 2 entry whose angle is closest to the
-      // real direction (homePos → neighborHomePos). Keeps topology intuitive
-      // (neighbor to the north appears at the north entry).
-      const takenEntries = new Set<number>();
-      const ownerAnchorMap = new Map<number, { x: number; y: number }>();
+      const armCounts = new Map<number, number>();
+      const ownerBranchLayout = new Map<number, { x: number; y: number; angle: number }>();
       for (const ownerIndex of owners) {
         const neighborHome = assignPlayerPosition(galaxySeed, ownerIndex);
         const dir = Math.atan2(neighborHome.y - homeY, neighborHome.x - homeX);
         let bestIdx = -1, bestDiff = Infinity;
         for (let i = 0; i < availableEntries.length; i++) {
-          if (takenEntries.has(i)) continue;
           let diff = Math.abs(availableEntries[i].angle - dir);
           if (diff > Math.PI) diff = Math.PI * 2 - diff;
           if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
         }
         if (bestIdx >= 0) {
-          takenEntries.add(bestIdx);
-          this.ownerEntryMap.set(ownerIndex, { x: availableEntries[bestIdx].x, y: availableEntries[bestIdx].y });
+          const baseEntry = availableEntries[bestIdx];
+          const order = armCounts.get(bestIdx) ?? 0;
+          armCounts.set(bestIdx, order + 1);
+          const depth = Math.floor(order / 5);
+          const lane = (order % 5) - 2;
+          const radial = 58 + depth * 54 + (order % 2) * 14;
+          const tangent = lane * 15;
+          const angle = baseEntry.angle;
+          this.ownerEntryMap.set(ownerIndex, { x: baseEntry.x, y: baseEntry.y });
+          ownerBranchLayout.set(ownerIndex, {
+            x: baseEntry.x + Math.cos(angle) * radial + Math.cos(angle + Math.PI / 2) * tangent,
+            y: baseEntry.y + Math.sin(angle) * radial + Math.sin(angle + Math.PI / 2) * tangent,
+            angle,
+          });
         }
-
-        const systems = byOwner.get(ownerIndex) ?? [];
-        const inwardDir = Math.atan2(homeY - neighborHome.y, homeX - neighborHome.x);
-        let anchor = systems[0]?.system.position;
-        let anchorDiff = Infinity;
-        for (const { system } of systems) {
-          // The entry into a neighbor branch is one of their Ring 2 systems:
-          // choose the outer star facing our home direction, then translate
-          // that exact generated system onto this player's Ring 2 gateway.
-          const dx = system.position.x - neighborHome.x;
-          const dy = system.position.y - neighborHome.y;
-          if (Math.hypot(dx, dy) < 7) continue;
-          let diff = Math.abs(Math.atan2(dy, dx) - inwardDir);
-          if (diff > Math.PI) diff = Math.PI * 2 - diff;
-          if (diff < anchorDiff) {
-            anchorDiff = diff;
-            anchor = system.position;
-          }
-        }
-        if (anchor) ownerAnchorMap.set(ownerIndex, { x: anchor.x, y: anchor.y });
       }
 
       for (const { system, ownerIndex } of neighborSystems) {
         if (this.systemNodes.has(system.id)) continue;
         this.neighborOwnerMap.set(system.id, ownerIndex);
 
-        const entry = this.ownerEntryMap.get(ownerIndex);
+        const layout = ownerBranchLayout.get(ownerIndex);
         let tx: number, ty: number;
-        if (entry) {
-          const neighborHome = assignPlayerPosition(galaxySeed, ownerIndex);
-          const branchAnchor = ownerAnchorMap.get(ownerIndex) ?? neighborHome;
-          // Keep the neighbor's 19-system internal layout exactly as generated
-          // (same star IDs/planet parameters) but translate the chosen Ring 2
-          // gateway star onto our Ring 2 entry point.
-          const localX = (system.position.x - branchAnchor.x) * PX_PER_LY;
-          const localY = (system.position.y - branchAnchor.y) * PX_PER_LY;
+        if (layout) {
           const jrng = new SeededRNG(system.seed);
-          tx = entry.x + localX + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
-          ty = entry.y + localY + (jrng.next() - 0.5) * PX_PER_LY * 3.0;
+          const branchDepth = Math.max(0, system.ringIndex - 3);
+          const angle = layout.angle + (jrng.next() - 0.5) * 0.42;
+          const distance = branchDepth === 0 ? 0 : branchDepth === 1 ? 34 + jrng.next() * 24 : 76 + jrng.next() * 18;
+          const side = branchDepth === 0 ? 0 : (jrng.next() - 0.5) * (branchDepth === 1 ? 48 : 34);
+          tx = layout.x + Math.cos(angle) * distance + Math.cos(angle + Math.PI / 2) * side;
+          ty = layout.y + Math.sin(angle) * distance + Math.sin(angle + Math.PI / 2) * side;
         } else {
           // Fallback — no entry available. Use real galaxy coords.
           tx = (system.position.x - homeX) * PX_PER_LY;

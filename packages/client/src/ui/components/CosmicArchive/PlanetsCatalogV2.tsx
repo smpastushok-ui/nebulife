@@ -44,6 +44,8 @@ interface PlanetsCatalogV2Props {
   onToggleFavorite?: (planetId: string) => void;
   /** Set of currently favorited planet IDs. */
   favoritePlanetIds?: Set<string>;
+  /** Show only favorite planets while keeping the same visual layout as the main planets tab. */
+  onlyFavorites?: boolean;
   /** Per-planet resource getter — used by the detail panel stock rows. */
   getPlanetResources?: (planetId: string) => ColonyResources;
   /**
@@ -674,6 +676,8 @@ function PlanetCard({
         border: 'none',
         cursor: 'pointer',
         fontFamily: 'monospace',
+        outline: 'none',
+        borderRadius: 999,
       }}
     >
       {/* Circle wrapper — glow goes here */}
@@ -1642,6 +1646,7 @@ export function PlanetsCatalogV2({
   onOpenSurface,
   onToggleFavorite,
   favoritePlanetIds,
+  onlyFavorites = false,
   getPlanetResources,
   onSendTerraformDelivery,
   onCompleteTerraform,
@@ -1679,7 +1684,11 @@ export function PlanetsCatalogV2({
         pairs.push({ system: sys, planet: p });
       }
     }
-    pairs.sort((a, b) => {
+    const visiblePairs = onlyFavorites
+      ? pairs.filter(({ planet }) => favoritePlanetIds?.has(planet.id))
+      : pairs;
+
+    visiblePairs.sort((a, b) => {
       // Pinned/favorite planets always first
       const aPin = favoritePlanetIds?.has(a.planet.id) ? 0 : 1;
       const bPin = favoritePlanetIds?.has(b.planet.id) ? 0 : 1;
@@ -1719,8 +1728,8 @@ export function PlanetsCatalogV2({
       const dB = systemDistances.get(b.system.id) ?? Infinity;
       return dA - dB;
     });
-    return pairs;
-  }, [allSystems, systemDistances, favoritePlanetIds, selectedFilter, getPlanetResources, planetResourceStocks]);
+    return visiblePairs;
+  }, [allSystems, systemDistances, favoritePlanetIds, selectedFilter, getPlanetResources, planetResourceStocks, onlyFavorites]);
 
   // Apply single filter
   const filteredPairs = useMemo(() => {

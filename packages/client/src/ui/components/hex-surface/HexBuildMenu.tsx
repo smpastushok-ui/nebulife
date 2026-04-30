@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { BuildingType, PlanetType } from '@nebulife/core';
+import type { BuildingType, PlanetResourceStocks, PlanetType } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
 import { ResourceIcon, type ResourceType } from '../ResourceIcon.js';
+import { QuarksIcon } from '../ResourceDisplay.js';
 
 // Alpha harvester escalating quarks price
 const ALPHA_HARVESTER_PRICES = [50, 103, 206]; // 1st=$1.20, 2nd=$2.50, 3rd+=$5.00
@@ -19,6 +20,7 @@ interface HexBuildMenuProps {
   colonyResources: { minerals: number; volatiles: number; isotopes: number; water: number };
   chemicalInventory?: Record<string, number>;
   planetType?: PlanetType;
+  planetStocks?: PlanetResourceStocks;
   quarks?: number;
   alphaHarvesterCount?: number;
   onSelect: (type: BuildingType) => void;
@@ -134,6 +136,7 @@ export function HexBuildMenu({
   colonyResources,
   chemicalInventory = {},
   planetType,
+  planetStocks,
   quarks = 0,
   alphaHarvesterCount = 0,
   onSelect,
@@ -141,6 +144,7 @@ export function HexBuildMenu({
 }: HexBuildMenuProps) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
+  const [infoType, setInfoType] = useState<BuildingType | null>(null);
 
   // Close on outside click
   useEffect(() => {
@@ -173,6 +177,8 @@ export function HexBuildMenu({
       {/* Menu — centered on screen */}
       <div
         ref={menuRef}
+        onWheel={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
         style={{
           position: 'fixed',
           top: '50%',
@@ -216,6 +222,42 @@ export function HexBuildMenu({
           </button>
         </div>
 
+        {infoType && (
+          <div style={{
+            margin: '8px',
+            padding: '10px',
+            background: 'rgba(12,22,34,0.92)',
+            border: '1px solid rgba(68,136,170,0.38)',
+            borderRadius: 5,
+            color: '#8899aa',
+            fontSize: 10,
+            lineHeight: 1.45,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+              <strong style={{ color: '#9fd0ff', letterSpacing: 1, textTransform: 'uppercase' }}>
+                {t(`building.${infoType}.name`, BUILDING_DEFS[infoType].name)}
+              </strong>
+              <button
+                type="button"
+                onClick={() => setInfoType(null)}
+                style={{ background: 'none', border: 'none', color: '#667788', cursor: 'pointer', fontFamily: 'monospace' }}
+              >
+                x
+              </button>
+            </div>
+            <div>{t(`building.${infoType}.desc`, BUILDING_DEFS[infoType].description)}</div>
+            <div style={{ marginTop: 7, display: 'grid', gap: 4 }}>
+              <div>{t('building_detail.production')}: {BUILDING_DEFS[infoType].production.length > 0
+                ? BUILDING_DEFS[infoType].production.map((p) => `${p.resource} +${p.amount}/tick`).join(', ')
+                : t('building_detail.no_production')}</div>
+              <div>{t('building_detail.consumption')}: {BUILDING_DEFS[infoType].consumption.length > 0
+                ? BUILDING_DEFS[infoType].consumption.map((c) => `${c.resource} -${c.amount}/tick`).join(', ')
+                : t('building_detail.no_consumption')}</div>
+              <div>{t('academy.needs_level', { level: BUILDING_DEFS[infoType].levelRequired, defaultValue: `L${BUILDING_DEFS[infoType].levelRequired}` })}</div>
+            </div>
+          </div>
+        )}
+
         {/* Building grid — 3 columns per category */}
         <div style={{ padding: '4px 8px 8px' }}>
           {Object.entries(grouped).map(([cat, types]) => (
@@ -249,6 +291,8 @@ export function HexBuildMenu({
                   // Alpha harvester: quarks price instead of colony resources
                   const isAlpha = type === 'alpha_harvester';
                   const alphaPrice = isAlpha ? getAlphaHarvesterPrice(alphaHarvesterCount) : 0;
+                  const isotopeDepleted = (planetStocks?.remaining.isotopes ?? 1) <= 0
+                    && def.production.some((p) => p.resource === 'isotopes');
                   const canAfford = !isLocked && (isAlpha
                     ? quarks >= alphaPrice
                     : canAffordBuilding(def, colonyResources, chemicalInventory));
@@ -277,6 +321,29 @@ export function HexBuildMenu({
                         (e.currentTarget as HTMLDivElement).style.background = 'rgba(15,25,35,0.5)';
                       }}
                     >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setInfoType(type);
+                        }}
+                        style={{
+                          alignSelf: 'flex-end',
+                          marginBottom: -16,
+                          zIndex: 1,
+                          width: 18,
+                          height: 18,
+                          background: 'rgba(5,10,20,0.78)',
+                          border: '1px solid rgba(68,136,170,0.45)',
+                          borderRadius: 3,
+                          color: '#7bb8ff',
+                          fontFamily: 'monospace',
+                          fontSize: 10,
+                          cursor: 'help',
+                        }}
+                      >
+                        i
+                      </button>
                       {/* Building image — contain to show full image regardless of aspect ratio */}
                       <div style={{
                         width: 80, height: 80,
@@ -317,12 +384,15 @@ export function HexBuildMenu({
                       ) : isAlpha ? (
                         <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 8 }}>
                           <span style={{ color: canAfford ? '#ddaa44' : '#884444' }}>{alphaPrice}</span>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={canAfford ? '#ddaa44' : '#884444'} strokeWidth="2.5">
-                            <circle cx="12" cy="12" r="4" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                          </svg>
+                          <QuarksIcon size={10} />
                         </span>
                       ) : (
                         <CostIcons cost={def.cost} />
+                      )}
+                      {isotopeDepleted && (
+                        <span style={{ marginTop: 2, fontSize: 7, color: '#ff8844', textAlign: 'center' }}>
+                          {t('hex.isotope_depleted_warning', 'Ізотопи вичерпані')}
+                        </span>
                       )}
                     </div>
                   );

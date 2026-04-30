@@ -158,7 +158,7 @@ function ResearchDataIcon({ size }: { size: number }) {
 }
 
 /** SVG atom icon for Quarks */
-function QuarksIcon({ size }: { size: number }) {
+export function QuarksIcon({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="rgba(120,160,255,0.7)" strokeWidth="1.2" style={{ flexShrink: 0 }}>
       <circle cx="8" cy="8" r="2" />

@@ -195,6 +195,12 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
     return () => cancelAnimationFrame(rafRef.current);
   }, [currentTarget]);
 
+  useEffect(() => {
+    if (!currentTarget) return;
+    const el = document.querySelector(`[data-tutorial-id="${currentTarget}"]`) as HTMLElement | null;
+    el?.scrollIntoView?.({ block: 'center', inline: 'center', behavior: 'smooth' });
+  }, [currentTarget]);
+
   // Handle click on overlay — check if within spotlight bounds
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent) => {
@@ -241,11 +247,15 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
       };
     }
 
+    const panelWidth = 330;
+    const rightPanelLeft = window.innerWidth - panelWidth - 14;
+    const targetUnderRightPanel = targetRect ? targetRect.right > rightPanelLeft - 12 : false;
     return {
       position: 'fixed',
       top: 'calc(74px + env(safe-area-inset-top, 0px))',
-      right: 14,
-      width: 330,
+      right: targetUnderRightPanel ? undefined : 14,
+      left: targetUnderRightPanel ? 14 : undefined,
+      width: panelWidth,
       maxHeight: 'calc(100vh - 108px)',
     };
   };

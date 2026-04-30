@@ -556,6 +556,8 @@ function OnboardingSlides({
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
+      padding: '54px 0 116px',
+      boxSizing: 'border-box',
       opacity: fadeOut ? 0 : 1,
       transition: 'opacity 0.6s ease',
     }}>
@@ -574,6 +576,10 @@ function OnboardingSlides({
       <div style={{
         maxWidth: 760, width: '90%', padding: '0 20px',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24,
+        maxHeight: 'calc(100vh - 170px)',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        boxSizing: 'border-box',
       }}>
         {/* Slide 0: Catastrophe video */}
         {slide === 0 && (

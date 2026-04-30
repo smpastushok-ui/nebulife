@@ -68,7 +68,7 @@ interface HexSurfaceProps {
    * This replaces the old onResourceChange path in useHexState which caused
    * double-counting (hook added resources AND App.tsx added them again).
    */
-  onHarvestFull?:         (objectType: SurfaceObjectType, amount: number) => void;
+  onHarvestFull?:         (objectType: SurfaceObjectType, amount: number) => { actualAmount: number; depleted: boolean } | void;
   playerLevel?:           number;
   techTreeState?:         TechTreeState;
   minerals?:              number;
@@ -299,8 +299,9 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     const handleDroneHarvestFull = useCallback((resourceType: string, amount: number) => {
       const objType = RESOURCE_TO_OBJECT[resourceType] as SurfaceObjectType | undefined;
       if (objType) {
-        onHarvestFull?.(objType, amount);
+        return onHarvestFull?.(objType, amount);
       }
+      return undefined;
     }, [onHarvestFull]);
 
     const hexState = useHexState(
@@ -414,13 +415,15 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             // handled in App.tsx with the actual rarity-based yield amount.
             // This replaces the old onResourceChange path in useHexState that
             // was adding resources a second time (double-count).
-            onHarvestFull?.(objType, amount);
+            const result = onHarvestFull?.(objType, amount);
+            if (result?.depleted) hexState.destroyResource(slotId);
             // onHarvest: kept for visual FX / legacy compatibility; no resource logic
             onHarvest?.(objType);
             onHarvestFx?.(objType, window.innerWidth / 2, window.innerHeight / 2);
+            const actualAmount = result?.actualAmount ?? amount;
+            // Award XP = amount collected (burst harvest reward)
+            if (actualAmount > 0) onHarvestAmount?.(actualAmount);
           }
-          // Award XP = amount collected (burst harvest reward)
-          if (amount > 0) onHarvestAmount?.(amount);
         }
       },
       [hexState, onHarvest, onHarvestFx, onHarvestAmount, onHarvestFull],
@@ -697,6 +700,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             colonyResources={colonyResources}
             chemicalInventory={chemicalInventory}
             planetType={planet.type}
+            planetStocks={planetStocks}
             quarks={quarks}
             alphaHarvesterCount={alphaHarvesterCount}
             onSelect={handleBuildSelect}
@@ -718,9 +722,10 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             onResearchDataChange={(delta) => {
               if (delta < 0) onConsumeResearchData?.(Math.abs(delta));
             }}
-            onUpgrade={async () => {
-              const upgraded = await hexState.upgradeBuilding(detailSlotId ?? '');
-              return upgraded ?? undefined;
+            onDemolish={() => {
+              if (!detailSlotId) return;
+              hexState.removeBuilding(detailSlotId);
+              setDetailSlotId(null);
             }}
           />
         )}

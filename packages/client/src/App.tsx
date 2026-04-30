@@ -960,15 +960,18 @@ function AppInner() {
       : 'water';
 
     let actualAmount: number = amount;
+    let depleted = false;
     if (planetId) {
       const stocks = planetResourceStocksRef.current[planetId];
       if (stocks) {
         const { newStocks, actualExtracted } = depleteStock(stocks, stockKey, amount);
         actualAmount = actualExtracted;
+        depleted = newStocks.remaining[stockKey] <= 0.0001;
         setPlanetResourceStocks(prev => ({ ...prev, [planetId]: newStocks }));
       }
       addResources(planetId, { [key]: actualAmount });
     }
+    return { actualAmount, depleted };
   }, [addResources]);
 
   /** Handle fly-to-HUD animation for harvested resource. */
@@ -1534,6 +1537,7 @@ function AppInner() {
     localStorage.getItem('nebulife_hangar_active') === '1' || wasInBotArena,
   );
   const setShowHangar = useCallback((val: boolean) => {
+    if (val) setShowCosmicArchive(false);
     setShowHangarRaw(val);
     if (val) localStorage.setItem('nebulife_hangar_active', '1');
     else localStorage.removeItem('nebulife_hangar_active');
@@ -1543,6 +1547,13 @@ function AppInner() {
   // Ref to showArena that stays current inside callbacks without re-creating them.
   const showArenaRef = useRef(false);
   useEffect(() => { showArenaRef.current = showArena; }, [showArena]);
+
+  useEffect(() => {
+    if (!showCosmicArchive) return;
+    if (showArena || showHangar || showAcademy || showPlayerPage || showColonyCenter || showTerraformPlanet) {
+      setShowCosmicArchive(false);
+    }
+  }, [showArena, showHangar, showAcademy, showPlayerPage, showColonyCenter, showTerraformPlanet, showCosmicArchive]);
 
   // Pause SpaceAmbient when player is on planet surface or inside the
   // Terminal (Cosmic Archive) overlay - those scenes will get their own
@@ -3780,6 +3791,7 @@ function AppInner() {
   }, [gameStartedAt]);
 
   const handleStartExploration = () => {
+    setShowCosmicArchive(false);
     engineRef.current?.showGalaxyScene();
     setState((prev) => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
   };
@@ -5590,6 +5602,7 @@ function AppInner() {
       }
       return;
     }
+    setShowCosmicArchive(false);
     playSfx('go-to-exosphera', 0.5);
     setSurfaceTarget({
       planet: state.selectedPlanet,
@@ -5608,6 +5621,7 @@ function AppInner() {
   // ── Home planet navigation handlers ─────────────────────────────────
   const handleGoToExosphere = useCallback(() => {
     if (!homeInfo) return;
+    setShowCosmicArchive(false);
     setState(prev => ({
       ...prev,
       selectedSystem: homeInfo.system,
@@ -5635,6 +5649,7 @@ function AppInner() {
       }
     }
     if (!info) return;
+    setShowCosmicArchive(false);
     setState(prev => ({
       ...prev,
       selectedSystem: info!.system,
@@ -7245,15 +7260,12 @@ function AppInner() {
             if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
           }}
           colonyPlanetIds={(() => {
-            // Colony planets: home planet + any planet that has a colony_hub
-            // building in colonyState.
+            // Colony planets: the player's current home/evacuation planet +
+            // any active surface planet that actually has a colony_hub. Do
+            // not trust p.isHomePlanet across all cluster systems: neighbor
+            // home planets also carry that flag and looked like fake colonies.
             const ids = new Set<string>();
-            const allSys = engineRef.current?.getAllSystems() ?? [];
-            for (const sys of allSys) {
-              for (const p of sys.planets) {
-                if (p.isHomePlanet) ids.add(p.id);
-              }
-            }
+            if (homeInfo?.planet.id) ids.add(homeInfo.planet.id);
             if (colonyState?.buildings?.some((b) => b.type === 'colony_hub')) {
               ids.add(colonyState.planetId);
             }
@@ -7262,10 +7274,8 @@ function AppInner() {
           colonySystemIds={(() => {
             const sysIds: string[] = [];
             const allSys = engineRef.current?.getAllSystems() ?? [];
-            for (const sys of allSys) {
-              for (const p of sys.planets) {
-                if (p.isHomePlanet) { sysIds.push(sys.id); break; }
-              }
+            if (homeInfo?.system.id) {
+              sysIds.push(homeInfo.system.id);
             }
             if (colonyState?.buildings?.some((b) => b.type === 'colony_hub')) {
               const colonySys = allSys.find((s) => s.planets.some((p) => p.id === colonyState.planetId));

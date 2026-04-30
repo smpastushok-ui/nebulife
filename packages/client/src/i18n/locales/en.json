@@ -1085,7 +1085,9 @@
     "researching_btn": "Researching",
     "research_btn": "Research",
     "researched_tooltip": "Researched",
-    "status_complete": "100% researched",
+    "status_complete": "Researched",
+    "status_100_researched": "100% researched",
+    "show_next_systems": "Show next {{count}} · {{remaining}} left",
     "status_scanning": "Scanning",
     "status_ready": "Ready",
     "status_locked": "Locked",
@@ -1547,13 +1549,11 @@
     "action_result_no_deposit": "No finite deposit is connected to this building yet.",
     "action_result_power": "Power route is stable. Critical consumers remain prioritized during shortages.",
     "action_result_chemistry": "Cycle complete: volatiles split into isotope traces and condensed water.",
-    "upgrade": "Upgrade",
-    "upgrade_desc": "Existing backend safely stores the next building level. Production scaling will be expanded in the next economy pass.",
-    "upgrade_aggregate_desc": "Open a specific placed module from the surface to upgrade it.",
-    "upgrade_button": "Upgrade to L{{level}}",
-    "upgrade_busy": "Upgrading...",
-    "upgrade_started": "Upgrade stored. Level will refresh in the local surface state.",
-    "upgrade_failed": "Upgrade failed"
+    "isotope_depleted_warning": "Isotope deposits on this planet are depleted. Building this extractor here is not useful right now.",
+    "danger_zone": "Demolition",
+    "demolish": "Demolish building",
+    "demolish_desc": "The module will be removed from the surface. Construction resources are not returned.",
+    "demolish_confirm": "Confirm demolition"
   },
   "terraform": {
     "dispatch_title": "Deliver {{resource}} to {{planet}}",
@@ -1618,6 +1618,9 @@
       "requires_atmosphere_50": "Requires atmosphere ≥50%",
       "planet_not_terraformable": "Planet cannot be terraformed"
     }
+  },
+  "hex": {
+    "isotope_depleted_warning": "Isotopes depleted"
   },
   "colonies": {
     "population": "Population",

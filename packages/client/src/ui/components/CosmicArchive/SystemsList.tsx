@@ -146,6 +146,7 @@ export function SystemsList({
   // System currently shown in the "instant research with quarks" confirmation
   // popup. null when popup is closed.
   const [instantTargetId, setInstantTargetId] = useState<string | null>(null);
+  const [revealedByRing, setRevealedByRing] = useState<Record<number, number>>({});
 
   // Filter: show only systems where progress < 100 (unresearched)
   const [filterUnresearched, setFilterUnresearched] = useState(false);
@@ -290,6 +291,13 @@ export function SystemsList({
       try { localStorage.setItem('nebulife_quark_shortcuts_visible', next ? '1' : '0'); } catch { /* ignore */ }
       return next;
     });
+  }, []);
+
+  const revealMoreInRing = useCallback((ringIndex: number) => {
+    setRevealedByRing((prev) => ({
+      ...prev,
+      [ringIndex]: (prev[ringIndex] ?? 10) + 10,
+    }));
   }, []);
 
   const handleResearchClick = (systemId: string) => {
@@ -481,11 +489,19 @@ export function SystemsList({
                 )}
               </button>
             )}
-            {!isCollapsed && group.systems.filter((system) => {
+            {(() => {
+              if (isCollapsed) return null;
+              const filteredSystems = group.systems.filter((system) => {
               if (!filterUnresearched) return true;
               const prog = getResearchProgress?.(system.id) ?? (isFullyResearched?.(system.id) ? 100 : 0);
               return prog < 100;
-            }).map((system) => {
+              });
+              const paginated = group.ringIndex >= 3 && filteredSystems.length > 10;
+              const visibleLimit = paginated ? (revealedByRing[group.ringIndex] ?? 10) : filteredSystems.length;
+              const visibleSystems = filteredSystems.slice(0, visibleLimit);
+              const hiddenCount = Math.max(0, filteredSystems.length - visibleSystems.length);
+
+              return visibleSystems.map((system) => {
               const isHome = system.planets.some((p) => p.isHomePlanet);
               const isHovered = hoveredId === system.id;
               const name = aliases[system.id] || system.name;
@@ -605,39 +621,45 @@ export function SystemsList({
                         </span>
                       )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
-                      <div style={{
-                        position: 'relative',
-                        flex: 1,
-                        height: 4,
-                        overflow: 'hidden',
-                        borderRadius: 999,
-                        background: 'rgba(51,68,85,0.26)',
-                      }}>
-                        <div style={{
-                          width: `${progressPct}%`,
-                          height: '100%',
-                          borderRadius: 999,
-                          background: `linear-gradient(90deg, ${statusColor}, ${fullyResearched ? '#b7dcc7' : '#7fa7ca'})`,
-                          boxShadow: progressPct > 0 ? `0 0 6px ${statusColor}28` : undefined,
-                          transition: 'width 0.25s ease',
-                        }} />
-                        {researching && (
-                          <span style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '32%',
-                            height: '100%',
-                            background: 'linear-gradient(90deg, transparent, rgba(180,215,245,0.26), transparent)',
-                            animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
-                          }} />
-                        )}
+                    {fullyResearched ? (
+                      <div style={{ marginTop: 5, color: '#7bb8ff', opacity: 0.76, fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase' }}>
+                        {t('archive.status_100_researched')}
                       </div>
-                      <span style={{ color: statusColor, fontSize: 10, minWidth: 34, textAlign: 'right' }}>
-                        {Math.round(progressPct)}%
-                      </span>
-                    </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
+                        <div style={{
+                          position: 'relative',
+                          flex: 1,
+                          height: 3,
+                          overflow: 'hidden',
+                          borderRadius: 999,
+                          background: 'rgba(51,68,85,0.16)',
+                        }}>
+                          <div style={{
+                            width: `${progressPct}%`,
+                            height: '100%',
+                            borderRadius: 999,
+                            background: 'linear-gradient(90deg, rgba(68,136,170,0.28), rgba(123,184,255,0.48))',
+                            boxShadow: progressPct > 0 ? '0 0 4px rgba(123,184,255,0.14)' : undefined,
+                            transition: 'width 0.25s ease',
+                          }} />
+                          {researching && (
+                            <span style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '32%',
+                              height: '100%',
+                              background: 'linear-gradient(90deg, transparent, rgba(180,215,245,0.16), transparent)',
+                              animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
+                            }} />
+                          )}
+                        </div>
+                        <span style={{ color: '#7bb8ff', opacity: 0.66, fontSize: 10, minWidth: 34, textAlign: 'right' }}>
+                          {Math.round(progressPct)}%
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Spectral class */}
@@ -779,7 +801,30 @@ export function SystemsList({
                   )}
                 </div>
               );
-            })}
+              }).concat(hiddenCount > 0 ? [
+                <button
+                  key={`more-${group.ringIndex}`}
+                  type="button"
+                  onClick={() => revealMoreInRing(group.ringIndex)}
+                  style={{
+                    margin: '6px 0 10px',
+                    padding: '9px 12px',
+                    width: '100%',
+                    background: 'rgba(8,16,28,0.46)',
+                    border: '1px solid rgba(68,136,170,0.28)',
+                    borderRadius: 3,
+                    color: '#7bb8ff',
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    letterSpacing: 1,
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('archive.show_next_systems', { count: Math.min(10, hiddenCount), remaining: hiddenCount })}
+                </button>,
+              ] : []);
+            })()}
           </React.Fragment>
         );
       })}
@@ -957,15 +1002,17 @@ function ResearchProgressIcon({
       style={{
         position: 'relative',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 34, height: 34, borderRadius: '50%',
+        width: isComplete ? 30 : 34,
+        height: isComplete ? 30 : 34,
+        borderRadius: isComplete ? 3 : '50%',
         background: isComplete
-          ? 'rgba(127,217,166,0.075)'
+          ? 'transparent'
           : isResearching
             ? 'rgba(123,168,216,0.09)'
             : disabled
               ? 'rgba(68,102,136,0.045)'
               : hover ? 'rgba(123,168,216,0.13)' : 'rgba(68,136,255,0.045)',
-        border: `1px solid ${isComplete ? 'rgba(127,217,166,0.28)' : isResearching ? 'rgba(123,184,255,0.32)' : disabled ? 'rgba(68,102,136,0.18)' : 'rgba(123,184,255,0.24)'}`,
+        border: isComplete ? '1px solid transparent' : `1px solid ${isResearching ? 'rgba(123,184,255,0.32)' : disabled ? 'rgba(68,102,136,0.18)' : 'rgba(123,184,255,0.24)'}`,
         cursor: disabled ? 'default' : 'pointer',
         padding: 0,
         transition: 'background 0.15s, border-color 0.15s',
@@ -974,6 +1021,7 @@ function ResearchProgressIcon({
     >
       {/* Track + progress arc. For complete state we still draw the full
           ring as a solid stroke so the icon reads as "filled" at a glance. */}
+      {!isComplete && (
       <svg
         width={26}
         height={26}
@@ -993,7 +1041,7 @@ function ResearchProgressIcon({
         />
         {/* Foreground progress arc — drawn as a stroke-dasharray slice. We
             rotate -90° so progress starts at 12 o'clock. */}
-        {!isComplete && arcLen > 0 && (
+        {arcLen > 0 && (
           <circle
             cx={cx}
             cy={cy}
@@ -1007,6 +1055,7 @@ function ResearchProgressIcon({
           />
         )}
       </svg>
+      )}
 
       {/* Centre element: pulsing particle while researching; eye for complete; magnifier for idle. */}
       {isResearching ? (
@@ -1025,13 +1074,13 @@ function ResearchProgressIcon({
       ) : isComplete ? (
         /* Eye icon — indicates the system is fully researched and navigable. */
         <svg
-          width={10}
-          height={10}
+          width={18}
+          height={18}
           viewBox="0 0 16 16"
           style={{ position: 'relative', zIndex: 1 }}
           fill="none"
-          stroke="#7fd9a6"
-          strokeWidth={1.4}
+          stroke="#7bb8ff"
+          strokeWidth={1.55}
           strokeLinecap="round"
           strokeLinejoin="round"
         >

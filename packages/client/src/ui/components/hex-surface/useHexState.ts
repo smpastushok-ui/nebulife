@@ -484,7 +484,7 @@ export function useHexState(
    * deplete planet stock (single-path, same as the manual onHarvestFull).
    * Must be the last optional parameter to maintain backward compat ordering.
    */
-  onDroneHarvestFull?: (resourceType: ResourceType, amount: number) => void,
+  onDroneHarvestFull?: (resourceType: ResourceType, amount: number) => { actualAmount: number; depleted: boolean } | void,
 ): HexStateResult {
   // Pass full planet so gas-giants → 'orbital' and dwarf → 'small'
   const planetSize = getPlanetSize(planet);
@@ -1056,7 +1056,8 @@ export function useHexState(
         droneHarvestRef.current?.(colonyKey);
         droneHarvestAmountRef.current?.(amount);
         // Authoritative resource + depletion path (replaces old onResourceChange)
-        droneHarvestFullRef.current?.(target.resourceType, amount);
+        const result = droneHarvestFullRef.current?.(target.resourceType, amount);
+        if (result?.depleted) destroyResource(target.id);
       }
 
       // Schedule next harvest in 10s (if more ready)

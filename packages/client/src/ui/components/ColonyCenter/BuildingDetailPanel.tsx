@@ -25,7 +25,7 @@ export interface BuildingDetailPanelProps {
   onOpenColonyCenter?: () => void;
   onResourceChange?: (delta: Partial<ColonyResources>) => void;
   onResearchDataChange?: (delta: number) => void;
-  onUpgrade?: (building: PlacedBuilding) => Promise<PlacedBuilding | void> | PlacedBuilding | void;
+  onDemolish?: (building: PlacedBuilding) => void;
 }
 
 const PANEL_BG = '#020510';
@@ -157,11 +157,11 @@ export function BuildingDetailPanel({
   onOpenColonyCenter,
   onResourceChange,
   onResearchDataChange,
-  onUpgrade,
+  onDemolish,
 }: BuildingDetailPanelProps) {
   const { t } = useTranslation();
   const [actionLog, setActionLog] = useState<string | null>(null);
-  const [upgradeBusy, setUpgradeBusy] = useState(false);
+  const [confirmDemolish, setConfirmDemolish] = useState(false);
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
 
@@ -182,7 +182,9 @@ export function BuildingDetailPanel({
   const aggregateMode = !building;
   const canScan = researchData >= 5;
   const canChemCycle = colonyResources.volatiles >= 10;
-  const hasUpgrade = Boolean(building && onUpgrade);
+  const isotopeDepositDepleted =
+    stats.stock?.resource === 'isotopes' &&
+    stats.stock.remaining <= 0;
 
   const runScan = () => {
     if (!canScan) return;
@@ -211,19 +213,6 @@ export function BuildingDetailPanel({
     setActionLog(t('building_detail.action_result_chemistry'));
   };
 
-  const handleUpgrade = async () => {
-    if (!building || !onUpgrade || upgradeBusy) return;
-    setUpgradeBusy(true);
-    try {
-      await onUpgrade(building);
-      setActionLog(t('building_detail.upgrade_started'));
-    } catch (error) {
-      setActionLog(error instanceof Error ? error.message : t('building_detail.upgrade_failed'));
-    } finally {
-      setUpgradeBusy(false);
-    }
-  };
-
   return (
     <div style={{
       position: 'fixed',
@@ -240,6 +229,7 @@ export function BuildingDetailPanel({
         alignItems: 'center',
         gap: 10,
         padding: '14px 16px',
+        paddingLeft: 'calc(76px + env(safe-area-inset-left, 0px))',
         paddingTop: 'calc(70px + env(safe-area-inset-top, 0px))',
         borderBottom: '1px solid #1a2a3a',
         flexShrink: 0,
@@ -248,16 +238,17 @@ export function BuildingDetailPanel({
           type="button"
           onClick={onClose}
           style={{
-            background: 'rgba(10,15,25,0.8)',
-            border: '1px solid #334455',
+            background: 'linear-gradient(180deg, rgba(22,42,64,0.92), rgba(8,16,28,0.94))',
+            border: '1px solid #446688',
             borderRadius: 3,
-            color: '#8899aa',
+            color: '#9fd0ff',
             fontFamily: 'monospace',
-            fontSize: 9,
-            padding: '5px 10px',
+            fontSize: 10,
+            padding: '7px 12px',
             cursor: 'pointer',
             letterSpacing: 1,
             textTransform: 'uppercase',
+            boxShadow: '0 0 12px rgba(68,136,170,0.22)',
           }}
         >
           {t('colony_center.back')}
@@ -285,6 +276,7 @@ export function BuildingDetailPanel({
         flex: 1,
         overflow: 'auto',
         padding: '14px 16px 36px',
+        paddingLeft: 'calc(76px + env(safe-area-inset-left, 0px))',
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
@@ -303,6 +295,20 @@ export function BuildingDetailPanel({
             {t(`buildings.${type}.desc`, { defaultValue: def.description })}
           </div>
         </div>
+
+        {isotopeDepositDepleted && (
+          <div style={{
+            background: 'rgba(255,136,68,0.10)',
+            border: '1px solid rgba(255,136,68,0.38)',
+            borderRadius: 5,
+            padding: '10px 12px',
+            color: '#ffb080',
+            fontSize: 11,
+            lineHeight: 1.45,
+          }}>
+            {t('building_detail.isotope_depleted_warning')}
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
           <MetricCard
@@ -422,35 +428,75 @@ export function BuildingDetailPanel({
           </div>
         </Section>
 
-        <Section title={t('building_detail.upgrade')}>
-          <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 4, padding: 10 }}>
-            <div style={{ fontSize: 11, color: '#8899aa', lineHeight: 1.45 }}>
-              {hasUpgrade ? t('building_detail.upgrade_desc') : t('building_detail.upgrade_aggregate_desc')}
+        {building && type !== 'colony_hub' && onDemolish && (
+          <Section title={t('building_detail.danger_zone')}>
+            <div style={{ background: 'rgba(35,12,12,0.42)', border: '1px solid rgba(204,68,68,0.36)', borderRadius: 4, padding: 10 }}>
+              <div style={{ fontSize: 11, color: '#aa8888', lineHeight: 1.45 }}>
+                {t('building_detail.demolish_desc')}
+              </div>
+              {!confirmDemolish ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDemolish(true)}
+                  style={{
+                    marginTop: 10,
+                    background: 'rgba(204,68,68,0.12)',
+                    border: '1px solid rgba(204,68,68,0.45)',
+                    borderRadius: 4,
+                    color: '#ff9a9a',
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    letterSpacing: 1,
+                    textTransform: 'uppercase',
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('building_detail.demolish')}
+                </button>
+              ) : (
+                <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => onDemolish(building)}
+                    style={{
+                      background: 'rgba(204,68,68,0.20)',
+                      border: '1px solid rgba(204,68,68,0.65)',
+                      borderRadius: 4,
+                      color: '#ffb0b0',
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      letterSpacing: 1,
+                      textTransform: 'uppercase',
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('building_detail.demolish_confirm')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDemolish(false)}
+                    style={{
+                      background: 'rgba(20,30,45,0.55)',
+                      border: `1px solid ${BORDER}`,
+                      borderRadius: 4,
+                      color: '#8899aa',
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      letterSpacing: 1,
+                      textTransform: 'uppercase',
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('common.cancel')}
+                  </button>
+                </div>
+              )}
             </div>
-            {hasUpgrade && (
-              <button
-                type="button"
-                onClick={handleUpgrade}
-                disabled={upgradeBusy}
-                style={{
-                  marginTop: 10,
-                  background: 'rgba(68,136,170,0.14)',
-                  border: `1px solid ${ACTIVE_BORDER}`,
-                  borderRadius: 4,
-                  color: '#7bb8ff',
-                  fontFamily: 'monospace',
-                  fontSize: 10,
-                  letterSpacing: 1,
-                  textTransform: 'uppercase',
-                  padding: '8px 12px',
-                  cursor: upgradeBusy ? 'wait' : 'pointer',
-                }}
-              >
-                {upgradeBusy ? t('building_detail.upgrade_busy') : t('building_detail.upgrade_button', { level: stats.level + 1 })}
-              </button>
-            )}
-          </div>
-        </Section>
+          </Section>
+        )}
       </div>
     </div>
   );

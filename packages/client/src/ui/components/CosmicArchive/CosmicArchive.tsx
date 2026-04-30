@@ -5,7 +5,6 @@ import type { PlanetTerraformState, PlanetColonyState, TerraformParamId } from '
 import type { ColonyResources } from '../Terraform/MissionDispatchModal.js';
 import { PlaceholderTab } from './PlaceholderTab';
 import { CosmosGallery } from './CosmosGallery';
-import { PlanetsCatalog, FavoritesPlanetsList } from './PlanetsCatalog';
 import { PlanetsCatalogV2 } from './PlanetsCatalogV2.js';
 import { ColoniesList } from './ColoniesList.js';
 import { SystemsList } from './SystemsList';
@@ -575,12 +574,24 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     }
     if (mainTab === 'navigation' && currentSubTab === 'favorites') {
       return (
-        <FavoritesPlanetsList
+        <PlanetsCatalogV2
           allSystems={allSystems}
           aliases={aliases}
-          favorites={favorites}
-          onToggleFavorite={toggleFavorite}
           onViewPlanet={handleViewPlanet}
+          colonyPlanetIds={colonyPlanetIds ?? new Set()}
+          colonySystemIds={colonySystemIds ?? []}
+          terraformStates={terraformStates}
+          getPlanetResources={getPlanetResources}
+          planetResourceStocks={planetResourceStocks}
+          onSendTerraformDelivery={onSendTerraformDelivery}
+          onCompleteTerraform={onCompleteTerraform}
+          donorPlanets={donorPlanets}
+          techTreeState={techTreeState}
+          colonyBuildings={colonyBuildings}
+          onToggleFavorite={toggleFavorite}
+          favoritePlanetIds={favorites}
+          onlyFavorites
+          onRenamePlanet={onRenamePlanet}
         />
       );
     }
