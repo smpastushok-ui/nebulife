@@ -849,7 +849,58 @@
     "hab_atm": "Атм.",
     "hab_water": "Вода",
     "hab_grav": "Грав.",
-    "hab_rad": "Рад."
+    "hab_rad": "Рад.",
+    "unknown": "невідомо",
+    "reveal_hint": "поточний Tier {{level}}",
+    "orbital_probe_required": "потрібен орбітальний зонд",
+    "surface_expedition_required": "потрібна поверхнева експедиція"
+  },
+  "planet_missions": {
+    "section": "Дослідницькі місії",
+    "start": "Старт",
+    "reveal_level": "Рівень даних: Tier {{level}}",
+    "resources_locked": "Ресурси приховані. Потрібен орбітальний зонд (Tier 2).",
+    "elements_locked": "Деталі елементів відкриває поверхнева експедиція (Tier 3).",
+    "type": {
+      "orbital_scan": "Орбітальне сканування",
+      "orbital_probe": "Орбітальний зонд",
+      "surface_landing": "Поверхнева експедиція",
+      "deep_atmosphere_probe": "Атмосферний зонд"
+    },
+    "phase": {
+      "preparing": "Підготовка payload",
+      "outbound": "Переліт до планети",
+      "orbital_insertion": "Вихід на орбіту",
+      "scan_or_landing": "Сканування / посадка",
+      "data_downlink": "Передача даних",
+      "report_ready": "Звіт готовий",
+      "completed": "Завершено"
+    },
+    "reason": {
+      "unknown": "місія недоступна",
+      "already_revealed": "цей рівень даних уже відкрито",
+      "active_mission": "для цієї планети вже триває місія",
+      "building_required": "потрібна стартова будівля",
+      "building_required_named": "потрібно: {{building}}",
+      "surface_unavailable": "посадка тут неможлива",
+      "resources_required": "недостатньо ресурсів",
+      "resources_required_named": "бракує: {{resources}}"
+    },
+    "building": {
+      "landing_pad": "Посадковий майданчик",
+      "spaceport": "Космопорт"
+    },
+    "report": {
+      "orbital_scan": "Орбітальне сканування завершено",
+      "orbital_probe": "Орбітальний зонд завершив аналіз",
+      "surface_landing": "Поверхнева експедиція передала звіт",
+      "deep_atmosphere_probe": "Атмосферний зонд передав дані"
+    }
+  },
+  "arena": {
+    "kill": "ЗНИЩЕНО",
+    "kill_xp": "+{{xp}} XP",
+    "combo_xp": "COMBO x{{combo}}  +{{xp}} XP"
   },
   "discovery_notification": {
     "new_discovery": "Нове відкриття!",

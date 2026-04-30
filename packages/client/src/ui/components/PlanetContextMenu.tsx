@@ -1,7 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, ResourceGroup } from '@nebulife/core';
-import { ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg, isTerraformable } from '@nebulife/core';
+import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding } from '@nebulife/core';
+import {
+  ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg, isTerraformable,
+  canStartPlanetMission, getPlanetMissionProgress, isSolidPlanetForLanding,
+} from '@nebulife/core';
 
 /** i18n key for each resource group label */
 const GROUP_T_KEY: Record<ResourceGroup, string> = {
@@ -177,6 +180,14 @@ function TooltipHint({ text }: { text: string }) {
   );
 }
 
+function formatMissionTime(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  if (minutes <= 0) return `${seconds}s`;
+  return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+}
+
 function PlanetGlobe({ planet, star }: { planet: Planet; star: Star }) {
   const visuals = useMemo(() => derivePlanetVisuals(planet, star), [planet, star]);
 
@@ -296,11 +307,12 @@ function TabBar({
 
 /* ────────── Resources tab ────────── */
 
-function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: {
+function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup, revealLevel }: {
   planet: Planet;
   playerLevel: number;
   expandedGroup: ResourceGroup | null;
   setExpandedGroup: (g: ResourceGroup | null) => void;
+  revealLevel: PlanetRevealLevel;
 }) {
   const { t } = useTranslation();
   const totalRes = planet.resources?.totalResources;
@@ -311,6 +323,14 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: 
   const maxGroupValue = totalRes
     ? Math.max(totalRes.minerals, totalRes.volatiles, totalRes.isotopes, 1)
     : 1;
+
+  if (revealLevel < 2) {
+    return (
+      <div style={{ padding: '14px', color: '#445566', fontSize: 11 }}>
+        {t('planet_missions.resources_locked')}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -335,7 +355,7 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: 
                 {/* Group row */}
                 <button
                   onClick={() => {
-                    if (playerLevel >= 50) {
+                    if (playerLevel >= 50 && revealLevel >= 3) {
                       setExpandedGroup(isExpanded ? null : group);
                       setLockedTooltip(null);
                     } else {
@@ -376,17 +396,17 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup }: 
                 </div>
 
                 {/* Locked tooltip */}
-                {lockedTooltip === group && playerLevel < 50 && (
+                {lockedTooltip === group && (playerLevel < 50 || revealLevel < 3) && (
                   <div style={{
                     padding: '4px 14px 6px 28px',
                     fontSize: 9, color: '#556677', fontFamily: 'monospace',
                   }}>
-                    {t('planet.resources_locked_hint')}
+                    {revealLevel < 3 ? t('planet_missions.elements_locked') : t('planet.resources_locked_hint')}
                   </div>
                 )}
 
                 {/* Expanded elements */}
-                {isExpanded && playerLevel >= 50 && totalRes && (
+                {isExpanded && playerLevel >= 50 && revealLevel >= 3 && totalRes && (
                   <div style={{ padding: '2px 0 4px' }}>
                     {getGroupElements(totalRes.elements, group)
                       .slice(0, 8)
@@ -491,6 +511,12 @@ export function PlanetContextMenu({
   canShowAds,
   hasGenesisVault,
   onShowTerraform,
+  revealLevel = 0,
+  activeMission,
+  planetMissionClock = Date.now(),
+  missionResources,
+  colonyBuildings = [],
+  onStartMission,
 }: {
   planet: Planet;
   star: Star;
@@ -513,6 +539,12 @@ export function PlanetContextMenu({
   hasGenesisVault?: boolean;
   /** Called when the player clicks Terraforming — opens full-screen panel */
   onShowTerraform?: (planet: Planet) => void;
+  revealLevel?: PlanetRevealLevel;
+  activeMission?: PlanetMission | null;
+  planetMissionClock?: number;
+  missionResources?: { researchData: number; minerals: number; volatiles: number; isotopes: number; water: number };
+  colonyBuildings?: PlacedBuilding[];
+  onStartMission?: (planet: Planet, type: PlanetMissionType) => void;
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('actions');
@@ -560,6 +592,33 @@ export function PlanetContextMenu({
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
   const showTerraformTab = isTerraformable(planet) && Boolean(hasGenesisVault);
+  const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
+  const missionTypes: PlanetMissionType[] = [
+    'orbital_probe',
+    isSolidPlanetForLanding(planet) ? 'surface_landing' : 'deep_atmosphere_probe',
+  ];
+  const getMissionDisabledReason = (type: PlanetMissionType): string | undefined => {
+    if (!missionResources) return t('planet_missions.reason.unknown');
+    const check = canStartPlanetMission({
+      type,
+      planet,
+      revealLevel,
+      activeMissions: activeMission ? [activeMission] : [],
+      buildings: colonyBuildings,
+      resources: missionResources,
+    });
+    if (check.canStart) return undefined;
+    if (check.reason === 'building_required' && check.requiredBuilding) {
+      return t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${check.requiredBuilding}`) });
+    }
+    if (check.reason === 'resources_required' && check.missingResources) {
+      const missing = Object.entries(check.missingResources)
+        .map(([resource, amount]) => `${resource} ${Math.ceil(Number(amount ?? 0))}`)
+        .join(', ');
+      return t('planet_missions.reason.resources_required_named', { resources: missing });
+    }
+    return t(`planet_missions.reason.${check.reason ?? 'unknown'}`);
+  };
 
   // Destroyed planets — minimal UI
   if (isDestroyed) {
@@ -661,16 +720,40 @@ export function PlanetContextMenu({
                     onClick={onShowCharacteristics}
                     right="›"
                   />
-                  {playerLevel < 30 ? (
-                    <MenuItem icon="⊙" label={t('planet.send_probe')} disabled title={t('planet.available_from_level', { level: 30, current: playerLevel })} right="30+" />
-                  ) : (
-                    <MenuItem icon="⊙" label={t('planet.send_probe')} disabled right={t('planet.coming_soon')} />
+                  <div style={{ padding: '5px 14px 4px', color: '#445566', fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    {t('planet_missions.section')}
+                  </div>
+                  <div style={{ padding: '0 14px 6px', color: '#667788', fontSize: 9 }}>
+                    {t('planet_missions.reveal_level', { level: revealLevel })}
+                  </div>
+                  {activeMission && activeMissionProgress && (
+                    <div style={{ padding: '5px 14px 8px', color: '#7bb8ff', fontSize: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span>{t(`planet_missions.type.${activeMission.type}`)}</span>
+                        <span>{formatMissionTime(activeMissionProgress.remainingMs)}</span>
+                      </div>
+                      <div style={{ height: 4, borderRadius: 2, background: 'rgba(40,55,70,0.7)', overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.round(activeMissionProgress.overallProgress * 100)}%`, height: '100%', background: '#4488aa' }} />
+                      </div>
+                      <div style={{ marginTop: 4, color: '#556677' }}>
+                        {t(`planet_missions.phase.${activeMissionProgress.phase}`)}
+                      </div>
+                    </div>
                   )}
-                  {playerLevel < 40 ? (
-                    <MenuItem icon="▶" label={t('planet.mission')} disabled title={t('planet.available_from_level', { level: 40, current: playerLevel })} right="40+" />
-                  ) : (
-                    <MenuItem icon="▶" label={t('planet.mission')} disabled right={t('planet.coming_soon')} />
-                  )}
+                  {missionTypes.map((type) => {
+                    const disabledReason = getMissionDisabledReason(type);
+                    return (
+                      <MenuItem
+                        key={type}
+                        icon={type === 'orbital_probe' ? '⊙' : '▽'}
+                        label={t(`planet_missions.type.${type}`)}
+                        onClick={!disabledReason && onStartMission ? () => onStartMission(planet, type) : undefined}
+                        disabled={Boolean(disabledReason) || !onStartMission}
+                        title={disabledReason}
+                        right={disabledReason ? undefined : t('planet_missions.start')}
+                      />
+                    );
+                  })}
                 </div>
               )}
 
@@ -700,7 +783,13 @@ export function PlanetContextMenu({
           )}
 
           {activeTab === 'resources' && (
-            <ResourcesTab planet={planet} playerLevel={playerLevel} expandedGroup={expandedGroup} setExpandedGroup={setExpandedGroup} />
+            <ResourcesTab
+              planet={planet}
+              playerLevel={playerLevel}
+              expandedGroup={expandedGroup}
+              setExpandedGroup={setExpandedGroup}
+              revealLevel={revealLevel}
+            />
           )}
 
           {activeTab === 'terraform' && showTerraformTab && onShowTerraform && (

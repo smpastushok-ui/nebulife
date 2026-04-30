@@ -1,5 +1,5 @@
 import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
-import type { StarSystem, Planet } from '@nebulife/core';
+import type { StarSystem, Planet, PlanetMissionPhase, PlanetMissionType } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import { renderStar } from '../rendering/StarRenderer.js';
 import { renderPlanet, renderOrbitProjected, renderSystemMoon, getPlanetSize, Y_COMPRESS } from '../rendering/PlanetRenderer.js';
@@ -57,6 +57,21 @@ interface SysShootingStar {
   maxLife: number;
 }
 
+export interface PlanetMissionVisual {
+  planetId: string;
+  type: PlanetMissionType;
+  phase: PlanetMissionPhase;
+  overallProgress: number;
+  phaseProgress: number;
+}
+
+interface MissionVisualNode {
+  container: Container;
+  ring: Graphics;
+  marker: Graphics;
+  data: PlanetMissionVisual;
+}
+
 export class SystemScene {
   container: Container;
   /** Max orbital distance in pixels — used to fit all planets on screen */
@@ -73,6 +88,7 @@ export class SystemScene {
   private sysShootingStars: SysShootingStar[] = [];
   private sysShootingStarTimer = 5000 + Math.random() * 5000; // first: 5-10s
   private outerBeltContainer: Container | null = null;
+  private missionVisuals: Map<string, MissionVisualNode> = new Map();
 
   /** True while camera is zooming — orbit animations pause to prevent jitter */
   private _freezeOrbits = false;
@@ -527,6 +543,94 @@ export class SystemScene {
 
     // Ship flight animation
     this.updateShip(deltaMs);
+    this.updateMissionVisuals();
+  }
+
+  setPlanetMissionVisuals(missions: PlanetMissionVisual[]) {
+    const incoming = new Set(missions.map((mission) => mission.planetId));
+
+    for (const [planetId, visual] of this.missionVisuals) {
+      if (incoming.has(planetId)) continue;
+      visual.container.parent?.removeChild(visual.container);
+      visual.container.destroy({ children: true });
+      this.missionVisuals.delete(planetId);
+    }
+
+    for (const mission of missions) {
+      const planetNode = this.planetNodes.get(mission.planetId);
+      if (!planetNode) continue;
+
+      let visual = this.missionVisuals.get(mission.planetId);
+      if (!visual) {
+        const container = new Container();
+        container.zIndex = 5000;
+        const ring = new Graphics();
+        const marker = new Graphics();
+        container.addChild(ring);
+        container.addChild(marker);
+        planetNode.container.addChild(container);
+        visual = { container, ring, marker, data: mission };
+        this.missionVisuals.set(mission.planetId, visual);
+      }
+
+      visual.data = mission;
+      this.drawMissionVisual(planetNode, visual);
+    }
+  }
+
+  private drawMissionVisual(planetNode: PlanetNode, visual: MissionVisualNode) {
+    const size = getPlanetSize(planetNode.planet);
+    const radius = size + 10;
+    const progress = Math.max(0.02, Math.min(1, visual.data.overallProgress));
+    const isReady = visual.data.phase === 'report_ready';
+    const color = visual.data.type === 'orbital_probe'
+      ? 0x7bb8ff
+      : visual.data.type === 'deep_atmosphere_probe'
+        ? 0xff8844
+        : 0x44ff88;
+
+    visual.ring.clear();
+    visual.ring.circle(0, 0, radius);
+    visual.ring.stroke({ width: 1, color: 0x334455, alpha: 0.55 });
+
+    const steps = Math.max(5, Math.ceil(progress * 36));
+    for (let i = 0; i < steps; i++) {
+      const a0 = -Math.PI / 2 + (i / 36) * Math.PI * 2;
+      const a1 = -Math.PI / 2 + ((i + 0.65) / 36) * Math.PI * 2;
+      if (i / 36 > progress) break;
+      visual.ring.moveTo(Math.cos(a0) * radius, Math.sin(a0) * radius);
+      visual.ring.lineTo(Math.cos(a1) * radius, Math.sin(a1) * radius);
+      visual.ring.stroke({ width: isReady ? 2 : 1.5, color, alpha: isReady ? 0.95 : 0.75 });
+    }
+
+    visual.marker.clear();
+    const markerAngle = this.time * 0.0015 + progress * Math.PI * 2;
+    const markerRadius = radius + 4;
+    visual.marker.circle(Math.cos(markerAngle) * markerRadius, Math.sin(markerAngle) * markerRadius * Y_COMPRESS, isReady ? 3.2 : 2.2);
+    visual.marker.fill({ color, alpha: isReady ? 0.95 : 0.75 });
+
+    if (visual.data.phase === 'scan_or_landing' && visual.data.type === 'surface_landing') {
+      const y = -size - 6 + visual.data.phaseProgress * (size + 8);
+      visual.marker.moveTo(-3, y);
+      visual.marker.lineTo(0, y + 5);
+      visual.marker.lineTo(3, y);
+      visual.marker.stroke({ width: 1, color: 0xaabbcc, alpha: 0.85 });
+    }
+  }
+
+  private updateMissionVisuals() {
+    for (const [planetId, visual] of this.missionVisuals) {
+      const planetNode = this.planetNodes.get(planetId);
+      if (!planetNode) continue;
+      if (visual.data.phase === 'report_ready') {
+        visual.container.alpha = 0.7 + Math.sin(this.time * 0.006) * 0.3;
+        visual.container.scale.set(1 + Math.sin(this.time * 0.004) * 0.05);
+      } else {
+        visual.container.alpha = 1;
+        visual.container.scale.set(1);
+      }
+      this.drawMissionVisual(planetNode, visual);
+    }
   }
 
   // --- System shooting stars ---
@@ -742,6 +846,10 @@ export class SystemScene {
     this.stopShipFlight();
     for (const ss of this.sysShootingStars) { ss.gfx.destroy(); }
     this.sysShootingStars.length = 0;
+    for (const visual of this.missionVisuals.values()) {
+      visual.container.destroy({ children: true });
+    }
+    this.missionVisuals.clear();
     this.container.destroy({ children: true });
     this.planetNodes.clear();
     this.twinkleStars.length = 0;

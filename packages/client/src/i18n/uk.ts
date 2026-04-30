@@ -544,6 +544,14 @@ export const uk = {
   // Scene controls
   'scene_controls.zoom_in':  'Наблизити',
   'scene_controls.zoom_out': 'Віддалити',
+
+  // Planet exploration missions
+  'planet_missions.reason.unknown':             'Мiсiя недоступна',
+  'planet_missions.reason.already_revealed':    'Цей рiвень даних уже вiдкрито',
+  'planet_missions.reason.active_mission':      'Для цiєї планети вже триває мiсiя',
+  'planet_missions.reason.building_required':   'Потрiбна стартова будiвля',
+  'planet_missions.reason.surface_unavailable': 'Посадка тут неможлива',
+  'planet_missions.reason.resources_required':  'Недостатньо ресурсiв',
 } as const;
 
 export type TranslationKey = keyof typeof uk;

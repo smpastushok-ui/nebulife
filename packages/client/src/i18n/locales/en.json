@@ -851,7 +851,58 @@
     "hab_atm": "Atm.",
     "hab_water": "Water",
     "hab_grav": "Grav.",
-    "hab_rad": "Rad."
+    "hab_rad": "Rad.",
+    "unknown": "unknown",
+    "reveal_hint": "current Tier {{level}}",
+    "orbital_probe_required": "orbital probe required",
+    "surface_expedition_required": "surface expedition required"
+  },
+  "planet_missions": {
+    "section": "Research Missions",
+    "start": "Start",
+    "reveal_level": "Data level: Tier {{level}}",
+    "resources_locked": "Resources are hidden. Requires an orbital probe (Tier 2).",
+    "elements_locked": "Element details unlock after a surface expedition (Tier 3).",
+    "type": {
+      "orbital_scan": "Orbital Scan",
+      "orbital_probe": "Orbital Probe",
+      "surface_landing": "Surface Expedition",
+      "deep_atmosphere_probe": "Atmosphere Probe"
+    },
+    "phase": {
+      "preparing": "Preparing payload",
+      "outbound": "Outbound transfer",
+      "orbital_insertion": "Orbital insertion",
+      "scan_or_landing": "Scan / landing",
+      "data_downlink": "Data downlink",
+      "report_ready": "Report ready",
+      "completed": "Completed"
+    },
+    "reason": {
+      "unknown": "mission unavailable",
+      "already_revealed": "this data tier is already revealed",
+      "active_mission": "a mission is already active for this planet",
+      "building_required": "launch building required",
+      "building_required_named": "requires: {{building}}",
+      "surface_unavailable": "landing is not possible here",
+      "resources_required": "not enough resources",
+      "resources_required_named": "missing: {{resources}}"
+    },
+    "building": {
+      "landing_pad": "Landing Pad",
+      "spaceport": "Spaceport"
+    },
+    "report": {
+      "orbital_scan": "Orbital scan complete",
+      "orbital_probe": "Orbital probe analysis complete",
+      "surface_landing": "Surface expedition report received",
+      "deep_atmosphere_probe": "Atmosphere probe data received"
+    }
+  },
+  "arena": {
+    "kill": "KILL",
+    "kill_xp": "+{{xp}} XP",
+    "combo_xp": "COMBO x{{combo}}  +{{xp}} XP"
   },
   "discovery_notification": {
     "new_discovery": "New Discovery!",

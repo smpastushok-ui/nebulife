@@ -42,7 +42,8 @@
 #### 🎬 Вектор A — "Video-mission as the killer feature"
 - Постачальник: Gemini (сценарій) + Veo/Kling/Runway (відео) + TTS (озвучка) + Gemini (скоротити).
 - Мета: Кожна планетарна експедиція = унікальне 15-30 сек відео з описом події.
-- Loop: гравець дослідив планету → відправив mission → отримав video → shared-moment ("ЦЕ трапилось на моїй планеті!") → organic growth у TikTok/Reddit.
+- Loop: гравець дослідив систему → запускає orbital probe / surface expedition → відкриває новий Tier даних → отримує report/video → shared-moment ("ЦЕ трапилось на моїй планеті!") → organic growth у TikTok/Reddit.
+- Safety: перша планета після евакуації має гарантований ресурсний резерв і високий floor запасів, щоб місії/перші колонії не могли soft-lock через поганий seed або порожній переносний склад.
 - Первинний KPI: **% гравців що зробили хоч 1 експедицію за сесію** (мета 40%+).
 
 #### 🧬 Вектор B — "Life generation as gameplay loop"

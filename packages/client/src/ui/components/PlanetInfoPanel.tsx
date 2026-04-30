@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet } from '@nebulife/core';
+import type { Planet, PlanetRevealLevel } from '@nebulife/core';
 import { getOverallProgress, isTerraformable } from '@nebulife/core';
 import type { PlanetTerraformState, TerraformParamId } from '@nebulife/core';
 
@@ -58,6 +58,15 @@ function Bar({ value, color = '#4488cc' }: { value: number; color?: string }) {
   );
 }
 
+function LockedRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={rowStyle}>
+      <span>{label}</span>
+      <span style={{ color: '#445566' }}>{value}</span>
+    </div>
+  );
+}
+
 const closeBtnStyle: React.CSSProperties = {
   cursor: 'pointer', background: 'none', border: 'none',
   color: '#667788', fontSize: 16, fontFamily: 'monospace',
@@ -81,17 +90,20 @@ const TERRAFORM_PARAM_IDS: TerraformParamId[] = [
   'magneticField', 'atmosphere', 'ozone', 'temperature', 'pressure', 'water',
 ];
 
-export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledReason, terraformState }: {
+export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledReason, terraformState, revealLevel = 0 }: {
   planet: Planet;
   onClose: () => void;
   onSurface?: () => void;
   surfaceDisabledReason?: string;
   /** Optional: when provided, shows a Terraforming progress section */
   terraformState?: PlanetTerraformState;
+  revealLevel?: PlanetRevealLevel;
 }) {
   const { t } = useTranslation();
   const hab = planet.habitability;
   const typeLabel = planet.type.replace('-', ' ');
+  const unknown = t('planet_info.unknown');
+  const tierHint = t('planet_info.reveal_hint', { level: revealLevel });
 
   return (
     <div style={panelStyle}>
@@ -106,74 +118,118 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
       {/* --- Group 1: Physical --- */}
       <Section title={t('planet_info.group_physical')}>
         <div style={rowStyle}><span>{t('planet_info.type')}</span><span style={{ textTransform: 'capitalize' }}>{typeLabel}</span></div>
-        <div style={rowStyle}><span>{t('planet_info.mass')}</span><span>{planet.massEarth} M&#x2295;</span></div>
-        <div style={rowStyle}><span>{t('planet_info.radius')}</span><span>{planet.radiusEarth} R&#x2295;</span></div>
-        <div style={rowStyle}><span>{t('planet_info.density')}</span><span>{planet.densityGCm3} g/cm&sup3;</span></div>
-        <div style={rowStyle}><span>{t('planet_info.gravity')}</span><span>{planet.surfaceGravityG}g</span></div>
-        <div style={rowStyle}><span>{t('planet_info.escape_vel')}</span><span>{planet.escapeVelocityKmS} km/s</span></div>
+        {revealLevel >= 1 ? (
+          <>
+            <div style={rowStyle}><span>{t('planet_info.mass')}</span><span>{planet.massEarth} M&#x2295;</span></div>
+            <div style={rowStyle}><span>{t('planet_info.radius')}</span><span>{planet.radiusEarth} R&#x2295;</span></div>
+            <div style={rowStyle}><span>{t('planet_info.density')}</span><span>{planet.densityGCm3} g/cm&sup3;</span></div>
+          </>
+        ) : (
+          <LockedRow label={t('planet_info.mass')} value={tierHint} />
+        )}
+        {revealLevel >= 2 ? (
+          <>
+            <div style={rowStyle}><span>{t('planet_info.gravity')}</span><span>{planet.surfaceGravityG}g</span></div>
+            <div style={rowStyle}><span>{t('planet_info.escape_vel')}</span><span>{planet.escapeVelocityKmS} km/s</span></div>
+          </>
+        ) : (
+          <LockedRow label={t('planet_info.gravity')} value={unknown} />
+        )}
       </Section>
 
       {/* --- Group 2: Orbital --- */}
       <Section title={t('planet_info.group_orbital')}>
-        <div style={rowStyle}><span>{t('planet_info.distance')}</span><span>{planet.orbit.semiMajorAxisAU.toFixed(3)} AU</span></div>
-        <div style={rowStyle}><span>{t('planet_info.period')}</span><span>{planet.orbit.periodDays.toFixed(1)} {t('planet_info.days')}</span></div>
-        <div style={rowStyle}><span>{t('planet_info.eccentricity')}</span><span>{planet.orbit.eccentricity.toFixed(3)}</span></div>
+        {revealLevel >= 1 ? (
+          <>
+            <div style={rowStyle}><span>{t('planet_info.distance')}</span><span>{planet.orbit.semiMajorAxisAU.toFixed(3)} AU</span></div>
+            <div style={rowStyle}><span>{t('planet_info.period')}</span><span>{planet.orbit.periodDays.toFixed(1)} {t('planet_info.days')}</span></div>
+            <div style={rowStyle}><span>{t('planet_info.eccentricity')}</span><span>{planet.orbit.eccentricity.toFixed(3)}</span></div>
+          </>
+        ) : (
+          <LockedRow label={t('planet_info.distance')} value={tierHint} />
+        )}
         <div style={rowStyle}><span>{t('planet_info.zone')}</span><span style={{ color: planet.zone === 'habitable' ? '#44aa66' : '#889999' }}>{planet.zone}</span></div>
       </Section>
 
       {/* --- Group 3: Climate --- */}
       <Section title={t('planet_info.group_climate')}>
         <div style={subSectionStyle}>{t('planet_info.temperature')}</div>
-        <div style={rowStyle}><span>{t('planet_info.equilibrium')}</span><span>{planet.equilibriumTempK} K</span></div>
-        <div style={rowStyle}><span>{t('planet_info.surface_temp')}</span><span>{planet.surfaceTempK} K ({(planet.surfaceTempK - 273.15).toFixed(0)}&deg;C)</span></div>
-        <div style={rowStyle}><span>{t('planet_info.albedo')}</span><span>{planet.albedo}</span></div>
+        {revealLevel >= 1 ? (
+          <>
+            <div style={rowStyle}><span>{t('planet_info.equilibrium')}</span><span>{planet.equilibriumTempK} K</span></div>
+            <div style={rowStyle}><span>{t('planet_info.surface_temp')}</span><span>{planet.surfaceTempK} K ({(planet.surfaceTempK - 273.15).toFixed(0)}&deg;C)</span></div>
+          </>
+        ) : (
+          <LockedRow label={t('planet_info.temperature')} value={unknown} />
+        )}
+        {revealLevel >= 2 && <div style={rowStyle}><span>{t('planet_info.albedo')}</span><span>{planet.albedo}</span></div>}
 
-        {planet.atmosphere && (
+        {planet.atmosphere && revealLevel >= 1 && (
           <>
             <div style={subSectionStyle}>{t('planet_info.atmosphere')}</div>
             <div style={rowStyle}><span>{t('planet_info.pressure')}</span><span>{planet.atmosphere.surfacePressureAtm} atm</span></div>
-            <div style={rowStyle}>
-              <span>{t('planet_info.composition')}</span>
-              <span style={{ fontSize: 9, textAlign: 'right' }}>
-                {Object.entries(planet.atmosphere.composition)
-                  .filter(([, v]) => v > 0.001)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([gas, frac]) => `${gas} ${(frac * 100).toFixed(1)}%`)
-                  .join(', ')}
-              </span>
-            </div>
-            {planet.atmosphere.hasOzone && (
+            {revealLevel >= 2 ? (
+              <div style={rowStyle}>
+                <span>{t('planet_info.composition')}</span>
+                <span style={{ fontSize: 9, textAlign: 'right' }}>
+                  {Object.entries(planet.atmosphere.composition)
+                    .filter(([, v]) => v > 0.001)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([gas, frac]) => `${gas} ${(frac * 100).toFixed(1)}%`)
+                    .join(', ')}
+                </span>
+              </div>
+            ) : (
+              <LockedRow label={t('planet_info.composition')} value={unknown} />
+            )}
+            {planet.atmosphere.hasOzone && revealLevel >= 2 && (
               <div style={rowStyle}><span>{t('planet_info.ozone')}</span><span style={{ color: '#44aa66' }}>{t('planet_info.yes')}</span></div>
             )}
           </>
         )}
 
-        {planet.hydrosphere && (
+        {planet.hydrosphere && revealLevel >= 1 && (
           <>
             <div style={subSectionStyle}>{t('planet_info.hydrosphere')}</div>
             <div style={rowStyle}><span>{t('planet_info.coverage')}</span><span>{(planet.hydrosphere.waterCoverageFraction * 100).toFixed(1)}%</span></div>
-            <div style={rowStyle}><span>{t('planet_info.ocean_depth')}</span><span>{planet.hydrosphere.oceanDepthKm.toFixed(1)} km</span></div>
-            <div style={rowStyle}><span>{t('planet_info.ice_caps')}</span><span>{(planet.hydrosphere.iceCapFraction * 100).toFixed(1)}%</span></div>
+            {revealLevel >= 2 ? (
+              <>
+                <div style={rowStyle}><span>{t('planet_info.ocean_depth')}</span><span>{planet.hydrosphere.oceanDepthKm.toFixed(1)} km</span></div>
+                <div style={rowStyle}><span>{t('planet_info.ice_caps')}</span><span>{(planet.hydrosphere.iceCapFraction * 100).toFixed(1)}%</span></div>
+              </>
+            ) : (
+              <LockedRow label={t('planet_info.ocean_depth')} value={unknown} />
+            )}
           </>
         )}
       </Section>
 
       {/* --- Group 4: Biology --- */}
       <Section title={t('planet_info.group_biology')}>
-        <div style={rowStyle}>
-          <span>{t('planet_info.life')}</span>
-          <span style={{ color: planet.hasLife ? '#44ff88' : '#667788' }}>
-            {planet.hasLife ? planet.lifeComplexity : t('planet_info.none')}
-          </span>
-        </div>
+        {revealLevel >= 3 ? (
+          <div style={rowStyle}>
+            <span>{t('planet_info.life')}</span>
+            <span style={{ color: planet.hasLife ? '#44ff88' : '#667788' }}>
+              {planet.hasLife ? planet.lifeComplexity : t('planet_info.none')}
+            </span>
+          </div>
+        ) : (
+          <LockedRow label={t('planet_info.life')} value={t('planet_info.surface_expedition_required')} />
+        )}
 
         <div style={subSectionStyle}>{t('planet_info.habitability')}</div>
-        <div style={rowStyle}><span>{t('planet_info.hab_overall')}</span><Bar value={hab.overall} color={hab.overall > 0.7 ? '#44ff88' : hab.overall > 0.3 ? '#ccaa44' : '#cc4444'} /></div>
-        <div style={rowStyle}><span>{t('planet_info.hab_temperature')}</span><Bar value={hab.temperature} /></div>
-        <div style={rowStyle}><span>{t('planet_info.hab_atmosphere')}</span><Bar value={hab.atmosphere} /></div>
-        <div style={rowStyle}><span>{t('planet_info.hab_water')}</span><Bar value={hab.water} /></div>
-        <div style={rowStyle}><span>{t('planet_info.hab_magnetic')}</span><Bar value={hab.magneticField} /></div>
-        <div style={rowStyle}><span>{t('planet_info.hab_gravity')}</span><Bar value={hab.gravity} /></div>
+        {revealLevel >= 2 ? (
+          <>
+            <div style={rowStyle}><span>{t('planet_info.hab_overall')}</span><Bar value={hab.overall} color={hab.overall > 0.7 ? '#44ff88' : hab.overall > 0.3 ? '#ccaa44' : '#cc4444'} /></div>
+            <div style={rowStyle}><span>{t('planet_info.hab_temperature')}</span><Bar value={hab.temperature} /></div>
+            <div style={rowStyle}><span>{t('planet_info.hab_atmosphere')}</span><Bar value={hab.atmosphere} /></div>
+            <div style={rowStyle}><span>{t('planet_info.hab_water')}</span><Bar value={hab.water} /></div>
+            <div style={rowStyle}><span>{t('planet_info.hab_magnetic')}</span><Bar value={hab.magneticField} /></div>
+            <div style={rowStyle}><span>{t('planet_info.hab_gravity')}</span><Bar value={hab.gravity} /></div>
+          </>
+        ) : (
+          <LockedRow label={t('planet_info.hab_overall')} value={t('planet_info.orbital_probe_required')} />
+        )}
       </Section>
 
       {/* --- Group 5: Terraform progress (when state is provided) --- */}
@@ -213,7 +269,7 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
       })()}
 
       {/* --- Group 6: Moons --- */}
-      {planet.moons.length > 0 && (
+      {planet.moons.length > 0 && revealLevel >= 2 && (
         <Section title={t('planet_info.group_moons', { count: planet.moons.length })}>
           {planet.moons.map(moon => (
             <div key={moon.id} style={rowStyle}>
@@ -226,16 +282,22 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
 
       {/* --- Group 7: Colonization --- */}
       <Section title={t('planet_info.group_colonization')}>
-        <div style={rowStyle}>
-          <span>{t('planet_info.terraform_difficulty')}</span>
-          <span>{(planet.terraformDifficulty * 100).toFixed(0)}%</span>
-        </div>
-        <div style={rowStyle}>
-          <span>{t('planet_info.colonizable')}</span>
-          <span style={{ color: planet.isColonizable ? '#44aa66' : '#cc4444' }}>
-            {planet.isColonizable ? t('planet_info.yes') : t('planet_info.no')}
-          </span>
-        </div>
+        {revealLevel >= 3 ? (
+          <>
+            <div style={rowStyle}>
+              <span>{t('planet_info.terraform_difficulty')}</span>
+              <span>{(planet.terraformDifficulty * 100).toFixed(0)}%</span>
+            </div>
+            <div style={rowStyle}>
+              <span>{t('planet_info.colonizable')}</span>
+              <span style={{ color: planet.isColonizable ? '#44aa66' : '#cc4444' }}>
+                {planet.isColonizable ? t('planet_info.yes') : t('planet_info.no')}
+              </span>
+            </div>
+          </>
+        ) : (
+          <LockedRow label={t('planet_info.colonizable')} value={t('planet_info.surface_expedition_required')} />
+        )}
       </Section>
 
       {/* --- Surface button (home planet / colonized) --- */}

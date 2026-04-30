@@ -6,6 +6,11 @@
 
 /** Types of units that can be produced at Spaceport / Landing Pad */
 export type ProducibleType =
+  | 'survey_probe'              // one-shot orbital survey payload
+  | 'orbital_satellite'         // persistent orbital science payload
+  | 'surface_rover'             // surface expedition payload
+  | 'lander'                    // landing platform / lab delivery
+  | 'atmosphere_probe'          // reinforced gas/ice giant probe
   | 'scout_drone'              // fast explorer, 1 isotope/move
   | 'mining_drone'             // auto-harvests surface tiles, 3x yield
   | 'orbital_telescope_unit'   // deployable telescope, +2 researchData/tick
@@ -140,6 +145,76 @@ export function createFleetState(): FleetState {
 // ── Producible Definitions ────────────────────────────────────────────────
 
 export const PRODUCIBLE_DEFS: Record<ProducibleType, ProducibleDef> = {
+  survey_probe: {
+    type: 'survey_probe',
+    name: 'Оглядовий зонд',
+    description: 'Одноразовий payload для швидкого орбітального сканування.',
+    productionTimeMs: 8 * 60_000,
+    cost: [
+      { resource: 'Fe', amount: 8 }, { resource: 'Cu', amount: 4 },
+      { resource: 'isotopes', amount: 3 },
+    ],
+    requiresBuilding: 'landing_pad',
+    cargoCapacity: 0, colonistCapacity: 0,
+    baseSpeed: 0.006, fuelPerLY: 2,
+  },
+
+  orbital_satellite: {
+    type: 'orbital_satellite',
+    name: 'Орбітальний супутник',
+    description: 'Супутник для детального сканування атмосфери, гідросфери та ресурсів.',
+    productionTimeMs: 25 * 60_000,
+    cost: [
+      { resource: 'Ti', amount: 16 }, { resource: 'Si', amount: 12 },
+      { resource: 'Cu', amount: 8 }, { resource: 'isotopes', amount: 10 },
+    ],
+    requiresBuilding: 'landing_pad',
+    cargoCapacity: 0, colonistCapacity: 0,
+    baseSpeed: 0.005, fuelPerLY: 4,
+  },
+
+  surface_rover: {
+    type: 'surface_rover',
+    name: 'Поверхневий ровер',
+    description: 'Мобільна лабораторія для підтвердження життя і картографії родовищ.',
+    productionTimeMs: 45 * 60_000,
+    cost: [
+      { resource: 'Fe', amount: 25 }, { resource: 'Ti', amount: 14 },
+      { resource: 'Cu', amount: 10 }, { resource: 'isotopes', amount: 12 },
+    ],
+    requiresBuilding: 'spaceport',
+    cargoCapacity: 0, colonistCapacity: 0,
+    baseSpeed: 0.004, fuelPerLY: 6,
+  },
+
+  lander: {
+    type: 'lander',
+    name: 'Посадковий модуль',
+    description: 'Платформа для доставки ровера або польової лабораторії на поверхню.',
+    productionTimeMs: 50 * 60_000,
+    cost: [
+      { resource: 'Fe', amount: 35 }, { resource: 'Ti', amount: 18 },
+      { resource: 'Al', amount: 16 }, { resource: 'isotopes', amount: 14 },
+    ],
+    requiresBuilding: 'spaceport',
+    cargoCapacity: 0, colonistCapacity: 0,
+    baseSpeed: 0.004, fuelPerLY: 7,
+  },
+
+  atmosphere_probe: {
+    type: 'atmosphere_probe',
+    name: 'Атмосферний зонд',
+    description: 'Посилений зонд для глибоких шарів газових та крижаних гігантів.',
+    productionTimeMs: 55 * 60_000,
+    cost: [
+      { resource: 'Ti', amount: 28 }, { resource: 'Si', amount: 18 },
+      { resource: 'volatiles', amount: 18 }, { resource: 'isotopes', amount: 22 },
+    ],
+    requiresBuilding: 'spaceport',
+    cargoCapacity: 0, colonistCapacity: 0,
+    baseSpeed: 0.004, fuelPerLY: 8,
+  },
+
   scout_drone: {
     type: 'scout_drone',
     name: 'Дрон-розвідник',

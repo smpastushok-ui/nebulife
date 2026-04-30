@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArenaEngine } from '../../../game/arena/index.js';
 import type { ArenaCallbacks, MatchResult, TeamMatchResult } from '../../../game/arena/index.js';
 import { ArenaLandscapeControls } from './ArenaLandscapeControls.js';
@@ -21,8 +22,10 @@ interface SpaceArenaProps {
 const isMobileDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const ARENA_XP_PER_KILL = 10;
 const ARENA_XP_WIN_BONUS = 50;
+const ARENA_COMBO_WINDOW_MS = 4_500;
 
 export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: SpaceArenaProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<ArenaEngine | null>(null);
   const [ready, setReady] = useState(false);
@@ -67,6 +70,8 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
   const [matchTimer, setMatchTimer] = useState(0);
   const awardedKillsRef = useRef(0);
   const matchEndAwardedRef = useRef(false);
+  const comboRef = useRef({ count: 0, lastKillAt: 0 });
+  const [killFx, setKillFx] = useState<{ id: number; combo: number; xp: number } | null>(null);
   // Damage flash removed — lasers now cause camera shake (in engine),
   // and screen blink is reserved exclusively for missile threats.
 
@@ -204,7 +209,18 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
       if (stats.kills > awardedKillsRef.current) {
         const newKills = stats.kills - awardedKillsRef.current;
         awardedKillsRef.current = stats.kills;
-        onAwardXP?.(newKills * ARENA_XP_PER_KILL, 'arena_kill');
+        let totalXp = 0;
+        const now = Date.now();
+        for (let i = 0; i < newKills; i++) {
+          const withinWindow = now - comboRef.current.lastKillAt <= ARENA_COMBO_WINDOW_MS;
+          const combo = withinWindow ? comboRef.current.count + 1 : 1;
+          comboRef.current = { count: combo, lastKillAt: now };
+          const comboBonus = combo >= 2 ? Math.min(30, (combo - 1) * 5) : 0;
+          const xp = ARENA_XP_PER_KILL + comboBonus;
+          totalXp += xp;
+          setKillFx({ id: now + i, combo, xp });
+        }
+        onAwardXP?.(totalXp, 'arena_kill_combo');
       }
       setSessionStats(stats);
     }, 500);
@@ -466,6 +482,12 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
           80% { transform: scale(1); opacity: 1; }
           100% { transform: scale(1.5); opacity: 0; }
         }
+        @keyframes arenaKillPop {
+          0% { transform: translate(-50%, 18px) scale(0.78); opacity: 0; letter-spacing: 1px; filter: blur(6px); }
+          16% { transform: translate(-50%, 0) scale(1.1); opacity: 1; letter-spacing: 5px; filter: blur(0); }
+          56% { transform: translate(-50%, -8px) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -34px) scale(0.92); opacity: 0; letter-spacing: 8px; }
+        }
         @keyframes arenaDeathFlash {
           0% { opacity: 1; }
           100% { opacity: 0.2; }
@@ -513,6 +535,32 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
             letterSpacing: 4,
           }}>
             {Math.ceil(countdownRemaining)}
+          </div>
+        </div>
+      )}
+
+      {killFx && !matchResult && (
+        <div
+          key={killFx.id}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: `calc(88px + env(safe-area-inset-bottom, 0px))`,
+            zIndex: 6,
+            pointerEvents: 'none',
+            textAlign: 'center',
+            fontFamily: 'monospace',
+            animation: 'arenaKillPop 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            textShadow: '0 0 10px rgba(255,136,68,0.95), 0 0 24px rgba(255,68,68,0.45)',
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#ff8844' }}>
+            {t('arena.kill')}
+          </div>
+          <div style={{ marginTop: 2, fontSize: 10, color: '#aabbcc', letterSpacing: 2 }}>
+            {killFx.combo >= 2
+              ? t('arena.combo_xp', { combo: killFx.combo, xp: killFx.xp })
+              : t('arena.kill_xp', { xp: killFx.xp })}
           </div>
         </div>
       )}

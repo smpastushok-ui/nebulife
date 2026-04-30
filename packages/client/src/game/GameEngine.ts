@@ -15,6 +15,7 @@ import {
 } from '@nebulife/core';
 import { GalaxyScene } from './scenes/GalaxyScene.js';
 import { SystemScene } from './scenes/SystemScene.js';
+import type { PlanetMissionVisual } from './scenes/SystemScene.js';
 import { CameraController } from './camera/CameraController.js';
 
 export interface GameCallbacks {
@@ -405,6 +406,11 @@ export class GameEngine {
   /** Stop system scene ship flight */
   stopSystemShipFlight() {
     this.systemScene?.stopShipFlight();
+  }
+
+  /** Sync planet mission progress markers into the active system scene. */
+  setSystemPlanetMissionVisuals(missions: PlanetMissionVisual[]) {
+    this.systemScene?.setPlanetMissionVisuals(missions);
   }
 
   /** Enter a system (called after warp animation completes) */

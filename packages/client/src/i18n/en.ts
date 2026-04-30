@@ -546,4 +546,12 @@ export const en: Record<TranslationKey, string> = {
   // Scene controls
   'scene_controls.zoom_in':  'Zoom in',
   'scene_controls.zoom_out': 'Zoom out',
+
+  // Planet exploration missions
+  'planet_missions.reason.unknown':             'Mission unavailable',
+  'planet_missions.reason.already_revealed':    'This data tier is already revealed',
+  'planet_missions.reason.active_mission':      'A mission is already active for this planet',
+  'planet_missions.reason.building_required':   'Launch building required',
+  'planet_missions.reason.surface_unavailable': 'Landing is not possible here',
+  'planet_missions.reason.resources_required':  'Not enough resources',
 };

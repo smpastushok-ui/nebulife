@@ -104,6 +104,22 @@ export const BASE_STORAGE_CAPACITY = {
   water: 1000,
 } as const;
 
+/** Minimum carried stockpile guaranteed on the first post-evacuation colony. */
+export const POST_EVACUATION_RESOURCE_RESERVE = {
+  minerals: 3500,
+  volatiles: 2500,
+  isotopes: 1200,
+  water: 1800,
+} as const;
+
+/** Extraction-floor for the first colony/home planet so early expansion cannot soft-lock. */
+export const HOME_PLANET_STOCK_FLOOR = {
+  minerals: 250_000,
+  volatiles: 150_000,
+  isotopes: 50_000,
+  water: 120_000,
+} as const;
+
 /** Base energy storage (without battery stations). */
 export const BASE_ENERGY_STORAGE = 50;
 

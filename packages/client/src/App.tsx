@@ -83,9 +83,17 @@ import {
   runColonyTicks,
   createPlanetColonyState,
   COLONY_TICK_INTERVAL_MS,
+  HOME_PLANET_STOCK_FLOOR,
+  POST_EVACUATION_RESOURCE_RESERVE,
+  canStartPlanetMission,
+  createPlanetMission,
+  completePlanetMission,
+  getPlanetMissionProgress,
+  isSolidPlanetForLanding,
 } from '@nebulife/core';
 import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
+import type { PlanetMission, PlanetMissionType, PlanetReportSummary, PlanetRevealLevel } from '@nebulife/core';
 import {
   getInitialTerraformState,
   applyDelivery,
@@ -204,6 +212,10 @@ interface SyncedGameState {
   planet_overrides?: Record<string, unknown>;
   // Planet resource stocks — finite extraction budgets (v168)
   planet_resource_stocks?: Record<string, import('@nebulife/core').PlanetResourceStocks>;
+  // Planet exploration missions
+  planet_reveal_levels?: Record<string, PlanetRevealLevel>;
+  planet_missions?: Record<string, PlanetMission>;
+  planet_reports?: Record<string, PlanetReportSummary>;
   // Metadata
   synced_at: number;
   last_regen_time?: number;
@@ -739,6 +751,48 @@ function AppInner() {
     catch { /* ignore quota */ }
   }, [fleet]);
 
+  // ── Planet exploration missions ───────────────────────────────────────────
+  const [planetRevealLevels, setPlanetRevealLevels] = useState<Record<string, PlanetRevealLevel>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_planet_reveal_levels');
+      if (saved) return JSON.parse(saved) as Record<string, PlanetRevealLevel>;
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  const [planetMissions, setPlanetMissions] = useState<Record<string, PlanetMission>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_planet_missions');
+      if (saved) return JSON.parse(saved) as Record<string, PlanetMission>;
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  const [planetReports, setPlanetReports] = useState<Record<string, PlanetReportSummary>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_planet_reports');
+      if (saved) return JSON.parse(saved) as Record<string, PlanetReportSummary>;
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  const [planetMissionClock, setPlanetMissionClock] = useState(() => Date.now());
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_planet_reveal_levels', JSON.stringify(planetRevealLevels)); }
+    catch { /* ignore quota */ }
+  }, [planetRevealLevels]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_planet_missions', JSON.stringify(planetMissions)); }
+    catch { /* ignore quota */ }
+  }, [planetMissions]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_planet_reports', JSON.stringify(planetReports)); }
+    catch { /* ignore quota */ }
+  }, [planetReports]);
+
   // ── Planet overrides — type/habitability mutations after terraform (Phase 7C) ──
   /** Keyed by planetId.  Persisted to localStorage and synced via game_state JSONB. */
   const [planetOverrides, setPlanetOverrides] = useState<Record<string, PlanetOverride>>(() => {
@@ -821,6 +875,27 @@ function AppInner() {
       sum.water     += r.water;
     }
     return sum;
+  }, []);
+
+  const ensureHomePlanetStockFloor = useCallback((planet: Planet): void => {
+    setPlanetResourceStocks((prev) => {
+      const current = prev[planet.id] ?? generatePlanetStocks(planet);
+      const next: PlanetResourceStocks = {
+        initial: {
+          minerals: Math.max(current.initial.minerals, HOME_PLANET_STOCK_FLOOR.minerals),
+          volatiles: Math.max(current.initial.volatiles, HOME_PLANET_STOCK_FLOOR.volatiles),
+          isotopes: Math.max(current.initial.isotopes, HOME_PLANET_STOCK_FLOOR.isotopes),
+          water: Math.max(current.initial.water, HOME_PLANET_STOCK_FLOOR.water),
+        },
+        remaining: {
+          minerals: Math.max(current.remaining.minerals, HOME_PLANET_STOCK_FLOOR.minerals),
+          volatiles: Math.max(current.remaining.volatiles, HOME_PLANET_STOCK_FLOOR.volatiles),
+          isotopes: Math.max(current.remaining.isotopes, HOME_PLANET_STOCK_FLOOR.isotopes),
+          water: Math.max(current.remaining.water, HOME_PLANET_STOCK_FLOOR.water),
+        },
+      };
+      return { ...prev, [planet.id]: next };
+    });
   }, []);
 
   /** Returns the existing terraform state for a planet, or initialises one from the planet's params. */
@@ -1297,6 +1372,29 @@ function AppInner() {
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homeInfo?.planet.id]); // run only when home planet first becomes known
+
+  useEffect(() => {
+    if (!homeInfo || isExodusPhase) return;
+    const flag = `nebulife_home_resource_floor_${homeInfo.planet.id}`;
+    try {
+      if (localStorage.getItem(flag) === '1') return;
+    } catch { /* ignore */ }
+
+    ensureHomePlanetStockFloor(homeInfo.planet);
+    setColonyResourcesByPlanet((prev) => {
+      const existing = prev[homeInfo.planet.id] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+      return {
+        ...prev,
+        [homeInfo.planet.id]: {
+          minerals: Math.max(existing.minerals, POST_EVACUATION_RESOURCE_RESERVE.minerals),
+          volatiles: Math.max(existing.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
+          isotopes: Math.max(existing.isotopes, POST_EVACUATION_RESOURCE_RESERVE.isotopes),
+          water: Math.max(existing.water, POST_EVACUATION_RESOURCE_RESERVE.water),
+        },
+      };
+    });
+    try { localStorage.setItem(flag, '1'); } catch { /* ignore */ }
+  }, [ensureHomePlanetStockFloor, homeInfo, isExodusPhase]);
 
   // Home system is always researched by default (player's own star system).
   // This effect ensures it stays researched even after server hydration overwrites state.
@@ -2008,6 +2106,178 @@ function AppInner() {
     setShowTerraformPlanet(planet);
   }, []);
 
+  const getExplorationBuildings = useCallback((): PlacedBuilding[] => {
+    const byId = new Map<string, PlacedBuilding>();
+    for (const building of colonyState?.buildings ?? []) byId.set(building.id, building);
+
+    try {
+      const raw = localStorage.getItem('nebulife_hex_slots');
+      if (raw) {
+        const slots = JSON.parse(raw) as Array<{ id: string; state: string; buildingType?: string; buildingLevel?: number }>;
+        for (const slot of slots) {
+          if (slot.state !== 'building' || !slot.buildingType) continue;
+          const id = `hex-${slot.id}`;
+          byId.set(id, {
+            id,
+            type: slot.buildingType as BuildingType,
+            x: 0,
+            y: 0,
+            level: slot.buildingLevel ?? 1,
+            builtAt: new Date().toISOString(),
+          });
+        }
+      }
+    } catch { /* ignore */ }
+
+    return [...byId.values()];
+  }, [colonyState?.buildings]);
+
+  const getEffectivePlanetRevealLevel = useCallback((planet: Planet, system?: StarSystem | null): PlanetRevealLevel => {
+    if (planet.isHomePlanet || (homeInfo?.planet.id && planet.id === homeInfo.planet.id)) return 3;
+    const stored = planetRevealLevels[planet.id] ?? 0;
+    const systemResearched = system?.id ? isSystemFullyResearched(researchState, system.id) : false;
+    return Math.max(stored, systemResearched ? 1 : 0) as PlanetRevealLevel;
+  }, [homeInfo?.planet.id, planetRevealLevels, researchState]);
+
+  const getActivePlanetMission = useCallback((planetId: string): PlanetMission | null => {
+    return Object.values(planetMissions).find((mission) => (
+      mission.planetId === planetId && mission.status !== 'completed' && mission.status !== 'report_ready'
+    )) ?? null;
+  }, [planetMissions]);
+
+  const handleStartPlanetMission = useCallback((planet: Planet, type: PlanetMissionType): void => {
+    const system = state.selectedSystem;
+    if (!system) return;
+
+    const revealLevel = getEffectivePlanetRevealLevel(planet, system);
+    const resources = { researchData: Math.floor(researchData), ...totalResources() };
+    const check = canStartPlanetMission({
+      type,
+      planet,
+      revealLevel,
+      activeMissions: Object.values(planetMissions),
+      buildings: getExplorationBuildings(),
+      resources,
+    });
+
+    if (!check.canStart) {
+      const reasonKey = {
+        already_revealed: 'planet_missions.reason.already_revealed',
+        active_mission: 'planet_missions.reason.active_mission',
+        building_required: 'planet_missions.reason.building_required',
+        surface_unavailable: 'planet_missions.reason.surface_unavailable',
+        resources_required: 'planet_missions.reason.resources_required',
+        unknown: 'planet_missions.reason.unknown',
+      } as const;
+      setState((prev) => ({ ...prev, error: t(reasonKey[check.reason ?? 'unknown']) }));
+      return;
+    }
+
+    const now = Date.now();
+    const mission = createPlanetMission({
+      id: `pm-${planet.id}-${now}`,
+      type,
+      systemId: system.id,
+      planet,
+      startedAt: now,
+      originPlanetId: homeInfo?.planet.id,
+      originSystemId: homeInfo?.system.id,
+    });
+
+    const cost = mission.costPaid;
+    if (cost.researchData) setResearchData((prev) => Math.max(0, prev - cost.researchData!));
+    spendResourcesAcrossPlanets(homeInfo?.planet.id ?? planet.id, {
+      minerals: -(cost.minerals ?? 0),
+      volatiles: -(cost.volatiles ?? 0),
+      isotopes: -(cost.isotopes ?? 0),
+      water: -(cost.water ?? 0),
+    });
+
+    setPlanetMissions((prev) => ({ ...prev, [mission.id]: mission }));
+    setState((prev) => ({ ...prev, showPlanetMenu: false, error: null }));
+    scheduleSyncToServer();
+    engineRef.current?.startSystemShipFlight(planet.id);
+  }, [
+    getEffectivePlanetRevealLevel,
+    getExplorationBuildings,
+    homeInfo?.planet.id,
+    homeInfo?.system.id,
+    planetMissions,
+    researchData,
+    scheduleSyncToServer,
+    spendResourcesAcrossPlanets,
+    state.selectedSystem,
+    t,
+    totalResources,
+  ]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      setPlanetMissionClock(now);
+
+      const reportsToAdd: PlanetReportSummary[] = [];
+      const revealUpdates: Record<string, PlanetRevealLevel> = {};
+      let changed = false;
+      const next: Record<string, PlanetMission> = { ...planetMissions };
+
+      for (const [missionId, mission] of Object.entries(planetMissions)) {
+        if (mission.status === 'completed' || mission.status === 'report_ready') continue;
+
+        const progress = getPlanetMissionProgress(mission, now);
+        if (progress.phase === 'report_ready') {
+          const completed = completePlanetMission(mission, now);
+          next[missionId] = completed.mission;
+          reportsToAdd.push(completed.report);
+          revealUpdates[mission.planetId] = Math.max(
+            planetRevealLevels[mission.planetId] ?? 0,
+            mission.targetRevealLevel,
+          ) as PlanetRevealLevel;
+          changed = true;
+        } else if (progress.phase !== mission.status) {
+          next[missionId] = { ...mission, status: progress.phase };
+          changed = true;
+        }
+      }
+
+      if (changed) setPlanetMissions(next);
+
+      if (reportsToAdd.length > 0) {
+        setPlanetReports((prev) => {
+          const next = { ...prev };
+          for (const report of reportsToAdd) next[report.planetId] = report;
+          return next;
+        });
+        setPlanetRevealLevels((prev) => ({ ...prev, ...revealUpdates }));
+        scheduleSyncToServer();
+      }
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [planetMissions, planetRevealLevels, scheduleSyncToServer]);
+
+  useEffect(() => {
+    if (state.scene !== 'system' || !state.selectedSystem) {
+      engineRef.current?.setSystemPlanetMissionVisuals([]);
+      return;
+    }
+
+    const systemId = state.selectedSystem.id;
+    const visuals = Object.values(planetMissions)
+      .filter((mission) => mission.systemId === systemId && mission.status !== 'completed')
+      .map((mission) => {
+        const progress = getPlanetMissionProgress(mission, planetMissionClock);
+        return {
+          planetId: mission.planetId,
+          type: mission.type,
+          phase: progress.phase,
+          overallProgress: progress.overallProgress,
+          phaseProgress: progress.phaseProgress,
+        };
+      });
+    engineRef.current?.setSystemPlanetMissionVisuals(visuals);
+  }, [planetMissionClock, planetMissions, state.scene, state.selectedSystem]);
+
   const [arenaStats, setArenaStats] = useState<{
     kills: number;
     asteroidKills: number;
@@ -2382,6 +2652,9 @@ function AppInner() {
       // Terraforming
       'nebulife_terraform_states',
       'nebulife_fleet',
+      'nebulife_planet_reveal_levels',
+      'nebulife_planet_missions',
+      'nebulife_planet_reports',
       // Per-planet resources (Phase 7A)
       'nebulife_colony_resources_by_planet',
     ];
@@ -2876,6 +3149,46 @@ function AppInner() {
       setFleet((localFleet) => {
         if (localFleet.length >= serverFleet.length) return localFleet;
         return serverFleet;
+      });
+    }
+
+    // Planet exploration missions — merge by latest mission/report timestamps.
+    if (gs.planet_reveal_levels && typeof gs.planet_reveal_levels === 'object') {
+      const serverReveal = gs.planet_reveal_levels as Record<string, PlanetRevealLevel>;
+      setPlanetRevealLevels((localReveal) => {
+        const merged: Record<string, PlanetRevealLevel> = { ...localReveal };
+        for (const [planetId, level] of Object.entries(serverReveal)) {
+          merged[planetId] = Math.max(merged[planetId] ?? 0, level) as PlanetRevealLevel;
+        }
+        return merged;
+      });
+    }
+
+    if (gs.planet_missions && typeof gs.planet_missions === 'object') {
+      const serverMissions = gs.planet_missions as Record<string, PlanetMission>;
+      setPlanetMissions((localMissions) => {
+        const merged: Record<string, PlanetMission> = { ...localMissions };
+        for (const [missionId, serverMission] of Object.entries(serverMissions)) {
+          const localMission = localMissions[missionId];
+          if (!localMission || (serverMission.completedAt ?? serverMission.startedAt) >= (localMission.completedAt ?? localMission.startedAt)) {
+            merged[missionId] = serverMission;
+          }
+        }
+        return merged;
+      });
+    }
+
+    if (gs.planet_reports && typeof gs.planet_reports === 'object') {
+      const serverReports = gs.planet_reports as Record<string, PlanetReportSummary>;
+      setPlanetReports((localReports) => {
+        const merged: Record<string, PlanetReportSummary> = { ...localReports };
+        for (const [planetId, serverReport] of Object.entries(serverReports)) {
+          const localReport = localReports[planetId];
+          if (!localReport || serverReport.generatedAt >= localReport.generatedAt) {
+            merged[planetId] = serverReport;
+          }
+        }
+        return merged;
       });
     }
 
@@ -4957,6 +5270,7 @@ function AppInner() {
 
     // Update local home info
     setHomeInfo({ system: evacuationTarget.system, planet: evacuationTarget.planet });
+    ensureHomePlanetStockFloor(evacuationTarget.planet);
 
     // Reset research state: observatories were on the destroyed planet
     // Start with 1 slot for colony hub's built-in observatory
@@ -4990,13 +5304,26 @@ function AppInner() {
         const merged = { ...prev };
         // Move old planet's resources onto new planet, clear old entry
         merged[newPlanetId] = {
-          minerals:  existing.minerals  + carried.minerals,
-          volatiles: existing.volatiles + carried.volatiles,
-          isotopes:  existing.isotopes  + carried.isotopes,
-          water:     existing.water     + carried.water,
+          minerals:  Math.max(existing.minerals  + carried.minerals,  POST_EVACUATION_RESOURCE_RESERVE.minerals),
+          volatiles: Math.max(existing.volatiles + carried.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
+          isotopes:  Math.max(existing.isotopes  + carried.isotopes,  POST_EVACUATION_RESOURCE_RESERVE.isotopes),
+          water:     Math.max(existing.water     + carried.water,     POST_EVACUATION_RESOURCE_RESERVE.water),
         };
         delete merged[oldPlanetId];
         return merged;
+      });
+    } else {
+      setColonyResourcesByPlanet((prev) => {
+        const existing = prev[newPlanetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+        return {
+          ...prev,
+          [newPlanetId]: {
+            minerals: Math.max(existing.minerals, POST_EVACUATION_RESOURCE_RESERVE.minerals),
+            volatiles: Math.max(existing.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
+            isotopes: Math.max(existing.isotopes, POST_EVACUATION_RESOURCE_RESERVE.isotopes),
+            water: Math.max(existing.water, POST_EVACUATION_RESOURCE_RESERVE.water),
+          },
+        };
       });
     }
 
@@ -5020,7 +5347,7 @@ function AppInner() {
     }
     // Also schedule normal sync for the rest of the state
     setTimeout(() => syncGameStateRef.current(), 500);
-  }, [evacuationTarget, homeInfo]);
+  }, [evacuationTarget, ensureHomePlanetStockFloor, homeInfo]);
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
   useEffect(() => { currentSceneRef.current = state.scene; }, [state.scene]);
@@ -5360,6 +5687,9 @@ function AppInner() {
         Object.entries(terraformStates).filter(([, s]) => s.completedAt !== null || getOverallProgress(s) > 0),
       ),
       fleet: fleet.filter((m) => m.phase !== 'idle'),
+      planet_reveal_levels: planetRevealLevels,
+      planet_missions: planetMissions,
+      planet_reports: planetReports,
       // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
       planet_overrides: planetOverrides,
       // Planet resource stocks (v168 — finite extraction deposits; stored in JSONB)
@@ -5407,7 +5737,7 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetOverrides, planetResourceStocks]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetRevealLevels, planetMissions, planetReports, planetOverrides, planetResourceStocks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -6680,6 +7010,12 @@ function AppInner() {
           canShowAds={isNativePlatform() && canShowAd()}
           hasGenesisVault={colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false}
           onShowTerraform={onShowTerraform}
+          revealLevel={getEffectivePlanetRevealLevel(state.selectedPlanet, state.selectedSystem)}
+          activeMission={getActivePlanetMission(state.selectedPlanet.id)}
+          planetMissionClock={planetMissionClock}
+          missionResources={{ researchData: Math.floor(researchData), ...totalResources() }}
+          colonyBuildings={getExplorationBuildings()}
+          onStartMission={handleStartPlanetMission}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -6689,6 +7025,7 @@ function AppInner() {
           onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
           terraformState={terraformStates[state.selectedPlanet.id]}
+          revealLevel={getEffectivePlanetRevealLevel(state.selectedPlanet, state.selectedSystem)}
         />
       )}
       {/* ── TerraformPanel full-screen overlay ── */}

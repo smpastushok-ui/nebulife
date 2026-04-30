@@ -48,6 +48,15 @@
 
 > Source: `packages/core/src/game/research.ts`, `packages/core/src/constants/balance.ts`
 
+### Planet Exploration Missions
+- Після повного research зоряної системи планети відкриваються тільки до Tier 1: базова орбіта, тип, температура, rough water/atmosphere signal.
+- `orbital_probe` через `landing_pad` відкриває Tier 2: повна атмосфера, гідросфера, магнітне поле, moons, групові ресурси і habitability factors.
+- `surface_landing` через `spaceport` відкриває Tier 3 для solid planets: життя, детальні ресурси, surface report і підтвердження колонізації.
+- Для `gas-giant` / `ice-giant` Tier 3 замінюється `deep_atmosphere_probe`: глибокі шари атмосфери, storms і magnetic science без surface deposits.
+- Місії мають фази `preparing` → `outbound` → `orbital_insertion` → `scan_or_landing` → `data_downlink` → `report_ready`, з видимим progress arc у `SystemScene`.
+
+> Source: `packages/core/src/game/planet-exploration.ts`, `packages/client/src/game/scenes/SystemScene.ts`, `packages/client/src/ui/components/PlanetInfoPanel.tsx`
+
 ### Phase 2: Ship Launch
 - Вибір пункту призначення (придатна планета, habitability > 0.3)
 - Запуск корабля порятунку
@@ -57,6 +66,13 @@
 - Прибуття корабля
 - Заснування колонії
 - Видобуток ресурсів на супутниках
+
+### Post-Evacuation Resource Safety
+- Перша планета після евакуації не може стартувати порожньою: колонія отримує мінімальний переносний резерв `POST_EVACUATION_RESOURCE_RESERVE`.
+- Home/evacuation planet має високий floor finite stocks `HOME_PLANET_STOCK_FLOOR`, щоб гравець міг дослідити локальний космос, запустити probes/rovers і заснувати перші додаткові колонії.
+- Лейтгейм все одно обмежений місцем, hex-сіткою і кількістю споруд, а не раннім браком базових ресурсів.
+
+> Source: `packages/core/src/constants/balance.ts`, `packages/client/src/App.tsx`
 
 ### Hangar PvE: Carrier Raid
 - Окремий режим поруч з існуючою Space Arena, не замінює арену.

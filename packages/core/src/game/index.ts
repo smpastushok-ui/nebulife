@@ -146,6 +146,21 @@ export {
 } from './logistics.js';
 export type { LaunchResult, ArrivalEvent } from './logistics.js';
 
+// Planet exploration missions
+export {
+  isSolidPlanetForLanding,
+  getTargetRevealLevel,
+  getRequiredMissionBuilding,
+  computePlanetMissionCost,
+  computePlanetMissionDuration,
+  sumPlanetMissionDuration,
+  getPlanetMissionProgress,
+  canStartPlanetMission,
+  createPlanetMission,
+  completePlanetMission,
+} from './planet-exploration.js';
+export type { PlanetMissionResources, PlanetMissionStartCheck } from './planet-exploration.js';
+
 // Terraforming rules
 export {
   isTerraformable,

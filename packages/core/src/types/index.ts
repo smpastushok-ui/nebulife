@@ -42,6 +42,16 @@ export type {
   CategoryProgressEntry, AcademyProgress,
 } from './education.js';
 export type {
+  PlanetRevealLevel,
+  PlanetMissionType,
+  PlanetMissionPhase,
+  PlanetMissionCost,
+  PlanetMissionPhaseDurations,
+  PlanetMission,
+  PlanetReportSummary,
+  PlanetMissionProgress,
+} from './planet-exploration.js';
+export type {
   TerraformParamId,
   TerraformParamState,
   PlanetTerraformState,
