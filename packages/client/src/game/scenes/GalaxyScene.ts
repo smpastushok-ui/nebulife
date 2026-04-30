@@ -73,7 +73,7 @@ const SPECTRAL_PARTICLE_COLOR: Record<string, number> = {
 /* ── Layout constants ──────────────────────────────────────────── */
 
 /** Pixels per light-year for hex->screen conversion */
-const PX_PER_LY = 18;
+const PX_PER_LY = 20;
 
 /** Easing speed for alpha transitions */
 const ANIM_SPEED = 5;
@@ -1227,7 +1227,7 @@ export class GalaxyScene {
         // the player visibly sees "a new ring lit up".
         if (node.nodeType === 'neighbor') {
           node.baseAlpha = 1.0;
-          node.nameLabel.visible = true;
+          node.nameLabel.visible = false;
         } else if (node.nodeType === 'core') {
           node.baseAlpha = 0.75;
         }
@@ -1244,7 +1244,7 @@ export class GalaxyScene {
           node.baseAlpha = 0.55;
           node.container.eventMode = 'static';
           node.container.cursor = 'pointer';
-          node.nameLabel.visible = true;
+          node.nameLabel.visible = false;
         } else {
           node.baseAlpha = 0.35;
           node.container.eventMode = 'none';
@@ -1535,7 +1535,7 @@ export class GalaxyScene {
 
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
-    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < (baseR + 22) * (baseR + 22) };
+    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < (baseR + 18) * (baseR + 18) };
 
     dot.on('pointerover', () => { nl.visible = true; dot.scale.set(1.12); });
     dot.on('pointerout', () => { nl.visible = false; dot.scale.set(1.0); });
@@ -1626,7 +1626,7 @@ export class GalaxyScene {
     // Interactivity
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
-    const hitR = effectiveR + 22;  // +22 for finger-friendly mobile tap targets
+    const hitR = Math.max(18, effectiveR + 14);  // compact enough to avoid stealing clicks from nearby stars
     dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < hitR * hitR };
 
     dot.on('pointerover', () => {
