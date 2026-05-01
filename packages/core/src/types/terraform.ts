@@ -44,6 +44,8 @@ export type MissionPhase =
 /** A single resource-delivery mission assigned to a terraforming parameter. */
 export interface Mission {
   id: string;
+  /** Real reusable ship assigned from FleetState. */
+  shipId?: string;
   /** Planet ID of the colony sending resources. */
   donorPlanetId: string;
   /** Planet ID being terraformed. */

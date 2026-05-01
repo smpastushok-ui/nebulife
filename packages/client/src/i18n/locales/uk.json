@@ -135,11 +135,11 @@
     },
     "landing_pad": {
       "name": "Посадковий майданчик",
-      "desc": "Прийом малих кораблів, дронів та вантажів з орбіти."
+      "desc": "Запуск і прийом малих дослідницьких апаратів: зондів, супутників, роверів і дронів."
     },
     "spaceport": {
       "name": "Космопорт",
-      "desc": "Будівництво та запуск кораблів. Потребує посадковий майданчик."
+      "desc": "Важка орбітальна логістика: вантажні кораблі, колонізаційні запуски та доставка ресурсів для терраформування. Потребує посадковий майданчик."
     },
     "solar_plant": {
       "name": "Сонячна станція",
@@ -147,7 +147,7 @@
     },
     "battery_station": {
       "name": "Акумуляторна",
-      "desc": "Зберігає надлишки енергії. +100 ємності енерго-сховища."
+      "desc": "Зберігає надлишки енергії. +2400 ємності енерго-сховища для покриття піків споживання."
     },
     "wind_generator": {
       "name": "Вітрогенератор",
@@ -354,7 +354,7 @@
     },
     "phy-thrust-1": {
       "name": "Тяга I",
-      "desc": "Розблоковує Посадковий майданчик. Виробництво кораблів."
+      "desc": "Розблоковує Посадковий майданчик для малих дослідницьких запусків."
     },
     "phy-drill": {
       "name": "Глибинне буріння",
@@ -859,6 +859,39 @@
     "orbital_probe_required": "потрібен орбітальний зонд",
     "surface_expedition_required": "потрібна поверхнева експедиція"
   },
+  "planet_terminal": {
+    "tab_resources": "Ресурси",
+    "tab_logistics": "Логістика",
+    "tab_terraform": "Терраформ.",
+    "tab_status": "Статус",
+    "system_research": "Дослідження системи",
+    "start_system_research": "Почати дослідження системи",
+    "researching": "Дослідження триває",
+    "logistics_desc": "Доставка ресурсів на планету через вільні вантажні кораблі з космопортів.",
+    "free_ships": "Вільні вантажні кораблі: {{count}}",
+    "nearest_spaceport": "Найближчий вузол: {{planet}}",
+    "available_cargo": "Кораблів тут: {{count}}",
+    "resources_short": "M {{minerals}} · V {{volatiles}} · I {{isotopes}} · W {{water}}",
+    "no_cargo_ships": "Немає вільних вантажних кораблів. Побудуй транспорт у космопорті.",
+    "resource_minerals": "Мінерали",
+    "resource_volatiles": "Леткі",
+    "resource_isotopes": "Ізотопи",
+    "resource_water": "Вода",
+    "send_cargo": "Відправити вантаж · {{amount}}",
+    "shipment_status": "{{amount}} {{resource}} · {{status}}",
+    "shipment_loading": "завантаження",
+    "shipment_outbound": "переліт",
+    "shipment_unloading": "розвантаження",
+    "shipment_returning": "повернення",
+    "shipment_completed": "завершено",
+    "terraform_preview_l48": "Потреби терраформування видно зараз. Запуск відкриється з L48.",
+    "terraform_requirements_visible": "Потреби доступні · запуск з L48",
+    "badge_atmosphere": "Атмосфера досліджена",
+    "badge_surface": "Поверхня досліджена",
+    "badge_colonized": "Населена",
+    "badge_terraforming": "В процесі терраформації",
+    "badge_terraformed": "Терраформована"
+  },
   "planet_missions": {
     "section": "Дослідницькі місії",
     "start": "Старт",
@@ -897,7 +930,15 @@
       "orbital_satellite": "Орбітальний супутник",
       "surface_rover": "Поверхневий ровер",
       "lander": "Посадковий модуль",
-      "atmosphere_probe": "Атмосферний зонд"
+      "atmosphere_probe": "Атмосферний зонд",
+      "research_shuttle": "Дослідницький шатл",
+      "rover_dropcraft": "Ровер-дропкрафт",
+      "atmo_probe_carrier": "Носій атмосферних зондів",
+      "research_station_kit": "Комплект дослідницької станції",
+      "transport_small": "Малий транспорт",
+      "transport_large": "Важкий транспорт",
+      "terraform_freighter": "Терраформувальний фрейтер",
+      "colony_ship": "Колонізаційний корабель"
     },
     "production": {
       "queue_full": "черга виробництва цього payload заповнена"
@@ -1586,7 +1627,9 @@
       "scope_all": "Усi колонiї",
       "no_producers": "Тут поки нiчого не виробляється",
       "extraction": "Добування",
-      "exploration_payloads": "Payload-и для місій",
+      "exploration_payloads": "Дослідницькі запуски",
+      "research_transports": "Дослідницькі транспорти",
+      "heavy_logistics": "Важка логістика",
       "build_payload": "Виробити"
     },
     "building_category": {
@@ -1684,6 +1727,8 @@
     "eta_roundtrip": "Повний цикл:",
     "repair_cost": "Ремонт (мінерали):",
     "ship_tier": "Клас корабля:",
+    "ship_label": "Вантажний корабель",
+    "no_free_ships": "Немає вільних кораблів у вибраному космопорті",
     "btn_dispatch": "Відправити",
     "tracker_title": "Активні місії",
     "tracker_chip": "місії",

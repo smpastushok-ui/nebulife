@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { ProductionQueueItem, ProducibleType, FleetState, Ship, CargoManifest } from '../types/logistics.js';
-import { PRODUCIBLE_DEFS, isProductionComplete, createEmptyManifest } from '../types/logistics.js';
+import { PRODUCIBLE_DEFS, isProductionComplete, createEmptyManifest, isShipProducible } from '../types/logistics.js';
 import type { PlanetColonyState } from '../types/colony.js';
 import type { PlacedBuilding } from '../types/surface.js';
 
@@ -119,7 +119,11 @@ function completeProduction(
 ): CompletedProduction | null {
   const def = PRODUCIBLE_DEFS[item.type];
 
-  // Create ship/unit
+  if (!isShipProducible(item.type)) {
+    return { planetId, type: item.type };
+  }
+
+  // Create reusable ship/unit
   const ship: Ship = {
     id: `ship-${now}-${Math.random().toString(36).slice(2, 6)}`,
     type: item.type,
@@ -128,9 +132,10 @@ function completeProduction(
     currentPlanetId: planetId,
     destinationPlanetId: null,
     cargo: createEmptyManifest(),
-    fuelRemaining: 0,
+    fuelRemaining: def.fuelPerLY * 100,
     departedAt: null,
     arrivalAt: null,
+    assignmentId: null,
   };
 
   fleet.ships.push(ship);

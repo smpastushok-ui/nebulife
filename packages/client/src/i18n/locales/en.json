@@ -135,11 +135,11 @@
     },
     "landing_pad": {
       "name": "Landing Pad",
-      "desc": "Reception for small ships, drones, and cargo from orbit."
+      "desc": "Launch and reception pad for small exploration craft: probes, satellites, rovers, and drones."
     },
     "spaceport": {
       "name": "Spaceport",
-      "desc": "Ship construction and launch. Requires Landing Pad."
+      "desc": "Heavy orbital logistics: cargo ships, colonization launches, and terraforming resource delivery. Requires Landing Pad."
     },
     "solar_plant": {
       "name": "Solar Plant",
@@ -147,7 +147,7 @@
     },
     "battery_station": {
       "name": "Battery Station",
-      "desc": "Stores surplus energy. +100 energy storage capacity."
+      "desc": "Stores surplus energy. +2400 energy storage capacity for covering consumption spikes."
     },
     "wind_generator": {
       "name": "Wind Generator",
@@ -354,7 +354,7 @@
     },
     "phy-thrust-1": {
       "name": "Thrust I",
-      "desc": "Unlocks Landing Pad. Ship production."
+      "desc": "Unlocks the Landing Pad for small exploration launches."
     },
     "phy-drill": {
       "name": "Deep Drilling",
@@ -861,6 +861,39 @@
     "orbital_probe_required": "orbital probe required",
     "surface_expedition_required": "surface expedition required"
   },
+  "planet_terminal": {
+    "tab_resources": "Resources",
+    "tab_logistics": "Logistics",
+    "tab_terraform": "Terraform",
+    "tab_status": "Status",
+    "system_research": "System research",
+    "start_system_research": "Start system research",
+    "researching": "Research in progress",
+    "logistics_desc": "Resource delivery to this planet through free cargo ships from spaceports.",
+    "free_ships": "Free cargo ships: {{count}}",
+    "nearest_spaceport": "Nearest hub: {{planet}}",
+    "available_cargo": "Ships here: {{count}}",
+    "resources_short": "M {{minerals}} · V {{volatiles}} · I {{isotopes}} · W {{water}}",
+    "no_cargo_ships": "No free cargo ships. Build transport at a spaceport.",
+    "resource_minerals": "Minerals",
+    "resource_volatiles": "Volatiles",
+    "resource_isotopes": "Isotopes",
+    "resource_water": "Water",
+    "send_cargo": "Send cargo · {{amount}}",
+    "shipment_status": "{{amount}} {{resource}} · {{status}}",
+    "shipment_loading": "loading",
+    "shipment_outbound": "outbound",
+    "shipment_unloading": "unloading",
+    "shipment_returning": "returning",
+    "shipment_completed": "completed",
+    "terraform_preview_l48": "Terraforming requirements are visible now. Launch unlocks at L48.",
+    "terraform_requirements_visible": "Requirements visible · launch at L48",
+    "badge_atmosphere": "Atmosphere researched",
+    "badge_surface": "Surface researched",
+    "badge_colonized": "Populated",
+    "badge_terraforming": "Terraforming in progress",
+    "badge_terraformed": "Terraformed"
+  },
   "planet_missions": {
     "section": "Research Missions",
     "start": "Start",
@@ -899,7 +932,15 @@
       "orbital_satellite": "Orbital satellite",
       "surface_rover": "Surface rover",
       "lander": "Lander",
-      "atmosphere_probe": "Atmosphere probe"
+      "atmosphere_probe": "Atmosphere probe",
+      "research_shuttle": "Research shuttle",
+      "rover_dropcraft": "Rover dropcraft",
+      "atmo_probe_carrier": "Atmosphere probe carrier",
+      "research_station_kit": "Research station kit",
+      "transport_small": "Small transport",
+      "transport_large": "Heavy transport",
+      "terraform_freighter": "Terraform freighter",
+      "colony_ship": "Colony ship"
     },
     "production": {
       "queue_full": "production queue for this payload is full"
@@ -1585,7 +1626,9 @@
       "scope_all": "All colonies",
       "no_producers": "Nothing produces this here yet",
       "extraction": "Extraction",
-      "exploration_payloads": "Mission payloads",
+      "exploration_payloads": "Exploration launches",
+      "research_transports": "Research transports",
+      "heavy_logistics": "Heavy logistics",
       "build_payload": "Build"
     },
     "building_category": {
@@ -1683,6 +1726,8 @@
     "eta_roundtrip": "Round trip:",
     "repair_cost": "Repair (minerals):",
     "ship_tier": "Ship tier:",
+    "ship_label": "Cargo ship",
+    "no_free_ships": "No free ships at the selected spaceport",
     "btn_dispatch": "Dispatch",
     "tracker_title": "Active missions",
     "tracker_chip": "missions",

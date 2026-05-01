@@ -40,7 +40,7 @@ export function getTargetRevealLevel(type: PlanetMissionType): PlanetRevealLevel
 
 export function getRequiredMissionBuilding(type: PlanetMissionType): 'landing_pad' | 'spaceport' | null {
   if (type === 'orbital_scan') return null;
-  if (type === 'orbital_probe') return 'landing_pad';
+  if (type === 'orbital_probe' || type === 'surface_landing' || type === 'deep_atmosphere_probe') return 'landing_pad';
   return 'spaceport';
 }
 

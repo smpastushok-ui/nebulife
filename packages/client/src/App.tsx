@@ -86,13 +86,15 @@ import {
   HOME_PLANET_STOCK_FLOOR,
   POST_EVACUATION_RESOURCE_RESERVE,
   PRODUCIBLE_DEFS,
+  createFleetState,
+  isShipProducible,
   canStartPlanetMission,
   createPlanetMission,
   completePlanetMission,
   getPlanetMissionProgress,
   isSolidPlanetForLanding,
 } from '@nebulife/core';
-import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType } from '@nebulife/core';
+import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
 import type { PlanetMission, PlanetMissionType, PlanetReportSummary, PlanetRevealLevel } from '@nebulife/core';
 import {
@@ -211,6 +213,7 @@ interface SyncedGameState {
   // Terraforming
   terraform_states?: Record<string, unknown>;
   fleet?: unknown[];
+  fleet_state?: FleetState;
   // Planet overrides (type/habitability after successful terraform — Phase 7C)
   planet_overrides?: Record<string, unknown>;
   // Planet resource stocks — finite extraction budgets (v168)
@@ -764,6 +767,20 @@ function AppInner() {
     try { localStorage.setItem('nebulife_fleet', JSON.stringify(fleet)); }
     catch { /* ignore quota */ }
   }, [fleet]);
+
+  /** Canonical reusable ship fleet produced by landing pads and spaceports. */
+  const [shipFleet, setShipFleet] = useState<FleetState>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_fleet_state');
+      if (saved) return JSON.parse(saved) as FleetState;
+    } catch { /* ignore */ }
+    return createFleetState();
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_fleet_state', JSON.stringify(shipFleet)); }
+    catch { /* ignore quota */ }
+  }, [shipFleet]);
 
   // ── Planet exploration missions ───────────────────────────────────────────
   const [planetRevealLevels, setPlanetRevealLevels] = useState<Record<string, PlanetRevealLevel>>(() => {
@@ -1826,7 +1843,7 @@ function AppInner() {
       // Build list from hex slots
       let buildings: PlacedBuilding[] = [];
       try {
-        const raw = localStorage.getItem('nebulife_hex_slots');
+    const raw = localStorage.getItem('nebulife_hex_slots');
         if (raw) {
           const slots = JSON.parse(raw) as { id: string; ring: number; index: number; state: string; buildingType?: string; buildingLevel?: number }[];
           buildings = slots
@@ -1930,6 +1947,8 @@ function AppInner() {
   terraformStatesRef.current = terraformStates;
   const fleetRef = useRef(fleet);
   fleetRef.current = fleet;
+  const shipFleetRef = useRef(shipFleet);
+  shipFleetRef.current = shipFleet;
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -1957,6 +1976,14 @@ function AppInner() {
 
         // Phase transition: outbound → unloading: apply delivery to terraform state
         if (prevPhase === 'outbound' && ticked.phase === 'unloading') {
+          if (ticked.shipId) {
+            setShipFleet((prev) => ({
+              ...prev,
+              ships: prev.ships.map((ship) => ship.id === ticked.shipId
+                ? { ...ship, status: 'unloading', currentPlanetId: ticked.targetPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null }
+                : ship),
+            }));
+          }
           const tfState = newTerraformStates[ticked.targetPlanetId];
           if (tfState) {
             const updatedTf = applyDelivery(
@@ -2014,10 +2041,47 @@ function AppInner() {
 
         // Phase transition: returning → repairing: charge minerals from donor colony
         if (prevPhase === 'returning' && ticked.phase === 'repairing') {
+          if (ticked.shipId) {
+            setShipFleet((prev) => ({
+              ...prev,
+              ships: prev.ships.map((ship) => ship.id === ticked.shipId
+                ? { ...ship, status: 'docked', currentPlanetId: ticked.donorPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null }
+                : ship),
+            }));
+          }
           const cost = ticked.repairCostMinerals;
           if (cost > 0) {
             addResources(ticked.donorPlanetId, { minerals: -cost });
           }
+        }
+
+        if (prevPhase === 'dispatching' && ticked.phase === 'outbound' && ticked.shipId) {
+          const arrivalAt = now + ticked.flightHours * 3_600_000;
+          setShipFleet((prev) => ({
+            ...prev,
+            ships: prev.ships.map((ship) => ship.id === ticked.shipId
+              ? { ...ship, status: 'in_transit', currentPlanetId: null, destinationPlanetId: ticked.targetPlanetId, departedAt: now, arrivalAt }
+              : ship),
+          }));
+        }
+
+        if (prevPhase === 'unloading' && ticked.phase === 'returning' && ticked.shipId) {
+          const arrivalAt = now + ticked.flightHours * 3_600_000;
+          setShipFleet((prev) => ({
+            ...prev,
+            ships: prev.ships.map((ship) => ship.id === ticked.shipId
+              ? { ...ship, status: 'in_transit', currentPlanetId: null, destinationPlanetId: ticked.donorPlanetId, departedAt: now, arrivalAt }
+              : ship),
+          }));
+        }
+
+        if (prevPhase === 'repairing' && ticked.phase === 'idle' && ticked.shipId) {
+          setShipFleet((prev) => ({
+            ...prev,
+            ships: prev.ships.map((ship) => ship.id === ticked.shipId
+              ? { ...ship, status: 'docked', currentPlanetId: ticked.donorPlanetId, assignmentId: null }
+              : ship),
+          }));
         }
 
         return ticked;
@@ -2067,6 +2131,7 @@ function AppInner() {
     tier: TfShipTier,
     flightHours: number,
     repairCostMinerals: number,
+    shipId?: string,
   ): void => {
     // Debit resources immediately from the donor colony's per-planet store
     addResources(donorPlanetId, { [resource]: -amount });
@@ -2076,6 +2141,7 @@ function AppInner() {
       id: `mission-${now}-${Math.random().toString(36).slice(2, 8)}`,
       donorPlanetId,
       targetPlanetId,
+      shipId,
       paramId,
       resource,
       amount,
@@ -2087,6 +2153,14 @@ function AppInner() {
       repairCostMinerals,
     };
 
+    if (shipId) {
+      setShipFleet((prev) => ({
+        ...prev,
+        ships: prev.ships.map((ship) => ship.id === shipId
+          ? { ...ship, status: 'loading', assignmentId: mission.id, currentPlanetId: donorPlanetId }
+          : ship),
+      }));
+    }
     setFleet((prev) => [...prev, mission]);
     scheduleSyncToServer();
   }, [scheduleSyncToServer, addResources]);
@@ -2105,6 +2179,14 @@ function AppInner() {
         const refund = Math.floor(mission.amount * 0.5);
         if (refund > 0) {
           addResources(mission.donorPlanetId, { [mission.resource]: refund });
+        }
+        if (mission.shipId) {
+          setShipFleet((shipPrev) => ({
+            ...shipPrev,
+            ships: shipPrev.ships.map((ship) => ship.id === mission.shipId
+              ? { ...ship, status: 'docked', assignmentId: null, currentPlanetId: mission.donorPlanetId }
+              : ship),
+          }));
         }
       }
 
@@ -2281,6 +2363,181 @@ function AppInner() {
     return cost;
   }, []);
 
+  const createDockedShipFromProduction = useCallback((type: ProducibleType, planetId: string, now: number): Ship => {
+    const def = PRODUCIBLE_DEFS[type];
+    return {
+      id: `ship-${type}-${planetId}-${now}-${Math.random().toString(36).slice(2, 6)}`,
+      type,
+      name: def.name,
+      status: 'docked',
+      currentPlanetId: planetId,
+      destinationPlanetId: null,
+      cargo: { minerals: 0, volatiles: 0, isotopes: 0, water: 0, elements: {}, units: [], colonists: 0 },
+      fuelRemaining: def.fuelPerLY * 100,
+      departedAt: null,
+      arrivalAt: null,
+      assignmentId: null,
+    };
+  }, []);
+
+  const estimateShipFlightMs = useCallback((ship: Ship, fromPlanetId: string, toPlanetId: string): number => {
+    const def = PRODUCIBLE_DEFS[ship.type];
+    const systems = engineRef.current?.getAllSystems?.() ?? [];
+    const fromSystem = systems.find((system) => system.planets.some((planet) => planet.id === fromPlanetId));
+    const toSystem = systems.find((system) => system.planets.some((planet) => planet.id === toPlanetId));
+    const distanceLY = fromSystem && toSystem ? Math.max(0.05, systemDistanceLY(fromSystem, toSystem)) : 0.25;
+    return Math.max(60_000, Math.ceil((distanceLY / Math.max(0.001, def.baseSpeed)) * 60_000));
+  }, []);
+
+  const handleStartCargoShipment = useCallback((params: {
+    shipId: string;
+    fromPlanetId: string;
+    toPlanetId: string;
+    resource: 'minerals' | 'volatiles' | 'isotopes' | 'water';
+    amount: number;
+  }): void => {
+    const ship = shipFleetRef.current.ships.find((candidate) => candidate.id === params.shipId);
+    if (!ship || ship.status !== 'docked' || ship.currentPlanetId !== params.fromPlanetId || ship.assignmentId) {
+      setState((prev) => ({ ...prev, error: t('planet_missions.reason.building_required') }));
+      return;
+    }
+
+    const def = PRODUCIBLE_DEFS[ship.type];
+    const amount = Math.max(0, Math.min(Math.floor(params.amount), def.cargoCapacity));
+    const donorResources = getResources(params.fromPlanetId);
+    if (amount <= 0 || donorResources[params.resource] < amount) {
+      setState((prev) => ({ ...prev, error: t('planet_missions.reason.resources_required') }));
+      return;
+    }
+
+    addResources(params.fromPlanetId, { [params.resource]: -amount });
+    const now = Date.now();
+    const shipment: CargoShipment = {
+      id: `cargo-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      shipId: ship.id,
+      fromPlanetId: params.fromPlanetId,
+      toPlanetId: params.toPlanetId,
+      resource: params.resource,
+      amount,
+      status: 'loading',
+      startedAt: now,
+      phaseStartedAt: now,
+      flightMs: estimateShipFlightMs(ship, params.fromPlanetId, params.toPlanetId),
+    };
+
+    setShipFleet((prev) => ({
+      ...prev,
+      cargoShipments: [...(prev.cargoShipments ?? []), shipment],
+      ships: prev.ships.map((candidate) => candidate.id === ship.id
+        ? {
+            ...candidate,
+            status: 'loading',
+            assignmentId: shipment.id,
+            cargo: { ...candidate.cargo, [params.resource]: amount },
+          }
+        : candidate),
+    }));
+    setState((prev) => ({ ...prev, error: null }));
+    scheduleSyncToServer();
+  }, [addResources, estimateShipFlightMs, getResources, scheduleSyncToServer, t]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      const delivered: CargoShipment[] = [];
+
+      setShipFleet((prev) => {
+        const shipments = prev.cargoShipments ?? [];
+        if (shipments.length === 0) return prev;
+
+        const nextShipments = shipments.map((shipment) => {
+          if (shipment.status === 'completed') return shipment;
+          const elapsed = now - shipment.phaseStartedAt;
+
+          if (shipment.status === 'loading' && elapsed >= 20_000) {
+            changed = true;
+            return { ...shipment, status: 'outbound' as const, phaseStartedAt: now };
+          }
+          if (shipment.status === 'outbound' && elapsed >= shipment.flightMs) {
+            changed = true;
+            delivered.push(shipment);
+            return { ...shipment, status: 'unloading' as const, phaseStartedAt: now };
+          }
+          if (shipment.status === 'unloading' && elapsed >= 20_000) {
+            changed = true;
+            return { ...shipment, status: 'returning' as const, phaseStartedAt: now };
+          }
+          if (shipment.status === 'returning' && elapsed >= shipment.flightMs) {
+            changed = true;
+            return { ...shipment, status: 'completed' as const, phaseStartedAt: now };
+          }
+          return shipment;
+        });
+
+        if (!changed) return prev;
+        const activeShipmentByShip = new Map(nextShipments
+          .filter((shipment) => shipment.status !== 'completed')
+          .map((shipment) => [shipment.shipId, shipment]));
+        const nextShips = prev.ships.map((ship) => {
+          const shipment = activeShipmentByShip.get(ship.id);
+          if (!shipment) {
+            const wasCargoShipment = (prev.cargoShipments ?? []).some((item) => item.shipId === ship.id && item.id === ship.assignmentId);
+            if (!wasCargoShipment) return ship;
+            return {
+              ...ship,
+              status: 'docked' as const,
+              currentPlanetId: ship.currentPlanetId ?? null,
+              destinationPlanetId: null,
+              cargo: { ...ship.cargo, minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
+              departedAt: null,
+              arrivalAt: null,
+              assignmentId: null,
+            };
+          }
+          if (shipment.status === 'loading') {
+            return { ...ship, status: 'loading' as const, currentPlanetId: shipment.fromPlanetId, destinationPlanetId: shipment.toPlanetId };
+          }
+          if (shipment.status === 'outbound') {
+            return {
+              ...ship,
+              status: 'in_transit' as const,
+              currentPlanetId: null,
+              destinationPlanetId: shipment.toPlanetId,
+              departedAt: shipment.phaseStartedAt,
+              arrivalAt: shipment.phaseStartedAt + shipment.flightMs,
+            };
+          }
+          if (shipment.status === 'unloading') {
+            return { ...ship, status: 'unloading' as const, currentPlanetId: shipment.toPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null };
+          }
+          return {
+            ...ship,
+            status: 'in_transit' as const,
+            currentPlanetId: null,
+            destinationPlanetId: shipment.fromPlanetId,
+            cargo: { ...ship.cargo, minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
+            departedAt: shipment.phaseStartedAt,
+            arrivalAt: shipment.phaseStartedAt + shipment.flightMs,
+          };
+        });
+
+        return {
+          ...prev,
+          cargoShipments: nextShipments.filter((shipment) => shipment.status !== 'completed' || now - shipment.phaseStartedAt < 60_000),
+          ships: nextShips,
+        };
+      });
+
+      for (const shipment of delivered) {
+        addResources(shipment.toPlanetId, { [shipment.resource]: shipment.amount });
+      }
+      if (changed) scheduleSyncToServer();
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [addResources, scheduleSyncToServer]);
+
   const handleStartPayloadProduction = useCallback((type: ProducibleType): void => {
     const def = PRODUCIBLE_DEFS[type];
     const originPlanetId = homeInfo?.planet.id;
@@ -2401,16 +2658,29 @@ function AppInner() {
         return completed.length > 0 ? remaining : prev;
       });
       if (completed.length > 0) {
-        setExplorationPayloads((prev) => {
-          const next = { ...prev };
-          for (const item of completed) next[item.type] = (next[item.type] ?? 0) + 1;
-          return next;
-        });
+        const completedPayloads = completed.filter((item) => !isShipProducible(item.type));
+        const completedShips = completed.filter((item) => isShipProducible(item.type));
+        if (completedPayloads.length > 0) {
+          setExplorationPayloads((prev) => {
+            const next = { ...prev };
+            for (const item of completedPayloads) next[item.type] = (next[item.type] ?? 0) + 1;
+            return next;
+          });
+        }
+        if (completedShips.length > 0) {
+          setShipFleet((prev) => ({
+            ...prev,
+            ships: [
+              ...prev.ships,
+              ...completedShips.map((item) => createDockedShipFromProduction(item.type, item.planetId, now)),
+            ],
+          }));
+        }
         scheduleSyncToServer();
       }
     }, 1000);
     return () => window.clearInterval(id);
-  }, [explorationProductionQueue.length, scheduleSyncToServer]);
+  }, [createDockedShipFromProduction, explorationProductionQueue.length, scheduleSyncToServer]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -2860,6 +3130,7 @@ function AppInner() {
       // Terraforming
       'nebulife_terraform_states',
       'nebulife_fleet',
+      'nebulife_fleet_state',
       'nebulife_planet_reveal_levels',
       'nebulife_planet_missions',
       'nebulife_planet_reports',
@@ -2900,6 +3171,7 @@ function AppInner() {
     setTutorialStep(0);
     setTerraformStates({});
     setFleet([]);
+    setShipFleet(createFleetState());
 
     // 3. Save new generation_index AFTER clearing — GameEngine will use it on reload
     localStorage.setItem('nebulife_generation_index', String(newGenerationIndex));
@@ -3360,6 +3632,19 @@ function AppInner() {
       setFleet((localFleet) => {
         if (localFleet.length >= serverFleet.length) return localFleet;
         return serverFleet;
+      });
+    }
+
+    if (gs.fleet_state && typeof gs.fleet_state === 'object') {
+      const serverFleetState = gs.fleet_state as FleetState;
+      setShipFleet((localFleetState) => {
+        if ((localFleetState.ships?.length ?? 0) >= (serverFleetState.ships?.length ?? 0)) return localFleetState;
+        return {
+          ships: serverFleetState.ships ?? [],
+          cargoShipments: serverFleetState.cargoShipments ?? [],
+          routes: serverFleetState.routes ?? [],
+          productionQueues: serverFleetState.productionQueues ?? {},
+        };
       });
     }
 
@@ -5950,6 +6235,7 @@ function AppInner() {
         Object.entries(terraformStates).filter(([, s]) => s.completedAt !== null || getOverallProgress(s) > 0),
       ),
       fleet: fleet.filter((m) => m.phase !== 'idle'),
+      fleet_state: shipFleet,
       planet_reveal_levels: planetRevealLevels,
       planet_missions: planetMissions,
       planet_reports: planetReports,
@@ -6003,7 +6289,7 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, astraQuizAnswers, planetOverrides, planetResourceStocks]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, astraQuizAnswers, planetOverrides, planetResourceStocks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -6131,6 +6417,7 @@ function AppInner() {
       if (!isActive) {
         // App went to background — flush any pending debounced sync immediately
         syncNowToServer();
+        ambientRef.current?.pauseForBackground();
         // Also pause every running ambient loop. Android WebView keeps
         // HTMLAudioElement loops playing through the speaker even after the
         // screen is locked unless we pause them ourselves. SfxPlayer's
@@ -6141,6 +6428,7 @@ function AppInner() {
           pauseAllLoopsForBackground?.();
         }).catch(() => { /* ignore */ });
       } else {
+        ambientRef.current?.resumeAfterBackground();
         void import('./audio/SfxPlayer.js').then(({ resumeAllLoopsAfterBackground }) => {
           resumeAllLoopsAfterBackground?.();
         }).catch(() => { /* ignore */ });
@@ -7249,7 +7537,7 @@ function AppInner() {
           canShowAds={isNativePlatform() && canShowAd()}
         />
       )}
-      {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && isCurrentSystemFullyAccessible && (
+      {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && (
         <PlanetContextMenu
           planet={state.selectedPlanet}
           star={state.selectedSystem!.star}
@@ -7257,7 +7545,6 @@ function AppInner() {
           quarks={quarks}
           playerLevel={playerLevel}
           onViewPlanet={handleViewPlanet}
-          onShowCharacteristics={handleShowCharacteristics}
           onClose={handleClosePlanetMenu}
           onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
@@ -7292,6 +7579,23 @@ function AppInner() {
             setPlanetReportTarget({ planet, report });
             setState((prev) => ({ ...prev, showPlanetMenu: false }));
           }}
+          systemResearchProgress={currentSystemProgress}
+          canStartSystemResearch={hasResearchData(Math.floor(researchData)) && findFreeSlot(researchState) >= 0}
+          isSystemResearching={Boolean(state.selectedSystem && researchState.slots.some((s) => s.systemId === state.selectedSystem!.id))}
+          onStartSystemResearch={() => state.selectedSystem && handleStartResearch(state.selectedSystem.id)}
+          terraformState={terraformStates[state.selectedPlanet.id]}
+          isColonized={Boolean(
+            state.selectedPlanet.id === homeInfo?.planet.id
+              || state.selectedPlanet.id === colonyState?.planetId
+              || getColonyPlanets().some((planet) => planet.id === state.selectedPlanet!.id),
+          )}
+          cargoShips={shipFleet.ships.filter((ship) => {
+            const def = PRODUCIBLE_DEFS[ship.type];
+            return (ship.type === 'terraform_freighter' || def.requiresBuilding === 'spaceport') && def.cargoCapacity > 0;
+          })}
+          cargoShipments={shipFleet.cargoShipments ?? []}
+          planetResourcesById={colonyResourcesByPlanet}
+          onStartCargoShipment={handleStartCargoShipment}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -7376,6 +7680,13 @@ function AppInner() {
             activeMissionByParam[m.paramId] = m;
           }
         }
+        const availableTerraformShips = shipFleet.ships.filter((ship) => {
+          const def = PRODUCIBLE_DEFS[ship.type];
+          return (ship.type === 'terraform_freighter' || def.requiresBuilding === 'spaceport')
+            && def.cargoCapacity > 0
+            && ship.status === 'docked'
+            && !ship.assignmentId;
+        });
         return (
           <TerraformPanel
             planet={tfPlanet}
@@ -7386,9 +7697,10 @@ function AppInner() {
             donorDistances={donorDistMap}
             getResources={getResources}
             shipTier={tfTier}
+            availableShips={availableTerraformShips}
             activeMissionByParam={activeMissionByParam}
-            onStartParam={(paramId, donorPlanetId, resource, amount, tier, flightHours, repairCostMinerals) => {
-              onStartTerraformParam(tfPlanet.id, paramId, donorPlanetId, resource, amount, tier, flightHours, repairCostMinerals);
+            onStartParam={(paramId, donorPlanetId, resource, amount, tier, flightHours, repairCostMinerals, shipId) => {
+              onStartTerraformParam(tfPlanet.id, paramId, donorPlanetId, resource, amount, tier, flightHours, repairCostMinerals, shipId);
             }}
             onCancelMission={onCancelMission}
             onClose={() => setShowTerraformPlanet(null)}

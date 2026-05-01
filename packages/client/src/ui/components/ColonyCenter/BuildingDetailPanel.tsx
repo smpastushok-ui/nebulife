@@ -34,8 +34,12 @@ const BORDER = '#233344';
 const ACTIVE_BORDER = '#446688';
 
 function formatRate(row: RateRow): string {
-  const sign = row.perHour > 0 ? '+' : '';
-  return `${sign}${row.perHour.toFixed(row.perHour % 1 === 0 ? 0 : 1)}/h`;
+  return formatPerHour(row.perHour);
+}
+
+function formatPerHour(perHour: number): string {
+  const sign = perHour > 0 ? '+' : '';
+  return `${sign}${perHour.toFixed(perHour % 1 === 0 ? 0 : 1)}/h`;
 }
 
 function ResourceLabel({ resource }: { resource: string }) {
@@ -186,6 +190,9 @@ export function BuildingDetailPanel({
   const canScan = researchData >= 5;
   const canChemCycle = colonyResources.volatiles >= 10;
   const compact = typeof window !== 'undefined' && window.innerWidth < 700;
+  const energyOutputPerHour = stats.energyOutput * 60;
+  const energyConsumptionPerHour = -stats.energyConsumption * 60;
+  const energyNetPerHour = energyOutputPerHour + energyConsumptionPerHour;
   const isotopeDepositDepleted =
     stats.stock?.resource === 'isotopes' &&
     stats.stock.remaining <= 0;
@@ -322,8 +329,8 @@ export function BuildingDetailPanel({
           />
           <MetricCard
             label={t('building_detail.energy')}
-            value={`${stats.energyOutput - stats.energyConsumption >= 0 ? '+' : ''}${stats.energyOutput - stats.energyConsumption}`}
-            sub={`${t('building_detail.output')} ${stats.energyOutput} / ${t('building_detail.consumes')} ${stats.energyConsumption}`}
+            value={formatPerHour(energyNetPerHour)}
+            sub={`${t('building_detail.output')} ${formatPerHour(energyOutputPerHour)} / ${t('building_detail.consumes')} ${formatPerHour(energyConsumptionPerHour)}`}
             accent="#ffaa66"
           />
           <MetricCard
@@ -402,7 +409,7 @@ export function BuildingDetailPanel({
               <ActionButton
                 title={t('building_detail.action_power_check')}
                 desc={t('building_detail.action_power_check_desc', {
-                  balance: stats.energyOutput - stats.energyConsumption,
+                  balance: formatPerHour(energyNetPerHour),
                   storage: stats.energyStorageAdd,
                 })}
                 onClick={() => setActionLog(t('building_detail.action_result_power'))}

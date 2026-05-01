@@ -423,8 +423,8 @@ export const PHYSICS_NODES: TechNode[] = [
   {
     id: 'phy-thrust-1', branch: 'physics',
     name: 'Тяга I',
-    description: 'Розблоковує Посадковий майданчик. Виробництво кораблів.',
-    levelRequired: 18, prerequisiteId: 'phy-em-field', epoch: 2, xpReward: 40,
+    description: 'Розблоковує Посадковий майданчик для малих дослідницьких запусків.',
+    levelRequired: 10, prerequisiteId: 'phy-thermo-1', epoch: 1, xpReward: 40,
     effects: [
       { type: 'building_unlock', value: 1 },
       { type: 'ship_production_unlock', value: 1 },

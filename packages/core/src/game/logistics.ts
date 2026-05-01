@@ -116,7 +116,7 @@ export function loadCargo(
   let loaded = 0;
 
   // Load bulk resources
-  for (const key of ['minerals', 'volatiles', 'isotopes'] as const) {
+  for (const key of ['minerals', 'volatiles', 'isotopes', 'water'] as const) {
     const requested = manifest[key] ?? 0;
     if (requested <= 0) continue;
     const available = colony.resources[key];
@@ -138,7 +138,7 @@ export function unloadCargo(
   ship: Ship,
   colony: PlanetColonyState,
 ): void {
-  for (const key of ['minerals', 'volatiles', 'isotopes'] as const) {
+  for (const key of ['minerals', 'volatiles', 'isotopes', 'water'] as const) {
     colony.resources[key] += ship.cargo[key];
     ship.cargo[key] = 0;
   }
@@ -209,7 +209,7 @@ export function createTradeRoute(
 // ---------------------------------------------------------------------------
 
 function getCargoWeight(cargo: CargoManifest): number {
-  return cargo.minerals + cargo.volatiles + cargo.isotopes +
+  return cargo.minerals + cargo.volatiles + cargo.isotopes + cargo.water +
     Object.values(cargo.elements).reduce((s, v) => s + v, 0) +
     cargo.units.length * 10; // each unit weighs 10 cargo units
 }

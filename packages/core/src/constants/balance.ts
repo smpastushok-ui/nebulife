@@ -120,8 +120,8 @@ export const HOME_PLANET_STOCK_FLOOR = {
   water: 120_000,
 } as const;
 
-/** Base energy storage (without battery stations). */
-export const BASE_ENERGY_STORAGE = 50;
+/** Base energy buffer from colony wiring (without battery stations). */
+export const BASE_ENERGY_STORAGE = 300;
 
 /** Building shutdown priority (lower = shut down first). */
 export const ENERGY_SHUTDOWN_PRIORITY: Record<string, number> = {

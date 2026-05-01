@@ -26,11 +26,14 @@ export {
 export type {
   ProducibleType, ProducibleDef, ProductionQueueItem,
   ShipStatus, DeployableUnit, CargoManifest, Ship,
+  CargoShipmentStatus, CargoShipment,
   TradeRoute, FleetState,
 } from './logistics.js';
 export {
   PRODUCIBLE_DEFS, getProductionProgress, isProductionComplete,
   createEmptyManifest, createFleetState,
+  RESEARCH_TRANSPORT_TYPES, ONE_SHOT_PAYLOAD_TYPES, HEAVY_SHIP_TYPES,
+  PRODUCIBLE_ASSET_PATHS, isShipProducible,
 } from './logistics.js';
 export type { CoreSystem, GalaxyGroupCore, GalaxyGroup } from './galaxy-group.js';
 export type { GalacticPosition, GalaxyGroupMeta, PlayerGalaxyAssignment } from './galaxy-map.js';

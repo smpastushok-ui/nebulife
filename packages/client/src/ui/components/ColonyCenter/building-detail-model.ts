@@ -108,8 +108,8 @@ export function deriveBuildingDetailStats(params: {
     ...def.production.map((p) => ({ resource: p.resource, perHour: toPerHour(p.amount) * count })),
   ];
   const consumption: RateRow[] = [
-    ...(def.energyConsumption > 0 ? [{ resource: 'energy', perHour: toPerHour(def.energyConsumption) * count }] : []),
-    ...def.consumption.map((c) => ({ resource: c.resource, perHour: toPerHour(c.amount) * count })),
+    ...(def.energyConsumption > 0 ? [{ resource: 'energy', perHour: -toPerHour(def.energyConsumption) * count }] : []),
+    ...def.consumption.map((c) => ({ resource: c.resource, perHour: -toPerHour(c.amount) * count })),
   ];
 
   return {

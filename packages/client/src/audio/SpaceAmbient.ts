@@ -21,6 +21,7 @@ export class SpaceAmbient {
   private isPlaying = false;
   private fadeRaf: number | null = null;
   private targetVolume = 0.30; // last known target (0..1), matches slider default
+  private pausedByScene = false;
   private onVisibilityChange: (() => void) | null = null;
   private onFirstInteraction: (() => void) | null = null;
   private readonly src: string;
@@ -75,7 +76,11 @@ export class SpaceAmbient {
     // (autoplay policy). If blocked, fall back to the first pointer/key event.
     void this.audio.play().then(() => {
       console.log(`[SpaceAmbient] play() resolved (paused=${this.audio?.paused}, volume=${this.audio?.volume.toFixed(3)})`);
-      this.fadeTo(this.targetVolume, this.fadeInSec * 1000);
+      if (this.pausedByScene) {
+        if (this.audio) this.audio.volume = 0;
+      } else {
+        this.fadeTo(this.targetVolume, this.fadeInSec * 1000);
+      }
     }).catch((err) => {
       console.warn('[SpaceAmbient] play() rejected:', err?.message ?? err);
       this.attachInteractionFallback();
@@ -85,13 +90,9 @@ export class SpaceAmbient {
     this.onVisibilityChange = () => {
       if (!this.audio) return;
       if (document.visibilityState === 'hidden') {
-        this.audio.pause();
+        this.pauseForBackground();
       } else {
-        void this.audio.play().then(() => {
-          this.fadeTo(this.targetVolume, this.fadeCinematicSec * 1000);
-        }).catch(() => {
-          this.attachInteractionFallback();
-        });
+        this.resumeAfterBackground();
       }
     };
     document.addEventListener('visibilitychange', this.onVisibilityChange);
@@ -105,17 +106,17 @@ export class SpaceAmbient {
 
     this.onFirstInteraction = () => {
       if (!this.audio) return;
+      if (this.pausedByScene) {
+        this.audio.volume = 0;
+        this.detachInteractionFallback();
+        return;
+      }
       void this.audio.play().then(() => {
         console.log('[SpaceAmbient] started via interaction fallback');
         this.fadeTo(this.targetVolume, this.fadeInSec * 1000);
       }).catch(() => { /* ignore */ });
 
-      if (this.onFirstInteraction) {
-        document.removeEventListener('pointerdown', this.onFirstInteraction);
-        document.removeEventListener('keydown', this.onFirstInteraction);
-        document.removeEventListener('touchstart', this.onFirstInteraction);
-        this.onFirstInteraction = null;
-      }
+      this.detachInteractionFallback();
     };
     document.addEventListener('pointerdown', this.onFirstInteraction, { once: true });
     document.addEventListener('keydown', this.onFirstInteraction, { once: true });
@@ -124,12 +125,7 @@ export class SpaceAmbient {
 
   public stop(): void {
     // Detach interaction fallback listeners
-    if (this.onFirstInteraction) {
-      document.removeEventListener('pointerdown', this.onFirstInteraction);
-      document.removeEventListener('keydown', this.onFirstInteraction);
-      document.removeEventListener('touchstart', this.onFirstInteraction);
-      this.onFirstInteraction = null;
-    }
+    this.detachInteractionFallback();
     if (this.onVisibilityChange) {
       document.removeEventListener('visibilitychange', this.onVisibilityChange);
       this.onVisibilityChange = null;
@@ -143,6 +139,7 @@ export class SpaceAmbient {
     const audio = this.audio;
     this.audio = null;
     this.isPlaying = false;
+    this.pausedByScene = false;
 
     // Fade out then fully stop + release the file
     this.fadeTo(0, this.fadeOutSec * 1000, audio, () => {
@@ -163,6 +160,7 @@ export class SpaceAmbient {
       console.warn('[SpaceAmbient] pause: no audio element');
       return;
     }
+    this.pausedByScene = true;
     this.fadeTo(0, fadeMs);
     console.log(`[SpaceAmbient] pause -> 0 over ${fadeMs}ms`);
   }
@@ -188,6 +186,7 @@ export class SpaceAmbient {
       console.warn('[SpaceAmbient] resume: no audio element');
       return;
     }
+    this.pausedByScene = false;
     const audio = this.audio;
     console.log(
       `[SpaceAmbient] resume requested (paused=${audio.paused}, ` +
@@ -218,9 +217,37 @@ export class SpaceAmbient {
   public setVolume(v: number): void {
     const clamped = Math.max(0, Math.min(1, v));
     this.targetVolume = clamped;
-    if (this.audio) {
+    if (this.audio && !this.pausedByScene) {
       this.audio.volume = clamped;
     }
+  }
+
+  /** App/browser background: pause decoding without changing scene intent. */
+  public pauseForBackground(): void {
+    if (!this.audio) return;
+    try { this.audio.pause(); } catch { /* ignore */ }
+  }
+
+  /** App/browser foreground: resume only if the current scene allows space audio. */
+  public resumeAfterBackground(fadeMs: number = this.fadeCinematicSec * 1000): void {
+    if (!this.audio) return;
+    if (this.pausedByScene) {
+      this.audio.volume = 0;
+      return;
+    }
+    void this.audio.play().then(() => {
+      this.fadeTo(this.targetVolume, fadeMs);
+    }).catch(() => {
+      this.attachInteractionFallback();
+    });
+  }
+
+  private detachInteractionFallback(): void {
+    if (!this.onFirstInteraction) return;
+    document.removeEventListener('pointerdown', this.onFirstInteraction);
+    document.removeEventListener('keydown', this.onFirstInteraction);
+    document.removeEventListener('touchstart', this.onFirstInteraction);
+    this.onFirstInteraction = null;
   }
 
   /** Animate audio.volume from its current value to target over durationMs. */

@@ -4,8 +4,11 @@
 
 // ── Producible Units ──────────────────────────────────────────────────────
 
-/** Types of units that can be produced at Spaceport / Landing Pad */
+/** Types of units that can be produced at Landing Pad / Spaceport */
 export type ProducibleType =
+  | 'research_shuttle'          // reusable carrier for probes / satellites
+  | 'rover_dropcraft'           // reusable surface expedition carrier
+  | 'atmo_probe_carrier'        // reusable carrier for giant-planet probes
   | 'survey_probe'              // one-shot orbital survey payload
   | 'orbital_satellite'         // persistent orbital science payload
   | 'surface_rover'             // surface expedition payload
@@ -17,7 +20,8 @@ export type ProducibleType =
   | 'research_station_kit'     // deployable lab on another planet
   | 'transport_small'          // 100 cargo capacity
   | 'transport_large'          // 1000 cargo capacity
-  | 'colony_ship';             // 500 colonists + colony hub kit
+  | 'terraform_freighter'       // specialized terraforming resource hauler
+  | 'colony_ship';              // 500 colonists + colony hub kit
 
 /** Static definition for a producible unit */
 export interface ProducibleDef {
@@ -42,7 +46,7 @@ export interface ProducibleDef {
 
 // ── Production Queue ──────────────────────────────────────────────────────
 
-/** Item in a production queue (Spaceport builds one at a time) */
+/** Item in a production queue (launch infrastructure builds one at a time) */
 export interface ProductionQueueItem {
   id: string;
   type: ProducibleType;
@@ -81,6 +85,7 @@ export interface CargoManifest {
   minerals: number;
   volatiles: number;
   isotopes: number;
+  water: number;
   elements: Record<string, number>;
   units: DeployableUnit[];
   colonists: number;
@@ -88,7 +93,7 @@ export interface CargoManifest {
 
 /** Create empty cargo manifest */
 export function createEmptyManifest(): CargoManifest {
-  return { minerals: 0, volatiles: 0, isotopes: 0, elements: {}, units: [], colonists: 0 };
+  return { minerals: 0, volatiles: 0, isotopes: 0, water: 0, elements: {}, units: [], colonists: 0 };
 }
 
 /** A ship instance */
@@ -109,6 +114,23 @@ export interface Ship {
   departedAt: number | null;
   /** Timestamp when ship arrives */
   arrivalAt: number | null;
+  /** Optional mission/shipment currently reserving the ship. */
+  assignmentId?: string | null;
+}
+
+export type CargoShipmentStatus = 'loading' | 'outbound' | 'unloading' | 'returning' | 'completed';
+
+export interface CargoShipment {
+  id: string;
+  shipId: string;
+  fromPlanetId: string;
+  toPlanetId: string;
+  resource: 'minerals' | 'volatiles' | 'isotopes' | 'water';
+  amount: number;
+  status: CargoShipmentStatus;
+  startedAt: number;
+  phaseStartedAt: number;
+  flightMs: number;
 }
 
 // ── Trade Routes ──────────────────────────────────────────────────────────
@@ -132,6 +154,7 @@ export interface TradeRoute {
 /** Global fleet state (all ships and routes across all planets) */
 export interface FleetState {
   ships: Ship[];
+  cargoShipments?: CargoShipment[];
   routes: TradeRoute[];
   /** Production queues per planet: planetId -> queue items */
   productionQueues: Record<string, ProductionQueueItem[]>;
@@ -139,12 +162,102 @@ export interface FleetState {
 
 /** Create empty fleet state */
 export function createFleetState(): FleetState {
-  return { ships: [], routes: [], productionQueues: {} };
+  return { ships: [], cargoShipments: [], routes: [], productionQueues: {} };
 }
+
+export const RESEARCH_TRANSPORT_TYPES: ProducibleType[] = [
+  'research_shuttle',
+  'rover_dropcraft',
+  'atmo_probe_carrier',
+];
+
+export const ONE_SHOT_PAYLOAD_TYPES: ProducibleType[] = [
+  'survey_probe',
+  'orbital_satellite',
+  'surface_rover',
+  'atmosphere_probe',
+  'scout_drone',
+  'mining_drone',
+  'orbital_telescope_unit',
+];
+
+export const HEAVY_SHIP_TYPES: ProducibleType[] = [
+  'lander',
+  'research_station_kit',
+  'transport_small',
+  'transport_large',
+  'terraform_freighter',
+  'colony_ship',
+];
+
+export function isShipProducible(type: ProducibleType): boolean {
+  return RESEARCH_TRANSPORT_TYPES.includes(type) || HEAVY_SHIP_TYPES.includes(type);
+}
+
+export const PRODUCIBLE_ASSET_PATHS: Record<ProducibleType, string> = {
+  research_shuttle: '/payloads/research_shuttle.webp',
+  rover_dropcraft: '/payloads/rover_dropcraft.webp',
+  atmo_probe_carrier: '/payloads/atmo_probe_carrier.webp',
+  survey_probe: '/payloads/survey_probe.webp',
+  orbital_satellite: '/payloads/orbital_satellite.webp',
+  surface_rover: '/payloads/surface_rover.webp',
+  lander: '/payloads/lander.webp',
+  atmosphere_probe: '/payloads/atmosphere_probe.webp',
+  scout_drone: '/payloads/scout_drone.webp',
+  mining_drone: '/payloads/mining_drone.webp',
+  orbital_telescope_unit: '/payloads/orbital_telescope_unit.webp',
+  research_station_kit: '/payloads/research_station_kit.webp',
+  transport_small: '/payloads/cargo_small.webp',
+  transport_large: '/payloads/cargo_large.webp',
+  terraform_freighter: '/payloads/terraform_freighter.webp',
+  colony_ship: '/payloads/colony_ship.webp',
+};
 
 // ── Producible Definitions ────────────────────────────────────────────────
 
 export const PRODUCIBLE_DEFS: Record<ProducibleType, ProducibleDef> = {
+  research_shuttle: {
+    type: 'research_shuttle',
+    name: 'Дослідницький шатл',
+    description: 'Багаторазовий носій для скан-зондів та орбітальних супутників.',
+    productionTimeMs: 35 * 60_000,
+    cost: [
+      { resource: 'Fe', amount: 30 }, { resource: 'Ti', amount: 18 },
+      { resource: 'Cu', amount: 12 }, { resource: 'isotopes', amount: 16 },
+    ],
+    requiresBuilding: 'landing_pad',
+    cargoCapacity: 30, colonistCapacity: 0,
+    baseSpeed: 0.006, fuelPerLY: 4,
+  },
+
+  rover_dropcraft: {
+    type: 'rover_dropcraft',
+    name: 'Ровер-дропкрафт',
+    description: 'Багаторазовий посадковий транспорт для поверхневих експедицій.',
+    productionTimeMs: 50 * 60_000,
+    cost: [
+      { resource: 'Fe', amount: 42 }, { resource: 'Ti', amount: 24 },
+      { resource: 'Al', amount: 18 }, { resource: 'isotopes', amount: 20 },
+    ],
+    requiresBuilding: 'landing_pad',
+    cargoCapacity: 45, colonistCapacity: 0,
+    baseSpeed: 0.0045, fuelPerLY: 6,
+  },
+
+  atmo_probe_carrier: {
+    type: 'atmo_probe_carrier',
+    name: 'Носій атмосферних зондів',
+    description: 'Багаторазовий посилений носій для дослідження газових та крижаних гігантів.',
+    productionTimeMs: 60 * 60_000,
+    cost: [
+      { resource: 'Ti', amount: 36 }, { resource: 'Si', amount: 20 },
+      { resource: 'volatiles', amount: 24 }, { resource: 'isotopes', amount: 28 },
+    ],
+    requiresBuilding: 'landing_pad',
+    cargoCapacity: 55, colonistCapacity: 0,
+    baseSpeed: 0.004, fuelPerLY: 8,
+  },
+
   survey_probe: {
     type: 'survey_probe',
     name: 'Оглядовий зонд',
@@ -182,7 +295,7 @@ export const PRODUCIBLE_DEFS: Record<ProducibleType, ProducibleDef> = {
       { resource: 'Fe', amount: 25 }, { resource: 'Ti', amount: 14 },
       { resource: 'Cu', amount: 10 }, { resource: 'isotopes', amount: 12 },
     ],
-    requiresBuilding: 'spaceport',
+    requiresBuilding: 'landing_pad',
     cargoCapacity: 0, colonistCapacity: 0,
     baseSpeed: 0.004, fuelPerLY: 6,
   },
@@ -210,7 +323,7 @@ export const PRODUCIBLE_DEFS: Record<ProducibleType, ProducibleDef> = {
       { resource: 'Ti', amount: 28 }, { resource: 'Si', amount: 18 },
       { resource: 'volatiles', amount: 18 }, { resource: 'isotopes', amount: 22 },
     ],
-    requiresBuilding: 'spaceport',
+    requiresBuilding: 'landing_pad',
     cargoCapacity: 0, colonistCapacity: 0,
     baseSpeed: 0.004, fuelPerLY: 8,
   },
@@ -300,6 +413,21 @@ export const PRODUCIBLE_DEFS: Record<ProducibleType, ProducibleDef> = {
     requiresBuilding: 'spaceport',
     cargoCapacity: 1000, colonistCapacity: 0,
     baseSpeed: 0.005, fuelPerLY: 15,
+  },
+
+  terraform_freighter: {
+    type: 'terraform_freighter',
+    name: 'Терраформувальний фрейтер',
+    description: 'Спеціалізований вантажний корабель для доставки великих партій ресурсів терраформування.',
+    productionTimeMs: 150 * 60_000,
+    cost: [
+      { resource: 'Fe', amount: 110 }, { resource: 'Ti', amount: 70 },
+      { resource: 'Cu', amount: 35 }, { resource: 'Al', amount: 60 },
+      { resource: 'isotopes', amount: 55 },
+    ],
+    requiresBuilding: 'spaceport',
+    cargoCapacity: 1500, colonistCapacity: 0,
+    baseSpeed: 0.004, fuelPerLY: 18,
   },
 
   colony_ship: {

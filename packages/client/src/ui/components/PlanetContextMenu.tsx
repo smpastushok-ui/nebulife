@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding, ProducibleType, PlanetReportSummary } from '@nebulife/core';
+import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding, ProducibleType, PlanetReportSummary, Ship, PlanetTerraformState, CargoShipment } from '@nebulife/core';
 import {
   ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg, isTerraformable,
   canStartPlanetMission, computePlanetMissionCost, getPlanetMissionProgress, getTargetRevealLevel, isSolidPlanetForLanding,
+  PRODUCIBLE_DEFS,
 } from '@nebulife/core';
 
 /** i18n key for each resource group label */
@@ -35,11 +36,12 @@ function QuarkIcon() {
 // and premium tools. Designed for extensibility.
 // ---------------------------------------------------------------------------
 
-const MENU_WIDTH = 250;
+const MENU_WIDTH = 300;
 const MENU_HEIGHT_APPROX = 360;
 
-type TabId = 'actions' | 'resources' | 'premium' | 'terraform';
+type TabId = 'actions' | 'characteristics' | 'resources' | 'alpha' | 'logistics' | 'terraform' | 'status';
 type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
+type CargoResource = 'minerals' | 'volatiles' | 'isotopes' | 'water';
 
 /* ────────── Shared styles ────────── */
 
@@ -124,63 +126,6 @@ function MenuItem({ label, onClick, color, icon, right, disabled, title }: {
   );
 }
 
-function TooltipHint({ text }: { text: string }) {
-  const [tipPos, setTipPos] = useState<{ left: number; top: number } | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-
-  const showTip = () => {
-    if (btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setTipPos({ left: r.right - 200, top: r.bottom + 4 });
-    }
-  };
-
-  return (
-    <div style={{ position: 'relative', marginRight: 10, flexShrink: 0 }}>
-      <button
-        ref={btnRef}
-        onClick={(e) => { e.stopPropagation(); tipPos ? setTipPos(null) : showTip(); }}
-        onMouseEnter={showTip}
-        onMouseLeave={() => setTipPos(null)}
-        style={{
-          width: 18, height: 18, borderRadius: '50%',
-          background: 'none',
-          border: '1px solid #445566',
-          color: '#556677',
-          fontFamily: 'monospace',
-          fontSize: 10,
-          cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 0,
-        }}
-      >
-        ?
-      </button>
-      {tipPos && (
-        <div style={{
-          position: 'fixed',
-          left: Math.max(4, tipPos.left),
-          top: tipPos.top,
-          width: 200,
-          padding: '8px 10px',
-          background: 'rgba(8,12,22,0.97)',
-          border: '1px solid #334455',
-          borderRadius: 4,
-          fontSize: 9,
-          color: '#8899aa',
-          lineHeight: 1.5,
-          fontFamily: 'monospace',
-          zIndex: 35,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
-          pointerEvents: 'none',
-        }}>
-          {text}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function formatMissionTime(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(total / 60);
@@ -250,27 +195,32 @@ function PlanetGlobe({ planet, star }: { planet: Planet; star: Star }) {
 function TabBar({
   activeTab,
   onChange,
-  showTerraformTab,
+  unlockedTabs,
 }: {
   activeTab: TabId;
   onChange: (t: TabId) => void;
-  showTerraformTab: boolean;
+  unlockedTabs: Set<TabId>;
 }) {
   const { t } = useTranslation();
   const tabs: { id: TabId; label: string; color?: string }[] = [
     { id: 'actions', label: t('planet.tab_actions') },
-    { id: 'resources', label: t('planet.tab_resources') },
-    { id: 'premium', label: `\u29B3 ${t('planet.tab_premium')}`, color: '#886622' },
-    ...(showTerraformTab ? [{ id: 'terraform' as TabId, label: t('planet.tab_terraform'), color: '#446644' }] : []),
+    { id: 'characteristics', label: t('planet.characteristics') },
+    { id: 'resources', label: t('planet_terminal.tab_resources') },
+    { id: 'alpha', label: `\u29B3 ${t('planet.tab_premium')}`, color: '#886622' },
+    { id: 'logistics', label: t('planet_terminal.tab_logistics') },
+    { id: 'terraform', label: t('planet_terminal.tab_terraform'), color: '#446644' },
+    { id: 'status', label: t('planet_terminal.tab_status') },
   ];
 
   return (
     <div style={{
       display: 'flex',
+      overflowX: 'auto',
       borderBottom: '1px solid rgba(50,65,85,0.5)',
     }}>
       {tabs.map((tab, i) => {
         const isActive = tab.id === activeTab;
+        const isUnlocked = unlockedTabs.has(tab.id);
         const activeColor = tab.color ? '#88cc88' : '#7bb8ff';
         const activeBg = tab.color
           ? (tab.id === 'terraform' ? 'rgba(20,40,20,0.3)' : 'rgba(40,28,8,0.3)')
@@ -283,13 +233,13 @@ function TabBar({
             key={tab.id}
             onClick={() => onChange(tab.id)}
             style={{
-              flex: 1,
-              padding: '7px 0',
+              flex: '0 0 auto',
+              padding: '7px 10px',
               fontSize: 9,
               fontFamily: 'monospace',
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
-              color: isActive ? activeColor : (tab.color ? (tab.id === 'terraform' ? '#448844' : '#886622') : '#556677'),
+              color: !isUnlocked ? '#334455' : isActive ? activeColor : (tab.color ? (tab.id === 'terraform' ? '#448844' : '#886622') : '#556677'),
               background: isActive ? activeBg : 'none',
               border: 'none',
               borderBottom: isActive ? `2px solid ${activeBorder}` : '2px solid transparent',
@@ -298,7 +248,7 @@ function TabBar({
               transition: 'color 0.12s, background 0.12s',
             }}
           >
-            {tab.label}
+            {tab.label}{!isUnlocked ? ' ·' : ''}
           </button>
         );
       })}
@@ -319,11 +269,28 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup, re
   const totalRes = planet.resources?.totalResources;
   const hasAnyResources = totalRes && (totalRes.minerals > 0 || totalRes.volatiles > 0 || totalRes.isotopes > 0);
   const [lockedTooltip, setLockedTooltip] = useState<ResourceGroup | null>(null);
+  const hydro = planet.hydrosphere;
+  const waterMassKg = hydro && hydro.waterCoverageFraction > 0 && hydro.oceanDepthKm > 0
+    ? (() => {
+        const radiusM = planet.radiusEarth * 6_371_000;
+        const surfaceArea = 4 * Math.PI * radiusM * radiusM;
+        const volume = surfaceArea * Math.min(0.95, hydro.waterCoverageFraction) * (hydro.oceanDepthKm * 1000);
+        return volume * 1000;
+      })()
+    : 0;
 
   // Compute max group value for proportional bars
   const maxGroupValue = totalRes
     ? Math.max(totalRes.minerals, totalRes.volatiles, totalRes.isotopes, 1)
     : 1;
+  const compactResources = totalRes
+    ? [
+        { key: 'minerals', label: t('planet_terminal.resource_minerals'), value: totalRes.minerals, color: '#8a8a7a' },
+        { key: 'volatiles', label: t('planet_terminal.resource_volatiles'), value: totalRes.volatiles, color: '#5fa8c8' },
+        { key: 'isotopes', label: t('planet_terminal.resource_isotopes'), value: totalRes.isotopes, color: '#b88a44' },
+        { key: 'water', label: t('planet_terminal.resource_water'), value: waterMassKg, color: '#4488aa' },
+      ]
+    : [];
 
   if (revealLevel < 2) {
     return (
@@ -335,6 +302,16 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup, re
 
   return (
     <>
+      {compactResources.length > 0 && (
+        <div style={{ padding: '10px 12px 6px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          {compactResources.map((item) => (
+            <div key={item.key} style={{ border: '1px solid rgba(51,68,85,0.45)', borderRadius: 4, padding: '6px 7px', background: 'rgba(5,10,20,0.35)' }}>
+              <div style={{ color: item.color, fontSize: 9, marginBottom: 2 }}>{item.label}</div>
+              <div style={{ color: '#aabbcc', fontSize: 10 }}>{formatMassKg(item.value)}</div>
+            </div>
+          ))}
+        </div>
+      )}
       {/* Resource groups */}
       {hasAnyResources && (
         <>
@@ -495,11 +472,244 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup, re
   );
 }
 
+function DataRow({ label, value, muted = false }: { label: string; value: React.ReactNode; muted?: boolean }) {
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      gap: 10,
+      padding: '4px 0',
+      borderBottom: '1px solid rgba(50,60,70,0.18)',
+      color: muted ? '#445566' : '#8899aa',
+      fontSize: 10,
+    }}>
+      <span>{label}</span>
+      <span style={{ color: muted ? '#445566' : '#aabbcc', textAlign: 'right' }}>{value}</span>
+    </div>
+  );
+}
+
+function CharacteristicsTab({ planet, revealLevel }: { planet: Planet; revealLevel: PlanetRevealLevel }) {
+  const { t } = useTranslation();
+  const unknown = t('planet_info.unknown');
+  const locked = t('planet_info.reveal_hint', { level: revealLevel });
+  return (
+    <div style={{ padding: '10px 14px', maxHeight: '46vh', overflowY: 'auto' }}>
+      <div style={{ color: '#667788', fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>
+        {t('planet_info.group_physical')}
+      </div>
+      <DataRow label={t('planet_info.type')} value={planet.type.replace('-', ' ')} />
+      <DataRow label={t('planet_info.mass')} value={revealLevel >= 1 ? `${planet.massEarth} M⊕` : locked} muted={revealLevel < 1} />
+      <DataRow label={t('planet_info.radius')} value={revealLevel >= 1 ? `${planet.radiusEarth} R⊕` : locked} muted={revealLevel < 1} />
+      <DataRow label={t('planet_info.gravity')} value={revealLevel >= 2 ? `${planet.surfaceGravityG}g` : unknown} muted={revealLevel < 2} />
+      <DataRow label={t('planet_info.surface_temp')} value={revealLevel >= 1 ? `${planet.surfaceTempK} K (${(planet.surfaceTempK - 273.15).toFixed(0)}°C)` : unknown} muted={revealLevel < 1} />
+
+      <div style={{ color: '#667788', fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', margin: '10px 0 6px' }}>
+        {t('planet_info.group_orbital')}
+      </div>
+      <DataRow label={t('planet_info.distance')} value={revealLevel >= 1 ? `${planet.orbit.semiMajorAxisAU.toFixed(3)} AU` : locked} muted={revealLevel < 1} />
+      <DataRow label={t('planet_info.period')} value={revealLevel >= 1 ? `${planet.orbit.periodDays.toFixed(1)} ${t('planet_info.days')}` : unknown} muted={revealLevel < 1} />
+      <DataRow label={t('planet_info.zone')} value={planet.zone} />
+
+      <div style={{ color: '#667788', fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', margin: '10px 0 6px' }}>
+        {t('planet_info.group_climate')}
+      </div>
+      <DataRow label={t('planet_info.pressure')} value={revealLevel >= 2 && planet.atmosphere ? `${planet.atmosphere.surfacePressureAtm} atm` : unknown} muted={revealLevel < 2 || !planet.atmosphere} />
+      <DataRow label={t('planet_info.coverage')} value={revealLevel >= 2 && planet.hydrosphere ? `${(planet.hydrosphere.waterCoverageFraction * 100).toFixed(1)}%` : unknown} muted={revealLevel < 2 || !planet.hydrosphere} />
+      <DataRow label={t('planet_info.life')} value={revealLevel >= 3 ? (planet.hasLife ? planet.lifeComplexity : t('planet_info.none')) : t('planet_info.surface_expedition_required')} muted={revealLevel < 3} />
+    </div>
+  );
+}
+
+function StatusChip({ label, active }: { label: string; active: boolean }) {
+  return (
+    <span style={{
+      border: `1px solid ${active ? '#446688' : '#334455'}`,
+      borderRadius: 999,
+      padding: '3px 7px',
+      color: active ? '#7bb8ff' : '#445566',
+      background: active ? 'rgba(40,70,100,0.25)' : 'rgba(20,25,35,0.35)',
+      fontSize: 9,
+      whiteSpace: 'nowrap',
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function LogisticsTab({
+  ships,
+  shipments = [],
+  targetPlanetId,
+  planetResources = {},
+  onStartCargoShipment,
+}: {
+  ships: Ship[];
+  shipments?: CargoShipment[];
+  targetPlanetId: string;
+  planetResources?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  onStartCargoShipment?: (params: { shipId: string; fromPlanetId: string; toPlanetId: string; resource: CargoResource; amount: number }) => void;
+}) {
+  const { t } = useTranslation();
+  const [donorPlanetId, setDonorPlanetId] = useState('');
+  const [shipId, setShipId] = useState('');
+  const [resource, setResource] = useState<CargoResource>('minerals');
+  const [amount, setAmount] = useState(0);
+  const cargoShips = ships.filter((ship) => ship.status === 'docked' && !ship.assignmentId);
+  const donors = Array.from(new Set(cargoShips.map((ship) => ship.currentPlanetId).filter(Boolean) as string[]))
+    .map((planetId) => ({
+      planetId,
+      ships: cargoShips.filter((ship) => ship.currentPlanetId === planetId),
+      resources: planetResources[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
+    }))
+    .sort((a, b) => b.ships.length - a.ships.length);
+  const nearest = donors[0] ?? null;
+  const selectedDonorId = donorPlanetId || nearest?.planetId || '';
+  const selectedDonor = donors.find((donor) => donor.planetId === selectedDonorId) ?? nearest;
+  const availableShips = selectedDonor?.ships ?? [];
+  const selectedShip = availableShips.find((ship) => ship.id === shipId) ?? availableShips[0] ?? null;
+  const selectedCapacity = selectedShip ? PRODUCIBLE_DEFS[selectedShip.type].cargoCapacity : 0;
+  const selectedStock = selectedDonor?.resources[resource] ?? 0;
+  const maxAmount = Math.max(0, Math.min(selectedCapacity, Math.floor(selectedStock)));
+  const activeShipments = shipments.filter((shipment) => shipment.toPlanetId === targetPlanetId || shipment.fromPlanetId === targetPlanetId);
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: 'rgba(5,10,20,0.75)',
+    border: '1px solid #334455',
+    borderRadius: 4,
+    color: '#aabbcc',
+    fontFamily: 'monospace',
+    fontSize: 10,
+    padding: '7px 8px',
+  };
+  const startShipment = () => {
+    if (!selectedShip || !selectedDonor || maxAmount <= 0 || !onStartCargoShipment) return;
+    onStartCargoShipment({
+      shipId: selectedShip.id,
+      fromPlanetId: selectedDonor.planetId,
+      toPlanetId: targetPlanetId,
+      resource,
+      amount: Math.min(Math.max(1, Math.floor(amount || maxAmount)), maxAmount),
+    });
+  };
+  return (
+    <div style={{ padding: 12, display: 'grid', gap: 8 }}>
+      <div style={{ color: '#8899aa', fontSize: 10 }}>{t('planet_terminal.logistics_desc')}</div>
+      <div style={{ color: '#7bb8ff', fontSize: 11 }}>
+        {t('planet_terminal.free_ships', { count: cargoShips.length })}
+      </div>
+      {nearest ? (
+        <div style={{ border: '1px solid rgba(51,68,85,0.5)', borderRadius: 4, padding: 8, background: 'rgba(5,10,20,0.35)' }}>
+          <div style={{ color: '#aabbcc', fontSize: 10, marginBottom: 5 }}>
+            {t('planet_terminal.nearest_spaceport', { planet: nearest.planetId })}
+          </div>
+          <div style={{ color: '#667788', fontSize: 9, lineHeight: 1.6 }}>
+            {t('planet_terminal.available_cargo', { count: nearest.ships.length })}
+            {' · '}
+            {t('planet_terminal.resources_short', {
+              minerals: Math.floor(nearest.resources.minerals),
+              volatiles: Math.floor(nearest.resources.volatiles),
+              isotopes: Math.floor(nearest.resources.isotopes),
+              water: Math.floor(nearest.resources.water),
+            })}
+          </div>
+        </div>
+      ) : (
+        <div style={{ color: '#cc8844', fontSize: 10 }}>{t('planet_terminal.no_cargo_ships')}</div>
+      )}
+      {selectedDonor && selectedShip && (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <select value={selectedDonor.planetId} onChange={(event) => { setDonorPlanetId(event.target.value); setShipId(''); }} style={inputStyle}>
+            {donors.map((donor) => <option key={donor.planetId} value={donor.planetId}>{donor.planetId}</option>)}
+          </select>
+          <select value={selectedShip.id} onChange={(event) => setShipId(event.target.value)} style={inputStyle}>
+            {availableShips.map((ship) => (
+              <option key={ship.id} value={ship.id}>
+                {ship.name} · {PRODUCIBLE_DEFS[ship.type].cargoCapacity}
+              </option>
+            ))}
+          </select>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <select value={resource} onChange={(event) => { setResource(event.target.value as CargoResource); setAmount(0); }} style={inputStyle}>
+              <option value="minerals">{t('planet_terminal.resource_minerals')}</option>
+              <option value="volatiles">{t('planet_terminal.resource_volatiles')}</option>
+              <option value="isotopes">{t('planet_terminal.resource_isotopes')}</option>
+              <option value="water">{t('planet_terminal.resource_water')}</option>
+            </select>
+            <input
+              value={amount || ''}
+              min={0}
+              max={maxAmount}
+              type="number"
+              onChange={(event) => setAmount(Number(event.target.value))}
+              placeholder={`${maxAmount}`}
+              style={inputStyle}
+            />
+          </div>
+          <button
+            disabled={maxAmount <= 0 || !onStartCargoShipment}
+            onClick={startShipment}
+            style={{
+              padding: '8px 10px',
+              border: '1px solid #446688',
+              borderRadius: 4,
+              background: maxAmount > 0 ? 'rgba(40,70,100,0.3)' : 'rgba(20,25,35,0.45)',
+              color: maxAmount > 0 ? '#7bb8ff' : '#445566',
+              fontFamily: 'monospace',
+              fontSize: 10,
+              cursor: maxAmount > 0 ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {t('planet_terminal.send_cargo', { amount: amount || maxAmount })}
+          </button>
+        </div>
+      )}
+      {activeShipments.length > 0 && (
+        <div style={{ display: 'grid', gap: 4 }}>
+          {activeShipments.map((shipment) => (
+            <div key={shipment.id} style={{ color: '#667788', fontSize: 9 }}>
+              {t('planet_terminal.shipment_status', {
+                resource: t(`planet_terminal.resource_${shipment.resource}`),
+                amount: shipment.amount,
+                status: t(`planet_terminal.shipment_${shipment.status}`),
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ color: '#445566', fontSize: 9 }}>
+        {targetPlanetId}
+      </div>
+    </div>
+  );
+}
+
+function StatusTab({ revealLevel, terraformState, isColonized }: {
+  revealLevel: PlanetRevealLevel;
+  terraformState?: PlanetTerraformState;
+  isColonized: boolean;
+}) {
+  const { t } = useTranslation();
+  const terraformProgress = terraformState
+    ? Object.values(terraformState.params).reduce((sum, param) => sum + param.progress, 0) / 6
+    : 0;
+  const inTerraform = terraformProgress > 0 && !terraformState?.completedAt;
+  return (
+    <div style={{ padding: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <StatusChip label={t('planet_terminal.badge_atmosphere')} active={revealLevel >= 2} />
+      <StatusChip label={t('planet_terminal.badge_surface')} active={revealLevel >= 3} />
+      <StatusChip label={t('planet_terminal.badge_colonized')} active={isColonized} />
+      <StatusChip label={t('planet_terminal.badge_terraforming')} active={inTerraform} />
+      <StatusChip label={t('planet_terminal.badge_terraformed')} active={Boolean(terraformState?.completedAt)} />
+    </div>
+  );
+}
+
 /* ────────── Main component ────────── */
 
 export function PlanetContextMenu({
   planet, star, screenPosition, quarks,
-  onViewPlanet, onShowCharacteristics, onClose,
+  onViewPlanet, onClose,
   onSurface,
   onTelescopePhoto,
   onAdTelescopePhoto,
@@ -521,13 +731,23 @@ export function PlanetContextMenu({
   reportSummary,
   onViewReport,
   explorationMissionsDisabled = false,
+  systemResearchProgress = 100,
+  canStartSystemResearch = false,
+  isSystemResearching = false,
+  onStartSystemResearch,
+  terraformState,
+  isColonized = false,
+  cargoShips = [],
+  cargoShipments = [],
+  planetResourcesById = {},
+  onStartCargoShipment,
 }: {
   planet: Planet;
   star: Star;
   screenPosition: { x: number; y: number };
   quarks: number;
   onViewPlanet: () => void;
-  onShowCharacteristics: () => void;
+  onShowCharacteristics?: () => void;
   onClose: () => void;
   onSurface?: () => void;
   onTelescopePhoto?: (photoKind: PlanetPhotoKind) => void;
@@ -552,11 +772,20 @@ export function PlanetContextMenu({
   reportSummary?: PlanetReportSummary;
   onViewReport?: (planet: Planet, report: PlanetReportSummary) => void;
   explorationMissionsDisabled?: boolean;
+  systemResearchProgress?: number;
+  canStartSystemResearch?: boolean;
+  isSystemResearching?: boolean;
+  onStartSystemResearch?: () => void;
+  terraformState?: PlanetTerraformState;
+  isColonized?: boolean;
+  cargoShips?: Ship[];
+  cargoShipments?: CargoShipment[];
+  planetResourcesById?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  onStartCargoShipment?: (params: { shipId: string; fromPlanetId: string; toPlanetId: string; resource: CargoResource; amount: number }) => void;
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('actions');
   const [expandedGroup, setExpandedGroup] = useState<ResourceGroup | null>(null);
-  const [researchGroupExpanded, setResearchGroupExpanded] = useState(false);
   // Delay backdrop + menu items activation to prevent the touch "click" event
   // (fired ~100ms after the pointerdown that opened the menu) from immediately
   // closing the menu or triggering navigation on mobile.
@@ -592,13 +821,28 @@ export function PlanetContextMenu({
 
     // Vertical: try to center around click point, then clamp
     const idealTop = screenPosition.y - measuredHeight / 2;
-    const top = Math.max(MARGIN, Math.min(idealTop, window.innerHeight - measuredHeight - MARGIN));
+    const maxTop = Math.max(MARGIN, window.innerHeight - Math.min(measuredHeight, window.innerHeight - MARGIN * 2) - MARGIN);
+    const top = Math.max(MARGIN, Math.min(idealTop, maxTop));
 
     setMenuPos({ left, top });
-  }, [researchGroupExpanded, activeTab, expandedGroup, screenPosition, isDesktop]);
+  }, [activeTab, expandedGroup, screenPosition, isDesktop]);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
-  const showTerraformTab = isTerraformable(planet) && Boolean(hasGenesisVault);
+  const isSystemAccessible = systemResearchProgress >= 100;
+  const unlockedTabs = useMemo(() => {
+    const tabs = new Set<TabId>(['actions', 'alpha', 'status']);
+    if (isSystemAccessible) {
+      tabs.add('characteristics');
+      tabs.add('resources');
+      tabs.add('logistics');
+      tabs.add('terraform');
+    }
+    return tabs;
+  }, [isSystemAccessible]);
+  const setGuardedTab = (tab: TabId) => {
+    setActiveTab(unlockedTabs.has(tab) ? tab : 'actions');
+  };
+  const canLaunchTerraform = isTerraformable(planet) && Boolean(hasGenesisVault) && playerLevel >= 48;
   const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
   const availableMissionTypes: PlanetMissionType[] = [
     'orbital_scan',
@@ -678,7 +922,7 @@ export function PlanetContextMenu({
   return (
     <>
       <div style={backdropStyle} onClick={backdropActive ? onClose : undefined} />
-      <div ref={menuRef} style={{ ...menuStyle, left, top }}>
+      <div ref={menuRef} style={{ ...menuStyle, left, top, maxHeight: `calc(100vh - ${MARGIN * 2}px)`, overflowY: 'auto' }}>
         {/* ── Header: name + HOME tag ── */}
         <div style={{
           padding: '10px 14px 6px', fontSize: 13, color: '#ccddee',
@@ -698,43 +942,32 @@ export function PlanetContextMenu({
         {isSurfacePlanet && <PlanetGlobe planet={planet} star={star} />}
 
         {/* ── Tab bar ── */}
-        <TabBar activeTab={activeTab} onChange={setActiveTab} showTerraformTab={showTerraformTab} />
+        <TabBar activeTab={activeTab} onChange={setGuardedTab} unlockedTabs={unlockedTabs} />
 
         {/* ── Tab content ── */}
         <div style={{ padding: '4px 0', minHeight: 80 }}>
           {activeTab === 'actions' && (
             <>
-              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={itemsActive ? onViewPlanet : undefined} color="#88ccaa" />
-              {isSurfacePlanet && onSurface && (
-                surfaceDisabledReason
-                  ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
-                  : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={itemsActive ? onSurface : undefined} color="#88ccaa" />
+              <div style={{ padding: '9px 14px', fontSize: 10, color: '#8899aa' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span>{t('planet_terminal.system_research')}</span>
+                  <span style={{ color: isSystemAccessible ? '#44ff88' : '#ddaa44' }}>{Math.round(systemResearchProgress)}%</span>
+                </div>
+                <div style={{ height: 4, background: 'rgba(40,55,70,0.75)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.min(100, systemResearchProgress)}%`, height: '100%', background: isSystemAccessible ? '#44ff88' : '#ddaa44' }} />
+                </div>
+              </div>
+              {!isSystemAccessible && (
+                <MenuItem
+                  icon="◎"
+                  label={isSystemResearching ? t('planet_terminal.researching') : t('planet_terminal.start_system_research')}
+                  onClick={canStartSystemResearch && itemsActive ? onStartSystemResearch : undefined}
+                  disabled={!canStartSystemResearch || isSystemResearching}
+                  color="#ddaa44"
+                />
               )}
-
-              {/* ── Research collapsible group ── */}
-              <div style={{ height: 1, background: 'rgba(50,65,85,0.4)', margin: '4px 0' }} />
-              <button
-                style={{
-                  ...itemStyle,
-                  background: researchGroupExpanded ? itemHoverBg : 'none',
-                  color: '#8899aa',
-                }}
-                onClick={() => setResearchGroupExpanded((v) => !v)}
-              >
-                <span style={{ width: 14, textAlign: 'center', opacity: 0.6, flexShrink: 0 }}>+</span>
-                {t('planet.action_research')}
-                <span style={{ marginLeft: 'auto', fontSize: 9, color: '#556677' }}>
-                  {researchGroupExpanded ? 'v' : '>'}
-                </span>
-              </button>
-              {researchGroupExpanded && (
+              {isSystemAccessible && (
                 <div style={{ paddingLeft: 16 }}>
-                  <MenuItem
-                    icon="☰"
-                    label={t('planet.characteristics')}
-                    onClick={onShowCharacteristics}
-                    right="›"
-                  />
                   <div style={{ padding: '5px 14px 4px', color: '#445566', fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                     {t('planet_missions.section')}
                   </div>
@@ -784,10 +1017,10 @@ export function PlanetContextMenu({
               )}
 
               {/* ── Terraforming action (conditional) ── */}
-              {isTerraformable(planet) && (
+              {isSystemAccessible && isTerraformable(planet) && (
                 <>
                   <div style={{ height: 1, background: 'rgba(50,65,85,0.4)', margin: '4px 0' }} />
-                  {hasGenesisVault && onShowTerraform ? (
+                  {canLaunchTerraform && onShowTerraform ? (
                     <MenuItem
                       icon="*"
                       label={t('planet.action_terraform')}
@@ -800,7 +1033,7 @@ export function PlanetContextMenu({
                       label={t('planet.action_terraform')}
                       disabled
                       title={t('terraform.reason.genesis_vault_required')}
-                      right={t('terraform.reason.genesis_vault_required')}
+                      right={playerLevel < 48 ? 'L48' : t('terraform.reason.genesis_vault_required')}
                     />
                   )}
                 </>
@@ -818,12 +1051,104 @@ export function PlanetContextMenu({
             />
           )}
 
-          {activeTab === 'terraform' && showTerraformTab && onShowTerraform && (
+          {activeTab === 'characteristics' && (
+            <CharacteristicsTab planet={planet} revealLevel={revealLevel} />
+          )}
+
+          {activeTab === 'alpha' && (
+            <>
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(30,22,5,0.5) 0%, rgba(15,12,3,0.4) 100%)',
+                minHeight: 80,
+              }}>
+                <div style={{ padding: '8px 14px 3px', fontSize: 8, color: '#886622', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  {t('planet.premium_tools')}
+                </div>
+                {onTelescopePhoto && !isPhotoGenerating && (
+                  <>
+                    <MenuItem
+                      icon="◉"
+                      label={<>{t('planet.photo_exosphere_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
+                      onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('exosphere') : undefined}
+                      color={canAffordPhoto ? '#ddaa44' : '#445566'}
+                      disabled={!canAffordPhoto}
+                    />
+                    {canGenerateSurfacePhotos && (
+                      <>
+                        <MenuItem
+                          icon="▣"
+                          label={<>{t('planet.photo_biosphere_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
+                          onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('biosphere') : undefined}
+                          color={canAffordPhoto ? '#ddaa44' : '#445566'}
+                          disabled={!canAffordPhoto}
+                        />
+                        <MenuItem
+                          icon="▽"
+                          label={<>{t('planet.photo_aerial_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
+                          onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('aerial') : undefined}
+                          color={canAffordPhoto ? '#ddaa44' : '#445566'}
+                          disabled={!canAffordPhoto}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+                {onTelescopePhoto && isPhotoGenerating && (
+                  <MenuItem
+                    icon="◉"
+                    label={t('planet.photo_base_label')}
+                    disabled
+                    right={<span style={{ color: '#4488aa', fontSize: 9 }}>{t('planet.photo_generating')}</span>}
+                  />
+                )}
+                {canShowAds && onAdTelescopePhoto && !isPhotoGenerating && (
+                  <div style={{ padding: '4px 8px' }}>
+                    <AdProgressButton
+                      label={t('planet.photo_ad_label')}
+                      progressLabel={t('planet.photo_ad_progress', { done: '{done}', total: '{total}' })}
+                      requiredAds={3}
+                      adRewardType="planet_photo"
+                      onComplete={(photoToken) => onAdTelescopePhoto('exosphere', photoToken)}
+                      variant="menu"
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'status' && (
+            <>
+              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={itemsActive ? onViewPlanet : undefined} color="#88ccaa" />
+              {isSurfacePlanet && onSurface && (
+                surfaceDisabledReason
+                  ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
+                  : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={itemsActive ? onSurface : undefined} color="#88ccaa" />
+              )}
+              {reportSummary && onViewReport && (
+                <MenuItem icon="□" label={t('planet_missions.view_report')} onClick={() => onViewReport(planet, reportSummary)} color="#ddaa44" right={`T${reportSummary.revealLevel}`} />
+              )}
+              <StatusTab revealLevel={revealLevel} terraformState={terraformState} isColonized={isColonized || planet.isHomePlanet} />
+            </>
+          )}
+
+          {activeTab === 'logistics' && (
+            <LogisticsTab
+              ships={cargoShips}
+              shipments={cargoShipments}
+              targetPlanetId={planet.id}
+              planetResources={planetResourcesById}
+              onStartCargoShipment={onStartCargoShipment}
+            />
+          )}
+
+          {activeTab === 'terraform' && (
             <div style={{ padding: '12px 14px' }}>
               <div style={{ fontSize: 10, color: '#8899aa', marginBottom: 8 }}>
-                {t('planet.action_terraform')}
+                {playerLevel < 48 ? t('planet_terminal.terraform_preview_l48') : t('planet.action_terraform')}
               </div>
               <button
+                disabled={!canLaunchTerraform || !onShowTerraform}
                 style={{
                   width: '100%',
                   padding: '9px 14px',
@@ -833,82 +1158,16 @@ export function PlanetContextMenu({
                   color: '#88cc88',
                   fontFamily: 'monospace',
                   fontSize: 11,
-                  cursor: 'pointer',
+                  cursor: canLaunchTerraform && onShowTerraform ? 'pointer' : 'not-allowed',
                   textAlign: 'left' as const,
                 }}
-                onClick={() => { onShowTerraform(planet); onClose(); }}
+                onClick={() => { if (canLaunchTerraform && onShowTerraform) { onShowTerraform(planet); onClose(); } }}
               >
-                {t('planet.action_terraform')} &rarr;
+                {canLaunchTerraform ? `${t('planet.action_terraform')} →` : t('planet_terminal.terraform_requirements_visible')}
               </button>
             </div>
           )}
 
-          {activeTab === 'premium' && (
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(30,22,5,0.5) 0%, rgba(15,12,3,0.4) 100%)',
-              minHeight: 80,
-            }}>
-              <div style={{ padding: '8px 14px 3px', fontSize: 8, color: '#886622', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                {t('planet.premium_tools')}
-              </div>
-              {onTelescopePhoto && !isPhotoGenerating && (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <div style={{ flex: 1 }}>
-                      <MenuItem
-                        icon="◉"
-                        label={<>{t('planet.photo_exosphere_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
-                        onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('exosphere') : undefined}
-                        color={canAffordPhoto ? '#ddaa44' : '#445566'}
-                        disabled={!canAffordPhoto}
-                      />
-                    </div>
-                    <TooltipHint text={t('planet.photo_exosphere_tooltip')} />
-                  </div>
-                  {canGenerateSurfacePhotos && (
-                    <>
-                      <MenuItem
-                        icon="▣"
-                        label={<>{t('planet.photo_biosphere_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
-                        onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('biosphere') : undefined}
-                        color={canAffordPhoto ? '#ddaa44' : '#445566'}
-                        disabled={!canAffordPhoto}
-                      />
-                      <MenuItem
-                        icon="▽"
-                        label={<>{t('planet.photo_aerial_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
-                        onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('aerial') : undefined}
-                        color={canAffordPhoto ? '#ddaa44' : '#445566'}
-                        disabled={!canAffordPhoto}
-                      />
-                    </>
-                  )}
-                </>
-              )}
-              {onTelescopePhoto && isPhotoGenerating && (
-                <MenuItem
-                  icon="◉"
-                  label={t('planet.photo_base_label')}
-                  disabled
-                  right={<span style={{ color: '#4488aa', fontSize: 9 }}>{t('planet.photo_generating')}</span>}
-                />
-              )}
-              {/* Ad-funded planet photo (native only) */}
-              {canShowAds && onAdTelescopePhoto && !isPhotoGenerating && (
-                <div style={{ padding: '4px 8px' }}>
-                  <AdProgressButton
-                    label={t('planet.photo_ad_label')}
-                    progressLabel={t('planet.photo_ad_progress', { done: '{done}', total: '{total}' })}
-                    requiredAds={3}
-                    adRewardType="planet_photo"
-                    onComplete={(photoToken) => onAdTelescopePhoto('exosphere', photoToken)}
-                    variant="menu"
-                  />
-                </div>
-              )}
-              {/* Future premium tools will go here */}
-            </div>
-          )}
         </div>
       </div>
     </>

@@ -510,12 +510,25 @@ function ColoniesTab({ active, allColonies, onTeleport }: ColonyCenterPageProps)
   );
 }
 
-const EXPLORATION_PAYLOAD_TYPES: ProducibleType[] = [
+const EXPLORATION_LAUNCH_TYPES: ProducibleType[] = [
   'survey_probe',
   'orbital_satellite',
   'surface_rover',
-  'lander',
   'atmosphere_probe',
+];
+
+const RESEARCH_TRANSPORT_TYPES_UI: ProducibleType[] = [
+  'research_shuttle',
+  'rover_dropcraft',
+  'atmo_probe_carrier',
+];
+
+const HEAVY_LOGISTICS_TYPES: ProducibleType[] = [
+  'research_station_kit',
+  'transport_small',
+  'transport_large',
+  'terraform_freighter',
+  'colony_ship',
 ];
 
 function formatQueueTime(ms: number): string {
@@ -537,6 +550,78 @@ function payloadCostSummary(type: ProducibleType): string {
     .filter(([, amount]) => amount > 0)
     .map(([key, amount]) => `${key} ${amount}`)
     .join(' · ');
+}
+
+function ProducibleCard({
+  type,
+  count,
+  activeQueue,
+  canBuild,
+  onBuild,
+  disabledReason,
+  t,
+}: {
+  type: ProducibleType;
+  count: number;
+  activeQueue: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
+  canBuild: boolean;
+  onBuild?: (type: ProducibleType) => void;
+  disabledReason?: string;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  const nextDone = activeQueue.length > 0
+    ? Math.min(...activeQueue.map((item) => item.startedAt + item.durationMs))
+    : null;
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr auto',
+        gap: 8,
+        alignItems: 'center',
+        padding: '7px 8px',
+        border: '1px solid rgba(51,68,85,0.55)',
+        borderRadius: 4,
+        background: 'rgba(5,10,20,0.42)',
+      }}
+    >
+      <div>
+        <div style={{ color: '#aabbcc', fontSize: 11 }}>
+          {t(`planet_missions.payload.${type}`)}
+          <span style={{ color: '#7bb8ff', marginLeft: 8 }}>×{count}</span>
+          {activeQueue.length > 0 && (
+            <span style={{ color: '#ddaa44', marginLeft: 8 }}>
+              +{activeQueue.length} / {formatQueueTime((nextDone ?? Date.now()) - Date.now())}
+            </span>
+          )}
+        </div>
+        <div style={{ color: '#556677', fontSize: 9, marginTop: 2 }}>
+          {payloadCostSummary(type)}
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          playSfx('ui-click', 0.07);
+          onBuild?.(type);
+        }}
+        disabled={!canBuild || !onBuild}
+        title={!canBuild ? disabledReason : undefined}
+        style={{
+          background: canBuild ? 'rgba(30,60,80,0.65)' : 'rgba(20,25,35,0.45)',
+          border: canBuild ? '1px solid #446688' : '1px solid #334455',
+          borderRadius: 3,
+          color: canBuild ? '#7bb8ff' : '#445566',
+          fontFamily: 'monospace',
+          fontSize: 10,
+          padding: '6px 9px',
+          cursor: canBuild ? 'pointer' : 'not-allowed',
+        }}
+      >
+        {t('colony_center.production.build_payload')}
+      </button>
+    </div>
+  );
 }
 
 function ProductionTab({
@@ -687,66 +772,102 @@ function ProductionTab({
           textTransform: 'uppercase',
           marginBottom: 8,
         }}>
-          {t('colony_center.production.exploration_payloads')}
+          {t('colony_center.production.research_transports')}
         </div>
         <div style={{ display: 'grid', gap: 6 }}>
-          {EXPLORATION_PAYLOAD_TYPES.map((type) => {
+          {RESEARCH_TRANSPORT_TYPES_UI.map((type) => {
             const def = PRODUCIBLE_DEFS[type];
             const count = explorationPayloads?.[type] ?? 0;
             const activeQueue = (explorationProductionQueue ?? []).filter((item) => item.type === type);
-            const nextDone = activeQueue.length > 0
-              ? Math.min(...activeQueue.map((item) => item.startedAt + item.durationMs))
-              : null;
             const canBuild = active.buildings.some((building) => building.type === def.requiresBuilding && !building.shutdown);
             return (
-              <div
+              <ProducibleCard
                 key={type}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr auto',
-                  gap: 8,
-                  alignItems: 'center',
-                  padding: '7px 8px',
-                  border: '1px solid rgba(51,68,85,0.55)',
-                  borderRadius: 4,
-                  background: 'rgba(5,10,20,0.42)',
-                }}
-              >
-                <div>
-                  <div style={{ color: '#aabbcc', fontSize: 11 }}>
-                    {t(`planet_missions.payload.${type}`)}
-                    <span style={{ color: '#7bb8ff', marginLeft: 8 }}>×{count}</span>
-                    {activeQueue.length > 0 && (
-                      <span style={{ color: '#ddaa44', marginLeft: 8 }}>
-                        +{activeQueue.length} / {formatQueueTime((nextDone ?? Date.now()) - Date.now())}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ color: '#556677', fontSize: 9, marginTop: 2 }}>
-                    {payloadCostSummary(type)}
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    playSfx('ui-click', 0.07);
-                    onStartPayloadProduction?.(type);
-                  }}
-                  disabled={!canBuild || !onStartPayloadProduction}
-                  title={!canBuild ? t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${def.requiresBuilding}`) }) : undefined}
-                  style={{
-                    background: canBuild ? 'rgba(30,60,80,0.65)' : 'rgba(20,25,35,0.45)',
-                    border: canBuild ? '1px solid #446688' : '1px solid #334455',
-                    borderRadius: 3,
-                    color: canBuild ? '#7bb8ff' : '#445566',
-                    fontFamily: 'monospace',
-                    fontSize: 10,
-                    padding: '6px 9px',
-                    cursor: canBuild ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  {t('colony_center.production.build_payload')}
-                </button>
-              </div>
+                type={type}
+                count={count}
+                activeQueue={activeQueue}
+                canBuild={canBuild}
+                onBuild={onStartPayloadProduction}
+                disabledReason={t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${def.requiresBuilding}`) })}
+                t={t}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{
+        marginTop: 4,
+        background: 'rgba(10,15,25,0.55)',
+        border: '1px solid #233344',
+        borderRadius: 4,
+        padding: 10,
+        fontFamily: 'monospace',
+      }}>
+        <div style={{
+          fontSize: 10,
+          color: '#7bb8ff',
+          letterSpacing: 2,
+          textTransform: 'uppercase',
+          marginBottom: 8,
+        }}>
+          {t('colony_center.production.exploration_payloads')}
+        </div>
+        <div style={{ display: 'grid', gap: 6 }}>
+          {EXPLORATION_LAUNCH_TYPES.map((type) => {
+            const def = PRODUCIBLE_DEFS[type];
+            const count = explorationPayloads?.[type] ?? 0;
+            const activeQueue = (explorationProductionQueue ?? []).filter((item) => item.type === type);
+            const canBuild = active.buildings.some((building) => building.type === def.requiresBuilding && !building.shutdown);
+            return (
+              <ProducibleCard
+                key={type}
+                type={type}
+                count={count}
+                activeQueue={activeQueue}
+                canBuild={canBuild}
+                onBuild={onStartPayloadProduction}
+                disabledReason={t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${def.requiresBuilding}`) })}
+                t={t}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{
+        background: 'rgba(10,15,25,0.4)',
+        border: '1px solid rgba(51,68,85,0.45)',
+        borderRadius: 4,
+        padding: 10,
+        fontFamily: 'monospace',
+      }}>
+        <div style={{
+          fontSize: 10,
+          color: '#8899aa',
+          letterSpacing: 2,
+          textTransform: 'uppercase',
+          marginBottom: 8,
+        }}>
+          {t('colony_center.production.heavy_logistics')}
+        </div>
+        <div style={{ display: 'grid', gap: 6 }}>
+          {HEAVY_LOGISTICS_TYPES.map((type) => {
+            const def = PRODUCIBLE_DEFS[type];
+            const count = explorationPayloads?.[type] ?? 0;
+            const activeQueue = (explorationProductionQueue ?? []).filter((item) => item.type === type);
+            const canBuild = active.buildings.some((building) => building.type === def.requiresBuilding && !building.shutdown);
+            return (
+              <ProducibleCard
+                key={type}
+                type={type}
+                count={count}
+                activeQueue={activeQueue}
+                canBuild={canBuild}
+                onBuild={onStartPayloadProduction}
+                disabledReason={t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${def.requiresBuilding}`) })}
+                t={t}
+              />
             );
           })}
         </div>

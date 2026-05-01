@@ -4,12 +4,13 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet } from '@nebulife/core';
+import type { Planet, Ship } from '@nebulife/core';
 import {
   tierMaxCargo,
   flightHoursLY,
   repairCost,
   computeParamRequirement,
+  PRODUCIBLE_DEFS,
 } from '@nebulife/core';
 import type { TerraformParamId, Mission, ShipTier } from '@nebulife/core';
 
@@ -31,6 +32,7 @@ export interface MissionDispatchModalProps {
   /** Per-planet resource lookup — called with the selected donor's planet ID. */
   getResources: (planetId: string) => ColonyResources;
   tier: ShipTier;
+  availableShips: Ship[];
   /** Returns distance in LY from the given donor planet to the target */
   distanceLY: (donorPlanetId: string) => number;
   currentProgress: number;
@@ -74,6 +76,7 @@ export function MissionDispatchModal({
   donorPlanets,
   getResources,
   tier,
+  availableShips,
   distanceLY,
   currentProgress,
   onDispatch,
@@ -84,12 +87,22 @@ export function MissionDispatchModal({
   const [selectedDonorId, setSelectedDonorId] = useState<string>(
     donorPlanets[0]?.id ?? '',
   );
+  const donorShips = useMemo(
+    () => availableShips.filter((ship) => ship.currentPlanetId === selectedDonorId && ship.status === 'docked' && !ship.assignmentId),
+    [availableShips, selectedDonorId],
+  );
+  const [selectedShipId, setSelectedShipId] = useState<string>(donorShips[0]?.id ?? '');
+
+  useEffect(() => {
+    setSelectedShipId((prev) => donorShips.some((ship) => ship.id === prev) ? prev : (donorShips[0]?.id ?? ''));
+  }, [donorShips]);
 
   const resource = primaryResourceForParam(paramId);
   // Look up the selected donor's own resource balance (Phase 7B per-planet).
   const donorResources = getResources(selectedDonorId);
   const available = donorResources[resource] ?? 0;
-  const maxCargo = tierMaxCargo(tier);
+  const selectedShip = donorShips.find((ship) => ship.id === selectedShipId) ?? null;
+  const maxCargo = selectedShip ? PRODUCIBLE_DEFS[selectedShip.type].cargoCapacity : tierMaxCargo(tier);
 
   // Requirement to complete param from current progress
   const requirement = useMemo(() => {
@@ -109,10 +122,11 @@ export function MissionDispatchModal({
     [selectedDonorId, distanceLY],
   );
 
-  const oneWayHours = useMemo(
-    () => flightHoursLY(selectedDistance, tier),
-    [selectedDistance, tier],
-  );
+  const oneWayHours = useMemo(() => {
+    if (!selectedShip) return flightHoursLY(selectedDistance, tier);
+    const def = PRODUCIBLE_DEFS[selectedShip.type];
+    return Math.max(0.1, selectedDistance / Math.max(0.01, def.baseSpeed * 10));
+  }, [selectedDistance, selectedShip, tier]);
   const roundTripHours = oneWayHours * 2;
 
   const repair = useMemo(
@@ -124,7 +138,7 @@ export function MissionDispatchModal({
     ? Math.min(100, Math.round((amount / requirement) * 100))
     : 0;
 
-  const canDispatch = amount > 0 && available >= amount && selectedDonorId !== '';
+  const canDispatch = amount > 0 && available >= amount && selectedDonorId !== '' && Boolean(selectedShipId);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Math.max(0, Math.min(maxAmount, parseInt(e.target.value, 10) || 0));
@@ -143,6 +157,7 @@ export function MissionDispatchModal({
       phase: 'dispatching',
       flightHours: oneWayHours,
       repairCostMinerals: repair,
+      shipId: selectedShipId,
     });
     onClose();
   };
@@ -221,6 +236,24 @@ export function MissionDispatchModal({
     );
   }
 
+  if (availableShips.length === 0) {
+    return (
+      <div style={overlayStyle} onClick={onClose}>
+        <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+          <div style={{ fontSize: 13, color: '#cc8844' }}>
+            {t('terraform.no_free_ships')}
+          </div>
+          <button
+            style={{ ...btnBase, background: 'rgba(40,50,70,0.8)', color: '#8899aa' }}
+            onClick={onClose}
+          >
+            {t('common.close')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
@@ -279,6 +312,38 @@ export function MissionDispatchModal({
             <span>{t('terraform.distance', { ly: selectedDistance.toFixed(2) })}</span>
           </div>
         )}
+
+        {/* Ship select */}
+        <div>
+          <div style={labelStyle}>{t('terraform.ship_label')}</div>
+          {donorShips.length === 0 ? (
+            <div style={{ ...valueStyle, color: '#cc8844' }}>{t('terraform.no_free_ships')}</div>
+          ) : (
+            <select
+              value={selectedShipId}
+              onChange={(e) => setSelectedShipId(e.target.value)}
+              style={{
+                fontFamily: 'monospace',
+                background: 'rgba(5,10,20,0.9)',
+                border: '1px solid #334455',
+                borderRadius: 3,
+                color: '#aabbcc',
+                fontSize: 11,
+                padding: '4px 8px',
+                width: '100%',
+              }}
+            >
+              {donorShips.map((ship) => {
+                const def = PRODUCIBLE_DEFS[ship.type];
+                return (
+                  <option key={ship.id} value={ship.id}>
+                    {ship.name} - {def.cargoCapacity} cargo
+                  </option>
+                );
+              })}
+            </select>
+          )}
+        </div>
 
         {/* Amount slider */}
         <div>

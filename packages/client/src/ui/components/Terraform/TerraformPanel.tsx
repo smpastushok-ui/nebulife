@@ -4,7 +4,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet } from '@nebulife/core';
+import type { Planet, Ship } from '@nebulife/core';
 import {
   canStartParam,
   getOverallProgress,
@@ -35,6 +35,7 @@ export interface TerraformPanelProps {
   /** Per-planet resource lookup. Called with the selected donor's planet ID. */
   getResources: (planetId: string) => ColonyResources;
   shipTier: 0 | 1 | 2 | 3;
+  availableShips: Ship[];
   /** Active (non-idle) missions keyed by paramId */
   activeMissionByParam: Partial<Record<TerraformParamId, Mission>>;
   onStartParam: (
@@ -45,6 +46,7 @@ export interface TerraformPanelProps {
     tier: ShipTier,
     flightHours: number,
     repairCostMinerals: number,
+    shipId?: string,
   ) => void;
   onCancelMission: (missionId: string) => void;
   onClose: () => void;
@@ -363,6 +365,7 @@ export function TerraformPanel({
   donorDistances,
   getResources,
   shipTier,
+  availableShips,
   activeMissionByParam,
   onStartParam,
   onCancelMission,
@@ -398,6 +401,7 @@ export function TerraformPanel({
         mission.tier,
         mission.flightHours,
         mission.repairCostMinerals,
+        mission.shipId,
       );
       setDispatchTarget(null);
     },
@@ -568,6 +572,7 @@ export function TerraformPanel({
           donorPlanets={donorPlanets}
           getResources={getResources}
           tier={effectiveTier}
+          availableShips={availableShips}
           distanceLY={distanceLYForDonor}
           currentProgress={terraformState.params[dispatchTarget.paramId].progress}
           onDispatch={handleModalDispatch}
