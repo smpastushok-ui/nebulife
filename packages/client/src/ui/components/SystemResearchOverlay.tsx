@@ -32,7 +32,8 @@ function ensureStyles() {
 // SystemResearchOverlay — blur overlay for unresearched star systems
 // ---------------------------------------------------------------------------
 // Shows a CSS backdrop-filter blur + "Досліджено X%" label.
-// Blocks all planet interactions underneath via pointerEvents: 'auto'.
+// Lets planet clicks pass through so Planet Terminal can open before 100% system
+// research; the central research dial remains interactive.
 // Rendered above PixiJS canvas (z=15), below SystemNavHeader (z=40)
 // and CommandBar (z=50+) so navigation remains functional.
 // ---------------------------------------------------------------------------
@@ -88,7 +89,7 @@ export function SystemResearchOverlay({
         backdropFilter: `blur(${blurPx}px)`,
         WebkitBackdropFilter: `blur(${blurPx}px)`,
         backgroundColor: `rgba(2, 5, 16, ${overlayOpacity})`,
-        pointerEvents: 'auto',
+        pointerEvents: 'none',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -150,6 +151,7 @@ export function SystemResearchOverlay({
           padding: 0,
           overflow: 'hidden',
           cursor: canResearch ? 'pointer' : isResearching ? 'default' : 'not-allowed',
+          pointerEvents: 'auto',
           // Outer neon ring pulse only while research is in progress.
           animation: isResearching ? 'nebu-research-dial-glow 2.2s ease-in-out infinite' : undefined,
           transition: 'border-color 0.2s',
