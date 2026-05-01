@@ -219,39 +219,62 @@ function passesFilter(
   planet: Planet,
   filter: FilterId,
   colonyPlanetIds: Set<string>,
+  terraformStates?: Record<string, PlanetTerraformState>,
+  planetResourceStocks?: Record<string, PlanetResourceStocks>,
 ): boolean {
+  const stocks = planetResourceStocks?.[planet.id]?.remaining
+    ?? generatePlanetStocks(planet).initial;
+
   switch (filter) {
     case 'terraform':
       return isTerraformable(planet) && planet.terraformDifficulty > 0;
 
     case 'minerals':
-      return (
-        planet.type === 'rocky' ||
-        planet.type === 'terrestrial' ||
-        planet.type === 'dwarf'
-      );
+      return stocks.minerals >= 3000;
 
     case 'isotopes':
-      return (
-        planet.type === 'rocky' ||
-        planet.type === 'terrestrial' ||
-        planet.type === 'dwarf'
-      );
+      return stocks.isotopes >= 500;
 
     case 'water':
-      return (
-        (planet.hydrosphere?.waterCoverageFraction ?? 0) > 0 ||
-        (planet.habitability.water ?? 0) > 0
-      );
+      return stocks.water >= 1000 || (planet.hydrosphere?.waterCoverageFraction ?? 0) >= 0.25;
 
-    case 'life':
-      return planet.hasLife === true;
+    case 'life': {
+      const completedAt = terraformStates?.[planet.id]?.completedAt;
+      return colonyPlanetIds.has(planet.id) || (completedAt !== null && completedAt !== undefined);
+    }
 
     case 'volatiles':
-      return (planet.atmosphere?.surfacePressureAtm ?? 0) > 0;
+      return stocks.volatiles >= 1000;
 
     case 'population':
       return colonyPlanetIds.has(planet.id);
+  }
+}
+
+function getFilterRankValue(
+  planet: Planet,
+  filter: FilterId | null,
+  colonyPlanetIds: Set<string>,
+  terraformStates?: Record<string, PlanetTerraformState>,
+  planetResourceStocks?: Record<string, PlanetResourceStocks>,
+): number {
+  if (!filter) return 0;
+  const stocks = planetResourceStocks?.[planet.id]?.remaining
+    ?? generatePlanetStocks(planet).initial;
+
+  switch (filter) {
+    case 'minerals': return stocks.minerals;
+    case 'isotopes': return stocks.isotopes;
+    case 'water': return stocks.water + (planet.hydrosphere?.waterCoverageFraction ?? 0) * 1000;
+    case 'volatiles': return stocks.volatiles;
+    case 'life':
+      return colonyPlanetIds.has(planet.id)
+        ? 2
+        : terraformStates?.[planet.id]?.completedAt !== null && terraformStates?.[planet.id]?.completedAt !== undefined
+          ? 1
+          : 0;
+    case 'population': return colonyPlanetIds.has(planet.id) ? 1 : 0;
+    case 'terraform': return 1 - (planet.terraformDifficulty ?? 1);
   }
 }
 
@@ -290,7 +313,9 @@ function getFilterStatLabel(
       return formatK(Math.round(stocks[filter]), t('format.k'), t('format.kk'));
     }
     case 'life':
-      return planet.hasLife ? t('archive.filter_life_yes') : t('archive.filter_life_no');
+      if (colonyPlanetIds?.has(planet.id)) return t('archive.filter_life_settled');
+      if (tfState?.completedAt !== null && tfState?.completedAt !== undefined) return t('archive.filter_life_created');
+      return null;
     case 'population': {
       if (!colonyPlanetIds?.has(planet.id)) return '\u2014';
       // Base colony population; detailed building-based calc not available here
@@ -1635,6 +1660,7 @@ function ExpandedDetailPanel({
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 24;
+const FILTER_RESULT_LIMIT = 48;
 
 export function PlanetsCatalogV2({
   allSystems,
@@ -1734,10 +1760,20 @@ export function PlanetsCatalogV2({
   // Apply single filter
   const filteredPairs = useMemo(() => {
     if (selectedFilter === null) return sortedPairs;
-    return sortedPairs.filter(({ planet }) =>
-      passesFilter(planet, selectedFilter, colonyPlanetIds),
-    );
-  }, [sortedPairs, selectedFilter, colonyPlanetIds]);
+    return sortedPairs
+      .filter(({ planet }) =>
+        passesFilter(planet, selectedFilter, colonyPlanetIds, terraformStates, planetResourceStocks),
+      )
+      .sort((a, b) => {
+        const aRank = getFilterRankValue(a.planet, selectedFilter, colonyPlanetIds, terraformStates, planetResourceStocks);
+        const bRank = getFilterRankValue(b.planet, selectedFilter, colonyPlanetIds, terraformStates, planetResourceStocks);
+        if (bRank !== aRank) return bRank - aRank;
+        const dA = systemDistances.get(a.system.id) ?? Infinity;
+        const dB = systemDistances.get(b.system.id) ?? Infinity;
+        return dA - dB;
+      })
+      .slice(0, FILTER_RESULT_LIMIT);
+  }, [sortedPairs, selectedFilter, colonyPlanetIds, terraformStates, planetResourceStocks, systemDistances]);
 
   // Reset visible count when filter changes
   useEffect(() => {

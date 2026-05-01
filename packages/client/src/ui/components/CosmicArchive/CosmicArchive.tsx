@@ -72,7 +72,7 @@ function buildTabs(t: (key: string) => string): TabDef[] {
         { id: 'star-systems', label: t('archive.sub_star_systems') },
         { id: 'planets-photos', label: t('archive.sub_planets_photos') },
         { id: 'surface', label: t('archive.sub_surface') },
-        { id: 'life', label: t('archive.sub_life') },
+        { id: 'aerial-photos', label: t('archive.sub_aerial_photos') },
       ],
     },
     {
@@ -140,6 +140,8 @@ export interface CosmicArchiveProps {
   systemPhotos?: Map<string, SystemPhotoData>;
   /** Colony resource totals (for Resources tab — should be totalResources() aggregate). */
   colonyResources?: { minerals: number; volatiles: number; isotopes: number; water: number };
+  /** Element-level colony inventory shown after periodic-table unlock. */
+  chemicalInventory?: Record<string, number>;
   /** Per-planet resource balances (Phase 7B). Used in ColoniesList rows. */
   resourcesByPlanet?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
   /** Player quarks balance — for premium unlock buttons. */
@@ -300,6 +302,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onFavoritesChange,
   systemPhotos,
   colonyResources,
+  chemicalInventory = {},
   resourcesByPlanet,
   quarks,
   onUnlockViaQuarks,
@@ -488,20 +491,11 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     if (mainTab === 'collections' && currentSubTab === 'planets-photos') {
       return <TelescopeGallery photos={systemPhotos} type="planet" allSystems={allSystems} aliases={aliases} />;
     }
-    if (mainTab === 'collections' && (currentSubTab === 'surface' || currentSubTab === 'life')) {
-      const isLocked = (playerLevel ?? 1) < 50;
-      if (isLocked) {
-        return (
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            height: '100%', minHeight: 300, fontFamily: 'monospace',
-            fontSize: 12, color: '#445566', textAlign: 'center', lineHeight: 1.7,
-          }}>
-            {t('archive.locked_level_50')}
-          </div>
-        );
-      }
-      return <PlaceholderTab label={currentSubTab === 'surface' ? t('archive.sub_surface') : t('archive.sub_life')} />;
+    if (mainTab === 'collections' && currentSubTab === 'surface') {
+      return <TelescopeGallery photos={systemPhotos} type="biosphere" allSystems={allSystems} aliases={aliases} />;
+    }
+    if (mainTab === 'collections' && currentSubTab === 'aerial-photos') {
+      return <TelescopeGallery photos={systemPhotos} type="aerial" allSystems={allSystems} aliases={aliases} />;
     }
     if (mainTab === 'navigation' && currentSubTab === 'colonies') {
       return (
@@ -627,6 +621,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           volatiles={colonyResources?.volatiles ?? 0}
           isotopes={colonyResources?.isotopes ?? 0}
           water={colonyResources?.water ?? 0}
+          playerLevel={playerLevel ?? 1}
+          chemicalInventory={chemicalInventory}
         />
       );
     }
@@ -816,7 +812,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       {/* Sub tabs */}
       <div data-swipe-tabs="" style={subTabBarStyle}>
         {currentTabDef.subTabs.map((sub) => {
-          const isLocked = (sub.id === 'surface' || sub.id === 'life') && (playerLevel ?? 1) < 50;
+          const isLocked = false;
           return (
             <TabButton
               key={sub.id}

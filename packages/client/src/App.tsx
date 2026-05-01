@@ -7899,6 +7899,7 @@ function AppInner() {
           onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
           systemPhotos={systemPhotos}
           colonyResources={totalResources()}
+          chemicalInventory={chemicalInventory}
           resourcesByPlanet={colonyResourcesByPlanet}
           quarks={quarks}
           isQuarkUnlocked={(sysId) => quarkUnlockedSystems.has(sysId)}

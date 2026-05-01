@@ -9,7 +9,7 @@ import type { SystemPhotoData } from '../SystemContextMenu';
 
 interface TelescopeGalleryProps {
   photos?: Map<string, SystemPhotoData>;
-  type: 'system' | 'planet';
+  type: 'system' | 'planet' | 'biosphere' | 'aerial';
   allSystems: StarSystem[];
   aliases: Record<string, string>;
 }
@@ -22,6 +22,14 @@ interface PhotoEntry {
   date: string;
 }
 
+function getPlanetIdFromPhotoKey(key: string): string | null {
+  if (key.startsWith('planet-exosphere-')) return key.slice('planet-exosphere-'.length);
+  if (key.startsWith('planet-biosphere-')) return key.slice('planet-biosphere-'.length);
+  if (key.startsWith('planet-aerial-')) return key.slice('planet-aerial-'.length);
+  if (key.startsWith('planet-')) return key.slice('planet-'.length); // legacy planet photo key
+  return null;
+}
+
 /** Resolve metadata for a photo key */
 function resolvePhotoMeta(
   key: string,
@@ -29,8 +37,8 @@ function resolvePhotoMeta(
   aliases: Record<string, string>,
   tFn: (key: string, opts?: Record<string, unknown>) => string,
 ): { name: string; sublabel: string } {
-  if (key.startsWith('planet-')) {
-    const planetId = key.slice(7);
+  const planetId = getPlanetIdFromPhotoKey(key);
+  if (planetId) {
     for (const sys of allSystems) {
       const planet = sys.planets.find(p => p.id === planetId);
       if (planet) {
@@ -81,9 +89,15 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
     const result: PhotoEntry[] = [];
     for (const [key, data] of photos) {
       // Filter by type
-      const isPlanet = key.startsWith('planet-');
-      if (type === 'system' && isPlanet) continue;
-      if (type === 'planet' && !isPlanet) continue;
+      const isPhotoPlanet = key.startsWith('planet-');
+      const isExosphere = key.startsWith('planet-exosphere-') || (key.startsWith('planet-') && !key.startsWith('planet-biosphere-') && !key.startsWith('planet-aerial-'));
+      const isBiosphere = key.startsWith('planet-biosphere-');
+      const isAerial = key.startsWith('planet-aerial-');
+
+      if (type === 'system' && isPhotoPlanet) continue;
+      if (type === 'planet' && !isExosphere) continue;
+      if (type === 'biosphere' && !isBiosphere) continue;
+      if (type === 'aerial' && !isAerial) continue;
       // Only show completed photos
       if (data.status !== 'succeed' || !data.photoUrl) continue;
 
@@ -123,7 +137,13 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
     }
   }, []);
 
-  const typeLabel = type === 'system' ? t('archive.sub_star_systems') : t('archive.sub_planets_photos');
+  const typeLabel = type === 'system'
+    ? t('archive.sub_star_systems')
+    : type === 'planet'
+      ? t('archive.sub_planets_photos')
+      : type === 'biosphere'
+        ? t('archive.sub_surface')
+        : t('archive.sub_aerial_photos');
 
   if (entries.length === 0) {
     return (
