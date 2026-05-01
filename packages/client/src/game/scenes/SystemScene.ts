@@ -57,6 +57,15 @@ interface SysShootingStar {
   maxLife: number;
 }
 
+function makeVisualOnly(root: Container): void {
+  root.eventMode = 'none';
+  root.cursor = 'default';
+  for (const child of root.children) {
+    child.eventMode = 'none';
+    if (child instanceof Container) makeVisualOnly(child);
+  }
+}
+
 export interface PlanetMissionVisual {
   planetId: string;
   type: PlanetMissionType;
@@ -143,7 +152,8 @@ export class SystemScene {
     // Star at center — size from radiusSolar (log-scale)
     const starSize = Math.max(12, Math.min(50, 10 + Math.log2(1 + system.star.radiusSolar) * 12));
     const starResult = renderStar(system.star, starSize);
-    starResult.container.zIndex = 10000;
+    makeVisualOnly(starResult.container);
+    starResult.container.zIndex = 100;
     this.container.addChild(starResult.container);
     this.starCorona = starResult.corona;
 
@@ -155,7 +165,8 @@ export class SystemScene {
     });
     starLabel.anchor.set(0.5, 0);
     starLabel.y = starSize + 8;
-    starLabel.zIndex = 10001;
+    starLabel.eventMode = 'none';
+    starLabel.zIndex = 101;
     this.container.addChild(starLabel);
 
     // System name

@@ -106,7 +106,11 @@
     "coming_soon": "soon",
     "premium_tools": "Premium tools",
     "photo_label": "Planet photo — {{cost}}",
+    "photo_exosphere_label": "Exosphere photo — {{cost}}",
+    "photo_biosphere_label": "Biosphere photo — {{cost}}",
+    "photo_aerial_label": "Bird's-eye photo — {{cost}}",
     "photo_tooltip": "Rent supertélescope capacity to capture a unique image of the selected planet. The image will belong exclusively to you.",
+    "photo_exosphere_tooltip": "Kling capture from an orbital probe: the planet, its moons, and the system star in a realistic mission frame.",
     "photo_base_label": "Planet photo",
     "photo_view_label": "View planet photo",
     "photo_generating": "generating...",
@@ -127,7 +131,7 @@
     },
     "resource_storage": {
       "name": "Resource Module",
-      "desc": "Expands storage capacity by +200 for the selected resource type."
+      "desc": "Colony storage module. Expands resource capacity by +5000."
     },
     "landing_pad": {
       "name": "Landing Pad",
@@ -159,19 +163,19 @@
     },
     "mine": {
       "name": "Mine",
-      "desc": "Extracts basic minerals from surface deposits."
+      "desc": "Passive mineral extraction from surface deposits. Consumes energy and a little water."
     },
     "water_extractor": {
       "name": "Water Extractor",
-      "desc": "Extracts volatiles from ocean and coastline."
+      "desc": "Extracts water from ocean, ice, or coastline. Consumes energy."
     },
     "atmo_extractor": {
       "name": "Atmospheric Condenser",
-      "desc": "Collects volatiles from atmosphere. Output depends on pressure."
+      "desc": "Condenses volatiles from atmosphere. Consumes energy; output depends on pressure."
     },
     "deep_drill": {
       "name": "Deep Drill",
-      "desc": "Access to deep deposits. Chance of rare elements."
+      "desc": "Accesses deep deposits. Strong passive mining and a chance for rare elements."
     },
     "orbital_collector": {
       "name": "Orbital Collector",
@@ -191,7 +195,7 @@
     },
     "radar_tower": {
       "name": "Radar Tower",
-      "desc": "Clears fog of war in 32-cell radius. Detects hidden deposits."
+      "desc": "Planetary sensor array. Refines deposit, atmosphere-risk, and mission telemetry."
     },
     "orbital_telescope": {
       "name": "Orbital Telescope",
@@ -203,39 +207,39 @@
     },
     "greenhouse": {
       "name": "Greenhouse",
-      "desc": "Food production. Increases habitability."
+      "desc": "Closed food module. Provides food support for population growth, but does not change planet habitability."
     },
     "residential_dome": {
       "name": "Residential Dome",
-      "desc": "Crew quarters. +500 population."
+      "desc": "Crew housing. Adds population space, but growth is blocked without enough food support."
     },
     "atmo_shield": {
       "name": "Atmospheric Shield",
-      "desc": "Protects colony from hostile atmosphere and meteorites."
+      "desc": "Protects the colony from hostile atmosphere, dust storms, and micrometeorites. Does not terraform the planet."
     },
     "biome_dome": {
       "name": "Biome Dome",
-      "desc": "Self-sufficient biosphere. Equivalent to 3 greenhouses."
+      "desc": "Self-contained biocircuit. Provides large food support and stable life support without directly raising habitability."
     },
     "quantum_separator": {
       "name": "Quantum Separator",
-      "desc": "Splits minerals into chemical elements. 10 min → 5 elements."
+      "desc": "L50 elemental separation lab. Converts minerals into base elements for late chemistry."
     },
     "gas_fractionator": {
       "name": "Gas Fractionator",
-      "desc": "Processes volatiles into elements. 10 vol → 5 elements."
+      "desc": "L50 volatile fractionator. Extracts H/He/N/C/S for biosphere, reactors, and synthesis."
     },
     "isotope_centrifuge": {
       "name": "Isotope Centrifuge",
-      "desc": "Enriches isotopes. 5 iso → 2 U. Critical for fusion reactor."
+      "desc": "L50 isotope enrichment. Produces U/Th for fusion, Genesis Vault, and endgame construction."
     },
     "genesis_vault": {
       "name": "Genesis Vault",
-      "desc": "Megastructure for DNA storage and terraforming. +0.15 habitability."
+      "desc": "DNA archive and terraforming control center. Unlocks global planet-changing processes."
     },
     "alpha_harvester": {
       "name": "Alpha Harvester",
-      "desc": "Premium drone. Auto-harvests resources in 10-cell radius. Purchased with quarks."
+      "desc": "Premium drone. Auto-harvests available resources within 2 zones around itself. Purchased with quarks."
     }
   },
   "building_adj": {
@@ -1612,7 +1616,9 @@
     "level_subtitle": "Level {{level}} module",
     "resource": {
       "researchData": "Research Data",
-      "habitability": "Habitability"
+      "habitability": "Habitability",
+      "energy": "Energy",
+      "food": "Food"
     },
     "status": "Status",
     "status_active": "Active",
@@ -1627,13 +1633,13 @@
     "rates": "Live rates",
     "production": "Production",
     "consumption": "Consumption",
-    "no_production": "No direct output",
-    "no_consumption": "No direct consumption",
+    "no_production": "Does not directly produce resources",
+    "no_consumption": "Does not directly consume resources",
     "modifiers": "Modifiers",
     "energy_storage": "+{{amount}} energy storage",
     "storage_capacity": "+{{amount}} resource storage",
-    "population_capacity": "+{{amount}} population capacity",
-    "reveal_radius": "Reveals fog radius {{radius}}",
+    "population_capacity": "+{{amount}} housing capacity",
+    "reveal_radius": "Sensor coverage radius {{radius}}",
     "stock_line": "{{resource}} deposit: {{remaining}} U left ({{pct}}%)",
     "synergy": "Adjacency bonus: {{label}}",
     "no_modifiers": "No passive modifiers",
@@ -1725,6 +1731,7 @@
     }
   },
   "hex": {
+    "build_menu": "Build",
     "isotope_depleted_warning": "Isotopes depleted"
   },
   "colonies": {

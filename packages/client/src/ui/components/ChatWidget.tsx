@@ -60,6 +60,9 @@ interface ChatWidgetProps {
   preferredLanguage?: string;
   /** Callback to award XP (e.g. for quiz correct answers) */
   onAwardXP?: (amount: number, reason: string) => void;
+  quizAnswers?: Record<string, number>;
+  onQuizAnswer?: (messageId: string, selectedIndex: number) => void;
+  onDigestSeen?: (weekDate: string) => void;
   /** Player level — global chat send requires level 10+ */
   playerLevel?: number;
   /** When true, force the widget into collapsed state (e.g. while tutorial is active). */
@@ -88,7 +91,7 @@ const CHAT_PULSE_KEYFRAMES = `
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, playerLevel = 1, forceCollapsed = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
 
@@ -124,6 +127,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   }, [lastDigestSeen]);
 
   const unreadAstra = (latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate) ? 1 : 0;
+
+  const markDigestSeen = useCallback((weekDate: string | null | undefined) => {
+    if (!weekDate) return;
+    setSeenDigestWeekDate(prev => (prev == null || weekDate > prev ? weekDate : prev));
+    onDigestSeen?.(weekDate);
+  }, [onDigestSeen]);
 
   // Inject neon pulse keyframes once
   const pulseStyleInjected = useRef(false);
@@ -500,7 +509,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
             setTab('system');
           } else if (unreadAstra > 0) {
             setTab('astra');
-            setSeenDigestWeekDate(latestDigestWeekDate); // mark as read immediately
+            markDigestSeen(latestDigestWeekDate); // mark as read immediately
           } else if (unreadGlobal > 0) {
             setTab('global');
           }
@@ -582,7 +591,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
           <div style={{ display: 'flex', gap: 8 }}>
             <TabButton
               active={tab === 'astra'}
-              onClick={() => { setTab('astra'); setActiveDM(null); setSeenDigestWeekDate(latestDigestWeekDate); }}
+              onClick={() => { setTab('astra'); setActiveDM(null); markDigestSeen(latestDigestWeekDate); }}
               label="A.S.T.R.A."
               badge={unreadAstra > 0 ? unreadAstra : undefined}
               badgeColor="#44ffaa"
@@ -952,7 +961,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               gap: 6,
             }}>
               {/* Digest notification — shown when there's a new unread digest */}
-              {latestDigestWeekDate != null && latestDigestWeekDate !== lastDigestSeen && (
+              {latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate && (
                 <div style={{
                   background: 'rgba(0,30,20,0.5)',
                   border: '1px solid rgba(68,255,136,0.3)',
@@ -969,7 +978,10 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                       : 'Космічні новини тижня готові! Відкрий дайджест, щоб дізнатись про останні відкриття.'}
                   </div>
                   <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('nebulife:open-digest'))}
+                    onClick={() => {
+                      markDigestSeen(latestDigestWeekDate);
+                      window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
+                    }}
                     style={{
                       background: 'rgba(68,255,136,0.12)',
                       border: '1px solid rgba(68,255,136,0.4)',
@@ -986,13 +998,20 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                 </div>
               )}
 
-              {astraMessages.length === 0 && !astraLoading && !(latestDigestWeekDate != null && latestDigestWeekDate !== lastDigestSeen) && (
+              {astraMessages.length === 0 && !astraLoading && !(latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate) && (
                 <div style={{ color: '#44ffaa', fontSize: 10, textAlign: 'center', marginTop: 30, fontFamily: 'monospace', opacity: 0.7 }}>
                   {t('chat.astra_online')}
                 </div>
               )}
               {astraMessages.map((msg) => (
-                <AstraMessageItem key={msg.id} msg={{ role: (msg.sender_id === 'astra' || msg.sender_id === 'system') ? 'model' : 'user', text: msg.content }} messageId={msg.id} onAwardXP={onAwardXP} />
+                <AstraMessageItem
+                  key={msg.id}
+                  msg={{ role: (msg.sender_id === 'astra' || msg.sender_id === 'system') ? 'model' : 'user', text: msg.content }}
+                  messageId={msg.id}
+                  onAwardXP={onAwardXP}
+                  selectedQuizAnswer={quizAnswers[msg.id]}
+                  onQuizAnswer={onQuizAnswer}
+                />
               ))}
               {astraLoading && (
                 <div style={{ color: '#44ffaa', fontSize: 10, fontFamily: 'monospace', opacity: 0.6 }}>
@@ -1415,12 +1434,25 @@ function resolveQuizData(raw: QuizPayload): QuizLangData {
   return raw as QuizLangData;
 }
 
-function QuizCard({ data: rawData, messageId, onAwardXP }: { data: QuizPayload; messageId: string; onAwardXP?: (amount: number, reason: string) => void }) {
+function QuizCard({
+  data: rawData,
+  messageId,
+  onAwardXP,
+  selectedAnswer,
+  onQuizAnswer,
+}: {
+  data: QuizPayload;
+  messageId: string;
+  onAwardXP?: (amount: number, reason: string) => void;
+  selectedAnswer?: number;
+  onQuizAnswer?: (messageId: string, selectedIndex: number) => void;
+}) {
   const { t } = useTranslation();
   const data = resolveQuizData(rawData);
   // Persist answer per message in localStorage
   const storageKey = `nebulife_quiz_${messageId}`;
   const [selected, setSelected] = useState<number | null>(() => {
+    if (selectedAnswer !== undefined) return selectedAnswer;
     try {
       const saved = localStorage.getItem(storageKey);
       return saved !== null ? Number(saved) : null;
@@ -1429,9 +1461,14 @@ function QuizCard({ data: rawData, messageId, onAwardXP }: { data: QuizPayload; 
   const [showXP, setShowXP] = useState(false);
   const revealed = selected !== null;
 
+  useEffect(() => {
+    if (selectedAnswer !== undefined) setSelected(selectedAnswer);
+  }, [selectedAnswer]);
+
   const handleAnswer = (i: number) => {
     if (revealed) return;
     setSelected(i);
+    onQuizAnswer?.(messageId, i);
     if (i === data.correctIndex) {
       playSfx('quiz-correct', 0.18);
     } else {
@@ -1522,7 +1559,19 @@ function QuizCard({ data: rawData, messageId, onAwardXP }: { data: QuizPayload; 
   );
 }
 
-function AstraMessageItem({ msg, messageId, onAwardXP }: { msg: AstraMessage; messageId: string; onAwardXP?: (amount: number, reason: string) => void }) {
+function AstraMessageItem({
+  msg,
+  messageId,
+  onAwardXP,
+  selectedQuizAnswer,
+  onQuizAnswer,
+}: {
+  msg: AstraMessage;
+  messageId: string;
+  onAwardXP?: (amount: number, reason: string) => void;
+  selectedQuizAnswer?: number;
+  onQuizAnswer?: (messageId: string, selectedIndex: number) => void;
+}) {
   const { t } = useTranslation();
   const isUser = msg.role === 'user';
 
@@ -1539,7 +1588,13 @@ function AstraMessageItem({ msg, messageId, onAwardXP }: { msg: AstraMessage; me
                 A.S.T.R.A.
               </span>
             </div>
-            <QuizCard data={parsed.data as QuizPayload} messageId={messageId} onAwardXP={onAwardXP} />
+            <QuizCard
+              data={parsed.data as QuizPayload}
+              messageId={messageId}
+              onAwardXP={onAwardXP}
+              selectedAnswer={selectedQuizAnswer}
+              onQuizAnswer={onQuizAnswer}
+            />
           </div>
         );
       }

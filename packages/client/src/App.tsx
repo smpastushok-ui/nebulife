@@ -164,6 +164,7 @@ import {
   generateSystemMission, pollMissionStatus,
   getPlayerSystemPhotos as fetchPlayerSystemPhotos,
 } from './api/system-photo-api.js';
+import type { PlanetPhotoKind } from './api/system-photo-api.js';
 
 export type SceneType = 'universe' | 'cluster' | 'galaxy' | 'system' | 'home-intro' | 'planet-view';
 
@@ -220,6 +221,7 @@ interface SyncedGameState {
   planet_reports?: Record<string, PlanetReportSummary>;
   exploration_payloads?: Partial<Record<ProducibleType, number>>;
   exploration_production_queue?: ExplorationPayloadProductionItem[];
+  astra_quiz_answers?: Record<string, number>;
   // Metadata
   synced_at: number;
   last_regen_time?: number;
@@ -1864,7 +1866,15 @@ function AppInner() {
         setPlanetResourceStocks(prev => ({ ...prev, [planetId]: stocks! }));
       }
 
-      const result = runColonyTicks(mutableColony, planetCtx.planet, techTreeStateRef.current, tileAt, Date.now(), stocks);
+      const result = runColonyTicks(
+        mutableColony,
+        planetCtx.planet,
+        techTreeStateRef.current,
+        tileAt,
+        Date.now(),
+        stocks,
+        planetCtx.star.luminositySolar,
+      );
       const before = colony.resources;
       const after  = result.colony.resources;
       const minD = Math.max(0, after.minerals  - before.minerals);
@@ -2710,6 +2720,13 @@ function AppInner() {
   const [digestModalWeekDate, setDigestModalWeekDate] = useState('');
   const [lastDigestSeen, setLastDigestSeen] = useState<string | null>(null);
   const [latestDigestWeekDate, setLatestDigestWeekDate] = useState<string | null>(null);
+  const [astraQuizAnswers, setAstraQuizAnswers] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_astra_quiz_answers');
+      if (saved) return JSON.parse(saved) as Record<string, number>;
+    } catch { /* ignore */ }
+    return {};
+  });
 
   // ── Player notification preferences (from DB) ─────────────────────────
   const [playerEmail, setPlayerEmail] = useState<string | null>(null);
@@ -2848,6 +2865,7 @@ function AppInner() {
       'nebulife_planet_reports',
       'nebulife_exploration_payloads',
       'nebulife_exploration_production_queue',
+      'nebulife_astra_quiz_answers',
       // Per-planet resources (Phase 7A)
       'nebulife_colony_resources_by_planet',
     ];
@@ -3403,6 +3421,13 @@ function AppInner() {
         for (const item of serverQueue) byId.set(item.id, item);
         return [...byId.values()];
       });
+    }
+
+    if (gs.astra_quiz_answers && typeof gs.astra_quiz_answers === 'object') {
+      setAstraQuizAnswers((localAnswers) => ({
+        ...localAnswers,
+        ...(gs.astra_quiz_answers as Record<string, number>),
+      }));
     }
 
     // Planet overrides — merge: server wins on a per-planet basis (promotedAt tie-break)
@@ -4829,13 +4854,12 @@ function AppInner() {
       });
   }, [quarks, aliases]);
 
-  /** Planet telescope photo — close-up shot of a planet via super telescope (25 quarks or ad token) */
-  const handlePlanetTelescopePhoto = useCallback((adPhotoToken?: string) => {
+  /** Planet photo generation — exosphere via Kling, surface/aerial via Nano Banana 2. */
+  const handlePlanetTelescopePhoto = useCallback((photoKind: PlanetPhotoKind = 'exosphere', adPhotoToken?: string) => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
     const planet = state.selectedPlanet;
     const sys = state.selectedSystem;
-    const sysId = sys.id;
-    const photoKey = `planet-${planet.id}`;
+    const photoKey = `planet-${photoKind}-${planet.id}`;
 
     // Check quark balance (skip if funded by ad token)
     if (!adPhotoToken && quarks < 25) {
@@ -4882,8 +4906,9 @@ function AppInner() {
       });
     };
 
-    // Call API with planetId
-    generateSystemPhoto(playerId.current, sysId, sys, undefined, undefined, planet.id, adPhotoToken)
+    // Call API with planetId. Planet photo generations use a synthetic key so
+    // variants do not overwrite the system panorama row in system_photos.
+    generateSystemPhoto(playerId.current, photoKey, sys, undefined, undefined, planet.id, adPhotoToken, photoKind)
       .then(({ photoId, quarksRemaining, photoUrl }) => {
         if (quarksRemaining !== null && quarksRemaining !== undefined) setQuarks(quarksRemaining);
         if (photoUrl) {
@@ -5853,6 +5878,31 @@ function AppInner() {
     return () => window.removeEventListener('keydown', onKey);
   }, [state.scene]);
 
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_astra_quiz_answers', JSON.stringify(astraQuizAnswers)); }
+    catch { /* ignore quota */ }
+  }, [astraQuizAnswers]);
+
+  const handleAstraDigestSeen = useCallback((weekDate: string): void => {
+    setLastDigestSeen((prev) => (prev == null || weekDate > prev ? weekDate : prev));
+    const pid = playerId.current;
+    if (pid) updatePlayer(pid, { last_digest_seen: weekDate }).catch(() => {});
+  }, []);
+
+  const handleAstraQuizAnswer = useCallback((messageId: string, selectedIndex: number): void => {
+    setAstraQuizAnswers((prev) => {
+      if (prev[messageId] !== undefined) return prev;
+      const next = { ...prev, [messageId]: selectedIndex };
+      const pid = playerId.current;
+      if (pid) {
+        updatePlayer(pid, {
+          game_state: { astra_quiz_answers: next },
+        }).catch(() => {});
+      }
+      return next;
+    });
+  }, []);
+
   // ── Cross-platform game state sync ─────────────────────────────────────
   /** Build a full snapshot of current game state for server sync. */
   const buildGameStateSnapshot = (): SyncedGameState => {
@@ -5905,6 +5955,7 @@ function AppInner() {
       planet_reports: planetReports,
       exploration_payloads: explorationPayloads,
       exploration_production_queue: explorationProductionQueue,
+      astra_quiz_answers: astraQuizAnswers,
       // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
       planet_overrides: planetOverrides,
       // Planet resource stocks (v168 — finite extraction deposits; stored in JSONB)
@@ -5952,7 +6003,7 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, planetOverrides, planetResourceStocks]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, astraQuizAnswers, planetOverrides, planetResourceStocks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -7211,17 +7262,16 @@ function AppInner() {
           onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
-          onTelescopePhoto={() => handlePlanetTelescopePhoto()}
-          onAdTelescopePhoto={(photoToken) => handlePlanetTelescopePhoto(photoToken)}
-          isPhotoGenerating={systemPhotos.get(`planet-${state.selectedPlanet.id}`)?.status === 'generating'}
-          planetHasPhoto={systemPhotos.get(`planet-${state.selectedPlanet.id}`)?.status === 'succeed'}
-          onViewPlanetPhoto={() => {
-            const photo = systemPhotos.get(`planet-${state.selectedPlanet!.id}`);
-            if (photo?.photoUrl) {
-              setState(prev => ({ ...prev, showPlanetMenu: false }));
-              setTelescopeOverlay({ phase: 'reveal', targetName: state.selectedPlanet!.name, targetType: 'planet', photoUrl: photo.photoUrl, photoKey: `planet-${state.selectedPlanet!.id}` });
-            }
-          }}
+          onTelescopePhoto={(photoKind) => handlePlanetTelescopePhoto(photoKind)}
+          onAdTelescopePhoto={(photoKind, photoToken) => handlePlanetTelescopePhoto(photoKind, photoToken)}
+          canGenerateSurfacePhotos={
+            canLandOnPlanet(state.selectedPlanet).allowed && isSolidPlanetForLanding(state.selectedPlanet)
+          }
+          isPhotoGenerating={
+            systemPhotos.get(`planet-exosphere-${state.selectedPlanet.id}`)?.status === 'generating'
+              || systemPhotos.get(`planet-biosphere-${state.selectedPlanet.id}`)?.status === 'generating'
+              || systemPhotos.get(`planet-aerial-${state.selectedPlanet.id}`)?.status === 'generating'
+          }
           canShowAds={isNativePlatform() && canShowAd()}
           hasGenesisVault={colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false}
           onShowTerraform={onShowTerraform}
@@ -7232,6 +7282,11 @@ function AppInner() {
           payloadInventory={explorationPayloads}
           colonyBuildings={getExplorationBuildings()}
           onStartMission={handleStartPlanetMission}
+          explorationMissionsDisabled={Boolean(
+            state.selectedPlanet.isHomePlanet
+              || state.selectedPlanet.id === homeInfo?.planet.id
+              || state.selectedPlanet.id === colonyState?.planetId,
+          )}
           reportSummary={planetReports[state.selectedPlanet.id]}
           onViewReport={(planet, report) => {
             setPlanetReportTarget({ planet, report });
@@ -8211,6 +8266,9 @@ function AppInner() {
           lastDigestSeen={lastDigestSeen}
           latestDigestWeekDate={latestDigestWeekDate}
           preferredLanguage={lang}
+          quizAnswers={astraQuizAnswers}
+          onQuizAnswer={handleAstraQuizAnswer}
+          onDigestSeen={handleAstraDigestSeen}
           forceCollapsed={isTutorialActive && activeTutorialStep?.id !== 'astra-handoff'}
         />
       )}

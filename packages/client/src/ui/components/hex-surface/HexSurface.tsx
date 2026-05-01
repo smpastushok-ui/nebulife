@@ -24,7 +24,7 @@ import { getPlanetSize } from '@nebulife/core';
 
 import { useHexState } from './useHexState.js';
 import { HexGrid } from './HexGrid.js';
-import { getHexPositions, HEX_RADIUS, type HexPlanetSize } from './hex-utils.js';
+import { getHexPositions, HEX_RADIUS, type HexPlanetSize, type ResourceType } from './hex-utils.js';
 import { HexBuildMenu, getAlphaHarvesterPrice } from './HexBuildMenu.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { BuildingDetailPanel } from '../ColonyCenter/BuildingDetailPanel.js';
@@ -105,6 +105,22 @@ const RESOURCE_TO_OBJECT: Record<string, SurfaceObjectType> = {
   crystal:    'tree',
   bio_fossil: 'tree',
 };
+
+const HARVEST_BUILDING_BONUS: Partial<Record<BuildingType, Partial<Record<ResourceType, number>>>> = {
+  mine: { ore: 0.25 },
+  water_extractor: { water: 0.25 },
+  atmo_extractor: { vent: 0.25 },
+  deep_drill: { ore: 0.35, crystal: 0.35, bio_fossil: 0.2 },
+  alpha_harvester: { ore: 0.15, vent: 0.15, water: 0.15, tree: 0.15, crystal: 0.15, bio_fossil: 0.15 },
+};
+
+function resourceBonusFor(resourceType: string, buildings: Array<{ buildingType?: string }>): number {
+  return buildings.reduce((bonus, building) => {
+    const typed = building.buildingType as BuildingType | undefined;
+    if (!typed) return bonus;
+    return bonus + (HARVEST_BUILDING_BONUS[typed]?.[resourceType as ResourceType] ?? 0);
+  }, 0);
+}
 
 // ---------------------------------------------------------------------------
 // Zoom constants
@@ -405,21 +421,23 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     }, [hexState, onHexUnlocked, quarksUnlockSlotId]);
 
     const handleHarvest = useCallback(
-      (slotId: string) => {
+      (slotId: string, sx: number, sy: number) => {
         const slot = hexState.getSlot(slotId);
         const amount = hexState.harvestResource(slotId);
         if (amount !== null && slot?.resourceType) {
           const objType = RESOURCE_TO_OBJECT[slot.resourceType] as SurfaceObjectType | undefined;
           if (objType) {
+            const bonus = resourceBonusFor(slot.resourceType, hexState.slots);
+            const boostedAmount = amount * (1 + bonus);
             // onHarvestFull: authoritative path — resources + depletion + elements
             // handled in App.tsx with the actual rarity-based yield amount.
             // This replaces the old onResourceChange path in useHexState that
             // was adding resources a second time (double-count).
-            const result = onHarvestFull?.(objType, amount);
+            const result = onHarvestFull?.(objType, boostedAmount);
             if (result?.depleted) hexState.destroyResource(slotId);
             // onHarvest: kept for visual FX / legacy compatibility; no resource logic
             onHarvest?.(objType);
-            onHarvestFx?.(objType, window.innerWidth / 2, window.innerHeight / 2);
+            onHarvestFx?.(objType, sx, sy);
             const actualAmount = result?.actualAmount ?? amount;
             // Award XP = amount collected (burst harvest reward)
             if (actualAmount > 0) onHarvestAmount?.(actualAmount);
@@ -659,7 +677,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             position: 'absolute',
             inset: 0,
             backgroundImage: `url(${bgImage})`,
-            backgroundSize: isDesktopSurface ? 'cover' : 'contain',
+            backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             pointerEvents: 'none',

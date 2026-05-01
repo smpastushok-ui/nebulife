@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding, ProducibleType, PlanetReportSummary } from '@nebulife/core';
 import {
   ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg, isTerraformable,
-  canStartPlanetMission, computePlanetMissionCost, getPlanetMissionProgress, isSolidPlanetForLanding,
+  canStartPlanetMission, computePlanetMissionCost, getPlanetMissionProgress, getTargetRevealLevel, isSolidPlanetForLanding,
 } from '@nebulife/core';
 
 /** i18n key for each resource group label */
@@ -39,6 +39,7 @@ const MENU_WIDTH = 250;
 const MENU_HEIGHT_APPROX = 360;
 
 type TabId = 'actions' | 'resources' | 'premium' | 'terraform';
+type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
 
 /* ────────── Shared styles ────────── */
 
@@ -505,8 +506,7 @@ export function PlanetContextMenu({
   isDestroyed,
   surfaceDisabledReason,
   isPhotoGenerating,
-  planetHasPhoto,
-  onViewPlanetPhoto,
+  canGenerateSurfacePhotos = false,
   playerLevel,
   canShowAds,
   hasGenesisVault,
@@ -520,6 +520,7 @@ export function PlanetContextMenu({
   onStartMission,
   reportSummary,
   onViewReport,
+  explorationMissionsDisabled = false,
 }: {
   planet: Planet;
   star: Star;
@@ -529,13 +530,12 @@ export function PlanetContextMenu({
   onShowCharacteristics: () => void;
   onClose: () => void;
   onSurface?: () => void;
-  onTelescopePhoto?: () => void;
-  onAdTelescopePhoto?: (photoToken: string) => void;
+  onTelescopePhoto?: (photoKind: PlanetPhotoKind) => void;
+  onAdTelescopePhoto?: (photoKind: PlanetPhotoKind, photoToken: string) => void;
   isDestroyed?: boolean;
   surfaceDisabledReason?: string;
   isPhotoGenerating?: boolean;
-  planetHasPhoto?: boolean;
-  onViewPlanetPhoto?: () => void;
+  canGenerateSurfacePhotos?: boolean;
   playerLevel: number;
   canShowAds?: boolean;
   /** Whether the player has a Genesis Vault built (enables terraform) */
@@ -551,6 +551,7 @@ export function PlanetContextMenu({
   onStartMission?: (planet: Planet, type: PlanetMissionType) => void;
   reportSummary?: PlanetReportSummary;
   onViewReport?: (planet: Planet, report: PlanetReportSummary) => void;
+  explorationMissionsDisabled?: boolean;
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('actions');
@@ -599,11 +600,14 @@ export function PlanetContextMenu({
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
   const showTerraformTab = isTerraformable(planet) && Boolean(hasGenesisVault);
   const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
-  const missionTypes: PlanetMissionType[] = [
+  const availableMissionTypes: PlanetMissionType[] = [
     'orbital_scan',
     'orbital_probe',
     isSolidPlanetForLanding(planet) ? 'surface_landing' : 'deep_atmosphere_probe',
   ];
+  const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
+    ? []
+    : availableMissionTypes.filter((type) => getTargetRevealLevel(type) > revealLevel);
   const getMissionDisabledReason = (type: PlanetMissionType): string | undefined => {
     if (!missionResources) return t('planet_missions.reason.unknown');
     const check = canStartPlanetMission({
@@ -760,7 +764,7 @@ export function PlanetContextMenu({
                       right={`T${reportSummary.revealLevel}`}
                     />
                   )}
-                  {missionTypes.map((type) => {
+                  {!explorationMissionsDisabled && missionTypes.map((type) => {
                     const disabledReason = getMissionDisabledReason(type);
                     const payload = computePlanetMissionCost(type, planet).payload;
                     const payloadCount = payload ? (payloadInventory[payload] ?? 0) : 0;
@@ -847,30 +851,41 @@ export function PlanetContextMenu({
               <div style={{ padding: '8px 14px 3px', fontSize: 8, color: '#886622', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                 {t('planet.premium_tools')}
               </div>
-              {/* Telescope photo */}
-              {planetHasPhoto && onViewPlanetPhoto && (
-                <MenuItem
-                  icon="◉"
-                  label={t('planet.photo_view_label')}
-                  onClick={onViewPlanetPhoto}
-                  color="#7bb8ff"
-                />
-              )}
-              {!planetHasPhoto && onTelescopePhoto && !isPhotoGenerating && (
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{ flex: 1 }}>
-                    <MenuItem
-                      icon="◉"
-                      label={<>{t('planet.photo_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
-                      onClick={canAffordPhoto ? onTelescopePhoto : undefined}
-                      color={canAffordPhoto ? '#ddaa44' : '#445566'}
-                      disabled={!canAffordPhoto}
-                    />
+              {onTelescopePhoto && !isPhotoGenerating && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <MenuItem
+                        icon="◉"
+                        label={<>{t('planet.photo_exosphere_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
+                        onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('exosphere') : undefined}
+                        color={canAffordPhoto ? '#ddaa44' : '#445566'}
+                        disabled={!canAffordPhoto}
+                      />
+                    </div>
+                    <TooltipHint text={t('planet.photo_exosphere_tooltip')} />
                   </div>
-                  <TooltipHint text={t('planet.photo_tooltip')} />
-                </div>
+                  {canGenerateSurfacePhotos && (
+                    <>
+                      <MenuItem
+                        icon="▣"
+                        label={<>{t('planet.photo_biosphere_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
+                        onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('biosphere') : undefined}
+                        color={canAffordPhoto ? '#ddaa44' : '#445566'}
+                        disabled={!canAffordPhoto}
+                      />
+                      <MenuItem
+                        icon="▽"
+                        label={<>{t('planet.photo_aerial_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
+                        onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('aerial') : undefined}
+                        color={canAffordPhoto ? '#ddaa44' : '#445566'}
+                        disabled={!canAffordPhoto}
+                      />
+                    </>
+                  )}
+                </>
               )}
-              {!planetHasPhoto && onTelescopePhoto && isPhotoGenerating && (
+              {onTelescopePhoto && isPhotoGenerating && (
                 <MenuItem
                   icon="◉"
                   label={t('planet.photo_base_label')}
@@ -886,7 +901,7 @@ export function PlanetContextMenu({
                     progressLabel={t('planet.photo_ad_progress', { done: '{done}', total: '{total}' })}
                     requiredAds={3}
                     adRewardType="planet_photo"
-                    onComplete={onAdTelescopePhoto}
+                    onComplete={(photoToken) => onAdTelescopePhoto('exosphere', photoToken)}
                     variant="menu"
                   />
                 </div>

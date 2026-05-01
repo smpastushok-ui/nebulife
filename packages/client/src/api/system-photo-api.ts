@@ -14,12 +14,14 @@ const API_BASE = '/api';
 // System Photo (Telescope)
 // ---------------------------------------------------------------------------
 
+export type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
+
 export interface SystemPhotoGenerateResponse {
   photoId: string;
   klingTaskId?: string;
   status?: 'succeed' | 'generating';
   photoUrl?: string;
-  quarksRemaining: number;
+  quarksRemaining: number | null;
 }
 
 export interface SystemPhotoStatusResponse {
@@ -51,6 +53,7 @@ export async function generateSystemPhoto(
   screenHeight?: number,
   planetId?: string,
   adPhotoToken?: string,
+  photoKind?: PlanetPhotoKind,
 ): Promise<SystemPhotoGenerateResponse> {
   const res = await authFetch(`${API_BASE}/system-photo/generate`, {
     method: 'POST',
@@ -63,6 +66,7 @@ export async function generateSystemPhoto(
       screenHeight: screenHeight ?? window.innerHeight,
       ...(planetId ? { planetId } : {}),
       ...(adPhotoToken ? { adPhotoToken } : {}),
+      ...(photoKind ? { photoKind } : {}),
     }),
   });
 

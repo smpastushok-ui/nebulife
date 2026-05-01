@@ -64,7 +64,7 @@ interface HexSlotProps {
   /** Called when the player taps a locked hex they can't afford. Parent uses
    *  this to surface the quarks-pay shortcut. */
   onInsufficient?: (id: string) => void;
-  onHarvest: (id: string) => void;
+  onHarvest: (id: string, sx: number, sy: number) => void;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
   onDestroy: (id: string) => void;
@@ -414,7 +414,7 @@ export const HexSlot = React.memo(function HexSlot({
   const buildingRef = useRef<HTMLDivElement>(null);
 
   // Main click handler — uses id to call stable parent callbacks
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (slot.state === 'locked') {
       const unlocked = onUnlock(id);
       if (!unlocked) {
@@ -429,7 +429,7 @@ export const HexSlot = React.memo(function HexSlot({
         const amount = slot.yieldPerHour ?? 1;
         setHarvestAnim(amount);
         playSfx('harvest-all', 0.5);
-        onHarvest(id);
+        onHarvest(id, e.clientX, e.clientY);
         setTimeout(() => setHarvestAnim(null), 1200);
       }
     } else if (slot.state === 'empty') {

@@ -45,6 +45,22 @@ function CostIcons({ cost }: { cost: { resource: string; amount: number }[] }) {
   );
 }
 
+function formatRateAmount(amountPerTick: number): string {
+  const perHour = amountPerTick * 60;
+  return `${perHour % 1 === 0 ? perHour.toFixed(0) : perHour.toFixed(1)}/год`;
+}
+
+function resourceLabel(resource: string, t: ReturnType<typeof useTranslation>['t']): string {
+  if (resource === 'energy') return t('building_detail.resource.energy');
+  if (resource === 'researchData') return t('building_detail.resource.researchData');
+  if (resource === 'habitability') return t('building_detail.resource.habitability');
+  if (resource === 'food') return t('building_detail.resource.food');
+  if (resource === 'minerals' || resource === 'volatiles' || resource === 'isotopes' || resource === 'water') {
+    return t(`colony_center.resource.${resource}`);
+  }
+  return resource;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -247,12 +263,18 @@ export function HexBuildMenu({
             </div>
             <div>{t(`building.${infoType}.desc`, BUILDING_DEFS[infoType].description)}</div>
             <div style={{ marginTop: 7, display: 'grid', gap: 4 }}>
-              <div>{t('building_detail.production')}: {BUILDING_DEFS[infoType].production.length > 0
-                ? BUILDING_DEFS[infoType].production.map((p) => `${p.resource} +${p.amount}/tick`).join(', ')
-                : t('building_detail.no_production')}</div>
-              <div>{t('building_detail.consumption')}: {BUILDING_DEFS[infoType].consumption.length > 0
-                ? BUILDING_DEFS[infoType].consumption.map((c) => `${c.resource} -${c.amount}/tick`).join(', ')
-                : t('building_detail.no_consumption')}</div>
+              <div>{t('building_detail.production')}: {[
+                ...(BUILDING_DEFS[infoType].energyOutput > 0
+                  ? [`${resourceLabel('energy', t)} +${formatRateAmount(BUILDING_DEFS[infoType].energyOutput)}`]
+                  : []),
+                ...BUILDING_DEFS[infoType].production.map((p) => `${resourceLabel(p.resource, t)} +${formatRateAmount(p.amount)}`),
+              ].join(', ') || t('building_detail.no_production')}</div>
+              <div>{t('building_detail.consumption')}: {[
+                ...(BUILDING_DEFS[infoType].energyConsumption > 0
+                  ? [`${resourceLabel('energy', t)} -${formatRateAmount(BUILDING_DEFS[infoType].energyConsumption)}`]
+                  : []),
+                ...BUILDING_DEFS[infoType].consumption.map((c) => `${resourceLabel(c.resource, t)} -${formatRateAmount(c.amount)}`),
+              ].join(', ') || t('building_detail.no_consumption')}</div>
               <div>{t('academy.needs_level', { level: BUILDING_DEFS[infoType].levelRequired, defaultValue: `L${BUILDING_DEFS[infoType].levelRequired}` })}</div>
             </div>
           </div>

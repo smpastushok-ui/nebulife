@@ -313,6 +313,25 @@ function fixDiamondSlots(slots: HexSlotData[], size: HexPlanetSize = 'medium'): 
   return recalculateLockedCosts(result);
 }
 
+function idsWithinRadius(originId: string, radius: number, size: HexPlanetSize): Set<string> {
+  const visited = new Set<string>([originId]);
+  let frontier = new Set<string>([originId]);
+  for (let step = 0; step < radius; step++) {
+    const next = new Set<string>();
+    for (const id of frontier) {
+      const match = id.match(/^d(\d+)-(\d+)$/);
+      if (!match) continue;
+      for (const neighbor of getAdjacentIds(Number(match[1]), Number(match[2]), size)) {
+        if (visited.has(neighbor)) continue;
+        visited.add(neighbor);
+        next.add(neighbor);
+      }
+    }
+    frontier = next;
+  }
+  return visited;
+}
+
 // ---------------------------------------------------------------------------
 // Planet context extraction
 // ---------------------------------------------------------------------------
@@ -1008,7 +1027,12 @@ export function useHexState(
     let stopped = false;
 
     const getReadySlots = (): HexSlotData[] => {
+      const harvestableIds = new Set<string>();
+      for (const harvester of slotsRef.current.filter(s => s.buildingType === 'alpha_harvester')) {
+        for (const id of idsWithinRadius(harvester.id, 2, planetSize)) harvestableIds.add(id);
+      }
       return slotsRef.current.filter(s =>
+        harvestableIds.has(s.id) &&
         s.state === 'resource' &&
         s.resourceType &&
         s.yieldPerHour &&

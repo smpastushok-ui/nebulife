@@ -1,9 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
-import { deductQuarks, creditQuarks, saveSystemPhoto } from '../../packages/server/src/db.js';
+import { computeAspectRatio, generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
+import { generateImage as generateKlingImage } from '../../packages/server/src/kling-client.js';
+import { deductQuarks, creditQuarks, getPlayer, saveSystemPhoto } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { buildGeminiSystemPhotoPrompt, buildGeminiPlanetPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
+import type { PlanetPhotoKind } from '../../packages/server/src/system-photo-prompt-builder.js';
 import { verifyPhotoToken } from '../../packages/server/src/photo-token.js';
 import type { StarSystem } from '@nebulife/core';
 
@@ -51,6 +53,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const isPlanetPhoto = !!planetId;
+    const requestedKind = typeof req.body.photoKind === 'string' ? req.body.photoKind : undefined;
+    const photoKind: PlanetPhotoKind = requestedKind === 'biosphere' || requestedKind === 'aerial'
+      ? requestedKind
+      : 'exosphere';
     const cost = isPlanetPhoto ? PLANET_PHOTO_COST : SYSTEM_PHOTO_COST;
 
     // Check if this generation is funded by a valid ad-reward token.
@@ -79,12 +85,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!paidWithAds) await creditQuarks(playerId, cost);
         return res.status(400).json({ error: 'Planet not found in system data' });
       }
-      prompt = buildGeminiPlanetPhotoPrompt(sys, planet);
+      const playerRow = await getPlayer(playerId);
+      prompt = buildGeminiPlanetPhotoPrompt(sys, planet, {
+        kind: photoKind,
+        playerName: playerRow?.callsign || playerRow?.name || 'Explorer',
+        observationDate: new Date().toISOString().slice(0, 10),
+      });
     } else {
       prompt = buildGeminiSystemPhotoPrompt(sys);
     }
 
-    // 3. Generate image with Gemini (synchronous — returns base64, uploads to blob)
+    // Exosphere planet shots are Kling-based and complete through the existing
+    // status polling path. Surface and aerial variants use Nano Banana 2/Gemini.
+    if (isPlanetPhoto && photoKind === 'exosphere') {
+      const aspectRatio = screenWidth && screenHeight
+        ? computeAspectRatio(Number(screenWidth), Number(screenHeight))
+        : '16:9';
+      const { taskId } = await generateKlingImage({ prompt, aspectRatio, resolution: '2K' });
+      const photoId = `sp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const saved = await saveSystemPhoto({
+        id: photoId,
+        playerId,
+        systemId,
+        klingTaskId: taskId,
+        promptUsed: prompt,
+        status: 'generating',
+      });
+      return res.status(200).json({
+        photoId: saved.id,
+        klingTaskId: taskId,
+        status: 'generating',
+        quarksRemaining: player?.quarks ?? null,
+      });
+    }
+
+    // 3. Generate image with Gemini / Nano Banana 2 (synchronous — returns base64, uploads to blob)
     const result = await generateImageWithGemini({
       prompt,
       screenWidth: screenWidth ? Number(screenWidth) : undefined,
@@ -93,7 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 4. Save to DB with completed status
     const photoId = `sp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    await saveSystemPhoto({
+    const saved = await saveSystemPhoto({
       id: photoId,
       playerId,
       systemId,
@@ -103,7 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     return res.status(200).json({
-      photoId,
+      photoId: saved.id,
       status: 'succeed',
       photoUrl: result.imageUrl,
       quarksRemaining: player?.quarks ?? null,

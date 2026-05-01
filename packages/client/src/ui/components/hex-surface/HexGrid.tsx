@@ -19,7 +19,7 @@ interface HexGridProps {
   horizontal?: boolean;
   onUnlock: (id: string) => boolean;
   onInsufficient?: (id: string) => void;
-  onHarvest: (id: string) => void;
+  onHarvest: (id: string, sx: number, sy: number) => void;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
   onDestroy: (id: string) => void;

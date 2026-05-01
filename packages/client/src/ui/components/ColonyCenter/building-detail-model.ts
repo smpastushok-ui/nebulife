@@ -103,14 +103,22 @@ export function deriveBuildingDetailStats(params: {
   const activeBonusLabels = building
     ? (bonusMap.get(building.id) ?? []).map((b) => b.bonusLabel)
     : sameType.flatMap((b) => (bonusMap.get(b.id) ?? []).map((bonus) => bonus.bonusLabel));
+  const production: RateRow[] = [
+    ...(def.energyOutput > 0 ? [{ resource: 'energy', perHour: toPerHour(def.energyOutput) * count }] : []),
+    ...def.production.map((p) => ({ resource: p.resource, perHour: toPerHour(p.amount) * count })),
+  ];
+  const consumption: RateRow[] = [
+    ...(def.energyConsumption > 0 ? [{ resource: 'energy', perHour: toPerHour(def.energyConsumption) * count }] : []),
+    ...def.consumption.map((c) => ({ resource: c.resource, perHour: toPerHour(c.amount) * count })),
+  ];
 
   return {
     type,
     count,
     level: building?.level ?? sameType[0]?.level ?? 1,
     isShutdown: Boolean(building?.shutdown ?? sameType.some((b) => b.shutdown)),
-    production: def.production.map((p) => ({ resource: p.resource, perHour: toPerHour(p.amount) * count })),
-    consumption: def.consumption.map((c) => ({ resource: c.resource, perHour: toPerHour(c.amount) * count })),
+    production,
+    consumption,
     energyOutput: def.energyOutput * count,
     energyConsumption: def.energyConsumption * count,
     energyStorageAdd: def.energyStorageAdd * count,

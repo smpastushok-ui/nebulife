@@ -41,6 +41,9 @@ function formatRate(row: RateRow): string {
 function ResourceLabel({ resource }: { resource: string }) {
   const { t } = useTranslation();
   const resourceKey = resource === 'researchData' ? 'researchData' : resource;
+  if (resourceKey === 'energy') {
+    return <span>{t('building_detail.resource.energy')}</span>;
+  }
   if (resourceKey === 'minerals' || resourceKey === 'volatiles' || resourceKey === 'isotopes' || resourceKey === 'water') {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -182,6 +185,7 @@ export function BuildingDetailPanel({
   const aggregateMode = !building;
   const canScan = researchData >= 5;
   const canChemCycle = colonyResources.volatiles >= 10;
+  const compact = typeof window !== 'undefined' && window.innerWidth < 700;
   const isotopeDepositDepleted =
     stats.stock?.resource === 'isotopes' &&
     stats.stock.remaining <= 0;
@@ -217,7 +221,7 @@ export function BuildingDetailPanel({
     <div style={{
       position: 'fixed',
       inset: 0,
-      zIndex: 9800,
+      zIndex: 9900,
       background: PANEL_BG,
       color: '#aabbcc',
       fontFamily: 'monospace',
@@ -228,9 +232,9 @@ export function BuildingDetailPanel({
         display: 'flex',
         alignItems: 'center',
         gap: 10,
-        padding: '14px 16px',
-        paddingLeft: 'calc(76px + env(safe-area-inset-left, 0px))',
-        paddingTop: 'calc(70px + env(safe-area-inset-top, 0px))',
+        padding: compact ? '12px 12px' : '14px 16px',
+        paddingLeft: compact ? 'calc(12px + env(safe-area-inset-left, 0px))' : 'calc(76px + env(safe-area-inset-left, 0px))',
+        paddingTop: compact ? 'calc(12px + env(safe-area-inset-top, 0px))' : 'calc(70px + env(safe-area-inset-top, 0px))',
         borderBottom: '1px solid #1a2a3a',
         flexShrink: 0,
       }}>
@@ -275,8 +279,8 @@ export function BuildingDetailPanel({
       <div style={{
         flex: 1,
         overflow: 'auto',
-        padding: '14px 16px 36px',
-        paddingLeft: 'calc(76px + env(safe-area-inset-left, 0px))',
+        padding: compact ? '12px 12px 28px' : '14px 16px 36px',
+        paddingLeft: compact ? 'calc(12px + env(safe-area-inset-left, 0px))' : 'calc(76px + env(safe-area-inset-left, 0px))',
         display: 'flex',
         flexDirection: 'column',
         gap: 14,

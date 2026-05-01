@@ -2,14 +2,14 @@
 // Colony tick — master per-planet resource/energy/production update
 // ---------------------------------------------------------------------------
 
-import type { PlanetColonyState, PlanetResourceStocks } from '../types/colony.js';
+import type { PlanetColonyState, PlanetEnergyState, PlanetResourceStocks } from '../types/colony.js';
 import { getStorageCapacity } from '../types/colony.js';
-import type { PlacedBuilding, UniquePlanetResource } from '../types/surface.js';
+import type { BuildingType, PlacedBuilding, UniquePlanetResource } from '../types/surface.js';
 import { BUILDING_DEFS } from '../types/surface.js';
-import { COLONY_TICK_INTERVAL_MS } from '../constants/balance.js';
+import { BASE_ENERGY_STORAGE, COLONY_TICK_INTERVAL_MS } from '../constants/balance.js';
 import type { TechTreeState } from './tech-tree.js';
 import { getEffectValue } from './tech-tree.js';
-import { computeEnergyBalance, applyEnergyTick, restoreShutdownBuildings } from './energy.js';
+import { applyEnergyTick, restoreShutdownBuildings } from './energy.js';
 import type { Planet } from '../types/planet.js';
 import { getTerrainBonus, getSolarEnergyMultiplier, getWindMultiplier, getAtmoMultiplier } from './planet-rules.js';
 import type { SurfaceTile } from '../types/surface.js';
@@ -54,6 +54,7 @@ export function runColonyTicks(
   tileAt: (x: number, y: number) => SurfaceTile | undefined,
   now: number,
   planetStocks?: PlanetResourceStocks,
+  starLuminosityLSun = 1,
 ): ColonyTickResult {
   const elapsed = now - colony.lastTickAt;
   const tickCount = Math.floor(elapsed / COLONY_TICK_INTERVAL_MS);
@@ -86,7 +87,7 @@ export function runColonyTicks(
 
   for (let t = 0; t < effectiveTicks; t++) {
     const tickIndex = baseTick + t;
-    const result = runSingleTick(colony, planet, techState, tileAt, currentStocks, tickIndex);
+    const result = runSingleTick(colony, planet, techState, tileAt, currentStocks, tickIndex, starLuminosityLSun);
     totalShutdownIds = [...totalShutdownIds, ...result.shutdownIds];
     totalRestoredIds = [...totalRestoredIds, ...result.restoredIds];
     totalResearchData += result.researchDataProduced;
@@ -144,6 +145,51 @@ const EXTRACTION_BUILDING_TYPES = new Set<string>([
   'alpha_harvester',
 ]);
 
+function getBuildingEnergyMultiplier(
+  buildingType: string,
+  planet: Planet,
+  tile: SurfaceTile | undefined,
+  starLuminosityLSun: number,
+): number {
+  const terrainMult = tile ? getTerrainBonus(buildingType as BuildingType, tile.terrain).multiplier : 1;
+  if (buildingType === 'solar_plant') {
+    const raw = getSolarEnergyMultiplier(starLuminosityLSun, planet.orbit.semiMajorAxisAU);
+    return Math.max(0.05, Math.min(3, raw)) * terrainMult;
+  }
+  if (buildingType === 'wind_generator' && planet.atmosphere) {
+    return getWindMultiplier(planet.atmosphere.surfacePressureAtm) * terrainMult;
+  }
+  return terrainMult;
+}
+
+function computeContextualEnergyBalance(
+  buildings: PlacedBuilding[],
+  planet: Planet,
+  techState: TechTreeState,
+  tileAt: (x: number, y: number) => SurfaceTile | undefined,
+  previousStored: number | undefined,
+  starLuminosityLSun: number,
+): PlanetEnergyState {
+  const energyOutMult = getEffectValue(techState, 'energy_output_mult', 1);
+  const energyConMult = getEffectValue(techState, 'energy_consumption_mult', 1);
+
+  let production = 0;
+  let consumption = 0;
+  let storageCapacity = BASE_ENERGY_STORAGE;
+
+  for (const b of buildings) {
+    if (b.shutdown) continue;
+    const def = BUILDING_DEFS[b.type];
+    const tile = tileAt(b.x, b.y);
+    production += def.energyOutput * energyOutMult * getBuildingEnergyMultiplier(b.type, planet, tile, starLuminosityLSun);
+    consumption += def.energyConsumption * energyConMult;
+    storageCapacity += def.energyStorageAdd;
+  }
+
+  const stored = Math.min(previousStored ?? 0, storageCapacity);
+  return { production, consumption, netBalance: production - consumption, storageCapacity, stored };
+}
+
 function runSingleTick(
   colony: PlanetColonyState,
   planet: Planet,
@@ -151,11 +197,12 @@ function runSingleTick(
   tileAt: (x: number, y: number) => SurfaceTile | undefined,
   planetStocks?: PlanetResourceStocks,
   tickIndex: number = 0,
+  starLuminosityLSun = 1,
 ): { shutdownIds: string[]; restoredIds: string[]; researchDataProduced: number; elementsProduced: Record<string, number>; updatedStocks?: PlanetResourceStocks } {
   const buildings = colony.buildings;
 
   // 1. Recompute energy
-  colony.energy = computeEnergyBalance(buildings, techState, colony.energy.stored);
+  colony.energy = computeContextualEnergyBalance(buildings, planet, techState, tileAt, colony.energy.stored, starLuminosityLSun);
 
   // 2. Apply energy tick (may shut down buildings)
   const energyResult = applyEnergyTick(colony.energy, buildings);
@@ -165,16 +212,26 @@ function runSingleTick(
   let restoredIds: string[] = [];
   if (colony.energy.netBalance > 0) {
     // Recompute after shutdowns
-    colony.energy = computeEnergyBalance(buildings, techState, colony.energy.stored);
+    colony.energy = computeContextualEnergyBalance(buildings, planet, techState, tileAt, colony.energy.stored, starLuminosityLSun);
     restoredIds = restoreShutdownBuildings(colony.energy, buildings);
     if (restoredIds.length > 0) {
-      colony.energy = computeEnergyBalance(buildings, techState, colony.energy.stored);
+      colony.energy = computeContextualEnergyBalance(buildings, planet, techState, tileAt, colony.energy.stored, starLuminosityLSun);
     }
   }
 
   // 4. Resource production from active buildings
   const miningMult = getEffectValue(techState, 'mining_yield_mult', 1);
   const storageMult = getEffectValue(techState, 'storage_capacity_mult', 1);
+
+  const storageBonus = buildings
+    .filter((b) => !b.shutdown)
+    .reduce((sum, b) => sum + BUILDING_DEFS[b.type].storageCapacityAdd, 0);
+  colony.storage.bonus = {
+    minerals: storageBonus,
+    volatiles: storageBonus,
+    isotopes: storageBonus,
+    water: storageBonus,
+  };
 
   let researchDataProduced = 0;
   const elementsProduced: Record<string, number> = {};
@@ -275,6 +332,8 @@ function runSingleTick(
     }
   }
 
+  updatePopulationCapacityFromSupport(colony);
+
   return { shutdownIds: energyResult.shutdownIds, restoredIds, researchDataProduced, elementsProduced, updatedStocks: currentStocks };
 }
 
@@ -285,6 +344,30 @@ function runSingleTick(
 /** Element pools that refineries can produce */
 const MINERAL_ELEMENTS = ['Fe', 'Cu', 'Ti', 'Al', 'Si', 'Ni'];
 const VOLATILE_ELEMENTS = ['H', 'He', 'N', 'C', 'S'];  // O removed: it is now a mineral element
+
+function updatePopulationCapacityFromSupport(colony: PlanetColonyState): void {
+  const housingCapacity = colony.buildings
+    .filter((b) => !b.shutdown)
+    .reduce((sum, b) => sum + BUILDING_DEFS[b.type].populationCapacityAdd, 0);
+  const foodSupport = colony.buildings
+    .filter((b) => !b.shutdown)
+    .reduce((sum, b) => {
+      const def = BUILDING_DEFS[b.type];
+      const hasLifeSupportInputs = def.consumption.every((con) => {
+        if (con.resource !== 'minerals' && con.resource !== 'volatiles' && con.resource !== 'isotopes' && con.resource !== 'water') return true;
+        return (colony.resources[con.resource] ?? 0) > 0;
+      });
+      if (!hasLifeSupportInputs) return sum;
+      const foodPerTick = BUILDING_DEFS[b.type].production
+        .filter((prod) => prod.resource === 'food')
+        .reduce((total, prod) => total + prod.amount, 0);
+      return sum + foodPerTick * 60;
+    }, 0);
+
+  const supportedCapacity = Math.floor(Math.min(housingCapacity, foodSupport));
+  colony.population.capacity = supportedCapacity;
+  colony.population.current = Math.min(colony.population.current, supportedCapacity);
+}
 
 /**
  * Process one refinery building for a single tick.
@@ -321,10 +404,11 @@ function processRefineryBuilding(
     produced[el] = (produced[el] ?? 0) + 1;
   } else if (b.type === 'isotope_centrifuge') {
     if ((colony.resources.isotopes ?? 0) < 1) return produced;
-    // 40% chance to produce U; rng.next() < 0.4 is deterministic
-    if (rng.next() < 0.4) {
-      colony.chemicalInventory['U'] = (colony.chemicalInventory['U'] ?? 0) + 1;
-      produced['U'] = (produced['U'] ?? 0) + 1;
+    // Deterministic enrichment: mostly U, sometimes Th for late-game chains.
+    const el = rng.next() < 0.75 ? 'U' : 'Th';
+    if (rng.next() < 0.45) {
+      colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
+      produced[el] = (produced[el] ?? 0) + 1;
     }
   }
 

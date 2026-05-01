@@ -1,5 +1,13 @@
 import type { StarSystem, SpectralClass, Planet } from '@nebulife/core';
 
+export type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
+
+export interface PlanetPhotoPromptOptions {
+  kind?: PlanetPhotoKind;
+  playerName?: string;
+  observationDate?: string;
+}
+
 /**
  * Build a Kling prompt for generating a telescope photo of a star system.
  * Describes the star, each planet with its characteristics, and artistic direction.
@@ -268,11 +276,16 @@ export function buildGeminiSystemPhotoPrompt(system: StarSystem): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Build a Gemini-optimized prompt for a close-up telescope photo of a single planet.
- * Used for the "Super Telescope" feature (10 quarks).
+ * Build a prompt for a generated planet mission photo.
+ * Exosphere shots are submitted to Kling; surface/aerial shots use Nano Banana 2.
  */
-export function buildGeminiPlanetPhotoPrompt(system: StarSystem, planet: Planet): string {
+export function buildGeminiPlanetPhotoPrompt(
+  system: StarSystem,
+  planet: Planet,
+  options: PlanetPhotoPromptOptions = {},
+): string {
   const { star } = system;
+  const kind = options.kind ?? 'exosphere';
   const starColor = getStarColorWord(star.spectralClass);
   const starDesc = describeStarForPrompt(
     star.spectralClass, star.subType, star.temperatureK, star.colorHex,
@@ -332,32 +345,81 @@ export function buildGeminiPlanetPhotoPrompt(system: StarSystem, planet: Planet)
   }
 
   const cinematicDir = getCinematicDirection(star.spectralClass);
+  const captionDate = options.observationDate ?? new Date().toISOString().slice(0, 10);
+  const caption = [
+    `Observer: ${options.playerName || 'Explorer'}`,
+    `Date: ${captionDate}`,
+    `Planet: ${planet.name}`,
+    `Star: ${star.name}`,
+    `Type: ${planet.type}`,
+  ].join(' | ');
 
-  return [
+  const sharedStyle = [
+    `Photorealistic exploration mission photograph, not fantasy art, not concept art.`,
+    `Scientific color grading, physically plausible lighting from the ${starColor} parent star,`,
+    `realistic camera optics, natural lens flare only where justified, high dynamic range, 2K detail.`,
+    `Add a narrow black metadata strip along the bottom edge with small crisp white monospaced text: "${caption}".`,
+    `The metadata strip must not cover the main subject. Do not include any agency logo, agency name, watermark, UI frame, or decorative labels.`,
+  ].join(' ');
+
+  const exospherePrompt = [
+    `EXOSPHERE ORBITAL PROBE PHOTO.`,
     `PLANET DATA:`,
     `${planet.name}, a ${sizeWord} ${typeDesc},`,
     `radius ${planet.radiusEarth.toFixed(2)} Earth radii, mass ${planet.massEarth.toFixed(3)} Earth masses,`,
-    `orbit ${planet.orbit.semiMajorAxisAU.toFixed(3)} AU from a ${starDesc},`,
-    `surface temperature ${Math.round(planet.surfaceTempK)}K,`,
-    `gravity ${planet.surfaceGravityG}g.`,
+    `orbit ${planet.orbit.semiMajorAxisAU.toFixed(3)} AU from ${star.name}, a ${starDesc},`,
+    `surface temperature ${Math.round(planet.surfaceTempK)}K, gravity ${planet.surfaceGravityG}g.`,
     `---`,
-    `A stunning close-up telescope photograph of planet ${planet.name},`,
-    `captured by a powerful space telescope from a distant vantage point.`,
-    `The planet dominates the center of the frame, filling about 60% of the image,`,
-    `illuminated from the left by its parent ${starColor} star.`,
-    `The terminator line creates a dramatic crescent of light and shadow across the surface.`,
-    typeDesc + '.',
+    `A realistic close orbital photograph from an autonomous probe in the exosphere of planet ${planet.name}.`,
+    `The planet dominates the frame, filling about 60 percent of the image, with a clear terminator line and visible atmospheric limb when present.`,
+    `Show only a small cropped sliver of the probe body or antenna at one side of the frame, subtle and non-intrusive, to make it feel captured by a spacecraft.`,
+    `Place the parent star ${star.name} in the background as a distant bright ${starColor} point with realistic glare.`,
+    moonDesc || `If no moons are present, keep the background clean with distant stars and no invented large moons.`,
     atmoDesc,
     hydroDesc,
-    moonDesc,
     cinematicDir,
-    `Ultra high resolution astrophotography, NASA JWST quality,`,
-    `the planet appears as a photorealistic sphere with visible surface details,`,
-    `scientifically accurate illumination from the parent star.`,
-    `Deep black space background with thousands of pinpoint stars.`,
-    `The parent star appears as a bright point with subtle diffraction spikes in the distance.`,
-    `No text, no labels, no UI elements, no watermarks.`,
-  ].filter(Boolean).join(' ');
+    sharedStyle,
+  ];
+
+  const biospherePrompt = [
+    `SURFACE ROVER BIOSPHERE PHOTO.`,
+    `PLANET DATA:`,
+    `${planet.name}, type ${planet.type}, ${typeDesc}, surface temperature ${Math.round(planet.surfaceTempK)}K, gravity ${planet.surfaceGravityG}g.`,
+    `Atmosphere: ${planet.atmosphere ? `${planet.atmosphere.surfacePressureAtm.toFixed(2)} atm` : 'none or trace'}.`,
+    `Hydrosphere: ${planet.hydrosphere ? `${Math.round(planet.hydrosphere.waterCoverageFraction * 100)} percent water coverage, ${Math.round(planet.hydrosphere.iceCapFraction * 100)} percent ice caps` : 'no stable surface water detected'}.`,
+    `---`,
+    `A grounded rover camera photograph from the surface of ${planet.name}, focused on the local biosphere or plausible pre-biosphere environment.`,
+    `If the planet can support visible life, show realistic alien vegetation, microbial mats, lichens, shallow water edges, or biofilm-like textures shaped by the atmosphere and temperature.`,
+    `If visible life is unlikely, show a scientific surface ecology survey scene: mineral crusts, ice, evaporite patterns, dust, rocks, haze, and possible microscopic biosignature sampling markers without inventing animals.`,
+    `Show only a small part of the rover chassis, wheel, robotic arm, or camera mast at the lower edge or side of the frame, subtle and believable.`,
+    `Use eye-level or low rover perspective, natural terrain scale, realistic shadows, no humans.`,
+    cinematicDir,
+    sharedStyle,
+  ];
+
+  const aerialPrompt = [
+    `AERIAL COPTER BIRD'S-EYE PHOTO.`,
+    `PLANET DATA:`,
+    `${planet.name}, type ${planet.type}, ${typeDesc}, surface temperature ${Math.round(planet.surfaceTempK)}K, gravity ${planet.surfaceGravityG}g.`,
+    `Atmosphere: ${planet.atmosphere ? `${planet.atmosphere.surfacePressureAtm.toFixed(2)} atm` : 'trace'}.`,
+    `Hydrosphere: ${planet.hydrosphere ? `${Math.round(planet.hydrosphere.waterCoverageFraction * 100)} percent water coverage, ${Math.round(planet.hydrosphere.iceCapFraction * 100)} percent ice caps` : 'dry surface'}.`,
+    `---`,
+    `A vertical bird's-eye photograph taken by a compact exploration copter looking downward at the terrain of ${planet.name}.`,
+    `Composition is top-down but still photographic: terrain relief, craters, river-like channels, ice fields, dunes, lava plains, or coastlines according to the planet data.`,
+    `Show a tiny cropped part of a copter landing skid, rotor guard, or sensor boom at the edge of the image, subtle and not blocking the terrain.`,
+    `Make altitude feel like tens to hundreds of meters above ground, not orbital imagery.`,
+    `No humans, no fantasy buildings, no impossible blue skies unless the atmosphere supports it.`,
+    cinematicDir,
+    sharedStyle,
+  ];
+
+  const prompt = kind === 'biosphere'
+    ? biospherePrompt
+    : kind === 'aerial'
+      ? aerialPrompt
+      : exospherePrompt;
+
+  return prompt.filter(Boolean).join(' ');
 }
 
 /**
