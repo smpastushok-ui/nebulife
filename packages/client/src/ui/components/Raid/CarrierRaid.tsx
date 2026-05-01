@@ -76,6 +76,7 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    let cancelled = false;
     const shipId = localStorage.getItem('nebulife_hangar_ship') || 'blue';
     const engine = new RaidEngine(containerRef.current, {
       onExit,
@@ -104,8 +105,11 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
     }, shipId);
     engineRef.current = engine;
     engine.init()
-      .then(() => setReady(true))
+      .then(() => {
+        if (!cancelled && engineRef.current === engine) setReady(true);
+      })
       .catch((error) => {
+        if (cancelled || engineRef.current !== engine) return;
         console.error('[CarrierRaid] failed to initialize', error);
         setResult({
           victory: false,
@@ -119,8 +123,9 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
         });
       });
     return () => {
+      cancelled = true;
       engine.destroy();
-      engineRef.current = null;
+      if (engineRef.current === engine) engineRef.current = null;
     };
   }, [onAwardXP, onExit]);
 

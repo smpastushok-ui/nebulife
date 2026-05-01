@@ -111,9 +111,14 @@ export class RaidEngine {
     this.createCarrier();
     this.createProjectiles();
     this.player = await this.createPlayerShip();
+    if (this.destroyed || !this.scene) {
+      disposeObject(this.player.mesh);
+      return;
+    }
     this.scene.add(this.player.mesh);
     this.createWingmen();
 
+    if (this.destroyed || !this.scene) return;
     window.addEventListener('resize', this.handleResize);
     window.addEventListener('keydown', this.handleKeyDown);
     window.addEventListener('keyup', this.handleKeyUp);
