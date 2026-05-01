@@ -4573,15 +4573,12 @@ function AppInner() {
         } else {
           engine.showGalaxyScene();
         }
-      } else if (savedScene === 'planet-view' && savedSystemId && savedPlanetId) {
-        const sys = allSystems.find(s => s.id === savedSystemId);
-        const planet = sys?.planets.find(p => p.id === savedPlanetId);
-        if (sys && planet) {
-          engine.showPlanetViewScene(sys, planet);
-          setState(prev => ({ ...prev, scene: 'planet-view', selectedSystem: sys, selectedPlanet: planet }));
-        } else {
-          engine.showGalaxyScene();
-        }
+      } else if (savedScene === 'planet-view') {
+        // Returning players land on the galaxy map, not on a single planet's
+        // exosphere. The exosphere view requires conscious nav from system-
+        // scene; reopening on it is disorienting and hides progress signals
+        // from the rest of the cluster.
+        engine.showGalaxyScene();
       } else if (savedScene === 'galaxy') {
         engine.showGalaxyScene();
       }
