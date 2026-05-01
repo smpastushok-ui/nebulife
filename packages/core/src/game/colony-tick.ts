@@ -271,18 +271,23 @@ function runSingleTick(
         // Habitability accumulates differently; skip resource capping
       } else if (prod.resource === 'minerals' || prod.resource === 'volatiles' || prod.resource === 'isotopes' || prod.resource === 'water') {
         const resourceKey = prod.resource as 'minerals' | 'volatiles' | 'isotopes' | 'water';
+        const cap = getStorageCapacity(colony.storage, resourceKey) * storageMult;
+        const currentAmount = colony.resources[resourceKey] ?? 0;
+        const freeSpace = Math.max(0, cap - currentAmount);
+        if (freeSpace <= 0) continue;
+
         let amount = baseAmount;
+        amount = Math.min(amount, freeSpace);
 
         // Apply depletion for extraction buildings when stocks are tracked
         if (isExtraction && currentStocks) {
-          const { newStocks, actualExtracted } = depleteStock(currentStocks, resourceKey, baseAmount);
+          const { newStocks, actualExtracted } = depleteStock(currentStocks, resourceKey, amount);
           currentStocks = newStocks;
           amount = actualExtracted;
         }
 
-        const cap = getStorageCapacity(colony.storage, resourceKey) * storageMult;
         colony.resources[resourceKey] = Math.min(
-          (colony.resources[resourceKey] ?? 0) + amount,
+          currentAmount + amount,
           cap,
         );
       }

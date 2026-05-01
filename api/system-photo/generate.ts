@@ -9,8 +9,8 @@ import type { PlanetPhotoKind } from '../../packages/server/src/system-photo-pro
 import { verifyPhotoToken } from '../../packages/server/src/photo-token.js';
 import type { StarSystem } from '@nebulife/core';
 
-const SYSTEM_PHOTO_COST = 50;
-const PLANET_PHOTO_COST = 25;
+const GEMINI_PHOTO_COST = 50;
+const KLING_PHOTO_COST = 25;
 
 // Allow up to 60s for Gemini image generation + blob upload
 export const config = {
@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { playerId, systemId, systemData, screenWidth, screenHeight, planetId, adPhotoToken } = req.body;
+    const { playerId, systemId, systemData, screenWidth, screenHeight, planetId, adPhotoToken, missionType, reportSummary } = req.body;
 
     if (!playerId || !systemId || !systemData) {
       return res.status(400).json({ error: 'Missing required fields: playerId, systemId, systemData' });
@@ -57,7 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const photoKind: PlanetPhotoKind = requestedKind === 'biosphere' || requestedKind === 'aerial'
       ? requestedKind
       : 'exosphere';
-    const cost = isPlanetPhoto ? PLANET_PHOTO_COST : SYSTEM_PHOTO_COST;
+    const isKlingPhoto = isPlanetPhoto && photoKind === 'exosphere';
+    const cost = isKlingPhoto ? KLING_PHOTO_COST : GEMINI_PHOTO_COST;
 
     // Check if this generation is funded by a valid ad-reward token.
     // The token is HMAC-signed server-side after the player watched the required ads —
@@ -88,6 +89,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const playerRow = await getPlayer(playerId);
       prompt = buildGeminiPlanetPhotoPrompt(sys, planet, {
         kind: photoKind,
+        missionType,
+        reportSummary,
         playerName: playerRow?.callsign || playerRow?.name || 'Explorer',
         observationDate: new Date().toISOString().slice(0, 10),
       });
@@ -154,7 +157,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const wasAdFunded = typeof apt === 'string' && verifyPhotoToken(apt, playerId, expectedType);
 
       if (playerId && !wasAdFunded) {
-        const refundAmount = isPlanet ? PLANET_PHOTO_COST : SYSTEM_PHOTO_COST;
+        const requestedKind = typeof req.body.photoKind === 'string' ? req.body.photoKind : undefined;
+        const isKling = isPlanet && requestedKind !== 'biosphere' && requestedKind !== 'aerial';
+        const refundAmount = isKling ? KLING_PHOTO_COST : GEMINI_PHOTO_COST;
         const refunded = await creditQuarks(playerId, refundAmount);
         console.log(`[Refund] Credited ${refundAmount} quarks back to ${playerId}, new balance: ${refunded.quarks}`);
         return res.status(500).json({

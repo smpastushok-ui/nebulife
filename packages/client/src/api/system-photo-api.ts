@@ -4,7 +4,7 @@
 // Communicates with /api/system-photo/* and /api/system-mission/* endpoints.
 // ---------------------------------------------------------------------------
 
-import type { StarSystem } from '@nebulife/core';
+import type { PlanetMissionType, PlanetReportSummary, StarSystem } from '@nebulife/core';
 
 import { authFetch } from '../auth/api-client.js';
 
@@ -15,6 +15,11 @@ const API_BASE = '/api';
 // ---------------------------------------------------------------------------
 
 export type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
+
+export interface PlanetPhotoContext {
+  missionType?: PlanetMissionType;
+  reportSummary?: PlanetReportSummary;
+}
 
 export interface SystemPhotoGenerateResponse {
   photoId: string;
@@ -54,6 +59,7 @@ export async function generateSystemPhoto(
   planetId?: string,
   adPhotoToken?: string,
   photoKind?: PlanetPhotoKind,
+  context?: PlanetPhotoContext,
 ): Promise<SystemPhotoGenerateResponse> {
   const res = await authFetch(`${API_BASE}/system-photo/generate`, {
     method: 'POST',
@@ -67,6 +73,8 @@ export async function generateSystemPhoto(
       ...(planetId ? { planetId } : {}),
       ...(adPhotoToken ? { adPhotoToken } : {}),
       ...(photoKind ? { photoKind } : {}),
+      ...(context?.missionType ? { missionType: context.missionType } : {}),
+      ...(context?.reportSummary ? { reportSummary: context.reportSummary } : {}),
     }),
   });
 

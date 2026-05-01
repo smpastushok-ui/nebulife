@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet, PlacedBuilding } from '@nebulife/core';
+import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet, PlacedBuilding, Ship, CargoShipment } from '@nebulife/core';
 import type { PlanetTerraformState, PlanetColonyState, TerraformParamId } from '@nebulife/core';
 import type { ColonyResources } from '../Terraform/MissionDispatchModal.js';
 import { PlaceholderTab } from './PlaceholderTab';
@@ -72,6 +72,7 @@ function buildTabs(t: (key: string) => string): TabDef[] {
         { id: 'star-systems', label: t('archive.sub_star_systems') },
         { id: 'planets-photos', label: t('archive.sub_planets_photos') },
         { id: 'surface', label: t('archive.sub_surface') },
+        { id: 'mission-photos', label: t('archive.sub_mission_photos') },
         { id: 'life', label: t('archive.sub_life') },
         { id: 'aerial-photos', label: t('archive.sub_aerial_photos') },
       ],
@@ -183,6 +184,10 @@ export interface CosmicArchiveProps {
   colonyBuildings?: PlacedBuilding[];
   /** Save a custom name for a planet (stored in planetOverrides). */
   onRenamePlanet?: (planetId: string, newName: string) => void;
+  /** Reusable cargo ships for Terminal -> Planets logistics tab. */
+  cargoShips?: Ship[];
+  /** Active cargo shipments for Terminal -> Planets logistics tab. */
+  cargoShipments?: CargoShipment[];
 }
 
 // ---------------------------------------------------------------------------
@@ -323,6 +328,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   donorPlanets,
   colonyBuildings,
   onRenamePlanet,
+  cargoShips,
+  cargoShipments,
   planetResourceStocks,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   const { t } = useTranslation();
@@ -498,6 +505,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     if (mainTab === 'collections' && currentSubTab === 'aerial-photos') {
       return <TelescopeGallery photos={systemPhotos} type="aerial" allSystems={allSystems} aliases={aliases} />;
     }
+    if (mainTab === 'collections' && currentSubTab === 'mission-photos') {
+      return <TelescopeGallery photos={systemPhotos} type="mission" allSystems={allSystems} aliases={aliases} />;
+    }
     if (mainTab === 'collections' && currentSubTab === 'life') {
       return <PlaceholderTab label={t('archive.sub_life')} />;
     }
@@ -536,6 +546,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           onToggleFavorite={toggleFavorite}
           favoritePlanetIds={favorites}
           onRenamePlanet={onRenamePlanet}
+          cargoShips={cargoShips}
+          cargoShipments={cargoShipments}
         />
       );
     }
@@ -590,6 +602,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           favoritePlanetIds={favorites}
           onlyFavorites
           onRenamePlanet={onRenamePlanet}
+          cargoShips={cargoShips}
+          cargoShipments={cargoShipments}
         />
       );
     }

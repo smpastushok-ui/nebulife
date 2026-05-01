@@ -113,6 +113,8 @@ import { MissionTracker } from './ui/components/Terraform/MissionTracker.js';
 import { TerraformPanel } from './ui/components/Terraform/TerraformPanel.js';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { ScientificReport } from './ui/components/ScientificReport.js';
+import { MissionReportModal } from './ui/components/PlanetMission/MissionReportModal.js';
+import { getMissionPhotoKey, renderMissionProbePhoto } from './ui/components/PlanetMission/MissionProbePhotoRenderer.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
 import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
@@ -149,7 +151,7 @@ import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
 import { CarrierRaid } from './ui/components/Raid/CarrierRaid.js';
 import { ColonyCenterPage, RESOURCE_BOOST_PRICES, TIME_BOOST_PRICES, BOOST_DURATION_MS } from './ui/components/ColonyCenter/ColonyCenterPage.js';
-import type { ColonyCenterPlanet } from './ui/components/ColonyCenter/ColonyCenterPage.js';
+import type { ColonyCenterPlanet, ColonyCenterTabId } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import { SpaceAmbient } from './audio/SpaceAmbient.js';
 import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
@@ -167,8 +169,35 @@ import {
   getPlayerSystemPhotos as fetchPlayerSystemPhotos,
 } from './api/system-photo-api.js';
 import type { PlanetPhotoKind } from './api/system-photo-api.js';
+import { saveMissionPhoto } from './api/mission-photo-api.js';
 
 export type SceneType = 'universe' | 'cluster' | 'galaxy' | 'system' | 'home-intro' | 'planet-view';
+
+type ColonyResourceName = 'minerals' | 'volatiles' | 'isotopes' | 'water';
+type ColonyResourceBundle = Record<ColonyResourceName, number>;
+
+const BASE_RESOURCE_STORAGE_CAPACITY = 1000;
+const KLING_PHOTO_COST = 25;
+const GEMINI_PHOTO_COST = 50;
+
+function getPlanetPhotoCost(photoKind: PlanetPhotoKind): number {
+  return photoKind === 'exosphere' ? KLING_PHOTO_COST : GEMINI_PHOTO_COST;
+}
+
+function computeResourceStorageCapacity(buildings: PlacedBuilding[]): number {
+  return buildings
+    .filter((building) => !building.shutdown)
+    .reduce((capacity, building) => capacity + (BUILDING_DEFS[building.type]?.storageCapacityAdd ?? 0), BASE_RESOURCE_STORAGE_CAPACITY);
+}
+
+function clampResourceBundle(resources: ColonyResourceBundle, capacity: number): ColonyResourceBundle {
+  return {
+    minerals: Math.min(Math.max(0, resources.minerals), capacity),
+    volatiles: Math.min(Math.max(0, resources.volatiles), capacity),
+    isotopes: Math.min(Math.max(0, resources.isotopes), capacity),
+    water: Math.min(Math.max(0, resources.water), capacity),
+  };
+}
 
 /** Full game state synced to server via game_state JSONB */
 interface SyncedGameState {
@@ -807,6 +836,9 @@ function AppInner() {
     return {};
   });
   const [planetReportTarget, setPlanetReportTarget] = useState<{ planet: Planet; report: PlanetReportSummary } | null>(null);
+  const [missionPhotoSaving, setMissionPhotoSaving] = useState(false);
+  const [missionAlphaGenerating, setMissionAlphaGenerating] = useState(false);
+  const [savedMissionPhotoKeys, setSavedMissionPhotoKeys] = useState<Record<string, boolean>>({});
 
   const [explorationPayloads, setExplorationPayloads] = useState<Partial<Record<ProducibleType, number>>>(() => {
     try {
@@ -876,21 +908,52 @@ function AppInner() {
     return colonyResourcesByPlanetRef.current[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
   }, []);
 
+  const getStorageCapacityForPlanet = useCallback((planetId: string): number => {
+    const currentSurfacePlanetId = surfaceTargetRef.current?.planet.id;
+    if (currentSurfacePlanetId === planetId) {
+      try {
+        const raw = localStorage.getItem('nebulife_hex_slots');
+        if (raw) {
+          const slots = JSON.parse(raw) as { id: string; ring: number; index: number; state: string; buildingType?: string; buildingLevel?: number }[];
+          const liveBuildings: PlacedBuilding[] = slots
+            .filter((slot) => slot.state === 'building' && slot.buildingType)
+            .map((slot) => ({
+              id: `${playerId.current}-${slot.id}-${slot.buildingType}`,
+              type: slot.buildingType as BuildingType,
+              x: slot.index,
+              y: slot.ring,
+              level: slot.buildingLevel ?? 1,
+              builtAt: new Date().toISOString(),
+              shutdown: colonyStateRef.current?.buildings.find((building) => building.type === slot.buildingType)?.shutdown,
+            }));
+          return computeResourceStorageCapacity(liveBuildings);
+        }
+      } catch { /* ignore malformed local surface cache */ }
+    }
+
+    const colony = colonyStateRef.current;
+    if (colony?.planetId === planetId) {
+      return computeResourceStorageCapacity(colony.buildings);
+    }
+    return BASE_RESOURCE_STORAGE_CAPACITY;
+  }, []);
+
   /** Add (or subtract with negative values) resources for a specific planet. Clamps to 0. */
   const addResources = useCallback((planetId: string, delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => {
     setColonyResourcesByPlanet(prev => {
       const cur = prev[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+      const capacity = getStorageCapacityForPlanet(planetId);
       return {
         ...prev,
         [planetId]: {
-          minerals:  Math.max(0, cur.minerals  + (delta.minerals  ?? 0)),
-          volatiles: Math.max(0, cur.volatiles + (delta.volatiles ?? 0)),
-          isotopes:  Math.max(0, cur.isotopes  + (delta.isotopes  ?? 0)),
-          water:     Math.max(0, cur.water     + (delta.water     ?? 0)),
+          minerals:  Math.min(capacity, Math.max(0, cur.minerals  + (delta.minerals  ?? 0))),
+          volatiles: Math.min(capacity, Math.max(0, cur.volatiles + (delta.volatiles ?? 0))),
+          isotopes:  Math.min(capacity, Math.max(0, cur.isotopes  + (delta.isotopes  ?? 0))),
+          water:     Math.min(capacity, Math.max(0, cur.water     + (delta.water     ?? 0))),
         },
       };
     });
-  }, []);
+  }, [getStorageCapacityForPlanet]);
 
   /** Spend from the shared colony pool, preferring the active planet first. */
   const spendResourcesAcrossPlanets = useCallback((
@@ -1047,9 +1110,9 @@ function AppInner() {
       if (!targetId) return;
       const cur = colonyResourcesByPlanetRef.current[targetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
       const next = typeof updater === 'function' ? updater(cur) : updater;
-      setColonyResourcesByPlanet(prev => ({ ...prev, [targetId]: next }));
+      setColonyResourcesByPlanet(prev => ({ ...prev, [targetId]: clampResourceBundle(next, getStorageCapacityForPlanet(targetId)) }));
     },
-    [],
+    [getStorageCapacityForPlanet],
   );
 
   /**
@@ -1096,9 +1159,16 @@ function AppInner() {
     let actualAmount: number = amount;
     let depleted = false;
     if (planetId) {
+      const capacity = getStorageCapacityForPlanet(planetId);
+      const current = getResources(planetId)[key];
+      const freeSpace = Math.max(0, capacity - current);
+      if (freeSpace <= 0) {
+        return { actualAmount: 0, depleted: false };
+      }
+      actualAmount = Math.min(actualAmount, freeSpace);
       const stocks = planetResourceStocksRef.current[planetId];
       if (stocks) {
-        const { newStocks, actualExtracted } = depleteStock(stocks, stockKey, amount);
+        const { newStocks, actualExtracted } = depleteStock(stocks, stockKey, actualAmount);
         actualAmount = actualExtracted;
         depleted = newStocks.remaining[stockKey] <= 0.0001;
         setPlanetResourceStocks(prev => ({ ...prev, [planetId]: newStocks }));
@@ -1106,7 +1176,7 @@ function AppInner() {
       addResources(planetId, { [key]: actualAmount });
     }
     return { actualAmount, depleted };
-  }, [addResources]);
+  }, [addResources, getResources, getStorageCapacityForPlanet]);
 
   /** Handle fly-to-HUD animation for harvested resource. */
   const handleHarvestFx = useCallback((type: SurfaceObjectType, sx: number, sy: number) => {
@@ -1644,6 +1714,7 @@ function AppInner() {
   // Renders ColonyCenterPage (6 tabs: overview / colonies / production /
   // buildings / events / premium). Closes via the page's own Back button.
   const [showColonyCenter, setShowColonyCenter] = useState(false);
+  const [colonyCenterInitialTab, setColonyCenterInitialTab] = useState<ColonyCenterTabId>('overview');
   // Per-planet premium boosts (resource +10/20/25%, time -10/20/25%) purchased
   // with quarks. Map is keyed by planet.id so each colony has independent
   // boosts. Persisted into game_state.colony_boosts on sync.
@@ -1873,6 +1944,9 @@ function AppInner() {
       const planetId = planetCtx.planet.id;
       const tileAt = () => undefined;
       const mutableColony: PlanetColonyState = JSON.parse(JSON.stringify(colony));
+      const storageCapacity = getStorageCapacityForPlanet(planetId);
+      mutableColony.resources = clampResourceBundle(getResources(planetId), storageCapacity);
+      const beforeResources = { ...mutableColony.resources };
 
       // Backwards compat: if no stocks for this planet, generate fresh ones
       // then apply level-based depletion estimate for existing players.
@@ -1892,7 +1966,7 @@ function AppInner() {
         stocks,
         planetCtx.star.luminositySolar,
       );
-      const before = colony.resources;
+      const before = beforeResources;
       const after  = result.colony.resources;
       const minD = Math.max(0, after.minerals  - before.minerals);
       const volD = Math.max(0, after.volatiles - before.volatiles);
@@ -1918,7 +1992,7 @@ function AppInner() {
         // that owns this surface context — surfaceTarget takes priority over
         // the retained colonyPlanetRef (Phase 7B: per-planet routing).
         if (hadResourceDelta) {
-          const targetPlanetId = surfaceTargetRef.current?.planet.id ?? homeInfoRef.current?.planet.id;
+          const targetPlanetId = planetId;
           if (targetPlanetId) {
             addResources(targetPlanetId, { minerals: minD, volatiles: volD, isotopes: isoD, water: watD });
           }
@@ -2609,33 +2683,70 @@ function AppInner() {
           surface_landing: 'Поверхнева експедиція',
           deep_atmosphere_probe: 'Атмосферний зонд',
         };
+    const pressure = planet.atmosphere?.surfacePressureAtm ?? 0;
+    const waterPct = Math.round((planet.hydrosphere?.waterCoverageFraction ?? 0) * 100);
+    const icePct = Math.round((planet.hydrosphere?.iceCapFraction ?? 0) * 100);
+    const greenhouse = planet.atmosphere?.greenhouse ?? 0;
+    const moonCount = planet.moons?.length ?? 0;
+    const resourceMass = planet.resources.totalResources;
+    const atmosphereLine = pressure > 5
+      ? (isEn ? 'dense, high-pressure atmosphere with strong scattering/haze risk' : 'щільна атмосфера високого тиску з ризиком сильного розсіювання/серпанку')
+      : pressure > 0.5
+        ? (isEn ? 'stable measurable atmosphere with visible optical effects' : 'стабільна вимірювана атмосфера з видимими оптичними ефектами')
+        : pressure > 0.01
+          ? (isEn ? 'thin trace atmosphere, low surface shielding' : 'тонка розріджена атмосфера, слабкий захист поверхні')
+          : (isEn ? 'no meaningful atmosphere detected' : 'суттєвої атмосфери не виявлено');
+    const waterLine = waterPct > 60
+      ? (isEn ? 'global-ocean class hydrosphere' : 'гідросфера класу глобального океану')
+      : waterPct > 15
+        ? (isEn ? 'fragmented seas or stable regional basins' : 'фрагментовані моря або стабільні регіональні басейни')
+        : waterPct > 0
+          ? (isEn ? 'limited water signatures' : 'обмежені водні сигнатури')
+          : (isEn ? 'no stable surface water signature' : 'стабільної поверхневої води не виявлено');
+
     const lines = [
       isEn
         ? `${typeLabel[report.missionType]} for ${planet.name} is complete. Preliminary science brief for the Colony Council follows.`
         : `${typeLabel[report.missionType]} для ${planet.name} завершено. Нижче попередній науковий витяг для Ради Колонії.`,
       '',
-      isEn ? `Data tier revealed: Tier ${report.revealLevel}.` : `Відкрито рівень даних: Tier ${report.revealLevel}.`,
+      isEn ? `RESEARCH COMPLETION: 100%. Data tier revealed: Tier ${report.revealLevel}.` : `ЗАВЕРШЕННЯ ДОСЛІДЖЕННЯ: 100%. Відкрито рівень даних: Tier ${report.revealLevel}.`,
       isEn
         ? `Orbit: ${planet.orbit.semiMajorAxisAU.toFixed(3)} AU, ${planet.orbit.periodDays.toFixed(1)} day period.`
         : `Орбіта: ${planet.orbit.semiMajorAxisAU.toFixed(3)} AU, період ${planet.orbit.periodDays.toFixed(1)} діб.`,
       isEn
         ? `Climate: ${planet.surfaceTempK} K, ${planet.atmosphere ? planet.atmosphere.surfacePressureAtm.toFixed(2) : '0.00'} atm pressure.`
         : `Клімат: ${planet.surfaceTempK} K, тиск ${planet.atmosphere ? planet.atmosphere.surfacePressureAtm.toFixed(2) : '0.00'} atm.`,
+      isEn
+        ? `Gravity: ${planet.surfaceGravityG.toFixed(2)} g. Moons detected: ${moonCount}.`
+        : `Гравітація: ${planet.surfaceGravityG.toFixed(2)} g. Супутників виявлено: ${moonCount}.`,
+      '',
+      isEn ? 'ATMOSPHERIC FINDINGS' : 'АТМОСФЕРНИЙ ВИСНОВОК',
+      isEn
+        ? `Pressure class: ${atmosphereLine}. Greenhouse factor: ${greenhouse.toFixed(2)}.`
+        : `Клас тиску: ${atmosphereLine}. Парниковий фактор: ${greenhouse.toFixed(2)}.`,
+      isEn
+        ? `Hydrosphere: ${waterLine}. Water coverage ${waterPct}%, ice coverage ${icePct}%.`
+        : `Гідросфера: ${waterLine}. Покриття водою ${waterPct}%, льодом ${icePct}%.`,
     ];
 
     if (report.revealLevel >= 2) {
+      lines.push('', isEn ? 'RESOURCE AND HABITABILITY FINDINGS' : 'РЕСУРСНИЙ ТА ЖИТЛОВИЙ ВИСНОВОК');
       lines.push(isEn
-        ? `Deposits: minerals ~${Math.round(planet.resources.totalResources.minerals / 1e18)}E18, volatiles ~${Math.round(planet.resources.totalResources.volatiles / 1e18)}E18, isotopes ~${Math.round(planet.resources.totalResources.isotopes / 1e12)}E12.`
-        : `Поклади: мінерали ~${Math.round(planet.resources.totalResources.minerals / 1e18)}E18, леткі ~${Math.round(planet.resources.totalResources.volatiles / 1e18)}E18, ізотопи ~${Math.round(planet.resources.totalResources.isotopes / 1e12)}E12.`);
+        ? `Deposits: minerals ~${Math.round(resourceMass.minerals / 1e18)}E18, volatiles ~${Math.round(resourceMass.volatiles / 1e18)}E18, isotopes ~${Math.round(resourceMass.isotopes / 1e12)}E12.`
+        : `Поклади: мінерали ~${Math.round(resourceMass.minerals / 1e18)}E18, леткі ~${Math.round(resourceMass.volatiles / 1e18)}E18, ізотопи ~${Math.round(resourceMass.isotopes / 1e12)}E12.`);
       lines.push(isEn
         ? `Habitability estimate: ${Math.round(planet.habitability.overall * 100)}%.`
         : `Оцінка придатності: ${Math.round(planet.habitability.overall * 100)}%.`);
     }
 
     if (report.revealLevel >= 3) {
+      lines.push('', isEn ? 'SURFACE FINDINGS' : 'ВИСНОВОК ПОВЕРХНІ');
       lines.push(isEn
         ? `Surface: life — ${planet.hasLife ? planet.lifeComplexity : 'none'}, colonization — ${planet.isColonizable ? 'yes' : 'no'}.`
         : `Поверхня: життя — ${planet.hasLife ? planet.lifeComplexity : 'немає'}, колонізація — ${planet.isColonizable ? 'так' : 'ні'}.`);
+      lines.push(isEn
+        ? `Terrain interpretation: ${planet.hasLife ? 'biosignatures must be preserved during landing-site selection' : 'priority zones are stable terrain, accessible deposits, and low thermal stress'}.`
+        : `Інтерпретація рельєфу: ${planet.hasLife ? 'біосигнатури треба зберегти під час вибору місця посадки' : 'пріоритетні зони — стабільний рельєф, доступні поклади та низький тепловий стрес'}.`);
     }
 
     lines.push('', isEn
@@ -2668,13 +2779,15 @@ function AppInner() {
           });
         }
         if (completedShips.length > 0) {
-          setShipFleet((prev) => ({
-            ...prev,
-            ships: [
-              ...prev.ships,
-              ...completedShips.map((item) => createDockedShipFromProduction(item.type, item.planetId, now)),
-            ],
-          }));
+          const producedShips = completedShips.map((item) => createDockedShipFromProduction(item.type, item.planetId, now));
+          setShipFleet((prev) => {
+            const next = {
+              ...prev,
+              ships: [...prev.ships, ...producedShips],
+            };
+            try { localStorage.setItem('nebulife_fleet_state', JSON.stringify(next)); } catch { /* ignore quota */ }
+            return next;
+          });
         }
         scheduleSyncToServer();
       }
@@ -5142,9 +5255,10 @@ function AppInner() {
     const planet = state.selectedPlanet;
     const sys = state.selectedSystem;
     const photoKey = `planet-${photoKind}-${planet.id}`;
+    const cost = getPlanetPhotoCost(photoKind);
 
     // Check quark balance (skip if funded by ad token)
-    if (!adPhotoToken && quarks < 25) {
+    if (!adPhotoToken && quarks < cost) {
       if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
       return;
     }
@@ -5236,7 +5350,142 @@ function AppInner() {
         });
         setTelescopeOverlay(null);
       });
-  }, [state.selectedPlanet, state.selectedSystem, quarks]);
+  }, [state.selectedPlanet, state.selectedSystem, quarks, isGuest]);
+
+  const findSystemForPlanetReport = useCallback((report: PlanetReportSummary): StarSystem | null => {
+    if (state.selectedSystem?.id === report.systemId) return state.selectedSystem;
+    return engineRef.current?.getAllSystems().find((system) => system.id === report.systemId) ?? null;
+  }, [state.selectedSystem]);
+
+  const handleSaveMissionProbePhoto = useCallback(async (planet: Planet, report: PlanetReportSummary): Promise<void> => {
+    const sys = findSystemForPlanetReport(report);
+    if (!sys) return;
+    const photoKey = getMissionPhotoKey(planet.id, report);
+    setMissionPhotoSaving(true);
+    try {
+      const imageDataUrl = renderMissionProbePhoto({ planet, star: sys.star, report });
+      const promptUsed = `Deterministic mission instrument render: ${report.missionType}, planet=${planet.name}, reveal=T${report.revealLevel}`;
+      const saved = await saveMissionPhoto({
+        playerId: playerId.current,
+        photoKey,
+        imageDataUrl,
+        promptUsed,
+      });
+      setSystemPhotos((prev) => {
+        const next = new Map(prev);
+        next.set(photoKey, {
+          id: saved.photoId,
+          photoUrl: saved.photoUrl,
+          status: 'succeed',
+          createdAt: new Date().toISOString(),
+        });
+        return next;
+      });
+      setSavedMissionPhotoKeys((prev) => ({ ...prev, [photoKey]: true }));
+      setToastMessage(t('mission_report.photo_saved_to_gallery'));
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error('[MissionProbePhoto] Error:', err);
+      setToastMessage(t('mission_report.photo_save_failed'));
+      setTimeout(() => setToastMessage(null), 3500);
+    } finally {
+      setMissionPhotoSaving(false);
+    }
+  }, [findSystemForPlanetReport, t]);
+
+  const handleMissionAlphaPhoto = useCallback((planet: Planet, report: PlanetReportSummary): void => {
+    const sys = findSystemForPlanetReport(report);
+    if (!sys) return;
+    const photoKind: PlanetPhotoKind = report.missionType === 'surface_landing' ? 'biosphere' : 'aerial';
+    const photoKey = `planet-${photoKind}-${planet.id}__${report.missionId}`;
+    const cost = getPlanetPhotoCost(photoKind);
+    if (quarks < cost) {
+      if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
+      return;
+    }
+
+    setMissionAlphaGenerating(true);
+    setTelescopeOverlay({
+      phase: 'init',
+      targetName: planet.name,
+      targetType: 'planet',
+      photoUrl: null,
+      photoKey,
+    });
+
+    const initTimer = setTimeout(() => {
+      setTelescopeOverlay(prev => prev ? { ...prev, phase: 'capture' } : null);
+    }, 1500);
+
+    setSystemPhotos((prev) => {
+      const next = new Map(prev);
+      next.set(photoKey, { id: `temp-${report.missionId}`, photoUrl: '', status: 'generating' });
+      return next;
+    });
+
+    const revealPhoto = (url: string) => {
+      setTelescopeOverlay(prev => {
+        if (!prev) return null;
+        if (prev.phase === 'init') {
+          clearTimeout(initTimer);
+          setTimeout(() => {
+            setTelescopeOverlay(p => p ? { ...p, phase: 'reveal', photoUrl: url } : null);
+          }, 800);
+          return { ...prev, phase: 'capture' };
+        }
+        return { ...prev, phase: 'reveal', photoUrl: url };
+      });
+    };
+
+    generateSystemPhoto(playerId.current, photoKey, sys, undefined, undefined, planet.id, undefined, photoKind, {
+      missionType: report.missionType,
+      reportSummary: report,
+    })
+      .then(({ photoId, quarksRemaining, photoUrl }) => {
+        if (quarksRemaining !== null && quarksRemaining !== undefined) setQuarks(quarksRemaining);
+        if (photoUrl) {
+          setSystemPhotos(prev => {
+            const next = new Map(prev);
+            next.set(photoKey, { id: photoId, photoUrl, status: 'succeed', createdAt: new Date().toISOString() });
+            return next;
+          });
+          revealPhoto(photoUrl);
+        } else {
+          setSystemPhotos(prev => {
+            const next = new Map(prev);
+            next.set(photoKey, { id: photoId, photoUrl: '', status: 'generating' });
+            return next;
+          });
+          pollSystemPhotoStatus(photoId, (result) => {
+            if (result.status === 'succeed' && result.photoUrl) {
+              setSystemPhotos(prev => {
+                const next = new Map(prev);
+                next.set(photoKey, { id: photoId, photoUrl: result.photoUrl!, status: 'succeed', createdAt: new Date().toISOString() });
+                return next;
+              });
+              revealPhoto(result.photoUrl);
+            } else if (result.status === 'failed') {
+              setSystemPhotos(prev => {
+                const next = new Map(prev);
+                next.set(photoKey, { id: photoId, photoUrl: '', status: 'failed' });
+                return next;
+              });
+              setTelescopeOverlay(null);
+            }
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('[MissionAlphaPhoto] Error:', err);
+        setSystemPhotos(prev => {
+          const next = new Map(prev);
+          next.delete(photoKey);
+          return next;
+        });
+        setTelescopeOverlay(null);
+      })
+      .finally(() => setMissionAlphaGenerating(false));
+  }, [findSystemForPlanetReport, isGuest, quarks]);
 
   // Keep ref updated for GameEngine callback (avoid stale closure)
   telescopePhotoRef.current = handleTelescopePhotoForSystem;
@@ -7009,6 +7258,30 @@ function AppInner() {
     );
   }
 
+  const surfaceStorageBlockedBuildingTypes = (() => {
+    if (!surfaceTarget) return undefined;
+    const buildings = colonyState?.planetId === surfaceTarget.planet.id ? colonyState.buildings : [];
+    const capacity = computeResourceStorageCapacity(buildings);
+    const resources = getResources(surfaceTarget.planet.id);
+    const fullResources = new Set<ColonyResourceName>(
+      (['minerals', 'volatiles', 'isotopes', 'water'] as const).filter((key) => resources[key] >= capacity),
+    );
+    if (fullResources.size === 0) return undefined;
+    const blocked = new Set<string>();
+    for (const building of buildings) {
+      const def = BUILDING_DEFS[building.type];
+      if (def?.production.some((prod) => (
+        prod.resource === 'minerals' ||
+        prod.resource === 'volatiles' ||
+        prod.resource === 'isotopes' ||
+        prod.resource === 'water'
+      ) && fullResources.has(prod.resource))) {
+        blocked.add(building.type);
+      }
+    }
+    return blocked;
+  })();
+
   return (
     <>
       <style>{`@keyframes nebu-planet-spin { to { transform: rotate(360deg); } }`}</style>
@@ -7577,9 +7850,6 @@ function AppInner() {
             setState((prev) => ({ ...prev, showPlanetMenu: false }));
           }}
           systemResearchProgress={currentSystemProgress}
-          canStartSystemResearch={hasResearchData(Math.floor(researchData)) && findFreeSlot(researchState) >= 0}
-          isSystemResearching={Boolean(state.selectedSystem && researchState.slots.some((s) => s.systemId === state.selectedSystem!.id))}
-          onStartSystemResearch={() => state.selectedSystem && handleStartResearch(state.selectedSystem.id)}
           terraformState={terraformStates[state.selectedPlanet.id]}
           isColonized={Boolean(
             state.selectedPlanet.id === homeInfo?.planet.id
@@ -7619,11 +7889,16 @@ function AppInner() {
             fontFamily: 'monospace',
           }}
         >
-          <div style={{ width: 'min(560px, 94vw)' }}>
-            <ScientificReport
-              objectName={planetReportTarget.planet.name}
-              reportText={buildPlanetMissionReportText(planetReportTarget.planet, planetReportTarget.report)}
-              rarity="common"
+          <MissionReportModal
+            planet={planetReportTarget.planet}
+            report={planetReportTarget.report}
+            reportText={buildPlanetMissionReportText(planetReportTarget.planet, planetReportTarget.report)}
+            alphaCost={GEMINI_PHOTO_COST}
+            proceduralSaving={missionPhotoSaving}
+            alphaGenerating={missionAlphaGenerating}
+            proceduralSaved={Boolean(savedMissionPhotoKeys[getMissionPhotoKey(planetReportTarget.planet.id, planetReportTarget.report)])}
+            onProceduralPhoto={() => handleSaveMissionProbePhoto(planetReportTarget.planet, planetReportTarget.report)}
+            onAlphaPhoto={() => handleMissionAlphaPhoto(planetReportTarget.planet, planetReportTarget.report)}
               onClose={() => {
                 setPlanetMissions((prev) => ({
                   ...prev,
@@ -7646,8 +7921,7 @@ function AppInner() {
                 setPlanetReportTarget(null);
                 scheduleSyncToServer();
               }}
-            />
-          </div>
+          />
         </div>
       )}
       {/* ── TerraformPanel full-screen overlay ── */}
@@ -7931,11 +8205,19 @@ function AppInner() {
             setQuarks((prev) => Math.max(0, prev - amount));
           }}
           alphaHarvesterCount={0}
-          onOpenColonyCenter={() => setShowColonyCenter(true)}
+          onOpenColonyCenter={(tab) => {
+            setColonyCenterInitialTab(tab ?? 'overview');
+            setShowColonyCenter(true);
+          }}
           planetStocks={planetResourceStocks[surfaceTarget.planet.id]}
+          explorationPayloads={explorationPayloads}
+          shipFleet={shipFleet}
+          explorationProductionQueue={explorationProductionQueue}
+          onStartPayloadProduction={handleStartPayloadProduction}
           shutdownBuildingTypes={colonyState
             ? new Set(colonyState.buildings.filter(b => b.shutdown).map(b => b.type))
             : undefined}
+          storageBlockedBuildingTypes={surfaceStorageBlockedBuildingTypes}
         />
       )}
       {/* ── Surface resource HUD ──────────────────────────────────────────── */}
@@ -8265,6 +8547,11 @@ function AppInner() {
           planetResourceStocks={planetResourceStocks}
           donorPlanets={getColonyPlanets()}
           colonyBuildings={colonyState?.buildings ?? []}
+          cargoShips={shipFleet.ships.filter((ship) => {
+            const def = PRODUCIBLE_DEFS[ship.type];
+            return (ship.type === 'terraform_freighter' || def.requiresBuilding === 'spaceport') && def.cargoCapacity > 0;
+          })}
+          cargoShipments={shipFleet.cargoShipments ?? []}
           onSendTerraformDelivery={(targetPlanet, paramId) => {
             // Open terraform panel for this planet, pre-targeting the given param.
             // For now, we open the full TerraformPanel which handles dispatch.
@@ -8309,6 +8596,7 @@ function AppInner() {
             if (sys) {
               setSurfaceTarget({ planet, star: sys.star });
             }
+            setColonyCenterInitialTab('overview');
             setShowColonyCenter(true);
           }}
           onRenamePlanet={(planetId, newName) => {
@@ -8636,6 +8924,11 @@ function AppInner() {
         // Use the freshly-derived list when present; otherwise fall back to
         // whatever colonyState had (e.g. before any hex_slots were saved).
         const buildingsForUi = liveBuildings.length > 0 ? liveBuildings : (colonyState?.buildings ?? []);
+        const storageCapacity = computeResourceStorageCapacity(buildingsForUi);
+        const activeResources = getResources(surfaceTarget.planet.id);
+        const storageFullResourceKeys = new Set<ColonyResourceName>(
+          (['minerals', 'volatiles', 'isotopes', 'water'] as const).filter((key) => activeResources[key] >= storageCapacity),
+        );
 
         const active: ColonyCenterPlanet = {
           planet: surfaceTarget.planet,
@@ -8655,18 +8948,23 @@ function AppInner() {
         const perHour = { minerals: 0, volatiles: 0, isotopes: 0, water: 0, researchData: 0, energy: 0 };
         let energyProduced = 0;
         let energyConsumed = 0;
+        let populationCapacity = 0;
         for (const b of active.buildings) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const def = (BUILDING_DEFS as Record<string, any>)[b.type];
           if (!def) continue;
+          if (b.shutdown) continue;
+          energyProduced += def.energyOutput ?? 0;
+          energyConsumed += def.energyConsumption ?? 0;
+          populationCapacity += def.populationCapacityAdd ?? 0;
           for (const p of (def.production ?? []) as Array<{ resource: string; amount: number }>) {
             if (p.resource in perHour) (perHour as any)[p.resource] += p.amount * 60;
-            if (p.resource === 'energy') energyProduced += p.amount;
-          }
-          for (const c of (def.consumption ?? []) as Array<{ resource: string; amount: number }>) {
-            if (c.resource === 'energy') energyConsumed += c.amount;
           }
         }
+        active.population = {
+          current: (colonyState as any)?.population?.current ?? 0,
+          capacity: (colonyState as any)?.population?.capacity ?? populationCapacity,
+        };
 
         // Resource hexes — passive extraction from natural deposits. Each
         // resource hex has a yieldPerHour (already /h, not /min) and maps
@@ -8688,18 +8986,22 @@ function AppInner() {
             perHour[colKey] += s.yieldPerHour;
           }
         }
+        const displayedPerHour = { ...perHour };
+        for (const key of storageFullResourceKeys) {
+          displayedPerHour[key] = 0;
+        }
 
         return (
           <ColonyCenterPage
             active={active}
             allColonies={allColonies}
-            colonyResources={getResources(active.planet.id)}
-            storageCapacity={200 + active.buildings.filter((b) => b.type === 'resource_storage').length * 200}
-            productionPerHour={perHour}
+            initialTab={colonyCenterInitialTab}
+            colonyResources={activeResources}
+            storageCapacity={storageCapacity}
+            productionPerHour={displayedPerHour}
             extractionPerHour={hexExtractionPerHour}
             energyBalance={{ produced: Math.round(energyProduced), consumed: Math.round(energyConsumed) }}
             researchData={Math.floor(researchData)}
-            logEntries={logEntries}
             quarks={quarks}
             boosts={colonyBoosts}
             onBuyBoost={(kind, pct) => {
@@ -8726,6 +9028,7 @@ function AppInner() {
             onResourceChange={(delta) => addResources(active.planet.id, delta)}
             onResearchDataChange={(delta) => setResearchData((prev) => Math.max(0, prev + delta))}
             explorationPayloads={explorationPayloads}
+            shipFleet={shipFleet}
             explorationProductionQueue={explorationProductionQueue}
             onStartPayloadProduction={handleStartPayloadProduction}
           />

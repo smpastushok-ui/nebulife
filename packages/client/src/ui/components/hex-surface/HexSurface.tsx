@@ -19,7 +19,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks } from '@nebulife/core';
+import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState } from '@nebulife/core';
 import { getPlanetSize } from '@nebulife/core';
 
 import { useHexState } from './useHexState.js';
@@ -85,10 +85,15 @@ interface HexSurfaceProps {
   onConsumeQuarks?:       (amount: number) => void;
   alphaHarvesterCount?:   number;
   shutdownBuildingTypes?: Set<string>;
+  storageBlockedBuildingTypes?: Set<string>;
   planetStocks?:          PlanetResourceStocks;
+  explorationPayloads?:    Partial<Record<ProducibleType, number>>;
+  shipFleet?:              FleetState;
+  explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
+  onStartPayloadProduction?: (type: ProducibleType) => void;
   /** Opens the Colony Center hub page — fired when the player inspects the
    *  `colony_hub` building. Parent wires this to setShowColonyCenter(true). */
-  onOpenColonyCenter?:    () => void;
+  onOpenColonyCenter?:    (tab?: 'overview' | 'production') => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +202,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onConsumeQuarks,
       alphaHarvesterCount = 0,
       shutdownBuildingTypes,
+      storageBlockedBuildingTypes,
       planetStocks,
+      explorationPayloads,
+      shipFleet,
+      explorationProductionQueue,
+      onStartPayloadProduction,
       onOpenColonyCenter,
     },
     ref,
@@ -705,6 +715,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           panY={panY}
           onTransformRef={handleTransformRef}
           shutdownBuildingTypes={shutdownBuildingTypes}
+          storageBlockedBuildingTypes={storageBlockedBuildingTypes}
         />
 
         {/* Build menu popup */}
@@ -734,8 +745,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             colonyResources={colonyResourcesRef.current}
             researchData={researchData ?? 0}
             planetStocks={planetStocks}
+            explorationPayloads={explorationPayloads}
+            shipFleet={shipFleet}
+            explorationProductionQueue={explorationProductionQueue}
             onClose={() => setDetailSlotId(null)}
             onOpenColonyCenter={onOpenColonyCenter}
+            onStartPayloadProduction={onStartPayloadProduction}
             onResourceChange={handleResourceChange}
             onResearchDataChange={(delta) => {
               if (delta < 0) onConsumeResearchData?.(Math.abs(delta));

@@ -70,6 +70,7 @@ interface HexSlotProps {
   onDestroy: (id: string) => void;
   canAfford: boolean;
   isShutdown?: boolean;
+  isStorageBlocked?: boolean;
 }
 
 // Pointy-top hex clip-path (matches reference design)
@@ -395,7 +396,9 @@ export const HexSlot = React.memo(function HexSlot({
   onDestroy,
   canAfford,
   isShutdown = false,
+  isStorageBlocked = false,
 }: HexSlotProps) {
+  const { t } = useTranslation();
   const left = x - HEX_W / 2;
   const top  = y - HEX_H / 2;
 
@@ -620,6 +623,31 @@ export const HexSlot = React.memo(function HexSlot({
           </svg>
           <span style={{ fontSize: 7, color: '#cc4444', fontFamily: 'monospace', fontWeight: 'bold' }}>
             {BUILDING_DEFS[slot.buildingType as keyof typeof BUILDING_DEFS]?.energyConsumption ?? '?'}
+          </span>
+        </div>
+      )}
+
+      {isStorageBlocked && (slot.state === 'building' || slot.state === 'harvester') && (
+        <div
+          title={t('hex.storage_full_warning')}
+          style={{
+            position: 'absolute',
+            top: isShutdown ? 20 : 2,
+            right: 2,
+            zIndex: 150,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            background: 'rgba(0,0,0,0.72)',
+            border: '1px solid rgba(255,136,68,0.45)',
+            borderRadius: 4,
+            padding: '1px 3px',
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{ fontSize: 8, color: '#ff8844', fontFamily: 'monospace', fontWeight: 'bold' }}>!</span>
+          <span style={{ fontSize: 7, color: '#ff8844', fontFamily: 'monospace', fontWeight: 'bold' }}>
+            {t('hex.storage_full_short')}
           </span>
         </div>
       )}

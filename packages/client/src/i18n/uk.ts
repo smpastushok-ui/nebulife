@@ -545,6 +545,10 @@ export const uk = {
   'scene_controls.zoom_in':  'Наблизити',
   'scene_controls.zoom_out': 'Віддалити',
 
+  // Mission report photos
+  'mission_report.photo_saved_to_gallery': 'Фото місії збережено в галерею',
+  'mission_report.photo_save_failed':      'Не вдалося зберегти фото місії',
+
   // Planet exploration missions
   'planet_missions.reason.unknown':             'Мiсiя недоступна',
   'planet_missions.reason.already_revealed':    'Цей рiвень даних уже вiдкрито',

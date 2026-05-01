@@ -9,7 +9,7 @@ import type { SystemPhotoData } from '../SystemContextMenu';
 
 interface TelescopeGalleryProps {
   photos?: Map<string, SystemPhotoData>;
-  type: 'system' | 'planet' | 'biosphere' | 'aerial';
+  type: 'system' | 'planet' | 'biosphere' | 'aerial' | 'mission';
   allSystems: StarSystem[];
   aliases: Record<string, string>;
 }
@@ -23,10 +23,13 @@ interface PhotoEntry {
 }
 
 function getPlanetIdFromPhotoKey(key: string): string | null {
-  if (key.startsWith('planet-exosphere-')) return key.slice('planet-exosphere-'.length);
-  if (key.startsWith('planet-biosphere-')) return key.slice('planet-biosphere-'.length);
-  if (key.startsWith('planet-aerial-')) return key.slice('planet-aerial-'.length);
-  if (key.startsWith('planet-')) return key.slice('planet-'.length); // legacy planet photo key
+  const stripMissionSuffix = (value: string) => value.split('__')[0];
+  if (key.startsWith('planet-exosphere-')) return stripMissionSuffix(key.slice('planet-exosphere-'.length));
+  if (key.startsWith('planet-biosphere-')) return stripMissionSuffix(key.slice('planet-biosphere-'.length));
+  if (key.startsWith('planet-aerial-')) return stripMissionSuffix(key.slice('planet-aerial-'.length));
+  if (key.startsWith('planet-probe-')) return stripMissionSuffix(key.slice('planet-probe-'.length));
+  if (key.startsWith('planet-rover-')) return stripMissionSuffix(key.slice('planet-rover-'.length));
+  if (key.startsWith('planet-')) return stripMissionSuffix(key.slice('planet-'.length)); // legacy planet photo key
   return null;
 }
 
@@ -90,14 +93,16 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
     for (const [key, data] of photos) {
       // Filter by type
       const isPhotoPlanet = key.startsWith('planet-');
-      const isExosphere = key.startsWith('planet-exosphere-') || (key.startsWith('planet-') && !key.startsWith('planet-biosphere-') && !key.startsWith('planet-aerial-'));
       const isBiosphere = key.startsWith('planet-biosphere-');
       const isAerial = key.startsWith('planet-aerial-');
+      const isMission = key.startsWith('planet-probe-') || key.startsWith('planet-rover-');
+      const isExosphere = key.startsWith('planet-exosphere-') || (key.startsWith('planet-') && !isBiosphere && !isAerial && !isMission);
 
       if (type === 'system' && isPhotoPlanet) continue;
       if (type === 'planet' && !isExosphere) continue;
       if (type === 'biosphere' && !isBiosphere) continue;
       if (type === 'aerial' && !isAerial) continue;
+      if (type === 'mission' && !isMission) continue;
       // Only show completed photos
       if (data.status !== 'succeed' || !data.photoUrl) continue;
 
@@ -143,7 +148,9 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
       ? t('archive.sub_planets_photos')
       : type === 'biosphere'
         ? t('archive.sub_surface')
-        : t('archive.sub_aerial_photos');
+        : type === 'aerial'
+          ? t('archive.sub_aerial_photos')
+          : t('archive.sub_mission_photos');
 
   if (entries.length === 0) {
     return (

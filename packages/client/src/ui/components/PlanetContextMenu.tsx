@@ -39,9 +39,13 @@ function QuarkIcon() {
 const MENU_WIDTH = 300;
 const MENU_HEIGHT_APPROX = 360;
 
-type TabId = 'actions' | 'characteristics' | 'resources' | 'alpha' | 'logistics' | 'terraform' | 'status';
+type TabId = 'actions' | 'characteristics' | 'resources' | 'alpha';
 type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
 type CargoResource = 'minerals' | 'volatiles' | 'isotopes' | 'water';
+
+function getPhotoCost(photoKind: PlanetPhotoKind): number {
+  return photoKind === 'exosphere' ? 25 : 50;
+}
 
 /* ────────── Shared styles ────────── */
 
@@ -207,9 +211,6 @@ function TabBar({
     { id: 'characteristics', label: t('planet.characteristics') },
     { id: 'resources', label: t('planet_terminal.tab_resources') },
     { id: 'alpha', label: `\u29B3 ${t('planet.tab_premium')}`, color: '#886622' },
-    { id: 'logistics', label: t('planet_terminal.tab_logistics') },
-    { id: 'terraform', label: t('planet_terminal.tab_terraform'), color: '#446644' },
-    { id: 'status', label: t('planet_terminal.tab_status') },
   ];
 
   return (
@@ -221,13 +222,9 @@ function TabBar({
       {tabs.map((tab, i) => {
         const isActive = tab.id === activeTab;
         const isUnlocked = unlockedTabs.has(tab.id);
-        const activeColor = tab.color ? '#88cc88' : '#7bb8ff';
-        const activeBg = tab.color
-          ? (tab.id === 'terraform' ? 'rgba(20,40,20,0.3)' : 'rgba(40,28,8,0.3)')
-          : 'rgba(40,70,110,0.2)';
-        const activeBorder = tab.color
-          ? (tab.id === 'terraform' ? '#88cc88' : '#ddaa44')
-          : '#7bb8ff';
+        const activeColor = tab.color ? '#ddaa44' : '#7bb8ff';
+        const activeBg = tab.color ? 'rgba(40,28,8,0.3)' : 'rgba(40,70,110,0.2)';
+        const activeBorder = tab.color ? '#ddaa44' : '#7bb8ff';
         return (
           <button
             key={tab.id}
@@ -239,7 +236,7 @@ function TabBar({
               fontFamily: 'monospace',
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
-              color: !isUnlocked ? '#334455' : isActive ? activeColor : (tab.color ? (tab.id === 'terraform' ? '#448844' : '#886622') : '#556677'),
+              color: !isUnlocked ? '#334455' : isActive ? activeColor : (tab.color ? '#886622' : '#556677'),
               background: isActive ? activeBg : 'none',
               border: 'none',
               borderBottom: isActive ? `2px solid ${activeBorder}` : '2px solid transparent',
@@ -333,7 +330,7 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup, re
                 {/* Group row */}
                 <button
                   onClick={() => {
-                    if (playerLevel >= 50 && revealLevel >= 3) {
+                    if (playerLevel >= 48 && revealLevel >= 3) {
                       setExpandedGroup(isExpanded ? null : group);
                       setLockedTooltip(null);
                     } else {
@@ -384,7 +381,7 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup, re
                 )}
 
                 {/* Expanded elements */}
-                {isExpanded && playerLevel >= 50 && revealLevel >= 3 && totalRes && (
+                {isExpanded && playerLevel >= 48 && revealLevel >= 3 && totalRes && (
                   <div style={{ padding: '2px 0 4px' }}>
                     {getGroupElements(totalRes.elements, group)
                       .slice(0, 8)
@@ -489,16 +486,50 @@ function DataRow({ label, value, muted = false }: { label: string; value: React.
   );
 }
 
-function CharacteristicsTab({ planet, revealLevel }: { planet: Planet; revealLevel: PlanetRevealLevel }) {
+function CharacteristicsTab({
+  planet,
+  revealLevel,
+  terraformState,
+  isColonized,
+}: {
+  planet: Planet;
+  revealLevel: PlanetRevealLevel;
+  terraformState?: PlanetTerraformState;
+  isColonized: boolean;
+}) {
   const { t } = useTranslation();
   const unknown = t('planet_info.unknown');
   const locked = t('planet_info.reveal_hint', { level: revealLevel });
+  const typeKey: Record<string, string> = {
+    rocky: 'planet.rocky',
+    terrestrial: 'planet.terrestrial',
+    'gas-giant': 'planet.gas_giant',
+    'ice-giant': 'planet.ice_giant',
+    dwarf: 'planet.dwarf',
+  };
+  const zoneKey: Record<string, string> = {
+    inner: 'planet.zone_inner',
+    habitable: 'planet.zone_habitable',
+    outer: 'planet.zone_outer',
+    far: 'planet.zone_far',
+  };
+  const terraformProgress = terraformState
+    ? Object.values(terraformState.params).reduce((sum, param) => sum + param.progress, 0) / 6
+    : 0;
+  const inTerraform = terraformProgress > 0 && !terraformState?.completedAt;
   return (
     <div style={{ padding: '10px 14px', maxHeight: '46vh', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+        <StatusChip label={t('planet_terminal.badge_atmosphere')} active={revealLevel >= 2} />
+        <StatusChip label={t('planet_terminal.badge_surface')} active={revealLevel >= 3} />
+        <StatusChip label={t('planet_terminal.badge_colonized')} active={isColonized || planet.isHomePlanet} />
+        <StatusChip label={t('planet_terminal.badge_terraforming')} active={inTerraform} />
+        <StatusChip label={t('planet_terminal.badge_terraformed')} active={Boolean(terraformState?.completedAt)} />
+      </div>
       <div style={{ color: '#667788', fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>
         {t('planet_info.group_physical')}
       </div>
-      <DataRow label={t('planet_info.type')} value={planet.type.replace('-', ' ')} />
+      <DataRow label={t('planet_info.type')} value={t(typeKey[planet.type] ?? planet.type)} />
       <DataRow label={t('planet_info.mass')} value={revealLevel >= 1 ? `${planet.massEarth} M⊕` : locked} muted={revealLevel < 1} />
       <DataRow label={t('planet_info.radius')} value={revealLevel >= 1 ? `${planet.radiusEarth} R⊕` : locked} muted={revealLevel < 1} />
       <DataRow label={t('planet_info.gravity')} value={revealLevel >= 2 ? `${planet.surfaceGravityG}g` : unknown} muted={revealLevel < 2} />
@@ -509,14 +540,14 @@ function CharacteristicsTab({ planet, revealLevel }: { planet: Planet; revealLev
       </div>
       <DataRow label={t('planet_info.distance')} value={revealLevel >= 1 ? `${planet.orbit.semiMajorAxisAU.toFixed(3)} AU` : locked} muted={revealLevel < 1} />
       <DataRow label={t('planet_info.period')} value={revealLevel >= 1 ? `${planet.orbit.periodDays.toFixed(1)} ${t('planet_info.days')}` : unknown} muted={revealLevel < 1} />
-      <DataRow label={t('planet_info.zone')} value={planet.zone} />
+      <DataRow label={t('planet_info.zone')} value={t(zoneKey[planet.zone] ?? planet.zone)} />
 
       <div style={{ color: '#667788', fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', margin: '10px 0 6px' }}>
         {t('planet_info.group_climate')}
       </div>
       <DataRow label={t('planet_info.pressure')} value={revealLevel >= 2 && planet.atmosphere ? `${planet.atmosphere.surfacePressureAtm} atm` : unknown} muted={revealLevel < 2 || !planet.atmosphere} />
       <DataRow label={t('planet_info.coverage')} value={revealLevel >= 2 && planet.hydrosphere ? `${(planet.hydrosphere.waterCoverageFraction * 100).toFixed(1)}%` : unknown} muted={revealLevel < 2 || !planet.hydrosphere} />
-      <DataRow label={t('planet_info.life')} value={revealLevel >= 3 ? (planet.hasLife ? planet.lifeComplexity : t('planet_info.none')) : t('planet_info.surface_expedition_required')} muted={revealLevel < 3} />
+      <DataRow label={t('planet_info.life')} value={revealLevel >= 3 ? (planet.hasLife ? t(`planet_info.life_${planet.lifeComplexity}`, { defaultValue: planet.lifeComplexity }) : t('planet_info.none')) : t('planet_info.surface_expedition_required')} muted={revealLevel < 3} />
     </div>
   );
 }
@@ -684,27 +715,6 @@ function LogisticsTab({
   );
 }
 
-function StatusTab({ revealLevel, terraformState, isColonized }: {
-  revealLevel: PlanetRevealLevel;
-  terraformState?: PlanetTerraformState;
-  isColonized: boolean;
-}) {
-  const { t } = useTranslation();
-  const terraformProgress = terraformState
-    ? Object.values(terraformState.params).reduce((sum, param) => sum + param.progress, 0) / 6
-    : 0;
-  const inTerraform = terraformProgress > 0 && !terraformState?.completedAt;
-  return (
-    <div style={{ padding: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-      <StatusChip label={t('planet_terminal.badge_atmosphere')} active={revealLevel >= 2} />
-      <StatusChip label={t('planet_terminal.badge_surface')} active={revealLevel >= 3} />
-      <StatusChip label={t('planet_terminal.badge_colonized')} active={isColonized} />
-      <StatusChip label={t('planet_terminal.badge_terraforming')} active={inTerraform} />
-      <StatusChip label={t('planet_terminal.badge_terraformed')} active={Boolean(terraformState?.completedAt)} />
-    </div>
-  );
-}
-
 /* ────────── Main component ────────── */
 
 export function PlanetContextMenu({
@@ -732,9 +742,6 @@ export function PlanetContextMenu({
   onViewReport,
   explorationMissionsDisabled = false,
   systemResearchProgress = 100,
-  canStartSystemResearch = false,
-  isSystemResearching = false,
-  onStartSystemResearch,
   terraformState,
   isColonized = false,
   cargoShips = [],
@@ -773,9 +780,6 @@ export function PlanetContextMenu({
   onViewReport?: (planet: Planet, report: PlanetReportSummary) => void;
   explorationMissionsDisabled?: boolean;
   systemResearchProgress?: number;
-  canStartSystemResearch?: boolean;
-  isSystemResearching?: boolean;
-  onStartSystemResearch?: () => void;
   terraformState?: PlanetTerraformState;
   isColonized?: boolean;
   cargoShips?: Ship[];
@@ -830,12 +834,10 @@ export function PlanetContextMenu({
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
   const isSystemAccessible = systemResearchProgress >= 100;
   const unlockedTabs = useMemo(() => {
-    const tabs = new Set<TabId>(['actions', 'alpha', 'status']);
+    const tabs = new Set<TabId>(['actions', 'alpha']);
     if (isSystemAccessible) {
       tabs.add('characteristics');
       tabs.add('resources');
-      tabs.add('logistics');
-      tabs.add('terraform');
     }
     return tabs;
   }, [isSystemAccessible]);
@@ -916,8 +918,12 @@ export function PlanetContextMenu({
     : (window.innerWidth - MENU_WIDTH) / 2);
   const top = menuPos?.top ?? Math.max(MARGIN, Math.min(screenPosition.y - MENU_HEIGHT_APPROX / 2, window.innerHeight - MENU_HEIGHT_APPROX - MARGIN));
 
-  const PHOTO_COST = 25;
-  const canAffordPhoto = quarks >= PHOTO_COST;
+  const exosphereCost = getPhotoCost('exosphere');
+  const biosphereCost = getPhotoCost('biosphere');
+  const aerialCost = getPhotoCost('aerial');
+  const canAffordExosphere = quarks >= exosphereCost;
+  const canAffordBiosphere = quarks >= biosphereCost;
+  const canAffordAerial = quarks >= aerialCost;
 
   return (
     <>
@@ -948,23 +954,11 @@ export function PlanetContextMenu({
         <div style={{ padding: '4px 0', minHeight: 80 }}>
           {activeTab === 'actions' && (
             <>
-              <div style={{ padding: '9px 14px', fontSize: 10, color: '#8899aa' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <span>{t('planet_terminal.system_research')}</span>
-                  <span style={{ color: isSystemAccessible ? '#44ff88' : '#ddaa44' }}>{Math.round(systemResearchProgress)}%</span>
-                </div>
-                <div style={{ height: 4, background: 'rgba(40,55,70,0.75)', borderRadius: 2, overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, systemResearchProgress)}%`, height: '100%', background: isSystemAccessible ? '#44ff88' : '#ddaa44' }} />
-                </div>
-              </div>
-              {!isSystemAccessible && (
-                <MenuItem
-                  icon="◎"
-                  label={isSystemResearching ? t('planet_terminal.researching') : t('planet_terminal.start_system_research')}
-                  onClick={canStartSystemResearch && itemsActive ? onStartSystemResearch : undefined}
-                  disabled={!canStartSystemResearch || isSystemResearching}
-                  color="#ddaa44"
-                />
+              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={itemsActive ? onViewPlanet : undefined} color="#88ccaa" />
+              {isSurfacePlanet && onSurface && (
+                surfaceDisabledReason
+                  ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
+                  : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={itemsActive ? onSurface : undefined} color="#88ccaa" />
               )}
               {isSystemAccessible && (
                 <div style={{ paddingLeft: 16 }}>
@@ -974,20 +968,6 @@ export function PlanetContextMenu({
                   <div style={{ padding: '0 14px 6px', color: '#667788', fontSize: 9 }}>
                     {t('planet_missions.reveal_level', { level: revealLevel })}
                   </div>
-                  {activeMission && activeMissionProgress && (
-                    <div style={{ padding: '5px 14px 8px', color: '#7bb8ff', fontSize: 10 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span>{t(`planet_missions.type.${activeMission.type}`)}</span>
-                        <span>{formatMissionTime(activeMissionProgress.remainingMs)}</span>
-                      </div>
-                      <div style={{ height: 4, borderRadius: 2, background: 'rgba(40,55,70,0.7)', overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.round(activeMissionProgress.overallProgress * 100)}%`, height: '100%', background: '#4488aa' }} />
-                      </div>
-                      <div style={{ marginTop: 4, color: '#556677' }}>
-                        {t(`planet_missions.phase.${activeMissionProgress.phase}`)}
-                      </div>
-                    </div>
-                  )}
                   {reportSummary && onViewReport && (
                     <MenuItem
                       icon="□"
@@ -1001,16 +981,29 @@ export function PlanetContextMenu({
                     const disabledReason = getMissionDisabledReason(type);
                     const payload = computePlanetMissionCost(type, planet).payload;
                     const payloadCount = payload ? (payloadInventory[payload] ?? 0) : 0;
+                    const activeTypeProgress = activeMission?.type === type ? activeMissionProgress : null;
                     return (
-                      <MenuItem
-                        key={type}
-                        icon={type === 'orbital_probe' ? '⊙' : '▽'}
-                        label={t(`planet_missions.type.${type}`)}
-                        onClick={!disabledReason && onStartMission ? () => onStartMission(planet, type) : undefined}
-                        disabled={Boolean(disabledReason) || !onStartMission}
-                        title={disabledReason}
-                        right={disabledReason ? (payload ? `${payloadCount}` : undefined) : t('planet_missions.start')}
-                      />
+                      <div key={type}>
+                        <MenuItem
+                          icon={type === 'orbital_probe' ? '⊙' : '▽'}
+                          label={t(`planet_missions.type.${type}`)}
+                          onClick={!disabledReason && onStartMission ? () => onStartMission(planet, type) : undefined}
+                          disabled={Boolean(disabledReason) || !onStartMission}
+                          title={disabledReason}
+                          right={disabledReason ? (payload ? `${payloadCount}` : undefined) : t('planet_missions.start')}
+                        />
+                        {activeTypeProgress && (
+                          <div style={{ padding: '0 14px 8px 36px', color: '#7bb8ff', fontSize: 10 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <span>{t(`planet_missions.phase.${activeTypeProgress.phase}`)}</span>
+                              <span>{Math.round(activeTypeProgress.overallProgress * 100)}% · {formatMissionTime(activeTypeProgress.remainingMs)}</span>
+                            </div>
+                            <div style={{ height: 4, borderRadius: 2, background: 'rgba(40,55,70,0.7)', overflow: 'hidden' }}>
+                              <div style={{ width: `${Math.round(activeTypeProgress.overallProgress * 100)}%`, height: '100%', background: '#4488aa' }} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -1038,6 +1031,21 @@ export function PlanetContextMenu({
                   )}
                 </>
               )}
+              {isSystemAccessible && (
+                <>
+                  <div style={{ height: 1, background: 'rgba(50,65,85,0.4)', margin: '4px 0' }} />
+                  <div style={{ padding: '5px 14px 4px', color: '#445566', fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    {t('planet_terminal.tab_logistics')}
+                  </div>
+                  <LogisticsTab
+                    ships={cargoShips}
+                    shipments={cargoShipments}
+                    targetPlanetId={planet.id}
+                    planetResources={planetResourcesById}
+                    onStartCargoShipment={onStartCargoShipment}
+                  />
+                </>
+              )}
             </>
           )}
 
@@ -1052,7 +1060,12 @@ export function PlanetContextMenu({
           )}
 
           {activeTab === 'characteristics' && (
-            <CharacteristicsTab planet={planet} revealLevel={revealLevel} />
+            <CharacteristicsTab
+              planet={planet}
+              revealLevel={revealLevel}
+              terraformState={terraformState}
+              isColonized={isColonized}
+            />
           )}
 
           {activeTab === 'alpha' && (
@@ -1068,26 +1081,26 @@ export function PlanetContextMenu({
                   <>
                     <MenuItem
                       icon="◉"
-                      label={<>{t('planet.photo_exosphere_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
-                      onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('exosphere') : undefined}
-                      color={canAffordPhoto ? '#ddaa44' : '#445566'}
-                      disabled={!canAffordPhoto}
+                      label={<>{t('planet.photo_exosphere_label', { cost: exosphereCost })}<QuarkIcon /></>}
+                      onClick={canAffordExosphere && itemsActive ? () => onTelescopePhoto('exosphere') : undefined}
+                      color={canAffordExosphere ? '#ddaa44' : '#445566'}
+                      disabled={!canAffordExosphere}
                     />
                     {canGenerateSurfacePhotos && (
                       <>
                         <MenuItem
                           icon="▣"
-                          label={<>{t('planet.photo_biosphere_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
-                          onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('biosphere') : undefined}
-                          color={canAffordPhoto ? '#ddaa44' : '#445566'}
-                          disabled={!canAffordPhoto}
+                          label={<>{t('planet.photo_biosphere_label', { cost: biosphereCost })}<QuarkIcon /></>}
+                          onClick={canAffordBiosphere && itemsActive ? () => onTelescopePhoto('biosphere') : undefined}
+                          color={canAffordBiosphere ? '#ddaa44' : '#445566'}
+                          disabled={!canAffordBiosphere}
                         />
                         <MenuItem
                           icon="▽"
-                          label={<>{t('planet.photo_aerial_label', { cost: PHOTO_COST })}<QuarkIcon /></>}
-                          onClick={canAffordPhoto && itemsActive ? () => onTelescopePhoto('aerial') : undefined}
-                          color={canAffordPhoto ? '#ddaa44' : '#445566'}
-                          disabled={!canAffordPhoto}
+                          label={<>{t('planet.photo_aerial_label', { cost: aerialCost })}<QuarkIcon /></>}
+                          onClick={canAffordAerial && itemsActive ? () => onTelescopePhoto('aerial') : undefined}
+                          color={canAffordAerial ? '#ddaa44' : '#445566'}
+                          disabled={!canAffordAerial}
                         />
                       </>
                     )}
@@ -1115,57 +1128,6 @@ export function PlanetContextMenu({
                 )}
               </div>
             </>
-          )}
-
-          {activeTab === 'status' && (
-            <>
-              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={itemsActive ? onViewPlanet : undefined} color="#88ccaa" />
-              {isSurfacePlanet && onSurface && (
-                surfaceDisabledReason
-                  ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
-                  : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={itemsActive ? onSurface : undefined} color="#88ccaa" />
-              )}
-              {reportSummary && onViewReport && (
-                <MenuItem icon="□" label={t('planet_missions.view_report')} onClick={() => onViewReport(planet, reportSummary)} color="#ddaa44" right={`T${reportSummary.revealLevel}`} />
-              )}
-              <StatusTab revealLevel={revealLevel} terraformState={terraformState} isColonized={isColonized || planet.isHomePlanet} />
-            </>
-          )}
-
-          {activeTab === 'logistics' && (
-            <LogisticsTab
-              ships={cargoShips}
-              shipments={cargoShipments}
-              targetPlanetId={planet.id}
-              planetResources={planetResourcesById}
-              onStartCargoShipment={onStartCargoShipment}
-            />
-          )}
-
-          {activeTab === 'terraform' && (
-            <div style={{ padding: '12px 14px' }}>
-              <div style={{ fontSize: 10, color: '#8899aa', marginBottom: 8 }}>
-                {playerLevel < 48 ? t('planet_terminal.terraform_preview_l48') : t('planet.action_terraform')}
-              </div>
-              <button
-                disabled={!canLaunchTerraform || !onShowTerraform}
-                style={{
-                  width: '100%',
-                  padding: '9px 14px',
-                  background: 'rgba(20,40,20,0.6)',
-                  border: '1px solid #446644',
-                  borderRadius: 4,
-                  color: '#88cc88',
-                  fontFamily: 'monospace',
-                  fontSize: 11,
-                  cursor: canLaunchTerraform && onShowTerraform ? 'pointer' : 'not-allowed',
-                  textAlign: 'left' as const,
-                }}
-                onClick={() => { if (canLaunchTerraform && onShowTerraform) { onShowTerraform(planet); onClose(); } }}
-              >
-                {canLaunchTerraform ? `${t('planet.action_terraform')} →` : t('planet_terminal.terraform_requirements_visible')}
-              </button>
-            </div>
           )}
 
         </div>

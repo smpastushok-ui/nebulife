@@ -12,9 +12,8 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks, BuildingType, ProducibleType } from '@nebulife/core';
-import { BUILDING_DEFS, getDepletionEfficiency, PRODUCIBLE_DEFS } from '@nebulife/core';
-import type { LogEntry } from '../CosmicArchive/SystemLog.js';
+import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks, BuildingType, ProducibleType, FleetState } from '@nebulife/core';
+import { BUILDING_DEFS, getDepletionEfficiency } from '@nebulife/core';
 import { getDeviceTier } from '../../../utils/device-tier.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
@@ -52,6 +51,8 @@ export interface ColonyCenterPlanet {
   colonyLevel: number;
   /** Habitability 0..1 (overall score). */
   habitability?: number;
+  /** Current population state for this colony. */
+  population?: { current: number; capacity: number };
   /** Whether this is the active/currently-viewed colony. */
   active: boolean;
 }
@@ -75,8 +76,6 @@ export interface ColonyCenterPageProps {
   energyBalance: { produced: number; consumed: number };
   /** researchData balance + hourly income. */
   researchData: number;
-  /** Log entries for the Events tab. */
-  logEntries: LogEntry[];
   /** Player premium currency (quarks) — required for boost purchases. */
   quarks: number;
   /**
@@ -101,8 +100,10 @@ export interface ColonyCenterPageProps {
   onResourceChange?: (delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => void;
   onResearchDataChange?: (delta: number) => void;
   explorationPayloads?: Partial<Record<ProducibleType, number>>;
+  shipFleet?: FleetState;
   explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
   onStartPayloadProduction?: (type: ProducibleType) => void;
+  initialTab?: ColonyCenterTabId;
 }
 
 // ---------------------------------------------------------------------------
@@ -129,10 +130,10 @@ export const BOOST_DURATION_MS = 24 * 60 * 60 * 1000;
 // Tab definitions
 // ---------------------------------------------------------------------------
 
-type TabId = 'overview' | 'colonies' | 'production' | 'buildings' | 'events' | 'premium';
+export type ColonyCenterTabId = 'overview' | 'colonies' | 'production' | 'buildings' | 'events' | 'premium';
 
 interface TabDef {
-  id: TabId;
+  id: ColonyCenterTabId;
   labelKey: string;
 }
 
@@ -337,6 +338,7 @@ function OverviewTab({
 }: ColonyCenterPageProps) {
   const { t } = useTranslation();
   const habPct = Math.round((active.habitability ?? 0) * 100);
+  const population = active.population ?? { current: 0, capacity: 0 };
 
   // Aggregated view — merges EVERY colony this player owns.
   const agg = useMemo(() => {
@@ -401,7 +403,7 @@ function OverviewTab({
       )}
 
       {/* Energy + Habitability */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
         <StatCard
           label={t('colony_center.overview.energy')}
           value={`${energyBalance.produced} / ${energyBalance.consumed}`}
@@ -409,6 +411,12 @@ function OverviewTab({
           sub={energyShortfall > 0
             ? t('colony_center.overview.shortfall', { amount: energyShortfall })
             : t('colony_center.overview.surplus', { amount: -energyShortfall })}
+        />
+        <StatCard
+          label={t('building_detail.population')}
+          value={`${population.current} / ${population.capacity}`}
+          accent={population.capacity > 0 ? '#88bb99' : '#667788'}
+          sub={t('building_detail.population_desc')}
         />
         <StatCard
           label={t('colony_center.overview.habitability')}
@@ -510,120 +518,6 @@ function ColoniesTab({ active, allColonies, onTeleport }: ColonyCenterPageProps)
   );
 }
 
-const EXPLORATION_LAUNCH_TYPES: ProducibleType[] = [
-  'survey_probe',
-  'orbital_satellite',
-  'surface_rover',
-  'atmosphere_probe',
-];
-
-const RESEARCH_TRANSPORT_TYPES_UI: ProducibleType[] = [
-  'research_shuttle',
-  'rover_dropcraft',
-  'atmo_probe_carrier',
-];
-
-const HEAVY_LOGISTICS_TYPES: ProducibleType[] = [
-  'research_station_kit',
-  'transport_small',
-  'transport_large',
-  'terraform_freighter',
-  'colony_ship',
-];
-
-function formatQueueTime(ms: number): string {
-  const total = Math.max(0, Math.ceil(ms / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return minutes > 0 ? `${minutes}m ${seconds.toString().padStart(2, '0')}s` : `${seconds}s`;
-}
-
-function payloadCostSummary(type: ProducibleType): string {
-  const totals: Record<string, number> = {};
-  for (const cost of PRODUCIBLE_DEFS[type]?.cost ?? []) {
-    const key = cost.resource === 'volatiles' || cost.resource === 'isotopes' || cost.resource === 'water'
-      ? cost.resource
-      : 'minerals';
-    totals[key] = (totals[key] ?? 0) + cost.amount;
-  }
-  return Object.entries(totals)
-    .filter(([, amount]) => amount > 0)
-    .map(([key, amount]) => `${key} ${amount}`)
-    .join(' · ');
-}
-
-function ProducibleCard({
-  type,
-  count,
-  activeQueue,
-  canBuild,
-  onBuild,
-  disabledReason,
-  t,
-}: {
-  type: ProducibleType;
-  count: number;
-  activeQueue: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
-  canBuild: boolean;
-  onBuild?: (type: ProducibleType) => void;
-  disabledReason?: string;
-  t: ReturnType<typeof useTranslation>['t'];
-}) {
-  const nextDone = activeQueue.length > 0
-    ? Math.min(...activeQueue.map((item) => item.startedAt + item.durationMs))
-    : null;
-
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto',
-        gap: 8,
-        alignItems: 'center',
-        padding: '7px 8px',
-        border: '1px solid rgba(51,68,85,0.55)',
-        borderRadius: 4,
-        background: 'rgba(5,10,20,0.42)',
-      }}
-    >
-      <div>
-        <div style={{ color: '#aabbcc', fontSize: 11 }}>
-          {t(`planet_missions.payload.${type}`)}
-          <span style={{ color: '#7bb8ff', marginLeft: 8 }}>×{count}</span>
-          {activeQueue.length > 0 && (
-            <span style={{ color: '#ddaa44', marginLeft: 8 }}>
-              +{activeQueue.length} / {formatQueueTime((nextDone ?? Date.now()) - Date.now())}
-            </span>
-          )}
-        </div>
-        <div style={{ color: '#556677', fontSize: 9, marginTop: 2 }}>
-          {payloadCostSummary(type)}
-        </div>
-      </div>
-      <button
-        onClick={() => {
-          playSfx('ui-click', 0.07);
-          onBuild?.(type);
-        }}
-        disabled={!canBuild || !onBuild}
-        title={!canBuild ? disabledReason : undefined}
-        style={{
-          background: canBuild ? 'rgba(30,60,80,0.65)' : 'rgba(20,25,35,0.45)',
-          border: canBuild ? '1px solid #446688' : '1px solid #334455',
-          borderRadius: 3,
-          color: canBuild ? '#7bb8ff' : '#445566',
-          fontFamily: 'monospace',
-          fontSize: 10,
-          padding: '6px 9px',
-          cursor: canBuild ? 'pointer' : 'not-allowed',
-        }}
-      >
-        {t('colony_center.production.build_payload')}
-      </button>
-    </div>
-  );
-}
-
 function ProductionTab({
   active,
   allColonies,
@@ -633,9 +527,6 @@ function ProductionTab({
   colonyResources,
   colonyResourcesByPlanet,
   planetStocks,
-  explorationPayloads,
-  explorationProductionQueue,
-  onStartPayloadProduction,
 }: ColonyCenterPageProps) {
   const { t } = useTranslation();
   const [scope, setScope] = useState<'this' | 'all'>('this');
@@ -757,121 +648,6 @@ function ProductionTab({
         );
       })}
 
-      <div style={{
-        marginTop: 4,
-        background: 'rgba(10,15,25,0.55)',
-        border: '1px solid #233344',
-        borderRadius: 4,
-        padding: 10,
-        fontFamily: 'monospace',
-      }}>
-        <div style={{
-          fontSize: 10,
-          color: '#7bb8ff',
-          letterSpacing: 2,
-          textTransform: 'uppercase',
-          marginBottom: 8,
-        }}>
-          {t('colony_center.production.research_transports')}
-        </div>
-        <div style={{ display: 'grid', gap: 6 }}>
-          {RESEARCH_TRANSPORT_TYPES_UI.map((type) => {
-            const def = PRODUCIBLE_DEFS[type];
-            const count = explorationPayloads?.[type] ?? 0;
-            const activeQueue = (explorationProductionQueue ?? []).filter((item) => item.type === type);
-            const canBuild = active.buildings.some((building) => building.type === def.requiresBuilding && !building.shutdown);
-            return (
-              <ProducibleCard
-                key={type}
-                type={type}
-                count={count}
-                activeQueue={activeQueue}
-                canBuild={canBuild}
-                onBuild={onStartPayloadProduction}
-                disabledReason={t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${def.requiresBuilding}`) })}
-                t={t}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{
-        marginTop: 4,
-        background: 'rgba(10,15,25,0.55)',
-        border: '1px solid #233344',
-        borderRadius: 4,
-        padding: 10,
-        fontFamily: 'monospace',
-      }}>
-        <div style={{
-          fontSize: 10,
-          color: '#7bb8ff',
-          letterSpacing: 2,
-          textTransform: 'uppercase',
-          marginBottom: 8,
-        }}>
-          {t('colony_center.production.exploration_payloads')}
-        </div>
-        <div style={{ display: 'grid', gap: 6 }}>
-          {EXPLORATION_LAUNCH_TYPES.map((type) => {
-            const def = PRODUCIBLE_DEFS[type];
-            const count = explorationPayloads?.[type] ?? 0;
-            const activeQueue = (explorationProductionQueue ?? []).filter((item) => item.type === type);
-            const canBuild = active.buildings.some((building) => building.type === def.requiresBuilding && !building.shutdown);
-            return (
-              <ProducibleCard
-                key={type}
-                type={type}
-                count={count}
-                activeQueue={activeQueue}
-                canBuild={canBuild}
-                onBuild={onStartPayloadProduction}
-                disabledReason={t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${def.requiresBuilding}`) })}
-                t={t}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{
-        background: 'rgba(10,15,25,0.4)',
-        border: '1px solid rgba(51,68,85,0.45)',
-        borderRadius: 4,
-        padding: 10,
-        fontFamily: 'monospace',
-      }}>
-        <div style={{
-          fontSize: 10,
-          color: '#8899aa',
-          letterSpacing: 2,
-          textTransform: 'uppercase',
-          marginBottom: 8,
-        }}>
-          {t('colony_center.production.heavy_logistics')}
-        </div>
-        <div style={{ display: 'grid', gap: 6 }}>
-          {HEAVY_LOGISTICS_TYPES.map((type) => {
-            const def = PRODUCIBLE_DEFS[type];
-            const count = explorationPayloads?.[type] ?? 0;
-            const activeQueue = (explorationProductionQueue ?? []).filter((item) => item.type === type);
-            const canBuild = active.buildings.some((building) => building.type === def.requiresBuilding && !building.shutdown);
-            return (
-              <ProducibleCard
-                key={type}
-                type={type}
-                count={count}
-                activeQueue={activeQueue}
-                canBuild={canBuild}
-                onBuild={onStartPayloadProduction}
-                disabledReason={t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${def.requiresBuilding}`) })}
-                t={t}
-              />
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1020,17 +796,111 @@ function BuildingsTab({ active, onInspectBuilding }: ColonyCenterPageProps & { o
   );
 }
 
-function EventsTab({ logEntries }: ColonyCenterPageProps) {
+function EventsTab({
+  active,
+  colonyResources,
+  storageCapacity,
+  productionPerHour,
+  energyBalance,
+  planetStocks,
+  explorationProductionQueue,
+}: ColonyCenterPageProps) {
   const { t } = useTranslation();
 
-  // Show only economy + science categories (colony-relevant) and newest first.
-  const filtered = useMemo(() => {
-    return logEntries
-      .filter((e) => e.category === 'economy' || e.category === 'science')
-      .slice(0, 30);
-  }, [logEntries]);
+  const localEvents = useMemo(() => {
+    const rows: Array<{ id: string; tone: 'ok' | 'warn' | 'info'; text: string; meta: string }> = [];
+    const population = active.population ?? { current: 0, capacity: 0 };
+    const energyShortfall = Math.max(0, energyBalance.consumed - energyBalance.produced);
+    rows.push({
+      id: 'energy',
+      tone: energyShortfall > 0 ? 'warn' : 'ok',
+      text: energyShortfall > 0
+        ? t('colony_center.events.energy_shortfall', { amount: energyShortfall })
+        : t('colony_center.events.energy_ok'),
+      meta: `${energyBalance.produced}/${energyBalance.consumed}`,
+    });
 
-  if (filtered.length === 0) {
+    const fullResources = (['minerals', 'volatiles', 'isotopes', 'water'] as const)
+      .filter((key) => colonyResources[key] >= storageCapacity);
+    if (fullResources.length > 0) {
+      rows.push({
+        id: 'storage-full',
+        tone: 'warn',
+        text: t('colony_center.events.storage_full', {
+          resources: fullResources.map((key) => t(`colony_center.resource.${key}`)).join(', '),
+        }),
+        meta: t('colony_center.events.storage_meta'),
+      });
+    } else {
+      const usedPct = storageCapacity > 0
+        ? Math.round(Math.max(...(['minerals', 'volatiles', 'isotopes', 'water'] as const).map((key) => colonyResources[key] / storageCapacity)) * 100)
+        : 0;
+      rows.push({
+        id: 'storage-ok',
+        tone: 'ok',
+        text: t('colony_center.events.storage_ok'),
+        meta: `${usedPct}%`,
+      });
+    }
+
+    const queuedForPlanet = (explorationProductionQueue ?? []).filter((item) => item.planetId === active.planet.id);
+    if (queuedForPlanet.length > 0) {
+      rows.push({
+        id: 'transport-queue',
+        tone: 'info',
+        text: t('colony_center.events.transport_queue', { count: queuedForPlanet.length }),
+        meta: t('colony_center.tab.production'),
+      });
+    }
+
+    if (population.capacity <= 0) {
+      rows.push({
+        id: 'population-none',
+        tone: 'warn',
+        text: t('colony_center.events.population_no_capacity'),
+        meta: '0/0',
+      });
+    } else {
+      rows.push({
+        id: 'population',
+        tone: population.current >= population.capacity ? 'warn' : 'info',
+        text: population.current >= population.capacity
+          ? t('colony_center.events.population_at_cap')
+          : t('colony_center.events.population_ok'),
+        meta: `${population.current}/${population.capacity}`,
+      });
+    }
+
+    const netProduction = (['minerals', 'volatiles', 'isotopes', 'water'] as const)
+      .reduce((sum, key) => sum + Math.max(0, productionPerHour[key]), 0);
+    rows.push({
+      id: 'production',
+      tone: netProduction > 0 ? 'ok' : 'info',
+      text: netProduction > 0
+        ? t('colony_center.events.production_active')
+        : t('colony_center.events.production_idle'),
+      meta: `+${netProduction.toFixed(1)}/h`,
+    });
+
+    if (planetStocks) {
+      const depleted = (['minerals', 'volatiles', 'isotopes', 'water'] as const)
+        .filter((key) => planetStocks.remaining[key] <= 0);
+      if (depleted.length > 0) {
+        rows.push({
+          id: 'stocks-depleted',
+          tone: 'warn',
+          text: t('colony_center.events.deposits_depleted', {
+            resources: depleted.map((key) => t(`colony_center.resource.${key}`)).join(', '),
+          }),
+          meta: t('colony_center.depleted'),
+        });
+      }
+    }
+
+    return rows;
+  }, [active.planet.id, active.population, colonyResources, energyBalance, explorationProductionQueue, planetStocks, productionPerHour, storageCapacity, t]);
+
+  if (localEvents.length === 0) {
     return (
       <div style={{ fontSize: 11, color: '#556677', fontFamily: 'monospace', textAlign: 'center', padding: 40 }}>
         {t('colony_center.events.empty')}
@@ -1039,9 +909,14 @@ function EventsTab({ logEntries }: ColonyCenterPageProps) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {filtered.map((e) => (
-        <div key={e.id} style={{
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 4 }}>
+        {t('colony_center.events.local_title', { planet: active.planet.name })}
+      </div>
+      {localEvents.map((event) => {
+        const accent = event.tone === 'warn' ? '#ff8844' : event.tone === 'ok' ? '#44ff88' : '#7bb8ff';
+        return (
+        <div key={event.id} style={{
           background: 'rgba(10,15,25,0.5)',
           border: '1px solid #223344',
           borderRadius: 3,
@@ -1051,16 +926,21 @@ function EventsTab({ logEntries }: ColonyCenterPageProps) {
           color: '#aabbcc',
           display: 'flex',
           justifyContent: 'space-between',
+          alignItems: 'center',
           gap: 10,
         }}>
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {e.text}
-          </span>
-          <span style={{ color: '#556677', fontSize: 9, flexShrink: 0 }}>
-            {new Date(e.timestamp).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span style={{ width: 7, height: 7, borderRadius: 2, background: accent, boxShadow: `0 0 8px ${accent}55`, flexShrink: 0 }} />
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {event.text}
+            </span>
+          </div>
+          <span style={{ color: '#667788', fontSize: 9, flexShrink: 0 }}>
+            {event.meta}
           </span>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -1199,7 +1079,7 @@ function BoostSection({
 
 export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<TabId>('overview');
+  const [tab, setTab] = useState<ColonyCenterTabId>(props.initialTab ?? 'overview');
   const [quarkHover, setQuarkHover] = useState(false);
   const [inspectBuildingType, setInspectBuildingType] = useState<BuildingType | null>(null);
 
@@ -1208,7 +1088,7 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
     return tier === 'low' || tier === 'mid';
   }, []);
 
-  const handleTabChange = useCallback((id: TabId) => {
+  const handleTabChange = useCallback((id: ColonyCenterTabId) => {
     playSfx('ui-click', 0.07);
     setTab(id);
   }, []);
@@ -1356,6 +1236,10 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
           colonyResources={props.colonyResources}
           researchData={props.researchData}
           planetStocks={props.planetStocks}
+          explorationPayloads={props.explorationPayloads}
+          shipFleet={props.shipFleet}
+          explorationProductionQueue={props.explorationProductionQueue}
+          onStartPayloadProduction={props.onStartPayloadProduction}
           onClose={() => setInspectBuildingType(null)}
           onOpenColonyCenter={() => setInspectBuildingType(null)}
           onResourceChange={props.onResourceChange}

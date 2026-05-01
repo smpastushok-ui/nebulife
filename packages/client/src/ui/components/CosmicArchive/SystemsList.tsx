@@ -322,7 +322,7 @@ export function SystemsList({
   // Grid column template — no left quark column any more (⚛ is absolutely
   // positioned outside the row's right edge when visible).
   const gridColsMobile    = hasResearchCol ? 'minmax(0,1fr) 30px 28px 28px 78px' : 'minmax(0,1fr) 30px 28px 28px';
-  const gridColsDesktop   = hasResearchCol ? 'minmax(0,1fr) 36px 56px 36px 36px 88px' : 'minmax(0,1fr) 36px 56px 36px 36px';
+  const gridColsDesktop   = hasResearchCol ? 'minmax(0,1fr) 36px 36px 36px 88px' : 'minmax(0,1fr) 36px 36px 36px';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -351,17 +351,6 @@ export function SystemsList({
             </svg>
           </HeaderIcon>
         </div>
-        {!isMobile && (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <HeaderIcon tooltip={t('archive.tooltip_coordinates')}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2" strokeLinecap="round">
-                <circle cx="8" cy="8" r="1.5" />
-                <line x1="8" y1="1" x2="8" y2="15" />
-                <line x1="1" y1="8" x2="15" y2="8" />
-              </svg>
-            </HeaderIcon>
-          </div>
-        )}
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <HeaderIcon tooltip={t('archive.tooltip_planet_count')}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
@@ -515,15 +504,6 @@ export function SystemsList({
               const fullyResearched = progressPct >= 100 || (isFullyResearched?.(system.id) ?? false);
               const canResearch = locked || fullyResearched ? false : (canStartResearch?.(system.id) ?? false);
               const isFirstNonHome = system.id === firstNonHomeId;
-              const statusColor = fullyResearched
-                ? '#7fd9a6'
-                : researching
-                  ? '#78a8d8'
-                  : canResearch
-                    ? '#d7b36a'
-                    : locked
-                      ? '#556677'
-                      : '#667788';
               const statusLabel = fullyResearched
                 ? t('archive.status_complete')
                 : researching
@@ -604,75 +584,46 @@ export function SystemsList({
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: locked ? '#667788' : '#c6d8ee' }}>
                         {name}
                       </span>
-                      {!isMobile && (
-                        <span style={{
-                          marginLeft: 'auto',
-                          color: statusColor,
-                          border: `1px solid ${statusColor}26`,
-                          background: `${statusColor}0c`,
-                          borderRadius: 999,
-                          padding: '2px 7px',
-                          fontSize: 9,
-                          letterSpacing: 0.8,
-                          textTransform: 'uppercase',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {statusLabel}
-                        </span>
-                      )}
                     </div>
-                    {fullyResearched ? (
-                      <div style={{ marginTop: 5, color: '#7bb8ff', opacity: 0.76, fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase' }}>
-                        {t('archive.status_100_researched')}
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
+                      <div style={{
+                        position: 'relative',
+                        flex: 1,
+                        height: 3,
+                        overflow: 'hidden',
+                        borderRadius: 999,
+                        background: 'rgba(51,68,85,0.16)',
+                      }}>
                         <div style={{
-                          position: 'relative',
-                          flex: 1,
-                          height: 3,
-                          overflow: 'hidden',
+                          width: `${progressPct}%`,
+                          height: '100%',
                           borderRadius: 999,
-                          background: 'rgba(51,68,85,0.16)',
-                        }}>
-                          <div style={{
-                            width: `${progressPct}%`,
+                          background: 'linear-gradient(90deg, rgba(68,136,170,0.28), rgba(123,184,255,0.48))',
+                          boxShadow: progressPct > 0 ? '0 0 4px rgba(123,184,255,0.14)' : undefined,
+                          transition: 'width 0.25s ease',
+                        }} />
+                        {researching && (
+                          <span style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '32%',
                             height: '100%',
-                            borderRadius: 999,
-                            background: 'linear-gradient(90deg, rgba(68,136,170,0.28), rgba(123,184,255,0.48))',
-                            boxShadow: progressPct > 0 ? '0 0 4px rgba(123,184,255,0.14)' : undefined,
-                            transition: 'width 0.25s ease',
+                            background: 'linear-gradient(90deg, transparent, rgba(180,215,245,0.16), transparent)',
+                            animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
                           }} />
-                          {researching && (
-                            <span style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '32%',
-                              height: '100%',
-                              background: 'linear-gradient(90deg, transparent, rgba(180,215,245,0.16), transparent)',
-                              animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
-                            }} />
-                          )}
-                        </div>
-                        <span style={{ color: '#7bb8ff', opacity: 0.66, fontSize: 10, minWidth: 34, textAlign: 'right' }}>
-                          {Math.round(progressPct)}%
-                        </span>
+                        )}
                       </div>
-                    )}
+                      <span style={{ color: '#7bb8ff', opacity: 0.66, fontSize: 10, minWidth: 34, textAlign: 'right' }}>
+                        {Math.round(progressPct)}%
+                      </span>
+                    </div>
                   </div>
 
                   {/* Spectral class */}
                   <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
                     {system.star.spectralClass}
                   </span>
-
-                  {/* Coordinates (hidden on mobile) */}
-                  {!isMobile && (
-                    <span style={{ color: '#556677', fontSize: 10 }}>
-                      {system.position.x.toFixed(0)}, {system.position.y.toFixed(0)}
-                    </span>
-                  )}
 
                   {/* Planet count */}
                   <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
@@ -1002,58 +953,47 @@ function ResearchProgressIcon({
       style={{
         position: 'relative',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: isComplete ? 30 : 34,
-        height: isComplete ? 30 : 34,
+        width: 30,
+        height: 30,
         borderRadius: isComplete ? 3 : '50%',
         background: isComplete
           ? 'transparent'
-          : isResearching
-            ? 'rgba(123,168,216,0.09)'
-            : disabled
-              ? 'rgba(68,102,136,0.045)'
-              : hover ? 'rgba(123,168,216,0.13)' : 'rgba(68,136,255,0.045)',
-        border: isComplete ? '1px solid transparent' : `1px solid ${isResearching ? 'rgba(123,184,255,0.32)' : disabled ? 'rgba(68,102,136,0.18)' : 'rgba(123,184,255,0.24)'}`,
+          : hover && !disabled ? 'rgba(123,168,216,0.08)' : 'transparent',
+        border: '1px solid transparent',
         cursor: disabled ? 'default' : 'pointer',
         padding: 0,
         transition: 'background 0.15s, border-color 0.15s',
         opacity: disabled ? 0.62 : 1,
       }}
     >
-      {/* Track + progress arc. For complete state we still draw the full
-          ring as a solid stroke so the icon reads as "filled" at a glance. */}
+      {/* Progress arc only: no extra outer button ring around the magnifier. */}
       {!isComplete && (
       <svg
-        width={26}
-        height={26}
+        width={30}
+        height={30}
         viewBox="0 0 26 26"
-        style={{ position: 'absolute', inset: 4 }}
+        style={{ position: 'absolute', inset: 0 }}
       >
-        {/* Base track — faint outline ring (30% opacity for idle/researching,
-            full opacity inside the filled-blue circle for complete). */}
         <circle
           cx={cx}
           cy={cy}
           r={r}
           fill="none"
-          stroke={isComplete ? '#7fd9a6' : disabled ? '#556677' : '#7bb8ff'}
-          strokeOpacity={isComplete ? 0.7 : disabled ? 0.3 : 0.26}
-          strokeWidth={1.4}
+          stroke={disabled ? '#556677' : '#334455'}
+          strokeOpacity={disabled ? 0.3 : 0.55}
+          strokeWidth={1.55}
         />
-        {/* Foreground progress arc — drawn as a stroke-dasharray slice. We
-            rotate -90° so progress starts at 12 o'clock. */}
-        {arcLen > 0 && (
-          <circle
-            cx={cx}
-            cy={cy}
-            r={r}
-            fill="none"
-            stroke={isResearching ? '#78a8d8' : '#d7b36a'}
-            strokeWidth={1.6}
-            strokeLinecap="round"
-            strokeDasharray={`${arcLen} ${circ}`}
-            transform={`rotate(-90 ${cx} ${cy})`}
-          />
-        )}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill="none"
+          stroke={isResearching ? '#78a8d8' : '#d7b36a'}
+          strokeWidth={1.9}
+          strokeLinecap="round"
+          strokeDasharray={`${arcLen} ${circ}`}
+          transform={`rotate(-90 ${cx} ${cy})`}
+        />
       </svg>
       )}
 
@@ -1090,8 +1030,8 @@ function ResearchProgressIcon({
       ) : (
         /* Static magnifier — idle (clickable to start). */
         <svg
-          width={12}
-          height={12}
+          width={18}
+          height={18}
           viewBox="0 0 16 16"
           style={{ position: 'relative', zIndex: 1 }}
           fill="none"

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, Planet, PlanetResourceStocks } from '@nebulife/core';
+import type { StarSystem, Planet, PlanetResourceStocks, Ship, CargoShipment } from '@nebulife/core';
 import type { PlanetTerraformState, TerraformParamId, TechTreeState } from '@nebulife/core';
 import {
   isTerraformable,
@@ -10,6 +10,7 @@ import {
   computeParamRequirement,
   tierForBuildings,
   generatePlanetStocks,
+  PRODUCIBLE_DEFS,
 } from '@nebulife/core';
 import type { ColonyResources } from '../Terraform/MissionDispatchModal.js';
 import type { PlacedBuilding } from '@nebulife/core';
@@ -27,6 +28,8 @@ type FilterId =
   | 'life'
   | 'volatiles'
   | 'population';
+
+type TerminalPlanetTab = 'research' | 'science' | 'resources' | 'logistics' | 'terraform' | 'status';
 
 interface PlanetsCatalogV2Props {
   allSystems: StarSystem[];
@@ -63,6 +66,10 @@ interface PlanetsCatalogV2Props {
   colonyBuildings?: PlacedBuilding[];
   /** Callback to rename a planet (inline edit). Saved in planetOverrides. */
   onRenamePlanet?: (planetId: string, newName: string) => void;
+  /** Reusable cargo ships for Terminal -> Planets logistics tab. */
+  cargoShips?: Ship[];
+  /** Active cargo shipments for Terminal -> Planets logistics tab. */
+  cargoShipments?: CargoShipment[];
   /**
    * Finite planet resource stocks (v168).
    * When provided, the detail panel shows stock units rather than colony inventory.
@@ -1298,6 +1305,12 @@ interface ExpandedDetailPanelProps {
   isFavorite?: boolean;
   /** Callback to open the planet detail view */
   onViewPlanet?: (system: StarSystem, planetId: string) => void;
+  /** Optional surface navigation callback. */
+  onOpenSurface?: (system: StarSystem, planetId: string) => void;
+  /** Reusable cargo ships for the logistics tab. */
+  cargoShips?: Ship[];
+  /** Active cargo shipments for the logistics tab. */
+  cargoShipments?: CargoShipment[];
   onClose: () => void;
   /** Finite planet resource stocks for displaying remaining deposit units (v168). */
   planetResourceStocks?: Record<string, PlanetResourceStocks>;
@@ -1319,10 +1332,14 @@ function ExpandedDetailPanel({
   onToggleFavorite,
   isFavorite = false,
   onViewPlanet,
+  onOpenSurface,
+  cargoShips = [],
+  cargoShipments = [],
   onClose,
   planetResourceStocks,
 }: ExpandedDetailPanelProps) {
   const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<TerminalPlanetTab>('research');
 
   // Inline rename state
   const [renaming, setRenaming] = useState(false);
@@ -1376,6 +1393,25 @@ function ExpandedDetailPanel({
 
   // Small planet circle color for the header
   const planetColor = getPlanetBodyColor(planet);
+  const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
+  const availableCargoShips = cargoShips.filter((ship) => ship.status === 'docked' && !ship.assignmentId);
+  const localCargoShips = availableCargoShips.filter((ship) => ship.currentPlanetId === planet.id);
+  const relatedShipments = cargoShipments.filter((shipment) => shipment.fromPlanetId === planet.id || shipment.toPlanetId === planet.id);
+  const statusItems = [
+    { label: t('planet_terminal.badge_atmosphere'), active: Boolean(planet.atmosphere) },
+    { label: t('planet_terminal.badge_surface'), active: isSurfacePlanet },
+    { label: t('planet_terminal.badge_colonized'), active: colonyPlanetIds.has(planet.id) || planet.isHomePlanet },
+    { label: t('planet_terminal.badge_terraforming'), active: Boolean(tfState && overallPct > 0 && !tfState.completedAt) },
+    { label: t('planet_terminal.badge_terraformed'), active: Boolean(tfState?.completedAt) },
+  ];
+  const terminalTabs: Array<{ id: TerminalPlanetTab; label: string }> = [
+    { id: 'research', label: t('planet_terminal.tab_research', { defaultValue: t('planet.tab_actions') }) },
+    { id: 'science', label: t('planet_terminal.tab_science', { defaultValue: t('planet.characteristics') }) },
+    { id: 'resources', label: t('planet_terminal.tab_resources') },
+    { id: 'logistics', label: t('planet_terminal.tab_logistics') },
+    { id: 'terraform', label: t('planet_terminal.tab_terraform') },
+    { id: 'status', label: t('planet_terminal.tab_status') },
+  ];
 
   // Info grid: left column = gravity, moons; right column = other params (no Colony field)
   const leftFields: Array<{ label: string; value: string }> = [
@@ -1547,108 +1583,154 @@ function ExpandedDetailPanel({
         </button>
       </div>
 
+      <div style={{ display: 'flex', overflowX: 'auto', borderBottom: '1px solid rgba(51,68,85,0.35)' }}>
+        {terminalTabs.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                flex: '0 0 auto',
+                padding: '8px 10px',
+                background: active ? 'rgba(40,70,110,0.22)' : 'none',
+                border: 'none',
+                borderRight: '1px solid rgba(51,68,85,0.28)',
+                borderBottom: active ? '2px solid #7bb8ff' : '2px solid transparent',
+                color: active ? '#7bb8ff' : '#667788',
+                cursor: 'pointer',
+                fontFamily: 'monospace',
+                fontSize: 9,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
       <div style={{ padding: '10px 12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-        {/* 2. Terraform param list */}
-        {showTerraformSection && tfState && (
-          <div>
-            <div style={{
-              fontSize: 8,
-              color: '#445566',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              marginBottom: 6,
-            }}>
-              {t('planets_catalog.tf_section_title')}
-            </div>
-            {PARAM_ORDER.map((paramId) => (
-              <TerraformParamDetailRow
-                key={paramId}
-                paramId={paramId}
-                planet={planet}
-                terraformState={tfState}
-                donorPlanets={donorPlanets}
-                techTreeState={techTreeState}
-                shipTier={shipTier}
-                getPlanetResources={getPlanetResources}
-                onSendTerraformDelivery={onSendTerraformDelivery}
-              />
-            ))}
+        {activeTab === 'research' && (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <button
+              onClick={() => { onViewPlanet?.(system, planet.id); onClose(); }}
+              style={{ padding: '9px 12px', background: 'rgba(40,70,100,0.28)', border: '1px solid #446688', borderRadius: 4, color: '#7bb8ff', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', textAlign: 'left' }}
+            >
+              {t('archive.planet_menu_view')}
+            </button>
+            {onOpenSurface && isSurfacePlanet && (
+              <button
+                onClick={() => { onOpenSurface(system, planet.id); onClose(); }}
+                style={{ padding: '9px 12px', background: 'rgba(20,40,35,0.45)', border: '1px solid #446644', borderRadius: 4, color: '#88ccaa', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', textAlign: 'left' }}
+              >
+                {t('nav.surface_btn')}
+              </button>
+            )}
           </div>
         )}
 
-        {/* 3. Resource stocks — icon + value only, no title/header */}
-        {planetStocks && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#8899aa' }}>
-              <ResourceIcon type="minerals" size={12} />
-              <span style={{ color: RESOURCE_COLORS.minerals }}>{formatK(Math.round(planetStocks.minerals), t('format.k'), t('format.kk'))}</span>
+        {activeTab === 'science' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            <div>
+              {leftFields.map(({ label, value }) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(40,55,75,0.25)', padding: '3px 0' }}>
+                  <span style={{ fontSize: 9, color: '#445566' }}>{label}</span>
+                  <span style={{ fontSize: 9, color: '#8899aa' }}>{value}</span>
+                </div>
+              ))}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#8899aa' }}>
-              <ResourceIcon type="volatiles" size={12} />
-              <span style={{ color: RESOURCE_COLORS.volatiles }}>{formatK(Math.round(planetStocks.volatiles), t('format.k'), t('format.kk'))}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#8899aa' }}>
-              <ResourceIcon type="isotopes" size={12} />
-              <span style={{ color: RESOURCE_COLORS.isotopes }}>{formatK(Math.round(planetStocks.isotopes), t('format.k'), t('format.kk'))}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#8899aa' }}>
-              <ResourceIcon type="water" size={12} />
-              <span style={{ color: RESOURCE_COLORS.water }}>{formatK(Math.round(planetStocks.water), t('format.k'), t('format.kk'))}</span>
+            <div>
+              {rightFields.map(({ label, value }) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(40,55,75,0.25)', padding: '3px 0' }}>
+                  <span style={{ fontSize: 9, color: '#445566' }}>{label}</span>
+                  <span style={{ fontSize: 9, color: '#8899aa', textAlign: 'right', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* 4b. Info grid — 2 columns: left = gravity+moons; right = size+hydro+distance */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '2px 12px',
-        }}>
-          {/* Left column */}
-          <div>
-            {leftFields.map(({ label, value }) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(40,55,75,0.25)', padding: '3px 0' }}>
-                <span style={{ fontSize: 9, color: '#445566' }}>{label}</span>
-                <span style={{ fontSize: 9, color: '#8899aa' }}>{value}</span>
+        {activeTab === 'resources' && planetStocks && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {(['minerals', 'volatiles', 'isotopes', 'water'] as const).map((resource) => (
+              <div key={resource} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: 7, border: '1px solid rgba(51,68,85,0.38)', borderRadius: 4, background: 'rgba(5,10,20,0.35)', fontSize: 10 }}>
+                <ResourceIcon type={resource} size={13} />
+                <span style={{ color: RESOURCE_COLORS[resource] }}>{formatK(Math.round(planetStocks[resource]), t('format.k'), t('format.kk'))}</span>
               </div>
             ))}
           </div>
-          {/* Right column */}
-          <div>
-            {rightFields.map(({ label, value }) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(40,55,75,0.25)', padding: '3px 0' }}>
-                <span style={{ fontSize: 9, color: '#445566' }}>{label}</span>
-                <span style={{ fontSize: 9, color: '#8899aa', textAlign: 'right', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
 
-        {/* 5. Final terraform button — only if >=95% */}
-        {showCompleteButton && (
-          <button
-            onClick={() => onCompleteTerraform?.(planet)}
-            style={{
-              padding: '10px 20px',
-              background: 'rgba(30,80,50,0.8)',
-              border: '1px solid #44ff88',
-              borderRadius: 4,
-              color: '#44ff88',
-              fontFamily: 'monospace',
-              fontSize: 12,
-              cursor: 'pointer',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              textAlign: 'center',
-              minHeight: 44,
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(30,100,60,0.9)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(30,80,50,0.8)'; }}
-          >
-            {t('planets_catalog.btn_terraform_complete')}
-          </button>
+        {activeTab === 'logistics' && (
+          <div style={{ display: 'grid', gap: 8, fontSize: 10 }}>
+            <div style={{ color: '#8899aa' }}>{t('planet_terminal.logistics_desc')}</div>
+            <div style={{ color: '#7bb8ff' }}>{t('planet_terminal.free_ships', { count: availableCargoShips.length })}</div>
+            <div style={{ color: localCargoShips.length > 0 ? '#88ccaa' : '#667788' }}>
+              {t('planet_terminal.available_cargo', { count: localCargoShips.length })}
+            </div>
+            {availableCargoShips.slice(0, 4).map((ship) => (
+              <div key={ship.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: '#667788', borderBottom: '1px solid rgba(51,68,85,0.22)', paddingBottom: 4 }}>
+                <span>{ship.name}</span>
+                <span>{PRODUCIBLE_DEFS[ship.type].cargoCapacity}</span>
+              </div>
+            ))}
+            {relatedShipments.map((shipment) => (
+              <div key={shipment.id} style={{ color: '#cc8844' }}>
+                {t('planet_terminal.shipment_status', {
+                  resource: t(`planet_terminal.resource_${shipment.resource}`),
+                  amount: shipment.amount,
+                  status: t(`planet_terminal.shipment_${shipment.status}`),
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'terraform' && (
+          <>
+            {showTerraformSection && tfState ? (
+              <div>
+                <div style={{ fontSize: 8, color: '#445566', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  {t('planets_catalog.tf_section_title')}
+                </div>
+                {PARAM_ORDER.map((paramId) => (
+                  <TerraformParamDetailRow
+                    key={paramId}
+                    paramId={paramId}
+                    planet={planet}
+                    terraformState={tfState}
+                    donorPlanets={donorPlanets}
+                    techTreeState={techTreeState}
+                    shipTier={shipTier}
+                    getPlanetResources={getPlanetResources}
+                    onSendTerraformDelivery={onSendTerraformDelivery}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: '#667788', fontSize: 10 }}>{t('planet_terminal.terraform_requirements_visible')}</div>
+            )}
+            {showCompleteButton && (
+              <button
+                onClick={() => onCompleteTerraform?.(planet)}
+                style={{ marginTop: 10, padding: '10px 20px', background: 'rgba(30,80,50,0.8)', border: '1px solid #44ff88', borderRadius: 4, color: '#44ff88', fontFamily: 'monospace', fontSize: 12, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'center', minHeight: 44 }}
+              >
+                {t('planets_catalog.btn_terraform_complete')}
+              </button>
+            )}
+          </>
+        )}
+
+        {activeTab === 'status' && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {statusItems.map((item) => (
+              <span key={item.label} style={{ border: `1px solid ${item.active ? '#446688' : '#334455'}`, borderRadius: 999, padding: '4px 8px', color: item.active ? '#7bb8ff' : '#445566', background: item.active ? 'rgba(40,70,100,0.25)' : 'rgba(20,25,35,0.35)', fontSize: 9 }}>
+                {item.label}
+              </span>
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -1680,6 +1762,8 @@ export function PlanetsCatalogV2({
   techTreeState,
   colonyBuildings = [],
   onRenamePlanet,
+  cargoShips = [],
+  cargoShipments = [],
   planetResourceStocks,
 }: PlanetsCatalogV2Props) {
   // Single-select filter: null = no filter active
@@ -1932,6 +2016,9 @@ export function PlanetsCatalogV2({
                   onToggleFavorite={onToggleFavorite}
                   isFavorite={isFavorite}
                   onViewPlanet={onViewPlanet}
+                  onOpenSurface={onOpenSurface}
+                  cargoShips={cargoShips}
+                  cargoShipments={cargoShipments}
                   planetResourceStocks={planetResourceStocks}
                   onClose={() => {
                     setFocusedPlanetId(null);

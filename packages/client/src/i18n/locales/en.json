@@ -84,6 +84,10 @@
     "gas_giant_on": "gas giant",
     "ice_giant": "Ice Giant",
     "ice_giant_on": "ice giant",
+    "zone_inner": "Inner",
+    "zone_habitable": "Habitable",
+    "zone_outer": "Outer",
+    "zone_far": "Far",
     "tab_actions": "Actions",
     "tab_resources": "Resources",
     "tab_premium": "Alpha",
@@ -859,7 +863,10 @@
     "unknown": "unknown",
     "reveal_hint": "current Tier {{level}}",
     "orbital_probe_required": "orbital probe required",
-    "surface_expedition_required": "surface expedition required"
+    "surface_expedition_required": "surface expedition required",
+    "life_microbial": "microbial",
+    "life_multicellular": "multicellular",
+    "life_intelligent": "intelligent"
   },
   "planet_terminal": {
     "tab_resources": "Resources",
@@ -1201,6 +1208,7 @@
     "sub_star_systems": "Star Systems",
     "sub_planets_photos": "Planets",
     "sub_surface": "Surface",
+    "sub_mission_photos": "Mission Photos",
     "sub_life": "Life",
     "sub_aerial_photos": "Aerial",
     "sub_astronomy": "Astronomy",
@@ -1501,6 +1509,21 @@
     "lifetime_price": "$59.99",
     "lifetime_save": "BEST"
   },
+  "mission_report": {
+    "atmosphere_title": "Atmosphere Research 100%",
+    "surface_title": "Surface Research 100%",
+    "tier_line": "Confirmed data tier T{{tier}}",
+    "action_probe_photo": "Take photo from probe",
+    "action_atmo_probe_photo": "Take photo from atmosphere probe",
+    "action_rover_photo": "Take photo from rover",
+    "action_alpha_photo": "Alpha Camera — {{cost}}⚛",
+    "procedural_photo_desc": "Black-and-white instrument photo generated from mission data.",
+    "alpha_photo_desc": "Photorealistic Gemini/Nano Banana generation grounded in this report.",
+    "photo_saving": "Saving photo...",
+    "photo_saved": "Photo saved",
+    "photo_saved_to_gallery": "Mission photo saved to gallery",
+    "photo_save_failed": "Failed to save mission photo"
+  },
   "event": {
     "urgent_video": "[ URGENT VIDEO MESSAGE ]",
     "asteroid_update": "ALERT: TRAJECTORY UPDATED",
@@ -1641,7 +1664,20 @@
       "premium": "Premium"
     },
     "events": {
-      "empty": "No events yet"
+      "empty": "No local events yet",
+      "local_title": "Local telemetry: {{planet}}",
+      "energy_ok": "Colony power grid is stable",
+      "energy_shortfall": "Power shortfall: {{amount}}",
+      "storage_ok": "Storage has free capacity",
+      "storage_full": "Storage full: {{resources}}",
+      "storage_meta": "Limit",
+      "transport_queue": "Transport in production: {{count}}",
+      "population_no_capacity": "No housing capacity for population",
+      "population_ok": "Housing system nominal",
+      "population_at_cap": "Population has reached housing capacity",
+      "production_active": "Local production is active",
+      "production_idle": "Local resource production is idle",
+      "deposits_depleted": "Deposits depleted: {{resources}}"
     },
     "premium": {
       "resource_title": "RESOURCE BOOST — 24 H",
@@ -1674,6 +1710,9 @@
     "status_active": "Active",
     "status_shutdown": "Shutdown",
     "energy": "Energy",
+    "population": "Population",
+    "population_desc": "Current residents / colony housing capacity.",
+    "colony_energy_desc": "Whole-colony production / consumption.",
     "output": "out",
     "consumes": "uses",
     "fit": "Planet fit",
@@ -1704,6 +1743,14 @@
     "action_power_check_desc": "Net module balance: {{balance}}. Storage contribution: {{storage}}.",
     "action_chemistry": "Run separation cycle",
     "action_chemistry_desc": "Convert 10 volatiles into 3 isotopes and 2 water.",
+    "action_landing_pad_production": "Probe production",
+    "action_landing_pad_production_desc": "Open the Colony Center production queue for small exploration craft.",
+    "landing_pad_dispatch_hint": "Orbital probes, satellites, and surface reconnaissance are dispatched from the planet menu in System view.",
+    "transport_landing_pad": "Landing pad production",
+    "transport_landing_pad_desc": "Small probes, satellites, rovers, and reusable science carriers. The hub manages the colony, it does not build transport.",
+    "transport_spaceport": "Spaceport production",
+    "transport_spaceport_desc": "Heavy logistics, cargo ships, terraforming freighters, and colony ships.",
+    "transport_art_slot": "ART",
     "action_result_stock": "Scan complete. Deposit telemetry stabilized at {{pct}}% remaining.",
     "action_result_signal": "Scan complete. No finite stock is attached to this module yet, but local telemetry is updated.",
     "action_result_deposit": "{{resource}} source: {{remaining}} U left, {{pct}}% of initial stock.",
@@ -1784,7 +1831,9 @@
   },
   "hex": {
     "build_menu": "Build",
-    "isotope_depleted_warning": "Isotopes depleted"
+    "isotope_depleted_warning": "Isotopes depleted",
+    "storage_full_short": "STOR",
+    "storage_full_warning": "Storage is full. Extraction is stopped."
   },
   "colonies": {
     "population": "Population",

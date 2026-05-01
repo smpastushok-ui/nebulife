@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { BuildingType, PlacedBuilding, Planet, PlanetResourceStocks } from '@nebulife/core';
-import { BUILDING_DEFS } from '@nebulife/core';
+import type { BuildingType, FleetState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType } from '@nebulife/core';
+import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, isShipProducible } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import {
@@ -21,8 +21,12 @@ export interface BuildingDetailPanelProps {
   colonyResources: ColonyResources;
   researchData: number;
   planetStocks?: PlanetResourceStocks;
+  explorationPayloads?: Partial<Record<ProducibleType, number>>;
+  shipFleet?: FleetState;
+  explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
   onClose: () => void;
-  onOpenColonyCenter?: () => void;
+  onOpenColonyCenter?: (tab?: 'overview' | 'production') => void;
+  onStartPayloadProduction?: (type: ProducibleType) => void;
   onResourceChange?: (delta: Partial<ColonyResources>) => void;
   onResearchDataChange?: (delta: number) => void;
   onDemolish?: (building: PlacedBuilding) => void;
@@ -152,6 +156,152 @@ function ActionButton({
   );
 }
 
+const LANDING_PAD_PRODUCIBLES: ProducibleType[] = [
+  'research_shuttle',
+  'rover_dropcraft',
+  'atmo_probe_carrier',
+  'survey_probe',
+  'orbital_satellite',
+  'surface_rover',
+  'atmosphere_probe',
+  'scout_drone',
+];
+
+const SPACEPORT_PRODUCIBLES: ProducibleType[] = [
+  'lander',
+  'research_station_kit',
+  'transport_small',
+  'transport_large',
+  'terraform_freighter',
+  'colony_ship',
+];
+
+function formatQueueTime(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return minutes > 0 ? `${minutes}m ${seconds.toString().padStart(2, '0')}s` : `${seconds}s`;
+}
+
+function payloadCostSummary(type: ProducibleType): string {
+  const totals: Record<string, number> = {};
+  for (const cost of PRODUCIBLE_DEFS[type]?.cost ?? []) {
+    const key = cost.resource === 'volatiles' || cost.resource === 'isotopes' || cost.resource === 'water'
+      ? cost.resource
+      : 'minerals';
+    totals[key] = (totals[key] ?? 0) + cost.amount;
+  }
+  return Object.entries(totals)
+    .filter(([, amount]) => amount > 0)
+    .map(([key, amount]) => `${key} ${amount}`)
+    .join(' · ');
+}
+
+function ProducibleFrameCard({
+  type,
+  count,
+  activeQueue,
+  canBuild,
+  onBuild,
+}: {
+  type: ProducibleType;
+  count: number;
+  activeQueue: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
+  canBuild: boolean;
+  onBuild?: (type: ProducibleType) => void;
+}) {
+  const { t } = useTranslation();
+  const [imageFailed, setImageFailed] = useState(false);
+  const nextDone = activeQueue.length > 0
+    ? Math.min(...activeQueue.map((item) => item.startedAt + item.durationMs))
+    : null;
+  const assetPath = PRODUCIBLE_ASSET_PATHS[type];
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '72px 1fr',
+      gap: 10,
+      background: CARD_BG,
+      border: '1px solid rgba(68,102,136,0.55)',
+      borderRadius: 5,
+      padding: 8,
+    }}>
+      <div style={{
+        position: 'relative',
+        width: 72,
+        height: 72,
+        borderRadius: 5,
+        background: 'radial-gradient(circle at 50% 35%, rgba(68,136,170,0.20), rgba(5,10,20,0.88))',
+        border: '1px solid rgba(123,184,255,0.32)',
+        boxShadow: 'inset 0 0 18px rgba(0,0,0,0.65)',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        {!imageFailed && (
+          <img
+            src={assetPath}
+            alt=""
+            onError={() => setImageFailed(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+          />
+        )}
+        {imageFailed && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 3,
+            color: '#446688',
+            fontSize: 8,
+            letterSpacing: 1,
+            pointerEvents: 'none',
+          }}>
+            <span>{t('building_detail.transport_art_slot')}</span>
+            <span>512x512</span>
+          </div>
+        )}
+      </div>
+      <div style={{ minWidth: 0, display: 'grid', gap: 5 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ color: '#aabbcc', fontSize: 11 }}>{t(`planet_missions.payload.${type}`)}</div>
+          <div style={{ color: '#7bb8ff', fontSize: 10 }}>x{count}</div>
+        </div>
+        <div style={{ color: '#556677', fontSize: 9 }}>{payloadCostSummary(type)}</div>
+        {activeQueue.length > 0 && (
+          <div style={{ color: '#ddaa44', fontSize: 9 }}>
+            +{activeQueue.length} / {formatQueueTime((nextDone ?? Date.now()) - Date.now())}
+          </div>
+        )}
+        <button
+          type="button"
+          disabled={!canBuild || !onBuild}
+          onClick={() => onBuild?.(type)}
+          style={{
+            justifySelf: 'start',
+            marginTop: 2,
+            background: canBuild ? 'rgba(30,60,80,0.65)' : 'rgba(20,25,35,0.45)',
+            border: canBuild ? '1px solid #446688' : '1px solid #334455',
+            borderRadius: 3,
+            color: canBuild ? '#7bb8ff' : '#445566',
+            fontFamily: 'monospace',
+            fontSize: 10,
+            padding: '6px 9px',
+            cursor: canBuild ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {t('colony_center.production.build_payload')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function BuildingDetailPanel({
   planet,
   building,
@@ -160,8 +310,12 @@ export function BuildingDetailPanel({
   colonyResources,
   researchData,
   planetStocks,
+  explorationPayloads,
+  shipFleet,
+  explorationProductionQueue,
   onClose,
   onOpenColonyCenter,
+  onStartPayloadProduction,
   onResourceChange,
   onResearchDataChange,
   onDemolish,
@@ -193,9 +347,31 @@ export function BuildingDetailPanel({
   const energyOutputPerHour = stats.energyOutput * 60;
   const energyConsumptionPerHour = -stats.energyConsumption * 60;
   const energyNetPerHour = energyOutputPerHour + energyConsumptionPerHour;
+  const colonyEnergyProduced = buildings
+    .filter((item) => !item.shutdown)
+    .reduce((sum, item) => sum + (BUILDING_DEFS[item.type]?.energyOutput ?? 0), 0);
+  const colonyEnergyConsumed = buildings
+    .filter((item) => !item.shutdown)
+    .reduce((sum, item) => sum + (BUILDING_DEFS[item.type]?.energyConsumption ?? 0), 0);
+  const colonyPopulationCapacity = buildings
+    .filter((item) => !item.shutdown)
+    .reduce((sum, item) => sum + (BUILDING_DEFS[item.type]?.populationCapacityAdd ?? 0), 0);
+  const producibleTypes = type === 'landing_pad'
+    ? LANDING_PAD_PRODUCIBLES
+    : type === 'spaceport'
+      ? SPACEPORT_PRODUCIBLES
+      : [];
   const isotopeDepositDepleted =
     stats.stock?.resource === 'isotopes' &&
     stats.stock.remaining <= 0;
+  const getProducedCount = (producibleType: ProducibleType): number => {
+    if (!isShipProducible(producibleType)) return explorationPayloads?.[producibleType] ?? 0;
+    return (shipFleet?.ships ?? []).filter((ship) => (
+      ship.type === producibleType &&
+      ship.currentPlanetId === planet.id &&
+      ship.status !== 'in_transit'
+    )).length;
+  };
 
   const runScan = () => {
     if (!canScan) return;
@@ -329,10 +505,20 @@ export function BuildingDetailPanel({
           />
           <MetricCard
             label={t('building_detail.energy')}
-            value={formatPerHour(energyNetPerHour)}
-            sub={`${t('building_detail.output')} ${formatPerHour(energyOutputPerHour)} / ${t('building_detail.consumes')} ${formatPerHour(energyConsumptionPerHour)}`}
-            accent="#ffaa66"
+            value={type === 'colony_hub' ? `${colonyEnergyProduced} / ${colonyEnergyConsumed}` : formatPerHour(energyNetPerHour)}
+            sub={type === 'colony_hub'
+              ? t('building_detail.colony_energy_desc')
+              : `${t('building_detail.output')} ${formatPerHour(energyOutputPerHour)} / ${t('building_detail.consumes')} ${formatPerHour(energyConsumptionPerHour)}`}
+            accent={type === 'colony_hub' && colonyEnergyProduced < colonyEnergyConsumed ? '#cc7777' : '#ffaa66'}
           />
+          {type === 'colony_hub' && (
+            <MetricCard
+              label={t('building_detail.population')}
+              value={`0 / ${colonyPopulationCapacity}`}
+              sub={t('building_detail.population_desc')}
+              accent="#88bb99"
+            />
+          )}
           <MetricCard
             label={t('building_detail.fit')}
             value={t(`building_detail.fit_${stats.planetFit}`)}
@@ -356,6 +542,37 @@ export function BuildingDetailPanel({
             </div>
           </div>
         </Section>
+
+        {producibleTypes.length > 0 && (
+          <Section title={type === 'landing_pad' ? t('building_detail.transport_landing_pad') : t('building_detail.transport_spaceport')}>
+            <div style={{
+              background: 'rgba(10,15,25,0.48)',
+              border: '1px solid rgba(51,68,85,0.45)',
+              borderRadius: 5,
+              padding: 10,
+              display: 'grid',
+              gap: 8,
+            }}>
+              <div style={{ color: '#667788', fontSize: 10, lineHeight: 1.45 }}>
+                {type === 'landing_pad'
+                  ? t('building_detail.transport_landing_pad_desc')
+                  : t('building_detail.transport_spaceport_desc')}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))', gap: 8 }}>
+                {producibleTypes.map((producibleType) => (
+                  <ProducibleFrameCard
+                    key={producibleType}
+                    type={producibleType}
+                    count={getProducedCount(producibleType)}
+                    activeQueue={(explorationProductionQueue ?? []).filter((item) => item.type === producibleType)}
+                    canBuild={!stats.isShutdown && Boolean(onStartPayloadProduction)}
+                    onBuild={onStartPayloadProduction}
+                  />
+                ))}
+              </div>
+            </div>
+          </Section>
+        )}
 
         <Section title={t('building_detail.modifiers')}>
           <div style={{ display: 'grid', gap: 6, fontSize: 11 }}>
@@ -389,6 +606,21 @@ export function BuildingDetailPanel({
                 desc={t('building_detail.action_open_center_desc')}
                 onClick={() => onOpenColonyCenter?.()}
               />
+            )}
+            {type === 'landing_pad' && (
+              <>
+                <div style={{
+                  background: 'rgba(68,136,170,0.10)',
+                  border: '1px solid rgba(68,136,170,0.28)',
+                  borderRadius: 4,
+                  padding: '9px 10px',
+                  fontSize: 11,
+                  color: '#9fc4dd',
+                  lineHeight: 1.45,
+                }}>
+                  {t('building_detail.landing_pad_dispatch_hint')}
+                </div>
+              </>
             )}
             {(type === 'research_lab' || type === 'observatory' || type === 'radar_tower' || type === 'deep_drill') && (
               <ActionButton

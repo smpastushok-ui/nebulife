@@ -547,6 +547,10 @@ export const en: Record<TranslationKey, string> = {
   'scene_controls.zoom_in':  'Zoom in',
   'scene_controls.zoom_out': 'Zoom out',
 
+  // Mission report photos
+  'mission_report.photo_saved_to_gallery': 'Mission photo saved to gallery',
+  'mission_report.photo_save_failed':      'Failed to save mission photo',
+
   // Planet exploration missions
   'planet_missions.reason.unknown':             'Mission unavailable',
   'planet_missions.reason.already_revealed':    'This data tier is already revealed',

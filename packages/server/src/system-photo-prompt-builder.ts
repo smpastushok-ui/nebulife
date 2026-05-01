@@ -1,9 +1,11 @@
-import type { StarSystem, SpectralClass, Planet } from '@nebulife/core';
+import type { StarSystem, SpectralClass, Planet, PlanetMissionType, PlanetReportSummary } from '@nebulife/core';
 
 export type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
 
 export interface PlanetPhotoPromptOptions {
   kind?: PlanetPhotoKind;
+  missionType?: PlanetMissionType;
+  reportSummary?: PlanetReportSummary;
   playerName?: string;
   observationDate?: string;
 }
@@ -286,6 +288,8 @@ export function buildGeminiPlanetPhotoPrompt(
 ): string {
   const { star } = system;
   const kind = options.kind ?? 'exosphere';
+  const missionType = options.missionType;
+  const reportSummary = options.reportSummary;
   const starColor = getStarColorWord(star.spectralClass);
   const starDesc = describeStarForPrompt(
     star.spectralClass, star.subType, star.temperatureK, star.colorHex,
@@ -354,6 +358,15 @@ export function buildGeminiPlanetPhotoPrompt(
     `Type: ${planet.type}`,
   ].join(' | ');
 
+  const missionContext = reportSummary && missionType
+    ? [
+        `MISSION REPORT CONTEXT:`,
+        `This image must match a completed ${missionType} report for reveal tier ${reportSummary.revealLevel}.`,
+        `Mission completed at ${new Date(reportSummary.generatedAt).toISOString()}.`,
+        `Do not contradict the measured pressure, temperature, water coverage, ice coverage, life status, resources, or colonization suitability listed in the planet data.`,
+      ].join(' ')
+    : '';
+
   const sharedStyle = [
     `Photorealistic exploration mission photograph, not fantasy art, not concept art.`,
     `Scientific color grading, physically plausible lighting from the ${starColor} parent star,`,
@@ -365,6 +378,7 @@ export function buildGeminiPlanetPhotoPrompt(
   const exospherePrompt = [
     `EXOSPHERE ORBITAL PROBE PHOTO.`,
     `PLANET DATA:`,
+    missionContext,
     `${planet.name}, a ${sizeWord} ${typeDesc},`,
     `radius ${planet.radiusEarth.toFixed(2)} Earth radii, mass ${planet.massEarth.toFixed(3)} Earth masses,`,
     `orbit ${planet.orbit.semiMajorAxisAU.toFixed(3)} AU from ${star.name}, a ${starDesc},`,
@@ -384,6 +398,7 @@ export function buildGeminiPlanetPhotoPrompt(
   const biospherePrompt = [
     `SURFACE ROVER BIOSPHERE PHOTO.`,
     `PLANET DATA:`,
+    missionContext,
     `${planet.name}, type ${planet.type}, ${typeDesc}, surface temperature ${Math.round(planet.surfaceTempK)}K, gravity ${planet.surfaceGravityG}g.`,
     `Atmosphere: ${planet.atmosphere ? `${planet.atmosphere.surfacePressureAtm.toFixed(2)} atm` : 'none or trace'}.`,
     `Hydrosphere: ${planet.hydrosphere ? `${Math.round(planet.hydrosphere.waterCoverageFraction * 100)} percent water coverage, ${Math.round(planet.hydrosphere.iceCapFraction * 100)} percent ice caps` : 'no stable surface water detected'}.`,
@@ -400,6 +415,7 @@ export function buildGeminiPlanetPhotoPrompt(
   const aerialPrompt = [
     `AERIAL COPTER BIRD'S-EYE PHOTO.`,
     `PLANET DATA:`,
+    missionContext,
     `${planet.name}, type ${planet.type}, ${typeDesc}, surface temperature ${Math.round(planet.surfaceTempK)}K, gravity ${planet.surfaceGravityG}g.`,
     `Atmosphere: ${planet.atmosphere ? `${planet.atmosphere.surfacePressureAtm.toFixed(2)} atm` : 'trace'}.`,
     `Hydrosphere: ${planet.hydrosphere ? `${Math.round(planet.hydrosphere.waterCoverageFraction * 100)} percent water coverage, ${Math.round(planet.hydrosphere.iceCapFraction * 100)} percent ice caps` : 'dry surface'}.`,
