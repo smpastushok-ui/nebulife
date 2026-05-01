@@ -12,8 +12,8 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks, BuildingType } from '@nebulife/core';
-import { BUILDING_DEFS, getDepletionEfficiency } from '@nebulife/core';
+import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks, BuildingType, ProducibleType } from '@nebulife/core';
+import { BUILDING_DEFS, getDepletionEfficiency, PRODUCIBLE_DEFS } from '@nebulife/core';
 import type { LogEntry } from '../CosmicArchive/SystemLog.js';
 import { getDeviceTier } from '../../../utils/device-tier.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
@@ -100,6 +100,9 @@ export interface ColonyCenterPageProps {
   planetStocks?: PlanetResourceStocks;
   onResourceChange?: (delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => void;
   onResearchDataChange?: (delta: number) => void;
+  explorationPayloads?: Partial<Record<ProducibleType, number>>;
+  explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
+  onStartPayloadProduction?: (type: ProducibleType) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -507,7 +510,48 @@ function ColoniesTab({ active, allColonies, onTeleport }: ColonyCenterPageProps)
   );
 }
 
-function ProductionTab({ active, allColonies, productionPerHour, extractionPerHour, storageCapacity, colonyResources, colonyResourcesByPlanet, planetStocks }: ColonyCenterPageProps) {
+const EXPLORATION_PAYLOAD_TYPES: ProducibleType[] = [
+  'survey_probe',
+  'orbital_satellite',
+  'surface_rover',
+  'lander',
+  'atmosphere_probe',
+];
+
+function formatQueueTime(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return minutes > 0 ? `${minutes}m ${seconds.toString().padStart(2, '0')}s` : `${seconds}s`;
+}
+
+function payloadCostSummary(type: ProducibleType): string {
+  const totals: Record<string, number> = {};
+  for (const cost of PRODUCIBLE_DEFS[type]?.cost ?? []) {
+    const key = cost.resource === 'volatiles' || cost.resource === 'isotopes' || cost.resource === 'water'
+      ? cost.resource
+      : 'minerals';
+    totals[key] = (totals[key] ?? 0) + cost.amount;
+  }
+  return Object.entries(totals)
+    .filter(([, amount]) => amount > 0)
+    .map(([key, amount]) => `${key} ${amount}`)
+    .join(' · ');
+}
+
+function ProductionTab({
+  active,
+  allColonies,
+  productionPerHour,
+  extractionPerHour,
+  storageCapacity,
+  colonyResources,
+  colonyResourcesByPlanet,
+  planetStocks,
+  explorationPayloads,
+  explorationProductionQueue,
+  onStartPayloadProduction,
+}: ColonyCenterPageProps) {
   const { t } = useTranslation();
   const [scope, setScope] = useState<'this' | 'all'>('this');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -627,6 +671,86 @@ function ProductionTab({ active, allColonies, productionPerHour, extractionPerHo
           </div>
         );
       })}
+
+      <div style={{
+        marginTop: 4,
+        background: 'rgba(10,15,25,0.55)',
+        border: '1px solid #233344',
+        borderRadius: 4,
+        padding: 10,
+        fontFamily: 'monospace',
+      }}>
+        <div style={{
+          fontSize: 10,
+          color: '#7bb8ff',
+          letterSpacing: 2,
+          textTransform: 'uppercase',
+          marginBottom: 8,
+        }}>
+          {t('colony_center.production.exploration_payloads')}
+        </div>
+        <div style={{ display: 'grid', gap: 6 }}>
+          {EXPLORATION_PAYLOAD_TYPES.map((type) => {
+            const def = PRODUCIBLE_DEFS[type];
+            const count = explorationPayloads?.[type] ?? 0;
+            const activeQueue = (explorationProductionQueue ?? []).filter((item) => item.type === type);
+            const nextDone = activeQueue.length > 0
+              ? Math.min(...activeQueue.map((item) => item.startedAt + item.durationMs))
+              : null;
+            const canBuild = active.buildings.some((building) => building.type === def.requiresBuilding && !building.shutdown);
+            return (
+              <div
+                key={type}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                  gap: 8,
+                  alignItems: 'center',
+                  padding: '7px 8px',
+                  border: '1px solid rgba(51,68,85,0.55)',
+                  borderRadius: 4,
+                  background: 'rgba(5,10,20,0.42)',
+                }}
+              >
+                <div>
+                  <div style={{ color: '#aabbcc', fontSize: 11 }}>
+                    {t(`planet_missions.payload.${type}`)}
+                    <span style={{ color: '#7bb8ff', marginLeft: 8 }}>×{count}</span>
+                    {activeQueue.length > 0 && (
+                      <span style={{ color: '#ddaa44', marginLeft: 8 }}>
+                        +{activeQueue.length} / {formatQueueTime((nextDone ?? Date.now()) - Date.now())}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ color: '#556677', fontSize: 9, marginTop: 2 }}>
+                    {payloadCostSummary(type)}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    playSfx('ui-click', 0.07);
+                    onStartPayloadProduction?.(type);
+                  }}
+                  disabled={!canBuild || !onStartPayloadProduction}
+                  title={!canBuild ? t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${def.requiresBuilding}`) }) : undefined}
+                  style={{
+                    background: canBuild ? 'rgba(30,60,80,0.65)' : 'rgba(20,25,35,0.45)',
+                    border: canBuild ? '1px solid #446688' : '1px solid #334455',
+                    borderRadius: 3,
+                    color: canBuild ? '#7bb8ff' : '#445566',
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    padding: '6px 9px',
+                    cursor: canBuild ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {t('colony_center.production.build_payload')}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

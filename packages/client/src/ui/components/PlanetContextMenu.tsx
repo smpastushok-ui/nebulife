@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding } from '@nebulife/core';
+import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding, ProducibleType, PlanetReportSummary } from '@nebulife/core';
 import {
   ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg, isTerraformable,
-  canStartPlanetMission, getPlanetMissionProgress, isSolidPlanetForLanding,
+  canStartPlanetMission, computePlanetMissionCost, getPlanetMissionProgress, isSolidPlanetForLanding,
 } from '@nebulife/core';
 
 /** i18n key for each resource group label */
@@ -515,8 +515,11 @@ export function PlanetContextMenu({
   activeMission,
   planetMissionClock = Date.now(),
   missionResources,
+  payloadInventory = {},
   colonyBuildings = [],
   onStartMission,
+  reportSummary,
+  onViewReport,
 }: {
   planet: Planet;
   star: Star;
@@ -543,8 +546,11 @@ export function PlanetContextMenu({
   activeMission?: PlanetMission | null;
   planetMissionClock?: number;
   missionResources?: { researchData: number; minerals: number; volatiles: number; isotopes: number; water: number };
+  payloadInventory?: Partial<Record<ProducibleType, number>>;
   colonyBuildings?: PlacedBuilding[];
   onStartMission?: (planet: Planet, type: PlanetMissionType) => void;
+  reportSummary?: PlanetReportSummary;
+  onViewReport?: (planet: Planet, report: PlanetReportSummary) => void;
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('actions');
@@ -594,6 +600,7 @@ export function PlanetContextMenu({
   const showTerraformTab = isTerraformable(planet) && Boolean(hasGenesisVault);
   const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
   const missionTypes: PlanetMissionType[] = [
+    'orbital_scan',
     'orbital_probe',
     isSolidPlanetForLanding(planet) ? 'surface_landing' : 'deep_atmosphere_probe',
   ];
@@ -606,6 +613,7 @@ export function PlanetContextMenu({
       activeMissions: activeMission ? [activeMission] : [],
       buildings: colonyBuildings,
       resources: missionResources,
+      payloadInventory,
     });
     if (check.canStart) return undefined;
     if (check.reason === 'building_required' && check.requiredBuilding) {
@@ -616,6 +624,9 @@ export function PlanetContextMenu({
         .map(([resource, amount]) => `${resource} ${Math.ceil(Number(amount ?? 0))}`)
         .join(', ');
       return t('planet_missions.reason.resources_required_named', { resources: missing });
+    }
+    if (check.reason === 'payload_required' && check.requiredPayload) {
+      return t('planet_missions.reason.payload_required_named', { payload: t(`planet_missions.payload.${check.requiredPayload}`) });
     }
     return t(`planet_missions.reason.${check.reason ?? 'unknown'}`);
   };
@@ -740,8 +751,19 @@ export function PlanetContextMenu({
                       </div>
                     </div>
                   )}
+                  {reportSummary && onViewReport && (
+                    <MenuItem
+                      icon="□"
+                      label={t('planet_missions.view_report')}
+                      onClick={() => onViewReport(planet, reportSummary)}
+                      color="#ddaa44"
+                      right={`T${reportSummary.revealLevel}`}
+                    />
+                  )}
                   {missionTypes.map((type) => {
                     const disabledReason = getMissionDisabledReason(type);
+                    const payload = computePlanetMissionCost(type, planet).payload;
+                    const payloadCount = payload ? (payloadInventory[payload] ?? 0) : 0;
                     return (
                       <MenuItem
                         key={type}
@@ -750,7 +772,7 @@ export function PlanetContextMenu({
                         onClick={!disabledReason && onStartMission ? () => onStartMission(planet, type) : undefined}
                         disabled={Boolean(disabledReason) || !onStartMission}
                         title={disabledReason}
-                        right={disabledReason ? undefined : t('planet_missions.start')}
+                        right={disabledReason ? (payload ? `${payloadCount}` : undefined) : t('planet_missions.start')}
                       />
                     );
                   })}

@@ -85,13 +85,14 @@ import {
   COLONY_TICK_INTERVAL_MS,
   HOME_PLANET_STOCK_FLOOR,
   POST_EVACUATION_RESOURCE_RESERVE,
+  PRODUCIBLE_DEFS,
   canStartPlanetMission,
   createPlanetMission,
   completePlanetMission,
   getPlanetMissionProgress,
   isSolidPlanetForLanding,
 } from '@nebulife/core';
-import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks } from '@nebulife/core';
+import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
 import type { PlanetMission, PlanetMissionType, PlanetReportSummary, PlanetRevealLevel } from '@nebulife/core';
 import {
@@ -109,6 +110,7 @@ import {
 import { MissionTracker } from './ui/components/Terraform/MissionTracker.js';
 import { TerraformPanel } from './ui/components/Terraform/TerraformPanel.js';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
+import { ScientificReport } from './ui/components/ScientificReport.js';
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
 import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
@@ -216,9 +218,19 @@ interface SyncedGameState {
   planet_reveal_levels?: Record<string, PlanetRevealLevel>;
   planet_missions?: Record<string, PlanetMission>;
   planet_reports?: Record<string, PlanetReportSummary>;
+  exploration_payloads?: Partial<Record<ProducibleType, number>>;
+  exploration_production_queue?: ExplorationPayloadProductionItem[];
   // Metadata
   synced_at: number;
   last_regen_time?: number;
+}
+
+export interface ExplorationPayloadProductionItem {
+  id: string;
+  type: ProducibleType;
+  planetId: string;
+  startedAt: number;
+  durationMs: number;
 }
 
 export interface GameState {
@@ -775,6 +787,23 @@ function AppInner() {
     } catch { /* ignore */ }
     return {};
   });
+  const [planetReportTarget, setPlanetReportTarget] = useState<{ planet: Planet; report: PlanetReportSummary } | null>(null);
+
+  const [explorationPayloads, setExplorationPayloads] = useState<Partial<Record<ProducibleType, number>>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_exploration_payloads');
+      if (saved) return JSON.parse(saved) as Partial<Record<ProducibleType, number>>;
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  const [explorationProductionQueue, setExplorationProductionQueue] = useState<ExplorationPayloadProductionItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_exploration_production_queue');
+      if (saved) return JSON.parse(saved) as ExplorationPayloadProductionItem[];
+    } catch { /* ignore */ }
+    return [];
+  });
 
   const [planetMissionClock, setPlanetMissionClock] = useState(() => Date.now());
 
@@ -792,6 +821,16 @@ function AppInner() {
     try { localStorage.setItem('nebulife_planet_reports', JSON.stringify(planetReports)); }
     catch { /* ignore quota */ }
   }, [planetReports]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_exploration_payloads', JSON.stringify(explorationPayloads)); }
+    catch { /* ignore quota */ }
+  }, [explorationPayloads]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_exploration_production_queue', JSON.stringify(explorationProductionQueue)); }
+    catch { /* ignore quota */ }
+  }, [explorationProductionQueue]);
 
   // ── Planet overrides — type/habitability mutations after terraform (Phase 7C) ──
   /** Keyed by planetId.  Persisted to localStorage and synced via game_state JSONB. */
@@ -2158,6 +2197,7 @@ function AppInner() {
       activeMissions: Object.values(planetMissions),
       buildings: getExplorationBuildings(),
       resources,
+      payloadInventory: explorationPayloads,
     });
 
     if (!check.canStart) {
@@ -2167,6 +2207,7 @@ function AppInner() {
         building_required: 'planet_missions.reason.building_required',
         surface_unavailable: 'planet_missions.reason.surface_unavailable',
         resources_required: 'planet_missions.reason.resources_required',
+        payload_required: 'planet_missions.reason.payload_required',
         unknown: 'planet_missions.reason.unknown',
       } as const;
       setState((prev) => ({ ...prev, error: t(reasonKey[check.reason ?? 'unknown']) }));
@@ -2185,6 +2226,12 @@ function AppInner() {
     });
 
     const cost = mission.costPaid;
+    if (cost.payload) {
+      setExplorationPayloads((prev) => ({
+        ...prev,
+        [cost.payload!]: Math.max(0, (prev[cost.payload!] ?? 0) - 1),
+      }));
+    }
     if (cost.researchData) setResearchData((prev) => Math.max(0, prev - cost.researchData!));
     spendResourcesAcrossPlanets(homeInfo?.planet.id ?? planet.id, {
       minerals: -(cost.minerals ?? 0),
@@ -2200,6 +2247,7 @@ function AppInner() {
   }, [
     getEffectivePlanetRevealLevel,
     getExplorationBuildings,
+    explorationPayloads,
     homeInfo?.planet.id,
     homeInfo?.system.id,
     planetMissions,
@@ -2210,6 +2258,149 @@ function AppInner() {
     t,
     totalResources,
   ]);
+
+  const getExplorationPayloadCost = useCallback((type: ProducibleType): { minerals: number; volatiles: number; isotopes: number; water: number } => {
+    const cost = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+    for (const item of PRODUCIBLE_DEFS[type]?.cost ?? []) {
+      if (item.resource === 'minerals' || item.resource === 'volatiles' || item.resource === 'isotopes' || item.resource === 'water') {
+        cost[item.resource] += item.amount;
+      } else {
+        cost.minerals += item.amount;
+      }
+    }
+    return cost;
+  }, []);
+
+  const handleStartPayloadProduction = useCallback((type: ProducibleType): void => {
+    const def = PRODUCIBLE_DEFS[type];
+    const originPlanetId = homeInfo?.planet.id;
+    if (!def || !originPlanetId) return;
+
+    if (!getExplorationBuildings().some((building) => building.type === def.requiresBuilding && !building.shutdown)) {
+      setState((prev) => ({ ...prev, error: t('planet_missions.reason.building_required') }));
+      return;
+    }
+
+    const queueForType = explorationProductionQueue.filter((item) => item.type === type).length;
+    if (queueForType >= 3) {
+      setState((prev) => ({ ...prev, error: t('planet_missions.reason.production_queue_full') }));
+      return;
+    }
+
+    const cost = getExplorationPayloadCost(type);
+    const resources = totalResources();
+    const missing = (['minerals', 'volatiles', 'isotopes', 'water'] as const)
+      .some((key) => resources[key] < cost[key]);
+    if (missing) {
+      setState((prev) => ({ ...prev, error: t('planet_missions.reason.resources_required') }));
+      return;
+    }
+
+    spendResourcesAcrossPlanets(originPlanetId, {
+      minerals: -cost.minerals,
+      volatiles: -cost.volatiles,
+      isotopes: -cost.isotopes,
+      water: -cost.water,
+    });
+
+    const now = Date.now();
+    setExplorationProductionQueue((prev) => [
+      ...prev,
+      {
+        id: `payload-${type}-${now}`,
+        type,
+        planetId: originPlanetId,
+        startedAt: now,
+        durationMs: def.productionTimeMs,
+      },
+    ]);
+    setState((prev) => ({ ...prev, error: null }));
+    scheduleSyncToServer();
+  }, [
+    explorationProductionQueue,
+    getExplorationBuildings,
+    getExplorationPayloadCost,
+    homeInfo?.planet.id,
+    scheduleSyncToServer,
+    spendResourcesAcrossPlanets,
+    t,
+    totalResources,
+  ]);
+
+  const buildPlanetMissionReportText = useCallback((planet: Planet, report: PlanetReportSummary): string => {
+    const isEn = lang === 'en';
+    const typeLabel: Record<PlanetMissionType, string> = isEn
+      ? {
+          orbital_scan: 'Orbital scan',
+          orbital_probe: 'Orbital probe',
+          surface_landing: 'Surface expedition',
+          deep_atmosphere_probe: 'Atmosphere probe',
+        }
+      : {
+          orbital_scan: 'Орбітальне сканування',
+          orbital_probe: 'Орбітальний зонд',
+          surface_landing: 'Поверхнева експедиція',
+          deep_atmosphere_probe: 'Атмосферний зонд',
+        };
+    const lines = [
+      isEn
+        ? `${typeLabel[report.missionType]} for ${planet.name} is complete. Preliminary science brief for the Colony Council follows.`
+        : `${typeLabel[report.missionType]} для ${planet.name} завершено. Нижче попередній науковий витяг для Ради Колонії.`,
+      '',
+      isEn ? `Data tier revealed: Tier ${report.revealLevel}.` : `Відкрито рівень даних: Tier ${report.revealLevel}.`,
+      isEn
+        ? `Orbit: ${planet.orbit.semiMajorAxisAU.toFixed(3)} AU, ${planet.orbit.periodDays.toFixed(1)} day period.`
+        : `Орбіта: ${planet.orbit.semiMajorAxisAU.toFixed(3)} AU, період ${planet.orbit.periodDays.toFixed(1)} діб.`,
+      isEn
+        ? `Climate: ${planet.surfaceTempK} K, ${planet.atmosphere ? planet.atmosphere.surfacePressureAtm.toFixed(2) : '0.00'} atm pressure.`
+        : `Клімат: ${planet.surfaceTempK} K, тиск ${planet.atmosphere ? planet.atmosphere.surfacePressureAtm.toFixed(2) : '0.00'} atm.`,
+    ];
+
+    if (report.revealLevel >= 2) {
+      lines.push(isEn
+        ? `Deposits: minerals ~${Math.round(planet.resources.totalResources.minerals / 1e18)}E18, volatiles ~${Math.round(planet.resources.totalResources.volatiles / 1e18)}E18, isotopes ~${Math.round(planet.resources.totalResources.isotopes / 1e12)}E12.`
+        : `Поклади: мінерали ~${Math.round(planet.resources.totalResources.minerals / 1e18)}E18, леткі ~${Math.round(planet.resources.totalResources.volatiles / 1e18)}E18, ізотопи ~${Math.round(planet.resources.totalResources.isotopes / 1e12)}E12.`);
+      lines.push(isEn
+        ? `Habitability estimate: ${Math.round(planet.habitability.overall * 100)}%.`
+        : `Оцінка придатності: ${Math.round(planet.habitability.overall * 100)}%.`);
+    }
+
+    if (report.revealLevel >= 3) {
+      lines.push(isEn
+        ? `Surface: life — ${planet.hasLife ? planet.lifeComplexity : 'none'}, colonization — ${planet.isColonizable ? 'yes' : 'no'}.`
+        : `Поверхня: життя — ${planet.hasLife ? planet.lifeComplexity : 'немає'}, колонізація — ${planet.isColonizable ? 'так' : 'ні'}.`);
+    }
+
+    lines.push('', isEn
+      ? 'Recommendation: use this data for the next mission tier or colonization planning.'
+      : 'Рекомендація: використати ці дані для наступного рівня місії або планування колонізації.');
+    return lines.join('\n');
+  }, [lang]);
+
+  useEffect(() => {
+    if (explorationProductionQueue.length === 0) return;
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      const completed: ExplorationPayloadProductionItem[] = [];
+      setExplorationProductionQueue((prev) => {
+        const remaining: ExplorationPayloadProductionItem[] = [];
+        for (const item of prev) {
+          if (now - item.startedAt >= item.durationMs) completed.push(item);
+          else remaining.push(item);
+        }
+        return completed.length > 0 ? remaining : prev;
+      });
+      if (completed.length > 0) {
+        setExplorationPayloads((prev) => {
+          const next = { ...prev };
+          for (const item of completed) next[item.type] = (next[item.type] ?? 0) + 1;
+          return next;
+        });
+        scheduleSyncToServer();
+      }
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [explorationProductionQueue.length, scheduleSyncToServer]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -2655,6 +2846,8 @@ function AppInner() {
       'nebulife_planet_reveal_levels',
       'nebulife_planet_missions',
       'nebulife_planet_reports',
+      'nebulife_exploration_payloads',
+      'nebulife_exploration_production_queue',
       // Per-planet resources (Phase 7A)
       'nebulife_colony_resources_by_planet',
     ];
@@ -3189,6 +3382,26 @@ function AppInner() {
           }
         }
         return merged;
+      });
+    }
+
+    if (gs.exploration_payloads && typeof gs.exploration_payloads === 'object') {
+      const serverPayloads = gs.exploration_payloads as Partial<Record<ProducibleType, number>>;
+      setExplorationPayloads((localPayloads) => {
+        const merged: Partial<Record<ProducibleType, number>> = { ...localPayloads };
+        for (const [type, count] of Object.entries(serverPayloads) as Array<[ProducibleType, number]>) {
+          merged[type] = Math.max(merged[type] ?? 0, count ?? 0);
+        }
+        return merged;
+      });
+    }
+
+    if (Array.isArray(gs.exploration_production_queue) && gs.exploration_production_queue.length > 0) {
+      const serverQueue = gs.exploration_production_queue as ExplorationPayloadProductionItem[];
+      setExplorationProductionQueue((localQueue) => {
+        const byId = new Map(localQueue.map((item) => [item.id, item]));
+        for (const item of serverQueue) byId.set(item.id, item);
+        return [...byId.values()];
       });
     }
 
@@ -5690,6 +5903,8 @@ function AppInner() {
       planet_reveal_levels: planetRevealLevels,
       planet_missions: planetMissions,
       planet_reports: planetReports,
+      exploration_payloads: explorationPayloads,
+      exploration_production_queue: explorationProductionQueue,
       // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
       planet_overrides: planetOverrides,
       // Planet resource stocks (v168 — finite extraction deposits; stored in JSONB)
@@ -5737,7 +5952,7 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetRevealLevels, planetMissions, planetReports, planetOverrides, planetResourceStocks]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, planetOverrides, planetResourceStocks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -7014,8 +7229,14 @@ function AppInner() {
           activeMission={getActivePlanetMission(state.selectedPlanet.id)}
           planetMissionClock={planetMissionClock}
           missionResources={{ researchData: Math.floor(researchData), ...totalResources() }}
+          payloadInventory={explorationPayloads}
           colonyBuildings={getExplorationBuildings()}
           onStartMission={handleStartPlanetMission}
+          reportSummary={planetReports[state.selectedPlanet.id]}
+          onViewReport={(planet, report) => {
+            setPlanetReportTarget({ planet, report });
+            setState((prev) => ({ ...prev, showPlanetMenu: false }));
+          }}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -7027,6 +7248,51 @@ function AppInner() {
           terraformState={terraformStates[state.selectedPlanet.id]}
           revealLevel={getEffectivePlanetRevealLevel(state.selectedPlanet, state.selectedSystem)}
         />
+      )}
+      {planetReportTarget && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9800,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            background: 'rgba(0,0,0,0.72)',
+            fontFamily: 'monospace',
+          }}
+        >
+          <div style={{ width: 'min(560px, 94vw)' }}>
+            <ScientificReport
+              objectName={planetReportTarget.planet.name}
+              reportText={buildPlanetMissionReportText(planetReportTarget.planet, planetReportTarget.report)}
+              rarity="common"
+              onClose={() => {
+                setPlanetMissions((prev) => ({
+                  ...prev,
+                  [planetReportTarget.report.missionId]: {
+                    ...(prev[planetReportTarget.report.missionId] ?? {
+                      id: planetReportTarget.report.missionId,
+                      systemId: planetReportTarget.report.systemId,
+                      planetId: planetReportTarget.report.planetId,
+                      type: planetReportTarget.report.missionType,
+                      targetRevealLevel: planetReportTarget.report.revealLevel,
+                      startedAt: planetReportTarget.report.generatedAt,
+                      durationMs: 0,
+                      phaseDurations: { preparing: 0, outbound: 0, orbital_insertion: 0, scan_or_landing: 0, data_downlink: 0 },
+                      costPaid: {},
+                      status: 'completed' as const,
+                    }),
+                    status: 'completed' as const,
+                  },
+                }));
+                setPlanetReportTarget(null);
+                scheduleSyncToServer();
+              }}
+            />
+          </div>
+        </div>
       )}
       {/* ── TerraformPanel full-screen overlay ── */}
       {showTerraformPlanet && (() => {
@@ -8091,6 +8357,9 @@ function AppInner() {
             planetStocks={planetResourceStocks[active.planet.id]}
             onResourceChange={(delta) => addResources(active.planet.id, delta)}
             onResearchDataChange={(delta) => setResearchData((prev) => Math.max(0, prev + delta))}
+            explorationPayloads={explorationPayloads}
+            explorationProductionQueue={explorationProductionQueue}
+            onStartPayloadProduction={handleStartPayloadProduction}
           />
         );
       })()}

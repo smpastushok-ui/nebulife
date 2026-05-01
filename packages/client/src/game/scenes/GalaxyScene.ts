@@ -56,6 +56,22 @@ function easeOutQuad(x: number): number {
   return x * (2 - x);
 }
 
+/**
+ * Star activation is intentionally smaller than the visual glow/halo.
+ * Research rings and blue reachability circles must stay visual-only so
+ * overlapping halos do not steal taps from nearby stars on mobile.
+ */
+function starActivationHit(px: number, py: number, starHitR: number, label: Text): boolean {
+  if (px * px + py * py <= starHitR * starHitR) return true;
+  if (!label.visible) return false;
+
+  const labelW = Math.max(24, label.width);
+  const labelH = Math.max(12, label.height);
+  const left = label.x - labelW * label.anchor.x;
+  const top = label.y - labelH * label.anchor.y;
+  return px >= left && px <= left + labelW && py >= top && py <= top + labelH;
+}
+
 /** Size multiplier per spectral class */
 const SPECTRAL_SIZE_MUL: Record<SpectralClass, number> = {
   O: 1.8, B: 1.5, A: 1.2, F: 1.1, G: 1.0, K: 0.95, M: 0.85,
@@ -311,6 +327,7 @@ export class GalaxyScene {
     // Reachable-halo layer sits between connection lines and star nodes so
     // the cyan glow reads as "aura around the star" not "patch on top".
     this.reachableHaloGfx = new Graphics();
+    this.reachableHaloGfx.eventMode = 'none';
     this.container.addChild(this.reachableHaloGfx);
     this.beamGfx = new Graphics();
     this.container.addChild(this.beamGfx);
@@ -1506,6 +1523,7 @@ export class GalaxyScene {
   } {
     const container = new Container();
     const particleGfx = new Graphics();
+    particleGfx.eventMode = 'none';
     container.addChild(particleGfx);
     return { container, particleGfx };
   }
@@ -1535,7 +1553,8 @@ export class GalaxyScene {
 
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
-    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < (baseR + 18) * (baseR + 18) };
+    const homeHitR = Math.max(12, baseR * 0.55 + 4);
+    dot.hitArea = { contains: (px: number, py: number) => starActivationHit(px, py, homeHitR, nl) };
 
     dot.on('pointerover', () => { nl.visible = true; dot.scale.set(1.12); });
     dot.on('pointerout', () => { nl.visible = false; dot.scale.set(1.0); });
@@ -1626,8 +1645,8 @@ export class GalaxyScene {
     // Interactivity
     dot.eventMode = 'static';
     dot.cursor = 'pointer';
-    const hitR = Math.max(18, effectiveR + 14);  // compact enough to avoid stealing clicks from nearby stars
-    dot.hitArea = { contains: (px: number, py: number) => px * px + py * py < hitR * hitR };
+    const hitR = Math.max(10, effectiveR * 0.42 + 4);
+    dot.hitArea = { contains: (px: number, py: number) => starActivationHit(px, py, hitR, nameLabel) };
 
     dot.on('pointerover', () => {
       nameLabel.visible = true; dot.scale.set(1.12);
@@ -2012,12 +2031,14 @@ export class GalaxyScene {
 
       if (!node.scanArc) {
         node.scanArc = new Graphics();
+        node.scanArc.eventMode = 'none';
         node.container.addChild(node.scanArc);
       }
 
       // Create atom orbit if missing (lazy — handles systems that were already researching on load)
       if (!node.atomOrbit) {
         node.atomOrbit = new Graphics();
+        node.atomOrbit.eventMode = 'none';
         node.container.addChild(node.atomOrbit);
       }
 

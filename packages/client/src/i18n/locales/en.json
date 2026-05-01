@@ -886,11 +886,34 @@
       "building_required_named": "requires: {{building}}",
       "surface_unavailable": "landing is not possible here",
       "resources_required": "not enough resources",
-      "resources_required_named": "missing: {{resources}}"
+      "resources_required_named": "missing: {{resources}}",
+      "payload_required": "ready payload required",
+      "payload_required_named": "requires: {{payload}}"
+    },
+    "payload": {
+      "survey_probe": "Survey probe",
+      "orbital_satellite": "Orbital satellite",
+      "surface_rover": "Surface rover",
+      "lander": "Lander",
+      "atmosphere_probe": "Atmosphere probe"
+    },
+    "production": {
+      "queue_full": "production queue for this payload is full"
     },
     "building": {
       "landing_pad": "Landing Pad",
       "spaceport": "Spaceport"
+    },
+    "view_report": "Open mission report",
+    "report_body": {
+      "header": "{{type}} for {{planet}} is complete. Preliminary science brief for the Colony Council follows.",
+      "reveal": "Data tier revealed: Tier {{level}}.",
+      "orbit": "Orbit: {{au}} AU, {{days}} day period.",
+      "climate": "Climate: {{temp}} K, {{pressure}} atm pressure.",
+      "resources": "Deposits: minerals ~{{minerals}}E18, volatiles ~{{volatiles}}E18, isotopes ~{{isotopes}}E12.",
+      "habitability": "Habitability estimate: {{score}}%.",
+      "surface": "Surface: life — {{life}}, colonization — {{colonizable}}.",
+      "footer": "Recommendation: use this data for the next mission tier or colonization planning."
     },
     "report": {
       "orbital_scan": "Orbital scan complete",
@@ -1550,7 +1573,9 @@
       "scope_this": "This colony",
       "scope_all": "All colonies",
       "no_producers": "Nothing produces this here yet",
-      "extraction": "Extraction"
+      "extraction": "Extraction",
+      "exploration_payloads": "Mission payloads",
+      "build_payload": "Build"
     },
     "building_category": {
       "infrastructure": "Infrastructure",

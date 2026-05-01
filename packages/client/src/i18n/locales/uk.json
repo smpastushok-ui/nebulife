@@ -884,11 +884,34 @@
       "building_required_named": "потрібно: {{building}}",
       "surface_unavailable": "посадка тут неможлива",
       "resources_required": "недостатньо ресурсів",
-      "resources_required_named": "бракує: {{resources}}"
+      "resources_required_named": "бракує: {{resources}}",
+      "payload_required": "потрібен готовий payload",
+      "payload_required_named": "потрібно: {{payload}}"
+    },
+    "payload": {
+      "survey_probe": "Скан-зонд",
+      "orbital_satellite": "Орбітальний супутник",
+      "surface_rover": "Поверхневий ровер",
+      "lander": "Посадковий модуль",
+      "atmosphere_probe": "Атмосферний зонд"
+    },
+    "production": {
+      "queue_full": "черга виробництва цього payload заповнена"
     },
     "building": {
       "landing_pad": "Посадковий майданчик",
       "spaceport": "Космопорт"
+    },
+    "view_report": "Відкрити звіт місії",
+    "report_body": {
+      "header": "{{type}} для {{planet}} завершено. Нижче попередній науковий витяг для Ради Колонії.",
+      "reveal": "Відкрито рівень даних: Tier {{level}}.",
+      "orbit": "Орбіта: {{au}} AU, період {{days}} діб.",
+      "climate": "Клімат: {{temp}} K, тиск {{pressure}} atm.",
+      "resources": "Поклади: мінерали ~{{minerals}}E18, леткі ~{{volatiles}}E18, ізотопи ~{{isotopes}}E12.",
+      "habitability": "Оцінка придатності: {{score}}%.",
+      "surface": "Поверхня: життя — {{life}}, колонізація — {{colonizable}}.",
+      "footer": "Рекомендація: використати ці дані для наступного рівня місії або планування колонізації."
     },
     "report": {
       "orbital_scan": "Орбітальне сканування завершено",
@@ -1551,7 +1574,9 @@
       "scope_this": "Ця колонiя",
       "scope_all": "Усi колонiї",
       "no_producers": "Тут поки нiчого не виробляється",
-      "extraction": "Добування"
+      "extraction": "Добування",
+      "exploration_payloads": "Payload-и для місій",
+      "build_payload": "Виробити"
     },
     "building_category": {
       "infrastructure": "Iнфраструктура",

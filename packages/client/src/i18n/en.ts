@@ -554,4 +554,6 @@ export const en: Record<TranslationKey, string> = {
   'planet_missions.reason.building_required':   'Launch building required',
   'planet_missions.reason.surface_unavailable': 'Landing is not possible here',
   'planet_missions.reason.resources_required':  'Not enough resources',
+  'planet_missions.reason.payload_required':    'Ready payload required',
+  'planet_missions.reason.production_queue_full': 'Production queue for this payload is full',
 };

@@ -1,4 +1,5 @@
 import type { Planet } from '../types/planet.js';
+import type { ProducibleType } from '../types/logistics.js';
 import type { PlacedBuilding } from '../types/surface.js';
 import type {
   PlanetMission,
@@ -21,8 +22,9 @@ export interface PlanetMissionResources {
 
 export interface PlanetMissionStartCheck {
   canStart: boolean;
-  reason?: 'already_revealed' | 'active_mission' | 'building_required' | 'surface_unavailable' | 'resources_required';
+  reason?: 'already_revealed' | 'active_mission' | 'building_required' | 'surface_unavailable' | 'resources_required' | 'payload_required';
   requiredBuilding?: 'landing_pad' | 'spaceport';
+  requiredPayload?: ProducibleType;
   missingResources?: Partial<PlanetMissionResources>;
 }
 
@@ -182,6 +184,7 @@ export function canStartPlanetMission(params: {
   activeMissions: PlanetMission[];
   buildings: PlacedBuilding[];
   resources: PlanetMissionResources;
+  payloadInventory?: Partial<Record<ProducibleType, number>>;
 }): PlanetMissionStartCheck {
   const targetRevealLevel = getTargetRevealLevel(params.type);
   if (params.revealLevel >= targetRevealLevel) return { canStart: false, reason: 'already_revealed' };
@@ -202,6 +205,10 @@ export function canStartPlanetMission(params: {
   }
 
   const cost = computePlanetMissionCost(params.type, params.planet);
+  if (cost.payload && (params.payloadInventory?.[cost.payload] ?? 0) < 1) {
+    return { canStart: false, reason: 'payload_required', requiredPayload: cost.payload };
+  }
+
   const missing: Partial<PlanetMissionResources> = {};
   for (const key of ['researchData', 'minerals', 'volatiles', 'isotopes', 'water'] as const) {
     const amount = cost[key] ?? 0;

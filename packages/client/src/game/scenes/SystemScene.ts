@@ -606,8 +606,20 @@ export class SystemScene {
     visual.marker.clear();
     const markerAngle = this.time * 0.0015 + progress * Math.PI * 2;
     const markerRadius = radius + 4;
-    visual.marker.circle(Math.cos(markerAngle) * markerRadius, Math.sin(markerAngle) * markerRadius * Y_COMPRESS, isReady ? 3.2 : 2.2);
-    visual.marker.fill({ color, alpha: isReady ? 0.95 : 0.75 });
+    if (visual.data.phase === 'outbound') {
+      const sx = -planetNode.container.x * 0.75;
+      const sy = -planetNode.container.y * 0.75;
+      const fx = sx * (1 - visual.data.phaseProgress);
+      const fy = sy * (1 - visual.data.phaseProgress);
+      visual.marker.moveTo(sx, sy);
+      visual.marker.lineTo(fx, fy);
+      visual.marker.stroke({ width: 1, color, alpha: 0.35 });
+      visual.marker.circle(fx, fy, 2.5);
+      visual.marker.fill({ color, alpha: 0.9 });
+    } else {
+      visual.marker.circle(Math.cos(markerAngle) * markerRadius, Math.sin(markerAngle) * markerRadius * Y_COMPRESS, isReady ? 3.2 : 2.2);
+      visual.marker.fill({ color, alpha: isReady ? 0.95 : 0.75 });
+    }
 
     if (visual.data.phase === 'scan_or_landing' && visual.data.type === 'surface_landing') {
       const y = -size - 6 + visual.data.phaseProgress * (size + 8);
@@ -615,6 +627,12 @@ export class SystemScene {
       visual.marker.lineTo(0, y + 5);
       visual.marker.lineTo(3, y);
       visual.marker.stroke({ width: 1, color: 0xaabbcc, alpha: 0.85 });
+    }
+
+    if (visual.data.phase === 'data_downlink') {
+      visual.marker.moveTo(0, 0);
+      visual.marker.lineTo(-planetNode.container.x, -planetNode.container.y);
+      visual.marker.stroke({ width: 1, color: 0x7bb8ff, alpha: 0.18 + Math.sin(this.time * 0.01) * 0.08 });
     }
   }
 
