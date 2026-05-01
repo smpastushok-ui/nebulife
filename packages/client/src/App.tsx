@@ -93,6 +93,7 @@ import {
   completePlanetMission,
   getPlanetMissionProgress,
   isSolidPlanetForLanding,
+  generateStarSystem,
 } from '@nebulife/core';
 import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
@@ -435,17 +436,15 @@ function AppInner() {
   const savedNavPlanetRef = useRef(localStorage.getItem('nebulife_nav_planet') || '');
 
   const [state, setState] = useState<GameState>(() => {
-    const savedScene = localStorage.getItem('nebulife_scene') as GameState['scene'] | null;
-    const validScenes: GameState['scene'][] = ['home-intro', 'galaxy', 'system', 'planet-view'];
     // If onboarding isn't complete yet (new player OR post-signout state),
     // start in 'universe' so the old player's planet/UI doesn't flash through
     // the intro overlay during the first render. CinematicIntro takes over
     // scene control from its onRequestUniverseScene callback.
     const needsIntro = !localStorage.getItem('nebulife_onboarding_done');
     return {
-      scene: needsIntro
-        ? 'universe'
-        : savedScene && validScenes.includes(savedScene) ? savedScene : 'home-intro',
+      // Returning players always start from the Star Group. Restoring deep
+      // views on boot is disorienting and can hide current progress signals.
+      scene: needsIntro ? 'universe' : 'galaxy',
       selectedSystem: null,
       selectedPlanet: null,
       planetClickPos: null,
@@ -3638,8 +3637,12 @@ function AppInner() {
       setClockPhase('visible');
     }
 
-    // Navigation (restore scene)
-    if (gs.scene && typeof gs.scene === 'string') {
+    // Navigation: returning players always land on the Star Group, even if the
+    // last persisted scene was a system or planet view on another device.
+    if (gs.onboarding_done) {
+      setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+      try { localStorage.setItem('nebulife_scene', 'galaxy'); } catch { /* ignore */ }
+    } else if (gs.scene && typeof gs.scene === 'string') {
       const validScenes: SceneType[] = ['home-intro', 'galaxy', 'system', 'planet-view'];
       if (validScenes.includes(gs.scene as SceneType)) {
         setState(prev => ({ ...prev, scene: gs.scene as SceneType }));
@@ -4609,12 +4612,15 @@ function AppInner() {
       onLiteOrbTap: (lite) => {
         // Quick preview toast: tap a faraway star → see its color hint + ring info.
         // Player can't research it without traveling closer (different mechanic).
-        const ringName = lite.nodeType === 'core'
-          ? (lang === 'uk' ? 'галактичне ядро' : 'galactic core')
+        const ownerLabel = lite.nodeType === 'core'
+          ? ''
           : lite.ownerIndex === playerIndex
             ? (lang === 'uk' ? 'твоя система' : 'your system')
             : (lang === 'uk' ? `сусід (гравець #${lite.ownerIndex})` : `neighbor (player #${lite.ownerIndex})`);
-        setToastMessage(`✦  ${ringName}  •  ${lite.starColor}`);
+        const starName = generateStarSystem(lite.seed, { x: 0, y: 0, z: 0 }, lite.ringIndex).star.name;
+        setToastMessage(ownerLabel
+          ? `✦  ${starName}  •  ${ownerLabel}  •  ${lite.starColor}`
+          : `✦  ${starName}  •  ${lite.starColor}`);
         setTimeout(() => setToastMessage(null), 2500);
       },
     }, playerIndex);
@@ -4670,7 +4676,15 @@ function AppInner() {
         setEvacuationPromptDismissed(false);
       }
 
-      // Restore saved scene (engine always starts at home-intro).
+      // Returning players always start from the Star Group after boot. Deep
+      // scenes are entered intentionally from the galaxy/system UI.
+      if (localStorage.getItem('nebulife_onboarding_done') === '1') {
+        engine.showGalaxyScene();
+        setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+        return;
+      }
+
+      // Restore saved scene for non-standard pre-onboarding/dev states.
       // Use refs captured at component mount — by this point localStorage is already
       // overwritten by the persistence useEffect (engine.init() → showHomePlanetScene()
       // → onSceneChange('home-intro') → setState → useEffect writes 'home-intro').
@@ -8961,9 +8975,10 @@ function AppInner() {
             if (p.resource in perHour) (perHour as any)[p.resource] += p.amount * 60;
           }
         }
+        const savedPopulation = (colonyState as any)?.population as { current?: number; capacity?: number } | undefined;
         active.population = {
-          current: (colonyState as any)?.population?.current ?? 0,
-          capacity: (colonyState as any)?.population?.capacity ?? populationCapacity,
+          current: savedPopulation?.current ?? 0,
+          capacity: Math.max(savedPopulation?.capacity ?? 0, populationCapacity),
         };
 
         // Resource hexes — passive extraction from natural deposits. Each

@@ -408,9 +408,11 @@ function OverviewTab({
           label={t('colony_center.overview.energy')}
           value={`${energyBalance.produced} / ${energyBalance.consumed}`}
           accent={energyShortfall > 0 ? '#cc4444' : '#44ff88'}
-          sub={energyShortfall > 0
-            ? t('colony_center.overview.shortfall', { amount: energyShortfall })
-            : t('colony_center.overview.surplus', { amount: -energyShortfall })}
+          sub={`${t('colony_center.overview.energy_ratio_hint')} · ${
+            energyShortfall > 0
+              ? t('colony_center.overview.shortfall', { amount: energyShortfall })
+              : t('colony_center.overview.surplus', { amount: -energyShortfall })
+          }`}
         />
         <StatCard
           label={t('building_detail.population')}

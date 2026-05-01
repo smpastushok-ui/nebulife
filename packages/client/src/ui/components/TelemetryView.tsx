@@ -27,6 +27,88 @@ const SCAN_DURATION_MS = 30_000;
 // Category → visual rendering strategy
 type RenderCategory = 'nebula' | 'star' | 'galaxy' | 'phenomenon' | 'planet' | 'rings' | 'cluster' | 'organic';
 
+type TelemetryStyle =
+  | 'emission-nebula'
+  | 'reflection-nebula'
+  | 'dark-nebula'
+  | 'planetary-nebula'
+  | 'supernova-remnant'
+  | 'bubble-nebula'
+  | 'bipolar-nebula'
+  | 'pulsar'
+  | 'magnetar'
+  | 'brown-dwarf'
+  | 'spiral-galaxy'
+  | 'elliptical-galaxy'
+  | 'ring-galaxy'
+  | 'colliding-galaxies'
+  | 'quasar'
+  | 'jet'
+  | 'lens'
+  | 'burst'
+  | 'shock'
+  | 'black-hole'
+  | 'planet-lava'
+  | 'planet-ocean'
+  | 'planet-eyeball'
+  | 'planet-dark'
+  | 'planet-gas'
+  | 'molecular-cloud'
+  | 'pillars'
+  | 'open-cluster'
+  | 'globular-cluster'
+  | 'binary-star'
+  | 'comet'
+  | 'asteroid-belt'
+  | 'debris-disk'
+  | 'rogue-planet'
+  | 'rogue-dwarf'
+  | 'flora'
+  | 'fauna'
+  | 'microbes';
+
+function getTelemetryStyle(type: string, category: string): TelemetryStyle {
+  if (type.includes('reflection')) return 'reflection-nebula';
+  if (type.includes('dark-nebula') || type.includes('infrared-dark')) return 'dark-nebula';
+  if (type.includes('planetary-nebula') || type.includes('ring-nebula')) return 'planetary-nebula';
+  if (type.includes('supernova-remnant')) return 'supernova-remnant';
+  if (type.includes('bubble')) return 'bubble-nebula';
+  if (type.includes('bipolar') || type.includes('protoplanetary')) return 'bipolar-nebula';
+  if (type.includes('nebula')) return 'emission-nebula';
+  if (type.includes('pulsar')) return 'pulsar';
+  if (type.includes('magnetar')) return 'magnetar';
+  if (type.includes('brown-dwarf') || type.includes('-dwarf')) return 'brown-dwarf';
+  if (type.includes('elliptical') || type.includes('lenticular')) return 'elliptical-galaxy';
+  if (type.includes('ring-galaxy') || type.includes('polar-ring')) return 'ring-galaxy';
+  if (type.includes('colliding') || type.includes('jellyfish')) return 'colliding-galaxies';
+  if (type.includes('quasar') || type.includes('seyfert') || type.includes('radio-galaxy')) return 'quasar';
+  if (type.includes('galaxy')) return 'spiral-galaxy';
+  if (type.includes('jet') || type.includes('gamma-ray') || type.includes('blazar')) return 'jet';
+  if (type.includes('lens') || type.includes('einstein')) return 'lens';
+  if (type.includes('burst') || type.includes('nova') || type.includes('flare')) return 'burst';
+  if (type.includes('shock') || type.includes('ray-shower') || type.includes('light-echo')) return 'shock';
+  if (type.includes('black-hole') || type.includes('-bh') || type.includes('white-hole') || type.includes('dark-matter')) return 'black-hole';
+  if (type.includes('lava') || type.includes('volcanic')) return 'planet-lava';
+  if (type.includes('ocean') || type.includes('water-world')) return 'planet-ocean';
+  if (type.includes('eyeball')) return 'planet-eyeball';
+  if (type.includes('ultra-dark') || type.includes('diamond') || type.includes('iron-rain') || type.includes('glass-rain')) return 'planet-dark';
+  if (type.includes('jupiter') || type.includes('neptune') || type.includes('puffy') || type.includes('gas-giant')) return 'planet-gas';
+  if (type.includes('molecular-cloud') || type.includes('bok-globule')) return 'molecular-cloud';
+  if (type.includes('pillars') || type.includes('nursery') || type.includes('triggered')) return 'pillars';
+  if (type.includes('globular-cluster')) return 'globular-cluster';
+  if (type.includes('open-cluster') || type.includes('protostar') || type.includes('herbig')) return 'open-cluster';
+  if (category === 'binaries' || type.includes('binary') || type.includes('contact') || type.includes('eclipsing')) return 'binary-star';
+  if (type.includes('comet') || type.includes('interstellar-object')) return 'comet';
+  if (type.includes('asteroid') || type.includes('belt') || type.includes('oort') || type.includes('kuiper')) return 'asteroid-belt';
+  if (type.includes('ring-system') || type.includes('debris-disk')) return 'debris-disk';
+  if (category === 'rogues' && type.includes('dwarf')) return 'rogue-dwarf';
+  if (category === 'rogues') return 'rogue-planet';
+  if (category === 'flora') return 'flora';
+  if (category === 'fauna') return 'fauna';
+  if (category === 'microbes') return 'microbes';
+  return category === 'stars' ? 'emission-nebula' : 'spiral-galaxy';
+}
+
 const CATEGORY_RENDER: Record<string, RenderCategory> = {
   nebulae: 'nebula',
   stars: 'star',
@@ -43,6 +125,15 @@ const CATEGORY_RENDER: Record<string, RenderCategory> = {
   microbes: 'cluster',
 };
 
+function getRenderCategory(category: string, style: TelemetryStyle): RenderCategory {
+  if (style === 'black-hole' || style === 'lens' || style === 'jet' || style === 'burst' || style === 'shock') return 'phenomenon';
+  if (style === 'binary-star' || style === 'pulsar' || style === 'magnetar' || style === 'brown-dwarf' || style === 'rogue-dwarf') return 'star';
+  if (style === 'open-cluster' || style === 'globular-cluster' || style === 'microbes') return 'cluster';
+  if (style === 'comet' || style === 'asteroid-belt' || style === 'debris-disk') return 'rings';
+  if (style === 'flora' || style === 'fauna') return 'organic';
+  return CATEGORY_RENDER[category] ?? 'cluster';
+}
+
 // ─── RNG ────────────────────────────────────────────────────────────────
 
 function xorshift(seed: number): () => number {
@@ -58,6 +149,7 @@ function xorshift(seed: number): () => number {
 // ─── Color ──────────────────────────────────────────────────────────────
 
 function clampC(v: number) { return Math.max(0, Math.min(255, Math.round(v))); }
+function baseAngleFromCenter(x: number, y: number, cx: number, cy: number) { return Math.atan2(y - cy, x - cx); }
 
 // ─── Drawing helpers ────────────────────────────────────────────────────
 
@@ -83,9 +175,34 @@ function drawNebula(
   ctx: CanvasRenderingContext2D, w: number, h: number,
   rng: () => number, p: number, t: number,
   cr: number, cg: number, cb: number, rar: number,
+  style: TelemetryStyle,
 ) {
   const cx = w / 2, cy = h / 2;
   const maxR = Math.min(w, h) * 0.42;
+  const isDark = style === 'dark-nebula' || style === 'molecular-cloud';
+  const isBubble = style === 'bubble-nebula' || style === 'planetary-nebula';
+  const isBipolar = style === 'bipolar-nebula';
+  const isShock = style === 'supernova-remnant';
+
+  if (isDark) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 36; i++) {
+      const a = rng() * Math.PI * 2;
+      const d = rng() * maxR * 0.75;
+      const x = cx + Math.cos(a) * d;
+      const y = cy + Math.sin(a) * d * 0.55;
+      const r = 45 + rng() * 105;
+      const grd = ctx.createRadialGradient(x, y, 0, x, y, r);
+      grd.addColorStop(0, `rgba(0,0,0,${0.18 * p})`);
+      grd.addColorStop(1, 'transparent');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
 
   // Multi-layered gas clouds
   const layers = Math.floor(4 + p * (8 + rar * 4));
@@ -113,9 +230,23 @@ function drawNebula(
       grd.addColorStop(0, `rgba(${lr},${lg},${lb},${ba})`);
       grd.addColorStop(1, 'transparent');
       ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      if (isBipolar) ctx.ellipse(x, y, r * 0.55, r * 1.45, baseAngleFromCenter(x, y, cx, cy), 0, Math.PI * 2);
+      else ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fillStyle = grd;
       ctx.fill();
+    }
+  }
+
+  if (isBubble || isShock) {
+    const shellCount = isShock ? 5 : 2;
+    for (let i = 0; i < shellCount; i++) {
+      const shellP = Math.min(1, Math.max(0, (p - 0.18 - i * 0.06) / 0.55));
+      const r = maxR * (0.36 + i * 0.08) * shellP;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r * (isBubble ? 1.12 : 1.35), r * (isBubble ? 0.92 : 0.62), t * 0.018 + i, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${clampC(cr + 80)},${clampC(cg + 70)},${clampC(cb + 50)},${(isShock ? 0.22 : 0.34) * shellP})`;
+      ctx.lineWidth = isShock ? 1.5 + i : 4;
+      ctx.stroke();
     }
   }
 
@@ -157,6 +288,23 @@ function drawNebula(
     ctx.fill();
   }
 
+  if (isBipolar && p > 0.35) {
+    const jetP = Math.min(1, (p - 0.35) / 0.45);
+    for (const dir of [-1, 1]) {
+      const grd = ctx.createLinearGradient(cx, cy, cx, cy + dir * maxR * 0.9 * jetP);
+      grd.addColorStop(0, `rgba(${clampC(cr + 80)},${clampC(cg + 80)},${clampC(cb + 80)},${0.28 * jetP})`);
+      grd.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.moveTo(cx - 16, cy);
+      ctx.quadraticCurveTo(cx, cy + dir * maxR * 0.55, cx - 42, cy + dir * maxR * 0.92);
+      ctx.lineTo(cx + 42, cy + dir * maxR * 0.92);
+      ctx.quadraticCurveTo(cx, cy + dir * maxR * 0.55, cx + 16, cy);
+      ctx.closePath();
+      ctx.fillStyle = grd;
+      ctx.fill();
+    }
+  }
+
   // Embedded young stars
   if (p > 0.65) {
     const stP = Math.min(1, (p - 0.65) / 0.3);
@@ -182,20 +330,29 @@ function drawStar(
   ctx: CanvasRenderingContext2D, w: number, h: number,
   rng: () => number, p: number, t: number,
   cr: number, cg: number, cb: number, rar: number,
+  style: TelemetryStyle,
 ) {
   const cx = w / 2, cy = h / 2;
-  const R = 45 + rar * 20;
+  const isPulsar = style === 'pulsar' || style === 'magnetar';
+  const isDwarf = style === 'brown-dwarf' || style === 'rogue-dwarf';
+  const isBinary = style === 'binary-star';
+  const R = (isDwarf ? 28 : 45) + rar * (isDwarf ? 10 : 20);
+  const starCenters = isBinary
+    ? [{ x: cx - R * 0.8, y: cy + Math.sin(t) * 8, r: R * 0.82 }, { x: cx + R * 0.9, y: cy - Math.sin(t) * 8, r: R * 0.62 }]
+    : [{ x: cx, y: cy, r: R }];
 
   // Corona (first to appear)
   if (p > 0.05) {
     const coP = Math.min(1, (p - 0.05) / 0.25);
-    for (let r = R * 3.5; r > R * 1.2; r -= 4) {
-      const pulse = 1 + Math.sin(t * 1.2 + r * 0.08) * 0.12;
-      const a = (0.008 + (1 - r / (R * 3.5)) * 0.035) * coP * pulse;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r * pulse, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${cr},${cg},${cb},${a})`;
-      ctx.fill();
+    for (const sc of starCenters) {
+      for (let r = sc.r * 3.5; r > sc.r * 1.2; r -= 4) {
+        const pulse = 1 + Math.sin(t * 1.2 + r * 0.08) * 0.12;
+        const a = (0.008 + (1 - r / (sc.r * 3.5)) * 0.035) * coP * pulse * (isDwarf ? 0.45 : 1);
+        ctx.beginPath();
+        ctx.arc(sc.x, sc.y, r * pulse, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},${a})`;
+        ctx.fill();
+      }
     }
   }
 
@@ -228,16 +385,18 @@ function drawStar(
   // Star body
   if (p > 0.15) {
     const bP = Math.min(1, (p - 0.15) / 0.35);
-    const bodyR = R * bP;
-    const sGrd = ctx.createRadialGradient(cx - R * 0.15, cy - R * 0.15, 0, cx, cy, bodyR);
-    sGrd.addColorStop(0, `rgba(${clampC(cr + 120)},${clampC(cg + 120)},${clampC(cb + 100)},${0.95 * bP})`);
-    sGrd.addColorStop(0.35, `rgba(${cr},${cg},${cb},${0.85 * bP})`);
-    sGrd.addColorStop(0.75, `rgba(${cr >> 1},${cg >> 1},${cb >> 1},${0.5 * bP})`);
-    sGrd.addColorStop(1, `rgba(${cr >> 2},${cg >> 2},${cb >> 2},${0.15 * bP})`);
-    ctx.beginPath();
-    ctx.arc(cx, cy, bodyR, 0, Math.PI * 2);
-    ctx.fillStyle = sGrd;
-    ctx.fill();
+    for (const sc of starCenters) {
+      const bodyR = sc.r * bP;
+      const sGrd = ctx.createRadialGradient(sc.x - sc.r * 0.15, sc.y - sc.r * 0.15, 0, sc.x, sc.y, bodyR);
+      sGrd.addColorStop(0, `rgba(${clampC(cr + 120)},${clampC(cg + 120)},${clampC(cb + 100)},${0.95 * bP})`);
+      sGrd.addColorStop(0.35, `rgba(${cr},${cg},${cb},${0.85 * bP})`);
+      sGrd.addColorStop(0.75, `rgba(${cr >> 1},${cg >> 1},${cb >> 1},${0.5 * bP})`);
+      sGrd.addColorStop(1, `rgba(${cr >> 2},${cg >> 2},${cb >> 2},${0.15 * bP})`);
+      ctx.beginPath();
+      ctx.arc(sc.x, sc.y, bodyR, 0, Math.PI * 2);
+      ctx.fillStyle = sGrd;
+      ctx.fill();
+    }
   }
 
   // Surface granulation
@@ -254,6 +413,37 @@ function drawStar(
       ctx.fillStyle = `rgba(${cr >> 1},${cg >> 1},${cb >> 1},${0.12 * texP})`;
       ctx.fill();
     }
+  }
+
+  if (isPulsar && p > 0.38) {
+    const beamP = Math.min(1, (p - 0.38) / 0.4);
+    const angle = t * (style === 'magnetar' ? 1.35 : 0.9);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    for (const dir of [-1, 1]) {
+      const grd = ctx.createLinearGradient(0, 0, dir * w * 0.42, 0);
+      grd.addColorStop(0, `rgba(220,240,255,${0.55 * beamP})`);
+      grd.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.moveTo(0, -5);
+      ctx.lineTo(dir * w * 0.42, -24);
+      ctx.lineTo(dir * w * 0.42, 24);
+      ctx.lineTo(0, 5);
+      ctx.closePath();
+      ctx.fillStyle = grd;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  if (isBinary && p > 0.55) {
+    ctx.strokeStyle = `rgba(${clampC(cr + 70)},${clampC(cg + 70)},${clampC(cb + 70)},${0.18 * p})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(starCenters[0].x + R * 0.35, starCenters[0].y);
+    ctx.bezierCurveTo(cx - 20, cy - 36, cx + 20, cy + 36, starCenters[1].x - R * 0.3, starCenters[1].y);
+    ctx.stroke();
   }
 
   // Prominences (arcs)
@@ -298,9 +488,14 @@ function drawGalaxy(
   ctx: CanvasRenderingContext2D, w: number, h: number,
   rng: () => number, p: number, t: number,
   cr: number, cg: number, cb: number, rar: number,
+  style: TelemetryStyle,
 ) {
   const cx = w / 2, cy = h / 2;
-  const tilt = 0.5;
+  const tilt = style === 'elliptical-galaxy' ? 0.72 : 0.5;
+  const isElliptical = style === 'elliptical-galaxy';
+  const isRing = style === 'ring-galaxy';
+  const isCollision = style === 'colliding-galaxies';
+  const isQuasar = style === 'quasar';
 
   // Central bulge
   if (p > 0.1) {
@@ -320,8 +515,29 @@ function drawGalaxy(
     ctx.fill();
   }
 
+  if (isElliptical) {
+    for (let i = 0; i < 9; i++) {
+      const eP = Math.min(1, p * 1.25 - i * 0.05);
+      if (eP <= 0) continue;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, (70 + i * 22) * eP, (46 + i * 15) * eP, -0.18, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${clampC(cr + 35)},${clampC(cg + 30)},${clampC(cb + 18)},${0.07 * eP})`;
+      ctx.fill();
+    }
+    return;
+  }
+
+  if (isRing) {
+    const rP = Math.min(1, Math.max(0, (p - 0.12) / 0.7));
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 190 * rP, 92 * rP, 0.18 + t * 0.006, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${clampC(cr + 80)},${clampC(cg + 80)},${clampC(cb + 80)},${0.5 * rP})`;
+    ctx.lineWidth = 12;
+    ctx.stroke();
+  }
+
   // Spiral arms
-  const arms = 2 + Math.floor(rar * 2);
+  const arms = isCollision ? 4 : 2 + Math.floor(rar * 2);
   const total = Math.floor(250 + rar * 150);
   const vis = Math.floor(total * p);
 
@@ -329,10 +545,11 @@ function drawGalaxy(
     const off = (arm / arms) * Math.PI * 2;
     for (let i = 0; i < vis; i++) {
       const it = i / total;
-      const angle = off + it * Math.PI * 3.5 + t * 0.015;
-      const dist = 15 + it * (w * 0.36);
+      const angle = off + it * Math.PI * (isCollision ? 1.6 : 3.5) + t * 0.015;
+      const dist = 15 + it * (w * (isRing ? 0.28 : 0.36));
+      const centerShift = isCollision ? (arm % 2 === 0 ? -105 : 105) : 0;
       const scatter = (4 + it * 28) * (rng() - 0.5);
-      const x = cx + Math.cos(angle) * dist + scatter;
+      const x = cx + centerShift + Math.cos(angle) * dist + scatter;
       const y = cy + Math.sin(angle) * dist * tilt + scatter * tilt;
       const sz = 0.4 + rng() * 2.2;
       const br = 0.15 + rng() * 0.45;
@@ -367,6 +584,24 @@ function drawGalaxy(
     }
   }
 
+  if (isQuasar && p > 0.35) {
+    const qP = Math.min(1, (p - 0.35) / 0.45);
+    for (const dir of [-1, 1]) {
+      const grd = ctx.createLinearGradient(cx, cy, cx + dir * w * 0.42, cy);
+      grd.addColorStop(0, `rgba(255,255,255,${0.6 * qP})`);
+      grd.addColorStop(0.2, `rgba(${cr},${cg},${cb},${0.35 * qP})`);
+      grd.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 7);
+      ctx.lineTo(cx + dir * w * 0.42, cy - 34);
+      ctx.lineTo(cx + dir * w * 0.42, cy + 34);
+      ctx.lineTo(cx, cy + 7);
+      ctx.closePath();
+      ctx.fillStyle = grd;
+      ctx.fill();
+    }
+  }
+
   // Globular clusters
   if (p > 0.7) {
     const gcP = Math.min(1, (p - 0.7) / 0.25);
@@ -392,8 +627,51 @@ function drawPhenomenon(
   ctx: CanvasRenderingContext2D, w: number, h: number,
   rng: () => number, p: number, t: number,
   cr: number, cg: number, cb: number, rar: number,
+  style: TelemetryStyle,
 ) {
   const cx = w / 2, cy = h / 2;
+  const isBlackHole = style === 'black-hole';
+  const isLens = style === 'lens';
+  const isJet = style === 'jet';
+  const isShock = style === 'shock' || style === 'burst';
+
+  if (isBlackHole || isLens) {
+    const diskP = Math.min(1, Math.max(0, (p - 0.12) / 0.62));
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(t * 0.08);
+    for (let i = 0; i < 8; i++) {
+      const r = (44 + i * 18) * diskP;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 1.65, r * 0.38, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${clampC(cr + 90)},${clampC(cg + 70)},${clampC(cb + 45)},${(0.22 - i * 0.018) * diskP})`;
+      ctx.lineWidth = 2 + i * 0.45;
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    if (isLens) {
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(cx + side * 78 * diskP, cy, 86 * diskP, -1.05, 1.05);
+        ctx.strokeStyle = `rgba(210,230,255,${0.36 * diskP})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    }
+
+    const coreR = (18 + rar * 5) * diskP;
+    ctx.beginPath();
+    ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(0,0,0,${0.96 * diskP})`;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx, cy, coreR * 1.45, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(230,240,255,${0.26 * diskP})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    return;
+  }
 
   // Shockwave rings
   const ringN = Math.floor(4 + p * 6);
@@ -466,12 +744,12 @@ function drawPhenomenon(
   }
 
   // Jetted bipolar outflow
-  if (p > 0.6 && rar >= 2) {
-    const jP = Math.min(1, (p - 0.6) / 0.35);
+  if ((p > 0.6 && rar >= 2) || (isJet && p > 0.3)) {
+    const jP = isJet ? Math.min(1, (p - 0.3) / 0.55) : Math.min(1, (p - 0.6) / 0.35);
     for (const dir of [-1, 1]) {
-      const jLen = 120 * jP;
+      const jLen = (isJet ? 260 : 120) * jP;
       const jGrd = ctx.createLinearGradient(cx, cy, cx, cy + dir * jLen);
-      jGrd.addColorStop(0, `rgba(${cr},${cg},${cb},${0.3 * jP})`);
+      jGrd.addColorStop(0, `rgba(${isJet ? 230 : cr},${isJet ? 240 : cg},${isJet ? 255 : cb},${0.3 * jP})`);
       jGrd.addColorStop(1, 'transparent');
       ctx.beginPath();
       ctx.moveTo(cx - 8, cy);
@@ -483,6 +761,17 @@ function drawPhenomenon(
       ctx.fill();
     }
   }
+
+  if (isShock && p > 0.72) {
+    const arcP = Math.min(1, (p - 0.72) / 0.22);
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, 105 + i * 18, rng() * Math.PI, rng() * Math.PI + Math.PI * 0.75);
+      ctx.strokeStyle = `rgba(255,235,210,${0.18 * arcP})`;
+      ctx.lineWidth = 2 + i * 0.8;
+      ctx.stroke();
+    }
+  }
 }
 
 // ─── Planet ─────────────────────────────────────────────────────────────
@@ -491,16 +780,24 @@ function drawPlanet(
   ctx: CanvasRenderingContext2D, w: number, h: number,
   rng: () => number, p: number, t: number,
   cr: number, cg: number, cb: number, rar: number,
+  style: TelemetryStyle,
 ) {
   const cx = w / 2, cy = h / 2;
-  const R = 55 + rar * 18;
+  const isGas = style === 'planet-gas';
+  const isDark = style === 'planet-dark' || style === 'rogue-planet';
+  const isLava = style === 'planet-lava';
+  const isOcean = style === 'planet-ocean';
+  const isEyeball = style === 'planet-eyeball';
+  const R = (isGas ? 72 : 55) + rar * 18;
 
   // Shadow base
   if (p > 0.1) {
     const bP = Math.min(1, (p - 0.1) / 0.3);
     ctx.beginPath();
     ctx.arc(cx, cy, R * bP, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${cr >> 2},${cg >> 2},${cb >> 2},${0.9 * bP})`;
+    ctx.fillStyle = isDark
+      ? `rgba(5,7,10,${0.94 * bP})`
+      : `rgba(${cr >> 2},${cg >> 2},${cb >> 2},${0.9 * bP})`;
     ctx.fill();
   }
 
@@ -508,8 +805,11 @@ function drawPlanet(
   if (p > 0.2) {
     const lP = Math.min(1, (p - 0.2) / 0.3);
     const lGrd = ctx.createRadialGradient(cx - R * 0.2, cy - R * 0.15, 0, cx, cy, R);
-    lGrd.addColorStop(0, `rgba(${clampC(cr + 50)},${clampC(cg + 50)},${clampC(cb + 50)},${0.9 * lP})`);
-    lGrd.addColorStop(0.5, `rgba(${cr},${cg},${cb},${0.65 * lP})`);
+    const lr = isLava ? 255 : isOcean ? 80 : isDark ? 28 : clampC(cr + 50);
+    const lg = isLava ? 120 : isOcean ? 150 : isDark ? 34 : clampC(cg + 50);
+    const lb = isLava ? 40 : isOcean ? 210 : isDark ? 46 : clampC(cb + 50);
+    lGrd.addColorStop(0, `rgba(${lr},${lg},${lb},${0.9 * lP})`);
+    lGrd.addColorStop(0.5, `rgba(${isOcean ? 44 : cr},${isOcean ? 120 : cg},${isOcean ? 170 : cb},${0.65 * lP})`);
     lGrd.addColorStop(1, `rgba(${cr >> 1},${cg >> 1},${cb >> 1},${0.12 * lP})`);
     ctx.beginPath();
     ctx.arc(cx, cy, R * 0.96 * lP, 0, Math.PI * 2);
@@ -529,13 +829,29 @@ function drawPlanet(
       if (chord > 0) {
         ctx.beginPath();
         ctx.ellipse(cx, by, chord * 0.95, bw * 0.3, 0, 0, Math.PI * 2);
-        const bc = i % 2 === 0
+        const bc = isLava
+          ? `rgba(255,${80 + i * 12},28,${0.16 * fP})`
+          : isOcean
+            ? `rgba(180,220,235,${0.12 * fP})`
+            : i % 2 === 0
           ? `rgba(${cr},${cg},${cb},${0.12 * fP})`
           : `rgba(${clampC(cr + 25)},${clampC(cg + 15)},${cb},${0.09 * fP})`;
         ctx.fillStyle = bc;
         ctx.fill();
       }
     }
+  }
+
+  if (isEyeball && p > 0.58) {
+    const eyeP = Math.min(1, (p - 0.58) / 0.3);
+    ctx.beginPath();
+    ctx.ellipse(cx - R * 0.1, cy, R * 0.34 * eyeP, R * 0.26 * eyeP, 0, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(220,235,240,${0.34 * eyeP})`;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx - R * 0.1, cy, R * 0.1 * eyeP, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(20,30,40,${0.55 * eyeP})`;
+    ctx.fill();
   }
 
   // Clouds drifting
@@ -619,11 +935,37 @@ function drawRings(
   ctx: CanvasRenderingContext2D, w: number, h: number,
   rng: () => number, p: number, t: number,
   cr: number, cg: number, cb: number, rar: number,
+  style: TelemetryStyle,
 ) {
   const cx = w / 2, cy = h / 2;
+  const isComet = style === 'comet';
+  const isBelt = style === 'asteroid-belt';
+  const isDebris = style === 'debris-disk';
+
+  if (isComet) {
+    const cP = Math.min(1, p * 1.2);
+    const headX = cx - 70 + Math.sin(t * 0.3) * 12;
+    const headY = cy + Math.cos(t * 0.4) * 8;
+    const tailLen = 300 * cP;
+    const tail = ctx.createLinearGradient(headX, headY, headX + tailLen, headY - tailLen * 0.22);
+    tail.addColorStop(0, `rgba(${clampC(cr + 70)},${clampC(cg + 90)},${clampC(cb + 110)},${0.42 * cP})`);
+    tail.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    ctx.moveTo(headX, headY - 12);
+    ctx.quadraticCurveTo(headX + tailLen * 0.48, headY - tailLen * 0.16, headX + tailLen, headY - tailLen * 0.22);
+    ctx.quadraticCurveTo(headX + tailLen * 0.4, headY + 14, headX, headY + 12);
+    ctx.closePath();
+    ctx.fillStyle = tail;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(headX, headY, 12 + rar * 3, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(220,235,240,${0.76 * cP})`;
+    ctx.fill();
+    return;
+  }
 
   // Concentric rings
-  const ringN = Math.floor(6 + rar * 5);
+  const ringN = isBelt ? Math.floor(3 + rar * 2) : Math.floor(6 + rar * 5);
   for (let i = 0; i < ringN; i++) {
     const rp = Math.max(0, Math.min(1, (p * ringN - i)));
     if (rp <= 0) continue;
@@ -634,20 +976,23 @@ function drawRings(
 
     ctx.beginPath();
     ctx.ellipse(cx, cy, r * pulse, r * pulse * 0.4, rot, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(${cr},${cg},${cb},${(0.35 - i * 0.025) * rp})`;
-    ctx.lineWidth = thick;
-    ctx.stroke();
+    if (!isBelt) {
+      ctx.strokeStyle = `rgba(${cr},${cg},${cb},${(0.35 - i * 0.025) * rp})`;
+      ctx.lineWidth = isDebris ? thick * 0.45 : thick;
+      ctx.stroke();
+    }
 
     // Particles along ring
     if (rp > 0.5) {
-      const dots = 12 + Math.floor(rng() * 16);
+      const dots = (isBelt ? 60 : 12) + Math.floor(rng() * (isBelt ? 42 : 16));
       for (let d = 0; d < dots; d++) {
         const a = rng() * Math.PI * 2 + t * 0.04 * (i % 2 === 0 ? 1 : -1);
-        const px = cx + Math.cos(a + rot) * r * pulse;
-        const py = cy + Math.sin(a + rot) * r * pulse * 0.4;
+        const spread = isBelt ? 10 + rng() * 32 : 0;
+        const px = cx + Math.cos(a + rot) * (r + spread) * pulse;
+        const py = cy + Math.sin(a + rot) * (r + spread) * pulse * (isBelt ? 0.26 : 0.4);
         ctx.beginPath();
-        ctx.arc(px, py, 0.8 + rng() * 2, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${cr},${cg},${cb},${0.25 * rp * rng()})`;
+        ctx.arc(px, py, (isBelt ? 0.7 : 0.8) + rng() * (isBelt ? 3.8 : 2), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},${(isBelt ? 0.42 : 0.25) * rp * rng()})`;
         ctx.fill();
       }
     }
@@ -666,7 +1011,7 @@ function drawRings(
   }
 
   // Tail / jet (comet-like) for small-bodies
-  if (p > 0.6) {
+  if (!isBelt && p > 0.6) {
     const tP = Math.min(1, (p - 0.6) / 0.3);
     const tailLen = 150 * tP;
     const tGrd = ctx.createLinearGradient(cx, cy, cx + tailLen, cy - tailLen * 0.3);
@@ -846,6 +1191,7 @@ function drawFrame(
   progress: number, // 0..1
   time: number, // seconds
   category: RenderCategory,
+  style: TelemetryStyle,
   cr: number, cg: number, cb: number,
   rarity: number,
 ) {
@@ -881,12 +1227,12 @@ function drawFrame(
 
   // Main object
   switch (category) {
-    case 'nebula': drawNebula(ctx, w, h, rng, progress, time, cr, cg, cb, rarity); break;
-    case 'star': drawStar(ctx, w, h, rng, progress, time, cr, cg, cb, rarity); break;
-    case 'galaxy': drawGalaxy(ctx, w, h, rng, progress, time, cr, cg, cb, rarity); break;
-    case 'phenomenon': drawPhenomenon(ctx, w, h, rng, progress, time, cr, cg, cb, rarity); break;
-    case 'planet': drawPlanet(ctx, w, h, rng, progress, time, cr, cg, cb, rarity); break;
-    case 'rings': drawRings(ctx, w, h, rng, progress, time, cr, cg, cb, rarity); break;
+    case 'nebula': drawNebula(ctx, w, h, rng, progress, time, cr, cg, cb, rarity, style); break;
+    case 'star': drawStar(ctx, w, h, rng, progress, time, cr, cg, cb, rarity, style); break;
+    case 'galaxy': drawGalaxy(ctx, w, h, rng, progress, time, cr, cg, cb, rarity, style); break;
+    case 'phenomenon': drawPhenomenon(ctx, w, h, rng, progress, time, cr, cg, cb, rarity, style); break;
+    case 'planet': drawPlanet(ctx, w, h, rng, progress, time, cr, cg, cb, rarity, style); break;
+    case 'rings': drawRings(ctx, w, h, rng, progress, time, cr, cg, cb, rarity, style); break;
     case 'cluster': drawCluster(ctx, w, h, rng, progress, time, cr, cg, cb, rarity); break;
     case 'organic': drawOrganic(ctx, w, h, rng, progress, time, cr, cg, cb, rarity); break;
   }
@@ -951,7 +1297,8 @@ export function TelemetryView({
   const color = RARITY_COLORS[discovery.rarity];
   const objectName = catalog ? getCatalogName(catalog, lang) : discovery.type;
   const rarityIdx = ['common', 'uncommon', 'rare', 'epic', 'legendary'].indexOf(discovery.rarity);
-  const category = CATEGORY_RENDER[discovery.category] ?? 'cluster';
+  const telemetryStyle = getTelemetryStyle(discovery.type, discovery.category);
+  const category = getRenderCategory(discovery.category, telemetryStyle);
 
   // Parse color to RGB
   const rc = parseInt(color.slice(1), 16);
@@ -988,7 +1335,7 @@ export function TelemetryView({
       const timeSec = elapsed / 1000;
 
       setScanProgress(p);
-      drawFrame(ctx, w, h, seed, p, timeSec, category, cr, cg, cb, rarityIdx);
+      drawFrame(ctx, w, h, seed, p, timeSec, category, telemetryStyle, cr, cg, cb, rarityIdx);
 
       if (p >= 1) {
         // Save final frame as image
@@ -1001,7 +1348,7 @@ export function TelemetryView({
 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [phase, seed, category, cr, cg, cb, rarityIdx]);
+  }, [phase, seed, category, telemetryStyle, cr, cg, cb, rarityIdx]);
 
   const handleReportClose = useCallback(() => {
     setPhase('photo');

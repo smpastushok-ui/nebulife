@@ -160,6 +160,9 @@ const LANDING_PAD_PRODUCIBLES: ProducibleType[] = [
   'research_shuttle',
   'rover_dropcraft',
   'atmo_probe_carrier',
+];
+
+const LANDING_PAD_RESEARCH_UNITS: ProducibleType[] = [
   'survey_probe',
   'orbital_satellite',
   'surface_rover',
@@ -176,6 +179,13 @@ const SPACEPORT_PRODUCIBLES: ProducibleType[] = [
   'colony_ship',
 ];
 
+const RESOURCE_LABEL_KEY: Record<string, string> = {
+  minerals: 'colony_center.resource.minerals',
+  volatiles: 'colony_center.resource.volatiles',
+  isotopes: 'colony_center.resource.isotopes',
+  water: 'colony_center.resource.water',
+};
+
 function formatQueueTime(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(total / 60);
@@ -183,7 +193,7 @@ function formatQueueTime(ms: number): string {
   return minutes > 0 ? `${minutes}m ${seconds.toString().padStart(2, '0')}s` : `${seconds}s`;
 }
 
-function payloadCostSummary(type: ProducibleType): string {
+function payloadCostSummary(type: ProducibleType, t: (key: string, options?: Record<string, unknown>) => string): string {
   const totals: Record<string, number> = {};
   for (const cost of PRODUCIBLE_DEFS[type]?.cost ?? []) {
     const key = cost.resource === 'volatiles' || cost.resource === 'isotopes' || cost.resource === 'water'
@@ -193,7 +203,7 @@ function payloadCostSummary(type: ProducibleType): string {
   }
   return Object.entries(totals)
     .filter(([, amount]) => amount > 0)
-    .map(([key, amount]) => `${key} ${amount}`)
+    .map(([key, amount]) => `${t(RESOURCE_LABEL_KEY[key] ?? key)} ${amount}`)
     .join(' · ');
 }
 
@@ -212,25 +222,30 @@ function ProducibleFrameCard({
 }) {
   const { t } = useTranslation();
   const [imageFailed, setImageFailed] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
   const nextDone = activeQueue.length > 0
     ? Math.min(...activeQueue.map((item) => item.startedAt + item.durationMs))
     : null;
   const assetPath = PRODUCIBLE_ASSET_PATHS[type];
+  const title = t(`planet_missions.payload.${type}`);
+  const help = t(`building_detail.transport_help.${type}`);
 
   return (
     <div style={{
-      display: 'grid',
-      gridTemplateColumns: '72px 1fr',
-      gap: 10,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 9,
       background: CARD_BG,
       border: '1px solid rgba(68,102,136,0.55)',
-      borderRadius: 5,
-      padding: 8,
+      borderRadius: 6,
+      padding: 10,
+      minHeight: 254,
     }}>
       <div style={{
         position: 'relative',
-        width: 72,
-        height: 72,
+        width: '100%',
+        aspectRatio: '1 / 1',
         borderRadius: 5,
         background: 'radial-gradient(circle at 50% 35%, rgba(68,136,170,0.20), rgba(5,10,20,0.88))',
         border: '1px solid rgba(123,184,255,0.32)',
@@ -243,11 +258,36 @@ function ProducibleFrameCard({
         {!imageFailed && (
           <img
             src={assetPath}
-            alt=""
+            alt={title}
             onError={() => setImageFailed(true)}
-            style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         )}
+        <button
+          type="button"
+          onClick={() => setZoomOpen(true)}
+          title={t('building_detail.transport_zoom')}
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            width: 24,
+            height: 24,
+            borderRadius: 4,
+            border: '1px solid rgba(123,184,255,0.58)',
+            background: 'rgba(2,5,16,0.74)',
+            color: '#9fd0ff',
+            cursor: 'pointer',
+            display: 'grid',
+            placeItems: 'center',
+            padding: 0,
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.4" />
+            <path d="M10.4 10.4L14 14" />
+          </svg>
+        </button>
         {imageFailed && (
           <div style={{
             position: 'absolute',
@@ -267,37 +307,122 @@ function ProducibleFrameCard({
           </div>
         )}
       </div>
-      <div style={{ minWidth: 0, display: 'grid', gap: 5 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          <div style={{ color: '#aabbcc', fontSize: 11 }}>{t(`planet_missions.payload.${type}`)}</div>
-          <div style={{ color: '#7bb8ff', fontSize: 10 }}>x{count}</div>
+      <div style={{ minWidth: 0, display: 'grid', gap: 7 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
+          <div style={{ color: '#d8e6f2', fontSize: 13, lineHeight: 1.25 }}>{title}</div>
+          <div style={{ color: '#7bb8ff', fontSize: 11, flexShrink: 0 }}>x{count}</div>
         </div>
-        <div style={{ color: '#556677', fontSize: 9 }}>{payloadCostSummary(type)}</div>
+        <div style={{ color: '#667788', fontSize: 10, lineHeight: 1.35 }}>{payloadCostSummary(type, t)}</div>
         {activeQueue.length > 0 && (
-          <div style={{ color: '#ddaa44', fontSize: 9 }}>
+          <div style={{ color: '#ddaa44', fontSize: 10 }}>
             +{activeQueue.length} / {formatQueueTime((nextDone ?? Date.now()) - Date.now())}
           </div>
         )}
+        {helpOpen && (
+          <div style={{
+            background: 'rgba(68,136,170,0.10)',
+            border: '1px solid rgba(68,136,170,0.26)',
+            borderRadius: 4,
+            padding: '7px 8px',
+            color: '#8faabd',
+            fontSize: 10,
+            lineHeight: 1.45,
+          }}>
+            {help}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
+          <button
+            type="button"
+            onClick={() => setHelpOpen((prev) => !prev)}
+            title={t('building_detail.transport_help_title')}
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 3,
+              border: '1px solid #334455',
+              background: helpOpen ? 'rgba(68,136,170,0.22)' : 'rgba(20,25,35,0.45)',
+              color: helpOpen ? '#9fd0ff' : '#667788',
+              fontFamily: 'monospace',
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            ?
+          </button>
         <button
           type="button"
           disabled={!canBuild || !onBuild}
           onClick={() => onBuild?.(type)}
           style={{
-            justifySelf: 'start',
-            marginTop: 2,
             background: canBuild ? 'rgba(30,60,80,0.65)' : 'rgba(20,25,35,0.45)',
             border: canBuild ? '1px solid #446688' : '1px solid #334455',
             borderRadius: 3,
             color: canBuild ? '#7bb8ff' : '#445566',
             fontFamily: 'monospace',
-            fontSize: 10,
-            padding: '6px 9px',
+            fontSize: 11,
+            padding: '7px 10px',
             cursor: canBuild ? 'pointer' : 'not-allowed',
           }}
         >
           {t('colony_center.production.build_payload')}
         </button>
+        </div>
       </div>
+      {zoomOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setZoomOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10050,
+            background: 'rgba(0,0,0,0.78)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 18,
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(620px, 94vw)',
+              background: '#020510',
+              border: '1px solid rgba(123,184,255,0.42)',
+              borderRadius: 8,
+              padding: 12,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.72)',
+            }}
+          >
+            <img
+              src={assetPath}
+              alt={title}
+              style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'contain', display: 'block', borderRadius: 5, background: '#050a14' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 10 }}>
+              <div style={{ color: '#d8e6f2', fontSize: 13 }}>{title}</div>
+              <button
+                type="button"
+                onClick={() => setZoomOpen(false)}
+                style={{
+                  background: 'rgba(20,30,45,0.72)',
+                  border: '1px solid #446688',
+                  borderRadius: 4,
+                  color: '#9fd0ff',
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  padding: '7px 12px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.close', { defaultValue: 'Close' })}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -360,6 +485,14 @@ export function BuildingDetailPanel({
     ? LANDING_PAD_PRODUCIBLES
     : type === 'spaceport'
       ? SPACEPORT_PRODUCIBLES
+      : [];
+  const productionSections = type === 'landing_pad'
+    ? [
+        { title: t('building_detail.transport_carriers'), items: LANDING_PAD_PRODUCIBLES },
+        { title: t('building_detail.transport_research_units'), items: LANDING_PAD_RESEARCH_UNITS },
+      ]
+    : type === 'spaceport'
+      ? [{ title: t('building_detail.transport_heavy_units'), items: SPACEPORT_PRODUCIBLES }]
       : [];
   const isotopeDepositDepleted =
     stats.stock?.resource === 'isotopes' &&
@@ -462,7 +595,9 @@ export function BuildingDetailPanel({
       <div style={{
         flex: 1,
         overflow: 'auto',
-        padding: compact ? '12px 12px 28px' : '14px 16px 36px',
+        padding: compact
+          ? '12px 12px calc(110px + env(safe-area-inset-bottom, 0px))'
+          : '14px 16px calc(120px + env(safe-area-inset-bottom, 0px))',
         paddingLeft: compact ? 'calc(12px + env(safe-area-inset-left, 0px))' : 'calc(76px + env(safe-area-inset-left, 0px))',
         display: 'flex',
         flexDirection: 'column',
@@ -549,27 +684,39 @@ export function BuildingDetailPanel({
               background: 'rgba(10,15,25,0.48)',
               border: '1px solid rgba(51,68,85,0.45)',
               borderRadius: 5,
-              padding: 10,
+              padding: compact ? 10 : 12,
               display: 'grid',
-              gap: 8,
+              gap: 14,
             }}>
               <div style={{ color: '#667788', fontSize: 10, lineHeight: 1.45 }}>
                 {type === 'landing_pad'
                   ? t('building_detail.transport_landing_pad_desc')
                   : t('building_detail.transport_spaceport_desc')}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))', gap: 8 }}>
-                {producibleTypes.map((producibleType) => (
-                  <ProducibleFrameCard
-                    key={producibleType}
-                    type={producibleType}
-                    count={getProducedCount(producibleType)}
-                    activeQueue={(explorationProductionQueue ?? []).filter((item) => item.type === producibleType)}
-                    canBuild={!stats.isShutdown && Boolean(onStartPayloadProduction)}
-                    onBuild={onStartPayloadProduction}
-                  />
-                ))}
-              </div>
+              {productionSections.map((section) => (
+                <div key={section.title} style={{ display: 'grid', gap: 8 }}>
+                  <div style={{ color: '#8899aa', fontSize: 10, letterSpacing: 1.4, textTransform: 'uppercase' }}>
+                    {section.title}
+                  </div>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+                    gap: compact ? 8 : 10,
+                    alignItems: 'stretch',
+                  }}>
+                    {section.items.map((producibleType) => (
+                      <ProducibleFrameCard
+                        key={producibleType}
+                        type={producibleType}
+                        count={getProducedCount(producibleType)}
+                        activeQueue={(explorationProductionQueue ?? []).filter((item) => item.type === producibleType)}
+                        canBuild={!stats.isShutdown && Boolean(onStartPayloadProduction)}
+                        onBuild={onStartPayloadProduction}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </Section>
         )}
