@@ -72,6 +72,7 @@ function buildTabs(t: (key: string) => string): TabDef[] {
         { id: 'star-systems', label: t('archive.sub_star_systems') },
         { id: 'planets-photos', label: t('archive.sub_planets_photos') },
         { id: 'surface', label: t('archive.sub_surface') },
+        { id: 'life', label: t('archive.sub_life') },
         { id: 'aerial-photos', label: t('archive.sub_aerial_photos') },
       ],
     },
@@ -497,6 +498,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     if (mainTab === 'collections' && currentSubTab === 'aerial-photos') {
       return <TelescopeGallery photos={systemPhotos} type="aerial" allSystems={allSystems} aliases={aliases} />;
     }
+    if (mainTab === 'collections' && currentSubTab === 'life') {
+      return <PlaceholderTab label={t('archive.sub_life')} />;
+    }
     if (mainTab === 'navigation' && currentSubTab === 'colonies') {
       return (
         <ColoniesList
@@ -813,10 +817,13 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       <div data-swipe-tabs="" style={subTabBarStyle}>
         {currentTabDef.subTabs.map((sub) => {
           const isLocked = false;
+          const label = sub.id === 'life'
+            ? `${sub.label} [${t('nav.coming_soon')}]`
+            : sub.label;
           return (
             <TabButton
               key={sub.id}
-              label={isLocked ? `${sub.label} [${t('tech_tree.locked')}]` : sub.label}
+              label={isLocked ? `${label} [${t('tech_tree.locked')}]` : label}
               active={currentSubTab === sub.id}
               onClick={() => selectSubTab(sub.id)}
               small
