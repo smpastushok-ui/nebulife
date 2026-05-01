@@ -2042,16 +2042,20 @@ export class GalaxyScene {
         node.container.addChild(node.atomOrbit);
       }
 
-      // Keep research label in sync. Eye ON while in-progress → HIDE label
-      // (halo around the star is enough signal, yellow dot was noise). Eye
-      // OFF → small white % above the star.
+      // Keep research label in sync. Eye ON is the detailed research overlay
+      // (% for partial progress); eye OFF stays clean with only a small dot.
       if (node.researchLabel && prog > 0 && prog < 100) {
         if (this.researchLabelsEnabled) {
-          node.researchLabel.visible = false;
-        } else {
           node.researchLabel.text = `${Math.round(prog)}%`;
-          node.researchLabel.style.fill = 0xaabbcc;
+          node.researchLabel.style.fill = 0xffcc44;
           node.researchLabel.style.fontSize = 7;
+          node.researchLabel.alpha = 0.82;
+          node.researchLabel.visible = true;
+        } else {
+          node.researchLabel.text = '●';
+          node.researchLabel.style.fill = 0xffcc44;
+          node.researchLabel.style.fontSize = 6;
+          node.researchLabel.alpha = 0.72;
           node.researchLabel.visible = true;
         }
       }
@@ -2091,27 +2095,35 @@ export class GalaxyScene {
 
     // After a session ends but before completion, state goes back to
     // 'unexplored' (slot freed). Refresh label with new prog.
-    // Eye ON + partial → hide label (halo is the visual cue).
-    // Eye OFF + partial → small white % above the star.
+    // Eye ON + partial → %. Eye OFF + partial → small yellow dot.
     if (state !== 'researching' && state !== 'researched') {
       const isPartial = prog > 0 && prog < 100;
       if (isPartial && node.visibilityTier === 1) {
         if (this.researchLabelsEnabled) {
-          if (node.researchLabel) node.researchLabel.visible = false;
+          if (node.researchLabel) {
+            node.researchLabel.text = `${Math.round(prog)}%`;
+            node.researchLabel.style.fill = 0xffcc44;
+            node.researchLabel.style.fontSize = 7;
+            node.researchLabel.alpha = 0.82;
+            node.researchLabel.visible = true;
+          }
         } else {
           if (!node.researchLabel) {
             node.researchLabel = new Text({
-              text: `${Math.round(prog)}%`,
-              style: { fontSize: 7, fill: 0xaabbcc, fontFamily: 'monospace' },
+              text: '●',
+              style: { fontSize: 6, fill: 0xffcc44, fontFamily: 'monospace' },
               resolution: 2,
             });
+            node.researchLabel.eventMode = 'none';
             node.researchLabel.anchor.set(0.5, 1);
             node.researchLabel.y = -node.baseRadius - 4;
+            node.researchLabel.alpha = 0.72;
             node.container.addChild(node.researchLabel);
           } else {
-            node.researchLabel.text = `${Math.round(prog)}%`;
-            node.researchLabel.style.fill = 0xaabbcc;
-            node.researchLabel.style.fontSize = 7;
+            node.researchLabel.text = '●';
+            node.researchLabel.style.fill = 0xffcc44;
+            node.researchLabel.style.fontSize = 6;
+            node.researchLabel.alpha = 0.72;
             node.researchLabel.visible = true;
           }
         }
@@ -2123,6 +2135,7 @@ export class GalaxyScene {
     this.researchState = researchState;
     this.recomputeVisibleCoreIds();
     this.applyAllVisibilityTiers();
+    this.showResearchLabels(this.researchLabelsEnabled);
   }
 
   /* ── Frame update ──────────────────────────────────────────── */
@@ -2286,12 +2299,11 @@ export class GalaxyScene {
 
       this.animateStarBurn(node, t);
 
-      // Live update research % over the star (only in eye-OFF mode where we
-      // show a number). Eye-ON mode uses a colored dot that doesn't tick.
+      // Live update research % over the star in detailed eye mode.
       if (
         node.researchLabel
         && node.researchLabel.visible
-        && !this.researchLabelsEnabled
+        && this.researchLabelsEnabled
       ) {
         const isResearching = this.researchState.slots.some((s) => s.systemId === node.system.id);
         if (isResearching) {
@@ -3026,12 +3038,12 @@ export class GalaxyScene {
 
   /**
    * Toggle per-star research labels.
-   * Eye ON  → show a colored dot over every Tier-1 star:
+   * Eye ON  → show detailed research overlay over Tier-1 stars:
    *   🟢 green  = fully researched (100%)
-   *   🟡 yellow = research in progress (0 < prog < 100)
+   *   yellow %  = research in progress (0 < prog < 100)
    *   🔴 red    = untouched (prog === 0)
-   * Eye OFF → show `${prog}%` only for partially-researched stars; nothing for
-   *   0% or 100% (keeps the map clean).
+   * Eye OFF → show only a small yellow dot for partially-researched stars;
+   *   no percent text, 0% or 100% labels (keeps dense clusters clean).
    * Tier 2/3 (faded/hidden) → no labels in either mode.
    */
   showResearchLabels(enabled: boolean) {
@@ -3055,32 +3067,31 @@ export class GalaxyScene {
       let fontSize: number;
 
       if (enabled) {
-        // Eye ON — colored status dot. Yellow "in progress" state removed:
-        // the cyan halo around reachable stars already signals "researchable"
-        // and adding a yellow dot on top looked loud/busy.
+        // Eye ON — detailed status overlay.
         //   🟢 green = fully researched
-        //   🔴 red   = untouched (0%)
-        //   (in-progress → no dot; halo is enough)
+        //   NN%      = partial progress
+        //   🔴 red   = untouched
         fontSize = 8;
         if (isFull) {
           text = '●';
           color = 0x44ff88;
         } else if (prog > 0) {
-          if (node.researchLabel) node.researchLabel.visible = false;
-          continue;
+          text = `${prog}%`;
+          color = 0xffcc44;
+          fontSize = 7;
         } else {
           text = '●';
           color = 0xcc4444;
         }
       } else {
-        // No eye: only show partial progress as number, hide clean/100%
+        // No eye: only a compact yellow dot for partial progress.
         if (isFull || prog === 0) {
           if (node.researchLabel) node.researchLabel.visible = false;
           continue;
         }
-        text = `${prog}%`;
-        color = 0xaabbcc;
-        fontSize = 7;
+        text = '●';
+        color = 0xffcc44;
+        fontSize = 6;
       }
 
       if (!node.researchLabel) {
@@ -3089,13 +3100,16 @@ export class GalaxyScene {
           style: { fontSize, fill: color, fontFamily: 'monospace' },
           resolution: 2,
         });
+        node.researchLabel.eventMode = 'none';
         node.researchLabel.anchor.set(0.5, 1);
         node.researchLabel.y = -node.baseRadius - 4;
+        node.researchLabel.alpha = enabled ? 0.82 : 0.72;
         node.container.addChild(node.researchLabel);
       } else {
         node.researchLabel.text = text;
         node.researchLabel.style.fontSize = fontSize;
         node.researchLabel.style.fill = color;
+        node.researchLabel.alpha = enabled ? 0.82 : 0.72;
         node.researchLabel.visible = true;
       }
     }

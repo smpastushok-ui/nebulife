@@ -34,6 +34,8 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<RaidEngine | null>(null);
+  const onExitRef = useRef(onExit);
+  const onAwardXPRef = useRef(onAwardXP);
   const awardedRef = useRef(false);
   const comboRef = useRef({ count: 0, lastAt: 0 });
   const [ready, setReady] = useState(false);
@@ -43,6 +45,11 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
   const [killFx, setKillFx] = useState<{ id: number; combo: number; xp: number } | null>(null);
   const [mobile] = useState(isMobileDevice);
   const [isPortrait, setIsPortrait] = useState(() => mobile && window.innerHeight > window.innerWidth);
+
+  useEffect(() => {
+    onExitRef.current = onExit;
+    onAwardXPRef.current = onAwardXP;
+  }, [onExit, onAwardXP]);
 
   useEffect(() => {
     enterImmersive();
@@ -79,7 +86,7 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
     let cancelled = false;
     const shipId = localStorage.getItem('nebulife_hangar_ship') || 'blue';
     const engine = new RaidEngine(containerRef.current, {
-      onExit,
+      onExit: () => onExitRef.current(),
       onStatsUpdate: setSnapshot,
       onKill: () => {
         const now = performance.now();
@@ -88,7 +95,7 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
           : 1;
         comboRef.current = { count: nextCombo, lastAt: now };
         const comboXp = nextCombo >= 3 ? Math.min(40, nextCombo * 3) : 0;
-        if (comboXp > 0) onAwardXP?.(comboXp, 'carrier_raid_combo');
+        if (comboXp > 0) onAwardXPRef.current?.(comboXp, 'carrier_raid_combo');
         const id = Date.now();
         setKillFx({ id, combo: nextCombo, xp: comboXp });
         window.setTimeout(() => {
@@ -99,7 +106,7 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
         setResult(raidResult);
         if (!awardedRef.current && raidResult.xp > 0) {
           awardedRef.current = true;
-          onAwardXP?.(raidResult.xp, 'carrier_raid');
+          onAwardXPRef.current?.(raidResult.xp, 'carrier_raid');
         }
       },
     }, shipId);
@@ -127,7 +134,7 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
       engine.destroy();
       if (engineRef.current === engine) engineRef.current = null;
     };
-  }, [onAwardXP, onExit]);
+  }, []);
 
   const handleMove = useCallback((x: number, y: number) => {
     engineRef.current?.setMobileMove(x, y);

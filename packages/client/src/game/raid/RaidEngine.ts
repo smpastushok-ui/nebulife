@@ -316,7 +316,7 @@ export class RaidEngine {
     if (!this.scene) return;
     for (let i = 0; i < RAID_WINGMEN; i++) {
       const mesh = this.createProceduralShip(i % 2 === 0 ? 0x334455 : 0x446688, 26);
-      mesh.position.set((i - 1.5) * 120, i % 2 === 0 ? 50 : -40, 1580 + Math.abs(i - 1.5) * 80);
+      mesh.position.set((i - 1.5) * 150, i % 2 === 0 ? 55 : -35, 1230 - Math.abs(i - 1.5) * 55);
       this.scene.add(mesh);
       this.wingmen.push({
         id: 10 + i,
@@ -461,7 +461,11 @@ export class RaidEngine {
       const wing = this.wingmen[i];
       if (!wing.alive) continue;
       const angle = performance.now() * 0.00025 + i * Math.PI * 0.5;
-      const desired = this.player.pos.clone().add(new THREE.Vector3(Math.cos(angle) * 180, (i - 1.5) * 42, Math.sin(angle) * 180 + 160));
+      const desired = this.player.pos.clone().add(new THREE.Vector3(
+        (i - 1.5) * 160 + Math.cos(angle) * 45,
+        (i - 1.5) * 36,
+        -240 + Math.sin(angle) * 55,
+      ));
       wing.vel.addScaledVector(desired.sub(wing.pos), dt * 1.2);
       clampLength(wing.vel, RAID_SPEED * 0.82);
       wing.pos.addScaledVector(wing.vel, dt);
