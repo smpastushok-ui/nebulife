@@ -4,6 +4,7 @@ import type { StarSystem, Planet, PlanetType } from '@nebulife/core';
 import type { PlanetTerraformState, PlanetColonyState } from '@nebulife/core';
 import { getOverallProgress } from '@nebulife/core';
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
+import { formatShort } from '../../../utils/formatNumber.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,8 +77,7 @@ function getBuildingCount(state: PlanetColonyState | undefined): number {
 }
 
 function formatNumber(n: number): string {
-  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
-  return String(Math.floor(n));
+  return formatShort(n);
 }
 
 // ---------------------------------------------------------------------------

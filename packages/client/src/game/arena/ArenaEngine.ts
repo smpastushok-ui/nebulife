@@ -356,6 +356,10 @@ export class ArenaEngine {
   private mouseTargetPitch = 0;
   private mouseTargetReady = false;
   private readonly MOUSE_SENS = 0.0022; // radians per pixel
+  private readonly DESKTOP_TURN_FOLLOW = 2.2;
+  private readonly DESKTOP_MAX_YAW_RATE = 1.75;   // rad/sec; heavy ship, not twitch aim
+  private readonly DESKTOP_MAX_PITCH_RATE = 1.25; // rad/sec
+  private readonly DESKTOP_MAX_ROLL = 0.65;
   private readonly MAX_PITCH = Math.PI / 2.2; // clamp so we don't flip upside down
 
   // Collision temp
@@ -385,6 +389,7 @@ export class ArenaEngine {
 
   // Input (set by ArenaControls)
   private input: InputState = { moveDir: { x: 0, y: 0, z: 0 }, aimDir: { x: 0, y: 0, z: 1 }, firing: false, dash: false };
+  private desktopLaserHeld = false;
 
   // Zoom — multiplier on CAMERA_HEIGHT/DISTANCE. Smaller = closer camera.
   // Default 1.0 paired with lowered HEIGHT/DISTANCE constants for a close view.
@@ -480,15 +485,17 @@ export class ArenaEngine {
     this.onMouseDownBound = (e: MouseEvent) => {
       e.preventDefault();
       // Lock pointer on first click so desktop 3D aim (yaw+pitch) works.
-      // Already-locked clicks just fire. Mobile or fallback: ignore.
+      // Desktop mapping: LMB laser, RMB missile. Mobile uses touch HUD.
       if (!this.pointerLocked && !this.isMobile) {
         this.renderer.domElement.requestPointerLock?.();
       }
       if (this.playerDead || this.isMobile) return;
-      if (e.button === 0) this.triggerDash();
+      if (e.button === 0) this.desktopLaserHeld = true;
       if (e.button === 2) this.fireMissile();
     };
-    this.onMouseUpBound = () => {};
+    this.onMouseUpBound = (e: MouseEvent) => {
+      if (e.button === 0) this.desktopLaserHeld = false;
+    };
     this.onContextMenuBound = (e: MouseEvent) => e.preventDefault();
   }
 
@@ -502,14 +509,14 @@ export class ArenaEngine {
 
   private onKeyDown(e: KeyboardEvent): void {
     const key = e.key.toLowerCase();
+    if (key === 'escape') return;
     if (this.isArenaControlKey(key)) e.preventDefault();
     const wasPressed = this.keys.has(key);
     this.keys.add(key);
 
     if (wasPressed || this.playerDead) return;
-    if (key === 'shift') this.triggerDash();
+    if (key === ' ' || key === 'shift') this.triggerDash();
     if (key === 'tab') this.triggerBarrelRoll();
-    if (key === ' ') this.fireMissile();
   }
 
   private onKeyUp(e: KeyboardEvent): void {
@@ -1877,9 +1884,8 @@ export class ArenaEngine {
       this.aimDirY =  Math.sin(newPitch);
       this.aimDirZ = -Math.cos(newYaw) * cp;
     } else if (this.pointerLocked) {
-      // Desktop pointer-lock — mouse steers the target, ship eases toward it.
-      // This keeps web control precise without the instant snap that made the
-      // ship feel harsher than the mobile right-stick flight model.
+      // Desktop pointer-lock: mouse moves an invisible target, while the ship
+      // follows with capped angular velocity and roll inertia.
       const curPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
       const curYaw = Math.atan2(this.aimDirX, -this.aimDirZ);
       if (!this.mouseTargetReady) {
@@ -1894,9 +1900,24 @@ export class ArenaEngine {
       let yawDelta = this.mouseTargetYaw - curYaw;
       while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
       while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-      const aimFollow = Math.min(1, dt * 5.5);
-      const newYaw = curYaw + yawDelta * aimFollow;
-      const newPitch = curPitch + (this.mouseTargetPitch - curPitch) * aimFollow;
+      const pitchDelta = this.mouseTargetPitch - curPitch;
+      const follow = Math.min(1, dt * this.DESKTOP_TURN_FOLLOW);
+      const yawStep = Math.max(
+        -this.DESKTOP_MAX_YAW_RATE * dt,
+        Math.min(this.DESKTOP_MAX_YAW_RATE * dt, yawDelta * follow),
+      );
+      const pitchStep = Math.max(
+        -this.DESKTOP_MAX_PITCH_RATE * dt,
+        Math.min(this.DESKTOP_MAX_PITCH_RATE * dt, pitchDelta * follow),
+      );
+      const newYaw = curYaw + yawStep;
+      const newPitch = curPitch + pitchStep;
+
+      const targetRoll = Math.max(
+        -this.DESKTOP_MAX_ROLL,
+        Math.min(this.DESKTOP_MAX_ROLL, -yawDelta * 1.25),
+      );
+      this.shipRoll += (targetRoll - this.shipRoll) * Math.min(1, dt * 2.4);
 
       const cp = Math.cos(newPitch);
       this.aimDirX =  Math.sin(newYaw) * cp;
@@ -2052,7 +2073,13 @@ export class ArenaEngine {
 
   private updateShooting(dt: number): void {
     this.fireCooldownTimer = Math.max(0, this.fireCooldownTimer - dt);
-    const isFiring = this.hasEnemyInAutoFireCone();
+    if (this.playerDead) {
+      this.desktopLaserHeld = false;
+      return;
+    }
+    const isFiring = this.isMobile
+      ? this.hasEnemyInAutoFireCone()
+      : this.desktopLaserHeld;
     if (isFiring && this.fireCooldownTimer <= 0) {
       playSfx('arena-laser', 0.1);
       this.fireBullet();

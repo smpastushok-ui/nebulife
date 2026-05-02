@@ -29,7 +29,7 @@ interface HangarPageProps {
   onEnterRaid?: () => void;
 }
 
-const CARRIER_RAID_ENABLED = false;
+const CARRIER_RAID_ENABLED = true;
 
 // ── Ship slots ───────────────────────────────────────────────────────────────
 
@@ -90,12 +90,12 @@ interface ControlRow {
 }
 
 const CONTROLS: ControlRow[] = [
-  { keyLabel: 'WASD / Arrows', actionKey: 'hangar.controls.move' },
+  { keyLabel: 'WASD',          actionKey: 'hangar.controls.move' },
   { keyLabel: 'Mouse',          actionKey: 'hangar.controls.aim' },
-  { keyLabel: 'Auto',           actionKey: 'hangar.controls.laser' },
-  { keyLabel: 'E / Space',      actionKey: 'hangar.controls.missile' },
-  { keyLabel: 'Shift',          actionKey: 'hangar.controls.warp' },
-  { keyLabel: 'G',              actionKey: 'hangar.controls.gravity' },
+  { keyLabel: 'LMB',            actionKey: 'hangar.controls.laser' },
+  { keyLabel: 'RMB',            actionKey: 'hangar.controls.missile' },
+  { keyLabel: 'Space',          actionKey: 'hangar.controls.warp' },
+  { keyLabel: 'Tab',            actionKey: 'hangar.controls.roll' },
 ];
 
 // ── CountUp hook ─────────────────────────────────────────────────────────────
@@ -192,6 +192,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 
   // Team battle level gate
   const teamBattleUnlocked = playerLevel >= 50;
+  const raidAvailable = CARRIER_RAID_ENABLED && !isMobile && Boolean(onEnterRaid);
 
   // Training entry (free)
   const handleEnterTraining = useCallback(() => {
@@ -217,7 +218,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 
   const handleEnterRaid = useCallback(() => {
     playSfx('ui-click', 0.07);
-    if (!CARRIER_RAID_ENABLED) {
+    if (!raidAvailable) {
       setToast(t('hangar.event.raid_stub_toast' as Parameters<typeof t>[0]));
       setTimeout(() => setToast(null), 2500);
     } else if (onEnterRaid) {
@@ -226,7 +227,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
       setToast(t('hangar.event.coming_soon'));
       setTimeout(() => setToast(null), 2500);
     }
-  }, [onEnterRaid, t]);
+  }, [onEnterRaid, raidAvailable, t]);
 
   const handleToggleControls = useCallback(() => {
     playSfx('ui-click', 0.07);
@@ -305,7 +306,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                   {t('hangar.team_color' as Parameters<typeof t>[0])}: {activeSlot.team.toUpperCase()}
                 </div>
               </div>
-              <ShipModelPreview modelUrl={activeSlot.glbSrc} accent={activeSlot.accent} />
+              <ShipModelPreview modelUrl={activeSlot.glbSrc} accent={activeSlot.accent} height={360} />
               <div style={S.shipTelemetry}>
                 <div style={S.shipTelemetryRow}>
                   <span>{t('hangar.chassis_status' as Parameters<typeof t>[0])}</span>
@@ -364,7 +365,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 onClick={handleCustomShipOrder}
               >
                 <span style={S.customShipCtaIcon}>
-                  <ShipGlyph color="#c6dbf2" />
+                  <span style={S.customShipCtaGlyph}><ShipGlyph color="#c6dbf2" /></span>
                   <span style={S.customPlus}>+</span>
                 </span>
                 <span style={S.customShipCtaText}>
@@ -409,27 +410,27 @@ export const HangarPage: React.FC<HangarPageProps> = ({
               <div style={{
                 ...S.entrySection,
                 ...S.desktopFlushBlock,
-                borderColor: CARRIER_RAID_ENABLED && onEnterRaid ? '#445566' : '#223344',
+                borderColor: raidAvailable ? '#445566' : '#223344',
                 opacity: mounted ? 1 : 0,
                 transition: 'opacity 0.5s ease 0.95s',
               }}>
-                <div style={{ ...S.entryTitle, color: CARRIER_RAID_ENABLED ? '#7bb8ff' : '#667788' }}>
+                <div style={{ ...S.entryTitle, color: raidAvailable ? '#7bb8ff' : '#667788' }}>
                   {t('hangar.event.raid')}
                 </div>
                 <div style={S.entryDesc}>
-                  {CARRIER_RAID_ENABLED ? t('hangar.event.raid_desc') : t('hangar.event.raid_stub_desc' as Parameters<typeof t>[0])}
+                  {raidAvailable ? t('hangar.event.raid_desc') : t('hangar.event.raid_stub_desc' as Parameters<typeof t>[0])}
                 </div>
                 <div style={S.entryButtons}>
                   <button
                     style={{
                       ...S.entryRaid,
-                      borderColor: CARRIER_RAID_ENABLED ? '#7bb8ff' : '#334455',
-                      color: CARRIER_RAID_ENABLED ? '#7bb8ff' : '#667788',
+                      borderColor: raidAvailable ? '#7bb8ff' : '#334455',
+                      color: raidAvailable ? '#7bb8ff' : '#667788',
                       cursor: 'pointer',
                     }}
                     onClick={handleEnterRaid}
                   >
-                    {CARRIER_RAID_ENABLED ? t('hangar.event.raid_enter') : t('hangar.event.raid_stub_btn' as Parameters<typeof t>[0])}
+                    {raidAvailable ? t('hangar.event.raid_enter') : t('hangar.event.raid_stub_btn' as Parameters<typeof t>[0])}
                   </button>
                 </div>
               </div>
@@ -529,7 +530,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
               {t('hangar.team_color' as Parameters<typeof t>[0])}: {activeSlot.team.toUpperCase()}
             </div>
           </div>
-          <ShipModelPreview modelUrl={activeSlot.glbSrc} accent={activeSlot.accent} />
+          <ShipModelPreview modelUrl={activeSlot.glbSrc} accent={activeSlot.accent} height={250} />
           <div style={S.shipTelemetry}>
             <div style={S.shipTelemetryRow}>
               <span>{t('hangar.chassis_status' as Parameters<typeof t>[0])}</span>
@@ -537,6 +538,36 @@ export const HangarPage: React.FC<HangarPageProps> = ({
             </div>
             <div style={S.shipDesc}>{t(activeSlot.descKey as Parameters<typeof t>[0])}</div>
           </div>
+        </div>
+
+        <div
+          style={{
+            ...S.quickLaunchPanel,
+            gridTemplateColumns: '1fr',
+            borderColor: `${activeSlot.accent}55`,
+            opacity: mounted ? 1 : 0,
+            transform: mounted ? 'translateY(0)' : 'translateY(14px)',
+          }}
+        >
+          <div style={S.quickLaunchCopy}>
+            <span style={S.quickLaunchKicker}>{t('hangar.ship_selected')}</span>
+            <strong style={{ color: activeSlot.accent }}>
+              {t(activeSlot.labelKey as Parameters<typeof t>[0])}
+            </strong>
+            <small style={S.quickLaunchHint}>{t('hangar.event.training_desc')}</small>
+          </div>
+          <button
+            style={{
+              ...S.quickLaunchButton,
+              width: '100%',
+              color: activeSlot.accent,
+              borderColor: `${activeSlot.accent}88`,
+              boxShadow: `0 0 18px ${activeSlot.softAccent}`,
+            }}
+            onClick={handleEnterTraining}
+          >
+            {t('hangar.event.training_enter')}
+          </button>
         </div>
 
         {/* ── Ship selector (horizontal scroll) ─────────────────────── */}
@@ -585,7 +616,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           onClick={handleCustomShipOrder}
         >
           <span style={S.customShipCtaIcon}>
-            <ShipGlyph color="#c6dbf2" />
+            <span style={S.customShipCtaGlyph}><ShipGlyph color="#c6dbf2" /></span>
             <span style={S.customPlus}>+</span>
           </span>
           <span style={S.customShipCtaText}>
@@ -597,53 +628,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
             <QuarkIcon />
           </span>
         </button>
-
-        <div
-          style={{
-            ...S.quickLaunchPanel,
-            gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
-            borderColor: `${activeSlot.accent}55`,
-            opacity: mounted ? 1 : 0,
-            transform: mounted ? 'translateY(0)' : 'translateY(14px)',
-          }}
-        >
-          <div style={S.quickLaunchCopy}>
-            <span style={S.quickLaunchKicker}>{t('hangar.ship_selected')}</span>
-            <strong style={{ color: activeSlot.accent }}>
-              {t(activeSlot.labelKey as Parameters<typeof t>[0])}
-            </strong>
-            <small style={S.quickLaunchHint}>{t('hangar.event.training_desc')}</small>
-          </div>
-          <button
-            style={{
-              ...S.quickLaunchButton,
-              width: isMobile ? '100%' : undefined,
-              color: activeSlot.accent,
-              borderColor: `${activeSlot.accent}88`,
-              boxShadow: `0 0 18px ${activeSlot.softAccent}`,
-            }}
-            onClick={handleEnterTraining}
-          >
-            {t('hangar.event.training_enter')}
-          </button>
-        </div>
-
-        <div style={{
-          ...S.entrySection,
-          borderColor: onEnterRaid ? '#445566' : '#223344',
-          opacity: mounted ? 1 : 0,
-          transition: 'opacity 0.5s ease 0.95s',
-        }}>
-          <div style={{ ...S.entryTitle, color: '#7bb8ff' }}>
-            {t('hangar.event.raid')}
-          </div>
-          <div style={S.entryDesc}>{t('hangar.event.raid_desc')}</div>
-          <div style={S.entryButtons}>
-            <button style={S.entryRaid} onClick={handleEnterRaid}>
-              {t('hangar.event.raid_enter')}
-            </button>
-          </div>
-        </div>
 
         {/* ── Controls panel (desktop only) ─────────────────────── */}
         {!isMobile && (
@@ -755,7 +739,7 @@ function StatCell({ label, value, color }: { label: string; value: number; color
   );
 }
 
-function ShipModelPreview({ modelUrl, accent }: { modelUrl: string; accent: string }) {
+function ShipModelPreview({ modelUrl, accent, height = 268 }: { modelUrl: string; accent: string; height?: number }) {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -859,12 +843,12 @@ function ShipModelPreview({ modelUrl, accent }: { modelUrl: string; accent: stri
     };
   }, [accent, modelUrl]);
 
-  return <div ref={mountRef} style={S.modelPreview} />;
+  return <div ref={mountRef} style={{ ...S.modelPreview, height }} />;
 }
 
 function ShipGlyph({ color }: { color: string }) {
   return (
-    <svg width="58" height="58" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+    <svg width="58" height="58" viewBox="0 0 64 64" fill="none" aria-hidden="true" style={{ display: 'block' }}>
       <path d="M32 7l9 24 13 9-14 4-8 13-8-13-14-4 13-9 9-24z" fill={color} fillOpacity="0.14" stroke={color} strokeWidth="1.4" />
       <path d="M25 39l-9 11 12-4M39 39l9 11-12-4M29 27h6M27 33h10" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
       <path d="M32 46v9" stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
@@ -929,16 +913,16 @@ const S: Record<string, React.CSSProperties> = {
     padding: '0 0 calc(72px + env(safe-area-inset-bottom, 0px))',
   },
   desktopDock: {
-    width: 'min(1180px, calc(100vw - 72px))',
-    margin: '18px auto 0',
+    width: 'min(1360px, calc(100vw - 48px))',
+    margin: '14px auto 0',
     display: 'grid',
-    gridTemplateColumns: 'minmax(520px, 1fr) minmax(360px, 430px)',
+    gridTemplateColumns: 'minmax(700px, 1fr) minmax(360px, 420px)',
     gap: 18,
     alignItems: 'start',
   },
   desktopBayWrap: {
     margin: 0,
-    minHeight: 'calc(100vh - 210px)',
+    minHeight: 'calc(100vh - 184px)',
   },
   desktopOps: {
     display: 'flex',
@@ -954,7 +938,7 @@ const S: Record<string, React.CSSProperties> = {
   },
   desktopShipCard: {
     width: 'auto',
-    minHeight: 104,
+    minHeight: 112,
   },
   desktopFlushBlock: {
     margin: 0,
@@ -975,23 +959,23 @@ const S: Record<string, React.CSSProperties> = {
     letterSpacing: 1, cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
   },
   titleBlock: { textAlign: 'center', flex: 1, minWidth: 0 },
-  title: { margin: 0, fontSize: 18, letterSpacing: 5, color: '#aabbcc', fontWeight: 'normal' },
-  subtitle: { fontSize: 7, letterSpacing: 2, color: '#556677', marginTop: 2, textTransform: 'uppercase' },
+  title: { margin: 0, fontSize: 20, letterSpacing: 5, color: '#aabbcc', fontWeight: 'normal' },
+  subtitle: { fontSize: 9, letterSpacing: 2, color: '#556677', marginTop: 2, textTransform: 'uppercase' },
   badge: {
     padding: '4px 8px', background: 'rgba(10,15,25,0.8)',
     border: '1px solid #446688', borderRadius: 3, textAlign: 'center', flexShrink: 0,
   },
-  badgeLabel: { fontSize: 7, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' },
-  badgeLevel: { fontSize: 13, color: '#7bb8ff', fontWeight: 'bold' },
+  badgeLabel: { fontSize: 8, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' },
+  badgeLevel: { fontSize: 15, color: '#7bb8ff', fontWeight: 'bold' },
 
   // Stats
   statsStrip: {
-    display: 'flex', justifyContent: 'center', gap: 20,
+    display: 'flex', justifyContent: 'center', gap: 30,
     padding: '10px 16px', borderBottom: '1px solid #1a2333', flexShrink: 0,
   },
   statCell: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 },
   statValue: { fontSize: 18, letterSpacing: 1, fontWeight: 'bold' },
-  statLabel: { fontSize: 7, color: '#556677', letterSpacing: 1.5, textTransform: 'uppercase' },
+  statLabel: { fontSize: 8, color: '#556677', letterSpacing: 1.5, textTransform: 'uppercase' },
 
   // Ship preview
   bayWrap: {
@@ -1005,12 +989,12 @@ const S: Record<string, React.CSSProperties> = {
     gap: 10, borderBottom: '1px solid rgba(51,68,85,0.65)', paddingBottom: 9,
   },
   bayKicker: {
-    fontSize: 8, color: '#667788', letterSpacing: 2, textTransform: 'uppercase',
+    fontSize: 10, color: '#667788', letterSpacing: 2, textTransform: 'uppercase',
     marginBottom: 3,
   },
   teamChip: {
     border: '1px solid #446688', borderRadius: 999, padding: '5px 8px',
-    fontSize: 8, letterSpacing: 1.2, textTransform: 'uppercase',
+    fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase',
     background: 'rgba(5,10,20,0.72)', whiteSpace: 'nowrap',
   },
   modelPreview: {
@@ -1019,18 +1003,18 @@ const S: Record<string, React.CSSProperties> = {
     background: 'radial-gradient(circle at 50% 52%, rgba(123,184,255,0.10), transparent 42%), linear-gradient(180deg, rgba(2,5,16,0.25), rgba(2,5,16,0.76))',
   },
   previewName: {
-    fontSize: 15, color: '#667788', letterSpacing: 3, textTransform: 'uppercase',
+    fontSize: 18, color: '#667788', letterSpacing: 3, textTransform: 'uppercase',
   },
   shipTelemetry: {
-    borderTop: '1px solid rgba(51,68,85,0.55)', paddingTop: 9,
+    borderTop: '1px solid rgba(51,68,85,0.55)', paddingTop: 8,
   },
   shipTelemetryRow: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    gap: 12, fontSize: 8, color: '#667788', letterSpacing: 1.4, textTransform: 'uppercase',
+    gap: 12, fontSize: 10, color: '#667788', letterSpacing: 1.4, textTransform: 'uppercase',
     marginBottom: 6,
   },
   shipDesc: {
-    fontSize: 9, color: '#8899aa', lineHeight: 1.45, letterSpacing: 0.4,
+    fontSize: 11, color: '#8899aa', lineHeight: 1.35, letterSpacing: 0.4,
   },
 
   // Ship selector (horizontal)
@@ -1046,8 +1030,8 @@ const S: Record<string, React.CSSProperties> = {
     scrollSnapAlign: 'center',
     transition: 'border-color 0.2s, box-shadow 0.2s',
   },
-  cardLabel: { fontSize: 8, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center' },
-  cardTeam: { fontSize: 7, letterSpacing: 2, textTransform: 'uppercase', textAlign: 'center' },
+  cardLabel: { fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center' },
+  cardTeam: { fontSize: 8, letterSpacing: 2, textTransform: 'uppercase', textAlign: 'center' },
   lockedSlot: {
     position: 'relative',
     width: 52, height: 52, display: 'flex', flexDirection: 'column',
@@ -1093,13 +1077,21 @@ const S: Record<string, React.CSSProperties> = {
   },
   customShipCtaIcon: {
     position: 'relative',
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     display: 'grid',
     placeItems: 'center',
-    borderRadius: 5,
+    borderRadius: 4,
     background: 'rgba(198,219,242,0.055)',
-    border: '1px solid rgba(198,219,242,0.12)',
+    border: '1px solid rgba(198,219,242,0.28)',
+    overflow: 'hidden',
+  },
+  customShipCtaGlyph: {
+    display: 'grid',
+    placeItems: 'center',
+    width: 34,
+    height: 34,
+    transform: 'scale(0.7)',
   },
   customShipCtaText: {
     display: 'flex',
@@ -1111,7 +1103,7 @@ const S: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 4,
     color: '#7bb8ff',
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1,
   },
   quickLaunchPanel: {
@@ -1136,13 +1128,13 @@ const S: Record<string, React.CSSProperties> = {
   },
   quickLaunchKicker: {
     color: '#667788',
-    fontSize: 8,
+    fontSize: 10,
     letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
   quickLaunchHint: {
     color: '#8899aa',
-    fontSize: 9,
+    fontSize: 11,
     lineHeight: 1.35,
   },
   quickLaunchButton: {
@@ -1152,7 +1144,7 @@ const S: Record<string, React.CSSProperties> = {
     borderRadius: 5,
     background: 'linear-gradient(135deg, rgba(20,34,52,0.88), rgba(8,14,24,0.96))',
     fontFamily: 'monospace',
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1.8,
     textTransform: 'uppercase',
     cursor: 'pointer',
@@ -1170,7 +1162,7 @@ const S: Record<string, React.CSSProperties> = {
     cursor: 'pointer', fontFamily: 'monospace',
   },
   controlsTitle: {
-    fontSize: 9, color: '#556677', letterSpacing: 2, textTransform: 'uppercase',
+    fontSize: 10, color: '#556677', letterSpacing: 2, textTransform: 'uppercase',
   },
   controlsChevron: {
     color: '#445566', transition: 'transform 0.2s ease',
@@ -1181,13 +1173,13 @@ const S: Record<string, React.CSSProperties> = {
     gap: '5px 14px', padding: '4px 12px 10px',
   },
   controlKey: {
-    fontSize: 9, color: '#7bb8ff', letterSpacing: 1,
+    fontSize: 10, color: '#7bb8ff', letterSpacing: 1,
     padding: '2px 5px', background: 'rgba(68,136,170,0.12)',
     border: '1px solid #2a3e55', borderRadius: 3,
     whiteSpace: 'nowrap', alignSelf: 'center',
   },
   controlAction: {
-    fontSize: 9, color: '#8899aa', letterSpacing: 0.5,
+    fontSize: 10, color: '#8899aa', letterSpacing: 0.5,
     alignSelf: 'center',
   },
 
@@ -1197,8 +1189,8 @@ const S: Record<string, React.CSSProperties> = {
     background: 'rgba(10,15,25,0.7)', border: '1px solid #334455', borderRadius: 6,
     display: 'flex', flexDirection: 'column', gap: 10,
   },
-  entryTitle: { fontSize: 13, color: '#aabbcc', letterSpacing: 2, textTransform: 'uppercase' },
-  entryDesc: { fontSize: 9, color: '#667788', lineHeight: 1.4 },
+  entryTitle: { fontSize: 14, color: '#aabbcc', letterSpacing: 2, textTransform: 'uppercase' },
+  entryDesc: { fontSize: 11, color: '#667788', lineHeight: 1.4 },
   entryButtons: {
     display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginTop: 4,
   },

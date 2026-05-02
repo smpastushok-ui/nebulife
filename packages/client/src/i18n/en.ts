@@ -41,15 +41,15 @@ export const en: Record<TranslationKey, string> = {
   'arena.tutorial.step1.body_mobile':  'This is a combat simulator: asteroids, black holes, boosts. Controls: two touch areas.',
 
   'arena.tutorial.step2.title':        'Movement',
-  'arena.tutorial.step2.body_desktop': 'WASD or arrow keys. The ship accelerates and decelerates smoothly.',
+  'arena.tutorial.step2.body_desktop': 'WASD moves the ship relative to its nose. Space triggers warp acceleration, Tab performs a barrel roll.',
   'arena.tutorial.step2.body_mobile':  'Left joystick (bottom-left corner of the screen). Drag your finger in the desired direction.',
 
   'arena.tutorial.step3.title':        'Aim and shoot',
-  'arena.tutorial.step3.body_desktop': 'Mouse sets the aim. The laser fires automatically when an enemy enters the central sight zone.',
+  'arena.tutorial.step3.body_desktop': 'Mouse turns the ship nose. Hold left click for laser fire, right click launches a homing missile.',
   'arena.tutorial.step3.body_mobile':  'Right joystick controls the nose. The laser fires automatically when an enemy enters the central sight zone.',
 
   'arena.tutorial.step4.title':        'Missiles',
-  'arena.tutorial.step4.body_desktop': 'E or Space - homing missile. 10 ammo, 6s reload per unit.',
+  'arena.tutorial.step4.body_desktop': 'Right mouse button - homing missile. 10 ammo, 6s reload per unit.',
   'arena.tutorial.step4.body_mobile':  'ROCKET button - homing missile. Shows ammo count.',
 
   'arena.tutorial.step5.title':        'Gravity push',
@@ -57,7 +57,7 @@ export const en: Record<TranslationKey, string> = {
   'arena.tutorial.step5.body_mobile':  'GRAV button - pushes the nearest asteroid in front of the ship.',
 
   'arena.tutorial.step6.title':        'Warp boost',
-  'arena.tutorial.step6.body_desktop': 'Shift - sharp forward dash for 1s. Cooldown 8s.',
+  'arena.tutorial.step6.body_desktop': 'Space - sharp forward warp acceleration for 1s. Cooldown 8s.',
   'arena.tutorial.step6.body_mobile':  'WARP button - sharp forward dash for 1s. Cooldown 8s.',
 
   'arena.tutorial.step7.title':        'Black holes',
@@ -67,6 +67,11 @@ export const en: Record<TranslationKey, string> = {
   'arena.tutorial.step8.title':        'Boosts',
   'arena.tutorial.step8.body_desktop': 'Orbs on the map (WARP, DAMAGE, SHIELD, SLOW). Collect with your ship - 10s buff.',
   'arena.tutorial.step8.body_mobile':  'Orbs on the map (WARP, DAMAGE, SHIELD, SLOW). Collect with your ship - 10s buff.',
+
+  'arena.exit_title': 'EXIT ARENA?',
+  'arena.exit_body':  'Are you sure you want to leave the combat zone?',
+  'arena.exit_yes':   'YES',
+  'arena.exit_no':    'NO',
 
   'hangar.title':             'HANGAR',
   'hangar.subtitle':          'Combat simulator',
@@ -110,12 +115,12 @@ export const en: Record<TranslationKey, string> = {
   'hangar.event.raid_stub_btn':    'UNDER MAINTENANCE',
   'hangar.event.raid_stub_toast':  'Carrier Raid is temporarily disabled.',
   'hangar.controls.title':         'Controls',
-  'hangar.controls.move':          'Movement',
-  'hangar.controls.aim':           'Aim direction',
-  'hangar.controls.laser':         'Auto laser in central sight zone',
-  'hangar.controls.missile':       'Fire missile',
-  'hangar.controls.warp':          'Warp dash',
-  'hangar.controls.gravity':       'Gravity push',
+  'hangar.controls.move':          'Move relative to ship nose',
+  'hangar.controls.aim':           'Turn ship nose',
+  'hangar.controls.laser':         'Hold laser fire',
+  'hangar.controls.missile':       'Fire homing missile',
+  'hangar.controls.warp':          'Warp acceleration',
+  'hangar.controls.roll':          'Barrel roll',
   'hangar.stats.sessions':  'Sessions',
   'hangar.stats.kills':     'Kills',
   'hangar.stats.deaths':    'Deaths',

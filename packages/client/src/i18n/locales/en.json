@@ -1017,7 +1017,11 @@
   "arena": {
     "kill": "KILL",
     "kill_xp": "+{{xp}} XP",
-    "combo_xp": "COMBO x{{combo}}  +{{xp}} XP"
+    "combo_xp": "COMBO x{{combo}}  +{{xp}} XP",
+    "exit_title": "EXIT ARENA?",
+    "exit_body": "Are you sure you want to leave the combat zone?",
+    "exit_yes": "YES",
+    "exit_no": "NO"
   },
   "discovery_notification": {
     "new_discovery": "New Discovery!",

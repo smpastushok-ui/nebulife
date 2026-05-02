@@ -1015,7 +1015,11 @@
   "arena": {
     "kill": "ЗНИЩЕНО",
     "kill_xp": "+{{xp}} XP",
-    "combo_xp": "COMBO x{{combo}}  +{{xp}} XP"
+    "combo_xp": "COMBO x{{combo}}  +{{xp}} XP",
+    "exit_title": "ВИЙТИ З АРЕНИ?",
+    "exit_body": "Ви впевнені, що хочете покинути бойову зону?",
+    "exit_yes": "ТАК",
+    "exit_no": "НІ"
   },
   "discovery_notification": {
     "new_discovery": "Нове відкриття!",

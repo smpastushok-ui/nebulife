@@ -149,6 +149,7 @@ import { CinematicIntro } from './ui/components/CinematicIntro.js';
 import { LoadingDots } from './ui/components/LoadingDots.js';
 import { PerfTierSelectScreen } from './ui/components/PerfTierSelectScreen.js';
 import { getDeviceTier, setPerfTierChoice } from './utils/device-tier.js';
+import { parseCompactNumber } from './utils/formatNumber.js';
 import type { PerfTierChoice } from './utils/device-tier.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
@@ -338,11 +339,21 @@ interface SyncedGameState {
   planet_reports?: Record<string, PlanetReportSummary>;
   exploration_payloads?: Partial<Record<ProducibleType, number>>;
   exploration_production_queue?: ExplorationPayloadProductionItem[];
+  arena_stats?: ArenaStats;
   observatory_state?: ObservatoryState;
   astra_quiz_answers?: Record<string, number>;
   // Metadata
   synced_at: number;
   last_regen_time?: number;
+}
+
+interface ArenaStats {
+  kills: number;
+  asteroidKills: number;
+  deaths: number;
+  score: number;
+  bestScore: number;
+  sessions: number;
 }
 
 export interface ExplorationPayloadProductionItem {
@@ -731,8 +742,8 @@ function AppInner() {
     try {
       const saved = localStorage.getItem('nebulife_research_data');
       if (saved !== null) {
-        const n = parseFloat(saved);
-        if (Number.isFinite(n)) return n;
+        const n = parseCompactNumber(saved);
+        if (n !== null && Number.isFinite(n)) return n;
       }
     } catch { /* ignore */ }
     return INITIAL_RESEARCH_DATA;
@@ -1180,7 +1191,7 @@ function AppInner() {
   const [playerXP, setPlayerXP] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('nebulife_player_xp');
-      if (saved !== null) { const n = parseFloat(saved); if (n >= 0) return n; }
+      if (saved !== null) { const n = parseCompactNumber(saved); if (n !== null && n >= 0) return n; }
     } catch { /* ignore */ }
     return 0;
   });
@@ -3144,14 +3155,7 @@ function AppInner() {
     terraformStates,
   ]);
 
-  const [arenaStats, setArenaStats] = useState<{
-    kills: number;
-    asteroidKills: number;
-    deaths: number;
-    score: number;
-    bestScore: number;
-    sessions: number;
-  } | null>(() => {
+  const [arenaStats, setArenaStats] = useState<ArenaStats | null>(() => {
     try {
       const raw = localStorage.getItem('nebulife_arena_stats');
       return raw ? JSON.parse(raw) : null;
@@ -3159,18 +3163,51 @@ function AppInner() {
       return null;
     }
   });
-  // Refresh arenaStats from localStorage each time the Hangar opens
-  // (ensures stats updated after an arena session completes)
-  useEffect(() => {
-    if (showHangar) {
-      try {
-        const raw = localStorage.getItem('nebulife_arena_stats');
-        setArenaStats(raw ? JSON.parse(raw) : null);
-      } catch {
-        setArenaStats(null);
-      }
+  const normalizeArenaStats = useCallback((value: unknown): ArenaStats | null => {
+    if (!value || typeof value !== 'object') return null;
+    const raw = value as Partial<ArenaStats> & { missileKills?: number };
+    return {
+      kills: Math.max(0, Math.floor(raw.kills ?? 0)),
+      asteroidKills: Math.max(0, Math.floor(raw.asteroidKills ?? raw.missileKills ?? 0)),
+      deaths: Math.max(0, Math.floor(raw.deaths ?? 0)),
+      score: Math.max(0, Math.floor(raw.score ?? 0)),
+      bestScore: Math.max(0, Math.floor(raw.bestScore ?? 0)),
+      sessions: Math.max(0, Math.floor(raw.sessions ?? 0)),
+    };
+  }, []);
+  const mergeArenaStats = useCallback((local: ArenaStats | null, server: ArenaStats | null): ArenaStats | null => {
+    if (!local && !server) return null;
+    if (!local) return server;
+    if (!server) return local;
+    if (local.sessions !== server.sessions) {
+      const newer = local.sessions > server.sessions ? local : server;
+      return { ...newer, bestScore: Math.max(local.bestScore, server.bestScore) };
     }
-  }, [showHangar]);
+    return {
+      kills: Math.max(local.kills, server.kills),
+      asteroidKills: Math.max(local.asteroidKills, server.asteroidKills),
+      deaths: Math.max(local.deaths, server.deaths),
+      score: Math.max(local.score, server.score),
+      bestScore: Math.max(local.bestScore, server.bestScore),
+      sessions: local.sessions,
+    };
+  }, []);
+  const handleArenaStatsCommit = useCallback((sessionStats: Omit<ArenaStats, 'bestScore' | 'sessions'>) => {
+    setArenaStats((prev) => {
+      const base = prev ?? { kills: 0, asteroidKills: 0, deaths: 0, score: 0, bestScore: 0, sessions: 0 };
+      const next: ArenaStats = {
+        kills: base.kills + sessionStats.kills,
+        asteroidKills: base.asteroidKills + sessionStats.asteroidKills,
+        deaths: base.deaths + sessionStats.deaths,
+        score: base.score + sessionStats.score,
+        bestScore: Math.max(base.bestScore, sessionStats.score),
+        sessions: base.sessions + 1,
+      };
+      try { localStorage.setItem('nebulife_arena_stats', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    scheduleSyncToServer();
+  }, [scheduleSyncToServer]);
   const [sharedLessonInfo, setSharedLessonInfo] = useState<SharedLessonInfo | null>(() => {
     // Read share params from URL on first load
     try {
@@ -3562,6 +3599,7 @@ function AppInner() {
     setResearchState(createResearchState(HOME_OBSERVATORY_COUNT));
     setTechTreeState(createTechTreeState());
     setPlayerStats({ totalCompletedSessions: 0, totalDiscoveries: 0, lastDiscoverySession: 0 });
+    setArenaStats(null);
     setObservatoryState(createObservatoryState());
     setLogEntries([]);
     setFavoritePlanets(new Set());
@@ -3722,7 +3760,7 @@ function AppInner() {
 
     // Progression
     if (typeof gs.xp === 'number' && gs.xp >= 0) {
-      const localXP = parseFloat(localStorage.getItem('nebulife_player_xp') ?? '0');
+      const localXP = parseCompactNumber(localStorage.getItem('nebulife_player_xp') ?? '0') ?? 0;
       const resolvedXP = Math.max(gs.xp, localXP);
       setPlayerXP(resolvedXP);
       setPlayerLevel(typeof gs.level === 'number' && gs.level > 0 ? Math.max(gs.level, levelFromXP(resolvedXP)) : levelFromXP(resolvedXP));
@@ -3797,6 +3835,17 @@ function AppInner() {
       setPlayerStats(resolved);
       try { localStorage.setItem('nebulife_player_stats', JSON.stringify(resolved)); } catch { /* ignore */ }
     }
+    const serverArenaStats = normalizeArenaStats(gs.arena_stats);
+    const localArenaStats = (() => {
+      try { return normalizeArenaStats(JSON.parse(localStorage.getItem('nebulife_arena_stats') ?? 'null')); }
+      catch { return null; }
+    })();
+    const resolvedArenaStats = mergeArenaStats(localArenaStats, serverArenaStats);
+    setArenaStats(resolvedArenaStats);
+    try {
+      if (resolvedArenaStats) localStorage.setItem('nebulife_arena_stats', JSON.stringify(resolvedArenaStats));
+      else localStorage.removeItem('nebulife_arena_stats');
+    } catch { /* ignore */ }
     if (typeof gs.research_data === 'number') {
       const lastRegenTime = gs.last_regen_time ?? Date.now();
       const hoursOffline = (Date.now() - lastRegenTime) / 3_600_000;
@@ -3804,7 +3853,7 @@ function AppInner() {
       const offlineGain = Math.floor(hoursOffline * (1 + techBonus));
       const serverValue = gs.research_data + (offlineGain > 0 ? offlineGain : 0);
       // Keep the higher of localStorage float (has fractional progress) or server + offline
-      const localSaved = parseFloat(localStorage.getItem('nebulife_research_data') ?? '0');
+      const localSaved = parseCompactNumber(localStorage.getItem('nebulife_research_data') ?? '0') ?? 0;
       const loadedValue = Math.max(serverValue, localSaved);
       setResearchData(loadedValue);
       try { localStorage.setItem('nebulife_research_data', String(loadedValue)); } catch { /* ignore */ }
@@ -4209,7 +4258,7 @@ function AppInner() {
     // Never override from server — player chose their language at first launch.
 
     setServerHydrated(true);
-  }, []);
+  }, [mergeArenaStats, normalizeArenaStats]);
 
   // ── Firebase auth lifecycle ──────────────────────────────────────────
   useEffect(() => {
@@ -6932,6 +6981,7 @@ function AppInner() {
       planet_reports: planetReports,
       exploration_payloads: explorationPayloads,
       exploration_production_queue: explorationProductionQueue,
+      arena_stats: arenaStats ?? undefined,
       observatory_state: observatoryState,
       astra_quiz_answers: astraQuizAnswers,
       // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
@@ -6981,7 +7031,7 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -8862,8 +8912,7 @@ function AppInner() {
                   }
                 }
                 const totalPerHour = basePerHour + bldgPerHour;
-                console.log('[research-rate]', { techBonus, basePerHour, bldgPerHour, totalPerHour, buildings: bldgsForRate.length });
-                return `exact: ${researchData.toFixed(4)} | floor: ${Math.floor(researchData)} | base: +${basePerHour.toFixed(1)}/hr | bldg: +${bldgPerHour.toFixed(1)}/hr | total: +${totalPerHour.toFixed(1)}/hr`;
+                return `RD: ${Math.floor(researchData)} | +${totalPerHour.toFixed(1)}/hr`;
               })()}
             </div>
             <button
@@ -9159,6 +9208,7 @@ function AppInner() {
         <SpaceArena
           teamMode={arenaTeamMode}
           onAwardXP={awardXP}
+          onStatsCommit={handleArenaStatsCommit}
           onExit={() => {
             setShowArena(false);
             setArenaTeamMode(false);

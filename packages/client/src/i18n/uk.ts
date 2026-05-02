@@ -39,15 +39,15 @@ export const uk = {
   'arena.tutorial.step1.body_mobile':  'Це бойовий симулятор: астероїди, чорнi дiри, бустери. Керування - два сенсорнi поля.',
 
   'arena.tutorial.step2.title':        'Рух',
-  'arena.tutorial.step2.body_desktop': 'WASD або стрiлки. Корабель плавно прискорюється та гальмує.',
+  'arena.tutorial.step2.body_desktop': 'WASD рухає корабель відносно його носа. Space вмикає варп-прискорення, Tab виконує перевертання.',
   'arena.tutorial.step2.body_mobile':  'Лiвий джойстик (нижнiй-лiвий кут екрана). Перетягни палець у потрiбний напрям.',
 
   'arena.tutorial.step3.title':        'Прицiл та стрiльба',
-  'arena.tutorial.step3.body_desktop': 'Мишка задає прицiл. Лазер стрiляє автоматично, коли ворог входить у центральну зону прицiлу.',
+  'arena.tutorial.step3.body_desktop': 'Мишка повертає ніс корабля. Утримуй ліву кнопку для лазера, права кнопка запускає ракету.',
   'arena.tutorial.step3.body_mobile':  'Правий джойстик керує носом корабля. Лазер стрiляє автоматично, коли ворог входить у центральну зону прицiлу.',
 
   'arena.tutorial.step4.title':        'Ракети',
-  'arena.tutorial.step4.body_desktop': 'Клавiша E або Space - ракета з самонаведенням. Боєзапас 10, перезарядка 6с за штуку.',
+  'arena.tutorial.step4.body_desktop': 'Права кнопка миші - ракета з самонаведенням. Боєзапас 10, перезарядка 6с за штуку.',
   'arena.tutorial.step4.body_mobile':  'Кнопка ROCKET - ракета з самонаведенням. Показує запас.',
 
   'arena.tutorial.step5.title':        'Гравiтацiйний штовх',
@@ -55,7 +55,7 @@ export const uk = {
   'arena.tutorial.step5.body_mobile':  'Кнопка GRAV - штовхає найближчий астероїд перед кораблем.',
 
   'arena.tutorial.step6.title':        'Варп-прискорення',
-  'arena.tutorial.step6.body_desktop': 'Shift - рiзкий ривок вперед на 1с. Кулдаун 8с.',
+  'arena.tutorial.step6.body_desktop': 'Space - рiзке варп-прискорення вперед на 1с. Кулдаун 8с.',
   'arena.tutorial.step6.body_mobile':  'Кнопка WARP - рiзкий ривок вперед на 1с. Кулдаун 8с.',
 
   'arena.tutorial.step7.title':        'Чорнi дiри',
@@ -65,6 +65,11 @@ export const uk = {
   'arena.tutorial.step8.title':        'Бустери',
   'arena.tutorial.step8.body_desktop': 'Кулi на мапi (WARP, DAMAGE, SHIELD, SLOW). Збирай кораблем - дають баф на 10с.',
   'arena.tutorial.step8.body_mobile':  'Кулi на мапi (WARP, DAMAGE, SHIELD, SLOW). Збирай кораблем - дають баф на 10с.',
+
+  'arena.exit_title': 'ВИЙТИ З АРЕНИ?',
+  'arena.exit_body':  'Ви впевнені, що хочете покинути бойову зону?',
+  'arena.exit_yes':   'ТАК',
+  'arena.exit_no':    'НІ',
 
   'hangar.title':             'АНГАР',
   'hangar.subtitle':          'Бойовий симулятор',
@@ -108,12 +113,12 @@ export const uk = {
   'hangar.event.raid_stub_btn':    'НА ДОПРАЦЮВАННІ',
   'hangar.event.raid_stub_toast':  'Рейд на носій тимчасово вимкнено.',
   'hangar.controls.title':         'Управлiння',
-  'hangar.controls.move':          'Рух',
-  'hangar.controls.aim':           'Прицiл',
-  'hangar.controls.laser':         'Автолазер у центральнiй зонi прицiлу',
-  'hangar.controls.missile':       'Ракета',
-  'hangar.controls.warp':          'Варп-ривок',
-  'hangar.controls.gravity':       'Гравiтацiйний поштовх',
+  'hangar.controls.move':          'Рух відносно носа корабля',
+  'hangar.controls.aim':           'Поворот носа корабля',
+  'hangar.controls.laser':         'Утримувати лазер',
+  'hangar.controls.missile':       'Запуск ракети',
+  'hangar.controls.warp':          'Варп-прискорення',
+  'hangar.controls.roll':          'Перевертання навколо осі',
   'hangar.stats.sessions':  'Сесiй',
   'hangar.stats.kills':     'Знищено',
   'hangar.stats.deaths':    'Смертей',

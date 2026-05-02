@@ -301,7 +301,7 @@ export function ResourceDisplay({
             } : {}),
           }}
           data-tutorial-id="resource-data"
-          title={t('resource_display.research_data_title')}
+          title={`${t('resource_display.research_data_title')}: ${Math.floor(researchData)}`}
           onClick={makeItemClick(onResearchDataClick)}
           onMouseEnter={() => setHoveredItem('rd')}
           onMouseLeave={() => setHoveredItem(null)}
@@ -316,7 +316,7 @@ export function ResourceDisplay({
           <>
             <div
               style={itemHoverStyle('min')}
-              title={t('resource_display.minerals_title')}
+              title={`${t('resource_display.minerals_title')}: ${Math.floor(displayMinerals)}`}
               onClick={makeItemClick(onMineralsClick)}
               onMouseEnter={() => setHoveredItem('min')}
               onMouseLeave={() => setHoveredItem(null)}
@@ -327,7 +327,7 @@ export function ResourceDisplay({
             <div style={dividerStyle} />
             <div
               style={itemHoverStyle('vol')}
-              title={t('resource_display.volatiles_title')}
+              title={`${t('resource_display.volatiles_title')}: ${Math.floor(displayVolatiles)}`}
               onClick={makeItemClick(onVolatilesClick)}
               onMouseEnter={() => setHoveredItem('vol')}
               onMouseLeave={() => setHoveredItem(null)}
@@ -338,7 +338,7 @@ export function ResourceDisplay({
             <div style={dividerStyle} />
             <div
               style={itemHoverStyle('iso')}
-              title={t('resource_display.isotopes_title')}
+              title={`${t('resource_display.isotopes_title')}: ${Math.floor(displayIsotopes)}`}
               onClick={makeItemClick(onIsotopesClick)}
               onMouseEnter={() => setHoveredItem('iso')}
               onMouseLeave={() => setHoveredItem(null)}
@@ -349,7 +349,7 @@ export function ResourceDisplay({
             <div style={dividerStyle} />
             <div
               style={itemHoverStyle('wat')}
-              title={t('resource_display.water_title', 'Water')}
+              title={`${t('resource_display.water_title', 'Water')}: ${Math.floor(displayWater)}`}
               onClick={makeItemClick(onWaterClick)}
               onMouseEnter={() => setHoveredItem('wat')}
               onMouseLeave={() => setHoveredItem(null)}
@@ -363,7 +363,7 @@ export function ResourceDisplay({
 
         <div
           style={itemHoverStyle('qk')}
-          title={t('resource_display.quarks_title')}
+          title={`${t('resource_display.quarks_title')}: ${Math.floor(quarks)}`}
           onClick={makeItemClick(onQuarksClick ?? onClick)}
           onMouseEnter={() => setHoveredItem('qk')}
           onMouseLeave={() => setHoveredItem(null)}

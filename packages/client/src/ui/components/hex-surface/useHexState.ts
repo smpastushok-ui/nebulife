@@ -33,6 +33,7 @@ import {
   getHexPositions,
 } from './hex-utils.js';
 import { getPlanetSize } from '@nebulife/core';
+import { parseCompactNumber } from '../../../utils/formatNumber.js';
 
 // ---------------------------------------------------------------------------
 // Module-level player data cache — avoids repeated network calls on re-mount
@@ -450,17 +451,7 @@ function canAffordCost(
   elementCosts?: Record<string, number>,
 ): boolean {
   const amount = (value: unknown): number => {
-    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    if (typeof value !== 'string') return 0;
-    const raw = value.trim().toLowerCase().replace(/\s/g, '').replace(',', '.');
-    const match = raw.match(/^(-?\d+(?:\.\d+)?)(кк|kk|m|м|к|k)?$/);
-    if (!match) return Number(raw) || 0;
-    const base = Number(match[1]);
-    const suffix = match[2];
-    if (!Number.isFinite(base)) return 0;
-    if (suffix === 'кк' || suffix === 'kk' || suffix === 'm' || suffix === 'м') return base * 1_000_000;
-    if (suffix === 'к' || suffix === 'k') return base * 1_000;
-    return base;
+    return parseCompactNumber(value) ?? 0;
   };
 
   if (amount(resources.minerals) < (cost.minerals ?? 0)) return false;

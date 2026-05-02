@@ -16,6 +16,7 @@ interface SpaceArenaProps {
   onExit: () => void;
   onMatchEnd?: (result: MatchResult) => void;
   onAwardXP?: (amount: number, reason: string) => void;
+  onStatsCommit?: (stats: { kills: number; asteroidKills: number; deaths: number; score: number }) => void;
   teamMode?: boolean;
 }
 
@@ -24,7 +25,7 @@ const ARENA_XP_PER_KILL = 10;
 const ARENA_XP_WIN_BONUS = 50;
 const ARENA_COMBO_WINDOW_MS = 4_500;
 
-export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: SpaceArenaProps) {
+export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamMode = false }: SpaceArenaProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<ArenaEngine | null>(null);
@@ -72,6 +73,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
   const awardedKillsRef = useRef(0);
   const matchEndAwardedRef = useRef(false);
   const comboRef = useRef({ count: 0, lastKillAt: 0 });
+  const statsCommittedRef = useRef(false);
   const [killFx, setKillFx] = useState<{ id: number; combo: number; xp: number } | null>(null);
   // Damage flash removed — lasers now cause camera shake (in engine),
   // and screen blink is reserved exclusively for missile threats.
@@ -352,23 +354,29 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
     return () => clearInterval(id);
   }, [ready]);
 
-  // Merge session stats into cumulative localStorage on exit
+  // Commit session stats on exit. App persists them into synced game_state so
+  // mobile and web hangars show the same totals.
   const handleExit = useCallback(() => {
-    const rawPrev = localStorage.getItem('nebulife_arena_stats');
-    const prev = rawPrev
-      ? JSON.parse(rawPrev)
-      : { kills: 0, asteroidKills: 0, deaths: 0, score: 0, bestScore: 0, sessions: 0 };
-    const merged = {
-      kills: prev.kills + sessionStats.kills,
-      asteroidKills: prev.asteroidKills + sessionStats.asteroidKills,
-      deaths: prev.deaths + sessionStats.deaths,
-      score: prev.score + sessionStats.score,
-      bestScore: Math.max(prev.bestScore, sessionStats.score),
-      sessions: prev.sessions + 1,
-    };
-    localStorage.setItem('nebulife_arena_stats', JSON.stringify(merged));
+    if (!statsCommittedRef.current) {
+      statsCommittedRef.current = true;
+      onStatsCommit?.(sessionStats);
+    }
     onExit();
-  }, [onExit, sessionStats]);
+  }, [onExit, onStatsCommit, sessionStats]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setShowExitConfirm(true);
+      if (document.pointerLockElement) {
+        document.exitPointerLock?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -924,8 +932,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
         />
       )}
 
-      {/* Exit confirmation — system back button opens this. Player taps
-          "YES" to leave the arena or "NO" to keep fighting. */}
+      {/* Exit confirmation — system back button or Escape opens this. */}
       {showExitConfirm && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 9000,
@@ -943,10 +950,10 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
             color: '#aabbcc',
           }}>
             <div style={{ fontSize: 14, marginBottom: 18, letterSpacing: 1 }}>
-              EXIT ARENA?
+              {t('arena.exit_title')}
             </div>
             <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 22 }}>
-              Are you sure you want to leave?
+              {t('arena.exit_body')}
             </div>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button
@@ -956,7 +963,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
                   color: '#ff8888', padding: '8px 20px', fontSize: 12,
                   fontFamily: 'monospace', cursor: 'pointer', letterSpacing: 2,
                 }}
-              >YES</button>
+              >{t('arena.exit_yes')}</button>
               <button
                 onClick={() => setShowExitConfirm(false)}
                 style={{
@@ -964,7 +971,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
                   color: '#aaccee', padding: '8px 20px', fontSize: 12,
                   fontFamily: 'monospace', cursor: 'pointer', letterSpacing: 2,
                 }}
-              >NO</button>
+              >{t('arena.exit_no')}</button>
             </div>
           </div>
         </div>
