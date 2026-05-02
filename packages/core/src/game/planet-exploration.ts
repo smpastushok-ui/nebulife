@@ -7,6 +7,7 @@ import type {
   PlanetMissionPhase,
   PlanetMissionPhaseDurations,
   PlanetMissionProgress,
+  PlanetMissionStartBlockReason,
   PlanetMissionType,
   PlanetReportSummary,
   PlanetRevealLevel,
@@ -22,9 +23,10 @@ export interface PlanetMissionResources {
 
 export interface PlanetMissionStartCheck {
   canStart: boolean;
-  reason?: 'already_revealed' | 'active_mission' | 'building_required' | 'surface_unavailable' | 'resources_required' | 'payload_required';
+  reason?: PlanetMissionStartBlockReason;
   requiredBuilding?: 'landing_pad' | 'spaceport';
   requiredPayload?: ProducibleType;
+  requiredCarrier?: ProducibleType;
   missingResources?: Partial<PlanetMissionResources>;
 }
 
@@ -44,13 +46,13 @@ export function getRequiredMissionBuilding(type: PlanetMissionType): 'landing_pa
   return 'spaceport';
 }
 
-export function computePlanetMissionCost(type: PlanetMissionType, planet: Planet): PlanetMissionCost {
+export function computePlanetMissionCost(type: PlanetMissionType, planet: Planet, researchDataCost: number = 1): PlanetMissionCost {
   const distance = Math.max(0.2, planet.orbit.semiMajorAxisAU);
   const giantMult = planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 1.35 : 1;
 
   if (type === 'orbital_scan') {
     return {
-      researchData: Math.ceil(10 + distance * 2),
+      researchData: researchDataCost,
       isotopes: Math.ceil(2 + distance * 0.5),
       payload: 'survey_probe',
     };
@@ -58,6 +60,7 @@ export function computePlanetMissionCost(type: PlanetMissionType, planet: Planet
 
   if (type === 'orbital_probe') {
     return {
+      researchData: researchDataCost,
       minerals: Math.ceil(30 * giantMult),
       volatiles: Math.ceil(18 * giantMult),
       isotopes: Math.ceil(8 + distance * 1.5 * giantMult),
@@ -67,6 +70,7 @@ export function computePlanetMissionCost(type: PlanetMissionType, planet: Planet
 
   if (type === 'deep_atmosphere_probe') {
     return {
+      researchData: researchDataCost,
       minerals: 45,
       volatiles: Math.ceil(45 + distance * 2),
       isotopes: Math.ceil(25 + distance * 2),
@@ -75,12 +79,20 @@ export function computePlanetMissionCost(type: PlanetMissionType, planet: Planet
   }
 
   return {
+    researchData: researchDataCost,
     minerals: 55,
     volatiles: 28,
     isotopes: Math.ceil(18 + distance * 1.5),
     water: Math.ceil(8 + Math.max(0, planet.surfaceTempK - 320) / 60),
     payload: 'surface_rover',
   };
+}
+
+export function getRequiredMissionCarrier(type: PlanetMissionType): ProducibleType | null {
+  if (type === 'orbital_probe') return 'research_shuttle';
+  if (type === 'surface_landing') return 'rover_dropcraft';
+  if (type === 'deep_atmosphere_probe') return 'atmo_probe_carrier';
+  return null;
 }
 
 export function computePlanetMissionDuration(type: PlanetMissionType, planet: Planet): PlanetMissionPhaseDurations {
@@ -185,6 +197,8 @@ export function canStartPlanetMission(params: {
   buildings: PlacedBuilding[];
   resources: PlanetMissionResources;
   payloadInventory?: Partial<Record<ProducibleType, number>>;
+  carrierInventory?: Partial<Record<ProducibleType, number>>;
+  researchDataCost?: number;
 }): PlanetMissionStartCheck {
   const targetRevealLevel = getTargetRevealLevel(params.type);
   if (params.revealLevel >= targetRevealLevel) return { canStart: false, reason: 'already_revealed' };
@@ -204,9 +218,14 @@ export function canStartPlanetMission(params: {
     return { canStart: false, reason: 'building_required', requiredBuilding };
   }
 
-  const cost = computePlanetMissionCost(params.type, params.planet);
+  const cost = computePlanetMissionCost(params.type, params.planet, params.researchDataCost);
   if (cost.payload && (params.payloadInventory?.[cost.payload] ?? 0) < 1) {
     return { canStart: false, reason: 'payload_required', requiredPayload: cost.payload };
+  }
+
+  const requiredCarrier = getRequiredMissionCarrier(params.type);
+  if (requiredCarrier && (params.carrierInventory?.[requiredCarrier] ?? 0) < 1) {
+    return { canStart: false, reason: 'carrier_required', requiredCarrier };
   }
 
   const missing: Partial<PlanetMissionResources> = {};
@@ -229,6 +248,9 @@ export function createPlanetMission(params: {
   startedAt: number;
   originPlanetId?: string;
   originSystemId?: string;
+  carrierShipId?: string;
+  carrierType?: ProducibleType;
+  researchDataCost?: number;
 }): PlanetMission {
   const phaseDurations = computePlanetMissionDuration(params.type, params.planet);
   return {
@@ -240,9 +262,11 @@ export function createPlanetMission(params: {
     startedAt: params.startedAt,
     durationMs: sumPlanetMissionDuration(phaseDurations),
     phaseDurations,
-    costPaid: computePlanetMissionCost(params.type, params.planet),
+    costPaid: computePlanetMissionCost(params.type, params.planet, params.researchDataCost),
     originPlanetId: params.originPlanetId,
     originSystemId: params.originSystemId,
+    carrierShipId: params.carrierShipId,
+    carrierType: params.carrierType,
     status: 'preparing',
   };
 }

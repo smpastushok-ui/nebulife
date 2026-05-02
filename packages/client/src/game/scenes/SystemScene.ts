@@ -68,6 +68,7 @@ function makeVisualOnly(root: Container): void {
 
 export interface PlanetMissionVisual {
   planetId: string;
+  originPlanetId?: string;
   type: PlanetMissionType;
   phase: PlanetMissionPhase;
   overallProgress: number;
@@ -618,14 +619,20 @@ export class SystemScene {
     const markerAngle = this.time * 0.0015 + progress * Math.PI * 2;
     const markerRadius = radius + 4;
     if (visual.data.phase === 'outbound') {
-      const sx = -planetNode.container.x * 0.75;
-      const sy = -planetNode.container.y * 0.75;
-      const fx = sx * (1 - visual.data.phaseProgress);
-      const fy = sy * (1 - visual.data.phaseProgress);
-      visual.marker.moveTo(sx, sy);
-      visual.marker.lineTo(fx, fy);
-      visual.marker.stroke({ width: 1, color, alpha: 0.35 });
-      visual.marker.circle(fx, fy, 2.5);
+      const originNode = visual.data.originPlanetId
+        ? this.planetNodes.get(visual.data.originPlanetId)
+        : null;
+      const sx = originNode
+        ? originNode.container.x - planetNode.container.x
+        : -planetNode.container.x * 0.75;
+      const sy = originNode
+        ? originNode.container.y - planetNode.container.y
+        : -planetNode.container.y * 0.75;
+      const travel = Math.max(0, Math.min(1, visual.data.phaseProgress));
+      const arc = Math.sin(travel * Math.PI) * 18;
+      const fx = sx * (1 - travel) + Math.cos(markerAngle) * arc;
+      const fy = sy * (1 - travel) + Math.sin(markerAngle) * arc * Y_COMPRESS;
+      visual.marker.circle(fx, fy, 3);
       visual.marker.fill({ color, alpha: 0.9 });
     } else {
       visual.marker.circle(Math.cos(markerAngle) * markerRadius, Math.sin(markerAngle) * markerRadius * Y_COMPRESS, isReady ? 3.2 : 2.2);

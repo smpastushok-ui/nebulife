@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem, ResearchState, ResearchSlot, SystemResearchState, ObservedRange } from '@nebulife/core';
-import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched, isRingFullyResearched, RESEARCH_DATA_COST } from '@nebulife/core';
+import { getResearchProgress, getSystemResearch, canStartResearch, isSystemFullyResearched, isRingFullyResearched } from '@nebulife/core';
 import { playSfx } from '../../audio/SfxPlayer.js';
 
 const panelStyle: React.CSSProperties = {
@@ -114,6 +114,7 @@ export function ResearchPanel({
   allSystems,
   activeSlotTimerText,
   researchData,
+  researchDataCost = 1,
   maxResearchRing,
   onStartResearch,
   onClose,
@@ -123,6 +124,7 @@ export function ResearchPanel({
   allSystems: StarSystem[];
   activeSlotTimerText: string | null;
   researchData: number;
+  researchDataCost?: number;
   maxResearchRing?: number;
   onStartResearch: (systemId: string) => void;
   onClose: () => void;
@@ -137,7 +139,7 @@ export function ResearchPanel({
   const ringLocked = system.ringIndex > 1 && system.ringIndex <= 3
     && !isRingFullyResearched(researchState, allSystems, system.ringIndex - 1);
   const techLocked = maxResearchRing !== undefined && system.ringIndex > maxResearchRing;
-  const hasData = researchData >= RESEARCH_DATA_COST;
+  const hasData = researchData >= researchDataCost;
   const canStart = !ringLocked && !techLocked && hasData && canStartResearch(researchState, system.id, system.ringIndex, maxResearchRing);
   const isComplete = isSystemFullyResearched(researchState, system.id);
 
@@ -228,7 +230,7 @@ export function ResearchPanel({
                   <line x1="2" y1="8" x2="5" y2="8" />
                   <line x1="11" y1="8" x2="14" y2="8" />
                 </svg>
-                {RESEARCH_DATA_COST}
+                {researchDataCost}
               </>
             : !hasData
               ? t('research.panel_insufficient_data')

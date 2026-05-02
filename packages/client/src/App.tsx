@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { playSfx, playLoop, stopLoop, setLoopVolume } from './audio/SfxPlayer.js';
 import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
@@ -54,7 +55,6 @@ import {
   isSystemFullyResearched,
   isRingFullyResearched,
   getResearchProgress,
-  hasResearchData,
   findColonizablePlanet,
   findParadisePlanet,
   completeSystemResearchInstantly,
@@ -94,6 +94,7 @@ import {
   getPlanetMissionProgress,
   isSolidPlanetForLanding,
   generateStarSystem,
+  getRequiredMissionCarrier,
 } from '@nebulife/core';
 import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
@@ -180,9 +181,80 @@ type ColonyResourceBundle = Record<ColonyResourceName, number>;
 const BASE_RESOURCE_STORAGE_CAPACITY = 1000;
 const KLING_PHOTO_COST = 25;
 const GEMINI_PHOTO_COST = 50;
+const MISSION_CARRIER_RETURN_MS = 60 * 60_000;
+const MISSION_PHOTO_REVEAL_MS = 15_000;
 
 function getPlanetPhotoCost(photoKind: PlanetPhotoKind): number {
   return photoKind === 'exosphere' ? KLING_PHOTO_COST : GEMINI_PHOTO_COST;
+}
+
+function MissionPhotoReceiveOverlay({ imageDataUrl, planetName, startedAt }: { imageDataUrl: string; planetName: string; startedAt: number }) {
+  const { t } = useTranslation();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 120);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const progress = Math.max(0, Math.min(1, (now - startedAt) / MISSION_PHOTO_REVEAL_MS));
+  const clipInset = Math.round((1 - progress) * 100);
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 12000,
+      background: 'rgba(2,5,12,0.96)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      pointerEvents: 'none',
+      fontFamily: 'monospace',
+      color: '#aabbcc',
+    }}>
+      <div style={{ width: 'min(920px, 92vw)', border: '1px solid #334455', background: 'rgba(5,10,18,0.96)', padding: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+          <span>{t('mission_report.receiving_photo')}</span>
+          <span>{planetName} · {Math.round(progress * 100)}%</span>
+        </div>
+        <div style={{ position: 'relative', aspectRatio: '16 / 9', overflow: 'hidden', background: '#020510', border: '1px solid rgba(68,102,136,0.55)' }}>
+          <img
+            src={imageDataUrl}
+            alt=""
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+              filter: 'contrast(1.12) brightness(0.92)',
+              clipPath: `inset(0 0 ${clipInset}% 0)`,
+            }}
+          />
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: `${Math.round(progress * 100)}%`,
+            height: 2,
+            background: '#7bb8ff',
+            boxShadow: '0 0 14px rgba(123,184,255,0.8)',
+            opacity: progress < 1 ? 0.9 : 0,
+          }} />
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 5px)',
+            mixBlendMode: 'screen',
+            opacity: 0.55,
+          }} />
+        </div>
+        <div style={{ marginTop: 10, height: 4, background: 'rgba(40,55,75,0.65)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${Math.round(progress * 100)}%`, background: '#4488aa' }} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function computeResourceStorageCapacity(buildings: PlacedBuilding[]): number {
@@ -198,6 +270,12 @@ function clampResourceBundle(resources: ColonyResourceBundle, capacity: number):
     isotopes: Math.min(Math.max(0, resources.isotopes), capacity),
     water: Math.min(Math.max(0, resources.water), capacity),
   };
+}
+
+function researchDataCostForRingDistance(ringDistance: number): number {
+  const distance = Math.max(0, Math.round(ringDistance));
+  if (distance <= 1) return 1;
+  return 2 ** (distance - 1);
 }
 
 /** Full game state synced to server via game_state JSONB */
@@ -838,6 +916,7 @@ function AppInner() {
   const [missionPhotoSaving, setMissionPhotoSaving] = useState(false);
   const [missionAlphaGenerating, setMissionAlphaGenerating] = useState(false);
   const [savedMissionPhotoKeys, setSavedMissionPhotoKeys] = useState<Record<string, boolean>>({});
+  const [missionPhotoReveal, setMissionPhotoReveal] = useState<{ imageDataUrl: string; planetName: string; startedAt: number } | null>(null);
 
   const [explorationPayloads, setExplorationPayloads] = useState<Partial<Record<ProducibleType, number>>>(() => {
     try {
@@ -854,6 +933,10 @@ function AppInner() {
     } catch { /* ignore */ }
     return [];
   });
+  const explorationPayloadsRef = useRef(explorationPayloads);
+  explorationPayloadsRef.current = explorationPayloads;
+  const explorationProductionQueueRef = useRef(explorationProductionQueue);
+  explorationProductionQueueRef.current = explorationProductionQueue;
 
   const [planetMissionClock, setPlanetMissionClock] = useState(() => Date.now());
 
@@ -875,11 +958,13 @@ function AppInner() {
   useEffect(() => {
     try { localStorage.setItem('nebulife_exploration_payloads', JSON.stringify(explorationPayloads)); }
     catch { /* ignore quota */ }
+    explorationPayloadsRef.current = explorationPayloads;
   }, [explorationPayloads]);
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_exploration_production_queue', JSON.stringify(explorationProductionQueue)); }
     catch { /* ignore quota */ }
+    explorationProductionQueueRef.current = explorationProductionQueue;
   }, [explorationProductionQueue]);
 
   // ── Planet overrides — type/habitability mutations after terraform (Phase 7C) ──
@@ -1162,6 +1247,8 @@ function AppInner() {
       const current = getResources(planetId)[key];
       const freeSpace = Math.max(0, capacity - current);
       if (freeSpace <= 0) {
+        setToastMessage(t('hex.storage_full_warning'));
+        setTimeout(() => setToastMessage(null), 2200);
         return { actualAmount: 0, depleted: false };
       }
       actualAmount = Math.min(actualAmount, freeSpace);
@@ -1175,7 +1262,7 @@ function AppInner() {
       addResources(planetId, { [key]: actualAmount });
     }
     return { actualAmount, depleted };
-  }, [addResources, getResources, getStorageCapacityForPlanet]);
+  }, [addResources, getResources, getStorageCapacityForPlanet, t]);
 
   /** Handle fly-to-HUD animation for harvested resource. */
   const handleHarvestFx = useCallback((type: SurfaceObjectType, sx: number, sy: number) => {
@@ -2304,6 +2391,50 @@ function AppInner() {
     return planets;
   }, [isExodusPhase, homeInfo]);
 
+  const getColonySystems = useCallback((): StarSystem[] => {
+    const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+    const systems: StarSystem[] = [];
+    const seen = new Set<string>();
+
+    const addPlanetSystem = (planetId?: string | null) => {
+      if (!planetId) return;
+      const system = allSystems.find((candidate) => candidate.planets.some((planet) => planet.id === planetId));
+      if (system && !seen.has(system.id)) {
+        systems.push(system);
+        seen.add(system.id);
+      }
+    };
+
+    if (homeInfo?.planet.id) addPlanetSystem(homeInfo.planet.id);
+    if (colonyState?.buildings?.some((building) => building.type === 'colony_hub')) {
+      addPlanetSystem(colonyState.planetId);
+    }
+
+    return systems;
+  }, [colonyState?.buildings, colonyState?.planetId, homeInfo?.planet.id]);
+
+  const getResearchDistanceFromNearestColony = useCallback((targetSystem: StarSystem): number => {
+    const colonySystems = getColonySystems();
+    if (colonySystems.length === 0) return targetSystem.ringIndex;
+
+    let nearestRingDistance = Number.POSITIVE_INFINITY;
+    for (const colonySystem of colonySystems) {
+      if (colonySystem.id === targetSystem.id) return 0;
+      const lyDistance = systemDistanceLY(colonySystem, targetSystem);
+      nearestRingDistance = Math.min(nearestRingDistance, lyDistance / 5);
+    }
+
+    return Number.isFinite(nearestRingDistance) ? nearestRingDistance : targetSystem.ringIndex;
+  }, [getColonySystems]);
+
+  const getSystemResearchDataCost = useCallback((targetSystem: StarSystem): number => (
+    researchDataCostForRingDistance(getResearchDistanceFromNearestColony(targetSystem))
+  ), [getResearchDistanceFromNearestColony]);
+
+  const getPlanetMissionResearchDataCost = useCallback((system: StarSystem): number => (
+    researchDataCostForRingDistance(getResearchDistanceFromNearestColony(system))
+  ), [getResearchDistanceFromNearestColony]);
+
   /** Open TerraformPanel for a planet (called from PlanetContextMenu). */
   const onShowTerraform = useCallback((planet: Planet): void => {
     setState((prev) => ({ ...prev, showPlanetMenu: false }));
@@ -2349,12 +2480,27 @@ function AppInner() {
     )) ?? null;
   }, [planetMissions]);
 
+  const getAvailableMissionCarriers = useCallback((originPlanetId: string): Partial<Record<ProducibleType, number>> => {
+    const carriers: Partial<Record<ProducibleType, number>> = {};
+    for (const ship of shipFleetRef.current.ships) {
+      if (ship.status !== 'docked' || ship.assignmentId || ship.currentPlanetId !== originPlanetId) continue;
+      if (ship.type === 'research_shuttle' || ship.type === 'rover_dropcraft' || ship.type === 'atmo_probe_carrier') {
+        carriers[ship.type] = (carriers[ship.type] ?? 0) + 1;
+      }
+    }
+    return carriers;
+  }, []);
+
   const handleStartPlanetMission = useCallback((planet: Planet, type: PlanetMissionType): void => {
     const system = state.selectedSystem;
     if (!system) return;
 
     const revealLevel = getEffectivePlanetRevealLevel(planet, system);
+    const originPlanetId = surfaceTarget?.planet.id ?? homeInfo?.planet.id ?? colonyState?.planetId;
+    if (!originPlanetId) return;
+    const missionResearchDataCost = getPlanetMissionResearchDataCost(system);
     const resources = { researchData: Math.floor(researchData), ...totalResources() };
+    const carrierInventory = getAvailableMissionCarriers(originPlanetId);
     const check = canStartPlanetMission({
       type,
       planet,
@@ -2363,6 +2509,8 @@ function AppInner() {
       buildings: getExplorationBuildings(),
       resources,
       payloadInventory: explorationPayloads,
+      carrierInventory,
+      researchDataCost: missionResearchDataCost,
     });
 
     if (!check.canStart) {
@@ -2373,6 +2521,7 @@ function AppInner() {
         surface_unavailable: 'planet_missions.reason.surface_unavailable',
         resources_required: 'planet_missions.reason.resources_required',
         payload_required: 'planet_missions.reason.payload_required',
+        carrier_required: 'planet_missions.reason.carrier_required',
         unknown: 'planet_missions.reason.unknown',
       } as const;
       setState((prev) => ({ ...prev, error: t(reasonKey[check.reason ?? 'unknown']) }));
@@ -2380,15 +2529,30 @@ function AppInner() {
     }
 
     const now = Date.now();
+    const carrierType = getRequiredMissionCarrier(type);
+    const carrierShip = carrierType
+      ? shipFleetRef.current.ships.find((ship) => (
+          ship.type === carrierType
+          && ship.status === 'docked'
+          && ship.currentPlanetId === originPlanetId
+          && !ship.assignmentId
+        ))
+      : null;
     const mission = createPlanetMission({
       id: `pm-${planet.id}-${now}`,
       type,
       systemId: system.id,
       planet,
       startedAt: now,
-      originPlanetId: homeInfo?.planet.id,
-      originSystemId: homeInfo?.system.id,
+      originPlanetId,
+      originSystemId: system.id,
+      carrierShipId: carrierShip?.id,
+      carrierType: carrierType ?? undefined,
+      researchDataCost: missionResearchDataCost,
     });
+    const queuedMission = carrierShip
+      ? { ...mission, carrierReturnAt: now + MISSION_CARRIER_RETURN_MS }
+      : mission;
 
     const cost = mission.costPaid;
     if (cost.payload) {
@@ -2398,28 +2562,47 @@ function AppInner() {
       }));
     }
     if (cost.researchData) setResearchData((prev) => Math.max(0, prev - cost.researchData!));
-    spendResourcesAcrossPlanets(homeInfo?.planet.id ?? planet.id, {
+    spendResourcesAcrossPlanets(originPlanetId, {
       minerals: -(cost.minerals ?? 0),
       volatiles: -(cost.volatiles ?? 0),
       isotopes: -(cost.isotopes ?? 0),
       water: -(cost.water ?? 0),
     });
 
-    setPlanetMissions((prev) => ({ ...prev, [mission.id]: mission }));
+    if (carrierShip) {
+      setShipFleet((prev) => ({
+        ...prev,
+        ships: prev.ships.map((ship) => ship.id === carrierShip.id
+          ? {
+              ...ship,
+              status: 'in_transit',
+              currentPlanetId: null,
+              destinationPlanetId: planet.id,
+              departedAt: now,
+              arrivalAt: now + MISSION_CARRIER_RETURN_MS,
+              assignmentId: queuedMission.id,
+            }
+          : ship),
+      }));
+    }
+
+    setPlanetMissions((prev) => ({ ...prev, [queuedMission.id]: queuedMission }));
     setState((prev) => ({ ...prev, showPlanetMenu: false, error: null }));
     scheduleSyncToServer();
-    engineRef.current?.startSystemShipFlight(planet.id);
   }, [
+    colonyState?.planetId,
     getEffectivePlanetRevealLevel,
+    getAvailableMissionCarriers,
+    getPlanetMissionResearchDataCost,
     getExplorationBuildings,
     explorationPayloads,
     homeInfo?.planet.id,
-    homeInfo?.system.id,
     planetMissions,
     researchData,
     scheduleSyncToServer,
     spendResourcesAcrossPlanets,
     state.selectedSystem,
+    surfaceTarget?.planet.id,
     t,
     totalResources,
   ]);
@@ -2613,7 +2796,7 @@ function AppInner() {
 
   const handleStartPayloadProduction = useCallback((type: ProducibleType): void => {
     const def = PRODUCIBLE_DEFS[type];
-    const originPlanetId = homeInfo?.planet.id;
+    const originPlanetId = surfaceTargetRef.current?.planet.id ?? homeInfo?.planet.id;
     if (!def || !originPlanetId) return;
 
     if (!getExplorationBuildings().some((building) => building.type === def.requiresBuilding && !building.shutdown)) {
@@ -2621,7 +2804,7 @@ function AppInner() {
       return;
     }
 
-    const queueForType = explorationProductionQueue.filter((item) => item.type === type).length;
+    const queueForType = explorationProductionQueueRef.current.filter((item) => item.type === type).length;
     if (queueForType >= 3) {
       setState((prev) => ({ ...prev, error: t('planet_missions.reason.production_queue_full') }));
       return;
@@ -2644,20 +2827,20 @@ function AppInner() {
     });
 
     const now = Date.now();
-    setExplorationProductionQueue((prev) => [
-      ...prev,
-      {
-        id: `payload-${type}-${now}`,
-        type,
-        planetId: originPlanetId,
-        startedAt: now,
-        durationMs: def.productionTimeMs,
-      },
-    ]);
+    const newItem: ExplorationPayloadProductionItem = {
+      id: `payload-${type}-${originPlanetId}-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      type,
+      planetId: originPlanetId,
+      startedAt: now,
+      durationMs: def.productionTimeMs,
+    };
+    const nextQueue = [...explorationProductionQueueRef.current, newItem];
+    explorationProductionQueueRef.current = nextQueue;
+    try { localStorage.setItem('nebulife_exploration_production_queue', JSON.stringify(nextQueue)); } catch { /* ignore quota */ }
+    setExplorationProductionQueue(nextQueue);
     setState((prev) => ({ ...prev, error: null }));
     scheduleSyncToServer();
   }, [
-    explorationProductionQueue,
     getExplorationBuildings,
     getExplorationPayloadCost,
     homeInfo?.planet.id,
@@ -2754,45 +2937,53 @@ function AppInner() {
     return lines.join('\n');
   }, [lang]);
 
+  const completeReadyExplorationProduction = useCallback((now: number): void => {
+    const queue = explorationProductionQueueRef.current;
+    if (queue.length === 0) return;
+
+    const completed: ExplorationPayloadProductionItem[] = [];
+    const remaining: ExplorationPayloadProductionItem[] = [];
+    for (const item of queue) {
+      if (now - item.startedAt >= item.durationMs) completed.push(item);
+      else remaining.push(item);
+    }
+    if (completed.length === 0) return;
+
+    explorationProductionQueueRef.current = remaining;
+    try { localStorage.setItem('nebulife_exploration_production_queue', JSON.stringify(remaining)); } catch { /* ignore quota */ }
+    setExplorationProductionQueue(remaining);
+
+    const completedPayloads = completed.filter((item) => !isShipProducible(item.type));
+    const completedShips = completed.filter((item) => isShipProducible(item.type));
+    if (completedPayloads.length > 0) {
+      setExplorationPayloads((prev) => {
+        const next = { ...prev };
+        for (const item of completedPayloads) next[item.type] = (next[item.type] ?? 0) + 1;
+        explorationPayloadsRef.current = next;
+        try { localStorage.setItem('nebulife_exploration_payloads', JSON.stringify(next)); } catch { /* ignore quota */ }
+        return next;
+      });
+    }
+    if (completedShips.length > 0) {
+      const producedShips = completedShips.map((item) => createDockedShipFromProduction(item.type, item.planetId, now));
+      setShipFleet((prev) => {
+        const next = {
+          ...prev,
+          ships: [...prev.ships, ...producedShips],
+        };
+        try { localStorage.setItem('nebulife_fleet_state', JSON.stringify(next)); } catch { /* ignore quota */ }
+        return next;
+      });
+    }
+    scheduleSyncToServer();
+  }, [createDockedShipFromProduction, scheduleSyncToServer]);
+
   useEffect(() => {
     if (explorationProductionQueue.length === 0) return;
-    const id = window.setInterval(() => {
-      const now = Date.now();
-      const completed: ExplorationPayloadProductionItem[] = [];
-      setExplorationProductionQueue((prev) => {
-        const remaining: ExplorationPayloadProductionItem[] = [];
-        for (const item of prev) {
-          if (now - item.startedAt >= item.durationMs) completed.push(item);
-          else remaining.push(item);
-        }
-        return completed.length > 0 ? remaining : prev;
-      });
-      if (completed.length > 0) {
-        const completedPayloads = completed.filter((item) => !isShipProducible(item.type));
-        const completedShips = completed.filter((item) => isShipProducible(item.type));
-        if (completedPayloads.length > 0) {
-          setExplorationPayloads((prev) => {
-            const next = { ...prev };
-            for (const item of completedPayloads) next[item.type] = (next[item.type] ?? 0) + 1;
-            return next;
-          });
-        }
-        if (completedShips.length > 0) {
-          const producedShips = completedShips.map((item) => createDockedShipFromProduction(item.type, item.planetId, now));
-          setShipFleet((prev) => {
-            const next = {
-              ...prev,
-              ships: [...prev.ships, ...producedShips],
-            };
-            try { localStorage.setItem('nebulife_fleet_state', JSON.stringify(next)); } catch { /* ignore quota */ }
-            return next;
-          });
-        }
-        scheduleSyncToServer();
-      }
-    }, 1000);
+    completeReadyExplorationProduction(Date.now());
+    const id = window.setInterval(() => completeReadyExplorationProduction(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [createDockedShipFromProduction, explorationProductionQueue.length, scheduleSyncToServer]);
+  }, [completeReadyExplorationProduction, explorationProductionQueue.length]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -2801,6 +2992,7 @@ function AppInner() {
 
       const reportsToAdd: PlanetReportSummary[] = [];
       const revealUpdates: Record<string, PlanetRevealLevel> = {};
+      const carrierReturns: PlanetMission[] = [];
       let changed = false;
       const next: Record<string, PlanetMission> = { ...planetMissions };
 
@@ -2821,6 +3013,20 @@ function AppInner() {
           next[missionId] = { ...mission, status: progress.phase };
           changed = true;
         }
+
+        const currentMission = next[missionId] ?? mission;
+        if (
+          currentMission.carrierShipId
+          && currentMission.originPlanetId
+          && currentMission.carrierReturnAt
+          && !currentMission.carrierReturnedAt
+          && now >= currentMission.carrierReturnAt
+        ) {
+          const returned = { ...currentMission, carrierReturnedAt: now };
+          next[missionId] = returned;
+          carrierReturns.push(returned);
+          changed = true;
+        }
       }
 
       if (changed) setPlanetMissions(next);
@@ -2832,6 +3038,26 @@ function AppInner() {
           return next;
         });
         setPlanetRevealLevels((prev) => ({ ...prev, ...revealUpdates }));
+        scheduleSyncToServer();
+      }
+
+      if (carrierReturns.length > 0) {
+        setShipFleet((prev) => ({
+          ...prev,
+          ships: prev.ships.map((ship) => {
+            const mission = carrierReturns.find((entry) => entry.carrierShipId === ship.id);
+            if (!mission) return ship;
+            return {
+              ...ship,
+              status: 'docked',
+              currentPlanetId: mission.originPlanetId ?? ship.currentPlanetId,
+              destinationPlanetId: null,
+              departedAt: null,
+              arrivalAt: null,
+              assignmentId: null,
+            };
+          }),
+        }));
         scheduleSyncToServer();
       }
     }, 1000);
@@ -2852,6 +3078,7 @@ function AppInner() {
         const progress = getPlanetMissionProgress(mission, planetMissionClock);
         return {
           planetId: mission.planetId,
+          originPlanetId: mission.originPlanetId,
           type: mission.type,
           phase: progress.phase,
           overallProgress: progress.overallProgress,
@@ -4169,6 +4396,15 @@ function AppInner() {
         });
       }
       setSystemPhotos(map);
+      setSavedMissionPhotoKeys(() => {
+        const saved: Record<string, boolean> = {};
+        for (const [key, photo] of map) {
+          if ((key.startsWith('planet-probe-') || key.startsWith('planet-rover-')) && photo.status === 'succeed' && photo.photoUrl) {
+            saved[key] = true;
+          }
+        }
+        return saved;
+      });
     }).catch(() => {});
     // Load gallery discoveries for duplicate detection
     getDiscoveries(pid).then(discoveries => {
@@ -4845,6 +5081,37 @@ function AppInner() {
     setWarpActive(false);
   }, []);
 
+  const restoreStarGroupView = useCallback(() => {
+    setSurfaceTarget(null);
+    setUniverseVisible(false);
+    if (universeEngineRef.current) {
+      universeEngineRef.current.destroy();
+      universeEngineRef.current = null;
+    }
+
+    const restore = () => {
+      const engine = engineRef.current;
+      if (!engine) return;
+      engine.resume();
+      engine.showGalaxyScene();
+      setState(prev => ({
+        ...prev,
+        scene: 'galaxy',
+        selectedSystem: null,
+        selectedPlanet: null,
+        showPlanetMenu: false,
+        showPlanetInfo: false,
+        planetClickPos: null,
+      }));
+      setShowSystemMenu(false);
+      setSystemMenuPos(null);
+      setRadialSystem(null);
+      setRadialGetScreenPos(null);
+    };
+
+    requestAnimationFrame(() => requestAnimationFrame(restore));
+  }, []);
+
   const handleEnterSystem = useCallback((system: StarSystem) => {
     engineRef.current?.showSystemScene(system);
     setState((prev) => ({ ...prev, scene: 'system', selectedSystem: system }));
@@ -4881,14 +5148,15 @@ function AppInner() {
   }, [quarkUnlockedSystems, researchState]);
 
   const handleStartResearch = useCallback((systemId: string) => {
-    if (!hasResearchData(Math.floor(researchData))) {
+    const targetSystem = engineRef.current?.getAllSystems()?.find((s) => s.id === systemId);
+    const researchCost = targetSystem ? getSystemResearchDataCost(targetSystem) : RESEARCH_DATA_COST;
+    if (Math.floor(researchData) < researchCost) {
       setShowGetResearchData(true);
       return;
     }
     // Block if no observatories or no free slots
     if (researchState.slots.length === 0) return;
     // Resolve the target system's ring to find the closest observatory slot
-    const targetSystem = engineRef.current?.getAllSystems()?.find((s) => s.id === systemId);
     const targetRing = targetSystem?.ringIndex ?? 1;
     // Personal/neighbor gates are true rings. Core/deep systems branch from
     // researched stars instead, so Ring 4+ must not wait for a whole previous ring.
@@ -4901,7 +5169,7 @@ function AppInner() {
     if (!canStartResearch(researchState, systemId, targetRing, effectiveMax)) return;
     const slotIdx = findBestSlotForSystem(researchState, targetRing);
     if (slotIdx < 0) return;
-    setResearchData((prev) => prev - RESEARCH_DATA_COST);
+    setResearchData((prev) => prev - researchCost);
     setResearchState((prev) => {
       const slotIndex = findBestSlotForSystem(prev, targetRing);
       if (slotIndex < 0) return prev;
@@ -4931,7 +5199,7 @@ function AppInner() {
         });
       }
     }
-  }, [researchData, researchState, getEffectiveResearchMaxRing, isTutorialActive, tutorialStep, t]);
+  }, [researchData, researchState, getSystemResearchDataCost, getEffectiveResearchMaxRing, isTutorialActive, tutorialStep, t]);
 
   // --- Tech Tree: research a technology ---
   const handleResearchTech = useCallback((techId: string) => {
@@ -5109,12 +5377,12 @@ function AppInner() {
   }, [state.selectedSystem]);
 
   const handleSystemMenuResearch = useCallback(() => {
-    if (!hasResearchData(Math.floor(researchData))) {
+    const sys = state.selectedSystem;
+    if (!sys || Math.floor(researchData) < getSystemResearchDataCost(sys)) {
       setShowGetResearchData(true);
       return;
     }
     playSfx('research-system-start', 0.25);
-    const sys = state.selectedSystem;
     setShowSystemMenu(false);
     setRadialSystem(null);
     setRadialGetScreenPos(null);
@@ -5123,7 +5391,7 @@ function AppInner() {
       setState(prev => ({ ...prev, selectedSystem: null }));
       engineRef.current?.unfocusSystem();
     }
-  }, [state.selectedSystem, handleStartResearch]);
+  }, [state.selectedSystem, researchData, getSystemResearchDataCost, handleStartResearch]);
 
   const handleSystemMenuRename = useCallback(() => {
     if (!state.selectedSystem) return;
@@ -5378,6 +5646,7 @@ function AppInner() {
     setMissionPhotoSaving(true);
     try {
       const imageDataUrl = renderMissionProbePhoto({ planet, star: sys.star, report });
+      setMissionPhotoReveal({ imageDataUrl, planetName: planet.name, startedAt: Date.now() });
       const promptUsed = `Deterministic mission instrument render: ${report.missionType}, planet=${planet.name}, reveal=T${report.revealLevel}`;
       const saved = await saveMissionPhoto({
         playerId: playerId.current,
@@ -5396,10 +5665,14 @@ function AppInner() {
         return next;
       });
       setSavedMissionPhotoKeys((prev) => ({ ...prev, [photoKey]: true }));
-      setToastMessage(t('mission_report.photo_saved_to_gallery'));
-      setTimeout(() => setToastMessage(null), 3000);
+      window.setTimeout(() => {
+        setMissionPhotoReveal((current) => current?.imageDataUrl === imageDataUrl ? null : current);
+        setToastMessage(t('mission_report.photo_saved_to_gallery'));
+        setTimeout(() => setToastMessage(null), 3000);
+      }, MISSION_PHOTO_REVEAL_MS);
     } catch (err) {
       console.error('[MissionProbePhoto] Error:', err);
+      setMissionPhotoReveal(null);
       setToastMessage(t('mission_report.photo_save_failed'));
       setTimeout(() => setToastMessage(null), 3500);
     } finally {
@@ -7683,7 +7956,7 @@ function AppInner() {
       {state.scene === 'system' && !isCurrentSystemFullyAccessible && state.selectedSystem && (
         <SystemResearchOverlay
           progress={currentSystemProgress}
-          canResearch={hasResearchData(Math.floor(researchData)) && findFreeSlot(researchState) >= 0}
+          canResearch={Math.floor(researchData) >= getSystemResearchDataCost(state.selectedSystem) && findFreeSlot(researchState) >= 0}
           isResearching={researchState.slots.some((s) => s.systemId === state.selectedSystem!.id)}
           onStartResearch={() => handleStartResearch(state.selectedSystem!.id)}
           onDisabledClick={() => handleStartResearch(state.selectedSystem!.id)}
@@ -7744,6 +8017,7 @@ function AppInner() {
           allSystems={engineRef.current?.getAllSystems() ?? []}
           activeSlotTimerText={activeSlotTimer}
           researchData={Math.floor(researchData)}
+          researchDataCost={getSystemResearchDataCost(state.selectedSystem)}
           maxResearchRing={getEffectiveResearchMaxRing(engineRef.current?.getAllSystems() ?? [], state.selectedSystem.id)}
           onStartResearch={handleStartResearch}
           onClose={() => setShowSystemResearch(false)}
@@ -7821,6 +8095,13 @@ function AppInner() {
           canShowAds={isNativePlatform() && canShowAd()}
         />
       )}
+      {missionPhotoReveal && (
+        <MissionPhotoReceiveOverlay
+          imageDataUrl={missionPhotoReveal.imageDataUrl}
+          planetName={missionPhotoReveal.planetName}
+          startedAt={missionPhotoReveal.startedAt}
+        />
+      )}
       {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && (
         <PlanetContextMenu
           planet={state.selectedPlanet}
@@ -7850,7 +8131,9 @@ function AppInner() {
           activeMission={getActivePlanetMission(state.selectedPlanet.id)}
           planetMissionClock={planetMissionClock}
           missionResources={{ researchData: Math.floor(researchData), ...totalResources() }}
+          missionResearchDataCost={state.selectedSystem ? getPlanetMissionResearchDataCost(state.selectedSystem) : 1}
           payloadInventory={explorationPayloads}
+          carrierInventory={getAvailableMissionCarriers(surfaceTarget?.planet.id ?? homeInfo?.planet.id ?? colonyState?.planetId ?? '')}
           colonyBuildings={getExplorationBuildings()}
           onStartMission={handleStartPlanetMission}
           explorationMissionsDisabled={Boolean(
@@ -7910,7 +8193,11 @@ function AppInner() {
             alphaCost={GEMINI_PHOTO_COST}
             proceduralSaving={missionPhotoSaving}
             alphaGenerating={missionAlphaGenerating}
-            proceduralSaved={Boolean(savedMissionPhotoKeys[getMissionPhotoKey(planetReportTarget.planet.id, planetReportTarget.report)])}
+            proceduralSaved={(() => {
+              const key = getMissionPhotoKey(planetReportTarget.planet.id, planetReportTarget.report);
+              const photo = systemPhotos.get(key);
+              return Boolean(savedMissionPhotoKeys[key] || (photo?.status === 'succeed' && photo.photoUrl));
+            })()}
             onProceduralPhoto={() => handleSaveMissionProbePhoto(planetReportTarget.planet, planetReportTarget.report)}
             onAlphaPhoto={() => handleMissionAlphaPhoto(planetReportTarget.planet, planetReportTarget.report)}
               onClose={() => {
@@ -8477,6 +8764,7 @@ function AppInner() {
             const allSystems = engineRef.current?.getAllSystems() ?? [];
             const sys = allSystems.find(s => s.id === sysId);
             if (!sys) return false;
+            if (Math.floor(researchData) < getSystemResearchDataCost(sys)) return false;
             const effectiveMax = getEffectiveResearchMaxRing(allSystems, sysId);
             return canStartResearch(researchState, sysId, sys.ringIndex, effectiveMax);
           }}
@@ -8499,7 +8787,7 @@ function AppInner() {
           techTreeState={techTreeState}
           onResearchTech={handleResearchTech}
           researchData={Math.floor(researchData)}
-          researchDataCost={RESEARCH_DATA_COST}
+          getResearchDataCost={getSystemResearchDataCost}
           favoritePlanets={favoritePlanets}
           onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
           systemPhotos={systemPhotos}
@@ -8667,7 +8955,10 @@ function AppInner() {
         <HangarPage
           playerLevel={playerLevel}
           arenaStats={arenaStats}
-          onBack={() => setShowHangar(false)}
+          onBack={() => {
+            setShowHangar(false);
+            restoreStarGroupView();
+          }}
           onEnterArena={() => {
             syncGameStateRef.current(); // push latest state to server before arena
             setArenaTeamMode(false);
@@ -8699,6 +8990,7 @@ function AppInner() {
             setArenaTeamMode(false);
             // Return to Hangar after arena exit
             setShowHangar(true);
+            restoreStarGroupView();
             interstitialManager.tryShow();
           }}
         />
@@ -8711,6 +9003,7 @@ function AppInner() {
           onExit={() => {
             setShowRaid(false);
             setShowHangar(true);
+            restoreStarGroupView();
             interstitialManager.tryShow();
           }}
         />
@@ -8862,6 +9155,7 @@ function AppInner() {
           playerLevel={playerLevel}
           onUnreadChange={setChatUnreadCount}
           systemNotifs={systemNotifs}
+          logEntries={logEntries}
           onSystemNotifRead={(id) =>
             setSystemNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
           }

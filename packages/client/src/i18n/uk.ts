@@ -557,7 +557,9 @@ export const uk = {
   'planet_missions.reason.surface_unavailable': 'Посадка тут неможлива',
   'planet_missions.reason.resources_required':  'Недостатньо ресурсiв',
   'planet_missions.reason.payload_required':    'Потрiбен готовий апарат',
+  'planet_missions.reason.carrier_required':    'Потрiбен готовий багаторазовий носiй',
   'planet_missions.reason.production_queue_full': 'Черга виробництва цього апарата заповнена',
+  'hex.storage_full_warning':                   'Склад заповнений. Видобуток зупинено.',
 } as const;
 
 export type TranslationKey = keyof typeof uk;

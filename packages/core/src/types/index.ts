@@ -48,6 +48,7 @@ export type {
   PlanetRevealLevel,
   PlanetMissionType,
   PlanetMissionPhase,
+  PlanetMissionStartBlockReason,
   PlanetMissionCost,
   PlanetMissionPhaseDurations,
   PlanetMission,

@@ -310,7 +310,20 @@ function ProducibleFrameCard({
       <div style={{ minWidth: 0, display: 'grid', gap: 7 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
           <div style={{ color: '#d8e6f2', fontSize: 13, lineHeight: 1.25 }}>{title}</div>
-          <div style={{ color: '#7bb8ff', fontSize: 11, flexShrink: 0 }}>x{count}</div>
+          <div style={{
+            color: '#44ff88',
+            fontSize: 16,
+            lineHeight: 1,
+            fontWeight: 700,
+            flexShrink: 0,
+            padding: '3px 7px',
+            border: '1px solid rgba(68,255,136,0.45)',
+            borderRadius: 4,
+            background: 'rgba(68,255,136,0.09)',
+            boxShadow: '0 0 10px rgba(68,255,136,0.12)',
+          }}>
+            {t('building_detail.transport_count', { count })}
+          </div>
         </div>
         <div style={{ color: '#667788', fontSize: 10, lineHeight: 1.35 }}>{payloadCostSummary(type, t)}</div>
         {activeQueue.length > 0 && (

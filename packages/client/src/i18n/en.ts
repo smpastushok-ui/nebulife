@@ -559,5 +559,7 @@ export const en: Record<TranslationKey, string> = {
   'planet_missions.reason.surface_unavailable': 'Landing is not possible here',
   'planet_missions.reason.resources_required':  'Not enough resources',
   'planet_missions.reason.payload_required':    'Ready payload required',
+  'planet_missions.reason.carrier_required':    'Ready reusable carrier required',
   'planet_missions.reason.production_queue_full': 'Production queue for this payload is full',
+  'hex.storage_full_warning':                   'Storage is full. Extraction is stopped.',
 };

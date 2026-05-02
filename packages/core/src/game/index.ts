@@ -151,6 +151,7 @@ export {
   isSolidPlanetForLanding,
   getTargetRevealLevel,
   getRequiredMissionBuilding,
+  getRequiredMissionCarrier,
   computePlanetMissionCost,
   computePlanetMissionDuration,
   sumPlanetMissionDuration,

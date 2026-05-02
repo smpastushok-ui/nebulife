@@ -929,8 +929,10 @@
       "surface_unavailable": "посадка тут неможлива",
       "resources_required": "недостатньо ресурсів",
       "resources_required_named": "бракує: {{resources}}",
-      "payload_required": "потрібен готовий payload",
-      "payload_required_named": "потрібно: {{payload}}"
+      "payload_required": "потрібен готовий апарат",
+      "payload_required_named": "потрібно: {{payload}}",
+      "carrier_required": "потрібен готовий носій",
+      "carrier_required_named": "потрібен багаторазовий носій: {{carrier}}"
     },
     "payload": {
       "survey_probe": "Скан-зонд",
@@ -1523,6 +1525,7 @@
     "alpha_photo_desc": "Фотореалістична генерація Gemini/Nano Banana за параметрами звіту.",
     "photo_saving": "Зберігаємо фото...",
     "photo_saved": "Фото збережено",
+    "receiving_photo": "Приймаємо фото місії",
     "photo_saved_to_gallery": "Фото місії збережено в галерею",
     "photo_save_failed": "Не вдалося зберегти фото місії"
   },
@@ -1758,6 +1761,7 @@
     "transport_heavy_units": "Важка логістика",
     "transport_zoom": "Збільшити зображення",
     "transport_help_title": "Пояснення апарата",
+    "transport_count": "{{count}} шт.",
     "transport_art_slot": "ART",
     "transport_help": {
       "research_shuttle": "Багаторазовий носій для орбітальних скан-зондів і супутників. Після виробництва зберігається як корабель флоту на цій планеті.",

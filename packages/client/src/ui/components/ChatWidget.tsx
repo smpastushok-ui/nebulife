@@ -13,6 +13,7 @@ import {
 } from '../../api/messages-api.js';
 import { askAstra, topupAstraTokens, type AstraMessage, type AstraResponse } from '../../api/ai-api.js';
 import { NewDMModal } from './NewDMModal.js';
+import type { LogEntry, LogCategory } from './CosmicArchive/SystemLog.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -50,6 +51,7 @@ interface ChatWidgetProps {
   playerName: string;
   onUnreadChange?: (count: number) => void;
   systemNotifs?: SystemNotif[];
+  logEntries?: LogEntry[];
   onSystemNotifRead?: (id: string) => void;
   onNavigateToPlanet?: (systemId: string, planetId: string) => void;
   /** week_date of the most recently seen digest (from player.last_digest_seen) */
@@ -71,6 +73,20 @@ interface ChatWidgetProps {
 
 type Tab = 'global' | 'dm-list' | 'dm-chat' | 'system' | 'astra';
 
+const LOG_CATEGORY_I18N_KEYS: Record<LogCategory, string> = {
+  economy: 'log.cat_economy',
+  science: 'log.cat_science',
+  expedition: 'log.cat_expedition',
+  system: 'log.cat_system',
+};
+
+const LOG_CATEGORY_COLORS: Record<LogCategory, string> = {
+  economy: '#cc8822',
+  science: '#4488aa',
+  expedition: '#44ff88',
+  system: '#667788',
+};
+
 // ---------------------------------------------------------------------------
 // Neon pulse animation — mirrors scp-neon-pulse from SceneControlsPanel
 // Used on collapsed button when there are unread messages
@@ -91,7 +107,7 @@ const CHAT_PULSE_KEYFRAMES = `
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
 
@@ -110,6 +126,9 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   const [sending, setSending] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
   const [unreadGlobal, setUnreadGlobal] = useState(0);
+  const [unreadAstraMessages, setUnreadAstraMessages] = useState(0);
+  const [unreadSystemMessages, setUnreadSystemMessages] = useState(0);
+  const [unreadDm, setUnreadDm] = useState(0);
   const [bannedError, setBannedError] = useState(false);
   // Track which digest the user has "seen" in the ASTRA tab
   const [seenDigestWeekDate, setSeenDigestWeekDate] = useState<string | null | undefined>(lastDigestSeen);
@@ -126,13 +145,19 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     });
   }, [lastDigestSeen]);
 
-  const unreadAstra = (latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate) ? 1 : 0;
+  const unreadAstraDigest = (latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate) ? 1 : 0;
+  const unreadAstra = unreadAstraDigest + unreadAstraMessages;
 
   const markDigestSeen = useCallback((weekDate: string | null | undefined) => {
     if (!weekDate) return;
     setSeenDigestWeekDate(prev => (prev == null || weekDate > prev ? weekDate : prev));
     onDigestSeen?.(weekDate);
   }, [onDigestSeen]);
+
+  const visibleLogEntries = React.useMemo(
+    () => [...logEntries].sort((a, b) => a.timestamp - b.timestamp).slice(-50),
+    [logEntries],
+  );
 
   // Inject neon pulse keyframes once
   const pulseStyleInjected = useRef(false);
@@ -169,10 +194,26 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const astraScrollRef = useRef<HTMLDivElement>(null);
+  const systemScrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
+  const instantMessagesScrollRef = useRef(true);
+  const instantAstraScrollRef = useRef(true);
+  const instantSystemScrollRef = useRef(true);
   const lastReadRef = useRef<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const authFailedRef = useRef(false);
+
+  const readKeyForChannel = useCallback((channel: string): string => {
+    if (channel === 'global') return 'nebulife_chat_last_read_global';
+    return `nebulife_chat_last_read_${channel}`;
+  }, []);
+
+  const jumpToBottom = useCallback((ref: React.RefObject<HTMLDivElement | null>) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, []);
 
   // Current channel
   const activeChannel = tab === 'global' ? 'global' : activeDM?.channel ?? '';
@@ -202,6 +243,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     if (collapsed) return;
     if (!activeChannel) return;
 
+    instantMessagesScrollRef.current = true;
     authFailedRef.current = false;
     fetchMessages();
     pollingRef.current = setInterval(fetchMessages, 5000);
@@ -235,6 +277,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   useEffect(() => {
     if (collapsed || tab !== 'system') return;
 
+    instantSystemScrollRef.current = true;
     let iv: ReturnType<typeof setInterval> | null = null;
     const fetchSysMsgs = async () => {
       try {
@@ -252,6 +295,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   useEffect(() => {
     if (collapsed || tab !== 'astra') return;
 
+    instantAstraScrollRef.current = true;
     const fetchAstra = async () => {
       try {
         const msgs = await getMessages(`astra:${playerId}`, 40);
@@ -268,6 +312,14 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
     let iv: ReturnType<typeof setInterval> | null = null;
     let stopped = false;
+    const countUnreadChannel = async (channel: string, setCount: (count: number) => void) => {
+      const key = readKeyForChannel(channel);
+      const lastRead = localStorage.getItem(key);
+      const msgs = await getMessages(channel, 50, lastRead || undefined);
+      const unreadFromOthers = msgs.filter((msg) => msg.sender_id !== playerId);
+      setCount(unreadFromOthers.length);
+    };
+
     const checkUnread = async () => {
       if (stopped) return;
       try {
@@ -280,11 +332,30 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
             lastReadRef.current = latestTs;
           }
           setUnreadGlobal(0);
-          return;
+        } else {
+          const msgs = await getMessages('global', 50, lastRead || undefined);
+          const unreadFromOthers = msgs.filter((msg) => msg.sender_id !== playerId);
+          setUnreadGlobal(unreadFromOthers.length);
         }
-        const msgs = await getMessages('global', 50, lastRead || undefined);
-        const unreadFromOthers = msgs.filter((msg) => msg.sender_id !== playerId);
-        setUnreadGlobal(unreadFromOthers.length);
+
+        await countUnreadChannel(`astra:${playerId}`, setUnreadAstraMessages);
+        await countUnreadChannel(`system:${playerId}`, setUnreadSystemMessages);
+
+        const channels = await getDMChannels();
+        let dmUnread = 0;
+        for (const channel of channels) {
+          const lastReadDm = localStorage.getItem(readKeyForChannel(channel.channel));
+          if (!lastReadDm) {
+            const latestDm = await getMessages(channel.channel, 1);
+            if (latestDm.some((msg) => msg.sender_id !== playerId)) dmUnread += 1;
+            continue;
+          }
+          if (channel.last_at > lastReadDm) {
+            const unreadMsgs = await getMessages(channel.channel, 50, lastReadDm);
+            dmUnread += unreadMsgs.filter((msg) => msg.sender_id !== playerId).length;
+          }
+        }
+        setUnreadDm(dmUnread);
       } catch (err) {
         if (err instanceof Error && /40[13]/.test(err.message)) {
           stopped = true;
@@ -296,14 +367,14 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     checkUnread();
     iv = setInterval(checkUnread, 10000);
     return () => { if (iv) clearInterval(iv); };
-  }, [collapsed, playerId]);
+  }, [collapsed, playerId, readKeyForChannel]);
 
   // Notify parent of all unread chat activity so the collapsed comms button
   // does not look idle while global messages are waiting.
   const unreadSystem = systemNotifs.filter(n => !n.read).length;
   useEffect(() => {
-    onUnreadChange?.(unreadGlobal + unreadSystem + unreadAstra);
-  }, [unreadGlobal, unreadSystem, unreadAstra, onUnreadChange]);
+    onUnreadChange?.(unreadGlobal + unreadSystem + unreadSystemMessages + unreadAstra + unreadDm);
+  }, [unreadGlobal, unreadSystem, unreadSystemMessages, unreadAstra, unreadDm, onUnreadChange]);
 
   // Mark system notifs as read when viewing system tab
   useEffect(() => {
@@ -312,12 +383,34 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     }
   }, [collapsed, tab, systemNotifs, onSystemNotifRead]);
 
-  // Auto-scroll to bottom only when user is already at bottom
   useEffect(() => {
+    if (collapsed || tab !== 'system' || systemMessages.length === 0) return;
+    const lastTs = systemMessages[systemMessages.length - 1].created_at;
+    localStorage.setItem(readKeyForChannel(`system:${playerId}`), lastTs);
+    setUnreadSystemMessages(0);
+  }, [collapsed, playerId, readKeyForChannel, systemMessages, tab]);
+
+  useEffect(() => {
+    if (collapsed || tab !== 'astra' || astraMessages.length === 0) return;
+    const lastTs = astraMessages[astraMessages.length - 1].created_at;
+    localStorage.setItem(readKeyForChannel(`astra:${playerId}`), lastTs);
+    setUnreadAstraMessages(0);
+  }, [astraMessages, collapsed, playerId, readKeyForChannel, tab]);
+
+  // Auto-scroll to bottom only when user is already at bottom. On first open /
+  // tab switch, jump instantly so the user does not watch history scroll down.
+  useEffect(() => {
+    if (instantMessagesScrollRef.current) {
+      jumpToBottom(messagesScrollRef);
+      requestAnimationFrame(() => jumpToBottom(messagesScrollRef));
+      instantMessagesScrollRef.current = false;
+      isAtBottomRef.current = true;
+      return;
+    }
     if (isAtBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, jumpToBottom]);
 
   // Mark global as read when viewing
   useEffect(() => {
@@ -327,7 +420,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
       lastReadRef.current = lastTs;
       setUnreadGlobal(0);
     }
-  }, [collapsed, tab, messages]);
+    if (!collapsed && tab === 'dm-chat' && activeDM && messages.length > 0) {
+      const lastTs = messages[messages.length - 1].created_at;
+      localStorage.setItem(readKeyForChannel(activeDM.channel), lastTs);
+      setUnreadDm(0);
+    }
+  }, [activeDM, collapsed, messages, readKeyForChannel, tab]);
 
   const globalLocked = tab === 'global' && playerLevel < 10;
 
@@ -364,6 +462,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   };
 
   const openDM = (channel: string, peerName: string) => {
+    instantMessagesScrollRef.current = true;
     setActiveDM({ channel, peerName });
     setTab('dm-chat');
     setMessages([]);
@@ -480,12 +579,28 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
   // Auto-scroll astra messages
   useEffect(() => {
+    if (instantAstraScrollRef.current) {
+      jumpToBottom(astraScrollRef);
+      requestAnimationFrame(() => jumpToBottom(astraScrollRef));
+      instantAstraScrollRef.current = false;
+      return;
+    }
     astraEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [astraMessages]);
+  }, [astraMessages, jumpToBottom]);
+
+  useEffect(() => {
+    if (instantSystemScrollRef.current) {
+      jumpToBottom(systemScrollRef);
+      requestAnimationFrame(() => jumpToBottom(systemScrollRef));
+      instantSystemScrollRef.current = false;
+      return;
+    }
+    jumpToBottom(systemScrollRef);
+  }, [jumpToBottom, systemMessages, systemNotifs, visibleLogEntries]);
 
   // ── Collapsed state ──
   if (collapsed) {
-    const totalUnread = unreadGlobal + unreadSystem + unreadAstra;
+    const totalUnread = unreadGlobal + unreadSystem + unreadSystemMessages + unreadAstra + unreadDm;
     const chatIcon = (
       <svg width="23" height="21" viewBox="0 0 24 22" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M8.5 14.5 L12 5 L15.5 14.5" />
@@ -504,13 +619,18 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         aria-label={t('chat.title')}
         onClick={() => {
           playSfx('ui-click', 0.07);
-          // Auto-select the tab with unread messages (priority: system > astra > global)
-          if (unreadSystem > 0) {
+          // Auto-select the tab with unread messages (priority: system > astra > DM > global)
+          if (unreadSystem + unreadSystemMessages > 0) {
+            instantSystemScrollRef.current = true;
             setTab('system');
           } else if (unreadAstra > 0) {
+            instantAstraScrollRef.current = true;
             setTab('astra');
             markDigestSeen(latestDigestWeekDate); // mark as read immediately
+          } else if (unreadDm > 0) {
+            setTab('dm-list');
           } else if (unreadGlobal > 0) {
+            instantMessagesScrollRef.current = true;
             setTab('global');
           }
           if (tab === 'global' || unreadGlobal > 0) setUnreadGlobal(0);
@@ -546,7 +666,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
             position: 'absolute',
             top: 4,
             right: 4,
-            background: unreadSystem > 0 ? '#4488aa' : '#44ff88',
+            background: unreadSystem + unreadSystemMessages > 0 ? '#4488aa' : unreadAstra > 0 ? '#44ffaa' : '#44ff88',
             color: '#020510',
             fontSize: 8,
             fontWeight: 'bold',
@@ -591,14 +711,14 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
           <div style={{ display: 'flex', gap: 8 }}>
             <TabButton
               active={tab === 'astra'}
-              onClick={() => { setTab('astra'); setActiveDM(null); markDigestSeen(latestDigestWeekDate); }}
+              onClick={() => { instantAstraScrollRef.current = true; setTab('astra'); setActiveDM(null); markDigestSeen(latestDigestWeekDate); }}
               label="A.S.T.R.A."
               badge={unreadAstra > 0 ? unreadAstra : undefined}
               badgeColor="#44ffaa"
             />
             <TabButton
               active={tab === 'global'}
-              onClick={() => { setTab('global'); setActiveDM(null); }}
+              onClick={() => { instantMessagesScrollRef.current = true; setTab('global'); setActiveDM(null); }}
               label={t('chat.tab_global')}
               badge={unreadGlobal > 0 ? unreadGlobal : undefined}
               badgeColor="#44ff88"
@@ -607,12 +727,14 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               active={tab === 'dm-list' || tab === 'dm-chat'}
               onClick={() => { setTab('dm-list'); setActiveDM(null); }}
               label="DM"
+              badge={unreadDm > 0 ? unreadDm : undefined}
+              badgeColor="#ddaa44"
             />
             <TabButton
               active={tab === 'system'}
-              onClick={() => { setTab('system'); setActiveDM(null); }}
+              onClick={() => { instantSystemScrollRef.current = true; setTab('system'); setActiveDM(null); }}
               label={t('chat.tab_system')}
-              badge={unreadSystem > 0 ? unreadSystem : undefined}
+              badge={unreadSystem + unreadSystemMessages > 0 ? unreadSystem + unreadSystemMessages : undefined}
             />
           </div>
           <button
@@ -777,7 +899,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
         {/* System notifications tab */}
         {tab === 'system' && (
-          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div ref={systemScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* DB system messages (fun facts, moderation notices) */}
             {systemMessages.map((msg) => {
               const msgTime = fmtTime(msg.created_at);
@@ -852,7 +974,57 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               );
             })}
 
-            {systemMessages.length === 0 && systemNotifs.length === 0 && (
+            {visibleLogEntries.length > 0 && (
+              <div style={{
+                marginTop: 2,
+                borderTop: '1px solid rgba(51,68,85,0.35)',
+                paddingTop: 8,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                  color: '#445566',
+                  fontSize: 9,
+                  fontFamily: 'monospace',
+                  letterSpacing: 1.2,
+                  textTransform: 'uppercase',
+                }}>
+                  <span>{t('log.ship_log')}</span>
+                  <span>{t('log.entries_count', { count: logEntries.length })}</span>
+                </div>
+                {visibleLogEntries.map((entry) => {
+                  const entryTime = fmtTime(entry.timestamp);
+                  const catColor = LOG_CATEGORY_COLORS[entry.category];
+                  return (
+                    <div key={entry.id} style={{
+                      background: 'rgba(10,20,35,0.34)',
+                      border: '1px solid rgba(34,51,68,0.65)',
+                      borderRadius: 4,
+                      padding: '7px 9px',
+                      display: 'grid',
+                      gap: 4,
+                      opacity: 0.92,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                        <span style={{ color: catColor, fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                          {t(LOG_CATEGORY_I18N_KEYS[entry.category])}
+                        </span>
+                        <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{entryTime}</span>
+                      </div>
+                      <div style={{ color: '#8899aa', fontSize: 10, fontFamily: 'monospace', lineHeight: '1.4' }}>
+                        {entry.text}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {systemMessages.length === 0 && systemNotifs.length === 0 && visibleLogEntries.length === 0 && (
               <div style={{ color: '#445566', fontSize: 10, textAlign: 'center', marginTop: 40, fontFamily: 'monospace' }}>
                 {t('chat.no_system_notifs')}
               </div>
@@ -952,7 +1124,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               </div>
             )}
 
-            <div style={{
+            <div ref={astraScrollRef} style={{
               flex: 1,
               overflowY: 'auto',
               padding: '8px 12px',

@@ -99,6 +99,8 @@ interface SystemsListProps {
   researchData?: number;
   /** Cost to start research */
   researchDataCost?: number;
+  /** Dynamic cost to start research for a specific system */
+  getResearchDataCost?: (system: StarSystem) => number;
   /** Unlock a ring-locked system by paying quarks — premium shortcut. */
   onUnlockViaQuarks?: (systemId: string) => void;
   /** Quarks cost for the per-system unlock (default 30). */
@@ -129,6 +131,7 @@ export function SystemsList({
   isRingLocked,
   researchData = 0,
   researchDataCost = 1,
+  getResearchDataCost,
   onUnlockViaQuarks,
   quarkUnlockCost = 30,
   quarksBalance = 0,
@@ -300,23 +303,24 @@ export function SystemsList({
     }));
   }, []);
 
-  const handleResearchClick = (systemId: string) => {
+  const handleResearchClick = (system: StarSystem) => {
+    const cost = getResearchDataCost?.(system) ?? researchDataCost;
     // Check if we have enough data
-    if (researchData < researchDataCost) {
+    if (researchData < cost) {
       // Show "insufficient data" tooltip
-      setInsufficientDataId(systemId);
+      setInsufficientDataId(system.id);
       if (insufficientTimerRef.current) clearTimeout(insufficientTimerRef.current);
       insufficientTimerRef.current = setTimeout(() => {
         setInsufficientDataId(null);
       }, 2000);
       return;
     }
-    onStartResearch?.(systemId);
+    onStartResearch?.(system.id);
   };
 
-  const handleSystemRowResearch = (systemId: string, canResearch: boolean, researching: boolean, fullyResearched: boolean) => {
+  const handleSystemRowResearch = (system: StarSystem, canResearch: boolean, researching: boolean, fullyResearched: boolean) => {
     if (!canResearch || researching || fullyResearched) return;
-    handleResearchClick(systemId);
+    handleResearchClick(system);
   };
 
   // Grid column template — no left quark column any more (⚛ is absolutely
@@ -520,14 +524,14 @@ export function SystemsList({
                   key={system.id}
                   onMouseEnter={() => setHoveredId(system.id)}
                   onMouseLeave={() => setHoveredId(null)}
-                  onDoubleClick={() => handleSystemRowResearch(system.id, canResearch, researching, fullyResearched)}
+                  onDoubleClick={() => handleSystemRowResearch(system, canResearch, researching, fullyResearched)}
                   onTouchEnd={(e) => {
                     const now = Date.now();
                     const prev = lastSystemTapRef.current;
                     lastSystemTapRef.current = { id: system.id, at: now };
                     if (prev?.id === system.id && now - prev.at < 360) {
                       e.preventDefault();
-                      handleSystemRowResearch(system.id, canResearch, researching, fullyResearched);
+                      handleSystemRowResearch(system, canResearch, researching, fullyResearched);
                     }
                   }}
                   style={{
@@ -689,7 +693,7 @@ export function SystemsList({
                               if (fullyResearched) {
                                 onNavigate(system);
                               } else if (canResearch && !researching) {
-                                handleResearchClick(system.id);
+                                handleResearchClick(system);
                               }
                             }}
                           />

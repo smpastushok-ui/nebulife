@@ -433,25 +433,27 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     const handleHarvest = useCallback(
       (slotId: string, sx: number, sy: number) => {
         const slot = hexState.getSlot(slotId);
-        const amount = hexState.harvestResource(slotId);
-        if (amount !== null && slot?.resourceType) {
-          const objType = RESOURCE_TO_OBJECT[slot.resourceType] as SurfaceObjectType | undefined;
-          if (objType) {
-            const bonus = resourceBonusFor(slot.resourceType, hexState.slots);
-            const boostedAmount = amount * (1 + bonus);
-            // onHarvestFull: authoritative path — resources + depletion + elements
-            // handled in App.tsx with the actual rarity-based yield amount.
-            // This replaces the old onResourceChange path in useHexState that
-            // was adding resources a second time (double-count).
-            const result = onHarvestFull?.(objType, boostedAmount);
-            if (result?.depleted) hexState.destroyResource(slotId);
-            // onHarvest: kept for visual FX / legacy compatibility; no resource logic
-            onHarvest?.(objType);
-            onHarvestFx?.(objType, sx, sy);
-            const actualAmount = result?.actualAmount ?? amount;
-            // Award XP = amount collected (burst harvest reward)
-            if (actualAmount > 0) onHarvestAmount?.(actualAmount);
-          }
+        if (!slot?.resourceType || !slot.yieldPerHour) return;
+
+        const objType = RESOURCE_TO_OBJECT[slot.resourceType] as SurfaceObjectType | undefined;
+        if (!objType) return;
+
+        const bonus = resourceBonusFor(slot.resourceType, hexState.slots);
+        const boostedAmount = slot.yieldPerHour * (1 + bonus);
+        // Storage/stock preflight happens before the slot is marked harvested.
+        // If storage is full, keep the resource ready and avoid XP/FX.
+        const result = onHarvestFull?.(objType, boostedAmount);
+        const actualAmount = result?.actualAmount ?? boostedAmount;
+        if (actualAmount <= 0) return;
+
+        const amount = hexState.harvestResource(slotId, actualAmount);
+        if (amount !== null) {
+          if (result?.depleted) hexState.destroyResource(slotId);
+          // onHarvest: kept for visual FX / legacy compatibility; no resource logic
+          onHarvest?.(objType);
+          onHarvestFx?.(objType, sx, sy);
+          // Award XP = amount collected (burst harvest reward)
+          onHarvestAmount?.(actualAmount);
         }
       },
       [hexState, onHarvest, onHarvestFx, onHarvestAmount, onHarvestFull],

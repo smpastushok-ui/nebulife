@@ -102,8 +102,11 @@ function MenuItem({ label, onClick, color, icon, right, disabled, title }: {
   if (disabled) {
     return (
       <div
-        style={{ ...itemStyle, cursor: 'default', color: '#445566' }}
+        style={{ ...itemStyle, cursor: 'help', color: '#445566' }}
         title={title}
+        onClick={() => {
+          if (title) window.alert(title);
+        }}
       >
         {icon && <span style={{ width: 14, textAlign: 'center', opacity: 0.4, flexShrink: 0 }}>{icon}</span>}
         {label}
@@ -735,7 +738,9 @@ export function PlanetContextMenu({
   activeMission,
   planetMissionClock = Date.now(),
   missionResources,
+  missionResearchDataCost = 1,
   payloadInventory = {},
+  carrierInventory = {},
   colonyBuildings = [],
   onStartMission,
   reportSummary,
@@ -773,7 +778,9 @@ export function PlanetContextMenu({
   activeMission?: PlanetMission | null;
   planetMissionClock?: number;
   missionResources?: { researchData: number; minerals: number; volatiles: number; isotopes: number; water: number };
+  missionResearchDataCost?: number;
   payloadInventory?: Partial<Record<ProducibleType, number>>;
+  carrierInventory?: Partial<Record<ProducibleType, number>>;
   colonyBuildings?: PlacedBuilding[];
   onStartMission?: (planet: Planet, type: PlanetMissionType) => void;
   reportSummary?: PlanetReportSummary;
@@ -854,6 +861,11 @@ export function PlanetContextMenu({
   const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
     ? []
     : availableMissionTypes.filter((type) => getTargetRevealLevel(type) > revealLevel);
+  const unavailableSurfaceType: PlanetMissionType | null = (
+    !explorationMissionsDisabled
+    && !isSolidPlanetForLanding(planet)
+    && revealLevel < getTargetRevealLevel('surface_landing')
+  ) ? 'surface_landing' : null;
   const getMissionDisabledReason = (type: PlanetMissionType): string | undefined => {
     if (!missionResources) return t('planet_missions.reason.unknown');
     const check = canStartPlanetMission({
@@ -864,6 +876,8 @@ export function PlanetContextMenu({
       buildings: colonyBuildings,
       resources: missionResources,
       payloadInventory,
+      carrierInventory,
+      researchDataCost: missionResearchDataCost,
     });
     if (check.canStart) return undefined;
     if (check.reason === 'building_required' && check.requiredBuilding) {
@@ -877,6 +891,9 @@ export function PlanetContextMenu({
     }
     if (check.reason === 'payload_required' && check.requiredPayload) {
       return t('planet_missions.reason.payload_required_named', { payload: t(`planet_missions.payload.${check.requiredPayload}`) });
+    }
+    if (check.reason === 'carrier_required' && check.requiredCarrier) {
+      return t('planet_missions.reason.carrier_required_named', { carrier: t(`planet_missions.payload.${check.requiredCarrier}`) });
     }
     return t(`planet_missions.reason.${check.reason ?? 'unknown'}`);
   };
@@ -979,7 +996,7 @@ export function PlanetContextMenu({
                   )}
                   {!explorationMissionsDisabled && missionTypes.map((type) => {
                     const disabledReason = getMissionDisabledReason(type);
-                    const payload = computePlanetMissionCost(type, planet).payload;
+                    const payload = computePlanetMissionCost(type, planet, missionResearchDataCost).payload;
                     const payloadCount = payload ? (payloadInventory[payload] ?? 0) : 0;
                     const activeTypeProgress = activeMission?.type === type ? activeMissionProgress : null;
                     return (
@@ -1006,6 +1023,16 @@ export function PlanetContextMenu({
                       </div>
                     );
                   })}
+                  {unavailableSurfaceType && (
+                    <MenuItem
+                      icon="▽"
+                      label={t('planet_missions.type.surface_landing')}
+                      onClick={() => {}}
+                      disabled
+                      title={getMissionDisabledReason(unavailableSurfaceType)}
+                      right={t('planet_missions.reason.surface_unavailable')}
+                    />
+                  )}
                 </div>
               )}
 

@@ -17,6 +17,15 @@ export type PlanetMissionPhase =
   | 'report_ready'
   | 'completed';
 
+export type PlanetMissionStartBlockReason =
+  | 'already_revealed'
+  | 'active_mission'
+  | 'building_required'
+  | 'surface_unavailable'
+  | 'resources_required'
+  | 'payload_required'
+  | 'carrier_required';
+
 export interface PlanetMissionCost {
   researchData?: number;
   minerals?: number;
@@ -46,6 +55,10 @@ export interface PlanetMission {
   costPaid: PlanetMissionCost;
   originPlanetId?: string;
   originSystemId?: string;
+  carrierShipId?: string;
+  carrierType?: ProducibleType;
+  carrierReturnAt?: number;
+  carrierReturnedAt?: number;
   status: PlanetMissionPhase;
   completedAt?: number;
 }

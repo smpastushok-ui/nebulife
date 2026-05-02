@@ -134,6 +134,8 @@ export interface CosmicArchiveProps {
   researchData?: number;
   /** Cost to start research */
   researchDataCost?: number;
+  /** Dynamic cost to start research for a specific system */
+  getResearchDataCost?: (system: StarSystem) => number;
   /** Favorite planet IDs (managed by parent for cross-device sync) */
   favoritePlanets?: Set<string>;
   /** Callback when favorites change */
@@ -304,6 +306,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onResearchTech,
   researchData,
   researchDataCost,
+  getResearchDataCost,
   favoritePlanets: externalFavorites,
   onFavoritesChange,
   systemPhotos,
@@ -572,6 +575,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           } : undefined}
           researchData={researchData}
           researchDataCost={researchDataCost}
+          getResearchDataCost={getResearchDataCost}
           onUnlockViaQuarks={onUnlockViaQuarks}
           quarkUnlockCost={30}
           quarksBalance={quarks ?? 0}

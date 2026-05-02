@@ -932,7 +932,9 @@
       "resources_required": "not enough resources",
       "resources_required_named": "missing: {{resources}}",
       "payload_required": "ready payload required",
-      "payload_required_named": "requires: {{payload}}"
+      "payload_required_named": "requires: {{payload}}",
+      "carrier_required": "ready carrier required",
+      "carrier_required_named": "requires reusable carrier: {{carrier}}"
     },
     "payload": {
       "survey_probe": "Survey probe",
@@ -1522,6 +1524,7 @@
     "alpha_photo_desc": "Photorealistic Gemini/Nano Banana generation grounded in this report.",
     "photo_saving": "Saving photo...",
     "photo_saved": "Photo saved",
+    "receiving_photo": "Receiving mission photo",
     "photo_saved_to_gallery": "Mission photo saved to gallery",
     "photo_save_failed": "Failed to save mission photo"
   },
@@ -1757,6 +1760,7 @@
     "transport_heavy_units": "Heavy logistics",
     "transport_zoom": "Enlarge image",
     "transport_help_title": "Craft explanation",
+    "transport_count": "{{count}} pcs",
     "transport_art_slot": "ART",
     "transport_help": {
       "research_shuttle": "Reusable carrier for orbital survey probes and satellites. After production it is stored as a fleet ship on this planet.",

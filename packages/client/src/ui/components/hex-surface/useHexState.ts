@@ -57,7 +57,7 @@ export interface HexStateResult {
   /** Premium-pay path: 10 quarks instantly unlocks any locked slot regardless
    *  of colony-resource cost. Caller must ensure `onConsumeQuarks` is wired. */
   unlockSlotWithQuarks: (slotId: string) => boolean;
-  harvestResource: (slotId: string) => number | null;
+  harvestResource: (slotId: string, harvestedAmount?: number) => number | null;
   placeBuilding: (slotId: string, type: BuildingType) => boolean;
   upgradeBuilding: (slotId: string) => Promise<PlacedBuilding | null>;
   removeBuilding: (slotId: string) => void;
@@ -839,13 +839,14 @@ export function useHexState(
   // ---------------------------------------------------------------------------
 
   const harvestResource = useCallback(
-    (slotId: string): number | null => {
+    (slotId: string, harvestedAmount?: number): number | null => {
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'resource') return null;
       if (!isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour, slot.ring)) return null;
       if (!slot.yieldPerHour || !slot.resourceType) return null;
 
       const yieldAmount = slot.yieldPerHour;
+      const elementAmount = harvestedAmount ?? yieldAmount;
       const now = Date.now();
 
       updateSlots((prev) =>
@@ -858,8 +859,8 @@ export function useHexState(
       // both useHexState and App.tsx added to colony resources simultaneously.
       // onResourceChange is still used for unlock slot costs and building costs.
 
-      if (onElementChange && planet.resources) {
-        const elements = computeHarvestElements(slot.resourceType, yieldAmount, planet.resources);
+      if (onElementChange && planet.resources && elementAmount > 0) {
+        const elements = computeHarvestElements(slot.resourceType, elementAmount, planet.resources);
         if (Object.keys(elements).length > 0) onElementChange(elements);
       }
 
@@ -1074,13 +1075,21 @@ export function useHexState(
 
       // Harvest first ready resource
       const target = ready[0];
-      const amount = harvestResourceRef.current(target.id);
-      if (amount !== null && target.resourceType) {
+      if (target.resourceType) {
+        const result = droneHarvestFullRef.current?.(target.resourceType, target.yieldPerHour ?? 0);
+        const actualAmount = result?.actualAmount ?? target.yieldPerHour ?? 0;
+        if (actualAmount <= 0) {
+          harvestTimer = setTimeout(droneHarvestCycle, DRONE_INTERVAL);
+          return;
+        }
+        const amount = harvestResourceRef.current(target.id, actualAmount);
+        if (amount === null) {
+          harvestTimer = setTimeout(droneHarvestCycle, DRONE_INTERVAL);
+          return;
+        }
         const colonyKey = RESOURCE_TO_COLONY[target.resourceType];
         droneHarvestRef.current?.(colonyKey);
-        droneHarvestAmountRef.current?.(amount);
-        // Authoritative resource + depletion path (replaces old onResourceChange)
-        const result = droneHarvestFullRef.current?.(target.resourceType, amount);
+        droneHarvestAmountRef.current?.(actualAmount);
         if (result?.depleted) destroyResource(target.id);
       }
 
