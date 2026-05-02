@@ -230,7 +230,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
     return () => clearInterval(id);
   }, [ready]);
 
-  // Poll team kills + kill feed + match timer (200ms). Both training (3v3)
+  // Poll team kills + kill feed + match timer (200ms). Both training
   // and team-battle modes use team scores now, so this runs regardless of
   // `teamMode`.
   useEffect(() => {
@@ -266,13 +266,12 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
       const e = engineRef.current;
       if (!e || typeof e.getEdgeMarkers !== 'function') return;
       const raw = e.getEdgeMarkers();
-      // Clamp off-screen bots to the nearest viewport edge. Red enemies that
-      // are still on-screen also get a small overhead marker so distant ships
-      // do not disappear into the starfield.
+      // Clamp off-screen bots to the nearest viewport edge. On-screen ships
+      // also get overhead team-colored diamonds so distant ships do not
+      // disappear into the starfield.
       const markers: typeof edgeMarkers = [];
       for (const m of raw) {
         if (m.onScreen) {
-          if (m.team !== 'red') continue;
           markers.push({
             id: m.id,
             team: m.team,
@@ -333,7 +332,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
     return () => clearInterval(id);
   }, [ready]);
 
-  // Poll lock-on state (50ms — fast for smooth tracking). Training (3v3)
+  // Poll lock-on state (50ms — fast for smooth tracking). Training
   // mode needs it too — previously gated on teamMode which is why the HUD
   // lock rhombus never appeared in training despite the engine running
   // updateLockOn every frame.
@@ -634,7 +633,9 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
                 width: m.onScreen ? 12 : (m.side === 'top' || m.side === 'bottom' ? 18 : 3),
                 height: m.onScreen ? 12 : (m.side === 'top' || m.side === 'bottom' ? 3 : 18),
                 background: m.team === 'blue' ? '#4488ff' : '#ff4444',
-                border: m.onScreen ? '1px solid rgba(255,190,190,0.85)' : undefined,
+                border: m.onScreen
+                  ? `1px solid ${m.team === 'blue' ? 'rgba(170,205,255,0.85)' : 'rgba(255,190,190,0.85)'}`
+                  : undefined,
                 opacity: m.blink ? undefined : (m.onScreen ? 0.95 : 0.8),
                 animation: m.blink ? 'arenaEdgeBlink 0.5s linear infinite' : undefined,
                 boxShadow: `0 0 ${m.onScreen ? 12 : 6}px ${m.team === 'blue' ? '#4488ff' : '#ff4444'}`,
@@ -787,7 +788,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
         </div>
       )}
 
-      {/* Lock-on indicator — shown in both training (3v3) and team-battle.
+      {/* Lock-on indicator — shown in both training and team-battle.
           Thin RED rhombus while locking progresses, GREEN when fully
           locked (missile will guaranteed-follow the marked player). */}
       {lockState && lockState.targetId !== null && (

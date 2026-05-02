@@ -1045,8 +1045,8 @@ const S: Record<string, React.CSSProperties> = {
   },
   customPlus: {
     position: 'absolute',
-    right: 1,
-    bottom: 1,
+    right: 3,
+    bottom: 3,
     width: 18,
     height: 18,
     border: '1px solid rgba(123,184,255,0.58)',
@@ -1060,9 +1060,9 @@ const S: Record<string, React.CSSProperties> = {
   },
   customShipCta: {
     margin: '8px 16px 2px',
-    padding: '9px 10px',
+    padding: '10px 12px',
     display: 'grid',
-    gridTemplateColumns: '38px 1fr auto',
+    gridTemplateColumns: '54px 1fr auto',
     alignItems: 'center',
     gap: 10,
     border: '1px solid rgba(123,184,255,0.30)',
@@ -1077,8 +1077,8 @@ const S: Record<string, React.CSSProperties> = {
   },
   customShipCtaIcon: {
     position: 'relative',
-    width: 40,
-    height: 40,
+    width: 52,
+    height: 52,
     display: 'grid',
     placeItems: 'center',
     borderRadius: 4,
@@ -1089,9 +1089,9 @@ const S: Record<string, React.CSSProperties> = {
   customShipCtaGlyph: {
     display: 'grid',
     placeItems: 'center',
-    width: 34,
-    height: 34,
-    transform: 'scale(0.7)',
+    width: 58,
+    height: 58,
+    transform: 'scale(0.78)',
   },
   customShipCtaText: {
     display: 'flex',

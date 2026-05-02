@@ -234,13 +234,25 @@ export class RaidEngine {
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    this.keys.add(event.key.toLowerCase());
-    if (event.key === ' ' || event.key.toLowerCase() === 'shift') this.triggerDash();
+    const key = this.controlKeyFromEvent(event);
+    this.keys.add(key);
+    if (key === ' ' || key === 'shift') this.triggerDash();
   };
 
   private readonly handleKeyUp = (event: KeyboardEvent): void => {
-    this.keys.delete(event.key.toLowerCase());
+    this.keys.delete(this.controlKeyFromEvent(event));
   };
+
+  private controlKeyFromEvent(event: KeyboardEvent): string {
+    switch (event.code) {
+      case 'KeyW': return 'w';
+      case 'KeyA': return 'a';
+      case 'KeyS': return 's';
+      case 'KeyD': return 'd';
+      case 'KeyF': return 'f';
+      default: return event.key.toLowerCase();
+    }
+  }
 
   private readonly layout = (): void => {
     if (!this.app) return;

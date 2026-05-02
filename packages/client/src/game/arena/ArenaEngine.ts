@@ -253,7 +253,7 @@ export class ArenaEngine {
 
   // Missiles (homing, limited turn rate, ammo-based)
   private missileMesh!: THREE.InstancedMesh;
-  private missiles: { x: number; y: number; z: number; vx: number; vy: number; vz: number; age: number; active: boolean; angle: number; targetId: number | null }[] = [];
+  private missiles: { x: number; y: number; z: number; vx: number; vy: number; vz: number; age: number; active: boolean; angle: number; targetId: number | null; ownerId: number | null; ownerTeam: Team | null }[] = [];
   // Missile trail — tiny additive spheres dropped behind each missile.
   // Single pooled InstancedMesh, sphere geo with 4 segments (cheap).
   private missileTrailMesh!: THREE.InstancedMesh;
@@ -356,10 +356,10 @@ export class ArenaEngine {
   private mouseTargetPitch = 0;
   private mouseTargetReady = false;
   private readonly MOUSE_SENS = 0.0022; // radians per pixel
-  private readonly DESKTOP_TURN_FOLLOW = 2.2;
+  private readonly DESKTOP_TURN_FOLLOW = 2.0;
   private readonly DESKTOP_MAX_YAW_RATE = 1.75;   // rad/sec; heavy ship, not twitch aim
-  private readonly DESKTOP_MAX_PITCH_RATE = 1.25; // rad/sec
-  private readonly DESKTOP_MAX_ROLL = 0.65;
+  private readonly DESKTOP_MAX_PITCH_RATE = 1.05; // rad/sec; smoother climb/dive
+  private readonly DESKTOP_MAX_ROLL = Math.PI / 4; // 45 degrees
   private readonly MAX_PITCH = Math.PI / 2.2; // clamp so we don't flip upside down
 
   // Collision temp
@@ -502,13 +502,24 @@ export class ArenaEngine {
   private isArenaControlKey(key: string): boolean {
     return [
       'w', 'a', 's', 'd',
+      'ц', 'ф', 'і', 'в',
       'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
       ' ', 'shift', 'tab',
     ].includes(key);
   }
 
+  private controlKeyFromEvent(e: KeyboardEvent): string {
+    switch (e.code) {
+      case 'KeyW': return 'w';
+      case 'KeyA': return 'a';
+      case 'KeyS': return 's';
+      case 'KeyD': return 'd';
+      default: return e.key.toLowerCase();
+    }
+  }
+
   private onKeyDown(e: KeyboardEvent): void {
-    const key = e.key.toLowerCase();
+    const key = this.controlKeyFromEvent(e);
     if (key === 'escape') return;
     if (this.isArenaControlKey(key)) e.preventDefault();
     const wasPressed = this.keys.has(key);
@@ -520,7 +531,7 @@ export class ArenaEngine {
   }
 
   private onKeyUp(e: KeyboardEvent): void {
-    const key = e.key.toLowerCase();
+    const key = this.controlKeyFromEvent(e);
     if (this.isArenaControlKey(key)) e.preventDefault();
     this.keys.delete(key);
   }
@@ -1503,7 +1514,7 @@ export class ArenaEngine {
         this.checkPlayerBulletBotCollisions();
         this.checkPlayerBotPhysicalCollisions();
         this.checkBotBotPhysicalCollisions();
-        // Training (3v3) also uses team kill-limit + timer win conditions.
+        // Training also uses team kill-limit + timer win conditions.
         this.checkTeamMatchEnd();
         this.callbacks.onStatsUpdate(
           this.playerHp,
@@ -1895,7 +1906,10 @@ export class ArenaEngine {
       }
 
       this.mouseTargetYaw += this.mouseMoveX * this.MOUSE_SENS;
-      this.mouseTargetPitch -= this.mouseMoveY * this.MOUSE_SENS;
+      // Pointer-lock convention for flight:
+      //   mouse forward/up (movementY < 0) -> nose down
+      //   mouse back/down  (movementY > 0) -> nose up
+      this.mouseTargetPitch += this.mouseMoveY * this.MOUSE_SENS;
       this.mouseTargetPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, this.mouseTargetPitch));
       let yawDelta = this.mouseTargetYaw - curYaw;
       while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
@@ -1917,7 +1931,7 @@ export class ArenaEngine {
         -this.DESKTOP_MAX_ROLL,
         Math.min(this.DESKTOP_MAX_ROLL, -yawDelta * 1.25),
       );
-      this.shipRoll += (targetRoll - this.shipRoll) * Math.min(1, dt * 2.4);
+      this.shipRoll += (targetRoll - this.shipRoll) * Math.min(1, dt * 2.2);
 
       const cp = Math.cos(newPitch);
       this.aimDirX =  Math.sin(newYaw) * cp;
@@ -2578,15 +2592,22 @@ export class ArenaEngine {
   // ── Homing missiles ─────────────────────────────────────────────────────
 
   private setupMissiles(): void {
-    // Missile body — tapered cylinder (thin nose, thicker tail) so the shape
-    // reads as a rocket, not a flat triangle. Baked rotation so local +Z is
-    // the nose direction; engine orients via rotation.y each frame.
-    const geo = new THREE.CylinderGeometry(0.3, 0.9, 5, 8);
+    // Compact micro-missile profile: short body + sharp nose + small rear
+    // flare. This avoids the old long tapered "carrot" silhouette while still
+    // staying a single instanced mesh for performance.
+    const geo = new THREE.LatheGeometry([
+      new THREE.Vector2(0.02, 2.8),
+      new THREE.Vector2(0.42, 1.75),
+      new THREE.Vector2(0.42, -1.7),
+      new THREE.Vector2(0.62, -2.15),
+      new THREE.Vector2(0.28, -2.65),
+      new THREE.Vector2(0.02, -2.75),
+    ], 10);
     geo.rotateX(Math.PI / 2); // cylinder axis +Y → +Z (nose forward)
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xcc3333,
-      emissive: 0x441111,
-      emissiveIntensity: 0.6,
+      color: 0x445566,
+      emissive: 0xff8844,
+      emissiveIntensity: 0.28,
       roughness: 0.4,
       metalness: 0.6,
     });
@@ -2601,7 +2622,7 @@ export class ArenaEngine {
       dummy.scale.set(0, 0, 0);
       dummy.updateMatrix();
       this.missileMesh.setMatrixAt(i, dummy.matrix);
-      this.missiles.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, active: false, angle: 0, targetId: null });
+      this.missiles.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, active: false, angle: 0, targetId: null, ownerId: null, ownerTeam: null });
       this.missileFreeList.push(i);
     }
     this.missileMesh.instanceMatrix.needsUpdate = true;
@@ -2770,7 +2791,7 @@ export class ArenaEngine {
         }
       }
 
-      // Bot collection (both modes now since training is 3v3)
+      // Bot collection (both modes now use team dogfights)
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
         const dx = bot.pos.x - hp.x;
@@ -3034,6 +3055,8 @@ export class ArenaEngine {
     m.vz = dirZ * this.MISSILE_SPEED;
     m.age = 0;
     m.active = true;
+    m.ownerId = 0;
+    m.ownerTeam = this.playerTeam;
 
     if (this.lockLocked && this.lockTarget !== null) {
       m.targetId = this.lockTarget;
@@ -3069,6 +3092,9 @@ export class ArenaEngine {
     // Find homing target for a missile (3D — includes Y so missiles can
     // track a climbing enemy up/down).
     const findTarget = (mx: number, my: number, mz: number, targetId: number | null): { x: number; y: number; z: number } | null => {
+      if (targetId === 0 && !this.playerDead) {
+        return { x: this.playerPos.x, y: this.playerPos.y, z: this.playerPos.z };
+      }
       if (targetId !== null) {
         const bot = this.botShips.find(b => b.id === targetId);
         if (bot && bot.alive) return { x: bot.pos.x, y: bot.pos.y, z: bot.pos.z };
@@ -3082,7 +3108,7 @@ export class ArenaEngine {
       let bestDist = ARENA_SIZE;
 
       // Enemy ships — priority over asteroids, checked in both training
-      // (3v3) and team-battle. Allies excluded.
+      // and team-battle. Allies excluded.
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
         if (bot.team === this.playerTeam) continue; // don't home on allies
@@ -3175,7 +3201,9 @@ export class ArenaEngine {
       // Drop a trail particle at the new position each frame.
       this.spawnMissileTrail(m.x, m.y, m.z);
 
-      // Visual — orient to full 3D velocity (yaw + pitch)
+      // Visual — orient local +Z to full 3D velocity (yaw + pitch), so diving
+      // missiles point along their actual path instead of looking nose-down
+      // while drifting forward on the horizontal plane.
       const horizSpd = Math.sqrt(m.vx * m.vx + m.vz * m.vz);
       const yaw = Math.atan2(m.vx, m.vz);
       const pitch = Math.atan2(m.vy, horizSpd || 0.0001);
@@ -3246,10 +3274,50 @@ export class ArenaEngine {
       const m = this.missiles[mi];
       if (!m.active) continue;
 
+      if (
+        m.ownerId !== 0 &&
+        !this.playerDead &&
+        (m.ownerTeam === 'neutral' || m.ownerTeam !== this.playerTeam) &&
+        performance.now() >= this.invulnerableUntil
+      ) {
+        const dx = m.x - this.playerPos.x;
+        const dy = m.y - this.playerPos.y;
+        const dz = m.z - this.playerPos.z;
+        const rSum = this.MISSILE_RADIUS + SHIP_SHOT_RADIUS;
+        if (dx * dx + dy * dy + dz * dz < rSum * rSum) {
+          m.active = false;
+          this.missileFreeList.push(mi);
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.set(0, 0, 0);
+          dummy.updateMatrix();
+          this.missileMesh.setMatrixAt(mi, dummy.matrix);
+          this.missileMesh.instanceMatrix.needsUpdate = true;
+
+          this.playerHp -= this.MISSILE_DAMAGE;
+          const shooterBot = this.botShips.find(s => s.id === m.ownerId);
+          if (shooterBot) shooterBot.damageDealt += this.MISSILE_DAMAGE;
+          this.spawnHitEffect(m.x, m.z, m.y);
+          playSfx('missile-hit', 0.2);
+
+          if (this.playerHp <= 0) {
+            this.playerHp = 0;
+            if (shooterBot) {
+              shooterBot.kills++;
+              if (shooterBot.team === 'blue' || shooterBot.team === 'red') {
+                this.teamKills[shooterBot.team]++;
+              }
+              this.addKillFeed(shooterBot.name, 'PLAYER');
+            }
+            this.killPlayer();
+          }
+          continue;
+        }
+      }
+
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
-        // In team mode: skip allies; in FFA: all bots are targets
-        if (this.teamMode && bot.team === this.playerTeam) continue;
+        if (m.ownerId === bot.id) continue;
+        if (m.ownerTeam !== null && m.ownerTeam !== 'neutral' && bot.team === m.ownerTeam) continue;
         if (performance.now() < bot.invulnerableUntil) continue;
 
         const dx = m.x - bot.pos.x;
@@ -3280,7 +3348,7 @@ export class ArenaEngine {
             this.killBot(bot, null);
             this.stats.kills++;
             this.stats.score += TEAM_SCORE_ENEMY_KILL;
-            // Training (3v3) uses team scores too — drop the old teamMode
+            // Training uses team scores too — drop the old teamMode
             // guard that used to zero out the HUD counter in training.
             if (this.playerTeam === 'blue' || this.playerTeam === 'red') {
               this.teamKills[this.playerTeam]++;
@@ -3746,9 +3814,15 @@ export class ArenaEngine {
       new THREE.Color(0.9, 0.5, 0.6),
     ];
 
+    const blueAllies = this.teamMode
+      ? (this.isMobile ? 2 : TEAM_BLUE_BOTS)
+      : (this.isMobile ? 2 : TRAINING_BLUE_ALLIES);
+    const redEnemies = this.teamMode
+      ? (this.isMobile ? 3 : TEAM_RED_BOTS)
+      : (this.isMobile ? 3 : TRAINING_RED_ENEMIES);
     const totalBots = this.teamMode
-      ? TEAM_BLUE_BOTS + TEAM_RED_BOTS
-      : TRAINING_BOT_COUNT;
+      ? blueAllies + redEnemies
+      : this.isMobile ? 5 : TRAINING_BOT_COUNT;
 
     const spawnBot = (id: number, team: Team, index: number): BotShip => {
       const name = shuffled[nameIdx++ % shuffled.length];
@@ -3848,19 +3922,20 @@ export class ArenaEngine {
     let botId = 1000;
     if (this.teamMode) {
       // Team mode: player-selected wing allies + opposite wing enemies.
-      for (let i = 0; i < TEAM_BLUE_BOTS; i++) {
+      for (let i = 0; i < blueAllies; i++) {
         this.botShips.push(spawnBot(botId++, allyTeam, i));
       }
-      for (let i = 0; i < TEAM_RED_BOTS; i++) {
-        this.botShips.push(spawnBot(botId++, enemyTeam, TEAM_BLUE_BOTS + i));
+      for (let i = 0; i < redEnemies; i++) {
+        this.botShips.push(spawnBot(botId++, enemyTeam, blueAllies + i));
       }
     } else {
-      // Training TPS: 3v3 — allies use selected wing, enemies use opposite wing.
-      for (let i = 0; i < TRAINING_BLUE_ALLIES; i++) {
+      // Training TPS: desktop 5v5, mobile 3v3.
+      // Allies use selected wing, enemies use opposite wing.
+      for (let i = 0; i < blueAllies; i++) {
         this.botShips.push(spawnBot(botId++, allyTeam, i));
       }
-      for (let i = 0; i < TRAINING_RED_ENEMIES; i++) {
-        this.botShips.push(spawnBot(botId++, enemyTeam, TRAINING_BLUE_ALLIES + i));
+      for (let i = 0; i < redEnemies; i++) {
+        this.botShips.push(spawnBot(botId++, enemyTeam, blueAllies + i));
       }
     }
   }
@@ -3903,7 +3978,7 @@ export class ArenaEngine {
       // stale FSM output can't leave the bot drifting outward for a full
       // decision interval.
       const distFromCenter = Math.sqrt(bot.pos.x * bot.pos.x + bot.pos.z * bot.pos.z);
-      if (distFromCenter > ARENA_HALF * 0.70) {
+      if (distFromCenter > ARENA_HALF * 0.86) {
         bot.brain.waypoint = { x: (Math.random() - 0.5) * (ARENA_HALF * 0.4), z: (Math.random() - 0.5) * (ARENA_HALF * 0.4) };
         bot.brain.state = 'patrol';
         bot.brain.targetId = null;
@@ -3952,7 +4027,7 @@ export class ArenaEngine {
       // turn-rate smoothing keeps visuals coherent.
       let ax = input.moveDir.x;
       let az = input.moveDir.z;
-      if (distFromCenter > ARENA_HALF * 0.75) {
+      if (distFromCenter > ARENA_HALF * 0.90) {
         const toCenterX = -bot.pos.x / distFromCenter;
         const toCenterZ = -bot.pos.z / distFromCenter;
         ax = toCenterX;
@@ -4071,26 +4146,25 @@ export class ArenaEngine {
       // Bot-asteroid collision (bounce)
       this.checkBotAsteroidCollision(bot);
 
-      // Smoothly rotate toward the AI's desired aim direction.
-      // Previously `bot.rotation` snapped to the new angle instantly which —
-      // combined with AI decision ticks every 0.2–0.8s — made bots twitch
-      // their nose around even while cruising straight. Cap the turn rate at
-      // ~360°/sec; close-range rotation stays responsive, large flips take
-      // ~0.5s.
-      if (input.aimDir.x !== 0 || input.aimDir.z !== 0) {
-        const desired = Math.atan2(-input.aimDir.x, -input.aimDir.z);
-        const BOT_TURN_RATE = 2 * Math.PI; // rad/sec
-        let diff = desired - bot.rotation;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        const step = BOT_TURN_RATE * dt;
-        bot.rotation += Math.abs(diff) < step ? diff : Math.sign(diff) * step;
+      const visualDir = _tempVec3.set(input.aimDir.x, input.aimDir.y, input.aimDir.z);
+      if (visualDir.lengthSq() < 0.001 && bot.vel.x * bot.vel.x + bot.vel.y * bot.vel.y + bot.vel.z * bot.vel.z > 1) {
+        visualDir.set(bot.vel.x, bot.vel.y, bot.vel.z);
+      }
+      if (visualDir.lengthSq() > 0.001) {
+        visualDir.normalize();
+        bot.rotation = Math.atan2(-visualDir.x, -visualDir.z);
+        bot.pitch = Math.asin(Math.max(-0.75, Math.min(0.75, visualDir.y)));
       }
 
       // Update mesh
       bot.mesh.position.set(bot.pos.x, bot.pos.y, bot.pos.z);
-      bot.mesh.rotation.y = bot.rotation;
-      bot.mesh.rotation.x = bot.pitch;
+      if (visualDir.lengthSq() > 0.001 && bot.mesh.children.length > 0) {
+        _tempVec3.set(bot.pos.x - visualDir.x, bot.pos.y - visualDir.y, bot.pos.z - visualDir.z);
+        bot.mesh.lookAt(_tempVec3);
+      } else {
+        bot.mesh.rotation.y = bot.rotation;
+        bot.mesh.rotation.x = -bot.pitch;
+      }
       bot.nickSprite.position.set(bot.pos.x, bot.pos.y + 15, bot.pos.z - 15);
 
       // Flicker effect during invulnerability window.
@@ -4117,15 +4191,27 @@ export class ArenaEngine {
       let aimX = input.aimDir.x;
       let aimY = 0;
       let aimZ = input.aimDir.z;
+      let targetDistance = Infinity;
       if (brainTarget?.alive) {
         const tdx = brainTarget.pos.x - bot.pos.x;
         const tdy = brainTarget.pos.y - bot.pos.y;
         const tdz = brainTarget.pos.z - bot.pos.z;
         const tlen = Math.sqrt(tdx * tdx + tdy * tdy + tdz * tdz);
+        targetDistance = tlen;
         if (tlen > 0.1) {
-          aimX = tdx / tlen;
-          aimY = tdy / tlen;
-          aimZ = tdz / tlen;
+          const leadTime = Math.min(0.55, Math.max(0.12, tlen / this.BOT_BULLET_SPEED));
+          const predictedX = brainTarget.pos.x + brainTarget.vel.x * leadTime;
+          const predictedY = brainTarget.pos.y + brainTarget.vel.y * leadTime;
+          const predictedZ = brainTarget.pos.z + brainTarget.vel.z * leadTime;
+          const pdx = predictedX - bot.pos.x;
+          const pdy = predictedY - bot.pos.y;
+          const pdz = predictedZ - bot.pos.z;
+          const plen = Math.sqrt(pdx * pdx + pdy * pdy + pdz * pdz);
+          if (plen > 0.1) {
+            aimX = pdx / plen;
+            aimY = pdy / plen;
+            aimZ = pdz / plen;
+          }
         }
       }
 
@@ -4138,10 +4224,11 @@ export class ArenaEngine {
       }
 
       // Fire missile occasionally — also blocked while invulnerable
-      if (input.firing && !isInvulnerable && (bot.missileAmmo ?? 0) > 0 && bot.missileCooldown <= 0 && Math.random() < 0.02) {
+      const missileChance = targetDistance < 900 ? 0.045 : 0.018;
+      if (input.firing && !isInvulnerable && targetDistance > 180 && (bot.missileAmmo ?? 0) > 0 && bot.missileCooldown <= 0 && Math.random() < missileChance) {
         this.fireBotMissile(bot, aimX, aimZ);
         bot.missileAmmo = (bot.missileAmmo ?? 1) - 1;
-        bot.missileCooldown = 5 + Math.random() * 3; // 5-8s between missiles
+        bot.missileCooldown = 4 + Math.random() * 2.5; // 4-6.5s between missiles
       }
     }
   }
@@ -4193,8 +4280,10 @@ export class ArenaEngine {
     p.isPlayer = true;
     p.name = 'PLAYER';
     p.pos.x = this.playerPos.x;
+    p.pos.y = this.playerPos.y;
     p.pos.z = this.playerPos.z;
     p.vel.x = this.playerVelX;
+    p.vel.y = this.playerVelY;
     p.vel.z = this.playerVelZ;
     p.rotation = this.playerAimAngle;
     p.alive = !this.playerDead;
@@ -4213,8 +4302,10 @@ export class ArenaEngine {
       e.isPlayer = false;
       e.name = bot.name;
       e.pos.x = bot.pos.x;
+      e.pos.y = bot.pos.y;
       e.pos.z = bot.pos.z;
       e.vel.x = bot.vel.x;
+      e.vel.y = bot.vel.y;
       e.vel.z = bot.vel.z;
       e.rotation = bot.rotation;
       e.alive = bot.alive;
@@ -4254,8 +4345,10 @@ export class ArenaEngine {
     e.id = bot.id;
     e.name = bot.name;
     e.pos.x = bot.pos.x;
+    e.pos.y = bot.pos.y;
     e.pos.z = bot.pos.z;
     e.vel.x = bot.vel.x;
+    e.vel.y = bot.vel.y;
     e.vel.z = bot.vel.z;
     e.rotation = bot.rotation;
     e.alive = bot.alive;
@@ -4271,7 +4364,7 @@ export class ArenaEngine {
 
   /** Return the team for any ship id (0 = player, team from playerTeam) */
   private getEntityTeam(id: number): Team {
-    // Player always has a team now (both training and team mode use 3v3 teams).
+    // Player always has a team now (both training and team mode use teams).
     if (id === 0) return this.playerTeam;
     const bot = this.botShips.find(b => b.id === id);
     return bot ? bot.team : 'red';
@@ -4365,6 +4458,8 @@ export class ArenaEngine {
     m.vz = dz * this.MISSILE_SPEED;
     m.age = 0;
     m.active = true;
+    m.ownerId = bot.id;
+    m.ownerTeam = bot.team;
     // Bot missile inherits the bot's current target so the player can tell
     // when a red missile is locked on them (HUD edge blinks).
     m.targetId = bot.brain.targetId;
@@ -4492,7 +4587,7 @@ export class ArenaEngine {
 
             if (this.playerHp <= 0) {
               this.playerHp = 0;
-              // Credit shooter with kill. Training (3v3) is also team-based,
+              // Credit shooter with kill. Training is also team-based,
               // so count team kills whenever the shooter has a valid team —
               // not just in explicit teamMode.
               if (shooterBot) {
@@ -4547,7 +4642,7 @@ export class ArenaEngine {
               this.killBot(bot, null); // player killed bot
               this.stats.kills++;
               this.stats.score += TEAM_SCORE_ENEMY_KILL;
-              // Training (3v3) uses team scores too — count whenever the
+              // Training uses team scores too — count whenever the
               // player has a valid team.
               if (this.playerTeam === 'blue' || this.playerTeam === 'red') {
                 this.teamKills[this.playerTeam]++;
@@ -4694,7 +4789,7 @@ export class ArenaEngine {
             this.killBot(bot, null);
             this.stats.kills++;
             this.stats.score += TEAM_SCORE_ENEMY_KILL;
-            // Both modes — training is 3v3 now, not FFA
+            // Both modes — training is team-based now, not FFA
             if (bot.team === 'red' || bot.team === 'blue') {
               this.teamKills[this.playerTeam as 'blue' | 'red']++;
             }
@@ -4729,7 +4824,7 @@ export class ArenaEngine {
 
     if (killer) {
       killer.kills++;
-      // Track team kills whenever killer has a valid team. Training (3v3)
+      // Track team kills whenever killer has a valid team. Training
       // is also team-based even though `teamMode` flag stays false.
       if (killer.team === 'blue' || killer.team === 'red') {
         this.teamKills[killer.team]++;

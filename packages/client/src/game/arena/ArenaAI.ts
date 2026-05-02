@@ -39,15 +39,15 @@ interface DifficultyParams {
 }
 
 const DIFFICULTY_PARAMS: Record<BotDifficulty, DifficultyParams> = {
-  easy:   { aimOffsetRad: 15 * (Math.PI / 180), decisionInterval: 0.8 },
-  medium: { aimOffsetRad:  8 * (Math.PI / 180), decisionInterval: 0.4 },
+  easy:   { aimOffsetRad: 12 * (Math.PI / 180), decisionInterval: 0.6 },
+  medium: { aimOffsetRad:  6 * (Math.PI / 180), decisionInterval: 0.3 },
   hard:   { aimOffsetRad:  2 * (Math.PI / 180), decisionInterval: 0.2 },
 };
 
 // FSM range thresholds (units)
-const RANGE_DETECT = 300;  // patrol -> chase
-const RANGE_ATTACK = 150;  // chase -> attack
-const RANGE_DISENGAGE = 400; // chase -> patrol (lost target)
+const RANGE_DETECT = 2200;  // patrol -> chase; scaled for the larger arena
+const RANGE_ATTACK = 520;   // chase -> attack; near bot laser range
+const RANGE_DISENGAGE = 2600; // chase -> patrol (lost target)
 
 const HP_FLEE_THRESHOLD = 0.40;  // flee when HP < 40% (was 25%)
 const HP_RALLY_THRESHOLD = 0.70; // flee -> patrol when HP > 70% (was 50%)
@@ -56,7 +56,7 @@ const HP_RALLY_THRESHOLD = 0.70; // flee -> patrol when HP > 70% (was 50%)
 const WAYPOINT_SPREAD = ARENA_HALF * 0.55;
 
 // Circle-strafe orbit radius around attack target
-const STRAFE_ORBIT_RADIUS = 120;
+const STRAFE_ORBIT_RADIUS = 260;
 const STRAFE_ANGULAR_SPEED = 1.4; // radians/s
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ function pseudoRand(): number {
 
 function randomWaypoint(): Vec2 {
   const angle = pseudoRand() * Math.PI * 2;
-  const dist  = pseudoRand() * WAYPOINT_SPREAD;
+  const dist  = ARENA_HALF * 0.15 + pseudoRand() * WAYPOINT_SPREAD;
   return {
     x: Math.cos(angle) * dist,
     z: Math.sin(angle) * dist,
@@ -338,7 +338,7 @@ function handleChase(
   const pursueDir = vec2Norm(toTarget);
   // Blend separation in during chase so converging bots don't clump while
   // racing to the same target.
-  const separation = computeSeparation(self, allShips, 70);
+  const separation = computeSeparation(self, allShips, 150);
   const moveDir = vec2Norm(vec2Add(pursueDir, vec2Scale(separation, 1.5)));
   const rawAim = applyAimError(pursueDir, brain, params.aimOffsetRad);
 
@@ -423,7 +423,7 @@ function handleAttack(
   }
 
   // Circle-strafe around target with per-bot orbit radius to prevent stacking
-  const myOrbitRadius = 80 + (self.id % 5) * 20; // 80, 100, 120, 140, 160
+  const myOrbitRadius = STRAFE_ORBIT_RADIUS + (self.id % 5) * 40; // 260..420
 
   const toTarget = vec2Sub(target.pos, self.pos);
   const toTargetNorm = vec2Norm(toTarget);
@@ -443,7 +443,7 @@ function handleAttack(
   // Blend: tangent orbit + radial adjust + separation from other ships.
   // Separation radius 80u — bots won't push each other apart unless already
   // crowding the same slice of the target's orbit.
-  const separation = computeSeparation(self, allShips, 80);
+  const separation = computeSeparation(self, allShips, 170);
   const moveDir = vec2Norm(
     vec2Add(
       vec2Add(
@@ -458,8 +458,8 @@ function handleAttack(
   const rawAim = toTargetNorm;
   const aimDir = applyAimError(rawAim, brain, params.aimOffsetRad);
 
-  // Dodge: if enemy is very close (within 60 units) and dash is available, burst away
-  const shouldDash = dist < 60 && self.dashCooldown <= 0;
+  // Dodge: if enemy is very close and dash is available, burst away.
+  const shouldDash = dist < 180 && self.dashCooldown <= 0;
 
   return {
     nextState: 'attack',
@@ -626,9 +626,16 @@ function refreshInputAgainstTarget(
   if (brain.state === 'attack' || brain.state === 'chase') {
     const target = brain.targetId !== null ? getShipById(brain.targetId, allShips) : null;
     if (target) {
-      const toTarget = vec2Norm(vec2Sub(target.pos, self.pos));
+      const toTargetRaw = vec2Sub(target.pos, self.pos);
+      const dist = vec2Len(toTargetRaw);
+      const toTarget = vec2Norm(toTargetRaw);
       const move = brain.state === 'attack'
-        ? { x: -toTarget.z, z: toTarget.x } // keep orbiting tangentially
+        ? (() => {
+            const orbitRadius = STRAFE_ORBIT_RADIUS + (self.id % 5) * 40;
+            const tangent = { x: -toTarget.z, z: toTarget.x };
+            const radial = dist < orbitRadius * 0.75 ? -1 : dist > orbitRadius * 1.25 ? 1 : 0;
+            return vec2Norm(vec2Add(vec2Scale(tangent, STRAFE_ANGULAR_SPEED), vec2Scale(toTarget, radial)));
+          })()
         : toTarget;
       const aim = applyAimError(toTarget, brain, params.aimOffsetRad);
       return {

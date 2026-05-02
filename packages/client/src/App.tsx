@@ -1816,6 +1816,7 @@ function AppInner() {
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showResourceModal, setShowResourceModal] = useState<ResourceType | null>(null);
   const [showGetResearchData, setShowGetResearchData] = useState(false);
+  const [researchDataNeeded, setResearchDataNeeded] = useState<number | null>(null);
   const [researchDataAdProgress, setResearchDataAdProgress] = useState(0);
 
   // Research data popup is shown only when player tries to use it
@@ -2454,8 +2455,14 @@ function AppInner() {
     let nearestRingDistance = Number.POSITIVE_INFINITY;
     for (const colonySystem of colonySystems) {
       if (colonySystem.id === targetSystem.id) return 0;
-      const lyDistance = systemDistanceLY(colonySystem, targetSystem);
-      nearestRingDistance = Math.min(nearestRingDistance, lyDistance / 5);
+      // Research-data pricing is based on gameplay rings, not raw map units.
+      // Core/cluster positions are in broad galaxy coordinates; using LY / 5
+      // made nearby-looking systems cost 1024+ data. Ring difference keeps the
+      // intended curve: own/adjacent = 1, second ring = 2, third = 4, etc.
+      nearestRingDistance = Math.min(
+        nearestRingDistance,
+        Math.abs(targetSystem.ringIndex - colonySystem.ringIndex),
+      );
     }
 
     return Number.isFinite(nearestRingDistance) ? nearestRingDistance : targetSystem.ringIndex;
@@ -5297,6 +5304,7 @@ function AppInner() {
     const targetSystem = engineRef.current?.getAllSystems()?.find((s) => s.id === systemId);
     const researchCost = targetSystem ? getSystemResearchDataCost(targetSystem) : RESEARCH_DATA_COST;
     if (Math.floor(researchData) < researchCost) {
+      setResearchDataNeeded(researchCost);
       setShowGetResearchData(true);
       return;
     }
@@ -8864,7 +8872,7 @@ function AppInner() {
           position: 'fixed', inset: 0, zIndex: 10001,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: 'rgba(0,0,0,0.6)', fontFamily: 'monospace',
-        }} onClick={() => setShowGetResearchData(false)}>
+        }} onClick={() => { setShowGetResearchData(false); setResearchDataNeeded(null); }}>
           <div style={{
             background: 'rgba(10,15,25,0.97)', border: '1px solid #4488aa',
             borderRadius: 6, padding: '24px 28px', maxWidth: 340, width: '90%',
@@ -8874,7 +8882,7 @@ function AppInner() {
               <div style={{ fontSize: 14, color: '#aabbcc', letterSpacing: 2, textTransform: 'uppercase' }}>
                 Research Data
               </div>
-              <button onClick={() => setShowGetResearchData(false)} style={{
+              <button onClick={() => { setShowGetResearchData(false); setResearchDataNeeded(null); }} style={{
                 background: 'transparent', border: 'none', color: '#667788',
                 fontFamily: 'monospace', fontSize: 14, cursor: 'pointer',
               }}>X</button>
@@ -8912,7 +8920,7 @@ function AppInner() {
                   }
                 }
                 const totalPerHour = basePerHour + bldgPerHour;
-                return `RD: ${Math.floor(researchData)} | +${totalPerHour.toFixed(1)}/hr`;
+                return `RD: ${Math.floor(researchData)}${researchDataNeeded !== null ? ` | need: ${researchDataNeeded}` : ''} | +${totalPerHour.toFixed(1)}/hr`;
               })()}
             </div>
             <button
@@ -8927,6 +8935,7 @@ function AppInner() {
                   setResearchData(prev => prev + 10);
                   setResearchDataAdProgress(0);
                   setShowGetResearchData(false);
+                  setResearchDataNeeded(null);
                 }
               }}
               style={{

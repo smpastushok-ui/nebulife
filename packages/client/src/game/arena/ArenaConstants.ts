@@ -8,10 +8,12 @@ import type { WeaponDef, WeaponType } from './ArenaTypes.js';
 // 3D semi-sphere: XZ disc radius = ARENA_HALF, vertical extent = ±ARENA_HEIGHT_HALF.
 // Players can climb/dive within that Y band. The top/bottom caps act like
 // invisible boundaries (same bounce logic as the outer XZ ring).
-// Expanded arena volume so TPS dogfights have more room to turn and climb.
-export const ARENA_SIZE = 5200;
+// Expanded arena volume so desktop TPS dogfights have more room to turn and climb.
+// Diameter doubled from the previous 5200 request; mobile keeps lighter match
+// density through 3v3 bot counts.
+export const ARENA_SIZE = 10400;
 export const ARENA_HALF = ARENA_SIZE / 2;
-export const ARENA_HEIGHT_HALF = 1000;
+export const ARENA_HEIGHT_HALF = 2000;
 export const ARENA_GROUND_Y = 5; // ships start / respawn around this Y (was the flat "floor" height)
 
 // Match
@@ -126,12 +128,13 @@ export const TEAM_RED_BOTS = 5;            // enemies
 export const BOT_BULLET_POOL = 300;        // global bot bullet pool
 export const BOT_RESPAWN_DELAY = 5;        // seconds
 
-// Training bots — TPS mode uses 3v3 (player + 2 blue allies vs 3 red enemies).
+// Training bots — desktop TPS uses 5v5 (player + 4 allies vs 5 enemies).
+// Mobile is reduced to 3v3 in ArenaEngine.setupBotShips().
 // Kept the flat constant name for backwards compatibility with serialized
 // match results and telemetry; see setupBotShips for the actual split.
-export const TRAINING_BOT_COUNT = 5; // 2 blue allies + 3 red enemies, plus the player = 6 ships
-export const TRAINING_BLUE_ALLIES = 2;
-export const TRAINING_RED_ENEMIES = 3;
+export const TRAINING_BOT_COUNT = 9; // 4 blue allies + 5 red enemies, plus the player = 10 ships
+export const TRAINING_BLUE_ALLIES = 4;
+export const TRAINING_RED_ENEMIES = 5;
 export const TRAINING_ASTEROID_COUNT = 30;
 
 // Bot names pool
