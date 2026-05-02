@@ -13,6 +13,7 @@ interface ExtraButton {
   disabled?: boolean;
   /** When true, button pulses with blue neon glow */
   pulse?: boolean;
+  active?: boolean;
 }
 
 interface ResearchPanelInfo {
@@ -212,7 +213,7 @@ export function SceneControlsPanel({
             {btn.icon}
           </button>
         ) : (
-          <ControlButton key={i} onClick={btn.onClick} title={btn.title} pulse={btn.pulse}>
+          <ControlButton key={i} onClick={btn.onClick} title={btn.title} pulse={btn.pulse} active={btn.active}>
             {btn.icon}
           </ControlButton>
         )

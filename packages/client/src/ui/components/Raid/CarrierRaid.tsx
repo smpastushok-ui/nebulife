@@ -52,10 +52,13 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
   }, [onExit, onAwardXP]);
 
   useEffect(() => {
-    enterImmersive();
     return () => {
       void exitImmersive();
     };
+  }, []);
+
+  const handleEnterFullscreen = useCallback(() => {
+    void enterImmersive();
   }, []);
 
   useEffect(() => {
@@ -186,7 +189,10 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
             <span>{t('raid.objective')}</span>
             <strong>{t(snapshot.objective)}</strong>
           </div>
-          <button style={S.exitBtn} onClick={() => setShowExitConfirm(true)}>{t('common.close')}</button>
+          <div style={S.topActions}>
+            <button style={S.exitBtn} onClick={handleEnterFullscreen}>{t('raid.fullscreen')}</button>
+            <button style={S.exitBtn} onClick={() => setShowExitConfirm(true)}>{t('common.close')}</button>
+          </div>
         </div>
 
         <div style={S.leftHud}>
@@ -400,6 +406,13 @@ const S: Record<string, React.CSSProperties> = {
     padding: '10px 12px',
     cursor: 'pointer',
     textTransform: 'uppercase',
+  },
+  topActions: {
+    display: 'flex',
+    gap: 8,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    pointerEvents: 'auto',
   },
   leftHud: {
     position: 'absolute',

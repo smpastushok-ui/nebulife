@@ -133,6 +133,54 @@ function MenuItem({ label, onClick, color, icon, right, disabled, title }: {
   );
 }
 
+function CollapsibleGroup({
+  title,
+  open,
+  onToggle,
+  children,
+  right,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div style={{ borderTop: '1px solid rgba(50,65,85,0.35)', marginTop: 4 }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          width: '100%',
+          padding: '9px 14px',
+          background: open ? 'rgba(20,35,50,0.45)' : 'rgba(5,10,20,0.18)',
+          border: 'none',
+          color: '#7bb8ff',
+          fontFamily: 'monospace',
+          fontSize: 10,
+          letterSpacing: 1.2,
+          textTransform: 'uppercase',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <span style={{ color: '#667788', width: 10 }}>{open ? 'v' : '>'}</span>
+        <span style={{ flex: 1 }}>{title}</span>
+        {right && <span style={{ color: '#667788', fontSize: 9, letterSpacing: 0, textTransform: 'none' }}>{right}</span>}
+      </button>
+      {open && (
+        <div style={{ background: 'rgba(5,10,20,0.20)' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function formatMissionTime(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(total / 60);
@@ -753,6 +801,9 @@ export function PlanetContextMenu({
   cargoShipments = [],
   planetResourcesById = {},
   onStartCargoShipment,
+  missionPhotoSaved = false,
+  missionPhotoUrl,
+  onViewMissionPhoto,
 }: {
   planet: Planet;
   star: Star;
@@ -793,10 +844,15 @@ export function PlanetContextMenu({
   cargoShipments?: CargoShipment[];
   planetResourcesById?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
   onStartCargoShipment?: (params: { shipId: string; fromPlanetId: string; toPlanetId: string; resource: CargoResource; amount: number }) => void;
+  missionPhotoSaved?: boolean;
+  missionPhotoUrl?: string | null;
+  onViewMissionPhoto?: (planet: Planet, report: PlanetReportSummary, photoUrl: string) => void;
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('actions');
   const [expandedGroup, setExpandedGroup] = useState<ResourceGroup | null>(null);
+  const [reportsOpen, setReportsOpen] = useState(Boolean(reportSummary));
+  const [logisticsOpen, setLogisticsOpen] = useState(false);
   // Delay backdrop + menu items activation to prevent the touch "click" event
   // (fired ~100ms after the pointerdown that opened the menu) from immediately
   // closing the menu or triggering navigation on mobile.
@@ -836,7 +892,7 @@ export function PlanetContextMenu({
     const top = Math.max(MARGIN, Math.min(idealTop, maxTop));
 
     setMenuPos({ left, top });
-  }, [activeTab, expandedGroup, screenPosition, isDesktop]);
+  }, [activeTab, expandedGroup, reportsOpen, logisticsOpen, screenPosition, isDesktop]);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
   const isSystemAccessible = systemResearchProgress >= 100;
@@ -978,62 +1034,80 @@ export function PlanetContextMenu({
                   : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={itemsActive ? onSurface : undefined} color="#88ccaa" />
               )}
               {isSystemAccessible && (
-                <div style={{ paddingLeft: 16 }}>
-                  <div style={{ padding: '5px 14px 4px', color: '#445566', fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    {t('planet_missions.section')}
-                  </div>
-                  <div style={{ padding: '0 14px 6px', color: '#667788', fontSize: 9 }}>
-                    {t('planet_missions.reveal_level', { level: revealLevel })}
-                  </div>
-                  {reportSummary && onViewReport && (
-                    <MenuItem
-                      icon="□"
-                      label={t('planet_missions.view_report')}
-                      onClick={() => onViewReport(planet, reportSummary)}
-                      color="#ddaa44"
-                      right={`T${reportSummary.revealLevel}`}
-                    />
-                  )}
-                  {!explorationMissionsDisabled && missionTypes.map((type) => {
-                    const disabledReason = getMissionDisabledReason(type);
-                    const payload = computePlanetMissionCost(type, planet, missionResearchDataCost).payload;
-                    const payloadCount = payload ? (payloadInventory[payload] ?? 0) : 0;
-                    const activeTypeProgress = activeMission?.type === type ? activeMissionProgress : null;
-                    return (
-                      <div key={type}>
+                <CollapsibleGroup
+                  title={t('planet_missions.reports_group')}
+                  open={reportsOpen}
+                  onToggle={() => setReportsOpen((value) => !value)}
+                  right={reportSummary ? `T${reportSummary.revealLevel}` : t('planet_missions.reveal_level_short', { level: revealLevel })}
+                >
+                  <div style={{ padding: '0 0 6px 16px' }}>
+                    <div style={{ padding: '7px 14px 6px', color: '#667788', fontSize: 9 }}>
+                      {t('planet_missions.reveal_level', { level: revealLevel })}
+                    </div>
+                    {reportSummary && onViewReport ? (
+                      <>
                         <MenuItem
-                          icon={type === 'orbital_probe' ? '⊙' : '▽'}
-                          label={t(`planet_missions.type.${type}`)}
-                          onClick={!disabledReason && onStartMission ? () => onStartMission(planet, type) : undefined}
-                          disabled={Boolean(disabledReason) || !onStartMission}
-                          title={disabledReason}
-                          right={disabledReason ? (payload ? `${payloadCount}` : undefined) : t('planet_missions.start')}
+                          icon="□"
+                          label={t('planet_missions.view_report')}
+                          onClick={() => onViewReport(planet, reportSummary)}
+                          color="#ddaa44"
+                          right={`T${reportSummary.revealLevel}`}
                         />
-                        {activeTypeProgress && (
-                          <div style={{ padding: '0 14px 8px 36px', color: '#7bb8ff', fontSize: 10 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                              <span>{t(`planet_missions.phase.${activeTypeProgress.phase}`)}</span>
-                              <span>{Math.round(activeTypeProgress.overallProgress * 100)}% · {formatMissionTime(activeTypeProgress.remainingMs)}</span>
-                            </div>
-                            <div style={{ height: 4, borderRadius: 2, background: 'rgba(40,55,70,0.7)', overflow: 'hidden' }}>
-                              <div style={{ width: `${Math.round(activeTypeProgress.overallProgress * 100)}%`, height: '100%', background: '#4488aa' }} />
-                            </div>
-                          </div>
+                        {missionPhotoSaved && missionPhotoUrl && onViewMissionPhoto && (
+                          <MenuItem
+                            icon="◉"
+                            label={t('mission_report.view_saved_photo')}
+                            onClick={() => onViewMissionPhoto(planet, reportSummary, missionPhotoUrl)}
+                            color="#88ccaa"
+                          />
                         )}
+                      </>
+                    ) : (
+                      <div style={{ padding: '4px 14px 8px', color: '#445566', fontSize: 10 }}>
+                        {t('planet_missions.no_reports')}
                       </div>
-                    );
-                  })}
-                  {unavailableSurfaceType && (
-                    <MenuItem
-                      icon="▽"
-                      label={t('planet_missions.type.surface_landing')}
-                      onClick={() => {}}
-                      disabled
-                      title={getMissionDisabledReason(unavailableSurfaceType)}
-                      right={t('planet_missions.reason.surface_unavailable')}
-                    />
-                  )}
-                </div>
+                    )}
+                    {!explorationMissionsDisabled && missionTypes.map((type) => {
+                      const disabledReason = getMissionDisabledReason(type);
+                      const payload = computePlanetMissionCost(type, planet, missionResearchDataCost).payload;
+                      const payloadCount = payload ? (payloadInventory[payload] ?? 0) : 0;
+                      const activeTypeProgress = activeMission?.type === type ? activeMissionProgress : null;
+                      return (
+                        <div key={type}>
+                          <MenuItem
+                            icon={type === 'orbital_probe' ? '⊙' : '▽'}
+                            label={t(`planet_missions.type.${type}`)}
+                            onClick={!disabledReason && onStartMission ? () => onStartMission(planet, type) : undefined}
+                            disabled={Boolean(disabledReason) || !onStartMission}
+                            title={disabledReason}
+                            right={disabledReason ? (payload ? `${payloadCount}` : undefined) : t('planet_missions.start')}
+                          />
+                          {activeTypeProgress && (
+                            <div style={{ padding: '0 14px 8px 36px', color: '#7bb8ff', fontSize: 10 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <span>{t(`planet_missions.phase.${activeTypeProgress.phase}`)}</span>
+                                <span>{Math.round(activeTypeProgress.overallProgress * 100)}% · {formatMissionTime(activeTypeProgress.remainingMs)}</span>
+                              </div>
+                              <div style={{ height: 4, borderRadius: 2, background: 'rgba(40,55,70,0.7)', overflow: 'hidden' }}>
+                                <div style={{ width: `${Math.round(activeTypeProgress.overallProgress * 100)}%`, height: '100%', background: '#4488aa' }} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {unavailableSurfaceType && (
+                      <MenuItem
+                        icon="▽"
+                        label={t('planet_missions.type.surface_landing')}
+                        onClick={() => {}}
+                        disabled
+                        title={getMissionDisabledReason(unavailableSurfaceType)}
+                        right={t('planet_missions.reason.surface_unavailable')}
+                      />
+                    )}
+                  </div>
+                </CollapsibleGroup>
               )}
 
               {/* ── Terraforming action (conditional) ── */}
@@ -1059,11 +1133,12 @@ export function PlanetContextMenu({
                 </>
               )}
               {isSystemAccessible && (
-                <>
-                  <div style={{ height: 1, background: 'rgba(50,65,85,0.4)', margin: '4px 0' }} />
-                  <div style={{ padding: '5px 14px 4px', color: '#445566', fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    {t('planet_terminal.tab_logistics')}
-                  </div>
+                <CollapsibleGroup
+                  title={t('planet_terminal.tab_logistics')}
+                  open={logisticsOpen}
+                  onToggle={() => setLogisticsOpen((value) => !value)}
+                  right={t('planet_terminal.free_ships_short', { count: cargoShips.filter((ship) => ship.status === 'docked' && !ship.assignmentId).length })}
+                >
                   <LogisticsTab
                     ships={cargoShips}
                     shipments={cargoShipments}
@@ -1071,7 +1146,7 @@ export function PlanetContextMenu({
                     planetResources={planetResourcesById}
                     onStartCargoShipment={onStartCargoShipment}
                   />
-                </>
+                </CollapsibleGroup>
               )}
             </>
           )}

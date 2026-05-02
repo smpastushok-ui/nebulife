@@ -16,14 +16,10 @@ export const OBSERVATORY_SEARCH_DURATION_MS: Record<ObservatorySearchDuration, n
 };
 
 const LEVEL_XP = [0, 100, 280, 620, 1100] as const;
-const UNSEEN_WEIGHTS = [8, 12, 18, 26, 40] as const;
+const UNSEEN_WEIGHTS = [5, 7, 9, 11, 13] as const;
 const DUPLICATE_PITY_THRESHOLD = 3;
 
-const BASE_DURATION_CHANCE: Record<ObservatorySearchDuration, number> = {
-  '1h': 0.2,
-  '6h': 0.4,
-  '24h': 0.8,
-};
+const LEVEL_DISCOVERY_CHANCE = [0.1, 0.2, 0.3, 0.35, 0.4] as const;
 
 const PROGRAM_LEVEL: Record<ObservatorySearchProgram, number> = {
   routine_sky_watch: 1,
@@ -34,11 +30,23 @@ const PROGRAM_LEVEL: Record<ObservatorySearchProgram, number> = {
 };
 
 const PROGRAM_RARITY_WEIGHTS: Record<ObservatorySearchProgram, Partial<Record<DiscoveryRarity, number>>> = {
-  routine_sky_watch: { common: 100 },
-  anomaly_sweep: { common: 70, uncommon: 30 },
-  phenomenon_survey: { common: 45, uncommon: 30, rare: 25 },
-  deep_space_watch: { common: 35, uncommon: 25, rare: 20, epic: 15, legendary: 5 },
-  catalog_completion: { common: 22, uncommon: 24, rare: 24, epic: 20, legendary: 10 },
+  routine_sky_watch: { common: 74, uncommon: 18, rare: 8 },
+  anomaly_sweep: { common: 58, uncommon: 28, rare: 14 },
+  phenomenon_survey: { common: 44, uncommon: 28, rare: 24, epic: 4 },
+  deep_space_watch: { common: 32, uncommon: 24, rare: 24, epic: 16, legendary: 4 },
+  catalog_completion: { common: 24, uncommon: 24, rare: 24, epic: 20, legendary: 8 },
+};
+
+const DURATION_RARITY_WEIGHTS: Record<ObservatorySearchDuration, Partial<Record<DiscoveryRarity, number>>> = {
+  // Short searches are useful daily taps: mostly standard events, with a
+  // small window into unusual/rare signatures.
+  '1h': { common: 70, uncommon: 22, rare: 8 },
+  // Six hours is the main rare-event workhorse and can reach epic signals.
+  '6h': { uncommon: 32, rare: 50, epic: 16, legendary: 2 },
+  // Full-day searches listen for deep-space high-rarity signatures. If this
+  // roll misses, completeObservatorySearch grants a standard fallback so a
+  // 24h wait never feels wasted.
+  '24h': { epic: 72, legendary: 28 },
 };
 
 const UNIQUE_XP: Record<DiscoveryRarity, number> = {
@@ -107,9 +115,10 @@ export function getAvailableObservatoryPrograms(level: number): ObservatorySearc
   return (Object.keys(PROGRAM_LEVEL) as ObservatorySearchProgram[]).filter((program) => PROGRAM_LEVEL[program] <= level);
 }
 
-export function getObservatorySearchChance(duration: ObservatorySearchDuration, level: number): number {
-  const levelBonus = Math.max(0, Math.min(4, level - 1)) * 0.04;
-  return Math.min(0.95, BASE_DURATION_CHANCE[duration] + levelBonus);
+export function getObservatorySearchChance(_duration: ObservatorySearchDuration, level: number): number {
+  const normalizedLevel = Math.max(1, Math.min(5, Math.floor(level)));
+  const chance = LEVEL_DISCOVERY_CHANCE[normalizedLevel - 1] ?? LEVEL_DISCOVERY_CHANCE[0];
+  return chance;
 }
 
 export function startObservatorySearch(
@@ -148,6 +157,12 @@ export function completeObservatorySearch(
   const remaining = state.sessions.filter((item) => item.id !== sessionId);
 
   if (!discovery) {
+    if (session.duration === '24h') {
+      const fallbackDiscovery = rollObservatoryFallbackDiscovery(state, session, catalog);
+      if (fallbackDiscovery) {
+        return applyObservatoryDiscovery(state, remaining, session, fallbackDiscovery, previousLevel);
+      }
+    }
     const nextState = {
       ...state,
       sessions: remaining,
@@ -157,6 +172,16 @@ export function completeObservatorySearch(
     return { state: nextState, session, discovery: null, duplicate: false, xpGained: 0, leveledUp: false };
   }
 
+  return applyObservatoryDiscovery(state, remaining, session, discovery, previousLevel);
+}
+
+function applyObservatoryDiscovery(
+  state: ObservatoryState,
+  remaining: ObservatorySearchSession[],
+  session: ObservatorySearchSession,
+  discovery: Discovery,
+  previousLevel: number,
+): ObservatorySearchResult {
   const existing = state.events[discovery.type];
   const duplicate = Boolean(existing);
   const xpGained = duplicate
@@ -216,10 +241,43 @@ export function rollObservatoryDiscovery(
 ): Discovery | null {
   const level = getObservatoryLevel(state);
   const rng = new SeededRNG(session.seed ^ Math.floor(session.completesAt / 1000));
-  if (rng.next() > getObservatorySearchChance(session.duration, level)) return null;
+  const detectionChance = session.duration === '24h'
+    ? getObservatoryHighValueChance(level)
+    : getObservatorySearchChance(session.duration, level);
+  if (rng.next() > detectionChance) return null;
 
   const program = PROGRAM_LEVEL[session.program] <= level ? session.program : getAvailableObservatoryPrograms(level)[0];
-  const rarity = pickRarity(rng, program);
+  const rarity = pickRarity(rng, session.duration, program);
+  return selectDiscoveryFromCatalog(state, session, catalog, rng, rarity, level);
+}
+
+export function estimateObservatoryCompletionDays(catalogSize: number): number {
+  return Math.max(120, Math.ceil(catalogSize * 3.15));
+}
+
+function getObservatoryHighValueChance(level: number): number {
+  const normalizedLevel = Math.max(1, Math.min(5, Math.floor(level)));
+  return LEVEL_DISCOVERY_CHANCE[normalizedLevel - 1] ?? LEVEL_DISCOVERY_CHANCE[0];
+}
+
+function rollObservatoryFallbackDiscovery(
+  state: ObservatoryState,
+  session: ObservatorySearchSession,
+  catalog: ReadonlyArray<CatalogEntry>,
+): Discovery | null {
+  const level = getObservatoryLevel(state);
+  const rng = new SeededRNG((session.seed ^ 0x5f3759df) + Math.floor(session.completesAt / 1000));
+  return selectDiscoveryFromCatalog(state, session, catalog, rng, 'common', level);
+}
+
+function selectDiscoveryFromCatalog(
+  state: ObservatoryState,
+  session: ObservatorySearchSession,
+  catalog: ReadonlyArray<CatalogEntry>,
+  rng: SeededRNG,
+  rarity: DiscoveryRarity,
+  level: number,
+): Discovery | null {
   let pool = catalog.filter((entry) => entry.rarity === rarity);
   if (pool.length === 0) pool = [...catalog];
   if (pool.length === 0) return null;
@@ -247,14 +305,28 @@ export function rollObservatoryDiscovery(
   };
 }
 
-export function estimateObservatoryCompletionDays(catalogSize: number): number {
-  return Math.max(30, Math.ceil(catalogSize * 3.05));
-}
+function pickRarity(
+  rng: SeededRNG,
+  duration: ObservatorySearchDuration,
+  program: ObservatorySearchProgram,
+): DiscoveryRarity {
+  const durationWeights = DURATION_RARITY_WEIGHTS[duration];
+  const programWeights = PROGRAM_RARITY_WEIGHTS[program];
+  const combinedWeights: Partial<Record<DiscoveryRarity, number>> = {};
+  const rarities = Array.from(new Set([
+    ...Object.keys(durationWeights),
+    ...Object.keys(programWeights),
+  ])) as DiscoveryRarity[];
 
-function pickRarity(rng: SeededRNG, program: ObservatorySearchProgram): DiscoveryRarity {
-  const weights = PROGRAM_RARITY_WEIGHTS[program];
-  const rarities = Object.keys(weights) as DiscoveryRarity[];
-  return rng.weightedChoice(rarities, rarities.map((rarity) => weights[rarity] ?? 0));
+  for (const rarity of rarities) {
+    const durationWeight = durationWeights[rarity] ?? 0;
+    const programWeight = programWeights[rarity] ?? 0;
+    const combinedWeight = durationWeight * (0.7 + programWeight / 100);
+    if (combinedWeight > 0) combinedWeights[rarity] = combinedWeight;
+  }
+
+  const weightedRarities = Object.keys(combinedWeights) as DiscoveryRarity[];
+  return rng.weightedChoice(weightedRarities, weightedRarities.map((rarity) => combinedWeights[rarity] ?? 0));
 }
 
 function isValidSession(value: unknown): value is ObservatorySearchSession {

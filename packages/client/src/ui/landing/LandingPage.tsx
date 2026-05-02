@@ -266,27 +266,9 @@ export function LandingPage() {
     };
   }, []);
 
-  // Google Analytics 4 — landing-only. Not loaded on /play and not in
-  // Capacitor native shell (LandingPage never mounts there). Idempotent
-  // guard prevents duplicate script tags on remount during HMR.
-  React.useEffect(() => {
-    const GA_ID = 'G-JEELHEM0Z4';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    if (w.__nebulifeGAInjected) return;
-    w.__nebulifeGAInjected = true;
-
-    const s = document.createElement('script');
-    s.async = true;
-    s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
-    document.head.appendChild(s);
-
-    w.dataLayer = w.dataLayer || [];
-    function gtag(...args: unknown[]) { w.dataLayer.push(args); }
-    w.gtag = gtag;
-    gtag('js', new Date());
-    gtag('config', GA_ID, { anonymize_ip: true });
-  }, []);
+  // GA4 is injected globally in main.tsx (covers both landing and /play,
+  // skipped on Capacitor native). LandingPage just dispatches events
+  // through window.gtag — see handleLeadSubmit.
 
   return (
     <main className="landing-root" ref={rootRef}>

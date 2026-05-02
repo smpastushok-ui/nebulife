@@ -950,6 +950,7 @@ function AppInner() {
   const [missionAlphaGenerating, setMissionAlphaGenerating] = useState(false);
   const [savedMissionPhotoKeys, setSavedMissionPhotoKeys] = useState<Record<string, boolean>>({});
   const [missionPhotoReveal, setMissionPhotoReveal] = useState<{ imageDataUrl: string; planetName: string; startedAt: number } | null>(null);
+  const [missionPhotoViewer, setMissionPhotoViewer] = useState<{ planetName: string; photoUrl: string } | null>(null);
 
   const [explorationPayloads, setExplorationPayloads] = useState<Partial<Record<ProducibleType, number>>>(() => {
     try {
@@ -1485,11 +1486,31 @@ function AppInner() {
   const techTreeStateRef = useRef(techTreeState);
   techTreeStateRef.current = techTreeState;
 
-  /** Discovery choice panel queue (show one at a time) */
+  /** Discovery choice panel queue (show one at a time) — persisted to localStorage */
   const [discoveryQueue, setDiscoveryQueue] = useState<{
     discovery: Discovery;
     system: StarSystem;
-  }[]>([]);
+  }[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_discovery_queue');
+      if (saved) {
+        const parsed = JSON.parse(saved) as { discovery: Discovery; system: StarSystem }[];
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch { /* ignore */ }
+    return [];
+  });
+
+  /** Persist discoveryQueue to localStorage so it survives page reloads */
+  useEffect(() => {
+    try {
+      if (discoveryQueue.length > 0) {
+        localStorage.setItem('nebulife_discovery_queue', JSON.stringify(discoveryQueue));
+      } else {
+        localStorage.removeItem('nebulife_discovery_queue');
+      }
+    } catch { /* ignore */ }
+  }, [discoveryQueue]);
 
   /** Popup queue gate — true while telemetry/observatory is active; cleared with delay after close */
   const [popupQueueBlocked, setPopupQueueBlocked] = useState(false);
@@ -1518,7 +1539,8 @@ function AppInner() {
 
   /**
    * Derived: first pending discovery.
-   * Blocked when: telemetry/observatory active, completedModal active, or popup queue gated.
+   * Blocked when: telemetry/observatory active, completedModal active, popup queue gated,
+   * cinematic intro playing, or initial onboarding active.
    * pendingDiscovery has higher priority than completedModal (anomaly before evacuation blocks
    * research-complete modals until the player acknowledges the discovery).
    */
@@ -1528,6 +1550,8 @@ function AppInner() {
     && !observatoryTarget
     && !popupQueueBlocked
     && !arenaPopupGate
+    && !needsOnboarding
+    && !cinematicVideoPlaying
     ? discoveryQueue[0] : null;
 
   /**
@@ -7634,18 +7658,8 @@ function AppInner() {
     }
 
     case 'system': {
-      // Planet actions available via PlanetContextMenu popup
-      toolGroups.push({
-        type: 'buttons',
-        items: [{
-          id: 'planet-status-icons',
-          label: systemPlanetStatusIconsMode ? t('cmd.planet_icons_on') : t('cmd.planet_icons'),
-          variant: 'terminal' as const,
-          active: systemPlanetStatusIconsMode,
-          tooltip: t('cmd.planet_icons_tooltip'),
-          onClick: () => setSystemPlanetStatusIconsMode((prev) => !prev),
-        }],
-      });
+      // Planet actions available via PlanetContextMenu popup.
+      // Planet status icons toggle lives in the left SceneControlsPanel.
       break;
     }
 
@@ -8070,6 +8084,21 @@ function AppInner() {
           showCenter
           showZoom
           hidden={hideLeftPanel}
+          extraButtons={[
+            {
+              title: systemPlanetStatusIconsMode ? t('cmd.planet_icons_on') : t('cmd.planet_icons_tooltip'),
+              icon: (
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <circle cx="8" cy="8" r="4.2" />
+                  <ellipse cx="8" cy="8" rx="7" ry="2.2" transform="rotate(-24 8 8)" />
+                  <circle cx="4.2" cy="5.3" r="1" fill="currentColor" stroke="none" />
+                  <circle cx="11.8" cy="10.7" r="1" fill="currentColor" stroke="none" />
+                </svg>
+              ),
+              onClick: () => setSystemPlanetStatusIconsMode((prev) => !prev),
+              active: systemPlanetStatusIconsMode,
+            },
+          ]}
         />
       )}
 
@@ -8330,6 +8359,52 @@ function AppInner() {
           startedAt={missionPhotoReveal.startedAt}
         />
       )}
+      {missionPhotoViewer && (
+        <div
+          onClick={() => setMissionPhotoViewer(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10020,
+            background: 'rgba(0,0,0,0.82)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 18,
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(960px, 94vw)',
+              background: 'rgba(8,12,20,0.98)',
+              border: '1px solid rgba(123,184,255,0.42)',
+              borderRadius: 8,
+              boxShadow: '0 18px 50px rgba(0,0,0,0.68)',
+              overflow: 'hidden',
+              fontFamily: 'monospace',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid rgba(68,102,136,0.28)' }}>
+              <div style={{ color: '#9fd0ff', fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase' }}>
+                {t('mission_report.saved_photo_title').replace('{planet}', missionPhotoViewer.planetName)}
+              </div>
+              <button
+                type="button"
+                onClick={() => setMissionPhotoViewer(null)}
+                style={{ background: 'transparent', border: '1px solid #334455', borderRadius: 3, color: '#8899aa', fontFamily: 'monospace', cursor: 'pointer', padding: '4px 8px' }}
+              >
+                ×
+              </button>
+            </div>
+            <img
+              src={missionPhotoViewer.photoUrl}
+              alt={missionPhotoViewer.planetName}
+              style={{ display: 'block', width: '100%', maxHeight: '76vh', objectFit: 'contain', background: '#020510' }}
+            />
+          </div>
+        </div>
+      )}
       {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && (
         <PlanetContextMenu
           planet={state.selectedPlanet}
@@ -8370,8 +8445,26 @@ function AppInner() {
               || state.selectedPlanet.id === colonyState?.planetId,
           )}
           reportSummary={planetReports[state.selectedPlanet.id]}
+          missionPhotoSaved={(() => {
+            const report = planetReports[state.selectedPlanet!.id];
+            if (!report) return false;
+            const key = getMissionPhotoKey(state.selectedPlanet!.id, report);
+            const photo = systemPhotos.get(key);
+            return Boolean(savedMissionPhotoKeys[key] || (photo?.status === 'succeed' && photo.photoUrl));
+          })()}
+          missionPhotoUrl={(() => {
+            const report = planetReports[state.selectedPlanet!.id];
+            if (!report) return null;
+            const key = getMissionPhotoKey(state.selectedPlanet!.id, report);
+            const photo = systemPhotos.get(key);
+            return photo?.status === 'succeed' ? photo.photoUrl : null;
+          })()}
           onViewReport={(planet, report) => {
             setPlanetReportTarget({ planet, report });
+            setState((prev) => ({ ...prev, showPlanetMenu: false }));
+          }}
+          onViewMissionPhoto={(planet, _report, photoUrl) => {
+            setMissionPhotoViewer({ planetName: planet.name, photoUrl });
             setState((prev) => ({ ...prev, showPlanetMenu: false }));
           }}
           systemResearchProgress={currentSystemProgress}
@@ -9804,6 +9897,20 @@ export function App() {
     void i18n.changeLanguage(lang);
     return lang;
   });
+
+  // GA4 — fire 'game_loaded' once when the App component mounts on web.
+  // Lets us tell apart landing visits ('/' page_view) from real player
+  // sessions ('/play' or ?play=1 → game_loaded). Skipped on native:
+  // window.gtag is not injected there (see main.tsx).
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const gtag = (window as any).gtag;
+    if (typeof gtag === 'function') {
+      gtag('event', 'game_loaded', {
+        route: window.location.pathname,
+      });
+    }
+  }, []);
 
   // First-launch combined picker (language + graphics tier). Gate is a
   // single localStorage flag — once set, the screen never appears again

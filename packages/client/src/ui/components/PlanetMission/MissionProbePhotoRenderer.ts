@@ -91,6 +91,46 @@ function drawCrosshair(ctx: CanvasRenderingContext2D, w: number, h: number): voi
   ctx.restore();
 }
 
+function drawPointCloud(
+  ctx: CanvasRenderingContext2D,
+  rng: Rng,
+  count: number,
+  bounds: { x: number; y: number; w: number; h: number },
+  tone: number,
+  alpha: number,
+  minSize = 1,
+  maxSize = 2.8,
+): void {
+  ctx.save();
+  for (let i = 0; i < count; i++) {
+    const x = bounds.x + rng() * bounds.w;
+    const y = bounds.y + rng() * bounds.h;
+    const size = minSize + rng() * (maxSize - minSize);
+    const v = Math.max(0, Math.min(255, tone + (rng() - 0.5) * 46));
+    ctx.fillStyle = `rgba(${v},${v},${v},${alpha * (0.35 + rng() * 0.75)})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, size * (0.7 + rng() * 0.9), size * (0.35 + rng() * 0.5), rng() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawSoftSun(ctx: CanvasRenderingContext2D, rng: Rng, w: number, usableH: number): void {
+  const x = w * (0.18 + rng() * 0.64);
+  const y = usableH * (0.10 + rng() * 0.16);
+  const r = usableH * (0.055 + rng() * 0.035);
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 7);
+  glow.addColorStop(0, 'rgba(235,240,230,0.24)');
+  glow.addColorStop(0.16, 'rgba(200,210,210,0.12)');
+  glow.addColorStop(1, 'rgba(200,210,210,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, usableH);
+  ctx.fillStyle = 'rgba(230,235,226,0.22)';
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawOrbitalMap(
   ctx: CanvasRenderingContext2D,
   planet: Planet,
@@ -186,47 +226,74 @@ function drawRoverView(
   const usableH = h - 42;
   const sky = ctx.createLinearGradient(0, 0, 0, usableH);
   const atmo = planet.atmosphere?.surfacePressureAtm ?? 0;
-  sky.addColorStop(0, `rgba(120,140,150,${Math.min(0.34, atmo * 0.08)})`);
-  sky.addColorStop(1, 'rgba(0,0,0,0.92)');
+  const haze = Math.min(0.52, 0.08 + atmo * 0.11);
+  sky.addColorStop(0, `rgba(100,118,128,${haze})`);
+  sky.addColorStop(0.55, `rgba(58,68,72,${0.32 + haze * 0.4})`);
+  sky.addColorStop(1, 'rgba(6,7,8,0.96)');
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, w, usableH);
+  drawSoftSun(ctx, rng, w, usableH);
 
-  const horizon = usableH * (0.42 + rng() * 0.08);
-  for (let layer = 0; layer < 4; layer++) {
+  const horizon = usableH * (0.38 + rng() * 0.10);
+  for (let layer = 0; layer < 6; layer++) {
     ctx.beginPath();
     ctx.moveTo(0, usableH);
-    for (let x = 0; x <= w; x += 14) {
+    const step = Math.max(8, 20 - layer * 2);
+    for (let x = 0; x <= w; x += step) {
       const nx = x / w;
-      const y = horizon + layer * 34
-        + Math.sin(nx * (5 + layer * 2) + seed * 0.002) * (18 - layer * 2)
-        + (noise(nx * 9, layer, seed) - 0.5) * 28;
+      const ridgeNoise =
+        noise(nx * (5 + layer * 2), layer * 1.7, seed) * 0.55 +
+        noise(nx * (14 + layer * 4), layer * 2.3, seed + 73) * 0.45;
+      const y = horizon + layer * (usableH * 0.078)
+        + Math.sin(nx * (5 + layer * 1.9) + seed * 0.002) * (24 - layer * 2)
+        + (ridgeNoise - 0.5) * (54 - layer * 5);
       ctx.lineTo(x, y);
     }
     ctx.lineTo(w, usableH);
     ctx.closePath();
-    const shade = 36 + layer * 28;
-    ctx.fillStyle = `rgba(${shade},${shade},${shade},${0.86 - layer * 0.08})`;
+    const shade = 24 + layer * 25;
+    ctx.fillStyle = `rgba(${shade},${shade},${shade},${0.74 - layer * 0.055})`;
     ctx.fill();
-    ctx.strokeStyle = `rgba(220,230,235,${0.07 + layer * 0.04})`;
+    ctx.strokeStyle = `rgba(220,230,235,${0.05 + layer * 0.035})`;
     ctx.stroke();
+    drawPointCloud(ctx, rng, 420 - layer * 38, { x: 0, y: Math.max(0, horizon + layer * 34 - 40), w, h: usableH - horizon }, shade + 34, 0.035 + layer * 0.006, 0.6, 2.4);
   }
 
-  for (let i = 0; i < 80; i++) {
+  const ground = ctx.createLinearGradient(0, horizon, 0, usableH);
+  ground.addColorStop(0, 'rgba(72,76,74,0.18)');
+  ground.addColorStop(0.56, 'rgba(110,112,108,0.28)');
+  ground.addColorStop(1, 'rgba(160,164,156,0.34)');
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, horizon, w, usableH - horizon);
+
+  drawPointCloud(ctx, rng, 6200, { x: 0, y: horizon, w, h: usableH - horizon }, 118, 0.045, 0.4, 2.1);
+
+  for (let i = 0; i < 190; i++) {
     const x = rng() * w;
     const y = horizon + rng() * (usableH - horizon);
-    const s = (y / usableH) * (2 + rng() * 9);
-    ctx.fillStyle = `rgba(190,200,205,${0.08 + rng() * 0.25})`;
+    const depth = y / usableH;
+    const s = depth * (2 + rng() * 14);
+    const tone = 150 + Math.floor(depth * 70 + rng() * 34);
+    ctx.fillStyle = `rgba(${tone},${tone},${tone},${0.10 + depth * 0.20 + rng() * 0.16})`;
     ctx.beginPath();
     ctx.ellipse(x, y, s * (1.2 + rng()), s * (0.35 + rng() * 0.35), rng() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
+    if (depth > 0.72 && rng() > 0.62) {
+      ctx.strokeStyle = `rgba(230,235,230,${0.04 + rng() * 0.08})`;
+      ctx.beginPath();
+      ctx.moveTo(x - s * 2.5, y + s * 0.25);
+      ctx.lineTo(x + s * 2.5, y - s * 0.25);
+      ctx.stroke();
+    }
   }
 
   if (planet.hasLife) {
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < 90; i++) {
       const x = rng() * w;
       const y = horizon + rng() * (usableH - horizon - 40);
-      const len = 12 + rng() * 34;
-      ctx.strokeStyle = `rgba(230,240,230,${0.14 + rng() * 0.24})`;
+      const depth = Math.max(0.35, y / usableH);
+      const len = (8 + rng() * 38) * depth;
+      ctx.strokeStyle = `rgba(210,232,210,${0.07 + rng() * 0.17})`;
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.quadraticCurveTo(x + (rng() - 0.5) * 18, y - len * 0.5, x + (rng() - 0.5) * 10, y - len);
@@ -234,13 +301,26 @@ function drawRoverView(
     }
   }
 
-  ctx.fillStyle = 'rgba(210,220,225,0.18)';
-  ctx.fillRect(w * 0.08, usableH - 74, w * 0.20, 24);
-  ctx.fillRect(w * 0.12, usableH - 94, 12, 44);
+  const foreground = ctx.createLinearGradient(0, usableH * 0.76, 0, usableH);
+  foreground.addColorStop(0, 'rgba(180,186,178,0)');
+  foreground.addColorStop(1, 'rgba(215,220,210,0.16)');
+  ctx.fillStyle = foreground;
+  ctx.fillRect(0, usableH * 0.76, w, usableH * 0.24);
+
+  ctx.fillStyle = 'rgba(210,220,225,0.16)';
+  ctx.fillRect(w * 0.075, usableH - 74, w * 0.22, 24);
+  ctx.fillRect(w * 0.12, usableH - 98, 13, 48);
   ctx.beginPath();
   ctx.arc(w * 0.26, usableH - 50, 18, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(210,220,225,0.13)';
   ctx.fill();
+
+  const lens = ctx.createRadialGradient(w * 0.5, usableH * 0.52, usableH * 0.16, w * 0.5, usableH * 0.52, usableH * 0.78);
+  lens.addColorStop(0, 'rgba(255,255,255,0.035)');
+  lens.addColorStop(0.58, 'rgba(255,255,255,0)');
+  lens.addColorStop(1, 'rgba(0,0,0,0.22)');
+  ctx.fillStyle = lens;
+  ctx.fillRect(0, 0, w, usableH);
 }
 
 export function renderMissionProbePhoto(params: {

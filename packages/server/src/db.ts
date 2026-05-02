@@ -1319,6 +1319,20 @@ export async function getDailyContent(
   return (rows[0] as { content_json: string }) ?? null;
 }
 
+export async function getRecentDailyContent(
+  contentType: string,
+  limit: number = 14,
+): Promise<Array<{ content_date: string; content_json: string }>> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT content_date::text, content_json
+    FROM daily_content
+    WHERE content_type = ${contentType}
+    ORDER BY content_date DESC
+    LIMIT ${Math.max(1, Math.min(60, Math.floor(limit)))}
+  `) as Array<{ content_date: string; content_json: string }>;
+}
+
 export async function saveDailyContent(
   contentType: string,
   contentJson: string,

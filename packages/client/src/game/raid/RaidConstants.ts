@@ -1,5 +1,5 @@
 export const RAID_SECTOR_HALF = 10400;
-export const RAID_HEIGHT_HALF = 1800;
+export const RAID_HEIGHT_HALF = 2000;
 export const RAID_PLAYER_HP = 130;
 export const RAID_PLAYER_SHIELD = 80;
 export const RAID_ALLY_HP = 95;
@@ -21,6 +21,8 @@ export const RAID_ACTIVE_ENEMIES_MID = 28;
 export const RAID_ACTIVE_ENEMIES_HIGH = 46;
 export const RAID_WINGMEN = 4;
 export const RAID_WAVE_INTERVAL = 12;
+export const RAID_ENEMY_SPAWN_INTERVAL_DESKTOP = 1.5;
+export const RAID_ENEMY_SPAWN_INTERVAL_MOBILE = 2.3;
 
 export const RAID_WAVES = [
   { at: 4, count: 14 },

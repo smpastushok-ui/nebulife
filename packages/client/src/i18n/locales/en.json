@@ -58,7 +58,8 @@
     "enemies": "Enemies",
     "modules": "Modules",
     "reactor": "Reactor",
-    "controls": "WASD to move, Space/Shift to dash, weapons auto-fire",
+    "controls": "WASD to fly, mouse turns nose, LMB laser, RMB missile, Space warp",
+    "fullscreen": "Fullscreen",
     "exit_title": "Leave raid?",
     "exit_body": "Progress in this combat operation will be lost.",
     "exit_confirm": "Exit",
@@ -672,38 +673,43 @@
     "awaiting_signal": "Awaiting signal from deep space...",
     "signal_received": "Signal received! Processing image...",
     "error": "Observatory Error",
-    "search_section": "Deep-Space Event Search",
+    "search_section": "Space Research",
     "level": "Observatory Level",
     "xp_progress": "{{current}} / {{required}} XP",
     "max_level": "Maximum level reached",
     "active_searches": "Active searches",
     "catalog_progress": "{{found}} catalog signals found",
-    "program_label": "Search program",
+    "program_label": "Observatory focus",
     "in_progress": "Searches in progress",
     "duration": {
       "1h": "1 hour",
       "6h": "6 hours",
       "24h": "24 hours"
     },
-    "duration_desc": "{{chance}}% signal chance",
+    "duration_desc": {
+      "1h": "{{chance}}% chance to find a standard, anomalous, or rare event.",
+      "6h": "{{chance}}% chance to find a rare signal; epic echoes are possible.",
+      "24h": "{{chance}}% chance for an epic or legendary signature. If none is found, the observatory guarantees a standard event."
+    },
+    "search_explainer": "Space research searches for unique events and objects for the catalog. Level chance: {{chance}}% at this observatory level; levels 1-5 give 10%, 20%, 30%, 35%, and 40%. Longer searches change the target rarity, and 24-hour searches never return empty.",
     "search_started": "Observatory search started. Results will arrive when the session completes.",
     "search_no_signal_log": "Observatory search completed: no stable cosmic signal detected.",
     "search_found_log": "Observatory detected a new cosmic event: {{name}}.",
     "search_duplicate_log": "Observatory detected a repeated cosmic event: {{name}}.",
     "level_up_log": "Observatory upgraded to level {{level}}. New search programs and signal filters are available.",
     "program": {
-      "routine_sky_watch": "Routine Sky Watch",
-      "anomaly_sweep": "Anomaly Sweep",
-      "phenomenon_survey": "Phenomenon Survey",
-      "deep_space_watch": "Deep-Space Watch",
+      "routine_sky_watch": "Basic Space Research",
+      "anomaly_sweep": "Anomalous Signal Filter",
+      "phenomenon_survey": "Rare Phenomenon Search",
+      "deep_space_watch": "Deep-Space Research",
       "catalog_completion": "Catalog Completion"
     },
     "program_desc": {
-      "routine_sky_watch": "Level 1. Searches for standard cosmic events.",
-      "anomaly_sweep": "Level 2. Adds anomaly signatures to the scan.",
-      "phenomenon_survey": "Level 3. Tunes sensors for rare phenomena.",
-      "deep_space_watch": "Level 4. Opens deep-space epic and legendary signatures.",
-      "catalog_completion": "Level 5. Biases scans toward missing catalog entries."
+      "routine_sky_watch": "Level 1. Good for short 1-hour searches for standard, anomalous, and rare signals.",
+      "anomaly_sweep": "Level 2. Filters background noise better and pulls anomalous signatures more often.",
+      "phenomenon_survey": "Level 3. Tunes sensors for rare phenomena and weak epic echoes.",
+      "deep_space_watch": "Level 4. Opens deep searches for epic and legendary signatures.",
+      "catalog_completion": "Level 5. Biases selection more strongly toward catalog entries you have not found yet."
     }
   },
   "telemetry": {
@@ -915,6 +921,7 @@
     "researching": "Research in progress",
     "logistics_desc": "Resource delivery to this planet through free cargo ships from spaceports.",
     "free_ships": "Free cargo ships: {{count}}",
+    "free_ships_short": "{{count}} ships",
     "nearest_spaceport": "Nearest hub: {{planet}}",
     "available_cargo": "Ships here: {{count}}",
     "resources_short": "M {{minerals}} · V {{volatiles}} · I {{isotopes}} · W {{water}}",
@@ -940,8 +947,11 @@
   },
   "planet_missions": {
     "section": "Research Missions",
+    "reports_group": "Reports",
     "start": "Start",
     "reveal_level": "Data level: Tier {{level}}",
+    "reveal_level_short": "T{{level}}",
+    "no_reports": "No reports for this planet yet.",
     "resources_locked": "Resources are hidden. Requires an orbital probe (Tier 2).",
     "elements_locked": "Element details unlock after a surface expedition (Tier 3).",
     "type": {
@@ -1578,6 +1588,8 @@
     "alpha_photo_desc": "Photorealistic Gemini/Nano Banana generation grounded in this report.",
     "photo_saving": "Saving photo...",
     "photo_saved": "Photo saved",
+    "view_saved_photo": "View mission photo",
+    "saved_photo_title": "Mission photo · {{planet}}",
     "receiving_photo": "Receiving mission photo",
     "photo_saved_to_gallery": "Mission photo saved to gallery",
     "photo_save_failed": "Failed to save mission photo"

@@ -383,18 +383,44 @@ Rules:
  * job saves this whole blob to daily_content; clients parse and pick
  * the right language at render time (same approach as generateDailyQuiz).
  */
-export async function generateDailyFunFact(): Promise<string> {
+export async function generateDailyFunFact(options: {
+  date?: string;
+  recentFacts?: Array<{ content_date: string; content_json: string }>;
+} = {}): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+  const date = options.date ?? new Date().toISOString().slice(0, 10);
+  const recentFacts = (options.recentFacts ?? [])
+    .map((entry) => {
+      try {
+        const parsed = JSON.parse(entry.content_json) as { uk?: string; en?: string };
+        return `${entry.content_date}: ${parsed.en ?? parsed.uk ?? entry.content_json}`;
+      } catch {
+        return `${entry.content_date}: ${entry.content_json}`;
+      }
+    })
+    .slice(0, 14)
+    .join('\n');
 
   const prompt = `You are A.S.T.R.A. — onboard AI of the cozy space sim Nebulife.
 Produce ONE short, scientifically accurate, unexpected fact about space,
 astrophysics, stars, planets or the universe. Max 2–3 sentences. No emoji.
 Produce the SAME fact in both Ukrainian and English.
 
+Today is ${date}. This fact is a daily broadcast, so it must feel fresh.
+Do NOT repeat the object, hook, comparison, or main topic from recent facts.
+Avoid neutron-star density unless it is not present in recent facts.
+
+Recent facts to avoid:
+${recentFacts || 'No previous facts available.'}
+
 Formatting:
   • Ukrainian form: "Командоре, а ви знали, що <факт>?"
   • English form:  "Commander, did you know that <fact>?"
+
+Topic variety suggestions: exoplanet weather, icy moons, stellar nurseries,
+orbital resonances, interstellar dust, spectroscopy, magnetospheres, cosmic
+rays, brown dwarfs, rogue planets, gravitational lensing, planetary rings.
 
 Respond with ONLY pure JSON (no markdown):
 {"uk":"...","en":"..."}`;

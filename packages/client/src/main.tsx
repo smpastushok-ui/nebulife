@@ -143,6 +143,37 @@ function RootRouter() {
   return <LandingPage />;
 }
 
+// ---------------------------------------------------------------------------
+// Google Analytics 4 — global injection (web only).
+// ---------------------------------------------------------------------------
+// Loaded once for both '/' (landing) and '/play' (game) so we can see
+// real player traffic, not just landing visits. SKIPPED in Capacitor
+// native shells — Play Store / App Store privacy declarations rely on the
+// app NOT phoning home to GA without explicit consent UI, and we don't
+// have one yet. Web hits are still anonymized (anonymize_ip).
+(function injectGlobalGA() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const w = window as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cap = (window as any).Capacitor;
+  const isNative = cap && (cap.isNativePlatform?.() || cap.platform === 'android' || cap.platform === 'ios');
+  if (isNative) return;
+  if (w.__nebulifeGAInjected) return;
+  w.__nebulifeGAInjected = true;
+
+  const GA_ID = 'G-JEELHEM0Z4';
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+  document.head.appendChild(s);
+
+  w.dataLayer = w.dataLayer || [];
+  function gtag(...args: unknown[]) { w.dataLayer.push(args); }
+  w.gtag = gtag;
+  gtag('js', new Date());
+  gtag('config', GA_ID, { anonymize_ip: true });
+})();
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
     <RootRouter />

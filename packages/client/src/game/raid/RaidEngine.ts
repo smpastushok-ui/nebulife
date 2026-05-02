@@ -10,6 +10,8 @@ import {
   RAID_ALLY_SHIELD,
   RAID_DRAG,
   RAID_DRONE_HP,
+  RAID_ENEMY_SPAWN_INTERVAL_DESKTOP,
+  RAID_ENEMY_SPAWN_INTERVAL_MOBILE,
   RAID_ENEMY_DAMAGE,
   RAID_HEIGHT_HALF,
   RAID_PLAYER_HP,
@@ -37,6 +39,9 @@ const CARRIER_BOSS = '/raid/carrier_boss.glb';
 const ENEMY_SWARM_SHIP = '/raid/enemy_swarm_ship.glb';
 const RAID_BACKGROUND = '/raid/raid_background.png';
 const RAID_BACKGROUND_MOBILE = '/raid/raid_background_mobile.webp';
+const CARRIER_Y = 620;
+const CARRIER_BAY_Y = CARRIER_Y - 520;
+const PLAYER_START_Y = -520;
 
 function shipUrlFromId(shipId: string): string {
   return shipId === 'red' || shipId === 'red_ship' ? RED_SHIP : BLUE_SHIP;
@@ -109,6 +114,7 @@ export class RaidEngine {
   private enemyTemplate: THREE.Object3D | null = null;
   private spawnBays: THREE.Vector3[] = [];
   private queuedEnemies = 0;
+  private enemySpawnTimer = 0;
   private mouseMoveX = 0;
   private mouseMoveY = 0;
   private pointerLocked = false;
@@ -367,7 +373,7 @@ export class RaidEngine {
 
   private async createPlayerShip(): Promise<RaidShip> {
     const mesh = await this.loadPlayerMesh();
-    mesh.position.set(0, 0, 1450);
+    mesh.position.set(0, PLAYER_START_Y, 2200);
     mesh.scale.setScalar(1.2);
     return {
       id: 1,
@@ -502,7 +508,7 @@ export class RaidEngine {
     try {
       const gltf = await new GLTFLoader().loadAsync(CARRIER_BOSS);
       const root = normalizeModel(gltf.scene, 2600);
-      root.position.set(0, 0, 0);
+      root.position.set(0, CARRIER_Y, 0);
       root.traverse((obj) => {
         obj.frustumCulled = true;
       });
@@ -515,7 +521,7 @@ export class RaidEngine {
       // carrier keeps the raid playable until the GLB is dropped into public.
     }
     const carrier = new THREE.Group();
-    carrier.position.set(0, 0, 0);
+    carrier.position.set(0, CARRIER_Y, 0);
     const hull = new THREE.MeshStandardMaterial({ color: 0x1b2532, metalness: 0.7, roughness: 0.38 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x070b12, metalness: 0.55, roughness: 0.5 });
     const glow = new THREE.MeshBasicMaterial({ color: 0x4488aa });
@@ -532,39 +538,39 @@ export class RaidEngine {
       const bay = new THREE.Mesh(new THREE.BoxGeometry(420, 180, 460), dark);
       bay.position.set(side * 980, -120, -260);
       carrier.add(bay);
-      this.modules.push(this.createModule(`hangar_${side}`, 'hangar_bay', 'Hangar Bay', 180, new THREE.Vector3(side * 980, -120, -260), bay));
-      this.spawnBays.push(new THREE.Vector3(side * 980, -260, -260));
+      this.modules.push(this.createModule(`hangar_${side}`, 'hangar_bay', 'Hangar Bay', 180, new THREE.Vector3(side * 980, CARRIER_Y - 120, -260), bay));
+      this.spawnBays.push(new THREE.Vector3(side * 980, CARRIER_BAY_Y, -260));
       const shield = new THREE.Mesh(new THREE.SphereGeometry(150, 14, 8), glow);
       shield.position.set(side * 560, 260, 420);
       carrier.add(shield);
-      this.modules.push(this.createModule(`shield_${side}`, 'shield_emitter', 'Shield Emitter', 150, new THREE.Vector3(side * 560, 260, 420), shield));
+      this.modules.push(this.createModule(`shield_${side}`, 'shield_emitter', 'Shield Emitter', 150, new THREE.Vector3(side * 560, CARRIER_Y + 260, 420), shield));
       const turret = new THREE.Mesh(new THREE.CylinderGeometry(55, 75, 130, 10), hull);
       turret.position.set(side * 460, 260, -780);
       carrier.add(turret);
-      this.modules.push(this.createModule(`turret_${side}`, 'turret_cluster', 'Turret Cluster', 120, new THREE.Vector3(side * 460, 260, -780), turret));
+      this.modules.push(this.createModule(`turret_${side}`, 'turret_cluster', 'Turret Cluster', 120, new THREE.Vector3(side * 460, CARRIER_Y + 260, -780), turret));
     }
     const reactor = new THREE.Mesh(new THREE.SphereGeometry(230, 18, 10), glow);
     reactor.position.set(0, 0, 980);
     carrier.add(reactor);
-    this.modules.push(this.createModule('reactor', 'reactor_core', 'Reactor Core', 420, new THREE.Vector3(0, 0, 980), reactor));
+    this.modules.push(this.createModule('reactor', 'reactor_core', 'Reactor Core', 420, new THREE.Vector3(0, CARRIER_Y, 980), reactor));
     this.scene.add(carrier);
     this.carrier = carrier;
   }
 
   private createCarrierModules(root: THREE.Object3D): void {
     const specs: Array<[string, RaidModule['type'], string, number, THREE.Vector3, number]> = [
-      ['hangar_-1', 'hangar_bay', 'Hangar Bay', 180, new THREE.Vector3(-980, -260, -280), 150],
-      ['hangar_1', 'hangar_bay', 'Hangar Bay', 180, new THREE.Vector3(980, -260, -280), 150],
-      ['shield_-1', 'shield_emitter', 'Shield Emitter', 150, new THREE.Vector3(-560, 280, 420), 160],
-      ['shield_1', 'shield_emitter', 'Shield Emitter', 150, new THREE.Vector3(560, 280, 420), 160],
-      ['turret_-1', 'turret_cluster', 'Turret Cluster', 120, new THREE.Vector3(-460, 260, -780), 120],
-      ['turret_1', 'turret_cluster', 'Turret Cluster', 120, new THREE.Vector3(460, 260, -780), 120],
-      ['reactor', 'reactor_core', 'Reactor Core', 420, new THREE.Vector3(0, 0, 980), 240],
+      ['hangar_-1', 'hangar_bay', 'Hangar Bay', 180, new THREE.Vector3(-980, CARRIER_BAY_Y, -280), 150],
+      ['hangar_1', 'hangar_bay', 'Hangar Bay', 180, new THREE.Vector3(980, CARRIER_BAY_Y, -280), 150],
+      ['shield_-1', 'shield_emitter', 'Shield Emitter', 150, new THREE.Vector3(-560, CARRIER_Y + 280, 420), 160],
+      ['shield_1', 'shield_emitter', 'Shield Emitter', 150, new THREE.Vector3(560, CARRIER_Y + 280, 420), 160],
+      ['turret_-1', 'turret_cluster', 'Turret Cluster', 120, new THREE.Vector3(-460, CARRIER_Y + 260, -780), 120],
+      ['turret_1', 'turret_cluster', 'Turret Cluster', 120, new THREE.Vector3(460, CARRIER_Y + 260, -780), 120],
+      ['reactor', 'reactor_core', 'Reactor Core', 420, new THREE.Vector3(0, CARRIER_Y, 980), 240],
     ];
     for (const [id, type, label, hp, pos, radius] of specs) {
       this.modules.push({ id, type, label, hp, maxHp: hp, radius, pos, mesh: root, alive: true, fireCooldown: 1.5 });
     }
-    this.spawnBays.push(new THREE.Vector3(-980, -340, -280), new THREE.Vector3(980, -340, -280));
+    this.spawnBays.push(new THREE.Vector3(-980, CARRIER_BAY_Y, -280), new THREE.Vector3(980, CARRIER_BAY_Y, -280));
   }
 
   private createModule(id: string, type: RaidModule['type'], label: string, hp: number, worldPos: THREE.Vector3, mesh: THREE.Object3D): RaidModule {
@@ -609,7 +615,7 @@ export class RaidEngine {
     this.updateAim(dt);
     this.updatePlayer(dt);
     this.updateWingmen(dt);
-    this.updateWaves(elapsed);
+    this.updateWaves(elapsed, dt);
     this.updateEnemies(dt);
     this.updateModules(dt);
     this.updateProjectiles(dt);
@@ -727,48 +733,53 @@ export class RaidEngine {
     }
   }
 
-  private updateWaves(elapsed: number): void {
+  private updateWaves(elapsed: number, dt: number): void {
     while (this.nextWaveIndex < RAID_WAVES.length && elapsed >= RAID_WAVES[this.nextWaveIndex].at) {
       this.queuedEnemies += RAID_WAVES[this.nextWaveIndex].count;
       this.nextWaveIndex++;
     }
-    this.spawnQueuedEnemies();
+    this.spawnQueuedEnemies(dt);
     const shieldsDown = !this.modules.some(m => m.type === 'shield_emitter' && m.alive);
     if (shieldsDown && this.phase === 'waves') this.phase = 'reactor';
   }
 
-  private spawnQueuedEnemies(): void {
+  private spawnQueuedEnemies(dt: number): void {
     if (!this.scene) return;
+    this.enemySpawnTimer = Math.max(0, this.enemySpawnTimer - dt);
+    if (this.enemySpawnTimer > 0 || this.queuedEnemies <= 0) return;
     const active = this.enemies.filter(e => e.alive).length;
     const room = Math.max(0, this.maxActiveEnemies - active);
-    const count = Math.min(this.queuedEnemies, room, this.isMobile ? 2 : 4);
-    for (let i = 0; i < count; i++) {
-      const mesh = this.cloneEnemyShip();
-      const bay = this.spawnBays[(this.enemies.length + i) % Math.max(1, this.spawnBays.length)] ?? new THREE.Vector3(0, -260, -300);
-      mesh.position.copy(bay).add(new THREE.Vector3(
-        (Math.random() - 0.5) * 220,
-        (Math.random() - 0.5) * 120,
-        (Math.random() - 0.5) * 220,
-      ));
-      this.scene.add(mesh);
-      this.enemies.push({
-        id: 100 + this.enemies.length,
-        team: 'enemy',
-        name: 'DRONE',
-        pos: mesh.position,
-        vel: new THREE.Vector3(),
-        hp: RAID_DRONE_HP,
-        maxHp: RAID_DRONE_HP,
-        shield: 0,
-        maxShield: 0,
-        radius: 22,
-        fireCooldown: 0.8 + Math.random() * 1.1,
-        shieldDelay: 0,
-        alive: true,
-        mesh,
-      });
-      this.queuedEnemies--;
-    }
+    if (room <= 0) return;
+
+    const mesh = this.cloneEnemyShip();
+    const bay = this.spawnBays[this.enemies.length % Math.max(1, this.spawnBays.length)] ?? new THREE.Vector3(0, -260, -300);
+    mesh.position.copy(bay).add(new THREE.Vector3(
+      (Math.random() - 0.5) * 220,
+      -40 - Math.random() * 140,
+      (Math.random() - 0.5) * 220,
+    ));
+    this.orientObjectToDirection(mesh, new THREE.Vector3(0, -0.2, 1));
+    this.scene.add(mesh);
+    this.enemies.push({
+      id: 100 + this.enemies.length,
+      team: 'enemy',
+      name: 'DRONE',
+      pos: mesh.position,
+      vel: new THREE.Vector3(),
+      hp: RAID_DRONE_HP,
+      maxHp: RAID_DRONE_HP,
+      shield: 0,
+      maxShield: 0,
+      radius: 22,
+      fireCooldown: 0.8 + Math.random() * 1.1,
+      shieldDelay: 0,
+      alive: true,
+      mesh,
+    });
+    this.queuedEnemies--;
+    this.enemySpawnTimer = this.isMobile
+      ? RAID_ENEMY_SPAWN_INTERVAL_MOBILE
+      : RAID_ENEMY_SPAWN_INTERVAL_DESKTOP;
   }
 
   private updateEnemies(dt: number): void {
@@ -1006,9 +1017,14 @@ export class RaidEngine {
   }
 
   private clampToSector(pos: THREE.Vector3): void {
-    pos.x = Math.max(-RAID_SECTOR_HALF, Math.min(RAID_SECTOR_HALF, pos.x));
+    const radius = RAID_SECTOR_HALF - 80;
+    const xz = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+    if (xz > radius) {
+      const s = radius / xz;
+      pos.x *= s;
+      pos.z *= s;
+    }
     pos.y = Math.max(-RAID_HEIGHT_HALF, Math.min(RAID_HEIGHT_HALF, pos.y));
-    pos.z = Math.max(-RAID_SECTOR_HALF, Math.min(RAID_SECTOR_HALF, pos.z));
   }
 
   private updateCamera(dt: number): void {

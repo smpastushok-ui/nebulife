@@ -199,6 +199,12 @@ const OBSERVATORY_PROGRAM_DESC: Record<ObservatorySearchProgram, string> = {
   catalog_completion: 'observatory.program_desc.catalog_completion',
 };
 
+const OBSERVATORY_DURATION_DESC: Record<ObservatorySearchDuration, string> = {
+  '1h': 'observatory.duration_desc.1h',
+  '6h': 'observatory.duration_desc.6h',
+  '24h': 'observatory.duration_desc.24h',
+};
+
 const RESOURCE_LABEL_KEY: Record<string, string> = {
   minerals: 'colony_center.resource.minerals',
   volatiles: 'colony_center.resource.volatiles',
@@ -823,6 +829,20 @@ export function BuildingDetailPanel({
                 </div>
               )}
 
+              <div style={{
+                color: '#8899aa',
+                fontSize: 10,
+                lineHeight: 1.45,
+                background: 'rgba(5,10,20,0.42)',
+                border: '1px solid rgba(68,136,170,0.25)',
+                borderRadius: 4,
+                padding: '9px 10px',
+              }}>
+                {t('observatory.search_explainer', {
+                  chance: Math.round(getObservatorySearchChance('1h', observatoryLevel) * 100),
+                })}
+              </div>
+
               <div style={{ display: 'grid', gap: 7 }}>
                 <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
                   {t('observatory.program_label')}
@@ -886,7 +906,7 @@ export function BuildingDetailPanel({
                     <ActionButton
                       key={duration}
                       title={t(`observatory.duration.${duration}`)}
-                      desc={t('observatory.duration_desc', { chance })}
+                      desc={t(OBSERVATORY_DURATION_DESC[duration], { chance })}
                       disabled={stats.isShutdown || !onStartObservatorySearch}
                       onClick={() => {
                         onStartObservatorySearch?.(duration, selectedObservatoryProgram);

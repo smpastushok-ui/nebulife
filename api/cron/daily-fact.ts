@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { saveMessage, getDailyContent, saveDailyContent, getAllPlayerIds } from '../../packages/server/src/db.js';
+import { saveMessage, getDailyContent, getRecentDailyContent, saveDailyContent, getAllPlayerIds } from '../../packages/server/src/db.js';
 import { generateDailyFunFact } from '../../packages/server/src/gemini-client.js';
 
 const BATCH_SIZE = 200;
@@ -33,7 +33,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (existing) {
       factText = existing.content_json;
     } else {
-      factText = await generateDailyFunFact();
+      factText = await generateDailyFunFact({
+        date: new Date().toISOString().slice(0, 10),
+        recentFacts: await getRecentDailyContent('fun_fact', 14),
+      });
       await saveDailyContent('fun_fact', factText);
     }
 
