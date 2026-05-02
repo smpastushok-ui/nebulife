@@ -258,7 +258,7 @@ export function LandingPage() {
   // Capacitor native shell (LandingPage never mounts there). Idempotent
   // guard prevents duplicate script tags on remount during HMR.
   React.useEffect(() => {
-    const GA_ID = 'G-XW9CVB2FVP';
+    const GA_ID = 'G-JEELHEM0Z4';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     if (w.__nebulifeGAInjected) return;
