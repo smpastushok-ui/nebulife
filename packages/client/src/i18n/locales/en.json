@@ -1973,7 +1973,7 @@
       "title": "Leave your email to start testing",
       "body": "We will use this contact to understand who joined the early mobile test. After email confirmation, the test group button appears here.",
       "email_label": "Email",
-      "email_placeholder": "pilot@example.com",
+      "email_placeholder": "Enter your email here",
       "submit": "Unlock test access",
       "saving": "Saving signal...",
       "consent": "We will only use this email for Android/iOS test access and Nebulife tester updates.",
