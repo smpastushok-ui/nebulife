@@ -15,7 +15,7 @@ import {
 } from '@nebulife/core';
 import { GalaxyScene } from './scenes/GalaxyScene.js';
 import { SystemScene } from './scenes/SystemScene.js';
-import type { PlanetMissionVisual } from './scenes/SystemScene.js';
+import type { PlanetMissionVisual, PlanetStatusVisual } from './scenes/SystemScene.js';
 import { CameraController } from './camera/CameraController.js';
 
 export interface GameCallbacks {
@@ -413,6 +413,11 @@ export class GameEngine {
     this.systemScene?.setPlanetMissionVisuals(missions);
   }
 
+  /** Sync optional planet status icons into the active system scene. */
+  setSystemPlanetStatusVisuals(statuses: PlanetStatusVisual[], visible: boolean) {
+    this.systemScene?.setPlanetStatusVisuals(statuses, visible);
+  }
+
   /** Enter a system (called after warp animation completes) */
   enterSystem(system: StarSystem) {
     this.showSystemScene(system);
@@ -635,6 +640,30 @@ export class GameEngine {
     // Guard against being called before init() finished or after destroy()
     if (!this.app?.ticker) return;
     this.app.ticker.start();
+
+    // Pixi v8 event-system recovery after a long ticker.stop() (e.g. tab
+    // backgrounded, page reload + restore). Sometimes the root event
+    // boundary stays in an idle state and pointerdown / pointerup stop
+    // firing on the canvas — the user can hear the hover SFX but planet
+    // clicks no longer reach the React layer.
+    // Re-arming the stage.eventMode and clearing the boundary cursor
+    // forces Pixi to resubscribe at the next frame.
+    try {
+      const stage = this.app.stage;
+      if (stage) {
+        // 'static' is the default but reassigning kicks the EventSystem
+        // to re-evaluate hit-tests on the next tick.
+        stage.eventMode = 'static';
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const renderer = this.app.renderer as any;
+      const rootBoundary = renderer?.events?.rootBoundary;
+      if (rootBoundary) {
+        rootBoundary.cursor = null;
+      }
+    } catch {
+      /* never block resume on event-system poke */
+    }
   }
 
   /** Cap frame rate (e.g. 30 for idle scenes, 0 = uncapped/60) */

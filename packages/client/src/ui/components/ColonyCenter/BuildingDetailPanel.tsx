@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { BuildingType, FleetState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType } from '@nebulife/core';
-import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, isShipProducible } from '@nebulife/core';
+import type { BuildingType, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType } from '@nebulife/core';
+import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getObservatoryLevel, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import {
@@ -24,9 +24,11 @@ export interface BuildingDetailPanelProps {
   explorationPayloads?: Partial<Record<ProducibleType, number>>;
   shipFleet?: FleetState;
   explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
+  observatoryState?: ObservatoryState;
   onClose: () => void;
   onOpenColonyCenter?: (tab?: 'overview' | 'production') => void;
   onStartPayloadProduction?: (type: ProducibleType) => void;
+  onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram) => void;
   onResourceChange?: (delta: Partial<ColonyResources>) => void;
   onResearchDataChange?: (delta: number) => void;
   onDemolish?: (building: PlacedBuilding) => void;
@@ -178,6 +180,24 @@ const SPACEPORT_PRODUCIBLES: ProducibleType[] = [
   'terraform_freighter',
   'colony_ship',
 ];
+
+const OBSERVATORY_DURATIONS: ObservatorySearchDuration[] = ['1h', '6h', '24h'];
+
+const OBSERVATORY_PROGRAM_LABEL: Record<ObservatorySearchProgram, string> = {
+  routine_sky_watch: 'observatory.program.routine_sky_watch',
+  anomaly_sweep: 'observatory.program.anomaly_sweep',
+  phenomenon_survey: 'observatory.program.phenomenon_survey',
+  deep_space_watch: 'observatory.program.deep_space_watch',
+  catalog_completion: 'observatory.program.catalog_completion',
+};
+
+const OBSERVATORY_PROGRAM_DESC: Record<ObservatorySearchProgram, string> = {
+  routine_sky_watch: 'observatory.program_desc.routine_sky_watch',
+  anomaly_sweep: 'observatory.program_desc.anomaly_sweep',
+  phenomenon_survey: 'observatory.program_desc.phenomenon_survey',
+  deep_space_watch: 'observatory.program_desc.deep_space_watch',
+  catalog_completion: 'observatory.program_desc.catalog_completion',
+};
 
 const RESOURCE_LABEL_KEY: Record<string, string> = {
   minerals: 'colony_center.resource.minerals',
@@ -451,9 +471,11 @@ export function BuildingDetailPanel({
   explorationPayloads,
   shipFleet,
   explorationProductionQueue,
+  observatoryState,
   onClose,
   onOpenColonyCenter,
   onStartPayloadProduction,
+  onStartObservatorySearch,
   onResourceChange,
   onResearchDataChange,
   onDemolish,
@@ -461,6 +483,7 @@ export function BuildingDetailPanel({
   const { t } = useTranslation();
   const [actionLog, setActionLog] = useState<string | null>(null);
   const [confirmDemolish, setConfirmDemolish] = useState(false);
+  const [observatoryProgram, setObservatoryProgram] = useState<ObservatorySearchProgram>('routine_sky_watch');
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
 
@@ -518,6 +541,13 @@ export function BuildingDetailPanel({
       ship.status !== 'in_transit'
     )).length;
   };
+  const observatoryLevel = observatoryState ? getObservatoryLevel(observatoryState) : 1;
+  const observatoryXp = observatoryState ? getObservatoryXpProgress(observatoryState) : { level: 1, current: 0, required: 100, pct: 0 };
+  const observatoryPrograms = getAvailableObservatoryPrograms(observatoryLevel);
+  const activeObservatorySessions = observatoryState?.sessions ?? [];
+  const selectedObservatoryProgram = observatoryPrograms.includes(observatoryProgram)
+    ? observatoryProgram
+    : observatoryPrograms[observatoryPrograms.length - 1] ?? 'routine_sky_watch';
 
   const runScan = () => {
     if (!canScan) return;
@@ -758,6 +788,118 @@ export function BuildingDetailPanel({
           </div>
         </Section>
 
+        {type === 'observatory' && (
+          <Section title={t('observatory.search_section')}>
+            <div style={{
+              background: 'rgba(10,15,25,0.48)',
+              border: '1px solid rgba(68,136,170,0.35)',
+              borderRadius: 5,
+              padding: compact ? 10 : 12,
+              display: 'grid',
+              gap: 12,
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+                <MetricCard
+                  label={t('observatory.level')}
+                  value={`${observatoryLevel} / 5`}
+                  sub={observatoryXp.required > 0
+                    ? t('observatory.xp_progress', { current: observatoryXp.current, required: observatoryXp.required })
+                    : t('observatory.max_level')}
+                  accent="#9fd0ff"
+                />
+                <MetricCard
+                  label={t('observatory.active_searches')}
+                  value={`${activeObservatorySessions.length}`}
+                  sub={t('observatory.catalog_progress', {
+                    found: Object.keys(observatoryState?.events ?? {}).length,
+                  })}
+                  accent="#88bb99"
+                />
+              </div>
+
+              {observatoryXp.required > 0 && (
+                <div style={{ height: 5, borderRadius: 999, background: 'rgba(51,68,85,0.45)', overflow: 'hidden' }}>
+                  <div style={{ width: `${observatoryXp.pct}%`, height: '100%', background: 'linear-gradient(90deg, #446688, #9fd0ff)' }} />
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gap: 7 }}>
+                <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                  {t('observatory.program_label')}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+                  {observatoryPrograms.map((program) => (
+                    <button
+                      key={program}
+                      type="button"
+                      onClick={() => setObservatoryProgram(program)}
+                      style={{
+                        textAlign: 'left',
+                        background: selectedObservatoryProgram === program ? 'rgba(68,136,170,0.18)' : 'rgba(5,10,20,0.42)',
+                        border: `1px solid ${selectedObservatoryProgram === program ? ACTIVE_BORDER : BORDER}`,
+                        borderRadius: 4,
+                        color: '#aabbcc',
+                        fontFamily: 'monospace',
+                        padding: '9px 10px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ color: '#9fd0ff', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
+                        {t(OBSERVATORY_PROGRAM_LABEL[program])}
+                      </div>
+                      <div style={{ marginTop: 4, color: '#667788', fontSize: 9, lineHeight: 1.35 }}>
+                        {t(OBSERVATORY_PROGRAM_DESC[program])}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {activeObservatorySessions.length > 0 && (
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                    {t('observatory.in_progress')}
+                  </div>
+                  {activeObservatorySessions.map((session) => (
+                    <div key={session.id} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      background: 'rgba(5,10,20,0.5)',
+                      border: `1px solid ${BORDER}`,
+                      borderRadius: 4,
+                      padding: '8px 9px',
+                      fontSize: 10,
+                      color: '#8899aa',
+                    }}>
+                      <span>{t(OBSERVATORY_PROGRAM_LABEL[session.program])} · {session.duration}</span>
+                      <span style={{ color: '#7bb8ff' }}>{formatQueueTime(session.completesAt - Date.now())}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                {OBSERVATORY_DURATIONS.map((duration) => {
+                  const chance = Math.round(getObservatorySearchChance(duration, observatoryLevel) * 100);
+                  return (
+                    <ActionButton
+                      key={duration}
+                      title={t(`observatory.duration.${duration}`)}
+                      desc={t('observatory.duration_desc', { chance })}
+                      disabled={stats.isShutdown || !onStartObservatorySearch}
+                      onClick={() => {
+                        onStartObservatorySearch?.(duration, selectedObservatoryProgram);
+                        setActionLog(t('observatory.search_started'));
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </Section>
+        )}
+
         <Section title={t('building_detail.actions')}>
           <div style={{ display: 'grid', gap: 8 }}>
             {type === 'colony_hub' && (
@@ -782,13 +924,33 @@ export function BuildingDetailPanel({
                 </div>
               </>
             )}
-            {(type === 'research_lab' || type === 'observatory' || type === 'radar_tower' || type === 'deep_drill') && (
+            {(type === 'research_lab' || type === 'deep_drill') && (
               <ActionButton
                 title={t('building_detail.action_scan')}
                 desc={t('building_detail.action_scan_desc')}
                 disabled={!canScan}
                 onClick={runScan}
               />
+            )}
+            {type === 'radar_tower' && (
+              <>
+                <ActionButton
+                  title={t('building_detail.action_radar_deposit_scan')}
+                  desc={t('building_detail.action_radar_deposit_scan_desc')}
+                  disabled={!canScan}
+                  onClick={runScan}
+                />
+                <ActionButton
+                  title={t('building_detail.action_radar_weather')}
+                  desc={t('building_detail.action_radar_weather_desc')}
+                  onClick={() => setActionLog(t('building_detail.action_result_radar_weather'))}
+                />
+                <ActionButton
+                  title={t('building_detail.action_radar_mission_sync')}
+                  desc={t('building_detail.action_radar_mission_sync_desc')}
+                  onClick={() => setActionLog(t('building_detail.action_result_radar_mission_sync'))}
+                />
+              </>
             )}
             {(type === 'mine' || type === 'water_extractor' || type === 'atmo_extractor' || type === 'deep_drill') && (
               <ActionButton

@@ -29,6 +29,8 @@ interface HangarPageProps {
   onEnterRaid?: () => void;
 }
 
+const CARRIER_RAID_ENABLED = false;
+
 // ── Ship slots ───────────────────────────────────────────────────────────────
 
 interface ShipSlot {
@@ -215,7 +217,10 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 
   const handleEnterRaid = useCallback(() => {
     playSfx('ui-click', 0.07);
-    if (onEnterRaid) {
+    if (!CARRIER_RAID_ENABLED) {
+      setToast(t('hangar.event.raid_stub_toast' as Parameters<typeof t>[0]));
+      setTimeout(() => setToast(null), 2500);
+    } else if (onEnterRaid) {
       onEnterRaid();
     } else {
       setToast(t('hangar.event.coming_soon'));
@@ -404,17 +409,27 @@ export const HangarPage: React.FC<HangarPageProps> = ({
               <div style={{
                 ...S.entrySection,
                 ...S.desktopFlushBlock,
-                borderColor: onEnterRaid ? '#445566' : '#223344',
+                borderColor: CARRIER_RAID_ENABLED && onEnterRaid ? '#445566' : '#223344',
                 opacity: mounted ? 1 : 0,
                 transition: 'opacity 0.5s ease 0.95s',
               }}>
-                <div style={{ ...S.entryTitle, color: '#7bb8ff' }}>
+                <div style={{ ...S.entryTitle, color: CARRIER_RAID_ENABLED ? '#7bb8ff' : '#667788' }}>
                   {t('hangar.event.raid')}
                 </div>
-                <div style={S.entryDesc}>{t('hangar.event.raid_desc')}</div>
+                <div style={S.entryDesc}>
+                  {CARRIER_RAID_ENABLED ? t('hangar.event.raid_desc') : t('hangar.event.raid_stub_desc' as Parameters<typeof t>[0])}
+                </div>
                 <div style={S.entryButtons}>
-                  <button style={S.entryRaid} onClick={handleEnterRaid}>
-                    {t('hangar.event.raid_enter')}
+                  <button
+                    style={{
+                      ...S.entryRaid,
+                      borderColor: CARRIER_RAID_ENABLED ? '#7bb8ff' : '#334455',
+                      color: CARRIER_RAID_ENABLED ? '#7bb8ff' : '#667788',
+                      cursor: 'pointer',
+                    }}
+                    onClick={handleEnterRaid}
+                  >
+                    {CARRIER_RAID_ENABLED ? t('hangar.event.raid_enter') : t('hangar.event.raid_stub_btn' as Parameters<typeof t>[0])}
                   </button>
                 </div>
               </div>

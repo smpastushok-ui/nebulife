@@ -35,7 +35,10 @@
   "cmd": {
     "terminal": "ТЕРМІНАЛ",
     "surface_title": "Поверхня",
-    "arena": "АРЕНА"
+    "arena": "АРЕНА",
+    "planet_icons": "ІКОНКИ ПЛАНЕТ",
+    "planet_icons_on": "ІКОНКИ УВІМК.",
+    "planet_icons_tooltip": "Показати орбітальні іконки статусу навколо планет цієї системи"
   },
   "raid": {
     "loading": "Підготовка рейду...",
@@ -592,7 +595,8 @@
     "category_unknown": "Невідомо",
     "resource_tree": "Деревина",
     "resource_ore": "Руда",
-    "resource_vent": "Газ",
+    "resource_vent": "Леткі речовини",
+    "resource_water": "Вода",
     "hide_minimap": "Сховати мапу",
     "show_minimap": "Показати мапу"
   },
@@ -665,7 +669,40 @@
     "processing_signal": "Обробка сигналу...",
     "awaiting_signal": "Очікування сигналу з глибокого космосу...",
     "signal_received": "Сигнал отримано! Обробка зображення...",
-    "error": "Помилка обсерваторії"
+    "error": "Помилка обсерваторії",
+    "search_section": "Пошук подій у космосі",
+    "level": "Рівень обсерваторії",
+    "xp_progress": "{{current}} / {{required}} XP",
+    "max_level": "Максимальний рівень досягнуто",
+    "active_searches": "Активні пошуки",
+    "catalog_progress": "Знайдено сигналів каталогу: {{found}}",
+    "program_label": "Програма пошуку",
+    "in_progress": "Пошуки в процесі",
+    "duration": {
+      "1h": "1 година",
+      "6h": "6 годин",
+      "24h": "24 години"
+    },
+    "duration_desc": "{{chance}}% шанс сигналу",
+    "search_started": "Пошук обсерваторії запущено. Результат прийде після завершення сесії.",
+    "search_no_signal_log": "Пошук обсерваторії завершено: стабільного космічного сигналу не виявлено.",
+    "search_found_log": "Обсерваторія виявила нову космічну подію: {{name}}.",
+    "search_duplicate_log": "Обсерваторія повторно виявила космічну подію: {{name}}.",
+    "level_up_log": "Обсерваторію покращено до рівня {{level}}. Доступні нові програми пошуку та фільтри сигналів.",
+    "program": {
+      "routine_sky_watch": "Штатний огляд неба",
+      "anomaly_sweep": "Пошук аномалій",
+      "phenomenon_survey": "Огляд феноменів",
+      "deep_space_watch": "Глибокий космічний огляд",
+      "catalog_completion": "Закриття каталогу"
+    },
+    "program_desc": {
+      "routine_sky_watch": "Рівень 1. Пошук штатних космічних подій.",
+      "anomaly_sweep": "Рівень 2. Додає до сканування сигнатури аномалій.",
+      "phenomenon_survey": "Рівень 3. Налаштовує сенсори на рідкісні феномени.",
+      "deep_space_watch": "Рівень 4. Відкриває епічні та легендарні сигнатури глибокого космосу.",
+      "catalog_completion": "Рівень 5. Зміщує пошук у бік відсутніх записів каталогу."
+    }
   },
   "telemetry": {
     "in_collection": "В колекції",
@@ -1255,6 +1292,8 @@
     "status_scanning": "Сканується",
     "status_ready": "Готово",
     "status_locked": "Закрито",
+    "status_need_data": "Потрібні дані",
+    "status_no_slots": "Немає вільних обсерваторій",
     "status_waiting": "Очікує",
     "instant_research_title": "Дослідити за кварки",
     "instant_research_desc": "За {{cost}} ⚛ ви можете дослідити цю систему в 1 клік",
@@ -1279,6 +1318,15 @@
     "filter_life": "Життя",
     "filter_volatiles": "Леткі",
     "filter_population": "Населення",
+    "planet_status": {
+      "orbit": "Орбіту досліджено",
+      "atmosphere": "Атмосферу проаналізовано",
+      "surface": "Поверхню досліджено",
+      "terraform": "Терраформування завершено",
+      "colony": "Є колонія",
+      "life": "Виявлено життя",
+      "settled": "Є населення"
+    },
     "distance_ly": "{{ly}} с.р.",
     "no_colonies": "Колоній ще немає",
     "terraform_progress": "Терраформ: {{pct}}%",
@@ -1465,7 +1513,9 @@
     "blocked": "Вас тимчасово заблоковано в чаті.",
     "message_placeholder": "Повідомлення...",
     "system_header": "СИСТЕМА",
+    "go_to_system": "Перейти до системи",
     "go_to_planet": "Перейти до планети",
+    "view_report": "Переглянути звіт",
     "no_system_notifs": "Немає системних сповіщень",
     "new_dm_btn": "+ Нова бесіда",
     "no_dms": "Немає бесід",
@@ -1625,7 +1675,7 @@
     },
     "resource": {
       "minerals": "Мiнерали",
-      "volatiles": "Леткi",
+      "volatiles": "Леткі речовини",
       "isotopes": "Iзотопи",
       "water": "Вода",
       "researchData": "Науковi данi",
@@ -1698,7 +1748,7 @@
     "planet_richness": "Багатство планети",
     "stock_pct": "{{pct}}% вiд початкового",
     "deposit_minerals": "Мiнерали",
-    "deposit_volatiles": "Летки",
+    "deposit_volatiles": "Леткі речовини",
     "deposit_isotopes": "Iзотопи",
     "deposit_water": "Вода",
     "production_efficiency_warning": "Видобуток: {{pct}}% (поклади вичерпуються)"
@@ -1743,6 +1793,12 @@
     "action_open_center_desc": "Перейти до повного екрана керування колонiєю.",
     "action_scan": "Локальне сканування",
     "action_scan_desc": "Витратити 5 наукових даних, щоб уточнити поклади й сигнали поруч.",
+    "action_radar_deposit_scan": "Глибинний радарний прохід",
+    "action_radar_deposit_scan_desc": "Витратити 5 даних досліджень, щоб уточнити оцінку скінченних покладів біля колонії.",
+    "action_radar_weather": "Прогноз небезпек",
+    "action_radar_weather_desc": "Перевірити шторми, пилові фронти та атмосферні ризики для поверхневих операцій.",
+    "action_radar_mission_sync": "Синхронізація маяків місій",
+    "action_radar_mission_sync_desc": "Оновити локальні навігаційні маяки для зондів, носіїв і поверхневих експедицій.",
     "action_inspect_deposit": "Перевiрити поклад",
     "action_inspect_deposit_desc": "Показати скiнченний запас, який живить цей ланцюг видобутку.",
     "action_power_check": "Перевiрка енергомережi",
@@ -1785,6 +1841,8 @@
     "action_result_no_deposit": "До цiєї будiвлi ще не пiдключено скiнченний поклад.",
     "action_result_power": "Енергомаршрут стабiльний. Критичнi споживачi мають прiоритет при дефiцитi.",
     "action_result_chemistry": "Цикл завершено: леткі роздiлено на iзотопнi слiди та конденсовану воду.",
+    "action_result_radar_weather": "Прогноз оновлено: маршрути поверхні та зони атмосферного ризику синхронізовано з сенсорами колонії.",
+    "action_result_radar_mission_sync": "Маяки місій синхронізовано. Локальна телеметрія зондів має чисту навігаційну прив'язку.",
     "isotope_depleted_warning": "Поклади iзотопiв на цiй планетi вичерпанi. Будувати цей видобувач тут зараз немає сенсу.",
     "danger_zone": "Демонтаж",
     "demolish": "Зруйнувати будiвлю",
@@ -1836,7 +1894,7 @@
     },
     "resource": {
       "minerals": "мінерали",
-      "volatiles": "летючі",
+      "volatiles": "леткі речовини",
       "isotopes": "ізотопи",
       "water": "вода"
     },

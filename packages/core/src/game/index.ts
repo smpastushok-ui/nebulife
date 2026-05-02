@@ -60,6 +60,23 @@ export {
 } from './cosmic-catalog.js';
 export type { CatalogEntry } from './cosmic-catalog.js';
 
+// Observatory event search
+export {
+  OBSERVATORY_SEARCH_DURATION_MS,
+  createObservatoryState,
+  normalizeObservatoryState,
+  getObservatoryLevel,
+  getObservatoryXpProgress,
+  getAvailableObservatoryPrograms,
+  getObservatorySearchChance,
+  startObservatorySearch,
+  completeObservatorySearch,
+  completeReadyObservatorySearches,
+  rollObservatoryDiscovery,
+  estimateObservatoryCompletionDays,
+} from './observatory-search.js';
+export type { ObservatorySearchResult } from './observatory-search.js';
+
 // Prompt builder
 export { buildPrompt, buildExpeditionPrompt } from './prompt-builder.js';
 

@@ -229,7 +229,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   colony_hub: {
     type: 'colony_hub', category: 'infrastructure',
     name: 'Центр колонії',
-    description: 'Головна база. Вбудована обсерваторія (+1 дані/год), 500 жителів, +5 енергії.',
+    description: 'Головна база. Вбудована обсерваторія (+1 дані/год), 5000 жителів, +5 енергії.',
     size: 3, sizeW: 3, sizeH: 3,
     requiresTerrain: LAND_TERRAIN,
     cost: [],   // free, auto-placed on ring 0
@@ -241,7 +241,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE }], // 1 data/hour
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
-    storageCapacityAdd: 0, populationCapacityAdd: 500, fogRevealRadius: 30,
+    storageCapacityAdd: 0, populationCapacityAdd: 5000, fogRevealRadius: 30,
   },
 
   resource_storage: {
@@ -500,7 +500,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   radar_tower: {
     type: 'radar_tower', category: 'science',
     name: 'Радарна вежа',
-    description: 'Планетарний сенсорний масив. Уточнює поклади, атмосферні ризики й пришвидшує локальну телеметрію місій.',
+    description: 'Планетарний сенсорний масив. Пасивно відкриває туман поверхні, уточнює поклади й допомагає місійній навігації.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: HIGH_PLUS_PEAKS,
     cost: [{ resource: 'minerals', amount: 18 }, { resource: 'volatiles', amount: 10 }, { resource: 'isotopes', amount: 3 }],
@@ -508,7 +508,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     energyOutput: 0, energyConsumption: 8, energyStorageAdd: 0,
     production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 2 }], consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
-    storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
+    storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 60,
   },
 
   orbital_telescope: {

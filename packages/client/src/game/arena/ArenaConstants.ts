@@ -8,10 +8,10 @@ import type { WeaponDef, WeaponType } from './ArenaTypes.js';
 // 3D semi-sphere: XZ disc radius = ARENA_HALF, vertical extent = ±ARENA_HEIGHT_HALF.
 // Players can climb/dive within that Y band. The top/bottom caps act like
 // invisible boundaries (same bounce logic as the outer XZ ring).
-// Volume expanded 4× per player request — linear scale ~1.6 (1.6³ ≈ 4.1).
-export const ARENA_SIZE = 3200;
+// Expanded arena volume so TPS dogfights have more room to turn and climb.
+export const ARENA_SIZE = 5200;
 export const ARENA_HALF = ARENA_SIZE / 2;
-export const ARENA_HEIGHT_HALF = 640;
+export const ARENA_HEIGHT_HALF = 1000;
 export const ARENA_GROUND_Y = 5; // ships start / respawn around this Y (was the flat "floor" height)
 
 // Match
@@ -47,7 +47,7 @@ export const COLLISION_DAMAGE_MAX = 50;
 export const COLLISION_SPEED_THRESHOLD = 50; // below this = no damage
 
 // Asteroids
-export const ASTEROID_COUNT = 50;
+export const ASTEROID_COUNT = 70;
 export const ASTEROID_HP = 5;
 export const ASTEROID_MIN_RADIUS = 8;
 export const ASTEROID_MAX_RADIUS = 25;

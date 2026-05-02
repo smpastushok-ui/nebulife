@@ -507,6 +507,8 @@ export function SystemsList({
               );
               const fullyResearched = progressPct >= 100 || (isFullyResearched?.(system.id) ?? false);
               const canResearch = locked || fullyResearched ? false : (canStartResearch?.(system.id) ?? false);
+              const dataCost = getResearchDataCost?.(system) ?? researchDataCost;
+              const hasResearchData = Math.floor(researchData) >= dataCost;
               const isFirstNonHome = system.id === firstNonHomeId;
               const statusLabel = fullyResearched
                 ? t('archive.status_complete')
@@ -516,7 +518,9 @@ export function SystemsList({
                     ? t('archive.status_ready')
                     : locked
                       ? t('archive.status_locked')
-                      : t('archive.status_waiting');
+                  : !hasResearchData
+                    ? t('archive.status_need_data')
+                    : t('archive.status_no_slots');
               const showInsufficientData = insufficientDataId === system.id;
 
               return (

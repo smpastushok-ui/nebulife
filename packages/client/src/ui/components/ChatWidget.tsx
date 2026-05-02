@@ -54,6 +54,9 @@ interface ChatWidgetProps {
   logEntries?: LogEntry[];
   onSystemNotifRead?: (id: string) => void;
   onNavigateToPlanet?: (systemId: string, planetId: string) => void;
+  onNavigateToSystem?: (systemId: string) => void;
+  onOpenSystemReport?: (systemId: string) => void;
+  onOpenLogDiscovery?: (entry: LogEntry) => void;
   /** week_date of the most recently seen digest (from player.last_digest_seen) */
   lastDigestSeen?: string | null;
   /** week_date of the latest complete digest (fetched on app load) */
@@ -87,6 +90,18 @@ const LOG_CATEGORY_COLORS: Record<LogCategory, string> = {
   system: '#667788',
 };
 
+const SYSTEM_ACTION_BUTTON_STYLE: React.CSSProperties = {
+  alignSelf: 'flex-start',
+  background: 'rgba(34,102,170,0.25)',
+  border: '1px solid #4488aa',
+  borderRadius: 3,
+  color: '#7bb8ff',
+  fontFamily: 'monospace',
+  fontSize: 10,
+  padding: '3px 10px',
+  cursor: 'pointer',
+};
+
 // ---------------------------------------------------------------------------
 // Neon pulse animation — mirrors scp-neon-pulse from SceneControlsPanel
 // Used on collapsed button when there are unread messages
@@ -107,7 +122,7 @@ const CHAT_PULSE_KEYFRAMES = `
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenSystemReport, onOpenLogDiscovery, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
 
@@ -371,10 +386,14 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
   // Notify parent of all unread chat activity so the collapsed comms button
   // does not look idle while global messages are waiting.
-  const unreadSystem = systemNotifs.filter(n => !n.read).length;
+  const unreadSystem = (!collapsed && tab === 'system') ? 0 : systemNotifs.filter(n => !n.read).length;
+  const effectiveUnreadGlobal = (!collapsed && tab === 'global') ? 0 : unreadGlobal;
+  const effectiveUnreadAstra = (!collapsed && tab === 'astra') ? 0 : unreadAstra;
+  const effectiveUnreadSystemMessages = (!collapsed && tab === 'system') ? 0 : unreadSystemMessages;
+  const effectiveUnreadDm = (!collapsed && (tab === 'dm-list' || tab === 'dm-chat')) ? 0 : unreadDm;
   useEffect(() => {
-    onUnreadChange?.(unreadGlobal + unreadSystem + unreadSystemMessages + unreadAstra + unreadDm);
-  }, [unreadGlobal, unreadSystem, unreadSystemMessages, unreadAstra, unreadDm, onUnreadChange]);
+    onUnreadChange?.(effectiveUnreadGlobal + unreadSystem + effectiveUnreadSystemMessages + effectiveUnreadAstra + effectiveUnreadDm);
+  }, [effectiveUnreadGlobal, unreadSystem, effectiveUnreadSystemMessages, effectiveUnreadAstra, effectiveUnreadDm, onUnreadChange]);
 
   // Mark system notifs as read when viewing system tab
   useEffect(() => {
@@ -600,7 +619,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
   // ── Collapsed state ──
   if (collapsed) {
-    const totalUnread = unreadGlobal + unreadSystem + unreadSystemMessages + unreadAstra + unreadDm;
+    const totalUnread = effectiveUnreadGlobal + unreadSystem + effectiveUnreadSystemMessages + effectiveUnreadAstra + effectiveUnreadDm;
     const chatIcon = (
       <svg width="23" height="21" viewBox="0 0 24 22" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M8.5 14.5 L12 5 L15.5 14.5" />
@@ -620,16 +639,16 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         onClick={() => {
           playSfx('ui-click', 0.07);
           // Auto-select the tab with unread messages (priority: system > astra > DM > global)
-          if (unreadSystem + unreadSystemMessages > 0) {
+          if (unreadSystem + effectiveUnreadSystemMessages > 0) {
             instantSystemScrollRef.current = true;
             setTab('system');
-          } else if (unreadAstra > 0) {
+          } else if (effectiveUnreadAstra > 0) {
             instantAstraScrollRef.current = true;
             setTab('astra');
             markDigestSeen(latestDigestWeekDate); // mark as read immediately
-          } else if (unreadDm > 0) {
+          } else if (effectiveUnreadDm > 0) {
             setTab('dm-list');
-          } else if (unreadGlobal > 0) {
+          } else if (effectiveUnreadGlobal > 0) {
             instantMessagesScrollRef.current = true;
             setTab('global');
           }
@@ -666,7 +685,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
             position: 'absolute',
             top: 4,
             right: 4,
-            background: unreadSystem + unreadSystemMessages > 0 ? '#4488aa' : unreadAstra > 0 ? '#44ffaa' : '#44ff88',
+            background: unreadSystem + effectiveUnreadSystemMessages > 0 ? '#4488aa' : effectiveUnreadAstra > 0 ? '#44ffaa' : '#44ff88',
             color: '#020510',
             fontSize: 8,
             fontWeight: 'bold',
@@ -713,28 +732,28 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               active={tab === 'astra'}
               onClick={() => { instantAstraScrollRef.current = true; setTab('astra'); setActiveDM(null); markDigestSeen(latestDigestWeekDate); }}
               label="A.S.T.R.A."
-              badge={unreadAstra > 0 ? unreadAstra : undefined}
+              badge={effectiveUnreadAstra > 0 ? effectiveUnreadAstra : undefined}
               badgeColor="#44ffaa"
             />
             <TabButton
               active={tab === 'global'}
               onClick={() => { instantMessagesScrollRef.current = true; setTab('global'); setActiveDM(null); }}
               label={t('chat.tab_global')}
-              badge={unreadGlobal > 0 ? unreadGlobal : undefined}
+              badge={effectiveUnreadGlobal > 0 ? effectiveUnreadGlobal : undefined}
               badgeColor="#44ff88"
             />
             <TabButton
               active={tab === 'dm-list' || tab === 'dm-chat'}
               onClick={() => { setTab('dm-list'); setActiveDM(null); }}
               label="DM"
-              badge={unreadDm > 0 ? unreadDm : undefined}
+              badge={effectiveUnreadDm > 0 ? effectiveUnreadDm : undefined}
               badgeColor="#ddaa44"
             />
             <TabButton
               active={tab === 'system'}
               onClick={() => { instantSystemScrollRef.current = true; setTab('system'); setActiveDM(null); }}
               label={t('chat.tab_system')}
-              badge={unreadSystem + unreadSystemMessages > 0 ? unreadSystem + unreadSystemMessages : undefined}
+              badge={unreadSystem + effectiveUnreadSystemMessages > 0 ? unreadSystem + effectiveUnreadSystemMessages : undefined}
             />
           </div>
           <button
@@ -948,28 +967,32 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                   <div style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4' }}>
                     {notif.text}
                   </div>
-                  {onNavigateToPlanet && (
-                    <button
-                      onClick={() => {
-                        onSystemNotifRead?.(notif.id);
-                        onNavigateToPlanet(notif.systemId, notif.planetId);
-                        setCollapsed(true);
-                      }}
-                      style={{
-                        alignSelf: 'flex-start',
-                        background: 'rgba(34,102,170,0.25)',
-                        border: '1px solid #4488aa',
-                        borderRadius: 3,
-                        color: '#7bb8ff',
-                        fontFamily: 'monospace',
-                        fontSize: 10,
-                        padding: '3px 10px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {t('chat.go_to_planet')}
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {onNavigateToSystem && (
+                      <button
+                        onClick={() => {
+                          onSystemNotifRead?.(notif.id);
+                          onNavigateToSystem(notif.systemId);
+                          setCollapsed(true);
+                        }}
+                        style={SYSTEM_ACTION_BUTTON_STYLE}
+                      >
+                        {t('chat.go_to_system')}
+                      </button>
+                    )}
+                    {onNavigateToPlanet && (
+                      <button
+                        onClick={() => {
+                          onSystemNotifRead?.(notif.id);
+                          onNavigateToPlanet(notif.systemId, notif.planetId);
+                          setCollapsed(true);
+                        }}
+                        style={SYSTEM_ACTION_BUTTON_STYLE}
+                      >
+                        {t('chat.go_to_planet')}
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -1018,6 +1041,54 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                       <div style={{ color: '#8899aa', fontSize: 10, fontFamily: 'monospace', lineHeight: '1.4' }}>
                         {entry.text}
                       </div>
+                      {(entry.systemId || (entry.systemId && entry.planetId) || entry.discoveryRef) && (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {entry.systemId && onNavigateToSystem && (
+                            <button
+                              onClick={() => {
+                                onNavigateToSystem(entry.systemId!);
+                                setCollapsed(true);
+                              }}
+                              style={SYSTEM_ACTION_BUTTON_STYLE}
+                            >
+                              {t('chat.go_to_system')}
+                            </button>
+                          )}
+                          {entry.systemId && entry.planetId && onNavigateToPlanet && (
+                            <button
+                              onClick={() => {
+                                onNavigateToPlanet(entry.systemId!, entry.planetId!);
+                                setCollapsed(true);
+                              }}
+                              style={SYSTEM_ACTION_BUTTON_STYLE}
+                            >
+                              {t('chat.go_to_planet')}
+                            </button>
+                          )}
+                          {entry.objectType === 'system_research' && entry.systemId && onOpenSystemReport && (
+                            <button
+                              onClick={() => {
+                                onOpenSystemReport(entry.systemId!);
+                                setCollapsed(true);
+                              }}
+                              style={SYSTEM_ACTION_BUTTON_STYLE}
+                            >
+                              {t('chat.view_report')}
+                            </button>
+                          )}
+                          {entry.discoveryRef && onOpenLogDiscovery && (
+                            <button
+                              onClick={() => {
+                                onOpenLogDiscovery(entry);
+                                setCollapsed(true);
+                              }}
+                              style={SYSTEM_ACTION_BUTTON_STYLE}
+                            >
+                              {t('chat.view_report')}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

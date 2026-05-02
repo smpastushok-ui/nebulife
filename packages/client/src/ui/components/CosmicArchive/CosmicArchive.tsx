@@ -166,6 +166,10 @@ export interface CosmicArchiveProps {
   colonySystemIds?: string[];
   /** Terraform states keyed by planet ID. */
   terraformStates?: Record<string, PlanetTerraformState>;
+  /** Planet exploration reveal levels keyed by planet ID. */
+  planetRevealLevels?: Record<string, import('@nebulife/core').PlanetRevealLevel>;
+  /** Mission reports keyed by planet ID. */
+  planetReports?: Record<string, import('@nebulife/core').PlanetReportSummary>;
   /** Colony state per planet — for population + building count display. */
   colonyStateByPlanet?: Record<string, PlanetColonyState>;
   /** Navigate directly to a colony planet's surface (closes archive). */
@@ -322,6 +326,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   colonyPlanetIds,
   colonySystemIds,
   terraformStates,
+  planetRevealLevels,
+  planetReports,
   colonyStateByPlanet,
   onOpenColonySurface,
   onOpenColonyCenter,
@@ -539,6 +545,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           colonyPlanetIds={colonyPlanetIds ?? new Set()}
           colonySystemIds={colonySystemIds ?? []}
           terraformStates={terraformStates}
+          planetRevealLevels={planetRevealLevels}
+          planetReports={planetReports}
+          colonyStateByPlanet={colonyStateByPlanet}
           getPlanetResources={getPlanetResources}
           planetResourceStocks={planetResourceStocks}
           onSendTerraformDelivery={onSendTerraformDelivery}
@@ -595,6 +604,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           colonyPlanetIds={colonyPlanetIds ?? new Set()}
           colonySystemIds={colonySystemIds ?? []}
           terraformStates={terraformStates}
+          planetRevealLevels={planetRevealLevels}
+          planetReports={planetReports}
+          colonyStateByPlanet={colonyStateByPlanet}
           getPlanetResources={getPlanetResources}
           planetResourceStocks={planetResourceStocks}
           onSendTerraformDelivery={onSendTerraformDelivery}

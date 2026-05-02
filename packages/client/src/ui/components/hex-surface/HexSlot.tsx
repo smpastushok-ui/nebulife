@@ -182,6 +182,12 @@ const RESOURCE_WEBP_TEMPLATES: Record<string, (n: number) => string> = {
   vent:  (n) => `/buildings/gas${n}.webp`,
   water: (n) => `/buildings/water${n}.webp`,
 };
+const RESOURCE_LABEL_KEYS: Record<string, string> = {
+  ore: 'surface.resource_ore',
+  tree: 'surface.resource_tree',
+  vent: 'surface.resource_vent',
+  water: 'surface.resource_water',
+};
 
 function ResourceContent({
   slot,
@@ -414,7 +420,11 @@ export const HexSlot = React.memo(function HexSlot({
   const [insufficientMsg, setInsufficientMsg] = useState(false);
   const [insufficientCost, setInsufficientCost] = useState<HexSlotData['unlockCost'] | null>(null);
   const [destroyConfirm, setDestroyConfirm] = useState(false);
+  const [resourceHint, setResourceHint] = useState(false);
   const buildingRef = useRef<HTMLDivElement>(null);
+  const resourceLabel = slot.resourceType
+    ? t(RESOURCE_LABEL_KEYS[slot.resourceType] ?? 'surface.resource_unknown')
+    : '';
 
   // Main click handler — uses id to call stable parent callbacks
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -434,6 +444,9 @@ export const HexSlot = React.memo(function HexSlot({
         playSfx('harvest-all', 0.5);
         onHarvest(id, e.clientX, e.clientY);
         setTimeout(() => setHarvestAnim(null), 1200);
+      } else {
+        setResourceHint(true);
+        setTimeout(() => setResourceHint(false), 1800);
       }
     } else if (slot.state === 'empty') {
       onBuild(id);
@@ -469,6 +482,7 @@ export const HexSlot = React.memo(function HexSlot({
           between centers, so overlap with neighbors is minimal. */}
       <div
         onClick={handleClick}
+        title={slot.state === 'resource' ? resourceLabel : undefined}
         style={{
           position: 'absolute',
           inset: 0,
@@ -593,6 +607,26 @@ export const HexSlot = React.memo(function HexSlot({
       )}
       {slot.state === 'resource' && (
         <ResourceContent slot={slot} />
+      )}
+      {slot.state === 'resource' && resourceHint && (
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          bottom: '8%',
+          transform: 'translateX(-50%)',
+          zIndex: 160,
+          padding: '2px 6px',
+          borderRadius: 4,
+          background: 'rgba(3, 8, 14, 0.86)',
+          border: '1px solid rgba(68, 136, 170, 0.45)',
+          color: '#d7e8f4',
+          fontFamily: 'monospace',
+          fontSize: 8,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }}>
+          {resourceLabel}
+        </div>
       )}
       {slot.state === 'empty' && <EmptyContent />}
       {(slot.state === 'building' || slot.state === 'harvester') && (

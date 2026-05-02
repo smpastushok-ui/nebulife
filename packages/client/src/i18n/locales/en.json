@@ -35,7 +35,10 @@
   "cmd": {
     "terminal": "TERMINAL",
     "surface_title": "Surface",
-    "arena": "ARENA"
+    "arena": "ARENA",
+    "planet_icons": "PLANET ICONS",
+    "planet_icons_on": "ICONS ON",
+    "planet_icons_tooltip": "Show orbiting status icons around planets in this system"
   },
   "raid": {
     "loading": "Preparing raid...",
@@ -592,7 +595,8 @@
     "category_unknown": "Unknown",
     "resource_tree": "Timber",
     "resource_ore": "Ore",
-    "resource_vent": "Gas",
+    "resource_vent": "Volatiles",
+    "resource_water": "Water",
     "hide_minimap": "Hide minimap",
     "show_minimap": "Show minimap"
   },
@@ -667,7 +671,40 @@
     "processing_signal": "Processing signal...",
     "awaiting_signal": "Awaiting signal from deep space...",
     "signal_received": "Signal received! Processing image...",
-    "error": "Observatory Error"
+    "error": "Observatory Error",
+    "search_section": "Deep-Space Event Search",
+    "level": "Observatory Level",
+    "xp_progress": "{{current}} / {{required}} XP",
+    "max_level": "Maximum level reached",
+    "active_searches": "Active searches",
+    "catalog_progress": "{{found}} catalog signals found",
+    "program_label": "Search program",
+    "in_progress": "Searches in progress",
+    "duration": {
+      "1h": "1 hour",
+      "6h": "6 hours",
+      "24h": "24 hours"
+    },
+    "duration_desc": "{{chance}}% signal chance",
+    "search_started": "Observatory search started. Results will arrive when the session completes.",
+    "search_no_signal_log": "Observatory search completed: no stable cosmic signal detected.",
+    "search_found_log": "Observatory detected a new cosmic event: {{name}}.",
+    "search_duplicate_log": "Observatory detected a repeated cosmic event: {{name}}.",
+    "level_up_log": "Observatory upgraded to level {{level}}. New search programs and signal filters are available.",
+    "program": {
+      "routine_sky_watch": "Routine Sky Watch",
+      "anomaly_sweep": "Anomaly Sweep",
+      "phenomenon_survey": "Phenomenon Survey",
+      "deep_space_watch": "Deep-Space Watch",
+      "catalog_completion": "Catalog Completion"
+    },
+    "program_desc": {
+      "routine_sky_watch": "Level 1. Searches for standard cosmic events.",
+      "anomaly_sweep": "Level 2. Adds anomaly signatures to the scan.",
+      "phenomenon_survey": "Level 3. Tunes sensors for rare phenomena.",
+      "deep_space_watch": "Level 4. Opens deep-space epic and legendary signatures.",
+      "catalog_completion": "Level 5. Biases scans toward missing catalog entries."
+    }
   },
   "telemetry": {
     "in_collection": "In Collection",
@@ -1254,6 +1291,8 @@
     "status_scanning": "Scanning",
     "status_ready": "Ready",
     "status_locked": "Locked",
+    "status_need_data": "Need data",
+    "status_no_slots": "No free observatories",
     "status_waiting": "Waiting",
     "instant_research_title": "Research with quarks",
     "instant_research_desc": "For {{cost}} ⚛ you can research this system in 1 click",
@@ -1278,6 +1317,15 @@
     "filter_life": "Life",
     "filter_volatiles": "Volatiles",
     "filter_population": "Population",
+    "planet_status": {
+      "orbit": "Orbit researched",
+      "atmosphere": "Atmosphere analyzed",
+      "surface": "Surface researched",
+      "terraform": "Terraforming complete",
+      "colony": "Colony present",
+      "life": "Life detected",
+      "settled": "Population settled"
+    },
     "distance_ly": "{{ly}} LY",
     "no_colonies": "No colonies yet",
     "terraform_progress": "Terraform: {{pct}}%",
@@ -1464,7 +1512,9 @@
     "blocked": "You are temporarily blocked from chat.",
     "message_placeholder": "Message...",
     "system_header": "SYSTEM",
+    "go_to_system": "Go to system",
     "go_to_planet": "Go to planet",
+    "view_report": "View report",
     "no_system_notifs": "No system notifications",
     "new_dm_btn": "+ New Conversation",
     "no_dms": "No conversations",
@@ -1742,6 +1792,12 @@
     "action_open_center_desc": "Jump to the full colony management screen.",
     "action_scan": "Run local scan",
     "action_scan_desc": "Spend 5 Research Data to clarify nearby deposits and signals.",
+    "action_radar_deposit_scan": "Ground-penetrating sweep",
+    "action_radar_deposit_scan_desc": "Spend 5 Research Data to refine finite deposit estimates around this colony.",
+    "action_radar_weather": "Hazard forecast",
+    "action_radar_weather_desc": "Check storm, dust, and atmospheric hazard telemetry for surface operations.",
+    "action_radar_mission_sync": "Mission beacon sync",
+    "action_radar_mission_sync_desc": "Refresh local navigation beacons for probes, carriers, and surface expeditions.",
     "action_inspect_deposit": "Inspect deposit",
     "action_inspect_deposit_desc": "Check the finite stock that feeds this extraction chain.",
     "action_power_check": "Power routing check",
@@ -1784,6 +1840,8 @@
     "action_result_no_deposit": "No finite deposit is connected to this building yet.",
     "action_result_power": "Power route is stable. Critical consumers remain prioritized during shortages.",
     "action_result_chemistry": "Cycle complete: volatiles split into isotope traces and condensed water.",
+    "action_result_radar_weather": "Forecast updated: surface routes and atmospheric risk zones are synchronized with colony sensors.",
+    "action_result_radar_mission_sync": "Mission beacons synchronized. Local probe telemetry has a clean navigation fix.",
     "isotope_depleted_warning": "Isotope deposits on this planet are depleted. Building this extractor here is not useful right now.",
     "danger_zone": "Demolition",
     "demolish": "Demolish building",

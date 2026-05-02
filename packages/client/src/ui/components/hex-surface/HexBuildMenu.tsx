@@ -238,48 +238,6 @@ export function HexBuildMenu({
           </button>
         </div>
 
-        {infoType && (
-          <div style={{
-            margin: '8px',
-            padding: '10px',
-            background: 'rgba(12,22,34,0.92)',
-            border: '1px solid rgba(68,136,170,0.38)',
-            borderRadius: 5,
-            color: '#8899aa',
-            fontSize: 10,
-            lineHeight: 1.45,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-              <strong style={{ color: '#9fd0ff', letterSpacing: 1, textTransform: 'uppercase' }}>
-                {t(`building.${infoType}.name`, BUILDING_DEFS[infoType].name)}
-              </strong>
-              <button
-                type="button"
-                onClick={() => setInfoType(null)}
-                style={{ background: 'none', border: 'none', color: '#667788', cursor: 'pointer', fontFamily: 'monospace' }}
-              >
-                x
-              </button>
-            </div>
-            <div>{t(`building.${infoType}.desc`, BUILDING_DEFS[infoType].description)}</div>
-            <div style={{ marginTop: 7, display: 'grid', gap: 4 }}>
-              <div>{t('building_detail.production')}: {[
-                ...(BUILDING_DEFS[infoType].energyOutput > 0
-                  ? [`${resourceLabel('energy', t)} +${formatRateAmount(BUILDING_DEFS[infoType].energyOutput)}`]
-                  : []),
-                ...BUILDING_DEFS[infoType].production.map((p) => `${resourceLabel(p.resource, t)} +${formatRateAmount(p.amount)}`),
-              ].join(', ') || t('building_detail.no_production')}</div>
-              <div>{t('building_detail.consumption')}: {[
-                ...(BUILDING_DEFS[infoType].energyConsumption > 0
-                  ? [`${resourceLabel('energy', t)} -${formatRateAmount(BUILDING_DEFS[infoType].energyConsumption)}`]
-                  : []),
-                ...BUILDING_DEFS[infoType].consumption.map((c) => `${resourceLabel(c.resource, t)} -${formatRateAmount(c.amount)}`),
-              ].join(', ') || t('building_detail.no_consumption')}</div>
-              <div>{t('academy.needs_level', { level: BUILDING_DEFS[infoType].levelRequired, defaultValue: `L${BUILDING_DEFS[infoType].levelRequired}` })}</div>
-            </div>
-          </div>
-        )}
-
         {/* Building grid — 3 columns per category */}
         <div style={{ padding: '4px 8px 8px' }}>
           {Object.entries(grouped).map(([cat, types]) => (
@@ -320,9 +278,53 @@ export function HexBuildMenu({
                     : canAffordBuilding(def, colonyResources, chemicalInventory));
                   const imgSrc = BUILDING_IMG[type];
 
+                  const infoOpen = infoType === type;
+
                   return (
+                    <React.Fragment key={type}>
+                    {infoOpen && (
+                      <div style={{
+                        gridColumn: '1 / -1',
+                        margin: '2px 0 4px',
+                        padding: '10px',
+                        background: 'rgba(12,22,34,0.92)',
+                        border: '1px solid rgba(68,136,170,0.38)',
+                        borderRadius: 5,
+                        color: '#8899aa',
+                        fontSize: 10,
+                        lineHeight: 1.45,
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                          <strong style={{ color: '#9fd0ff', letterSpacing: 1, textTransform: 'uppercase' }}>
+                            {t(`building.${type}.name`, def.name)}
+                          </strong>
+                          <button
+                            type="button"
+                            onClick={() => setInfoType(null)}
+                            style={{ background: 'none', border: 'none', color: '#667788', cursor: 'pointer', fontFamily: 'monospace' }}
+                          >
+                            x
+                          </button>
+                        </div>
+                        <div>{t(`building.${type}.desc`, def.description)}</div>
+                        <div style={{ marginTop: 7, display: 'grid', gap: 4 }}>
+                          <div>{t('building_detail.production')}: {[
+                            ...(def.energyOutput > 0
+                              ? [`${resourceLabel('energy', t)} +${formatRateAmount(def.energyOutput)}`]
+                              : []),
+                            ...def.production.map((p) => `${resourceLabel(p.resource, t)} +${formatRateAmount(p.amount)}`),
+                          ].join(', ') || t('building_detail.no_production')}</div>
+                          <div>{t('building_detail.consumption')}: {[
+                            ...(def.energyConsumption > 0
+                              ? [`${resourceLabel('energy', t)} -${formatRateAmount(def.energyConsumption)}`]
+                              : []),
+                            ...def.consumption.map((c) => `${resourceLabel(c.resource, t)} -${formatRateAmount(c.amount)}`),
+                          ].join(', ') || t('building_detail.no_consumption')}</div>
+                          <div>{t('academy.needs_level', { level: def.levelRequired, defaultValue: `L${def.levelRequired}` })}</div>
+                        </div>
+                      </div>
+                    )}
                     <div
-                      key={type}
                       onClick={() => { if (canAfford) { onSelect(type); onClose(); } }}
                       style={{
                         display: 'flex',
@@ -364,7 +366,7 @@ export function HexBuildMenu({
                           cursor: 'help',
                         }}
                       >
-                        i
+                        ?
                       </button>
                       {/* Building image — contain to show full image regardless of aspect ratio */}
                       <div style={{
@@ -417,6 +419,7 @@ export function HexBuildMenu({
                         </span>
                       )}
                     </div>
+                    </React.Fragment>
                   );
                 })}
               </div>

@@ -55,6 +55,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
     left: string; top: string;
     side: 'top' | 'bottom' | 'left' | 'right';
     blink: boolean;
+    onScreen: boolean;
   }[]>([]);
   const [playerLocked, setPlayerLocked] = useState(false);
   // Normalized player speed 0..1 — used to drive the edge motion-blur
@@ -263,10 +264,24 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
       const e = engineRef.current;
       if (!e || typeof e.getEdgeMarkers !== 'function') return;
       const raw = e.getEdgeMarkers();
-      // Clamp off-screen bots to the nearest viewport edge.
+      // Clamp off-screen bots to the nearest viewport edge. Red enemies that
+      // are still on-screen also get a small overhead marker so distant ships
+      // do not disappear into the starfield.
       const markers: typeof edgeMarkers = [];
       for (const m of raw) {
-        if (m.onScreen) continue;
+        if (m.onScreen) {
+          if (m.team !== 'red') continue;
+          markers.push({
+            id: m.id,
+            team: m.team,
+            left: `${50 + Math.max(-1, Math.min(1, m.nx)) * 50}%`,
+            top: `${50 + Math.max(-1, Math.min(1, m.ny)) * 50}%`,
+            side: 'top',
+            blink: m.shooting,
+            onScreen: true,
+          });
+          continue;
+        }
         // Decide which side is the closest crossing point, then compute
         // percentage along that side based on the other axis.
         let side: 'top' | 'bottom' | 'left' | 'right';
@@ -291,6 +306,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
           team: m.team,
           left, top, side,
           blink: m.shooting,
+          onScreen: false,
         });
       }
       setEdgeMarkers(markers);
@@ -597,10 +613,8 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
         }} />
       )}
 
-      {/* Edge indicators — tick marks along the viewport perimeter for each
-          bot outside the camera frustum. Red = enemy, blue = ally. If a bot
-          is shooting at you, its tick blinks. Uses screen-space projection
-          from the engine. */}
+      {/* Enemy/edge indicators. Off-screen bots are perimeter ticks; on-screen
+          enemies get overhead red diamonds for long-distance readability. */}
       {ready && edgeMarkers.length > 0 && (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4 }}>
           {edgeMarkers.map(m => (
@@ -609,13 +623,14 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, teamMode = false }: 
               style={{
                 position: 'absolute',
                 left: m.left, top: m.top,
-                width: m.side === 'top' || m.side === 'bottom' ? 18 : 3,
-                height: m.side === 'top' || m.side === 'bottom' ? 3 : 18,
+                width: m.onScreen ? 12 : (m.side === 'top' || m.side === 'bottom' ? 18 : 3),
+                height: m.onScreen ? 12 : (m.side === 'top' || m.side === 'bottom' ? 3 : 18),
                 background: m.team === 'blue' ? '#4488ff' : '#ff4444',
-                opacity: m.blink ? undefined : 0.8,
+                border: m.onScreen ? '1px solid rgba(255,190,190,0.85)' : undefined,
+                opacity: m.blink ? undefined : (m.onScreen ? 0.95 : 0.8),
                 animation: m.blink ? 'arenaEdgeBlink 0.5s linear infinite' : undefined,
-                boxShadow: `0 0 6px ${m.team === 'blue' ? '#4488ff' : '#ff4444'}`,
-                transform: 'translate(-50%, -50%)',
+                boxShadow: `0 0 ${m.onScreen ? 12 : 6}px ${m.team === 'blue' ? '#4488ff' : '#ff4444'}`,
+                transform: m.onScreen ? 'translate(-50%, calc(-100% - 20px)) rotate(45deg)' : 'translate(-50%, -50%)',
               }}
             />
           ))}

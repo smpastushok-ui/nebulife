@@ -337,7 +337,7 @@ function runSingleTick(
     }
   }
 
-  updatePopulationCapacityFromSupport(colony);
+  updatePopulationCapacityFromSupport(colony, techState);
 
   return { shutdownIds: energyResult.shutdownIds, restoredIds, researchDataProduced, elementsProduced, updatedStocks: currentStocks };
 }
@@ -350,12 +350,14 @@ function runSingleTick(
 const MINERAL_ELEMENTS = ['Fe', 'Cu', 'Ti', 'Al', 'Si', 'Ni'];
 const VOLATILE_ELEMENTS = ['H', 'He', 'N', 'C', 'S'];  // O removed: it is now a mineral element
 
-function updatePopulationCapacityFromSupport(colony: PlanetColonyState): void {
-  const housingCapacity = colony.buildings
-    .filter((b) => !b.shutdown)
+function updatePopulationCapacityFromSupport(colony: PlanetColonyState, techState: TechTreeState): void {
+  const activeBuildings = colony.buildings.filter((b) => !b.shutdown);
+  const hasColonyHub = activeBuildings.some((b) => b.type === 'colony_hub');
+  const housingCapacity = activeBuildings
     .reduce((sum, b) => sum + BUILDING_DEFS[b.type].populationCapacityAdd, 0);
-  const foodSupport = colony.buildings
-    .filter((b) => !b.shutdown)
+  const foodOutputMult = getEffectValue(techState, 'food_output_mult', 1);
+  const baseLifeSupport = hasColonyHub ? 5000 : 0;
+  const foodSupport = baseLifeSupport + activeBuildings
     .reduce((sum, b) => {
       const def = BUILDING_DEFS[b.type];
       const hasLifeSupportInputs = def.consumption.every((con) => {
@@ -366,12 +368,32 @@ function updatePopulationCapacityFromSupport(colony: PlanetColonyState): void {
       const foodPerTick = BUILDING_DEFS[b.type].production
         .filter((prod) => prod.resource === 'food')
         .reduce((total, prod) => total + prod.amount, 0);
-      return sum + foodPerTick * 60;
+      return sum + foodPerTick * 60 * foodOutputMult;
     }, 0);
 
   const supportedCapacity = Math.floor(Math.min(housingCapacity, foodSupport));
   colony.population.capacity = supportedCapacity;
-  colony.population.current = Math.min(colony.population.current, supportedCapacity);
+  if (hasColonyHub && colony.population.current <= 0) {
+    colony.population.current = Math.min(5000, supportedCapacity);
+    return;
+  }
+  if (supportedCapacity <= 0) {
+    colony.population.current = 0;
+    return;
+  }
+
+  const current = Math.min(colony.population.current, Math.max(housingCapacity, supportedCapacity));
+  if (current < supportedCapacity) {
+    // Surplus food grows population gradually: roughly 4% of the gap per day.
+    const growth = Math.max(1 / 1440, (supportedCapacity - current) * (0.04 / 1440));
+    colony.population.current = Math.min(supportedCapacity, current + growth);
+  } else if (current > supportedCapacity) {
+    // Food deficit causes a faster controlled decline until support catches up.
+    const decline = Math.max(1 / 720, (current - supportedCapacity) * (0.08 / 1440));
+    colony.population.current = Math.max(supportedCapacity, current - decline);
+  } else {
+    colony.population.current = current;
+  }
 }
 
 /**

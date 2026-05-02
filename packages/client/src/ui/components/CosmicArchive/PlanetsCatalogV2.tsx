@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, Planet, PlanetResourceStocks, Ship, CargoShipment } from '@nebulife/core';
+import type { StarSystem, Planet, PlanetResourceStocks, Ship, CargoShipment, PlanetReportSummary, PlanetRevealLevel, PlanetColonyState } from '@nebulife/core';
 import type { PlanetTerraformState, TerraformParamId, TechTreeState } from '@nebulife/core';
 import {
   isTerraformable,
@@ -41,6 +41,9 @@ interface PlanetsCatalogV2Props {
   colonySystemIds: string[];
   /** Optional terraforming state per planet ID — used for filter value display. */
   terraformStates?: Record<string, PlanetTerraformState>;
+  planetRevealLevels?: Record<string, PlanetRevealLevel>;
+  planetReports?: Record<string, PlanetReportSummary>;
+  colonyStateByPlanet?: Record<string, PlanetColonyState>;
   /** Optional surface navigation callback — opens surface for a planet. */
   onOpenSurface?: (system: StarSystem, planetId: string) => void;
   /** Optional favorites toggle callback. */
@@ -650,12 +653,63 @@ function formatK(n: number, suffix_k: string, suffix_kk: string): string {
 // PlanetCard — single grid cell (frameless, circle only)
 // ---------------------------------------------------------------------------
 
+type PlanetStatusIcon = {
+  id: string;
+  symbol: string;
+  color: string;
+  title: string;
+};
+
+function getPlanetStatusIcons(
+  planet: Planet,
+  t: (key: string) => string,
+  options: {
+    revealLevel?: PlanetRevealLevel;
+    report?: PlanetReportSummary;
+    terraformState?: PlanetTerraformState;
+    hasColony: boolean;
+    colonyState?: PlanetColonyState;
+  },
+): PlanetStatusIcon[] {
+  const icons: PlanetStatusIcon[] = [];
+  const revealLevel = options.revealLevel ?? 0;
+  const reportType = options.report?.missionType;
+  const add = (id: string, symbol: string, color: string, titleKey: string) => {
+    icons.push({ id, symbol, color, title: t(titleKey) });
+  };
+
+  if (revealLevel >= 2 || reportType === 'orbital_probe' || reportType === 'orbital_scan') {
+    add('orbit', 'O', '#7bb8ff', 'archive.planet_status.orbit');
+  }
+  if (reportType === 'deep_atmosphere_probe' || (revealLevel >= 2 && planet.atmosphere)) {
+    add('atmosphere', 'A', '#ffcc66', 'archive.planet_status.atmosphere');
+  }
+  if (revealLevel >= 3 || reportType === 'surface_landing') {
+    add('surface', 'S', '#d7b36a', 'archive.planet_status.surface');
+  }
+  if (options.terraformState?.completedAt) {
+    add('terraform', 'T', '#44ff88', 'archive.planet_status.terraform');
+  }
+  if (options.hasColony) {
+    add('colony', 'C', '#9fd0ff', 'archive.planet_status.colony');
+  }
+  if (planet.hasLife) {
+    add('life', 'L', '#66dd99', 'archive.planet_status.life');
+  }
+  if ((options.colonyState?.population.current ?? 0) > 0) {
+    add('settled', 'P', '#d7e8f4', 'archive.planet_status.settled');
+  }
+
+  return icons;
+}
+
 function PlanetCard({
   planet,
   filterStat,
   activeFilter,
   isSelected,
   isFavorite,
+  statusIcons,
   onClick,
 }: {
   planet: Planet;
@@ -663,6 +717,7 @@ function PlanetCard({
   activeFilter: FilterId | null;
   isSelected: boolean;
   isFavorite: boolean;
+  statusIcons: PlanetStatusIcon[];
   onClick: () => void;
 }) {
   const { t } = useTranslation();
@@ -715,6 +770,7 @@ function PlanetCard({
       {/* Circle wrapper — glow goes here */}
       <div
         style={{
+          position: 'relative',
           borderRadius: '50%',
           width: canvas,
           height: canvas,
@@ -730,6 +786,37 @@ function PlanetCard({
           transition: 'box-shadow 0.2s',
         }}
       >
+        {statusIcons.map((icon, index) => {
+          const angle = (-90 + index * (360 / Math.max(1, statusIcons.length))) * Math.PI / 180;
+          const orbitR = 50;
+          return (
+            <span
+              key={icon.id}
+              title={icon.title}
+              style={{
+                position: 'absolute',
+                left: `calc(50% + ${Math.cos(angle) * orbitR}px)`,
+                top: `calc(50% + ${Math.sin(angle) * orbitR}px)`,
+                transform: 'translate(-50%, -50%)',
+                width: 15,
+                height: 15,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(2,5,16,0.86)',
+                border: `1px solid ${icon.color}`,
+                color: icon.color,
+                fontSize: 8,
+                fontWeight: 700,
+                boxShadow: `0 0 7px ${icon.color}66`,
+                zIndex: 2,
+              }}
+            >
+              {icon.symbol}
+            </span>
+          );
+        })}
         {/* SVG planet representation */}
         <svg width={canvas} height={canvas} viewBox={`0 0 ${canvas} ${canvas}`} style={{ overflow: 'visible' }}>
           <defs>
@@ -1751,6 +1838,9 @@ export function PlanetsCatalogV2({
   colonyPlanetIds,
   colonySystemIds,
   terraformStates,
+  planetRevealLevels,
+  planetReports,
+  colonyStateByPlanet,
   onOpenSurface,
   onToggleFavorite,
   favoritePlanetIds,
@@ -1958,6 +2048,13 @@ export function PlanetsCatalogV2({
           const menuOpen = menuOpenForId === planet.id;
           const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
           const canGoToSurface = isSurfacePlanet && !!onOpenSurface;
+          const statusIcons = getPlanetStatusIcons(planet, t, {
+            revealLevel: planetRevealLevels?.[planet.id],
+            report: planetReports?.[planet.id],
+            terraformState: tfState,
+            hasColony: colonyPlanetIds.has(planet.id),
+            colonyState: colonyStateByPlanet?.[planet.id],
+          });
 
           return (
             <React.Fragment key={planet.id}>
@@ -1972,6 +2069,7 @@ export function PlanetsCatalogV2({
                   activeFilter={selectedFilter}
                   isSelected={isSelected}
                   isFavorite={isFavorite}
+                  statusIcons={statusIcons}
                   onClick={() => {
                     if (focusedPlanetId === planet.id) {
                       // Second click on same focused card: deselect + close panel

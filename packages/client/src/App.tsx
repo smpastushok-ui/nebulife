@@ -95,8 +95,14 @@ import {
   isSolidPlanetForLanding,
   generateStarSystem,
   getRequiredMissionCarrier,
+  COSMIC_CATALOG,
+  createObservatoryState,
+  normalizeObservatoryState,
+  startObservatorySearch,
+  completeReadyObservatorySearches,
+  getObservatoryLevel,
 } from '@nebulife/core';
-import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment } from '@nebulife/core';
+import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
 import type { PlanetMission, PlanetMissionType, PlanetReportSummary, PlanetRevealLevel } from '@nebulife/core';
 import {
@@ -332,6 +338,7 @@ interface SyncedGameState {
   planet_reports?: Record<string, PlanetReportSummary>;
   exploration_payloads?: Partial<Record<ProducibleType, number>>;
   exploration_production_queue?: ExplorationPayloadProductionItem[];
+  observatory_state?: ObservatoryState;
   astra_quiz_answers?: Record<string, number>;
   // Metadata
   synced_at: number;
@@ -704,6 +711,21 @@ function AppInner() {
     catch { /* ignore */ }
   }, [playerStats]);
 
+  const [observatoryState, setObservatoryState] = useState<ObservatoryState>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_observatory_state');
+      if (saved) return normalizeObservatoryState(JSON.parse(saved));
+    } catch { /* ignore */ }
+    return createObservatoryState();
+  });
+  const observatoryStateRef = useRef<ObservatoryState>(observatoryState);
+  observatoryStateRef.current = observatoryState;
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_observatory_state', JSON.stringify(observatoryState)); }
+    catch { /* ignore */ }
+  }, [observatoryState]);
+
   // ── Research Data (scan currency) ──────────────────────────────────────
   const [researchData, setResearchData] = useState<number>(() => {
     try {
@@ -939,6 +961,7 @@ function AppInner() {
   explorationProductionQueueRef.current = explorationProductionQueue;
 
   const [planetMissionClock, setPlanetMissionClock] = useState(() => Date.now());
+  const [systemPlanetStatusIconsMode, setSystemPlanetStatusIconsMode] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_planet_reveal_levels', JSON.stringify(planetRevealLevels)); }
@@ -3088,6 +3111,39 @@ function AppInner() {
     engineRef.current?.setSystemPlanetMissionVisuals(visuals);
   }, [planetMissionClock, planetMissions, state.scene, state.selectedSystem]);
 
+  useEffect(() => {
+    if (state.scene !== 'system' || !state.selectedSystem) {
+      engineRef.current?.setSystemPlanetStatusVisuals([], false);
+      return;
+    }
+
+    const statuses = state.selectedSystem.planets.map((planet) => {
+      const revealLevel = planetRevealLevels[planet.id] ?? 0;
+      const report = planetReports[planet.id];
+      const colonyStateForPlanet = colonyState?.planetId === planet.id ? colonyState : undefined;
+      return {
+        planetId: planet.id,
+        orbit: revealLevel >= 2 || report?.missionType === 'orbital_probe' || report?.missionType === 'orbital_scan',
+        atmosphere: report?.missionType === 'deep_atmosphere_probe' || (revealLevel >= 2 && Boolean(planet.atmosphere)),
+        surface: revealLevel >= 3 || report?.missionType === 'surface_landing',
+        terraformed: Boolean(terraformStates[planet.id]?.completedAt),
+        colony: planet.id === homeInfo?.planet.id || colonyStateForPlanet?.buildings?.some((building) => building.type === 'colony_hub'),
+        life: Boolean(planet.hasLife),
+        settled: (colonyStateForPlanet?.population.current ?? 0) > 0,
+      };
+    });
+    engineRef.current?.setSystemPlanetStatusVisuals(statuses, systemPlanetStatusIconsMode);
+  }, [
+    colonyState,
+    homeInfo?.planet.id,
+    planetReports,
+    planetRevealLevels,
+    state.scene,
+    state.selectedSystem,
+    systemPlanetStatusIconsMode,
+    terraformStates,
+  ]);
+
   const [arenaStats, setArenaStats] = useState<{
     kills: number;
     asteroidKills: number;
@@ -3475,6 +3531,7 @@ function AppInner() {
       'nebulife_planet_reports',
       'nebulife_exploration_payloads',
       'nebulife_exploration_production_queue',
+      'nebulife_observatory_state',
       'nebulife_astra_quiz_answers',
       // Per-planet resources (Phase 7A)
       'nebulife_colony_resources_by_planet',
@@ -3505,6 +3562,7 @@ function AppInner() {
     setResearchState(createResearchState(HOME_OBSERVATORY_COUNT));
     setTechTreeState(createTechTreeState());
     setPlayerStats({ totalCompletedSessions: 0, totalDiscoveries: 0, lastDiscoverySession: 0 });
+    setObservatoryState(createObservatoryState());
     setLogEntries([]);
     setFavoritePlanets(new Set());
     setTutorialStep(0);
@@ -3641,9 +3699,11 @@ function AppInner() {
     if (player?.game_phase === 'onboarding') {
       setResearchState(createResearchState(HOME_OBSERVATORY_COUNT));
       setResearchData(INITIAL_RESEARCH_DATA);
+      setObservatoryState(createObservatoryState());
       setIsExodusPhase(true);
       try { localStorage.setItem('nebulife_research_state', JSON.stringify(createResearchState(HOME_OBSERVATORY_COUNT))); } catch { /* ignore */ }
       try { localStorage.setItem('nebulife_research_data', String(INITIAL_RESEARCH_DATA)); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_observatory_state', JSON.stringify(createObservatoryState())); } catch { /* ignore */ }
       try { localStorage.setItem('nebulife_exodus_phase', 'true'); } catch { /* ignore */ }
       // Clear stale home/evacuation IDs so they don't corrupt the new generation
       try {
@@ -4051,6 +4111,37 @@ function AppInner() {
       });
     }
 
+    if (gs.observatory_state && typeof gs.observatory_state === 'object') {
+      const serverObservatory = normalizeObservatoryState(gs.observatory_state);
+      setObservatoryState((localObservatory) => {
+        const local = normalizeObservatoryState(localObservatory);
+        const sessionsById = new Map(local.sessions.map((session) => [session.id, session]));
+        for (const session of serverObservatory.sessions) sessionsById.set(session.id, session);
+        const events = { ...local.events };
+        for (const [type, record] of Object.entries(serverObservatory.events)) {
+          const existing = events[type];
+          events[type] = existing
+            ? {
+                ...record,
+                count: Math.max(existing.count, record.count),
+                firstDiscoveredAt: Math.min(existing.firstDiscoveredAt, record.firstDiscoveredAt),
+                lastDiscoveredAt: Math.max(existing.lastDiscoveredAt, record.lastDiscoveredAt),
+              }
+            : record;
+        }
+        return {
+          ...local,
+          xp: Math.max(local.xp, serverObservatory.xp),
+          searchesCompleted: Math.max(local.searchesCompleted, serverObservatory.searchesCompleted),
+          successfulSignals: Math.max(local.successfulSignals, serverObservatory.successfulSignals),
+          duplicateSignals: Math.max(local.duplicateSignals, serverObservatory.duplicateSignals),
+          duplicateStreak: Math.max(local.duplicateStreak, serverObservatory.duplicateStreak),
+          sessions: [...sessionsById.values()],
+          events,
+        };
+      });
+    }
+
     if (gs.astra_quiz_answers && typeof gs.astra_quiz_answers === 'object') {
       setAstraQuizAnswers((localAnswers) => ({
         ...localAnswers,
@@ -4437,8 +4528,6 @@ function AppInner() {
   // Research timer — check every 500ms
   useEffect(() => {
     const interval = setInterval(() => {
-      // PERF: Skip research processing when surface is open (saves 2 calls/sec)
-      if (surfaceTargetRef.current) return;
       const now = Date.now();
       const engine = engineRef.current;
       if (!engine) return;
@@ -4508,6 +4597,10 @@ function AppInner() {
                   const research = current.systems[stuckSystem.id];
                   if (research) {
                     setCompletedModalQueue(q => [...q, { system: stuckSystem, research }]);
+                    addLogEntry('science',
+                      t('app.log.system_researched').replace('{system}', stuckSystem.name),
+                      { systemId: stuckSystem.id, objectType: 'system_research' },
+                    );
                     const completionXP = getSystemResearchCompletionXP(stuckSystem) ?? XP_REWARDS.RESEARCH_COMPLETE;
                     awardXP(completionXP, 'research_complete');
                     engineRef.current?.pulseCapillaryTo(stuckSystem.id);
@@ -4580,6 +4673,10 @@ function AppInner() {
                   const research = current.systems[system.id];
                   if (research) {
                     setCompletedModalQueue(q => [...q, { system, research }]);
+                    addLogEntry('science',
+                      t('app.log.system_researched').replace('{system}', system.name),
+                      { systemId: system.id, objectType: 'system_research' },
+                    );
                     const completionXP = getSystemResearchCompletionXP(system) ?? XP_REWARDS.RESEARCH_COMPLETE;
                     awardXP(completionXP, 'research_complete');
                     // Capillary pulse: zip a bead along the home→system edge
@@ -6479,6 +6576,67 @@ function AppInner() {
     ]);
   }, []);
 
+  const handleStartObservatorySearch = useCallback((duration: ObservatorySearchDuration, program: ObservatorySearchProgram): void => {
+    const now = Date.now();
+    setObservatoryState((prev) => startObservatorySearch(
+      normalizeObservatoryState(prev),
+      duration,
+      program,
+      now,
+      `${playerId.current || 'local'}:${homeInfo?.system.id ?? 'home'}`,
+    ));
+    scheduleSyncToServer();
+  }, [homeInfo?.system.id, scheduleSyncToServer]);
+
+  useEffect(() => {
+    if (!homeInfo) return;
+    const completeReady = () => {
+      const now = Date.now();
+      const result = completeReadyObservatorySearches(observatoryStateRef.current, COSMIC_CATALOG, now);
+      if (result.results.length === 0) return;
+
+      setObservatoryState(result.state);
+      const discoveryItems: Array<{ discovery: Discovery; system: StarSystem }> = [];
+      for (const searchResult of result.results) {
+        if (!searchResult.discovery) {
+          addLogEntry('science', t('observatory.search_no_signal_log'));
+          continue;
+        }
+
+        const discovery = { ...searchResult.discovery, systemId: homeInfo.system.id };
+        discoveryItems.push({ discovery, system: homeInfo.system });
+        const entry = getCatalogEntry(discovery.type) as CatalogEntry | undefined;
+        const name = entry ? getCatalogName(entry, i18n.language) : discovery.type;
+        addLogEntry('science',
+          searchResult.duplicate
+            ? t('observatory.search_duplicate_log').replace('{name}', name)
+            : t('observatory.search_found_log').replace('{name}', name),
+          { systemId: homeInfo.system.id, objectType: discovery.type, discoveryRef: discovery },
+        );
+        if (searchResult.leveledUp) {
+          addLogEntry('science',
+            t('observatory.level_up_log').replace('{level}', String(getObservatoryLevel(searchResult.state))),
+            { systemId: homeInfo.system.id, objectType: 'observatory_level' },
+          );
+        }
+      }
+
+      if (discoveryItems.length > 0) {
+        setDiscoveryQueue((queue) => [...queue, ...discoveryItems]);
+        setPlayerStats((stats) => ({
+          ...stats,
+          totalDiscoveries: stats.totalDiscoveries + discoveryItems.length,
+        }));
+      }
+
+      scheduleSyncToServer();
+    };
+
+    completeReady();
+    const id = window.setInterval(completeReady, 30_000);
+    return () => window.clearInterval(id);
+  }, [addLogEntry, homeInfo, i18n.language, scheduleSyncToServer, t]);
+
   // ── Digest modal event listener ──
   useEffect(() => {
     const handleOpenDigest = async (_e: Event) => {
@@ -6774,6 +6932,7 @@ function AppInner() {
       planet_reports: planetReports,
       exploration_payloads: explorationPayloads,
       exploration_production_queue: explorationProductionQueue,
+      observatory_state: observatoryState,
       astra_quiz_answers: astraQuizAnswers,
       // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
       planet_overrides: planetOverrides,
@@ -6822,7 +6981,7 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, astraQuizAnswers, planetOverrides, planetResourceStocks]);
+  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -7418,6 +7577,17 @@ function AppInner() {
 
     case 'system': {
       // Planet actions available via PlanetContextMenu popup
+      toolGroups.push({
+        type: 'buttons',
+        items: [{
+          id: 'planet-status-icons',
+          label: systemPlanetStatusIconsMode ? t('cmd.planet_icons_on') : t('cmd.planet_icons'),
+          variant: 'terminal' as const,
+          active: systemPlanetStatusIconsMode,
+          tooltip: t('cmd.planet_icons_tooltip'),
+          onClick: () => setSystemPlanetStatusIconsMode((prev) => !prev),
+        }],
+      });
       break;
     }
 
@@ -8515,6 +8685,8 @@ function AppInner() {
           shipFleet={shipFleet}
           explorationProductionQueue={explorationProductionQueue}
           onStartPayloadProduction={handleStartPayloadProduction}
+          observatoryState={observatoryState}
+          onStartObservatorySearch={handleStartObservatorySearch}
           shutdownBuildingTypes={colonyState
             ? new Set(colonyState.buildings.filter(b => b.shutdown).map(b => b.type))
             : undefined}
@@ -8844,6 +9016,8 @@ function AppInner() {
             return sysIds;
           })()}
           terraformStates={terraformStates}
+          planetRevealLevels={planetRevealLevels}
+          planetReports={planetReports}
           colonyStateByPlanet={colonyState ? { [colonyState.planetId]: colonyState } : undefined}
           getPlanetResources={getResources}
           planetResourceStocks={planetResourceStocks}
@@ -9169,6 +9343,25 @@ function AppInner() {
               setState((prev) => ({ ...prev, scene: 'planet-view' as const, selectedSystem: sys, selectedPlanet: planet }));
             }
           }}
+          onNavigateToSystem={(systemId) => {
+            const allSystems = engineRef.current?.getAllSystems() ?? [];
+            const sys = allSystems.find((s) => s.id === systemId);
+            if (sys) {
+              engineRef.current?.showSystemScene(sys);
+              setState((prev) => ({ ...prev, scene: 'system' as const, selectedSystem: sys, selectedPlanet: null }));
+            }
+          }}
+          onOpenSystemReport={(systemId) => {
+            const allSystems = engineRef.current?.getAllSystems() ?? [];
+            const sys = allSystems.find((s) => s.id === systemId);
+            const research = researchState.systems[systemId];
+            if (sys && research) {
+              setCompletedModalQueue(q => [{ system: sys, research }, ...q]);
+            }
+          }}
+          onOpenLogDiscovery={(entry) => {
+            if (entry.discoveryRef) handleOpenDiscoveryFromLog(entry.discoveryRef);
+          }}
           lastDigestSeen={lastDigestSeen}
           latestDigestWeekDate={latestDigestWeekDate}
           preferredLanguage={lang}
@@ -9257,22 +9450,36 @@ function AppInner() {
         let energyProduced = 0;
         let energyConsumed = 0;
         let populationCapacity = 0;
+        let foodSupportCapacity = 0;
+        let hasColonyHub = false;
         for (const b of active.buildings) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const def = (BUILDING_DEFS as Record<string, any>)[b.type];
           if (!def) continue;
           if (b.shutdown) continue;
+          if (b.type === 'colony_hub') hasColonyHub = true;
           energyProduced += def.energyOutput ?? 0;
           energyConsumed += def.energyConsumption ?? 0;
           populationCapacity += def.populationCapacityAdd ?? 0;
           for (const p of (def.production ?? []) as Array<{ resource: string; amount: number }>) {
             if (p.resource in perHour) (perHour as any)[p.resource] += p.amount * 60;
+            if (p.resource === 'food') foodSupportCapacity += p.amount * 60 * getEffectValue(techTreeState, 'food_output_mult', 1);
           }
         }
+        const baseLifeSupport = hasColonyHub ? 5000 : 0;
+        const supportedPopulationCapacity = Math.floor(Math.min(
+          populationCapacity,
+          baseLifeSupport + foodSupportCapacity,
+        ));
         const savedPopulation = (colonyState as any)?.population as { current?: number; capacity?: number } | undefined;
+        const currentPopulation = savedPopulation?.current && savedPopulation.current > 0
+          ? savedPopulation.current
+          : hasColonyHub
+            ? Math.min(5000, supportedPopulationCapacity || populationCapacity)
+            : 0;
         active.population = {
-          current: savedPopulation?.current ?? 0,
-          capacity: Math.max(savedPopulation?.capacity ?? 0, populationCapacity),
+          current: Math.round(Math.min(currentPopulation, Math.max(populationCapacity, supportedPopulationCapacity))),
+          capacity: Math.max(savedPopulation?.capacity ?? 0, supportedPopulationCapacity, populationCapacity),
         };
 
         // Resource hexes — passive extraction from natural deposits. Each

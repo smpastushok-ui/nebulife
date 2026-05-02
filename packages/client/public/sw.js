@@ -93,10 +93,20 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful GET responses
-        if (response.ok && event.request.method === 'GET') {
+        // Cache only complete successful GET responses.
+        // Skip 206 Partial Content (Range requests for audio/video) and any
+        // response with a Content-Range header — Cache API rejects those and
+        // the unhandled TypeError ends up in the page console.
+        if (
+          response.ok &&
+          response.status !== 206 &&
+          event.request.method === 'GET' &&
+          !response.headers.has('content-range')
+        ) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          caches.open(CACHE_NAME)
+            .then((cache) => cache.put(event.request, clone))
+            .catch(() => { /* ignore quota / opaque-range / other cache errors */ });
         }
         return response;
       })

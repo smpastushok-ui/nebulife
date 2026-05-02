@@ -82,6 +82,17 @@ interface MissionVisualNode {
   data: PlanetMissionVisual;
 }
 
+export interface PlanetStatusVisual {
+  planetId: string;
+  orbit?: boolean;
+  atmosphere?: boolean;
+  surface?: boolean;
+  terraformed?: boolean;
+  colony?: boolean;
+  life?: boolean;
+  settled?: boolean;
+}
+
 export class SystemScene {
   container: Container;
   /** Max orbital distance in pixels — used to fit all planets on screen */
@@ -99,6 +110,8 @@ export class SystemScene {
   private sysShootingStarTimer = 5000 + Math.random() * 5000; // first: 5-10s
   private outerBeltContainer: Container | null = null;
   private missionVisuals: Map<string, MissionVisualNode> = new Map();
+  private planetStatusVisuals: Map<string, PlanetStatusVisual> = new Map();
+  private planetStatusIconsVisible = false;
 
   /** True while camera is zooming — orbit animations pause to prevent jitter */
   private _freezeOrbits = false;
@@ -587,6 +600,57 @@ export class SystemScene {
 
       visual.data = mission;
       this.drawMissionVisual(planetNode, visual);
+    }
+  }
+
+  setPlanetStatusVisuals(statuses: PlanetStatusVisual[], visible: boolean) {
+    this.planetStatusVisuals = new Map(statuses.map((status) => [status.planetId, status]));
+    this.planetStatusIconsVisible = visible;
+    this.redrawPlanetStatusIcons();
+  }
+
+  private redrawPlanetStatusIcons() {
+    for (const [, node] of this.planetNodes) {
+      const existing = node.container.getChildByName('planet-status-icons');
+      if (existing) node.container.removeChild(existing);
+      if (!this.planetStatusIconsVisible) continue;
+
+      const status = this.planetStatusVisuals.get(node.planet.id);
+      if (!status) continue;
+      const items = [
+        status.orbit && { key: 'O', color: 0x7bb8ff },
+        status.atmosphere && { key: 'A', color: 0xffcc66 },
+        status.surface && { key: 'S', color: 0xd7b36a },
+        status.terraformed && { key: 'T', color: 0x44ff88 },
+        status.colony && { key: 'C', color: 0x9fd0ff },
+        status.life && { key: 'L', color: 0x66dd99 },
+        status.settled && { key: 'P', color: 0xd7e8f4 },
+      ].filter(Boolean) as Array<{ key: string; color: number }>;
+      if (items.length === 0) continue;
+
+      const group = new Container();
+      group.name = 'planet-status-icons';
+      group.zIndex = 10050;
+      const orbitR = getPlanetSize(node.planet) + 13;
+      items.forEach((item, index) => {
+        const angle = (-Math.PI / 2) + (index / items.length) * Math.PI * 2;
+        const g = new Graphics();
+        g.circle(0, 0, 4.5);
+        g.fill({ color: 0x020510, alpha: 0.88 });
+        g.circle(0, 0, 4.5);
+        g.stroke({ color: item.color, width: 1, alpha: 0.9 });
+        const label = new Text({
+          text: item.key,
+          style: { fontSize: 6, fill: item.color, fontFamily: 'monospace', fontWeight: '700' },
+          resolution: 2,
+        });
+        label.anchor.set(0.5);
+        g.addChild(label);
+        g.x = Math.cos(angle) * orbitR;
+        g.y = Math.sin(angle) * orbitR;
+        group.addChild(g);
+      });
+      node.container.addChild(group);
     }
   }
 

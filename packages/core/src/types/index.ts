@@ -56,6 +56,13 @@ export type {
   PlanetMissionProgress,
 } from './planet-exploration.js';
 export type {
+  ObservatorySearchDuration,
+  ObservatorySearchProgram,
+  ObservatorySearchSession,
+  ObservatoryEventRecord,
+  ObservatoryState,
+} from './observatory.js';
+export type {
   TerraformParamId,
   TerraformParamState,
   PlanetTerraformState,

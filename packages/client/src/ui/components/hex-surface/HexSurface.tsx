@@ -19,7 +19,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState } from '@nebulife/core';
+import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram } from '@nebulife/core';
 import { getPlanetSize } from '@nebulife/core';
 
 import { useHexState } from './useHexState.js';
@@ -91,6 +91,8 @@ interface HexSurfaceProps {
   shipFleet?:              FleetState;
   explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
   onStartPayloadProduction?: (type: ProducibleType) => void;
+  observatoryState?: ObservatoryState;
+  onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram) => void;
   /** Opens the Colony Center hub page — fired when the player inspects the
    *  `colony_hub` building. Parent wires this to setShowColonyCenter(true). */
   onOpenColonyCenter?:    (tab?: 'overview' | 'production') => void;
@@ -133,7 +135,7 @@ function resourceBonusFor(resourceType: string, buildings: Array<{ buildingType?
 
 const ZOOM_MIN  = 0.5;
 const ZOOM_MAX  = 2.0;
-const ZOOM_STEP = 0.2;
+const ZOOM_STEP = 0.1;
 const DESKTOP_HEX_COLUMNS: Record<HexPlanetSize, number> = {
   orbital: 4,
   small: 5,
@@ -208,6 +210,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       shipFleet,
       explorationProductionQueue,
       onStartPayloadProduction,
+      observatoryState,
+      onStartObservatorySearch,
       onOpenColonyCenter,
     },
     ref,
@@ -750,6 +754,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             explorationPayloads={explorationPayloads}
             shipFleet={shipFleet}
             explorationProductionQueue={explorationProductionQueue}
+            observatoryState={observatoryState}
+            onStartObservatorySearch={onStartObservatorySearch}
             onClose={() => setDetailSlotId(null)}
             onOpenColonyCenter={onOpenColonyCenter}
             onStartPayloadProduction={onStartPayloadProduction}

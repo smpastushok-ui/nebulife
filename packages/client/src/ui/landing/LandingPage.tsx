@@ -181,10 +181,22 @@ export function LandingPage() {
       setIsTesterUnlocked(true);
       // GA4 policy does not allow sending PII, so the email stays local.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).gtag?.('event', 'tester_lead_submitted', {
-        event_category: 'landing',
-        event_label: 'mobile_test',
-      });
+      const gtag = (window as any).gtag;
+      if (typeof gtag === 'function') {
+        // Custom event for granular reporting in our funnel
+        gtag('event', 'tester_lead_submitted', {
+          event_category: 'landing',
+          event_label: 'mobile_test',
+        });
+        // Standard GA4 'generate_lead' event — recognised automatically by
+        // GA4 Audiences / Conversions, so we can mark it a key event
+        // without further mapping.
+        gtag('event', 'generate_lead', {
+          method: 'mobile_tester_signup',
+          value: 1,
+          currency: 'USD',
+        });
+      }
     } catch {
       setLeadError(t('landing.lead.save_error'));
     } finally {

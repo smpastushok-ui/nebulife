@@ -124,14 +124,15 @@ export interface Discovery {
  */
 /**
  * Per-ring discovery chance ranges (min = standard, max = early-game boost).
- * Tuned so Ring 1 at standard rate (20%) + legendary weight (2%)
- * → all 19 legendaries collectible in ~1 year at 2 data/hr production.
+ * Bonus-only path after the dedicated Observatory search loop was introduced.
+ * Star-system research can still surprise the player, but yearly catalog
+ * completion is now balanced by observatory-search.ts.
  */
 const RING_CHANCE: { min: number; max: number }[] = [
-  { min: 0.12, max: 0.40 },  // Ring 1: 12–40% (was 20–80%, reduced to avoid spam)
-  { min: 0.06, max: 0.25 },  // Ring 2: 6–25%
-  { min: 0.03, max: 0.10 },  // Ring 3: 3–10%
-  { min: 0.01, max: 0.04 },  // Ring 4+: 1–4%
+  { min: 0.02, max: 0.08 },  // Ring 1 bonus chance
+  { min: 0.01, max: 0.05 },  // Ring 2
+  { min: 0.005, max: 0.025 }, // Ring 3
+  { min: 0.002, max: 0.01 }, // Ring 4+
 ];
 
 /**
