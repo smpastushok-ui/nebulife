@@ -245,6 +245,10 @@ export { checkRateLimit, RATE_LIMITS, getClientIP } from './rate-limiter.js';
 // Photo tokens (HMAC-signed tokens for ad-rewarded photo generation)
 export { generatePhotoToken, verifyPhotoToken } from './photo-token.js';
 
+// Google Cloud Text-to-Speech
+export { synthesizeSpeech, synthesizeLongText } from './google-tts-client.js';
+export type { SynthesizeRequest, SynthesizeResult, TtsLanguage, TtsGender } from './google-tts-client.js';
+
 // Cluster Manager
 export {
   findOrCreateClusterForPlayer,

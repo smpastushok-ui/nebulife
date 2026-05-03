@@ -156,6 +156,7 @@ import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { DigestModal } from './ui/components/DigestModal.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
+import { EncyclopediaScreen } from './ui/components/Encyclopedia/EncyclopediaScreen.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
 import { CarrierRaid } from './ui/components/Raid/CarrierRaid.js';
@@ -1855,6 +1856,7 @@ function AppInner() {
   // toward the centre while the archive overlay is mounting.
   const [terminalConverging, setTerminalConverging] = useState(false);
   const [showAcademy, setShowAcademy] = useState(false);
+  const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   // Colony Center — opened by tapping the colony_hub building on the surface.
   // Renders ColonyCenterPage (6 tabs: overview / colonies / production /
   // buildings / events / premium). Closes via the page's own Back button.
@@ -1928,10 +1930,10 @@ function AppInner() {
 
   useEffect(() => {
     if (!showCosmicArchive) return;
-    if (showArena || showRaid || showHangar || showAcademy || showPlayerPage || showColonyCenter || showTerraformPlanet) {
+    if (showArena || showRaid || showHangar || showAcademy || showEncyclopedia || showPlayerPage || showColonyCenter || showTerraformPlanet) {
       setShowCosmicArchive(false);
     }
-  }, [showArena, showRaid, showHangar, showAcademy, showPlayerPage, showColonyCenter, showTerraformPlanet, showCosmicArchive]);
+  }, [showArena, showRaid, showHangar, showAcademy, showEncyclopedia, showPlayerPage, showColonyCenter, showTerraformPlanet, showCosmicArchive]);
 
   // Pause SpaceAmbient when player is on planet surface or inside the
   // Terminal (Cosmic Archive) overlay - those scenes will get their own
@@ -7721,8 +7723,8 @@ function AppInner() {
     }],
   });
 
-  // Academy placeholder — visible in the unified dock, opens a lightweight
-  // stub toast until the Academy entry point is finalized for the new nav.
+  // Cosmic Encyclopedia — wiki-style space-knowledge library, the long-awaited
+  // Academy module. Sits to the right of Terminal in the bottom dock.
   toolGroups.push({
     type: 'buttons',
     items: [{
@@ -7731,8 +7733,8 @@ function AppInner() {
       variant: 'terminal' as const,
       tooltip: t('cmd.academy_tooltip'),
       onClick: () => {
-        setToastMessage(t('hangar.event.coming_soon'));
-        setTimeout(() => setToastMessage(null), 2200);
+        playSfx('ui-click', 0.08);
+        setShowEncyclopedia(true);
       },
       icon: <CommandModeIcon kind="academy" />,
     }],
@@ -9273,6 +9275,11 @@ function AppInner() {
           sharedLessonInfo={sharedLessonInfo}
           onAwardXP={awardXP}
         />
+      )}
+
+      {/* Cosmic Encyclopedia — Academy v2 (wiki-style space-knowledge library) */}
+      {showEncyclopedia && (
+        <EncyclopediaScreen onClose={() => setShowEncyclopedia(false)} />
       )}
 
       {/* Hangar — intermediate page between main game and Space Arena */}

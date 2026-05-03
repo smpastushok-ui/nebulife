@@ -1,0 +1,671 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'mars-water-perseverance',
+  language: 'en',
+  section: 'planetology',
+  order: 6,
+  difficulty: 'current2026',
+  readingTimeMin: 15,
+  title: 'Mars: Water, Perseverance, Mars Sample Return',
+  subtitle: 'From ancient oceans to sealed sample tubes — the planet where humanity is searching for its cosmic neighbors.',
+
+  hero: {
+    cacheKey: 'mars-perseverance-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: NASA Perseverance rover on the reddish-brown floor of Jezero Crater on Mars, ' +
+      'dust-covered rocky terrain, faint pale pink-orange sky with low Sun, rover camera mast visible, ' +
+      'distant crater rim silhouette on the horizon, scientific accuracy, cinematic wide shot, ' +
+      'no text overlays. Mars surface palette: rusty ochre rocks, salmon-pink sky, muted dusty tones.',
+    alt: 'Perseverance rover on the floor of Jezero Crater, Mars',
+    caption: 'Mars, Jezero Crater — home to Perseverance since February 2021. Where a lake once stood, a robot now collects samples destined for Earth.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'In May 2026, Mars is the most actively explored body in the solar system beyond Earth. ' +
+        'More than six spacecraft orbit it simultaneously, two rovers crawl its surface, ' +
+        'and inside Perseverance, metal sample tubes hold material that may answer one of the oldest questions humanity has posed: ' +
+        'was this planet ever alive?',
+
+        'Why Mars? Because it is the only planet where geological traces of ancient liquid water are preserved so clearly ' +
+        'that they can be read from orbit and studied in place. ' +
+        'Because its size and distance from the Sun once permitted a thicker atmosphere and above-freezing temperatures. ' +
+        'And because humanity is now building ships capable of making the journey.',
+      ],
+    },
+
+    {
+      heading: 'Mars by the Numbers',
+      level: 2,
+      paragraphs: [
+        'Mars is the fourth planet from the Sun, at an average distance of about 1.52 astronomical units. ' +
+        'It is nearly half the size of Earth: diameter 6,779 km versus 12,742 km. ' +
+        'A Martian year lasts 687 Earth days, and one Martian day — ' +
+        'called a **_sol_** by scientists and engineers — is 24 hours and 37 minutes.',
+
+        'The Martian atmosphere is extraordinarily thin: surface pressure is only 0.6% of Earth\'s — ' +
+        'roughly equivalent to the air pressure at an altitude of 35 km above our planet. ' +
+        'The atmosphere is 95% carbon dioxide, 2.6% nitrogen, and trace amounts of argon and oxygen. ' +
+        'This composition produces a negligible greenhouse effect, ' +
+        'and the average surface temperature is around minus 60°C. ' +
+        'At the equator in summer, daytime temperatures can reach +20°C, but nights plunge to -80°C.',
+
+        'Mars\'s polar caps consist of two layers. The permanent cap is water ice. ' +
+        'A seasonal layer of frozen CO₂ is deposited on top each winter and disappears every summer. ' +
+        'Those polar caps provided the first direct proof of water\'s presence on Mars, visible even through telescopes.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-from-orbit-globe',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Mars planet seen from space, full disc view, ' +
+          'detailed surface features showing Valles Marineris canyon system, Olympus Mons volcano, white polar ice caps, ' +
+          'reddish-brown terrain, thin dusty atmosphere haze at the limb. ' +
+          'Scientific accuracy, dark space background. ' +
+          'Add the following text labels on the image: "Olympus Mons", "Valles Marineris", "South Polar Cap".',
+        alt: 'Mars from orbit showing Valles Marineris canyon, Olympus Mons, and polar caps',
+        caption: 'The full disc of Mars with its defining geological features: Olympus Mons (21 km tall) and Valles Marineris (4,000 km long).',
+        aspectRatio: '1:1',
+      },
+    },
+
+    {
+      heading: 'The Detective Story of Martian Water',
+      level: 2,
+      paragraphs: [
+        'Nineteenth-century astronomers noted seasonal changes and apparent "canals" on Mars, ' +
+        'but only the space age delivered real evidence. ' +
+        'Images from Mariner 9 and Viking in the 1970s revealed immense valley networks and chaotic terrain ' +
+        'pointing unmistakably to catastrophic ancient floods.',
+
+        'The geomorphological case is overwhelming. The Martian surface is covered in branching valley networks — ' +
+        'ancient river channels hundreds of kilometers long. ' +
+        'Chaotic terrain, where water burst out in catastrophic outflows, formed plains resembling seafloors. ' +
+        'Mineralogy seals the argument: the Mars Reconnaissance Orbiter detected jarosite from orbit — ' +
+        'a potassium iron sulfate that forms only in acidic aqueous environments. ' +
+        'The Opportunity rover found the famous "blueberries" on the surface — hematite spherules that precipitate from water through geochemical reactions.',
+
+        'The most compelling current picture is this: roughly 3–4 billion years ago, ' +
+        'Mars had a thicker atmosphere and liquid water at the surface. ' +
+        'Water existed for millions, perhaps hundreds of millions, of years. ' +
+        'Then, because of Mars\'s low mass and absent magnetic field, the solar wind gradually stripped the atmosphere. ' +
+        'Water partly escaped to space and partly froze into the **_regolith_** and under the poles.',
+      ],
+    },
+
+    {
+      heading: 'The Subsurface Lake: A Radar Signal',
+      level: 3,
+      paragraphs: [
+        'In 2018, an international team announced a remarkable discovery: the MARSIS instrument aboard ESA\'s Mars Express ' +
+        'had detected a persistent radar reflection beneath the south polar ice cap consistent with the profile of liquid water. ' +
+        'The proposed subsurface reservoir lies about 1.5 km deep and spans roughly 20 × 30 km.',
+
+        'In 2020, the same MARSIS instrument found three additional smaller signals adjacent to the first. ' +
+        'The subsurface water is thought to be extremely salty — perchlorate brines ' +
+        'with a freezing point well below zero, allowing them to stay liquid. ' +
+        'However, a portion of the scientific community has challenged this interpretation, ' +
+        'arguing that the observed radar effect could also be produced by solid materials with unusual conductivity — ' +
+        'such as subglacial sedimentary deposits or volcanic ash.',
+
+        'The question remains open as of May 2026. ' +
+        'Continued analysis of MARSIS data has tended to support the liquid water hypothesis, ' +
+        'but the objections are well-founded. ' +
+        'Resolving this definitively would require direct drilling — a task for future missions.',
+
+        '_Recurring Slope Lineae_ (RSL) — dark seasonal streaks on crater slopes — ' +
+        'were long suspected to be flows of briny liquid water. ' +
+        'Detailed analysis of MRO data from the late 2010s showed they are most likely dry flows of sand and dust, not liquid. ' +
+        'That revision is a reminder that Mars science constantly refines itself.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-jezero-crater-map',
+        prompt:
+          'Schematic scientific map illustration for a science encyclopedia: overhead view of Jezero Crater on Mars, ' +
+          'approximately 50 km diameter crater, ancient river delta visible on the western edge, ' +
+          'ancient shoreline ring around inner rim, crater floor with distinct geological units highlighted, ' +
+          'muted Mars color palette (rusty browns, ochres), topographic contour lines. ' +
+          'Add the following text labels on the image: "Jezero Crater", "River Delta", "Ancient Shoreline", "Crater Floor", "50 km".',
+        alt: 'Map of Jezero Crater on Mars showing the river delta and ancient shoreline',
+        caption: 'Jezero Crater: the ancient river delta on the west and the newly identified shoreline unit paint a complete picture of a lake basin that existed 3.5 billion years ago.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Perseverance: Five Years in Jezero Crater',
+      level: 2,
+      paragraphs: [
+        'On February 18, 2021, the Perseverance rover completed its seven-month journey ' +
+        'and touched down in Jezero Crater — an ancient lake basin 49 km in diameter at 18.4°N on Mars. ' +
+        'That this was once a lake fed by a river is visible from orbit: ' +
+        'a textbook delta structure marks the western rim. ' +
+        'The scientific goal: search for signs of ancient microbial life, ' +
+        'or at minimum build a precise chemical portrait of the conditions under which it might have existed.',
+
+        'The landing used the **_EDL_** (Entry, Descent, Landing) procedure: ' +
+        'aerodynamic braking in the atmosphere, parachute deployment, ' +
+        'and a final hover using a rocket-powered descent stage ' +
+        'that lowered the rover on cables — the "sky crane." ' +
+        'This was the third successful application of the technique after Curiosity (2012).',
+
+        'Over more than five years of operation as of May 2026, Perseverance has traveled over 40 kilometers. ' +
+        'The traverse has covered the crater floor, the ancient delta to the west, the Margin Unit shoreline zone, ' +
+        'and in December 2024, the rover climbed to the rim of Jezero Crater — ' +
+        'the first rover to scale such a steep crater wall. ' +
+        'In early 2026, it is exploring an area the team calls "Witch Hazel Hill."',
+      ],
+    },
+
+    {
+      heading: 'Key Discoveries: Organics, Shorelines, and Potential Biosignatures',
+      level: 3,
+      paragraphs: [
+        'In July 2024, Perseverance sampled a rock named "Cheyava Falls." ' +
+        'Analysis revealed **organic molecules** — carbon-based compounds — ' +
+        'alongside iron-bearing minerals vivianite (hydrated iron phosphate) and greigite (iron sulfide), ' +
+        'forming a distinctive pattern the team called "leopard spots." ' +
+        'On Earth, exactly such mineral associations are most commonly a signature of microbial activity. ' +
+        'NASA formally classified the find as a "potential biosignature," ' +
+        'while emphasizing that non-biological scenarios remain possible.',
+
+        'In September 2025, a major paper published in Nature presented systematic analysis of Jezero sedimentary rocks: ' +
+        'organic compounds appear repeatedly, in consistent association with phosphate minerals. ' +
+        'This strengthens the hypothesis of a chemically rich environment where simple life could have thrived.',
+
+        'In January 2026, researchers from Imperial College London published results from the Margin Unit — ' +
+        'the inner rim of Jezero. ' +
+        'They found laminated sandstones with rounded olivine and carbonate grains showing wave-generated bedding structures: ' +
+        'unambiguous evidence of waves lapping on an ancient shoreline. ' +
+        'This marks the first definitive identification of an ancient marine shoreline on Mars, ' +
+        'and pushes the period of habitable surface conditions further back in time than previously understood.',
+
+        'In parallel, Perseverance\'s MOXIE experiment demonstrated the production of oxygen from Martian CO₂. ' +
+        'By the end of 2023, MOXIE had produced over 100 grams of oxygen, proving the **_ISRU_** concept ' +
+        '(In-Situ Resource Utilization) — a cornerstone technology for future human missions.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-perseverance-closeup',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: close-up view of the NASA Perseverance Mars rover on reddish-brown Martian surface, ' +
+          'detailed shot showing rover body, wheels, camera mast, robotic arm extended toward a rock, ' +
+          'drill marks visible on a nearby rock sample, dusty terrain with pebbles and fine regolith, ' +
+          'pale salmon-pink Martian sky. Scientific accuracy, NASA photography style. ' +
+          'Add the following text labels on the image: "Robotic Arm", "PIXL Instrument", "Sample Core".',
+        alt: 'Perseverance rover robotic arm with drilling system taking a rock sample',
+        caption: 'The Perseverance robotic arm with its drilling system. Rock cores are preserved in hermetically sealed titanium sample tubes.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Ingenuity: 72 Flights and a Quiet Retirement',
+      level: 2,
+      paragraphs: [
+        'Perseverance carried a small companion to Mars: the Ingenuity helicopter — ' +
+        'a technology demonstration weighing 1.8 kg. ' +
+        'On April 19, 2021, Sol 58 of the mission, it spun its rotors and lifted off the Martian surface. ' +
+        'The first powered, controlled flight on another planet in history lasted 39.1 seconds and reached an altitude of 3 meters.',
+
+        'The mission specification called for five flights over thirty days. ' +
+        'Ingenuity completed seventy-two. ' +
+        'Over three years it covered more than 17 kilometers, ' +
+        'reached a maximum speed of 10 m/s, and flew as high as 24 meters. ' +
+        'It served as a scout for Perseverance, surveying routes and points of geological interest from the air.',
+
+        'On January 18, 2024, during its 72nd flight, one or more rotor blades sustained damage on landing. ' +
+        'NASA formally ended the mission on January 25, 2024. ' +
+        'Ingenuity remains on Mars — where it fell, in Jezero Crater. ' +
+        'Its legacy: proof that heavier-than-air vehicles can fly in the Martian atmosphere, ' +
+        'opening the door for the next generation of Martian aviation.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-ingenuity-flight',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: NASA Ingenuity helicopter hovering above reddish Mars surface, ' +
+          'rotor blades spinning creating slight dust disturbance below, ' +
+          'Perseverance rover visible in background at safe distance observing, ' +
+          'pale pinkish-orange Martian sky, dramatic low-angle shot. ' +
+          'Add the following text labels on the image: "Ingenuity", "First Flight Apr 2021", "Jezero Crater".',
+        alt: 'Ingenuity helicopter in flight above Mars surface with Perseverance rover in the background',
+        caption: 'Ingenuity, the first aircraft to fly on another world, completed 72 flights against an original target of five and operated three years beyond its design life.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Mars Sample Return: The Most Expensive Mission That Stumbled',
+      level: 2,
+      paragraphs: [
+        'Alongside its scientific work, Perseverance has been performing a second critical task: ' +
+        'collecting samples and sealing them in hermetic **_titanium sample tubes_**, ' +
+        'so that a future spacecraft can retrieve them and bring them to Earth. ' +
+        'As of July 2025, 33 of 43 sample tubes had been filled — ' +
+        'igneous, sedimentary, mixed, and impact rocks; regolith samples; and an atmosphere sample. ' +
+        'The collection is already considered the most valuable cache of extraterrestrial material ever assembled.',
+
+        'The Mars Sample Return (MSR) mission was designed to retrieve those samples. ' +
+        'Under the original NASA–ESA plan, a retrieval spacecraft would have launched in the early 2030s, ' +
+        'with samples reaching Earth somewhere between 2035 and 2039. ' +
+        'But the project encountered a crisis that threatens to negate decades of work.',
+
+        'In 2023, an independent review found that under the original architecture, ' +
+        'MSR would cost between $8 billion and $11 billion — ' +
+        'far beyond what NASA\'s planetary science budget could absorb. ' +
+        'NASA responded by opening a competition for alternative architectures: ' +
+        'an upgraded sky crane and a commercially provided heavy lander, ' +
+        'with preliminary costs estimated at $6–8 billion.',
+
+        'In May 2025, the Trump administration\'s proposed NASA budget for FY2026 effectively cancelled MSR on the US side. ' +
+        'In January 2026, Congress passed a spending package that eliminated nearly all MSR funding. ' +
+        'ESA subsequently cancelled development of its Earth Return Orbiter (ERO), ' +
+        'beginning negotiations with prime contractor Airbus about repurposing the developed technologies. ' +
+        'As of May 2026, the status of MSR is "at risk but not officially closed": ' +
+        'alternative concepts are under discussion, negotiations between NASA and ESA continue, ' +
+        'but no clear path to implementation exists.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Mars Sample Return Mission Architecture (Conceptual)',
+        svg: `<svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="700" height="360" fill="rgba(10,15,25,0.5)" rx="4"/>
+
+  <!-- Mars circle -->
+  <circle cx="150" cy="180" r="72" fill="#cc6644" opacity="0.85"/>
+  <text x="150" y="185" text-anchor="middle" fill="#020510" font-family="monospace" font-size="13" font-weight="bold">MARS</text>
+
+  <!-- Earth circle -->
+  <circle cx="580" cy="180" r="52" fill="#4488aa" opacity="0.85"/>
+  <text x="580" y="185" text-anchor="middle" fill="#020510" font-family="monospace" font-size="13" font-weight="bold">EARTH</text>
+
+  <!-- ERO orbit arc around Mars -->
+  <ellipse cx="150" cy="180" rx="105" ry="50" fill="none" stroke="#7bb8ff" stroke-width="1.2" stroke-dasharray="6,4" opacity="0.7"/>
+  <text x="150" y="90" text-anchor="middle" fill="#7bb8ff" font-family="monospace" font-size="10">ERO (Earth Return Orbiter)</text>
+
+  <!-- Transfer arrow -->
+  <line x1="265" y1="160" x2="515" y2="160" stroke="#ff8844" stroke-width="1.5" marker-end="url(#arrowOrangeEn)"/>
+  <text x="390" y="152" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="10">Sample Capsule</text>
+  <text x="390" y="167" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">~6-9 months transit</text>
+
+  <!-- MAV label on Mars surface -->
+  <rect x="100" y="238" width="100" height="22" fill="rgba(20,30,45,0.8)" rx="2"/>
+  <text x="150" y="253" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="10">MAV: Mars Ascent Vehicle</text>
+
+  <!-- Perseverance label -->
+  <rect x="68" y="265" width="164" height="20" fill="rgba(20,30,45,0.8)" rx="2"/>
+  <text x="150" y="279" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="10">Perseverance (samples ready)</text>
+
+  <!-- Earth re-entry label -->
+  <rect x="530" y="238" width="120" height="22" fill="rgba(20,30,45,0.8)" rx="2"/>
+  <text x="590" y="253" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="10">Capsule re-entry</text>
+
+  <!-- Arrow defs -->
+  <defs>
+    <marker id="arrowOrangeEn" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#ff8844"/>
+    </marker>
+  </defs>
+
+  <!-- Step labels -->
+  <text x="150" y="320" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">1. Sample collection (done)</text>
+  <text x="390" y="320" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">2. MAV -> ERO rendezvous -> transit to Earth</text>
+  <text x="580" y="320" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">3. Entry capsule</text>
+
+  <!-- Status warning -->
+  <rect x="180" y="24" width="340" height="28" fill="rgba(204,68,68,0.18)" rx="3" stroke="#cc4444" stroke-width="1"/>
+  <text x="350" y="42" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="10">Status: US funding cancelled (01.2026). Architecture under review.</text>
+</svg>`,
+        caption: 'Conceptual architecture of Mars Sample Return: Perseverance fills tubes, the Mars Ascent Vehicle (MAV) carries them to orbit, the ERO docks and transits to Earth. All steps beyond the first are currently frozen.',
+      },
+    },
+
+    {
+      heading: 'Who Else Is at Mars in 2026',
+      level: 2,
+      paragraphs: [
+        '**Curiosity** — NASA\'s rover, operating in Gale Crater since August 2012. ' +
+        'Over thirteen years it has driven more than 33 kilometers and is climbing the slopes of Mount Sharp. ' +
+        'Curiosity detected methane in the Martian atmosphere — seasonal variations that remain unexplained — ' +
+        'and documented ancient lake sediments where simple life could have existed. ' +
+        'The rover continues operating, though output from its radioisotope power source is gradually declining.',
+
+        '**Mars Reconnaissance Orbiter** (MRO, NASA, 2006) remains the primary eye over Mars: ' +
+        'the HiRISE camera delivers imagery at up to 25 cm/pixel resolution, ' +
+        'tracking landing missions, dust storms, crater walls, and landslides.',
+
+        '**MAVEN** (NASA, 2014) measures the loss of the Martian atmosphere to the solar wind, ' +
+        'answering how Mars lost its protective atmospheric envelope.',
+
+        '**ExoMars Trace Gas Orbiter** (ESA/Roscosmos, 2016) analyses trace gases in the atmosphere, ' +
+        'including methane, with extraordinary precision. ' +
+        'It continues operating even as the ExoMars Rosalind Franklin rover remains grounded ' +
+        'following the end of Russian cooperation. ' +
+        'A revised mission configuration without Roscosmos is planned for launch in 2028.',
+
+        '**UAE Hope Probe** (2021) studies Martian weather and atmospheric dynamics as a whole system. ' +
+        'In February 2026, the UAE Space Agency announced an extension of the mission through 2028. ' +
+        'In October 2025, Hope captured observations of interstellar comet 3I/ATLAS — an unexpected bonus.',
+
+        '**Tianwen-1** (China, 2021): the orbiter continues surface imaging; ' +
+        'the Zhurong rover entered hibernation in May 2022 and is presumed permanently inactive.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-active-fleet-2026',
+        prompt:
+          'Schematic illustration for a science encyclopedia: orbital diagram showing Mars with multiple spacecraft in orbit, ' +
+          'labeled spacecraft icons at different orbital altitudes, Mars surface with rover icons, ' +
+          'clean technical diagram style, dark space background, Game Bible palette colors. ' +
+          'Add the following text labels on the image: "MRO", "MAVEN", "TGO", "Hope", "Tianwen-1", "Curiosity (surface)", "Perseverance (surface)".',
+        alt: 'Diagram of the active Mars fleet in 2026 — orbiters and rovers',
+        caption: 'Mars in 2026: six orbiters and two surface rovers — the greatest simultaneous scientific coverage in the history of Mars exploration.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Chinese Challenger: Tianwen-3',
+      level: 3,
+      paragraphs: [
+        'While MSR remains in limbo, China is methodically advancing its own Mars sample return effort. ' +
+        'Tianwen-3 is China\'s first Mars sample return mission, ' +
+        'with launch targeted for 2028 and return of at least 500 grams of Martian material around 2031.',
+
+        'Unlike NASA\'s approach, Tianwen-3 will not use a rover to collect samples. ' +
+        'Instead, a drone will survey terrain within several hundred meters of the landing site. ' +
+        'As of March 2026, the mission entered the flight model development phase, ' +
+        'and three final candidate landing sites are to be selected by the end of 2026.',
+
+        'If the schedule holds, China could return Martian samples to Earth before the United States — ' +
+        'a moment that would carry significant geopolitical weight in the broader narrative of space exploration.',
+      ],
+    },
+
+    {
+      heading: 'Humans on Mars: The Horizon',
+      level: 2,
+      paragraphs: [
+        'NASA officially pursues its Moon to Mars program: ' +
+        'the Moon as a proving ground, Mars as the ultimate destination. ' +
+        'The Artemis program is meant to validate long-duration spaceflight and **_ISRU_** technologies ' +
+        'before committing crews to a voyage 56–400 million kilometers away ' +
+        '— the range of Earth–Mars distances depending on orbital geometry.',
+
+        'SpaceX promotes Starship as the Mars vehicle. ' +
+        'Elon Musk has repeatedly cited a crewed mission before the end of the 2020s. ' +
+        'Most independent analysts consider the late 2030s a more realistic first launch window, ' +
+        'by which point life support systems, medical protocols, and radiation shielding ' +
+        'would need to have been validated to a far higher standard than exists today.',
+
+        'The most technically challenging obstacles remain: ' +
+        'protection from cosmic radiation during a seven-month transit (no magnetosphere), ' +
+        'psychological resilience of a small, isolated crew, ' +
+        'autonomous medical care, ' +
+        'and in-situ production of propellant for the return journey.',
+
+        'Terraforming Mars — transforming it into a human-habitable world — ' +
+        'is the subject of science fiction and serious technical calculation alike, but not near-future engineering. ' +
+        'Even the most optimistic scenarios offer no breathable air for hundreds or thousands of years. ' +
+        'Yet the thought experiment forces scientists to understand the Martian climate, ' +
+        'water cycle, and geology with greater precision — and that knowledge is useful now.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Earth and Mars Orbits Around the Sun (Schematic, not to scale)',
+        svg: `<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="600" height="600" fill="rgba(10,15,25,0.5)" rx="4"/>
+
+  <!-- Sun -->
+  <circle cx="300" cy="300" r="22" fill="#ff8844" opacity="0.95"/>
+  <text x="300" y="305" text-anchor="middle" fill="#020510" font-family="monospace" font-size="10" font-weight="bold">SUN</text>
+
+  <!-- Earth orbit -->
+  <ellipse cx="300" cy="300" rx="145" ry="140" fill="none" stroke="#4488aa" stroke-width="1.4" stroke-dasharray="5,3" opacity="0.7"/>
+
+  <!-- Earth -->
+  <circle cx="445" cy="300" r="12" fill="#4488aa"/>
+  <text x="463" y="298" fill="#7bb8ff" font-family="monospace" font-size="11">Earth</text>
+  <text x="463" y="312" fill="#667788" font-family="monospace" font-size="9">1 AU</text>
+
+  <!-- Mars orbit -->
+  <ellipse cx="300" cy="300" rx="215" ry="207" fill="none" stroke="#cc6644" stroke-width="1.4" stroke-dasharray="5,3" opacity="0.6"/>
+
+  <!-- Mars -->
+  <circle cx="300" cy="86" r="9" fill="#cc6644"/>
+  <text x="314" y="84" fill="#cc6644" font-family="monospace" font-size="11">Mars</text>
+  <text x="314" y="97" fill="#667788" font-family="monospace" font-size="9">1.52 AU</text>
+
+  <!-- Opposition label: closest approach -->
+  <line x1="300" y1="286" x2="445" y2="300" stroke="#44ff88" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="360" y="278" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="9">~56M km (opposition)</text>
+
+  <!-- Far side label -->
+  <text x="300" y="588" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">Not to scale. Earth-Mars distance: 56-401 million km.</text>
+</svg>`,
+        caption: 'Earth and Mars orbits: the distance between the planets ranges from 56 million km at closest approach (opposition) to 401 million km when they are on opposite sides of the Sun. This geometry defines launch windows.',
+      },
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-sample-tubes-diagram',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: NASA Perseverance Mars rover sample tube — ' +
+          'a slim titanium cylindrical sample tube container, gleaming metal surface, ' +
+          'shown both sealed and open with small rock core visible inside, ' +
+          'clean scientific product photo style, dark background, scientific annotation. ' +
+          'Add the following text labels on the image: "Titanium Sample Tube", "Rock Core", "Hermetic Seal", "Length: 15 cm".',
+        alt: 'Perseverance titanium sample tubes — sealed and open showing a rock core',
+        caption: 'Each of Perseverance\'s 43 sample tubes is a 15 cm titanium container engineered to preserve Martian material hermetically for decades.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Why the Samples Matter',
+      level: 2,
+      paragraphs: [
+        'The most sensitive instruments on any rover are still a kilogram of electronics, ' +
+        'optics, and chemical reagents that survived launch and a violent landing. ' +
+        'A laboratory mass spectrometer on Earth weighs tonnes and resolves isotopic ratios ' +
+        'with precision no spacecraft instrument can approach.',
+
+        'Isotopic geochemistry has delivered most of what we know about the age and origin of the solar system ' +
+        '— derived from meteorites. ' +
+        'Martian meteorites already exist: roughly 200 have been found on Earth. ' +
+        'But all were ejected by large impacts and have unknown, possibly unrepresentative origins. ' +
+        'Perseverance, by contrast, is collecting samples at geologically chosen, documented locations ' +
+        'directly from a lake floor, a shoreline, and an ancient river delta. ' +
+        'The difference is fundamental.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Jezero Crater',
+      definition: 'A 49 km impact crater in the Isidis Planitia region of Mars. Approximately 3.5 billion years ago it held a lake fed by a river whose delta is preserved on the western rim. Landing site of the Perseverance rover.',
+    },
+    {
+      term: 'Regolith',
+      definition: 'The unconsolidated surface layer of a planetary body — a mixture of dust, small rocks, and debris formed by meteorite bombardment and weathering. Martian regolith often contains perchlorates.',
+    },
+    {
+      term: 'Perchlorates',
+      definition: 'Salts of perchloric acid (ClO₄⁻), widely distributed in Martian regolith. They depress the freezing point of water, potentially sustaining liquid brines, but are toxic to most Earth organisms.',
+    },
+    {
+      term: 'RSL (Recurring Slope Lineae)',
+      definition: 'Dark seasonal streaks on Martian crater slopes that fade in winter. Initially attributed to flows of briny liquid water; current evidence suggests they are most likely dry flows of sand and dust.',
+    },
+    {
+      term: 'Sol',
+      definition: 'One Martian day — 24 hours, 37 minutes, and 22.66 seconds. Used by NASA missions to schedule rover activities. Sol 1 = first full day after landing.',
+    },
+    {
+      term: 'EDL (Entry, Descent, Landing)',
+      definition: 'The sequence of atmospheric entry, descent, and surface landing. For Perseverance this included aerodynamic braking, parachute deployment, and a final sky crane descent on cables from a rocket-powered platform.',
+    },
+    {
+      term: 'ISRU (In-Situ Resource Utilization)',
+      definition: 'The use of local planetary resources — for example, producing oxygen from atmospheric CO₂ or propellant from water ice. A critical enabling technology for extended human missions to Mars.',
+    },
+    {
+      term: 'MARSIS',
+      definition: 'Mars Advanced Radar for Subsurface and Ionosphere Sounding — a radar sounder aboard ESA\'s Mars Express orbiter. In 2018 and 2020 it detected signals interpreted as subsurface liquid water lakes beneath the south polar cap.',
+    },
+    {
+      term: 'MAV (Mars Ascent Vehicle)',
+      definition: 'The rocket element of Mars Sample Return tasked with launching sealed sample tubes from the Martian surface to orbit, where they would be collected by the Earth Return Orbiter.',
+    },
+    {
+      term: 'Biosignature',
+      definition: 'A chemical, mineralogical, or morphological feature that on Earth is predominantly produced by living organisms. The Cheyava Falls find is a "potential biosignature" — abiotic formation remains scientifically possible.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'In which month and year did Perseverance land on Mars?',
+      options: [
+        'November 2020',
+        'February 2021',
+        'April 2021',
+        'August 2022',
+      ],
+      correctIndex: 1,
+      explanation: 'Perseverance landed on February 18, 2021, in Jezero Crater using the sky crane EDL system.',
+    },
+    {
+      question: 'What is "Cheyava Falls" in the context of the Perseverance mission?',
+      options: [
+        'An ancient canyon on the rim of Jezero Crater',
+        'A rock sample containing potential biosignatures',
+        'The site of Ingenuity\'s first flight',
+        'A subsurface lake detected by MARSIS',
+      ],
+      correctIndex: 1,
+      explanation: 'Cheyava Falls is the name of a rock sampled in July 2024. It contains organic molecules and iron-bearing minerals in associations characteristic of biological processes on Earth.',
+    },
+    {
+      question: 'How many flights did the Ingenuity helicopter complete before its mission ended?',
+      options: [
+        '5 flights',
+        '21 flights',
+        '72 flights',
+        '108 flights',
+      ],
+      correctIndex: 2,
+      explanation: 'Ingenuity completed 72 flights against an original target of five. The mission ended in January 2024 after rotor blade damage during landing.',
+    },
+    {
+      question: 'What is the status of Mars Sample Return as of May 2026?',
+      options: [
+        'Successfully launched and en route to Mars',
+        'Actively developed under the original NASA-ESA plan',
+        'US funding effectively cancelled; the program\'s future is uncertain',
+        'Replaced by Tianwen-3 under a NASA-China agreement',
+      ],
+      correctIndex: 2,
+      explanation: 'In January 2026, the US Congress passed a spending package that eliminated nearly all MSR funding. ESA cancelled ERO development. Alternative concepts are being discussed but no clear path exists.',
+    },
+    {
+      question: 'What is ISRU and why does it matter for human missions to Mars?',
+      options: [
+        'An AI-based rover navigation system',
+        'A technology for producing resources (oxygen, propellant) from local planetary materials',
+        'A high-bandwidth deep-space data relay protocol',
+        'A medical monitoring protocol for astronauts',
+      ],
+      correctIndex: 1,
+      explanation: 'ISRU (In-Situ Resource Utilization) means producing what you need from what is already there — for example, oxygen from Martian CO₂. It is essential for human Mars missions because carrying all consumables from Earth is prohibitively expensive.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Mars 2020: Perseverance Rover — NASA Science',
+      url: 'https://science.nasa.gov/mission/mars-2020-perseverance/',
+      meta: 'Official NASA mission page',
+    },
+    {
+      title: 'After Three Years on Mars, NASA\'s Ingenuity Helicopter Mission Ends',
+      url: 'https://www.nasa.gov/news-release/after-three-years-on-mars-nasas-ingenuity-helicopter-mission-ends/',
+      meta: 'NASA press release, January 2024',
+    },
+    {
+      title: 'NASA Says Mars Rover Discovered Potential Biosignature Last Year',
+      url: 'https://www.jpl.nasa.gov/news/nasa-says-mars-rover-discovered-potential-biosignature-last-year/',
+      meta: 'JPL / NASA, September 2025',
+    },
+    {
+      title: 'New clues to Mars\'s habitability in discovery of ancient beach',
+      url: 'https://www.imperial.ac.uk/news/articles/engineering/earth-science/2026/new-clues-to-marss-habitability-in-discovery-of-ancient-beach/',
+      meta: 'Imperial College London, January 2026; Journal of Geophysical Research: Planets',
+    },
+    {
+      title: 'Mars Express detects liquid water hidden under planet\'s south pole',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/Mars_Express/Mars_Express_detects_liquid_water_hidden_under_planet_s_south_pole',
+      meta: 'ESA, 2018',
+    },
+    {
+      title: 'Mars Express finds more underground water on Mars',
+      url: 'https://www.esa.int/ESA_Multimedia/Videos/2020/09/Mars_Express_finds_more_underground_water_on_Mars',
+      meta: 'ESA, 2020',
+    },
+    {
+      title: 'The Fate of NASA\'s Mars Sample Return Program May Be Decided in 2026',
+      url: 'https://www.scientificamerican.com/article/the-fate-of-nasas-mars-sample-return-program-may-be-decided-in-2026/',
+      meta: 'Scientific American',
+    },
+    {
+      title: 'Mars Sample Return — NASA Science',
+      url: 'https://science.nasa.gov/mission/mars-sample-return/',
+      meta: 'Official NASA program page',
+    },
+    {
+      title: 'Tianwen-3: China\'s Mars sample return mission',
+      url: 'https://www.planetary.org/articles/tianwen-3-china-mars-sample-return-mission',
+      meta: 'The Planetary Society',
+    },
+    {
+      title: 'UAE extends Hope probe\'s Mars mission to 2028',
+      url: 'https://www.thenationalnews.com/news/uae/2026/02/17/uae-extends-hope-probes-mars-mission-to-2028/',
+      meta: 'The National, February 2026',
+    },
+    {
+      title: 'NASA\'s Perseverance Mars Rover Studies Trove of Rocks on Crater Rim',
+      url: 'https://www.jpl.nasa.gov/news/nasas-perseverance-mars-rover-studies-trove-of-rocks-on-crater-rim/',
+      meta: 'JPL / NASA, 2025',
+    },
+    {
+      title: 'NASA to study two alternative architectures for Mars Sample Return',
+      url: 'https://spacenews.com/nasa-to-study-two-alternative-architectures-for-mars-sample-return/',
+      meta: 'SpaceNews, 2024',
+    },
+  ],
+
+  lastVerified: '2026-05-03',
+};
+
+export default lesson;

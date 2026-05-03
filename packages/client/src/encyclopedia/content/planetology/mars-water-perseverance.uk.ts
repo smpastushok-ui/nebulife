@@ -1,0 +1,642 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'mars-water-perseverance',
+  language: 'uk',
+  section: 'planetology',
+  order: 6,
+  difficulty: 'current2026',
+  readingTimeMin: 15,
+  title: 'Марс: вода, Perseverance, Mars Sample Return',
+  subtitle: 'Від стародавніх океанів до зразків у пробірках — планета, де людство шукає сусідів по Всесвіту.',
+
+  hero: {
+    cacheKey: 'mars-perseverance-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: NASA Perseverance rover on the reddish-brown floor of Jezero Crater on Mars, ' +
+      'dust-covered rocky terrain, faint pale pink-orange sky with low Sun, rover camera mast visible, ' +
+      'distant crater rim silhouette on the horizon, scientific accuracy, cinematic wide shot, ' +
+      'no text overlays. Mars surface palette: rusty ochre rocks, salmon-pink sky, muted dusty tones.',
+    alt: 'Марсохід Perseverance на дні кратера Єзеро, Марс',
+    caption: 'Marс, кратер Єзеро — пристановище Perseverance з лютого 2021 року. Там, де колись стояло озеро, тепер робот збирає зразки для майбутнього повернення на Землю.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'У травні 2026 року Марс є найбільш активно досліджуваним тілом Сонячної системи за межами Землі. ' +
+        'Понад шість апаратів одночасно обертаються на його орбіті, два ровери повільно прочісують поверхню, ' +
+        'а в металевих пробірках всередині Perseverance зберігаються зразки, які можуть дати відповідь на одне з найдавніших питань: ' +
+        'чи була жива ця планета?',
+
+        'Чому саме Марс? Тому що це єдина планета, де геологічні сліди стародавньої рідкої води збереглися настільки добре, ' +
+        'що їх можна читати з орбіти і вивчати на місці. Тому що його розмір і відстань до Сонця колись допускали щільну атмосферу і температуру вище нуля. ' +
+        'І тому що людство вже будує кораблі, здатні туди долетіти.',
+      ],
+    },
+
+    {
+      heading: 'Марс у цифрах: що це за планета',
+      level: 2,
+      paragraphs: [
+        'Марс — четверта планета від Сонця, її середня відстань до нашої зірки складає близько 1,52 астрономічної одиниці. ' +
+        'Планета майже вдвічі менша за Землю: діаметр 6 779 км проти 12 742 км. Рік на Марсі — 687 земних доби, ' +
+        'а одна марсіанська доба, яку вчені та інженери називають **_сол_**, дорівнює 24 години 37 хвилин.',
+
+        'Атмосфера Марса надзвичайно розріджена: тиск на поверхні становить лише 0,6% від земного — приблизно як на висоті 35 км над нашою планетою. ' +
+        'Склад атмосфери — 95% вуглекислого газу, 2,6% азоту і сліди аргону та кисню. ' +
+        'Через таку атмосферу парниковий ефект мінімальний, а середня температура поверхні — мінус 60°C. ' +
+        'Влітку у екватора вдень буває до +20°C, але вночі — до -80°C.',
+
+        'Полярні шапки Марса складаються з двох шарів. Постійна крижана шапка — це водяний лід. ' +
+        'Зверху взимку накладається сезонна шапка із замерзлого CO₂, що зникає щоліта. ' +
+        'Саме ці полярні шапки стали першим прямим доказом присутності води на Марсі, ще у телескопічну епоху.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-from-orbit-globe',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Mars planet seen from space, full disc view, ' +
+          'detailed surface features showing Valles Marineris canyon system, Olympus Mons volcano, white polar ice caps, ' +
+          'reddish-brown terrain, thin dusty atmosphere haze at the limb. ' +
+          'Scientific accuracy, dark space background. ' +
+          'Add the following text labels on the image: "Olympus Mons", "Valles Marineris", "South Polar Cap".',
+        alt: 'Марс з орбіти — видно Долину Марінер, Олімп та полярні шапки',
+        caption: 'Повний диск Марса з видимими геологічними структурами: вулкан Олімп заввишки 21 км і каньйон Долина Марінер завдовжки 4 000 км.',
+        aspectRatio: '1:1',
+      },
+    },
+
+    {
+      heading: 'Детективна історія марсіанської води',
+      level: 2,
+      paragraphs: [
+        'Ще в XIX столітті астрономи помічали "канали" і сезонні зміни на поверхні Марса, але тільки космічна ера дала справжні докази. ' +
+        'Перші знімки долин і хаосних рельєфів від місій Mariner 9 і Viking у 1970-х роках прямо вказували на грандіозні катастрофічні потопи в далекому минулому.',
+
+        'Сьогодні геоморфологічні докази величезні. Поверхня Марса вкрита розгалуженими долинними мережами — стародавніми руслами річок довжиною в сотні кілометрів. ' +
+        'Хаотичний рельєф, звідки вода виривалась у катастрофічних паводках, утворила рівнини, схожі на морські дна. ' +
+        'Мінералогія закріплює цю картину: зонд Mars Reconnaissance Orbiter виявив з орбіти яросит — сульфат калію, який утворюється тільки в кислому водному середовищі. ' +
+        'Ровер Opportunity знайшов на місці знамениті "чорниці" — сферули гематиту, які осідають у воді в результаті геохімічних реакцій.',
+
+        'Найбільш переконливою версією наразі є така: приблизно 3–4 мільярди років тому Марс мав щільнішу атмосферу і рідку воду на поверхні. ' +
+        'Вода існувала мільйони, а можливо, сотні мільйонів років. ' +
+        'Потім через малу масу планети і відсутність магнітного поля сонячний вітер поступово зірвав атмосферу. ' +
+        'Вода частково випарувалась у космос, частково промерзла у **_реголіт_** і під полюсами.',
+      ],
+    },
+
+    {
+      heading: 'Підземне озеро: сигнал радару',
+      level: 3,
+      paragraphs: [
+        'У 2018 році міжнародна група вчених оголосила сенсаційне відкриття: прилад MARSIS на борту апарата ESA Mars Express виявив під південною полярною шапкою Марса ' +
+        'стійке радарне відлуння, яке відповідає профілю рідкої води. ' +
+        'Передбачуваний підземний резервуар розташований на глибині близько 1,5 км і простягається на 20 × 30 км.',
+
+        'У 2020 році те саме MARSIS виявило ще три менших подібних сигнали поряд із першим. ' +
+        'Підземна вода там майже напевно є надзвичайно солоною — перхлоратні розсоли, точка замерзання яких набагато нижча за нуль, що й дозволяє їм лишатися рідкими. ' +
+        'Проте частина дослідників поставила цю інтерпретацію під сумнів, ' +
+        'вказуючи, що відповідний радарний ефект можуть давати і тверді матеріали з особливою провідністю — наприклад, підледовикові осадові породи або вулканічний попіл.',
+
+        'Питання остаточно не вирішене станом на травень 2026 року. ' +
+        'Подальша обробка даних MARSIS підтримала гіпотезу рідкої води, але аргументи опонентів також обгрунтовані. ' +
+        'Перевірити це можна лише прямим бурінням — завдання для майбутніх місій.',
+
+        'Окремою темою тривалий час були _Recurring Slope Lineae_ (RSL) — темні сезонні смуги на схилах кратерів, ' +
+        'які спочатку пов\'язували з течіями засоленої води. ' +
+        'Детальний аналіз даних MRO з кінця 2010-х років показав: RSL майже напевно є потоками сухого піску і пилу, а не рідкої води. ' +
+        'Ця переоцінка — приклад того, як марсіанська наука постійно уточнює себе.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-jezero-crater-map',
+        prompt:
+          'Schematic scientific map illustration for a science encyclopedia: overhead view of Jezero Crater on Mars, ' +
+          'approximately 50 km diameter crater, ancient river delta visible on the western edge, ' +
+          'ancient shoreline ring around inner rim, crater floor with distinct geological units highlighted, ' +
+          'muted Mars color palette (rusty browns, ochres), topographic contour lines. ' +
+          'Add the following text labels on the image: "Jezero Crater", "River Delta", "Ancient Shoreline", "Crater Floor", "50 km".',
+        alt: 'Карта кратера Єзеро на Марсі — дельта річки та стародавній берег',
+        caption: 'Кратер Єзеро: стародавня дельта річки на заході та нещодавно виявлена прибережна зона дають повну картину озерного басейну 3,5 мільярда років тому.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Perseverance: п\'ять років у кратері Єзеро',
+      level: 2,
+      paragraphs: [
+        '18 лютого 2021 року марсохід Perseverance завершив сімимісячний перельот і здійснив посадку у кратер Єзеро — ' +
+        'це давній озерний басейн діаметром 49 км на 18,4° пн.ш. Марса. ' +
+        'Те, що це колись було озеро із зверненою до нього річкою, видно навіть з орбіти: ' +
+        'чітка дельтова структура на захід від кратера. ' +
+        'Наукова мета — знайти ознаки стародавнього мікробного життя або хоча б збудувати точний хімічний портрет умов, за яких воно могло існувати.',
+
+        'Посадка виконувалась методом **_EDL_** (Entry, Descent, Landing), ' +
+        'що включав аерогальмування, розкриття парашута і фінальне зависання на реактивному спуску, ' +
+        'звідки ровер опускався на тросах — "небесний кран". ' +
+        'Це вже третя успішна посадка такого типу після Curiosity (2012) і першого тестування самої системи.',
+
+        'За більш ніж п\'ять років роботи станом на травень 2026 року Perseverance пройшов понад 40 кілометрів. ' +
+        'Маршрут охопив дно кратера, стародавню дельту на заході, берегову зону ("Margin Unit"), ' +
+        'а у грудні 2024 року ровер підіймся на гребінь кратера — першим з роверів здолавши крутий схил. ' +
+        'На початку 2026 року він досліджує ділянку, яку команда охрестила "Witch Hazel Hill".',
+      ],
+    },
+
+    {
+      heading: 'Головні відкриття: органіка, берег і можливі біосигнатури',
+      level: 3,
+      paragraphs: [
+        'У липні 2024 року Perseverance взяв зразок породи, що отримала назву "Cheyava Falls". ' +
+        'Аналіз показав присутність **органічних молекул** — вуглецевих сполук — разом із залізовмісними мінералами ' +
+        'вівіанітом (гідратованим фосфатом заліза) і грейгітом (сульфідом заліза), ' +
+        'що утворювали характерні плями, схожі на "леопардові цятки". ' +
+        'На Землі саме такі мінеральні асоціації найчастіше є слідами мікробної діяльності. ' +
+        'NASA офіційно класифікувало знахідку як "потенційну біосигнатуру", підкресливши, що небіологічні сценарії теж лишаються можливими.',
+
+        'У вересні 2025 року в журналі Nature було опубліковано результати масштабного аналізу осадових порід Єзеро: ' +
+        'численні органічні сполуки зустрічаються системно і в закономірному зв\'язку з фосфатними мінералами. ' +
+        'Це посилює гіпотезу про химічно насичене середовище, де могло існувати просте життя.',
+
+        'У січні 2026 року дослідники з Imperial College London опублікували результати вивчення берегової зони кратера. ' +
+        'Виявлені шаруваті пісковики з округленими зернами олівіну і карбонату з характерними структурами ' +
+        'хвильового нашарування — незаперечний знак хвиль, що плескались об берег колись давно. ' +
+        'Вперше вдалося встановити першу морську берегову лінію на Марсі. ' +
+        'Відкриття відсуває початок сприятливих для життя умов ще далі у минуле, ніж вважалося раніше.',
+
+        'Паралельно Perseverance використовує систему MOXIE — демонстратор виробництва кисню з марсіанського CO₂. ' +
+        'До кінця 2023 року MOXIE виробив понад 100 грамів кисню, довівши принцип **_ISRU_** (In-Situ Resource Utilization) — ' +
+        'використання місцевих ресурсів. Це безпосереднє підґрунтя для майбутніх пілотованих місій.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-perseverance-closeup',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: close-up view of the NASA Perseverance Mars rover on reddish-brown Martian surface, ' +
+          'detailed shot showing rover body, wheels, camera mast, robotic arm extended toward a rock, ' +
+          'drill marks visible on a nearby rock sample, dusty terrain with pebbles and fine regolith, ' +
+          'pale salmon-pink Martian sky. Scientific accuracy, NASA photography style. ' +
+          'Add the following text labels on the image: "Robotic Arm", "PIXL Instrument", "Sample Core".',
+        alt: 'Perseverance: маніпулятор і бурова система під час відбору зразка породи',
+        caption: 'Маніпулятор Perseverance із системою буріння. Ровер збирає кам\'яні керни, що зберігаються в герметичних титанових пробірках.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Ingenuity: 72 польоти і тиха відставка',
+      level: 2,
+      paragraphs: [
+        'Разом із Perseverance на Марс прибув маленький вертоліт Ingenuity — ' +
+        'технологічна демонстрація масою 1,8 кг. ' +
+        '19 квітня 2021 року, на Sol 58 місії, він підняв лопаті і відірвався від поверхні Марса. ' +
+        'Перший керований моторизований політ на іншій планеті в історії тривав 39,1 секунди і досяг висоти 3 метри.',
+
+        'Завдання було: п\'ять польотів за тридцять днів. ' +
+        'Ingenuity виконав сімдесят два. За три роки роботи він пролетів понад 17 кілометрів, ' +
+        'досяг максимальної швидкості 10 м/с і висоти 24 метри. ' +
+        'Він виступав розвідником для Perseverance, оглядаючи маршрути і цікаві геологічні об\'єкти з повітря.',
+
+        '18 січня 2024 року, на 72-му польоті, одна чи кілька лопатей ротора пошкодились під час посадки. ' +
+        '25 січня 2024 року NASA офіційно завершило місію. ' +
+        'Ingenuity залишається на Марсі — там, де впав, у кратері Єзеро. ' +
+        'Його спадок: доведено, що рухомі апарати важчі за повітря можуть літати в марсіанській атмосфері, ' +
+        'відкривши шлях для наступного покоління марсіанської авіації.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-ingenuity-flight',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: NASA Ingenuity helicopter hovering above reddish Mars surface, ' +
+          'rotor blades spinning creating slight dust disturbance below, ' +
+          'Perseverance rover visible in background at safe distance observing, ' +
+          'pale pinkish-orange Martian sky, dramatic low-angle shot. ' +
+          'Add the following text labels on the image: "Ingenuity", "First Flight Apr 2021", "Jezero Crater".',
+        alt: 'Гелікоптер Ingenuity у польоті над поверхнею Марса, ровер Perseverance на задньому плані',
+        caption: 'Ingenuity, перший літальний апарат на іншій планеті, зробив 72 польоти замість запланованих п\'яти і відпрацював на три роки довше за проектований термін.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Mars Sample Return: найдорожча місія, що спіткнулась',
+      level: 2,
+      paragraphs: [
+        'Паралельно з наукою Perseverance виконує другу критично важливу роботу: ' +
+        'збирає зразки і складає їх у герметичні **_титанові пробірки_**, щоб майбутній апарат забрав їх на Землю. ' +
+        'Станом на липень 2025 року заповнено 33 пробірки з 43 — ' +
+        'іgнеозні, осадові, змішані породи, зразки реголіту і атмосфери Марса. ' +
+        'Колекція вже вважається найціннішим зібранням позаземного матеріалу, яке коли-небудь готувалось.',
+
+        'Місія Mars Sample Return (MSR) мала забрати ці зразки на Землю. ' +
+        'За початковим планом NASA і ESA, запуск апарата відбувся б на початку 2030-х, ' +
+        'а зразки з\'явились би на Землі десь у 2035–2039 роках. ' +
+        'Але проект зіткнувся з кризою, яка загрожує звести нанівець десятиліття праці.',
+
+        'У 2023 році незалежна перевірка встановила, що вартість MSR при первісній архітектурі сягне 8–11 мільярдів доларів ' +
+        'і місія не вкладеться в бюджет NASA. ' +
+        'NASA відповіло оголошенням тендеру на альтернативні архітектури — " небесний кран" модернізований і комерційний важкий посадковий модуль. ' +
+        'Їхня попередня вартість — 6–8 мільярдів доларів.',
+
+        'У травні 2025 року адміністрація Трампа запропонувала бюджет NASA на 2026 рік, ' +
+        'в якому MSR фактично скасовувалось. ' +
+        'У січні 2026 року Конгрес США ухвалив відповідний пакет витрат, ' +
+        'що практично зупинив американське фінансування програми. ' +
+        'ESA у відповідь скасувало розробку свого компонента — апарата Earth Return Orbiter (ERO). ' +
+        'Станом на травень 2026 року майбутнє MSR визначається як "під загрозою, але не закрите": ' +
+        'альтернативні варіанти розробляються, перемовини між NASA та ESA тривають, ' +
+        'але ясного шляху до запуску немає.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Архітектура Mars Sample Return (концептуальна схема)',
+        svg: `<svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="700" height="360" fill="rgba(10,15,25,0.5)" rx="4"/>
+
+  <!-- Mars circle -->
+  <circle cx="150" cy="180" r="72" fill="#cc6644" opacity="0.85"/>
+  <text x="150" y="185" text-anchor="middle" fill="#020510" font-family="monospace" font-size="13" font-weight="bold">МАРС</text>
+
+  <!-- Earth circle -->
+  <circle cx="580" cy="180" r="52" fill="#4488aa" opacity="0.85"/>
+  <text x="580" y="185" text-anchor="middle" fill="#020510" font-family="monospace" font-size="13" font-weight="bold">ЗЕМЛЯ</text>
+
+  <!-- ERO orbit arc around Mars -->
+  <ellipse cx="150" cy="180" rx="105" ry="50" fill="none" stroke="#7bb8ff" stroke-width="1.2" stroke-dasharray="6,4" opacity="0.7"/>
+  <text x="150" y="90" text-anchor="middle" fill="#7bb8ff" font-family="monospace" font-size="10">ERO (Earth Return Orbiter)</text>
+
+  <!-- Transfer arrow -->
+  <line x1="265" y1="160" x2="515" y2="160" stroke="#ff8844" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+  <text x="390" y="152" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="10">Sample Capsule</text>
+  <text x="390" y="167" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">~6-9 months transit</text>
+
+  <!-- MAV label on Mars surface -->
+  <rect x="100" y="238" width="100" height="22" fill="rgba(20,30,45,0.8)" rx="2"/>
+  <text x="150" y="253" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="10">MAV: Mars Ascent Vehicle</text>
+
+  <!-- Perseverance label -->
+  <rect x="68" y="265" width="164" height="20" fill="rgba(20,30,45,0.8)" rx="2"/>
+  <text x="150" y="279" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="10">Perseverance (зразки готові)</text>
+
+  <!-- Earth re-entry label -->
+  <rect x="530" y="238" width="120" height="22" fill="rgba(20,30,45,0.8)" rx="2"/>
+  <text x="590" y="253" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="10">Capsule re-entry</text>
+
+  <!-- Arrow defs -->
+  <defs>
+    <marker id="arrowOrange" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#ff8844"/>
+    </marker>
+  </defs>
+
+  <!-- Step labels -->
+  <text x="150" y="320" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">1. Збір зразків (зроблено)</text>
+  <text x="390" y="320" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">2. MAV → ERO стикування → транзит до Землі</text>
+  <text x="580" y="320" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">3. Посадкова капсула</text>
+
+  <!-- Status warning -->
+  <rect x="180" y="24" width="340" height="28" fill="rgba(204,68,68,0.18)" rx="3" stroke="#cc4444" stroke-width="1"/>
+  <text x="350" y="42" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="10">Статус: фінансування США скасоване (01.2026). Архітектура переглядається.</text>
+</svg>`,
+        caption: 'Концептуальна схема місії Mars Sample Return: Perseverance складає зразки, марсіанський ракетний апарат (MAV) виводить їх на орбіту, орбітальний модуль ERO доставляє капсулу до Землі. Усі кроки після першого наразі заморожені.',
+      },
+    },
+
+    {
+      heading: 'Хто ще є на Марсі у 2026 році',
+      level: 2,
+      paragraphs: [
+        '**Curiosity** — ровер NASA, що працює в кратері Гейла з серпня 2012 року. ' +
+        'За понад 13 років він пройшов понад 33 кілометри і підіймається по схилах гори Шарп. ' +
+        'Curiosity виявив метан у марсіанській атмосфері, сезонні коливання якого досі незрозумілі, ' +
+        'і задокументував стародавні озерні відклади, у яких могло існувати просте життя. ' +
+        'Ровер продовжує роботу, хоча живлення від радіоізотопного генератора поступово зменшується.',
+
+        '**Mars Reconnaissance Orbiter** (MRO, NASA, 2006) залишається головним оком над Марсом: ' +
+        'камера HiRISE дає знімки з роздільністю до 25 см/піксель і стежить за посадковими місіями, ' +
+        'пиловими бурями, стінками кратерів і зсувами.',
+
+        '**MAVEN** (NASA, 2014) вимірює втрату марсіанської атмосфери від сонячного вітру, ' +
+        'відповідаючи на запитання, як Марс втратив свою захисну оболонку.',
+
+        '**ExoMars Trace Gas Orbiter** (ESA/Роскосмос, 2016) аналізує слідові гази атмосфери, ' +
+        'зокрема метан, з надзвичайною точністю. ' +
+        'Продовжує роботу, попри те що марсохід ExoMars Rosalind Franklin заморожений через відмову від російської частки участі. ' +
+        'Нова конфігурація місії без Роскосмосу запланована на запуск у 2028 році.',
+
+        '**Hope Probe** ОАЕ (2021) вивчає марсіанську погоду та атмосферну динаміку в цілому. ' +
+        'У лютому 2026 року ОАЕ оголосили про продовження місії до 2028 року. ' +
+        'У жовтні 2025 року апарат зафіксував міжзоряну комету 3I/ATLAS — несподіваний бонус.',
+
+        '**Tianwen-1** (Китай, 2021): орбітальний апарат продовжує знімати поверхню; ' +
+        'ровер Жу Жун заснув у травні 2022 і, мабуть, більше не прокинеться.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-active-fleet-2026',
+        prompt:
+          'Schematic illustration for a science encyclopedia: orbital diagram showing Mars with multiple spacecraft in orbit, ' +
+          'labeled spacecraft icons at different orbital altitudes, Mars surface with rover icons, ' +
+          'clean technical diagram style, dark space background, Game Bible palette colors. ' +
+          'Add the following text labels on the image: "MRO", "MAVEN", "TGO", "Hope", "Tianwen-1", "Curiosity (surface)", "Perseverance (surface)".',
+        alt: 'Схема активного марсіанського флоту у 2026 році — орбітери та ровери',
+        caption: 'Марс у 2026 р.: шість апаратів на орбіті та два ровери на поверхні. Найбільше одночасне наукове охоплення в історії вивчення Червоної планети.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Китайський конкурент: Tianwen-3',
+      level: 3,
+      paragraphs: [
+        'Поки MSR перебуває у підвішеному стані, Китай планомірно просувається до власної місії повернення марсіанських зразків. ' +
+        'Tianwen-3 — перша китайська місія з поверненням зразків із Марса. ' +
+        'Запуск заплановано на 2028 рік, а повернення на Землю не менше 500 грамів марсіанського матеріалу — близько 2031 року.',
+
+        'На відміну від NASA, Tianwen-3 не використовуватиме ровер для збору зразків: ' +
+        'замість нього планується дрон, здатний облітати місцевість у радіусі кількох сотень метрів від посадкового модуля. ' +
+        'Станом на березень 2026 року місія перейшла у фазу розробки льотних моделей апаратів.',
+
+        'Якщо все піде за планом, Китай може повернути марсіанські зразки на Землю раніше за США, ' +
+        'що стане ключовим моментом у геополітичному вимірі космічних досліджень.',
+      ],
+    },
+
+    {
+      heading: 'Людина на Марсі: горизонт',
+      level: 2,
+      paragraphs: [
+        'NASA офіційно декларує програму Moon to Mars: місяць як тренувальний майданчик, ' +
+        'Марс як кінцева ціль. Програма Artemis повинна відпрацювати тривале перебування у космосі і технології **_ISRU_**, ' +
+        'перш ніж відправляти людей за 56–400 мільйонів кілометрів від Землі залежно від положення планет.',
+
+        'SpaceX просуває Starship як марсіанський корабель. Ілон Маск неодноразово озвучував мету — ' +
+        'пілотований польіт на Марс до кінця 2020-х. ' +
+        'Реалістичніша оцінка більшості аналітиків: перший пілотований старт не раніше кінця 2030-х, ' +
+        'коли системи жиьтєзабезпечення, медичні протоколи і методи захисту від радіації пройдуть необхідну перевірку.',
+
+        'Найбільш критичними технічними викликами залишаються: ' +
+        'захист від космічного радіаційного опромінення під час семимісячного перельоту (немає магнітосфери), ' +
+        'психологічна стійкість малої ізольованої команди, ' +
+        'самостійне медичне обслуговування і виробництво палива для зворотнього польоту (ISRU).',
+
+        'Тераформування Марса — перетворення його на придатну для людини планету — ' +
+        'це предмет наукової фантастики і технічних розрахунків, але не найближчого майбутнього. ' +
+        'Навіть найоптимістичніші сценарії не обіцяють дихального повітря раніше, ніж через сотні, а то й тисячі років. ' +
+        'Проте сама постановка питання змушує вчених точніше розуміти марсіанський клімат, водний цикл і геологію.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Орбіти Землі та Марса навколо Сонця (схема, не в масштабі)',
+        svg: `<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="600" height="600" fill="rgba(10,15,25,0.5)" rx="4"/>
+
+  <!-- Sun -->
+  <circle cx="300" cy="300" r="22" fill="#ff8844" opacity="0.95"/>
+  <text x="300" y="305" text-anchor="middle" fill="#020510" font-family="monospace" font-size="10" font-weight="bold">СОНЦЕ</text>
+
+  <!-- Earth orbit -->
+  <ellipse cx="300" cy="300" rx="145" ry="140" fill="none" stroke="#4488aa" stroke-width="1.4" stroke-dasharray="5,3" opacity="0.7"/>
+
+  <!-- Earth -->
+  <circle cx="445" cy="300" r="12" fill="#4488aa"/>
+  <text x="463" y="298" fill="#7bb8ff" font-family="monospace" font-size="11">Земля</text>
+  <text x="463" y="312" fill="#667788" font-family="monospace" font-size="9">1 а.о.</text>
+
+  <!-- Mars orbit -->
+  <ellipse cx="300" cy="300" rx="215" ry="207" fill="none" stroke="#cc6644" stroke-width="1.4" stroke-dasharray="5,3" opacity="0.6"/>
+
+  <!-- Mars -->
+  <circle cx="300" cy="86" r="9" fill="#cc6644"/>
+  <text x="314" y="84" fill="#cc6644" font-family="monospace" font-size="11">Марс</text>
+  <text x="314" y="97" fill="#667788" font-family="monospace" font-size="9">1.52 а.о.</text>
+
+  <!-- Opposition label: closest approach -->
+  <line x1="300" y1="286" x2="445" y2="300" stroke="#44ff88" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="360" y="278" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="9">~56 млн км (протистояння)</text>
+
+  <!-- Far side label -->
+  <text x="300" y="588" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">Схема не в масштабі. Відстань Земля-Марс: 56–401 млн км.</text>
+</svg>`,
+        caption: 'Орбіти Землі та Марса: відстань між планетами змінюється від 56 млн км у найближчому зближенні до 401 млн км, коли вони по різні боки від Сонця. Це визначає вікна запуску місій.',
+      },
+    },
+
+    {
+      image: {
+        cacheKey: 'mars-sample-tubes-diagram',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: NASA Perseverance Mars rover sample tube — ' +
+          'a slim titanium cylindrical sample tube container, gleaming metal surface, ' +
+          'shown both sealed and open with small rock core visible inside, ' +
+          'clean scientific product photo style, dark background, scientific annotation. ' +
+          'Add the following text labels on the image: "Titanium Sample Tube", "Rock Core", "Hermetic Seal", "Length: 15 cm".',
+        alt: 'Титанові пробірки для зразків Perseverance — закрита та відкрита з кам\'яним керном',
+        caption: 'Кожна із 43 пробірок Perseverance — 15-сантиметровий титановий контейнер, здатний зберегти марсіанський матеріал герметично десятиліттями.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Чому зразки мають значення',
+      level: 2,
+      paragraphs: [
+        'Найчутливіші прилади на будь-якому ровері — все одно кілограм електроніки, ' +
+        'оптики і хімічних реагентів, що витримали перельіт і посадку. ' +
+        'Лабораторний мас-спектрометр на Землі важить тонни і розрізняє ізотопні відношення з точністю, ' +
+        'недосяжною для будь-якого космічного апарата.',
+
+        'Саме ізотопна геохімія дала більшість знань про вік і походження Сонячної системи по метеоритах. ' +
+        'Марсіанські метеорити вже існують — близько 200 штук знайдено на Землі. ' +
+        'Але всі вони були вибиті великими ударами і мають невідоме і, можливо, нетипове походження. ' +
+        'Perseverance натомість збирає зразки у геологічно вибраних, документально підтверджених точках прямо з озерного дна, ' +
+        'берегової лінії та стародавньої дельти. Різниця — принципова.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Єзеро (Jezero Crater)',
+      definition: 'Ударний кратер діаметром 49 км у регіоні Ісіда Планітія на Марсі. Близько 3,5 мільярда років тому тут існувало озеро із притоком і дельтою річки. Місце посадки ровера Perseverance.',
+    },
+    {
+      term: 'Реголіт',
+      definition: 'Нескельний поверхневий шар планети — суміш пилу, дрібних каменів і уламків порід, що утворилась внаслідок метеоритного бомбардування і вивітрювання. На Марсі реголіт часто містить хлорати та перхлорати.',
+    },
+    {
+      term: 'Перхлорати',
+      definition: 'Солі хлорної кислоти (ClO₄⁻), широко розповсюджені в марсіанському реголіті. Знижують точку замерзання води, що може підтримувати рідкі розсоли, але токсичні для земних організмів.',
+    },
+    {
+      term: 'RSL (Recurring Slope Lineae)',
+      definition: 'Темні сезонні смуги на схилах марсіанських кратерів, що зникають взимку. Спочатку вважались слідами засоленої рідкої води; сучасні дані свідчать, що, найімовірніше, це сухі зсуви піску і пилу.',
+    },
+    {
+      term: 'Сол',
+      definition: 'Одна марсіанська доба — 24 години 37 хвилин і 22,66 секунди. Використовується місіями NASA для планування добового розкладу роверів. Sol 1 = перший день після посадки.',
+    },
+    {
+      term: 'EDL (Entry, Descent, Landing)',
+      definition: 'Процедура входу в атмосферу, спуску і посадки. Для Perseverance включала аерогальмування, парашутний розкрит і фінальний спуск на "небесному кранi" — реактивній платформі з тросами.',
+    },
+    {
+      term: 'ISRU (In-Situ Resource Utilization)',
+      definition: 'Використання місцевих ресурсів планети — наприклад, виробництво кисню з CO₂ атмосфери або палива з водяного льоду. Критична технологія для тривалих пілотованих місій на Марс.',
+    },
+    {
+      term: 'MARSIS',
+      definition: 'Mars Advanced Radar for Subsurface and Ionosphere Sounding — радарний прилад зондування підповерхневих шарів і іоносфери на борту орбітера ESA Mars Express. У 2018 та 2020 рр. виявив сигнали, інтерпретовані як підземні озера під південним полюсом Марса.',
+    },
+    {
+      term: 'MAV (Mars Ascent Vehicle)',
+      definition: 'Марсіанський ракетний апарат — ключовий компонент місії Mars Sample Return. Повинен злетіти з поверхні Марса із зразками і вивести їх на орбіту для стикування з орбітальним модулем.',
+    },
+    {
+      term: 'Биосигнатура',
+      definition: 'Хімічна, мінералогічна або морфологічна ознака, яка на Землі утворюється переважно живими організмами. Знахідка у породі "Cheyava Falls" є "потенційною біосигнатурою" — небіологічний сценарій не виключений.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'У якому місяці та році Perseverance здійснив посадку на Марсі?',
+      options: [
+        'Листопад 2020',
+        'Лютий 2021',
+        'Квітень 2021',
+        'Серпень 2022',
+      ],
+      correctIndex: 1,
+      explanation: 'Perseverance приземлився 18 лютого 2021 року в кратері Єзеро методом "небесного крана".',
+    },
+    {
+      question: 'Що таке "Cheyava Falls" у контексті місії Perseverance?',
+      options: [
+        'Стародавній кратер на краю Єзеро',
+        'Назва зразка породи з потенційними біосигнатурами',
+        'Місце першого польоту Ingenuity',
+        'Підземне озеро, виявлене MARSIS',
+      ],
+      correctIndex: 1,
+      explanation: 'Cheyava Falls — назва породи, виявленої в липні 2024 року, що містить органічні молекули та мінеральні асоціації, характерні для біологічних процесів на Землі.',
+    },
+    {
+      question: 'Скільки польотів здійснив гелікоптер Ingenuity до завершення місії?',
+      options: [
+        '5 польотів',
+        '21 політ',
+        '72 польоти',
+        '108 польотів',
+      ],
+      correctIndex: 2,
+      explanation: 'Ingenuity завершив 72 польоти замість запланованих п\'яти. Місія завершилась у січні 2024 р. через пошкодження ротора при посадці.',
+    },
+    {
+      question: 'Який статус місії Mars Sample Return у травні 2026 року?',
+      options: [
+        'Успішно запущена і летить до Марса',
+        'Активно розробляється за первісним планом ESA та NASA',
+        'Фінансування США фактично скасоване, майбутнє програми невизначене',
+        'Замінена місією Tianwen-3 за угодою NASA та Китаю',
+      ],
+      correctIndex: 2,
+      explanation: 'У січні 2026 р. Конгрес США затвердив бюджет, що фактично позбавив MSR фінансування. ESA скасувало розробку ERO. Альтернативні варіанти обговорюються, але шлях до реалізації незрозумілий.',
+    },
+    {
+      question: 'Що таке ISRU і чому це важливо для польотів людей на Марс?',
+      options: [
+        'Система навігації ровера на базі ШІ',
+        'Технологія виробництва ресурсів (кисень, паливо) безпосередньо на планеті',
+        'Метод передачі даних з великою швидкістю через глибокий космос',
+        'Протокол медичного моніторингу для космонавтів',
+      ],
+      correctIndex: 1,
+      explanation: 'ISRU (In-Situ Resource Utilization) — технологія використання місцевих ресурсів, зокрема виробництво кисню з CO₂ атмосфери. Це критично для людських місій, де брати паливо і кисень із Землі надто дорого.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Mars 2020: Perseverance Rover — NASA Science',
+      url: 'https://science.nasa.gov/mission/mars-2020-perseverance/',
+      meta: 'Офіційна сторінка місії NASA',
+    },
+    {
+      title: 'After Three Years on Mars, NASA\'s Ingenuity Helicopter Mission Ends',
+      url: 'https://www.nasa.gov/news-release/after-three-years-on-mars-nasas-ingenuity-helicopter-mission-ends/',
+      meta: 'NASA прес-реліз, січень 2024',
+    },
+    {
+      title: 'NASA Says Mars Rover Discovered Potential Biosignature Last Year',
+      url: 'https://www.jpl.nasa.gov/news/nasa-says-mars-rover-discovered-potential-biosignature-last-year/',
+      meta: 'JPL / NASA, вересень 2025',
+    },
+    {
+      title: 'New clues to Mars\'s habitability in discovery of ancient beach',
+      url: 'https://www.imperial.ac.uk/news/articles/engineering/earth-science/2026/new-clues-to-marss-habitability-in-discovery-of-ancient-beach/',
+      meta: 'Imperial College London, січень 2026; Journal of Geophysical Research: Planets',
+    },
+    {
+      title: 'Mars Express detects liquid water hidden under planet\'s south pole',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/Mars_Express/Mars_Express_detects_liquid_water_hidden_under_planet_s_south_pole',
+      meta: 'ESA, 2018',
+    },
+    {
+      title: 'Mars Express finds more underground water on Mars',
+      url: 'https://www.esa.int/ESA_Multimedia/Videos/2020/09/Mars_Express_finds_more_underground_water_on_Mars',
+      meta: 'ESA, 2020',
+    },
+    {
+      title: 'The Fate of NASA\'s Mars Sample Return Program May Be Decided in 2026',
+      url: 'https://www.scientificamerican.com/article/the-fate-of-nasas-mars-sample-return-program-may-be-decided-in-2026/',
+      meta: 'Scientific American',
+    },
+    {
+      title: 'Mars Sample Return — NASA Science',
+      url: 'https://science.nasa.gov/mission/mars-sample-return/',
+      meta: 'Офіційна сторінка програми NASA',
+    },
+    {
+      title: 'Tianwen-3: China\'s Mars sample return mission',
+      url: 'https://www.planetary.org/articles/tianwen-3-china-mars-sample-return-mission',
+      meta: 'The Planetary Society',
+    },
+    {
+      title: 'UAE extends Hope probe\'s Mars mission to 2028',
+      url: 'https://www.thenationalnews.com/news/uae/2026/02/17/uae-extends-hope-probes-mars-mission-to-2028/',
+      meta: 'The National, лютий 2026',
+    },
+    {
+      title: 'NASA\'s Perseverance Mars Rover Studies Trove of Rocks on Crater Rim',
+      url: 'https://www.jpl.nasa.gov/news/nasas-perseverance-mars-rover-studies-trove-of-rocks-on-crater-rim/',
+      meta: 'JPL / NASA, 2025',
+    },
+    {
+      title: 'NASA to study two alternative architectures for Mars Sample Return',
+      url: 'https://spacenews.com/nasa-to-study-two-alternative-architectures-for-mars-sample-return/',
+      meta: 'SpaceNews, 2024',
+    },
+  ],
+
+  lastVerified: '2026-05-03',
+};
+
+export default lesson;

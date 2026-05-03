@@ -1,0 +1,590 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'what-is-astronomy',
+  language: 'en',
+  section: 'astronomy',
+  order: 1,
+  difficulty: 'beginner',
+  readingTimeMin: 12,
+  title: 'What is Astronomy and How It Became a Science',
+  subtitle: 'From Babylonian priests to gravitational waves — how humanity learned to read the sky.',
+
+  hero: {
+    cacheKey: 'what-is-astronomy-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: a modern astronomical observatory ' +
+      'on a mountain summit at night, dome open, telescope pointed at the Milky Way arching overhead, ' +
+      'stars and nebulae visible in rich detail, subtle red light from the observer inside, ' +
+      'wide landscape view with mountain silhouette in foreground. ' +
+      'Wide aspect ratio 16:9, dark sky background, scientific atmosphere, no faces visible.',
+    alt: 'A modern observatory on a mountain peak at night beneath the arc of the Milky Way',
+    caption: 'A modern observatory — the end point of a journey that began with clay tablets and stone circles.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Every time you look at a starry sky, you are looking into the past. The light from ' +
+        'Proxima Centauri, the closest star to our Sun, takes four years to reach us. ' +
+        'Light from the edge of the observable universe has been traveling for thirteen billion years. ' +
+        'The sky is not a picture. It is a time machine — and **astronomy** is the science that ' +
+        'taught us how to use it.',
+
+        'Astronomy is the oldest of the natural sciences. It grew from practical necessity: ' +
+        'tracking seasons, keeping calendars, navigating at sea. But over millennia it became ' +
+        'something much larger — an attempt to understand what space, time, matter and energy ' +
+        'actually are, and what our place in all of it might be.',
+      ],
+    },
+
+    {
+      heading: 'From Observations to System: Ancient Astronomy',
+      level: 2,
+      paragraphs: [
+        'The oldest systematic astronomical records that survive were made in **Babylon** around ' +
+        '800 BCE, though observations there began as early as the third millennium BCE. ' +
+        'Astronomer-priests recorded planetary motions, lunar phases and solar eclipses on ' +
+        'clay tablets. These were not mere notes — Babylonian astronomers derived the first ' +
+        'mathematical formulas for predicting positions of celestial bodies. By modern standards, ' +
+        'this is already more than myth. It is proto-science.',
+
+        'In Egypt, astronomy was built into architecture. The Great Pyramids align with ' +
+        '_Orion\'s Belt_, and a shaft in the Great Pyramid of Khufu pointed precisely at the ' +
+        'pole star of its era. The Egyptian solar calendar of 365 days was one of the most ' +
+        'accurate in the ancient world — and its structure became the foundation of our own.',
+
+        'Britain\'s **Stonehenge** (roughly 3000-2500 BCE) served as an observatory long before ' +
+        'anyone had worked out mathematical formulas. The main avenue aligns precisely with ' +
+        'sunset at the winter solstice. Who built it and exactly why remain open questions in ' +
+        'scholarship. But the accuracy of the alignment rules out coincidence.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'what-is-astronomy-stonehenge',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Stonehenge at dawn during summer solstice, ' +
+          'the sun rising precisely over the Heel Stone, long shadows cast by the megaliths, ' +
+          'dramatic sky with scattered stars still visible at horizon. ' +
+          'Add the following text labels on the image: "Heel Stone", "Summer solstice sunrise alignment". ' +
+          'Hard sci-fi style, wide aspect ratio, dark atmospheric lighting.',
+        alt: 'Stonehenge at dawn during the summer solstice, sun aligned over the Heel Stone',
+        caption: 'Stonehenge: a megalithic observatory built 1,500 years before the first Greek astronomers.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      paragraphs: [
+        'In ancient **Greece**, astronomy took a form close to modern science. ' +
+        'Eudoxus of Cnidus (~370 BCE) built the first geometric model of planetary motion — ' +
+        'a system of concentric spheres. _Aristarchus of Samos_ (~270 BCE) was the first to ' +
+        'argue that Earth orbits the Sun, and even estimated the distances to the Moon and Sun ' +
+        'using angular measurements. His heliocentric idea was rejected, and it would not ' +
+        'return to mainstream thinking for nearly 1,800 years.',
+
+        '**Eratosthenes** (~240 BCE) measured Earth\'s circumference to within two percent, ' +
+        'using nothing but a stick, shadows, and the angle between two Egyptian cities. ' +
+        'This was not guesswork — it was measurement. Hipparchus (~130 BCE) compiled the ' +
+        'first star catalog of more than a thousand stars and discovered the precession of ' +
+        'Earth\'s axis. Ptolemy in the second century CE assembled everything into the ' +
+        '"Almagest" — a book that remained the authority in astronomy for the next millennium.',
+
+        'The Maya of Central America independently developed an impressive astronomical system. ' +
+        'Their **Venus cycle** of 584 days matched the actual orbital period of Venus to within ' +
+        'two hours per year. Chinese astronomers documented a supernova explosion in 1054 CE — ' +
+        'the same event that left behind the _Crab Nebula_, which Hubble photographed in the twentieth century.',
+      ],
+    },
+
+    {
+      heading: 'The Copernican Revolution',
+      level: 2,
+      paragraphs: [
+        'In 1543, the year of his death, Polish canon and mathematician **Nicolaus Copernicus** ' +
+        'published "De revolutionibus orbium coelestium" — a book that permanently changed our ' +
+        'place in the universe. He returned the Sun to the center of the planetary system, ' +
+        'reviving Aristarchus\'s idea but this time with a complete mathematical model. ' +
+        'Copernicus\'s model was imperfect — like Ptolemy, he kept the orbits circular — ' +
+        'but it set in motion what became known as the **Scientific Revolution**.',
+
+        '_Tycho Brahe_ (1546-1601) never accepted heliocentrism, but he did something equally ' +
+        'important: he spent 20 years compiling the most precise astronomical observations of ' +
+        'his era, all without a telescope (it had not yet been invented). His data passed to ' +
+        'his student and assistant **Johannes Kepler**, who spent eight years proving that ' +
+        'planetary orbits are _ellipses_, not circles. Between 1609 and 1619, Kepler published ' +
+        'his three laws of planetary motion — the first mathematically exact description of ' +
+        'celestial mechanics in history.',
+
+        '**Galileo Galilei** pointed a telescope at the sky in 1609 (he did not invent it, ' +
+        'but he was the first to use it systematically for astronomy). What he saw dismantled ' +
+        'the Aristotelian worldview: mountains on the Moon, moons orbiting Jupiter, the phases ' +
+        'of Venus. The phases of Venus were particularly decisive — they directly refuted ' +
+        'the Ptolemaic model and confirmed that Venus orbits the Sun. The Church condemned ' +
+        'Galileo. But the data remained.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Timeline: From Ancient Observations to Modern Astronomy',
+        svg: `<svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="700" height="200" fill="rgba(10,15,25,0.7)"/>
+
+  <!-- Timeline axis -->
+  <line x1="30" y1="110" x2="670" y2="110" stroke="#334455" stroke-width="2"/>
+
+  <!-- Arrow head -->
+  <polygon points="670,105 680,110 670,115" fill="#334455"/>
+
+  <!-- Era labels on axis -->
+  <text x="30" y="130" fill="#667788" font-family="monospace" font-size="9">3000 BCE</text>
+  <text x="185" y="130" fill="#667788" font-family="monospace" font-size="9">500 BCE</text>
+  <text x="330" y="130" fill="#667788" font-family="monospace" font-size="9">1543</text>
+  <text x="430" y="130" fill="#667788" font-family="monospace" font-size="9">1687</text>
+  <text x="520" y="130" fill="#667788" font-family="monospace" font-size="9">1920s</text>
+  <text x="610" y="130" fill="#667788" font-family="monospace" font-size="9">2015+</text>
+
+  <!-- Dots on timeline -->
+  <circle cx="50"  cy="110" r="4" fill="#7bb8ff"/>
+  <circle cx="200" cy="110" r="4" fill="#7bb8ff"/>
+  <circle cx="340" cy="110" r="5" fill="#ff8844"/>
+  <circle cx="445" cy="110" r="5" fill="#ff8844"/>
+  <circle cx="530" cy="110" r="5" fill="#44ff88"/>
+  <circle cx="620" cy="110" r="6" fill="#44ff88"/>
+
+  <!-- Event labels above -->
+  <text x="50"  y="95" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="9">Babylon</text>
+  <text x="50"  y="83" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">First records</text>
+
+  <text x="200" y="95" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="9">Greece</text>
+  <text x="200" y="83" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">Eratosthenes, Hipparchus</text>
+
+  <text x="340" y="95" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">Copernicus</text>
+  <text x="340" y="83" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">Heliocentrism</text>
+
+  <text x="445" y="95" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">Newton</text>
+  <text x="445" y="83" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">Gravity</text>
+
+  <text x="530" y="95" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="9">Hubble</text>
+  <text x="530" y="83" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">Expanding universe</text>
+
+  <text x="620" y="95" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="9">LIGO/JWST</text>
+  <text x="620" y="83" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">Multi-messenger</text>
+
+  <!-- Vertical tick marks -->
+  <line x1="50"  y1="106" x2="50"  y2="114" stroke="#7bb8ff" stroke-width="2"/>
+  <line x1="200" y1="106" x2="200" y2="114" stroke="#7bb8ff" stroke-width="2"/>
+  <line x1="340" y1="106" x2="340" y2="114" stroke="#ff8844" stroke-width="2"/>
+  <line x1="445" y1="106" x2="445" y2="114" stroke="#ff8844" stroke-width="2"/>
+  <line x1="530" y1="106" x2="530" y2="114" stroke="#44ff88" stroke-width="2"/>
+  <line x1="620" y1="106" x2="620" y2="114" stroke="#44ff88" stroke-width="2"/>
+
+  <!-- Legend at bottom -->
+  <circle cx="50"  cy="175" r="4" fill="#7bb8ff"/>
+  <text x="60" y="179" fill="#8899aa" font-family="monospace" font-size="9">Ancient astronomy</text>
+  <circle cx="220" cy="175" r="4" fill="#ff8844"/>
+  <text x="230" y="179" fill="#8899aa" font-family="monospace" font-size="9">Scientific Revolution</text>
+  <circle cx="400" cy="175" r="4" fill="#44ff88"/>
+  <text x="410" y="179" fill="#8899aa" font-family="monospace" font-size="9">Modern astronomy</text>
+</svg>`,
+        caption: 'Five thousand years of astronomical thought — from clay tablets to gravitational waves.',
+      },
+    },
+
+    {
+      heading: 'The Newtonian Synthesis: Sky and Earth Become One',
+      level: 2,
+      paragraphs: [
+        'In 1687, **Isaac Newton** published "Principia Mathematica" — arguably the most ' +
+        'influential scientific book ever written. He demonstrated that the same force pulling ' +
+        'an apple from a tree also holds the Moon in orbit and drives planets along Kepler\'s ' +
+        'curves. Before Newton, the heavens and the Earth obeyed different rules. ' +
+        'After Newton, they obeyed the same ones.',
+
+        'The law of universal gravitation did not just explain the known. It _predicted the unknown_. ' +
+        'When William Herschel discovered Uranus in 1781, the new planet\'s orbit deviated ' +
+        'subtly from predictions. Mathematicians Adams and Le Verrier independently calculated ' +
+        'where an unseen planet must lie in order to disturb Uranus. In 1846, a telescope was ' +
+        'pointed at that exact spot in the sky — and **Neptune** was found. It was the triumph ' +
+        'of mathematics over observation: the planet was discovered at the tip of a pen.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'what-is-astronomy-parallax',
+        prompt:
+          'Annotated scientific diagram showing stellar parallax: Earth shown at two positions in its orbit ' +
+          '(January and July), a nearby star appearing to shift against the background of distant stars, ' +
+          'dashed lines showing the parallax angle. ' +
+          'Add the following text labels on the image: "Nearby star", "Background stars", ' +
+          '"January position", "July position", "Parallax angle p". ' +
+          'Hard sci-fi style, dark background, orange and cyan accent colors, monospace font labels, ' +
+          '4:3 aspect ratio.',
+        alt: 'Stellar parallax diagram showing Earth at two orbital positions and apparent shift of a nearby star',
+        caption: 'Parallax: measuring the distance to a star by comparing its apparent position from two points in Earth\'s orbit six months apart.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Twentieth Century Explosion',
+      level: 2,
+      paragraphs: [
+        'By the early twentieth century it seemed that the main discoveries in astronomy were ' +
+        'already made. The next hundred years demolished that illusion completely.',
+
+        '**Spectroscopy** — splitting a star\'s light into its spectrum — proved to be an ' +
+        'instrument of extraordinary power. By analyzing absorption lines, scientists learned ' +
+        'to determine the chemical composition, temperature, velocity and magnetic field of a ' +
+        'star while standing billions of kilometers away from it. In 1868, an element unknown ' +
+        'on Earth was detected in the solar spectrum — it was named _helium_ (from the Greek ' +
+        '"Helios," meaning Sun). Helium was only found on Earth in 1895.',
+
+        'In 1924 **Edwin Hubble** proved that the Andromeda Nebula was not a gas cloud inside ' +
+        'our galaxy but a separate galaxy far beyond its edges. The universe turned out to be ' +
+        'incomparably larger than anyone had thought. In 1929, Hubble published an even more ' +
+        'astonishing discovery: **the universe is expanding**. Galaxies are moving away from ' +
+        'one another, with more distant ones receding faster. This meant that in the past, ' +
+        'everything was compressed into a single point. The concept of the Big Bang ceased ' +
+        'to be speculation.',
+
+        'Radio astronomy, developing rapidly after World War II, opened an invisible portion ' +
+        'of the sky. In 1965, Arno Penzias and Robert Wilson accidentally detected the ' +
+        '_cosmic microwave background_ — a faint noise filling all of space, left over from ' +
+        'the first 380,000 years after the Big Bang. They received the 1978 Nobel Prize. ' +
+        'In 1963, **quasars** were discovered — objects brighter than entire galaxies at the ' +
+        'edge of the observable universe, later understood to be supermassive black holes ' +
+        'in the early universe.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'what-is-astronomy-hubble-deep-field',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a deep space image showing thousands ' +
+          'of galaxies of different shapes, sizes and colors against the black backdrop of space, ' +
+          'similar to the Hubble Deep Field, some galaxies spiral, some elliptical, some irregular, ' +
+          'various redshifts visible as color differences. ' +
+          'Add the following text labels on the image: "Each point of light is a galaxy", ' +
+          '"13+ billion light years". ' +
+          'Hard sci-fi style, wide aspect ratio, scientifically accurate.',
+        alt: 'Deep space field showing thousands of galaxies of various shapes and distances',
+        caption: 'Every point of light in this image is an entire galaxy. Some are seen as they were less than a billion years after the Big Bang.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Astronomy in 2026: The Multi-Messenger Era',
+      level: 2,
+      paragraphs: [
+        'Modern astronomy is no longer limited to visible light. We listen to the universe ' +
+        'in X-rays, infrared, radio, gamma — and now, in **gravitational waves**.',
+
+        'In September 2015, the LIGO detector registered the first gravitational wave — ' +
+        'a ripple in spacetime produced by the merger of two black holes 1.3 billion light-years ' +
+        'away. Einstein had predicted these waves in 1916. It took 99 more years to detect them. ' +
+        'In August 2017, LIGO and VIRGO simultaneously recorded a _neutron star merger_, ' +
+        'and at that exact moment a gamma-ray burst flared in the same direction. This was the ' +
+        'first event detected in both gravitational waves and the electromagnetic spectrum at once. ' +
+        '_Multi-messenger astronomy_ was born as a new discipline.',
+
+        'The **James Webb Space Telescope (JWST)**, launched in December 2021 and fully ' +
+        'operational from 2022, sees the universe in infrared with unprecedented clarity. ' +
+        'It photographs exoplanet atmospheres, peers into the first 300-500 million years ' +
+        'after the Big Bang, and finds galaxies that break all previous models of galaxy ' +
+        'formation. As of May 2026, JWST remains the most productive instrument in the ' +
+        'history of astronomy by rate of new discoveries.',
+
+        'The **Euclid** telescope of the European Space Agency, launched in 2023, is mapping ' +
+        'dark matter and dark energy across billions of galaxies. NASA\'s _Nancy Grace Roman ' +
+        'Space Telescope_ is scheduled for launch in 2027 and will investigate dark energy, ' +
+        'exoplanets, and transient phenomena. Each of these missions answers questions that ' +
+        'did not even exist twenty years ago.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'what-is-astronomy-jwst',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: the James Webb Space Telescope ' +
+          'in space, golden hexagonal mirror segments visible, deployed sunshield below, ' +
+          'stars and a faint nebula in background, dramatic lighting from a distant star. ' +
+          'Add the following text labels on the image: "James Webb Space Telescope", ' +
+          '"18 hexagonal mirror segments", "Sunshield". ' +
+          'Hard sci-fi style, 4:3 aspect ratio, dark space background, scientifically accurate.',
+        alt: 'James Webb Space Telescope in space with deployed primary mirror and sunshield',
+        caption: 'JWST sits 1.5 million kilometers from Earth, at Lagrange point L2. Its 6.5-meter primary mirror collects six times more light than Hubble.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Why Astronomy Matters Today',
+      level: 2,
+      paragraphs: [
+        'Astronomy is not an applied science in the traditional sense. We cannot "use" a ' +
+        'distant galaxy. But this does not mean it has no practical consequences.',
+
+        '**Technological spinoffs** are an inherent byproduct of astronomical practice. ' +
+        'The CCD sensors inside every smartphone were originally developed for space telescopes. ' +
+        'Wi-Fi emerged from an algorithm designed to detect radio signals from black holes. ' +
+        'MRI scanners owe their existence to radio telescope engineering. ' +
+        'GPS requires relativistic corrections derived from theory that astronomers validated ' +
+        'on pulsars.',
+
+        '**Planetary defense** is no longer science fiction. In September 2022, NASA\'s DART ' +
+        'mission deliberately struck the asteroid Dimorphos and changed its orbit. For the ' +
+        'first time in history, humanity demonstrated an ability to deflect a potentially ' +
+        'dangerous celestial body. This was only possible because astronomers had spent ' +
+        'decades mapping the orbits of thousands of small solar system bodies.',
+
+        'Finally — and this may be the most important reason of all — astronomy poses and ' +
+        'partially answers the question that occupies every thinking person: **are we alone ' +
+        'in the universe?** As of 2026, more than 5,600 confirmed exoplanets are known. ' +
+        'Several lie in the habitable zones of their stars and are roughly Earth-sized. ' +
+        'JWST is already beginning to analyze their atmospheres. We have not found the answer ' +
+        'yet. But for the first time in history, we have the instruments to look seriously.',
+
+        'Astronomy is the science of where we are and what we are. And if you have ever ' +
+        'stood under a clear night sky and asked yourself — what is all this? — then you ' +
+        'were already doing it.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: The Electromagnetic Spectrum — Astronomy\'s Windows',
+        svg: `<svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="700" height="180" fill="rgba(10,15,25,0.7)"/>
+
+  <!-- Spectrum bar -->
+  <defs>
+    <linearGradient id="specGradEn" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#9966ff"/>
+      <stop offset="14%"  stop-color="#7bb8ff"/>
+      <stop offset="28%"  stop-color="#44ff88"/>
+      <stop offset="42%"  stop-color="#ffff44"/>
+      <stop offset="56%"  stop-color="#ff8844"/>
+      <stop offset="70%"  stop-color="#cc4444"/>
+      <stop offset="85%"  stop-color="#884422"/>
+      <stop offset="100%" stop-color="#442211"/>
+    </linearGradient>
+  </defs>
+  <rect x="30" y="70" width="640" height="30" rx="2" fill="url(#specGradEn)" opacity="0.85"/>
+
+  <!-- Region labels above -->
+  <text x="50"   y="60" text-anchor="middle" fill="#9966ff" font-family="monospace" font-size="9">Gamma</text>
+  <text x="130"  y="60" text-anchor="middle" fill="#7bb8ff" font-family="monospace" font-size="9">X-ray</text>
+  <text x="225"  y="60" text-anchor="middle" fill="#88ccdd" font-family="monospace" font-size="9">Ultra-</text>
+  <text x="225"  y="70" text-anchor="middle" fill="#88ccdd" font-family="monospace" font-size="9">violet</text>
+  <text x="335"  y="60" text-anchor="middle" fill="#cdd9e8" font-family="monospace" font-size="9">Visible</text>
+  <text x="335"  y="70" text-anchor="middle" fill="#cdd9e8" font-family="monospace" font-size="9">light</text>
+  <text x="450"  y="60" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">Infra-</text>
+  <text x="450"  y="70" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">red</text>
+  <text x="565"  y="60" text-anchor="middle" fill="#cc8844" font-family="monospace" font-size="9">Micro-</text>
+  <text x="565"  y="70" text-anchor="middle" fill="#cc8844" font-family="monospace" font-size="9">wave</text>
+  <text x="648"  y="60" text-anchor="middle" fill="#aa7744" font-family="monospace" font-size="9">Radio</text>
+
+  <!-- Telescopes below -->
+  <text x="50"   y="120" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">Fermi</text>
+  <text x="130"  y="120" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">Chandra</text>
+  <text x="225"  y="120" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">Hubble</text>
+  <text x="335"  y="120" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">Hubble / VLT</text>
+  <text x="450"  y="120" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">JWST</text>
+  <text x="565"  y="120" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">WMAP / Planck</text>
+  <text x="648"  y="120" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="8">VLA / ALMA</text>
+
+  <!-- Caption -->
+  <text x="350" y="155" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">
+    Each band is a separate window into the universe. Modern astronomy uses all of them at once.
+  </text>
+
+  <!-- Gravitational waves note -->
+  <text x="350" y="170" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="9">
+    + Gravitational waves (LIGO/VIRGO) and neutrinos (IceCube) — beyond the electromagnetic spectrum
+  </text>
+</svg>`,
+        caption: 'Modern astronomy spans the full electromagnetic spectrum and reaches beyond it.',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Parallax',
+      definition:
+        'The apparent shift of a nearby object against a distant background when viewed from ' +
+        'two different positions. In astronomy, used to measure distances to stars up to roughly ' +
+        '10,000 light-years away.',
+    },
+    {
+      term: 'Spectroscopy',
+      definition:
+        'Analysis of light by splitting it into its spectrum. Allows astronomers to determine ' +
+        'the chemical composition, temperature, velocity and magnetic field of a star or galaxy ' +
+        'from any distance.',
+    },
+    {
+      term: 'Cosmic Microwave Background (CMB)',
+      definition:
+        'The faint thermal radiation filling all of space — the afterglow of the epoch of ' +
+        'recombination roughly 380,000 years after the Big Bang. Its temperature today is ' +
+        'approximately 2.725 K.',
+    },
+    {
+      term: 'Gravitational Waves',
+      definition:
+        'Ripples in spacetime that propagate at the speed of light, generated by massive ' +
+        'accelerating objects such as merging black holes or neutron stars. First directly ' +
+        'detected by LIGO in 2015.',
+    },
+    {
+      term: 'Multi-messenger Astronomy',
+      definition:
+        'An approach that combines observations of the same astrophysical event across different ' +
+        '"messengers" simultaneously: electromagnetic radiation, gravitational waves, neutrinos ' +
+        'and cosmic rays.',
+    },
+    {
+      term: 'Heliocentrism',
+      definition:
+        'The model of the solar system in which the Sun is the central body and the planets ' +
+        'orbit around it. Systematically developed by Copernicus (1543), mathematically ' +
+        'confirmed by Kepler (1609-1619).',
+    },
+    {
+      term: 'Redshift',
+      definition:
+        'An increase in the wavelength of electromagnetic radiation caused by a source ' +
+        'moving away from the observer, or by the expansion of space itself. The key ' +
+        'observational evidence for the expanding universe, discovered by Hubble in 1929.',
+    },
+    {
+      term: 'Hubble-Lemaitre Law',
+      definition:
+        'Galaxies recede from us at a speed proportional to their distance: v = H0 × d. ' +
+        'The Hubble constant H0 is approximately 67-74 km/s/Mpc (the precise value ' +
+        'remains under active debate as of 2026).',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Who was the first to use a telescope systematically for astronomical observation in 1609?',
+      options: [
+        'Nicolaus Copernicus',
+        'Johannes Kepler',
+        'Galileo Galilei',
+        'Tycho Brahe',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Galileo did not invent the telescope but was the first to turn it systematically ' +
+        'toward the sky. He saw craters on the Moon, four large moons orbiting Jupiter, ' +
+        'and the phases of Venus — directly disproving the Ptolemaic geocentric model.',
+    },
+    {
+      question: 'What discovery by Edwin Hubble in 1929 fundamentally transformed our understanding of the universe?',
+      options: [
+        'The existence of galaxies beyond the Milky Way',
+        'The universe is expanding and galaxies are receding from one another',
+        'The cosmic microwave background fills all of space',
+        'Black holes exist at the centers of most galaxies',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Hubble established that galaxies recede with a velocity proportional to their ' +
+        'distance (Hubble\'s Law). This meant everything was closer together in the past — ' +
+        'the foundation of the Big Bang theory. He had demonstrated the existence of ' +
+        'external galaxies earlier, in 1924.',
+    },
+    {
+      question: 'In what year did the LIGO detector first register gravitational waves?',
+      options: [
+        '2012',
+        '2015',
+        '2017',
+        '2019',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The first gravitational wave event, GW150914, was detected on September 14, 2015, ' +
+        'produced by the merger of two black holes. Results were published in February 2016. ' +
+        'Einstein had predicted these waves in 1916.',
+    },
+    {
+      question: 'Which space instrument, operational since 2022, observes the universe primarily in infrared and has imaged the most distant known galaxies?',
+      options: [
+        'The Hubble Space Telescope',
+        'The Chandra X-ray Observatory',
+        'The James Webb Space Telescope (JWST)',
+        'The Very Large Array (VLA)',
+      ],
+      correctIndex: 2,
+      explanation:
+        'JWST with its 6.5-meter primary mirror operates mainly in infrared, allowing it ' +
+        'to see through dust clouds and observe galaxies as they existed in the first hundreds ' +
+        'of millions of years after the Big Bang. It began full science operations in 2022.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — What is Astronomy?',
+      url: 'https://www.nasa.gov/general/what-is-astronomy/',
+      meta: 'NASA official page',
+    },
+    {
+      title: 'ESA — What is Astronomy?',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/What_is_astronomy',
+      meta: 'European Space Agency',
+    },
+    {
+      title: 'Copernicus — De revolutionibus orbium coelestium (1543)',
+      url: 'https://archive.org/details/derevolvtionibvs00cope',
+      meta: 'Original edition, open access (Internet Archive)',
+    },
+    {
+      title: 'LIGO Scientific Collaboration — Observation of Gravitational Waves from a Binary Black Hole Merger',
+      url: 'https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.116.061102',
+      meta: 'Physical Review Letters, 116, 061102 (2016), open access',
+    },
+    {
+      title: 'Webb Space Telescope — NASA Science',
+      url: 'https://science.nasa.gov/mission/webb/',
+      meta: 'Official JWST mission page',
+    },
+    {
+      title: 'Euclid Mission — ESA',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/Euclid',
+      meta: 'Official Euclid mission page (ESA)',
+    },
+    {
+      title: 'Hubble E. — A Relation between Distance and Radial Velocity among Extra-Galactic Nebulae (1929)',
+      url: 'https://www.pnas.org/doi/10.1073/pnas.15.3.168',
+      meta: 'Proceedings of the National Academy of Sciences, 15(3), 168-173',
+    },
+    {
+      title: 'IAU — International Astronomical Union, History of Astronomy',
+      url: 'https://www.iau.org/public/themes/history/',
+      meta: 'International Astronomical Union',
+    },
+    {
+      title: 'DART Mission — NASA Planetary Defense',
+      url: 'https://www.nasa.gov/dart/',
+      meta: 'First successful test of planetary defense (2022)',
+    },
+  ],
+
+  lastVerified: '2026-05-03',
+};
+
+export default lesson;

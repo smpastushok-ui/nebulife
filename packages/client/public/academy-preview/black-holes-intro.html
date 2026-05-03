@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Чорні діри — вступ · Енциклопедія космосу · Nebulife</title>
+<style>
+  /* Game Bible palette + monospace only */
+  :root {
+    --bg-deep:        #020510;
+    --bg-panel:       rgba(10, 15, 25, 0.92);
+    --bg-card:        rgba(15, 22, 35, 0.85);
+    --text-primary:   #aabbcc;
+    --text-secondary: #8899aa;
+    --text-muted:     #667788;
+    --text-bright:    #cdd9e8;
+    --border-base:    #334455;
+    --border-active:  #446688;
+    --accent-blue:    #4488aa;
+    --accent-bright:  #7bb8ff;
+    --accent-cyan:    #88ccdd;
+    --semantic-green: #44ff88;
+    --semantic-orange:#ff8844;
+    --semantic-red:   #cc4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Roboto Mono', 'Courier New', monospace;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Procedural starfield background — cheap CSS gradient */
+  body {
+    background:
+      radial-gradient(1px 1px at 20% 30%, #cdd9e8 50%, transparent),
+      radial-gradient(1px 1px at 60% 70%, #aabbcc 50%, transparent),
+      radial-gradient(1px 1px at 80% 10%, #7bb8ff 50%, transparent),
+      radial-gradient(2px 2px at 40% 80%, #cdd9e8 50%, transparent),
+      radial-gradient(1px 1px at 90% 50%, #88ccdd 50%, transparent),
+      radial-gradient(1px 1px at 10% 90%, #aabbcc 50%, transparent),
+      var(--bg-deep);
+    background-size: 100% 100%;
+    background-attachment: fixed;
+  }
+
+  /* ── Header bar ──────────────────────────────────────────────────── */
+  .header {
+    position: sticky;
+    top: 0;
+    background: var(--bg-panel);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-base);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 100;
+  }
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex: 1;
+  }
+  .breadcrumb a {
+    color: var(--accent-blue);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--accent-bright); }
+  .breadcrumb-sep { color: var(--border-base); }
+  .lang-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border-base);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .lang-toggle button {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .lang-toggle button.active {
+    background: var(--accent-blue);
+    color: var(--bg-deep);
+  }
+
+  /* ── Main container ──────────────────────────────────────────────── */
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+  }
+
+  /* ── Lesson header ───────────────────────────────────────────────── */
+  .lesson-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border-base);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge.section { color: var(--accent-bright); border-color: var(--accent-blue); }
+  .badge.difficulty { color: var(--semantic-green); border-color: var(--semantic-green); }
+  .badge.time { color: var(--text-muted); }
+  .badge.verified { color: var(--accent-cyan); border-color: var(--accent-cyan); }
+
+  h1.lesson-title {
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--text-bright);
+    line-height: 1.2;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .lesson-subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  /* ── Audio player ────────────────────────────────────────────────── */
+  .audio-player {
+    background: var(--bg-card);
+    border: 1px solid var(--border-base);
+    border-radius: 4px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .play-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    color: var(--bg-deep);
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .play-btn:hover { background: var(--accent-bright); }
+  .audio-info { flex: 1; font-size: 13px; }
+  .audio-label { color: var(--text-bright); margin-bottom: 2px; }
+  .audio-meta { color: var(--text-muted); font-size: 11px; }
+  .voice-select {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-base);
+    padding: 5px 8px;
+    font-family: inherit;
+    font-size: 11px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  /* ── Hero image ──────────────────────────────────────────────────── */
+  .hero-image {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #0a0e1a 0%, #1a2438 50%, #0a0e1a 100%);
+    border: 1px solid var(--border-base);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Procedural M87* black hole representation */
+  .hero-image::before {
+    content: '';
+    position: absolute;
+    width: 60%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      transparent 28%,
+      rgba(255, 136, 68, 0.4) 30%,
+      rgba(255, 200, 100, 0.6) 38%,
+      rgba(255, 220, 130, 0.4) 48%,
+      transparent 60%
+    );
+    box-shadow:
+      0 0 80px rgba(255, 136, 68, 0.3),
+      inset 0 0 40px rgba(0, 0, 0, 0.9);
+  }
+  .hero-image::after {
+    content: '[ Тут буде реальне зображення M87* з EHT (April 2019) ]';
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    color: var(--text-muted);
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 4px 8px;
+    border-radius: 2px;
+  }
+  .image-caption {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-bottom: 28px;
+    text-align: center;
+    font-style: italic;
+  }
+
+  /* ── Article content ─────────────────────────────────────────────── */
+  article p {
+    margin-bottom: 16px;
+    color: var(--text-primary);
+  }
+  article p:first-of-type::first-letter {
+    font-size: 48px;
+    line-height: 0.8;
+    float: left;
+    margin: 4px 8px 0 0;
+    color: var(--accent-bright);
+    font-weight: 600;
+  }
+  article h2 {
+    font-size: 22px;
+    color: var(--text-bright);
+    margin: 36px 0 14px;
+    border-bottom: 1px solid var(--border-base);
+    padding-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+  article h3 {
+    font-size: 17px;
+    color: var(--text-bright);
+    margin: 24px 0 10px;
+  }
+
+  /* Inline highlights */
+  article strong { color: var(--text-bright); font-weight: 600; }
+  article em { color: var(--accent-cyan); font-style: normal; border-bottom: 1px dotted var(--accent-cyan); }
+
+  /* ── Inline diagrams (procedural SVG) ────────────────────────────── */
+  .diagram {
+    background: var(--bg-card);
+    border: 1px solid var(--border-base);
+    border-radius: 4px;
+    padding: 20px;
+    margin: 24px 0;
+  }
+  .diagram-title {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .diagram-caption {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 12px;
+    text-align: center;
+  }
+
+  /* ── Image placeholder (auto-generated) ──────────────────────────── */
+  .gen-image {
+    background: var(--bg-card);
+    border: 1px dashed var(--border-active);
+    border-radius: 4px;
+    padding: 40px 20px;
+    margin: 20px 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .gen-image-prompt {
+    color: var(--accent-cyan);
+    font-style: italic;
+    margin-top: 8px;
+    font-size: 11px;
+  }
+
+  /* ── Glossary ────────────────────────────────────────────────────── */
+  .glossary {
+    background: var(--bg-card);
+    border: 1px solid var(--border-base);
+    border-radius: 4px;
+    padding: 16px;
+    margin: 24px 0;
+  }
+  .glossary-title {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .glossary dl { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .glossary dt { color: var(--accent-bright); font-size: 13px; margin-bottom: 2px; }
+  .glossary dd { color: var(--text-secondary); font-size: 13px; padding-left: 16px; }
+
+  /* ── Quiz ────────────────────────────────────────────────────────── */
+  .quiz {
+    background: var(--bg-card);
+    border: 1px solid var(--accent-blue);
+    border-radius: 4px;
+    padding: 20px;
+    margin: 32px 0;
+  }
+  .quiz-title {
+    font-size: 14px;
+    color: var(--accent-bright);
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .quiz-question { color: var(--text-bright); margin-bottom: 12px; }
+  .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+  .quiz-option {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-base);
+    color: var(--text-primary);
+    padding: 10px 14px;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 3px;
+    transition: all 0.15s;
+  }
+  .quiz-option:hover {
+    border-color: var(--accent-blue);
+    background: rgba(68, 136, 170, 0.1);
+  }
+  .quiz-option.correct {
+    border-color: var(--semantic-green);
+    color: var(--semantic-green);
+  }
+
+  /* ── Further reading ─────────────────────────────────────────────── */
+  .further-reading {
+    margin: 32px 0;
+    padding: 20px;
+    background: var(--bg-card);
+    border-left: 3px solid var(--accent-blue);
+    border-radius: 0 4px 4px 0;
+  }
+  .further-reading-title {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .further-reading ul { list-style: none; }
+  .further-reading li {
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border-base);
+    font-size: 13px;
+  }
+  .further-reading li:last-child { border-bottom: none; }
+  .further-reading a {
+    color: var(--accent-blue);
+    text-decoration: none;
+  }
+  .further-reading a:hover { color: var(--accent-bright); text-decoration: underline; }
+  .source-meta {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-left: 8px;
+  }
+
+  /* ── Lesson footer (navigation) ──────────────────────────────────── */
+  .lesson-footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-base);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .nav-btn {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border-base);
+    color: var(--text-primary);
+    padding: 14px 18px;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .nav-btn:hover {
+    border-color: var(--accent-blue);
+    color: var(--accent-bright);
+  }
+  .nav-btn-label {
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  /* ── Verified marker ─────────────────────────────────────────────── */
+  .verified-bar {
+    margin-top: 32px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-base);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .verified-bar strong { color: var(--accent-cyan); font-weight: normal; }
+
+  /* ── Mobile ──────────────────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .container { padding: 16px 14px 60px; }
+    h1.lesson-title { font-size: 24px; }
+    article h2 { font-size: 19px; }
+    .lesson-footer { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <nav class="breadcrumb">
+    <a href="#">Енциклопедія</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="#">Астрофізика</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Чорні діри — вступ</span>
+  </nav>
+  <div class="lang-toggle">
+    <button class="active">UK</button>
+    <button>EN</button>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- ── Meta + Title ─────────────────────────────────────────────── -->
+  <div class="lesson-meta">
+    <span class="badge section">Астрофізика · Урок 5/12</span>
+    <span class="badge difficulty">Початковий</span>
+    <span class="badge time">12 хв читання · 14 хв аудіо</span>
+    <span class="badge verified">✓ Травень 2026</span>
+  </div>
+
+  <h1 class="lesson-title">Чорні діри</h1>
+  <p class="lesson-subtitle">
+    Об'єкти, з яких не вирвешся. Що ми знаємо, як їх побачили
+    і чому це найкраща перевірка теорії Ейнштейна.
+  </p>
+
+  <!-- ── Audio player ─────────────────────────────────────────────── -->
+  <div class="audio-player">
+    <button class="play-btn" title="Послухати урок">▶</button>
+    <div class="audio-info">
+      <div class="audio-label">Послухати урок</div>
+      <div class="audio-meta">14 хв · озвучує A.S.T.R.A.</div>
+    </div>
+    <select class="voice-select">
+      <option>A.S.T.R.A. ♀</option>
+      <option>Командор ♂</option>
+      <option>1.0×</option>
+      <option>1.25×</option>
+      <option>1.5×</option>
+    </select>
+  </div>
+
+  <!-- ── Hero image ────────────────────────────────────────────────── -->
+  <div class="hero-image"></div>
+  <p class="image-caption">
+    M87* — перше в історії зображення тіні чорної діри. Знято Event Horizon
+    Telescope, опубліковано 10 квітня 2019. Маса: 6,5 мільярдів сонячних мас.
+  </p>
+
+  <!-- ── Article ──────────────────────────────────────────────────── -->
+  <article>
+
+    <p>
+      Уявіть зорю, що в мільйон разів масивніша за Сонце, але стиснута до розміру міста.
+      Гравітація на її поверхні така сильна, що навіть світло — найшвидше у Всесвіті —
+      не може втекти. Це і є <strong>чорна діра</strong>: область простору, з якої
+      нічого не виходить назовні. Не тому що щось «всмоктує», а тому що сама геометрія
+      простору-часу там завернута всередину.
+    </p>
+
+    <p>
+      Звучить як фантастика, але це найкраще задокументоване передбачення Ейнштейна.
+      У квітні 2019 року людство вперше побачило тінь чорної діри. У травні 2022 —
+      побачили тінь тієї, що в центрі нашої власної галактики. У 2024 році виміряли
+      її магнітне поле. Чорні діри існують. Питання тепер не «чи існують», а «як
+      саме вони працюють зсередини».
+    </p>
+
+    <h2>Звідки беруться чорні діри</h2>
+
+    <p>
+      Більшість чорних дір — це <em>трупи зір</em>. Коли масивна зоря (більше
+      ~25 сонячних мас) випалює увесь свій ядерний паливо, гравітація стискає її
+      ядро з нечуваною силою. Якщо вона занадто масивна навіть для того, щоб стати
+      нейтронною зорею, нічого не може зупинити колапс. За частку секунди матерія
+      ядра стискається до точки нульового об'єму — <em>сингулярності</em>.
+    </p>
+
+    <p>
+      Навколо сингулярності утворюється <em>горизонт подій</em> — невидима сфера,
+      перетнувши яку, не можна повернутись назад. Радіус цієї сфери називається
+      <em>радіусом Шварцшильда</em> і залежить тільки від маси:
+    </p>
+
+    <div class="diagram">
+      <div class="diagram-title">Схема: Радіус Шварцшильда</div>
+      <svg viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background -->
+        <rect width="600" height="240" fill="rgba(10,15,25,0.5)"/>
+
+        <!-- Singularity point -->
+        <circle cx="300" cy="120" r="3" fill="#ff8844"/>
+        <text x="310" y="125" fill="#ff8844" font-family="monospace" font-size="11">сингулярність</text>
+
+        <!-- Event horizon -->
+        <circle cx="300" cy="120" r="60" fill="none" stroke="#cc4444" stroke-width="2"/>
+        <text x="300" y="55" fill="#cc4444" font-family="monospace" font-size="11" text-anchor="middle">горизонт подій</text>
+
+        <!-- Photon sphere -->
+        <circle cx="300" cy="120" r="90" fill="none" stroke="#7bb8ff" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="300" y="220" fill="#7bb8ff" font-family="monospace" font-size="11" text-anchor="middle">фотонна сфера (1,5 R_s)</text>
+
+        <!-- ISCO -->
+        <circle cx="300" cy="120" r="180" fill="none" stroke="#88ccdd" stroke-width="1" stroke-dasharray="2,6" opacity="0.5"/>
+        <text x="495" y="120" fill="#88ccdd" font-family="monospace" font-size="11">ISCO (3 R_s)</text>
+
+        <!-- Light ray that escapes -->
+        <path d="M 100 200 Q 250 180, 480 80" stroke="#44ff88" stroke-width="1.5" fill="none"/>
+        <text x="100" y="215" fill="#44ff88" font-family="monospace" font-size="10">світло втікає</text>
+
+        <!-- Light ray captured -->
+        <path d="M 100 60 Q 220 100, 270 130 L 290 125" stroke="#ff8844" stroke-width="1.5" fill="none"/>
+        <text x="100" y="50" fill="#ff8844" font-family="monospace" font-size="10">світло захоплене</text>
+      </svg>
+      <p class="diagram-caption">
+        R<sub>s</sub> = 2GM/c². Для маси Сонця це ~3 км. Для M87* це 38 мільярдів км.
+      </p>
+    </div>
+
+    <p>
+      Для чорної діри з масою Сонця радіус Шварцшильда становить лише 3 кілометри.
+      Якщо стиснути все Сонце в кулю діаметром 6 км — отримаєте чорну діру.
+      Цього не станеться природним шляхом (Сонце недостатньо масивне), але формула
+      працює для будь-якої маси.
+    </p>
+
+    <h2>Три типи чорних дір</h2>
+
+    <p>
+      Сьогодні астрономи виділяють три основні класи:
+    </p>
+
+    <h3>1. Чорні діри зоряної маси (5-100 M<sub>☉</sub>)</h3>
+    <p>
+      Утворюються при колапсі окремих зір. У нашій Галактиці їх — десятки мільйонів.
+      Ми «бачимо» їх через рентгенівське випромінювання акреційного диска з компаньйона
+      у подвійній системі. Перший підтверджений кандидат — <strong>Cygnus X-1</strong>
+      (1971), який досі є зразковим прикладом.
+    </p>
+
+    <h3>2. Надмасивні чорні діри (10⁵-10¹⁰ M<sub>☉</sub>)</h3>
+    <p>
+      Сидять у центрах майже всіх великих галактик. У нашого Молочного Шляху —
+      <strong>Sagittarius A*</strong>, маса 4,3 мільйона M<sub>☉</sub>. У M87 —
+      6,5 мільярдів M<sub>☉</sub>. Як саме вони стали такими великими — все ще
+      відкрите питання сучасної астрофізики.
+    </p>
+
+    <h3>3. Чорні діри проміжної маси (100-10⁵ M<sub>☉</sub>)</h3>
+    <p>
+      Найзагадковіший клас. Знайдено лише декілька кандидатів, серед них —
+      <strong>HLX-1</strong> у галактиці ESO 243-49. Знаходження більше їх —
+      одна з ключових цілей телескопа JWST.
+    </p>
+
+    <!-- ── GenImage placeholder ──────────────────────────────────── -->
+    <div class="gen-image">
+      <div>[ Тут буде AI-генероване зображення: акреційний диск ]</div>
+      <div class="gen-image-prompt">
+        prompt: "scientific illustration of a black hole accretion disk with relativistic jets,
+        side view, glowing orange-red gas spiraling inward, monospace technical labels,
+        dark space background, hard sci-fi style"
+      </div>
+    </div>
+
+    <h2>Як ми «побачили» те, чого не видно</h2>
+
+    <p>
+      Сама чорна діра не випромінює світла. Але матерія, що падає в неї, утворює
+      <em>акреційний диск</em> — розпечений обертовий вихор газу, що нагрівається до
+      мільйонів градусів і яскраво світиться. Гравітація чорної діри викривлює промені
+      світла навколо себе, утворюючи характерну <strong>тінь</strong> — темний диск
+      на фоні яскравого кільця.
+    </p>
+
+    <p>
+      Саме цю тінь і вловив Event Horizon Telescope (EHT) — глобальна мережа з
+      8 (потім 11) радіотелескопів, що працюють як єдиний інструмент розміром із
+      Землю. У 2019 EHT опублікував перше зображення тіні M87*, у 2022 —
+      нашого власного Sgr A*. У 2024 — карту магнітного поля.
+    </p>
+
+    <h2>Що ще ми не знаємо</h2>
+
+    <p>
+      Незважаючи на всі підтвердження, чорні діри залишаються найбільшим
+      недописаним розділом сучасної фізики:
+    </p>
+
+    <p>
+      <strong>Що там, у сингулярності?</strong> Загальна теорія відносності каже:
+      нескінченна щільність. Але це означає, що ЗТВ ламається. Ми не знаємо,
+      як описати фізику в самому центрі — потрібна квантова теорія гравітації,
+      яку ще не побудовано.
+    </p>
+
+    <p>
+      <strong>Куди дівається інформація?</strong> У 1974 Стівен Гокінг показав,
+      що чорні діри повільно випаровуються через <em>випромінювання Гокінга</em>.
+      Але це означає, що інформація про все, що впало туди, мала б зникнути —
+      що порушує квантову механіку. Цей <em>парадокс інформації</em> досі
+      не розв'язано остаточно.
+    </p>
+
+    <p>
+      <strong>Звідки взялися надмасивні?</strong> JWST (з 2022) бачить квазари у
+      Всесвіті віком ~700 млн років, всередині яких — чорні діри в мільярди M<sub>☉</sub>.
+      Стандартна теорія колапсу зір не дає достатньо часу для такого зростання.
+      Можливо, працює механізм <em>прямого колапсу</em> газових хмар — але це ще
+      гіпотеза.
+    </p>
+
+    <!-- ── Glossary ────────────────────────────────────────────── -->
+    <div class="glossary">
+      <div class="glossary-title">Терміни в цьому уроці</div>
+      <dl>
+        <dt>Сингулярність</dt>
+        <dd>Гіпотетична точка нульового об'єму та нескінченної щільності в центрі чорної діри.</dd>
+
+        <dt>Горизонт подій</dt>
+        <dd>Сфера навколо чорної діри, перетнувши яку, ніщо (включно зі світлом) не може повернутись назад.</dd>
+
+        <dt>Радіус Шварцшильда (R<sub>s</sub>)</dt>
+        <dd>Радіус горизонту подій для невобертної чорної діри. R<sub>s</sub> = 2GM/c².</dd>
+
+        <dt>Акреційний диск</dt>
+        <dd>Обертовий диск розпеченого газу, що падає в чорну діру по спіралі.</dd>
+
+        <dt>Випромінювання Гокінга</dt>
+        <dd>Слабке теплове випромінювання, яке (теоретично) виходить від горизонту подій через квантові ефекти.</dd>
+      </dl>
+    </div>
+
+    <!-- ── Quiz ────────────────────────────────────────────────── -->
+    <div class="quiz">
+      <div class="quiz-title">Швидка перевірка (3 запитання)</div>
+      <p class="quiz-question">1. Що таке горизонт подій?</p>
+      <div class="quiz-options">
+        <button class="quiz-option">Точка нульового об'єму всередині чорної діри</button>
+        <button class="quiz-option correct">Сфера, перетнувши яку, не можна повернутись</button>
+        <button class="quiz-option">Кільце розпеченого газу навколо чорної діри</button>
+        <button class="quiz-option">Магнітне поле чорної діри</button>
+      </div>
+    </div>
+
+    <!-- ── Further reading ─────────────────────────────────────── -->
+    <div class="further-reading">
+      <div class="further-reading-title">Першоджерела і додаткове читання</div>
+      <ul>
+        <li>
+          <a href="https://eventhorizontelescope.org/">Event Horizon Telescope Collaboration</a>
+          <span class="source-meta">офіційний сайт, всі публікації</span>
+        </li>
+        <li>
+          <a href="https://iopscience.iop.org/article/10.3847/2041-8213/ab0ec7">
+            EHT 2019 — First M87 Event Horizon Telescope Results
+          </a>
+          <span class="source-meta">ApJL, 875, L1 (відкритий доступ)</span>
+        </li>
+        <li>
+          <a href="https://iopscience.iop.org/article/10.3847/2041-8213/ac6674">
+            EHT 2022 — First Sagittarius A* Event Horizon Telescope Results
+          </a>
+          <span class="source-meta">ApJL, 930, L12 (відкритий доступ)</span>
+        </li>
+        <li>
+          <a href="https://www.nature.com/articles/248030a0">
+            Hawking S. — Black hole explosions?
+          </a>
+          <span class="source-meta">Nature, 248, 30 (1974)</span>
+        </li>
+        <li>
+          <a href="https://www.youtube.com/c/PBSSpaceTime">PBS Space Time</a>
+          <span class="source-meta">YouTube — найкраща наукова популяризація на тему</span>
+        </li>
+      </ul>
+    </div>
+
+  </article>
+
+  <!-- ── Verified bar ──────────────────────────────────────────── -->
+  <div class="verified-bar">
+    <span>Дані актуальні станом на <strong>травень 2026</strong></span>
+    <span>Автор: <strong>експертна група Nebulife</strong></span>
+    <span>Технічна перевірка: <strong>arXiv + EHT collaboration</strong></span>
+  </div>
+
+  <!-- ── Footer navigation ─────────────────────────────────────── -->
+  <nav class="lesson-footer">
+    <a href="#" class="nav-btn">
+      <div class="nav-btn-label">← Попередній урок</div>
+      <div>4. Загальна теорія відносності</div>
+    </a>
+    <a href="#" class="nav-btn" style="text-align:right;">
+      <div class="nav-btn-label">Наступний урок →</div>
+      <div>6. Нейтронні зорі і пульсари</div>
+    </a>
+  </nav>
+
+</main>
+
+<script>
+  // Quiz interactivity (preview only)
+  document.querySelectorAll('.quiz-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const isCorrect = btn.classList.contains('correct');
+      btn.style.borderColor = isCorrect ? 'var(--semantic-green)' : 'var(--semantic-red)';
+      btn.style.color = isCorrect ? 'var(--semantic-green)' : 'var(--semantic-red)';
+      // Show all correct
+      if (isCorrect) {
+        document.querySelectorAll('.quiz-option').forEach(o => o.disabled = true);
+      }
+    });
+  });
+
+  // Audio button — preview stub
+  document.querySelector('.play-btn')?.addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    btn.textContent = btn.textContent === '▶' ? '⏸' : '▶';
+    alert('У продакшні тут грає попередньо згенерований MP3.\n\nГолос: Google TTS uk-UA-Wavenet-A\nДовжина: 14 хв\nРозмір: ~5 MB\nВантажиться по запиту, кешується в IndexedDB.');
+  });
+
+  // Language toggle stub
+  document.querySelectorAll('.lang-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.lang-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>
