@@ -30,6 +30,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<ArenaEngine | null>(null);
   const [ready, setReady] = useState(false);
+  const [startupStalled, setStartupStalled] = useState(false);
   const [hp, setHp] = useState(100);
   const [maxHp, setMaxHp] = useState(100);
   const [shield, setShield] = useState(50);
@@ -364,6 +365,15 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
   }, [onExit, onStatsCommit, sessionStats]);
 
   useEffect(() => {
+    if (ready) {
+      setStartupStalled(false);
+      return;
+    }
+    const id = window.setTimeout(() => setStartupStalled(true), 4500);
+    return () => window.clearTimeout(id);
+  }, [ready]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
@@ -380,12 +390,15 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
   useEffect(() => {
     if (!containerRef.current) return;
 
+    let cancelled = false;
     const shipId = localStorage.getItem('nebulife_hangar_ship') || 'ship1';
-    const engine = new ArenaEngine(containerRef.current, callbacks.current, shipId, teamMode);
+    const customShipGlbUrl = shipId === 'custom' ? localStorage.getItem('nebulife_custom_ship_glb_url') : null;
+    const engine = new ArenaEngine(containerRef.current, callbacks.current, shipId, teamMode, customShipGlbUrl);
     engineRef.current = engine;
     engine.setIsMobile(mobile);
 
     engine.init().then(() => {
+      if (cancelled) return;
       setReady(true);
       // If the first-time tutorial is open, hold the match in 'waiting'
       // phase until the player finishes the walkthrough. Countdown is
@@ -394,10 +407,14 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
       if (!shouldShowArenaTutorial()) {
         engine.startMatch();
       }
+    }).catch((err) => {
+      console.warn('[SpaceArena] failed to initialize:', err);
+      if (!cancelled) setStartupStalled(true);
     });
 
     return () => {
-      engine.destroy();
+      cancelled = true;
+      try { engine.destroy(); } catch (err) { console.warn('[SpaceArena] destroy failed:', err); }
       engineRef.current = null;
     };
   }, []);
@@ -428,7 +445,39 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
         ? 'blur(3px) brightness(0.35) saturate(0.3)'
         : isWarping ? 'blur(2px) brightness(1.3)' : 'none';
 
+  const emergencyExitButton = (
+    <button
+      onClick={handleExit}
+      title={t('arena.exit_title')}
+      aria-label={t('arena.exit_title')}
+      style={{
+        position: 'fixed',
+        top: `calc(12px + env(safe-area-inset-top, 0px))`,
+        left: `calc(12px + env(safe-area-inset-left, 0px))`,
+        zIndex: 30000,
+        minWidth: 54,
+        height: 44,
+        padding: '0 12px',
+        background: 'rgba(8,14,24,0.94)',
+        border: '2px solid rgba(255,136,68,0.55)',
+        borderRadius: 8,
+        color: '#ffbb88',
+        fontFamily: 'monospace',
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: 1.4,
+        cursor: 'pointer',
+        pointerEvents: 'auto',
+        boxShadow: '0 0 18px rgba(0,0,0,0.7)',
+      }}
+    >
+      {t('arena.exit_button')}
+    </button>
+  );
+
   return (
+    <>
+    {emergencyExitButton}
     <div style={outerStyle}>
       {/* Three.js canvas container — z-index 0 so UI stays on top */}
       <div
@@ -537,6 +586,10 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
         @keyframes arenaWinnerPulse {
           0%, 100% { opacity: 0.72; transform: translateX(-50%) scaleX(0.88); }
           50% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+        }
+        @keyframes arenaSpinner {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
 
@@ -857,6 +910,32 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
         </svg>
       </button>
 
+      {startupStalled && !ready && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 250,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'radial-gradient(circle at 50% 45%, rgba(20,30,44,0.28), rgba(2,5,16,0.62))',
+          }}
+        >
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: '50%',
+              border: '1px solid rgba(123,184,255,0.28)',
+              borderTopColor: '#7bb8ff',
+              animation: 'arenaSpinner 1s linear infinite',
+            }}
+          />
+        </div>
+      )}
+
       {/* Mobile joysticks */}
       {mobile && ready && (
         <ArenaLandscapeControls
@@ -1175,5 +1254,6 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
         );
       })()}
     </div>
+    </>
   );
 }

@@ -211,6 +211,7 @@ export async function resetPlayerData(playerId: string): Promise<PlayerRow | nul
   await Promise.all([
     sql`DELETE FROM discoveries WHERE player_id = ${playerId}`,
     sql`DELETE FROM planet_models WHERE player_id = ${playerId}`,
+    sql`DELETE FROM ship_models WHERE player_id = ${playerId}`,
     sql`DELETE FROM player_aliases WHERE player_id = ${playerId}`,
     sql`DELETE FROM surface_buildings WHERE player_id = ${playerId}`,
     sql`DELETE FROM surface_maps WHERE player_id = ${playerId}`,
@@ -439,6 +440,102 @@ export async function updatePlanetModel(
     RETURNING *
   `;
   return (rows[0] as PlanetModelRow) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Ship Model helpers (player-owned custom GLB ships via Kling + Tripo3D)
+// ---------------------------------------------------------------------------
+
+export interface ShipModelRow {
+  id: string;
+  player_id: string;
+  status: string;
+  prompt: string;
+  prompt_used: string | null;
+  moderation_status: string;
+  moderation_reason: string | null;
+  kling_task_id: string | null;
+  concept_url: string | null;
+  tripo_task_id: string | null;
+  glb_url: string | null;
+  quarks_paid: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function saveShipModel(m: {
+  id: string;
+  playerId: string;
+  prompt: string;
+  promptUsed?: string;
+  moderationStatus?: string;
+  moderationReason?: string;
+  status?: string;
+  quarksPaid?: number;
+}): Promise<ShipModelRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO ship_models (
+      id, player_id, prompt, prompt_used, moderation_status,
+      moderation_reason, status, quarks_paid
+    )
+    VALUES (
+      ${m.id}, ${m.playerId}, ${m.prompt}, ${m.promptUsed ?? null},
+      ${m.moderationStatus ?? 'pending'}, ${m.moderationReason ?? null},
+      ${m.status ?? 'pending'}, ${m.quarksPaid ?? 0}
+    )
+    RETURNING *
+  `;
+  return rows[0] as ShipModelRow;
+}
+
+export async function getShipModel(id: string): Promise<ShipModelRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM ship_models WHERE id = ${id}`;
+  return (rows[0] as ShipModelRow) ?? null;
+}
+
+export async function getShipModels(playerId: string): Promise<ShipModelRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM ship_models
+    WHERE player_id = ${playerId}
+    ORDER BY created_at DESC
+  `) as ShipModelRow[];
+}
+
+export async function updateShipModel(
+  id: string,
+  updates: Partial<{
+    status: string;
+    prompt_used: string;
+    moderation_status: string;
+    moderation_reason: string;
+    kling_task_id: string;
+    concept_url: string;
+    tripo_task_id: string;
+    glb_url: string;
+    quarks_paid: number;
+    completed_at: string;
+  }>,
+): Promise<ShipModelRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE ship_models
+    SET status = COALESCE(${updates.status ?? null}, status),
+        prompt_used = COALESCE(${updates.prompt_used ?? null}, prompt_used),
+        moderation_status = COALESCE(${updates.moderation_status ?? null}, moderation_status),
+        moderation_reason = COALESCE(${updates.moderation_reason ?? null}, moderation_reason),
+        kling_task_id = COALESCE(${updates.kling_task_id ?? null}, kling_task_id),
+        concept_url = COALESCE(${updates.concept_url ?? null}, concept_url),
+        tripo_task_id = COALESCE(${updates.tripo_task_id ?? null}, tripo_task_id),
+        glb_url = COALESCE(${updates.glb_url ?? null}, glb_url),
+        quarks_paid = COALESCE(${updates.quarks_paid ?? null}, quarks_paid),
+        completed_at = COALESCE(${updates.completed_at ?? null}::timestamptz, completed_at)
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as ShipModelRow) ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1638,6 +1735,7 @@ export async function deletePlayerData(playerId: string): Promise<void> {
   // Tables with CASCADE or manual FK — delete dependent data first
   await sql`DELETE FROM discoveries WHERE player_id = ${playerId}`;
   await sql`DELETE FROM planet_models WHERE player_id = ${playerId}`;
+  await sql`DELETE FROM ship_models WHERE player_id = ${playerId}`;
   await sql`DELETE FROM player_aliases WHERE player_id = ${playerId}`;
   await sql`DELETE FROM surface_buildings WHERE player_id = ${playerId}`;
   await sql`DELETE FROM surface_maps WHERE player_id = ${playerId}`;

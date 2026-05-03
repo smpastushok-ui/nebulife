@@ -16,6 +16,27 @@
 // are no clicks when the scene-reactive effect pauses/resumes.
 // ---------------------------------------------------------------------------
 
+let webmAudioSupported: boolean | null = null;
+
+function canPlayWebmAudio(): boolean {
+  if (webmAudioSupported !== null) return webmAudioSupported;
+  try {
+    const audio = document.createElement('audio');
+    webmAudioSupported = !!(
+      audio.canPlayType('audio/webm; codecs="opus"')
+      || audio.canPlayType('audio/webm')
+    );
+  } catch {
+    webmAudioSupported = false;
+  }
+  return webmAudioSupported;
+}
+
+function resolveAmbientSrc(src: string): string {
+  if (!src.endsWith('.webm')) return src;
+  return canPlayWebmAudio() ? src : src.replace(/\.webm$/, '.mp3');
+}
+
 export class SpaceAmbient {
   private audio: HTMLAudioElement | null = null;
   private isPlaying = false;
@@ -34,7 +55,7 @@ export class SpaceAmbient {
   private readonly fadeCinematicSec = 1.5;
 
   constructor(src: string = '/music/space.webm') {
-    this.src = src;
+    this.src = resolveAmbientSrc(src);
   }
 
   public start(): void {

@@ -21,3 +21,4 @@ packages/client/public/music/*.flac
 packages/client/public/sfx/*.wav
 packages/client/public/sfx/*.WAV
 packages/client/public/sfx/transit/
+.env*.local

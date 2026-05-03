@@ -1,5 +1,5 @@
 /**
- * IAP Service — In-App Purchases via RevenueCat for iOS/Android.
+ * IAP Service — In-App Purchases.
  *
  * SETUP CHECKLIST (do these before going to production):
  * 1. Create a RevenueCat project at https://app.revenuecat.com
@@ -9,18 +9,12 @@
  *    - nebulife_quarks_500   (500  quarks, ~$3.99)
  *    - nebulife_quarks_2000  (2000 quarks, ~$12.99)
  * 4. Create an Offering in RevenueCat named "default" with the above products as Packages.
- * 5. Replace the API key placeholders below with your actual RevenueCat API keys.
+ * 5. Set VITE_REVENUECAT_IOS_API_KEY and/or VITE_REVENUECAT_ANDROID_API_KEY.
  * 6. Run `npx cap sync` after building to push native changes.
  */
 
 import { Capacitor } from '@capacitor/core';
 import { authFetch } from '../auth/api-client.js';
-
-// ---------------------------------------------------------------------------
-// RevenueCat API keys (test keys — replace with production keys before release)
-// ---------------------------------------------------------------------------
-const REVENUECAT_IOS_KEY = 'test_bgUKWMvwmBdTVOlDtHqSUFHxZqR';
-const REVENUECAT_ANDROID_KEY = 'test_bgUKWMvwmBdTVOlDtHqSUFHxZqR';
 
 /** True when running as a native iOS or Android app (not web/browser). */
 export function isNativeIAP(): boolean {
@@ -81,48 +75,102 @@ export const FALLBACK_IAP_PACKAGES: IAPPackage[] = [
   },
 ];
 
+type RevenueCatPackage = import('@revenuecat/purchases-capacitor').PurchasesPackage;
+type CustomerInfo = import('@revenuecat/purchases-capacitor').CustomerInfo;
+
+const PREMIUM_ENTITLEMENT_ID = 'premium';
+const DEFAULT_OFFERING_ID = 'default';
+
+let configured = false;
+let configuredUserId: string | null = null;
+let packageCache = new Map<string, RevenueCatPackage>();
+
+function getRevenueCatApiKey(): string | null {
+  const platform = Capacitor.getPlatform();
+  if (platform === 'ios') return import.meta.env.VITE_REVENUECAT_IOS_API_KEY || null;
+  if (platform === 'android') return import.meta.env.VITE_REVENUECAT_ANDROID_API_KEY || null;
+  return null;
+}
+
+function isPurchaseCancelled(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const record = err as { code?: string; userCancelled?: boolean | null };
+  return record.userCancelled === true || record.code === '1';
+}
+
+function isNetworkError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const record = err as { code?: string };
+  return record.code === '10' || record.code === '35';
+}
+
+function toIAPPackage(pkg: RevenueCatPackage): IAPPackage | null {
+  const productId = pkg.product.identifier;
+  const quarks = QUARKS_BY_PRODUCT_ID[productId];
+  if (!quarks) return null;
+  return {
+    identifier: pkg.identifier,
+    productIdentifier: productId,
+    title: String(quarks),
+    description: FALLBACK_IAP_PACKAGES.find((fallback) => fallback.productIdentifier === productId)?.description ?? pkg.product.description,
+    priceString: pkg.product.priceString,
+    quarks,
+  };
+}
+
+async function ensureIAPConfigured(userId?: string): Promise<boolean> {
+  if (!isNativeIAP()) return false;
+  const apiKey = getRevenueCatApiKey();
+  if (!apiKey) {
+    console.warn('[IAP] RevenueCat API key is missing for this platform');
+    return false;
+  }
+
+  const { Purchases, LOG_LEVEL } = await import('@revenuecat/purchases-capacitor');
+
+  if (!configured) {
+    await Purchases.setLogLevel({ level: import.meta.env.DEV ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN });
+    await Purchases.configure({
+      apiKey,
+      appUserID: userId ?? null,
+      shouldShowInAppMessagesAutomatically: true,
+      automaticDeviceIdentifierCollectionEnabled: false,
+    });
+    configured = true;
+    configuredUserId = userId ?? null;
+    return true;
+  }
+
+  if (userId && configuredUserId !== userId) {
+    await Purchases.logIn({ appUserID: userId });
+    configuredUserId = userId;
+  }
+  return true;
+}
+
 /** Initialize RevenueCat SDK with the current user ID. Call this once after login. */
 export async function initIAP(userId: string): Promise<void> {
-  if (!isNativeIAP()) return;
-  try {
-    // Dynamic import so the module is not bundled into the web build
-    const { Purchases, LOG_LEVEL } = await import('@revenuecat/purchases-capacitor');
-    await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
-    const platform = Capacitor.getPlatform();
-    if (platform === 'ios') {
-      await Purchases.configure({ apiKey: REVENUECAT_IOS_KEY, appUserID: userId });
-    } else if (platform === 'android') {
-      await Purchases.configure({ apiKey: REVENUECAT_ANDROID_KEY, appUserID: userId });
-    }
-  } catch (err) {
-    console.warn('[IAP] Could not initialize RevenueCat:', err);
-  }
-  // Check and cache premium status after SDK init
-  await checkPremiumStatus();
+  await ensureIAPConfigured(userId);
 }
 
 /** Fetch available quark packs from RevenueCat (or fall back to static list). */
 export async function fetchIAPPackages(): Promise<IAPPackage[]> {
-  if (!isNativeIAP()) return FALLBACK_IAP_PACKAGES;
+  if (!await ensureIAPConfigured()) return FALLBACK_IAP_PACKAGES;
+
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
-    // getOfferings() returns PurchasesOfferings directly
     const offerings = await Purchases.getOfferings();
-    const current = offerings.current;
-    if (!current || current.availablePackages.length === 0) {
-      console.warn('[IAP] No offerings available, using fallback');
-      return FALLBACK_IAP_PACKAGES;
-    }
-    return current.availablePackages.map(pkg => ({
-      identifier: pkg.identifier,
-      productIdentifier: pkg.product.identifier,
-      title: `${QUARKS_BY_PRODUCT_ID[pkg.product.identifier] ?? '?'}`,
-      description: pkg.product.description,
-      priceString: pkg.product.priceString,
-      quarks: QUARKS_BY_PRODUCT_ID[pkg.product.identifier] ?? 0,
-    }));
+    const offering = offerings.current ?? offerings.all[DEFAULT_OFFERING_ID] ?? Object.values(offerings.all)[0];
+    const nativePackages = offering?.availablePackages ?? [];
+    packageCache = new Map(nativePackages.map((pkg) => [pkg.identifier, pkg]));
+
+    const packages = nativePackages
+      .map(toIAPPackage)
+      .filter((pkg): pkg is IAPPackage => pkg !== null);
+
+    return packages.length > 0 ? packages : FALLBACK_IAP_PACKAGES;
   } catch (err) {
-    console.warn('[IAP] fetchIAPPackages error, using fallback:', err);
+    console.warn('[IAP] Failed to fetch RevenueCat offerings:', err);
     return FALLBACK_IAP_PACKAGES;
   }
 }
@@ -139,49 +187,37 @@ export interface PremiumStatus {
  * `nebulife_premium` for dev/testing purposes.
  */
 export async function checkPremiumStatus(): Promise<PremiumStatus> {
-  // localStorage fallback (dev / non-native)
-  if (!isNativeIAP()) {
-    const flag = localStorage.getItem('nebulife_premium');
-    return { active: flag === '1' };
+  if (await ensureIAPConfigured()) {
+    try {
+      const { Purchases } = await import('@revenuecat/purchases-capacitor');
+      const { customerInfo } = await Purchases.getCustomerInfo();
+      const active = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID]?.isActive === true;
+      if (active) localStorage.setItem('nebulife_premium', '1');
+      return { active };
+    } catch (err) {
+      console.warn('[IAP] Failed to check premium status:', err);
+    }
   }
-  try {
-    const { Purchases } = await import('@revenuecat/purchases-capacitor');
-    const { customerInfo } = await Purchases.getCustomerInfo();
-    const active = typeof customerInfo.entitlements?.active?.['Nebulife Pro'] !== 'undefined';
-    if (active) localStorage.setItem('nebulife_premium', '1');
-    return { active };
-  } catch (err) {
-    console.warn('[IAP] checkPremiumStatus error:', err);
-    const flag = localStorage.getItem('nebulife_premium');
-    return { active: flag === '1' };
-  }
+
+  const flag = localStorage.getItem('nebulife_premium');
+  return { active: flag === '1' };
 }
 
 /**
- * Present the RevenueCatUI paywall for premium subscription.
- * Returns true if the user completed a purchase or restored an existing one.
+ * Premium subscriptions need a custom paywall.
+ * RevenueCat's prebuilt native UI links SwiftUICore when built with recent
+ * Xcode versions, which crashes before launch on older supported iPads running
+ * iOS 16. Keep this disabled instead of shipping a launch-time native crash.
+ *
+ * TODO(iOS IAP): restore RevenueCat before release, either by pinning an
+ * iOS-16-compatible SDK version or by shipping our own React paywall on top of
+ * the base Purchases SDK. Test on iPad 5th gen / iOS 16.7 before re-enabling.
  */
 export async function purchasePremium(): Promise<{ success: boolean; error?: string }> {
   if (!isNativeIAP()) {
     return { success: false, error: 'Not on native platform' };
   }
-  try {
-    const { RevenueCatUI, PAYWALL_RESULT } = await import('@revenuecat/purchases-capacitor-ui');
-    const { result } = await RevenueCatUI.presentPaywall();
-    switch (result) {
-      case PAYWALL_RESULT.PURCHASED:
-      case PAYWALL_RESULT.RESTORED:
-        localStorage.setItem('nebulife_premium', '1');
-        return { success: true };
-      case PAYWALL_RESULT.CANCELLED:
-        return { success: false, error: 'cancelled' };
-      default:
-        return { success: false };
-    }
-  } catch (err) {
-    console.error('[IAP] purchasePremium error:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
-  }
+  return { success: false, error: 'Premium subscription product is not configured in this build' };
 }
 
 export interface PurchaseResult {
@@ -198,58 +234,69 @@ export async function purchaseQuarkPack(
   packageIdentifier: string,
   playerId: string,
 ): Promise<PurchaseResult> {
-  if (!isNativeIAP()) {
-    return { success: false, quarksGranted: 0, error: 'Not on native platform' };
+  if (!await ensureIAPConfigured(playerId)) {
+    return { success: false, quarksGranted: 0, error: 'RevenueCat is not configured' };
   }
+
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    if (packageCache.size === 0) await fetchIAPPackages();
 
-    // Fetch current offering to get the actual package object
-    const offerings = await Purchases.getOfferings();
-    const current = offerings.current;
-    if (!current) throw new Error('No offerings');
+    const nativePackage = packageCache.get(packageIdentifier);
+    if (!nativePackage) {
+      return { success: false, quarksGranted: 0, error: 'Package not found' };
+    }
 
-    const pkg = current.availablePackages.find(p => p.identifier === packageIdentifier);
-    if (!pkg) throw new Error(`Package "${packageIdentifier}" not found`);
+    const productId = nativePackage.product.identifier;
+    const quarks = QUARKS_BY_PRODUCT_ID[productId];
+    if (!quarks) {
+      return { success: false, quarksGranted: 0, error: 'Unknown product' };
+    }
 
-    // Trigger native purchase sheet (App Store / Google Play)
-    const result = await Purchases.purchasePackage({ aPackage: pkg });
+    const purchase = await Purchases.purchasePackage({ aPackage: nativePackage });
+    const transactionId = purchase.transaction?.transactionIdentifier ?? productId;
 
-    const quarks = QUARKS_BY_PRODUCT_ID[pkg.product.identifier] ?? 0;
-
-    // Tell our backend to verify the purchase via RevenueCat and credit quarks
-    const res = await authFetch('/api/iap/grant', {
+    const grantRes = await authFetch('/api/iap/grant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         playerId,
         quarks,
-        productId: pkg.product.identifier,
-        purchaseToken: result.customerInfo.originalAppUserId ?? playerId,
+        productId,
+        purchaseToken: transactionId,
       }),
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as { error?: string }).error ?? 'Grant failed');
+    if (!grantRes.ok) {
+      const err = await grantRes.json().catch(() => ({ error: 'Grant failed' }));
+      return { success: false, quarksGranted: 0, error: err.error ?? 'Grant failed' };
     }
 
-    return { success: true, quarksGranted: quarks };
-  } catch (err: unknown) {
-    // Check if user cancelled by inspecting the error code string
-    const errCode = (err as { code?: string })?.code;
-    if (errCode === '1') { // PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR === "1"
-      return { success: false, quarksGranted: 0, error: 'cancelled' };
-    }
-    // Check deprecated userCancelled flag as fallback
-    if ((err as { userCancelled?: boolean })?.userCancelled === true) {
-      return { success: false, quarksGranted: 0, error: 'cancelled' };
-    }
-    console.error('[IAP] purchaseQuarkPack error:', err);
-    return {
-      success: false,
-      quarksGranted: 0,
-      error: err instanceof Error ? err.message : 'Unknown error',
-    };
+    const grant = await grantRes.json() as { quarksGranted?: number };
+    return { success: true, quarksGranted: grant.quarksGranted ?? quarks };
+  } catch (err) {
+    if (isPurchaseCancelled(err)) return { success: false, quarksGranted: 0, error: 'cancelled' };
+    if (isNetworkError(err)) return { success: false, quarksGranted: 0, error: 'network' };
+    console.warn('[IAP] Purchase failed:', err);
+    return { success: false, quarksGranted: 0, error: 'Purchase failed' };
   }
+}
+
+export async function restoreIAPPurchases(): Promise<{ restored: boolean }> {
+  if (!await ensureIAPConfigured()) return { restored: false };
+
+  try {
+    const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    const { customerInfo } = await Purchases.restorePurchases();
+    const activePremium = hasPremium(customerInfo);
+    if (activePremium) localStorage.setItem('nebulife_premium', '1');
+    return { restored: activePremium };
+  } catch (err) {
+    console.warn('[IAP] Restore failed:', err);
+    return { restored: false };
+  }
+}
+
+function hasPremium(customerInfo: CustomerInfo): boolean {
+  return customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID]?.isActive === true;
 }

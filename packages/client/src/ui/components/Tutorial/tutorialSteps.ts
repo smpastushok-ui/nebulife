@@ -131,10 +131,11 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
   },
   {
     id: 'astra-handoff',
-    type: 'click',
+    type: 'info',
     target: 'chat-open-btn',
     text: 'tutorial.step_astra_handoff_text',
     tooltipPos: 'left',
+    nextLabel: 'tutorial.to_game',
     onComplete: ['complete-tutorial'],
   },
 ];

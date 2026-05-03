@@ -321,7 +321,7 @@ export function ResearchCompleteModal({
           }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(40,80,120,0.4)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(30,60,80,0.6)'; }}
-          onClick={() => { playSfx('ui-click', 0.07); exit(onViewSystem); }}
+          onClick={() => { playSfx('ui-click', 0.07); onViewSystem(); }}
         >
           {t('research.view_system')}
         </button>

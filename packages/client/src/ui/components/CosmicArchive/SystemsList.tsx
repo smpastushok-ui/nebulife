@@ -225,6 +225,20 @@ export function SystemsList({
       .sort((a, b) => a.ringIndex - b.ringIndex);
   }, [sorted]);
 
+  useEffect(() => {
+    const revealTutorialTarget = () => {
+      setFilterUnresearched(false);
+      setCollapsedRings(new Set());
+      const revealed: Record<number, number> = {};
+      for (const group of ringGroups) {
+        revealed[group.ringIndex] = group.systems.length;
+      }
+      setRevealedByRing(revealed);
+    };
+    window.addEventListener('nebulife:tutorial-show-research', revealTutorialTarget);
+    return () => window.removeEventListener('nebulife:tutorial-show-research', revealTutorialTarget);
+  }, [ringGroups]);
+
   // Seed the collapsed set once we know which rings exist — rings 2+ default
   // to collapsed so the terminal isn't a 1400-row wall on first open.
   // Only applies rings not already recorded in localStorage.

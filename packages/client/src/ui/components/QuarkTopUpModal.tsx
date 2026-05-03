@@ -7,6 +7,7 @@ import {
   purchaseQuarkPack,
   checkPremiumStatus,
   purchasePremium,
+  restoreIAPPurchases,
   type IAPPackage,
 } from '../../api/iap-service.js';
 import { watchAdsWithProgress, canShowAd } from '../../services/ads-service.js';
@@ -205,12 +206,8 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
     setRestoring(true);
     setMessage(null);
     try {
-      const { Purchases } = await import('@revenuecat/purchases-capacitor');
-      const customerInfo = await Purchases.restorePurchases();
-      const hasEntitlements =
-        customerInfo.customerInfo &&
-        Object.keys(customerInfo.customerInfo.entitlements?.active ?? {}).length > 0;
-      if (hasEntitlements) {
+      const result = await restoreIAPPurchases();
+      if (result.restored) {
         setMessage({ text: t('topup.restore_success'), ok: true });
         onQuarksGranted?.(0);
       } else {

@@ -131,7 +131,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
   const voiceClip = getAstraVoiceClip(step.id, subStepIndex, i18n.language);
   const voiceSrc = voiceClip
-    ? `/astra/voice/${voiceClip}.webm`
+    ? `/astra/voice/${voiceClip}.mp3`
     : null;
 
   useEffect(() => {
@@ -143,6 +143,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 
     voiceRef.current?.pause();
     const audio = new Audio(voiceSrc);
+    audio.preload = 'auto';
     audio.volume = 0.86;
     voiceRef.current = audio;
     setVoicePlaying(true);
@@ -158,11 +159,15 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
       const el = document.querySelector(`[data-tutorial-id="${currentTarget}"]`) as HTMLElement | null;
       el?.click();
     }
+    if (step.id === 'save-gallery') return;
     onAdvance();
-  }, [currentTarget, onAdvance]);
+  }, [currentTarget, onAdvance, step.id]);
 
   useEffect(() => {
     if (!voiceSrc) return;
+    const preload = new Audio(voiceSrc);
+    preload.preload = 'auto';
+    preload.load();
     playVoice();
     return () => {
       voiceRef.current?.pause();
@@ -269,18 +274,29 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 
   // Spotlight style
   const spotlightStyle: React.CSSProperties = targetRect
-    ? {
+    ? (() => {
+        const pad = 10;
+        const minSize = 56;
+        const width = Math.max(targetRect.width + pad * 2, minSize);
+        const height = Math.max(targetRect.height + pad * 2, minSize);
+        const left = targetRect.left + targetRect.width / 2 - width / 2;
+        const top = targetRect.top + targetRect.height / 2 - height / 2;
+        return {
         position: 'fixed',
-        top: targetRect.top - 6,
-        left: targetRect.left - 6,
-        width: targetRect.width + 12,
-        height: targetRect.height + 12,
-        borderRadius: 6,
+        top,
+        left,
+        width,
+        height,
+        borderRadius: 8,
         zIndex: 10050,
         pointerEvents: 'none',
+        boxShadow: '0 0 0 9999px rgba(0,0,0,0.75), 0 0 0 3px rgba(123,184,255,0.95), 0 0 22px rgba(123,184,255,0.55)',
+        outline: '2px solid rgba(68,255,136,0.85)',
+        outlineOffset: 3,
         animation: 'tut-spotlight-pulse 2s ease-in-out infinite',
         transition: transitioning ? 'top 0.3s, left 0.3s, width 0.3s, height 0.3s' : undefined,
-      }
+      };
+    })()
     : {
         display: 'none',
       };
@@ -497,7 +513,10 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 
           {/* "Next" button for info steps */}
           {(isInfoStep || isAutoStep) && currentNextLabel && (
-            <div style={ASTRA_ACTION_ROW_STYLE}>
+            <div style={{
+              ...ASTRA_ACTION_ROW_STYLE,
+              ...(step.id === 'astra-handoff' ? { gridTemplateColumns: '1fr' } : {}),
+            }}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -507,15 +526,17 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
               >
                 {t(currentNextLabel)}
               </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSkip();
-                }}
-                style={ASTRA_SKIP_BUTTON_STYLE}
-              >
-                {t('tutorial.skip')}
-              </button>
+              {step.id !== 'astra-handoff' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSkip();
+                  }}
+                  style={ASTRA_SKIP_BUTTON_STYLE}
+                >
+                  {t('tutorial.skip')}
+                </button>
+              )}
             </div>
           )}
 

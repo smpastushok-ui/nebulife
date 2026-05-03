@@ -38,27 +38,24 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<!-- AdMob iOS App ID. Currently TEST — replace with production from AdMob Console. -->
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
-	<!-- Google Sign-In URL scheme. Must match REVERSED_CLIENT_ID from GoogleService-Info.plist. -->
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.702900049376-REPLACE_WITH_REVERSED_CLIENT_ID</string>
-			</array>
-		</dict>
-	</array>
 	<!-- App Tracking Transparency (iOS 14.5+). AdMob personalized ads require this. -->
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Дозвіл на відстеження допомагає показувати релевантнішу рекламу та підтримувати безкоштовний доступ до гри.</string>
 	<!-- Photos library (save AI-generated discovery photos to gallery). -->
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Зберегти AI-фото космічних об'єктів у вашу галерею.</string>
+	<!-- Make Filesystem Directory.Documents visible in the iOS Files app. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<!-- Background mode for FCM push notifications. -->
 	<key>UIBackgroundModes</key>
 	<array>

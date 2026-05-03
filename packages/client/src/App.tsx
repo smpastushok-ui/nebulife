@@ -341,6 +341,9 @@ interface SyncedGameState {
   exploration_payloads?: Partial<Record<ProducibleType, number>>;
   exploration_production_queue?: ExplorationPayloadProductionItem[];
   arena_stats?: ArenaStats;
+  hangar_ship?: string;
+  custom_ship_id?: string | null;
+  custom_ship_glb_url?: string | null;
   observatory_state?: ObservatoryState;
   astra_quiz_answers?: Record<string, number>;
   // Metadata
@@ -3586,7 +3589,7 @@ function AppInner() {
       'nebulife_pinned_systems', 'nebulife_system_order',
       // Arena + Hangar session state
       'nebulife_arena_active', 'nebulife_arena_stats', 'nebulife_arena_tutorial_done',
-      'nebulife_hangar_active', 'nebulife_hangar_ship',
+      'nebulife_hangar_active', 'nebulife_hangar_ship', 'nebulife_custom_ship_id', 'nebulife_custom_ship_glb_url',
       // Language + chat - reset to fresh start
       'nebulife_lang_chosen',
       'nebulife_chat_last_read_global',
@@ -3878,6 +3881,17 @@ function AppInner() {
     try {
       if (resolvedArenaStats) localStorage.setItem('nebulife_arena_stats', JSON.stringify(resolvedArenaStats));
       else localStorage.removeItem('nebulife_arena_stats');
+    } catch { /* ignore */ }
+    try {
+      if (gs.hangar_ship === 'blue' || gs.hangar_ship === 'red' || gs.hangar_ship === 'custom') {
+        localStorage.setItem('nebulife_hangar_ship', gs.hangar_ship);
+      }
+      if (typeof gs.custom_ship_id === 'string' && gs.custom_ship_id) {
+        localStorage.setItem('nebulife_custom_ship_id', gs.custom_ship_id);
+      }
+      if (typeof gs.custom_ship_glb_url === 'string' && gs.custom_ship_glb_url) {
+        localStorage.setItem('nebulife_custom_ship_glb_url', gs.custom_ship_glb_url);
+      }
     } catch { /* ignore */ }
     if (typeof gs.research_data === 'number') {
       const lastRegenTime = gs.last_regen_time ?? Date.now();
@@ -4429,7 +4443,7 @@ function AppInner() {
               'nebulife_evac_phase', 'nebulife_hex_slots',
               'nebulife_pinned_systems', 'nebulife_system_order',
               'nebulife_arena_active', 'nebulife_arena_stats', 'nebulife_arena_tutorial_done',
-              'nebulife_hangar_active', 'nebulife_hangar_ship',
+              'nebulife_hangar_active', 'nebulife_hangar_ship', 'nebulife_custom_ship_id', 'nebulife_custom_ship_glb_url',
               'nebulife_chat_last_read_global', 'nebulife_chat_last_read_system',
               'nebulife_last_digest_seen', 'nebulife_starter_toast_shown',
               'nebulife_player_id',
@@ -7016,6 +7030,9 @@ function AppInner() {
       exploration_payloads: explorationPayloads,
       exploration_production_queue: explorationProductionQueue,
       arena_stats: arenaStats ?? undefined,
+      hangar_ship: localStorage.getItem('nebulife_hangar_ship') ?? undefined,
+      custom_ship_id: localStorage.getItem('nebulife_custom_ship_id'),
+      custom_ship_glb_url: localStorage.getItem('nebulife_custom_ship_glb_url'),
       observatory_state: observatoryState,
       astra_quiz_answers: astraQuizAnswers,
       // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
@@ -9286,7 +9303,12 @@ function AppInner() {
       {showHangar && !showArena && !showRaid && (
         <HangarPage
           playerLevel={playerLevel}
+          currentQuarks={quarks}
           arenaStats={arenaStats}
+          onQuarksChanged={(newBalance) => {
+            setQuarks(newBalance);
+            scheduleSyncToServer();
+          }}
           onBack={() => {
             setShowHangar(false);
             restoreStarGroupView();

@@ -31,7 +31,7 @@ export function EvacuationPrompt({ system, planet, onStartEvacuation, forced, on
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 500,
+        zIndex: 30000,
         background: 'rgba(2,5,16,0.92)',
         display: 'flex',
         alignItems: 'center',

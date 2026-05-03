@@ -307,6 +307,62 @@ ${contextText}
 }
 
 // ---------------------------------------------------------------------------
+// Ship Design Prompt Moderation
+// ---------------------------------------------------------------------------
+
+export type ShipPromptVerdict = 'approved' | 'needs_revision' | 'blocked';
+
+export interface ShipPromptModerationResult {
+  verdict: ShipPromptVerdict;
+  reason: string;
+  cleanedPrompt: string;
+}
+
+export async function moderateShipPrompt(description: string): Promise<ShipPromptModerationResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+
+  const prompt = `You moderate player descriptions for unique spacecraft manufacturing in Nebulife.
+
+Player description:
+"${description}"
+
+Rules:
+- Approve only spacecraft design descriptions.
+- Ask for revision if it is too vague, too short, includes personal data, or is not clearly a ship.
+- Block sexual content, hateful content, extremist/political propaganda, real brands/IP, public figures, gore, graphic violence, harassment, weapons aimed at real-world harm, or requests to copy copyrighted ships.
+- Remove unsafe/irrelevant words in cleanedPrompt, but keep the player's intended ship shape, role, colors and mood.
+- cleanedPrompt must be English, concise, image-generation ready, max 900 characters.
+
+Respond ONLY as JSON:
+{"verdict":"approved","reason":"...","cleanedPrompt":"..."}`;
+
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: MODERATION_MODEL,
+    contents: prompt,
+    config: { thinkingConfig: { thinkingBudget: 0 } },
+  });
+
+  const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+  const parsed = JSON.parse(cleaned) as ShipPromptModerationResult;
+  const verdicts: ShipPromptVerdict[] = ['approved', 'needs_revision', 'blocked'];
+  if (!verdicts.includes(parsed.verdict)) {
+    return {
+      verdict: 'needs_revision',
+      reason: 'Опис потрібно уточнити.',
+      cleanedPrompt: '',
+    };
+  }
+  return {
+    verdict: parsed.verdict,
+    reason: String(parsed.reason || ''),
+    cleanedPrompt: String(parsed.cleanedPrompt || '').slice(0, 900),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Daily Quiz & Fun Fact Generation
 // ---------------------------------------------------------------------------
 

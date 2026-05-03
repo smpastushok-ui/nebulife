@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
+import React, { useEffect, useRef, useImperativeHandle, forwardRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -1228,11 +1228,14 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     const transitionRef = useRef<{ startTime: number; startDist: number; onComplete: () => void } | null>(null);
     const onDoubleClickRef = useRef(onDoubleClick);
     onDoubleClickRef.current = onDoubleClick;
+    const [renderFallback, setRenderFallback] = useState(false);
 
     const cleanup = useCallback(() => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (rendererRef.current) {
-        rendererRef.current.forceContextLoss();
+        // Do not call forceContextLoss() on normal planet switches. iOS
+        // WebView treats repeated forced losses as real GPU context crashes,
+        // which can white-screen the app and reload it back to Galaxy View.
         rendererRef.current.dispose();
         rendererRef.current = null;
       }
@@ -1317,6 +1320,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     useEffect(() => {
       const container = containerRef.current;
       if (!container) return;
+      setRenderFallback(false);
 
       // --- Scene ---
       const scene = new THREE.Scene();
@@ -1351,12 +1355,22 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       }
 
       // --- Renderer ---
-      const renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: false,
-      });
+      const weakTier = tierForCamera === 'low' || tierForCamera === 'mid';
+      let renderer: THREE.WebGLRenderer;
+      try {
+        renderer = new THREE.WebGLRenderer({
+          antialias: !weakTier,
+          alpha: false,
+          powerPreference: weakTier ? 'low-power' : 'high-performance',
+        });
+      } catch (err) {
+        console.warn('[PlanetGlobeView] WebGL renderer creation failed:', err);
+        setRenderFallback(true);
+        return;
+      }
       renderer.setSize(container.clientWidth, container.clientHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      const pixelRatioCap = tierForCamera === 'low' ? 1 : tierForCamera === 'mid' ? 1.25 : 1.5;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap));
       renderer.toneMapping = THREE.LinearToneMapping;
       // Brighter exposure on low/mid compensates for the dropped bloom pass
       // + cloud/back-atmosphere rim-glow. Without this the planet looks
@@ -1379,6 +1393,13 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // Double-click → trigger surface transition
       const handleDblClick = () => { onDoubleClickRef.current?.(); };
       renderer.domElement.addEventListener('dblclick', handleDblClick);
+      const handleContextLost = (event: Event) => {
+        event.preventDefault();
+        renderer.domElement.style.display = 'none';
+        setRenderFallback(true);
+        console.warn('[PlanetGlobeView] WebGL context lost; keeping React state stable');
+      };
+      renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
 
       // --- Build scene layers (lod declared above, next to renderer) ---
 
@@ -1618,7 +1639,10 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       return () => {
         window.removeEventListener('resize', onResize);
         renderer.domElement.removeEventListener('dblclick', handleDblClick);
+        renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
         transitionRef.current = null;
+        controls.dispose();
+        composer?.dispose();
         cleanup();
         // Dispose scene
         scene.traverse((obj) => {
@@ -1646,7 +1670,33 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           zIndex: 50,
           background: '#020510',
         }}
-      />
+      >
+        {renderFallback && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'radial-gradient(circle at 50% 45%, rgba(12,24,42,0.95) 0%, #020510 62%, #010208 100%)',
+              pointerEvents: 'none',
+            }}
+          >
+            <div
+              style={{
+                width: 'min(52vw, 220px)',
+                aspectRatio: '1',
+                borderRadius: '50%',
+                background: `radial-gradient(circle at 34% 30%, ${star.colorHex}55 0%, #55779944 22%, #172238 55%, #050912 100%)`,
+                border: '1px solid rgba(123,184,255,0.22)',
+                boxShadow: '0 0 44px rgba(68,136,170,0.28)',
+                opacity: 0.92,
+              }}
+            />
+          </div>
+        )}
+      </div>
     );
   },
 );

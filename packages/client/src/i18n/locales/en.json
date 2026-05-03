@@ -40,6 +40,35 @@
     "planet_icons_on": "ICONS ON",
     "planet_icons_tooltip": "Show orbiting status icons around planets in this system"
   },
+  "hangar": {
+    "ship": {
+      "custom_3d": "I WANT MY OWN SHIP DESIGN",
+      "custom_hint": "We will craft a unique ship only for you",
+      "custom_ready": "PERSONAL SHIP",
+      "custom_ready_desc": "Your personal ship is in the hangar. If the model cannot load in the arena, the system will launch the blue reserve chassis automatically."
+    },
+    "ship_design": {
+      "kicker": "Personal workshop",
+      "title": "Unique ship",
+      "body": "Describe the ship you want to receive. We will craft a personal 3D hull for your hangar and arena. Quarks are charged only after the description passes review.",
+      "hints": "Mention hull shape, purpose, colors, nose character, wings or engines. Avoid brands, characters, personal data and adult content.",
+      "placeholder": "Example: a compact scout ship with a wedge-shaped nose, dark blue hull, copper lines, two side engines and soft green lights...",
+      "length_error": "Description must be 40-500 characters.",
+      "no_quarks": "Not enough quarks to craft the ship.",
+      "status_checking": "Reviewing description...",
+      "status_concept": "Preparing ship blueprints...",
+      "status_model": "Crafting 3D hull...",
+      "status_ready": "Ship is ready to add to the hangar.",
+      "status_failed": "Could not craft the ship. Try again.",
+      "status_timeout": "Crafting is taking longer than usual. Check the hangar later.",
+      "revision_generic": "The description needs revision.",
+      "generate": "CRAFT",
+      "working": "PROCESSING...",
+      "try_again": "TRY AGAIN",
+      "add_to_hangar": "ADD TO HANGAR",
+      "added": "Ship added to hangar"
+    }
+  },
   "raid": {
     "loading": "Preparing raid...",
     "kicker": "Fleet operation",
@@ -1028,6 +1057,7 @@
     "kill": "KILL",
     "kill_xp": "+{{xp}} XP",
     "combo_xp": "COMBO x{{combo}}  +{{xp}} XP",
+    "exit_button": "EXIT",
     "exit_title": "EXIT ARENA?",
     "exit_body": "Are you sure you want to leave the combat zone?",
     "exit_yes": "YES",
@@ -1471,6 +1501,7 @@
     "step_counter": "Step {{step}} / {{total}}",
     "next": "Next",
     "skip": "Skip tutorial",
+    "to_game": "To game",
     "click_hint": "Click on the highlighted element",
     "tap_target": "Tap here",
     "astra_unit": "A.S.T.R.A. // UNIT 014",

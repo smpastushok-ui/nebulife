@@ -22,6 +22,3 @@ project(':codetrix-studio-capacitor-google-auth').projectDir = new File('../../.
 
 include ':revenuecat-purchases-capacitor'
 project(':revenuecat-purchases-capacitor').projectDir = new File('../../../node_modules/@revenuecat/purchases-capacitor/android')
-
-include ':revenuecat-purchases-capacitor-ui'
-project(':revenuecat-purchases-capacitor-ui').projectDir = new File('../../../node_modules/@revenuecat/purchases-capacitor-ui/android')

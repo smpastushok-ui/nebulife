@@ -110,6 +110,7 @@ export function PhotoModal({
   const name = catalog ? getCatalogName(catalog, lang) : discovery.type;
   const [shared, setShared] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
 
   const handleShare = useCallback(async () => {
     try {
@@ -198,25 +199,21 @@ export function PhotoModal({
   }, [imageUrl, discovery, name, catalog, systemName, lang]);
 
   const handleDownload = useCallback(async () => {
-    const filename = `nebulife-${discovery.type}-${discovery.id.slice(0, 8)}.png`;
+    const filename = `nebulife-${safeFilenameSegment(discovery.type)}-${discovery.id.slice(0, 8)}.png`;
 
-    // Native (Android / iOS) — save via Capacitor Filesystem to Documents.
+    // Native (Android / iOS) — save via Capacitor Filesystem to Documents
+    // and open the native share sheet with the local file attached. On iOS,
+    // writing to Documents alone is easy to miss; the sheet gives the user a
+    // visible "Save Image" / "Save to Files" action from the same tap.
     // Directory.ExternalStorage hit Android 10+ scoped-storage restrictions
     // (silent failures, no file actually persisted). Documents works on both
     // platforms without extra permissions and is visible in the Files app.
-    // User also sees a success indicator (setShared reuses the share-confirm
-    // visual on the Download button).
     if (Capacitor.isNativePlatform()) {
       try {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        const res = await fetch(imageUrl);
-        const blob = await res.blob();
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1] ?? '');
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(blob);
-        });
+        const { Share } = await import('@capacitor/share');
+        const blob = await fetchImageBlob(imageUrl);
+        const base64 = await blobToBase64(blob);
         const writeRes = await Filesystem.writeFile({
           path: `Nebulife/${filename}`,
           data: base64,
@@ -224,6 +221,13 @@ export function PhotoModal({
           recursive: true,
         });
         console.info('[PhotoModal] saved to', writeRes.uri);
+        setDownloaded(true);
+        await Share.share({
+          title: filename,
+          text: filename,
+          files: [writeRes.uri],
+          dialogTitle: filename,
+        });
       } catch (err) {
         console.warn('[PhotoModal] native download failed:', err);
         // Fallback: share sheet (lets user save via Photos / Files app).
@@ -241,11 +245,17 @@ export function PhotoModal({
       return;
     }
 
-    // Web — classic blob download
+    // Web — on mobile Safari/Chrome, Web Share with a File is more reliable
+    // than an invisible <a download>. Desktop browsers keep the classic save.
     try {
-      const res = await fetch(imageUrl);
-      const blob = await res.blob();
-      downloadImageFile(blob, filename);
+      const blob = await fetchImageBlob(imageUrl);
+      const file = new File([blob], filename, { type: blob.type || 'image/png' });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: filename, files: [file] });
+      } else {
+        downloadImageFile(blob, filename);
+      }
+      setDownloaded(true);
     } catch {
       window.open(imageUrl, '_blank');
     }
@@ -386,10 +396,10 @@ export function PhotoModal({
           </IconButton>
           <IconButton
             onClick={handleDownload}
-            title={t('photo.download')}
-            bgColor="rgba(30, 35, 50, 0.6)"
-            borderColor="#556677"
-            iconColor="#8899aa"
+            title={downloaded ? t('photo.saved') : t('photo.download')}
+            bgColor={downloaded ? 'rgba(40, 80, 50, 0.35)' : 'rgba(30, 35, 50, 0.6)'}
+            borderColor={downloaded ? '#44ff8866' : '#556677'}
+            iconColor={downloaded ? '#44ff88' : '#8899aa'}
           >
             {/* Download icon */}
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -507,4 +517,23 @@ function downloadImageFile(blob: Blob, filename: string) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function safeFilenameSegment(value: string): string {
+  return value.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'photo';
+}
+
+async function fetchImageBlob(imageUrl: string): Promise<Blob> {
+  const res = await fetch(imageUrl);
+  if (!res.ok) throw new Error(`Image download failed: ${res.status}`);
+  return res.blob();
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve((reader.result as string).split(',')[1] ?? '');
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 }

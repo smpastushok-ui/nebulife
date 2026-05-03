@@ -10,11 +10,20 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { useT } from '../../../i18n/index.js';
 import { playLoop, stopLoop, playSfx } from '../../../audio/SfxPlayer.js';
+import {
+  checkShipStatus,
+  getPlayerShips,
+  proxyShipGlbUrl,
+  requestShipGeneration,
+  type CustomShip,
+  type ShipStatusResponse,
+} from '../../../api/ship-api.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface HangarPageProps {
   playerLevel: number;
+  currentQuarks: number;
   arenaStats: {
     kills: number;
     asteroidKills: number;
@@ -27,14 +36,17 @@ interface HangarPageProps {
   onEnterArena: () => void;
   onEnterTeamBattle?: () => void;
   onEnterRaid?: () => void;
+  onQuarksChanged?: (newBalance: number) => void;
 }
 
 const CARRIER_RAID_ENABLED = true;
 
 // ── Ship slots ───────────────────────────────────────────────────────────────
 
+type ShipSlotId = 'blue' | 'red' | 'custom';
+
 interface ShipSlot {
-  id: 'blue' | 'red';
+  id: ShipSlotId;
   team: 'blue' | 'red';
   glbSrc: string;
   locked: boolean;
@@ -75,11 +87,13 @@ const SHIP_SLOTS: ShipSlot[] = [
 
 const SELECTED_SHIP_KEY = 'nebulife_hangar_ship';
 const SELECTED_TEAM_KEY = 'nebulife_arena_team';
+const CUSTOM_SHIP_ID_KEY = 'nebulife_custom_ship_id';
+const CUSTOM_SHIP_GLB_KEY = 'nebulife_custom_ship_glb_url';
 const CUSTOM_SHIP_COST = 49;
 const VALID_SHIP_IDS = new Set(SHIP_SLOTS.map(s => s.id));
 
-function isShipSlotId(value: string | null): value is ShipSlot['id'] {
-  return value === 'blue' || value === 'red';
+function isShipSlotId(value: string | null): value is ShipSlotId {
+  return value === 'blue' || value === 'red' || value === 'custom';
 }
 
 // ── Controls reference data ──────────────────────────────────────────────────
@@ -128,17 +142,26 @@ function useCountUp(target: number, duration = 2000, delay = 300): number {
 
 export const HangarPage: React.FC<HangarPageProps> = ({
   playerLevel,
+  currentQuarks,
   arenaStats,
   onBack,
   onEnterArena,
   onEnterTeamBattle,
   onEnterRaid,
+  onQuarksChanged,
 }) => {
   const { t } = useT();
   const [mounted, setMounted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [controlsOpen, setControlsOpen] = useState(false);
   const [isMobile] = useState(() => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
+  const [customShips, setCustomShips] = useState<CustomShip[]>([]);
+  const [shipDesignOpen, setShipDesignOpen] = useState(false);
+  const [shipDesignPrompt, setShipDesignPrompt] = useState('');
+  const [shipDesignStatus, setShipDesignStatus] = useState<'idle' | 'checking' | 'generating' | 'ready' | 'revision' | 'failed'>('idle');
+  const [shipDesignMessage, setShipDesignMessage] = useState('');
+  const [shipDesignProgress, setShipDesignProgress] = useState(0);
+  const [previewShip, setPreviewShip] = useState<{ id: string; glbUrl: string; conceptUrl?: string | null } | null>(null);
 
   // Ambient loop
   useEffect(() => {
@@ -154,16 +177,55 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 
   // Ship selection — migrate legacy ids (ship1/ship2/custom3d from older
   // rosters) to the blue GLB fighter.
-  const [selectedShip, setSelectedShip] = useState<'blue' | 'red'>(() => {
+  const [selectedShip, setSelectedShip] = useState<ShipSlotId>(() => {
     const saved = localStorage.getItem(SELECTED_SHIP_KEY);
+    if (saved === 'custom' && localStorage.getItem(CUSTOM_SHIP_GLB_KEY)) return 'custom';
     return isShipSlotId(saved) && VALID_SHIP_IDS.has(saved) ? saved : SHIP_SLOTS[0].id;
   });
-  const activeSlot = SHIP_SLOTS.find(s => s.id === selectedShip) ?? SHIP_SLOTS[0];
+  const activeCustomShip = customShips.find((ship) => ship.id === localStorage.getItem(CUSTOM_SHIP_ID_KEY))
+    ?? customShips.find((ship) => ship.status === 'ready' && ship.glb_url);
+  const customShipUrl = activeCustomShip ? proxyShipGlbUrl(activeCustomShip.id, activeCustomShip.glb_url) : localStorage.getItem(CUSTOM_SHIP_GLB_KEY);
+  const activeSlot: ShipSlot = selectedShip === 'custom' && customShipUrl
+    ? {
+        id: 'custom',
+        team: 'blue',
+        glbSrc: customShipUrl,
+        locked: false,
+        labelKey: 'hangar.ship.custom_ready',
+        descKey: 'hangar.ship.custom_ready_desc',
+        accent: '#c6dbf2',
+        softAccent: 'rgba(198,219,242,0.14)',
+      }
+    : SHIP_SLOTS.find(s => s.id === selectedShip) ?? SHIP_SLOTS[0];
+  const displayedSlots = customShipUrl && activeCustomShip
+    ? [...SHIP_SLOTS, activeSlot]
+    : SHIP_SLOTS;
 
   useEffect(() => {
     localStorage.setItem(SELECTED_SHIP_KEY, selectedShip);
     localStorage.setItem(SELECTED_TEAM_KEY, activeSlot.team);
-  }, [activeSlot.team, selectedShip]);
+    if (selectedShip === 'custom' && customShipUrl) {
+      localStorage.setItem(CUSTOM_SHIP_GLB_KEY, customShipUrl);
+    }
+  }, [activeSlot.team, customShipUrl, selectedShip]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPlayerShips()
+      .then((ships) => {
+        if (cancelled) return;
+        setCustomShips(ships);
+        const ready = ships.find((ship) => ship.id === localStorage.getItem(CUSTOM_SHIP_ID_KEY))
+          ?? ships.find((ship) => ship.status === 'ready' && ship.glb_url);
+        const url = ready ? proxyShipGlbUrl(ready.id, ready.glb_url) : null;
+        if (ready && url) {
+          localStorage.setItem(CUSTOM_SHIP_ID_KEY, ready.id);
+          localStorage.setItem(CUSTOM_SHIP_GLB_KEY, url);
+        }
+      })
+      .catch(() => { /* non-critical: static ships still work */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Backward compat: old localStorage may have missileKills
   const stats = arenaStats;
@@ -236,9 +298,99 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 
   const handleCustomShipOrder = useCallback(() => {
     playSfx('ui-click', 0.07);
-    setToast(t('hangar.ship.custom_hint' as Parameters<typeof t>[0]));
-    setTimeout(() => setToast(null), 3000);
+    setShipDesignOpen(true);
   }, [t]);
+
+  const pollGeneratedShip = useCallback(async (shipId: string) => {
+    let interval = 5000;
+    for (let attempt = 0; attempt < 120; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, interval));
+      const status: ShipStatusResponse = await checkShipStatus(shipId);
+      setShipDesignProgress(status.progress ?? (status.status === 'generating_concept' ? 15 : 35));
+      setShipDesignMessage(
+        status.status === 'generating_concept'
+          ? t('hangar.ship_design.status_concept' as Parameters<typeof t>[0])
+          : t('hangar.ship_design.status_model' as Parameters<typeof t>[0]),
+      );
+
+      if (status.status === 'ready' && status.glbUrl) {
+        setPreviewShip({ id: shipId, glbUrl: status.glbUrl, conceptUrl: status.conceptUrl });
+        setShipDesignStatus('ready');
+        setShipDesignProgress(100);
+        setShipDesignMessage(t('hangar.ship_design.status_ready' as Parameters<typeof t>[0]));
+        const ships = await getPlayerShips().catch(() => []);
+        setCustomShips(ships);
+        return;
+      }
+
+      if (status.status === 'failed') {
+        setShipDesignStatus('failed');
+        setShipDesignMessage(status.reason || t('hangar.ship_design.status_failed' as Parameters<typeof t>[0]));
+        return;
+      }
+
+      if (attempt > 20) interval = Math.min(interval * 1.1, 15000);
+    }
+    setShipDesignStatus('failed');
+    setShipDesignMessage(t('hangar.ship_design.status_timeout' as Parameters<typeof t>[0]));
+  }, [t]);
+
+  const handleGenerateCustomShip = useCallback(async () => {
+    const prompt = shipDesignPrompt.trim();
+    if (prompt.length < 40 || prompt.length > 500) {
+      setShipDesignStatus('revision');
+      setShipDesignMessage(t('hangar.ship_design.length_error' as Parameters<typeof t>[0]));
+      return;
+    }
+    if (currentQuarks < CUSTOM_SHIP_COST) {
+      setShipDesignStatus('failed');
+      setShipDesignMessage(t('hangar.ship_design.no_quarks' as Parameters<typeof t>[0]));
+      return;
+    }
+
+    playSfx('ui-click', 0.07);
+    setPreviewShip(null);
+    setShipDesignStatus('checking');
+    setShipDesignProgress(4);
+    setShipDesignMessage(t('hangar.ship_design.status_checking' as Parameters<typeof t>[0]));
+    try {
+      const response = await requestShipGeneration(prompt);
+      if (response.status === 'needs_revision' || response.status === 'blocked') {
+        setShipDesignStatus('revision');
+        setShipDesignMessage(response.reason || t('hangar.ship_design.revision_generic' as Parameters<typeof t>[0]));
+        if (response.cleanedPrompt) setShipDesignPrompt(response.cleanedPrompt);
+        return;
+      }
+      if (typeof response.newBalance === 'number') {
+        onQuarksChanged?.(response.newBalance);
+      }
+      if (!response.shipId) throw new Error('Missing ship id');
+      setShipDesignStatus('generating');
+      setShipDesignProgress(10);
+      setShipDesignMessage(t('hangar.ship_design.status_concept' as Parameters<typeof t>[0]));
+      void pollGeneratedShip(response.shipId);
+    } catch (err) {
+      setShipDesignStatus('failed');
+      setShipDesignMessage(err instanceof Error ? err.message : t('hangar.ship_design.status_failed' as Parameters<typeof t>[0]));
+    }
+  }, [currentQuarks, onQuarksChanged, pollGeneratedShip, shipDesignPrompt, t]);
+
+  const handleAddCustomShipToHangar = useCallback(() => {
+    if (!previewShip) return;
+    localStorage.setItem(CUSTOM_SHIP_ID_KEY, previewShip.id);
+    localStorage.setItem(CUSTOM_SHIP_GLB_KEY, previewShip.glbUrl);
+    setSelectedShip('custom');
+    setShipDesignOpen(false);
+    setToast(t('hangar.ship_design.added' as Parameters<typeof t>[0]));
+    setTimeout(() => setToast(null), 2500);
+  }, [previewShip, t]);
+
+  const handleRetryCustomShip = useCallback(() => {
+    setPreviewShip(null);
+    setShipDesignStatus('idle');
+    setShipDesignProgress(0);
+    setShipDesignMessage('');
+  }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -323,7 +475,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 opacity: mounted ? 1 : 0,
                 transition: 'opacity 0.5s ease 0.6s',
               }}>
-                {SHIP_SLOTS.map((slot, i) => {
+                {displayedSlots.map((slot, i) => {
                   const isActive = slot.id === selectedShip;
                   return (
                     <button
@@ -576,7 +728,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           opacity: mounted ? 1 : 0,
           transition: 'opacity 0.5s ease 0.6s',
         }}>
-          {SHIP_SLOTS.map((slot, i) => {
+          {displayedSlots.map((slot, i) => {
             const isActive = slot.id === selectedShip;
             return (
               <button
@@ -713,6 +865,23 @@ export const HangarPage: React.FC<HangarPageProps> = ({
         <div style={S.toast}>{toast}</div>
       )}
 
+      {shipDesignOpen && (
+        <ShipDesignModal
+          t={t}
+          prompt={shipDesignPrompt}
+          status={shipDesignStatus}
+          message={shipDesignMessage}
+          progress={shipDesignProgress}
+          previewShip={previewShip}
+          currentQuarks={currentQuarks}
+          onPromptChange={setShipDesignPrompt}
+          onClose={() => setShipDesignOpen(false)}
+          onGenerate={handleGenerateCustomShip}
+          onRetry={handleRetryCustomShip}
+          onAddToHangar={handleAddCustomShipToHangar}
+        />
+      )}
+
       {/* Keyframes */}
       <style>{`
         @keyframes hangarPulse {
@@ -729,6 +898,120 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+type HangarT = (key: Parameters<ReturnType<typeof useT>['t']>[0], options?: Record<string, unknown>) => string;
+
+function ShipDesignModal({
+  t,
+  prompt,
+  status,
+  message,
+  progress,
+  previewShip,
+  currentQuarks,
+  onPromptChange,
+  onClose,
+  onGenerate,
+  onRetry,
+  onAddToHangar,
+}: {
+  t: HangarT;
+  prompt: string;
+  status: 'idle' | 'checking' | 'generating' | 'ready' | 'revision' | 'failed';
+  message: string;
+  progress: number;
+  previewShip: { id: string; glbUrl: string; conceptUrl?: string | null } | null;
+  currentQuarks: number;
+  onPromptChange: (value: string) => void;
+  onClose: () => void;
+  onGenerate: () => void;
+  onRetry: () => void;
+  onAddToHangar: () => void;
+}) {
+  const busy = status === 'checking' || status === 'generating';
+  const canGenerate = !busy && prompt.trim().length >= 40 && prompt.trim().length <= 500 && currentQuarks >= CUSTOM_SHIP_COST;
+
+  return (
+    <div style={S.modalBackdrop} onClick={onClose}>
+      <div style={S.modalCard} onClick={(e) => e.stopPropagation()}>
+        <div style={S.modalHeader}>
+          <div>
+            <div style={S.modalKicker}>{t('hangar.ship_design.kicker' as Parameters<typeof t>[0])}</div>
+            <div style={S.modalTitle}>{t('hangar.ship_design.title' as Parameters<typeof t>[0])}</div>
+          </div>
+          <button style={S.modalClose} onClick={onClose}>X</button>
+        </div>
+
+        <div style={S.modalBody}>
+          <p style={S.modalCopy}>{t('hangar.ship_design.body' as Parameters<typeof t>[0])}</p>
+          <div style={S.promptHints}>
+            {t('hangar.ship_design.hints' as Parameters<typeof t>[0])}
+          </div>
+          <textarea
+            style={S.promptInput}
+            value={prompt}
+            maxLength={500}
+            disabled={busy}
+            onChange={(e) => onPromptChange(e.target.value)}
+            placeholder={t('hangar.ship_design.placeholder' as Parameters<typeof t>[0])}
+          />
+          <div style={S.promptMeta}>
+            <span>{prompt.trim().length}/500</span>
+            <span>{CUSTOM_SHIP_COST} Q</span>
+          </div>
+
+          {message && (
+            <div style={{
+              ...S.designMessage,
+              borderColor: status === 'failed' || status === 'revision' ? '#664433' : '#334455',
+              color: status === 'failed' || status === 'revision' ? '#ff8844' : '#8899aa',
+            }}>
+              {message}
+            </div>
+          )}
+
+          {busy && (
+            <div style={S.progressTrack}>
+              <div style={{ ...S.progressFill, width: `${Math.max(4, Math.min(100, progress))}%` }} />
+            </div>
+          )}
+
+          {previewShip?.glbUrl && (
+            <div style={S.designPreview}>
+              <ShipModelPreview modelUrl={previewShip.glbUrl} accent="#c6dbf2" height={220} />
+            </div>
+          )}
+        </div>
+
+        <div style={S.modalActions}>
+          {status === 'ready' ? (
+            <>
+              <button style={S.secondaryModalButton} onClick={onRetry}>
+                {t('hangar.ship_design.try_again' as Parameters<typeof t>[0])}
+              </button>
+              <button style={S.primaryModalButton} onClick={onAddToHangar}>
+                {t('hangar.ship_design.add_to_hangar' as Parameters<typeof t>[0])}
+              </button>
+            </>
+          ) : (
+            <>
+              <button style={S.secondaryModalButton} onClick={onClose} disabled={busy}>
+                {t('common.cancel' as Parameters<typeof t>[0])}
+              </button>
+              <button
+                style={{ ...S.primaryModalButton, opacity: canGenerate ? 1 : 0.45, cursor: canGenerate ? 'pointer' : 'not-allowed' }}
+                onClick={onGenerate}
+                disabled={!canGenerate}
+              >
+                {busy ? t('hangar.ship_design.working' as Parameters<typeof t>[0]) : t('hangar.ship_design.generate' as Parameters<typeof t>[0])}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatCell({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
@@ -1242,5 +1525,91 @@ const S: Record<string, React.CSSProperties> = {
     border: '1px solid #4488aa', borderRadius: 4,
     color: '#7bb8ff', fontFamily: 'monospace', fontSize: 10,
     letterSpacing: 1, zIndex: 9999, pointerEvents: 'none',
+  },
+  modalBackdrop: {
+    position: 'fixed', inset: 0, zIndex: 10020,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 16,
+    background: 'rgba(2,5,16,0.86)',
+    backdropFilter: 'blur(8px)',
+  },
+  modalCard: {
+    width: 'min(560px, 100%)',
+    maxHeight: 'min(760px, calc(100vh - 32px))',
+    overflowY: 'auto',
+    background: 'linear-gradient(180deg, rgba(10,15,25,0.98), rgba(5,10,20,0.98))',
+    border: '1px solid rgba(123,184,255,0.35)',
+    borderRadius: 8,
+    boxShadow: '0 28px 80px rgba(0,0,0,0.65), inset 0 0 32px rgba(123,184,255,0.05)',
+    fontFamily: 'monospace',
+  },
+  modalHeader: {
+    display: 'flex', justifyContent: 'space-between', gap: 16,
+    padding: '18px 20px 14px',
+    borderBottom: '1px solid rgba(51,68,85,0.7)',
+  },
+  modalKicker: { fontSize: 9, color: '#667788', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 },
+  modalTitle: { fontSize: 16, color: '#c6dbf2', letterSpacing: 2, textTransform: 'uppercase' },
+  modalClose: {
+    width: 30, height: 30, borderRadius: 4,
+    border: '1px solid #334455', background: 'rgba(5,10,20,0.92)',
+    color: '#667788', fontFamily: 'monospace', cursor: 'pointer',
+  },
+  modalBody: { padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
+  modalCopy: { margin: 0, color: '#aabbcc', fontSize: 12, lineHeight: 1.55 },
+  promptHints: {
+    fontSize: 10, color: '#667788', lineHeight: 1.5,
+    padding: '9px 10px', border: '1px solid #223344', borderRadius: 4,
+    background: 'rgba(5,10,20,0.55)',
+  },
+  promptInput: {
+    width: '100%', minHeight: 132, resize: 'vertical',
+    padding: 12, boxSizing: 'border-box',
+    background: 'rgba(2,5,16,0.72)',
+    border: '1px solid #334455', borderRadius: 5,
+    color: '#c6dbf2', fontFamily: 'monospace', fontSize: 12,
+    lineHeight: 1.5, outline: 'none',
+  },
+  promptMeta: {
+    display: 'flex', justifyContent: 'space-between',
+    color: '#667788', fontSize: 10, letterSpacing: 1,
+  },
+  designMessage: {
+    padding: '9px 10px', border: '1px solid #334455',
+    borderRadius: 4, background: 'rgba(5,10,20,0.7)',
+    fontSize: 10, lineHeight: 1.45,
+  },
+  progressTrack: {
+    height: 6, borderRadius: 999, overflow: 'hidden',
+    background: 'rgba(51,68,85,0.35)',
+  },
+  progressFill: {
+    height: '100%', borderRadius: 999,
+    background: 'linear-gradient(90deg, #4488aa, #c6dbf2)',
+    transition: 'width 0.35s ease',
+  },
+  designPreview: {
+    border: '1px solid rgba(123,184,255,0.25)',
+    borderRadius: 6, overflow: 'hidden',
+    background: 'rgba(2,5,16,0.38)',
+  },
+  modalActions: {
+    display: 'flex', justifyContent: 'flex-end', gap: 10,
+    padding: '14px 20px 18px',
+    borderTop: '1px solid rgba(51,68,85,0.55)',
+  },
+  primaryModalButton: {
+    minHeight: 38, padding: '0 16px',
+    background: 'linear-gradient(135deg, rgba(68,136,170,0.25), rgba(12,22,36,0.95))',
+    border: '1px solid #5599bb', borderRadius: 4,
+    color: '#c6dbf2', fontFamily: 'monospace', fontSize: 11,
+    letterSpacing: 1.2, textTransform: 'uppercase', cursor: 'pointer',
+  },
+  secondaryModalButton: {
+    minHeight: 38, padding: '0 14px',
+    background: 'rgba(5,10,20,0.72)',
+    border: '1px solid #334455', borderRadius: 4,
+    color: '#8899aa', fontFamily: 'monospace', fontSize: 11,
+    letterSpacing: 1.2, textTransform: 'uppercase', cursor: 'pointer',
   },
 };

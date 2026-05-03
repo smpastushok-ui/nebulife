@@ -11,7 +11,7 @@ import { Capacitor } from '@capacitor/core';
 const PROD_API_BASE = 'https://www.nebulife.space';
 
 /** Endpoints that need idempotency protection (payment/generation). */
-const IDEMPOTENT_ENDPOINTS = ['/api/payment/', '/api/surface/', '/api/system-photo/', '/api/system-mission/'];
+const IDEMPOTENT_ENDPOINTS = ['/api/payment/', '/api/iap/', '/api/surface/', '/api/system-photo/', '/api/system-mission/', '/api/ship/'];
 
 /**
  * Resolve a /api/... path to a full URL when running on native.

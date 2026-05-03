@@ -19,6 +19,27 @@
 let unlocked = false;
 const pendingLoops: HTMLAudioElement[] = [];
 
+let webmAudioSupported: boolean | null = null;
+
+function canPlayWebmAudio(): boolean {
+  if (webmAudioSupported !== null) return webmAudioSupported;
+  try {
+    const audio = document.createElement('audio');
+    webmAudioSupported = !!(
+      audio.canPlayType('audio/webm; codecs="opus"')
+      || audio.canPlayType('audio/webm')
+    );
+  } catch {
+    webmAudioSupported = false;
+  }
+  return webmAudioSupported;
+}
+
+function resolveSfxSrc(name: string): string {
+  if (name.includes('.')) return `/sfx/${name}`;
+  return `/sfx/${name}.${canPlayWebmAudio() ? 'webm' : 'mp3'}`;
+}
+
 function onFirstInteraction(): void {
   if (unlocked) return;
   unlocked = true;
@@ -53,7 +74,7 @@ const activeOneShots = new Set<HTMLAudioElement>();
  *  otherwise .webm is assumed to match the existing sound library. */
 export function playSfx(name: string, volume = 0.5, rate = 1): void {
   try {
-    const src = name.includes('.') ? `/sfx/${name}` : `/sfx/${name}.webm`;
+    const src = resolveSfxSrc(name);
     const audio = new Audio(src);
     audio.volume = Math.max(0, Math.min(1, volume));
     if (rate !== 1) audio.playbackRate = Math.max(0.25, Math.min(4, rate));
@@ -79,7 +100,7 @@ const loops = new Map<string, HTMLAudioElement>();
 export function playLoop(name: string, volume = 0.3): void {
   if (loops.has(name)) return;
   try {
-    const src = name.includes('.') ? `/sfx/${name}` : `/sfx/${name}.webm`;
+    const src = resolveSfxSrc(name);
     const audio = new Audio(src);
     audio.loop = true;
     audio.volume = Math.max(0, Math.min(1, volume));

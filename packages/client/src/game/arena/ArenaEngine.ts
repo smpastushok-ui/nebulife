@@ -80,6 +80,7 @@ const SHIP_MODEL_NOSE_OFFSET = Math.PI / 2;
 // Cached loaded scenes. Loaded once on ArenaEngine.init, cloned per ship.
 let _cachedBlueShip: THREE.Group | null = null;
 let _cachedRedShip: THREE.Group | null = null;
+const _cachedCustomShips = new Map<string, THREE.Group | null>();
 
 function _normalizeShipScene(scene: THREE.Group): THREE.Group {
   // Compute bounding box of loaded model and rescale so longest axis =
@@ -110,8 +111,7 @@ function _normalizeShipScene(scene: THREE.Group): THREE.Group {
  * Load + cache the two team ship GLBs. Returns when both are ready.
  * Falls back silently if a file is missing — caller should check for null.
  */
-async function preloadShipModels(): Promise<void> {
-  if (_cachedBlueShip && _cachedRedShip) return;
+async function preloadShipModels(customShipGlbUrl?: string | null): Promise<void> {
   const loader = new GLTFLoader();
   const load = (url: string) => new Promise<THREE.Group | null>((resolve) => {
     loader.load(
@@ -121,9 +121,19 @@ async function preloadShipModels(): Promise<void> {
       () => resolve(null),
     );
   });
-  const [blue, red] = await Promise.all([load(SHIP_GLB_BLUE), load(SHIP_GLB_RED)]);
-  _cachedBlueShip = blue;
-  _cachedRedShip = red;
+  const tasks: Promise<unknown>[] = [];
+  if (!_cachedBlueShip || !_cachedRedShip) {
+    tasks.push(Promise.all([load(SHIP_GLB_BLUE), load(SHIP_GLB_RED)]).then(([blue, red]) => {
+      _cachedBlueShip = blue;
+      _cachedRedShip = red;
+    }));
+  }
+  if (customShipGlbUrl && !_cachedCustomShips.has(customShipGlbUrl)) {
+    tasks.push(load(customShipGlbUrl).then((custom) => {
+      _cachedCustomShips.set(customShipGlbUrl, custom);
+    }));
+  }
+  await Promise.all(tasks);
 }
 
 /**
@@ -205,6 +215,7 @@ export class ArenaEngine {
   private respawnTimer = 0;
   private readonly RESPAWN_TIME = 5;
   private shipId: string;
+  private customShipGlbUrl: string | null;
   private stats = {
     kills: 0,           // enemy ship kills (future PvP/PvE)
     asteroidKills: 0,   // asteroids destroyed
@@ -471,10 +482,11 @@ export class ArenaEngine {
   private readonly LOCK_RANGE = 1000;    // units — matches missile flight range (speed×lifetime = 400×3 = 1200)
   private readonly LOCK_CONE = 25;       // degrees half-angle from aim direction
 
-  constructor(container: HTMLElement, callbacks: ArenaCallbacks, shipId: string = 'ship1', teamMode: boolean = false) {
+  constructor(container: HTMLElement, callbacks: ArenaCallbacks, shipId: string = 'ship1', teamMode: boolean = false, customShipGlbUrl: string | null = null) {
     this.container = container;
     this.callbacks = callbacks;
     this.shipId = shipId;
+    this.customShipGlbUrl = customShipGlbUrl;
     this.teamMode = teamMode;
     this.playerTeam = teamFromShipId(shipId);
     this.onResizeBound = this.onResize.bind(this);
@@ -552,7 +564,7 @@ export class ArenaEngine {
   async init(): Promise<void> {
     // Preload GLB ship models before setting up any ship entity.
     // Failures fall back to the sprite path inside setupPlayerShip.
-    await preloadShipModels();
+    await preloadShipModels(this.customShipGlbUrl);
 
     this.setupRenderer();
     this.setupScene();
@@ -619,24 +631,28 @@ export class ArenaEngine {
     }
     this.disposables.length = 0;
 
-    // Dispose scene children recursively
-    this.scene.traverse((obj) => {
-      if (obj instanceof THREE.Mesh || obj instanceof THREE.InstancedMesh || obj instanceof THREE.Points) {
-        if (obj.geometry) obj.geometry.dispose();
-        if (Array.isArray(obj.material)) {
-          obj.material.forEach((m) => m.dispose());
-        } else if (obj.material) {
-          obj.material.dispose();
+    // Dispose scene children recursively. init() can fail before scene/renderer
+    // exists; destroy must still be safe so the permanent exit button works.
+    if (this.scene) {
+      this.scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.InstancedMesh || obj instanceof THREE.Points) {
+          if (obj.geometry) obj.geometry.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else if (obj.material) {
+            obj.material.dispose();
+          }
         }
-      }
-    });
+      });
+    }
 
-    // Release WebGL context
-    this.renderer.forceContextLoss();
-    this.renderer.dispose();
+    // Dispose renderer without forceContextLoss(). Repeated forced context
+    // losses on iOS WebView can white-screen the app or drop it back to the
+    // previous route.
+    this.renderer?.dispose();
 
     // Remove canvas from DOM
-    if (this.renderer.domElement.parentNode) {
+    if (this.renderer?.domElement.parentNode) {
       this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
     }
 
@@ -792,12 +808,13 @@ export class ArenaEngine {
     // to halve pixel fill on 3× DPR phones. Mid tier keeps AA but still
     // respects the MAX_PIXEL_RATIO cap. Flagships get the best visuals.
     const tier = getDeviceTier();
-    const antialias = tier !== 'low';
-    const pixelCap = tier === 'low' ? 1.0 : MAX_PIXEL_RATIO;
+    const antialias = tier === 'high' || tier === 'ultra';
+    const pixelCap = tier === 'low' ? 1.0 : tier === 'mid' ? 1.25 : MAX_PIXEL_RATIO;
 
     this.renderer = new THREE.WebGLRenderer({
       antialias,
       alpha: false,
+      powerPreference: tier === 'low' || tier === 'mid' ? 'low-power' : 'high-performance',
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelCap));
     this.renderer.setSize(W, H);
@@ -825,7 +842,7 @@ export class ArenaEngine {
 
   private setupBackdrop(): void {
     const tier = getDeviceTier();
-    if (tier === 'low') return;
+    if (tier === 'low' || (this.isMobile && tier === 'mid')) return;
 
     const segments = 48;
     const rings = 24;
@@ -1053,7 +1070,9 @@ export class ArenaEngine {
   private setupPlayerShip(): void {
     // Player gets the GLB selected in the hangar. Falls back to the old
     // sprite path if the GLB failed to load (network / asset missing).
-    const selectedModel = this.playerTeam === 'red' ? _cachedRedShip : _cachedBlueShip;
+    const selectedModel = this.shipId === 'custom' && this.customShipGlbUrl
+      ? (_cachedCustomShips.get(this.customShipGlbUrl) ?? _cachedBlueShip)
+      : this.playerTeam === 'red' ? _cachedRedShip : _cachedBlueShip;
     if (selectedModel) {
       const group = cloneShipScene(selectedModel);
       // Add to scene as a Mesh-like object. ArenaEngine touches
