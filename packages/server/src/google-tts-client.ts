@@ -243,16 +243,19 @@ export async function synthesizeLongText(
 
   console.log(`[TTS] Splitting ${req.text.length} chars into ${chunks.length} chunks`);
 
-  let combined: Buffer = Buffer.alloc(0);
+  // Use Uint8Array view to avoid TS strictness around `Buffer<ArrayBufferLike>`
+  // vs `Uint8Array<ArrayBuffer>` mismatch in newer @types/node.
+  const parts: Uint8Array[] = [];
   let voiceUsed = '';
   let totalDur = 0;
   for (const [i, chunk] of chunks.entries()) {
     console.log(`[TTS] Synthesizing chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
     const result = await synthesizeSpeech({ ...req, text: chunk });
-    combined = Buffer.concat([combined, result.audio]);
+    parts.push(new Uint8Array(result.audio.buffer, result.audio.byteOffset, result.audio.byteLength));
     voiceUsed = result.voiceName;
     totalDur += result.durationSec;
   }
+  const combined = Buffer.concat(parts);
 
   return { audio: combined, voiceName: voiceUsed, durationSec: totalDur };
 }
