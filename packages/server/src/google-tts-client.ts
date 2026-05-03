@@ -221,9 +221,10 @@ export async function synthesizeSpeech(req: SynthesizeRequest): Promise<Synthesi
  */
 export async function synthesizeLongText(
   req: SynthesizeRequest,
-  maxCharsPerChunk = 4500,
+  maxBytesPerChunk = 4500,
 ): Promise<SynthesizeResult> {
-  if (req.text.length <= maxCharsPerChunk) {
+  // Google TTS limit is 5000 BYTES, not chars — Cyrillic is 2 bytes/char in UTF-8.
+  if (Buffer.byteLength(req.text, 'utf8') <= maxBytesPerChunk) {
     return synthesizeSpeech(req);
   }
 
@@ -232,11 +233,27 @@ export async function synthesizeLongText(
   // Sentence-aware splitting
   const sentences = req.text.split(/(?<=[.!?])\s+|(?<=\n)\s*/);
   for (const sentence of sentences) {
-    if ((buf + sentence).length > maxCharsPerChunk) {
+    const candidate = buf + (buf ? ' ' : '') + sentence;
+    if (Buffer.byteLength(candidate, 'utf8') > maxBytesPerChunk) {
       if (buf) chunks.push(buf);
       buf = sentence;
+      // If single sentence exceeds the limit, hard-split on word boundaries
+      if (Buffer.byteLength(buf, 'utf8') > maxBytesPerChunk) {
+        const words = buf.split(/\s+/);
+        let wbuf = '';
+        for (const w of words) {
+          const c = wbuf + (wbuf ? ' ' : '') + w;
+          if (Buffer.byteLength(c, 'utf8') > maxBytesPerChunk) {
+            if (wbuf) chunks.push(wbuf);
+            wbuf = w;
+          } else {
+            wbuf = c;
+          }
+        }
+        buf = wbuf;
+      }
     } else {
-      buf += (buf ? ' ' : '') + sentence;
+      buf = candidate;
     }
   }
   if (buf) chunks.push(buf);
