@@ -1,6 +1,31 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
+  <!-- Google tag (gtag.js) — web only.
+       Keep this in <head> so GA4 receives landing-page hits even if the
+       React bundle is slow, cached, or fails before mounting. The Capacitor
+       native shell uses capacitor://localhost / ionic://localhost and is
+       intentionally skipped until native consent UI exists. -->
+  <script>
+    (function () {
+      var GA_ID = 'G-JEELHEM0Z4';
+      var isNativeShell = location.protocol === 'capacitor:' || location.protocol === 'ionic:';
+      if (isNativeShell) return;
+
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){ dataLayer.push(arguments); }
+      window.gtag = window.gtag || gtag;
+
+      var script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_ID;
+      document.head.appendChild(script);
+
+      gtag('js', new Date());
+      gtag('config', GA_ID, { anonymize_ip: true });
+      window.__nebulifeGAInjected = true;
+    })();
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
