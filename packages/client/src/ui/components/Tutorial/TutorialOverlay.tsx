@@ -153,6 +153,14 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
     });
   }, [voiceSrc]);
 
+  const triggerTargetAndAdvance = useCallback(() => {
+    if (currentTarget) {
+      const el = document.querySelector(`[data-tutorial-id="${currentTarget}"]`) as HTMLElement | null;
+      el?.click();
+    }
+    onAdvance();
+  }, [currentTarget, onAdvance]);
+
   useEffect(() => {
     if (!voiceSrc) return;
     playVoice();
@@ -221,29 +229,28 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
         clientY <= targetRect.bottom + pad;
 
       if (inBounds) {
-        // Click the target element programmatically
-        const el = document.querySelector(`[data-tutorial-id="${currentTarget}"]`) as HTMLElement | null;
-        if (el) {
-          el.click();
-        }
-        onAdvance();
+        triggerTargetAndAdvance();
       }
       // Otherwise swallow the click
       e.stopPropagation();
       e.preventDefault();
     },
-    [targetRect, currentTarget, isInfoStep, isAutoStep, onAdvance],
+    [targetRect, isInfoStep, isAutoStep, triggerTargetAndAdvance],
   );
 
   // A.S.T.R.A. panel positioning — side panel on desktop, bottom card on mobile.
   const getAstraPanelStyle = (): React.CSSProperties => {
     if (isCompact) {
+      const targetIsLow = targetRect
+        ? targetRect.top + targetRect.height / 2 > window.innerHeight * 0.54
+        : false;
       return {
         position: 'fixed',
         left: 10,
         right: 10,
-        bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
-        maxHeight: '46vh',
+        top: targetIsLow ? 'calc(66px + env(safe-area-inset-top, 0px))' : undefined,
+        bottom: targetIsLow ? undefined : 'calc(12px + env(safe-area-inset-bottom, 0px))',
+        maxHeight: targetIsLow ? '42vh' : '46vh',
       };
     }
 
@@ -503,9 +510,28 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 
           {/* Click hint for click steps */}
           {step.type === 'click' && targetRect && (
-            <div style={{ fontSize: 10, color: '#667788', marginTop: 8 }}>
-              {t('tutorial.click_hint')}
-            </div>
+            <>
+              <div style={{ fontSize: 10, color: '#667788', marginTop: 8, marginBottom: isCompact ? 8 : 0 }}>
+                {t('tutorial.click_hint')}
+              </div>
+              {isCompact && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    triggerTargetAndAdvance();
+                  }}
+                  style={{
+                    ...ASTRA_BUTTON_STYLE,
+                    borderColor: 'rgba(123,184,255,0.55)',
+                    background: 'rgba(68,136,170,0.22)',
+                    color: '#d6efff',
+                    boxShadow: '0 0 14px rgba(68,136,170,0.18)',
+                  }}
+                >
+                  {t('tutorial.tap_target')}
+                </button>
+              )}
+            </>
           )}
 
           {/* Fallback Next button for click steps when element not found */}

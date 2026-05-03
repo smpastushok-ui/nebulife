@@ -521,6 +521,7 @@ export const uk = {
 
   // ─── Tutorial ─────────────────────────────────────────────────────────────
   'tutorial.click_element': 'Натиснiть на видiлений елемент',
+  'tutorial.tap_target':    'Натиснути тут',
   'tutorial.next':          'Далi',
   'tutorial.skip':          'Пропустити туторiал',
 

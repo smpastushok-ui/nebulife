@@ -523,6 +523,7 @@ export const en: Record<TranslationKey, string> = {
 
   // ─── Tutorial ─────────────────────────────────────────────────────────────
   'tutorial.click_element': 'Click on the highlighted element',
+  'tutorial.tap_target':    'Tap here',
   'tutorial.next':          'Next',
   'tutorial.skip':          'Skip tutorial',
 
