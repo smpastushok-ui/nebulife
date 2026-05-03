@@ -497,15 +497,26 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 
           {/* "Next" button for info steps */}
           {(isInfoStep || isAutoStep) && currentNextLabel && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAdvance();
-              }}
-              style={ASTRA_BUTTON_STYLE}
-            >
-              {t(currentNextLabel)}
-            </button>
+            <div style={ASTRA_ACTION_ROW_STYLE}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdvance();
+                }}
+                style={ASTRA_BUTTON_STYLE}
+              >
+                {t(currentNextLabel)}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSkip();
+                }}
+                style={ASTRA_SKIP_BUTTON_STYLE}
+              >
+                {t('tutorial.skip')}
+              </button>
+            </div>
           )}
 
           {/* Click hint for click steps */}
@@ -515,84 +526,72 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
                 {t('tutorial.click_hint')}
               </div>
               {isCompact && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    triggerTargetAndAdvance();
-                  }}
-                  style={{
-                    ...ASTRA_BUTTON_STYLE,
-                    borderColor: 'rgba(123,184,255,0.55)',
-                    background: 'rgba(68,136,170,0.22)',
-                    color: '#d6efff',
-                    boxShadow: '0 0 14px rgba(68,136,170,0.18)',
-                  }}
-                >
-                  {t('tutorial.tap_target')}
-                </button>
+                <div style={ASTRA_ACTION_ROW_STYLE}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerTargetAndAdvance();
+                    }}
+                    style={{
+                      ...ASTRA_BUTTON_STYLE,
+                      borderColor: 'rgba(123,184,255,0.55)',
+                      background: 'rgba(68,136,170,0.22)',
+                      color: '#d6efff',
+                      boxShadow: '0 0 14px rgba(68,136,170,0.18)',
+                    }}
+                  >
+                    {t('tutorial.tap_target')}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSkip();
+                    }}
+                    style={ASTRA_SKIP_BUTTON_STYLE}
+                  >
+                    {t('tutorial.skip')}
+                  </button>
+                </div>
               )}
             </>
           )}
 
           {/* Fallback Next button for click steps when element not found */}
           {step.type === 'click' && !targetRect && (
+            <div style={ASTRA_ACTION_ROW_STYLE}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdvance();
+                }}
+                style={ASTRA_BUTTON_STYLE}
+              >
+                {t('tutorial.next')}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSkip();
+                }}
+                style={ASTRA_SKIP_BUTTON_STYLE}
+              >
+                {t('tutorial.skip')}
+              </button>
+            </div>
+          )}
+          {step.type === 'click' && targetRect && !isCompact && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onAdvance();
+                onSkip();
               }}
-              style={ASTRA_BUTTON_STYLE}
+              style={{ ...ASTRA_SKIP_BUTTON_STYLE, width: '100%', marginTop: 10 }}
             >
-              {t('tutorial.next')}
+              {t('tutorial.skip')}
             </button>
           )}
         </div>
       </div>
-
-      {/* Skip button — strong contrast so testers/returning players can find
-          it immediately. Amber-orange accent matches the "secondary action"
-          palette used elsewhere (warnings, tutorial dismissals). */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onSkip();
-        }}
-        style={{
-          position: 'fixed',
-          top: 'calc(14px + env(safe-area-inset-top, 0px))',
-          left: 14,
-          zIndex: 10052,
-          background: 'rgba(10,15,25,0.92)',
-          border: '1px solid rgba(255,136,68,0.55)',
-          borderRadius: 4,
-          color: '#ffaa66',
-          fontFamily: 'monospace',
-          fontSize: 11,
-          letterSpacing: 1,
-          textTransform: 'uppercase',
-          padding: '6px 14px',
-          cursor: 'pointer',
-          transition: 'color 0.15s, border-color 0.15s, box-shadow 0.15s, background 0.15s',
-          pointerEvents: 'auto',
-          boxShadow: '0 0 10px rgba(255,136,68,0.25)',
-        }}
-        onMouseEnter={(e) => {
-          const el = e.target as HTMLElement;
-          el.style.color = '#ffcc88';
-          el.style.borderColor = 'rgba(255,136,68,0.85)';
-          el.style.boxShadow = '0 0 16px rgba(255,136,68,0.45)';
-          el.style.background = 'rgba(25,15,5,0.95)';
-        }}
-        onMouseLeave={(e) => {
-          const el = e.target as HTMLElement;
-          el.style.color = '#ffaa66';
-          el.style.borderColor = 'rgba(255,136,68,0.55)';
-          el.style.boxShadow = '0 0 10px rgba(255,136,68,0.25)';
-          el.style.background = 'rgba(10,15,25,0.92)';
-        }}
-      >
-        {t('tutorial.skip')}
-      </button>
     </>
   );
 }
@@ -618,6 +617,28 @@ const ASTRA_BUTTON_STYLE: React.CSSProperties = {
   letterSpacing: 1,
   cursor: 'pointer',
   textTransform: 'uppercase',
+};
+
+const ASTRA_SKIP_BUTTON_STYLE: React.CSSProperties = {
+  display: 'block',
+  padding: '8px 10px',
+  background: 'rgba(25,15,5,0.72)',
+  border: '1px solid rgba(255,136,68,0.52)',
+  borderRadius: 4,
+  color: '#ffaa66',
+  fontFamily: 'monospace',
+  fontSize: 10,
+  letterSpacing: 1,
+  cursor: 'pointer',
+  textTransform: 'uppercase',
+  whiteSpace: 'nowrap',
+};
+
+const ASTRA_ACTION_ROW_STYLE: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: 8,
+  alignItems: 'stretch',
 };
 
 /** Map step id to its 0-based number for display */
