@@ -1,0 +1,347 @@
+{
+  "slug": "solar-system-overview",
+  "language": "en",
+  "section": "astronomy",
+  "order": 2,
+  "difficulty": "beginner",
+  "readingTimeMin": 14,
+  "title": "The Solar System — Overview",
+  "subtitle": "Eight planets, trillions of smaller bodies, and one star. What we know about our cosmic address.",
+  "hero": {
+    "cacheKey": "solar-system-overview-hero",
+    "prompt": "Photorealistic illustration for a science encyclopedia: scale comparison of all 8 planets of the Solar System and the Sun, arranged horizontally from left to right — Sun (partially visible on left edge), Mercury, Venus, Earth, Mars, Jupiter, Saturn with rings, Uranus, Neptune. Each body shown to accurate relative scale. Dark space background with subtle star field. Scientific accuracy, hard sci-fi educational style, 16:9 wide aspect ratio. Add the following text labels on the image: \"Sun\", \"Mercury\", \"Venus\", \"Earth\", \"Mars\", \"Jupiter\", \"Saturn\", \"Uranus\", \"Neptune\".",
+    "alt": "Scale comparison of the eight planets of the Solar System and the Sun against a dark space background",
+    "caption": "The eight planets shown to scale relative to each other. The Sun at left is cropped — it is 109 times wider than Earth.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "If you compressed the distance from Earth to Neptune into the length of a football field, the Sun would occupy the first third of a centimeter. The rest of the field would be empty space — nearly. That is the key thing to internalize about the **Solar System**: it is mostly nothing. Eight planets, trillions of small bodies, and the gravitational reach of a single star extending two light-years in every direction.",
+        "The Solar System formed 4.568 billion years ago from a vast rotating cloud of gas and dust — a _protoplanetary disk_. The cloud collapsed under its own gravity; most of the mass fell inward and ignited into the Sun. The remaining disk began clumping together into progressively larger bodies — from dust grains to pebbles, from pebbles to planetesimals, and finally into planets. This process took roughly the first hundred million years."
+      ]
+    },
+    {
+      "heading": "The Sun",
+      "level": 2,
+      "paragraphs": [
+        "The Sun is a **G2V main-sequence star** that contains 99.86% of all the mass in the Solar System. Everything else — all eight planets, their moons, asteroids, comets, and dust — shares the remaining 0.14%. Its mass is 2×10³⁰ kilograms, roughly 333,000 times the mass of Earth. Its diameter is 1.39 million kilometers, or 109 Earth-widths.",
+        "At the Sun's core, where temperatures reach 15 million kelvin, some 620 million tonnes of hydrogen fuse into helium every second through _thermonuclear fusion_. This releases a staggering amount of energy. Earth's surface intercepts only a tiny fraction of that output — yet it is enough to power every ecosystem on the planet.",
+        "The Sun is approximately halfway through its ten-billion-year main-sequence lifetime. In about five billion years it will swell into a _red giant_, engulfing or severely scorching the inner planets, before shedding its outer layers and collapsing into a _white dwarf_ roughly the size of Earth."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "solar-system-overview-sun-corona",
+        "prompt": "Photorealistic illustration for a science encyclopedia: the Sun in extreme ultraviolet light, showing the solar corona with plasma loops and solar flares. False-color composite style — deep orange and gold coronal plasma against black space. Scientific accuracy, 4:3 aspect ratio, no text.",
+        "alt": "The Sun in extreme ultraviolet showing the solar corona and plasma loops",
+        "caption": "The solar corona imaged in extreme ultraviolet. The corona (up to 2 million K) is dramatically hotter than the surface (~5,778 K) — a longstanding puzzle in solar physics.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Inner Solar System: The Rocky Planets",
+      "level": 2,
+      "paragraphs": [
+        "The four inner planets — **Mercury, Venus, Earth, and Mars** — formed primarily from heavier elements after the solar wind drove lighter gases outward. All four are solid, relatively dense, and vastly smaller than the outer giants."
+      ]
+    },
+    {
+      "heading": "Mercury",
+      "level": 3,
+      "paragraphs": [
+        "The innermost planet is also the smallest. Without any significant atmosphere to retain heat, surface temperatures swing from -180°C at night to +430°C during the day — the largest daily temperature range in the Solar System. Mercury moves so quickly that a local year (88 Earth days) is actually shorter than a local solar day (176 Earth days), which is one of the stranger artifacts of orbital mechanics.",
+        "Despite its modest size, Mercury has an unusually large iron core, accounting for roughly 85% of its radius. The most likely explanation is that a giant impact early in the system's history stripped away much of the original mantle. The _BepiColombo_ mission (ESA/JAXA), launched in 2018, will enter Mercury orbit in late 2026 and conduct detailed observations of the interior and magnetic field."
+      ]
+    },
+    {
+      "heading": "Venus",
+      "level": 3,
+      "paragraphs": [
+        "Venus is nearly identical to Earth in size — and that is where the resemblance ends. Its atmosphere is 96% carbon dioxide, the surface pressure is 92 times that of Earth at sea level, and the mean surface temperature is +464°C — hotter than Mercury despite being farther from the Sun. The culprit is a _greenhouse effect_ pushed to its absolute extreme.",
+        "Venus also rotates in the opposite direction to most planets (retrograde rotation) and extremely slowly — one Venusian day lasts 243 Earth days, longer than its year (225 days). Its perpetual cloud cover makes the surface invisible to ordinary optical telescopes; the most detailed maps were made by the _Magellan_ orbiter (1990-1994) using radar. The next generation of Venus missions — DAVINCI (NASA) and EnVision (ESA) — are targeted for the late 2020s."
+      ]
+    },
+    {
+      "heading": "Earth",
+      "level": 3,
+      "paragraphs": [
+        "The third planet is the only confirmed location of life in the universe. From an astrophysical standpoint, Earth sits in the _habitable zone_ — the range of orbital distances where liquid water can persist on a surface under moderate pressure. Identical conditions may well exist around other stars.",
+        "Earth has an unusually large natural satellite. The **Moon** is 27 times smaller than Earth by diameter, but relative to its host planet's mass this is the largest moon-to-planet ratio among the rocky planets. The Moon stabilizes Earth's axial tilt (~23.5°), which directly moderates climate and seasons. Without it, the tilt could vary chaotically over millions of years."
+      ]
+    },
+    {
+      "heading": "Mars",
+      "level": 3,
+      "paragraphs": [
+        "**Mars** is half Earth's diameter but possesses a dramatic geological legacy. _Olympus Mons_ is the tallest volcano in the Solar System (21.9 km above datum). _Valles Marineris_ is a canyon system stretching over 4,000 km — dwarfing the Grand Canyon in every dimension. The atmosphere is 95% CO₂ but extremely thin: surface pressure is about 1% of Earth's.",
+        "Mars once had liquid water — confirmed by geomorphology, mineral chemistry, and direct measurements. Water persists today as subsurface ice and possibly briny liquid. The _Perseverance_ rover (NASA) has been sampling sediments in Jezero Crater since 2021, collecting cores for eventual return to Earth. The _Ingenuity_ helicopter completed 72 flights before a rotor blade broke in January 2024 — definitively proving that aerial reconnaissance on other planets is feasible."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "solar-system-overview-inner-planets",
+        "prompt": "Photorealistic illustration for a science encyclopedia: four inner rocky planets of the Solar System shown side by side — Mercury (gray, heavily cratered), Venus (yellowish cloud cover, no surface visible), Earth (blue-white with continents and clouds), Mars (reddish-brown with polar ice caps). Accurate relative sizes, dark space background, scientifically accurate surfaces. Hard sci-fi educational style, 16:9 aspect ratio. Add the following text labels on the image: \"Mercury\", \"Venus\", \"Earth\", \"Mars\".",
+        "alt": "The four rocky inner planets of the Solar System compared — Mercury, Venus, Earth, Mars",
+        "caption": "The inner planets at scale. Earth and Venus are nearly identical in size but radically different in conditions.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The Asteroid Belt and Ceres",
+      "level": 2,
+      "paragraphs": [
+        "Between the orbits of Mars and Jupiter lies the _asteroid belt_ — a region where most of the inner system's small bodies are concentrated. Contrary to popular science-fiction imagery, it is not a chaotic gauntlet of collisions: the average distance between asteroids is over 900,000 kilometers. The belt's total mass is less than 4% of the Moon's.",
+        "**Ceres** is the largest body in the belt at ~940 km across and the only _dwarf planet_ in the inner Solar System. The _Dawn_ spacecraft (NASA, 2015-2018) revealed bright salt deposits in Occator Crater — relics of ancient hydrothermal activity. Belt asteroids are generally considered pristine leftover building material from the early Solar System: matter that never consolidated into a full planet because Jupiter's gravity kept stirring things up."
+      ]
+    },
+    {
+      "heading": "Gas Giants: Jupiter and Saturn",
+      "level": 2,
+      "paragraphs": [
+        "Beyond the asteroid belt, the Solar System changes character entirely. The four outer planets — gas and ice giants — are hundreds of times more massive than the rocky worlds and composed primarily of hydrogen, helium, and lighter compounds."
+      ]
+    },
+    {
+      "heading": "Jupiter",
+      "level": 3,
+      "paragraphs": [
+        "**Jupiter** is the largest planet: mass 1.898×10²⁷ kg, or 318 Earth masses — more than all other planets combined. Had it accumulated roughly 80 times more mass, the pressures in its core would have ignited nuclear fusion and it would have become a star. Its most recognizable feature, the _Great Red Spot_, is an anticyclonic storm at least 350 years old, now approximately 1.3 Earth diameters across (it has been shrinking for decades).",
+        "Jupiter's moon system contains 95 confirmed satellites as of 2026. The four _Galilean moons_ — Io, Europa, Ganymede, and Callisto — were discovered by Galileo in 1610. **Europa** is one of the Solar System's prime candidates for extraterrestrial life: beneath its icy crust lies a global liquid ocean, where hydrothermal vents may create conditions analogous to Earth's deep-sea ecosystems. The _Europa Clipper_ mission (NASA) launched in October 2024 and will reach the Jovian system in 2030. _JUICE_ (ESA) launched in April 2023 and arrives in 2031."
+      ]
+    },
+    {
+      "heading": "Saturn",
+      "level": 3,
+      "paragraphs": [
+        "**Saturn** is the second-largest planet and the most visually distinctive object in the Solar System, thanks to its rings. The rings are composed mostly of clean water ice particles — ranging from dust grains to house-sized chunks — orbiting in Saturn's equatorial plane. They are extraordinarily thin (a typical thickness of ~100 meters) but span over 280,000 km in diameter. Geologically speaking, the rings are young: current estimates put their age at 100 to 400 million years.",
+        "Saturn has 146 confirmed moons. **Titan** is the largest — the second-largest moon in the Solar System after Ganymede — with a dense nitrogen atmosphere and liquid methane lakes on its surface: the only other body in the Solar System with stable surface liquids (though not water). **Enceladus** is a small moon that actively jets water vapor and ice from beneath its frozen crust into space; the _Cassini_ spacecraft flew through these plumes and detected organic molecules, molecular hydrogen, and silica — strong indicators of an active subsurface ocean with ongoing hydrothermal chemistry."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "solar-system-overview-saturn-rings",
+        "prompt": "Photorealistic illustration for a science encyclopedia: Saturn and its ring system viewed from slightly above the equatorial plane, showing the detailed ring structure with Cassini Division visible. Dark space background, scientifically accurate ring geometry and color. Hard sci-fi educational style, 4:3 aspect ratio.",
+        "alt": "Saturn and its ring system viewed from slightly above the equatorial plane",
+        "caption": "Saturn's rings are composed primarily of water ice. The Cassini Division between the A and B rings is caused by orbital resonance with the moon Mimas.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Ice Giants: Uranus and Neptune",
+      "level": 2,
+      "paragraphs": [
+        "**Uranus** and **Neptune** form a distinct subclass — the _ice giants_. Unlike Jupiter and Saturn, where most of the volume is gaseous hydrogen and helium, ice giants contain a substantial fraction of mass in the form of \"ices\" — not truly solid, but supercritical mixtures of water, methane, and ammonia under immense pressure.",
+        "**Uranus** has the strangest axial tilt in the Solar System: 98 degrees, meaning it essentially rolls along its orbit on its side. The most likely explanation is a massive collision billions of years ago. Its magnetic field is offset from the rotational axis by 60 degrees — another anomaly with no fully agreed explanation. Uranus is the coldest of the giant planets, with a recorded minimum of -224°C. The only spacecraft to have visited it was _Voyager 2_, in 1986.",
+        "**Neptune** is the most distant planet and the windiest: wind speeds reach 2,100 km/h, the fastest in the Solar System. It was discovered in 1846 purely through mathematical prediction — anomalies in Uranus's orbit implied the existence of another planet, and astronomers found it exactly where calculations pointed. Neptune has 16 confirmed moons; **Triton**, the largest, orbits in the wrong direction (retrograde), indicating it was captured from the Kuiper Belt. Triton shows evidence of cryovolcanic activity."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Diagram: Solar System Orbits (Logarithmic Scale)",
+        "svg": "<svg viewBox=\"0 0 760 340\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"monospace\">\n  <rect width=\"760\" height=\"340\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"380\" y=\"22\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"11\" letter-spacing=\"1\">SOLAR SYSTEM ORBITS — LOGARITHMIC SCALE</text>\n\n  <!-- Baseline -->\n  <line x1=\"60\" y1=\"170\" x2=\"720\" y2=\"170\" stroke=\"#334455\" stroke-width=\"1\"/>\n\n  <!-- Sun dot on baseline -->\n  <circle cx=\"60\" cy=\"170\" r=\"8\" fill=\"#ff8844\" opacity=\"0.85\"/>\n  <text x=\"60\" y=\"200\" text-anchor=\"middle\" fill=\"#ff8844\" font-size=\"10\">Sun</text>\n\n  <!-- Orbit tick lines (vertical) -->\n  <line x1=\"80\" y1=\"90\" x2=\"80\" y2=\"250\" stroke=\"#aabbcc\" stroke-width=\"0.5\" opacity=\"0.3\"/>\n  <line x1=\"139\" y1=\"90\" x2=\"139\" y2=\"250\" stroke=\"#aabbcc\" stroke-width=\"0.5\" opacity=\"0.3\"/>\n  <line x1=\"170\" y1=\"90\" x2=\"170\" y2=\"250\" stroke=\"#aabbcc\" stroke-width=\"0.5\" opacity=\"0.3\"/>\n  <line x1=\"210\" y1=\"90\" x2=\"210\" y2=\"250\" stroke=\"#aabbcc\" stroke-width=\"0.5\" opacity=\"0.3\"/>\n  <line x1=\"327\" y1=\"90\" x2=\"327\" y2=\"250\" stroke=\"#aabbcc\" stroke-width=\"0.5\" opacity=\"0.3\"/>\n  <line x1=\"386\" y1=\"90\" x2=\"386\" y2=\"250\" stroke=\"#aabbcc\" stroke-width=\"0.5\" opacity=\"0.3\"/>\n  <line x1=\"452\" y1=\"90\" x2=\"452\" y2=\"250\" stroke=\"#aabbcc\" stroke-width=\"0.5\" opacity=\"0.3\"/>\n  <line x1=\"495\" y1=\"90\" x2=\"495\" y2=\"250\" stroke=\"#aabbcc\" stroke-width=\"0.5\" opacity=\"0.3\"/>\n\n  <!-- Mercury -->\n  <circle cx=\"80\" cy=\"170\" r=\"3\" fill=\"#8899aa\"/>\n  <text x=\"80\" y=\"268\" text-anchor=\"middle\" fill=\"#8899aa\" font-size=\"10\">Mer</text>\n  <text x=\"80\" y=\"280\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">0.39 AU</text>\n\n  <!-- Venus -->\n  <circle cx=\"139\" cy=\"170\" r=\"4.5\" fill=\"#ff8844\" opacity=\"0.7\"/>\n  <text x=\"139\" y=\"82\" text-anchor=\"middle\" fill=\"#ff8844\" font-size=\"10\">Venus</text>\n  <text x=\"139\" y=\"294\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">0.72 AU</text>\n\n  <!-- Earth -->\n  <circle cx=\"170\" cy=\"170\" r=\"4.5\" fill=\"#44ff88\"/>\n  <text x=\"170\" y=\"268\" text-anchor=\"middle\" fill=\"#44ff88\" font-size=\"10\">Earth</text>\n  <text x=\"170\" y=\"280\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">1.0 AU</text>\n\n  <!-- Mars -->\n  <circle cx=\"210\" cy=\"170\" r=\"3.5\" fill=\"#cc4444\"/>\n  <text x=\"210\" y=\"82\" text-anchor=\"middle\" fill=\"#cc4444\" font-size=\"10\">Mars</text>\n  <text x=\"210\" y=\"294\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">1.52 AU</text>\n\n  <!-- Asteroid belt marker -->\n  <rect x=\"235\" y=\"155\" width=\"28\" height=\"30\" fill=\"none\" stroke=\"#667788\" stroke-width=\"0.5\" stroke-dasharray=\"3,3\"/>\n  <text x=\"249\" y=\"148\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">Belt</text>\n\n  <!-- Jupiter -->\n  <circle cx=\"327\" cy=\"170\" r=\"9\" fill=\"#ff8844\" opacity=\"0.6\"/>\n  <text x=\"327\" y=\"268\" text-anchor=\"middle\" fill=\"#ff8844\" font-size=\"10\">Jupiter</text>\n  <text x=\"327\" y=\"280\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">5.2 AU</text>\n\n  <!-- Saturn + ring -->\n  <circle cx=\"386\" cy=\"170\" r=\"8\" fill=\"#aabbcc\" opacity=\"0.7\"/>\n  <ellipse cx=\"386\" cy=\"170\" rx=\"14\" ry=\"4\" fill=\"none\" stroke=\"#aabbcc\" stroke-width=\"1.5\" opacity=\"0.5\"/>\n  <text x=\"386\" y=\"82\" text-anchor=\"middle\" fill=\"#aabbcc\" font-size=\"10\">Saturn</text>\n  <text x=\"386\" y=\"294\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">9.6 AU</text>\n\n  <!-- Uranus -->\n  <circle cx=\"452\" cy=\"170\" r=\"6\" fill=\"#7bb8ff\" opacity=\"0.8\"/>\n  <text x=\"452\" y=\"268\" text-anchor=\"middle\" fill=\"#7bb8ff\" font-size=\"10\">Uranus</text>\n  <text x=\"452\" y=\"280\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">19.2 AU</text>\n\n  <!-- Neptune -->\n  <circle cx=\"495\" cy=\"170\" r=\"5.5\" fill=\"#4488aa\"/>\n  <text x=\"495\" y=\"82\" text-anchor=\"middle\" fill=\"#4488aa\" font-size=\"10\">Neptune</text>\n  <text x=\"495\" y=\"294\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">30.1 AU</text>\n\n  <!-- Kuiper belt region -->\n  <rect x=\"520\" y=\"145\" width=\"80\" height=\"50\" fill=\"rgba(123,184,255,0.05)\" stroke=\"#4488aa\" stroke-width=\"0.5\" stroke-dasharray=\"4,4\"/>\n  <text x=\"560\" y=\"140\" text-anchor=\"middle\" fill=\"#4488aa\" font-size=\"10\">Kuiper Belt</text>\n  <text x=\"560\" y=\"210\" text-anchor=\"middle\" fill=\"#667788\" font-size=\"9\">30–50 AU</text>\n\n  <!-- Oort cloud label -->\n  <text x=\"680\" y=\"170\" text-anchor=\"middle\" fill=\"#334455\" font-size=\"10\">Oort Cloud</text>\n  <text x=\"680\" y=\"183\" text-anchor=\"middle\" fill=\"#334455\" font-size=\"9\">~2,000–100,000 AU</text>\n  <text x=\"680\" y=\"155\" text-anchor=\"middle\" fill=\"#334455\" font-size=\"9\">→</text>\n\n  <!-- AU scale note -->\n  <text x=\"380\" y=\"320\" text-anchor=\"middle\" fill=\"#334455\" font-size=\"10\">1 AU = 149.6 million km · scale is logarithmic</text>\n</svg>",
+        "caption": "Orbital positions on a logarithmic scale. On a true linear scale, the inner planets would be invisible dots crowded into the far left edge."
+      }
+    },
+    {
+      "heading": "The Trans-Neptunian Region",
+      "level": 2,
+      "paragraphs": [
+        "Beyond Neptune begins the _Kuiper Belt_ — a ring-shaped region from roughly 30 to 50 AU populated by thousands of icy bodies. It is analogous to the asteroid belt but far larger and more massive. Most short-period comets originate here.",
+        "**Pluto** is the Kuiper Belt's most famous resident. In 2006 the International Astronomical Union reclassified it as a _dwarf planet_ — not because of its size, but because it has not gravitationally cleared its orbital neighborhood. The _New Horizons_ mission (NASA, 2015) delivered the first close look: mountains up to 3,500 m high, the nitrogen-ice Tombaugh Regio plains, and evidence for a possible subsurface ocean.",
+        "Other known dwarf planets include **Eris** (nearly Pluto-sized but more massive), **Haumea** (elongated by its rapid spin), **Makemake**, and **Sedna** — the last of which has a highly elongated orbit ranging from roughly 76 to nearly 900 AU and has never been closer. Some researchers argue that the orbital clustering of distant trans-Neptunian objects hints at an undiscovered large planet — the so-called _Planet Nine_ — but this remains unconfirmed."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "solar-system-overview-pluto-charon",
+        "prompt": "Photorealistic illustration for a science encyclopedia: Pluto and its large moon Charon shown together in space, Pluto surface with nitrogen ice plains (Tombaugh Regio heart-shaped region), reddish methane ice areas, and icy mountains. Charon in background with reddish polar cap. Dark space background with Kuiper Belt context. Scientific accuracy based on New Horizons imagery, 4:3 aspect ratio.",
+        "alt": "Pluto and its large moon Charon in the Kuiper Belt",
+        "caption": "Pluto (foreground) and Charon, reconstructed from New Horizons data (2015). The heart-shaped Tombaugh Regio is a vast plain of nitrogen ice.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "The Oort Cloud and the Heliopause",
+      "level": 2,
+      "paragraphs": [
+        "Beyond the Kuiper Belt, stretching from roughly 2,000 to perhaps 100,000 AU from the Sun, lies the _Oort Cloud_ — a spherical shell of trillions of icy bodies. It is the reservoir for long-period comets, which visit the inner Solar System once every millions of years. The Oort Cloud has never been directly observed; its existence is inferred from the orbital properties of comets that arrive on hyperbolic or near-parabolic trajectories.",
+        "The _heliopause_ is the boundary where the solar wind — the stream of charged particles flowing out from the Sun — meets the interstellar medium and is finally stopped. Current measurements place it at roughly 120 AU. **Voyager 1** crossed the heliopause in 2012 and as of May 2026 is at over 160 AU — the most distant human-made object ever. The one-way signal travel time is over 22 hours. Some instruments have failed, but the spacecraft continues to return data. _Voyager 2_, at ~133 AU, has also crossed the heliopause."
+      ]
+    },
+    {
+      "heading": "Active Missions in the System (2026)",
+      "level": 2,
+      "paragraphs": [
+        "As of May 2026, more than twenty scientific spacecraft are actively operating in or en route through the Solar System. The highlights:",
+        "**Europa Clipper** (NASA) — launched October 2024, bound for the Jovian system. Arrival 2030. Will conduct 49 close flybys of Europa to investigate its ice shell, subsurface ocean, and astrobiological potential.",
+        "**JUICE** (Jupiter Icy Moons Explorer, ESA) — launched April 2023. Arrival 2031. Will study Ganymede, Callisto, and Europa, concluding with the first orbital insertion around a moon of another planet (Ganymede).",
+        "**Lucy** (NASA) — surveying Jupiter's _Trojan asteroids_ at the L4 and L5 Lagrange points. Completed its first flyby in 2025; further encounters planned through 2033. These objects are believed to be primordial remnants from the outer Solar System.",
+        "**Psyche** (NASA) — launched October 2023, bound for the metallic asteroid _16 Psyche_, possibly the exposed iron-nickel core of a destroyed protoplanet. Arrival expected 2029.",
+        "**Hera** (ESA) — launched October 2024, en route to the Didymos/Dimorphos binary asteroid system to survey the aftermath of the DART impact (2022). Arrival 2026. This is humanity's first planetary defense follow-up mission.",
+        "**Perseverance** continues collecting sample cores in Jezero Crater for eventual return to Earth. **Ingenuity** completed 72 flights before a rotor blade broke in January 2024, definitively proving the viability of aerial reconnaissance on other planets."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "solar-system-overview-europa-clipper",
+        "prompt": "Photorealistic illustration for a science encyclopedia: NASA Europa Clipper spacecraft in deep space approaching Jupiter system, Jupiter visible in background with Great Red Spot, Europa moon close in foreground showing icy cracked surface with reddish linear features. Solar panels deployed on spacecraft. Dark space background, scientifically accurate, hard sci-fi style, 16:9 aspect ratio.",
+        "alt": "The Europa Clipper spacecraft approaching Jupiter and Europa",
+        "caption": "Europa Clipper (NASA) will conduct 49 close flybys of Europa, probing the ice shell without entering a permanent orbit — which would accumulate too much radiation from Jupiter's belts.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Scale: The Thing Worth Internalizing",
+      "level": 2,
+      "paragraphs": [
+        "The numbers in this lesson are hard to feel. One astronomical unit is 149.6 million kilometers. From Earth to the edge of the heliosphere — 120 AU. To the Oort Cloud — thousands of AU. To the nearest star, Alpha Centauri — 268,000 AU from the Sun.",
+        "Consider this scale model: if the Sun is an orange 10 centimeters across, Earth is a peppercorn 10.5 meters away. Neptune is another peppercorn 320 meters off. The Oort Cloud would begin four to five thousand kilometers from that orange. The Solar System is vast; the surrounding universe is incomparably larger.",
+        "Understanding the Solar System is not merely cartography of the home star. It is the foundation for searching for planets around other stars, for knowing where to look for extraterrestrial life, and — eventually — for any serious human expansion beyond Earth."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Protoplanetary disk",
+      "definition": "A rotating disk of gas and dust around a young star from which planets gradually accumulate."
+    },
+    {
+      "term": "Astronomical Unit (AU)",
+      "definition": "The mean distance from Earth to the Sun: 149.6 million kilometers. Standard measure for distances within the Solar System."
+    },
+    {
+      "term": "Dwarf planet",
+      "definition": "A body orbiting the Sun that is massive enough to be roughly spherical but has not gravitationally cleared its orbital neighborhood. Category defined by the IAU in 2006."
+    },
+    {
+      "term": "Kuiper Belt",
+      "definition": "A ring-shaped region beyond Neptune's orbit (30–50 AU) containing thousands of icy bodies, including Pluto and Eris."
+    },
+    {
+      "term": "Oort Cloud",
+      "definition": "A vast spherical shell of trillions of icy bodies at 2,000–100,000 AU from the Sun, believed to be the source of long-period comets."
+    },
+    {
+      "term": "Heliopause",
+      "definition": "The boundary where the solar wind is stopped by the pressure of the interstellar medium — roughly 120 AU from the Sun."
+    },
+    {
+      "term": "Habitable zone",
+      "definition": "The range of orbital distances from a star where liquid water can persist on a planet's surface under adequate atmospheric pressure."
+    },
+    {
+      "term": "Thermonuclear fusion",
+      "definition": "The process of merging lighter atomic nuclei (hydrogen into helium) with release of energy. The primary power source of stars."
+    },
+    {
+      "term": "Orbital resonance",
+      "definition": "A gravitational interaction between two orbiting bodies whose orbital periods form a simple integer ratio. Responsible for features like the Cassini Division in Saturn's rings."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "What fraction of the Solar System's total mass is contained in the Sun?",
+      "options": [
+        "About 50%",
+        "About 75%",
+        "About 99.86%",
+        "About 90%"
+      ],
+      "correctIndex": 2,
+      "explanation": "The Sun contains 99.86% of all mass in the Solar System. Everything else — all eight planets, their moons, asteroids, and comets — shares the remainder. Jupiter, the largest planet, makes up only about 0.1% of the total."
+    },
+    {
+      "question": "Why is Venus hotter than Mercury despite being farther from the Sun?",
+      "options": [
+        "It is larger and generates more internal heat",
+        "Its thick CO₂ atmosphere traps heat through the greenhouse effect",
+        "It rotates in the opposite direction",
+        "Its surface is darker and absorbs more solar radiation"
+      ],
+      "correctIndex": 1,
+      "explanation": "Venus's atmosphere is 96% carbon dioxide and creates an extreme greenhouse effect, raising the surface temperature to +464°C — hotter than Mercury's maximum. Mercury has almost no atmosphere and thus cannot retain heat."
+    },
+    {
+      "question": "Voyager 1 is the most distant human-made object. Where is it as of 2026?",
+      "options": [
+        "In the Kuiper Belt, ~45 AU from the Sun",
+        "Just beyond the heliopause, ~160 AU from the Sun",
+        "At the edge of the Oort Cloud, ~2,000 AU",
+        "Between Uranus and Neptune"
+      ],
+      "correctIndex": 1,
+      "explanation": "Voyager 1 crossed the heliopause in 2012 and as of 2026 is approximately 160 AU from the Sun — in interstellar space. The Oort Cloud is still far ahead, beginning roughly at 2,000 AU."
+    },
+    {
+      "question": "Which mission is specifically designed to study the subsurface ocean of Europa?",
+      "options": [
+        "JUICE (ESA)",
+        "Perseverance (NASA)",
+        "Europa Clipper (NASA)",
+        "Hera (ESA)"
+      ],
+      "correctIndex": 2,
+      "explanation": "Europa Clipper (NASA), launched October 2024, will arrive at the Jovian system in 2030 and perform 49 close flybys of Europa. JUICE (ESA) also visits the Jovian moons but is primarily focused on Ganymede."
+    },
+    {
+      "question": "Why was Pluto reclassified as a dwarf planet in 2006?",
+      "options": [
+        "It was found to be too small — smaller than Earth's Moon",
+        "It orbits Neptune, not the Sun directly",
+        "It has not cleared its orbital neighborhood of other bodies",
+        "It was rediscovered as a fragment of a destroyed planet"
+      ],
+      "correctIndex": 2,
+      "explanation": "The IAU 2006 definition requires a planet to: (a) orbit the Sun, (b) have sufficient mass for self-gravity to make it roughly spherical, and (c) have cleared the neighborhood around its orbit. Pluto satisfies the first two but shares its orbital region with many Kuiper Belt objects, so it was reclassified as a dwarf planet."
+    }
+  ],
+  "sources": [
+    {
+      "title": "NASA Solar System Exploration — Overview",
+      "url": "https://solarsystem.nasa.gov/solar-system/our-solar-system/overview/",
+      "meta": "NASA official portal, updated 2025"
+    },
+    {
+      "title": "IAU 2006 Resolution B5 — Definition of a Planet",
+      "url": "https://www.iau.org/static/resolutions/Resolution_GA26-5-6.pdf",
+      "meta": "International Astronomical Union, 2006"
+    },
+    {
+      "title": "Europa Clipper Mission Overview — NASA JPL",
+      "url": "https://europa.nasa.gov/mission/overview/",
+      "meta": "NASA JPL, updated 2025"
+    },
+    {
+      "title": "JUICE Mission — ESA",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/Juice",
+      "meta": "European Space Agency, 2023-2026"
+    },
+    {
+      "title": "New Horizons — Pluto and Kuiper Belt Mission",
+      "url": "https://www.nasa.gov/mission/new-horizons/",
+      "meta": "NASA, mission 2006-present"
+    },
+    {
+      "title": "Voyager Mission Status — NASA JPL",
+      "url": "https://voyager.jpl.nasa.gov/mission/status/",
+      "meta": "NASA JPL, updated in real time"
+    },
+    {
+      "title": "Hera Mission — ESA",
+      "url": "https://www.esa.int/Space_Safety/Hera",
+      "meta": "ESA, DART + Hera planetary defense follow-up"
+    },
+    {
+      "title": "Williams D.R. — Planetary Fact Sheets",
+      "url": "https://nssdc.gsfc.nasa.gov/planetary/planetfact.html",
+      "meta": "NASA NSSDC, current data for all planets"
+    },
+    {
+      "title": "Stern S.A. et al. — The Pluto System After New Horizons",
+      "url": "https://arxiv.org/abs/1712.05669",
+      "meta": "arXiv:1712.05669, 2017, mission results review"
+    }
+  ],
+  "lastVerified": "2026-05-03"
+}

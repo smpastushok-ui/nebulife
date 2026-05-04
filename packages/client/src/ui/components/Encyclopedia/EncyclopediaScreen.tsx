@@ -5,8 +5,9 @@ import {
   getLibraryToc,
   getLesson,
   getTotalLessonCount,
+  loadLibraryIndex,
 } from '../../../encyclopedia/index.js';
-import type { Language, Lesson, SectionId } from '../../../encyclopedia/index.js';
+import type { EncyclopediaContentIndex, Language, Lesson, LessonIndexEntry, SectionId } from '../../../encyclopedia/index.js';
 import { LessonView } from './LessonView.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 
@@ -33,24 +34,43 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
   const lang: Language = i18n.language === 'en' ? 'en' : 'uk';
 
   const [openLesson, setOpenLesson] = useState<Lesson | null>(null);
+  const [contentIndex, setContentIndex] = useState<EncyclopediaContentIndex | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [lessonLoading, setLessonLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<SectionId>>(
     () => new Set(SECTIONS.slice(0, 3).map((s) => s.id)),
   );
   const [searchQuery, setSearchQuery] = useState('');
 
-  // ── Load last opened lesson on mount ─────────────────────────────────────
+  // ── Load remote/static index on mount ────────────────────────────────────
   useEffect(() => {
-    const lastSlug = localStorage.getItem(STORAGE_KEY_LAST_LESSON);
-    if (lastSlug) {
-      const lesson = getLesson(lastSlug, lang);
-      if (lesson) setOpenLesson(lesson);
-    }
-    localStorage.setItem(STORAGE_KEY_OPENED, '1');
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+    loadLibraryIndex()
+      .then(async (index) => {
+        if (cancelled) return;
+        setContentIndex(index);
+        localStorage.setItem(STORAGE_KEY_OPENED, '1');
+        const lastSlug = localStorage.getItem(STORAGE_KEY_LAST_LESSON);
+        if (lastSlug) {
+          const lesson = await getLesson(lastSlug, lang);
+          if (!cancelled && lesson) setOpenLesson(lesson);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [lang]);
 
   // ── TOC data ─────────────────────────────────────────────────────────────
-  const toc = useMemo(() => getLibraryToc(lang), [lang]);
-  const totalLessons = useMemo(() => getTotalLessonCount(lang), [lang]);
+  const toc = useMemo(() => getLibraryToc(lang, contentIndex), [lang, contentIndex]);
+  const totalLessons = useMemo(() => getTotalLessonCount(lang, contentIndex), [lang, contentIndex]);
 
   const filteredToc = useMemo(() => {
     if (!searchQuery.trim()) return toc;
@@ -66,11 +86,21 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
   }, [toc, searchQuery]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const handleOpenLesson = useCallback((lesson: Lesson) => {
+  const handleOpenLesson = useCallback(async (entry: LessonIndexEntry | Lesson) => {
     playSfx('ui-click', 0.1);
-    setOpenLesson(lesson);
-    localStorage.setItem(STORAGE_KEY_LAST_LESSON, lesson.slug);
-    window.scrollTo({ top: 0 });
+    setLessonLoading(true);
+    setLoadError(null);
+    try {
+      const lesson = 'body' in entry ? entry : await getLesson(entry.slug, entry.language);
+      if (!lesson) throw new Error(`Lesson not found: ${entry.slug}`);
+      setOpenLesson(lesson);
+      localStorage.setItem(STORAGE_KEY_LAST_LESSON, lesson.slug);
+      window.scrollTo({ top: 0 });
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLessonLoading(false);
+    }
   }, []);
 
   const handleBackToToc = useCallback(() => {
@@ -97,7 +127,7 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
       const idx = sectionLessons.findIndex((l) => l.slug === openLesson.slug);
       if (idx < 0) return;
       const target = direction === 'next' ? sectionLessons[idx + 1] : sectionLessons[idx - 1];
-      if (target) handleOpenLesson(target);
+      if (target) void handleOpenLesson(target);
     },
     [openLesson, toc, handleOpenLesson],
   );
@@ -122,6 +152,7 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
           onNavigate={handleNavigateLesson}
           onSwitchLesson={handleOpenLesson}
         />
+        {lessonLoading && <div style={loadingOverlayStyle}>{lang === 'uk' ? 'Завантажую урок...' : 'Loading lesson...'}</div>}
       </div>
     );
   }
@@ -145,6 +176,11 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
       </div>
 
       {/* Search */}
+      {loadError && (
+        <div style={warningStyle}>
+          {lang === 'uk' ? 'Не вдалося оновити бібліотеку. Показую доступний кеш.' : 'Could not refresh the library. Showing available cache.'}
+        </div>
+      )}
       <div style={searchWrapStyle}>
         <input
           type="text"
@@ -157,6 +193,11 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
 
       {/* Content scrollable area */}
       <div style={scrollAreaStyle}>
+        {loading && (
+          <div style={emptyStyle}>
+            {lang === 'uk' ? 'Завантажую бібліотеку...' : 'Loading library...'}
+          </div>
+        )}
         {filteredToc.length === 0 && (
           <div style={emptyStyle}>
             {lang === 'uk'
@@ -198,7 +239,7 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
                         key={lesson.slug}
                         lesson={lesson}
                         lang={lang}
-                        onClick={() => handleOpenLesson(lesson)}
+                        onClick={() => void handleOpenLesson(lesson)}
                       />
                     ))}
                     {sec.lessons.length === 0 && !isEmpty && (
@@ -222,7 +263,7 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface LessonCardProps {
-  lesson: Lesson;
+  lesson: LessonIndexEntry;
   lang: Language;
   onClick: () => void;
 }
@@ -325,6 +366,31 @@ const searchWrapStyle: React.CSSProperties = {
   padding: '12px 20px',
   borderBottom: '1px solid #1a2438',
   flexShrink: 0,
+};
+
+const warningStyle: React.CSSProperties = {
+  margin: '10px 20px 0',
+  padding: '8px 10px',
+  border: '1px solid rgba(255,136,68,0.35)',
+  borderRadius: 4,
+  background: 'rgba(255,136,68,0.08)',
+  color: '#ffb27a',
+  fontSize: 11,
+  flexShrink: 0,
+};
+
+const loadingOverlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 9600,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'rgba(2,5,16,0.55)',
+  color: '#7bb8ff',
+  fontSize: 12,
+  letterSpacing: 1,
+  fontFamily: 'monospace',
 };
 
 const searchInputStyle: React.CSSProperties = {

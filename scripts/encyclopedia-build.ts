@@ -5,6 +5,7 @@
 // and generates:
 //   - Hero + inline images via Gemini Imagen → Vercel Blob
 //   - TTS audio (female + male, uk + en) via Google Cloud TTS → Vercel Blob
+//   - Runtime JSON content index + lesson files → Vercel Blob + local fallback
 // Results are written to:
 //   packages/client/src/encyclopedia/assets-manifest.json
 //
@@ -14,8 +15,10 @@
 //   npx tsx scripts/encyclopedia-build.ts --slug black-holes-intro   # single lesson
 //   npx tsx scripts/encyclopedia-build.ts --no-tts           # skip audio
 //   npx tsx scripts/encyclopedia-build.ts --no-images        # skip images
+//   npx tsx scripts/encyclopedia-build.ts --no-upload        # local JSON only
 
-import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { put } from '@vercel/blob';
@@ -41,30 +44,34 @@ loadDotEnv(join(ROOT_PATH, '.env.production.local'));
 loadDotEnv(join(ROOT_PATH, '.env.local'));
 import { generateImageWithGemini } from '../packages/server/src/gemini-client.js';
 import { synthesizeLongText } from '../packages/server/src/google-tts-client.js';
-import type { Lesson, AssetsManifest, LessonAssets, Language } from '../packages/client/src/encyclopedia/types.js';
+import type { Lesson, AssetsManifest, LessonAssets, Language, EncyclopediaContentIndex, LessonIndexEntry } from '../packages/client/src/encyclopedia/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT = resolve(__dirname, '..');
 const CONTENT_DIR = join(ROOT, 'packages/client/src/encyclopedia/content');
 const MANIFEST_PATH = join(ROOT, 'packages/client/src/encyclopedia/assets-manifest.json');
+const PUBLIC_ENCYCLOPEDIA_DIR = join(ROOT, 'packages/client/public/encyclopedia');
+const PUBLIC_LESSONS_DIR = join(PUBLIC_ENCYCLOPEDIA_DIR, 'lessons');
 
 interface BuildOptions {
   force: boolean;
   slug?: string;
   noTts: boolean;
   noImages: boolean;
+  noUpload: boolean;
 }
 
 function parseArgs(): BuildOptions {
   const args = process.argv.slice(2);
-  const opts: BuildOptions = { force: false, noTts: false, noImages: false };
+  const opts: BuildOptions = { force: false, noTts: false, noImages: false, noUpload: false };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--force') opts.force = true;
     else if (arg === '--slug') opts.slug = args[++i];
     else if (arg === '--no-tts') opts.noTts = true;
     else if (arg === '--no-images') opts.noImages = true;
+    else if (arg === '--no-upload') opts.noUpload = true;
   }
   return opts;
 }
@@ -113,13 +120,126 @@ function saveManifest(manifest: AssetsManifest) {
 
 /** Upload arbitrary bytes to Vercel Blob and return public URL. */
 async function uploadBlob(filename: string, bytes: Buffer | Uint8Array, contentType: string): Promise<string> {
-  const blob = await put(`academy/${filename}`, Buffer.from(bytes), {
+  const body = Buffer.isBuffer(bytes)
+    ? bytes
+    : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const blob = await put(`academy/${filename}`, body, {
     access: 'public',
     contentType,
     addRandomSuffix: false,
     allowOverwrite: true,
   });
   return blob.url;
+}
+
+async function uploadRawBlob(path: string, text: string, contentType: string): Promise<string> {
+  const blob = await put(path, text, {
+    access: 'public',
+    contentType,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+  return blob.url;
+}
+
+function contentHash(lesson: Lesson): string {
+  return createHash('sha256')
+    .update(JSON.stringify(lesson))
+    .digest('hex')
+    .slice(0, 16);
+}
+
+function ensureJsonDirs(): void {
+  mkdirSync(PUBLIC_LESSONS_DIR, { recursive: true });
+}
+
+function buildIndexEntry(
+  lesson: Lesson,
+  hash: string,
+  manifest: AssetsManifest,
+  lessonUrl: string,
+  updatedAt: string,
+): LessonIndexEntry {
+  const assets = manifest[lesson.slug];
+  const heroUrl = assets?.images?.[lesson.hero.cacheKey];
+  const audio = assets?.audio?.[lesson.language];
+  return {
+    slug: lesson.slug,
+    language: lesson.language,
+    section: lesson.section,
+    order: lesson.order,
+    difficulty: lesson.difficulty,
+    readingTimeMin: lesson.readingTimeMin,
+    title: lesson.title,
+    subtitle: lesson.subtitle,
+    lastVerified: lesson.lastVerified,
+    contentHash: hash,
+    updatedAt,
+    lessonUrl,
+    imageUrl: heroUrl,
+    ogImageUrl: heroUrl,
+    audioUrl: audio?.female || audio?.male || undefined,
+    durationSec: audio?.durationSec || undefined,
+  };
+}
+
+async function exportLessonJson(
+  lessons: Lesson[],
+  manifest: AssetsManifest,
+  opts: BuildOptions,
+): Promise<void> {
+  ensureJsonDirs();
+  const updatedAt = new Date().toISOString();
+  const hashes = new Map<Lesson, string>();
+
+  for (const lesson of lessons) {
+    const hash = contentHash(lesson);
+    hashes.set(lesson, hash);
+    const fileName = `${lesson.slug}.${lesson.language}.${hash}.json`;
+    writeFileSync(join(PUBLIC_LESSONS_DIR, fileName), JSON.stringify(lesson, null, 2) + '\n', 'utf-8');
+  }
+
+  const localIndex: EncyclopediaContentIndex = {
+    version: 1,
+    updatedAt,
+    lessons: lessons.map((lesson) => {
+      const hash = hashes.get(lesson)!;
+      return buildIndexEntry(lesson, hash, manifest, `lessons/${lesson.slug}.${lesson.language}.${hash}.json`, updatedAt);
+    }).sort((a, b) => a.section.localeCompare(b.section) || a.order - b.order || a.language.localeCompare(b.language)),
+    assets: manifest,
+  };
+
+  writeFileSync(join(PUBLIC_ENCYCLOPEDIA_DIR, 'index.json'), JSON.stringify(localIndex, null, 2) + '\n', 'utf-8');
+  console.log(`\nJSON fallback written to ${PUBLIC_ENCYCLOPEDIA_DIR}`);
+
+  if (opts.noUpload) {
+    console.log('Blob JSON upload skipped (--no-upload)');
+    return;
+  }
+
+  const remoteEntries: LessonIndexEntry[] = [];
+  for (const lesson of lessons) {
+    const hash = hashes.get(lesson)!;
+    const fileName = `${lesson.slug}.${lesson.language}.${hash}.json`;
+    const lessonUrl = await uploadRawBlob(
+      `encyclopedia/lessons/${fileName}`,
+      JSON.stringify(lesson),
+      'application/json; charset=utf-8',
+    );
+    remoteEntries.push(buildIndexEntry(lesson, hash, manifest, lessonUrl, updatedAt));
+    console.log(`  → lesson JSON ${lesson.slug}.${lesson.language}: ${lessonUrl}`);
+  }
+
+  const remoteIndex: EncyclopediaContentIndex = {
+    ...localIndex,
+    lessons: remoteEntries.sort((a, b) => a.section.localeCompare(b.section) || a.order - b.order || a.language.localeCompare(b.language)),
+  };
+  const indexUrl = await uploadRawBlob(
+    'encyclopedia/index.json',
+    JSON.stringify(remoteIndex),
+    'application/json; charset=utf-8',
+  );
+  console.log(`  → index JSON: ${indexUrl}`);
 }
 
 /** Plain-text body for TTS — concatenates title, subtitle, and all paragraphs. */
@@ -227,31 +347,37 @@ async function main() {
   if (!process.env.GOOGLE_PRIVATE_KEY && !opts.noTts) {
     throw new Error('GOOGLE_PRIVATE_KEY is not set. Run `vercel env pull` or pass --no-tts');
   }
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !opts.noUpload) {
     throw new Error('BLOB_READ_WRITE_TOKEN is not set. Run `vercel env pull`');
   }
 
-  const files = findLessonFiles().filter((f) => !opts.slug || f.includes(opts.slug));
-  console.log(`Found ${files.length} lesson files`);
+  const allFiles = findLessonFiles();
+  const files = allFiles.filter((f) => !opts.slug || f.includes(opts.slug));
+  console.log(`Found ${files.length} lesson files for assets, ${allFiles.length} total for JSON export`);
 
   const manifest = loadManifest();
 
-  for (const file of files) {
-    const lesson = await loadLesson(file);
-    console.log(`\n[${lesson.slug}.${lesson.language}] ${lesson.title}`);
+  if (!opts.noImages || !opts.noTts) {
+    for (const file of files) {
+      const lesson = await loadLesson(file);
+      console.log(`\n[${lesson.slug}.${lesson.language}] ${lesson.title}`);
 
-    const existing: LessonAssets = manifest[lesson.slug] ?? {
-      images: {},
-      audio: { uk: { female: '', male: '', durationSec: 0 }, en: { female: '', male: '', durationSec: 0 } },
-    };
+      const existing: LessonAssets = manifest[lesson.slug] ?? {
+        images: {},
+        audio: { uk: { female: '', male: '', durationSec: 0 }, en: { female: '', male: '', durationSec: 0 } },
+      };
 
-    let updated = existing;
-    if (!opts.noImages) updated = await generateLessonImages(lesson, updated, opts);
-    if (!opts.noTts) updated = await generateLessonAudio(lesson, updated, opts);
+      let updated = existing;
+      if (!opts.noImages) updated = await generateLessonImages(lesson, updated, opts);
+      if (!opts.noTts) updated = await generateLessonAudio(lesson, updated, opts);
 
-    manifest[lesson.slug] = updated;
-    saveManifest(manifest); // Save after each lesson to checkpoint progress
+      manifest[lesson.slug] = updated;
+      saveManifest(manifest); // Save after each lesson to checkpoint progress
+    }
   }
+
+  const allLessons = await Promise.all(allFiles.map(loadLesson));
+  await exportLessonJson(allLessons, manifest, opts);
 
   console.log(`\nDone. Manifest written to ${MANIFEST_PATH}`);
 }

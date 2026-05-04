@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import type { Lesson, Language, LessonBlock, LessonImage } from '../../../encyclopedia/index.js';
+import type { Lesson, Language, LessonBlock, LessonImage, LessonIndexEntry } from '../../../encyclopedia/index.js';
 import { getImageUrl, getAudioUrl } from '../../../encyclopedia/index.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 
 interface LessonViewProps {
   lesson: Lesson;
   lang: Language;
-  prevLesson: Lesson | null;
-  nextLesson: Lesson | null;
+  prevLesson: LessonIndexEntry | null;
+  nextLesson: LessonIndexEntry | null;
   onBackToToc: () => void;
   onClose: () => void;
   onNavigate: (direction: 'next' | 'prev') => void;
