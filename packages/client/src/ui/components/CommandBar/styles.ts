@@ -37,8 +37,8 @@ export const barStyle: React.CSSProperties = {
   right: 0,
   minHeight: 50,
   height: 'auto',
-  background: 'linear-gradient(180deg, rgba(3, 7, 14, 0.24), rgba(2, 5, 10, 0.72))',
-  borderTop: '1px solid rgba(51, 68, 85, 0.36)',
+  background: 'transparent',
+  borderTop: 'none',
   zIndex: 9500,
   display: 'flex',
   alignItems: 'center',
@@ -46,7 +46,7 @@ export const barStyle: React.CSSProperties = {
   padding: '4px 8px calc(4px + env(safe-area-inset-bottom, 0px))',
   fontFamily: 'monospace',
   color: '#8899aa',
-  pointerEvents: 'auto',
+  pointerEvents: 'none',
 };
 
 export const dockStyle: React.CSSProperties = {
@@ -65,6 +65,7 @@ export const dockStyle: React.CSSProperties = {
   borderRadius: 5,
   boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.22)',
   overflow: 'visible',
+  pointerEvents: 'auto',
 };
 
 export const sectionLeft: React.CSSProperties = {

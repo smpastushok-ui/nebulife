@@ -242,7 +242,21 @@ function CinematicVideoSlide({
   const [ended, setEnded] = useState(false);
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
   const onPlayingChangeRef = useRef(onPlayingChange);
+  const [portraitFrame, setPortraitFrame] = useState(() =>
+    typeof window !== 'undefined' && window.innerHeight > window.innerWidth * 1.18,
+  );
   onPlayingChangeRef.current = onPlayingChange;
+
+  useEffect(() => {
+    const update = () => setPortraitFrame(window.innerHeight > window.innerWidth * 1.18);
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, []);
 
   // 1. Download the whole file as a blob, then expose it via objectURL.
   //    This effect runs once per `src`; blob → URL → <video src={url}>.
@@ -330,9 +344,10 @@ function CinematicVideoSlide({
   return (
     <div style={{
       position: 'relative',
-      width: '100%',
-      maxWidth: 720,
-      aspectRatio: '16/9',
+      width: portraitFrame ? 'min(56vh, 82vw)' : '100%',
+      maxWidth: portraitFrame ? 420 : 720,
+      maxHeight: portraitFrame ? '58vh' : undefined,
+      aspectRatio: portraitFrame ? '9/16' : '16/9',
       borderRadius: 4,
       overflow: 'hidden',
       margin: '0 auto',
@@ -350,7 +365,7 @@ function CinematicVideoSlide({
         style={{
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
+          objectFit: 'contain',
           opacity: loaded ? 1 : 0,
           filter: ended ? 'brightness(0)' : 'brightness(1)',
           transition: 'opacity 0.4s ease-out, filter 1s ease-out',

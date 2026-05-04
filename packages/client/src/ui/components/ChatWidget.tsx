@@ -125,6 +125,23 @@ const CHAT_PULSE_KEYFRAMES = `
 function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenSystemReport, onOpenLogDiscovery, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1024,
+    height: typeof window !== 'undefined' ? window.innerHeight : 768,
+  }));
+
+  useEffect(() => {
+    const update = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, []);
+
+  const verticalSideLayout = viewport.width >= 560 && viewport.height > viewport.width * 1.18;
 
   // When the tutorial (or another external gate) activates, collapse the chat
   // so it stops covering the tutorial UI. We only react to the rising edge so
@@ -657,11 +674,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         }}
         style={{
           position: 'fixed',
-          bottom: 'calc(62px + env(safe-area-inset-bottom, 0px))',
-          right: 'calc(16px + env(safe-area-inset-right, 0px))',
+          top: verticalSideLayout ? 'calc(50% - 24px)' : undefined,
+          bottom: verticalSideLayout ? undefined : 'calc(62px + env(safe-area-inset-bottom, 0px))',
+          right: verticalSideLayout ? 'calc(8px + env(safe-area-inset-right, 0px))' : 'calc(16px + env(safe-area-inset-right, 0px))',
           zIndex: 9700,
-          width: 48,
-          height: 48,
+          width: verticalSideLayout ? 44 : 48,
+          height: verticalSideLayout ? 58 : 48,
           boxSizing: 'border-box',
           background: totalUnread > 0
             ? 'linear-gradient(180deg, rgba(18, 38, 58, 0.62), rgba(5, 10, 20, 0.58))'
@@ -706,11 +724,11 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     <>
       <div style={{
         position: 'fixed',
-        top: 'calc(50px + env(safe-area-inset-top, 0px))',
-        bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
-        right: 'calc(16px + env(safe-area-inset-right, 0px))',
+        top: verticalSideLayout ? 'calc(46px + env(safe-area-inset-top, 0px))' : 'calc(50px + env(safe-area-inset-top, 0px))',
+        bottom: verticalSideLayout ? 'calc(58px + env(safe-area-inset-bottom, 0px))' : 'calc(56px + env(safe-area-inset-bottom, 0px))',
+        right: verticalSideLayout ? 'calc(8px + env(safe-area-inset-right, 0px))' : 'calc(16px + env(safe-area-inset-right, 0px))',
         zIndex: 9700,
-        width: 360,
+        width: verticalSideLayout ? 'min(336px, calc(100vw - 20px))' : 'min(360px, calc(100vw - 24px))',
         background: 'rgba(10,15,25,0.96)',
         border: '1px solid #334455',
         borderRadius: 6,
@@ -726,8 +744,9 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
           justifyContent: 'space-between',
           padding: '8px 12px',
           borderBottom: '1px solid #223344',
+          gap: 8,
         }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: verticalSideLayout ? 4 : 8, minWidth: 0, overflowX: 'auto' }}>
             <TabButton
               active={tab === 'astra'}
               onClick={() => { instantAstraScrollRef.current = true; setTab('astra'); setActiveDM(null); markDigestSeen(latestDigestWeekDate); }}

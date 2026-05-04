@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   linkGoogleToAnonymous,
-  linkEmailToAnonymous,
+  linkAppleToAnonymous,
   isGoogleSignInAvailable,
+  isAppleSignInAvailable,
 } from '../../auth/auth-service.js';
 import { authFetch } from '../../auth/api-client.js';
 
@@ -16,14 +17,8 @@ interface LinkAccountModalProps {
   onClose: () => void;
 }
 
-type Screen = 'choice' | 'email-form';
-
 export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
   const { t } = useTranslation();
-  const [screen, setScreen] = useState<Screen>('choice');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -56,22 +51,17 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
     }
   };
 
-  const handleEmail = async () => {
-    if (!email || !password || !confirmPassword) { setError(t('errors.fillAllFields')); return; }
-    if (password !== confirmPassword) { setError(t('errors.passwordMismatch')); return; }
-    if (password.length < 6) { setError(t('link_account.min_6_chars')); return; }
-
+  const handleApple = async () => {
     setError('');
     setLoading(true);
     try {
-      await linkEmailToAnonymous(email, password);
+      await linkAppleToAnonymous();
       await notifyServer();
       onLinked();
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.error');
-      if (msg.includes('email-already-in-use')) setError(t('errors.emailRegistered'));
-      else if (msg.includes('weak-password')) setError(t('errors.weakPassword'));
-      else if (msg.includes('invalid-email')) setError(t('errors.invalidEmail'));
+      if (msg.includes('popup-closed')) setError(t('errors.authClosed'));
+      else if (msg.includes('credential-already-in-use')) setError(t('link_account.error_apple_in_use'));
       else setError(msg);
     } finally {
       setLoading(false);
@@ -89,59 +79,21 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
 
         {error && <div style={errorStyle}>{error}</div>}
 
-        {screen === 'choice' && (
-          <>
-            {isGoogleSignInAvailable() && (
-              <button style={googleBtnStyle} onClick={handleGoogle} disabled={loading}>
-                {loading ? t('common.loading') : 'Google'}
-              </button>
-            )}
-            <button
-              style={btnStyle}
-              onClick={() => { setScreen('email-form'); setError(''); }}
-              disabled={loading}
-            >
-              {t('link_account.email_password_btn')}
-            </button>
-            <button style={closeBtnStyle} onClick={onClose}>
-              {t('link_account.later_btn')}
-            </button>
-          </>
+        {isAppleSignInAvailable() && (
+          <button style={appleBtnStyle} onClick={handleApple} disabled={loading}>
+            {loading ? t('common.loading') : t('guest.btn_apple')}
+          </button>
         )}
 
-        {screen === 'email-form' && (
-          <>
-            <input
-              style={inputStyle}
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoFocus
-            />
-            <input
-              style={inputStyle}
-              type="password"
-              placeholder={t('auth.password_min_placeholder')}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <input
-              style={inputStyle}
-              type="password"
-              placeholder={t('auth.confirm_password_placeholder')}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleEmail()}
-            />
-            <button style={btnStyle} onClick={handleEmail} disabled={loading}>
-              {loading ? t('common.loading') : t('link_account.link_btn')}
-            </button>
-            <button style={closeBtnStyle} onClick={() => { setScreen('choice'); setError(''); }}>
-              {t('common.back')}
-            </button>
-          </>
+        {isGoogleSignInAvailable() && (
+          <button style={googleBtnStyle} onClick={handleGoogle} disabled={loading}>
+            {loading ? t('common.loading') : t('guest.btn_google')}
+          </button>
         )}
+
+        <button style={closeBtnStyle} onClick={onClose}>
+          {t('link_account.later_btn')}
+        </button>
       </div>
     </>
   );
@@ -216,6 +168,13 @@ const googleBtnStyle: React.CSSProperties = {
   color: '#bbddff',
 };
 
+const appleBtnStyle: React.CSSProperties = {
+  ...btnStyle,
+  background: 'rgba(245,245,245,0.96)',
+  borderColor: '#ffffff',
+  color: '#000000',
+};
+
 const closeBtnStyle: React.CSSProperties = {
   background: 'none',
   border: 'none',
@@ -227,13 +186,3 @@ const closeBtnStyle: React.CSSProperties = {
   textAlign: 'center',
 };
 
-const inputStyle: React.CSSProperties = {
-  padding: '9px 12px',
-  background: 'rgba(10, 20, 35, 0.8)',
-  border: '1px solid #334455',
-  color: '#aabbcc',
-  fontSize: 12,
-  fontFamily: 'monospace',
-  borderRadius: 3,
-  outline: 'none',
-};

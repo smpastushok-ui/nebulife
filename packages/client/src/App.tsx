@@ -139,7 +139,7 @@ import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, fetchUniverseInfo } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { requestPushPermission, startForegroundListener } from './notifications/push-service.js';
-import { onAuthChange, signOut } from './auth/auth-service.js';
+import { getCurrentUser, onAuthChange, signOut } from './auth/auth-service.js';
 import { authFetch, apiFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
 import { AuthScreen } from './ui/components/AuthScreen.js';
@@ -156,6 +156,8 @@ import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { DigestModal } from './ui/components/DigestModal.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
+import type { AcademyTab } from './ui/components/Academy/AcademyDashboard.js';
+import { SurfaceAstraLessonPrompt } from './ui/components/Academy/SurfaceAstraLessonPrompt.js';
 import { EncyclopediaScreen } from './ui/components/Encyclopedia/EncyclopediaScreen.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
@@ -511,6 +513,41 @@ function CommandModeIcon({
       )}
     </span>
   );
+}
+
+const LOCAL_ACCOUNT_PREF_KEYS = new Set([
+  'nebulife_lang',
+  'nebulife_lang_chosen',
+  'nebulife_perf_tier',
+  'nebulife_perf_tier_chosen',
+  'nebulife_ambient_volume',
+  'nebulife_ambient_enabled',
+  'nebulife_terminal_muted',
+]);
+
+function isAccountScopedStorageKey(key: string): boolean {
+  if (LOCAL_ACCOUNT_PREF_KEYS.has(key)) return false;
+  return key.startsWith('nebulife_') || key.startsWith('harvest_');
+}
+
+function hasAccountScopedLocalProgress(): boolean {
+  try {
+    return Object.keys(localStorage).some(isAccountScopedStorageKey);
+  } catch {
+    return false;
+  }
+}
+
+function clearAccountScopedLocalStorage(nextUid?: string): void {
+  try {
+    Object.keys(localStorage)
+      .filter(isAccountScopedStorageKey)
+      .forEach((key) => localStorage.removeItem(key));
+    if (nextUid) localStorage.setItem('nebulife_last_uid', nextUid);
+    else localStorage.removeItem('nebulife_last_uid');
+  } catch {
+    // localStorage can be unavailable in private/locked-down contexts.
+  }
 }
 
 function AppInner() {
@@ -1859,6 +1896,9 @@ function AppInner() {
   // toward the centre while the archive overlay is mounting.
   const [terminalConverging, setTerminalConverging] = useState(false);
   const [showAcademy, setShowAcademy] = useState(false);
+  const [academyInitialTab, setAcademyInitialTab] = useState<AcademyTab | undefined>(undefined);
+  const [academyMissionChapter, setAcademyMissionChapter] = useState<'surface' | undefined>(undefined);
+  const [showSurfaceAstraLesson, setShowSurfaceAstraLesson] = useState(false);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   // Colony Center — opened by tapping the colony_hub building on the surface.
   // Renders ColonyCenterPage (6 tabs: overview / colonies / production /
@@ -3288,6 +3328,17 @@ function AppInner() {
   const isTutorialActive = activeTutorialStep !== null;
   const tutorialCompleteStep = TUTORIAL_STEPS.length;
 
+  useEffect(() => {
+    if (!surfaceTarget || needsOnboarding || isTutorialActive || showAcademy || showCosmicArchive) return;
+    try {
+      if (localStorage.getItem('nebulife_surface_astra_lesson_seen') === '1') return;
+    } catch {
+      // If localStorage is unavailable, still show the prompt for this session.
+    }
+    const timer = window.setTimeout(() => setShowSurfaceAstraLesson(true), 900);
+    return () => window.clearTimeout(timer);
+  }, [surfaceTarget, needsOnboarding, isTutorialActive, showAcademy, showCosmicArchive]);
+
   // Reset clock state when entering onboarding (account reset scenario)
   useEffect(() => {
     if (!needsOnboarding) return;
@@ -3513,6 +3564,7 @@ function AppInner() {
       // eslint-disable-next-line no-console
       console.warn('[logout] signOut failed, reloading anyway:', err);
     } finally {
+      clearAccountScopedLocalStorage();
       window.location.reload();
     }
   }, []);
@@ -4396,8 +4448,27 @@ function AppInner() {
     // mutation that happens AFTER an await verifies it's still the latest
     // event; if a newer event arrived, the stale invocation bails out.
     let authEventSeq = 0;
+    let nativeAuthWatchdog: number | null = Capacitor.isNativePlatform()
+      ? window.setTimeout(() => {
+          if (!isFirebaseConfigured || !authLoading) return;
+          const current = getCurrentUser();
+          if (current) {
+            setFirebaseUser(current);
+            playerId.current = current.uid;
+            setIsGuest(current.isAnonymous);
+          }
+          setAuthLoading(false);
+          console.warn('[Auth] Native auth restore timed out; continuing startup.');
+          nativeAuthWatchdog = null;
+        }, 4500)
+      : null;
 
     const unsubscribe = onAuthChange(async (user) => {
+      if (nativeAuthWatchdog !== null) {
+        window.clearTimeout(nativeAuthWatchdog);
+        nativeAuthWatchdog = null;
+      }
+
       const myVersion = ++authEventSeq;
       const isLatest = () => myVersion === authEventSeq;
 
@@ -4428,31 +4499,10 @@ function AppInner() {
         // from a clean slate. UI prefs (lang, ambient volume) are preserved.
         try {
           const previousUid = localStorage.getItem('nebulife_last_uid');
-          if (previousUid && previousUid !== user.uid) {
-            const progressKeys = [
-              'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
-              'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
-              'nebulife_colony_resources', 'nebulife_chemical_inventory', 'nebulife_colony_state',
-              'nebulife_exodus_phase', 'nebulife_tutorial_step', 'nebulife_log_entries',
-              'nebulife_onboarding_done', 'nebulife_scene', 'nebulife_nav_system',
-              'nebulife_nav_planet', 'nebulife_destroyed_planets', 'nebulife_favorite_planets',
-              'nebulife_game_started_at', 'nebulife_time_multiplier', 'nebulife_accel_at',
-              'nebulife_game_time_at_accel', 'nebulife_clock_revealed',
-              'nebulife_home_system_id', 'nebulife_home_planet_id', 'nebulife_generation_index',
-              'nebulife_evac_system_id', 'nebulife_evac_planet_id', 'nebulife_evac_forced',
-              'nebulife_evac_phase', 'nebulife_hex_slots',
-              'nebulife_pinned_systems', 'nebulife_system_order',
-              'nebulife_arena_active', 'nebulife_arena_stats', 'nebulife_arena_tutorial_done',
-              'nebulife_hangar_active', 'nebulife_hangar_ship', 'nebulife_custom_ship_id', 'nebulife_custom_ship_glb_url',
-              'nebulife_chat_last_read_global', 'nebulife_chat_last_read_system',
-              'nebulife_last_digest_seen', 'nebulife_starter_toast_shown',
-              'nebulife_player_id',
-            ];
-            progressKeys.forEach(k => localStorage.removeItem(k));
-            Object.keys(localStorage)
-              .filter(k => k.startsWith('nebulife_quiz_') || k.startsWith('harvest_'))
-              .forEach(k => localStorage.removeItem(k));
-            localStorage.setItem('nebulife_last_uid', user.uid);
+          const legacyId = localStorage.getItem('nebulife_player_id');
+          const hasForeignLocalProgress = !previousUid && !legacyId && hasAccountScopedLocalProgress();
+          if ((previousUid && previousUid !== user.uid) || hasForeignLocalProgress) {
+            clearAccountScopedLocalStorage(user.uid);
             window.location.reload();
             return;
           }
@@ -4555,6 +4605,9 @@ function AppInner() {
     });
     return () => {
       unsubscribe();
+      if (nativeAuthWatchdog !== null) {
+        window.clearTimeout(nativeAuthWatchdog);
+      }
       if (authNullResolveTimer !== null) {
         clearTimeout(authNullResolveTimer);
         authNullResolveTimer = null;
@@ -6366,12 +6419,30 @@ function AppInner() {
       photoUrl: newImageUrl,
     }).catch((err) => console.error('[Gallery] Replace save failed:', err));
     setGalleryCompare(null);
-  }, [galleryCompare]);
+    if (TUTORIAL_STEPS[tutorialStep]?.id === 'save-gallery') {
+      setTelemetryTarget(null);
+      setObservatoryTarget(null);
+      setHighlightedGalleryType(newDiscovery.type);
+      setShowCosmicArchive(true);
+      unblockPopupQueue(5000);
+      setTimeout(() => setHighlightedGalleryType(null), 3000);
+      handleTutorialAdvance();
+    }
+  }, [galleryCompare, tutorialStep, unblockPopupQueue, handleTutorialAdvance]);
 
   /** Keep old gallery entry */
   const handleGalleryKeepOld = useCallback(() => {
+    if (galleryCompare && TUTORIAL_STEPS[tutorialStep]?.id === 'save-gallery') {
+      setTelemetryTarget(null);
+      setObservatoryTarget(null);
+      setHighlightedGalleryType(galleryCompare.newDiscovery.type);
+      setShowCosmicArchive(true);
+      unblockPopupQueue(5000);
+      setTimeout(() => setHighlightedGalleryType(null), 3000);
+      handleTutorialAdvance();
+    }
     setGalleryCompare(null);
-  }, []);
+  }, [galleryCompare, tutorialStep, unblockPopupQueue, handleTutorialAdvance]);
 
   // ── Evacuation handlers ──────────────────────────────────────────────
   const handleStartEvacuation = useCallback(() => {
@@ -8880,6 +8951,21 @@ function AppInner() {
           solarBuilt={surfaceBuildingCount > 1}
         />
       )}
+      {surfaceTarget && showSurfaceAstraLesson && !showAcademy && !showCosmicArchive && (
+        <SurfaceAstraLessonPrompt
+          onOpenLesson={() => {
+            try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
+            setShowSurfaceAstraLesson(false);
+            setAcademyInitialTab('mission');
+            setAcademyMissionChapter('surface');
+            setShowAcademy(true);
+          }}
+          onDismiss={() => {
+            try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
+            setShowSurfaceAstraLesson(false);
+          }}
+        />
+      )}
       {/* ── Fly-to-HUD resource dots ──────────────────────────────────────── */}
       {harvestFxQueue.map((fx) => {
         const rKey = fx.type === 'ore' ? 'minerals' : fx.type === 'vent' ? 'volatiles' : fx.type === 'water' ? 'water' : 'isotopes';
@@ -9283,14 +9369,22 @@ function AppInner() {
       {/* Academy Dashboard */}
       {showAcademy && (
         <AcademyDashboard
-          onClose={() => setShowAcademy(false)}
+          onClose={() => {
+            setShowAcademy(false);
+            setAcademyInitialTab(undefined);
+            setAcademyMissionChapter(undefined);
+          }}
           onNavigateToGalaxy={() => {
             setShowAcademy(false);
+            setAcademyInitialTab(undefined);
+            setAcademyMissionChapter(undefined);
             handleStartExploration();
           }}
           playerName={state.playerName}
           sharedLessonInfo={sharedLessonInfo}
           onAwardXP={awardXP}
+          initialTab={academyInitialTab}
+          initialMissionChapter={academyMissionChapter}
         />
       )}
 
@@ -9835,10 +9929,6 @@ function AppInner() {
       {showGuestReminder && isGuest && !showLinkModal && !needsCallsign && !needsOnboarding && tutorialStep >= tutorialCompleteStep && (
         <GuestRegistrationReminder
           onDismiss={() => setShowGuestReminder(false)}
-          onOpenEmailAuth={() => {
-            setShowGuestReminder(false);
-            setShowLinkModal(true);
-          }}
           onLinked={() => {
             setShowGuestReminder(false);
             setIsGuest(false);

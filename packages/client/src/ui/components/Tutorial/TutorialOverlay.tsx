@@ -128,6 +128,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
   const isInfoStep = step.type === 'info';
   const isAutoStep = step.type === 'auto';
   const isWaiting = step.waitForTarget && !targetRect;
+  const targetMustReceiveClick = step.id === 'save-gallery';
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
   const voiceClip = getAstraVoiceClip(step.id, subStepIndex, i18n.language);
   const voiceSrc = voiceClip
@@ -354,7 +355,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
           color: '#aabbcc',
           boxShadow: '0 10px 30px rgba(0,0,0,0.55), inset 0 0 24px rgba(123,184,255,0.055)',
           animation: `${isCompact ? 'astra-panel-enter-mobile' : 'astra-panel-enter'} 0.48s ease-out`,
-          pointerEvents: 'auto',
+          pointerEvents: targetMustReceiveClick ? 'none' : 'auto',
           overflow: isCompact ? 'auto' : 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}

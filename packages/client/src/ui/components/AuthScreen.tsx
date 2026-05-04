@@ -4,8 +4,6 @@ import {
   signInAsGuest,
   signInWithGoogle,
   signInWithApple,
-  signInWithEmail,
-  registerWithEmail,
   isGoogleSignInAvailable,
   isAppleSignInAvailable,
 } from '../../auth/auth-service.js';
@@ -21,14 +19,8 @@ interface AuthScreenProps {
   onAuthenticated: (user: User, isNewUser: boolean) => void;
 }
 
-type Screen = 'landing' | 'email-login' | 'email-register';
-
 export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const { t } = useTranslation();
-  const [screen, setScreen] = useState<Screen>('landing');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +28,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const googleAvailable = isGoogleSignInAvailable();
   const appleAvailable = isAppleSignInAvailable();
 
-  const handleAuth = async (authFn: () => Promise<User | null>, isNew: boolean) => {
+  const handleAuth = async (authFn: () => Promise<User | null>, isNew: boolean, provider?: 'apple' | 'google' | 'email' | 'guest') => {
     setError('');
     setLoading(true);
     try {
@@ -45,8 +37,11 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       if (user) onAuthenticated(user, isNew);
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('errors.authError');
+      const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code?: unknown }).code) : '';
+      console.warn('[auth] sign-in failed:', { provider, code, message: msg });
       // Firebase error messages are in English — translate common ones
       if (msg.includes('email-already-in-use')) setError(t('errors.emailRegistered'));
+      else if (provider === 'apple' && (msg.includes('invalid-credential') || code.includes('invalid-credential'))) setError(t('errors.appleCredential'));
       else if (msg.includes('wrong-password') || msg.includes('invalid-credential')) setError(t('errors.wrongPassword'));
       else if (msg.includes('user-not-found')) setError(t('errors.userNotFound'));
       else if (msg.includes('weak-password')) setError(t('errors.weakPassword'));
@@ -58,21 +53,9 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     }
   };
 
-  const handleGuest = () => handleAuth(() => signInAsGuest(), true);
-  const handleGoogle = () => handleAuth(() => signInWithGoogle(), true);
-  const handleApple = () => handleAuth(() => signInWithApple(), true);
-
-  const handleEmailLogin = () => {
-    if (!email || !password) { setError(t('errors.fillAllFields')); return; }
-    handleAuth(() => signInWithEmail(email, password), false);
-  };
-
-  const handleEmailRegister = () => {
-    if (!email || !password || !confirmPassword) { setError(t('errors.fillAllFields')); return; }
-    if (password !== confirmPassword) { setError(t('errors.passwordMismatch')); return; }
-    if (password.length < 6) { setError(t('errors.weakPassword')); return; }
-    handleAuth(() => registerWithEmail(email, password), true);
-  };
+  const handleGuest = () => handleAuth(() => signInAsGuest(), true, 'guest');
+  const handleGoogle = () => handleAuth(() => signInWithGoogle(), true, 'google');
+  const handleApple = () => handleAuth(() => signInWithApple(), true, 'apple');
 
   return (
     <div style={overlayStyle}>
@@ -82,7 +65,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         <div style={subtitleStyle}>{t('auth.subtitle')}</div>
 
         {/* Legacy player banner */}
-        {hasLegacyPlayer && screen === 'landing' && (
+        {hasLegacyPlayer && (
           <div style={bannerStyle}>
             {t('auth.legacy_progress')}
           </div>
@@ -92,155 +75,50 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         {error && <div style={errorStyle}>{error}</div>}
 
         {/* Landing screen */}
-        {screen === 'landing' && (
-          <>
-            {appleAvailable && (
-              <button
-                style={appleBtnStyle}
-                onClick={handleApple}
-                disabled={loading}
-                onMouseEnter={hoverIn}
-                onMouseLeave={hoverOut}
-              >
-                {loading ? t('auth.loading') : t('auth.apple_login')}
-              </button>
-            )}
-
-            {googleAvailable && (
-              <button
-                style={googleBtnStyle}
-                onClick={handleGoogle}
-                disabled={loading}
-                onMouseEnter={hoverIn}
-                onMouseLeave={hoverOut}
-              >
-                {loading ? t('auth.loading') : t('auth.google_login')}
-              </button>
-            )}
-
+        <>
+          {appleAvailable && (
             <button
-              style={btnStyle}
-              onClick={() => { setScreen('email-login'); setError(''); }}
+              style={appleBtnStyle}
+              onClick={handleApple}
               disabled={loading}
               onMouseEnter={hoverIn}
               onMouseLeave={hoverOut}
             >
-              {t('auth.email_password_btn')}
+              {loading ? t('auth.loading') : t('auth.apple_login')}
             </button>
+          )}
 
-            <div style={dividerStyle}>
-              <span style={dividerLineStyle} />
-              <span style={dividerTextStyle}>{t('auth.or_divider')}</span>
-              <span style={dividerLineStyle} />
-            </div>
-
+          {googleAvailable && (
             <button
-              style={guestBtnStyle}
-              onClick={handleGuest}
+              style={googleBtnStyle}
+              onClick={handleGoogle}
               disabled={loading}
               onMouseEnter={hoverIn}
               onMouseLeave={hoverOut}
             >
-              {t('auth.guest_btn')}
+              {loading ? t('auth.loading') : t('auth.google_login')}
             </button>
-            <div style={guestNoteStyle}>
-              {t('auth.guest_note')}
-            </div>
-          </>
-        )}
+          )}
 
-        {/* Email login screen */}
-        {screen === 'email-login' && (
-          <>
-            <input
-              style={inputStyle}
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoFocus
-            />
-            <input
-              style={inputStyle}
-              type="password"
-              placeholder={t('auth.password_placeholder')}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleEmailLogin()}
-            />
-            <button
-              style={btnStyle}
-              onClick={handleEmailLogin}
-              disabled={loading}
-              onMouseEnter={hoverIn}
-              onMouseLeave={hoverOut}
-            >
-              {loading ? t('auth.loading') : t('auth.login_btn')}
-            </button>
-            <button
-              style={linkBtnStyle}
-              onClick={() => { setScreen('email-register'); setError(''); }}
-            >
-              {t('auth.no_account_register')}
-            </button>
-            <button
-              style={linkBtnStyle}
-              onClick={() => { setScreen('landing'); setError(''); }}
-            >
-              {t('common.back')}
-            </button>
-          </>
-        )}
+          <div style={dividerStyle}>
+            <span style={dividerLineStyle} />
+            <span style={dividerTextStyle}>{t('auth.or_divider')}</span>
+            <span style={dividerLineStyle} />
+          </div>
 
-        {/* Email register screen */}
-        {screen === 'email-register' && (
-          <>
-            <input
-              style={inputStyle}
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoFocus
-            />
-            <input
-              style={inputStyle}
-              type="password"
-              placeholder={t('auth.password_min_placeholder')}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <input
-              style={inputStyle}
-              type="password"
-              placeholder={t('auth.confirm_password_placeholder')}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleEmailRegister()}
-            />
-            <button
-              style={btnStyle}
-              onClick={handleEmailRegister}
-              disabled={loading}
-              onMouseEnter={hoverIn}
-              onMouseLeave={hoverOut}
-            >
-              {loading ? t('auth.loading') : t('auth.register_btn')}
-            </button>
-            <button
-              style={linkBtnStyle}
-              onClick={() => { setScreen('email-login'); setError(''); }}
-            >
-              {t('auth.has_account_login')}
-            </button>
-            <button
-              style={linkBtnStyle}
-              onClick={() => { setScreen('landing'); setError(''); }}
-            >
-              {t('common.back')}
-            </button>
-          </>
-        )}
+          <button
+            style={guestBtnStyle}
+            onClick={handleGuest}
+            disabled={loading}
+            onMouseEnter={hoverIn}
+            onMouseLeave={hoverOut}
+          >
+            {t('auth.guest_btn')}
+          </button>
+          <div style={guestNoteStyle}>
+            {t('auth.guest_note')}
+          </div>
+        </>
       </div>
     </div>
   );
@@ -361,33 +239,6 @@ const guestNoteStyle: React.CSSProperties = {
   color: '#445566',
   textAlign: 'center',
   lineHeight: 1.4,
-};
-
-const linkBtnStyle: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: '#4488aa',
-  fontSize: 10,
-  fontFamily: 'monospace',
-  cursor: 'pointer',
-  padding: '4px 0',
-  minHeight: 44,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  textAlign: 'center',
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: '9px 12px',
-  minHeight: 44,
-  background: 'rgba(10, 20, 35, 0.8)',
-  border: '1px solid #334455',
-  color: '#aabbcc',
-  fontSize: 12,
-  fontFamily: 'monospace',
-  borderRadius: 3,
-  outline: 'none',
 };
 
 const dividerStyle: React.CSSProperties = {

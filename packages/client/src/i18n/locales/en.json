@@ -538,6 +538,7 @@
     "authError": "Authorization error",
     "emailRegistered": "This email is already registered",
     "wrongPassword": "Incorrect password",
+    "appleCredential": "Apple authorization completed, but Firebase rejected the credential. Check Apple Sign-In settings for bundle id app.nebulife.game.",
     "userNotFound": "User not found",
     "weakPassword": "Password too short (min. 6 characters)",
     "invalidEmail": "Invalid email format",
@@ -1174,9 +1175,10 @@
   "guest": {
     "reminder_prefix": "Dear President, to save your space exploration progress —",
     "reminder_register": "register",
+    "btn_apple": "Apple",
     "btn_google": "Google",
-    "btn_email": "Email / Password",
     "btn_later": "Later",
+    "error_apple_in_use": "This Apple account is already in use",
     "error_google_in_use": "This Google account is already in use",
     "error_auth": "Authorization error"
   },
@@ -1190,6 +1192,7 @@
     "later_btn": "Later",
     "link_btn": "Link",
     "min_6_chars": "Min. 6 characters",
+    "error_apple_in_use": "This Apple account is already in use",
     "error_google_in_use": "This Google account is already in use"
   },
   "callsign": {
@@ -1679,7 +1682,129 @@
     "marking": "Saving...",
     "completed_badge": "Read",
     "share": "Share",
-    "copied": "Copied!"
+    "copied": "Copied!",
+    "image_zoom": "Zoom",
+    "image_rotate_landscape": "Landscape",
+    "image_rotate_portrait": "Portrait",
+    "share_banner": "Player {{name}} shared lesson \"{{title}}\"",
+    "next_lesson_in": "Next lesson in: {{countdown}}",
+    "streak_days": "{{count}} d.",
+    "news_title": "Space News (Weekly Digest)",
+    "news_subtitle": "Integration with the existing DigestModal",
+    "tabs": {
+      "mission": "Mission",
+      "lesson": "Lesson",
+      "quest": "Quest",
+      "quiz": "Tests",
+      "news": "News",
+      "profile": "Profile"
+    },
+    "mission": {
+      "eyebrow": "A.S.T.R.A. ORIENTATION",
+      "title": "Why Nebulife Exists",
+      "intro": "A short commander doctrine: what you are doing in the galaxy, why every scan matters, and how the game turns exploration into understanding.",
+      "progress": "Understood: {{done}} / {{total}}",
+      "chapter_nav": "Mission chapter navigation",
+      "chapter_label": "Chapter {{index}}",
+      "completed": "Understood",
+      "done_short": "OK",
+      "meaning_title": "What this means in game",
+      "try_next": "Try next",
+      "understood_next": "Understood, continue",
+      "understood_done": "Doctrine understood",
+      "next_chapter": "Next chapter",
+      "chapters": {
+        "surface": {
+          "title": "First Lesson on the Surface",
+          "summary": "A.S.T.R.A. explains what you have really started building.",
+          "body_1": "Commander, landing is complete. This is not merely the surface of a new planet. It is the first point of your civilization in a game built by one person for millions of adult space enthusiasts across the world.",
+          "body_2": "Nebulife is made for players who want more than fast rewards and empty levels. Here curiosity matters more than noise: stars have physics, planets have chemistry, colonies have economy, and every discovery can become part of your personal history.",
+          "body_3": "You are not only surviving after a catastrophe. You are entering a shared, expanding universe with millions of planets and stars, where late game will open player interaction, trade, alliances, expansion, and the creation of new unique life on your worlds.",
+          "body_4": "Feel like a creator: not a god above a finished backdrop, but an intelligent participant in a living system where your colony, discoveries, and decisions gradually become part of a larger cosmos.",
+          "meaning_1": "The surface begins the colony economy: resources, energy, buildings, and survival.",
+          "meaning_2": "Academy explains not only astronomy, but the meaning of what you are building.",
+          "meaning_3": "Late game is designed as a shared space for adult players: trade, alliances, expansion, and biological creation.",
+          "action": "Look around the first hexes near the colony center. This is not a starter area; it is the first cell of your future universe."
+        },
+        "why": {
+          "title": "Why This Matters",
+          "summary": "Nebulife turns curiosity into a long cosmic journey.",
+          "body_1": "Nebulife begins as a game about civilization survival, but its real foundation is broader: giving adult players the feeling of real discovery again.",
+          "body_2": "Each star, planet, signal, and image is not decoration. It is part of the language the universe uses to explain temperature, water, orbits, chemistry, life, and risk.",
+          "body_3": "Your role is not to tap everything at random. You are a commander and explorer who gradually turns the unknown into a map of decisions.",
+          "meaning_1": "Level growth comes from exploration, not random rewards.",
+          "meaning_2": "Academy explains the real principles behind the game data.",
+          "meaning_3": "The Archive stores not trophies for their own sake, but a history of what you have understood.",
+          "action": "Open any researched object in the Archive and ask yourself: what exactly made it worth studying?"
+        },
+        "mission": {
+          "title": "Your Mission",
+          "summary": "The planet is doomed, but civilization still has a chance.",
+          "body_1": "Your home system, Alpha Lyrae, gave your civilization thousands of years among the stars. Now an asteroid threat forces action: find a new world and prepare evacuation.",
+          "body_2": "The seven-day story timer is not just pressure. It is a frame that turns knowledge into decisions: which systems to scan, which planet to verify, when to risk a mission.",
+          "body_3": "Nebulife asks a simple question: can a civilization survive if it learns to read data faster than disaster arrives?",
+          "meaning_1": "Observatories open paths toward potentially habitable worlds.",
+          "meaning_2": "Planet missions reduce uncertainty before colonization.",
+          "meaning_3": "Evacuation is the result of research, not a separate button.",
+          "action": "Look at the nearest system and decide which data you still need before choosing a colony target."
+        },
+        "method": {
+          "title": "The Research Method",
+          "summary": "Observe, scan, compare, test, decide.",
+          "body_1": "Science in Nebulife is presented as a gameplay loop. First the signal is vague, then an observatory clarifies the star, planets, temperature, water, and habitability.",
+          "body_2": "Each new layer of data changes your confidence. What looked promising at 25% can become a trap after a mission, or become your next home.",
+          "body_3": "Academy is not decoration. It gives you the language to understand why telemetry numbers matter.",
+          "meaning_1": "Research Data is the fuel for reducing the unknown.",
+          "meaning_2": "Academy quests train the same skills you need on the map.",
+          "meaning_3": "Quizzes reinforce concepts that later appear in systems and missions.",
+          "action": "After the next lesson, open the quest and identify the real parameter it trains: star class, water, temperature, or habitability."
+        },
+        "livingGalaxy": {
+          "title": "The Living Galaxy",
+          "summary": "A shared universe growing around real player decisions.",
+          "body_1": "Nebulife does not draw identical levels for everyone. The galaxy is generated deterministically: the same inputs create the same cosmos.",
+          "body_2": "Each cluster connects a group of players and a large number of stars. You begin locally, then discover that your system is only the doorway into a wider structure.",
+          "body_3": "A living galaxy means that news, discoveries, Academy, colonies, trade, alliances, and future social systems grow together instead of being isolated screens.",
+          "meaning_1": "Neighbor systems and the Core Zone create a shared frontier.",
+          "meaning_2": "Determinism keeps space fair: purchases do not rewrite the universe's physics.",
+          "meaning_3": "The weekly digest connects real space news back into the game.",
+          "action": "Open the galaxy scale view and see how your home zone connects to the larger cluster."
+        },
+        "artifacts": {
+          "title": "Discovery Artifacts",
+          "summary": "Photos, reports, and ships are evidence of your path.",
+          "body_1": "In Nebulife, a beautiful image is not just cosmetic. A planet photo, mission report, or unique ship records a moment that belongs to your playthrough.",
+          "body_2": "An artifact has emotional and educational value: it helps you remember the object, share it, and return to what was discovered.",
+          "body_3": "That is why the Gallery gradually becomes a personal atlas, not a folder of pictures.",
+          "meaning_1": "A saved photo shows that a discovery became part of your story.",
+          "meaning_2": "Mission images are tied to planet data and expedition type.",
+          "meaning_3": "Unique ships and future life-form artifacts extend the player's identity in the universe.",
+          "action": "Review the Gallery and pick one object that best explains your expedition."
+        },
+        "future": {
+          "title": "Where This Is Going",
+          "summary": "From first colony to alliances, expansion, and new life.",
+          "body_1": "Nebulife is designed as a system that grows in layers. First you learn to scan, then choose a world, then build a colony and open more complex routes.",
+          "body_2": "Academy should grow with that arc: today it explains stars and planets; later it helps with colony chemistry, trade, life, social systems, and the deep core.",
+          "body_3": "The philosophy is simple: the game should become more interesting as the player becomes smarter and bolder in their own expansion.",
+          "meaning_1": "Colonies turn knowledge about a planet into survival economy.",
+          "meaning_2": "New lessons and digests give a reason to return each week.",
+          "meaning_3": "Deep Core and social systems should turn discovery into a shared history.",
+          "action": "Return to Academy after your next major discovery and ask: what new layer of the game did it unlock for me?"
+        }
+      }
+    },
+    "surface_intro": {
+      "eyebrow": "A.S.T.R.A. · FIRST SURFACE LESSON",
+      "title": "Commander, you are not building a base. You are starting a universe.",
+      "body_1": "Nebulife is a unique authored game built by one person for millions of adult space enthusiasts. It is not about random tapping; it is about feeling that you are truly discovering and shaping something large.",
+      "body_2": "The surface is where the real scale begins: resources, energy, buildings, colonies, expansion. Later will come player interaction, trade, alliances, and the creation of new unique life on your planets.",
+      "body_3": "I prepared the first lesson to explain Nebulife's philosophy and your role inside a shared, expanding universe with millions of planets and stars.",
+      "listen_voice": "Listen to ASTRA",
+      "stop_voice": "Stop voice",
+      "open_lesson": "Open first lesson",
+      "later": "Later"
+    }
   },
   "ring_unlock": {
     "banner": "NEW ZONE UNLOCKED",

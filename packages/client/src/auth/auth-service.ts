@@ -4,6 +4,7 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   signInWithCredential,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   linkWithPopup,
@@ -26,8 +27,76 @@ const GOOGLE_WEB_CLIENT_ID = '702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps
 // and registered as OAuth redirect in App Store Connect. Do NOT confuse with App ID.
 const APPLE_SERVICE_ID = 'app.nebulife.service';
 const APPLE_REDIRECT_URI = 'https://www.nebulife.space/auth/apple/callback';
+const PROD_API_BASE = 'https://www.nebulife.space';
+const APPLE_AUTHORIZE_TIMEOUT_MS = 30_000;
+const APPLE_EXCHANGE_TIMEOUT_MS = 20_000;
+const FIREBASE_CUSTOM_LOGIN_TIMEOUT_MS = 20_000;
 
 const googleProvider = new GoogleAuthProvider();
+
+const NONCE_CHARSET = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+
+function generateNonce(length = 32): string {
+  const random = new Uint8Array(length);
+  crypto.getRandomValues(random);
+  return Array.from(random, (byte) => NONCE_CHARSET[byte % NONCE_CHARSET.length]).join('');
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function logAppleTokenAudience(idToken: string): void {
+  try {
+    const payload = idToken.split('.')[1];
+    if (!payload) return;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(normalized)) as { aud?: string; iss?: string };
+    console.info('[auth][apple] identity token audience:', decoded.aud, 'issuer:', decoded.iss);
+  } catch {
+    // Debug-only helper; never block login on token introspection.
+  }
+}
+
+function resolvePublicApiUrl(path: string): string {
+  if (!Capacitor.isNativePlatform()) return path;
+  return `${PROD_API_BASE}${path}`;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+async function exchangeNativeAppleToken(identityToken: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), APPLE_EXCHANGE_TIMEOUT_MS);
+  const res = await fetch(resolvePublicApiUrl('/api/auth/apple/native'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identityToken }),
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
+  if (!res.ok) {
+    const raw = await res.text().catch(() => '');
+    let message = raw || 'Apple token exchange failed';
+    try {
+      const parsed = JSON.parse(raw) as { error?: unknown };
+      if (typeof parsed.error === 'string') message = parsed.error;
+    } catch { /* non-JSON Vercel/proxy error */ }
+    throw new Error(`Apple token exchange failed (${res.status}): ${message}`);
+  }
+  const data = await res.json() as { customToken?: string };
+  if (!data.customToken) throw new Error('Apple token exchange did not return a Firebase token');
+  return data.customToken;
+}
 
 // Lazy-initialized native Google Auth (dynamic import to avoid Vercel build failure)
 let _googleAuthInitialized = false;
@@ -35,12 +104,15 @@ let _googleAuthInitialized = false;
 /**
  * True if Google Sign-in is usable on this platform.
  * - Web: always available (Firebase popup).
- * - Native: requires `@codetrix-studio/capacitor-google-auth` to be registered
- *   in MainActivity AND a matching SHA-1 fingerprint in google-services.json
- *   (Firebase Console) for the keystore that signed this APK.
+ * - iOS native: show it even if the plugin is missing. iPad apps running on
+ *   macOS can report native iOS while the GoogleAuth bridge is unavailable;
+ *   in that case signInWithGoogle falls back to Firebase popup.
+ * - Android native: requires `@codetrix-studio/capacitor-google-auth` to be
+ *   registered in MainActivity and configured in Firebase.
  */
 export function isGoogleSignInAvailable(): boolean {
   if (!Capacitor.isNativePlatform()) return true;
+  if (Capacitor.getPlatform() === 'ios') return true;
   return Capacitor.isPluginAvailable('GoogleAuth');
 }
 
@@ -98,7 +170,7 @@ export async function signInAsGuest(): Promise<User> {
  *  login would hang forever on a spinner). */
 export async function signInWithGoogle(): Promise<User | null> {
   const a = requireAuth();
-  if (Capacitor.isNativePlatform()) {
+  if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('GoogleAuth')) {
     const { GoogleAuth } = await getNativeGoogleAuth();
     try {
       await Promise.race([
@@ -111,6 +183,8 @@ export async function signInWithGoogle(): Promise<User | null> {
     const result = await signInWithCredential(a, credential);
     return result.user;
   }
+  // Web and iPad-on-macOS fallback path. Keeps the Google button visible when
+  // Capacitor runs as an iOS app but the native GoogleAuth plugin is absent.
   const result = await signInWithPopup(a, googleProvider);
   return result.user;
 }
@@ -132,7 +206,7 @@ export async function linkGoogleToAnonymous(): Promise<User | null> {
   const a = requireAuth();
   const user = a.currentUser;
   if (!user) throw new Error('No current user');
-  if (Capacitor.isNativePlatform()) {
+  if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('GoogleAuth')) {
     const { GoogleAuth } = await getNativeGoogleAuth();
     const googleUser = await GoogleAuth.signIn();
     const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
@@ -151,6 +225,12 @@ export async function linkGoogleToAnonymous(): Promise<User | null> {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AppleAuthAny = any;
+
+interface NativeAppleAuthorizeResponse {
+  response: {
+    identityToken: string;
+  };
+}
 
 // CRITICAL: wrap plugin proxy in an object (see getNativeGoogleAuth above for
 // rationale — returning a proxy from an async function breaks at `.then()`).
@@ -184,21 +264,30 @@ export async function signInWithApple(): Promise<User | null> {
     return result.user;
   }
   const { SignInWithApple } = await getNativeAppleAuth();
-  const rawNonce = crypto.randomUUID();
+  const rawNonce = generateNonce();
+  const hashedNonce = await sha256Hex(rawNonce);
   const state = crypto.randomUUID();
-  const res = await SignInWithApple.authorize({
-    clientId: APPLE_SERVICE_ID,
-    redirectURI: APPLE_REDIRECT_URI,
-    scopes: 'email name',
-    state,
-    nonce: rawNonce,
-  });
-  const provider = new OAuthProvider('apple.com');
-  const credential = provider.credential({
-    idToken: res.response.identityToken,
-    rawNonce,
-  });
-  const result = await signInWithCredential(a, credential);
+  console.info('[auth][apple] native authorize start');
+  const res = await withTimeout<NativeAppleAuthorizeResponse>(
+    SignInWithApple.authorize({
+      clientId: APPLE_SERVICE_ID,
+      redirectURI: APPLE_REDIRECT_URI,
+      scopes: 'email name',
+      state,
+      nonce: hashedNonce,
+    }),
+    APPLE_AUTHORIZE_TIMEOUT_MS,
+    'Apple authorization',
+  );
+  logAppleTokenAudience(res.response.identityToken);
+  console.info('[auth][apple] exchanging Apple token for Firebase custom token');
+  const customToken = await exchangeNativeAppleToken(res.response.identityToken);
+  console.info('[auth][apple] Firebase custom token received');
+  const result = await withTimeout(
+    signInWithCustomToken(a, customToken),
+    FIREBASE_CUSTOM_LOGIN_TIMEOUT_MS,
+    'Firebase Apple login',
+  );
   return result.user;
 }
 
@@ -216,14 +305,16 @@ export async function linkAppleToAnonymous(): Promise<User | null> {
     return result.user;
   }
   const { SignInWithApple } = await getNativeAppleAuth();
-  const rawNonce = crypto.randomUUID();
+  const rawNonce = generateNonce();
+  const hashedNonce = await sha256Hex(rawNonce);
   const res = await SignInWithApple.authorize({
     clientId: APPLE_SERVICE_ID,
     redirectURI: APPLE_REDIRECT_URI,
     scopes: 'email name',
     state: crypto.randomUUID(),
-    nonce: rawNonce,
+    nonce: hashedNonce,
   });
+  logAppleTokenAudience(res.response.identityToken);
   const provider = new OAuthProvider('apple.com');
   const credential = provider.credential({
     idToken: res.response.identityToken,

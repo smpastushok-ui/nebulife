@@ -1,6 +1,7 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   getAuth,
+  initializeAuth,
   setPersistence,
   indexedDBLocalPersistence,
   browserLocalPersistence,
@@ -23,6 +24,14 @@ let auth: Auth | null = null;
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
 
+function isCapacitorNative(): boolean {
+  if (typeof window === 'undefined') return false;
+  const cap = (window as Window & {
+    Capacitor?: { isNativePlatform?: () => boolean; platform?: string };
+  }).Capacitor;
+  return !!cap && (cap.isNativePlatform?.() === true || cap.platform === 'ios' || cap.platform === 'android');
+}
+
 if (apiKey) {
   try {
     app = initializeApp({
@@ -34,14 +43,22 @@ if (apiKey) {
       appId: import.meta.env.VITE_FIREBASE_APP_ID,
       measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
     });
-    auth = getAuth(app);
+    if (isCapacitorNative()) {
+      try {
+        auth = initializeAuth(app, { persistence: browserLocalPersistence });
+      } catch {
+        auth = getAuth(app);
+      }
+    } else {
+      auth = getAuth(app);
+    }
 
-    // Set persistence to survive app restarts. setPersistence accepts an
-    // ordered fallback array — Firebase picks the first one available.
-    void setPersistence(auth, indexedDBLocalPersistence)
-      .catch(() => setPersistence(auth!, browserLocalPersistence))
-      .catch(() => setPersistence(auth!, inMemoryPersistence))
-      .catch((err) => console.warn('[firebase] all persistence options failed:', err));
+    if (!isCapacitorNative()) {
+      void setPersistence(auth, indexedDBLocalPersistence)
+        .catch(() => setPersistence(auth!, browserLocalPersistence))
+        .catch(() => setPersistence(auth!, inMemoryPersistence))
+        .catch((err) => console.warn('[firebase] all persistence options failed:', err));
+    }
   } catch (err) {
     console.warn('Firebase initialization failed:', err);
   }

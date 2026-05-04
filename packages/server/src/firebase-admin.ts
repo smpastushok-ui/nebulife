@@ -5,14 +5,41 @@ import { getAuth } from 'firebase-admin/auth';
 // Firebase Admin SDK — singleton init, reused across Vercel invocations
 // ---------------------------------------------------------------------------
 
+function readServiceAccount() {
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (serviceAccountJson) {
+    const parsed = JSON.parse(serviceAccountJson) as {
+      project_id?: string;
+      client_email?: string;
+      private_key?: string;
+    };
+    return {
+      projectId: parsed.project_id,
+      clientEmail: parsed.client_email,
+      privateKey: normalizePrivateKey(parsed.private_key),
+    };
+  }
+
+  return {
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
+  };
+}
+
+function normalizePrivateKey(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\n/g, '\n');
+}
+
 function getFirebaseAdmin() {
   if (getApps().length === 0) {
+    const serviceAccount = readServiceAccount();
     initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      }),
+      credential: cert(serviceAccount),
     });
   }
   return getAuth();

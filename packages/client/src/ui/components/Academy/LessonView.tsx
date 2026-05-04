@@ -31,6 +31,7 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
   const { t, i18n } = useTranslation();
   const [marking, setMarking] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [imageViewer, setImageViewer] = useState<{ url: string; alt: string; rotation: 0 | 90 } | null>(null);
 
   const isEn = i18n.language?.startsWith('en');
   const lessonTitle = lesson
@@ -92,11 +93,23 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
 
       {/* Image placeholder */}
       {lesson.lessonImageUrl && (
-        <img
-          src={lesson.lessonImageUrl}
-          alt={lessonTitle}
-          style={styles.image}
-        />
+        <div style={styles.imageWrap}>
+          <img
+            src={lesson.lessonImageUrl}
+            alt={lessonTitle}
+            style={styles.image}
+          />
+          <button
+            type="button"
+            style={styles.imageZoomButton}
+            onClick={() => {
+              playSfx('ui-click', 0.07);
+              setImageViewer({ url: lesson.lessonImageUrl!, alt: lessonTitle, rotation: 0 });
+            }}
+          >
+            {t('academy.image_zoom')}
+          </button>
+        </div>
       )}
 
       {/* Bottom bar */}
@@ -120,12 +133,50 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
           {copied ? t('academy.copied') : t('academy.share')}
         </button>
       </div>
+
+      {imageViewer && (
+        <div
+          style={styles.imageModal}
+          onClick={() => setImageViewer(null)}
+        >
+          <div style={styles.imageModalToolbar} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              style={styles.imageModalButton}
+              onClick={() => {
+                playSfx('ui-click', 0.07);
+                setImageViewer((prev) => prev ? { ...prev, rotation: prev.rotation === 0 ? 90 : 0 } : prev);
+              }}
+            >
+              {imageViewer.rotation === 0 ? t('academy.image_rotate_landscape') : t('academy.image_rotate_portrait')}
+            </button>
+            <button
+              type="button"
+              style={styles.imageModalButton}
+              onClick={() => setImageViewer(null)}
+            >
+              {t('common.close')}
+            </button>
+          </div>
+          <img
+            src={imageViewer.url}
+            alt={imageViewer.alt}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              ...styles.imageModalImg,
+              transform: imageViewer.rotation === 90 ? 'rotate(90deg)' : 'none',
+              maxWidth: imageViewer.rotation === 90 ? '88vh' : '94vw',
+              maxHeight: imageViewer.rotation === 90 ? '94vw' : '82vh',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: { maxWidth: 700 },
+  container: { maxWidth: 760, margin: '0 auto' },
   empty: { color: '#667788', fontSize: 14, fontFamily: 'monospace', paddingTop: 40, textAlign: 'center' },
   header: { marginBottom: 20 },
   categoryBadge: {
@@ -140,9 +191,60 @@ const styles: Record<string, React.CSSProperties> = {
   },
   title: { color: '#aabbcc', fontSize: 18, fontFamily: 'monospace', margin: '4px 0', fontWeight: 'normal' },
   difficulty: { color: '#667788', fontSize: 11, fontFamily: 'monospace' },
-  lessonText: { lineHeight: 1.7 },
-  paragraph: { color: '#aabbcc', fontSize: 13, fontFamily: 'monospace', margin: '0 0 14px 0' },
-  image: { maxWidth: '100%', borderRadius: 4, marginBottom: 16, border: '1px solid #334455' },
+  lessonText: { lineHeight: 1.75 },
+  paragraph: { color: '#aabbcc', fontSize: 14, fontFamily: 'monospace', margin: '0 0 15px 0' },
+  imageWrap: { position: 'relative', marginBottom: 16 },
+  image: { width: '100%', maxHeight: '52vh', objectFit: 'contain', borderRadius: 5, border: '1px solid #334455', background: '#020510', display: 'block' },
+  imageZoomButton: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    background: 'rgba(5,10,20,0.86)',
+    border: '1px solid rgba(123,184,255,0.45)',
+    color: '#cce6ff',
+    fontFamily: 'monospace',
+    fontSize: 11,
+    padding: '7px 11px',
+    cursor: 'pointer',
+    borderRadius: 4,
+  },
+  imageModal: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 12050,
+    background: 'rgba(0,0,0,0.92)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 'calc(58px + env(safe-area-inset-top, 0px)) 12px calc(22px + env(safe-area-inset-bottom, 0px))',
+    boxSizing: 'border-box',
+  },
+  imageModalToolbar: {
+    position: 'fixed',
+    top: 'calc(12px + env(safe-area-inset-top, 0px))',
+    right: 'calc(12px + env(safe-area-inset-right, 0px))',
+    display: 'flex',
+    gap: 8,
+    zIndex: 12051,
+  },
+  imageModalButton: {
+    background: 'rgba(10,15,25,0.9)',
+    border: '1px solid rgba(123,184,255,0.45)',
+    borderRadius: 4,
+    color: '#cce6ff',
+    fontFamily: 'monospace',
+    fontSize: 11,
+    padding: '8px 12px',
+    cursor: 'pointer',
+  },
+  imageModalImg: {
+    objectFit: 'contain',
+    borderRadius: 6,
+    border: '1px solid rgba(123,184,255,0.35)',
+    boxShadow: '0 18px 60px rgba(0,0,0,0.55)',
+    transition: 'transform 0.2s ease',
+    background: '#020510',
+  },
   bottomBar: { marginTop: 20, paddingTop: 16, borderTop: '1px solid #334455', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   bottomLeft: { display: 'flex', alignItems: 'center' },
   readButton: {

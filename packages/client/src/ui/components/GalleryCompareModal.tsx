@@ -62,7 +62,7 @@ export function GalleryCompareModal({
         style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 9800,
+          zIndex: 10080,
           background: 'rgba(1, 3, 10, 0.7)',
           backdropFilter: 'blur(5px)',
           opacity: visible && !exiting ? 1 : 0,
@@ -77,7 +77,7 @@ export function GalleryCompareModal({
           position: 'fixed',
           top: '50%',
           left: '50%',
-          zIndex: 9801,
+          zIndex: 10081,
           width: 680,
           maxWidth: '95vw',
           maxHeight: '92vh',

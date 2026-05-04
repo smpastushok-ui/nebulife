@@ -3,26 +3,25 @@ import { useTranslation } from 'react-i18next';
 import {
   signInWithGoogle,
   linkGoogleToAnonymous,
+  linkAppleToAnonymous,
   getCurrentUser,
   isGoogleSignInAvailable,
+  isAppleSignInAvailable,
 } from '../../auth/auth-service.js';
 
 // ---------------------------------------------------------------------------
 // GuestRegistrationReminder — one-time notification for guest players
 // ---------------------------------------------------------------------------
-// Shows a gentle reminder to register so their progress is truly preserved.
-// Offers Google sign-in, email, or "Later" to dismiss.
+// Shows a gentle reminder to link a guest account through platform sign-in.
 // ---------------------------------------------------------------------------
 
 interface GuestRegistrationReminderProps {
   onDismiss: () => void;
-  onOpenEmailAuth: () => void;
   onLinked: () => void;
 }
 
 export function GuestRegistrationReminder({
   onDismiss,
-  onOpenEmailAuth,
   onLinked,
 }: GuestRegistrationReminderProps) {
   const { t } = useTranslation();
@@ -46,6 +45,29 @@ export function GuestRegistrationReminder({
         setError(null);
       } else if (code === 'auth/credential-already-in-use') {
         setError(t('guest.error_google_in_use'));
+      } else {
+        setError(t('guest.error_auth'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApple = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const user = getCurrentUser();
+      if (user?.isAnonymous) {
+        await linkAppleToAnonymous();
+      }
+      onLinked();
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code ?? '';
+      if (code === 'auth/popup-closed-by-user') {
+        setError(null);
+      } else if (code === 'auth/credential-already-in-use') {
+        setError(t('guest.error_apple_in_use'));
       } else {
         setError(t('guest.error_auth'));
       }
@@ -103,6 +125,20 @@ export function GuestRegistrationReminder({
 
         {/* Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Apple */}
+          {isAppleSignInAvailable() && (
+            <AuthButton
+              label={t('guest.btn_apple')}
+              color="#111111"
+              borderColor="#ffffff"
+              background="rgba(245,245,245,0.96)"
+              hoverBackground="rgba(230,238,246,0.98)"
+              hoverColor="#000000"
+              onClick={handleApple}
+              disabled={loading}
+            />
+          )}
+
           {/* Google */}
           {isGoogleSignInAvailable() && (
             <AuthButton
@@ -113,15 +149,6 @@ export function GuestRegistrationReminder({
               disabled={loading}
             />
           )}
-
-          {/* Email */}
-          <AuthButton
-            label={t('guest.btn_email')}
-            color="#8899aa"
-            borderColor="#445566"
-            onClick={onOpenEmailAuth}
-            disabled={loading}
-          />
 
           {/* Divider */}
           <div
@@ -178,12 +205,18 @@ function AuthButton({
   borderColor,
   onClick,
   disabled,
+  background,
+  hoverBackground,
+  hoverColor,
 }: {
   label: string;
   color: string;
   borderColor: string;
   onClick: () => void;
   disabled?: boolean;
+  background?: string;
+  hoverBackground?: string;
+  hoverColor?: string;
 }) {
   const [hover, setHover] = useState(false);
   return (
@@ -196,10 +229,10 @@ function AuthButton({
         width: '100%',
         padding: '10px 0',
         minHeight: 44,
-        background: hover ? 'rgba(30, 50, 80, 0.4)' : 'rgba(10, 20, 35, 0.5)',
+        background: hover ? (hoverBackground ?? 'rgba(30, 50, 80, 0.4)') : (background ?? 'rgba(10, 20, 35, 0.5)'),
         border: `1px solid ${hover ? color : borderColor}`,
         borderRadius: 4,
-        color: hover ? '#ccddee' : color,
+        color: hover ? (hoverColor ?? '#ccddee') : color,
         fontFamily: 'monospace',
         fontSize: 12,
         cursor: disabled ? 'default' : 'pointer',

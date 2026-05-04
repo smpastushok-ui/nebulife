@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getAcademyProgress, getTodayLesson, shareNotify } from '../../../api/academy-api.js';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
@@ -7,8 +8,9 @@ import { QuestView } from './QuestView.js';
 import { QuizView } from './QuizView.js';
 import { ProfileView } from './ProfileView.js';
 import { TopicSelectionModal } from './TopicSelectionModal.js';
+import { MissionCurriculumView } from './MissionCurriculumView.js';
 
-type AcademyTab = 'lesson' | 'quest' | 'quiz' | 'news' | 'profile';
+export type AcademyTab = 'mission' | 'lesson' | 'quest' | 'quiz' | 'news' | 'profile';
 
 export interface SharedLessonInfo {
   fromPlayerName: string;
@@ -21,14 +23,17 @@ interface AcademyDashboardProps {
   playerName?: string;
   sharedLessonInfo?: SharedLessonInfo | null;
   onAwardXP?: (amount: number, reason: string) => void;
+  initialTab?: AcademyTab;
+  initialMissionChapter?: 'surface';
 }
 
-const TAB_LABELS: Record<AcademyTab, string> = {
-  lesson: 'Урок',
-  quest: 'Квест',
-  quiz: 'Тести',
-  news: 'Новини',
-  profile: 'Профіль',
+const TAB_LABEL_KEYS: Record<AcademyTab, string> = {
+  mission: 'academy.tabs.mission',
+  lesson: 'academy.tabs.lesson',
+  quest: 'academy.tabs.quest',
+  quiz: 'academy.tabs.quiz',
+  news: 'academy.tabs.news',
+  profile: 'academy.tabs.profile',
 };
 
 const NEXT_LESSON_HOUR_UTC = 11; // 11:00 UTC
@@ -45,8 +50,9 @@ function getCountdown(): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, sharedLessonInfo, onAwardXP }: AcademyDashboardProps) {
-  const [tab, setTab] = useState<AcademyTab>('lesson');
+export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, sharedLessonInfo, onAwardXP, initialTab, initialMissionChapter }: AcademyDashboardProps) {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<AcademyTab>(() => initialTab ?? (sharedLessonInfo ? 'lesson' : 'mission'));
   const [progress, setProgress] = useState<AcademyProgress | null>(null);
   const [lesson, setLesson] = useState<DailyLesson | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -87,9 +93,10 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
   useEffect(() => {
     if (!sharedLessonInfo || notifyCalledRef.current) return;
     notifyCalledRef.current = true;
-    setShareBanner(`Гравець ${sharedLessonInfo.fromPlayerName} поділився уроком "${sharedLessonInfo.title}"`);
+    setTab('lesson');
+    setShareBanner(t('academy.share_banner', { name: sharedLessonInfo.fromPlayerName, title: sharedLessonInfo.title }));
     shareNotify(sharedLessonInfo.fromPlayerName, sharedLessonInfo.title);
-  }, [sharedLessonInfo]);
+  }, [sharedLessonInfo, t]);
 
   const handleOnboardComplete = useCallback(() => {
     setNeedsOnboarding(false);
@@ -114,16 +121,16 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
       <div style={styles.container}>
         {/* Sidebar tabs */}
         <div style={styles.sidebar}>
-          {(Object.keys(TAB_LABELS) as AcademyTab[]).map((t) => (
+          {(Object.keys(TAB_LABEL_KEYS) as AcademyTab[]).map((academyTab) => (
             <button
-              key={t}
+              key={academyTab}
               style={{
                 ...styles.tabButton,
-                ...(tab === t ? styles.tabActive : {}),
+                ...(tab === academyTab ? styles.tabActive : {}),
               }}
-              onClick={() => { playSfx('ui-click', 0.07); setTab(t); }}
+              onClick={() => { playSfx('ui-click', 0.07); setTab(academyTab); }}
             >
-              {TAB_LABELS[t]}
+              {t(TAB_LABEL_KEYS[academyTab])}
             </button>
           ))}
         </div>
@@ -137,9 +144,12 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
             </div>
           )}
           {loading ? (
-            <div style={styles.loadingText}>Завантаження...</div>
+            <div style={styles.loadingText}>{t('common.loading')}</div>
           ) : (
             <>
+              {tab === 'mission' && (
+                <MissionCurriculumView focusChapterId={initialMissionChapter} />
+              )}
               {tab === 'lesson' && (
                 <LessonView
                   lesson={lesson}
@@ -169,10 +179,10 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
               )}
               {tab === 'news' && (
                 <div style={styles.placeholder}>
-                  Космічні новини (Weekly Digest)
+                  {t('academy.news_title')}
                   <br />
                   <span style={{ color: '#667788', fontSize: 12 }}>
-                    Інтеграція з існуючим DigestModal
+                    {t('academy.news_subtitle')}
                   </span>
                 </div>
               )}
@@ -190,14 +200,14 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
       {/* Footer */}
       <div style={styles.footer}>
         <button style={styles.closeButton} onClick={() => { playSfx('ui-click', 0.07); onClose(); }}>
-          X Закрити
+          X {t('common.close')}
         </button>
         <span style={styles.countdownText}>
-          Наступний урок через: {countdown}
+          {t('academy.next_lesson_in', { countdown })}
         </span>
         {progress && (
           <span style={styles.streakBadge}>
-            {progress.quest_streak} дн.
+            {t('academy.streak_days', { count: progress.quest_streak })}
           </span>
         )}
       </div>
@@ -217,31 +227,37 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     fontFamily: 'monospace',
+    paddingTop: 'calc(56px + env(safe-area-inset-top, 0px))',
+    boxSizing: 'border-box',
   },
   container: {
     flex: 1,
     display: 'flex',
     overflow: 'hidden',
+    minHeight: 0,
+    borderTop: '1px solid rgba(51,68,85,0.45)',
   },
   sidebar: {
-    width: 80,
+    width: 96,
     display: 'flex',
     flexDirection: 'column',
-    gap: 2,
-    padding: '12px 4px',
-    borderRight: '1px solid #334455',
-    background: 'rgba(5,10,20,0.6)',
+    gap: 4,
+    padding: '14px 6px',
+    borderRight: '1px solid rgba(51,68,85,0.72)',
+    background: 'rgba(5,10,20,0.72)',
+    flexShrink: 0,
   },
   tabButton: {
     background: 'transparent',
     border: '1px solid transparent',
     color: '#8899aa',
     fontFamily: 'monospace',
-    fontSize: 11,
-    padding: '10px 4px',
+    fontSize: 12,
+    padding: '11px 6px',
     cursor: 'pointer',
     borderRadius: 3,
     transition: 'all 0.15s',
+    textAlign: 'left',
   },
   tabActive: {
     background: 'rgba(68,136,170,0.15)',
@@ -251,7 +267,8 @@ const styles: Record<string, React.CSSProperties> = {
   content: {
     flex: 1,
     overflow: 'auto',
-    padding: '20px 28px',
+    padding: '22px 28px 28px',
+    minWidth: 0,
   },
   footer: {
     display: 'flex',
@@ -260,6 +277,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 16px',
     borderTop: '1px solid #334455',
     background: 'rgba(5,10,20,0.8)',
+    flexShrink: 0,
   },
   closeButton: {
     background: 'transparent',
