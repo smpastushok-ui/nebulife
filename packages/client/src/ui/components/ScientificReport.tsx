@@ -11,6 +11,7 @@ import { playSfx } from '../../audio/SfxPlayer.js';
 
 const CHARS_PER_TICK = 2;
 const TICK_INTERVAL = 30;
+const TYPEWRITER_SFX_VOLUME = 0.01;
 
 export function ScientificReport({
   reportText,
@@ -44,7 +45,7 @@ export function ScientificReport({
         }
         return next;
       });
-      playSfx('text-massage', 0.05);
+      playSfx('text-massage', TYPEWRITER_SFX_VOLUME);
     }, TICK_INTERVAL);
 
     return () => clearInterval(timer);

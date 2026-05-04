@@ -412,6 +412,11 @@ const dotStyle: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 // Terminal typewriter for slide 1 (green text, skip on click)
 // ---------------------------------------------------------------------------
+const TERMINAL_TYPE_CHARS_PER_TICK = 4;
+const TERMINAL_TYPE_TICK_MS = 18;
+const TERMINAL_TYPE_SFX_VOLUME = 0.01;
+const TERMINAL_LOOP_VOLUME = 0.1;
+
 function TerminalTypewriter({
   lines,
   onDone,
@@ -448,10 +453,13 @@ function TerminalTypewriter({
     }
     const currentLine = lines[lineIdx];
     if (charIdx < currentLine.length) {
-      const t = setTimeout(() => { playSfx('text-massage', 0.15); setCharIdx((c) => c + 1); }, 35);
+      const t = setTimeout(() => {
+        playSfx('text-massage', TERMINAL_TYPE_SFX_VOLUME);
+        setCharIdx((c) => Math.min(c + TERMINAL_TYPE_CHARS_PER_TICK, currentLine.length));
+      }, TERMINAL_TYPE_TICK_MS);
       return () => clearTimeout(t);
     } else {
-      const t = setTimeout(() => { setLineIdx((l) => l + 1); setCharIdx(0); }, 400);
+      const t = setTimeout(() => { setLineIdx((l) => l + 1); setCharIdx(0); }, 220);
       return () => clearTimeout(t);
     }
   }, [lineIdx, charIdx, lines]);
@@ -517,7 +525,7 @@ function OnboardingSlides({
       stopLoop('terminal-loop'); // ensure terminal-loop is silent on the video slide
       setLoopVolume('terminal-loop', 0); // mute during video
     } else {
-      setLoopVolume('terminal-loop', 0.3); // unmute on slides 1, 2, 3
+      setLoopVolume('terminal-loop', TERMINAL_LOOP_VOLUME); // quiet background on slides 1, 2, 3
     }
   }, [slide]);
 

@@ -3554,6 +3554,11 @@ function AppInner() {
 
   /** Logout: sign out from Firebase and reload.
    *
+   *  Do not clear account-scoped localStorage here. A normal logout/login of
+   *  the same account must keep local read markers, onboarding flags, quiz
+   *  answers and other client progress. Cross-account leakage is handled by
+   *  the UID-change guard in onAuthChange.
+   *
    *  Reload runs in `finally` so the user never gets stuck on a stale
    *  signed-in screen even if signOut throws or its native Promise hangs
    *  beyond the inner 1.5s timeout. */
@@ -3564,7 +3569,6 @@ function AppInner() {
       // eslint-disable-next-line no-console
       console.warn('[logout] signOut failed, reloading anyway:', err);
     } finally {
-      clearAccountScopedLocalStorage();
       window.location.reload();
     }
   }, []);
@@ -3820,9 +3824,10 @@ function AppInner() {
     const gs = player?.game_state as Partial<SyncedGameState> | undefined;
     if (!gs || typeof gs !== 'object') return;
 
-    // Safety net: if player just reset (game_phase === 'onboarding'), force defaults
-    // This handles the race condition where beforeunload sync may have re-saved old state
-    if (player?.game_phase === 'onboarding') {
+    // Safety net: if player just reset (game_phase === 'onboarding'), force defaults.
+    // Do not apply this to returning players whose game_state already confirms
+    // onboarding_done; older rows can retain a stale game_phase.
+    if (player?.game_phase === 'onboarding' && !gs.onboarding_done) {
       setResearchState(createResearchState(HOME_OBSERVATORY_COUNT));
       setResearchData(INITIAL_RESEARCH_DATA);
       setObservatoryState(createObservatoryState());
@@ -4549,8 +4554,11 @@ function AppInner() {
                 universeEngineRef.current?.updateGroupCount(info.groupCount);
                 engineRef.current?.setGroupInfo(globalPlayerIndexRef.current, info.groupCount);
               }).catch(() => { /* use default */ });
-              // Check if player needs onboarding
-              if (player.game_phase === 'onboarding') {
+              // Check if player needs onboarding. game_state is the stronger
+              // signal for returning users: older rows can keep game_phase at
+              // "onboarding" even after the intro completion was synced.
+              const hydratedGameState = player.game_state as Partial<SyncedGameState> | undefined;
+              if (player.game_phase === 'onboarding' && !hydratedGameState?.onboarding_done) {
                 setNeedsOnboarding(true);
                 setCinematicActive(true);
               }

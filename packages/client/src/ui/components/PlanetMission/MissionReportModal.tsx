@@ -5,6 +5,7 @@ import { playSfx } from '../../../audio/SfxPlayer.js';
 
 const CHARS_PER_TICK = 3;
 const TICK_INTERVAL = 22;
+const TYPEWRITER_SFX_VOLUME = 0.01;
 
 function getReportTitleKey(report: PlanetReportSummary): string {
   if (report.missionType === 'surface_landing') return 'mission_report.surface_title';
@@ -65,7 +66,7 @@ export function MissionReportModal({
         }
         return next;
       });
-      playSfx('text-massage', 0.04);
+      playSfx('text-massage', TYPEWRITER_SFX_VOLUME);
     }, TICK_INTERVAL);
     return () => window.clearInterval(timer);
   }, [displayedChars, reportText]);

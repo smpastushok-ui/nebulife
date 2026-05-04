@@ -347,6 +347,13 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     const countUnreadChannel = async (channel: string, setCount: (count: number) => void) => {
       const key = readKeyForChannel(channel);
       const lastRead = localStorage.getItem(key);
+      if (!lastRead) {
+        const latest = await getMessages(channel, 1);
+        const latestTs = latest[latest.length - 1]?.created_at;
+        if (latestTs) localStorage.setItem(key, latestTs);
+        setCount(0);
+        return;
+      }
       const msgs = await getMessages(channel, 50, lastRead || undefined);
       const unreadFromOthers = msgs.filter((msg) => msg.sender_id !== playerId);
       setCount(unreadFromOthers.length);
