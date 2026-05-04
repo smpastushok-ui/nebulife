@@ -28,11 +28,26 @@ export async function verifyFirebaseToken(idToken: string): Promise<{
 }> {
   const auth = getFirebaseAdmin();
   const decoded = await auth.verifyIdToken(idToken);
+  const claims = decoded as typeof decoded & { provider?: string; apple_email?: string };
+  const provider = decoded.firebase.sign_in_provider === 'custom' && claims.provider
+    ? claims.provider
+    : decoded.firebase.sign_in_provider;
   return {
     uid: decoded.uid,
-    email: decoded.email,
-    provider: decoded.firebase.sign_in_provider, // 'google.com' | 'password' | 'anonymous'
+    email: decoded.email ?? claims.apple_email,
+    provider, // 'google.com' | 'password' | 'anonymous' | 'apple.com'
   };
+}
+
+/**
+ * Create a Firebase custom token after a trusted server-side auth exchange.
+ */
+export async function createFirebaseCustomToken(
+  uid: string,
+  claims: Record<string, string | number | boolean | null> = {},
+): Promise<string> {
+  const auth = getFirebaseAdmin();
+  return auth.createCustomToken(uid, claims);
 }
 
 /**

@@ -66,6 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 3. Create a new player with Firebase auth
     const normalizedProvider = auth.provider === 'google.com' ? 'google'
       : auth.provider === 'password' ? 'email'
+      : auth.provider === 'apple.com' ? 'apple'
       : 'anonymous';
 
     console.log(`[register] Creating player: uid=${auth.uid}, provider=${normalizedProvider}`);
