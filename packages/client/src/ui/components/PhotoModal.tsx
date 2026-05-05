@@ -35,8 +35,13 @@ const CATEGORY_EMOJI: Record<string, string> = {
  * Build share URL with dynamic OG tags.
  * Telegram/messengers will fetch this URL and see the discovery photo as og:image.
  */
-function buildShareUrl(discoveryId: string): string {
-  return `${GAME_URL_WEB}/share/${discoveryId}`;
+function buildShareUrl(discovery: Discovery, imageUrl?: string): string {
+  const params = new URLSearchParams();
+  if (imageUrl) params.set('image', imageUrl);
+  params.set('type', discovery.type);
+  params.set('rarity', discovery.rarity);
+  const query = params.toString();
+  return `${GAME_URL_WEB}/share/${encodeURIComponent(discovery.id)}${query ? `?${query}` : ''}`;
 }
 
 /**
@@ -47,7 +52,7 @@ function buildShareText(
   name: string,
   rarityKey: string,
   galleryCategory: string,
-  discoveryId: string,
+  shareUrl: string,
   lang: string,
   systemName?: string,
   description?: string,
@@ -77,7 +82,7 @@ function buildShareText(
 
   // Share link (with dynamic OG tags — Telegram will show discovery photo)
   lines.push('');
-  lines.push(buildShareUrl(discoveryId));
+  lines.push(shareUrl);
 
   return lines.join('\n');
 }
@@ -115,10 +120,10 @@ export function PhotoModal({
   const handleShare = useCallback(async () => {
     try {
       const shareTitle = buildShareTitle(name, discovery.rarity);
-      const shareUrl = buildShareUrl(discovery.id);
+      const shareUrl = buildShareUrl(discovery, imageUrl);
       const description = catalog ? getCatalogDescription(catalog, lang) : undefined;
       const shareText = buildShareText(
-        name, discovery.rarity, discovery.galleryCategory, discovery.id,
+        name, discovery.rarity, discovery.galleryCategory, shareUrl,
         lang, systemName, description,
       );
 
@@ -185,8 +190,9 @@ export function PhotoModal({
       if ((err as Error).name !== 'AbortError') {
         try {
           const clipDescription = catalog ? getCatalogDescription(catalog, lang) : undefined;
+          const clipShareUrl = buildShareUrl(discovery, imageUrl);
           const clipText = buildShareText(
-            name, discovery.rarity, discovery.galleryCategory, discovery.id,
+            name, discovery.rarity, discovery.galleryCategory, clipShareUrl,
             lang, systemName, clipDescription,
           );
           await navigator.clipboard.writeText(clipText);

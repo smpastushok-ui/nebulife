@@ -867,7 +867,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                   onReported={() => {}}
                   onAwardXP={onAwardXP}
                   isOwnPremium={isPremium}
-                  onOpenDM={tab === 'global' ? openDMWithPlayer : undefined}
+                  onOpenDM={openDMWithPlayer}
                 />
               ))}
               <div ref={messagesEndRef} />
@@ -1574,20 +1574,26 @@ function MessageItem({
             onClick={() => onOpenDM?.(message.sender_id, message.sender_name)}
             title={t('chat.new_conversation')}
             style={{
-              background: hovered ? 'rgba(20,30,45,0.5)' : 'rgba(20,30,45,0.28)',
-              border: `1px solid ${hovered ? '#334455' : '#223344'}`,
+              background: hovered ? 'rgba(34,68,102,0.42)' : 'rgba(20,30,45,0.5)',
+              border: `1px solid ${hovered ? '#446688' : '#223344'}`,
               borderRadius: 3,
-              color: hovered ? '#aabbcc' : '#8899aa',
+              color: hovered ? '#ccddee' : '#aabbcc',
               fontFamily: 'monospace',
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 'bold',
               display: 'inline-flex',
               alignItems: 'center',
-              padding: '1px 5px',
+              gap: 5,
+              padding: '2px 7px',
               cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'background 0.15s, border-color 0.15s, color 0.15s',
             }}
           >
-            {message.sender_name}
+            <span>{message.sender_name}</span>
+            <span style={{ color: hovered ? '#7bb8ff' : '#667788', fontSize: 8, fontWeight: 'normal' }}>
+              DM
+            </span>
           </button>
         ) : (
           <span style={{

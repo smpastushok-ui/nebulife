@@ -83,13 +83,20 @@ export function normalizeObservatoryState(value: unknown): ObservatoryState {
   const fallback = createObservatoryState();
   if (!value || typeof value !== 'object') return fallback;
   const raw = value as Partial<ObservatoryState>;
+  const normalizedXp = Number.isFinite(raw.xp) ? Math.max(0, Math.floor(raw.xp ?? 0)) : 0;
+  const normalizedSessions = Array.isArray(raw.sessions)
+    ? raw.sessions
+        .filter(isValidSession)
+        .sort((a, b) => a.completesAt - b.completesAt)
+        .slice(0, getObservatoryMaxActiveSearches({ xp: normalizedXp }))
+    : [];
   return {
-    xp: Number.isFinite(raw.xp) ? Math.max(0, Math.floor(raw.xp ?? 0)) : 0,
+    xp: normalizedXp,
     searchesCompleted: Number.isFinite(raw.searchesCompleted) ? Math.max(0, Math.floor(raw.searchesCompleted ?? 0)) : 0,
     successfulSignals: Number.isFinite(raw.successfulSignals) ? Math.max(0, Math.floor(raw.successfulSignals ?? 0)) : 0,
     duplicateSignals: Number.isFinite(raw.duplicateSignals) ? Math.max(0, Math.floor(raw.duplicateSignals ?? 0)) : 0,
     duplicateStreak: Number.isFinite(raw.duplicateStreak) ? Math.max(0, Math.floor(raw.duplicateStreak ?? 0)) : 0,
-    sessions: Array.isArray(raw.sessions) ? raw.sessions.filter(isValidSession) : [],
+    sessions: normalizedSessions,
     events: raw.events && typeof raw.events === 'object' ? raw.events as Record<string, ObservatoryEventRecord> : {},
     reports: Array.isArray(raw.reports) ? raw.reports.slice(-25) as ObservatoryState['reports'] : [],
   };
@@ -101,6 +108,13 @@ export function getObservatoryLevel(state: Pick<ObservatoryState, 'xp'>): number
     if (state.xp >= LEVEL_XP[i]) level = i + 1;
   }
   return Math.min(5, level);
+}
+
+export function getObservatoryMaxActiveSearches(state: Pick<ObservatoryState, 'xp'>): number {
+  const level = getObservatoryLevel(state);
+  if (level <= 1) return 1;
+  if (level === 2) return 2;
+  return 3;
 }
 
 export function getObservatoryXpProgress(state: Pick<ObservatoryState, 'xp'>): { level: number; current: number; required: number; pct: number } {
@@ -132,6 +146,7 @@ export function startObservatorySearch(
 ): ObservatoryState {
   const level = getObservatoryLevel(state);
   if (PROGRAM_LEVEL[program] > level) return state;
+  if (state.sessions.length >= getObservatoryMaxActiveSearches(state)) return state;
   const seed = typeof seedBase === 'number'
     ? seedBase
     : seedFromString(`${seedBase}:${state.searchesCompleted}:${state.sessions.length}:${now}:${duration}:${program}`);

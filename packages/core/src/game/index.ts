@@ -66,6 +66,7 @@ export {
   createObservatoryState,
   normalizeObservatoryState,
   getObservatoryLevel,
+  getObservatoryMaxActiveSearches,
   getObservatoryXpProgress,
   getAvailableObservatoryPrograms,
   getObservatorySearchChance,

@@ -2,43 +2,36 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDiscovery } from '../../packages/server/src/db.js';
 import { getCatalogEntry, RARITY_LABELS } from '@nebulife/core';
 
-/**
- * GET /api/share/:discoveryId
- *
- * Returns an HTML page with dynamic Open Graph meta tags so that
- * Telegram / Twitter / Facebook show the discovery photo as a preview.
- * Human visitors are redirected to the main app.
- */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const { discoveryId } = req.query;
-  if (!discoveryId || typeof discoveryId !== 'string') {
-    return res.redirect(302, '/');
-  }
+function firstQueryValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
+function isSafePreviewImage(value: string | undefined): value is string {
+  if (!value) return false;
   try {
-    const discovery = await getDiscovery(discoveryId);
-    if (!discovery || !discovery.photo_url) {
-      return res.redirect(302, '/');
-    }
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
 
-    const catalog = getCatalogEntry(discovery.object_type);
-    const name = catalog?.nameUk ?? discovery.object_type;
-    const description = catalog?.descriptionUk ?? '';
-    const rarity = RARITY_LABELS[discovery.rarity as keyof typeof RARITY_LABELS] ?? discovery.rarity;
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
-    const title = `${name} | Nebulife`;
-    const desc = description
-      ? `${rarity} — ${description.length > 150 ? description.slice(0, 147) + '...' : description}`
-      : `${rarity} — Nebulife`;
-
-    const photoUrl = discovery.photo_url;
-    const pageUrl = `https://nebulife.space/share/${discoveryId}`;
-    const appUrl = `https://nebulife.space/?discovery=${discoveryId}`;
-
-    // Escape HTML entities for safe embedding
-    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    const html = `<!DOCTYPE html>
+function renderSharePage(params: {
+  title: string;
+  name: string;
+  rarity: string;
+  description: string;
+  photoUrl: string;
+  pageUrl: string;
+  appUrl: string;
+}): string {
+  const { title, name, rarity, description, photoUrl, pageUrl, appUrl } = params;
+  const esc = escapeHtml;
+  return `<!DOCTYPE html>
 <html lang="uk">
 <head>
   <meta charset="UTF-8" />
@@ -48,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <!-- Open Graph -->
   <meta property="og:type" content="article" />
   <meta property="og:title" content="${esc(title)}" />
-  <meta property="og:description" content="${esc(desc)}" />
+  <meta property="og:description" content="${esc(description)}" />
   <meta property="og:image" content="${esc(photoUrl)}" />
   <meta property="og:image:width" content="1024" />
   <meta property="og:image:height" content="1024" />
@@ -58,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${esc(title)}" />
-  <meta name="twitter:description" content="${esc(desc)}" />
+  <meta name="twitter:description" content="${esc(description)}" />
   <meta name="twitter:image" content="${esc(photoUrl)}" />
 
   <!-- Redirect human visitors to the app -->
@@ -80,10 +73,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <p><a href="${esc(appUrl)}">Open in Nebulife</a></p>
 </body>
 </html>`;
+}
+
+/**
+ * GET /api/share/:discoveryId
+ *
+ * Returns an HTML page with dynamic Open Graph meta tags so that
+ * Telegram / Twitter / Facebook show the discovery photo as a preview.
+ * Human visitors are redirected to the main app.
+ */
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const { discoveryId } = req.query;
+  if (!discoveryId || typeof discoveryId !== 'string') {
+    return res.redirect(302, '/');
+  }
+
+  try {
+    const fallbackImage = firstQueryValue(req.query.image);
+    const fallbackType = firstQueryValue(req.query.type);
+    const fallbackRarity = firstQueryValue(req.query.rarity);
+    const discovery = await getDiscovery(discoveryId);
+    if (!discovery?.photo_url && !isSafePreviewImage(fallbackImage)) {
+      return res.redirect(302, '/');
+    }
+
+    const objectType = discovery?.object_type ?? fallbackType ?? 'cosmic-discovery';
+    const rarityKey = discovery?.rarity ?? fallbackRarity ?? 'rare';
+    const catalog = getCatalogEntry(objectType);
+    const name = catalog?.nameUk ?? objectType.replace(/[-_]/g, ' ');
+    const description = catalog?.descriptionUk ?? '';
+    const rarity = RARITY_LABELS[rarityKey as keyof typeof RARITY_LABELS] ?? rarityKey;
+
+    const title = `${name} | Nebulife`;
+    const desc = description
+      ? `${rarity} — ${description.length > 150 ? description.slice(0, 147) + '...' : description}`
+      : `${rarity} — Nebulife`;
+
+    const photoUrl = discovery?.photo_url ?? fallbackImage!;
+    const pageUrl = `https://nebulife.space/share/${encodeURIComponent(discoveryId)}`;
+    const appUrl = `https://nebulife.space/?discovery=${encodeURIComponent(discoveryId)}`;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
-    return res.status(200).send(html);
+    return res.status(200).send(renderSharePage({ title, name, rarity, description: desc, photoUrl, pageUrl, appUrl }));
   } catch (err) {
     console.error('Share page error:', err);
     return res.redirect(302, '/');

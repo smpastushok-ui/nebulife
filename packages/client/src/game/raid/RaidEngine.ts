@@ -42,6 +42,9 @@ const RAID_BACKGROUND_MOBILE = '/raid/raid_background_mobile.webp';
 const CARRIER_Y = 620;
 const CARRIER_BAY_Y = CARRIER_Y - 520;
 const PLAYER_START_Y = -520;
+const RAID_SHIP_MODEL_NOSE_OFFSET = Math.PI / 2;
+const ALLY_TINT = 0x5f9dff;
+const ENEMY_TINT = 0xff6644;
 
 function shipUrlFromId(shipId: string): string {
   return shipId === 'red' || shipId === 'red_ship' ? RED_SHIP : BLUE_SHIP;
@@ -62,7 +65,7 @@ function clampLength(v: THREE.Vector3, max: number): void {
   if (lenSq > max * max) v.multiplyScalar(max / Math.sqrt(lenSq));
 }
 
-function normalizeModel(root: THREE.Object3D, targetSize: number): THREE.Group {
+function normalizeModel(root: THREE.Object3D, targetSize: number, noseOffset = 0): THREE.Group {
   const box = new THREE.Box3().setFromObject(root);
   const size = new THREE.Vector3();
   const center = new THREE.Vector3();
@@ -72,9 +75,37 @@ function normalizeModel(root: THREE.Object3D, targetSize: number): THREE.Group {
   const scale = longest > 0.001 ? targetSize / longest : 1;
   root.scale.setScalar(scale);
   root.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+  if (noseOffset !== 0) {
+    const inner = new THREE.Group();
+    inner.rotation.y = noseOffset;
+    inner.add(root);
+    const wrapper = new THREE.Group();
+    wrapper.add(inner);
+    return wrapper;
+  }
   const wrapper = new THREE.Group();
   wrapper.add(root);
   return wrapper;
+}
+
+function tintShipMaterials(root: THREE.Object3D, tint: number): void {
+  const color = new THREE.Color(tint);
+  root.traverse((obj) => {
+    if (!(obj instanceof THREE.Mesh)) return;
+    const wasArray = Array.isArray(obj.material);
+    const materials: THREE.Material[] = wasArray ? obj.material : [obj.material];
+    const tinted = materials.map((material) => {
+      const clone = material.clone();
+      if ('color' in clone && clone.color instanceof THREE.Color) {
+        clone.color.lerp(color, 0.52);
+      }
+      if ('emissive' in clone && clone.emissive instanceof THREE.Color) {
+        clone.emissive.lerp(color, 0.18);
+      }
+      return clone;
+    });
+    obj.material = wasArray ? tinted : tinted[0];
+  });
 }
 
 export class RaidEngine {
@@ -148,6 +179,10 @@ export class RaidEngine {
     this.container = container;
     this.callbacks = callbacks;
     this.shipId = shipId;
+  }
+
+  private getAllyTint(): number {
+    return shipUrlFromId(this.shipId) === RED_SHIP ? ENEMY_TINT : ALLY_TINT;
   }
 
   async init(): Promise<void> {
@@ -395,17 +430,24 @@ export class RaidEngine {
   }
 
   private async loadPlayerMesh(): Promise<THREE.Object3D> {
+    const loader = new GLTFLoader();
+    const allyTint = this.getAllyTint();
     try {
-      const gltf = await new GLTFLoader().loadAsync(shipUrlFromId(this.shipId));
-      const root = gltf.scene;
-      root.traverse((obj) => {
-        obj.frustumCulled = true;
-      });
-      root.rotation.y = Math.PI;
-      root.scale.setScalar(36);
-      return root;
+      const root = (await loader.loadAsync(shipUrlFromId(this.shipId))).scene;
+      const model = normalizeModel(root, 58, RAID_SHIP_MODEL_NOSE_OFFSET);
+      tintShipMaterials(model, allyTint);
+      model.traverse((obj) => { obj.frustumCulled = true; });
+      return model;
+    } catch { /* selected arena GLB may not be bundled yet */ }
+
+    try {
+      const root = (await loader.loadAsync(ENEMY_SWARM_SHIP)).scene;
+      const model = normalizeModel(root, 58, RAID_SHIP_MODEL_NOSE_OFFSET);
+      tintShipMaterials(model, allyTint);
+      model.traverse((obj) => { obj.frustumCulled = true; });
+      return model;
     } catch {
-      return this.createProceduralShip(0x4488aa, 36);
+      return this.createProceduralShip(allyTint, 36);
     }
   }
 
@@ -438,8 +480,10 @@ export class RaidEngine {
 
   private async preloadShipTemplates(): Promise<void> {
     const loader = new GLTFLoader();
-    const prepare = (root: THREE.Object3D, size: number) => {
-      const normalized = normalizeModel(root, size);
+    const allyTint = this.getAllyTint();
+    const prepare = (root: THREE.Object3D, size: number, tint: number) => {
+      const normalized = normalizeModel(root, size, RAID_SHIP_MODEL_NOSE_OFFSET);
+      tintShipMaterials(normalized, tint);
       normalized.traverse((obj) => {
         obj.frustumCulled = true;
       });
@@ -447,16 +491,20 @@ export class RaidEngine {
     };
 
     try {
-      this.allyTemplate = prepare((await loader.loadAsync(shipUrlFromId(this.shipId))).scene, 58);
+      this.allyTemplate = prepare((await loader.loadAsync(shipUrlFromId(this.shipId))).scene, 58, allyTint);
     } catch {
-      this.allyTemplate = null;
+      try {
+        this.allyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58, allyTint);
+      } catch {
+        this.allyTemplate = null;
+      }
     }
 
     try {
-      this.enemyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58);
+      this.enemyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58, ENEMY_TINT);
     } catch {
       try {
-        this.enemyTemplate = prepare((await loader.loadAsync(RED_SHIP)).scene, 58);
+        this.enemyTemplate = prepare((await loader.loadAsync(RED_SHIP)).scene, 58, ENEMY_TINT);
       } catch {
         this.enemyTemplate = null;
       }
@@ -468,6 +516,8 @@ export class RaidEngine {
     const clone = template.clone(true);
     clone.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {
+        if (Array.isArray(obj.material)) obj.material = obj.material.map((mat) => mat.clone());
+        else obj.material = obj.material.clone();
         obj.castShadow = false;
         obj.receiveShadow = false;
         obj.frustumCulled = true;
@@ -501,8 +551,9 @@ export class RaidEngine {
 
   private createWingmen(): void {
     if (!this.scene) return;
+    const allyTint = this.getAllyTint();
     for (let i = 0; i < RAID_WINGMEN; i++) {
-      const mesh = this.cloneShipTemplate(this.allyTemplate) ?? this.createProceduralShip(i % 2 === 0 ? 0x334455 : 0x446688, 26);
+      const mesh = this.cloneShipTemplate(this.allyTemplate) ?? this.createProceduralShip(allyTint, 26);
       mesh.position.set((i - 1.5) * 150, i % 2 === 0 ? 55 : -35, 1230 - Math.abs(i - 1.5) * 55);
       this.scene.add(mesh);
       this.wingmen.push({
@@ -676,12 +727,10 @@ export class RaidEngine {
     this.clampToSector(this.player.pos);
     this.updateShield(this.player, dt);
     this.orientObjectToDirection(this.player.mesh, this.aimDir, this.shipRoll + this.currentBarrelRoll());
-    const target = this.findAimTarget(2100, 0.96);
     if (this.desktopLaserHeld || this.sectorAction === 'missile') {
       this.player.fireCooldown -= dt;
       if (this.player.fireCooldown <= 0) {
-        if (target) this.fireProjectile('allied', this.player.pos, target.pos, RAID_PROJECTILE_DAMAGE);
-        else this.fireProjectileDir('allied', this.player.pos, this.aimDir, RAID_PROJECTILE_DAMAGE);
+        this.fireProjectileDir('allied', this.player.pos, this.aimDir, RAID_PROJECTILE_DAMAGE);
         this.player.fireCooldown = this.sectorAction === 'missile' ? 0.12 : 0.18;
       }
     }
@@ -781,14 +830,20 @@ export class RaidEngine {
       -40 - Math.random() * 140,
       (Math.random() - 0.5) * 220,
     ));
-    this.orientObjectToDirection(mesh, new THREE.Vector3(0, -0.2, 1));
+    const launchAngle = ((this.enemies.length * 2.399) + Math.random() * 0.65) % (Math.PI * 2);
+    const launchDir = new THREE.Vector3(
+      Math.cos(launchAngle),
+      -0.16 - Math.random() * 0.18,
+      Math.sin(launchAngle),
+    ).normalize();
+    this.orientObjectToDirection(mesh, launchDir);
     this.scene.add(mesh);
     this.enemies.push({
       id: 100 + this.enemies.length,
       team: 'enemy',
       name: 'DRONE',
       pos: mesh.position,
-      vel: new THREE.Vector3(),
+      vel: launchDir.multiplyScalar(180 + Math.random() * 130),
       hp: RAID_DRONE_HP,
       maxHp: RAID_DRONE_HP,
       shield: 0,
@@ -876,9 +931,7 @@ export class RaidEngine {
 
   private firePlayerBurst(strong = false): void {
     if (!this.player) return;
-    const target = this.findAimTarget(strong ? 2600 : 1900, strong ? 0.9 : 0.94);
-    if (target) this.fireProjectile('allied', this.player.pos, target.pos, strong ? 38 : RAID_PROJECTILE_DAMAGE);
-    else this.fireProjectileDir('allied', this.player.pos, this.aimDir, strong ? 38 : RAID_PROJECTILE_DAMAGE);
+    this.fireProjectileDir('allied', this.player.pos, this.aimDir, strong ? 38 : RAID_PROJECTILE_DAMAGE);
   }
 
   private fireProjectile(team: RaidTeam, from: THREE.Vector3, to: THREE.Vector3, damage: number): void {

@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BuildingType, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType } from '@nebulife/core';
-import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible } from '@nebulife/core';
+import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import {
   deriveBuildingDetailStats,
+  getBuildingEconomyProfile,
   primaryOutputResource,
+  type BuildingEconomyProfile,
   type ColonyResourceKey,
   type RateRow,
 } from './building-detail-model.js';
@@ -124,6 +126,95 @@ function RateList({ rows, empty }: { rows: RateRow[]; empty: string }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function BuildingFlowPanel({
+  profile,
+  production,
+  consumption,
+  accent,
+}: {
+  profile: BuildingEconomyProfile;
+  production: RateRow[];
+  consumption: RateRow[];
+  accent: string;
+}) {
+  const { t } = useTranslation();
+  const firstInput = consumption[0];
+  const firstOutput = production[0];
+  return (
+    <Section title={t('building_detail.economy_chain')}>
+      <div style={{
+        background: `linear-gradient(135deg, rgba(10,15,25,0.72), ${accent}12)`,
+        border: `1px solid ${accent}55`,
+        borderRadius: 6,
+        padding: 12,
+        display: 'grid',
+        gap: 10,
+        boxShadow: `0 0 20px ${accent}12`,
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+          <MetricCard
+            label={t('building_detail.role_label')}
+            value={t(`building_detail.role.${profile.role}`)}
+            sub={t(`building_detail.flow.${profile.role}`)}
+            accent={accent}
+          />
+          <MetricCard
+            label={t('building_detail.input_label')}
+            value={firstInput ? formatRate(firstInput) : t('building_detail.input_none')}
+            sub={firstInput ? t('building_detail.input_source', { resource: t(`building_detail.resource.${firstInput.resource}`, { defaultValue: firstInput.resource }) }) : t('building_detail.input_none_desc')}
+            accent={firstInput ? '#cc9966' : '#667788'}
+          />
+          <MetricCard
+            label={t('building_detail.output_label')}
+            value={firstOutput ? formatRate(firstOutput) : t('building_detail.output_passive')}
+            sub={firstOutput ? t('building_detail.output_target') : t(`building_detail.passive.${profile.role}`)}
+            accent={firstOutput ? '#88bb99' : '#778899'}
+          />
+        </div>
+        <div style={{
+          height: 4,
+          borderRadius: 999,
+          overflow: 'hidden',
+          background: 'rgba(5,10,20,0.75)',
+          border: '1px solid rgba(51,68,85,0.45)',
+        }}>
+          <div style={{
+            height: '100%',
+            width: '62%',
+            background: `linear-gradient(90deg, transparent, ${accent}, transparent)`,
+            animation: 'chat-neon-pulse 2.4s ease-in-out infinite',
+          }} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {profile.links.map((link) => (
+            <span key={link} style={{
+              border: '1px solid rgba(68,102,136,0.45)',
+              borderRadius: 999,
+              padding: '3px 8px',
+              color: '#8899aa',
+              fontSize: 10,
+              background: 'rgba(5,10,20,0.45)',
+            }}>
+              {t(`building_detail.role.${link}`)}
+            </span>
+          ))}
+        </div>
+        {profile.future !== 'none' && (
+          <div style={{
+            color: '#667788',
+            fontSize: 10,
+            lineHeight: 1.45,
+            borderTop: '1px solid rgba(51,68,85,0.45)',
+            paddingTop: 8,
+          }}>
+            {t(`building_detail.future.${profile.future}`)}
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
 
@@ -758,6 +849,7 @@ export function BuildingDetailPanel({
         ? '#aa88ff'
         : '#7bb8ff';
   const aggregateMode = !building;
+  const economyProfile = getBuildingEconomyProfile(type);
   const canScan = researchData >= 5;
   const canChemCycle = colonyResources.volatiles >= 10;
   const compact = typeof window !== 'undefined' && window.innerWidth < 700;
@@ -801,6 +893,8 @@ export function BuildingDetailPanel({
   const observatoryXp = observatoryState ? getObservatoryXpProgress(observatoryState) : { level: 1, current: 0, required: 100, pct: 0 };
   const observatoryPrograms = getAvailableObservatoryPrograms(observatoryLevel);
   const activeObservatorySessions = observatoryState?.sessions ?? [];
+  const maxObservatorySessions = observatoryState ? getObservatoryMaxActiveSearches(observatoryState) : 1;
+  const hasObservatorySlot = activeObservatorySessions.length < maxObservatorySessions;
   const observatoryReports = [...(observatoryState?.reports ?? [])].reverse().slice(0, 8);
   const selectedObservatoryProgram = observatoryPrograms.includes(observatoryProgram)
     ? observatoryProgram
@@ -812,88 +906,79 @@ export function BuildingDetailPanel({
     return () => window.clearInterval(id);
   }, [activeObservatorySessions.length]);
 
+  const pushActionReport = (report: ActionReport) => {
+    setActionReports((reports) => [report, ...reports].slice(0, 4));
+  };
+
   const runScan = () => {
     if (!canScan) return;
     onResearchDataChange?.(-5);
+    const stock = stats.stock;
     const body = stats.stock
       ? t('building_detail.action_result_stock', { pct: stats.stock.pct })
       : t('building_detail.action_result_signal');
-    setActionReports((reports) => [
-      {
-        id: `scan-${Date.now()}`,
-        title: t('building_detail.report_scan_title'),
-        body,
-        impact: stats.stock
-          ? t('building_detail.report_scan_impact_stock', {
-              resource: t(`colony_center.resource.${stats.stock.resource}`),
-              remaining: Math.floor(stats.stock.remaining),
-              pct: stats.stock.pct,
-            })
-          : t('building_detail.report_scan_impact_signal'),
-        tone: stats.stock && stats.stock.pct < 15 ? 'warning' : 'info',
-      },
-      ...reports,
-    ].slice(0, 4));
+    pushActionReport({
+      id: `scan-${Date.now()}`,
+      title: t('building_detail.report_scan_title'),
+      body,
+      impact: stock
+        ? t('building_detail.report_scan_impact_stock', {
+            resource: t(`colony_center.resource.${stock.resource}`),
+            remaining: Math.floor(stock.remaining),
+            pct: stock.pct,
+          })
+        : t('building_detail.report_scan_impact_signal'),
+      tone: stock && stock.pct < 15 ? 'warning' : 'info',
+    });
   };
 
   const inspectDeposit = () => {
     const id = `deposit-${Date.now()}`;
-    if (stats.stock) {
-      const resource = t(`colony_center.resource.${stats.stock.resource}`);
-      setActionReports((reports) => [
-        {
-          id,
-          title: t('building_detail.report_deposit_title'),
-          body: t('building_detail.action_result_deposit', {
-            resource,
-            remaining: Math.floor(stats.stock.remaining),
-            pct: stats.stock.pct,
-          }),
-          impact: t('building_detail.report_deposit_impact', { resource }),
-          tone: stats.stock.pct < 15 ? 'warning' : 'success',
-        },
-        ...reports,
-      ].slice(0, 4));
+    const stock = stats.stock;
+    if (stock) {
+      const resource = t(`colony_center.resource.${stock.resource}`);
+      pushActionReport({
+        id,
+        title: t('building_detail.report_deposit_title'),
+        body: t('building_detail.action_result_deposit', {
+          resource,
+          remaining: Math.floor(stock.remaining),
+          pct: stock.pct,
+        }),
+        impact: t('building_detail.report_deposit_impact', { resource }),
+        tone: stock.pct < 15 ? 'warning' : 'success',
+      });
     } else {
-      setActionReports((reports) => [
-        {
-          id,
-          title: t('building_detail.report_deposit_title'),
-          body: t('building_detail.action_result_no_deposit'),
-          impact: t('building_detail.report_no_persistent_effect'),
-          tone: 'info',
-        },
-        ...reports,
-      ].slice(0, 4));
+      pushActionReport({
+        id,
+        title: t('building_detail.report_deposit_title'),
+        body: t('building_detail.action_result_no_deposit'),
+        impact: t('building_detail.report_no_persistent_effect'),
+        tone: 'info',
+      });
     }
   };
 
   const runChemCycle = () => {
     if (!canChemCycle) return;
     onResourceChange?.({ volatiles: -10, isotopes: 3, water: 2 });
-    setActionReports((reports) => [
-      {
-        id: `chem-${Date.now()}`,
-        title: t('building_detail.report_chemistry_title'),
-        body: t('building_detail.action_result_chemistry'),
-        impact: t('building_detail.report_chemistry_impact'),
-        tone: 'success',
-      },
-      ...reports,
-    ].slice(0, 4));
+    pushActionReport({
+      id: `chem-${Date.now()}`,
+      title: t('building_detail.report_chemistry_title'),
+      body: t('building_detail.action_result_chemistry'),
+      impact: t('building_detail.report_chemistry_impact'),
+      tone: 'success',
+    });
   };
 
   const addInfoReport = (title: string, body: string, impact = t('building_detail.report_no_persistent_effect')) => {
-    setActionReports((reports) => [
-      {
-        id: `info-${Date.now()}`,
-        title,
-        body,
-        impact,
-        tone: 'info',
-      },
-      ...reports,
-    ].slice(0, 4));
+    pushActionReport({
+      id: `info-${Date.now()}`,
+      title,
+      body,
+      impact,
+      tone: 'info',
+    });
   };
 
   return (
@@ -980,6 +1065,13 @@ export function BuildingDetailPanel({
             {t(`buildings.${type}.desc`, { defaultValue: def.description })}
           </div>
         </div>
+
+        <BuildingFlowPanel
+          profile={economyProfile}
+          production={stats.production}
+          consumption={stats.consumption}
+          accent={accent}
+        />
 
         {isotopeDepositDepleted && (
           <div style={{
@@ -1129,7 +1221,7 @@ export function BuildingDetailPanel({
                 />
                 <MetricCard
                   label={t('observatory.active_searches')}
-                  value={`${activeObservatorySessions.length}`}
+                  value={`${activeObservatorySessions.length}/${maxObservatorySessions}`}
                   sub={t('observatory.catalog_progress', {
                     found: Object.keys(observatoryState?.events ?? {}).length,
                   })}
@@ -1208,10 +1300,11 @@ export function BuildingDetailPanel({
                       key={duration}
                       duration={duration}
                       chance={chance}
-                      disabled={stats.isShutdown || !onStartObservatorySearch}
+                      disabled={stats.isShutdown || !hasObservatorySlot || !onStartObservatorySearch}
                       onClick={() => {
+                        if (!hasObservatorySlot) return;
                         onStartObservatorySearch?.(duration, selectedObservatoryProgram);
-                        setActionLog(t('observatory.search_started'));
+                        addInfoReport(t('observatory.in_progress'), t('observatory.search_started'));
                       }}
                     />
                   );
@@ -1294,12 +1387,12 @@ export function BuildingDetailPanel({
                 <ActionButton
                   title={t('building_detail.action_radar_weather')}
                   desc={t('building_detail.action_radar_weather_desc')}
-                  onClick={() => setActionLog(t('building_detail.action_result_radar_weather'))}
+                  onClick={() => addInfoReport(t('building_detail.action_radar_weather'), t('building_detail.action_result_radar_weather'))}
                 />
                 <ActionButton
                   title={t('building_detail.action_radar_mission_sync')}
                   desc={t('building_detail.action_radar_mission_sync_desc')}
-                  onClick={() => setActionLog(t('building_detail.action_result_radar_mission_sync'))}
+                  onClick={() => addInfoReport(t('building_detail.action_radar_mission_sync'), t('building_detail.action_result_radar_mission_sync'))}
                 />
               </>
             )}
@@ -1317,7 +1410,7 @@ export function BuildingDetailPanel({
                   balance: formatPerHour(energyNetPerHour),
                   storage: stats.energyStorageAdd,
                 })}
-                onClick={() => setActionLog(t('building_detail.action_result_power'))}
+                onClick={() => addInfoReport(t('building_detail.action_power_check'), t('building_detail.action_result_power'))}
               />
             )}
             {(type === 'quantum_separator' || type === 'gas_fractionator') && (
@@ -1328,17 +1421,11 @@ export function BuildingDetailPanel({
                 onClick={runChemCycle}
               />
             )}
-            {actionLog && (
-              <div style={{
-                background: 'rgba(68,136,170,0.10)',
-                border: '1px solid rgba(68,136,170,0.35)',
-                borderRadius: 4,
-                padding: '9px 10px',
-                fontSize: 11,
-                color: '#9fc4dd',
-                lineHeight: 1.45,
-              }}>
-                {actionLog}
+            {actionReports.length > 0 && (
+              <div style={{ display: 'grid', gap: 7 }}>
+                {actionReports.map((report) => (
+                  <ActionReportCard key={report.id} report={report} />
+                ))}
               </div>
             )}
           </div>

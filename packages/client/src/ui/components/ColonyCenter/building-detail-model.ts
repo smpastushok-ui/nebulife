@@ -36,6 +36,22 @@ export interface BuildingDetailStats {
   planetFit: 'good' | 'blocked' | 'conditional';
 }
 
+export type BuildingEconomyRole =
+  | 'hub'
+  | 'energy'
+  | 'extraction'
+  | 'storage'
+  | 'science'
+  | 'biosphere'
+  | 'chemistry'
+  | 'logistics';
+
+export interface BuildingEconomyProfile {
+  role: BuildingEconomyRole;
+  links: BuildingEconomyRole[];
+  future: BuildingEconomyRole | 'none';
+}
+
 export const CORE_DETAIL_BUILDINGS: BuildingType[] = [
   'colony_hub',
   'resource_storage',
@@ -139,4 +155,29 @@ export function primaryOutputResource(type: BuildingType): ColonyResourceKey | '
   }
   if (prod.resource === 'researchData' || prod.resource === 'habitability') return prod.resource;
   return null;
+}
+
+export function getBuildingEconomyProfile(type: BuildingType): BuildingEconomyProfile {
+  if (type === 'colony_hub') {
+    return { role: 'hub', links: ['storage', 'science', 'logistics'], future: 'logistics' };
+  }
+  if (type === 'resource_storage') {
+    return { role: 'storage', links: ['extraction', 'chemistry', 'logistics'], future: 'logistics' };
+  }
+  if (type === 'landing_pad' || type === 'spaceport') {
+    return { role: 'logistics', links: ['science', 'extraction', 'storage'], future: 'logistics' };
+  }
+  if (type === 'solar_plant' || type === 'battery_station' || type === 'wind_generator' || type === 'thermal_generator' || type === 'fusion_reactor') {
+    return { role: 'energy', links: ['extraction', 'science', 'biosphere'], future: 'none' };
+  }
+  if (type === 'mine' || type === 'water_extractor' || type === 'atmo_extractor' || type === 'deep_drill' || type === 'orbital_collector' || type === 'isotope_collector' || type === 'alpha_harvester') {
+    return { role: 'extraction', links: ['energy', 'storage', 'chemistry'], future: 'logistics' };
+  }
+  if (type === 'research_lab' || type === 'observatory' || type === 'radar_tower' || type === 'orbital_telescope' || type === 'quantum_computer') {
+    return { role: 'science', links: ['energy', 'logistics', 'extraction'], future: 'science' };
+  }
+  if (type === 'greenhouse' || type === 'residential_dome' || type === 'atmo_shield' || type === 'biome_dome') {
+    return { role: 'biosphere', links: ['energy', 'storage', 'science'], future: 'biosphere' };
+  }
+  return { role: 'chemistry', links: ['extraction', 'energy', 'science'], future: 'chemistry' };
 }
