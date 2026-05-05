@@ -108,7 +108,7 @@ export class SystemScene {
   // Shooting stars in system background
   private sysShootingStars: SysShootingStar[] = [];
   private sysShootingStarTimer = 5000 + Math.random() * 5000; // first: 5-10s
-  private asteroidBeltContainers: Array<{ container: Container; speed: number }> = [];
+  private asteroidBeltContainers: Container[] = [];
   private missionVisuals: Map<string, MissionVisualNode> = new Map();
   private planetStatusVisuals: Map<string, PlanetStatusVisual> = new Map();
   private planetStatusIconsVisible = false;
@@ -210,8 +210,7 @@ export class SystemScene {
         auToScreen(belt.innerRadiusAU),
         auToScreen(belt.outerRadiusAU),
         system.seed * 4099 + index * 137,
-        160,
-        0.000008 + index * 0.000002,
+        180,
       );
     });
 
@@ -221,11 +220,11 @@ export class SystemScene {
       const outerR = auToScreen(outerPlanetAU);
       const beltInner = outerR * 1.3;
       const beltOuter = outerR * 1.8;
-      this.addAsteroidBelt(beltInner, beltOuter, system.seed * 997 + 43, 100, 0.00002);
+      this.addAsteroidBelt(beltInner, beltOuter, system.seed * 997 + 43, 130);
     }
   }
 
-  private addAsteroidBelt(innerR: number, outerR: number, seed: number, baseCount: number, speed: number) {
+  private addAsteroidBelt(innerR: number, outerR: number, seed: number, baseCount: number) {
     const rng = new SeededRNG(seed);
     const group = new Container();
     group.zIndex = 1;
@@ -250,8 +249,8 @@ export class SystemScene {
       const x = Math.cos(angle) * (r * clump + jitterR);
       const y = Math.sin(angle) * (r + jitterR) * Y_COMPRESS;
       const size = rng.next() < 0.08
-        ? rng.nextFloat(1.4, 2.8)
-        : rng.nextFloat(0.35, 1.25);
+        ? rng.nextFloat(1.2, 2.4)
+        : rng.nextFloat(0.28, 1.05);
       const roll = rng.next();
 
       if (roll < 0.58) {
@@ -263,20 +262,15 @@ export class SystemScene {
       }
     }
 
-    dust.fill({ color: 0x4a463c, alpha: 0.18 });
-    rocks.fill({ color: 0x7a6a55, alpha: 0.34 });
-    highlights.fill({ color: 0xb49a72, alpha: 0.42 });
+    dust.fill({ color: 0x4a463c, alpha: 0.14 });
+    rocks.fill({ color: 0x7a6a55, alpha: 0.30 });
+    highlights.fill({ color: 0xb49a72, alpha: 0.34 });
 
-    const innerEdge = new Graphics();
-    innerEdge.ellipse(0, 0, innerR, innerR * Y_COMPRESS);
-    innerEdge.stroke({ color: 0x8a7655, width: 0.6, alpha: 0.08 });
-    const outerEdge = new Graphics();
-    outerEdge.ellipse(0, 0, outerR, outerR * Y_COMPRESS);
-    outerEdge.stroke({ color: 0x8a7655, width: 0.6, alpha: 0.06 });
-
-    group.addChild(innerEdge, outerEdge, dust, rocks, highlights);
+    // No outline strokes here: the belt must read as meteor dust, not as
+    // extra planet orbits. Static placement also prevents camera/orbit drift.
+    group.addChild(dust, rocks, highlights);
     this.container.addChild(group);
-    this.asteroidBeltContainers.push({ container: group, speed });
+    this.asteroidBeltContainers.push(group);
   }
 
   private drawBackground() {
@@ -543,10 +537,8 @@ export class SystemScene {
   update(deltaMs: number) {
     this.time += deltaMs;
 
-    // Rotate asteroid belts slowly in opposite layers; planets remain readable.
-    for (const belt of this.asteroidBeltContainers) {
-      belt.container.rotation += deltaMs * belt.speed;
-    }
+    // Asteroid belts stay static in projected system space. Rotating their
+    // container made the compressed belt look like new drifting orbit lines.
 
     // Star corona animation: gentle pulsing + slow rotation
     if (this.starCorona) {

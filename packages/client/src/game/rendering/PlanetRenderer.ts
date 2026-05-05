@@ -46,6 +46,18 @@ function lightenColor(color: number, factor: number): number {
   return (lr << 16) | (lg << 8) | lb;
 }
 
+function seededUnit(seed: number, salt: number): number {
+  let x = (seed ^ (salt * 0x9e3779b9)) >>> 0;
+  x ^= x << 13;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  return ((x >>> 0) % 10000) / 10000;
+}
+
+function seededRange(seed: number, salt: number, min: number, max: number): number {
+  return min + seededUnit(seed, salt) * (max - min);
+}
+
 /**
  * Render a planet as a volumetric mini-sphere with multi-layer 3D lighting.
  * The lightingGroup rotates to track the star direction.
@@ -101,21 +113,84 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   }
   lightingGroup.addChild(litLayers);
 
-  // === Gas giant / ice giant bands ===
+  // === Procedural surface detail ===
+  // System-view scale still needs texture language: storms, continents, craters,
+  // ice caps, and clouds make planets read as worlds instead of flat icons.
+  const detailGfx = new Graphics();
   if (isGiant) {
-    const bandCount = visuals.isGasGiant ? 7 : 4;
-    const bandGfx = new Graphics();
+    const bandCount = visuals.isGasGiant ? 11 : 7;
     for (let i = 0; i < bandCount; i++) {
       const t = (i + 0.5) / bandCount;
-      const bandY = (t - 0.5) * size * 1.7;
-      const bandWidth = size * (0.12 + (i % 3) * 0.05);
+      const bandY = (t - 0.5) * size * 1.72;
+      const wobble = Math.sin(seededRange(planet.seed, i + 10, 0, Math.PI * 2)) * size * 0.05;
+      const bandWidth = size * seededRange(planet.seed, i + 40, 0.05, 0.12);
       const bandColor = i % 2 === 0 ? visuals.bandColor1 : visuals.bandColor2;
-      bandGfx.ellipse(size * 0.08, bandY, size * 0.82, bandWidth * 0.4);
-      bandGfx.fill({ color: bandColor, alpha: 0.3 });
+      detailGfx.ellipse(size * 0.08 + wobble, bandY, size * 0.95, bandWidth);
+      detailGfx.fill({ color: bandColor, alpha: i % 2 === 0 ? 0.34 : 0.24 });
     }
-    lightingGroup.addChild(bandGfx);
 
-    // Subtle equatorial brightening
+    const stormCount = visuals.isGasGiant ? 2 + (Math.abs(planet.seed) % 3) : 1;
+    for (let i = 0; i < stormCount; i++) {
+      const sx = seededRange(planet.seed, i + 90, -0.35, 0.42) * size;
+      const sy = seededRange(planet.seed, i + 120, -0.45, 0.45) * size;
+      const stormR = seededRange(planet.seed, i + 150, 0.13, 0.28) * size;
+      detailGfx.ellipse(sx, sy, stormR * 1.7, stormR * 0.72);
+      detailGfx.fill({ color: lightenColor(visuals.bandColor2, 0.18), alpha: 0.18 });
+      detailGfx.ellipse(sx + stormR * 0.18, sy, stormR * 0.85, stormR * 0.34);
+      detailGfx.stroke({ color: darkenColor(visuals.bandColor1, 0.62), width: Math.max(0.5, size * 0.035), alpha: 0.28 });
+    }
+  } else {
+    const landColor = visuals.hasBiomes
+      ? lerpColor(visuals.biomeColors.temperate, visuals.surfaceHighColor, 0.35)
+      : visuals.surfaceHighColor;
+    const landCount = visuals.hasOcean ? 6 : 9;
+    for (let i = 0; i < landCount; i++) {
+      const angle = seededRange(planet.seed, i + 200, 0, Math.PI * 2);
+      const dist = seededRange(planet.seed, i + 240, 0.05, 0.72) * size;
+      const px = Math.cos(angle) * dist + size * 0.08;
+      const py = Math.sin(angle) * dist;
+      const patchR = seededRange(planet.seed, i + 280, 0.12, 0.33) * size;
+      detailGfx.ellipse(px, py, patchR * 1.35, patchR * seededRange(planet.seed, i + 320, 0.45, 0.78));
+      detailGfx.fill({ color: landColor, alpha: visuals.hasOcean ? 0.34 : 0.22 });
+    }
+
+    if (visuals.hasCraters || (planet.atmosphere?.surfacePressureAtm ?? 0) < 0.02) {
+      const craterCount = 5 + (Math.abs(planet.seed) % 6);
+      for (let i = 0; i < craterCount; i++) {
+        const angle = seededRange(planet.seed, i + 360, 0, Math.PI * 2);
+        const dist = seededRange(planet.seed, i + 390, 0.12, 0.78) * size;
+        const cr = seededRange(planet.seed, i + 420, 0.045, 0.105) * size;
+        const cx = Math.cos(angle) * dist + size * 0.05;
+        const cy = Math.sin(angle) * dist;
+        detailGfx.circle(cx, cy, cr);
+        detailGfx.stroke({ color: visuals.craterRimColor, width: Math.max(0.4, cr * 0.35), alpha: 0.24 });
+        detailGfx.circle(cx + cr * 0.18, cy + cr * 0.12, cr * 0.7);
+        detailGfx.fill({ color: visuals.craterColor, alpha: 0.18 });
+      }
+    }
+
+    if (visuals.iceCapFraction > 0.08) {
+      const capAlpha = Math.min(0.34, 0.12 + visuals.iceCapFraction * 0.28);
+      detailGfx.ellipse(size * 0.08, -size * 0.72, size * 0.72, size * 0.18);
+      detailGfx.fill({ color: 0xddeeff, alpha: capAlpha });
+      detailGfx.ellipse(size * 0.08, size * 0.72, size * 0.72, size * 0.18);
+      detailGfx.fill({ color: 0xddeeff, alpha: capAlpha * 0.85 });
+    }
+
+    if (visuals.hasSignificantClouds) {
+      const cloudCount = 4 + Math.floor(visuals.cloudDensity * 5);
+      for (let i = 0; i < cloudCount; i++) {
+        const cy = seededRange(planet.seed, i + 480, -0.62, 0.62) * size;
+        const cx = seededRange(planet.seed, i + 520, -0.18, 0.38) * size;
+        detailGfx.ellipse(cx, cy, size * seededRange(planet.seed, i + 560, 0.22, 0.46), size * 0.045);
+        detailGfx.fill({ color: visuals.cloudColor, alpha: 0.12 + visuals.cloudDensity * 0.12 });
+      }
+    }
+  }
+  lightingGroup.addChild(detailGfx);
+
+  // === Gas giant / ice giant broad equatorial glow ===
+  if (isGiant) {
     const eqGlow = new Graphics();
     eqGlow.ellipse(size * 0.15, 0, size * 0.6, size * 0.12);
     eqGlow.fill({ color: lightenColor(visuals.bandColor1, 0.3), alpha: 0.1 });

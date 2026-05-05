@@ -44,12 +44,17 @@ function computeAuto(): DeviceTier {
   const cores = nav?.hardwareConcurrency ?? 4;
   // `deviceMemory` is non-standard, available on Chrome-family browsers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mem = (nav as any)?.deviceMemory ?? 4;
+  const reportedMem = (nav as any)?.deviceMemory as number | undefined;
+  const native = isCapacitorNative();
+  // Safari/Firefox on desktop often omit deviceMemory. Treat strong non-native
+  // web machines as high-capability so the exosphere does not fall back to the
+  // simplified mid-tier renderer on Mac/desktop browsers.
+  const mem = reportedMem ?? (!native && cores >= 8 ? 8 : 4);
 
   if (cores <= 4 || mem <= 3) return 'low';
   if (cores <= 6 || mem <= 6) return 'mid';
   // Desktop web with lots of cores + RAM → ultra. Capacitor native stays 'high'.
-  if (!isCapacitorNative() && cores >= 8 && mem >= 8) return 'ultra';
+  if (!native && cores >= 8 && mem >= 8) return 'ultra';
   return 'high';
 }
 
@@ -280,46 +285,46 @@ export function getExosphereLOD(): ExosphereLOD {
       // 192² (74K) at typical camera distance, but saves ~55K triangles
       // per frame and a chunk of vertex-shader time.
       return {
-        planetSegments: 128,
+        planetSegments: 160,
         renderClouds: true,
-        cloudSegments: 48,
+        cloudSegments: 56,
         renderAtmosphereBack: true,
         atmosphereSegments: 32,
         renderRing: true,
-        ringSegments: 96,
+        ringSegments: 128,
         moonSegments: 24,
         moonsFlatShaded: false,
         starfieldTwinkle: true,
         starfieldDensity: 0.85,
         toneMappingExposure: 1.0,
         inlineCloudVeil: 0.0,
-        atmosphereIntensityScale: 1.08,
-        atmosphereLayerStrength: 0.18,
-        surfaceDetailBoost: 1.03,
-        exosphereQuality: 0.65,
+        atmosphereIntensityScale: 1.12,
+        atmosphereLayerStrength: 0.22,
+        surfaceDetailBoost: 1.12,
+        exosphereQuality: 0.85,
       };
     case 'ultra':
     default:
       // Desktop web — full procedural richness. Reserved headroom for
       // future desktop-only FX (volumetric clouds, SSR, higher bloom).
       return {
-        planetSegments: 192,
+        planetSegments: 224,
         renderClouds: true,
-        cloudSegments: 64,
+        cloudSegments: 72,
         renderAtmosphereBack: true,
-        atmosphereSegments: 48,
+        atmosphereSegments: 56,
         renderRing: true,
-        ringSegments: 128,
+        ringSegments: 160,
         moonSegments: 32,
         moonsFlatShaded: false,
         starfieldTwinkle: true,
         starfieldDensity: 1.0,
         toneMappingExposure: 1.0,
         inlineCloudVeil: 0.0,
-        atmosphereIntensityScale: 1.12,
-        atmosphereLayerStrength: 0.24,
-        surfaceDetailBoost: 1.05,
-        exosphereQuality: 1.0,
+        atmosphereIntensityScale: 1.18,
+        atmosphereLayerStrength: 0.3,
+        surfaceDetailBoost: 1.18,
+        exosphereQuality: 1.15,
       };
   }
 }
