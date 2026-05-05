@@ -544,83 +544,6 @@ function updateDistantStarVisual(starVisual: DistantStarVisual, elapsed: number,
   }
 }
 
-interface AsteroidBeltVisual {
-  group: THREE.Group;
-  points: THREE.Points;
-  rocks: THREE.InstancedMesh;
-}
-
-function createAsteroidBelt(scene: THREE.Scene, seed: number): AsteroidBeltVisual {
-  const rng = new SeededRNG(seed * 92821 + 77);
-  const group = new THREE.Group();
-  group.rotation.set(0.34, 0.1, -0.18);
-  group.position.set(0.15, -0.08, -0.25);
-
-  const dustCount = 900;
-  const positions = new Float32Array(dustCount * 3);
-  const colors = new Float32Array(dustCount * 3);
-  const colorA = new THREE.Color(0x8b7a64);
-  const colorB = new THREE.Color(0xc6b28a);
-  for (let i = 0; i < dustCount; i++) {
-    const a = rng.next() * Math.PI * 2;
-    const radius = 5.8 + rng.next() * 4.4 + Math.pow(rng.next(), 4) * 1.8;
-    const width = (rng.next() - 0.5) * 0.28;
-    const height = (rng.next() - 0.5) * 0.08;
-    positions[i * 3] = Math.cos(a) * (radius + width);
-    positions[i * 3 + 1] = height;
-    positions[i * 3 + 2] = Math.sin(a) * (radius + width) * 0.82;
-    const c = colorA.clone().lerp(colorB, rng.next() * 0.7);
-    colors[i * 3] = c.r;
-    colors[i * 3 + 1] = c.g;
-    colors[i * 3 + 2] = c.b;
-  }
-  const dustGeo = new THREE.BufferGeometry();
-  dustGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  dustGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const dustMat = new THREE.PointsMaterial({
-    size: 0.018,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.5,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  const points = new THREE.Points(dustGeo, dustMat);
-  points.renderOrder = -0.4;
-  group.add(points);
-
-  const rockCount = 80;
-  const rockGeo = new THREE.DodecahedronGeometry(0.035, 0);
-  const rockMat = new THREE.MeshStandardMaterial({
-    color: 0x9c8a70,
-    roughness: 0.95,
-    metalness: 0.02,
-  });
-  const rocks = new THREE.InstancedMesh(rockGeo, rockMat, rockCount);
-  const matrix = new THREE.Matrix4();
-  const quat = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
-  const pos = new THREE.Vector3();
-  const rot = new THREE.Euler();
-  for (let i = 0; i < rockCount; i++) {
-    const a = rng.next() * Math.PI * 2;
-    const radius = 5.7 + rng.next() * 4.8;
-    pos.set(Math.cos(a) * radius, (rng.next() - 0.5) * 0.15, Math.sin(a) * radius * 0.82);
-    rot.set(rng.next() * Math.PI, rng.next() * Math.PI, rng.next() * Math.PI);
-    quat.setFromEuler(rot);
-    const s = 0.45 + rng.next() * 1.5;
-    scale.set(s, s * (0.65 + rng.next() * 0.5), s);
-    matrix.compose(pos, quat, scale);
-    rocks.setMatrixAt(i, matrix);
-  }
-  rocks.instanceMatrix.needsUpdate = true;
-  rocks.renderOrder = -0.3;
-  group.add(rocks);
-
-  scene.add(group);
-  return { group, points, rocks };
-}
-
 // ---------------------------------------------------------------------------
 // Planet sphere
 // ---------------------------------------------------------------------------
@@ -1614,9 +1537,6 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // 7. Moons
       const moonOrbits = createMoons(scene, planet, star, lod);
 
-      // 7b. Asteroid belt — only on high/ultra web, skipped on native/mobile tiers.
-      const asteroidBelt = highWebFx ? createAsteroidBelt(scene, system.seed + planet.seed) : null;
-
       // 8. Scanning overlay
       const scan = createScanOverlay(scene);
       scan.group.visible = false;
@@ -1735,12 +1655,6 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         // Dynamic star scale + high-web stellar pulse/corona.
         const camDist = camera.position.length();
         updateDistantStarVisual(starVisual, elapsed, camDist);
-
-        if (asteroidBelt) {
-          asteroidBelt.group.rotation.y += deltaMs * 0.000018;
-          asteroidBelt.points.rotation.y -= deltaMs * 0.000012;
-          asteroidBelt.rocks.rotation.y += deltaMs * 0.000028;
-        }
 
         // GPU-driven twinkling via uTime uniform.
         // Skipped on low tier — uniform upload is cheap, but the shader

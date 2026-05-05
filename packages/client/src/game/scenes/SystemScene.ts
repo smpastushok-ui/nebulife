@@ -57,6 +57,17 @@ interface SysShootingStar {
   maxLife: number;
 }
 
+interface AsteroidNode {
+  container: Container;
+  rock: Graphics;
+  angle: number;
+  orbitRadius: number;
+  yCompress: number;
+  angularSpeed: number;
+  spinSpeed: number;
+  tumbleSpeed: number;
+}
+
 function makeVisualOnly(root: Container): void {
   root.eventMode = 'none';
   root.cursor = 'default';
@@ -108,7 +119,7 @@ export class SystemScene {
   // Shooting stars in system background
   private sysShootingStars: SysShootingStar[] = [];
   private sysShootingStarTimer = 5000 + Math.random() * 5000; // first: 5-10s
-  private asteroidBeltContainers: Container[] = [];
+  private asteroidNodes: AsteroidNode[] = [];
   private missionVisuals: Map<string, MissionVisualNode> = new Map();
   private planetStatusVisuals: Map<string, PlanetStatusVisual> = new Map();
   private planetStatusIconsVisible = false;
@@ -204,13 +215,13 @@ export class SystemScene {
       }
     }
 
-    // Asteroid belts — deterministic, layered, and slightly animated.
+    // Asteroid belts — external system-level rings, not exosphere debris.
     system.asteroidBelts.forEach((belt, index) => {
       this.addAsteroidBelt(
         auToScreen(belt.innerRadiusAU),
         auToScreen(belt.outerRadiusAU),
         system.seed * 4099 + index * 137,
-        180,
+        70,
       );
     });
 
@@ -220,7 +231,7 @@ export class SystemScene {
       const outerR = auToScreen(outerPlanetAU);
       const beltInner = outerR * 1.3;
       const beltOuter = outerR * 1.8;
-      this.addAsteroidBelt(beltInner, beltOuter, system.seed * 997 + 43, 130);
+      this.addAsteroidBelt(beltInner, beltOuter, system.seed * 997 + 43, 95);
     }
   }
 
@@ -230,47 +241,77 @@ export class SystemScene {
     group.zIndex = 1;
 
     const dust = new Graphics();
-    const rocks = new Graphics();
-    const highlights = new Graphics();
-    const count = baseCount + rng.nextInt(0, Math.floor(baseCount * 0.45));
+    const dustCount = Math.round(baseCount * 1.7);
     const gapAngle = rng.next() * Math.PI * 2;
     const gapWidth = rng.nextFloat(0.25, 0.55);
+    const orbitRadius = (innerR + outerR) * 0.5;
+    const beltWidth = Math.max(8, (outerR - innerR) * 0.08);
 
+    for (let i = 0; i < dustCount; i++) {
+      let angle = rng.next() * Math.PI * 2;
+      const distanceFromGap = Math.abs(Math.atan2(Math.sin(angle - gapAngle), Math.cos(angle - gapAngle)));
+      if (distanceFromGap < gapWidth && rng.next() < 0.75) {
+        angle += gapWidth * (rng.next() < 0.5 ? -1 : 1);
+      }
+      const jitterR = rng.nextGaussian(0, beltWidth);
+      const x = Math.cos(angle) * (orbitRadius + jitterR);
+      const y = Math.sin(angle) * (orbitRadius + jitterR) * Y_COMPRESS;
+      dust.circle(x, y, rng.nextFloat(0.25, 0.8));
+    }
+
+    dust.fill({ color: 0x6f6655, alpha: 0.12 });
+    group.addChild(dust);
+    this.container.addChild(group);
+
+    const count = baseCount + rng.nextInt(0, Math.floor(baseCount * 0.25));
     for (let i = 0; i < count; i++) {
       let angle = rng.next() * Math.PI * 2;
       const distanceFromGap = Math.abs(Math.atan2(Math.sin(angle - gapAngle), Math.cos(angle - gapAngle)));
       if (distanceFromGap < gapWidth && rng.next() < 0.82) {
         angle += gapWidth * (rng.next() < 0.5 ? -1 : 1);
       }
-      const band = rng.next();
-      const r = innerR + (outerR - innerR) * Math.pow(band, 0.78);
-      const clump = 1 + Math.sin(angle * 7 + seed) * 0.08 + Math.sin(angle * 17) * 0.035;
-      const jitterR = rng.nextGaussian(0, (outerR - innerR) * 0.035);
-      const x = Math.cos(angle) * (r * clump + jitterR);
-      const y = Math.sin(angle) * (r + jitterR) * Y_COMPRESS;
-      const size = rng.next() < 0.08
-        ? rng.nextFloat(1.2, 2.4)
-        : rng.nextFloat(0.28, 1.05);
-      const roll = rng.next();
-
-      if (roll < 0.58) {
-        dust.circle(x, y, size * 0.65);
-      } else if (roll < 0.9) {
-        rocks.circle(x, y, size);
-      } else {
-        highlights.circle(x, y, size * 0.9);
-      }
+      const container = new Container();
+      container.zIndex = 1;
+      container.eventMode = 'none';
+      const size = rng.next() < 0.12 ? rng.nextFloat(2.4, 4.6) : rng.nextFloat(0.9, 2.6);
+      const rock = this.createAsteroidRock(size, seed + i * 131);
+      container.addChild(rock);
+      this.container.addChild(container);
+      this.asteroidNodes.push({
+        container,
+        rock,
+        angle,
+        orbitRadius: orbitRadius + rng.nextGaussian(0, beltWidth * 0.35),
+        yCompress: Y_COMPRESS + rng.nextFloat(-0.035, 0.035),
+        angularSpeed: rng.nextFloat(0.00002, 0.000075) * (rng.next() < 0.5 ? 1 : -1),
+        spinSpeed: rng.nextFloat(0.0008, 0.0032) * (rng.next() < 0.5 ? 1 : -1),
+        tumbleSpeed: rng.nextFloat(0.0012, 0.004),
+      });
     }
+  }
 
-    dust.fill({ color: 0x4a463c, alpha: 0.14 });
-    rocks.fill({ color: 0x7a6a55, alpha: 0.30 });
-    highlights.fill({ color: 0xb49a72, alpha: 0.34 });
+  private createAsteroidRock(size: number, seed: number): Graphics {
+    const rng = new SeededRNG(seed);
+    const rock = new Graphics();
+    const points = 7 + rng.nextInt(0, 5);
+    for (let i = 0; i < points; i++) {
+      const a = (i / points) * Math.PI * 2;
+      const r = size * rng.nextFloat(0.62, 1.2);
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r * rng.nextFloat(0.66, 1.02);
+      if (i === 0) rock.moveTo(x, y);
+      else rock.lineTo(x, y);
+    }
+    rock.closePath();
+    rock.fill({ color: 0x7f735f, alpha: 0.96 });
+    rock.stroke({ color: 0xb39b78, width: Math.max(0.35, size * 0.14), alpha: 0.28 });
 
-    // No outline strokes here: the belt must read as meteor dust, not as
-    // extra planet orbits. Static placement also prevents camera/orbit drift.
-    group.addChild(dust, rocks, highlights);
-    this.container.addChild(group);
-    this.asteroidBeltContainers.push(group);
+    const facetCount = 2 + rng.nextInt(0, 3);
+    for (let i = 0; i < facetCount; i++) {
+      rock.circle(rng.nextFloat(-size * 0.4, size * 0.45), rng.nextFloat(-size * 0.35, size * 0.35), size * rng.nextFloat(0.12, 0.28));
+      rock.fill({ color: rng.next() < 0.5 ? 0x4f473b : 0xc0aa84, alpha: rng.nextFloat(0.14, 0.26) });
+    }
+    return rock;
   }
 
   private drawBackground() {
@@ -537,8 +578,18 @@ export class SystemScene {
   update(deltaMs: number) {
     this.time += deltaMs;
 
-    // Asteroid belts stay static in projected system space. Rotating their
-    // container made the compressed belt look like new drifting orbit lines.
+    // System-level asteroid belt: every rock shares the belt orbit but has
+    // its own orbital speed and local tumble, so it reads as loose debris.
+    for (const asteroid of this.asteroidNodes) {
+      asteroid.angle += asteroid.angularSpeed * deltaMs;
+      asteroid.container.x = Math.cos(asteroid.angle) * asteroid.orbitRadius;
+      asteroid.container.y = Math.sin(asteroid.angle) * asteroid.orbitRadius * asteroid.yCompress;
+      asteroid.container.zIndex = Math.round(asteroid.container.y + 9000);
+      asteroid.container.rotation += asteroid.spinSpeed * deltaMs;
+      const tumble = 0.82 + Math.sin(this.time * asteroid.tumbleSpeed + asteroid.angle * 3) * 0.18;
+      asteroid.rock.scale.set(1, tumble);
+      asteroid.container.alpha = 0.62 + Math.sin(this.time * 0.0015 + asteroid.angle) * 0.12;
+    }
 
     // Star corona animation: gentle pulsing + slow rotation
     if (this.starCorona) {
