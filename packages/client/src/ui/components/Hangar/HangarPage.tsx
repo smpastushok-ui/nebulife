@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { useT } from '../../../i18n/index.js';
 import { playLoop, stopLoop, playSfx } from '../../../audio/SfxPlayer.js';
+import { getDeviceTier } from '../../../utils/device-tier.js';
 import {
   checkShipStatus,
   getPlayerShips,
@@ -155,6 +156,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   const [toast, setToast] = useState<string | null>(null);
   const [controlsOpen, setControlsOpen] = useState(false);
   const [isMobile] = useState(() => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
+  const [deviceTier] = useState(() => getDeviceTier());
   const [customShips, setCustomShips] = useState<CustomShip[]>([]);
   const [shipDesignOpen, setShipDesignOpen] = useState(false);
   const [shipDesignPrompt, setShipDesignPrompt] = useState('');
@@ -254,7 +256,9 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 
   // Team battle level gate
   const teamBattleUnlocked = playerLevel >= 50;
-  const raidAvailable = CARRIER_RAID_ENABLED && !isMobile && Boolean(onEnterRaid);
+  const raidAvailable = CARRIER_RAID_ENABLED
+    && Boolean(onEnterRaid)
+    && (!isMobile || deviceTier === 'high' || deviceTier === 'ultra');
 
   // Training entry (free)
   const handleEnterTraining = useCallback(() => {

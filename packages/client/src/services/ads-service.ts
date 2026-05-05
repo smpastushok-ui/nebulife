@@ -20,6 +20,7 @@ import { interstitialManager } from './interstitial-manager.js';
 // interstitial-manager.ts). Nothing else needs to change.
 // =============================================================================
 const ADS_DISABLED_FOR_TESTING = false;
+const ADS_DISABLED_ON_ANDROID_FOR_TESTERS = true;
 
 // Ad Unit IDs
 // TEST mode: use Google test IDs during development/testing to avoid AdMob violations
@@ -119,6 +120,9 @@ type AdResult =
 
 async function showRewardedAdWithReason(): Promise<AdResult> {
   if (!areAdsUnlockedAfterSettlement()) return { rewarded: false, reason: 'error' };
+  if (ADS_DISABLED_ON_ANDROID_FOR_TESTERS && Capacitor.getPlatform() === 'android') {
+    return { rewarded: false, reason: 'error' };
+  }
 
   // TEMP: testers — pretend the ad played successfully without showing anything.
   // Still increments the local daily counter so the existing limit logic stays honest.
@@ -220,6 +224,7 @@ export async function showMultipleRewardedAds(count: number): Promise<boolean> {
  */
 export async function checkAdAvailability(): Promise<boolean> {
   if (!areAdsUnlockedAfterSettlement()) return false;
+  if (ADS_DISABLED_ON_ANDROID_FOR_TESTERS && Capacitor.getPlatform() === 'android') return false;
 
   // TEMP: testers — always "available" so reward buttons stay enabled.
   if (ADS_DISABLED_FOR_TESTING) return true;
@@ -267,6 +272,7 @@ export function getDailyAdCount(): number {
 
 export function canShowAd(): boolean {
   if (!areAdsUnlockedAfterSettlement()) return false;
+  if (ADS_DISABLED_ON_ANDROID_FOR_TESTERS && Capacitor.getPlatform() === 'android') return false;
 
   // TEMP: testers — allow even on web build so reward flows are testable there.
   if (ADS_DISABLED_FOR_TESTING) return getDailyData().count < DAILY_LIMIT;

@@ -108,10 +108,11 @@ export class SystemScene {
   // Shooting stars in system background
   private sysShootingStars: SysShootingStar[] = [];
   private sysShootingStarTimer = 5000 + Math.random() * 5000; // first: 5-10s
-  private outerBeltContainer: Container | null = null;
+  private asteroidBeltContainers: Array<{ container: Container; speed: number }> = [];
   private missionVisuals: Map<string, MissionVisualNode> = new Map();
   private planetStatusVisuals: Map<string, PlanetStatusVisual> = new Map();
   private planetStatusIconsVisible = false;
+  private planetLabelsVisible = false;
 
   /** True while camera is zooming — orbit animations pause to prevent jitter */
   private _freezeOrbits = false;
@@ -203,20 +204,16 @@ export class SystemScene {
       }
     }
 
-    // Asteroid belts
-    for (const belt of system.asteroidBelts) {
-      const innerR = auToScreen(belt.innerRadiusAU);
-      const outerR = auToScreen(belt.outerRadiusAU);
-      const beltGfx = new Graphics();
-      for (let i = 0; i < 80; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const r = innerR + Math.random() * (outerR - innerR);
-        beltGfx.circle(Math.cos(angle) * r, Math.sin(angle) * r * Y_COMPRESS, 1);
-      }
-      beltGfx.fill({ color: 0x665544, alpha: 0.3 });
-      beltGfx.zIndex = 1;
-      this.container.addChild(beltGfx);
-    }
+    // Asteroid belts — deterministic, layered, and slightly animated.
+    system.asteroidBelts.forEach((belt, index) => {
+      this.addAsteroidBelt(
+        auToScreen(belt.innerRadiusAU),
+        auToScreen(belt.outerRadiusAU),
+        system.seed * 4099 + index * 137,
+        160,
+        0.000008 + index * 0.000002,
+      );
+    });
 
     // Procedural outer asteroid belt (beyond outermost planet)
     if (system.planets.length > 0) {
@@ -224,25 +221,62 @@ export class SystemScene {
       const outerR = auToScreen(outerPlanetAU);
       const beltInner = outerR * 1.3;
       const beltOuter = outerR * 1.8;
-      const beltRng = new SeededRNG(system.seed * 997 + 43);
-      const asteroidCount = 60 + beltRng.nextInt(0, 40);
-      const outerBeltGfx = new Graphics();
-      for (let i = 0; i < asteroidCount; i++) {
-        const angle = beltRng.next() * Math.PI * 2;
-        const r = beltInner + beltRng.next() * (beltOuter - beltInner);
-        const size = 0.5 + beltRng.next() * 1.5;
-        outerBeltGfx.circle(
-          Math.cos(angle) * r,
-          Math.sin(angle) * r * Y_COMPRESS,
-          size,
-        );
-      }
-      outerBeltGfx.fill({ color: 0x556644, alpha: 0.25 });
-      outerBeltGfx.zIndex = 1;
-      this.outerBeltContainer = new Container();
-      this.outerBeltContainer.addChild(outerBeltGfx);
-      this.container.addChild(this.outerBeltContainer);
+      this.addAsteroidBelt(beltInner, beltOuter, system.seed * 997 + 43, 100, 0.00002);
     }
+  }
+
+  private addAsteroidBelt(innerR: number, outerR: number, seed: number, baseCount: number, speed: number) {
+    const rng = new SeededRNG(seed);
+    const group = new Container();
+    group.zIndex = 1;
+
+    const dust = new Graphics();
+    const rocks = new Graphics();
+    const highlights = new Graphics();
+    const count = baseCount + rng.nextInt(0, Math.floor(baseCount * 0.45));
+    const gapAngle = rng.next() * Math.PI * 2;
+    const gapWidth = rng.nextFloat(0.25, 0.55);
+
+    for (let i = 0; i < count; i++) {
+      let angle = rng.next() * Math.PI * 2;
+      const distanceFromGap = Math.abs(Math.atan2(Math.sin(angle - gapAngle), Math.cos(angle - gapAngle)));
+      if (distanceFromGap < gapWidth && rng.next() < 0.82) {
+        angle += gapWidth * (rng.next() < 0.5 ? -1 : 1);
+      }
+      const band = rng.next();
+      const r = innerR + (outerR - innerR) * Math.pow(band, 0.78);
+      const clump = 1 + Math.sin(angle * 7 + seed) * 0.08 + Math.sin(angle * 17) * 0.035;
+      const jitterR = rng.nextGaussian(0, (outerR - innerR) * 0.035);
+      const x = Math.cos(angle) * (r * clump + jitterR);
+      const y = Math.sin(angle) * (r + jitterR) * Y_COMPRESS;
+      const size = rng.next() < 0.08
+        ? rng.nextFloat(1.4, 2.8)
+        : rng.nextFloat(0.35, 1.25);
+      const roll = rng.next();
+
+      if (roll < 0.58) {
+        dust.circle(x, y, size * 0.65);
+      } else if (roll < 0.9) {
+        rocks.circle(x, y, size);
+      } else {
+        highlights.circle(x, y, size * 0.9);
+      }
+    }
+
+    dust.fill({ color: 0x4a463c, alpha: 0.18 });
+    rocks.fill({ color: 0x7a6a55, alpha: 0.34 });
+    highlights.fill({ color: 0xb49a72, alpha: 0.42 });
+
+    const innerEdge = new Graphics();
+    innerEdge.ellipse(0, 0, innerR, innerR * Y_COMPRESS);
+    innerEdge.stroke({ color: 0x8a7655, width: 0.6, alpha: 0.08 });
+    const outerEdge = new Graphics();
+    outerEdge.ellipse(0, 0, outerR, outerR * Y_COMPRESS);
+    outerEdge.stroke({ color: 0x8a7655, width: 0.6, alpha: 0.06 });
+
+    group.addChild(innerEdge, outerEdge, dust, rocks, highlights);
+    this.container.addChild(group);
+    this.asteroidBeltContainers.push({ container: group, speed });
   }
 
   private drawBackground() {
@@ -384,6 +418,7 @@ export class SystemScene {
     // Planet sprite (mini-sphere with lighting)
     const planetResult = renderPlanet(planet, this.system.star);
     const planetSprite = planetResult.container;
+    this.applyPlanetLabelVisibility(planetSprite);
     const startAngle = (planet.orbit.meanAnomalyDeg * Math.PI) / 180;
     const e = planet.orbit.eccentricity;
     const b = distance * Math.sqrt(1 - e * e);
@@ -508,9 +543,9 @@ export class SystemScene {
   update(deltaMs: number) {
     this.time += deltaMs;
 
-    // Rotate outer asteroid belt slowly
-    if (this.outerBeltContainer) {
-      this.outerBeltContainer.rotation += deltaMs * 0.00002;
+    // Rotate asteroid belts slowly in opposite layers; planets remain readable.
+    for (const belt of this.asteroidBeltContainers) {
+      belt.container.rotation += deltaMs * belt.speed;
     }
 
     // Star corona animation: gentle pulsing + slow rotation
@@ -609,6 +644,13 @@ export class SystemScene {
     this.redrawPlanetStatusIcons();
   }
 
+  setPlanetLabelsVisible(visible: boolean) {
+    this.planetLabelsVisible = visible;
+    for (const [, node] of this.planetNodes) {
+      this.applyPlanetLabelVisibility(node.container);
+    }
+  }
+
   setPlanetSkinTextures(textures: Record<string, string | null | undefined>): void {
     for (const [planetId, textureUrl] of Object.entries(textures)) {
       if (!textureUrl) continue;
@@ -661,6 +703,11 @@ export class SystemScene {
       });
       node.container.addChild(group);
     }
+  }
+
+  private applyPlanetLabelVisibility(container: Container) {
+    const label = container.getChildByName('planet-name-label');
+    if (label) label.visible = this.planetLabelsVisible;
   }
 
   private drawMissionVisual(planetNode: PlanetNode, visual: MissionVisualNode) {

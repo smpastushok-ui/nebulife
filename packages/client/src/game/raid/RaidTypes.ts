@@ -77,6 +77,7 @@ export interface RaidModule {
 export interface RaidProjectile {
   active: boolean;
   team: RaidTeam;
+  kind: 'laser' | 'missile';
   damage: number;
   age: number;
   lifetime: number;

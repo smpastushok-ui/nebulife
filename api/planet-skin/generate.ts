@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Planet not found in system data' });
   }
 
+  let charged = false;
   try {
     const existing = await getPlanetSkin(planetId, kind);
     if (existing) {
@@ -66,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!player) {
         return res.status(402).json({ error: 'Insufficient quarks', required: cost });
       }
+      charged = true;
     }
 
     const prompt = buildPlanetSkinPrompt(system, planet, kind);
@@ -98,11 +100,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err) {
     console.error('[planet-skin/generate] Error:', err);
-    if (kind === 'exosphere') {
+    const message = err instanceof Error ? err.message : 'Planet skin generation failed';
+    const missingStorage = message.includes('planet_skins') && message.includes('does not exist');
+    const clientError = missingStorage
+      ? 'Planet skin storage is missing. Run packages/server/src/migrations/019-planet-skins.sql in Neon SQL Editor.'
+      : message;
+    if (kind === 'exosphere' && charged) {
       try {
         const refunded = await creditQuarks(playerId, PLANET_SKIN_EXOSPHERE_COST_QUARKS);
         return res.status(500).json({
-          error: err instanceof Error ? err.message : 'Planet skin generation failed',
+          error: clientError,
           refunded: true,
           quarksRemaining: refunded.quarks,
         });
@@ -110,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error('[planet-skin/generate] Refund failed:', refundErr);
       }
     }
-    return res.status(500).json({ error: err instanceof Error ? err.message : 'Planet skin generation failed' });
+    return res.status(500).json({ error: clientError });
   }
 }
 

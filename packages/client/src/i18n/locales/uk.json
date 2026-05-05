@@ -36,9 +36,15 @@
     "terminal": "ТЕРМІНАЛ",
     "surface_title": "Поверхня",
     "arena": "АРЕНА",
-    "planet_icons": "ІКОНКИ ПЛАНЕТ",
-    "planet_icons_on": "ІКОНКИ УВІМК.",
-    "planet_icons_tooltip": "Показати орбітальні іконки статусу навколо планет цієї системи"
+    "planet_icons": "СТАТУСИ",
+    "planet_icons_on": "СТАТУСИ УВІМК.",
+    "planet_icons_tooltip": "Показати орбітальні статуси навколо планет цієї системи",
+    "planet_statuses": "СТАТУСИ",
+    "planet_statuses_on": "СТАТУСИ УВІМК.",
+    "planet_statuses_tooltip": "Показати орбітальні статуси навколо планет цієї системи",
+    "planet_names": "НАЗВИ",
+    "planet_names_on": "НАЗВИ УВІМК.",
+    "planet_names_tooltip": "Показати назви планет у цій системі"
   },
   "hangar": {
     "ship": {
@@ -151,10 +157,14 @@
     "photo_base_label": "Фото планети",
     "photo_view_label": "Дивитися фото планети",
     "photo_generating": "отримуємо фото...",
-    "skin_system_label": "Створити орбітальний скін",
-    "skin_system_ready": "Орбітальний скін готовий",
-    "skin_exosphere_label": "Створити скін екзосфери — {{cost}}",
-    "skin_exosphere_ready": "Скін екзосфери готовий",
+    "skin_system_label": "Створити скін планети",
+    "skin_system_ready": "Скін планети готовий",
+    "skin_exosphere_label": "Створити скін планети — {{cost}}",
+    "skin_exosphere_ready": "Скін планети готовий",
+    "skin_reveal_title": "Натягуємо скін планети",
+    "skin_reveal_progress": "Отримуємо фото і готуємо поверхню:",
+    "skin_reveal_done": "Новий скін уже натягнуто на планету.",
+    "skin_storage_missing": "Сховище скінів ще не створено. Потрібно виконати міграцію 019-planet-skins.sql у Neon.",
     "skin_generating": "отримуємо фото...",
     "photo_ad_label": "Запит супутника",
     "photo_ad_progress": "Передача даних: {{done}}/{{total}} пакетів"

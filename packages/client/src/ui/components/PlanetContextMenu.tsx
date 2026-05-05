@@ -1200,20 +1200,6 @@ export function PlanetContextMenu({
                   <>
                     <MenuItem
                       icon="◍"
-                      label={planetSkinStatus?.system === 'succeed'
-                        ? t('planet.skin_system_ready')
-                        : t('planet.skin_system_label')}
-                      onClick={itemsActive && !isSkinGenerating && planetSkinStatus?.system !== 'succeed'
-                        ? () => onGeneratePlanetSkin('system')
-                        : undefined}
-                      color={planetSkinStatus?.system === 'succeed' ? '#88ccaa' : '#ddaa44'}
-                      disabled={isSkinGenerating || planetSkinStatus?.system === 'succeed'}
-                      right={planetSkinStatus?.system && planetSkinStatus.system !== 'succeed'
-                        ? <span style={{ color: '#4488aa', fontSize: 9 }}>{t('planet.skin_generating')}</span>
-                        : undefined}
-                    />
-                    <MenuItem
-                      icon="◌"
                       label={planetSkinStatus?.exosphere === 'succeed'
                         ? t('planet.skin_exosphere_ready')
                         : <>{t('planet.skin_exosphere_label', { cost: exosphereSkinCost })}<QuarkIcon /></>}

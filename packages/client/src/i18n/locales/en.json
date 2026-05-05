@@ -36,9 +36,15 @@
     "terminal": "TERMINAL",
     "surface_title": "Surface",
     "arena": "ARENA",
-    "planet_icons": "PLANET ICONS",
-    "planet_icons_on": "ICONS ON",
-    "planet_icons_tooltip": "Show orbiting status icons around planets in this system"
+    "planet_icons": "STATUSES",
+    "planet_icons_on": "STATUSES ON",
+    "planet_icons_tooltip": "Show orbiting statuses around planets in this system",
+    "planet_statuses": "STATUSES",
+    "planet_statuses_on": "STATUSES ON",
+    "planet_statuses_tooltip": "Show orbiting statuses around planets in this system",
+    "planet_names": "NAMES",
+    "planet_names_on": "NAMES ON",
+    "planet_names_tooltip": "Show planet names in this system"
   },
   "hangar": {
     "ship": {
@@ -151,10 +157,14 @@
     "photo_base_label": "Planet photo",
     "photo_view_label": "View planet photo",
     "photo_generating": "getting photo...",
-    "skin_system_label": "Create orbit skin",
-    "skin_system_ready": "Orbit skin ready",
-    "skin_exosphere_label": "Create exosphere skin — {{cost}}",
-    "skin_exosphere_ready": "Exosphere skin ready",
+    "skin_system_label": "Create planet skin",
+    "skin_system_ready": "Planet skin ready",
+    "skin_exosphere_label": "Create planet skin — {{cost}}",
+    "skin_exosphere_ready": "Planet skin ready",
+    "skin_reveal_title": "Applying planet skin",
+    "skin_reveal_progress": "Getting photo and preparing the surface:",
+    "skin_reveal_done": "The new skin is now wrapped onto the planet.",
+    "skin_storage_missing": "Planet skin storage is not created yet. Run migration 019-planet-skins.sql in Neon.",
     "skin_generating": "getting photo...",
     "photo_ad_label": "Satellite Request",
     "photo_ad_progress": "Data transfer: {{done}}/{{total}} packets"

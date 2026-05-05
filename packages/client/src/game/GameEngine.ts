@@ -418,6 +418,11 @@ export class GameEngine {
     this.systemScene?.setPlanetStatusVisuals(statuses, visible);
   }
 
+  /** Toggle planet name labels inside the active system scene. */
+  setSystemPlanetLabelsVisible(visible: boolean) {
+    this.systemScene?.setPlanetLabelsVisible(visible);
+  }
+
   /** Sync generated planet texture previews into the active system scene. */
   setPlanetSkinTextures(textures: Record<string, string | null | undefined>) {
     this.systemScene?.setPlanetSkinTextures(textures);

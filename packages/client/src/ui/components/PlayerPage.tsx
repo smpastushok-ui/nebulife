@@ -189,9 +189,37 @@ export function PlayerPage({
     onStartOver();
   };
 
-  const handleAvatarFile = (file: File | undefined) => {
+  const validateAvatarDimensions = (file: File): Promise<boolean> => new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image.width >= 128 && image.height >= 128 && image.width <= 4096 && image.height <= 4096);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(false);
+    };
+    image.src = url;
+  });
+
+  const openAvatarPicker = () => {
+    playSfx('ui-click', 0.07);
+    if (avatarUploading) return;
+    if (isGuest) {
+      onLinkAccount();
+      return;
+    }
+    avatarInputRef.current?.click();
+  };
+
+  const handleAvatarFile = async (file: File | undefined) => {
     if (!file) return;
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+      setAvatarError(t('player.avatar_file_error'));
+      return;
+    }
+    if (!(await validateAvatarDimensions(file))) {
       setAvatarError(t('player.avatar_file_error'));
       return;
     }
@@ -261,22 +289,60 @@ export function PlayerPage({
         gap: 16,
       }}>
         {/* Avatar */}
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={t('player.avatar_section')}
+        <button
+          type="button"
+          disabled={avatarUploading}
+          onClick={openAvatarPicker}
+          title={t('player.avatar_upload')}
+          style={{
+            position: 'relative',
+            width: 78,
+            height: 78,
+            padding: 0,
+            border: 'none',
+            borderRadius: '50%',
+            background: 'transparent',
+            cursor: avatarUploading ? 'wait' : 'pointer',
+            opacity: avatarUploading ? 0.72 : 1,
+          }}
+        >
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={t('player.avatar_section')}
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: `1px solid ${accentColor}`,
+                boxShadow: `0 0 24px ${accentColor}33`,
+              }}
+            />
+          ) : (
+            <AvatarSVG color={accentColor} />
+          )}
+          <span
             style={{
-              width: 72,
-              height: 72,
+              position: 'absolute',
+              right: 2,
+              bottom: 3,
+              width: 24,
+              height: 24,
               borderRadius: '50%',
-              objectFit: 'cover',
+              display: 'grid',
+              placeItems: 'center',
+              background: 'rgba(5,10,20,0.96)',
               border: `1px solid ${accentColor}`,
-              boxShadow: `0 0 24px ${accentColor}33`,
+              color: accentColor,
+              fontSize: 18,
+              lineHeight: '20px',
+              boxShadow: `0 0 12px ${accentColor}44`,
             }}
-          />
-        ) : (
-          <AvatarSVG color={accentColor} />
-        )}
+          >
+            +
+          </span>
+        </button>
 
         {/* Name */}
         <div style={{
@@ -351,23 +417,11 @@ export function PlayerPage({
               e.currentTarget.value = '';
             }}
           />
-          <button
-            disabled={avatarUploading}
-            onClick={() => {
-              playSfx('ui-click', 0.07);
-              if (isGuest) {
-                onLinkAccount();
-                return;
-              }
-              avatarInputRef.current?.click();
-            }}
-            style={{
-              ...actionButtonStyle,
-              opacity: avatarUploading ? 0.65 : 1,
-            }}
-          >
-            {avatarUploading ? t('player.avatar_uploading') : t('player.avatar_upload')}
-          </button>
+          {avatarUploading && (
+            <div style={{ fontSize: 10, color: accentColor, lineHeight: 1.4 }}>
+              {t('player.avatar_uploading')}
+            </div>
+          )}
           {avatarUrl && onRemoveAvatar && (
             <button
               disabled={avatarUploading}

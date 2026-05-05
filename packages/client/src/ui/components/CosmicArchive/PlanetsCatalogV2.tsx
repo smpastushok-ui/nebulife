@@ -1736,28 +1736,6 @@ function ExpandedDetailPanel({
             {onGeneratePlanetSkin && (
               <>
                 <button
-                  disabled={skinBusy || planetSkinStatus?.system === 'succeed'}
-                  onClick={() => onGeneratePlanetSkin(system, planet, 'system')}
-                  style={{
-                    padding: '9px 12px',
-                    background: 'rgba(40,55,25,0.45)',
-                    border: '1px solid #665533',
-                    borderRadius: 4,
-                    color: planetSkinStatus?.system === 'succeed' ? '#88ccaa' : '#ddaa44',
-                    fontFamily: 'monospace',
-                    fontSize: 11,
-                    cursor: skinBusy || planetSkinStatus?.system === 'succeed' ? 'default' : 'pointer',
-                    opacity: skinBusy || planetSkinStatus?.system === 'succeed' ? 0.65 : 1,
-                    textAlign: 'left',
-                  }}
-                >
-                  {planetSkinStatus?.system === 'succeed'
-                    ? t('planet.skin_system_ready')
-                    : skinBusy
-                      ? t('planet.skin_generating')
-                      : t('planet.skin_system_label')}
-                </button>
-                <button
                   disabled={skinBusy || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin}
                   onClick={() => onGeneratePlanetSkin(system, planet, 'exosphere')}
                   style={{

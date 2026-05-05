@@ -275,6 +275,13 @@ function MissionPhotoReceiveOverlay({ imageDataUrl, planetName, startedAt }: { i
   );
 }
 
+function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function computeResourceStorageCapacity(buildings: PlacedBuilding[]): number {
   return buildings
     .filter((building) => !building.shutdown)
@@ -1027,6 +1034,7 @@ function AppInner() {
 
   const [planetMissionClock, setPlanetMissionClock] = useState(() => Date.now());
   const [systemPlanetStatusIconsMode, setSystemPlanetStatusIconsMode] = useState(false);
+  const [systemPlanetLabelsMode, setSystemPlanetLabelsMode] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_planet_reveal_levels', JSON.stringify(planetRevealLevels)); }
@@ -1964,6 +1972,9 @@ function AppInner() {
     else localStorage.removeItem('nebulife_arena_active');
   }, []);
   const [showRaid, setShowRaidRaw] = useState(false);
+  const [lastRaidQuestDate, setLastRaidQuestDate] = useState<string>(() => {
+    try { return localStorage.getItem('nebulife_daily_raid_date') ?? ''; } catch { return ''; }
+  });
   const setShowRaid = useCallback((val: boolean) => {
     setShowRaidRaw(val);
     setArenaPopupGate(val);
@@ -2017,6 +2028,22 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, needsOnboarding]);
+
+  useEffect(() => {
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || needsOnboarding;
+    if (shouldPause) return;
+    const unlockSpaceAudio = () => {
+      ambientRef.current?.resume(800);
+    };
+    document.addEventListener('pointerdown', unlockSpaceAudio, { capture: true });
+    document.addEventListener('keydown', unlockSpaceAudio, { capture: true });
+    document.addEventListener('touchstart', unlockSpaceAudio, { capture: true });
+    return () => {
+      document.removeEventListener('pointerdown', unlockSpaceAudio, true);
+      document.removeEventListener('keydown', unlockSpaceAudio, true);
+      document.removeEventListener('touchstart', unlockSpaceAudio, true);
+    };
   }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, needsOnboarding]);
 
   // Retain last planet context so colony tick can run passively when surface is closed.
@@ -3282,6 +3309,10 @@ function AppInner() {
     terraformStates,
   ]);
 
+  useEffect(() => {
+    engineRef.current?.setSystemPlanetLabelsVisible(systemPlanetLabelsMode);
+  }, [state.scene, state.selectedSystem?.id, systemPlanetLabelsMode]);
+
   const [arenaStats, setArenaStats] = useState<ArenaStats | null>(() => {
     try {
       const raw = localStorage.getItem('nebulife_arena_stats');
@@ -3544,6 +3575,12 @@ function AppInner() {
   const [systemPhotos, setSystemPhotos] = useState<Map<string, SystemPhotoData>>(new Map());
   const [systemMissions, setSystemMissions] = useState<Map<string, SystemMissionData>>(new Map());
   const [planetSkins, setPlanetSkins] = useState<Map<string, PlanetSkin>>(new Map());
+  const [planetSkinReveal, setPlanetSkinReveal] = useState<{
+    planetId: string;
+    planetName: string;
+    status: 'generating' | 'succeed';
+    startedAt: number;
+  } | null>(null);
 
   // ── Telescope overlay state ───────────────────────────────────────────
   const [telescopeOverlay, setTelescopeOverlay] = useState<{
@@ -6011,26 +6048,28 @@ function AppInner() {
       });
   }, [state.selectedPlanet, state.selectedSystem, quarks, isGuest]);
 
-  const handleGeneratePlanetSkin = useCallback((kind: PlanetSkinKind, targetSystem?: StarSystem, targetPlanet?: Planet) => {
+  const handleGeneratePlanetSkin = useCallback((_kind: PlanetSkinKind, targetSystem?: StarSystem, targetPlanet?: Planet) => {
     const planet = targetPlanet ?? state.selectedPlanet;
     const sys = targetSystem ?? state.selectedSystem;
     if (!planet || !sys) return;
-    const key = `${kind}-${planet.id}`;
-    const cost = kind === 'exosphere' ? 50 : 0;
+    const skinKind: PlanetSkinKind = 'exosphere';
+    const key = `${skinKind}-${planet.id}`;
+    const cost = 50;
 
     if (cost > 0 && quarks < cost) {
       if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
       return;
     }
 
-    setState((prev) => ({ ...prev, showPlanetMenu: false }));
+    handleViewPlanetExosphere(sys, planet.id);
+    setPlanetSkinReveal({ planetId: planet.id, planetName: planet.name, status: 'generating', startedAt: Date.now() });
     setPlanetSkins((prev) => {
       const next = new Map(prev);
       next.set(key, {
         id: `temp-${key}`,
         planet_id: planet.id,
         system_id: sys.id,
-        kind,
+        kind: skinKind,
         status: 'generating',
         texture_url: null,
         kling_task_id: null,
@@ -6042,12 +6081,10 @@ function AppInner() {
       });
       return next;
     });
-    setToastMessage(kind === 'exosphere'
-      ? `${t('planet.skin_exosphere_label')} 50`
-      : t('planet.skin_system_label'));
+    setToastMessage(t('planet.skin_generating'));
     setTimeout(() => setToastMessage(null), 3000);
 
-    generatePlanetSkin(playerId.current, sys.id, planet.id, sys, kind)
+    generatePlanetSkin(playerId.current, sys.id, planet.id, sys, skinKind)
       .then(({ skinId, status, textureUrl, quarksRemaining }) => {
         if (quarksRemaining !== null && quarksRemaining !== undefined) setQuarks(quarksRemaining);
         setPlanetSkins((prev) => {
@@ -6056,7 +6093,7 @@ function AppInner() {
             id: skinId,
             planet_id: planet.id,
             system_id: sys.id,
-            kind,
+            kind: skinKind,
             status,
             texture_url: textureUrl ?? null,
             kling_task_id: null,
@@ -6069,7 +6106,13 @@ function AppInner() {
           return next;
         });
 
-        if (status === 'succeed' && textureUrl) return;
+        if (status === 'succeed' && textureUrl) {
+          setPlanetSkinReveal({ planetId: planet.id, planetName: planet.name, status: 'succeed', startedAt: Date.now() });
+          setToastMessage(t('planet.skin_exosphere_ready'));
+          window.setTimeout(() => setPlanetSkinReveal(null), 2600);
+          window.setTimeout(() => setToastMessage(null), 3000);
+          return;
+        }
         pollPlanetSkinStatus(skinId, (result) => {
           if (result.status === 'succeed' && result.textureUrl) {
             setPlanetSkins((prev) => {
@@ -6080,7 +6123,7 @@ function AppInner() {
                   id: skinId,
                   planet_id: planet.id,
                   system_id: sys.id,
-                  kind,
+                  kind: skinKind,
                   kling_task_id: null,
                   prompt_used: null,
                   generated_by: playerId.current,
@@ -6093,8 +6136,10 @@ function AppInner() {
               });
               return next;
             });
-            setToastMessage(t(kind === 'exosphere' ? 'planet.skin_exosphere_ready' : 'planet.skin_system_ready'));
-            setTimeout(() => setToastMessage(null), 3000);
+            setPlanetSkinReveal({ planetId: planet.id, planetName: planet.name, status: 'succeed', startedAt: Date.now() });
+            setToastMessage(t('planet.skin_exosphere_ready'));
+            window.setTimeout(() => setPlanetSkinReveal(null), 2600);
+            window.setTimeout(() => setToastMessage(null), 3000);
           } else if (result.status === 'failed') {
             setPlanetSkins((prev) => {
               const next = new Map(prev);
@@ -6102,6 +6147,7 @@ function AppInner() {
               if (existing) next.set(key, { ...existing, status: 'failed' });
               return next;
             });
+            setPlanetSkinReveal(null);
           }
         });
       })
@@ -6112,10 +6158,14 @@ function AppInner() {
           next.delete(key);
           return next;
         });
-        setToastMessage(err instanceof Error ? err.message : 'Planet skin generation failed');
+        setPlanetSkinReveal(null);
+        const message = err instanceof Error ? err.message : 'Planet skin generation failed';
+        setToastMessage(message.includes('planet_skins') || message.includes('does not exist')
+          ? t('planet.skin_storage_missing')
+          : message);
         setTimeout(() => setToastMessage(null), 3500);
       });
-  }, [state.selectedPlanet, state.selectedSystem, quarks, isGuest, t]);
+  }, [state.selectedPlanet, state.selectedSystem, quarks, isGuest, t, handleViewPlanetExosphere]);
 
   const findSystemForPlanetReport = useCallback((report: PlanetReportSummary): StarSystem | null => {
     if (state.selectedSystem?.id === report.systemId) return state.selectedSystem;
@@ -6253,14 +6303,19 @@ function AppInner() {
   }, [state.selectedSystem, systemPhotos, aliases]);
 
   // ── Telescope overlay callbacks ───────────────────────────────────────
-  const buildPhotoShareUrl = useCallback((photoKey: string): string => {
+  const buildPhotoShareUrl = useCallback((photoKey: string, photoUrl?: string | null, targetName?: string, source?: string): string => {
     const encoded = encodeURIComponent(photoKey);
-    return photoKey.startsWith('planet-') ? `https://nebulife.space/photo/${encoded}` : `https://nebulife.space/share/${encoded}`;
+    const params = new URLSearchParams();
+    if (photoUrl) params.set('image', photoUrl);
+    if (targetName) params.set('name', targetName);
+    if (source) params.set('type', source);
+    const query = params.toString();
+    return `https://nebulife.space/photo/${encoded}${query ? `?${query}` : ''}`;
   }, []);
 
   const buildTelescopeShareText = useCallback((): string => {
     if (!telescopeOverlay) return 'Nebulife';
-    const shareUrl = buildPhotoShareUrl(telescopeOverlay.photoKey);
+    const shareUrl = buildPhotoShareUrl(telescopeOverlay.photoKey, telescopeOverlay.photoUrl, telescopeOverlay.targetName, telescopeOverlay.source);
     if (telescopeOverlay.source === 'mission') {
       const signature = i18n.language.startsWith('uk')
         ? `Отримано фото з місії на планету ${telescopeOverlay.targetName}. Небулайф - твій власний космос`
@@ -6273,7 +6328,7 @@ function AppInner() {
   const handleTelescopeShare = useCallback(async () => {
     if (!telescopeOverlay?.photoUrl) return;
     const text = buildTelescopeShareText();
-    const url = buildPhotoShareUrl(telescopeOverlay.photoKey);
+    const url = buildPhotoShareUrl(telescopeOverlay.photoKey, telescopeOverlay.photoUrl, telescopeOverlay.targetName, telescopeOverlay.source);
     try {
       if (navigator.share) {
         // Try sharing with the photo file
@@ -8496,7 +8551,27 @@ function AppInner() {
           hidden={hideLeftPanel}
           extraButtons={[
             {
-              title: systemPlanetStatusIconsMode ? t('cmd.planet_icons_on') : t('cmd.planet_icons_tooltip'),
+              title: systemPlanetLabelsMode ? t('cmd.planet_names_on') : t('cmd.planet_names_tooltip'),
+              icon: (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 15,
+                  height: 15,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  lineHeight: '15px',
+                }}>
+                  A
+                </span>
+              ),
+              onClick: () => setSystemPlanetLabelsMode((prev) => !prev),
+              active: systemPlanetLabelsMode,
+            },
+            {
+              title: systemPlanetStatusIconsMode ? t('cmd.planet_statuses_on') : t('cmd.planet_statuses_tooltip'),
               icon: (
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
                   <circle cx="8" cy="8" r="4.2" />
@@ -8781,7 +8856,12 @@ function AppInner() {
             setTimeout(() => setToastMessage(null), 3000);
           }}
           onShare={async () => {
-            const shareUrl = buildPhotoShareUrl(missionPhotoViewer.photoKey);
+            const shareUrl = buildPhotoShareUrl(
+              missionPhotoViewer.photoKey,
+              missionPhotoViewer.photoUrl,
+              missionPhotoViewer.planetName,
+              'mission',
+            );
             const text = i18n.language.startsWith('uk')
               ? `Отримано фото з місії на планету ${missionPhotoViewer.planetName}. Небулайф - твій власний космос\n${shareUrl}`
               : `Photo from mission to planet ${missionPhotoViewer.planetName}. Nebulife - your own cosmos\n${shareUrl}`;
@@ -9774,6 +9854,17 @@ function AppInner() {
             setShowArena(true);
           }}
           onEnterRaid={() => {
+            const today = localDateKey();
+            const raidDateKey = `nebulife_daily_raid_date_${playerId.current || 'guest'}`;
+            let savedRaidDate = lastRaidQuestDate;
+            try { savedRaidDate = localStorage.getItem(raidDateKey) ?? savedRaidDate; } catch { /* ignore */ }
+            if (savedRaidDate === today) {
+              setToastMessage(t('hangar.event.raid_daily_done'));
+              window.setTimeout(() => setToastMessage(null), 2800);
+              return;
+            }
+            try { localStorage.setItem(raidDateKey, today); } catch { /* ignore */ }
+            setLastRaidQuestDate(today);
             syncGameStateRef.current(); // push latest state to server before raid
             setArenaTeamMode(false);
             setShowHangar(false);
@@ -9810,6 +9901,59 @@ function AppInner() {
             interstitialManager.tryShow();
           }}
         />
+      )}
+
+      {planetSkinReveal && state.scene === 'planet-view' && state.selectedPlanet?.id === planetSkinReveal.planetId && (
+        <div
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: 94,
+            transform: 'translateX(-50%)',
+            width: 'min(420px, calc(100vw - 32px))',
+            padding: '14px 16px',
+            borderRadius: 8,
+            border: planetSkinReveal.status === 'succeed' ? '1px solid rgba(68,255,136,0.55)' : '1px solid rgba(123,184,255,0.45)',
+            background: 'linear-gradient(135deg, rgba(5,10,20,0.94), rgba(16,24,38,0.90))',
+            boxShadow: planetSkinReveal.status === 'succeed'
+              ? '0 0 28px rgba(68,255,136,0.18)'
+              : '0 0 28px rgba(68,136,170,0.18)',
+            color: '#aabbcc',
+            fontFamily: 'monospace',
+            zIndex: 10045,
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: '50%',
+                border: '1px solid rgba(123,184,255,0.55)',
+                background: planetSkinReveal.status === 'succeed'
+                  ? 'radial-gradient(circle at 35% 30%, #d7fff0 0%, #44ff88 26%, #114433 58%, #020510 100%)'
+                  : 'conic-gradient(from 0deg, rgba(123,184,255,0.15), rgba(123,184,255,0.85), rgba(123,184,255,0.15))',
+                filter: planetSkinReveal.status === 'succeed' ? 'drop-shadow(0 0 10px rgba(68,255,136,0.35))' : 'none',
+              }}
+            />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: planetSkinReveal.status === 'succeed' ? '#88ffbb' : '#7bb8ff', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                {planetSkinReveal.status === 'succeed' ? t('planet.skin_exosphere_ready') : t('planet.skin_reveal_title')}
+              </div>
+              <div style={{ marginTop: 4, fontSize: 11, color: '#8899aa' }}>
+                {planetSkinReveal.status === 'succeed'
+                  ? t('planet.skin_reveal_done')
+                  : `${t('planet.skin_reveal_progress')} ${planetSkinReveal.planetName}`}
+              </div>
+              {planetSkinReveal.status === 'generating' && (
+                <div style={{ marginTop: 10, height: 3, borderRadius: 2, overflow: 'hidden', background: 'rgba(51,68,85,0.55)' }}>
+                  <div style={{ width: '72%', height: '100%', background: 'linear-gradient(90deg, transparent, #7bb8ff, transparent)' }} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Telescope Overlay */}

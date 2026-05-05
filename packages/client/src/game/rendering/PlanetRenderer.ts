@@ -220,6 +220,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
     style: { fontSize: 9, fill: 0x889999, fontFamily: 'monospace', align: 'center', lineHeight: 11 },
     resolution: 3,
   });
+  label.name = 'planet-name-label';
   label.anchor.set(0.5, 0);
   label.y = size + 8;
   container.addChild(label);

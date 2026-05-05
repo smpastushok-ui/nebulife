@@ -395,8 +395,9 @@ export function buildGeminiPlanetPhotoPrompt(
     sharedStyle,
   ];
 
+  const isLivingBiosphere = planet.hasLife && planet.lifeComplexity !== 'none' && planet.lifeComplexity !== 'microbial';
   const biospherePrompt = [
-    `SURFACE ROVER BIOSPHERE PHOTO.`,
+    isLivingBiosphere ? `INHABITED PLANET BIOSPHERE PHOTO.` : `SURFACE ROVER BIOSPHERE PHOTO.`,
     `PLANET DATA:`,
     missionContext,
     `${planet.name}, type ${planet.type}, ${typeDesc}, surface temperature ${Math.round(planet.surfaceTempK)}K, gravity ${planet.surfaceGravityG}g.`,
@@ -406,7 +407,9 @@ export function buildGeminiPlanetPhotoPrompt(
     `A grounded rover camera photograph from the surface of ${planet.name}, focused on the local biosphere or plausible pre-biosphere environment.`,
     `If the planet can support visible life, show realistic alien vegetation, microbial mats, lichens, shallow water edges, or biofilm-like textures shaped by the atmosphere and temperature.`,
     `If visible life is unlikely, show a scientific surface ecology survey scene: mineral crusts, ice, evaporite patterns, dust, rocks, haze, and possible microscopic biosignature sampling markers without inventing animals.`,
-    `Show only a small part of the rover chassis, wheel, robotic arm, or camera mast at the lower edge or side of the frame, subtle and believable.`,
+    isLivingBiosphere
+      ? `The camera platform must not be visible: no rover chassis, no wheel, no robotic arm, no camera mast, no drone, no spacecraft, only the inhabited biosphere landscape.`
+      : `Show only a small part of the rover chassis, wheel, robotic arm, or camera mast at the lower edge or side of the frame, subtle and believable.`,
     `Use eye-level or low rover perspective, natural terrain scale, realistic shadows, no humans.`,
     cinematicDir,
     sharedStyle,

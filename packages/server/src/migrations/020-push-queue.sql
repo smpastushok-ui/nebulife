@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS push_queue (
   title_uk TEXT NOT NULL,
   body_uk TEXT NOT NULL,
   title_en TEXT NOT NULL,
-  body_en TEXT NOT NULL,
+  body_en TEXT NOT NULL, 
   data_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'sending', 'sent', 'failed', 'cancelled')),

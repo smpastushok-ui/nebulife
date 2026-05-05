@@ -16,6 +16,7 @@ import { areAdsUnlockedAfterSettlement } from './ad-release-gate.js';
 // **TO RESTORE ADS:** set to `false` here AND in ads-service.ts.
 // =============================================================================
 const ADS_DISABLED_FOR_TESTING = false;
+const ADS_DISABLED_ON_ANDROID_FOR_TESTERS = true;
 
 // Interstitial ad unit IDs
 // TEST mode: use Google test IDs during development/testing
@@ -45,6 +46,7 @@ class InterstitialManager {
     // TEMP: testers — never trigger an interstitial.
     if (ADS_DISABLED_FOR_TESTING) return false;
 
+    if (ADS_DISABLED_ON_ANDROID_FOR_TESTERS && Capacitor.getPlatform() === 'android') return false;
     if (!areAdsUnlockedAfterSettlement()) return false;
     if (this._isPremium) return false;
     if (!Capacitor.isNativePlatform()) return false;
@@ -79,6 +81,7 @@ class InterstitialManager {
     // TEMP: testers — skip AdMob preload entirely.
     if (ADS_DISABLED_FOR_TESTING) return;
 
+    if (ADS_DISABLED_ON_ANDROID_FOR_TESTERS && Capacitor.getPlatform() === 'android') return;
     if (!areAdsUnlockedAfterSettlement()) return;
     if (this._isPremium || !Capacitor.isNativePlatform()) return;
     try {

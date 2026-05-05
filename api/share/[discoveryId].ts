@@ -54,8 +54,6 @@ function renderSharePage(params: {
   <meta name="twitter:description" content="${esc(description)}" />
   <meta name="twitter:image" content="${esc(photoUrl)}" />
 
-  <!-- Redirect human visitors to the app -->
-  <meta http-equiv="refresh" content="0;url=${esc(appUrl)}" />
   <style>
     body {
       margin: 0; background: #020510; color: #aabbcc;

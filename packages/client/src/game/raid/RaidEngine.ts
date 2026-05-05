@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { playLoop, playSfx, setLoopVolume, stopLoop } from '../../audio/SfxPlayer.js';
 import { getDeviceTier } from '../../utils/device-tier.js';
 import {
   RAID_ACCELERATION,
@@ -47,6 +48,9 @@ const PLAYER_START_Y = -520;
 const RAID_SHIP_MODEL_NOSE_OFFSET = Math.PI / 2;
 const ALLY_TINT = 0x5f9dff;
 const ENEMY_TINT = 0xff6644;
+const MISSILE_DAMAGE = 42;
+const MISSILE_SPEED = 720;
+const MISSILE_LIFETIME = 3.2;
 
 function shipUrlFromId(shipId: string): string {
   return shipId === 'red' || shipId === 'red_ship' ? RED_SHIP : BLUE_SHIP;
@@ -162,6 +166,7 @@ export class RaidEngine {
   private barrelRollTimer = 0;
   private barrelRollCooldown = 0;
   private missileCooldown = 0;
+  private mobileMissileRepeat = 0;
   private keys = new Set<string>();
   private moveInput = new THREE.Vector3();
   private aimInput = new THREE.Vector3(0, 0, -1);
@@ -177,6 +182,7 @@ export class RaidEngine {
   private readonly maxPitchRate = 1.05;
   private readonly maxRoll = Math.PI / 4;
   private readonly barrelRollDuration = RAID_BARREL_ROLL_DURATION;
+  private lastLaserSfxAt = 0;
 
   constructor(container: HTMLElement, callbacks: RaidCallbacks, shipId: string, customShipGlbUrl?: string | null) {
     this.container = container;
@@ -227,6 +233,8 @@ export class RaidEngine {
     this.renderer.domElement.addEventListener('mousedown', this.handleMouseDown);
     this.renderer.domElement.addEventListener('mouseup', this.handleMouseUp);
     this.renderer.domElement.addEventListener('contextmenu', this.preventContextMenu);
+    playSfx('arena-start', 0.06);
+    playLoop('fly', 0.0);
     this.clock.start();
     this.loop();
   }
@@ -249,6 +257,7 @@ export class RaidEngine {
       this.renderer.domElement.remove();
     }
     this.backgroundTexture?.dispose();
+    stopLoop('fly');
     if (this.scene) disposeObject(this.scene);
     this.scene = null;
     this.camera = null;
@@ -260,14 +269,16 @@ export class RaidEngine {
   }
 
   setMobileAim(x: number, y: number, firing: boolean): void {
-    this.aimInput.set(x, y * 0.35, -1).normalize();
+    this.aimInput.set(x, -y * 0.65, -1).normalize();
     this.aimDir.copy(this.aimInput);
-    if (firing) this.firePlayerBurst();
+    if (firing) this.firePlayerLaser();
   }
 
   setMobileSector(sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity'): void {
     this.sectorAction = sector;
-    if (sector === 'missile') this.firePlayerBurst(true);
+    if (sector === 'missile') this.fireMissile();
+    if (sector === 'warp') this.triggerDash();
+    if (sector === 'dodge') this.triggerBarrelRoll();
   }
 
   triggerDash(): void {
@@ -275,18 +286,26 @@ export class RaidEngine {
     const forward = this.aimDir.clone().normalize();
     if (forward.lengthSq() === 0) forward.set(0, 0, -1);
     this.player.vel.addScaledVector(forward, 520);
+    playSfx('arena-warp', 0.12);
   }
 
   fireMissile(): void {
     if (this.missileCooldown > 0) return;
-    this.firePlayerBurst(true);
+    if (!this.player || !this.player.alive) return;
+    const target = this.findAimTarget(2600, 0.35);
+    const dir = target
+      ? target.pos.clone().addScaledVector(target.vel, 0.35).sub(this.player.pos).normalize()
+      : this.aimDir.clone().normalize();
+    this.fireProjectileDir('allied', this.player.pos, dir, MISSILE_DAMAGE, 'missile');
     this.missileCooldown = 0.55;
+    playSfx('arena-missile', 0.15);
   }
 
   triggerBarrelRoll(): void {
     if (this.barrelRollCooldown > 0) return;
     this.barrelRollTimer = this.barrelRollDuration;
     this.barrelRollCooldown = RAID_BARREL_ROLL_COOLDOWN;
+    playSfx('arena-warp', 0.08, 1.35);
   }
 
   getSnapshot(): RaidSnapshot {
@@ -671,6 +690,7 @@ export class RaidEngine {
       this.projectiles.push({
         active: false,
         team: 'allied',
+        kind: 'laser',
         damage: RAID_PROJECTILE_DAMAGE,
         age: 0,
         lifetime: RAID_PROJECTILE_LIFETIME,
@@ -715,6 +735,7 @@ export class RaidEngine {
   private updatePlayer(dt: number): void {
     if (!this.player || !this.player.alive) return;
     this.missileCooldown = Math.max(0, this.missileCooldown - dt);
+    this.mobileMissileRepeat = Math.max(0, this.mobileMissileRepeat - dt);
     if (this.barrelRollTimer > 0) this.barrelRollTimer -= dt;
     if (this.barrelRollCooldown > 0) this.barrelRollCooldown -= dt;
 
@@ -722,11 +743,16 @@ export class RaidEngine {
     const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
     if (right.lengthSq() < 0.01) right.set(1, 0, 0);
     const dir = new THREE.Vector3();
-    if (this.keys.has('w') || this.keys.has('arrowup')) dir.add(forward);
-    if (this.keys.has('s') || this.keys.has('arrowdown')) dir.addScaledVector(forward, -1);
-    if (this.keys.has('a') || this.keys.has('arrowleft')) dir.addScaledVector(right, -1);
-    if (this.keys.has('d') || this.keys.has('arrowright')) dir.addScaledVector(right, 1);
-    dir.add(this.moveInput);
+    if (this.isMobile) {
+      const thrust = -this.moveInput.z;
+      if (Math.abs(thrust) > 0.01) dir.addScaledVector(forward, thrust);
+      if (Math.abs(this.moveInput.x) > 0.01) dir.addScaledVector(right, this.moveInput.x * 0.65);
+    } else {
+      if (this.keys.has('w') || this.keys.has('arrowup')) dir.add(forward);
+      if (this.keys.has('s') || this.keys.has('arrowdown')) dir.addScaledVector(forward, -1);
+      if (this.keys.has('a') || this.keys.has('arrowleft')) dir.addScaledVector(right, -1);
+      if (this.keys.has('d') || this.keys.has('arrowright')) dir.addScaledVector(right, 1);
+    }
     if (dir.lengthSq() > 1) {
       dir.normalize();
       dir.y *= 0.6;
@@ -739,13 +765,20 @@ export class RaidEngine {
     this.player.vel.multiplyScalar(Math.pow(RAID_DRAG, dt * 60));
     this.clampToSector(this.player.pos);
     this.updateShield(this.player, dt);
-    this.orientObjectToDirection(this.player.mesh, this.aimDir, this.shipRoll + this.currentBarrelRoll());
-    if (this.desktopLaserHeld || this.sectorAction === 'missile') {
+    this.orientShipToDirection(this.player.mesh, this.aimDir, this.shipRoll + this.currentBarrelRoll());
+    const speedPct = Math.min(1, this.player.vel.length() / RAID_SPEED);
+    setLoopVolume('fly', 0.03 + speedPct * 0.11);
+    const mobileAutoLaser = this.isMobile && this.sectorAction === 'center' && this.findAimTarget(1500, 0.86);
+    if (this.desktopLaserHeld || mobileAutoLaser) {
       this.player.fireCooldown -= dt;
       if (this.player.fireCooldown <= 0) {
-        this.fireProjectileDir('allied', this.player.pos, this.aimDir, RAID_PROJECTILE_DAMAGE);
-        this.player.fireCooldown = this.sectorAction === 'missile' ? 0.12 : 0.25;
+        this.firePlayerLaser();
+        this.player.fireCooldown = 0.25;
       }
+    }
+    if (this.sectorAction === 'missile' && this.mobileMissileRepeat <= 0) {
+      this.fireMissile();
+      this.mobileMissileRepeat = 1.8;
     }
   }
 
@@ -792,28 +825,38 @@ export class RaidEngine {
 
   private updateWingmen(dt: number): void {
     if (!this.player) return;
+    const forward = this.aimDir.clone().normalize();
+    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+    if (right.lengthSq() < 0.01) right.set(1, 0, 0);
+    const up = new THREE.Vector3().crossVectors(right, forward).normalize();
     for (let i = 0; i < this.wingmen.length; i++) {
       const wing = this.wingmen[i];
       if (!wing.alive) continue;
-      const angle = performance.now() * 0.00025 + i * Math.PI * 0.5;
-      const desired = this.player.pos.clone().add(new THREE.Vector3(
-        (i - 1.5) * 160 + Math.cos(angle) * 45,
-        (i - 1.5) * 36,
-        -240 + Math.sin(angle) * 55,
-      ));
-      wing.vel.addScaledVector(desired.sub(wing.pos), dt * 1.2);
-      clampLength(wing.vel, RAID_SPEED * 0.82);
+      const time = performance.now() * 0.001;
+      const phase = i * 1.73;
+      const side = i % 2 === 0 ? -1 : 1;
+      const depth = [-420, -120, 260, 560][i] ?? -240;
+      const altitude = [-260, 230, -120, 320][i] ?? 0;
+      const desired = this.player.pos.clone()
+        .addScaledVector(forward, depth + Math.sin(time * 0.7 + phase) * 150)
+        .addScaledVector(right, side * (220 + i * 55) + Math.cos(time * 1.1 + phase) * 95)
+        .addScaledVector(up, altitude + Math.sin(time * 1.4 + phase) * 120);
+      wing.vel.addScaledVector(desired.sub(wing.pos), dt * 1.55);
+      clampLength(wing.vel, RAID_SPEED * 0.92);
       wing.pos.addScaledVector(wing.vel, dt);
-      wing.vel.multiplyScalar(Math.pow(0.9, dt * 60));
+      wing.vel.multiplyScalar(Math.pow(0.91, dt * 60));
       this.updateShield(wing, dt);
       const target = this.findNearestTarget(wing.pos, 1600);
       if (target) {
-        this.lookAt(wing.mesh, target.pos);
+        this.orientShipToDirection(wing.mesh, target.pos.clone().sub(wing.pos).normalize(), Math.sin(time + phase) * 0.18);
         wing.fireCooldown -= dt;
         if (wing.fireCooldown <= 0) {
           this.fireProjectile('allied', wing.pos, target.pos, RAID_ALLY_DAMAGE);
+          if (Math.random() < 0.35) playSfx('arena-laser', 0.035, 1.15);
           wing.fireCooldown = 0.45 + i * 0.05;
         }
+      } else {
+        this.orientShipToDirection(wing.mesh, forward, Math.sin(time + phase) * 0.12);
       }
     }
   }
@@ -849,7 +892,7 @@ export class RaidEngine {
       -0.16 - Math.random() * 0.18,
       Math.sin(launchAngle),
     ).normalize();
-    this.orientObjectToDirection(mesh, launchDir);
+    this.orientShipToDirection(mesh, launchDir);
     this.scene.add(mesh);
     this.enemies.push({
       id: 100 + this.enemies.length,
@@ -891,7 +934,7 @@ export class RaidEngine {
       enemy.pos.addScaledVector(enemy.vel, dt);
       enemy.vel.multiplyScalar(Math.pow(0.94, dt * 60));
       this.clampToSector(enemy.pos);
-      this.orientObjectToDirection(enemy.mesh, target.pos.clone().sub(enemy.pos).normalize());
+      this.orientShipToDirection(enemy.mesh, target.pos.clone().sub(enemy.pos).normalize());
       enemy.fireCooldown -= dt;
       if (enemy.fireCooldown <= 0 && dist < (this.isMobile ? 1100 : 1500)) {
         const predicted = target.pos.clone().addScaledVector(target.vel, Math.min(0.28, dist / RAID_PROJECTILE_SPEED));
@@ -931,6 +974,13 @@ export class RaidEngine {
     for (const p of this.projectiles) {
       if (!p.active) continue;
       p.age += dt;
+      if (p.kind === 'missile' && p.team === 'allied') {
+        const target = this.findMissileTarget(p.pos);
+        if (target) {
+          const desired = target.pos.clone().addScaledVector(target.vel, 0.22).sub(p.pos).normalize();
+          p.vel.lerp(desired.multiplyScalar(MISSILE_SPEED), Math.min(1, dt * 2.6));
+        }
+      }
       p.pos.addScaledVector(p.vel, dt);
       if (p.age > p.lifetime) {
         this.deactivateProjectile(p);
@@ -942,9 +992,14 @@ export class RaidEngine {
     }
   }
 
-  private firePlayerBurst(strong = false): void {
+  private firePlayerLaser(): void {
     if (!this.player) return;
-    this.fireProjectileDir('allied', this.player.pos, this.aimDir, strong ? 38 : RAID_PROJECTILE_DAMAGE);
+    this.fireProjectileDir('allied', this.player.pos, this.aimDir, RAID_PROJECTILE_DAMAGE, 'laser');
+    const now = performance.now();
+    if (now - this.lastLaserSfxAt > 90) {
+      this.lastLaserSfxAt = now;
+      playSfx('arena-laser', 0.08);
+    }
   }
 
   private fireProjectile(team: RaidTeam, from: THREE.Vector3, to: THREE.Vector3, damage: number): void {
@@ -952,31 +1007,43 @@ export class RaidEngine {
     if (!p) return;
     p.active = true;
     p.team = team;
+    p.kind = 'laser';
     p.damage = damage;
     p.age = 0;
     p.lifetime = RAID_PROJECTILE_LIFETIME;
+    p.radius = 8;
     p.pos.copy(from);
     const dir = to.clone().sub(from).normalize();
     p.vel.copy(dir.multiplyScalar(RAID_PROJECTILE_SPEED));
     const material = p.mesh.material as THREE.MeshBasicMaterial;
     material.color.set(team === 'allied' ? 0x7bb8ff : 0xff8844);
+    p.mesh.scale.set(1, 1, 1);
     p.mesh.visible = true;
     this.orientObjectToDirection(p.mesh, dir);
   }
 
-  private fireProjectileDir(team: RaidTeam, from: THREE.Vector3, dirIn: THREE.Vector3, damage: number): void {
+  private fireProjectileDir(
+    team: RaidTeam,
+    from: THREE.Vector3,
+    dirIn: THREE.Vector3,
+    damage: number,
+    kind: 'laser' | 'missile' = 'laser',
+  ): void {
     const p = this.projectiles.find(item => !item.active);
     if (!p) return;
     const dir = dirIn.clone().normalize();
     p.active = true;
     p.team = team;
+    p.kind = kind;
     p.damage = damage;
     p.age = 0;
-    p.lifetime = RAID_PROJECTILE_LIFETIME;
-    p.pos.copy(from);
-    p.vel.copy(dir.multiplyScalar(RAID_PROJECTILE_SPEED));
+    p.lifetime = kind === 'missile' ? MISSILE_LIFETIME : RAID_PROJECTILE_LIFETIME;
+    p.radius = kind === 'missile' ? 18 : 8;
+    p.pos.copy(from).addScaledVector(dir, this.player && team === 'allied' ? this.player.radius + 20 : 20);
+    p.vel.copy(dir.multiplyScalar(kind === 'missile' ? MISSILE_SPEED : RAID_PROJECTILE_SPEED));
     const material = p.mesh.material as THREE.MeshBasicMaterial;
-    material.color.set(team === 'allied' ? 0x7bb8ff : 0xff8844);
+    material.color.set(kind === 'missile' ? 0xffcc44 : team === 'allied' ? 0x7bb8ff : 0xff8844);
+    p.mesh.scale.set(kind === 'missile' ? 1.7 : 1, kind === 'missile' ? 1.7 : 1, kind === 'missile' ? 1.45 : 1);
     p.mesh.visible = true;
     this.orientObjectToDirection(p.mesh, dir);
   }
@@ -984,6 +1051,7 @@ export class RaidEngine {
   private deactivateProjectile(p: RaidProjectile): void {
     p.active = false;
     p.mesh.visible = false;
+    p.mesh.scale.set(1, 1, 1);
   }
 
   private hitEnemyTargets(p: RaidProjectile): void {
@@ -994,6 +1062,9 @@ export class RaidEngine {
         if (!enemy.alive) {
           this.kills++;
           this.callbacks.onKill?.({ kills: this.kills, source: 'player' });
+          playSfx('arena-explosion', 0.12);
+        } else if (p.kind === 'missile') {
+          playSfx('missile-hit', 0.16);
         }
         this.deactivateProjectile(p);
         return;
@@ -1008,6 +1079,9 @@ export class RaidEngine {
           module.alive = false;
           if (module.mesh !== this.carrier) module.mesh.visible = false;
           this.modulesDestroyed++;
+          playSfx('arena-explosion', 0.16);
+        } else if (p.kind === 'missile') {
+          playSfx('missile-hit', 0.16);
         }
         this.deactivateProjectile(p);
         return;
@@ -1082,6 +1156,14 @@ export class RaidEngine {
     if (Math.abs(roll) > 0.0001) obj.rotateZ(roll);
   }
 
+  private orientShipToDirection(obj: THREE.Object3D, dirIn: THREE.Vector3, roll = 0): void {
+    const dir = dirIn.clone();
+    if (dir.lengthSq() < 0.001) return;
+    dir.normalize();
+    obj.lookAt(obj.position.clone().sub(dir));
+    if (Math.abs(roll) > 0.0001) obj.rotateOnAxis(new THREE.Vector3(0, 0, -1), roll);
+  }
+
   private currentBarrelRoll(): number {
     if (this.barrelRollTimer <= 0) return 0;
     const progress = 1 - this.barrelRollTimer / this.barrelRollDuration;
@@ -1111,6 +1193,30 @@ export class RaidEngine {
     for (const module of this.modules) {
       if (module.type === 'reactor_core' && shieldsUp) continue;
       check(module.pos, new THREE.Vector3(), module.alive);
+    }
+    return best;
+  }
+
+  private findMissileTarget(from: THREE.Vector3): { pos: THREE.Vector3; vel: THREE.Vector3 } | null {
+    let best: { pos: THREE.Vector3; vel: THREE.Vector3 } | null = null;
+    let bestD = 2200 * 2200;
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const d = enemy.pos.distanceToSquared(from);
+      if (d < bestD) {
+        bestD = d;
+        best = { pos: enemy.pos, vel: enemy.vel };
+      }
+    }
+    const shieldsUp = this.modules.some(m => m.type === 'shield_emitter' && m.alive);
+    for (const module of this.modules) {
+      if (!module.alive) continue;
+      if (module.type === 'reactor_core' && shieldsUp) continue;
+      const d = module.pos.distanceToSquared(from);
+      if (d < bestD) {
+        bestD = d;
+        best = { pos: module.pos, vel: new THREE.Vector3() };
+      }
     }
     return best;
   }
