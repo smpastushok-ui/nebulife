@@ -37,12 +37,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     language?: 'uk' | 'en';
     gender?: 'female' | 'male';
     text?: string;
+    voiceName?: string;
   };
 
   const slug = body.slug?.trim();
   const language = body.language;
   const gender = body.gender;
   const text = body.text?.trim();
+  const voiceName = typeof body.voiceName === 'string' && /^[a-zA-Z0-9-]+$/.test(body.voiceName)
+    ? body.voiceName
+    : undefined;
 
   if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
     return res.status(400).json({ error: 'invalid slug' });
@@ -63,10 +67,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       text,
       language: langCode,
       gender,
+      voiceName,
     });
 
+    // For voice-sample requests, include the voice name in the blob path so
+    // multiple candidates don't overwrite each other.
+    const isSample = slug.startsWith('voice-sample-');
+    const blobPath = isSample
+      ? `academy/audio/samples/${slug}.mp3`
+      : `academy/audio/${slug}.${language}.${gender}.mp3`;
+
     const blob = await put(
-      `academy/audio/${slug}.${language}.${gender}.mp3`,
+      blobPath,
       result.audio,
       {
         access: 'public',
