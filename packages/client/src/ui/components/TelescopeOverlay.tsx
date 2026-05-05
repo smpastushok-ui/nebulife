@@ -14,8 +14,11 @@ interface TelescopeOverlayProps {
   targetType: 'system' | 'planet';
   phase: TelescopePhase;
   photoUrl: string | null;
+  canDownload?: boolean;
   onSaveToCollection: () => void;
   onShare: () => void;
+  onDownload?: () => void;
+  onGoToExosphere?: () => void;
   onClose: () => void;
 }
 
@@ -44,8 +47,11 @@ export function TelescopeOverlay({
   targetType,
   phase,
   photoUrl,
+  canDownload,
   onSaveToCollection,
   onShare,
+  onDownload,
+  onGoToExosphere,
   onClose,
 }: TelescopeOverlayProps) {
   const { t } = useTranslation();
@@ -537,6 +543,42 @@ export function TelescopeOverlay({
                 >
                   {t('telescope.share_btn')}
                 </button>
+                {onGoToExosphere && (
+                  <button
+                    onClick={onGoToExosphere}
+                    style={{
+                      background: 'rgba(68, 136, 170, 0.12)',
+                      border: '1px solid #4488aa',
+                      borderRadius: 3,
+                      color: '#7bb8ff',
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      padding: '8px 20px',
+                      cursor: 'pointer',
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {t('telescope.to_exosphere')}
+                  </button>
+                )}
+                {canDownload && onDownload && (
+                  <button
+                    onClick={onDownload}
+                    style={{
+                      background: 'none',
+                      border: '1px solid #556677',
+                      borderRadius: 3,
+                      color: '#8899aa',
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      padding: '8px 20px',
+                      cursor: 'pointer',
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {t('photo.download')}
+                  </button>
+                )}
                 <button
                   onClick={handleSave}
                   style={{

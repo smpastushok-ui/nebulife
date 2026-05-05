@@ -2,7 +2,7 @@ import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import type { StarSystem, Planet, PlanetMissionPhase, PlanetMissionType } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import { renderStar } from '../rendering/StarRenderer.js';
-import { renderPlanet, renderOrbitProjected, renderSystemMoon, getPlanetSize, Y_COMPRESS } from '../rendering/PlanetRenderer.js';
+import { applyPlanetTexturePreview, renderPlanet, renderOrbitProjected, renderSystemMoon, getPlanetSize, Y_COMPRESS } from '../rendering/PlanetRenderer.js';
 import { getShipSpriteCanvas, peekShipSpriteCanvas } from '../rendering/ShipSpriteCache.js';
 import { tStatic } from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
@@ -609,6 +609,15 @@ export class SystemScene {
     this.redrawPlanetStatusIcons();
   }
 
+  setPlanetSkinTextures(textures: Record<string, string | null | undefined>): void {
+    for (const [planetId, textureUrl] of Object.entries(textures)) {
+      if (!textureUrl) continue;
+      const node = this.planetNodes.get(planetId);
+      if (!node) continue;
+      applyPlanetTexturePreview(node.container, textureUrl, getPlanetSize(node.planet));
+    }
+  }
+
   private redrawPlanetStatusIcons() {
     for (const [, node] of this.planetNodes) {
       const existing = node.container.getChildByName('planet-status-icons');
@@ -663,6 +672,8 @@ export class SystemScene {
       ? 0x7bb8ff
       : visual.data.type === 'deep_atmosphere_probe'
         ? 0xff8844
+        : visual.data.type === 'drone_recon'
+          ? 0xddaa44
         : 0x44ff88;
 
     visual.ring.clear();
@@ -680,42 +691,6 @@ export class SystemScene {
     }
 
     visual.marker.clear();
-    const markerAngle = this.time * 0.0015 + progress * Math.PI * 2;
-    const markerRadius = radius + 4;
-    if (visual.data.phase === 'outbound') {
-      const originNode = visual.data.originPlanetId
-        ? this.planetNodes.get(visual.data.originPlanetId)
-        : null;
-      const sx = originNode
-        ? originNode.container.x - planetNode.container.x
-        : -planetNode.container.x * 0.75;
-      const sy = originNode
-        ? originNode.container.y - planetNode.container.y
-        : -planetNode.container.y * 0.75;
-      const travel = Math.max(0, Math.min(1, visual.data.phaseProgress));
-      const arc = Math.sin(travel * Math.PI) * 18;
-      const fx = sx * (1 - travel) + Math.cos(markerAngle) * arc;
-      const fy = sy * (1 - travel) + Math.sin(markerAngle) * arc * Y_COMPRESS;
-      visual.marker.circle(fx, fy, 3);
-      visual.marker.fill({ color, alpha: 0.9 });
-    } else {
-      visual.marker.circle(Math.cos(markerAngle) * markerRadius, Math.sin(markerAngle) * markerRadius * Y_COMPRESS, isReady ? 3.2 : 2.2);
-      visual.marker.fill({ color, alpha: isReady ? 0.95 : 0.75 });
-    }
-
-    if (visual.data.phase === 'scan_or_landing' && visual.data.type === 'surface_landing') {
-      const y = -size - 6 + visual.data.phaseProgress * (size + 8);
-      visual.marker.moveTo(-3, y);
-      visual.marker.lineTo(0, y + 5);
-      visual.marker.lineTo(3, y);
-      visual.marker.stroke({ width: 1, color: 0xaabbcc, alpha: 0.85 });
-    }
-
-    if (visual.data.phase === 'data_downlink') {
-      visual.marker.moveTo(0, 0);
-      visual.marker.lineTo(-planetNode.container.x, -planetNode.container.y);
-      visual.marker.stroke({ width: 1, color: 0x7bb8ff, alpha: 0.18 + Math.sin(this.time * 0.01) * 0.08 });
-    }
   }
 
   private updateMissionVisuals() {

@@ -12,6 +12,7 @@ interface TelescopeGalleryProps {
   type: 'system' | 'planet' | 'biosphere' | 'aerial' | 'mission';
   allSystems: StarSystem[];
   aliases: Record<string, string>;
+  onGoToExosphere?: (system: StarSystem, planetId: string) => void;
 }
 
 interface PhotoEntry {
@@ -29,8 +30,16 @@ function getPlanetIdFromPhotoKey(key: string): string | null {
   if (key.startsWith('planet-aerial-')) return stripMissionSuffix(key.slice('planet-aerial-'.length));
   if (key.startsWith('planet-probe-')) return stripMissionSuffix(key.slice('planet-probe-'.length));
   if (key.startsWith('planet-rover-')) return stripMissionSuffix(key.slice('planet-rover-'.length));
+  if (key.startsWith('planet-drone-')) return stripMissionSuffix(key.slice('planet-drone-'.length));
   if (key.startsWith('planet-')) return stripMissionSuffix(key.slice('planet-'.length)); // legacy planet photo key
   return null;
+}
+
+function resolvePlanetContext(key: string, allSystems: StarSystem[]): { system: StarSystem; planetId: string } | null {
+  const planetId = getPlanetIdFromPhotoKey(key);
+  if (!planetId) return null;
+  const system = allSystems.find((sys) => sys.planets.some((planet) => planet.id === planetId));
+  return system ? { system, planetId } : null;
 }
 
 /** Resolve metadata for a photo key */
@@ -75,7 +84,7 @@ function formatDate(iso?: string): string {
   }
 }
 
-export function TelescopeGallery({ photos, type, allSystems, aliases }: TelescopeGalleryProps) {
+export function TelescopeGallery({ photos, type, allSystems, aliases, onGoToExosphere }: TelescopeGalleryProps) {
   const { t } = useTranslation();
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [viewingPhoto, setViewingPhoto] = useState<PhotoEntry | null>(null);
@@ -95,7 +104,7 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
       const isPhotoPlanet = key.startsWith('planet-');
       const isBiosphere = key.startsWith('planet-biosphere-');
       const isAerial = key.startsWith('planet-aerial-');
-      const isMission = key.startsWith('planet-probe-') || key.startsWith('planet-rover-');
+      const isMission = key.startsWith('planet-probe-') || key.startsWith('planet-rover-') || key.startsWith('planet-drone-');
       const isExosphere = key.startsWith('planet-exosphere-') || (key.startsWith('planet-') && !isBiosphere && !isAerial && !isMission);
 
       if (type === 'system' && isPhotoPlanet) continue;
@@ -130,10 +139,13 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
 
   // Share handler
   const handleShare = useCallback(async (entry: PhotoEntry) => {
-    const text = `Nebulife Telescope: ${entry.name}\nhttps://nebulife.space`;
+    const shareUrl = entry.key.startsWith('planet-')
+      ? `${window.location.origin}/photo/${encodeURIComponent(entry.key)}`
+      : window.location.origin;
+    const text = `Nebulife Telescope: ${entry.name}\n${shareUrl}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Nebulife', text });
+        await navigator.share({ title: 'Nebulife', text, url: shareUrl });
       } else {
         await navigator.clipboard.writeText(text);
       }
@@ -203,6 +215,14 @@ export function TelescopeGallery({ photos, type, allSystems, aliases }: Telescop
           entry={viewingPhoto}
           onClose={() => setViewingPhoto(null)}
           onShare={() => handleShare(viewingPhoto)}
+          onGoToExosphere={(() => {
+            const ctx = resolvePlanetContext(viewingPhoto.key, allSystems);
+            if (!ctx || !onGoToExosphere) return undefined;
+            return () => {
+              onGoToExosphere(ctx.system, ctx.planetId);
+              setViewingPhoto(null);
+            };
+          })()}
         />
       )}
     </div>
@@ -285,10 +305,11 @@ function PhotoCard({ entry, isMobile, onClick }: {
 // PhotoViewer — fullscreen view with parallax mouse tracking
 // ---------------------------------------------------------------------------
 
-function PhotoViewer({ entry, onClose, onShare }: {
+function PhotoViewer({ entry, onClose, onShare, onGoToExosphere }: {
   entry: PhotoEntry;
   onClose: () => void;
   onShare: () => void;
+  onGoToExosphere?: () => void;
 }) {
   const { t } = useTranslation();
   const imgRef = useRef<HTMLImageElement>(null);
@@ -366,6 +387,24 @@ function PhotoViewer({ entry, onClose, onShare }: {
         >
           {t('gallery.share')}
         </button>
+        {onGoToExosphere && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onGoToExosphere(); }}
+            style={{
+              background: 'rgba(68, 136, 170, 0.12)',
+              border: '1px solid #4488aa',
+              borderRadius: 3,
+              color: '#7bb8ff',
+              fontFamily: 'monospace',
+              fontSize: 11,
+              padding: '8px 20px',
+              cursor: 'pointer',
+              letterSpacing: 1,
+            }}
+          >
+            {t('gallery.to_exosphere')}
+          </button>
+        )}
         <button
           onClick={(e) => { e.stopPropagation(); onClose(); }}
           style={{

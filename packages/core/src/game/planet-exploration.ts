@@ -37,12 +37,13 @@ export function isSolidPlanetForLanding(planet: Planet): boolean {
 export function getTargetRevealLevel(type: PlanetMissionType): PlanetRevealLevel {
   if (type === 'orbital_scan') return 1;
   if (type === 'orbital_probe') return 2;
+  if (type === 'drone_recon') return 2;
   return 3;
 }
 
 export function getRequiredMissionBuilding(type: PlanetMissionType): 'landing_pad' | 'spaceport' | null {
   if (type === 'orbital_scan') return null;
-  if (type === 'orbital_probe' || type === 'surface_landing' || type === 'deep_atmosphere_probe') return 'landing_pad';
+  if (type === 'orbital_probe' || type === 'drone_recon' || type === 'surface_landing' || type === 'deep_atmosphere_probe') return 'landing_pad';
   return 'spaceport';
 }
 
@@ -75,6 +76,16 @@ export function computePlanetMissionCost(type: PlanetMissionType, planet: Planet
       volatiles: Math.ceil(45 + distance * 2),
       isotopes: Math.ceil(25 + distance * 2),
       payload: 'atmosphere_probe',
+    };
+  }
+
+  if (type === 'drone_recon') {
+    return {
+      researchData: researchDataCost,
+      minerals: 28,
+      volatiles: 14,
+      isotopes: Math.ceil(10 + distance),
+      payload: 'scout_drone',
     };
   }
 
@@ -133,6 +144,16 @@ export function computePlanetMissionDuration(type: PlanetMissionType, planet: Pl
       orbital_insertion: 24_000,
       scan_or_landing: Math.round(95_000 * giantMult),
       data_downlink: Math.round(55_000 + distanceAU * 16_000),
+    };
+  }
+
+  if (type === 'drone_recon') {
+    return {
+      preparing: 18_000,
+      outbound: Math.round(outbound * 0.72),
+      orbital_insertion: 10_000,
+      scan_or_landing: Math.round(45_000 * riskMult),
+      data_downlink: Math.round(26_000 + distanceAU * 8_000),
     };
   }
 
@@ -207,6 +228,9 @@ export function canStartPlanetMission(params: {
   }
 
   if (params.type === 'surface_landing' && !isSolidPlanetForLanding(params.planet)) {
+    return { canStart: false, reason: 'surface_unavailable' };
+  }
+  if (params.type === 'drone_recon' && !isSolidPlanetForLanding(params.planet)) {
     return { canStart: false, reason: 'surface_unavailable' };
   }
   if (params.type === 'deep_atmosphere_probe' && isSolidPlanetForLanding(params.planet)) {

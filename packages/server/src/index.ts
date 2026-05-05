@@ -32,6 +32,12 @@ export {
   getPlanetModelByPayment,
   getPlanetModels,
   updatePlanetModel,
+  // Planet Skins (shared Kling texture maps)
+  savePlanetSkin,
+  getPlanetSkin,
+  getPlanetSkinById,
+  getPlanetSkinsForSystem,
+  updatePlanetSkin,
   // Surface Buildings
   saveSurfaceBuilding,
   getSurfaceBuildings,
@@ -60,6 +66,7 @@ export {
   saveSystemPhoto,
   getSystemPhoto,
   getSystemPhotoById,
+  getSystemPhotoBySystemId,
   updateSystemPhoto,
   getPlayerSystemPhotos,
   // System Missions (video)
@@ -151,6 +158,7 @@ export type {
   KlingTaskRow,
   ExpeditionRow,
   PlanetModelRow,
+  PlanetSkinRow,
   SurfaceBuildingRow,
   SurfaceMapRow,
   SurfaceStateRow,
@@ -216,6 +224,10 @@ export { buildSurfacePrompt } from './surface-prompt-builder.js';
 
 // Planet 3D model prompt builder
 export { buildPlanetModelPrompt } from './planet-model-prompt-builder.js';
+
+// Planet skin prompt builder
+export { buildPlanetSkinPrompt, PLANET_SKIN_EXOSPHERE_COST_QUARKS } from './planet-skin-prompt-builder.js';
+export type { PlanetSkinKind } from './planet-skin-prompt-builder.js';
 
 // System photo/mission prompt builder
 export { buildSystemPhotoPrompt, buildMissionVideoPrompt, buildGeminiSystemPhotoPrompt } from './system-photo-prompt-builder.js';

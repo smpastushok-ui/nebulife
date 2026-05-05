@@ -66,6 +66,8 @@ function drawMetadata(
   ctx.fillStyle = 'rgba(210,230,240,0.88)';
   const camera = report.missionType === 'surface_landing'
     ? 'ROVER SURFACE CAM'
+    : report.missionType === 'drone_recon'
+      ? 'DRONE RECON CAM'
     : report.missionType === 'deep_atmosphere_probe'
       ? 'ATMOSPHERE PROBE'
       : 'ORBITAL PROBE';
@@ -355,6 +357,10 @@ export function renderMissionProbePhoto(params: {
 }
 
 export function getMissionPhotoKey(planetId: string, report: PlanetReportSummary): string {
-  const prefix = report.missionType === 'surface_landing' ? 'planet-rover' : 'planet-probe';
+  const prefix = report.missionType === 'surface_landing'
+    ? 'planet-rover'
+    : report.missionType === 'drone_recon'
+      ? 'planet-drone'
+      : 'planet-probe';
   return `${prefix}-${planetId}__${report.missionId}`;
 }

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { getMessages } from '../../packages/server/src/db.js';
+import { getMessages, getPlayer } from '../../packages/server/src/db.js';
 
 /**
  * GET /api/messages/list?channel=global&limit=50&after=<iso-timestamp>
@@ -48,7 +48,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const messages = await getMessages(channel, limit, after || undefined);
+    const player = channel === 'global' ? await getPlayer(auth.playerId) : null;
+    const messages = await getMessages(
+      channel,
+      limit,
+      after || undefined,
+      channel === 'global' ? player?.created_at : undefined,
+    );
     return res.status(200).json(messages);
   } catch (err) {
     console.error('List messages error:', err);

@@ -418,6 +418,11 @@ export class GameEngine {
     this.systemScene?.setPlanetStatusVisuals(statuses, visible);
   }
 
+  /** Sync generated planet texture previews into the active system scene. */
+  setPlanetSkinTextures(textures: Record<string, string | null | undefined>) {
+    this.systemScene?.setPlanetSkinTextures(textures);
+  }
+
   /** Enter a system (called after warp animation completes) */
   enterSystem(system: StarSystem) {
     this.showSystemScene(system);

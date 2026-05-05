@@ -8,12 +8,13 @@ const TICK_INTERVAL = 22;
 const TYPEWRITER_SFX_VOLUME = 0.01;
 
 function getReportTitleKey(report: PlanetReportSummary): string {
-  if (report.missionType === 'surface_landing') return 'mission_report.surface_title';
+  if (report.missionType === 'surface_landing' || report.missionType === 'drone_recon') return 'mission_report.surface_title';
   return 'mission_report.atmosphere_title';
 }
 
 function getFreePhotoKey(report: PlanetReportSummary): string {
   if (report.missionType === 'surface_landing') return 'mission_report.action_rover_photo';
+  if (report.missionType === 'drone_recon') return 'mission_report.action_drone_photo';
   if (report.missionType === 'deep_atmosphere_probe') return 'mission_report.action_atmo_probe_photo';
   return 'mission_report.action_probe_photo';
 }

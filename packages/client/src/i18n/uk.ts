@@ -169,6 +169,10 @@ export const uk = {
   'planet.potential': 'потенц.',
   'planet.low':       'мало',
   'planet.dead':      'мертва',
+  'planet.skin_system_label': 'Створити орбітальний скін',
+  'planet.skin_system_ready': 'Орбітальний скін готовий',
+  'planet.skin_exosphere_label': 'Створити скін екзосфери',
+  'planet.skin_exosphere_ready': 'Скін екзосфери готовий',
 
   // Planet detail window types (capitalized)
   'planet.type.rocky':     'Скелясте',
@@ -222,7 +226,7 @@ export const uk = {
   'context.actions.mission': 'Місія',
   'context.premium.title':  'Преміум інструменти',
   'context.photo.label':    'Фото планети',
-  'context.photo.generating': 'генерується...',
+  'context.photo.generating': 'отримуємо фото...',
   'context.planet.destroyed': 'ЗРУЙНОВАНО',
   'context.planet.debris':  'Планета зруйнована. Залишились лише уламки.',
 
@@ -539,7 +543,9 @@ export const uk = {
   'app.log.tech_researched':    'Дослiджено технологiю: {name}',
   'app.log.tech_integrated':    'Технологiю iнтегровано: {name}',
   'app.log.level_up':           'Рiвень пiдвищено до {level}!',
+  'app.log.planet_mission_report': 'Місія на планеті {planet} завершена. Отримано дані T{tier}; звіт доступний у системному чаті та меню планети.',
   'app.notif.quantum_synth':    'Квантовий синтез {planet} завершено',
+  'app.notif.planet_mission_report': 'Дані місії з планети {planet} отримано. Звіт T{tier} готовий.',
 
   // ─── Tutorial ─────────────────────────────────────────────────────────────
   'tutorial.click_element': 'Натиснiть на видiлений елемент',
@@ -616,16 +622,21 @@ export const uk = {
   'scene_controls.zoom_out': 'Віддалити',
 
   // Mission report photos
+  'mission_report.receiving_photo':         'Приймаємо фото місії',
   'mission_report.photo_saved_to_gallery': 'Фото місії збережено в галерею',
   'mission_report.photo_save_failed':      'Не вдалося зберегти фото місії',
   'mission_report.view_saved_photo':       'Подивитися фото місії',
   'mission_report.saved_photo_title':      'Фото місії · {planet}',
+  'mission_report.system_notif':           'Дані місії з планети {planet} отримано. Звіт T{tier} готовий.',
+  'mission_report.system_log':             'Місія на планеті {planet} завершена. Отримано дані T{tier}; звіт доступний у системному чаті та меню планети.',
 
   // Planet exploration missions
   'planet_terminal.free_ships_short':       '{count} кораб.',
   'planet_missions.reports_group':          'Звіти',
   'planet_missions.reveal_level_short':     'T{level}',
   'planet_missions.no_reports':             'Звітів для цієї планети ще немає.',
+  'planet_missions.type.drone_recon':        'Розвідка дроном',
+  'planet_missions.report.drone_recon':      'Дрон-розвідник передав дані',
   'planet_missions.reason.unknown':             'Мiсiя недоступна',
   'planet_missions.reason.already_revealed':    'Цей рiвень даних уже вiдкрито',
   'planet_missions.reason.active_mission':      'Для цiєї планети вже триває мiсiя',

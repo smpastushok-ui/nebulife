@@ -53,6 +53,7 @@ interface PlanetGlobeViewProps {
   system: StarSystem;
   mode: 'home' | 'planet-view';
   onDoubleClick?: () => void;
+  textureUrl?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -469,6 +470,7 @@ function createPlanetSphere(
   planet: Planet,
   star: Star,
   lod: ExosphereLOD,
+  textureUrl?: string | null,
 ): { mesh: THREE.Mesh; uniforms: Record<string, THREE.IUniform> } {
   const visuals = derivePlanetVisuals(planet, star);
   const uniforms = planetVisualsToUniforms(visuals, planet, star);
@@ -487,11 +489,23 @@ function createPlanetSphere(
   // viewport height and most users never zoom past 2×.
   const segs = lod.planetSegments;
   const geometry = new THREE.SphereGeometry(1, segs, segs);
-  const material = new THREE.ShaderMaterial({
-    vertexShader: planetVertSrc,
-    fragmentShader: fragShader,
-    uniforms,
-  });
+  const generatedTexture = textureUrl ? new THREE.TextureLoader().load(textureUrl) : null;
+  if (generatedTexture) {
+    generatedTexture.colorSpace = THREE.SRGBColorSpace;
+    generatedTexture.wrapS = THREE.RepeatWrapping;
+    generatedTexture.wrapT = THREE.ClampToEdgeWrapping;
+  }
+  const material = generatedTexture
+    ? new THREE.MeshStandardMaterial({
+        map: generatedTexture,
+        roughness: 0.95,
+        metalness: 0,
+      })
+    : new THREE.ShaderMaterial({
+        vertexShader: planetVertSrc,
+        fragmentShader: fragShader,
+        uniforms,
+      });
 
   const mesh = new THREE.Mesh(geometry, material);
   // Visual size factor based on the planet's actual radius. Sphere geometry
@@ -1215,7 +1229,7 @@ function spawnShootingStar(scene: THREE.Scene): ShootingStar {
 // ---------------------------------------------------------------------------
 
 const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
-  ({ planet, star, system, mode, onDoubleClick }, ref) => {
+  ({ planet, star, system, mode, onDoubleClick, textureUrl }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const animFrameRef = useRef<number>(0);
@@ -1410,7 +1424,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       const starGroup = createDistantStar(scene, star, planet);
 
       // 3. Planet sphere
-      const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod);
+      const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, textureUrl);
 
       // 4. Cloud layer (skipped on low tier)
       const cloudResult = createCloudLayer(scene, planet, lod);
@@ -1656,7 +1670,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           container.removeChild(renderer.domElement);
         }
       };
-    }, [planet.id, star.id]); // Re-create scene only when planet/star changes
+    }, [planet.id, star.id, textureUrl]); // Re-create scene when planet/star/skin changes
 
     return (
       <div

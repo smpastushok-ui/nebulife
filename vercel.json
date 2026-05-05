@@ -13,6 +13,7 @@
   ],
   "rewrites": [
     { "source": "/share/:discoveryId", "destination": "/api/share/:discoveryId" },
+    { "source": "/photo/:photoKey", "destination": "/api/photo/:photoKey" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/support", "destination": "/support.html" },
     { "source": "/auth/apple/callback", "destination": "/api/auth/apple/callback" },

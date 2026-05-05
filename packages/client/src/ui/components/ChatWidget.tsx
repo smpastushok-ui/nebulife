@@ -511,6 +511,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     setMessages([]);
   };
 
+  const openDMWithPlayer = useCallback((peerId: string, peerName: string) => {
+    if (!peerId || peerId === playerId || peerId === 'system' || peerId === 'astra') return;
+    playSfx('ui-click', 0.05);
+    openDM(dmChannelId(playerId, peerId), peerName);
+  }, [playerId]);
+
   const handleNewDM = (peerId: string, peerCallsign: string) => {
     setShowNewDM(false);
     const ch = dmChannelId(playerId, peerId);
@@ -861,6 +867,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                   onReported={() => {}}
                   onAwardXP={onAwardXP}
                   isOwnPremium={isPremium}
+                  onOpenDM={tab === 'global' ? openDMWithPlayer : undefined}
                 />
               ))}
               <div ref={messagesEndRef} />
@@ -1511,6 +1518,7 @@ function MessageItem({
   onReported,
   onAwardXP,
   isOwnPremium,
+  onOpenDM,
 }: {
   message: MessageData;
   isOwn: boolean;
@@ -1519,6 +1527,7 @@ function MessageItem({
   onAwardXP?: (amount: number, reason: string) => void;
   /** Whether the own player has a Pro subscription (to show badge on own messages) */
   isOwnPremium?: boolean;
+  onOpenDM?: (peerId: string, peerName: string) => void;
 }) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
@@ -1526,6 +1535,7 @@ function MessageItem({
   const [reported, setReported] = useState(false);
 
   const time = fmtTime(message.created_at);
+  const canOpenDM = !isOwn && message.sender_id !== 'system' && message.sender_id !== 'astra' && Boolean(onOpenDM);
 
   const handleReport = async () => {
     try {
@@ -1558,16 +1568,39 @@ function MessageItem({
       }}
     >
       <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
-        <span style={{
-          color: isOwn ? '#4488aa' : '#8899aa',
-          fontSize: 10,
-          fontWeight: 'bold',
-          display: 'inline-flex',
-          alignItems: 'center',
-        }}>
-          {isOwn ? t('chat.you_label') : message.sender_name}
-          {isOwn && isOwnPremium && <ProBadge />}
-        </span>
+        {canOpenDM ? (
+          <button
+            type="button"
+            onClick={() => onOpenDM?.(message.sender_id, message.sender_name)}
+            title={t('chat.new_conversation')}
+            style={{
+              background: hovered ? 'rgba(20,30,45,0.5)' : 'rgba(20,30,45,0.28)',
+              border: `1px solid ${hovered ? '#334455' : '#223344'}`,
+              borderRadius: 3,
+              color: hovered ? '#aabbcc' : '#8899aa',
+              fontFamily: 'monospace',
+              fontSize: 10,
+              fontWeight: 'bold',
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '1px 5px',
+              cursor: 'pointer',
+            }}
+          >
+            {message.sender_name}
+          </button>
+        ) : (
+          <span style={{
+            color: isOwn ? '#4488aa' : '#8899aa',
+            fontSize: 10,
+            fontWeight: 'bold',
+            display: 'inline-flex',
+            alignItems: 'center',
+          }}>
+            {isOwn ? t('chat.you_label') : message.sender_name}
+            {isOwn && isOwnPremium && <ProBadge />}
+          </span>
+        )}
         <span style={{ color: '#445566', fontSize: 9 }}>{time}</span>
 
         {/* Report flag — only for others, only on hover */}

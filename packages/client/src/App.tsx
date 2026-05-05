@@ -138,7 +138,7 @@ import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, fetchUniverseInfo } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
-import { requestPushPermission, startForegroundListener } from './notifications/push-service.js';
+import { requestPushPermissionDetailed, startForegroundListener } from './notifications/push-service.js';
 import { getCurrentUser, onAuthChange, signOut } from './auth/auth-service.js';
 import { authFetch, apiFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
@@ -181,6 +181,13 @@ import {
   getPlayerSystemPhotos as fetchPlayerSystemPhotos,
 } from './api/system-photo-api.js';
 import type { PlanetPhotoKind } from './api/system-photo-api.js';
+import {
+  generatePlanetSkin,
+  listPlanetSkinsForSystem,
+  pollPlanetSkinStatus,
+  type PlanetSkin,
+  type PlanetSkinKind,
+} from './api/planet-skin-api.js';
 import { saveMissionPhoto } from './api/mission-photo-api.js';
 
 export type SceneType = 'universe' | 'cluster' | 'galaxy' | 'system' | 'home-intro' | 'planet-view';
@@ -591,6 +598,10 @@ function AppInner() {
       error: null,
     };
   });
+  const stateRef = useRef<GameState>(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const [researchState, setResearchState] = useState<ResearchState>(() => {
     // Try to restore research state from localStorage
@@ -991,7 +1002,7 @@ function AppInner() {
   const [missionAlphaGenerating, setMissionAlphaGenerating] = useState(false);
   const [savedMissionPhotoKeys, setSavedMissionPhotoKeys] = useState<Record<string, boolean>>({});
   const [missionPhotoReveal, setMissionPhotoReveal] = useState<{ imageDataUrl: string; planetName: string; startedAt: number } | null>(null);
-  const [missionPhotoViewer, setMissionPhotoViewer] = useState<{ planetName: string; photoUrl: string } | null>(null);
+  const [missionPhotoViewer, setMissionPhotoViewer] = useState<{ planetName: string; photoUrl: string; photoKey: string; systemId?: string; planetId?: string } | null>(null);
 
   const [explorationPayloads, setExplorationPayloads] = useState<Partial<Record<ProducibleType, number>>>(() => {
     try {
@@ -2966,12 +2977,14 @@ function AppInner() {
       ? {
           orbital_scan: 'Orbital scan',
           orbital_probe: 'Orbital probe',
+          drone_recon: 'Drone reconnaissance',
           surface_landing: 'Surface expedition',
           deep_atmosphere_probe: 'Atmosphere probe',
         }
       : {
           orbital_scan: 'Орбітальне сканування',
           orbital_probe: 'Орбітальний зонд',
+          drone_recon: 'Розвідка дроном',
           surface_landing: 'Поверхнева експедиція',
           deep_atmosphere_probe: 'Атмосферний зонд',
         };
@@ -3148,6 +3161,40 @@ function AppInner() {
           return next;
         });
         setPlanetRevealLevels((prev) => ({ ...prev, ...revealUpdates }));
+        const allSystems = engineRef.current?.getAllSystems() ?? [];
+        const nowTs = Date.now();
+        const missionNotifs = reportsToAdd.map((report) => {
+          const system = allSystems.find((entry) => entry.id === report.systemId);
+          const planet = system?.planets.find((entry) => entry.id === report.planetId);
+          const planetName = planet?.name ?? report.planetId;
+          return {
+            id: `notif-${nowTs}-${report.planetId}-${Math.random().toString(36).slice(2, 6)}`,
+            text: t('mission_report.system_notif')
+              .replace('{planet}', planetName)
+              .replace('{tier}', String(report.revealLevel)),
+            planetName,
+            systemId: report.systemId,
+            planetId: report.planetId,
+            timestamp: nowTs,
+            read: false,
+          };
+        });
+        setSystemNotifs((prev) => [...prev, ...missionNotifs]);
+        setLogEntries((prev) => [
+          ...prev,
+          ...missionNotifs.map((notif, index) => ({
+            id: `log-${nowTs}-${notif.planetId}-${index}`,
+            category: 'expedition' as const,
+            text: t('mission_report.system_log')
+              .replace('{planet}', notif.planetName)
+              .replace('{tier}', String(reportsToAdd[index]?.revealLevel ?? '?')),
+            timestamp: nowTs + index,
+            planetName: notif.planetName,
+            systemId: notif.systemId,
+            planetId: notif.planetId,
+            objectType: 'planet_mission_report',
+          })),
+        ]);
         scheduleSyncToServer();
       }
 
@@ -3173,7 +3220,7 @@ function AppInner() {
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [planetMissions, planetRevealLevels, scheduleSyncToServer]);
+  }, [planetMissions, planetRevealLevels, scheduleSyncToServer, t]);
 
   useEffect(() => {
     if (state.scene !== 'system' || !state.selectedSystem) {
@@ -3310,7 +3357,6 @@ function AppInner() {
   }, [sharedLessonInfo]);
   const cosmicArchiveRef = useRef<CosmicArchiveHandle>(null);
   const [highlightedGalleryType, setHighlightedGalleryType] = useState<string | null>(null);
-  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   // ── Tutorial state ──────────────────────────────────────────────────────
   const [tutorialStep, setTutorialStep] = useState<number>(() => {
@@ -3493,6 +3539,7 @@ function AppInner() {
   const [galaxyWarpPhase, setGalaxyWarpPhase] = useState<'idle' | 'hyperspace'>('idle');
   const [systemPhotos, setSystemPhotos] = useState<Map<string, SystemPhotoData>>(new Map());
   const [systemMissions, setSystemMissions] = useState<Map<string, SystemMissionData>>(new Map());
+  const [planetSkins, setPlanetSkins] = useState<Map<string, PlanetSkin>>(new Map());
 
   // ── Telescope overlay state ───────────────────────────────────────────
   const [telescopeOverlay, setTelescopeOverlay] = useState<{
@@ -3501,6 +3548,7 @@ function AppInner() {
     targetType: 'system' | 'planet';
     photoUrl: string | null;
     photoKey: string;
+    source?: 'system' | 'planet' | 'mission';
   } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -4669,6 +4717,36 @@ function AppInner() {
     }).catch(() => {});
   }, [firebaseUser, refreshQuarks]);
 
+  useEffect(() => {
+    if (!state.selectedSystem) return;
+    let cancelled = false;
+    listPlanetSkinsForSystem(state.selectedSystem.id)
+      .then((skins) => {
+        if (cancelled) return;
+        setPlanetSkins((prev) => {
+          const next = new Map(prev);
+          for (const skin of skins) {
+            next.set(`${skin.kind}-${skin.planet_id}`, skin);
+          }
+          return next;
+        });
+      })
+      .catch((err) => console.warn('[PlanetSkin] list failed:', err));
+    return () => { cancelled = true; };
+  }, [state.selectedSystem?.id]);
+
+  useEffect(() => {
+    if (state.scene !== 'system' || !state.selectedSystem) return;
+    const textures: Record<string, string> = {};
+    for (const planet of state.selectedSystem.planets) {
+      const skin = planetSkins.get(`system-${planet.id}`);
+      if (skin?.status === 'succeed' && skin.texture_url) {
+        textures[planet.id] = skin.texture_url;
+      }
+    }
+    engineRef.current?.setPlanetSkinTextures(textures);
+  }, [state.scene, state.selectedSystem, planetSkins]);
+
   // Handle payment redirect (e.g., ?payment=success&topup=true)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -5584,6 +5662,24 @@ function AppInner() {
     }
   }, [state.selectedPlanet, state.selectedSystem]);
 
+  const handleViewPlanetExosphere = useCallback((system: StarSystem, planetId: string) => {
+    const planet = system.planets.find((entry) => entry.id === planetId);
+    if (!planet) return;
+    playSfx('go-to-exosphera', 1.0);
+    setShowCosmicArchive(false);
+    setMissionPhotoViewer(null);
+    engineRef.current?.showPlanetViewScene(system, planet, true);
+    setState((prev) => ({
+      ...prev,
+      scene: 'planet-view' as const,
+      selectedSystem: system,
+      selectedPlanet: planet,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+      planetClickPos: null,
+    }));
+  }, []);
+
   const handleShowCharacteristics = useCallback(() => {
     setState((prev) => ({
       ...prev,
@@ -5707,6 +5803,7 @@ function AppInner() {
       targetType: 'system',
       photoUrl: null,
       photoKey: sysId,
+      source: 'system',
     });
 
     // Transition to capture phase after init animation
@@ -5786,7 +5883,7 @@ function AppInner() {
       });
   }, [quarks, aliases]);
 
-  /** Planet photo generation — exosphere via Kling, surface/aerial via Nano Banana 2. */
+  /** Planet photo generation for exosphere, biosphere, and aerial views. */
   const handlePlanetTelescopePhoto = useCallback((photoKind: PlanetPhotoKind = 'exosphere', adPhotoToken?: string) => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
     const planet = state.selectedPlanet;
@@ -5810,6 +5907,7 @@ function AppInner() {
       targetType: 'planet',
       photoUrl: null,
       photoKey,
+      source: 'planet',
     });
 
     // Transition to capture phase after init animation
@@ -5889,6 +5987,112 @@ function AppInner() {
       });
   }, [state.selectedPlanet, state.selectedSystem, quarks, isGuest]);
 
+  const handleGeneratePlanetSkin = useCallback((kind: PlanetSkinKind, targetSystem?: StarSystem, targetPlanet?: Planet) => {
+    const planet = targetPlanet ?? state.selectedPlanet;
+    const sys = targetSystem ?? state.selectedSystem;
+    if (!planet || !sys) return;
+    const key = `${kind}-${planet.id}`;
+    const cost = kind === 'exosphere' ? 50 : 0;
+
+    if (cost > 0 && quarks < cost) {
+      if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
+      return;
+    }
+
+    setState((prev) => ({ ...prev, showPlanetMenu: false }));
+    setPlanetSkins((prev) => {
+      const next = new Map(prev);
+      next.set(key, {
+        id: `temp-${key}`,
+        planet_id: planet.id,
+        system_id: sys.id,
+        kind,
+        status: 'generating',
+        texture_url: null,
+        kling_task_id: null,
+        prompt_used: null,
+        generated_by: playerId.current,
+        quarks_paid: cost,
+        created_at: new Date().toISOString(),
+        completed_at: null,
+      });
+      return next;
+    });
+    setToastMessage(kind === 'exosphere'
+      ? `${t('planet.skin_exosphere_label')} 50`
+      : t('planet.skin_system_label'));
+    setTimeout(() => setToastMessage(null), 3000);
+
+    generatePlanetSkin(playerId.current, sys.id, planet.id, sys, kind)
+      .then(({ skinId, status, textureUrl, quarksRemaining }) => {
+        if (quarksRemaining !== null && quarksRemaining !== undefined) setQuarks(quarksRemaining);
+        setPlanetSkins((prev) => {
+          const next = new Map(prev);
+          next.set(key, {
+            id: skinId,
+            planet_id: planet.id,
+            system_id: sys.id,
+            kind,
+            status,
+            texture_url: textureUrl ?? null,
+            kling_task_id: null,
+            prompt_used: null,
+            generated_by: playerId.current,
+            quarks_paid: cost,
+            created_at: new Date().toISOString(),
+            completed_at: status === 'succeed' ? new Date().toISOString() : null,
+          });
+          return next;
+        });
+
+        if (status === 'succeed' && textureUrl) return;
+        pollPlanetSkinStatus(skinId, (result) => {
+          if (result.status === 'succeed' && result.textureUrl) {
+            setPlanetSkins((prev) => {
+              const next = new Map(prev);
+              const existing = next.get(key);
+              next.set(key, {
+                ...(existing ?? {
+                  id: skinId,
+                  planet_id: planet.id,
+                  system_id: sys.id,
+                  kind,
+                  kling_task_id: null,
+                  prompt_used: null,
+                  generated_by: playerId.current,
+                  quarks_paid: cost,
+                  created_at: new Date().toISOString(),
+                }),
+                status: 'succeed',
+                texture_url: result.textureUrl ?? null,
+                completed_at: new Date().toISOString(),
+              });
+              return next;
+            });
+            setToastMessage(t(kind === 'exosphere' ? 'planet.skin_exosphere_ready' : 'planet.skin_system_ready'));
+            setTimeout(() => setToastMessage(null), 3000);
+          } else if (result.status === 'failed') {
+            setPlanetSkins((prev) => {
+              const next = new Map(prev);
+              const existing = next.get(key);
+              if (existing) next.set(key, { ...existing, status: 'failed' });
+              return next;
+            });
+          }
+        });
+      })
+      .catch((err) => {
+        console.error('[PlanetSkin] generate failed:', err);
+        setPlanetSkins((prev) => {
+          const next = new Map(prev);
+          next.delete(key);
+          return next;
+        });
+        setToastMessage(err instanceof Error ? err.message : 'Planet skin generation failed');
+        setTimeout(() => setToastMessage(null), 3500);
+      });
+  }, [state.selectedPlanet, state.selectedSystem, quarks, isGuest, t]);
+
   const findSystemForPlanetReport = useCallback((report: PlanetReportSummary): StarSystem | null => {
     if (state.selectedSystem?.id === report.systemId) return state.selectedSystem;
     return engineRef.current?.getAllSystems().find((system) => system.id === report.systemId) ?? null;
@@ -5947,37 +6151,12 @@ function AppInner() {
     }
 
     setMissionAlphaGenerating(true);
-    setTelescopeOverlay({
-      phase: 'init',
-      targetName: planet.name,
-      targetType: 'planet',
-      photoUrl: null,
-      photoKey,
-    });
-
-    const initTimer = setTimeout(() => {
-      setTelescopeOverlay(prev => prev ? { ...prev, phase: 'capture' } : null);
-    }, 1500);
 
     setSystemPhotos((prev) => {
       const next = new Map(prev);
       next.set(photoKey, { id: `temp-${report.missionId}`, photoUrl: '', status: 'generating' });
       return next;
     });
-
-    const revealPhoto = (url: string) => {
-      setTelescopeOverlay(prev => {
-        if (!prev) return null;
-        if (prev.phase === 'init') {
-          clearTimeout(initTimer);
-          setTimeout(() => {
-            setTelescopeOverlay(p => p ? { ...p, phase: 'reveal', photoUrl: url } : null);
-          }, 800);
-          return { ...prev, phase: 'capture' };
-        }
-        return { ...prev, phase: 'reveal', photoUrl: url };
-      });
-    };
 
     generateSystemPhoto(playerId.current, photoKey, sys, undefined, undefined, planet.id, undefined, photoKind, {
       missionType: report.missionType,
@@ -5991,7 +6170,8 @@ function AppInner() {
             next.set(photoKey, { id: photoId, photoUrl, status: 'succeed', createdAt: new Date().toISOString() });
             return next;
           });
-          revealPhoto(photoUrl);
+          setToastMessage(t('mission_report.receiving_photo'));
+          setTimeout(() => setToastMessage(null), 3000);
         } else {
           setSystemPhotos(prev => {
             const next = new Map(prev);
@@ -6005,14 +6185,14 @@ function AppInner() {
                 next.set(photoKey, { id: photoId, photoUrl: result.photoUrl!, status: 'succeed', createdAt: new Date().toISOString() });
                 return next;
               });
-              revealPhoto(result.photoUrl);
+              setToastMessage(t('mission_report.receiving_photo'));
+              setTimeout(() => setToastMessage(null), 3000);
             } else if (result.status === 'failed') {
               setSystemPhotos(prev => {
                 const next = new Map(prev);
                 next.set(photoKey, { id: photoId, photoUrl: '', status: 'failed' });
                 return next;
               });
-              setTelescopeOverlay(null);
             }
           });
         }
@@ -6024,10 +6204,9 @@ function AppInner() {
           next.delete(photoKey);
           return next;
         });
-        setTelescopeOverlay(null);
       })
       .finally(() => setMissionAlphaGenerating(false));
-  }, [findSystemForPlanetReport, isGuest, quarks]);
+  }, [findSystemForPlanetReport, isGuest, quarks, t]);
 
   // Keep ref updated for GameEngine callback (avoid stale closure)
   telescopePhotoRef.current = handleTelescopePhotoForSystem;
@@ -6044,14 +6223,33 @@ function AppInner() {
         targetType: 'system',
         photoUrl: photo.photoUrl,
         photoKey: sysId,
+        source: 'system',
       });
     }
   }, [state.selectedSystem, systemPhotos, aliases]);
 
   // ── Telescope overlay callbacks ───────────────────────────────────────
+  const buildPhotoShareUrl = useCallback((photoKey: string): string => {
+    const encoded = encodeURIComponent(photoKey);
+    return photoKey.startsWith('planet-') ? `https://nebulife.space/photo/${encoded}` : `https://nebulife.space/share/${encoded}`;
+  }, []);
+
+  const buildTelescopeShareText = useCallback((): string => {
+    if (!telescopeOverlay) return 'Nebulife';
+    const shareUrl = buildPhotoShareUrl(telescopeOverlay.photoKey);
+    if (telescopeOverlay.source === 'mission') {
+      const signature = i18n.language.startsWith('uk')
+        ? `Отримано фото з місії на планету ${telescopeOverlay.targetName}. Небулайф - твій власний космос`
+        : `Photo from mission to planet ${telescopeOverlay.targetName}. Nebulife - your own cosmos`;
+      return `${signature}\n${shareUrl}`;
+    }
+    return `Nebulife Telescope: ${telescopeOverlay.targetName}\n${shareUrl}`;
+  }, [buildPhotoShareUrl, i18n.language, telescopeOverlay]);
+
   const handleTelescopeShare = useCallback(async () => {
     if (!telescopeOverlay?.photoUrl) return;
-    const text = `Nebulife Telescope: ${telescopeOverlay.targetName}\nhttps://nebulife.space`;
+    const text = buildTelescopeShareText();
+    const url = buildPhotoShareUrl(telescopeOverlay.photoKey);
     try {
       if (navigator.share) {
         // Try sharing with the photo file
@@ -6059,15 +6257,39 @@ function AppInner() {
         const blob = await response.blob();
         const file = new File([blob], 'telescope-photo.jpg', { type: blob.type });
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ title: 'Nebulife', text, files: [file] });
+          await navigator.share({ title: 'Nebulife', text, url, files: [file] });
         } else {
-          await navigator.share({ title: 'Nebulife', text });
+          await navigator.share({ title: 'Nebulife', text, url });
         }
       } else {
         await navigator.clipboard.writeText(text);
       }
     } catch {
       // User cancelled or share failed — silently ignore
+    }
+  }, [buildPhotoShareUrl, buildTelescopeShareText, telescopeOverlay]);
+
+  const handleTelescopeDownload = useCallback(async () => {
+    if (!telescopeOverlay?.photoUrl) return;
+    const filename = `nebulife-${telescopeOverlay.photoKey.replace(/[^a-z0-9_-]+/gi, '-')}.jpg`;
+    try {
+      const response = await fetch(telescopeOverlay.photoUrl);
+      const blob = await response.blob();
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: filename, files: [file] });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      window.open(telescopeOverlay.photoUrl, '_blank');
     }
   }, [telescopeOverlay]);
 
@@ -6893,7 +7115,17 @@ function AppInner() {
 
   // ── SW message listener (foreground push click from background SW) ────
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
+    const unsubForeground = startForegroundListener();
+    const handlePushDigest = () => {
+      window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
+    };
+    window.addEventListener('nebulife:push-digest', handlePushDigest);
+    if (!('serviceWorker' in navigator)) {
+      return () => {
+        unsubForeground?.();
+        window.removeEventListener('nebulife:push-digest', handlePushDigest);
+      };
+    }
     const handleSwMessage = (e: MessageEvent) => {
       if (e.data?.type === 'open-digest') {
         window.dispatchEvent(new CustomEvent('nebulife:open-digest', {
@@ -6902,14 +7134,10 @@ function AppInner() {
       }
     };
     navigator.serviceWorker.addEventListener('message', handleSwMessage);
-    // Start foreground FCM message listener
-    const unsubForeground = startForegroundListener();
-    window.addEventListener('nebulife:push-digest', () => {
-      window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
-    });
     return () => {
       navigator.serviceWorker.removeEventListener('message', handleSwMessage);
       unsubForeground?.();
+      window.removeEventListener('nebulife:push-digest', handlePushDigest);
     };
   }, []);
 
@@ -7134,11 +7362,19 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     if (val) {
-      const token = await requestPushPermission();
-      if (!token) return; // Permission denied
+      const { token, issue } = await requestPushPermissionDetailed();
+      if (!token) {
+        setPushNotifications(false);
+        console.warn('[push] permission/token failed:', issue);
+        setToastMessage(`Push notifications unavailable: ${issue ?? 'unknown'}`);
+        setTimeout(() => setToastMessage(null), 3500);
+        return;
+      }
       await updateFcmToken(pid, token);
       setPushNotifications(true);
       updatePlayer(pid, { push_notifications: true }).catch(() => {});
+      setToastMessage('Push notifications enabled');
+      setTimeout(() => setToastMessage(null), 2500);
     } else {
       setPushNotifications(false);
       updatePlayer(pid, { push_notifications: false }).catch(() => {});
@@ -7174,8 +7410,25 @@ function AppInner() {
         // Re-sync from server when app comes back to foreground (cross-device sync)
         const pid = playerId.current;
         if (!pid) return;
+        const restore = stateRef.current;
         getPlayer(pid).then((player) => {
-          if (player) hydrateGameStateFromServer(player);
+          if (!player) return;
+          hydrateGameStateFromServer(player);
+
+          // Foreground sync updates data, but the player should return to the
+          // exact screen they backgrounded. Otherwise React controls can show
+          // galaxy/home state while Pixi still displays the old system scene.
+          const allSystems = engineRef.current?.getAllSystems() ?? [];
+          if (restore.scene === 'system' && restore.selectedSystem) {
+            const system = allSystems.find((entry) => entry.id === restore.selectedSystem?.id) ?? restore.selectedSystem;
+            engineRef.current?.showSystemScene(system);
+            setState((prev) => ({ ...prev, scene: 'system', selectedSystem: system, selectedPlanet: null }));
+          } else if (restore.scene === 'planet-view' && restore.selectedSystem && restore.selectedPlanet) {
+            const system = allSystems.find((entry) => entry.id === restore.selectedSystem?.id) ?? restore.selectedSystem;
+            const planet = system.planets.find((entry) => entry.id === restore.selectedPlanet?.id) ?? restore.selectedPlanet;
+            engineRef.current?.showPlanetViewScene(system, planet, true);
+            setState((prev) => ({ ...prev, scene: 'planet-view', selectedSystem: system, selectedPlanet: planet }));
+          }
         }).catch(() => {});
       }
     };
@@ -8458,50 +8711,56 @@ function AppInner() {
         />
       )}
       {missionPhotoViewer && (
-        <div
-          onClick={() => setMissionPhotoViewer(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 10020,
-            background: 'rgba(0,0,0,0.82)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 18,
+        <TelescopeOverlay
+          targetName={missionPhotoViewer.planetName}
+          targetType="planet"
+          phase="reveal"
+          photoUrl={missionPhotoViewer.photoUrl}
+          canDownload
+          onSaveToCollection={() => {
+            setToastMessage(t('app.toast.archived'));
+            setTimeout(() => setToastMessage(null), 3000);
           }}
-        >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              width: 'min(960px, 94vw)',
-              background: 'rgba(8,12,20,0.98)',
-              border: '1px solid rgba(123,184,255,0.42)',
-              borderRadius: 8,
-              boxShadow: '0 18px 50px rgba(0,0,0,0.68)',
-              overflow: 'hidden',
-              fontFamily: 'monospace',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid rgba(68,102,136,0.28)' }}>
-              <div style={{ color: '#9fd0ff', fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase' }}>
-                {t('mission_report.saved_photo_title').replace('{planet}', missionPhotoViewer.planetName)}
-              </div>
-              <button
-                type="button"
-                onClick={() => setMissionPhotoViewer(null)}
-                style={{ background: 'transparent', border: '1px solid #334455', borderRadius: 3, color: '#8899aa', fontFamily: 'monospace', cursor: 'pointer', padding: '4px 8px' }}
-              >
-                ×
-              </button>
-            </div>
-            <img
-              src={missionPhotoViewer.photoUrl}
-              alt={missionPhotoViewer.planetName}
-              style={{ display: 'block', width: '100%', maxHeight: '76vh', objectFit: 'contain', background: '#020510' }}
-            />
-          </div>
-        </div>
+          onShare={async () => {
+            const shareUrl = buildPhotoShareUrl(missionPhotoViewer.photoKey);
+            const text = i18n.language.startsWith('uk')
+              ? `Отримано фото з місії на планету ${missionPhotoViewer.planetName}. Небулайф - твій власний космос\n${shareUrl}`
+              : `Photo from mission to planet ${missionPhotoViewer.planetName}. Nebulife - your own cosmos\n${shareUrl}`;
+            try {
+              if (navigator.share) await navigator.share({ title: 'Nebulife', text, url: shareUrl });
+              else await navigator.clipboard.writeText(text);
+            } catch { /* ignore user cancel */ }
+          }}
+          onDownload={async () => {
+            const filename = `nebulife-${missionPhotoViewer.photoKey.replace(/[^a-z0-9_-]+/gi, '-')}.jpg`;
+            try {
+              const response = await fetch(missionPhotoViewer.photoUrl);
+              const blob = await response.blob();
+              const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+              if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                await navigator.share({ title: filename, files: [file] });
+              } else {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+              }
+            } catch {
+              window.open(missionPhotoViewer.photoUrl, '_blank');
+            }
+          }}
+          onGoToExosphere={missionPhotoViewer.systemId && missionPhotoViewer.planetId
+            ? () => {
+                const system = engineRef.current?.getAllSystems().find((entry) => entry.id === missionPhotoViewer.systemId);
+                if (system) handleViewPlanetExosphere(system, missionPhotoViewer.planetId!);
+              }
+            : undefined}
+          onClose={() => setMissionPhotoViewer(null)}
+        />
       )}
       {state.showPlanetMenu && state.selectedPlanet && state.planetClickPos && state.scene === 'system' && (
         <PlanetContextMenu
@@ -8517,6 +8776,11 @@ function AppInner() {
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
           onTelescopePhoto={(photoKind) => handlePlanetTelescopePhoto(photoKind)}
           onAdTelescopePhoto={(photoKind, photoToken) => handlePlanetTelescopePhoto(photoKind, photoToken)}
+          onGeneratePlanetSkin={handleGeneratePlanetSkin}
+          planetSkinStatus={{
+            system: planetSkins.get(`system-${state.selectedPlanet.id}`)?.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' | undefined,
+            exosphere: planetSkins.get(`exosphere-${state.selectedPlanet.id}`)?.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' | undefined,
+          }}
           canGenerateSurfacePhotos={
             canLandOnPlanet(state.selectedPlanet).allowed && isSolidPlanetForLanding(state.selectedPlanet)
           }
@@ -8562,7 +8826,8 @@ function AppInner() {
             setState((prev) => ({ ...prev, showPlanetMenu: false }));
           }}
           onViewMissionPhoto={(planet, _report, photoUrl) => {
-            setMissionPhotoViewer({ planetName: planet.name, photoUrl });
+            const key = getMissionPhotoKey(planet.id, _report);
+            setMissionPhotoViewer({ planetName: planet.name, photoUrl, photoKey: key, systemId: state.selectedSystem?.id, planetId: planet.id });
             setState((prev) => ({ ...prev, showPlanetMenu: false }));
           }}
           systemResearchProgress={currentSystemProgress}
@@ -8736,7 +9001,7 @@ function AppInner() {
           onSaveToArchive={handleSaveToGallery}
         />
       )}
-      {/* Observatory view (AI Kling — paid with quarks or ad token) */}
+      {/* Observatory view — paid with quarks or ad token */}
       {observatoryTarget && (
         <ObservatoryView
           discovery={observatoryTarget.discovery}
@@ -8845,6 +9110,12 @@ function AppInner() {
           star={state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem.star : homeInfo.system.star}
           system={state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem : homeInfo.system}
           mode={state.scene === 'home-intro' ? 'home' : 'planet-view'}
+          textureUrl={(() => {
+            const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
+            return planetSkins.get(`exosphere-${p.id}`)?.texture_url
+              ?? planetSkins.get(`system-${p.id}`)?.texture_url
+              ?? null;
+          })()}
           onDoubleClick={handleGlobeDoubleClick}
         />
       )}
@@ -8961,13 +9232,6 @@ function AppInner() {
       )}
       {surfaceTarget && showSurfaceAstraLesson && !showAcademy && !showCosmicArchive && (
         <SurfaceAstraLessonPrompt
-          onOpenLesson={() => {
-            try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
-            setShowSurfaceAstraLesson(false);
-            setAcademyInitialTab('mission');
-            setAcademyMissionChapter('surface');
-            setShowAcademy(true);
-          }}
           onDismiss={() => {
             try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
             setShowSurfaceAstraLesson(false);
@@ -9189,6 +9453,7 @@ function AppInner() {
             const pIdx = system.planets.findIndex((p) => p.id === planetId);
             if (pIdx >= 0) handleViewPlanetDetail(system, pIdx, aliases[system.id] ?? undefined);
           }}
+          onViewPlanetExosphere={handleViewPlanetExosphere}
           onGoHome={() => {
             setShowCosmicArchive(false);
             // Terminal home button now lands on the SURFACE directly
@@ -9292,6 +9557,24 @@ function AppInner() {
             return (ship.type === 'terraform_freighter' || def.requiresBuilding === 'spaceport') && def.cargoCapacity > 0;
           })}
           cargoShipments={shipFleet.cargoShipments ?? []}
+          planetSkinStatuses={(() => {
+            const statuses: Record<string, { system?: 'generating' | 'pending' | 'processing' | 'succeed' | 'failed'; exosphere?: 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' }> = {};
+            for (const [key, skin] of planetSkins) {
+              const [kind, ...idParts] = key.split('-');
+              const planetId = idParts.join('-');
+              if (kind !== 'system' && kind !== 'exosphere') continue;
+              statuses[planetId] = {
+                ...statuses[planetId],
+                [kind]: skin.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed',
+              };
+            }
+            return statuses;
+          })()}
+          onGeneratePlanetSkin={(system, planet, kind) => {
+            setShowCosmicArchive(false);
+            setState((prev) => ({ ...prev, selectedSystem: system, selectedPlanet: planet }));
+            handleGeneratePlanetSkin(kind, system, planet);
+          }}
           onSendTerraformDelivery={(targetPlanet, paramId) => {
             // Open terraform panel for this planet, pre-targeting the given param.
             // For now, we open the full TerraformPanel which handles dispatch.
@@ -9473,8 +9756,26 @@ function AppInner() {
           targetType={telescopeOverlay.targetType}
           phase={telescopeOverlay.phase}
           photoUrl={telescopeOverlay.photoUrl}
+          canDownload={telescopeOverlay.source === 'mission'}
           onSaveToCollection={handleTelescopeSaveToCollection}
           onShare={handleTelescopeShare}
+          onDownload={handleTelescopeDownload}
+          onGoToExosphere={telescopeOverlay.targetType === 'planet'
+            ? () => {
+                const rawPlanetId = telescopeOverlay.photoKey
+                  .replace(/^planet-exosphere-/, '')
+                  .replace(/^planet-biosphere-/, '')
+                  .replace(/^planet-aerial-/, '')
+                  .replace(/^planet-probe-/, '')
+                  .replace(/^planet-rover-/, '')
+                  .replace(/^planet-drone-/, '')
+                  .replace(/^planet-/, '')
+                  .split('__')[0];
+                const system = engineRef.current?.getAllSystems().find((entry) => entry.planets.some((planet) => planet.id === rawPlanetId));
+                if (system) handleViewPlanetExosphere(system, rawPlanetId);
+                setTelescopeOverlay(null);
+              }
+            : undefined}
           onClose={() => setTelescopeOverlay(null)}
         />
       )}
@@ -9556,61 +9857,12 @@ function AppInner() {
         <FreeTaskHUD current={tutorialFreeCount} total={activeTutorialStep.freeTaskTotal ?? 1} />
       )}
 
-      {/* Chat unread notification dot — gated to match ChatWidget visibility
-          so the dot never floats alone over the hangar/arena/cinematic/surface
-          /archive/player-page/academy/onboarding/ring-unlock backgrounds. */}
-      {chatUnreadCount > 0
-        && !authLoading
-        && !needsOnboarding
-        && !needsCallsign
-        && !showArena
-        && !showRaid
-        && !showHangar
-        && !cinematicActive
-        && !surfaceTarget
-        && !showCosmicArchive
-        && !showAcademy
-        && !showPlayerPage
-        && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 'calc(110px + env(safe-area-inset-bottom, 0px))',
-            right: 'calc(18px + env(safe-area-inset-right, 0px))',
-            // Match the chat button's z-index (ChatWidget.tsx uses 9700) so
-            // the notification dot never stacks above higher overlays.
-            zIndex: 9700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            background: 'rgba(10,15,25,0.9)',
-            border: '1px solid rgba(68,255,136,0.3)',
-            borderRadius: 10,
-            padding: '3px 8px',
-            fontFamily: 'monospace',
-            fontSize: 10,
-            color: '#44ff88',
-            pointerEvents: 'none',
-          }}
-        >
-          <span style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: '#44ff88',
-            display: 'inline-block',
-          }} />
-          {chatUnreadCount > 1 ? `${chatUnreadCount}` : ''}
-        </div>
-      )}
-
       {/* Chat widget (visible when authenticated, not in onboarding/arena/hangar) */}
       {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showRaid && !showHangar && playerId.current && (
         <ChatWidget
           playerId={playerId.current}
           playerName={state.playerName}
           playerLevel={playerLevel}
-          onUnreadChange={setChatUnreadCount}
           systemNotifs={systemNotifs}
           logEntries={logEntries}
           onSystemNotifRead={(id) =>

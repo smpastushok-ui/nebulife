@@ -111,6 +111,7 @@ export class RaidEngine {
   private modules: RaidModule[] = [];
   private projectiles: RaidProjectile[] = [];
   private carrier: THREE.Object3D | null = null;
+  private allyTemplate: THREE.Object3D | null = null;
   private enemyTemplate: THREE.Object3D | null = null;
   private spawnBays: THREE.Vector3[] = [];
   private queuedEnemies = 0;
@@ -168,7 +169,7 @@ export class RaidEngine {
     this.addBackground();
     this.addStarfield();
     await this.createCarrier();
-    await this.preloadEnemyTemplate();
+    await this.preloadShipTemplates();
     this.createProjectiles();
     this.player = await this.createPlayerShip();
     if (this.destroyed || !this.scene) {
@@ -435,29 +436,49 @@ export class RaidEngine {
     return group;
   }
 
-  private async preloadEnemyTemplate(): Promise<void> {
-    try {
-      const gltf = await new GLTFLoader().loadAsync(ENEMY_SWARM_SHIP);
-      const root = normalizeModel(gltf.scene, 70);
-      root.traverse((obj) => {
+  private async preloadShipTemplates(): Promise<void> {
+    const loader = new GLTFLoader();
+    const prepare = (root: THREE.Object3D, size: number) => {
+      const normalized = normalizeModel(root, size);
+      normalized.traverse((obj) => {
         obj.frustumCulled = true;
       });
-      this.enemyTemplate = root;
+      return normalized;
+    };
+
+    try {
+      this.allyTemplate = prepare((await loader.loadAsync(shipUrlFromId(this.shipId))).scene, 58);
     } catch {
-      this.enemyTemplate = null;
+      this.allyTemplate = null;
+    }
+
+    try {
+      this.enemyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58);
+    } catch {
+      try {
+        this.enemyTemplate = prepare((await loader.loadAsync(RED_SHIP)).scene, 58);
+      } catch {
+        this.enemyTemplate = null;
+      }
     }
   }
 
+  private cloneShipTemplate(template: THREE.Object3D | null): THREE.Object3D | null {
+    if (!template) return null;
+    const clone = template.clone(true);
+    clone.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.castShadow = false;
+        obj.receiveShadow = false;
+        obj.frustumCulled = true;
+      }
+    });
+    return clone;
+  }
+
   private cloneEnemyShip(): THREE.Object3D {
-    if (this.enemyTemplate) {
-      const clone = this.enemyTemplate.clone(true);
-      clone.traverse((obj) => {
-        if (obj instanceof THREE.Mesh) {
-          obj.castShadow = false;
-          obj.receiveShadow = false;
-          obj.frustumCulled = true;
-        }
-      });
+    const clone = this.cloneShipTemplate(this.enemyTemplate);
+    if (clone) {
       clone.scale.multiplyScalar(this.isMobile ? 0.82 : 1);
       return clone;
     }
@@ -481,7 +502,7 @@ export class RaidEngine {
   private createWingmen(): void {
     if (!this.scene) return;
     for (let i = 0; i < RAID_WINGMEN; i++) {
-      const mesh = this.createProceduralShip(i % 2 === 0 ? 0x334455 : 0x446688, 26);
+      const mesh = this.cloneShipTemplate(this.allyTemplate) ?? this.createProceduralShip(i % 2 === 0 ? 0x334455 : 0x446688, 26);
       mesh.position.set((i - 1.5) * 150, i % 2 === 0 ? 55 : -35, 1230 - Math.abs(i - 1.5) * 55);
       this.scene.add(mesh);
       this.wingmen.push({
@@ -646,6 +667,8 @@ export class RaidEngine {
     if (this.keys.has('d') || this.keys.has('arrowright')) dir.addScaledVector(right, 0.75);
     dir.add(this.moveInput);
     if (dir.lengthSq() > 1) dir.normalize();
+    // Forward/back/strafe follows the nose like ArenaEngine, giving raid the
+    // same dogfight feel instead of the old flat form-combat movement.
     this.player.vel.addScaledVector(dir, RAID_ACCELERATION * dt);
     clampLength(this.player.vel, RAID_SPEED);
     this.player.pos.addScaledVector(this.player.vel, dt);
@@ -675,7 +698,7 @@ export class RaidEngine {
         this.mouseTargetReady = true;
       }
       this.mouseTargetYaw += this.mouseMoveX * this.mouseSens;
-      this.mouseTargetPitch += this.mouseMoveY * this.mouseSens;
+      this.mouseTargetPitch -= this.mouseMoveY * this.mouseSens;
       this.mouseTargetPitch = Math.max(-this.maxPitch, Math.min(this.maxPitch, this.mouseTargetPitch));
       let yawDelta = this.mouseTargetYaw - curYaw;
       while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
@@ -802,10 +825,15 @@ export class RaidEngine {
       this.clampToSector(enemy.pos);
       this.orientObjectToDirection(enemy.mesh, target.pos.clone().sub(enemy.pos).normalize());
       enemy.fireCooldown -= dt;
-      if (enemy.fireCooldown <= 0 && dist < (this.isMobile ? 1250 : 1700)) {
-        const predicted = target.pos.clone().addScaledVector(target.vel, Math.min(0.45, dist / RAID_PROJECTILE_SPEED));
+      if (enemy.fireCooldown <= 0 && dist < (this.isMobile ? 1100 : 1500)) {
+        const predicted = target.pos.clone().addScaledVector(target.vel, Math.min(0.28, dist / RAID_PROJECTILE_SPEED));
+        predicted.add(new THREE.Vector3(
+          (Math.random() - 0.5) * 150,
+          (Math.random() - 0.5) * 90,
+          (Math.random() - 0.5) * 150,
+        ));
         this.fireProjectile('enemy', enemy.pos, predicted, RAID_ENEMY_DAMAGE);
-        enemy.fireCooldown = (this.isMobile ? 0.9 : 0.55) + Math.random() * 0.65;
+        enemy.fireCooldown = (this.isMobile ? 1.2 : 0.9) + Math.random() * 0.85;
       }
     }
   }
@@ -819,9 +847,14 @@ export class RaidEngine {
       const target = this.nearestShip(module.pos, targets);
       if (target && module.fireCooldown <= 0) {
         const dist = module.pos.distanceTo(target.pos);
-        const predicted = target.pos.clone().addScaledVector(target.vel, Math.min(0.5, dist / RAID_PROJECTILE_SPEED));
-        this.fireProjectile('enemy', module.pos, predicted, 14);
-        module.fireCooldown = 1.2;
+        const predicted = target.pos.clone().addScaledVector(target.vel, Math.min(0.35, dist / RAID_PROJECTILE_SPEED));
+        predicted.add(new THREE.Vector3(
+          (Math.random() - 0.5) * 180,
+          (Math.random() - 0.5) * 110,
+          (Math.random() - 0.5) * 180,
+        ));
+        this.fireProjectile('enemy', module.pos, predicted, 8);
+        module.fireCooldown = 1.65;
       }
     }
   }

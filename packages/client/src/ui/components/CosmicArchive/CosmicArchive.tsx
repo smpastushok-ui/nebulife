@@ -16,6 +16,9 @@ import { TelescopeGallery } from './TelescopeGallery';
 import { ResourcesView } from './ResourcesView';
 import type { SystemPhotoData } from '../SystemContextMenu';
 
+type PlanetSkinStatus = 'generating' | 'pending' | 'processing' | 'succeed' | 'failed';
+type PlanetSkinKind = 'system' | 'exosphere';
+
 // Hide scrollbar on tab bars for mobile swipe
 const SWIPE_STYLE_ID = 'nebulife-swipe-tabs-style';
 if (typeof document !== 'undefined' && !document.getElementById(SWIPE_STYLE_ID)) {
@@ -112,6 +115,7 @@ export interface CosmicArchiveProps {
   onClose: () => void;
   onNavigateToSystem: (system: StarSystem) => void;
   onViewPlanetDetail: (system: StarSystem, planetId: string) => void;
+  onViewPlanetExosphere?: (system: StarSystem, planetId: string) => void;
   onGoHome: () => void;
   onNavigateToGalaxy: () => void;
   /** Highlight a newly-saved discovery in the gallery */
@@ -194,6 +198,8 @@ export interface CosmicArchiveProps {
   cargoShips?: Ship[];
   /** Active cargo shipments for Terminal -> Planets logistics tab. */
   cargoShipments?: CargoShipment[];
+  planetSkinStatuses?: Record<string, { system?: PlanetSkinStatus; exosphere?: PlanetSkinStatus }>;
+  onGeneratePlanetSkin?: (system: StarSystem, planet: Planet, kind: PlanetSkinKind) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -298,6 +304,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onClose,
   onNavigateToSystem,
   onViewPlanetDetail,
+  onViewPlanetExosphere,
   onGoHome,
   onNavigateToGalaxy,
   highlightedType,
@@ -339,6 +346,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onRenamePlanet,
   cargoShips,
   cargoShipments,
+  planetSkinStatuses,
+  onGeneratePlanetSkin,
   planetResourceStocks,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   const { t } = useTranslation();
@@ -506,16 +515,16 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       return <TelescopeGallery photos={systemPhotos} type="system" allSystems={allSystems} aliases={aliases} />;
     }
     if (mainTab === 'collections' && currentSubTab === 'planets-photos') {
-      return <TelescopeGallery photos={systemPhotos} type="planet" allSystems={allSystems} aliases={aliases} />;
+      return <TelescopeGallery photos={systemPhotos} type="planet" allSystems={allSystems} aliases={aliases} onGoToExosphere={onViewPlanetExosphere} />;
     }
     if (mainTab === 'collections' && currentSubTab === 'surface') {
-      return <TelescopeGallery photos={systemPhotos} type="biosphere" allSystems={allSystems} aliases={aliases} />;
+      return <TelescopeGallery photos={systemPhotos} type="biosphere" allSystems={allSystems} aliases={aliases} onGoToExosphere={onViewPlanetExosphere} />;
     }
     if (mainTab === 'collections' && currentSubTab === 'aerial-photos') {
-      return <TelescopeGallery photos={systemPhotos} type="aerial" allSystems={allSystems} aliases={aliases} />;
+      return <TelescopeGallery photos={systemPhotos} type="aerial" allSystems={allSystems} aliases={aliases} onGoToExosphere={onViewPlanetExosphere} />;
     }
     if (mainTab === 'collections' && currentSubTab === 'mission-photos') {
-      return <TelescopeGallery photos={systemPhotos} type="mission" allSystems={allSystems} aliases={aliases} />;
+      return <TelescopeGallery photos={systemPhotos} type="mission" allSystems={allSystems} aliases={aliases} onGoToExosphere={onViewPlanetExosphere} />;
     }
     if (mainTab === 'collections' && currentSubTab === 'life') {
       return <PlaceholderTab label={t('archive.sub_life')} />;
@@ -560,6 +569,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           onRenamePlanet={onRenamePlanet}
           cargoShips={cargoShips}
           cargoShipments={cargoShipments}
+          planetSkinStatuses={planetSkinStatuses}
+          quarks={quarks}
+          onGeneratePlanetSkin={onGeneratePlanetSkin}
         />
       );
     }
@@ -620,6 +632,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           onRenamePlanet={onRenamePlanet}
           cargoShips={cargoShips}
           cargoShipments={cargoShipments}
+          planetSkinStatuses={planetSkinStatuses}
+          quarks={quarks}
+          onGeneratePlanetSkin={onGeneratePlanetSkin}
         />
       );
     }

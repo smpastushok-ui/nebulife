@@ -10,7 +10,7 @@
 **Alpha Lyrae** — зоряна система B4-класу (18 500 K, radiusSolar ≈ 4.8, luminosity ≈ 2445).
 Домашня планета знаходиться на відстані ~59 AU у зоні обітання гарячої зорі.
 
-**Катастрофа**: астероїд летить до планети. Зворотний відлік: **7 днів** (604 800 секунд).
+**Катастрофа**: астероїд летить до планети. Зворотний відлік: **1 день** (86 400 секунд).
 Гравці повинні дослідити сусідні зоряні системи, знайти придатну для життя планету і запустити корабель порятунку.
 
 **Корабель порятунку** (Doomsday Ship):
@@ -24,7 +24,7 @@
 
 ## 2. Core Gameplay Loop
 
-### Phase 1: Research & Explore (7 days)
+### Phase 1: Research & Explore (1 day)
 
 1. Гравець починає на домашній планеті (HomePlanetScene)
 2. Відкриває галактичну карту (GalaxyScene)
@@ -383,7 +383,7 @@ nebulife/
 
 | Parameter | Value | File |
 |-----------|-------|------|
-| ASTEROID_COUNTDOWN_SECONDS | 604 800 (7d) | `constants/game.ts` |
+| ASTEROID_COUNTDOWN_SECONDS | 86 400 (1d) | `constants/game.ts` |
 | RESEARCH_DURATION_MS | 10 000 (dev) | `constants/balance.ts` |
 | RESEARCH_MIN_PROGRESS | 2% | `constants/balance.ts` |
 | RESEARCH_MAX_PROGRESS | 50% | `constants/balance.ts` |

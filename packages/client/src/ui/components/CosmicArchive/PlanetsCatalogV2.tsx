@@ -30,6 +30,8 @@ type FilterId =
   | 'population';
 
 type TerminalPlanetTab = 'research' | 'science' | 'resources' | 'logistics' | 'terraform' | 'status';
+type PlanetSkinKind = 'system' | 'exosphere';
+type PlanetSkinStatus = 'generating' | 'pending' | 'processing' | 'succeed' | 'failed';
 
 interface PlanetsCatalogV2Props {
   allSystems: StarSystem[];
@@ -73,6 +75,9 @@ interface PlanetsCatalogV2Props {
   cargoShips?: Ship[];
   /** Active cargo shipments for Terminal -> Planets logistics tab. */
   cargoShipments?: CargoShipment[];
+  planetSkinStatuses?: Record<string, { system?: PlanetSkinStatus; exosphere?: PlanetSkinStatus }>;
+  quarks?: number;
+  onGeneratePlanetSkin?: (system: StarSystem, planet: Planet, kind: PlanetSkinKind) => void;
   /**
    * Finite planet resource stocks (v168).
    * When provided, the detail panel shows stock units rather than colony inventory.
@@ -1398,6 +1403,9 @@ interface ExpandedDetailPanelProps {
   cargoShips?: Ship[];
   /** Active cargo shipments for the logistics tab. */
   cargoShipments?: CargoShipment[];
+  planetSkinStatus?: { system?: PlanetSkinStatus; exosphere?: PlanetSkinStatus };
+  quarks?: number;
+  onGeneratePlanetSkin?: (system: StarSystem, planet: Planet, kind: PlanetSkinKind) => void;
   onClose: () => void;
   /** Finite planet resource stocks for displaying remaining deposit units (v168). */
   planetResourceStocks?: Record<string, PlanetResourceStocks>;
@@ -1422,6 +1430,9 @@ function ExpandedDetailPanel({
   onOpenSurface,
   cargoShips = [],
   cargoShipments = [],
+  planetSkinStatus,
+  quarks = 0,
+  onGeneratePlanetSkin,
   onClose,
   planetResourceStocks,
 }: ExpandedDetailPanelProps) {
@@ -1491,6 +1502,13 @@ function ExpandedDetailPanel({
     { label: t('planet_terminal.badge_terraforming'), active: Boolean(tfState && overallPct > 0 && !tfState.completedAt) },
     { label: t('planet_terminal.badge_terraformed'), active: Boolean(tfState?.completedAt) },
   ];
+  const skinBusy = planetSkinStatus?.system === 'generating'
+    || planetSkinStatus?.system === 'pending'
+    || planetSkinStatus?.system === 'processing'
+    || planetSkinStatus?.exosphere === 'generating'
+    || planetSkinStatus?.exosphere === 'pending'
+    || planetSkinStatus?.exosphere === 'processing';
+  const canAffordExosphereSkin = quarks >= 50;
   const terminalTabs: Array<{ id: TerminalPlanetTab; label: string }> = [
     { id: 'research', label: t('planet_terminal.tab_research', { defaultValue: t('planet.tab_actions') }) },
     { id: 'science', label: t('planet_terminal.tab_science', { defaultValue: t('planet.characteristics') }) },
@@ -1715,6 +1733,54 @@ function ExpandedDetailPanel({
                 {t('nav.surface_btn')}
               </button>
             )}
+            {onGeneratePlanetSkin && (
+              <>
+                <button
+                  disabled={skinBusy || planetSkinStatus?.system === 'succeed'}
+                  onClick={() => onGeneratePlanetSkin(system, planet, 'system')}
+                  style={{
+                    padding: '9px 12px',
+                    background: 'rgba(40,55,25,0.45)',
+                    border: '1px solid #665533',
+                    borderRadius: 4,
+                    color: planetSkinStatus?.system === 'succeed' ? '#88ccaa' : '#ddaa44',
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    cursor: skinBusy || planetSkinStatus?.system === 'succeed' ? 'default' : 'pointer',
+                    opacity: skinBusy || planetSkinStatus?.system === 'succeed' ? 0.65 : 1,
+                    textAlign: 'left',
+                  }}
+                >
+                  {planetSkinStatus?.system === 'succeed'
+                    ? t('planet.skin_system_ready')
+                    : skinBusy
+                      ? t('planet.skin_generating')
+                      : t('planet.skin_system_label')}
+                </button>
+                <button
+                  disabled={skinBusy || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin}
+                  onClick={() => onGeneratePlanetSkin(system, planet, 'exosphere')}
+                  style={{
+                    padding: '9px 12px',
+                    background: 'rgba(40,55,25,0.45)',
+                    border: '1px solid #665533',
+                    borderRadius: 4,
+                    color: planetSkinStatus?.exosphere === 'succeed' ? '#88ccaa' : canAffordExosphereSkin ? '#ddaa44' : '#445566',
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    cursor: skinBusy || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin ? 'default' : 'pointer',
+                    opacity: skinBusy || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin ? 0.65 : 1,
+                    textAlign: 'left',
+                  }}
+                >
+                  {planetSkinStatus?.exosphere === 'succeed'
+                    ? t('planet.skin_exosphere_ready')
+                    : skinBusy
+                      ? t('planet.skin_generating')
+                      : t('planet.skin_exosphere_label', { cost: 50 })}
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -1854,6 +1920,9 @@ export function PlanetsCatalogV2({
   onRenamePlanet,
   cargoShips = [],
   cargoShipments = [],
+  planetSkinStatuses,
+  quarks = 0,
+  onGeneratePlanetSkin,
   planetResourceStocks,
 }: PlanetsCatalogV2Props) {
   // Single-select filter: null = no filter active
@@ -2117,6 +2186,9 @@ export function PlanetsCatalogV2({
                   onOpenSurface={onOpenSurface}
                   cargoShips={cargoShips}
                   cargoShipments={cargoShipments}
+                  planetSkinStatus={planetSkinStatuses?.[planet.id]}
+                  quarks={quarks}
+                  onGeneratePlanetSkin={onGeneratePlanetSkin}
                   planetResourceStocks={planetResourceStocks}
                   onClose={() => {
                     setFocusedPlanetId(null);

@@ -465,7 +465,7 @@ export class ArenaEngine {
   private readonly BOT_BULLET_SPEED = 700;
   private readonly BOT_BULLET_LIFETIME = 0.8;
   private readonly BOT_BULLET_RADIUS = 1.5;
-  private readonly BOT_BULLET_DAMAGE = 12;
+  private readonly BOT_BULLET_DAMAGE = 8;
 
   // Player HP for team mode
   private playerHp = ARENA_SHIP_MAX_HP;
@@ -1925,10 +1925,9 @@ export class ArenaEngine {
       }
 
       this.mouseTargetYaw += this.mouseMoveX * this.MOUSE_SENS;
-      // Pointer-lock convention for flight:
-      //   mouse forward/up (movementY < 0) -> nose down
-      //   mouse back/down  (movementY > 0) -> nose up
-      this.mouseTargetPitch += this.mouseMoveY * this.MOUSE_SENS;
+      // Pointer-lock convention requested for web: mouse up raises the nose,
+      // mouse down lowers it.
+      this.mouseTargetPitch -= this.mouseMoveY * this.MOUSE_SENS;
       this.mouseTargetPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, this.mouseTargetPitch));
       let yawDelta = this.mouseTargetYaw - curYaw;
       while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
@@ -3833,12 +3832,14 @@ export class ArenaEngine {
       new THREE.Color(0.9, 0.5, 0.6),
     ];
 
+    const tier = getDeviceTier();
+    const desktopScaleTeams = !this.isMobile || tier === 'high' || tier === 'ultra';
     const blueAllies = this.teamMode
-      ? (this.isMobile ? 2 : TEAM_BLUE_BOTS)
-      : (this.isMobile ? 2 : TRAINING_BLUE_ALLIES);
+      ? (desktopScaleTeams ? TEAM_BLUE_BOTS : 2)
+      : (desktopScaleTeams ? TRAINING_BLUE_ALLIES : 2);
     const redEnemies = this.teamMode
-      ? (this.isMobile ? 3 : TEAM_RED_BOTS)
-      : (this.isMobile ? 3 : TRAINING_RED_ENEMIES);
+      ? (desktopScaleTeams ? TEAM_RED_BOTS : 3)
+      : (desktopScaleTeams ? TRAINING_RED_ENEMIES : 3);
     const totalBots = this.teamMode
       ? blueAllies + redEnemies
       : this.isMobile ? 5 : TRAINING_BOT_COUNT;
@@ -3948,7 +3949,7 @@ export class ArenaEngine {
         this.botShips.push(spawnBot(botId++, enemyTeam, blueAllies + i));
       }
     } else {
-      // Training TPS: desktop 5v5, mobile 3v3.
+      // Training TPS: desktop and high-tier mobile 5v5; low/mid mobile 3v3.
       // Allies use selected wing, enemies use opposite wing.
       for (let i = 0; i < blueAllies; i++) {
         this.botShips.push(spawnBot(botId++, allyTeam, i));
@@ -4239,7 +4240,7 @@ export class ArenaEngine {
       // pour shots while immune to return fire, which felt unfair.
       if (input.firing && bot.fireCooldown <= 0 && !isInvulnerable) {
         this.fireBotBullet(bot, aimX, aimY, aimZ);
-        bot.fireCooldown = 0.3 + Math.random() * 0.15; // 0.3–0.45s between shots
+        bot.fireCooldown = 0.45 + Math.random() * 0.25; // 0.45–0.70s between shots
       }
 
       // Fire missile occasionally — also blocked while invulnerable

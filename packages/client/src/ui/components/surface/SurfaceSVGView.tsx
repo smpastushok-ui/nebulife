@@ -403,8 +403,10 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
     }, [pendingPlacement, selectedBuilding]);
 
     // ── Wheel zoom ────────────────────────────────────────────────────────────
-    const handleWheel = useCallback(
-      (e: React.WheelEvent<SVGSVGElement>) => {
+    useEffect(() => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const handleWheel = (e: WheelEvent) => {
         e.preventDefault();
         const factor = e.deltaY > 0 ? 1.1 : 0.91;
         setViewBox((vb) => {
@@ -416,9 +418,10 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
           const nh = Math.min(vb.h * factor, boundsH * 1.5);
           return clampViewBox({ x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh }, discoveredBounds);
         });
-      },
-      [discoveredBounds],
-    );
+      };
+      svg.addEventListener('wheel', handleWheel, { passive: false });
+      return () => svg.removeEventListener('wheel', handleWheel);
+    }, [discoveredBounds]);
 
     // ── Click → convert to SVG grid coords ────────────────────────────────────
 
@@ -754,7 +757,6 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerLeave}
           onClick={handleClick}
-          onWheel={handleWheel}
         >
           {!loading && (
             <SurfaceRenderer

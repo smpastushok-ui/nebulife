@@ -75,7 +75,7 @@
 
 #### 🎯 Вектор F — "First-60-seconds onboarding refactor"
 - Current churn killer. Після language-select — провали 50%+.
-- Замінити на cinematic intro з voice-over: "Твоя планета, 7 днів, знайди нову домівку".
+- Замінити на cinematic intro з voice-over: "Твоя планета, 1 день, знайди нову домівку".
 - Tutorial не "перелік UI", а DISCOVERY: перші 60 сек гравець знаходить УНІКАЛЬНУ planet + dostaje notif "ти перший хто її дослідив у цьому всесвіті".
 - Мета: D1 retention з 25% → 45%+.
 
@@ -385,7 +385,7 @@ Total day-1 artifacts: 3 (1 home free + 2 зі starter)  →
 
 **Важливо для контенту**: всі нові тексти (IAP descriptions, App Store metadata, ASTRA prompts, Academy lessons, screenshots, trailers, social) пишуться ENG-first, потім перекладаються на UK. Український текст НЕ визначає tone — це дзеркало англійського.
 
-**Pitch**: An asteroid is heading for your planet. 7 days. Explore neighboring star systems, find a habitable world, launch a rescue ship for 10,000 passengers.
+**Pitch**: An asteroid is heading for your planet. 1 day. Explore neighboring star systems, find a habitable world, launch a rescue ship for 10,000 passengers.
 
 **Настрій**: Науково-фантастичний, стриманий, атмосферний. Не яскрава аркада — а тихий космос з відчуттям масштабу та самотності. Кожна зірка, планета, супутник — фізично обґрунтовані.
 
@@ -682,7 +682,7 @@ Home Planet ←→ Galaxy → System → Planet View
 
 ### 6.1 Сюжет
 
-Домашня зірка: B4-клас (18 500 K). Астероїд наближається — 7 днів (604 800 с). Треба:
+Домашня зірка: B4-клас (18 500 K). Астероїд наближається — 1 день (86 400 с). Треба:
 1. Дослідити сусідні системи через обсерваторії
 2. Знайти планету з habitability > 0.3
 3. Запустити корабель порятунку (1% c, 10 000 пасажирів)
@@ -823,7 +823,7 @@ nebulife/
 
 | Параметр | Значення | Файл |
 |---|---|---|
-| ASTEROID_COUNTDOWN | 604 800 с (7 днів) | `constants/game.ts` |
+| ASTEROID_COUNTDOWN | 86 400 с (1 день) | `constants/game.ts` |
 | RESEARCH_DURATION_MS | 10 000 (dev) / 3 600 000 (prod) | `constants/balance.ts` |
 | RESEARCH_MIN/MAX_PROGRESS | 2% / 50% | `constants/balance.ts` |
 | HOME_OBSERVATORY_COUNT | 3 | `constants/balance.ts` |

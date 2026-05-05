@@ -5,6 +5,7 @@ export type PlanetRevealLevel = 0 | 1 | 2 | 3;
 export type PlanetMissionType =
   | 'orbital_scan'
   | 'orbital_probe'
+  | 'drone_recon'
   | 'surface_landing'
   | 'deep_atmosphere_probe';
 

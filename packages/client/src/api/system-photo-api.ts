@@ -47,7 +47,6 @@ export interface SystemPhotoListItem {
  * Generate a telescope photo for a star system (costs 100 quarks)
  * or a close-up planet photo (costs 25 quarks, when planetId is provided).
  * Pass adPhotoToken to skip quark deduction (obtained after watching ads).
- * Uses Gemini AI — synchronous, returns the image URL directly.
  * Passes screen dimensions for optimal aspect ratio.
  */
 export async function generateSystemPhoto(

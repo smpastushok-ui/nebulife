@@ -15,7 +15,7 @@
 - **Платформи:** iOS + Android (Capacitor) + Web (PWA)
 - **Stack:** React 19, PixiJS v8, Three.js, Vercel serverless, Neon PostgreSQL, Firebase Auth, Capacitor v8
 - **AI integrations:** Kling (planet photos), Gemini (lessons/ASTRA/digests), Tripo (3D models)
-- **Pitch (EN):** "An asteroid is heading for your planet. 7 days. Explore neighboring star systems, find a habitable world, launch a rescue ship for 10,000 passengers."
+- **Pitch (EN):** "An asteroid is heading for your planet. 1 day. Explore neighboring star systems, find a habitable world, launch a rescue ship for 10,000 passengers."
 
 ### Target Audience
 - **Primary language:** English (EN) — marketing, App Store, SEO, social

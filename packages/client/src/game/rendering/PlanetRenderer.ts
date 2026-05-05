@@ -1,4 +1,4 @@
-import { Graphics, Container, Text } from 'pixi.js';
+import { Graphics, Container, Sprite, Text, Texture } from 'pixi.js';
 import type { Planet, Star } from '@nebulife/core';
 import { derivePlanetVisuals, lerpColor } from './PlanetVisuals.js';
 
@@ -225,6 +225,37 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   container.addChild(label);
 
   return { container, lightingGroup };
+}
+
+/**
+ * Adds a shared AI-generated texture preview on top of the procedural mini-sphere.
+ * This stays intentionally lightweight for SystemScene: a circular crop with the
+ * existing Pixi lighting/shadow layers still providing the spherical read.
+ */
+export function applyPlanetTexturePreview(container: Container, textureUrl: string, size: number): void {
+  const existing = container.getChildByName('planet-skin-preview');
+  if (existing) existing.destroy();
+
+  const texture = Texture.from(textureUrl);
+  const sprite = new Sprite(texture);
+  sprite.name = 'planet-skin-preview';
+  sprite.anchor.set(0.5);
+  sprite.width = size * 2;
+  sprite.height = size * 2;
+  sprite.eventMode = 'none';
+  sprite.zIndex = 2;
+
+  const mask = new Graphics();
+  mask.name = 'planet-skin-preview-mask';
+  mask.circle(0, 0, size * 0.98);
+  mask.fill({ color: 0xffffff, alpha: 1 });
+  mask.eventMode = 'none';
+  mask.zIndex = 1;
+  sprite.mask = mask;
+
+  container.sortableChildren = true;
+  container.addChild(mask);
+  container.addChild(sprite);
 }
 
 /** Moon composition colors for system-view scale (small dots) */

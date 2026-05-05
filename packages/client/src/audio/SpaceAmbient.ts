@@ -54,7 +54,7 @@ export class SpaceAmbient {
   // gently swells back in as the scene transitions.
   private readonly fadeCinematicSec = 1.5;
 
-  constructor(src: string = '/music/space.webm') {
+  constructor(src: string = '/music/space.mp3') {
     this.src = resolveAmbientSrc(src);
   }
 

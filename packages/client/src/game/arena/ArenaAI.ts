@@ -39,9 +39,9 @@ interface DifficultyParams {
 }
 
 const DIFFICULTY_PARAMS: Record<BotDifficulty, DifficultyParams> = {
-  easy:   { aimOffsetRad: 12 * (Math.PI / 180), decisionInterval: 0.6 },
-  medium: { aimOffsetRad:  6 * (Math.PI / 180), decisionInterval: 0.3 },
-  hard:   { aimOffsetRad:  2 * (Math.PI / 180), decisionInterval: 0.2 },
+  easy:   { aimOffsetRad: 18 * (Math.PI / 180), decisionInterval: 0.75 },
+  medium: { aimOffsetRad: 11 * (Math.PI / 180), decisionInterval: 0.45 },
+  hard:   { aimOffsetRad:  5 * (Math.PI / 180), decisionInterval: 0.28 },
 };
 
 // FSM range thresholds (units)

@@ -354,25 +354,28 @@ function TelescopeButton({ onClick, generating }: { onClick: () => void; generat
         gap: 6,
         padding: '4px 12px',
         marginTop: 4,
-        background: hover && !generating ? 'rgba(30, 50, 80, 0.7)' : 'rgba(5, 10, 20, 0.85)',
+        background: hover && !generating
+          ? 'linear-gradient(135deg, rgba(42, 62, 92, 0.86), rgba(70, 45, 95, 0.78))'
+          : 'linear-gradient(135deg, rgba(10, 20, 34, 0.92), rgba(34, 24, 48, 0.88))',
         border: '1px solid',
-        borderColor: generating ? '#446688' : hover ? '#4488aa' : '#334455',
+        borderColor: generating ? '#446688' : hover ? '#ddaa44' : '#665522',
         borderRadius: 4,
         cursor: generating ? 'default' : 'pointer',
         fontFamily: 'monospace',
         fontSize: 10,
-        color: generating ? '#4488aa' : hover ? '#aabbcc' : '#667788',
+        color: generating ? '#4488aa' : hover ? '#ffdda0' : '#ddaa44',
         backdropFilter: 'blur(6px)',
         transition: 'all 0.15s',
         alignSelf: 'center',
+        boxShadow: hover && !generating ? '0 0 18px rgba(221, 170, 68, 0.2)' : '0 0 10px rgba(68, 136, 170, 0.12)',
       }}
     >
-      {/* Telescope SVG icon */}
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-        <line x1="2" y1="11" x2="10" y2="5" />
-        <circle cx="12" cy="3.5" r="2.5" />
-        <line x1="2" y1="11" x2="0.5" y2="15" />
-        <line x1="2" y1="11" x2="4" y2="15" />
+      {/* Alpha camera aperture icon */}
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="4" width="12" height="9" rx="1.5" />
+        <path d="M5 4l1-2h4l1 2" />
+        <circle cx="8" cy="8.5" r="2.4" />
+        <path d="M8 6.1l1.9 3.6H6.1L8 6.1z" />
       </svg>
       <span>
         {generating ? t('telescope.processing_panorama') : t('telescope.panorama_cost')}

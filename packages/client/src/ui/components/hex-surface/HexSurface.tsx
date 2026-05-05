@@ -372,6 +372,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     }, [hexState.slots, onBuildingCountChange]);
 
     // ── Direct DOM transform (shared by pan, zoom, wheel) ──────────────────
+    const rootRef = useRef<HTMLDivElement | null>(null);
     const gridTransformRef = useRef<HTMLDivElement | null>(null);
     const handleTransformRef = useCallback((el: HTMLDivElement | null) => {
       gridTransformRef.current = el;
@@ -635,10 +636,16 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     // ── Wheel zoom ──────────────────────────────────────────────────────────
 
-    const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-      applyZoom(zoomRef.current + delta);
+    useEffect(() => {
+      const root = rootRef.current;
+      if (!root) return;
+      const handleWheel = (e: WheelEvent) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        applyZoom(zoomRef.current + delta);
+      };
+      root.addEventListener('wheel', handleWheel, { passive: false });
+      return () => root.removeEventListener('wheel', handleWheel);
     }, [applyZoom]);
 
     // ── Loading screen ──────────────────────────────────────────────────────
@@ -671,6 +678,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     return (
       <div
+        ref={rootRef}
         style={{
           position: 'fixed',
           inset: 0,
@@ -685,7 +693,6 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onWheel={handleWheel}
       >
         {/* Static planet background — fixed, no movement, GPU layer */}
         {bgImage && (

@@ -86,6 +86,7 @@ for (const type of heavyLogisticsPayloads) {
 const missionBuildings: Record<PlanetMissionType, 'landing_pad' | 'spaceport' | null> = {
   orbital_scan: null,
   orbital_probe: 'landing_pad',
+  drone_recon: 'landing_pad',
   surface_landing: 'landing_pad',
   deep_atmosphere_probe: 'landing_pad',
 };

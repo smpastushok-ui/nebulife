@@ -3,19 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 
 interface SurfaceAstraLessonPromptProps {
-  onOpenLesson: () => void;
   onDismiss: () => void;
 }
 
-export function SurfaceAstraLessonPrompt({ onOpenLesson, onDismiss }: SurfaceAstraLessonPromptProps) {
+export function SurfaceAstraLessonPrompt({ onDismiss }: SurfaceAstraLessonPromptProps) {
   const { t, i18n } = useTranslation();
   const [voicePlaying, setVoicePlaying] = useState(false);
+  const [voicePart, setVoicePart] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 680;
-  const voiceSrc = useMemo(
-    () => i18n.language.startsWith('uk')
-      ? '/astra/voice/surface_intro_ua.mp3'
-      : '/astra/voice/surface_intro_en.mp3',
+  const voiceSources = useMemo(
+    () => {
+      const lang = i18n.language.startsWith('uk') ? 'ua' : 'en';
+      return Array.from({ length: 7 }, (_, index) => `/astra/voice/surface/${index + 1}-${lang}.mp3`);
+    },
     [i18n.language],
   );
 
@@ -34,13 +35,28 @@ export function SurfaceAstraLessonPrompt({ onOpenLesson, onDismiss }: SurfaceAst
     }
 
     audioRef.current?.pause();
-    const audio = new Audio(voiceSrc);
+    setVoicePart(1);
+    playVoicePart(0);
+  };
+
+  const playVoicePart = (index: number) => {
+    const src = voiceSources[index];
+    if (!src) {
+      setVoicePlaying(false);
+      setVoicePart(0);
+      return;
+    }
+    const audio = new Audio(src);
     audio.preload = 'auto';
     audio.volume = 0.9;
     audioRef.current = audio;
     setVoicePlaying(true);
-    audio.onended = () => setVoicePlaying(false);
-    audio.onerror = () => setVoicePlaying(false);
+    setVoicePart(index + 1);
+    audio.onended = () => playVoicePart(index + 1);
+    audio.onerror = () => {
+      // Missing segment should not block the lesson; continue with the next one.
+      playVoicePart(index + 1);
+    };
     void audio.play().catch(() => setVoicePlaying(false));
   };
 
@@ -74,17 +90,9 @@ export function SurfaceAstraLessonPrompt({ onOpenLesson, onDismiss }: SurfaceAst
               style={styles.voiceButton}
               onClick={handleToggleVoice}
             >
-              {voicePlaying ? t('academy.surface_intro.stop_voice') : t('academy.surface_intro.listen_voice')}
-            </button>
-            <button
-              type="button"
-              style={styles.primaryButton}
-              onClick={() => {
-                playSfx('ui-click', 0.08);
-                onOpenLesson();
-              }}
-            >
-              {t('academy.surface_intro.open_lesson')}
+              {voicePlaying
+                ? `${t('academy.surface_intro.stop_voice')} ${voicePart}/7`
+                : t('academy.surface_intro.listen_voice')}
             </button>
             <button
               type="button"

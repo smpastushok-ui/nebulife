@@ -539,6 +539,115 @@ export async function updateShipModel(
 }
 
 // ---------------------------------------------------------------------------
+// Planet Skin helpers (shared Kling texture maps for planet spheres)
+// ---------------------------------------------------------------------------
+
+export interface PlanetSkinRow {
+  id: string;
+  planet_id: string;
+  system_id: string;
+  kind: string;
+  status: string;
+  texture_url: string | null;
+  kling_task_id: string | null;
+  prompt_used: string | null;
+  generated_by: string | null;
+  quarks_paid: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function savePlanetSkin(data: {
+  id: string;
+  planetId: string;
+  systemId: string;
+  kind: 'system' | 'exosphere';
+  playerId: string;
+  klingTaskId?: string | null;
+  promptUsed: string;
+  status?: string;
+  textureUrl?: string | null;
+  quarksPaid?: number;
+}): Promise<PlanetSkinRow> {
+  const sql = getSQL();
+  const status = data.status ?? 'generating';
+  const rows = await sql`
+    INSERT INTO planet_skins (
+      id, planet_id, system_id, kind, generated_by, kling_task_id,
+      prompt_used, status, texture_url, quarks_paid, completed_at
+    )
+    VALUES (
+      ${data.id}, ${data.planetId}, ${data.systemId}, ${data.kind}, ${data.playerId},
+      ${data.klingTaskId ?? null}, ${data.promptUsed}, ${status}, ${data.textureUrl ?? null},
+      ${data.quarksPaid ?? 0}, ${status === 'succeed' ? new Date().toISOString() : null}
+    )
+    ON CONFLICT (planet_id, kind) DO UPDATE SET
+      system_id = EXCLUDED.system_id,
+      generated_by = EXCLUDED.generated_by,
+      kling_task_id = EXCLUDED.kling_task_id,
+      prompt_used = EXCLUDED.prompt_used,
+      status = EXCLUDED.status,
+      texture_url = EXCLUDED.texture_url,
+      quarks_paid = EXCLUDED.quarks_paid,
+      completed_at = EXCLUDED.completed_at
+    RETURNING *
+  `;
+  return rows[0] as PlanetSkinRow;
+}
+
+export async function getPlanetSkin(
+  planetId: string,
+  kind: 'system' | 'exosphere',
+): Promise<PlanetSkinRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM planet_skins
+    WHERE planet_id = ${planetId} AND kind = ${kind}
+  `;
+  return (rows[0] as PlanetSkinRow) ?? null;
+}
+
+export async function getPlanetSkinById(id: string): Promise<PlanetSkinRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM planet_skins WHERE id = ${id}`;
+  return (rows[0] as PlanetSkinRow) ?? null;
+}
+
+export async function getPlanetSkinsForSystem(systemId: string): Promise<PlanetSkinRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM planet_skins
+    WHERE system_id = ${systemId}
+    ORDER BY created_at DESC
+  `) as PlanetSkinRow[];
+}
+
+export async function updatePlanetSkin(
+  id: string,
+  updates: Partial<{
+    status: string;
+    texture_url: string;
+    kling_task_id: string;
+    prompt_used: string;
+    quarks_paid: number;
+  }>,
+): Promise<PlanetSkinRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE planet_skins
+    SET status = COALESCE(${updates.status ?? null}, status),
+        texture_url = COALESCE(${updates.texture_url ?? null}, texture_url),
+        kling_task_id = COALESCE(${updates.kling_task_id ?? null}, kling_task_id),
+        prompt_used = COALESCE(${updates.prompt_used ?? null}, prompt_used),
+        quarks_paid = COALESCE(${updates.quarks_paid ?? null}, quarks_paid),
+        completed_at = CASE WHEN ${updates.status ?? null} IN ('succeed', 'failed') THEN NOW() ELSE completed_at END
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as PlanetSkinRow) ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Surface Building helpers
 // ---------------------------------------------------------------------------
 
@@ -1030,6 +1139,17 @@ export async function getSystemPhotoById(id: string): Promise<SystemPhotoRow | n
   return (rows[0] as SystemPhotoRow) ?? null;
 }
 
+export async function getSystemPhotoBySystemId(systemId: string): Promise<SystemPhotoRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM system_photos
+    WHERE system_id = ${systemId} AND status = 'succeed' AND photo_url IS NOT NULL
+    ORDER BY completed_at DESC NULLS LAST, created_at DESC
+    LIMIT 1
+  `;
+  return (rows[0] as SystemPhotoRow) ?? null;
+}
+
 export async function updateSystemPhoto(
   id: string,
   updates: Partial<{
@@ -1195,14 +1315,28 @@ export async function getMessages(
   channel: string,
   limit: number = 50,
   after?: string,
+  notBefore?: string,
 ): Promise<MessageRow[]> {
   const sql = getSQL();
+  const lowerBound = after && notBefore
+    ? (after > notBefore ? after : notBefore)
+    : after ?? notBefore;
   if (after) {
     return (await sql`
       SELECT * FROM messages
-      WHERE channel = ${channel} AND created_at > ${after}
+      WHERE channel = ${channel} AND created_at > ${lowerBound}
       ORDER BY created_at ASC
       LIMIT ${limit}
+    `) as MessageRow[];
+  }
+  if (notBefore) {
+    return (await sql`
+      SELECT * FROM (
+        SELECT * FROM messages
+        WHERE channel = ${channel} AND created_at >= ${notBefore}
+        ORDER BY created_at DESC
+        LIMIT ${limit}
+      ) sub ORDER BY created_at ASC
     `) as MessageRow[];
   }
   // Without after: get last N messages (sub-select to reverse order)

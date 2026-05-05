@@ -146,11 +146,16 @@
     "photo_exosphere_label": "Exosphere photo — {{cost}}",
     "photo_biosphere_label": "Biosphere photo — {{cost}}",
     "photo_aerial_label": "Bird's-eye photo — {{cost}}",
-    "photo_tooltip": "Rent supertélescope capacity to capture a unique image of the selected planet. The image will belong exclusively to you.",
-    "photo_exosphere_tooltip": "Kling capture from an orbital probe: the planet, its moons, and the system star in a realistic mission frame.",
+    "photo_tooltip": "Request observatory capacity to capture a unique image of the selected planet. The image will belong exclusively to you.",
+    "photo_exosphere_tooltip": "Orbital mission capture: the planet, its moons, and the system star in a realistic mission frame.",
     "photo_base_label": "Planet photo",
     "photo_view_label": "View planet photo",
-    "photo_generating": "generating...",
+    "photo_generating": "getting photo...",
+    "skin_system_label": "Create orbit skin",
+    "skin_system_ready": "Orbit skin ready",
+    "skin_exosphere_label": "Create exosphere skin — {{cost}}",
+    "skin_exosphere_ready": "Exosphere skin ready",
+    "skin_generating": "getting photo...",
     "photo_ad_label": "Satellite Request",
     "photo_ad_progress": "Data transfer: {{done}}/{{total}} packets"
   },
@@ -800,10 +805,10 @@
     "characteristics": "Characteristics",
     "research": "Research",
     "alpha_level": "Alpha Level",
-    "view_panorama": "View Panorama",
+    "view_panorama": "View Alpha Photo",
     "processing": "Processing...",
     "alpha_hint": "Get a photo from the Alpha telescope. Uses quarks to rent a cutting-edge telescope.",
-    "panorama_cost": "System Photo Panorama · 50",
+    "panorama_cost": "System Alpha Photo · 50",
     "planet_one": "planet",
     "planet_few": "planets",
     "planet_many": "planets",
@@ -819,12 +824,12 @@
   },
   "context_menu": {
     "research_group": "RESEARCH",
-    "panorama_cost": "System Panorama — {{cost}}",
-    "panorama_tooltip": "Rent supertélescope capacity to capture a unique panorama of the selected star system. The image will belong exclusively to you.",
-    "panorama_processing": "Processing panorama...",
-    "panorama_ad_label": "Wide-Angle Scan",
+    "panorama_cost": "System Alpha Photo — {{cost}}",
+    "panorama_tooltip": "Alpha service: rent supertelescope capacity to capture a unique photo of the selected star system. The image will belong exclusively to you.",
+    "panorama_processing": "Getting alpha photo...",
+    "panorama_ad_label": "Alpha System Scan",
     "panorama_ad_progress": "Rendering: {{done}}/{{total}}",
-    "view_panorama": "View System Panorama",
+    "view_panorama": "View System Alpha Photo",
     "send_probe": "Send Probe",
     "level_50_plus": "level 50+",
     "missions_group": "MISSIONS",
@@ -987,6 +992,7 @@
     "type": {
       "orbital_scan": "Orbital Scan",
       "orbital_probe": "Orbital Probe",
+      "drone_recon": "Drone Recon",
       "surface_landing": "Surface Expedition",
       "deep_atmosphere_probe": "Atmosphere Probe"
     },
@@ -1050,6 +1056,7 @@
     "report": {
       "orbital_scan": "Orbital scan complete",
       "orbital_probe": "Orbital probe analysis complete",
+      "drone_recon": "Recon drone data received",
       "surface_landing": "Surface expedition report received",
       "deep_atmosphere_probe": "Atmosphere probe data received"
     }
@@ -1276,7 +1283,7 @@
       "isotopes_name": "Isotopes",
       "isotopes_desc": "Radioactive and rare isotopes from the planet's mantle and core. The primary energy source for reactors and warp drives.",
       "quarks_name": "Quarks",
-      "quarks_desc": "The in-game currency unit. Used to expand the fleet, generate AI images, and unlock premium features.",
+      "quarks_desc": "The in-game currency unit. Used to expand the fleet, receive unique images, and unlock premium features.",
       "water_name": "Water",
       "water_desc": "Liquid water extracted from surface deposits and underground reservoirs. Essential for crew sustenance, food production, and chemical processes in colony domes."
     }
@@ -1460,6 +1467,7 @@
     "use_supertelescope": "Use the Supertelescope in the star system or planet menu.",
     "photos_count": "{{label}}: {{count}} photos",
     "share": "Share",
+    "to_exosphere": "To Exosphere",
     "planets_count": "{{count}} planets"
   },
   "photo": {
@@ -1490,9 +1498,10 @@
     "target_planet": "Planet",
     "target_system": "Star System",
     "share_btn": "Share",
+    "to_exosphere": "To Exosphere",
     "save_btn": "Save to Collection",
-    "processing_panorama": "Processing panorama...",
-    "panorama_cost": "Panorama 50"
+    "processing_panorama": "Getting alpha photo...",
+    "panorama_cost": "Alpha Photo 50"
   },
   "nav_header": {
     "search_placeholder": "search system...",
@@ -1618,16 +1627,19 @@
     "action_probe_photo": "Take photo from probe",
     "action_atmo_probe_photo": "Take photo from atmosphere probe",
     "action_rover_photo": "Take photo from rover",
+    "action_drone_photo": "Take photo from drone",
     "action_alpha_photo": "Alpha Camera — {{cost}}⚛",
     "procedural_photo_desc": "Black-and-white instrument photo generated from mission data.",
-    "alpha_photo_desc": "Photorealistic Gemini/Nano Banana generation grounded in this report.",
+    "alpha_photo_desc": "Photorealistic photo grounded in this report.",
     "photo_saving": "Saving photo...",
     "photo_saved": "Photo saved",
     "view_saved_photo": "View mission photo",
     "saved_photo_title": "Mission photo · {{planet}}",
     "receiving_photo": "Receiving mission photo",
     "photo_saved_to_gallery": "Mission photo saved to gallery",
-    "photo_save_failed": "Failed to save mission photo"
+    "photo_save_failed": "Failed to save mission photo",
+    "system_notif": "Mission data from planet {{planet}} received. T{{tier}} report is ready.",
+    "system_log": "Mission on planet {planet} complete. T{tier} data received; report is available in system chat and planet menu."
   },
   "event": {
     "urgent_video": "[ URGENT VIDEO MESSAGE ]",
@@ -1802,7 +1814,6 @@
       "body_3": "I prepared the first lesson to explain Nebulife's philosophy and your role inside a shared, expanding universe with millions of planets and stars.",
       "listen_voice": "Listen to ASTRA",
       "stop_voice": "Stop voice",
-      "open_lesson": "Open first lesson",
       "later": "Later"
     }
   },

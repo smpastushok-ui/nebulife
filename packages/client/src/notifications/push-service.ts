@@ -8,12 +8,25 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
-
-// NOTE: Firebase Web Messaging is not supported in Android/iOS WebView.
-// TODO: migrate to @capacitor/push-notifications for native push on mobile.
+import { PushNotifications } from '@capacitor/push-notifications';
 
 /** VAPID public key — must match FIREBASE_SERVICE_ACCOUNT_JSON project */
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined;
+
+export type PushPermissionIssue =
+  | 'native_registration_failed'
+  | 'notifications_unsupported'
+  | 'service_worker_unsupported'
+  | 'firebase_messaging_unsupported'
+  | 'firebase_config_missing'
+  | 'vapid_key_missing'
+  | 'permission_denied'
+  | 'token_failed';
+
+export interface PushPermissionResult {
+  token: string | null;
+  issue?: PushPermissionIssue;
+}
 
 // ---------------------------------------------------------------------------
 // Firebase app (reuse if already initialized by firebase-config.ts)
@@ -47,21 +60,59 @@ function getFirebaseApp() {
  * Request push notification permission and get the FCM token.
  * Returns the token string, or null if permission denied or Firebase not configured.
  */
-export async function requestPushPermission(): Promise<string | null> {
-  // Firebase Web Messaging does not work inside Capacitor WebView
-  if (Capacitor.isNativePlatform()) return null;
+export async function requestPushPermissionDetailed(): Promise<PushPermissionResult> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      let permission = await PushNotifications.checkPermissions();
+      if (permission.receive !== 'granted') {
+        permission = await PushNotifications.requestPermissions();
+      }
+      if (permission.receive !== 'granted') {
+        return { token: null, issue: 'permission_denied' };
+      }
 
-  if (!('Notification' in window) || !('serviceWorker' in navigator)) return null;
-  if (!(await isSupported().catch(() => false))) return null;
+      const token = await new Promise<string | null>((resolve) => {
+        const timeout = window.setTimeout(() => resolve(null), 10000);
+        PushNotifications.addListener('registration', (result) => {
+          window.clearTimeout(timeout);
+          resolve(result.value);
+        }).catch(() => {
+          window.clearTimeout(timeout);
+          resolve(null);
+        });
+        PushNotifications.addListener('registrationError', () => {
+          window.clearTimeout(timeout);
+          resolve(null);
+        }).catch(() => {});
+        PushNotifications.register().catch(() => {
+          window.clearTimeout(timeout);
+          resolve(null);
+        });
+      });
+
+      return token ? { token } : { token: null, issue: 'native_registration_failed' };
+    } catch (err) {
+      console.warn('[push] native registration failed:', err);
+      return { token: null, issue: 'native_registration_failed' };
+    }
+  }
+
+  if (!('Notification' in window)) return { token: null, issue: 'notifications_unsupported' };
+  if (!('serviceWorker' in navigator)) return { token: null, issue: 'service_worker_unsupported' };
+  if (!(await isSupported().catch(() => false))) return { token: null, issue: 'firebase_messaging_unsupported' };
 
   const app = getFirebaseApp();
-  if (!app || !VAPID_KEY) {
-    console.warn('[push] Firebase not configured or VAPID key missing');
-    return null;
+  if (!app) {
+    console.warn('[push] Firebase not configured');
+    return { token: null, issue: 'firebase_config_missing' };
+  }
+  if (!VAPID_KEY) {
+    console.warn('[push] VAPID key missing');
+    return { token: null, issue: 'vapid_key_missing' };
   }
 
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') return null;
+  if (permission !== 'granted') return { token: null, issue: 'permission_denied' };
 
   try {
     const messaging = getMessaging(app);
@@ -72,11 +123,15 @@ export async function requestPushPermission(): Promise<string | null> {
       serviceWorkerRegistration: registration,
     });
 
-    return token ?? null;
+    return token ? { token } : { token: null, issue: 'token_failed' };
   } catch (err) {
     console.warn('[push] getToken failed:', err);
-    return null;
+    return { token: null, issue: 'token_failed' };
   }
+}
+
+export async function requestPushPermission(): Promise<string | null> {
+  return (await requestPushPermissionDetailed()).token;
 }
 
 /**
@@ -84,8 +139,22 @@ export async function requestPushPermission(): Promise<string | null> {
  * Fires a custom DOM event so App.tsx can handle it.
  */
 export function startForegroundListener(): (() => void) | null {
-  // Skip on native — FCM web SDK is not supported in WebView
-  if (Capacitor.isNativePlatform()) return null;
+  if (Capacitor.isNativePlatform()) {
+    let removeReceived: (() => void) | null = null;
+    let removeAction: (() => void) | null = null;
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      const weekDate = notification.data?.weekDate ?? '';
+      window.dispatchEvent(new CustomEvent('nebulife:push-digest', { detail: { weekDate } }));
+    }).then((handle) => { removeReceived = () => { void handle.remove(); }; }).catch(() => {});
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      const weekDate = action.notification.data?.weekDate ?? '';
+      window.dispatchEvent(new CustomEvent('nebulife:open-digest', { detail: { weekDate } }));
+    }).then((handle) => { removeAction = () => { void handle.remove(); }; }).catch(() => {});
+    return () => {
+      removeReceived?.();
+      removeAction?.();
+    };
+  }
 
   const app = getFirebaseApp();
   if (!app) return null;
@@ -110,7 +179,7 @@ export function startForegroundListener(): (() => void) | null {
  * Check current push permission status without requesting.
  */
 export function getPushPermissionStatus(): NotificationPermission | 'unsupported' {
-  if (Capacitor.isNativePlatform()) return 'unsupported';
+  if (Capacitor.isNativePlatform()) return 'default';
   if (!('Notification' in window)) return 'unsupported';
   return Notification.permission;
 }

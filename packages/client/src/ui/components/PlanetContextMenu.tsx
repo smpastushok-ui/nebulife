@@ -41,6 +41,7 @@ const MENU_HEIGHT_APPROX = 360;
 
 type TabId = 'actions' | 'characteristics' | 'resources' | 'alpha';
 type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
+type PlanetSkinKind = 'system' | 'exosphere';
 type CargoResource = 'minerals' | 'volatiles' | 'isotopes' | 'water';
 
 function getPhotoCost(photoKind: PlanetPhotoKind): number {
@@ -774,6 +775,8 @@ export function PlanetContextMenu({
   onSurface,
   onTelescopePhoto,
   onAdTelescopePhoto,
+  onGeneratePlanetSkin,
+  planetSkinStatus,
   isDestroyed,
   surfaceDisabledReason,
   isPhotoGenerating,
@@ -815,6 +818,11 @@ export function PlanetContextMenu({
   onSurface?: () => void;
   onTelescopePhoto?: (photoKind: PlanetPhotoKind) => void;
   onAdTelescopePhoto?: (photoKind: PlanetPhotoKind, photoToken: string) => void;
+  onGeneratePlanetSkin?: (kind: PlanetSkinKind) => void;
+  planetSkinStatus?: {
+    system?: 'generating' | 'pending' | 'processing' | 'succeed' | 'failed';
+    exosphere?: 'generating' | 'pending' | 'processing' | 'succeed' | 'failed';
+  };
   isDestroyed?: boolean;
   surfaceDisabledReason?: string;
   isPhotoGenerating?: boolean;
@@ -912,6 +920,7 @@ export function PlanetContextMenu({
   const availableMissionTypes: PlanetMissionType[] = [
     'orbital_scan',
     'orbital_probe',
+    ...(isSolidPlanetForLanding(planet) && revealLevel < getTargetRevealLevel('surface_landing') ? ['drone_recon' as PlanetMissionType] : []),
     isSolidPlanetForLanding(planet) ? 'surface_landing' : 'deep_atmosphere_probe',
   ];
   const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
@@ -997,6 +1006,14 @@ export function PlanetContextMenu({
   const canAffordExosphere = quarks >= exosphereCost;
   const canAffordBiosphere = quarks >= biosphereCost;
   const canAffordAerial = quarks >= aerialCost;
+  const exosphereSkinCost = 50;
+  const canAffordExosphereSkin = quarks >= exosphereSkinCost;
+  const isSkinGenerating = planetSkinStatus?.system === 'generating'
+    || planetSkinStatus?.system === 'pending'
+    || planetSkinStatus?.system === 'processing'
+    || planetSkinStatus?.exosphere === 'generating'
+    || planetSkinStatus?.exosphere === 'pending'
+    || planetSkinStatus?.exosphere === 'processing';
 
   return (
     <>
@@ -1075,7 +1092,7 @@ export function PlanetContextMenu({
                       return (
                         <div key={type}>
                           <MenuItem
-                            icon={type === 'orbital_probe' ? '⊙' : '▽'}
+                            icon={type === 'orbital_probe' ? '⊙' : type === 'drone_recon' ? '⌁' : '▽'}
                             label={t(`planet_missions.type.${type}`)}
                             onClick={!disabledReason && onStartMission ? () => onStartMission(planet, type) : undefined}
                             disabled={Boolean(disabledReason) || !onStartMission}
@@ -1179,6 +1196,39 @@ export function PlanetContextMenu({
                 <div style={{ padding: '8px 14px 3px', fontSize: 8, color: '#886622', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                   {t('planet.premium_tools')}
                 </div>
+                {onGeneratePlanetSkin && (
+                  <>
+                    <MenuItem
+                      icon="◍"
+                      label={planetSkinStatus?.system === 'succeed'
+                        ? t('planet.skin_system_ready')
+                        : t('planet.skin_system_label')}
+                      onClick={itemsActive && !isSkinGenerating && planetSkinStatus?.system !== 'succeed'
+                        ? () => onGeneratePlanetSkin('system')
+                        : undefined}
+                      color={planetSkinStatus?.system === 'succeed' ? '#88ccaa' : '#ddaa44'}
+                      disabled={isSkinGenerating || planetSkinStatus?.system === 'succeed'}
+                      right={planetSkinStatus?.system && planetSkinStatus.system !== 'succeed'
+                        ? <span style={{ color: '#4488aa', fontSize: 9 }}>{t('planet.skin_generating')}</span>
+                        : undefined}
+                    />
+                    <MenuItem
+                      icon="◌"
+                      label={planetSkinStatus?.exosphere === 'succeed'
+                        ? t('planet.skin_exosphere_ready')
+                        : <>{t('planet.skin_exosphere_label', { cost: exosphereSkinCost })}<QuarkIcon /></>}
+                      onClick={itemsActive && !isSkinGenerating && planetSkinStatus?.exosphere !== 'succeed' && canAffordExosphereSkin
+                        ? () => onGeneratePlanetSkin('exosphere')
+                        : undefined}
+                      color={planetSkinStatus?.exosphere === 'succeed' ? '#88ccaa' : canAffordExosphereSkin ? '#ddaa44' : '#445566'}
+                      disabled={isSkinGenerating || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin}
+                      right={planetSkinStatus?.exosphere && planetSkinStatus.exosphere !== 'succeed'
+                        ? <span style={{ color: '#4488aa', fontSize: 9 }}>{t('planet.skin_generating')}</span>
+                        : undefined}
+                    />
+                    <div style={{ height: 1, background: 'rgba(80,65,35,0.35)', margin: '4px 0' }} />
+                  </>
+                )}
                 {onTelescopePhoto && !isPhotoGenerating && (
                   <>
                     <MenuItem

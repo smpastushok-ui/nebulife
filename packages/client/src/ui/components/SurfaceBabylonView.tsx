@@ -905,7 +905,6 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     }, []);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
-      e.preventDefault();
       if (e.touches.length === 1 && dragRef.current.active) {
         const dx = e.touches[0].clientX - dragRef.current.startX;
         const dy = e.touches[0].clientY - dragRef.current.startY;

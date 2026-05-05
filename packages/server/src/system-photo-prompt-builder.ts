@@ -422,14 +422,32 @@ export function buildGeminiPlanetPhotoPrompt(
     `---`,
     `A vertical bird's-eye photograph taken by a compact exploration copter looking downward at the terrain of ${planet.name}.`,
     `Composition is top-down but still photographic: terrain relief, craters, river-like channels, ice fields, dunes, lava plains, or coastlines according to the planet data.`,
-    `Show a tiny cropped part of a copter landing skid, rotor guard, or sensor boom at the edge of the image, subtle and not blocking the terrain.`,
+    `The exploration craft must not be visible in the frame: no drone body, no landing skid, no rotor guard, no sensor boom, only the photographed surface below.`,
     `Make altitude feel like tens to hundreds of meters above ground, not orbital imagery.`,
     `No humans, no fantasy buildings, no impossible blue skies unless the atmosphere supports it.`,
     cinematicDir,
     sharedStyle,
   ];
 
-  const prompt = kind === 'biosphere'
+  const atmosphereProbePrompt = [
+    `DEEP ATMOSPHERE PROBE PHOTO.`,
+    `PLANET DATA:`,
+    missionContext,
+    `${planet.name}, type ${planet.type}, ${typeDesc}, atmospheric temperature reference ${Math.round(planet.surfaceTempK)}K, gravity ${planet.surfaceGravityG}g.`,
+    `Atmosphere: ${planet.atmosphere ? `${planet.atmosphere.surfacePressureAtm.toFixed(2)} atm` : 'extremely deep gas envelope'}.`,
+    `---`,
+    `A photorealistic image transmitted by a descending atmospheric probe inside the atmosphere of ${planet.name}.`,
+    `This is a gas or ice giant atmosphere survey, not a surface landing: show turbulent cloud decks, colored bands, storm cells, haze layers, lightning glows, pressure fog, and depth fading into clouds.`,
+    `There must be no solid ground, no rocky horizon, no clear surface, no oceans, no trees, and no landforms.`,
+    `The probe itself must not be visible in the frame: no capsule edge, no antenna, no parachute, only the atmospheric view.`,
+    `Make scale feel enormous and hostile, with layered clouds extending far below and above the camera.`,
+    cinematicDir,
+    sharedStyle,
+  ];
+
+  const prompt = missionType === 'deep_atmosphere_probe' && (planet.type === 'gas-giant' || planet.type === 'ice-giant')
+    ? atmosphereProbePrompt
+    : kind === 'biosphere'
     ? biospherePrompt
     : kind === 'aerial'
       ? aerialPrompt

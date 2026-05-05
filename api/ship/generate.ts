@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import {
+  creditQuarks,
   deductQuarks,
   saveShipModel,
   updateShipModel,
@@ -23,6 +24,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let chargedPlayerId: string | null = null;
+  let chargedAmount = 0;
   try {
     const auth = await authenticate(req, res);
     if (!auth) return;
@@ -46,6 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!paid) {
       return res.status(402).json({ error: 'Insufficient quarks' });
     }
+    chargedPlayerId = auth.playerId;
+    chargedAmount = SHIP_GENERATION_COST_QUARKS;
 
     const shipId = `ship_${auth.playerId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const ship = await saveShipModel({
@@ -65,6 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       kling_task_id: kling.taskId,
       status: 'generating_concept',
     });
+    chargedPlayerId = null;
+    chargedAmount = 0;
 
     return res.status(200).json({
       shipId: ship.id,
@@ -74,6 +81,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err) {
     console.error('[ship/generate] Error:', err);
-    return res.status(500).json({ error: 'Ship generation failed' });
+    if (chargedPlayerId && chargedAmount > 0) {
+      try {
+        await creditQuarks(chargedPlayerId, chargedAmount);
+      } catch (refundErr) {
+        console.error('[ship/generate] Refund failed:', refundErr);
+      }
+    }
+    const message = err instanceof Error ? err.message : 'Ship generation failed';
+    const isConfigError = message.includes('KLING_ACCESS_KEY') || message.includes('KLING_SECRET_KEY');
+    const isDbMigrationError = message.includes('ship_models') || message.includes('relation') || message.includes('column');
+    return res.status(isConfigError || isDbMigrationError ? 503 : 500).json({
+      error: isConfigError
+        ? 'Ship generation is not configured on the server'
+        : isDbMigrationError
+          ? 'Ship generation database migration is not installed'
+          : 'Ship generation failed',
+    });
   }
 }

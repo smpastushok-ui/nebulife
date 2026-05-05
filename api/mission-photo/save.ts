@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (playerId !== auth.playerId) {
       return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
-    if (!/^planet-(probe|rover)-[a-zA-Z0-9_-]+/.test(photoKey)) {
+    if (!/^planet-(probe|rover|drone)-[a-zA-Z0-9_-]+/.test(photoKey)) {
       return res.status(400).json({ error: 'Invalid mission photo key' });
     }
 

@@ -171,6 +171,10 @@ export const en: Record<TranslationKey, string> = {
   'planet.potential': 'potential',
   'planet.low':       'low',
   'planet.dead':      'dead',
+  'planet.skin_system_label': 'Create orbit skin',
+  'planet.skin_system_ready': 'Orbit skin ready',
+  'planet.skin_exosphere_label': 'Create exosphere skin',
+  'planet.skin_exosphere_ready': 'Exosphere skin ready',
 
   // Planet detail window types (capitalized)
   'planet.type.rocky':     'Rocky',
@@ -224,7 +228,7 @@ export const en: Record<TranslationKey, string> = {
   'context.actions.mission': 'Mission',
   'context.premium.title':  'Premium Tools',
   'context.photo.label':    'Planet Photo',
-  'context.photo.generating': 'generating...',
+  'context.photo.generating': 'getting photo...',
   'context.planet.destroyed': 'DESTROYED',
   'context.planet.debris':  'Planet destroyed. Only debris remains.',
 
@@ -541,7 +545,9 @@ export const en: Record<TranslationKey, string> = {
   'app.log.tech_researched':    'Technology researched: {name}',
   'app.log.tech_integrated':    'Technology integrated: {name}',
   'app.log.level_up':           'Level increased to {level}!',
+  'app.log.planet_mission_report': 'Mission on planet {planet} complete. T{tier} data received; report is available in system chat and planet menu.',
   'app.notif.quantum_synth':    'Quantum synthesis of {planet} complete',
+  'app.notif.planet_mission_report': 'Mission data from planet {planet} received. T{tier} report is ready.',
 
   // ─── Tutorial ─────────────────────────────────────────────────────────────
   'tutorial.click_element': 'Click on the highlighted element',
@@ -618,16 +624,21 @@ export const en: Record<TranslationKey, string> = {
   'scene_controls.zoom_out': 'Zoom out',
 
   // Mission report photos
+  'mission_report.receiving_photo':         'Receiving mission photo',
   'mission_report.photo_saved_to_gallery': 'Mission photo saved to gallery',
   'mission_report.photo_save_failed':      'Failed to save mission photo',
   'mission_report.view_saved_photo':       'View mission photo',
   'mission_report.saved_photo_title':      'Mission photo · {planet}',
+  'mission_report.system_notif':           'Mission data from planet {planet} received. T{tier} report is ready.',
+  'mission_report.system_log':             'Mission on planet {planet} complete. T{tier} data received; report is available in system chat and planet menu.',
 
   // Planet exploration missions
   'planet_terminal.free_ships_short':       '{count} ships',
   'planet_missions.reports_group':          'Reports',
   'planet_missions.reveal_level_short':     'T{level}',
   'planet_missions.no_reports':             'No reports for this planet yet.',
+  'planet_missions.type.drone_recon':        'Drone Recon',
+  'planet_missions.report.drone_recon':      'Recon drone data received',
   'planet_missions.reason.unknown':             'Mission unavailable',
   'planet_missions.reason.already_revealed':    'This data tier is already revealed',
   'planet_missions.reason.active_mission':      'A mission is already active for this planet',

@@ -285,12 +285,19 @@ export function SystemContextMenu({
             {canPhoto && (
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ flex: 1 }}>
-                  <MenuItem
-                    label={<>{t('context_menu.panorama_cost', { cost: PHOTO_COST })}<QuarkIcon /></>}
-                    onClick={onTelescopePhoto}
-                    color={quarks >= PHOTO_COST ? '#ddaa44' : '#445566'}
-                    disabled={quarks < PHOTO_COST}
-                  />
+                  <div style={{
+                    border: quarks >= PHOTO_COST ? '1px solid rgba(221,170,68,0.42)' : '1px solid rgba(68,85,102,0.35)',
+                    background: quarks >= PHOTO_COST ? 'linear-gradient(90deg, rgba(221,170,68,0.10), rgba(68,136,170,0.08))' : 'rgba(5,10,20,0.35)',
+                    borderRadius: 4,
+                    margin: '2px 0',
+                  }}>
+                    <MenuItem
+                      label={<>{t('context_menu.panorama_cost', { cost: PHOTO_COST })}<QuarkIcon /></>}
+                      onClick={onTelescopePhoto}
+                      color={quarks >= PHOTO_COST ? '#ddaa44' : '#445566'}
+                      disabled={quarks < PHOTO_COST}
+                    />
+                  </div>
                 </div>
                 <TooltipHint text={t('context_menu.panorama_tooltip')} />
               </div>
