@@ -13,7 +13,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
-import { synthesizeLongText } from '@nebulife/server';
+import { synthesizeLongText, synthesizeLongTextWithGemini } from '@nebulife/server';
 
 const MAX_TEXT_CHARS = 50_000;
 
@@ -38,6 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     gender?: 'female' | 'male';
     text?: string;
     voiceName?: string;
+    /** 'gemini' (default) | 'google-cloud' */
+    provider?: 'gemini' | 'google-cloud';
   };
 
   const slug = body.slug?.trim();
@@ -47,6 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const voiceName = typeof body.voiceName === 'string' && /^[a-zA-Z0-9-]+$/.test(body.voiceName)
     ? body.voiceName
     : undefined;
+  const provider = body.provider === 'google-cloud' ? 'google-cloud' : 'gemini';
 
   if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
     return res.status(400).json({ error: 'invalid slug' });
@@ -62,27 +65,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const langCode = language === 'uk' ? 'uk-UA' : 'en-US';
-    const result = await synthesizeLongText({
-      text,
-      language: langCode,
-      gender,
-      voiceName,
-    });
+    let audio: Buffer;
+    let voiceUsed: string;
+    let durationSec: number;
+    let mimeType: string;
+    let extension: string;
+
+    if (provider === 'gemini') {
+      // Gemini TTS — natural voices, language-agnostic. Default model + voice
+      // come from env (GEMINI_TTS_MODEL, GEMINI_TTS_VOICE_FEMALE/MALE).
+      const r = await synthesizeLongTextWithGemini({ text, voiceName, gender });
+      audio = r.audio;
+      voiceUsed = r.voiceName;
+      durationSec = r.durationSec;
+      mimeType = r.mimeType;
+      extension = 'wav';
+    } else {
+      // Legacy Google Cloud TTS path.
+      const langCode = language === 'uk' ? 'uk-UA' : 'en-US';
+      const r = await synthesizeLongText({ text, language: langCode, gender, voiceName });
+      audio = r.audio;
+      voiceUsed = r.voiceName;
+      durationSec = r.durationSec;
+      mimeType = 'audio/mpeg';
+      extension = 'mp3';
+    }
 
     // For voice-sample requests, include the voice name in the blob path so
     // multiple candidates don't overwrite each other.
     const isSample = slug.startsWith('voice-sample-');
     const blobPath = isSample
-      ? `academy/audio/samples/${slug}.mp3`
-      : `academy/audio/${slug}.${language}.${gender}.mp3`;
+      ? `academy/audio/samples/${slug}.${extension}`
+      : `academy/audio/${slug}.${language}.${gender}.${extension}`;
 
     const blob = await put(
       blobPath,
-      result.audio,
+      audio,
       {
         access: 'public',
-        contentType: 'audio/mpeg',
+        contentType: mimeType,
         addRandomSuffix: false,
         allowOverwrite: true,
       },
@@ -90,9 +111,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       url: blob.url,
-      voiceName: result.voiceName,
-      durationSec: result.durationSec,
-      bytes: result.audio.length,
+      voiceName: voiceUsed,
+      durationSec,
+      bytes: audio.length,
+      provider,
+      mimeType,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
