@@ -144,11 +144,19 @@ export function startForegroundListener(): (() => void) | null {
     let removeAction: (() => void) | null = null;
     PushNotifications.addListener('pushNotificationReceived', (notification) => {
       const weekDate = notification.data?.weekDate ?? '';
-      window.dispatchEvent(new CustomEvent('nebulife:push-digest', { detail: { weekDate } }));
+      const action = notification.data?.action ?? 'open-notification';
+      window.dispatchEvent(new CustomEvent('nebulife:push-notification', { detail: { action, weekDate, data: notification.data } }));
+      if (action === 'open-digest' || weekDate) {
+        window.dispatchEvent(new CustomEvent('nebulife:push-digest', { detail: { weekDate } }));
+      }
     }).then((handle) => { removeReceived = () => { void handle.remove(); }; }).catch(() => {});
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
       const weekDate = action.notification.data?.weekDate ?? '';
-      window.dispatchEvent(new CustomEvent('nebulife:open-digest', { detail: { weekDate } }));
+      const notificationAction = action.notification.data?.action ?? 'open-notification';
+      window.dispatchEvent(new CustomEvent('nebulife:open-notification', { detail: { action: notificationAction, weekDate, data: action.notification.data } }));
+      if (notificationAction === 'open-digest' || weekDate) {
+        window.dispatchEvent(new CustomEvent('nebulife:open-digest', { detail: { weekDate } }));
+      }
     }).then((handle) => { removeAction = () => { void handle.remove(); }; }).catch(() => {});
     return () => {
       removeReceived?.();
@@ -166,7 +174,11 @@ export function startForegroundListener(): (() => void) | null {
       const messaging = getMessaging(app);
       onMessage(messaging, (payload) => {
         const weekDate = payload.data?.weekDate ?? '';
-        window.dispatchEvent(new CustomEvent('nebulife:push-digest', { detail: { weekDate } }));
+        const action = payload.data?.action ?? 'open-notification';
+        window.dispatchEvent(new CustomEvent('nebulife:push-notification', { detail: { action, weekDate, data: payload.data } }));
+        if (action === 'open-digest' || weekDate) {
+          window.dispatchEvent(new CustomEvent('nebulife:push-digest', { detail: { weekDate } }));
+        }
       });
     } catch {
       /* ignore */

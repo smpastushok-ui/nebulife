@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import { Capacitor } from '@capacitor/core';
+import { areAdsUnlockedAfterSettlement } from './ad-release-gate.js';
 
 // =============================================================================
 // TEMP: ADS_DISABLED_FOR_TESTING — see the mirror flag in ads-service.ts.
@@ -14,12 +15,12 @@ import { Capacitor } from '@capacitor/core';
 //
 // **TO RESTORE ADS:** set to `false` here AND in ads-service.ts.
 // =============================================================================
-const ADS_DISABLED_FOR_TESTING = true;
+const ADS_DISABLED_FOR_TESTING = false;
 
 // Interstitial ad unit IDs
 // TEST mode: use Google test IDs during development/testing
 // PRODUCTION: swap to real IDs before release
-const USE_TEST_ADS = true; // <-- SET TO false BEFORE RELEASE
+const USE_TEST_ADS = false;
 
 const INTERSTITIAL_ID = USE_TEST_ADS
   ? (Capacitor.getPlatform() === 'ios'
@@ -44,6 +45,7 @@ class InterstitialManager {
     // TEMP: testers — never trigger an interstitial.
     if (ADS_DISABLED_FOR_TESTING) return false;
 
+    if (!areAdsUnlockedAfterSettlement()) return false;
     if (this._isPremium) return false;
     if (!Capacitor.isNativePlatform()) return false;
     if (this.sessionAdCount >= this.MAX_ADS_PER_SESSION) return false;
@@ -77,6 +79,7 @@ class InterstitialManager {
     // TEMP: testers — skip AdMob preload entirely.
     if (ADS_DISABLED_FOR_TESTING) return;
 
+    if (!areAdsUnlockedAfterSettlement()) return;
     if (this._isPremium || !Capacitor.isNativePlatform()) return;
     try {
       // Lazy init AdMob SDK if not yet initialized (avoids eager init at app startup)

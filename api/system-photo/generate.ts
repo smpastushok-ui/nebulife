@@ -7,6 +7,7 @@ import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { buildGeminiSystemPhotoPrompt, buildGeminiPlanetPhotoPrompt } from '../../packages/server/src/system-photo-prompt-builder.js';
 import type { PlanetPhotoKind } from '../../packages/server/src/system-photo-prompt-builder.js';
 import { verifyPhotoToken } from '../../packages/server/src/photo-token.js';
+import { enqueueMissionPhotoReadyPush } from '../../packages/server/src/push-events.js';
 import type { StarSystem } from '@nebulife/core';
 
 const GEMINI_PHOTO_COST = 50;
@@ -138,6 +139,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       promptUsed: prompt,
       status: 'succeed',
       photoUrl: result.imageUrl,
+    });
+    await enqueueMissionPhotoReadyPush({
+      playerId,
+      photoId: saved.id,
+      systemId: saved.system_id,
+      photoUrl: saved.photo_url,
     });
 
     return res.status(200).json({

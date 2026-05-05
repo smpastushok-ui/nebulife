@@ -4,6 +4,7 @@ import { getShipModel, updateShipModel } from '../../../packages/server/src/db.j
 import { checkTaskStatus as checkKlingStatus } from '../../../packages/server/src/kling-client.js';
 import { checkModelTask, createShipModelTask, createShipTextModelTask } from '../../../packages/server/src/tripo-client.js';
 import { buildShipModelNegativePrompt, buildShipModelPrompt } from '../../../packages/server/src/ship-prompt.js';
+import { enqueueShipModelReadyPush } from '../../../packages/server/src/push-events.js';
 
 export const config = {
   maxDuration: 60,
@@ -51,11 +52,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const result = await checkModelTask(ship.tripo_task_id);
 
       if (result.status === 'success' && result.glbUrl) {
-        await updateShipModel(shipId, {
+        const updated = await updateShipModel(shipId, {
           glb_url: result.glbUrl,
           status: 'ready',
           completed_at: new Date().toISOString(),
         });
+        if (updated) {
+          await enqueueShipModelReadyPush({
+            playerId: updated.player_id,
+            shipId: updated.id,
+          });
+        }
         return res.status(200).json({
           status: 'ready',
           progress: 100,

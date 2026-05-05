@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { checkTaskStatus } from '../../../packages/server/src/kling-client.js';
 import { getSystemPhotoById, updateSystemPhoto } from '../../../packages/server/src/db.js';
+import { enqueueMissionPhotoReadyPush } from '../../../packages/server/src/push-events.js';
 
 /**
  * GET /api/system-photo/status/[photoId]
@@ -45,10 +46,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Update DB if status changed
     if (result.status === 'succeed' && result.imageUrl) {
-      await updateSystemPhoto(photoId, {
+      const updated = await updateSystemPhoto(photoId, {
         status: 'succeed',
         photo_url: result.imageUrl,
       });
+      if (updated) {
+        await enqueueMissionPhotoReadyPush({
+          playerId: updated.player_id,
+          photoId: updated.id,
+          systemId: updated.system_id,
+          photoUrl: updated.photo_url,
+        });
+      }
       return res.status(200).json({
         status: 'succeed',
         photoUrl: result.imageUrl,

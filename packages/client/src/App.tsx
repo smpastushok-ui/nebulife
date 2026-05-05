@@ -136,7 +136,7 @@ import type { ResearchToastItem } from './ui/components/ResearchToast.js';
 import { CutsceneVideo } from './ui/components/CutsceneVideo.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
-import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, fetchUniverseInfo } from './api/player-api.js';
+import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, fetchUniverseInfo, uploadPlayerAvatar, removePlayerAvatar } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { requestPushPermissionDetailed, startForegroundListener } from './notifications/push-service.js';
 import { getCurrentUser, onAuthChange, signOut } from './auth/auth-service.js';
@@ -174,6 +174,7 @@ import type { User } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { canShowAd, isNativePlatform, watchAdsWithProgress } from './services/ads-service.js';
+import { setAdsUnlockedAfterSettlement } from './services/ad-release-gate.js';
 import { interstitialManager } from './services/interstitial-manager.js';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
@@ -1259,6 +1260,7 @@ function AppInner() {
   const syncGameStateRef = useRef<() => void>(() => {});
   /** True after server game state has been hydrated — prevents premature local fallbacks */
   const [serverHydrated, setServerHydrated] = useState(false);
+  const serverHydratedRef = useRef(false);
   /** Ref mirror for surfaceTarget — used in intervals with empty deps to pause during surface view */
   const surfaceTargetRef = useRef<{ planet: Planet; star: Star } | null>(null);
   /** Retains last known planet context so colony tick can run passively even when surface is closed */
@@ -1361,6 +1363,7 @@ function AppInner() {
   /** Schedule a debounced game state sync to server (1.5s delay; was 5s).
    *  Critical events (research completion, evacuation) call syncNowToServer instead. */
   const scheduleSyncToServer = useCallback(() => {
+    if (isFirebaseConfigured && !serverHydratedRef.current) return;
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
       syncGameStateRef.current();
@@ -1370,6 +1373,7 @@ function AppInner() {
   /** Immediate sync — bypasses debounce. Used after critical state changes
    *  so research progress / evacuations survive an immediate APK kill. */
   const syncNowToServer = useCallback(() => {
+    if (isFirebaseConfigured && !serverHydratedRef.current) return;
     if (syncTimeoutRef.current) { clearTimeout(syncTimeoutRef.current); syncTimeoutRef.current = null; }
     syncGameStateRef.current();
   }, []);
@@ -3567,6 +3571,8 @@ function AppInner() {
 
   // ── Player notification preferences (from DB) ─────────────────────────
   const [playerEmail, setPlayerEmail] = useState<string | null>(null);
+  const [playerAvatarUrl, setPlayerAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
 
@@ -3870,7 +3876,11 @@ function AppInner() {
     } catch { /* ignore */ }
 
     const gs = player?.game_state as Partial<SyncedGameState> | undefined;
-    if (!gs || typeof gs !== 'object') return;
+    if (!gs || typeof gs !== 'object') {
+      serverHydratedRef.current = true;
+      setServerHydrated(true);
+      return;
+    }
 
     // Safety net: if player just reset (game_phase === 'onboarding'), force defaults.
     // Do not apply this to returning players whose game_state already confirms
@@ -3894,6 +3904,8 @@ function AppInner() {
         localStorage.removeItem('nebulife_evac_phase');
       } catch { /* ignore */ }
       gameStateRef.current = {};
+      serverHydratedRef.current = true;
+      setServerHydrated(true);
       return;
     }
 
@@ -4408,12 +4420,15 @@ function AppInner() {
 
     // Player meta (notification prefs, language, digest seen)
     if (player.email !== undefined) setPlayerEmail(player.email ?? null);
+    if (player.avatar_url !== undefined) setPlayerAvatarUrl(player.avatar_url ?? null);
     if (typeof player.email_notifications === 'boolean') setEmailNotifications(player.email_notifications);
     if (typeof player.push_notifications === 'boolean') setPushNotifications(player.push_notifications);
     if (player.last_digest_seen !== undefined) setLastDigestSeen(player.last_digest_seen ?? null);
+    setAdsUnlockedAfterSettlement(player.game_phase === 'colonizing');
     // Language: localStorage is always the source of truth.
     // Never override from server — player chose their language at first launch.
 
+    serverHydratedRef.current = true;
     setServerHydrated(true);
   }, [mergeArenaStats, normalizeArenaStats]);
 
@@ -4547,6 +4562,8 @@ function AppInner() {
       }
 
       if (user) {
+        serverHydratedRef.current = false;
+        setServerHydrated(false);
         // CRITICAL: detect UID change. If a different user just signed in,
         // the previous user's progress keys are still in localStorage and
         // would otherwise leak into the new account (level, XP, home,
@@ -4659,6 +4676,8 @@ function AppInner() {
         // (possible on rapid null→user Firebase emissions), skip the reset
         // so we don't blow away the newer event's playerId.current.
         if (!isLatest()) return;
+        serverHydratedRef.current = false;
+        setServerHydrated(false);
         playerId.current = '';
         setNeedsCallsign(false);
         setIsGuest(false);
@@ -6811,6 +6830,7 @@ function AppInner() {
       localStorage.setItem('nebulife_home_system_id', evacuationTarget.system.id);
       localStorage.setItem('nebulife_home_planet_id', evacuationTarget.planet.id);
     } catch { /* ignore */ }
+    setAdsUnlockedAfterSettlement(true);
 
     // Clear evacuation localStorage IMMEDIATELY (don't rely on useEffect which runs after render)
     // This prevents beforeunload sync from sending stale evac data to server
@@ -7387,10 +7407,43 @@ function AppInner() {
     }
   }, []);
 
+  const handleChangeAvatar = useCallback(async (file: File) => {
+    setAvatarUploading(true);
+    try {
+      const url = await uploadPlayerAvatar(file);
+      setPlayerAvatarUrl(url);
+      setToastMessage(t('player.avatar_upload_success'));
+      setTimeout(() => setToastMessage(null), 2500);
+    } catch (err) {
+      console.warn('[avatar] upload failed:', err);
+      setToastMessage(t('player.avatar_upload_failed'));
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [t]);
+
+  const handleRemoveAvatar = useCallback(async () => {
+    setAvatarUploading(true);
+    try {
+      await removePlayerAvatar();
+      setPlayerAvatarUrl(null);
+      setToastMessage(t('player.avatar_remove_success'));
+      setTimeout(() => setToastMessage(null), 2500);
+    } catch (err) {
+      console.warn('[avatar] remove failed:', err);
+      setToastMessage(t('player.avatar_upload_failed'));
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [t]);
+
   /** Sync full game state to server (fire-and-forget). */
   syncGameStateRef.current = () => {
     const pid = playerId.current;
     if (!pid) return;
+    if (isFirebaseConfigured && !serverHydratedRef.current) return;
     const snapshot = buildGameStateSnapshot();
     gameStateRef.current = snapshot as unknown as Record<string, unknown>;
     updatePlayer(pid, { game_state: snapshot as unknown as Record<string, unknown> }).catch(() => {});
@@ -7401,8 +7454,9 @@ function AppInner() {
     // Skip initial mount — only sync on actual changes
     const pid = playerId.current;
     if (!pid) return;
+    if (isFirebaseConfigured && !serverHydrated) return;
     scheduleSyncToServer();
-  }, [playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks]);
+  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -9264,6 +9318,10 @@ function AppInner() {
           isGuest={isGuest}
           isNative={Capacitor.isNativePlatform()}
           isPremium={localStorage.getItem('nebulife_premium') === '1'}
+          avatarUrl={playerAvatarUrl}
+          avatarUploading={avatarUploading}
+          onChangeAvatar={handleChangeAvatar}
+          onRemoveAvatar={handleRemoveAvatar}
           onClose={() => setShowPlayerPage(false)}
           onLogout={handleLogout}
           onStartOver={handleStartOver}

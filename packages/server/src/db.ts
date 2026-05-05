@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { neon } from '@neondatabase/serverless';
 
 // ---------------------------------------------------------------------------
@@ -41,6 +42,7 @@ export interface PlayerRow {
   fcm_token: string | null;
   last_digest_seen: string | null;
   cluster_id: string | null;
+  avatar_url: string | null;
 }
 
 /** Starter wallet for new players. 30⚛ — first photo is FREE (handled in
@@ -1757,6 +1759,265 @@ export async function updateFcmToken(playerId: string, token: string | null): Pr
   `;
 }
 
+export async function updatePlayerAvatar(playerId: string, avatarUrl: string | null): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET avatar_url = ${avatarUrl}
+    WHERE id = ${playerId}
+    RETURNING *
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Push Queue
+// ---------------------------------------------------------------------------
+
+export type PushQueueStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'cancelled';
+
+export interface PushQueueRow {
+  id: string;
+  player_id: string;
+  type: string;
+  title_uk: string;
+  body_uk: string;
+  title_en: string;
+  body_en: string;
+  data_json: Record<string, unknown>;
+  status: PushQueueStatus;
+  priority: number;
+  scheduled_at: string;
+  attempts: number;
+  max_attempts: number;
+  dedupe_key: string | null;
+  last_error: string | null;
+  locked_at: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClaimedPushNotification extends PushQueueRow {
+  player_name: string;
+  preferred_language: string;
+  push_notifications: boolean;
+  fcm_token: string | null;
+}
+
+export interface EnqueuePushInput {
+  playerId: string;
+  type: string;
+  titleUk: string;
+  bodyUk: string;
+  titleEn: string;
+  bodyEn: string;
+  data?: Record<string, unknown>;
+  priority?: number;
+  scheduledAt?: string;
+  maxAttempts?: number;
+  dedupeKey?: string;
+}
+
+export interface DailyReminderCandidate {
+  player_id: string;
+  reminder_day: number;
+  message_index: number;
+  scheduled_at: string;
+}
+
+export async function enqueuePushNotification(input: EnqueuePushInput): Promise<PushQueueRow> {
+  const sql = getSQL();
+  const id = `push_${Date.now()}_${randomUUID().slice(0, 8)}`;
+  const dataJson = JSON.stringify(input.data ?? {});
+  const scheduledAt = input.scheduledAt ?? new Date().toISOString();
+
+  if (input.dedupeKey) {
+    const rows = await sql`
+      INSERT INTO push_queue (
+        id, player_id, type, title_uk, body_uk, title_en, body_en,
+        data_json, priority, scheduled_at, max_attempts, dedupe_key
+      )
+      VALUES (
+        ${id}, ${input.playerId}, ${input.type}, ${input.titleUk}, ${input.bodyUk},
+        ${input.titleEn}, ${input.bodyEn}, ${dataJson}::jsonb,
+        ${input.priority ?? 0}, ${scheduledAt}, ${input.maxAttempts ?? 3}, ${input.dedupeKey}
+      )
+      ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL
+      DO UPDATE SET updated_at = push_queue.updated_at
+      RETURNING *
+    `;
+    return rows[0] as PushQueueRow;
+  }
+
+  const rows = await sql`
+    INSERT INTO push_queue (
+      id, player_id, type, title_uk, body_uk, title_en, body_en,
+      data_json, priority, scheduled_at, max_attempts
+    )
+    VALUES (
+      ${id}, ${input.playerId}, ${input.type}, ${input.titleUk}, ${input.bodyUk},
+      ${input.titleEn}, ${input.bodyEn}, ${dataJson}::jsonb,
+      ${input.priority ?? 0}, ${scheduledAt}, ${input.maxAttempts ?? 3}
+    )
+    RETURNING *
+  `;
+  return rows[0] as PushQueueRow;
+}
+
+export async function getDueDailyReminderCandidates(options: {
+  lookbackMinutes?: number;
+  limit?: number;
+  maxReminderDays?: number;
+} = {}): Promise<DailyReminderCandidate[]> {
+  const sql = getSQL();
+  const lookbackMinutes = options.lookbackMinutes ?? 30;
+  const limit = options.limit ?? 100;
+  const maxReminderDays = options.maxReminderDays ?? 14;
+
+  const rows = await sql`
+    WITH hour_preference AS (
+      SELECT player_id, hour_utc
+      FROM (
+        SELECT
+          player_id,
+          hour_utc,
+          ROW_NUMBER() OVER (
+            PARTITION BY player_id
+            ORDER BY SUM(hits) DESC, MAX(last_seen) DESC
+          ) AS rank
+        FROM player_activity_hours
+        WHERE activity_date >= (CURRENT_DATE - INTERVAL '30 days')
+        GROUP BY player_id, hour_utc
+      ) ranked
+      WHERE rank = 1
+    ),
+    due AS (
+      SELECT
+        p.id AS player_id,
+        gs.day_number AS reminder_day,
+        ((gs.day_number - 1) % 5) AS message_index,
+        CASE
+          WHEN hp.hour_utc IS NULL THEN p.created_at + (gs.day_number * INTERVAL '1 day') + INTERVAL '10 minutes'
+          ELSE date_trunc('day', p.created_at + (gs.day_number * INTERVAL '1 day'))
+            + (hp.hour_utc * INTERVAL '1 hour')
+            + INTERVAL '10 minutes'
+        END AS scheduled_at
+      FROM players p
+      LEFT JOIN hour_preference hp ON hp.player_id = p.id
+      CROSS JOIN generate_series(1, ${maxReminderDays}) AS gs(day_number)
+      WHERE p.fcm_token IS NOT NULL
+        AND p.push_notifications = TRUE
+    )
+    SELECT due.*
+    FROM due
+    JOIN players p ON p.id = due.player_id
+    WHERE due.scheduled_at <= NOW()
+      AND due.scheduled_at > NOW() - (${lookbackMinutes}::int * INTERVAL '1 minute')
+      AND COALESCE(p.last_login, p.created_at) < date_trunc('day', due.scheduled_at)
+      AND NOT EXISTS (
+        SELECT 1 FROM push_queue q
+        WHERE q.dedupe_key = 'daily_space_reminder:' || due.player_id || ':' || due.reminder_day
+      )
+    ORDER BY due.scheduled_at ASC
+    LIMIT ${limit}
+  `;
+  return rows as DailyReminderCandidate[];
+}
+
+async function recordPlayerActivityHour(playerId: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO player_activity_hours (
+      player_id, activity_date, hour_utc, hits, first_seen, last_seen
+    )
+    VALUES (
+      ${playerId},
+      DATE(NOW() AT TIME ZONE 'UTC'),
+      EXTRACT(HOUR FROM NOW() AT TIME ZONE 'UTC')::int,
+      1,
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT (player_id, activity_date, hour_utc) DO UPDATE
+      SET hits = player_activity_hours.hits + 1,
+          last_seen = NOW()
+  `;
+}
+
+export async function claimPendingPushNotifications(limit = 50): Promise<ClaimedPushNotification[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    WITH picked AS (
+      SELECT id
+      FROM push_queue
+      WHERE status = 'pending'
+        AND scheduled_at <= NOW()
+        AND attempts < max_attempts
+      ORDER BY priority DESC, scheduled_at ASC, created_at ASC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
+    ),
+    updated AS (
+      UPDATE push_queue q
+      SET status = 'sending',
+          attempts = q.attempts + 1,
+          locked_at = NOW(),
+          updated_at = NOW()
+      FROM picked
+      WHERE q.id = picked.id
+      RETURNING q.*
+    )
+    SELECT updated.*,
+           players.name AS player_name,
+           players.preferred_language,
+           players.push_notifications,
+           players.fcm_token
+    FROM updated
+    JOIN players ON players.id = updated.player_id
+  `;
+  return rows as ClaimedPushNotification[];
+}
+
+export async function markPushNotificationSent(id: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE push_queue
+    SET status = 'sent',
+        sent_at = NOW(),
+        locked_at = NULL,
+        last_error = NULL,
+        updated_at = NOW()
+    WHERE id = ${id}
+  `;
+}
+
+export async function markPushNotificationFailed(id: string, error: string, retryAt?: string): Promise<void> {
+  const sql = getSQL();
+  const retryTime = retryAt ?? new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  await sql`
+    UPDATE push_queue
+    SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'pending' END,
+        scheduled_at = CASE WHEN attempts >= max_attempts THEN scheduled_at ELSE ${retryTime} END,
+        locked_at = NULL,
+        last_error = ${error.slice(0, 1000)},
+        updated_at = NOW()
+    WHERE id = ${id}
+  `;
+}
+
+export async function markPushNotificationCancelled(id: string, reason: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE push_queue
+    SET status = 'cancelled',
+        locked_at = NULL,
+        last_error = ${reason.slice(0, 1000)},
+        updated_at = NOW()
+    WHERE id = ${id}
+  `;
+}
+
 // ---------------------------------------------------------------------------
 // Ad Rewards
 // ---------------------------------------------------------------------------
@@ -2469,6 +2730,7 @@ export async function updatePlayerPresence(args: {
           current_scene     = EXCLUDED.current_scene,
           current_system_id = EXCLUDED.current_system_id
   `;
+  await recordPlayerActivityHour(args.playerId);
 }
 
 /** List online cluster members (last_heartbeat within 5 minutes). */
@@ -2532,6 +2794,7 @@ export async function claimDailyLoginBonus(playerId: string): Promise<{
 
   const row = rows[0];
   if (!row) return { credited: 0, newBalance: 0, streak: 0 };
+  await recordPlayerActivityHour(playerId);
   return {
     credited: row.credited,
     newBalance: row.quarks,

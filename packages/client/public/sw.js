@@ -41,16 +41,20 @@ self.addEventListener('push', (event) => {
   }
 
   const { title, body } = payload.notification ?? {};
-  const weekDate = payload.data?.weekDate ?? '';
+  const data = payload.data ?? {};
+  const weekDate = data.weekDate ?? '';
+  const action = data.action ?? 'open-notification';
+  const link = data.link ?? (weekDate ? `/?action=open-digest&weekDate=${weekDate}` : `/?action=${action}`);
+  const tag = data.notificationId ?? data.type ?? `digest-${weekDate}`;
 
   event.waitUntil(
     self.registration.showNotification(title ?? 'Nebulife Weekly', {
       body: body ?? '',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      tag: `digest-${weekDate}`,
+      tag,
       renotify: false,
-      data: { action: 'open-digest', weekDate },
+      data: { ...data, action, weekDate, link },
     })
   );
 });
@@ -58,15 +62,17 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const weekDate = event.notification.data?.weekDate ?? '';
-  const targetUrl = `/?action=open-digest${weekDate ? `&weekDate=${weekDate}` : ''}`;
+  const data = event.notification.data ?? {};
+  const weekDate = data.weekDate ?? '';
+  const action = data.action ?? 'open-notification';
+  const targetUrl = data.link ?? `/?action=${action}${weekDate ? `&weekDate=${weekDate}` : ''}`;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       // Focus existing tab if open
       for (const client of clients) {
         if (client.url.includes(self.location.origin)) {
-          client.postMessage({ type: 'open-digest', weekDate });
+          client.postMessage({ type: action, weekDate, data });
           return client.focus();
         }
       }

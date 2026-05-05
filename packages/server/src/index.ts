@@ -110,6 +110,13 @@ export {
   markDigestEmailsSent,
   markDigestPushesSent,
   updateFcmToken,
+  updatePlayerAvatar,
+  getDueDailyReminderCandidates,
+  enqueuePushNotification,
+  claimPendingPushNotifications,
+  markPushNotificationSent,
+  markPushNotificationFailed,
+  markPushNotificationCancelled,
   // Ad Rewards
   getAdRewardCount,
   addAdReward,
@@ -170,6 +177,9 @@ export type {
   DMChannelInfo,
   ReportRow,
   WeeklyDigestRow,
+  PushQueueRow,
+  ClaimedPushNotification,
+  EnqueuePushInput,
   AcademyProgressRow,
   AcademyLessonRow,
   ClusterRow,
@@ -185,8 +195,16 @@ export { generateWeeklyNewsText, generateDigestImage, getCurrentWeekMonday, veri
 export type { DigestNewsItem } from './digest-generator.js';
 
 // Push notifications
-export { sendDigestPush } from './push-client.js';
-export type { DigestPushPayload } from './push-client.js';
+export { sendDigestPush, sendPush } from './push-client.js';
+export type { DigestPushPayload, PushPayload } from './push-client.js';
+export {
+  enqueueDigestReadyPush,
+  enqueueMissionPhotoReadyPush,
+  enqueuePlanetSkinReadyPush,
+  enqueueSystemMissionReadyPush,
+  enqueueShipModelReadyPush,
+  enqueueDailySpaceReminderPush,
+} from './push-events.js';
 
 // Email
 export { sendDigestEmail } from './email-client.js';

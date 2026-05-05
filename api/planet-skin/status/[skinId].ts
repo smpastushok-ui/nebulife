@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { checkTaskStatus } from '../../../packages/server/src/kling-client.js';
 import { getPlanetSkinById, updatePlanetSkin } from '../../../packages/server/src/db.js';
+import { enqueuePlanetSkinReadyPush } from '../../../packages/server/src/push-events.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -37,10 +38,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const result = await checkTaskStatus(skin.kling_task_id);
     if (result.status === 'succeed' && result.imageUrl) {
-      await updatePlanetSkin(skinId, {
+      const updated = await updatePlanetSkin(skinId, {
         status: 'succeed',
         texture_url: result.imageUrl,
       });
+      if (updated?.generated_by) {
+        await enqueuePlanetSkinReadyPush({
+          playerId: updated.generated_by,
+          skinId: updated.id,
+          planetId: updated.planet_id,
+          systemId: updated.system_id,
+          kind: updated.kind,
+        });
+      }
       return res.status(200).json({
         status: 'succeed',
         textureUrl: result.imageUrl,

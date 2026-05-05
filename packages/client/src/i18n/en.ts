@@ -175,6 +175,9 @@ export const en: Record<TranslationKey, string> = {
   'planet.skin_system_ready': 'Orbit skin ready',
   'planet.skin_exosphere_label': 'Create exosphere skin',
   'planet.skin_exosphere_ready': 'Exosphere skin ready',
+  'player.avatar_upload_success': 'Avatar updated',
+  'player.avatar_remove_success': 'Avatar removed',
+  'player.avatar_upload_failed': 'Could not update avatar',
 
   // Planet detail window types (capitalized)
   'planet.type.rocky':     'Rocky',

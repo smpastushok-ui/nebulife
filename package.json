@@ -12,7 +12,12 @@
     "test": "npm run test --workspaces --if-present",
     "test:core": "npm run test -w @nebulife/core",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "optimize-buildings": "node scripts/optimize-buildings.mjs"
+    "optimize-buildings": "node scripts/optimize-buildings.mjs",
+    "release:progression": "node scripts/release-progression-sim.mjs",
+    "release:combat": "node scripts/release-combat-qa.mjs",
+    "release:catalog": "node scripts/release-catalog-sim.mjs",
+    "release:economics": "node scripts/release-economics-model.mjs",
+    "release:qa": "npm run release:progression && npm run release:combat && npm run release:catalog && npm run release:economics"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.3.0",

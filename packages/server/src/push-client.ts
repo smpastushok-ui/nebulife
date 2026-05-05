@@ -103,6 +103,15 @@ export interface DigestPushPayload {
   weekDate: string;
 }
 
+export interface PushPayload {
+  fcmToken: string;
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+  link?: string;
+  tag?: string;
+}
+
 const PUSH_TITLES: Record<string, string> = {
   uk: 'Nebulife Weekly',
   en: 'Nebulife Weekly',
@@ -114,10 +123,10 @@ const PUSH_BODIES: Record<string, string> = {
 };
 
 /**
- * Send a digest push notification to a single FCM token.
+ * Send a push notification to a single FCM token.
  * Returns true on success, false on token-expired/invalid (token should be cleared).
  */
-export async function sendDigestPush(payload: DigestPushPayload): Promise<boolean> {
+export async function sendPush(payload: PushPayload): Promise<boolean> {
   const saJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!saJson) {
     throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not set');
@@ -130,16 +139,17 @@ export async function sendDigestPush(payload: DigestPushPayload): Promise<boolea
     message: {
       token: payload.fcmToken,
       notification: {
-        title: PUSH_TITLES[payload.lang] ?? 'Nebulife',
-        body: PUSH_BODIES[payload.lang] ?? '',
+        title: payload.title,
+        body: payload.body,
       },
-      data: {
-        action: 'open-digest',
-        weekDate: payload.weekDate,
-      },
+      data: payload.data ?? {},
       webpush: {
         fcm_options: {
-          link: '/?action=open-digest',
+          link: payload.link ?? '/',
+        },
+        notification: {
+          tag: payload.tag ?? payload.data?.action ?? 'nebulife',
+          renotify: false,
         },
       },
     },
@@ -166,4 +176,22 @@ export async function sendDigestPush(payload: DigestPushPayload): Promise<boolea
   if (status === 'UNREGISTERED' || status === 'INVALID_ARGUMENT') return false;
 
   throw new Error(`FCM send failed: ${res.status} ${JSON.stringify(errData)}`);
+}
+
+/**
+ * Send a digest push notification to a single FCM token.
+ * Returns true on success, false on token-expired/invalid (token should be cleared).
+ */
+export async function sendDigestPush(payload: DigestPushPayload): Promise<boolean> {
+  return sendPush({
+    fcmToken: payload.fcmToken,
+    title: PUSH_TITLES[payload.lang] ?? 'Nebulife',
+    body: PUSH_BODIES[payload.lang] ?? '',
+    data: {
+      action: 'open-digest',
+      weekDate: payload.weekDate,
+    },
+    link: '/?action=open-digest',
+    tag: `digest-${payload.weekDate}`,
+  });
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { levelProgress, MAX_PLAYER_LEVEL } from '@nebulife/core';
 import { playSfx } from '../../audio/SfxPlayer.js';
@@ -29,6 +29,10 @@ interface PlayerPageProps {
   pushNotifications?: boolean;
   onToggleEmailNotif?: (val: boolean) => void;
   onTogglePushNotif?: (val: boolean) => void;
+  avatarUrl?: string | null;
+  avatarUploading?: boolean;
+  onChangeAvatar?: (file: File) => void;
+  onRemoveAvatar?: () => void;
   // Audio preferences
   /** Ambient volume 0-1 (0 = muted, 1 = max). Replaces the old on/off toggle. */
   ambientVolume?: number;
@@ -116,6 +120,10 @@ export function PlayerPage({
   pushNotifications = true,
   onToggleEmailNotif,
   onTogglePushNotif,
+  avatarUrl = null,
+  avatarUploading = false,
+  onChangeAvatar,
+  onRemoveAvatar,
   ambientVolume = 0.30,
   onChangeAmbientVolume,
 }: PlayerPageProps) {
@@ -124,6 +132,8 @@ export function PlayerPage({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTypeInput, setDeleteTypeInput] = useState('');
   const [nativeTopUpMsg, setNativeTopUpMsg] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const progress = levelProgress(playerXP);
   const isMaxLevel = playerLevel >= MAX_PLAYER_LEVEL;
@@ -177,6 +187,16 @@ export function PlayerPage({
       return;
     }
     onStartOver();
+  };
+
+  const handleAvatarFile = (file: File | undefined) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+      setAvatarError(t('player.avatar_file_error'));
+      return;
+    }
+    setAvatarError(null);
+    onChangeAvatar?.(file);
   };
 
   return (
@@ -241,7 +261,22 @@ export function PlayerPage({
         gap: 16,
       }}>
         {/* Avatar */}
-        <AvatarSVG color={accentColor} />
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={t('player.avatar_section')}
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: `1px solid ${accentColor}`,
+              boxShadow: `0 0 24px ${accentColor}33`,
+            }}
+          />
+        ) : (
+          <AvatarSVG color={accentColor} />
+        )}
 
         {/* Name */}
         <div style={{
@@ -297,6 +332,66 @@ export function PlayerPage({
 
         {/* Divider */}
         <div style={{ width: '100%', height: 1, background: 'rgba(51,68,85,0.3)' }} />
+
+        {/* Avatar controls */}
+        <div style={{
+          ...panelStyle,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}>
+          <div style={sectionLabelStyle}>{t('player.avatar_section')}</div>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              handleAvatarFile(e.target.files?.[0]);
+              e.currentTarget.value = '';
+            }}
+          />
+          <button
+            disabled={avatarUploading}
+            onClick={() => {
+              playSfx('ui-click', 0.07);
+              if (isGuest) {
+                onLinkAccount();
+                return;
+              }
+              avatarInputRef.current?.click();
+            }}
+            style={{
+              ...actionButtonStyle,
+              opacity: avatarUploading ? 0.65 : 1,
+            }}
+          >
+            {avatarUploading ? t('player.avatar_uploading') : t('player.avatar_upload')}
+          </button>
+          {avatarUrl && onRemoveAvatar && (
+            <button
+              disabled={avatarUploading}
+              onClick={() => { playSfx('ui-click', 0.07); onRemoveAvatar(); }}
+              style={{
+                ...actionButtonStyle,
+                color: '#8899aa',
+                opacity: avatarUploading ? 0.65 : 1,
+              }}
+            >
+              {t('player.avatar_remove')}
+            </button>
+          )}
+          {isGuest && (
+            <div style={{ fontSize: 10, color: '#667788', lineHeight: 1.4 }}>
+              {t('player.avatar_guest_hint')}
+            </div>
+          )}
+          {avatarError && (
+            <div style={{ fontSize: 10, color: '#cc8844', lineHeight: 1.4 }}>
+              {avatarError}
+            </div>
+          )}
+        </div>
 
         {/* Quarks section */}
         <div style={{

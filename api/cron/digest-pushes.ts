@@ -3,17 +3,16 @@ import {
   getDigestPendingPushes,
   getDigestPushRecipients,
   markDigestPushesSent,
-  updateFcmToken,
 } from '../../packages/server/src/db.js';
-import { sendDigestPush } from '../../packages/server/src/push-client.js';
+import { enqueueDigestReadyPush } from '../../packages/server/src/push-events.js';
 import { DIGEST_LANGUAGES } from '@nebulife/core';
 
 /**
  * GET /api/cron/digest-pushes
  * Runs every 5 minutes.
  * Finds the latest complete digest that hasn't had pushes sent,
- * sends push to all eligible players, then marks pushes_sent = TRUE.
- * Clears invalid/expired FCM tokens automatically.
+ * enqueues push notifications for all eligible players, then marks pushes_sent = TRUE.
+ * Actual FCM delivery is handled by /api/cron/push-queue.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -32,44 +31,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ processed: 0, reason: 'no_pending' });
     }
 
-    let totalSent = 0;
-    let totalExpired = 0;
+    let totalQueued = 0;
     const errors: string[] = [];
 
     for (const lang of DIGEST_LANGUAGES) {
       const recipients = await getDigestPushRecipients(lang);
       for (const player of recipients) {
-        if (!player.fcm_token) continue;
         try {
-          const ok = await sendDigestPush({
-            fcmToken: player.fcm_token,
-            lang,
+          const queued = await enqueueDigestReadyPush({
+            playerId: player.id,
             weekDate: digest.week_date,
           });
-
-          if (ok) {
-            totalSent++;
+          if (queued) {
+            totalQueued++;
           } else {
-            // Token invalid — clear it
-            await updateFcmToken(player.id, null);
-            totalExpired++;
+            errors.push(`${player.id}: enqueue_failed`);
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           errors.push(`${player.id}: ${msg}`);
-          console.error(`[digest-pushes] Failed for ${player.id}:`, err);
+          console.error(`[digest-pushes] Failed enqueue for ${player.id}:`, err);
         }
       }
     }
 
-    if (totalSent > 0) {
+    if (errors.length === 0) {
       await markDigestPushesSent(digest.week_date);
     }
-    console.log(`[digest-pushes] Sent ${totalSent} pushes, cleared ${totalExpired} expired tokens for ${digest.week_date}`);
+    console.log(`[digest-pushes] Queued ${totalQueued} pushes for ${digest.week_date}`);
 
     return res.status(200).json({
-      processed: totalSent,
-      expired: totalExpired,
+      processed: totalQueued,
       weekDate: digest.week_date,
       errors: errors.length > 0 ? errors : undefined,
     });

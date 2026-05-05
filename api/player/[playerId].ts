@@ -3,6 +3,26 @@ import { getPlayer, updatePlayer } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { SUPPORTED_LANGUAGES } from '@nebulife/core';
 
+function isGameStateRegression(current: unknown, incoming: unknown): boolean {
+  if (!current || typeof current !== 'object' || !incoming || typeof incoming !== 'object') return false;
+  const saved = current as Record<string, unknown>;
+  const next = incoming as Record<string, unknown>;
+  const savedWasStarted = saved.onboarding_done === true || typeof saved.xp === 'number' || typeof saved.level === 'number';
+  if (!savedWasStarted) return false;
+
+  const nextLooksFresh =
+    next.onboarding_done !== true &&
+    (typeof next.xp !== 'number' || next.xp <= 0) &&
+    (typeof next.level !== 'number' || next.level <= 1);
+  if (nextLooksFresh) return true;
+
+  const savedXP = typeof saved.xp === 'number' ? saved.xp : 0;
+  const nextXP = typeof next.xp === 'number' ? next.xp : savedXP;
+  const savedLevel = typeof saved.level === 'number' ? saved.level : 1;
+  const nextLevel = typeof next.level === 'number' ? next.level : savedLevel;
+  return nextXP < savedXP || nextLevel < savedLevel;
+}
+
 /**
  * GET  /api/player/:playerId — Get player data (auth required)
  * PUT  /api/player/:playerId — Update player data (auth required, own data only)
@@ -70,6 +90,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (sanitized.preferred_language !== undefined &&
           !SUPPORTED_LANGUAGES.includes(sanitized.preferred_language as never)) {
         return res.status(400).json({ error: 'Invalid preferred_language' });
+      }
+
+      if (sanitized.game_state !== undefined) {
+        const current = await getPlayer(playerId);
+        if (!current) {
+          return res.status(404).json({ error: 'Player not found' });
+        }
+        if (isGameStateRegression(current.game_state, sanitized.game_state)) {
+          delete sanitized.game_state;
+          if (Object.keys(sanitized).length === 0) {
+            return res.status(409).json({ error: 'Ignored stale game_state regression' });
+          }
+        }
       }
 
       const player = await updatePlayer(playerId, sanitized);

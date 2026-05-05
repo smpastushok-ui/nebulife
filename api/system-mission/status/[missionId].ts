@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { checkVideoTaskStatus } from '../../../packages/server/src/kling-client.js';
 import { getSystemMission, updateSystemMission } from '../../../packages/server/src/db.js';
+import { enqueueSystemMissionReadyPush } from '../../../packages/server/src/push-events.js';
 
 /**
  * GET /api/system-mission/status/[missionId]
@@ -40,10 +41,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Update DB if status changed
     if (result.status === 'succeed' && result.videoUrl) {
-      await updateSystemMission(missionId, {
+      const updated = await updateSystemMission(missionId, {
         status: 'succeed',
         video_url: result.videoUrl,
       });
+      if (updated) {
+        await enqueueSystemMissionReadyPush({
+          playerId: updated.player_id,
+          missionId: updated.id,
+          systemId: updated.system_id,
+        });
+      }
       return res.status(200).json({
         status: 'succeed',
         videoUrl: result.videoUrl,

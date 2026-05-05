@@ -7,7 +7,7 @@ export const RAID_ALLY_SHIELD = 55;
 export const RAID_DRONE_HP = 18;
 export const RAID_SPEED = 280;
 export const RAID_ACCELERATION = 620;
-export const RAID_DRAG = 0.94;
+export const RAID_DRAG = 0.97;
 export const RAID_PROJECTILE_SPEED = 1050;
 export const RAID_PROJECTILE_LIFETIME = 1.8;
 export const RAID_PROJECTILE_DAMAGE = 16;
@@ -21,6 +21,8 @@ export const RAID_ACTIVE_ENEMIES_MID = 18;
 export const RAID_ACTIVE_ENEMIES_HIGH = 30;
 export const RAID_WINGMEN = 4;
 export const RAID_WAVE_INTERVAL = 12;
+export const RAID_BARREL_ROLL_DURATION = 0.6;
+export const RAID_BARREL_ROLL_COOLDOWN = 4.0;
 export const RAID_ENEMY_SPAWN_INTERVAL_DESKTOP = 1.9;
 export const RAID_ENEMY_SPAWN_INTERVAL_MOBILE = 2.6;
 

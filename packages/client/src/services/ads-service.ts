@@ -5,6 +5,7 @@
 import { Capacitor } from '@capacitor/core';
 import { AdMob, RewardAdPluginEvents, RewardAdOptions, AdmobConsentStatus } from '@capacitor-community/admob';
 import { authFetch } from '../auth/api-client.js';
+import { areAdsUnlockedAfterSettlement } from './ad-release-gate.js';
 import { interstitialManager } from './interstitial-manager.js';
 
 // =============================================================================
@@ -18,12 +19,12 @@ import { interstitialManager } from './interstitial-manager.js';
 // **TO RESTORE ADS:** set this flag to `false` (and the identical flag in
 // interstitial-manager.ts). Nothing else needs to change.
 // =============================================================================
-const ADS_DISABLED_FOR_TESTING = true;
+const ADS_DISABLED_FOR_TESTING = false;
 
 // Ad Unit IDs
 // TEST mode: use Google test IDs during development/testing to avoid AdMob violations
 // PRODUCTION: swap to real IDs before release
-const USE_TEST_ADS = true; // <-- SET TO false BEFORE RELEASE
+const USE_TEST_ADS = false;
 
 const REWARDED_AD_UNIT_ID = USE_TEST_ADS
   ? (Capacitor.getPlatform() === 'ios'
@@ -117,6 +118,8 @@ type AdResult =
   | { rewarded: false; reason: 'dismissed' | 'no_fill' | 'error' };
 
 async function showRewardedAdWithReason(): Promise<AdResult> {
+  if (!areAdsUnlockedAfterSettlement()) return { rewarded: false, reason: 'error' };
+
   // TEMP: testers — pretend the ad played successfully without showing anything.
   // Still increments the local daily counter so the existing limit logic stays honest.
   if (ADS_DISABLED_FOR_TESTING) {
@@ -216,6 +219,8 @@ export async function showMultipleRewardedAds(count: number): Promise<boolean> {
  * Returns false when AdMob has no fill (no ads to show).
  */
 export async function checkAdAvailability(): Promise<boolean> {
+  if (!areAdsUnlockedAfterSettlement()) return false;
+
   // TEMP: testers — always "available" so reward buttons stay enabled.
   if (ADS_DISABLED_FOR_TESTING) return true;
 
@@ -261,6 +266,8 @@ export function getDailyAdCount(): number {
 }
 
 export function canShowAd(): boolean {
+  if (!areAdsUnlockedAfterSettlement()) return false;
+
   // TEMP: testers — allow even on web build so reward flows are testable there.
   if (ADS_DISABLED_FOR_TESTING) return getDailyData().count < DAILY_LIMIT;
 

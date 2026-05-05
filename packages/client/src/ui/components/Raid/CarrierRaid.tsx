@@ -88,6 +88,9 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
     if (!containerRef.current) return;
     let cancelled = false;
     const shipId = localStorage.getItem('nebulife_hangar_ship') || 'blue';
+    const customShipGlbUrl = shipId === 'custom'
+      ? localStorage.getItem('nebulife_custom_ship_glb_url')
+      : null;
     const engine = new RaidEngine(containerRef.current, {
       onExit: () => onExitRef.current(),
       onStatsUpdate: setSnapshot,
@@ -112,7 +115,7 @@ export function CarrierRaid({ onExit, onAwardXP }: CarrierRaidProps) {
           onAwardXPRef.current?.(raidResult.xp, 'carrier_raid');
         }
       },
-    }, shipId);
+    }, shipId, customShipGlbUrl);
     engineRef.current = engine;
     engine.init()
       .then(() => {

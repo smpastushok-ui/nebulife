@@ -173,6 +173,9 @@ export const uk = {
   'planet.skin_system_ready': 'Орбітальний скін готовий',
   'planet.skin_exosphere_label': 'Створити скін екзосфери',
   'planet.skin_exosphere_ready': 'Скін екзосфери готовий',
+  'player.avatar_upload_success': 'Аватар оновлено',
+  'player.avatar_remove_success': 'Аватар прибрано',
+  'player.avatar_upload_failed': 'Не вдалося оновити аватар',
 
   // Planet detail window types (capitalized)
   'planet.type.rocky':     'Скелясте',

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { saveSystemPhoto } from '../../packages/server/src/db.js';
+import { enqueueMissionPhotoReadyPush } from '../../packages/server/src/push-events.js';
 
 export const config = {
   maxDuration: 30,
@@ -63,6 +64,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       promptUsed,
       status: 'succeed',
       photoUrl: blob.url,
+    });
+    await enqueueMissionPhotoReadyPush({
+      playerId,
+      photoId: saved.id,
+      systemId: saved.system_id,
+      photoUrl: saved.photo_url,
     });
 
     return res.status(200).json({

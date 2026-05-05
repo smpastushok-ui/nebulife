@@ -120,7 +120,14 @@ async function callTtsEndpoint(
       'Content-Type': 'application/json',
       'x-academy-build-key': apiKey,
     },
-    body: JSON.stringify({ slug, language, gender, text }),
+    body: JSON.stringify({
+      slug,
+      language,
+      gender,
+      text,
+      provider: 'gemini',
+      voiceName: gender === 'female' ? 'Kore' : 'Charon',
+    }),
   });
   const data = await res.json();
   if (!res.ok) {

@@ -42,15 +42,17 @@
 	<true/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<!-- AdMob iOS App ID. Currently TEST — replace with production from AdMob Console. -->
+	<!-- AdMob App ID. Production ID must match the App Store bundle in AdMob Console. -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-3504252081237345~9129352922</string>
 	<!-- App Tracking Transparency (iOS 14.5+). AdMob personalized ads require this. -->
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Дозвіл на відстеження допомагає показувати релевантнішу рекламу та підтримувати безкоштовний доступ до гри.</string>
 	<!-- Photos library (save AI-generated discovery photos to gallery). -->
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Зберегти AI-фото космічних об'єктів у вашу галерею.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Обрати фото профілю з вашої галереї.</string>
 	<!-- Make Filesystem Directory.Documents visible in the iOS Files app. -->
 	<key>UIFileSharingEnabled</key>
 	<true/>

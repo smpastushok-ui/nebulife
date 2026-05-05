@@ -8,6 +8,8 @@ import {
   RAID_ALLY_DAMAGE,
   RAID_ALLY_HP,
   RAID_ALLY_SHIELD,
+  RAID_BARREL_ROLL_COOLDOWN,
+  RAID_BARREL_ROLL_DURATION,
   RAID_DRAG,
   RAID_DRONE_HP,
   RAID_ENEMY_SPAWN_INTERVAL_DESKTOP,
@@ -112,6 +114,7 @@ export class RaidEngine {
   private readonly container: HTMLElement;
   private readonly callbacks: RaidCallbacks;
   private readonly shipId: string;
+  private readonly customShipGlbUrl: string | null;
   private readonly tier = getDeviceTier();
   private readonly isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   private readonly maxProjectiles = this.isMobile
@@ -167,18 +170,19 @@ export class RaidEngine {
   private nextWaveIndex = 0;
   private sectorAction: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity' = 'center';
   private snapshotTimer = 0;
-  private readonly maxPitch = Math.PI * 0.42;
-  private readonly mouseSens = 0.0023;
+  private readonly maxPitch = Math.PI / 2.2;
+  private readonly mouseSens = 0.0022;
   private readonly turnFollow = 2.0;
   private readonly maxYawRate = 1.75;
   private readonly maxPitchRate = 1.05;
   private readonly maxRoll = Math.PI / 4;
-  private readonly barrelRollDuration = 0.62;
+  private readonly barrelRollDuration = RAID_BARREL_ROLL_DURATION;
 
-  constructor(container: HTMLElement, callbacks: RaidCallbacks, shipId: string) {
+  constructor(container: HTMLElement, callbacks: RaidCallbacks, shipId: string, customShipGlbUrl?: string | null) {
     this.container = container;
     this.callbacks = callbacks;
     this.shipId = shipId;
+    this.customShipGlbUrl = customShipGlbUrl ?? null;
   }
 
   private getAllyTint(): number {
@@ -282,7 +286,7 @@ export class RaidEngine {
   triggerBarrelRoll(): void {
     if (this.barrelRollCooldown > 0) return;
     this.barrelRollTimer = this.barrelRollDuration;
-    this.barrelRollCooldown = 1.4;
+    this.barrelRollCooldown = RAID_BARREL_ROLL_COOLDOWN;
   }
 
   getSnapshot(): RaidSnapshot {
@@ -359,8 +363,9 @@ export class RaidEngine {
   };
 
   private readonly handleMouseDown = (e: MouseEvent): void => {
+    if (this.isMobile) return;
     e.preventDefault();
-    this.renderer?.domElement.requestPointerLock?.();
+    if (!this.pointerLocked) this.renderer?.domElement.requestPointerLock?.();
     if (e.button === 0) this.desktopLaserHeld = true;
     if (e.button === 2) this.fireMissile();
   };
@@ -432,8 +437,9 @@ export class RaidEngine {
   private async loadPlayerMesh(): Promise<THREE.Object3D> {
     const loader = new GLTFLoader();
     const allyTint = this.getAllyTint();
+    const primaryUrl = this.customShipGlbUrl ?? shipUrlFromId(this.shipId);
     try {
-      const root = (await loader.loadAsync(shipUrlFromId(this.shipId))).scene;
+      const root = (await loader.loadAsync(primaryUrl)).scene;
       const model = normalizeModel(root, 58, RAID_SHIP_MODEL_NOSE_OFFSET);
       tintShipMaterials(model, allyTint);
       model.traverse((obj) => { obj.frustumCulled = true; });
@@ -491,12 +497,16 @@ export class RaidEngine {
     };
 
     try {
-      this.allyTemplate = prepare((await loader.loadAsync(shipUrlFromId(this.shipId))).scene, 58, allyTint);
+      this.allyTemplate = prepare((await loader.loadAsync(this.customShipGlbUrl ?? shipUrlFromId(this.shipId))).scene, 58, allyTint);
     } catch {
       try {
-        this.allyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58, allyTint);
+        this.allyTemplate = prepare((await loader.loadAsync(shipUrlFromId(this.shipId))).scene, 58, allyTint);
       } catch {
-        this.allyTemplate = null;
+        try {
+          this.allyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58, allyTint);
+        } catch {
+          this.allyTemplate = null;
+        }
       }
     }
 
@@ -713,11 +723,14 @@ export class RaidEngine {
     if (right.lengthSq() < 0.01) right.set(1, 0, 0);
     const dir = new THREE.Vector3();
     if (this.keys.has('w') || this.keys.has('arrowup')) dir.add(forward);
-    if (this.keys.has('s') || this.keys.has('arrowdown')) dir.addScaledVector(forward, -0.6);
-    if (this.keys.has('a') || this.keys.has('arrowleft')) dir.addScaledVector(right, -0.75);
-    if (this.keys.has('d') || this.keys.has('arrowright')) dir.addScaledVector(right, 0.75);
+    if (this.keys.has('s') || this.keys.has('arrowdown')) dir.addScaledVector(forward, -1);
+    if (this.keys.has('a') || this.keys.has('arrowleft')) dir.addScaledVector(right, -1);
+    if (this.keys.has('d') || this.keys.has('arrowright')) dir.addScaledVector(right, 1);
     dir.add(this.moveInput);
-    if (dir.lengthSq() > 1) dir.normalize();
+    if (dir.lengthSq() > 1) {
+      dir.normalize();
+      dir.y *= 0.6;
+    }
     // Forward/back/strafe follows the nose like ArenaEngine, giving raid the
     // same dogfight feel instead of the old flat form-combat movement.
     this.player.vel.addScaledVector(dir, RAID_ACCELERATION * dt);
@@ -731,7 +744,7 @@ export class RaidEngine {
       this.player.fireCooldown -= dt;
       if (this.player.fireCooldown <= 0) {
         this.fireProjectileDir('allied', this.player.pos, this.aimDir, RAID_PROJECTILE_DAMAGE);
-        this.player.fireCooldown = this.sectorAction === 'missile' ? 0.12 : 0.18;
+        this.player.fireCooldown = this.sectorAction === 'missile' ? 0.12 : 0.25;
       }
     }
   }

@@ -35,6 +35,7 @@ export interface PlayerData {
   push_notifications: boolean;
   fcm_token: string | null;
   last_digest_seen: string | null;
+  avatar_url: string | null;
 }
 
 /**
@@ -144,6 +145,38 @@ export async function updateFcmToken(playerId: string, token: string | null): Pr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fcm_token: token }),
   }).catch(() => {});
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function uploadPlayerAvatar(file: File): Promise<string> {
+  const imageDataUrl = await fileToDataUrl(file);
+  const res = await authFetch(`${API_BASE}/player/avatar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageDataUrl }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `Upload avatar failed: ${res.status}`);
+  }
+  const data = await res.json() as { avatarUrl: string };
+  return data.avatarUrl;
+}
+
+export async function removePlayerAvatar(): Promise<void> {
+  const res = await authFetch(`${API_BASE}/player/avatar`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `Remove avatar failed: ${res.status}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
