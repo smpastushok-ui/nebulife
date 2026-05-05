@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BuildingType, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType } from '@nebulife/core';
-import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getObservatoryLevel, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible } from '@nebulife/core';
+import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import {
@@ -12,6 +12,13 @@ import {
 } from './building-detail-model.js';
 
 type ColonyResources = Record<ColonyResourceKey, number>;
+type ActionReport = {
+  id: string;
+  title: string;
+  body: string;
+  impact: string;
+  tone: 'info' | 'success' | 'warning';
+};
 
 export interface BuildingDetailPanelProps {
   planet: Planet;
@@ -158,6 +165,46 @@ function ActionButton({
   );
 }
 
+function ActionReportCard({ report }: { report: ActionReport }) {
+  const accent = report.tone === 'success'
+    ? '#88bb99'
+    : report.tone === 'warning'
+      ? '#ff8844'
+      : '#7bb8ff';
+  return (
+    <div style={{
+      background: `linear-gradient(135deg, rgba(5,10,20,0.72), ${accent}16)`,
+      border: `1px solid ${accent}66`,
+      borderRadius: 5,
+      padding: '10px 12px',
+      display: 'grid',
+      gap: 7,
+      boxShadow: `0 0 16px ${accent}14`,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+        <div style={{ color: accent, fontSize: 11, letterSpacing: 1.3, textTransform: 'uppercase' }}>
+          {report.title}
+        </div>
+        <div style={{ color: '#556677', fontSize: 9, letterSpacing: 1 }}>
+          REPORT
+        </div>
+      </div>
+      <div style={{ color: '#aabbcc', fontSize: 11, lineHeight: 1.45 }}>
+        {report.body}
+      </div>
+      <div style={{
+        color: '#778899',
+        fontSize: 10,
+        lineHeight: 1.4,
+        borderTop: '1px solid rgba(51,68,85,0.55)',
+        paddingTop: 7,
+      }}>
+        {report.impact}
+      </div>
+    </div>
+  );
+}
+
 const LANDING_PAD_PRODUCIBLES: ProducibleType[] = [
   'research_shuttle',
   'rover_dropcraft',
@@ -205,6 +252,36 @@ const OBSERVATORY_DURATION_DESC: Record<ObservatorySearchDuration, string> = {
   '24h': 'observatory.duration_desc.24h',
 };
 
+const OBSERVATORY_DURATION_STYLE: Record<ObservatorySearchDuration, {
+  code: string;
+  titleKey: string;
+  subtitleKey: string;
+  accent: string;
+  glow: string;
+}> = {
+  '1h': {
+    code: 'STD',
+    titleKey: 'observatory.scan_standard_title',
+    subtitleKey: 'observatory.scan_standard_subtitle',
+    accent: '#7bb8ff',
+    glow: 'rgba(68,136,170,0.24)',
+  },
+  '6h': {
+    code: 'RARE',
+    titleKey: 'observatory.scan_rare_title',
+    subtitleKey: 'observatory.scan_rare_subtitle',
+    accent: '#b78cff',
+    glow: 'rgba(183,140,255,0.22)',
+  },
+  '24h': {
+    code: 'UNIQ',
+    titleKey: 'observatory.scan_unique_title',
+    subtitleKey: 'observatory.scan_unique_subtitle',
+    accent: '#ddaa44',
+    glow: 'rgba(221,170,68,0.24)',
+  },
+};
+
 const RESOURCE_LABEL_KEY: Record<string, string> = {
   minerals: 'colony_center.resource.minerals',
   volatiles: 'colony_center.resource.volatiles',
@@ -231,6 +308,178 @@ function payloadCostSummary(type: ProducibleType, t: (key: string, options?: Rec
     .filter(([, amount]) => amount > 0)
     .map(([key, amount]) => `${t(RESOURCE_LABEL_KEY[key] ?? key)} ${amount}`)
     .join(' · ');
+}
+
+function ObservatorySignalVisual({ progress, accent }: { progress: number; accent: string }) {
+  return (
+    <div style={{
+      position: 'relative',
+      height: 74,
+      borderRadius: 6,
+      overflow: 'hidden',
+      background: 'radial-gradient(circle at 50% 50%, rgba(68,136,170,0.20), rgba(2,5,16,0.92) 62%)',
+      border: `1px solid ${accent}66`,
+      boxShadow: `inset 0 0 28px rgba(0,0,0,0.68), 0 0 18px ${accent}22`,
+    }}>
+      {[0, 1, 2].map((ring) => (
+        <div
+          key={ring}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            width: 26 + ring * 24,
+            height: 26 + ring * 24,
+            borderRadius: '50%',
+            border: `1px solid ${accent}${ring === 0 ? 'dd' : ring === 1 ? '88' : '44'}`,
+            transform: `translate(-50%, -50%) scale(${0.78 + progress * 0.34 + ring * 0.05})`,
+            opacity: 0.75 - ring * 0.18,
+          }}
+        />
+      ))}
+      <div style={{
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        width: 2,
+        height: 74,
+        background: `linear-gradient(180deg, transparent, ${accent}, transparent)`,
+        transform: `translate(-50%, -50%) rotate(${progress * 360}deg)`,
+        transformOrigin: '50% 50%',
+        opacity: 0.72,
+      }} />
+      <div style={{
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        width: 8,
+        height: 8,
+        borderRadius: 3,
+        background: accent,
+        boxShadow: `0 0 18px ${accent}`,
+        transform: 'translate(-50%, -50%)',
+      }} />
+    </div>
+  );
+}
+
+function ObservatorySessionCard({
+  session,
+  now,
+}: {
+  session: ObservatoryState['sessions'][number];
+  now: number;
+}) {
+  const { t } = useTranslation();
+  const style = OBSERVATORY_DURATION_STYLE[session.duration];
+  const durationMs = Math.max(1, session.completesAt - session.startedAt);
+  const progress = Math.max(0, Math.min(1, (now - session.startedAt) / durationMs));
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '92px 1fr',
+      gap: 10,
+      alignItems: 'center',
+      background: `linear-gradient(135deg, rgba(5,10,20,0.72), ${style.glow})`,
+      border: `1px solid ${style.accent}66`,
+      borderRadius: 6,
+      padding: 10,
+      boxShadow: `0 0 18px ${style.glow}`,
+    }}>
+      <ObservatorySignalVisual progress={progress} accent={style.accent} />
+      <div style={{ minWidth: 0, display: 'grid', gap: 7 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ color: style.accent, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+            {t(OBSERVATORY_PROGRAM_LABEL[session.program])}
+          </span>
+          <span style={{ color: '#d8e6f2', fontSize: 11 }}>{formatQueueTime(session.completesAt - now)}</span>
+        </div>
+        <div style={{ height: 6, borderRadius: 999, background: 'rgba(2,5,16,0.84)', overflow: 'hidden', border: '1px solid rgba(51,68,85,0.42)' }}>
+          <div style={{ width: `${Math.round(progress * 100)}%`, height: '100%', background: `linear-gradient(90deg, ${style.accent}, #d8e6f2)` }} />
+        </div>
+        <div style={{ color: '#778899', fontSize: 10, lineHeight: 1.35 }}>
+          {t(style.subtitleKey)} · {Math.round(progress * 100)}%
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ObservatoryDurationButton({
+  duration,
+  chance,
+  disabled,
+  onClick,
+}: {
+  duration: ObservatorySearchDuration;
+  chance: number;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const { t } = useTranslation();
+  const style = OBSERVATORY_DURATION_STYLE[duration];
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        textAlign: 'left',
+        background: disabled ? 'rgba(10,15,25,0.32)' : `linear-gradient(145deg, rgba(8,14,24,0.9), ${style.glow})`,
+        border: `1px solid ${disabled ? '#223344' : `${style.accent}88`}`,
+        borderRadius: 6,
+        padding: '12px 12px',
+        color: disabled ? '#556677' : '#aabbcc',
+        fontFamily: 'monospace',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        boxShadow: disabled ? undefined : `0 0 18px ${style.glow}`,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: style.accent, fontSize: 10, letterSpacing: 1.8 }}>{style.code}</span>
+        <span style={{ color: disabled ? '#556677' : '#d8e6f2', fontSize: 14 }}>{t(`observatory.duration.${duration}`)}</span>
+      </div>
+      <div style={{ marginTop: 8, color: disabled ? '#445566' : style.accent, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' }}>
+        {t(style.titleKey)}
+      </div>
+      <div style={{ marginTop: 5, color: disabled ? '#445566' : '#778899', fontSize: 10, lineHeight: 1.4 }}>
+        {t(OBSERVATORY_DURATION_DESC[duration], { chance })}
+      </div>
+    </button>
+  );
+}
+
+function ObservatoryReportCard({ report }: { report: NonNullable<ObservatoryState['reports']>[number] }) {
+  const { t, i18n } = useTranslation();
+  const style = OBSERVATORY_DURATION_STYLE[report.duration];
+  const entry = report.discoveryType ? getCatalogEntry(report.discoveryType) : undefined;
+  const name = entry ? getCatalogName(entry, i18n.language) : report.discoveryType;
+  const date = new Date(report.completedAt);
+  return (
+    <div style={{
+      background: 'rgba(5,10,20,0.58)',
+      border: `1px solid ${report.discoveryType ? `${style.accent}66` : 'rgba(51,68,85,0.7)'}`,
+      borderRadius: 5,
+      padding: '9px 10px',
+      display: 'grid',
+      gap: 5,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+        <span style={{ color: report.discoveryType ? style.accent : '#667788', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+          {report.discoveryType ? (name ?? report.discoveryType) : t('observatory.report_no_signal')}
+        </span>
+        <span style={{ color: '#556677', fontSize: 9 }}>
+          {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+      <div style={{ color: '#778899', fontSize: 10, lineHeight: 1.35 }}>
+        {t(OBSERVATORY_PROGRAM_LABEL[report.program])} · {report.duration}
+        {report.rarity ? ` · ${report.rarity}` : ''}
+        {report.xpGained > 0 ? ` · +${report.xpGained} XP` : ''}
+        {report.duplicate ? ` · ${t('observatory.report_duplicate')}` : ''}
+      </div>
+    </div>
+  );
 }
 
 function ProducibleFrameCard({
@@ -487,9 +736,10 @@ export function BuildingDetailPanel({
   onDemolish,
 }: BuildingDetailPanelProps) {
   const { t } = useTranslation();
-  const [actionLog, setActionLog] = useState<string | null>(null);
+  const [actionReports, setActionReports] = useState<ActionReport[]>([]);
   const [confirmDemolish, setConfirmDemolish] = useState(false);
   const [observatoryProgram, setObservatoryProgram] = useState<ObservatorySearchProgram>('routine_sky_watch');
+  const [observatoryNow, setObservatoryNow] = useState(() => Date.now());
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
 
@@ -551,35 +801,99 @@ export function BuildingDetailPanel({
   const observatoryXp = observatoryState ? getObservatoryXpProgress(observatoryState) : { level: 1, current: 0, required: 100, pct: 0 };
   const observatoryPrograms = getAvailableObservatoryPrograms(observatoryLevel);
   const activeObservatorySessions = observatoryState?.sessions ?? [];
+  const observatoryReports = [...(observatoryState?.reports ?? [])].reverse().slice(0, 8);
   const selectedObservatoryProgram = observatoryPrograms.includes(observatoryProgram)
     ? observatoryProgram
     : observatoryPrograms[observatoryPrograms.length - 1] ?? 'routine_sky_watch';
 
+  useEffect(() => {
+    if (activeObservatorySessions.length === 0) return;
+    const id = window.setInterval(() => setObservatoryNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [activeObservatorySessions.length]);
+
   const runScan = () => {
     if (!canScan) return;
     onResearchDataChange?.(-5);
-    const stockText = stats.stock
+    const body = stats.stock
       ? t('building_detail.action_result_stock', { pct: stats.stock.pct })
       : t('building_detail.action_result_signal');
-    setActionLog(stockText);
+    setActionReports((reports) => [
+      {
+        id: `scan-${Date.now()}`,
+        title: t('building_detail.report_scan_title'),
+        body,
+        impact: stats.stock
+          ? t('building_detail.report_scan_impact_stock', {
+              resource: t(`colony_center.resource.${stats.stock.resource}`),
+              remaining: Math.floor(stats.stock.remaining),
+              pct: stats.stock.pct,
+            })
+          : t('building_detail.report_scan_impact_signal'),
+        tone: stats.stock && stats.stock.pct < 15 ? 'warning' : 'info',
+      },
+      ...reports,
+    ].slice(0, 4));
   };
 
   const inspectDeposit = () => {
+    const id = `deposit-${Date.now()}`;
     if (stats.stock) {
-      setActionLog(t('building_detail.action_result_deposit', {
-        resource: t(`colony_center.resource.${stats.stock.resource}`),
-        remaining: Math.floor(stats.stock.remaining),
-        pct: stats.stock.pct,
-      }));
+      const resource = t(`colony_center.resource.${stats.stock.resource}`);
+      setActionReports((reports) => [
+        {
+          id,
+          title: t('building_detail.report_deposit_title'),
+          body: t('building_detail.action_result_deposit', {
+            resource,
+            remaining: Math.floor(stats.stock.remaining),
+            pct: stats.stock.pct,
+          }),
+          impact: t('building_detail.report_deposit_impact', { resource }),
+          tone: stats.stock.pct < 15 ? 'warning' : 'success',
+        },
+        ...reports,
+      ].slice(0, 4));
     } else {
-      setActionLog(t('building_detail.action_result_no_deposit'));
+      setActionReports((reports) => [
+        {
+          id,
+          title: t('building_detail.report_deposit_title'),
+          body: t('building_detail.action_result_no_deposit'),
+          impact: t('building_detail.report_no_persistent_effect'),
+          tone: 'info',
+        },
+        ...reports,
+      ].slice(0, 4));
     }
   };
 
   const runChemCycle = () => {
     if (!canChemCycle) return;
     onResourceChange?.({ volatiles: -10, isotopes: 3, water: 2 });
-    setActionLog(t('building_detail.action_result_chemistry'));
+    setActionReports((reports) => [
+      {
+        id: `chem-${Date.now()}`,
+        title: t('building_detail.report_chemistry_title'),
+        body: t('building_detail.action_result_chemistry'),
+        impact: t('building_detail.report_chemistry_impact'),
+        tone: 'success',
+      },
+      ...reports,
+    ].slice(0, 4));
+  };
+
+  const addInfoReport = (title: string, body: string, impact = t('building_detail.report_no_persistent_effect')) => {
+    setActionReports((reports) => [
+      {
+        id: `info-${Date.now()}`,
+        title,
+        body,
+        impact,
+        tone: 'info',
+      },
+      ...reports,
+    ].slice(0, 4));
   };
 
   return (
@@ -876,25 +1190,12 @@ export function BuildingDetailPanel({
               </div>
 
               {activeObservatorySessions.length > 0 && (
-                <div style={{ display: 'grid', gap: 6 }}>
+                <div style={{ display: 'grid', gap: 8 }}>
                   <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
                     {t('observatory.in_progress')}
                   </div>
                   {activeObservatorySessions.map((session) => (
-                    <div key={session.id} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      gap: 8,
-                      background: 'rgba(5,10,20,0.5)',
-                      border: `1px solid ${BORDER}`,
-                      borderRadius: 4,
-                      padding: '8px 9px',
-                      fontSize: 10,
-                      color: '#8899aa',
-                    }}>
-                      <span>{t(OBSERVATORY_PROGRAM_LABEL[session.program])} · {session.duration}</span>
-                      <span style={{ color: '#7bb8ff' }}>{formatQueueTime(session.completesAt - Date.now())}</span>
-                    </div>
+                    <ObservatorySessionCard key={session.id} session={session} now={observatoryNow} />
                   ))}
                 </div>
               )}
@@ -903,10 +1204,10 @@ export function BuildingDetailPanel({
                 {OBSERVATORY_DURATIONS.map((duration) => {
                   const chance = Math.round(getObservatorySearchChance(duration, observatoryLevel) * 100);
                   return (
-                    <ActionButton
+                    <ObservatoryDurationButton
                       key={duration}
-                      title={t(`observatory.duration.${duration}`)}
-                      desc={t(OBSERVATORY_DURATION_DESC[duration], { chance })}
+                      duration={duration}
+                      chance={chance}
                       disabled={stats.isShutdown || !onStartObservatorySearch}
                       onClick={() => {
                         onStartObservatorySearch?.(duration, selectedObservatoryProgram);
@@ -915,6 +1216,36 @@ export function BuildingDetailPanel({
                     />
                   );
                 })}
+              </div>
+
+              <div style={{ display: 'grid', gap: 7 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                  <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                    {t('observatory.reports')}
+                  </div>
+                  <div style={{ fontSize: 9, color: '#556677' }}>
+                    {t('observatory.reports_count', { count: observatoryReports.length })}
+                  </div>
+                </div>
+                {observatoryReports.length > 0 ? (
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {observatoryReports.map((report) => (
+                      <ObservatoryReportCard key={report.id} report={report} />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{
+                    background: 'rgba(5,10,20,0.42)',
+                    border: '1px solid rgba(51,68,85,0.55)',
+                    borderRadius: 5,
+                    padding: '10px 12px',
+                    color: '#667788',
+                    fontSize: 10,
+                    lineHeight: 1.45,
+                  }}>
+                    {t('observatory.no_reports')}
+                  </div>
+                )}
               </div>
             </div>
           </Section>

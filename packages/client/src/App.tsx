@@ -4330,6 +4330,8 @@ function AppInner() {
               }
             : record;
         }
+        const reportsById = new Map((local.reports ?? []).map((report) => [report.id, report]));
+        for (const report of serverObservatory.reports ?? []) reportsById.set(report.id, report);
         return {
           ...local,
           xp: Math.max(local.xp, serverObservatory.xp),
@@ -4339,6 +4341,9 @@ function AppInner() {
           duplicateStreak: Math.max(local.duplicateStreak, serverObservatory.duplicateStreak),
           sessions: [...sessionsById.values()],
           events,
+          reports: [...reportsById.values()]
+            .sort((a, b) => a.completedAt - b.completedAt)
+            .slice(-25),
         };
       });
     }

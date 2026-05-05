@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../../packages/server/src/auth-middleware.js';
 import { getShipModel, updateShipModel } from '../../../packages/server/src/db.js';
-import { checkTaskStatus as checkKlingStatus, generateImage } from '../../../packages/server/src/kling-client.js';
-import { checkModelTask, createShipModelTask } from '../../../packages/server/src/tripo-client.js';
-import { buildShipConceptPrompt } from '../../../packages/server/src/ship-prompt.js';
+import { checkTaskStatus as checkKlingStatus } from '../../../packages/server/src/kling-client.js';
+import { checkModelTask, createShipModelTask, createShipTextModelTask } from '../../../packages/server/src/tripo-client.js';
+import { buildShipModelNegativePrompt, buildShipModelPrompt } from '../../../packages/server/src/ship-prompt.js';
 
 export const config = {
   maxDuration: 60,
@@ -105,19 +105,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (ship.status === 'generating_concept' && !ship.kling_task_id) {
-      const prompt = buildShipConceptPrompt(ship.prompt_used ?? ship.prompt);
-      const { taskId } = await generateImage({ prompt, aspectRatio: '1:1', resolution: '1K' });
-      await updateShipModel(shipId, { kling_task_id: taskId });
-      return res.status(200).json({ status: 'generating_concept', progress: 10 });
+      const prompt = buildShipModelPrompt(ship.prompt);
+      const { taskId } = await createShipTextModelTask(prompt, buildShipModelNegativePrompt());
+      await updateShipModel(shipId, { tripo_task_id: taskId, prompt_used: prompt, status: 'generating_3d' });
+      return res.status(200).json({ status: 'generating_3d', progress: 0 });
     }
 
-    if (ship.status === 'generating_3d' && ship.concept_url && !ship.tripo_task_id) {
-      const { taskId } = await createShipModelTask(ship.concept_url);
-      await updateShipModel(shipId, { tripo_task_id: taskId });
+    if (ship.status === 'generating_3d' && !ship.tripo_task_id) {
+      if (ship.concept_url) {
+        const { taskId } = await createShipModelTask(ship.concept_url);
+        await updateShipModel(shipId, { tripo_task_id: taskId });
+        return res.status(200).json({
+          status: 'generating_3d',
+          progress: 0,
+          conceptUrl: ship.concept_url,
+        });
+      }
+      const prompt = ship.prompt_used?.startsWith('A unique original small player spacecraft 3D model')
+        ? ship.prompt_used
+        : buildShipModelPrompt(ship.prompt);
+      const { taskId } = await createShipTextModelTask(prompt, buildShipModelNegativePrompt());
+      await updateShipModel(shipId, { tripo_task_id: taskId, prompt_used: prompt });
       return res.status(200).json({
         status: 'generating_3d',
         progress: 0,
-        conceptUrl: ship.concept_url,
       });
     }
 

@@ -28,3 +28,21 @@ export function buildShipConceptPrompt(cleanedPrompt: string): string {
     `Player design brief: ${cleanedPrompt}`,
   ].join(' ');
 }
+
+export function buildShipModelPrompt(cleanedPrompt: string): string {
+  return [
+    'A unique original small player spacecraft 3D model for a cozy space exploration game.',
+    'Mobile game ready low-poly sci-fi fighter explorer, compact hull, readable nose direction, clear wing and engine silhouette.',
+    'Single complete spacecraft object, centered, symmetrical enough for real-time arena flight, muted deep-space palette with subtle accent lights.',
+    'No pilot, no cockpit interior, no text, no logo, no brand, no weapon gore, no fragile tiny antennas.',
+    `Player design brief: ${cleanedPrompt}`,
+  ].join(' ');
+}
+
+export function buildShipModelNegativePrompt(): string {
+  return [
+    'human, pilot, character, logo, text, watermark, UI, background scene, terrain, building',
+    'many separate objects, broken geometry, ultra high poly, thin fragile wires, tiny unreadable details',
+    'copyrighted ship, famous franchise, real brand, weapon gore',
+  ].join(', ');
+}

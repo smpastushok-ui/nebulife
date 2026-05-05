@@ -26,6 +26,19 @@ export interface ObservatoryEventRecord {
   lastDiscoveredAt: number;
 }
 
+export interface ObservatoryReportRecord {
+  id: string;
+  sessionId: string;
+  duration: ObservatorySearchDuration;
+  program: ObservatorySearchProgram;
+  completedAt: number;
+  discoveryType: string | null;
+  rarity: DiscoveryRarity | null;
+  duplicate: boolean;
+  xpGained: number;
+  leveledUp: boolean;
+}
+
 export interface ObservatoryState {
   xp: number;
   searchesCompleted: number;
@@ -34,4 +47,5 @@ export interface ObservatoryState {
   duplicateStreak: number;
   sessions: ObservatorySearchSession[];
   events: Record<string, ObservatoryEventRecord>;
+  reports: ObservatoryReportRecord[];
 }

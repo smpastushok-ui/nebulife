@@ -75,6 +75,7 @@ export function createObservatoryState(): ObservatoryState {
     duplicateStreak: 0,
     sessions: [],
     events: {},
+    reports: [],
   };
 }
 
@@ -90,6 +91,7 @@ export function normalizeObservatoryState(value: unknown): ObservatoryState {
     duplicateStreak: Number.isFinite(raw.duplicateStreak) ? Math.max(0, Math.floor(raw.duplicateStreak ?? 0)) : 0,
     sessions: Array.isArray(raw.sessions) ? raw.sessions.filter(isValidSession) : [],
     events: raw.events && typeof raw.events === 'object' ? raw.events as Record<string, ObservatoryEventRecord> : {},
+    reports: Array.isArray(raw.reports) ? raw.reports.slice(-25) as ObservatoryState['reports'] : [],
   };
 }
 
@@ -168,6 +170,21 @@ export function completeObservatorySearch(
       sessions: remaining,
       searchesCompleted: state.searchesCompleted + 1,
       duplicateStreak: state.duplicateStreak + 1,
+      reports: [
+        ...(state.reports ?? []),
+        {
+          id: `obs-report-${session.id}`,
+          sessionId: session.id,
+          duration: session.duration,
+          program: session.program,
+          completedAt: now,
+          discoveryType: null,
+          rarity: null,
+          duplicate: false,
+          xpGained: 0,
+          leveledUp: false,
+        },
+      ].slice(-25),
     };
     return { state: nextState, session, discovery: null, duplicate: false, xpGained: 0, leveledUp: false };
   }
@@ -205,6 +222,21 @@ function applyObservatoryDiscovery(
     duplicateSignals: state.duplicateSignals + (duplicate ? 1 : 0),
     duplicateStreak: duplicate ? state.duplicateStreak + 1 : 0,
     events: { ...state.events, [discovery.type]: record },
+    reports: [
+      ...(state.reports ?? []),
+      {
+        id: `obs-report-${session.id}`,
+        sessionId: session.id,
+        duration: session.duration,
+        program: session.program,
+        completedAt: discovery.timestamp,
+        discoveryType: discovery.type,
+        rarity: discovery.rarity,
+        duplicate,
+        xpGained,
+        leveledUp: getObservatoryLevel({ xp: state.xp + xpGained }) > previousLevel,
+      },
+    ].slice(-25),
   };
 
   return {

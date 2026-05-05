@@ -178,6 +178,8 @@ function ResourceBar({
 }) {
   const { t } = useTranslation();
   const pct = capacity > 0 ? Math.min(100, (current / capacity) * 100) : 0;
+  const pctRounded = Math.round(pct);
+  const isNearFull = pctRounded >= 85;
   const isLow = useMemo(() => {
     const tier = getDeviceTier();
     return tier === 'low' || tier === 'mid';
@@ -206,8 +208,16 @@ function ResourceBar({
             {t(`colony_center.resource.${resourceKey}`)}
           </span>
         </div>
-        <span style={{ fontSize: 10, color: '#88bb99' }}>
+        <span style={{ fontSize: 10, color: perHour >= 0 ? '#88bb99' : '#cc7777' }}>
           {perHour >= 0 ? '+' : ''}{perHour.toFixed(1)}/h
+        </span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+        <span style={{ fontSize: 9, color: '#667788', letterSpacing: 0.8, textTransform: 'uppercase' }}>
+          {t('colony_center.storage_fill')}
+        </span>
+        <span style={{ fontSize: 10, color: isNearFull ? '#ff8844' : '#9fc4dd' }}>
+          {Math.floor(current).toLocaleString()} / {capacity.toLocaleString()} · {pctRounded}%
         </span>
       </div>
       <div style={{
@@ -226,8 +236,8 @@ function ResourceBar({
         }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#667788', marginTop: 4 }}>
-        <span>{Math.floor(current).toLocaleString()}</span>
-        <span>{capacity.toLocaleString()}</span>
+        <span>{t('colony_center.storage_used')}</span>
+        <span>{t('colony_center.storage_capacity_value', { capacity: capacity.toLocaleString() })}</span>
       </div>
     </button>
   );

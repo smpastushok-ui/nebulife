@@ -7,10 +7,11 @@ import {
   updateShipModel,
 } from '../../packages/server/src/db.js';
 import { moderateShipPrompt } from '../../packages/server/src/gemini-client.js';
-import { generateImage } from '../../packages/server/src/kling-client.js';
+import { createShipTextModelTask } from '../../packages/server/src/tripo-client.js';
 import {
   SHIP_GENERATION_COST_QUARKS,
-  buildShipConceptPrompt,
+  buildShipModelNegativePrompt,
+  buildShipModelPrompt,
   normalizeShipDescription,
   validateShipDescription,
 } from '../../packages/server/src/ship-prompt.js';
@@ -60,22 +61,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       promptUsed: moderation.cleanedPrompt,
       moderationStatus: 'approved',
       moderationReason: moderation.reason,
-      status: 'generating_concept',
+      status: 'generating_3d',
       quarksPaid: SHIP_GENERATION_COST_QUARKS,
     });
 
-    const conceptPrompt = buildShipConceptPrompt(moderation.cleanedPrompt);
-    const kling = await generateImage({ prompt: conceptPrompt, aspectRatio: '1:1', resolution: '1K' });
+    const modelPrompt = buildShipModelPrompt(moderation.cleanedPrompt);
+    const tripo = await createShipTextModelTask(modelPrompt, buildShipModelNegativePrompt());
     await updateShipModel(ship.id, {
-      kling_task_id: kling.taskId,
-      status: 'generating_concept',
+      tripo_task_id: tripo.taskId,
+      prompt_used: modelPrompt,
+      status: 'generating_3d',
     });
     chargedPlayerId = null;
     chargedAmount = 0;
 
     return res.status(200).json({
       shipId: ship.id,
-      status: 'generating_concept',
+      status: 'generating_3d',
       quarksPaid: SHIP_GENERATION_COST_QUARKS,
       newBalance: paid.quarks,
     });
@@ -89,11 +91,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     const message = err instanceof Error ? err.message : 'Ship generation failed';
-    const isConfigError = message.includes('KLING_ACCESS_KEY') || message.includes('KLING_SECRET_KEY');
+    const isConfigError = message.includes('TRIPO_API_KEY');
     const isDbMigrationError = message.includes('ship_models') || message.includes('relation') || message.includes('column');
     return res.status(isConfigError || isDbMigrationError ? 503 : 500).json({
       error: isConfigError
-        ? 'Ship generation is not configured on the server'
+        ? 'Tripo ship generation is not configured on the server'
         : isDbMigrationError
           ? 'Ship generation database migration is not installed'
           : 'Ship generation failed',

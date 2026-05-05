@@ -726,6 +726,17 @@
       "6h": "{{chance}}% chance to find a rare signal; epic echoes are possible.",
       "24h": "{{chance}}% chance for an epic or legendary signature. If none is found, the observatory guarantees a standard event."
     },
+    "scan_standard_title": "Standard Patrol",
+    "scan_standard_subtitle": "Fast near-spectrum sweep for common and rare signals",
+    "scan_rare_title": "Rare Resonance",
+    "scan_rare_subtitle": "Deeper signal accumulation for rare and epic events",
+    "scan_unique_title": "Unique Signature",
+    "scan_unique_subtitle": "Full-day focus on the most valuable epic and legendary traces",
+    "reports": "Reports",
+    "reports_count": "{{count}} latest",
+    "no_reports": "Reports will appear here after searches complete. Active searches are saved and continue when you return to the game.",
+    "report_no_signal": "Signal not confirmed",
+    "report_duplicate": "duplicate",
     "search_explainer": "Space research searches for unique events and objects for the catalog. Level chance: {{chance}}% at this observatory level; levels 1-5 give 10%, 20%, 30%, 35%, and 40%. Longer searches change the target rarity, and 24-hour searches never return empty.",
     "search_started": "Observatory search started. Results will arrive when the session completes.",
     "search_no_signal_log": "Observatory search completed: no stable cosmic signal detected.",
@@ -1864,6 +1875,9 @@
       "researchData": "Research",
       "energy": "Energy"
     },
+    "storage_fill": "Storage fill",
+    "storage_used": "used",
+    "storage_capacity_value": "capacity {{capacity}}",
     "overview": {
       "colonies": "Colonies",
       "buildings": "Buildings",

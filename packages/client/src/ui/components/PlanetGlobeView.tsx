@@ -388,6 +388,26 @@ function createStarfield(scene: THREE.Scene, systemSeed: number, lod: ExosphereL
 // Distant star (billboard)
 // ---------------------------------------------------------------------------
 
+function isHighWebFxEnabled(tier: string): boolean {
+  if (tier !== 'high' && tier !== 'ultra') return false;
+  if (typeof window === 'undefined') return false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cap = (window as any).Capacitor;
+  return !(cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform());
+}
+
+interface DistantStarVisual {
+  group: THREE.Group;
+  core: THREE.Sprite;
+  halo: THREE.Sprite;
+  corona: THREE.Sprite | null;
+  flare: THREE.Sprite | null;
+  baseCoreSize: number;
+  baseCoreOpacity: number;
+  baseHaloOpacity: number;
+  animated: boolean;
+}
+
 /** Build a soft radial-gradient canvas texture for star sprites */
 function makeStarTexture(): THREE.CanvasTexture {
   const size = 64;
@@ -410,7 +430,8 @@ function createDistantStar(
   scene: THREE.Scene,
   star: Star,
   planet: Planet,
-): THREE.Group {
+  animated: boolean,
+): DistantStarVisual {
   const group = new THREE.Group();
 
   const distAU = planet.orbit.semiMajorAxisAU;
@@ -454,11 +475,150 @@ function createDistantStar(
   halo.scale.setScalar(coreSize * 2.2);
   group.add(halo);
 
+  let corona: THREE.Sprite | null = null;
+  let flare: THREE.Sprite | null = null;
+  if (animated) {
+    const coronaMat = new THREE.SpriteMaterial({
+      map: starTex,
+      color: starColor,
+      transparent: true,
+      opacity: haloOpacity * 0.8,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    corona = new THREE.Sprite(coronaMat);
+    corona.scale.set(coreSize * 3.2, coreSize * 3.2, 1);
+    group.add(corona);
+
+    const flareMat = new THREE.SpriteMaterial({
+      map: starTex,
+      color: starColor,
+      transparent: true,
+      opacity: Math.min(0.16, coreOpacity * 0.18),
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    flare = new THREE.Sprite(flareMat);
+    flare.scale.set(coreSize * 5.0, coreSize * 0.34, 1);
+    group.add(flare);
+  }
+
   // Position: top-left area of the sky (synced with STAR_SPRITE_POSITION)
   group.position.copy(STAR_SPRITE_POSITION);
 
   scene.add(group);
-  return group;
+  return {
+    group,
+    core: sprite,
+    halo,
+    corona,
+    flare,
+    baseCoreSize: coreSize,
+    baseCoreOpacity: coreOpacity,
+    baseHaloOpacity: haloOpacity,
+    animated,
+  };
+}
+
+function updateDistantStarVisual(starVisual: DistantStarVisual, elapsed: number, cameraDistance: number): void {
+  const starScale = 1.0 + (3.0 / cameraDistance - 1.0) * 0.5;
+  const pulse = starVisual.animated
+    ? 1 + Math.sin(elapsed * 0.75) * 0.025 + Math.sin(elapsed * 1.91) * 0.012
+    : 1;
+  starVisual.group.scale.setScalar(starScale * pulse);
+
+  if (!starVisual.animated) return;
+  const shimmer = 0.5 + 0.5 * Math.sin(elapsed * 1.37 + 0.8);
+  const micro = 0.5 + 0.5 * Math.sin(elapsed * 4.6);
+  (starVisual.core.material as THREE.SpriteMaterial).opacity = starVisual.baseCoreOpacity * (0.94 + shimmer * 0.08);
+  (starVisual.halo.material as THREE.SpriteMaterial).opacity = starVisual.baseHaloOpacity * (0.85 + shimmer * 0.35);
+  if (starVisual.corona) {
+    (starVisual.corona.material as THREE.SpriteMaterial).rotation = elapsed * 0.035;
+    starVisual.corona.scale.setScalar(starVisual.baseCoreSize * (3.0 + shimmer * 0.22));
+    (starVisual.corona.material as THREE.SpriteMaterial).opacity = starVisual.baseHaloOpacity * (0.65 + micro * 0.35);
+  }
+  if (starVisual.flare) {
+    (starVisual.flare.material as THREE.SpriteMaterial).rotation = Math.sin(elapsed * 0.18) * 0.08;
+    starVisual.flare.scale.set(starVisual.baseCoreSize * (4.8 + shimmer * 0.4), starVisual.baseCoreSize * (0.25 + micro * 0.12), 1);
+    (starVisual.flare.material as THREE.SpriteMaterial).opacity = Math.min(0.18, starVisual.baseCoreOpacity * (0.12 + shimmer * 0.06));
+  }
+}
+
+interface AsteroidBeltVisual {
+  group: THREE.Group;
+  points: THREE.Points;
+  rocks: THREE.InstancedMesh;
+}
+
+function createAsteroidBelt(scene: THREE.Scene, seed: number): AsteroidBeltVisual {
+  const rng = new SeededRNG(seed * 92821 + 77);
+  const group = new THREE.Group();
+  group.rotation.set(0.34, 0.1, -0.18);
+  group.position.set(0.15, -0.08, -0.25);
+
+  const dustCount = 900;
+  const positions = new Float32Array(dustCount * 3);
+  const colors = new Float32Array(dustCount * 3);
+  const colorA = new THREE.Color(0x8b7a64);
+  const colorB = new THREE.Color(0xc6b28a);
+  for (let i = 0; i < dustCount; i++) {
+    const a = rng.next() * Math.PI * 2;
+    const radius = 5.8 + rng.next() * 4.4 + Math.pow(rng.next(), 4) * 1.8;
+    const width = (rng.next() - 0.5) * 0.28;
+    const height = (rng.next() - 0.5) * 0.08;
+    positions[i * 3] = Math.cos(a) * (radius + width);
+    positions[i * 3 + 1] = height;
+    positions[i * 3 + 2] = Math.sin(a) * (radius + width) * 0.82;
+    const c = colorA.clone().lerp(colorB, rng.next() * 0.7);
+    colors[i * 3] = c.r;
+    colors[i * 3 + 1] = c.g;
+    colors[i * 3 + 2] = c.b;
+  }
+  const dustGeo = new THREE.BufferGeometry();
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  dustGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const dustMat = new THREE.PointsMaterial({
+    size: 0.018,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const points = new THREE.Points(dustGeo, dustMat);
+  points.renderOrder = -0.4;
+  group.add(points);
+
+  const rockCount = 80;
+  const rockGeo = new THREE.DodecahedronGeometry(0.035, 0);
+  const rockMat = new THREE.MeshStandardMaterial({
+    color: 0x9c8a70,
+    roughness: 0.95,
+    metalness: 0.02,
+  });
+  const rocks = new THREE.InstancedMesh(rockGeo, rockMat, rockCount);
+  const matrix = new THREE.Matrix4();
+  const quat = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const pos = new THREE.Vector3();
+  const rot = new THREE.Euler();
+  for (let i = 0; i < rockCount; i++) {
+    const a = rng.next() * Math.PI * 2;
+    const radius = 5.7 + rng.next() * 4.8;
+    pos.set(Math.cos(a) * radius, (rng.next() - 0.5) * 0.15, Math.sin(a) * radius * 0.82);
+    rot.set(rng.next() * Math.PI, rng.next() * Math.PI, rng.next() * Math.PI);
+    quat.setFromEuler(rot);
+    const s = 0.45 + rng.next() * 1.5;
+    scale.set(s, s * (0.65 + rng.next() * 0.5), s);
+    matrix.compose(pos, quat, scale);
+    rocks.setMatrixAt(i, matrix);
+  }
+  rocks.instanceMatrix.needsUpdate = true;
+  rocks.renderOrder = -0.3;
+  group.add(rocks);
+
+  scene.add(group);
+  return { group, points, rocks };
 }
 
 // ---------------------------------------------------------------------------
@@ -470,6 +630,7 @@ function createPlanetSphere(
   planet: Planet,
   star: Star,
   lod: ExosphereLOD,
+  maxAnisotropy: number,
   textureUrl?: string | null,
 ): { mesh: THREE.Mesh; uniforms: Record<string, THREE.IUniform> } {
   const visuals = derivePlanetVisuals(planet, star);
@@ -487,19 +648,30 @@ function createPlanetSphere(
   // 192×192 → ~74K triangles; low tier drops to 48 (~2.4K), mid to 96 (~18K).
   // Silhouette is still smooth at 48 because the planet occupies < 40 % of
   // viewport height and most users never zoom past 2×.
-  const segs = lod.planetSegments;
+  const segs = textureUrl ? Math.min(192, Math.max(lod.planetSegments, 128)) : lod.planetSegments;
   const geometry = new THREE.SphereGeometry(1, segs, segs);
   const generatedTexture = textureUrl ? new THREE.TextureLoader().load(textureUrl) : null;
   if (generatedTexture) {
     generatedTexture.colorSpace = THREE.SRGBColorSpace;
     generatedTexture.wrapS = THREE.RepeatWrapping;
     generatedTexture.wrapT = THREE.ClampToEdgeWrapping;
+    generatedTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    generatedTexture.magFilter = THREE.LinearFilter;
+    generatedTexture.anisotropy = Math.max(1, Math.min(maxAnisotropy, 8));
+    generatedTexture.generateMipmaps = true;
   }
   const material = generatedTexture
-    ? new THREE.MeshStandardMaterial({
+    ? new THREE.MeshPhysicalMaterial({
         map: generatedTexture,
-        roughness: 0.95,
+        bumpMap: isGas ? null : generatedTexture,
+        bumpScale: isGas ? 0 : 0.018,
+        roughness: isGas ? 0.88 : 0.96,
         metalness: 0,
+        clearcoat: isGas ? 0.18 : 0.04,
+        clearcoatRoughness: 0.85,
+        sheen: isGas ? 0.18 : 0,
+        sheenRoughness: 0.9,
+        envMapIntensity: 0.25,
       })
     : new THREE.ShaderMaterial({
         vertexShader: planetVertSrc,
@@ -1420,11 +1592,15 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // 1. Starfield
       const starfield = createStarfield(scene, system.seed, lod);
 
+      const tier = getDeviceTier();
+      const highWebFx = isHighWebFxEnabled(tier);
+
       // 2. Distant star
-      const starGroup = createDistantStar(scene, star, planet);
+      const starVisual = createDistantStar(scene, star, planet, highWebFx);
 
       // 3. Planet sphere
-      const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, textureUrl);
+      const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+      const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, maxAnisotropy, textureUrl);
 
       // 4. Cloud layer (skipped on low tier)
       const cloudResult = createCloudLayer(scene, planet, lod);
@@ -1437,6 +1613,9 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
       // 7. Moons
       const moonOrbits = createMoons(scene, planet, star, lod);
+
+      // 7b. Asteroid belt — only on high/ultra web, skipped on native/mobile tiers.
+      const asteroidBelt = highWebFx ? createAsteroidBelt(scene, system.seed + planet.seed) : null;
 
       // 8. Scanning overlay
       const scan = createScanOverlay(scene);
@@ -1474,7 +1653,6 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // that's 8–15ms/frame, which alone drops us below 30fps. Skipped on
       // both low AND mid — planet still looks fine without the halo, and
       // mid-tier tablets were overheating running all layers + bloom.
-      const tier = getDeviceTier();
       const useBloom = tier !== 'low' && tier !== 'mid';
       // Lock camera on low + mid: no auto-rotate, no user drag-rotation,
       // no pinch/wheel zoom. A fully static camera means the GPU can cache
@@ -1554,10 +1732,15 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           cloudResult.uniform.value = elapsed;
         }
 
-        // Dynamic star scale — larger when zoomed in
+        // Dynamic star scale + high-web stellar pulse/corona.
         const camDist = camera.position.length();
-        const starScale = 1.0 + (3.0 / camDist - 1.0) * 0.5;
-        starGroup.scale.setScalar(starScale);
+        updateDistantStarVisual(starVisual, elapsed, camDist);
+
+        if (asteroidBelt) {
+          asteroidBelt.group.rotation.y += deltaMs * 0.000018;
+          asteroidBelt.points.rotation.y -= deltaMs * 0.000012;
+          asteroidBelt.rocks.rotation.y += deltaMs * 0.000028;
+        }
 
         // GPU-driven twinkling via uTime uniform.
         // Skipped on low tier — uniform upload is cheap, but the shader
@@ -1658,12 +1841,40 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         controls.dispose();
         composer?.dispose();
         cleanup();
+        const disposeMaterial = (material: THREE.Material) => {
+          const texturedMaterial = material as THREE.Material & {
+            map?: THREE.Texture | null;
+            bumpMap?: THREE.Texture | null;
+            normalMap?: THREE.Texture | null;
+            roughnessMap?: THREE.Texture | null;
+            metalnessMap?: THREE.Texture | null;
+            alphaMap?: THREE.Texture | null;
+            emissiveMap?: THREE.Texture | null;
+          };
+          const seen = new Set<THREE.Texture>();
+          [
+            texturedMaterial.map,
+            texturedMaterial.bumpMap,
+            texturedMaterial.normalMap,
+            texturedMaterial.roughnessMap,
+            texturedMaterial.metalnessMap,
+            texturedMaterial.alphaMap,
+            texturedMaterial.emissiveMap,
+          ].forEach((tex) => {
+            if (tex && !seen.has(tex)) {
+              seen.add(tex);
+              tex.dispose();
+            }
+          });
+          material.dispose();
+        };
+
         // Dispose scene
         scene.traverse((obj) => {
           if (obj instanceof THREE.Mesh || obj instanceof THREE.Line || obj instanceof THREE.Points) {
             obj.geometry?.dispose();
-            if (obj.material instanceof THREE.Material) obj.material.dispose();
-            if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+            if (obj.material instanceof THREE.Material) disposeMaterial(obj.material);
+            if (Array.isArray(obj.material)) obj.material.forEach(disposeMaterial);
           }
         });
         if (container.contains(renderer.domElement)) {

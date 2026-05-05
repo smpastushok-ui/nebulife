@@ -110,6 +110,53 @@ export async function createShipModelTask(imageUrl: string): Promise<{ taskId: s
   return { taskId: result.data.task_id };
 }
 
+/**
+ * Submit a text-to-3D-model task for a player ship.
+ * This is the main custom ship path: Tripo creates the 3D hull directly from
+ * the moderated ship brief, without a separate image-generation provider.
+ */
+export async function createShipTextModelTask(
+  prompt: string,
+  negativePrompt?: string,
+): Promise<{ taskId: string }> {
+  const apiKey = getApiKey();
+
+  const body = {
+    type: 'text_to_model',
+    prompt,
+    ...(negativePrompt ? { negative_prompt: negativePrompt } : {}),
+    face_limit: 5000,
+    smart_low_poly: true,
+    texture_quality: 'standard',
+    geometry_quality: 'standard',
+    pbr: false,
+    texture: true,
+    model_version: 'v2.5-20250123',
+  };
+
+  const response = await fetch(`${TRIPO_API_BASE}/task`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Tripo3D ship text API error ${response.status}: ${errText}`);
+  }
+
+  const result = (await response.json()) as TripoCreateTaskResponse;
+
+  if (result.code !== 0) {
+    throw new Error(`Tripo3D ship text API error code ${result.code}`);
+  }
+
+  return { taskId: result.data.task_id };
+}
+
 // ---------------------------------------------------------------------------
 // Check Task Status
 // ---------------------------------------------------------------------------

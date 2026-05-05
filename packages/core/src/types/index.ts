@@ -60,6 +60,7 @@ export type {
   ObservatorySearchProgram,
   ObservatorySearchSession,
   ObservatoryEventRecord,
+  ObservatoryReportRecord,
   ObservatoryState,
 } from './observatory.js';
 export type {
