@@ -30,11 +30,12 @@ export function LessonView({
   onSwitchLesson,
 }: LessonViewProps) {
   // ── Audio state ──────────────────────────────────────────────────────────
-  const [voice, setVoice] = useState<'female' | 'male'>('female');
+  // A.S.T.R.A. narrates every lesson (female-only). No voice selector — the
+  // 'female' slot in the manifest holds the single A.S.T.R.A. recording.
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const audioInfo = useMemo(() => getAudioUrl(lesson.slug, lang, voice), [lesson.slug, lang, voice]);
+  const audioInfo = useMemo(() => getAudioUrl(lesson.slug, lang, 'female'), [lesson.slug, lang]);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -87,8 +88,7 @@ export function LessonView({
     ? {
         backToLib: '← До бібліотеки',
         listen: 'Послухати урок',
-        female: 'Жіночий',
-        male: 'Чоловічий',
+        narrator: 'A.S.T.R.A.',
         nextLesson: 'Наступний урок',
         prevLesson: 'Попередній урок',
         glossaryTitle: 'Терміни в цьому уроці',
@@ -105,8 +105,7 @@ export function LessonView({
     : {
         backToLib: '← Library',
         listen: 'Listen to the lesson',
-        female: 'Female',
-        male: 'Male',
+        narrator: 'A.S.T.R.A.',
         nextLesson: 'Next lesson',
         prevLesson: 'Previous lesson',
         glossaryTitle: 'Terms in this lesson',
@@ -163,18 +162,10 @@ export function LessonView({
               <div style={{ color: '#cdd9e8', fontSize: 13 }}>{L.listen}</div>
               <div style={{ color: '#667788', fontSize: 11 }}>
                 {audioInfo
-                  ? `${Math.round(audioInfo.durationSec / 60)} ${L.audioTime} · ${voice === 'female' ? L.female : L.male}`
+                  ? `${Math.round(audioInfo.durationSec / 60)} ${L.audioTime} · ${L.narrator}`
                   : L.audioPending}
               </div>
             </div>
-            <select
-              value={voice}
-              onChange={(e) => setVoice(e.target.value as 'female' | 'male')}
-              style={selectStyle}
-            >
-              <option value="female">{L.female}</option>
-              <option value="male">{L.male}</option>
-            </select>
             <select
               value={playbackRate}
               onChange={(e) => setPlaybackRate(parseFloat(e.target.value))}

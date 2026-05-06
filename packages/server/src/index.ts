@@ -279,9 +279,13 @@ export { generatePhotoToken, verifyPhotoToken } from './photo-token.js';
 export { synthesizeSpeech, synthesizeLongText } from './google-tts-client.js';
 export type { SynthesizeRequest, SynthesizeResult, TtsLanguage, TtsGender } from './google-tts-client.js';
 
-// Gemini TTS (preferred — natural voices, language-agnostic)
+// Gemini TTS (legacy — natural voices, language-agnostic but Vercel-timeout-prone)
 export { synthesizeWithGemini, synthesizeLongTextWithGemini } from './gemini-tts-client.js';
 export type { GeminiSynthesizeRequest, GeminiSynthesizeResult } from './gemini-tts-client.js';
+
+// ElevenLabs TTS (preferred — streaming, multilingual, A.S.T.R.A. narrator)
+export { synthesizeWithElevenLabs, synthesizeLongTextWithElevenLabs } from './elevenlabs-tts-client.js';
+export type { ElevenLabsSynthesizeRequest, ElevenLabsSynthesizeResult } from './elevenlabs-tts-client.js';
 
 // Cluster Manager
 export {

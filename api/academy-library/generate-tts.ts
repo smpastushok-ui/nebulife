@@ -13,7 +13,11 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
-import { synthesizeLongText, synthesizeLongTextWithGemini } from '@nebulife/server';
+import {
+  synthesizeLongText,
+  synthesizeLongTextWithGemini,
+  synthesizeLongTextWithElevenLabs,
+} from '@nebulife/server';
 
 const MAX_TEXT_CHARS = 50_000;
 
@@ -38,18 +42,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     gender?: 'female' | 'male';
     text?: string;
     voiceName?: string;
-    /** 'gemini' (default) | 'google-cloud' */
-    provider?: 'gemini' | 'google-cloud';
+    /** 'elevenlabs' (default) | 'gemini' | 'google-cloud' */
+    provider?: 'elevenlabs' | 'gemini' | 'google-cloud';
   };
 
   const slug = body.slug?.trim();
   const language = body.language;
   const gender = body.gender;
   const text = body.text?.trim();
-  const voiceName = typeof body.voiceName === 'string' && /^[a-zA-Z0-9-]+$/.test(body.voiceName)
+  const voiceName = typeof body.voiceName === 'string' && /^[a-zA-Z0-9_-]+$/.test(body.voiceName)
     ? body.voiceName
     : undefined;
-  const provider = body.provider === 'google-cloud' ? 'google-cloud' : 'gemini';
+  const provider: 'elevenlabs' | 'gemini' | 'google-cloud' =
+    body.provider === 'google-cloud' ? 'google-cloud'
+    : body.provider === 'gemini' ? 'gemini'
+    : 'elevenlabs';
 
   if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
     return res.status(400).json({ error: 'invalid slug' });
@@ -71,9 +78,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let mimeType: string;
     let extension: string;
 
-    if (provider === 'gemini') {
-      // Gemini TTS — natural voices, language-agnostic. Default model + voice
-      // come from env (GEMINI_TTS_MODEL, GEMINI_TTS_VOICE_FEMALE/MALE).
+    if (provider === 'elevenlabs') {
+      // ElevenLabs streaming TTS — A.S.T.R.A. narrator (female only).
+      // Voice id + model come from env (ELEVENLABS_VOICE_ASTRA / ELEVENLABS_MODEL).
+      const r = await synthesizeLongTextWithElevenLabs({ text, voiceId: voiceName });
+      audio = r.audio;
+      voiceUsed = r.voiceId;
+      durationSec = r.durationSec;
+      mimeType = r.mimeType;
+      extension = 'mp3';
+    } else if (provider === 'gemini') {
+      // Gemini TTS — language-agnostic but Vercel-timeout-prone for long text.
       const r = await synthesizeLongTextWithGemini({ text, voiceName, gender });
       audio = r.audio;
       voiceUsed = r.voiceName;

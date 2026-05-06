@@ -111,7 +111,6 @@ async function callTtsEndpoint(
   apiKey: string,
   slug: string,
   language: Language,
-  gender: 'female' | 'male',
   text: string,
 ): Promise<{ url: string; voiceName: string; durationSec: number }> {
   const res = await fetch(`${baseUrl}/api/academy-library/generate-tts`, {
@@ -123,10 +122,11 @@ async function callTtsEndpoint(
     body: JSON.stringify({
       slug,
       language,
-      gender,
+      // gender is required by the endpoint validator but ignored by the
+      // ElevenLabs path — we always narrate with the A.S.T.R.A. female voice.
+      gender: 'female',
       text,
-      provider: 'gemini',
-      voiceName: gender === 'female' ? 'Kore' : 'Charon',
+      provider: 'elevenlabs',
     }),
   });
   const data = await res.json();
@@ -165,15 +165,16 @@ async function main() {
     const text = buildSpokenText(lesson);
     console.log(`  text length: ${text.length} chars`);
 
-    for (const gender of ['female', 'male'] as const) {
-      if (!opts.force && langAudio[gender]) {
-        console.log(`  ✓ audio ${lang}.${gender} (cached)`);
-        continue;
-      }
-      console.log(`  → audio ${lang}.${gender} ...`);
+    // Single A.S.T.R.A. narrator (female). The 'female' field stores the
+    // ASTRA URL; 'male' is left empty — the player has no voice selector.
+    if (!opts.force && langAudio.female) {
+      console.log(`  ✓ audio ${lang} ASTRA (cached)`);
+    } else {
+      console.log(`  → audio ${lang} ASTRA ...`);
       try {
-        const result = await callTtsEndpoint(opts.baseUrl, opts.apiKey, lesson.slug, lang, gender, text);
-        langAudio[gender] = result.url;
+        const result = await callTtsEndpoint(opts.baseUrl, opts.apiKey, lesson.slug, lang, text);
+        langAudio.female = result.url;
+        langAudio.male = ''; // single-voice mode
         langAudio.durationSec = result.durationSec;
         console.log(`    ${result.url} (${result.durationSec}s, voice: ${result.voiceName})`);
       } catch (err) {
