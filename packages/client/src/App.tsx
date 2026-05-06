@@ -2176,7 +2176,7 @@ function AppInner() {
       // Build list from hex slots
       let buildings: PlacedBuilding[] = [];
       try {
-    const raw = localStorage.getItem('nebulife_hex_slots');
+        const raw = localStorage.getItem('nebulife_hex_slots');
         if (raw) {
           const slots = JSON.parse(raw) as { id: string; ring: number; index: number; state: string; buildingType?: string; buildingLevel?: number }[];
           buildings = slots
@@ -3344,10 +3344,10 @@ function AppInner() {
   }, [state.scene, state.selectedSystem?.id, systemPlanetLabelsMode]);
 
   const [arenaStats, setArenaStats] = useState<ArenaStats | null>(() => {
-    try {
-      const raw = localStorage.getItem('nebulife_arena_stats');
+      try {
+        const raw = localStorage.getItem('nebulife_arena_stats');
       return raw ? JSON.parse(raw) : null;
-    } catch {
+      } catch {
       return null;
     }
   });
@@ -5143,7 +5143,7 @@ function AppInner() {
   // never appears behind the hangar / terminal / academy / surface etc.
   useEffect(() => {
     if (!evacuationTarget || evacuationPhase !== 'idle' || evacuationPromptDismissed) return;
-      setShowArena(false);
+    setShowArena(false);
       setShowRaid(false);
     setShowHangar(false);
     setShowCosmicArchive(false);
@@ -5370,7 +5370,7 @@ function AppInner() {
         // exosphere. The exosphere view requires conscious nav from system-
         // scene; reopening on it is disorienting and hides progress signals
         // from the rest of the cluster.
-        engine.showGalaxyScene();
+          engine.showGalaxyScene();
       } else if (savedScene === 'galaxy') {
         engine.showGalaxyScene();
       }

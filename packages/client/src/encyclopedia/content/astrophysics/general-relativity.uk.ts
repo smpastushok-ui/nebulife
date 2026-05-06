@@ -239,7 +239,7 @@ const lesson: Lesson = {
   <text x="440" y="54" fill="#667788" font-family="monospace" font-size="10" text-anchor="middle">(поблизу маси)</text>
 
   <!-- Section label -->
-  <text x="340" y="270" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">об'єкт слідує найпрямішому шляху — але простір сам зігнутий</text>
+  <text x="340" y="270" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">об’єкт слідує найпрямішому шляху — але простір сам зігнутий</text>
 </svg>`,
         caption:
           'Зліва: у плоскому просторі геодезична — пряма лінія. Справа: поблизу масивного тіла геометрія викривлена, і «найпряміший можливий шлях» у цій геометрії виглядає як крива у звичайному просторі.',
