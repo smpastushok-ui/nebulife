@@ -1,4 +1,4 @@
-import { Graphics, Container, Sprite, Text, Texture, TilingSprite } from 'pixi.js';
+import { Graphics, Container, Sprite, Text, Texture } from 'pixi.js';
 import type { Planet, Star } from '@nebulife/core';
 import { derivePlanetVisuals, lerpColor } from './PlanetVisuals.js';
 
@@ -353,17 +353,22 @@ export function applyPlanetTexturePreview(
   preview.eventMode = 'none';
   preview.zIndex = 2;
 
-  const sprite = new TilingSprite({
-    texture,
-    width: size * 2,
-    height: size * 2,
-  });
-  sprite.name = 'planet-skin-preview-map';
-  sprite.anchor.set(0.5);
-  sprite.eventMode = 'none';
-  sprite.tilePosition.x = (options.initialLongitude ?? 0) * Math.max(1, texture.width);
-  sprite.tileScale.set((size * 2) / Math.max(1, texture.width), (size * 2) / Math.max(1, texture.height));
+  const map = new Container();
+  map.name = 'planet-skin-preview-map';
+  map.eventMode = 'none';
+  const displaySize = size * 2;
+  for (let i = -1; i <= 1; i++) {
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(0.5);
+    sprite.width = displaySize;
+    sprite.height = displaySize;
+    sprite.x = i * displaySize;
+    sprite.eventMode = 'none';
+    map.addChild(sprite);
+  }
+  map.x = -((options.initialLongitude ?? 0) % 1) * displaySize;
   (preview as any).__spinRevolutionsPerMs = options.spinRevolutionsPerMs ?? 0;
+  (preview as any).__textureCycleWidth = displaySize;
 
   const mask = new Graphics();
   mask.name = 'planet-skin-preview-mask';
@@ -373,7 +378,7 @@ export function applyPlanetTexturePreview(
   preview.mask = mask;
 
   container.sortableChildren = true;
-  preview.addChild(sprite);
+  preview.addChild(map);
   container.addChild(mask);
   container.addChild(preview);
 }
@@ -385,10 +390,12 @@ export function tickPlanetTexturePreview(container: Container, deltaMs: number):
   const spinRevolutionsPerMs = (preview as any).__spinRevolutionsPerMs as number | undefined;
   if (!spinRevolutionsPerMs) return;
 
-  const sprite = preview.getChildByName('planet-skin-preview-map') as TilingSprite | null;
-  if (!sprite) return;
-  const textureWidth = Math.max(1, sprite.texture.width);
-  sprite.tilePosition.x = (sprite.tilePosition.x + textureWidth * spinRevolutionsPerMs * deltaMs) % textureWidth;
+  const map = preview.getChildByName('planet-skin-preview-map') as Container | null;
+  if (!map) return;
+  const cycleWidth = Math.max(1, ((preview as any).__textureCycleWidth as number | undefined) ?? map.width);
+  map.x = (map.x + cycleWidth * spinRevolutionsPerMs * deltaMs) % cycleWidth;
+  if (map.x > 0) map.x -= cycleWidth;
+  if (map.x < -cycleWidth) map.x += cycleWidth;
 }
 
 /** Moon composition colors for system-view scale (small dots) */

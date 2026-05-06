@@ -4712,11 +4712,15 @@ function AppInner() {
               }
               registered = true;
 
-              // Pro daily quarks: grant 5 quarks once per day for Pro subscribers
+              // Pro daily quarks: only call the endpoint for active Premium rows.
+              // Non-premium players receive 403 by design; avoiding that request
+              // keeps the star research/system screens free of noisy console errors.
               try {
                 const lastClaimDate = localStorage.getItem('nebulife_pro_daily_date');
                 const todayDate = new Date().toISOString().slice(0, 10);
-                if (lastClaimDate !== todayDate) {
+                const premiumActive = player.premium_active === true
+                  && (!player.premium_expires_at || new Date(player.premium_expires_at).getTime() > Date.now());
+                if (premiumActive && lastClaimDate !== todayDate) {
                   const quarksRes = await authFetch('/api/player/daily-quarks', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
                   if (quarksRes.ok) {
                     const quarksData = await quarksRes.json();
@@ -4726,6 +4730,9 @@ function AppInner() {
                       const credited = typeof quarksData.credited === 'number' ? quarksData.credited : 5;
                       enqueueQuarkToast({ amount: credited, reason: 'gift' });
                     }
+                  } else if (quarksRes.status === 403) {
+                    // Already claimed today or entitlement expired between player fetch and claim.
+                    localStorage.setItem('nebulife_pro_daily_date', todayDate);
                   }
                 }
               } catch {
