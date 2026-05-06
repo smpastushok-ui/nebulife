@@ -8386,7 +8386,9 @@ function AppInner() {
     return blocked;
   })();
 
-  const showBootLoader = authLoading || !bootLoaderDone;
+  // QuantumSeedLoader is an intro cinematic, not a generic route/loading
+  // placeholder. Returning players should not see it flash on every refresh.
+  const showBootLoader = !bootLoaderDone;
 
   return (
     <>
@@ -10467,7 +10469,7 @@ function AppInner() {
       )}
 
       {/* Auth: Login screen (only when Firebase is configured) */}
-      {isFirebaseConfigured && !showBootLoader && !firebaseUser && (
+      {isFirebaseConfigured && !authLoading && !showBootLoader && !firebaseUser && (
         <AuthScreen
           onAuthenticated={async (user, _isNew) => {
             setFirebaseUser(user);
@@ -10479,7 +10481,7 @@ function AppInner() {
       )}
 
       {/* Auth: Callsign selection */}
-      {isFirebaseConfigured && !showBootLoader && firebaseUser && needsCallsign && (
+      {isFirebaseConfigured && !authLoading && !showBootLoader && firebaseUser && needsCallsign && (
         <CallsignModal
           onComplete={(callsign) => {
             setNeedsCallsign(false);
@@ -10489,7 +10491,7 @@ function AppInner() {
       )}
 
       {/* Cinematic intro (new players) — only after auth is resolved */}
-      {!showBootLoader && needsOnboarding && !needsCallsign && homeInfo && (!isFirebaseConfigured || !!firebaseUser) && (
+      {!authLoading && !showBootLoader && needsOnboarding && !needsCallsign && homeInfo && (!isFirebaseConfigured || !!firebaseUser) && (
         <CinematicIntro
           homeInfo={homeInfo}
           engineRef={engineRef}

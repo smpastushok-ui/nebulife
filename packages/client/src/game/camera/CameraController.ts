@@ -50,6 +50,7 @@ export class CameraController {
   private onPointerMove: (e: PointerEvent) => void;
   private onPointerUp: (e: PointerEvent) => void;
   private onPointerLeave: (e: PointerEvent) => void;
+  private onTouchStart: (e: TouchEvent) => void;
 
   constructor(app: Application) {
     this.app = app;
@@ -57,7 +58,8 @@ export class CameraController {
     // ── Smooth wheel zoom ────────────────────────────────
     this.onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      if (!this.target || !this.inputEnabled) return;
+      const target = this.getUsableTarget();
+      if (!target || !this.inputEnabled) return;
 
       const factor = e.deltaY > 0 ? 0.9 : 1.1;
       this.targetScale = Math.max(this.minScale, Math.min(this.maxScale, this.targetScale * factor));
@@ -66,8 +68,8 @@ export class CameraController {
       const rect = this.app.canvas.getBoundingClientRect();
       this.zoomCenterX = e.clientX - rect.left;
       this.zoomCenterY = e.clientY - rect.top;
-      this.zoomWorldX = (this.zoomCenterX - this.target.x) / this.scale;
-      this.zoomWorldY = (this.zoomCenterY - this.target.y) / this.scale;
+      this.zoomWorldX = (this.zoomCenterX - target.x) / this.scale;
+      this.zoomWorldY = (this.zoomCenterY - target.y) / this.scale;
 
       this._isZooming = true;
       this.zoomSettleTimer = 0;
@@ -100,7 +102,8 @@ export class CameraController {
       }
 
       // Single-finger drag/pan
-      if (!this.dragStartPos || !this.target || this.isPinching) return;
+      const target = this.getUsableTarget();
+      if (!this.dragStartPos || !target || this.isPinching) return;
       // Require 5px movement before starting drag (prevents click conflicts)
       if (!this.isDragging) {
         const dx = e.clientX - this.dragStartPos.x;
@@ -110,8 +113,8 @@ export class CameraController {
       }
       const dx = e.clientX - this.lastPos.x;
       const dy = e.clientY - this.lastPos.y;
-      this.target.x += dx;
-      this.target.y += dy;
+      target.x += dx;
+      target.y += dy;
       this.clampPan();
       this.lastPos = { x: e.clientX, y: e.clientY };
     };
@@ -150,6 +153,7 @@ export class CameraController {
     this.onPointerLeave = (e: PointerEvent) => {
       this.onPointerUp(e);
     };
+    this.onTouchStart = (e: TouchEvent) => e.preventDefault();
 
     const canvas = this.app.canvas;
     canvas.addEventListener('wheel', this.onWheel, { passive: false });
@@ -158,7 +162,26 @@ export class CameraController {
     canvas.addEventListener('pointerup', this.onPointerUp);
     canvas.addEventListener('pointerleave', this.onPointerLeave);
     // Prevent default touch gestures (Safari pinch-to-zoom page, etc.)
-    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
+  }
+
+  private getUsableTarget(): Container | null {
+    const target = this.target;
+    if (!target) return null;
+    if ((target as unknown as { destroyed?: boolean }).destroyed) {
+      this.detach();
+      return null;
+    }
+    try {
+      if (!target.position || !target.scale) {
+        this.detach();
+        return null;
+      }
+    } catch {
+      this.detach();
+      return null;
+    }
+    return target;
   }
 
   // ── Pinch helpers ──────────────────────────────────────
@@ -178,7 +201,8 @@ export class CameraController {
   }
 
   private updatePinch() {
-    if (!this.target) return;
+    const target = this.getUsableTarget();
+    if (!target) return;
     const pts = [...this.pointers.values()];
     if (pts.length < 2) return;
 
@@ -191,15 +215,15 @@ export class CameraController {
     const midX = (pts[0].x + pts[1].x) / 2 - rect.left;
     const midY = (pts[0].y + pts[1].y) / 2 - rect.top;
 
-    const worldX = (this.pinchMidX - this.target.x) / this.scale;
-    const worldY = (this.pinchMidY - this.target.y) / this.scale;
+    const worldX = (this.pinchMidX - target.x) / this.scale;
+    const worldY = (this.pinchMidY - target.y) / this.scale;
 
     this.scale = newScale;
     this.targetScale = newScale;
-    this.target.scale.set(this.scale);
+    target.scale.set(this.scale);
 
-    this.target.x = midX - worldX * this.scale;
-    this.target.y = midY - worldY * this.scale;
+    target.x = midX - worldX * this.scale;
+    target.y = midY - worldY * this.scale;
 
     // Pan with midpoint movement
     const panDx = midX - this.pinchMidX;
@@ -242,6 +266,12 @@ export class CameraController {
 
   detach() {
     this.target = null;
+    this._isZooming = false;
+    this.zoomSettleTimer = 0;
+    this.isDragging = false;
+    this.isPinching = false;
+    this.dragStartPos = null;
+    this.pointers.clear();
   }
 
   destroy() {
@@ -251,6 +281,7 @@ export class CameraController {
     canvas.removeEventListener('pointermove', this.onPointerMove);
     canvas.removeEventListener('pointerup', this.onPointerUp);
     canvas.removeEventListener('pointerleave', this.onPointerLeave);
+    canvas.removeEventListener('touchstart', this.onTouchStart);
     this.target = null;
   }
 
@@ -273,23 +304,24 @@ export class CameraController {
   /** Call from ticker each frame to drive camera animations + smooth zoom */
   update(deltaMs: number) {
     // ── Smooth zoom interpolation ────────────────────────
-    if (this._isZooming && this.target && !this.isPinching) {
+    const zoomTarget = this.getUsableTarget();
+    if (this._isZooming && zoomTarget && !this.isPinching) {
       const diff = this.targetScale - this.scale;
       if (Math.abs(diff) > 0.001) {
         const lerpSpeed = Math.min(1, 8 * (deltaMs / 1000));
         const prevScale = this.scale;
         this.scale += diff * lerpSpeed;
-        this.target.scale.set(this.scale);
+        zoomTarget.scale.set(this.scale);
 
         // Maintain zoom center
-        this.target.x = this.zoomCenterX - this.zoomWorldX * this.scale;
-        this.target.y = this.zoomCenterY - this.zoomWorldY * this.scale;
+        zoomTarget.x = this.zoomCenterX - this.zoomWorldX * this.scale;
+        zoomTarget.y = this.zoomCenterY - this.zoomWorldY * this.scale;
         this.clampPan();
       } else {
         this.scale = this.targetScale;
-        this.target.scale.set(this.scale);
-        this.target.x = this.zoomCenterX - this.zoomWorldX * this.scale;
-        this.target.y = this.zoomCenterY - this.zoomWorldY * this.scale;
+        zoomTarget.scale.set(this.scale);
+        zoomTarget.x = this.zoomCenterX - this.zoomWorldX * this.scale;
+        zoomTarget.y = this.zoomCenterY - this.zoomWorldY * this.scale;
         this.clampPan();
 
         // Keep isZooming true for a short settle period
@@ -301,18 +333,19 @@ export class CameraController {
     }
 
     // ── Camera animations (animateTo) ────────────────────
-    if (!this.animating || !this.target) return;
+    const animTarget = this.getUsableTarget();
+    if (!this.animating || !animTarget) return;
 
     const elapsed = Date.now() - this.animStartTime;
     let t = Math.min(1, elapsed / this.animDuration);
     // Ease out cubic
     t = 1 - Math.pow(1 - t, 3);
 
-    this.target.x = this.animStartX + (this.animEndX - this.animStartX) * t;
-    this.target.y = this.animStartY + (this.animEndY - this.animStartY) * t;
+    animTarget.x = this.animStartX + (this.animEndX - this.animStartX) * t;
+    animTarget.y = this.animStartY + (this.animEndY - this.animStartY) * t;
     this.scale = this.animStartScale + (this.animEndScale - this.animStartScale) * t;
     this.targetScale = this.scale;
-    this.target.scale.set(this.scale);
+    animTarget.scale.set(this.scale);
 
     if (t >= 1) {
       this.animating = false;
