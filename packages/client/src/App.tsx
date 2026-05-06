@@ -759,7 +759,14 @@ function AppInner() {
   // ── Auth state ─────────────────────────────────────────────────────────
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [bootLoaderDone, setBootLoaderDone] = useState(false);
+  const [bootLoaderDone, setBootLoaderDone] = useState(() => {
+    try {
+      return localStorage.getItem('nebulife_quantum_seed_seen') === '1'
+        || localStorage.getItem('nebulife_onboarding_done') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [needsCallsign, setNeedsCallsign] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -774,9 +781,15 @@ function AppInner() {
   const [showGuestReminder, setShowGuestReminder] = useState(false);
 
   useEffect(() => {
+    if (bootLoaderDone) return;
     const timer = window.setTimeout(() => setBootLoaderDone(true), MIN_BOOT_LOADER_MS);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [bootLoaderDone]);
+
+  useEffect(() => {
+    if (!bootLoaderDone) return;
+    try { localStorage.setItem('nebulife_quantum_seed_seen', '1'); } catch { /* ignore */ }
+  }, [bootLoaderDone]);
 
   // ── Discovery system state ──────────────────────────────────────────────
   const playerId = useRef<string>('');
@@ -8302,10 +8315,8 @@ function AppInner() {
     }],
   });
 
-  // Arena button. Normally unlocks at level 30 but
-  // temporarily opened from L1 for playtesting (user request). Flip the
-  // constant back to 30 when hangar is ready for gated release.
-  const ARENA_MIN_LEVEL = 1;
+  // Arena button. Kept open during beta testing, but release gate starts at L10.
+  const ARENA_MIN_LEVEL = 10;
   const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
   toolGroups.push({
     type: 'buttons',

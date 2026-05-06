@@ -63,9 +63,9 @@ export function QuantumSeedLoader() {
           100% { transform: translateY(140px); opacity: 0; }
         }
         @keyframes qslTextCycle {
-          0%, 18% { opacity: 0; transform: translateY(8px); }
-          28%, 74% { opacity: 1; transform: translateY(0); }
-          100% { opacity: 0; transform: translateY(-6px); }
+          0%, 6% { opacity: 0; transform: translateY(8px); }
+          10%, 21% { opacity: 1; transform: translateY(0); }
+          25%, 100% { opacity: 0; transform: translateY(-6px); }
         }
         @keyframes qslGridBreathe {
           0%, 100% { opacity: 0.08; transform: scale(0.98); }
@@ -133,7 +133,7 @@ export function QuantumSeedLoader() {
               key={step}
               style={{
                 ...styles.status,
-                animationDelay: `${i * 1.05}s`,
+                animationDelay: `${i * 2}s`,
               }}
             >
               {step}
@@ -286,6 +286,6 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: 1.4,
     textTransform: 'uppercase',
     opacity: 0,
-    animation: 'qslTextCycle 4.2s linear infinite',
+    animation: 'qslTextCycle 8s linear infinite',
   },
 };
