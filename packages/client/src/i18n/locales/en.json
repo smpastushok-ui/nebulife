@@ -1989,9 +1989,18 @@
       "body_1": "Nebulife is a unique authored game built by one person for millions of adult space enthusiasts. It is not about random tapping; it is about feeling that you are truly discovering and shaping something large.",
       "body_2": "The surface is where the real scale begins: resources, energy, buildings, colonies, expansion. Later will come player interaction, trade, alliances, and the creation of new unique life on your planets.",
       "body_3": "I prepared the first lesson to explain Nebulife's philosophy and your role inside a shared, expanding universe with millions of planets and stars.",
+      "step_1": "You are on the surface for the first time. A planet is no longer a dot on an orbit: it is a place where a colony breathes, consumes power, and transforms resources.",
+      "step_2": "Start with the resource picture. Minerals, water, volatiles, and isotopes are not just numbers: they decide which buildings can survive on this world.",
+      "step_3": "Buildings form a chain. Some extract, others consume, store, or unlock missions. If power drops below demand, parts of the system shut down.",
+      "step_4": "The left surface menu helps you zoom and change modes. Do not build blindly: check each building's input, output, and terrain dependency.",
+      "step_5": "The landing pad opens expeditions. Probes, shuttles, and rovers carry the story from exosphere scans down to the surface.",
+      "step_6": "You can return to the surface after the mission or through bottom navigation. The goal is not to leave the planet, but to understand how to make it habitable.",
+      "step_7": "I will open the surface mission now. Finish it quickly, then return to the planet map and build your first stable production chain.",
       "listen_voice": "Listen to ASTRA",
       "stop_voice": "Stop voice",
-      "later": "Later"
+      "later": "Skip",
+      "next": "Next",
+      "to_game": "To game"
     }
   },
   "ring_unlock": {

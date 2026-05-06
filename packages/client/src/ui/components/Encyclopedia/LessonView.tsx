@@ -16,7 +16,7 @@ interface LessonViewProps {
 
 /**
  * Reads-a-single-lesson view. Header (sticky) + scrollable content body.
- * Supports voice playback (female/male/speed), image lazy-load with placeholder
+ * Supports A.S.T.R.A. narration and image lazy-load with placeholder
  * when assets manifest doesn't have a URL yet, glossary, quiz, sources.
  */
 export function LessonView({
@@ -30,8 +30,7 @@ export function LessonView({
   onSwitchLesson,
 }: LessonViewProps) {
   // ── Audio state ──────────────────────────────────────────────────────────
-  // A.S.T.R.A. narrates every lesson (female-only). No voice selector — the
-  // 'female' slot in the manifest holds the single A.S.T.R.A. recording.
+  // A.S.T.R.A. narrates every lesson. No voice/speed selector in the UI.
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -166,17 +165,6 @@ export function LessonView({
                   : L.audioPending}
               </div>
             </div>
-            <select
-              value={playbackRate}
-              onChange={(e) => setPlaybackRate(parseFloat(e.target.value))}
-              style={selectStyle}
-            >
-              <option value={0.75}>0.75×</option>
-              <option value={1}>1.0×</option>
-              <option value={1.25}>1.25×</option>
-              <option value={1.5}>1.5×</option>
-              <option value={2}>2.0×</option>
-            </select>
             {audioInfo && (
               <audio
                 ref={audioRef}
@@ -431,7 +419,10 @@ const difficultyLabels: Record<string, { uk: string; en: string }> = {
 
 const containerStyle: React.CSSProperties = {
   position: 'fixed',
-  inset: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  top: 'calc(94px + env(safe-area-inset-top, 0px))',
   background: '#020510',
   display: 'flex',
   flexDirection: 'column',
@@ -502,7 +493,7 @@ const scrollStyle: React.CSSProperties = {
 const containerInnerStyle: React.CSSProperties = {
   maxWidth: 760,
   margin: '0 auto',
-  padding: '24px 20px 0',
+  padding: '24px 20px calc(96px + env(safe-area-inset-bottom, 0px))',
 };
 
 const metaRowStyle: React.CSSProperties = {
@@ -565,17 +556,6 @@ const playBtnStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
-const selectStyle: React.CSSProperties = {
-  background: 'transparent',
-  color: '#aabbcc',
-  border: '1px solid #334455',
-  padding: '5px 8px',
-  fontSize: 11,
-  fontFamily: 'inherit',
-  borderRadius: 3,
-  cursor: 'pointer',
-};
-
 const articleStyle: React.CSSProperties = {
   marginBottom: 32,
 };
@@ -615,6 +595,8 @@ const figureStyle: React.CSSProperties = {
 const imgStyle: React.CSSProperties = {
   width: '100%',
   height: 'auto',
+  maxHeight: '34vh',
+  objectFit: 'cover',
   borderRadius: 4,
   border: '1px solid #334455',
   display: 'block',

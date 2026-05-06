@@ -209,9 +209,9 @@ function BuildingIcon({ type, size = 28 }: { type: BuildingType; size?: number }
 const panelStyle: React.CSSProperties = {
   position: 'absolute',
   right: 0,
-  top: 0,
-  bottom: 48,
-  width: 240,
+  top: 'calc(82px + env(safe-area-inset-top, 0px))',
+  bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))',
+  width: 'min(240px, 52vw)',
   background: 'rgba(5, 10, 25, 0.9)',
   borderLeft: '1px solid rgba(60, 100, 160, 0.3)',
   fontFamily: 'monospace',
@@ -220,7 +220,7 @@ const panelStyle: React.CSSProperties = {
   overflowY: 'auto',
   zIndex: 100,
   pointerEvents: 'auto',
-  padding: '12px 0',
+  padding: '10px 0',
 };
 
 function BuildingCard({
@@ -265,14 +265,14 @@ function BuildingCard({
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: '10px 0',
+          padding: '8px 0',
         }}>
           <img
             src={previewSrc}
             alt={name}
             style={{
-              width: 160,
-              height: 160,
+              width: 124,
+              height: 124,
               objectFit: 'contain',
               imageRendering: 'pixelated',
               filter: 'brightness(5.0) contrast(1.1) drop-shadow(0 0 8px rgba(68,136,170,0.5))',
@@ -281,12 +281,12 @@ function BuildingCard({
         </div>
       )}
       {/* Row: icon + info — canvas icon always (PNG is dark/ambiguous at 28px) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
-        <BuildingIcon type={type} size={28} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px' }}>
+        <BuildingIcon type={type} size={24} />
         <div>
           <div style={{ fontWeight: isSelected ? 'bold' : 'normal', marginBottom: 2 }}>{name}</div>
-          <div style={{ fontSize: 10, color: '#667788' }}>{desc}</div>
-          <div style={{ fontSize: 10, color: '#886644', marginTop: 2 }}>
+          <div style={{ fontSize: 9, color: '#667788', lineHeight: 1.35 }}>{desc}</div>
+          <div style={{ fontSize: 9, color: '#886644', marginTop: 2 }}>
             {def.cost.map((c) => `${c.amount} ${c.resource}`).join(', ')}
           </div>
           {(def.sizeW ?? 1) > 1 && (

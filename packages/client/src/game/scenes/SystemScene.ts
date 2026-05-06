@@ -2,8 +2,18 @@ import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import type { StarSystem, Planet, PlanetMissionPhase, PlanetMissionType } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import { renderStar } from '../rendering/StarRenderer.js';
-import { applyPlanetTexturePreview, renderPlanet, renderOrbitProjected, renderSystemMoon, getPlanetSize, Y_COMPRESS } from '../rendering/PlanetRenderer.js';
+import {
+  applyPlanetTexturePreview,
+  getPlanetSize,
+  renderOrbitProjected,
+  renderPlanet,
+  renderSystemMoon,
+  tickPlanetTexturePreview,
+  Y_COMPRESS,
+  type PlanetTexturePreviewOptions,
+} from '../rendering/PlanetRenderer.js';
 import { getShipSpriteCanvas, peekShipSpriteCanvas } from '../rendering/ShipSpriteCache.js';
+import { getSystemMoonTextureUrl, getSystemPlanetTextureUrl } from '../rendering/planet-texture-catalog.js';
 import { tStatic } from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
 
@@ -21,6 +31,53 @@ interface TwinkleStar {
  */
 function auToScreen(au: number): number {
   return Math.log2(1 + au * 4) * 100;
+}
+
+function seededUnit(seed: number, salt: number): number {
+  let x = (seed ^ (salt * 0x9e3779b9)) >>> 0;
+  x ^= x << 13;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  return ((x >>> 0) % 10000) / 10000;
+}
+
+function seededRange(seed: number, salt: number, min: number, max: number): number {
+  return min + seededUnit(seed, salt) * (max - min);
+}
+
+function planetRotationPeriodHours(planet: Planet): number {
+  // There is no persisted axial rotation yet, so system view derives a stable
+  // physically-plausible period: close-in solid worlds tend toward tidal lock,
+  // gas giants retain faster primordial spin, dwarfs vary more widely.
+  if ((planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf')
+    && (planet.orbit.semiMajorAxisAU < 0.08 || planet.orbit.periodDays < 10)) {
+    return Math.max(12, planet.orbit.periodDays * 24);
+  }
+
+  if (planet.type === 'gas-giant') return seededRange(planet.seed, 1700, 8, 18);
+  if (planet.type === 'ice-giant') return seededRange(planet.seed, 1700, 10, 24);
+  if (planet.type === 'dwarf') return seededRange(planet.seed, 1700, 6, 48);
+  return seededRange(planet.seed, 1700, 12, 96);
+}
+
+function planetTextureSpinOptions(planet: Planet): PlanetTexturePreviewOptions {
+  const periodHours = planetRotationPeriodHours(planet);
+  const retrograde = seededUnit(planet.seed, 1710) < (planet.type === 'terrestrial' ? 0.08 : 0.16);
+  // Visual time compression keeps axial spin readable while preserving relative periods.
+  const visualDayMs = periodHours * 650;
+  return {
+    spinRevolutionsPerMs: (retrograde ? -1 : 1) / visualDayMs,
+    initialLongitude: seededUnit(planet.seed, 1720),
+  };
+}
+
+function moonTextureSpinOptions(seed: number, orbitalPeriodDays: number): PlanetTexturePreviewOptions {
+  // Most large moons are captured into synchronous rotation over time.
+  const periodHours = Math.max(8, orbitalPeriodDays * 24);
+  return {
+    spinRevolutionsPerMs: 1 / (periodHours * 650),
+    initialLongitude: seededUnit(seed, 1730),
+  };
 }
 
 // --- Background color palettes ---
@@ -453,6 +510,10 @@ export class SystemScene {
     // Planet sprite (mini-sphere with lighting)
     const planetResult = renderPlanet(planet, this.system.star);
     const planetSprite = planetResult.container;
+    const defaultTextureUrl = getSystemPlanetTextureUrl(planet);
+    if (defaultTextureUrl) {
+      applyPlanetTexturePreview(planetSprite, defaultTextureUrl, getPlanetSize(planet), planetTextureSpinOptions(planet));
+    }
     this.applyPlanetLabelVisibility(planetSprite);
     const startAngle = (planet.orbit.meanAnomalyDeg * Math.PI) / 180;
     const e = planet.orbit.eccentricity;
@@ -490,6 +551,12 @@ export class SystemScene {
         const moonRadius = Math.max(2, Math.min(5, moon.radiusKm / 500));
         const moonOrbitR = planetSize + 6 + i * 8;
         const moonGfx = renderSystemMoon(moon.compositionType, moonRadius, moon.seed);
+        applyPlanetTexturePreview(
+          moonGfx,
+          getSystemMoonTextureUrl(moon.compositionType, moon.seed),
+          moonRadius,
+          moonTextureSpinOptions(moon.seed, moon.orbitalPeriodDays),
+        );
         const moonStartAngle = (moon.seed % 360) * Math.PI / 180;
         // Per-moon orbital inclination for visual diversity
         const inclination = (moonRng.next() - 0.5) * 0.4;
@@ -635,12 +702,14 @@ export class SystemScene {
 
       // Dynamic lighting: rotate lightingGroup so highlight faces the star
       node.lightingGroup.rotation = Math.atan2(-node.container.y, -node.container.x);
+      tickPlanetTexturePreview(node.container, deltaMs);
 
       // Moon sub-orbits (per-moon Y-compression for orbital diversity)
       for (const moon of node.moonNodes) {
         if (!this._freezeOrbits) moon.angle += moon.angularSpeed * (deltaMs / 16.67);
         moon.gfx.x = Math.cos(moon.angle) * moon.orbitRadius;
         moon.gfx.y = Math.sin(moon.angle) * moon.orbitRadius * moon.yCompress;
+        tickPlanetTexturePreview(moon.gfx, deltaMs);
       }
     }
 
@@ -699,7 +768,7 @@ export class SystemScene {
       if (!textureUrl) continue;
       const node = this.planetNodes.get(planetId);
       if (!node) continue;
-      applyPlanetTexturePreview(node.container, textureUrl, getPlanetSize(node.planet));
+      applyPlanetTexturePreview(node.container, textureUrl, getPlanetSize(node.planet), planetTextureSpinOptions(node.planet));
     }
   }
 

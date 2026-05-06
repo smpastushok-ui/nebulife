@@ -4,12 +4,15 @@ import { playSfx } from '../../../audio/SfxPlayer.js';
 
 interface SurfaceAstraLessonPromptProps {
   onDismiss: () => void;
+  onOpenMission?: () => void;
 }
 
-export function SurfaceAstraLessonPrompt({ onDismiss }: SurfaceAstraLessonPromptProps) {
+const STEP_COUNT = 7;
+
+export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission }: SurfaceAstraLessonPromptProps) {
   const { t, i18n } = useTranslation();
   const [voicePlaying, setVoicePlaying] = useState(false);
-  const [voicePart, setVoicePart] = useState(0);
+  const [step, setStep] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 680;
   const voiceSources = useMemo(
@@ -25,39 +28,64 @@ export function SurfaceAstraLessonPrompt({ onDismiss }: SurfaceAstraLessonPrompt
     audioRef.current = null;
   }, []);
 
-  const handleToggleVoice = () => {
-    playSfx('ui-click', 0.05);
-
-    if (voicePlaying) {
-      audioRef.current?.pause();
-      setVoicePlaying(false);
-      return;
-    }
-
+  const stopVoice = () => {
     audioRef.current?.pause();
-    setVoicePart(1);
-    playVoicePart(0);
+    audioRef.current = null;
+    setVoicePlaying(false);
+  };
+
+  const finishToMission = () => {
+    playSfx('ui-click', 0.06);
+    try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
+    stopVoice();
+    onDismiss();
+    onOpenMission?.();
   };
 
   const playVoicePart = (index: number) => {
     const src = voiceSources[index];
     if (!src) {
       setVoicePlaying(false);
-      setVoicePart(0);
       return;
     }
+    audioRef.current?.pause();
     const audio = new Audio(src);
     audio.preload = 'auto';
     audio.volume = 0.9;
     audioRef.current = audio;
     setVoicePlaying(true);
-    setVoicePart(index + 1);
-    audio.onended = () => playVoicePart(index + 1);
+    setStep(index);
+    audio.onended = () => {
+      if (index + 1 < STEP_COUNT) {
+        playVoicePart(index + 1);
+      } else {
+        setVoicePlaying(false);
+      }
+    };
     audio.onerror = () => {
       // Missing segment should not block the lesson; continue with the next one.
-      playVoicePart(index + 1);
+      if (index + 1 < STEP_COUNT) playVoicePart(index + 1);
+      else setVoicePlaying(false);
     };
     void audio.play().catch(() => setVoicePlaying(false));
+  };
+
+  const handleNext = () => {
+    playSfx('ui-click', 0.05);
+    if (step >= STEP_COUNT - 1) {
+      finishToMission();
+      return;
+    }
+    playVoicePart(step + 1);
+  };
+
+  const handleStartVoice = () => {
+    playSfx('ui-click', 0.05);
+    if (voicePlaying) {
+      stopVoice();
+      return;
+    }
+    playVoicePart(step);
   };
 
   return (
@@ -80,18 +108,29 @@ export function SurfaceAstraLessonPrompt({ onDismiss }: SurfaceAstraLessonPrompt
         <div style={styles.content}>
           <div style={styles.eyebrow}>{t('academy.surface_intro.eyebrow')}</div>
           <h2 style={styles.title}>{t('academy.surface_intro.title')}</h2>
-          <p style={styles.body}>{t('academy.surface_intro.body_1')}</p>
-          <p style={styles.body}>{t('academy.surface_intro.body_2')}</p>
-          <p style={styles.body}>{t('academy.surface_intro.body_3')}</p>
+          <div style={styles.progressRow}>
+            {Array.from({ length: STEP_COUNT }, (_, index) => (
+              <span
+                key={index}
+                style={{
+                  ...styles.stepDot,
+                  ...(index === step ? styles.stepDotActive : {}),
+                  ...(index < step ? styles.stepDotDone : {}),
+                }}
+              />
+            ))}
+            <span style={styles.stepText}>{step + 1}/{STEP_COUNT}</span>
+          </div>
+          <p style={styles.body}>{t(`academy.surface_intro.step_${step + 1}`)}</p>
 
           <div style={styles.actions}>
             <button
               type="button"
               style={styles.voiceButton}
-              onClick={handleToggleVoice}
+              onClick={handleStartVoice}
             >
               {voicePlaying
-                ? `${t('academy.surface_intro.stop_voice')} ${voicePart}/7`
+                ? `${t('academy.surface_intro.stop_voice')} ${step + 1}/7`
                 : t('academy.surface_intro.listen_voice')}
             </button>
             <button
@@ -99,10 +138,19 @@ export function SurfaceAstraLessonPrompt({ onDismiss }: SurfaceAstraLessonPrompt
               style={styles.secondaryButton}
               onClick={() => {
                 playSfx('ui-click', 0.06);
+                try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
+                stopVoice();
                 onDismiss();
               }}
             >
               {t('academy.surface_intro.later')}
+            </button>
+            <button
+              type="button"
+              style={styles.primaryButton}
+              onClick={handleNext}
+            >
+              {step >= STEP_COUNT - 1 ? t('academy.surface_intro.to_game') : t('academy.surface_intro.next')}
             </button>
           </div>
         </div>
@@ -126,10 +174,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'monospace',
   },
   card: {
-    width: 'min(760px, 96vw)',
-    maxHeight: 'min(620px, 86vh)',
+    width: 'min(640px, 94vw)',
+    maxHeight: 'min(430px, 78vh)',
     display: 'grid',
-    gridTemplateColumns: 'minmax(150px, 0.72fr) minmax(0, 1.28fr)',
+    gridTemplateColumns: 'minmax(112px, 0.48fr) minmax(0, 1.52fr)',
     overflow: 'hidden',
     borderRadius: 8,
     border: '1px solid rgba(123,184,255,0.34)',
@@ -142,13 +190,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
   portraitPanel: {
     position: 'relative',
-    minHeight: 280,
+    minHeight: 230,
     background: '#020510',
     borderRight: '1px solid rgba(68,102,136,0.38)',
   },
   portraitPanelCompact: {
-    minHeight: 150,
-    maxHeight: 190,
+    minHeight: 92,
+    maxHeight: 118,
     borderRight: 'none',
     borderBottom: '1px solid rgba(68,102,136,0.38)',
   },
@@ -167,7 +215,7 @@ const styles: Record<string, React.CSSProperties> = {
     pointerEvents: 'none',
   },
   content: {
-    padding: '22px 24px',
+    padding: '18px 20px',
     overflowY: 'auto',
   },
   eyebrow: {
@@ -175,26 +223,52 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 10,
     letterSpacing: 1.6,
     textTransform: 'uppercase',
-    marginBottom: 9,
+    marginBottom: 7,
   },
   title: {
     color: '#cdd9e8',
     fontSize: 'clamp(18px, 3.8vw, 25px)',
     fontWeight: 'normal',
-    margin: '0 0 14px',
+    margin: '0 0 10px',
     lineHeight: 1.25,
   },
   body: {
     color: '#aabbcc',
     fontSize: 13,
-    lineHeight: 1.72,
-    margin: '0 0 12px',
+    lineHeight: 1.62,
+    margin: '0 0 10px',
+    minHeight: 86,
+  },
+  progressRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  stepDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: '#223344',
+    boxShadow: '0 0 0 1px rgba(68,102,136,0.35)',
+  },
+  stepDotActive: {
+    background: '#7bb8ff',
+    boxShadow: '0 0 10px rgba(123,184,255,0.55)',
+  },
+  stepDotDone: {
+    background: '#44ff88',
+  },
+  stepText: {
+    marginLeft: 4,
+    color: '#667788',
+    fontSize: 10,
   },
   actions: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: 10,
-    marginTop: 18,
+    marginTop: 12,
   },
   primaryButton: {
     background: 'rgba(68,136,170,0.24)',

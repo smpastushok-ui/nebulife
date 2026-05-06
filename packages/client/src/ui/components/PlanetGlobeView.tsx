@@ -548,6 +548,55 @@ function updateDistantStarVisual(starVisual: DistantStarVisual, elapsed: number,
 // Planet sphere
 // ---------------------------------------------------------------------------
 
+const texturedPlanetVert = `
+  varying vec2 vUv;
+  varying vec3 vWorldNormal;
+  varying vec3 vViewDir;
+
+  void main() {
+    vUv = uv;
+    vWorldNormal = normalize(mat3(modelMatrix) * normal);
+    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    vViewDir = normalize(cameraPosition - worldPos.xyz);
+    gl_Position = projectionMatrix * viewMatrix * worldPos;
+  }
+`;
+
+const texturedPlanetFrag = `
+  uniform sampler2D uMap;
+  uniform vec3 uStarDir;
+  uniform vec3 uStarColor;
+  uniform float uIsGas;
+
+  varying vec2 vUv;
+  varying vec3 vWorldNormal;
+  varying vec3 vViewDir;
+
+  void main() {
+    vec3 base = texture2D(uMap, vUv).rgb;
+    vec3 n = normalize(vWorldNormal);
+    float daylight = dot(n, normalize(uStarDir));
+
+    // Very wide terminator: generated photo skins should dim naturally, not
+    // look like a hard black overlay was painted over half the sphere.
+    float dayFactor = smoothstep(-0.72, 0.88, daylight);
+    float softCore = smoothstep(-0.20, 0.72, daylight);
+    vec3 nightTint = mix(vec3(0.16, 0.20, 0.30), vec3(0.24, 0.28, 0.36), uIsGas);
+    vec3 night = base * nightTint;
+    vec3 day = base * (0.58 + softCore * 0.72) * mix(vec3(1.0), uStarColor, 0.10);
+    vec3 color = mix(night, day, dayFactor);
+
+    float rimFacing = max(dot(n, normalize(vViewDir)), 0.0);
+    float limb = smoothstep(0.0, 0.42, rimFacing);
+    color *= 0.72 + limb * 0.28;
+
+    float atmosphereRim = pow(1.0 - rimFacing, 2.2) * smoothstep(-0.25, 0.65, daylight);
+    color += vec3(0.12, 0.24, 0.42) * atmosphereRim * 0.22;
+
+    gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
+  }
+`;
+
 function createPlanetSphere(
   scene: THREE.Scene,
   planet: Planet,
@@ -584,17 +633,15 @@ function createPlanetSphere(
     generatedTexture.generateMipmaps = true;
   }
   const material = generatedTexture
-    ? new THREE.MeshPhysicalMaterial({
-        map: generatedTexture,
-        bumpMap: isGas ? null : generatedTexture,
-        bumpScale: isGas ? 0 : 0.018,
-        roughness: isGas ? 0.88 : 0.96,
-        metalness: 0,
-        clearcoat: isGas ? 0.18 : 0.04,
-        clearcoatRoughness: 0.85,
-        sheen: isGas ? 0.18 : 0,
-        sheenRoughness: 0.9,
-        envMapIntensity: 0.25,
+    ? new THREE.ShaderMaterial({
+        vertexShader: texturedPlanetVert,
+        fragmentShader: texturedPlanetFrag,
+        uniforms: {
+          uMap: { value: generatedTexture },
+          uStarDir: { value: STAR_SPRITE_POSITION.clone().normalize() },
+          uStarColor: { value: new THREE.Color(star.colorHex) },
+          uIsGas: { value: isGas ? 1.0 : 0.0 },
+        },
       })
     : new THREE.ShaderMaterial({
         vertexShader: planetVertSrc,

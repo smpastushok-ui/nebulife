@@ -227,7 +227,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     fontFamily: 'monospace',
-    paddingTop: 'calc(56px + env(safe-area-inset-top, 0px))',
+    paddingTop: 'calc(98px + env(safe-area-inset-top, 0px))',
     boxSizing: 'border-box',
   },
   container: {

@@ -857,6 +857,7 @@ export function BuildingDetailPanel({
   const canScan = researchData >= 5;
   const canChemCycle = colonyResources.volatiles >= 10;
   const compact = typeof window !== 'undefined' && window.innerWidth < 700;
+  const sideControlInset = 'calc(66px + env(safe-area-inset-left, 0px))';
   const energyOutputPerHour = stats.energyOutput * 60;
   const energyConsumptionPerHour = -stats.energyConsumption * 60;
   const energyNetPerHour = energyOutputPerHour + energyConsumptionPerHour;
@@ -1000,9 +1001,9 @@ export function BuildingDetailPanel({
         display: 'flex',
         alignItems: 'center',
         gap: 10,
-        padding: compact ? '12px 12px' : '14px 16px',
-        paddingLeft: compact ? 'calc(12px + env(safe-area-inset-left, 0px))' : 'calc(76px + env(safe-area-inset-left, 0px))',
-        paddingTop: compact ? 'calc(12px + env(safe-area-inset-top, 0px))' : 'calc(70px + env(safe-area-inset-top, 0px))',
+        padding: compact ? '10px 12px' : '14px 16px',
+        paddingLeft: compact ? sideControlInset : 'calc(76px + env(safe-area-inset-left, 0px))',
+        paddingTop: compact ? 'calc(86px + env(safe-area-inset-top, 0px))' : 'calc(70px + env(safe-area-inset-top, 0px))',
         borderBottom: '1px solid #1a2a3a',
         flexShrink: 0,
       }}>
@@ -1048,18 +1049,18 @@ export function BuildingDetailPanel({
         flex: 1,
         overflow: 'auto',
         padding: compact
-          ? '12px 12px calc(110px + env(safe-area-inset-bottom, 0px))'
+          ? '10px 12px calc(120px + env(safe-area-inset-bottom, 0px))'
           : '14px 16px calc(120px + env(safe-area-inset-bottom, 0px))',
-        paddingLeft: compact ? 'calc(12px + env(safe-area-inset-left, 0px))' : 'calc(76px + env(safe-area-inset-left, 0px))',
+        paddingLeft: compact ? sideControlInset : 'calc(76px + env(safe-area-inset-left, 0px))',
         display: 'flex',
         flexDirection: 'column',
-        gap: 14,
+        gap: compact ? 10 : 14,
       }}>
         <div style={{
           background: 'linear-gradient(135deg, rgba(20,30,45,0.72), rgba(5,10,20,0.74))',
           border: `1px solid ${ACTIVE_BORDER}`,
           borderRadius: 6,
-          padding: 14,
+          padding: compact ? 11 : 14,
           boxShadow: '0 12px 30px rgba(0,0,0,0.22)',
         }}>
           <div style={{ fontSize: 10, color: accent, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>
@@ -1091,7 +1092,7 @@ export function BuildingDetailPanel({
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
           <MetricCard
             label={t('building_detail.status')}
             value={stats.isShutdown ? t('building_detail.status_shutdown') : t('building_detail.status_active')}
@@ -1121,7 +1122,7 @@ export function BuildingDetailPanel({
         </div>
 
         <Section title={t('building_detail.rates')}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
             <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 4, padding: 10 }}>
               <div style={{ fontSize: 10, color: '#88bb99', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }}>
                 {t('building_detail.production')}

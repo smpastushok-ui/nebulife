@@ -9535,6 +9535,11 @@ function AppInner() {
             try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
             setShowSurfaceAstraLesson(false);
           }}
+          onOpenMission={() => {
+            setAcademyInitialTab('mission');
+            setAcademyMissionChapter('surface');
+            setShowAcademy(true);
+          }}
         />
       )}
       {/* ── Fly-to-HUD resource dots ──────────────────────────────────────── */}

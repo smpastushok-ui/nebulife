@@ -462,23 +462,33 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
         top: `calc(12px + env(safe-area-inset-top, 0px))`,
         left: `calc(12px + env(safe-area-inset-left, 0px))`,
         zIndex: 30000,
-        minWidth: 54,
-        height: 44,
-        padding: '0 12px',
+        width: mobile ? 42 : undefined,
+        minWidth: mobile ? 42 : 54,
+        height: 42,
+        padding: mobile ? 0 : '0 12px',
         background: 'rgba(8,14,24,0.94)',
-        border: '2px solid rgba(255,136,68,0.55)',
+        border: mobile ? '1px solid rgba(123,184,255,0.45)' : '2px solid rgba(255,136,68,0.55)',
         borderRadius: 8,
-        color: '#ffbb88',
+        color: mobile ? '#cce6ff' : '#ffbb88',
         fontFamily: 'monospace',
         fontSize: 11,
         fontWeight: 700,
         letterSpacing: 1.4,
         cursor: 'pointer',
         pointerEvents: 'auto',
-        boxShadow: '0 0 18px rgba(0,0,0,0.7)',
+        boxShadow: mobile ? '0 0 16px rgba(68,136,170,0.22)' : '0 0 18px rgba(0,0,0,0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      {t('arena.exit_button')}
+      {mobile ? (
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <path d="M16 17l5-5-5-5" />
+          <path d="M21 12H9" />
+        </svg>
+      ) : t('arena.exit_button')}
     </button>
   );
 
@@ -893,29 +903,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
         </div>
       )}
 
-      {/* Exit button — top left (offset for iOS notch / Dynamic Island) */}
-      <button
-        onClick={handleExit}
-        style={{
-          position: 'absolute',
-          top: `calc(12px + env(safe-area-inset-top, 0px))`,
-          left: `calc(12px + env(safe-area-inset-left, 0px))`,
-          width: 44, height: 44,
-          background: 'rgba(8,14,24,0.8)',
-          border: '2px solid rgba(100,140,180,0.3)',
-          borderRadius: 8,
-          cursor: 'pointer',
-          zIndex: 100,
-          pointerEvents: 'auto',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#aabbcc" strokeWidth="2" strokeLinecap="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-          <polyline points="16 17 21 12 16 7" />
-          <line x1="21" y1="12" x2="9" y2="12" />
-        </svg>
-      </button>
+      {/* Exit is rendered once as emergencyExitButton above the rotated arena. */}
 
       {startupStalled && !ready && (
         <div

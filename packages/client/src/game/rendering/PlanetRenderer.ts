@@ -1,4 +1,4 @@
-import { Graphics, Container, Sprite, Text, Texture } from 'pixi.js';
+import { Graphics, Container, Sprite, Text, Texture, TilingSprite } from 'pixi.js';
 import type { Planet, Star } from '@nebulife/core';
 import { derivePlanetVisuals, lerpColor } from './PlanetVisuals.js';
 
@@ -7,9 +7,25 @@ export const Y_COMPRESS = 0.55;
 
 /** Get planet visual size (screen pixels) — log-scale for proportional spread */
 export function getPlanetSize(planet: Planet): number {
-  const minSize = 6;
-  const size = minSize + Math.log2(1 + planet.radiusEarth) * 10;
-  return Math.max(minSize, Math.min(32, size));
+  const radius = Math.max(0.08, planet.radiusEarth);
+
+  if (planet.type === 'gas-giant') {
+    const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 12));
+    return 30 + t * 12;
+  }
+
+  if (planet.type === 'ice-giant') {
+    const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 5));
+    return 24 + t * 8;
+  }
+
+  if (planet.type === 'dwarf') {
+    const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 0.7));
+    return 6 + t * 5;
+  }
+
+  const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 2.5));
+  return 10 + t * 14;
 }
 
 /** Darken a color by a factor (0..1, lower = darker) */
@@ -33,6 +49,13 @@ function getPlanetDisplayColorFromVisuals(v: ReturnType<typeof derivePlanetVisua
 export interface PlanetRenderResult {
   container: Container;
   lightingGroup: Container;
+}
+
+export interface PlanetTexturePreviewOptions {
+  /** Horizontal texture speed in full map rotations per millisecond. */
+  spinRevolutionsPerMs?: number;
+  /** Deterministic starting longitude offset, 0..1 of the equirectangular map. */
+  initialLongitude?: number;
 }
 
 /** Lighten a color by blending toward white */
@@ -238,36 +261,41 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   container.addChild(lightingGroup);
 
   // === Ring system for massive gas giants + occasional ice giants ===
-  // Per-seed ring tone + width + presence of Cassini gap. Seeded RNG so the same
-  // planet always renders identically across sessions.
+  // Thin seeded ringlets read better than a few thick strokes at system scale:
+  // 1-3px gaps, subtle off-white tones, deterministic per planet seed.
   const wantsRings = planet.type === 'gas-giant' && planet.massEarth > 50
     || (planet.type === 'ice-giant' && (planet.seed % 5 === 0)); // ~20% of ice giants
   if (wantsRings) {
     const seed = planet.seed;
-    // 4 ring tone palettes, picked deterministically from seed.
-    const palettes = [
-      { outer: 0xccbb99, mid: 0xddccaa, inner: 0xaa9977 }, // classic Saturn cream
-      { outer: 0xbbaaaa, mid: 0xddcccc, inner: 0x998877 }, // dusty rose
-      { outer: 0x99aabb, mid: 0xbbccdd, inner: 0x778899 }, // icy silver-blue
-      { outer: 0xddccbb, mid: 0xeeddcc, inner: 0xbbaa99 }, // pale gold
-    ];
-    const pal = palettes[Math.abs(seed) % palettes.length];
     const ringGfx = new Graphics();
-    // Outer ring
-    ringGfx.ellipse(0, 0, size * 1.9, size * 0.35 * Y_COMPRESS);
-    ringGfx.stroke({ width: 3, color: pal.outer, alpha: 0.18 });
-    // Main bright ring
-    ringGfx.ellipse(0, 0, size * 1.7, size * 0.32 * Y_COMPRESS);
-    ringGfx.stroke({ width: 2.5, color: pal.mid, alpha: 0.30 });
-    // Inner ring
-    ringGfx.ellipse(0, 0, size * 1.45, size * 0.27 * Y_COMPRESS);
-    ringGfx.stroke({ width: 1.5, color: pal.inner, alpha: 0.22 });
+    const ringletCount = 10 + Math.floor(seededUnit(seed, 610) * 7);
+    const inner = size * seededRange(seed, 620, 1.42, 1.55);
+    const outer = size * seededRange(seed, 630, 1.86, 2.05);
+    let ringRadius = inner;
+
+    for (let i = 0; i < ringletCount && ringRadius < outer; i++) {
+      const t = i / Math.max(1, ringletCount - 1);
+      const tone = Math.round(seededRange(seed, 640 + i, 188, 246));
+      const warm = Math.round(seededRange(seed, 700 + i, -8, 10));
+      const cool = Math.round(seededRange(seed, 760 + i, -4, 14));
+      const r = Math.max(150, Math.min(255, tone + warm));
+      const g = Math.max(150, Math.min(255, tone + Math.floor(warm * 0.5)));
+      const b = Math.max(150, Math.min(255, tone + cool));
+      const color = (r << 16) | (g << 8) | b;
+      const alpha = seededRange(seed, 820 + i, 0.12, 0.34) * (0.8 + (1 - Math.abs(t - 0.5) * 2) * 0.4);
+      const width = seededRange(seed, 880 + i, 0.7, 1.6);
+      const yRadius = ringRadius * seededRange(seed, 940 + i, 0.16, 0.22) * Y_COMPRESS;
+
+      ringGfx.ellipse(0, 0, ringRadius, yRadius);
+      ringGfx.stroke({ width, color, alpha });
+      ringRadius += width + seededRange(seed, 1000 + i, 1.0, 3.0);
+    }
 
     // Cassini-style gap — ~70% of ringed planets get one. Position varies a bit per seed.
     if (seed % 10 < 7) {
-      const gapAt = 1.55 + ((seed >> 3) % 10) / 100; // 1.55..1.64 size mul
-      ringGfx.ellipse(0, 0, size * gapAt, size * (gapAt * 0.18) * Y_COMPRESS);
-      ringGfx.stroke({ width: 1.0, color: 0x020510, alpha: 0.55 });
+      const gapRadius = size * seededRange(seed, 1060, 1.58, 1.76);
+      ringGfx.ellipse(0, 0, gapRadius, gapRadius * 0.19 * Y_COMPRESS);
+      ringGfx.stroke({ width: 1.8, color: 0x020510, alpha: 0.72 });
     }
     container.addChild(ringGfx);
   }
@@ -304,34 +332,63 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
 }
 
 /**
- * Adds a shared AI-generated texture preview on top of the procedural mini-sphere.
+ * Adds a shared/generated equirectangular texture preview on top of the procedural mini-sphere.
  * This stays intentionally lightweight for SystemScene: a circular crop with the
  * existing Pixi lighting/shadow layers still providing the spherical read.
  */
-export function applyPlanetTexturePreview(container: Container, textureUrl: string, size: number): void {
+export function applyPlanetTexturePreview(
+  container: Container,
+  textureUrl: string,
+  size: number,
+  options: PlanetTexturePreviewOptions = {},
+): void {
   const existing = container.getChildByName('planet-skin-preview');
   if (existing) existing.destroy();
+  const existingMask = container.getChildByName('planet-skin-preview-mask');
+  if (existingMask) existingMask.destroy();
 
   const texture = Texture.from(textureUrl);
-  const sprite = new Sprite(texture);
-  sprite.name = 'planet-skin-preview';
+  const preview = new Container();
+  preview.name = 'planet-skin-preview';
+  preview.eventMode = 'none';
+  preview.zIndex = 2;
+
+  const sprite = new TilingSprite({
+    texture,
+    width: size * 2,
+    height: size * 2,
+  });
+  sprite.name = 'planet-skin-preview-map';
   sprite.anchor.set(0.5);
-  sprite.width = size * 2;
-  sprite.height = size * 2;
   sprite.eventMode = 'none';
-  sprite.zIndex = 2;
+  sprite.tilePosition.x = (options.initialLongitude ?? 0) * Math.max(1, texture.width);
+  sprite.tileScale.set((size * 2) / Math.max(1, texture.width), (size * 2) / Math.max(1, texture.height));
+  (preview as any).__spinRevolutionsPerMs = options.spinRevolutionsPerMs ?? 0;
 
   const mask = new Graphics();
   mask.name = 'planet-skin-preview-mask';
   mask.circle(0, 0, size * 0.98);
   mask.fill({ color: 0xffffff, alpha: 1 });
   mask.eventMode = 'none';
-  mask.zIndex = 1;
-  sprite.mask = mask;
+  preview.mask = mask;
 
   container.sortableChildren = true;
+  preview.addChild(sprite);
   container.addChild(mask);
-  container.addChild(sprite);
+  container.addChild(preview);
+}
+
+export function tickPlanetTexturePreview(container: Container, deltaMs: number): void {
+  const preview = container.getChildByName('planet-skin-preview') as Container | null;
+  if (!preview) return;
+
+  const spinRevolutionsPerMs = (preview as any).__spinRevolutionsPerMs as number | undefined;
+  if (!spinRevolutionsPerMs) return;
+
+  const sprite = preview.getChildByName('planet-skin-preview-map') as TilingSprite | null;
+  if (!sprite) return;
+  const textureWidth = Math.max(1, sprite.texture.width);
+  sprite.tilePosition.x = (sprite.tilePosition.x + textureWidth * spinRevolutionsPerMs * deltaMs) % textureWidth;
 }
 
 /** Moon composition colors for system-view scale (small dots) */
