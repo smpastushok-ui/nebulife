@@ -7,6 +7,7 @@ import { AdMob, RewardAdPluginEvents, RewardAdOptions, AdmobConsentStatus } from
 import { authFetch } from '../auth/api-client.js';
 import { areAdsUnlockedAfterSettlement } from './ad-release-gate.js';
 import { interstitialManager } from './interstitial-manager.js';
+import { trackEvent } from '../analytics/firebase-analytics.js';
 
 // =============================================================================
 // TEMP: ADS_DISABLED_FOR_TESTING
@@ -128,6 +129,7 @@ async function showRewardedAdWithReason(): Promise<AdResult> {
   // Still increments the local daily counter so the existing limit logic stays honest.
   if (ADS_DISABLED_FOR_TESTING) {
     incrementDailyCount();
+    void trackEvent('ad_reward', { ad_format: 'rewarded', platform: Capacitor.getPlatform(), test_mode: true });
     return { rewarded: true };
   }
 
@@ -158,6 +160,7 @@ async function showRewardedAdWithReason(): Promise<AdResult> {
         await cleanup();
         if (rewarded) {
           incrementDailyCount();
+          void trackEvent('ad_reward', { ad_format: 'rewarded', platform: Capacitor.getPlatform() });
           resolve({ rewarded: true });
         } else {
           resolve({ rewarded: false, reason: 'dismissed' });

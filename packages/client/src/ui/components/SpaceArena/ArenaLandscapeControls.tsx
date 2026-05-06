@@ -4,6 +4,7 @@ interface ArenaLandscapeControlsProps {
   onMove: (x: number, y: number) => void;
   onAim: (x: number, y: number, isFiring: boolean) => void;
   onDash: () => void;
+  onLoop?: () => void;
   onFireMissile?: () => void;
   onGravPush?: () => void;
   /** -1..+1 vertical thrust (deprecated — kept for API compat, no-op now). */
@@ -12,8 +13,11 @@ interface ArenaLandscapeControlsProps {
    *  'center' = just thrust, outer quadrants trigger utility actions.
    *  Laser fire is automatic when an enemy is in the central sight cone. */
   onSector?: (sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity') => void;
+  allowLoop?: boolean;
   missileAmmo?: number;
   warpReady?: boolean;
+  loopReady?: boolean;
+  isLooping?: boolean;
   /** When true, container is CSS-rotated 90° CW (portrait → landscape). */
   needRotate?: boolean;
 }
@@ -31,9 +35,11 @@ const LEFT_HINT_LEFT = 80;   // px from screen edge
 
 export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
   onMove, onAim,
-  onDash: _onDash, onFireMissile: _onFireMissile, onGravPush: _onGravPush,
+  onDash: _onDash, onLoop: _onLoop, onFireMissile: _onFireMissile, onGravPush: _onGravPush,
   onVertical: _onVertical, onSector,
+  allowLoop = false,
   missileAmmo: _missileAmmo = 10, warpReady: _warpReady = true,
+  loopReady: _loopReady = true, isLooping: _isLooping = false,
   needRotate = false,
 }) => {
   // Convert viewport coords → container-local when CSS-rotated
@@ -48,6 +54,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
   const leftHintRef = useRef<HTMLDivElement>(null); // visible ring — anchor for "inside/outside"
   const leftPointerId = useRef<number | null>(null);
   const leftOrigin = useRef({ x: 0, y: 0 });
+  const leftLastSector = useRef<'center' | 'missile' | 'warp' | 'dodge' | 'loop' | 'gravity'>('center');
   // Gesture flag: true if the *initial* touch was inside the visible ring.
   // Thrust stays on while this gesture is ongoing (per press). Releasing
   // and re-pressing on a sector without hitting the center → thrust OFF,
@@ -140,7 +147,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       // Coordinate correctness: when the container is CSS-rotated (portrait
       // device held in landscape), screen coords and container coords differ
       // by a 90° spin. Always work in container-local coords via toLocal()
-      // so the sector mapping (up=GRAVITY, right=WARP, down=DODGE, left=MISSILE)
+      // so the sector mapping (up=GRAVITY, right=WARP, down=LOOP, left=MISSILE)
       // matches what the user SEES on screen.
       const hintEl = leftHintRef.current;
       let insideRing = false;
@@ -162,19 +169,25 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       const thrust = leftStartedInside.current ? 1 : 0;
       onMove(0, -thrust);
 
-      let sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity' = 'center';
+      let sector: 'center' | 'missile' | 'warp' | 'dodge' | 'loop' | 'gravity' = 'center';
       if (!insideRing) {
         if (angle > Math.PI / 4 && angle < 3 * Math.PI / 4) sector = 'gravity';
         else if (angle >= -Math.PI / 4 && angle <= Math.PI / 4) sector = 'warp';
-        else if (angle < -Math.PI / 4 && angle > -3 * Math.PI / 4) sector = 'dodge';
+        else if (angle < -Math.PI / 4 && angle > -3 * Math.PI / 4) sector = allowLoop ? 'loop' : 'dodge';
         else sector = 'missile';
       }
-      onSector?.(sector);
+      if (sector === 'loop') {
+        if (leftLastSector.current !== 'loop') _onLoop?.();
+        onSector?.('center');
+      } else {
+        onSector?.(sector);
+      }
+      leftLastSector.current = sector;
     } else {
       // Right stick drives pitch/yaw only; laser fire is left-stick sector.
       onAim(nx, ny, false);
     }
-  }, [onMove, onAim, onSector, toLocal]);
+  }, [onMove, onAim, onSector, toLocal, allowLoop, _onLoop]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent, isLeft: boolean) => {
     const pointerIdRef = isLeft ? leftPointerId : rightPointerId;
@@ -189,6 +202,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       onMove(0, 0);
       onSector?.('center'); // reset sector on release
       leftStartedInside.current = false;
+      leftLastSector.current = 'center';
     } else {
       onAim(0, 0, false);
     }
@@ -220,7 +234,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
           <AbilityGlyph kind="gravity" color="#bb88ff" style={{ top: -28, left: '50%', transform: 'translateX(-50%)' }} />
           <AbilityGlyph kind="missile" color="#ff6666" style={{ left: -30, top: '50%', transform: 'translateY(-50%)' }} />
           <AbilityGlyph kind="warp" color="#44ddff" style={{ right: -30, top: '50%', transform: 'translateY(-50%)' }} />
-          <AbilityGlyph kind="dodge" color="#ffcc44" style={{ bottom: -30, left: '50%', transform: 'translateX(-50%)' }} />
+          <AbilityGlyph kind={allowLoop ? 'loop' : 'dodge'} color="#ffcc44" style={{ bottom: -30, left: '50%', transform: 'translateX(-50%)' }} />
         </div>
         <div ref={leftBaseRef} style={styles.base}>
           <div ref={leftKnobRef} style={styles.knob} />
@@ -262,7 +276,7 @@ function AbilityGlyph({
   color,
   style,
 }: {
-  kind: 'gravity' | 'missile' | 'warp' | 'dodge';
+  kind: 'gravity' | 'missile' | 'warp' | 'dodge' | 'loop';
   color: string;
   style: React.CSSProperties;
 }) {
@@ -291,6 +305,12 @@ function AbilityGlyph({
           <>
             <path d="M7 6l-4 6 4 6M17 6l4 6-4 6" />
             <path d="M10 8l4 4-4 4" opacity="0.85" />
+          </>
+        )}
+        {kind === 'loop' && (
+          <>
+            <path d="M6 14c0-6 6-9 11-6 5 3 3 11-4 11" />
+            <path d="M13 19l4-4M13 19l5 2" />
           </>
         )}
       </svg>

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 import type { SystemPhotoData, SystemMissionData } from './SystemContextMenu.js';
+import { PremiumHelpButton } from './PremiumHelp.js';
 
 // ---------------------------------------------------------------------------
 // RadialMenu — circular action buttons around an expanded star in galaxy view
@@ -195,7 +196,6 @@ export function RadialMenu({
   const [flashMsg, setFlashMsg] = useState<string | null>(null);
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [premHintVisible, setPremHintVisible] = useState(false);
 
   const showFlash = (msg: string) => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
@@ -603,48 +603,18 @@ export function RadialMenu({
                 {pd.submenuLabel ?? pd.tip}
               </button>
               {pd.hint && (
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <button
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseEnter={() => setPremHintVisible(true)}
-                    onMouseLeave={() => setPremHintVisible(false)}
-                    style={{
-                      width: 28, height: '100%', minHeight: 36,
-                      background: pd.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)',
-                      border: `1px solid ${pd.dim ? '#4a3810' : '#ddaa44'}`,
-                      color: '#556677',
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      cursor: 'default',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: 0,
-                      borderRadius: '0 3px 3px 0',
-                    }}
-                  >
-                    ?
-                  </button>
-                  {premHintVisible && (
-                    <div style={{
-                      position: 'absolute',
-                      right: 0,
-                      bottom: 'calc(100% + 6px)',
-                      width: 210,
-                      padding: '8px 10px',
-                      background: 'rgba(8,12,22,0.97)',
-                      border: '1px solid #334455',
-                      borderRadius: 4,
-                      fontSize: 9,
-                      color: '#8899aa',
-                      lineHeight: 1.5,
-                      fontFamily: 'monospace',
-                      zIndex: 50,
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
-                      pointerEvents: 'none',
-                      letterSpacing: '0.04em',
-                    }}>
-                      {pd.hint}
-                    </div>
-                  )}
+                <div style={{
+                  width: 36,
+                  minHeight: 38,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: pd.dim ? 'rgba(20,14,4,0.95)' : 'rgba(42,28,6,0.97)',
+                  border: `1px solid ${pd.dim ? '#4a3810' : '#ddaa44'}`,
+                  borderRadius: '0 3px 3px 0',
+                  flexShrink: 0,
+                }}>
+                  <PremiumHelpButton helpId="system-alpha-photo" />
                 </div>
               )}
             </div>

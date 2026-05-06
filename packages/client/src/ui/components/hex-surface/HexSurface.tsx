@@ -93,6 +93,7 @@ interface HexSurfaceProps {
   onStartPayloadProduction?: (type: ProducibleType) => void;
   observatoryState?: ObservatoryState;
   onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram) => void;
+  isPremium?: boolean;
   /** Opens the Colony Center hub page — fired when the player inspects the
    *  `colony_hub` building. Parent wires this to setShowColonyCenter(true). */
   onOpenColonyCenter?:    (tab?: 'overview' | 'production') => void;
@@ -212,6 +213,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onStartPayloadProduction,
       observatoryState,
       onStartObservatorySearch,
+  isPremium = false,
       onOpenColonyCenter,
     },
     ref,
@@ -763,6 +765,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             explorationProductionQueue={explorationProductionQueue}
             observatoryState={observatoryState}
             onStartObservatorySearch={onStartObservatorySearch}
+            isPremium={isPremium}
             onClose={() => setDetailSlotId(null)}
             onOpenColonyCenter={onOpenColonyCenter}
             onStartPayloadProduction={onStartPayloadProduction}

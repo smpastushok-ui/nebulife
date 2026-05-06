@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet, PlanetReportSummary } from '@nebulife/core';
 import { playSfx } from '../../../audio/SfxPlayer.js';
+import { PremiumHelpButton } from '../PremiumHelp.js';
 
 const CHARS_PER_TICK = 3;
 const TICK_INTERVAL = 22;
@@ -27,6 +28,7 @@ export function MissionReportModal({
   proceduralSaved,
   proceduralSaving,
   alphaGenerating,
+  alphaPhotoReady,
   onProceduralPhoto,
   onAlphaPhoto,
   onClose,
@@ -38,6 +40,7 @@ export function MissionReportModal({
   proceduralSaved?: boolean;
   proceduralSaving?: boolean;
   alphaGenerating?: boolean;
+  alphaPhotoReady?: boolean;
   onProceduralPhoto: () => void;
   onAlphaPhoto: () => void;
   onClose: () => void;
@@ -164,29 +167,39 @@ export function MissionReportModal({
             </div>
           </button>
 
-          <button
-            type="button"
-            disabled={!isComplete || alphaGenerating}
-            onClick={onAlphaPhoto}
-            style={{
-              background: 'rgba(45,30,15,0.72)',
-              border: '1px solid rgba(221,170,68,0.55)',
-              borderRadius: 4,
-              color: !isComplete ? '#554422' : '#ddaa44',
-              fontFamily: 'monospace',
-              fontSize: 11,
-              padding: '10px 12px',
-              cursor: !isComplete || alphaGenerating ? 'not-allowed' : 'pointer',
-              textAlign: 'left',
-            }}
-          >
-            <div style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>
-              {alphaGenerating ? t('planet.photo_generating') : t('mission_report.action_alpha_photo', { cost: alphaCost })}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              disabled={!isComplete || alphaGenerating}
+              onClick={onAlphaPhoto}
+              style={{
+                width: '100%',
+                background: 'rgba(45,30,15,0.72)',
+                border: '1px solid rgba(221,170,68,0.55)',
+                borderRadius: 4,
+                color: !isComplete ? '#554422' : '#ddaa44',
+                fontFamily: 'monospace',
+                fontSize: 11,
+                padding: '10px 46px 10px 12px',
+                cursor: !isComplete || alphaGenerating ? 'not-allowed' : 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>
+                {alphaGenerating
+                  ? t('planet.photo_generating')
+                  : alphaPhotoReady
+                    ? t('mission_report.action_alpha_replace', { cost: alphaCost })
+                    : t('mission_report.action_alpha_photo', { cost: alphaCost })}
+              </div>
+              <div style={{ marginTop: 4, color: '#886622', fontSize: 9 }}>
+                {t('mission_report.alpha_photo_desc')}
+              </div>
+            </button>
+            <div style={{ position: 'absolute', top: 8, right: 8 }}>
+              <PremiumHelpButton helpId="mission-alpha-photo" />
             </div>
-            <div style={{ marginTop: 4, color: '#886622', fontSize: 9 }}>
-              {t('mission_report.alpha_photo_desc')}
-            </div>
-          </button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>

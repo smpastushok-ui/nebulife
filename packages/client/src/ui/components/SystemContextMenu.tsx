@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 import { AdProgressButton } from './AdProgressButton.js';
+import { PremiumHelpButton } from './PremiumHelp.js';
 
 // ---------------------------------------------------------------------------
 // QuarkIcon — inline SVG quark currency symbol
@@ -111,52 +112,6 @@ function MenuItem({ label, onClick, color, disabled }: {
     >
       {label}
     </button>
-  );
-}
-
-function TooltipHint({ text }: { text: string }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div style={{ position: 'relative', marginRight: 10, flexShrink: 0 }}>
-      <button
-        onClick={(e) => { e.stopPropagation(); setShow(!show); }}
-        onMouseEnter={() => setShow(true)}
-        onMouseLeave={() => setShow(false)}
-        style={{
-          width: 18, height: 18, borderRadius: '50%',
-          background: 'none',
-          border: '1px solid #445566',
-          color: '#556677',
-          fontFamily: 'monospace',
-          fontSize: 10,
-          cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 0,
-        }}
-      >
-        ?
-      </button>
-      {show && (
-        <div style={{
-          position: 'absolute',
-          right: 0, top: 22,
-          width: 200,
-          padding: '8px 10px',
-          background: 'rgba(8,12,22,0.97)',
-          border: '1px solid #334455',
-          borderRadius: 4,
-          fontSize: 9,
-          color: '#8899aa',
-          lineHeight: 1.5,
-          fontFamily: 'monospace',
-          zIndex: 30,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
-          pointerEvents: 'none',
-        }}>
-          {text}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -299,7 +254,9 @@ export function SystemContextMenu({
                     />
                   </div>
                 </div>
-                <TooltipHint text={t('context_menu.panorama_tooltip')} />
+                <div style={{ marginRight: 10, flexShrink: 0 }}>
+                  <PremiumHelpButton helpId="system-alpha-photo" label={t('context_menu.panorama_tooltip')} />
+                </div>
               </div>
             )}
             {/* Ad-funded system panorama (native only) */}

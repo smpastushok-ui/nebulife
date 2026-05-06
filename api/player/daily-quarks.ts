@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { creditQuarks } from '../../packages/server/src/db.js';
+import { claimPremiumDailyQuarks } from '../../packages/server/src/db.js';
 
 const PRO_DAILY_QUARKS = 5;
 
@@ -10,8 +10,7 @@ const PRO_DAILY_QUARKS = 5;
  * Body: {}
  *
  * Grants 5 free quarks to Pro subscribers once per day.
- * Client-side tracks the claim date in localStorage (nebulife_pro_daily_date).
- * Server trusts the premium flag from the client (RevenueCat validates at purchase time).
+ * Server verifies Premium and enforces one claim per UTC day.
  *
  * Returns: { success: true, quarksGranted: 5, newBalance: number }
  */
@@ -24,7 +23,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const auth = await authenticate(req, res);
     if (!auth) return;
 
-    const updated = await creditQuarks(auth.playerId, PRO_DAILY_QUARKS);
+    const updated = await claimPremiumDailyQuarks(auth.playerId, PRO_DAILY_QUARKS);
+    if (!updated) {
+      return res.status(403).json({ error: 'premium_required_or_already_claimed' });
+    }
 
     return res.status(200).json({
       success: true,

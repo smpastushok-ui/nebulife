@@ -4,6 +4,7 @@ import type { BuildingType, PlanetResourceStocks, PlanetType } from '@nebulife/c
 import { BUILDING_DEFS } from '@nebulife/core';
 import { ResourceIcon, type ResourceType } from '../ResourceIcon.js';
 import { QuarksIcon } from '../ResourceDisplay.js';
+import { PremiumHelpButton } from '../PremiumHelp.js';
 
 // Alpha harvester escalating quarks price
 const ALPHA_HARVESTER_PRICES = [50, 103, 206]; // 1st=$1.20, 2nd=$2.50, 3rd+=$5.00
@@ -406,9 +407,12 @@ export function HexBuildMenu({
                           {levelLocked ? `L${def.levelRequired}` : planetLocked ? 'N/A' : 'TECH'}
                         </span>
                       ) : isAlpha ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 8 }}>
-                          <span style={{ color: canAfford ? '#ddaa44' : '#884444' }}>{alphaPrice}</span>
-                          <QuarksIcon size={10} />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 8 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <span style={{ color: canAfford ? '#ddaa44' : '#884444' }}>{alphaPrice}</span>
+                            <QuarksIcon size={10} />
+                          </span>
+                          <PremiumHelpButton helpId="alpha-harvester" />
                         </span>
                       ) : (
                         <CostIcons cost={def.cost} />

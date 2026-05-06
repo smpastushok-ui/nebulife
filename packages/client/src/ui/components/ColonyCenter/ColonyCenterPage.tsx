@@ -18,6 +18,7 @@ import { getDeviceTier } from '../../../utils/device-tier.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import { BuildingDetailPanel } from './BuildingDetailPanel.js';
+import { PremiumHelpButton } from '../PremiumHelp.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -971,6 +972,7 @@ function PremiumTab({ active, quarks, boosts, onBuyBoost }: ColonyCenterPageProp
       <BoostSection
         title={t('colony_center.premium.resource_title')}
         description={t('colony_center.premium.resource_desc')}
+        helpId="colony-resource-boost"
         active={resActive}
         prices={RESOURCE_BOOST_PRICES}
         kind="resource"
@@ -982,6 +984,7 @@ function PremiumTab({ active, quarks, boosts, onBuyBoost }: ColonyCenterPageProp
       <BoostSection
         title={t('colony_center.premium.time_title')}
         description={t('colony_center.premium.time_desc')}
+        helpId="colony-time-boost"
         active={timeActive}
         prices={TIME_BOOST_PRICES}
         kind="time"
@@ -999,6 +1002,7 @@ function PremiumTab({ active, quarks, boosts, onBuyBoost }: ColonyCenterPageProp
 function BoostSection({
   title,
   description,
+  helpId,
   active,
   prices,
   kind,
@@ -1007,6 +1011,7 @@ function BoostSection({
 }: {
   title: string;
   description: string;
+  helpId: 'colony-resource-boost' | 'colony-time-boost';
   active: ColonyBoost | null;
   prices: Record<string, number>;
   kind: ColonyBoostKind;
@@ -1024,8 +1029,11 @@ function BoostSection({
       padding: 14,
       fontFamily: 'monospace',
     }}>
-      <div style={{ fontSize: 11, color: '#aabbcc', fontWeight: 600, marginBottom: 4, letterSpacing: 1, textTransform: 'uppercase' }}>
-        {title}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <div style={{ flex: 1, fontSize: 11, color: '#aabbcc', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>
+          {title}
+        </div>
+        <PremiumHelpButton helpId={helpId} />
       </div>
       <div style={{ fontSize: 10, color: '#667788', marginBottom: 12, lineHeight: 1.5 }}>
         {description}

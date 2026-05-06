@@ -15,6 +15,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { authFetch } from '../auth/api-client.js';
+import { trackEvent } from '../analytics/firebase-analytics.js';
 
 /** True when running as a native iOS or Android app (not web/browser). */
 export function isNativeIAP(): boolean {
@@ -179,6 +180,26 @@ export interface PremiumStatus {
   active: boolean;
   /** Localized price string for the premium subscription, if available */
   priceString?: string;
+  expiresAt?: string | null;
+  productId?: string | null;
+  source?: string | null;
+}
+
+async function fetchServerPremiumStatus(): Promise<PremiumStatus> {
+  const res = await authFetch('/api/player/premium');
+  if (!res.ok) return { active: false };
+  return (await res.json()) as PremiumStatus;
+}
+
+async function syncServerPremiumStatus(): Promise<PremiumStatus> {
+  const res = await authFetch('/api/player/premium', { method: 'POST' });
+  if (!res.ok) throw new Error(`Premium sync failed: ${res.status}`);
+  return (await res.json()) as PremiumStatus;
+}
+
+function cachePremiumStatus(active: boolean): void {
+  if (active) localStorage.setItem('nebulife_premium', '1');
+  else localStorage.removeItem('nebulife_premium');
 }
 
 /**
@@ -192,15 +213,22 @@ export async function checkPremiumStatus(): Promise<PremiumStatus> {
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
       const { customerInfo } = await Purchases.getCustomerInfo();
       const active = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID]?.isActive === true;
-      if (active) localStorage.setItem('nebulife_premium', '1');
-      return { active };
+      if (active) {
+        const server = await syncServerPremiumStatus().catch(() => ({ active }) as PremiumStatus);
+        cachePremiumStatus(server.active);
+        return server;
+      }
+      const server = await syncServerPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
+      cachePremiumStatus(server.active);
+      return server;
     } catch (err) {
       console.warn('[IAP] Failed to check premium status:', err);
     }
   }
 
-  const flag = localStorage.getItem('nebulife_premium');
-  return { active: flag === '1' };
+  const server = await fetchServerPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
+  cachePremiumStatus(server.active);
+  return server;
 }
 
 /**
@@ -273,6 +301,13 @@ export async function purchaseQuarkPack(
     }
 
     const grant = await grantRes.json() as { quarksGranted?: number };
+    void trackEvent('purchase', {
+      currency: 'USD',
+      transaction_id: transactionId,
+      item_id: productId,
+      item_name: 'quark_pack',
+      quarks: grant.quarksGranted ?? quarks,
+    });
     return { success: true, quarksGranted: grant.quarksGranted ?? quarks };
   } catch (err) {
     if (isPurchaseCancelled(err)) return { success: false, quarksGranted: 0, error: 'cancelled' };
@@ -289,8 +324,11 @@ export async function restoreIAPPurchases(): Promise<{ restored: boolean }> {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
     const { customerInfo } = await Purchases.restorePurchases();
     const activePremium = hasPremium(customerInfo);
-    if (activePremium) localStorage.setItem('nebulife_premium', '1');
-    return { restored: activePremium };
+    const server = activePremium
+      ? await syncServerPremiumStatus().catch(() => ({ active: activePremium }) as PremiumStatus)
+      : await fetchServerPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
+    cachePremiumStatus(server.active);
+    return { restored: server.active };
   } catch (err) {
     console.warn('[IAP] Restore failed:', err);
     return { restored: false };

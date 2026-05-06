@@ -6,6 +6,7 @@ import {
   getAdProgress,
   checkAdAvailability,
 } from '../../services/ads-service.js';
+import { PremiumHelpButton } from './PremiumHelp.js';
 
 // ---------------------------------------------------------------------------
 // AdProgressButton — Rewarded-ad button with persistent progress blocks
@@ -96,7 +97,7 @@ export function AdProgressButton({
 
   if (variant === 'menu') {
     return (
-      <div>
+      <div style={{ position: 'relative' }}>
         <button
           onClick={handleClick}
           disabled={isDisabled}
@@ -117,8 +118,10 @@ export function AdProgressButton({
             display: 'flex',
             alignItems: 'center',
             gap: 10,
+            paddingRight: 42,
             transition: 'all 0.2s',
             color: '#66bb99',
+            position: 'relative',
           }}
         >
           {icon && (
@@ -134,6 +137,9 @@ export function AdProgressButton({
             </div>
           </div>
         </button>
+        <div style={{ position: 'absolute', top: 10, right: 10 }}>
+          <PremiumHelpButton helpId="rewarded-ads" />
+        </div>
         {noFill && (
           <div style={{ fontSize: 9, color: '#556677', textAlign: 'center', marginTop: 3 }}>
             {t('ads.no_fill')}
@@ -150,7 +156,7 @@ export function AdProgressButton({
 
   // 'choice' variant — matches DiscoveryChoicePanel style
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
       <button
         onClick={handleClick}
         disabled={isDisabled}
@@ -171,6 +177,7 @@ export function AdProgressButton({
           display: 'flex',
           alignItems: 'center',
           gap: 14,
+          paddingRight: 48,
           transition: 'all 0.2s',
           color: '#66bb99',
           position: 'relative',
@@ -189,6 +196,9 @@ export function AdProgressButton({
           </div>
         </div>
       </button>
+      <div style={{ position: 'absolute', top: 12, right: 12 }}>
+        <PremiumHelpButton helpId="rewarded-ads" />
+      </div>
       {noFill && (
         <div style={{ fontSize: 10, color: '#556677', textAlign: 'center', marginTop: 4 }}>
           {t('ads.no_fill')}

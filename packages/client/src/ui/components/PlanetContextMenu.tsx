@@ -15,6 +15,7 @@ const GROUP_T_KEY: Record<ResourceGroup, string> = {
 };
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
 import { AdProgressButton } from './AdProgressButton.js';
+import { PremiumHelpButton } from './PremiumHelp.js';
 
 // ---------------------------------------------------------------------------
 // QuarkIcon — inline SVG quark currency symbol
@@ -318,6 +319,7 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup, re
   const totalRes = planet.resources?.totalResources;
   const hasAnyResources = totalRes && (totalRes.minerals > 0 || totalRes.volatiles > 0 || totalRes.isotopes > 0);
   const [lockedTooltip, setLockedTooltip] = useState<ResourceGroup | null>(null);
+  const [waterExpanded, setWaterExpanded] = useState(false);
   const hydro = planet.hydrosphere;
   const waterMassKg = hydro && hydro.waterCoverageFraction > 0 && hydro.oceanDepthKm > 0
     ? (() => {
@@ -477,14 +479,54 @@ function ResourcesTab({ planet, playerLevel, expandedGroup, setExpandedGroup, re
           <div style={{ padding: '4px 14px', fontSize: 8, color: '#445566', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             {t('planet.hydrosphere_label')}
           </div>
-          <div style={{ padding: '4px 14px', fontSize: 11, color: '#7799bb' }}>
-            {t('planet.water_label')}: {(planet.hydrosphere.waterCoverageFraction * 100).toFixed(0)}%
+          <button
+            type="button"
+            onClick={() => setWaterExpanded((value) => !value)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              width: '100%',
+              padding: '6px 14px',
+              background: waterExpanded ? 'rgba(45,80,110,0.20)' : 'none',
+              border: 'none',
+              color: '#7799bb',
+              fontFamily: 'monospace',
+              fontSize: 11,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{ color: '#4488aa', fontSize: 9, width: 8 }}>{waterExpanded ? 'v' : '>'}</span>
+            <span style={{ flex: 1 }}>{t('planet.water_label')}</span>
+            <span style={{ color: '#667788', fontSize: 9 }}>{formatMassKg(waterMassKg)}</span>
+          </button>
+          <div style={{ padding: '0 14px 5px 28px', fontSize: 10, color: '#7799bb' }}>
+            {(planet.hydrosphere.waterCoverageFraction * 100).toFixed(0)}%
             {planet.hydrosphere.iceCapFraction > 0.01 && (
               <span style={{ color: '#8899aa', marginLeft: 8 }}>
                 {t('planet.ice_label')}: {(planet.hydrosphere.iceCapFraction * 100).toFixed(0)}%
               </span>
             )}
           </div>
+          {waterExpanded && (
+            <div style={{ padding: '2px 14px 6px 28px', display: 'grid', gap: 4 }}>
+              {[
+                { label: t('planet.water_liquid'), value: waterMassKg * Math.max(0, 1 - planet.hydrosphere.iceCapFraction), color: '#4488aa' },
+                { label: t('planet.water_ice'), value: waterMassKg * planet.hydrosphere.iceCapFraction, color: '#aaccee' },
+                { label: 'H', value: waterMassKg * 0.1119, color: '#9fd0ff' },
+                { label: 'O', value: waterMassKg * 0.8881, color: '#ccddff' },
+              ].map((row) => (
+                <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
+                  <span style={{ width: 34, color: row.color }}>{row.label}</span>
+                  <div style={{ flex: 1, height: 2, background: 'rgba(30,40,60,0.45)', borderRadius: 1, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.max(2, waterMassKg > 0 ? (row.value / waterMassKg) * 100 : 0)}%`, height: '100%', background: row.color, opacity: 0.62 }} />
+                  </div>
+                  <span style={{ color: '#556677', fontSize: 8 }}>{formatMassKg(row.value)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -917,15 +959,16 @@ export function PlanetContextMenu({
   };
   const canLaunchTerraform = isTerraformable(planet) && Boolean(hasGenesisVault) && playerLevel >= 48;
   const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
+  const hasDroneReport = reportSummary?.missionType === 'drone_recon' || reportSummary?.missionType === 'surface_landing';
   const availableMissionTypes: PlanetMissionType[] = [
     'orbital_scan',
     'orbital_probe',
-    ...(isSolidPlanetForLanding(planet) && revealLevel < getTargetRevealLevel('surface_landing') ? ['drone_recon' as PlanetMissionType] : []),
+    ...(isSolidPlanetForLanding(planet) && revealLevel >= 2 && revealLevel < 3 && !hasDroneReport ? ['drone_recon' as PlanetMissionType] : []),
     isSolidPlanetForLanding(planet) ? 'surface_landing' : 'deep_atmosphere_probe',
   ];
   const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
     ? []
-    : availableMissionTypes.filter((type) => getTargetRevealLevel(type) > revealLevel);
+    : availableMissionTypes.filter((type) => type === 'drone_recon' || getTargetRevealLevel(type) > revealLevel);
   const unavailableSurfaceType: PlanetMissionType | null = (
     !explorationMissionsDisabled
     && !isSolidPlanetForLanding(planet)
@@ -1198,48 +1241,76 @@ export function PlanetContextMenu({
                 </div>
                 {onGeneratePlanetSkin && (
                   <>
-                    <MenuItem
-                      icon="◍"
-                      label={planetSkinStatus?.exosphere === 'succeed'
-                        ? t('planet.skin_exosphere_ready')
-                        : <>{t('planet.skin_exosphere_label', { cost: exosphereSkinCost })}<QuarkIcon /></>}
-                      onClick={itemsActive && !isSkinGenerating && planetSkinStatus?.exosphere !== 'succeed' && canAffordExosphereSkin
-                        ? () => onGeneratePlanetSkin('exosphere')
-                        : undefined}
-                      color={planetSkinStatus?.exosphere === 'succeed' ? '#88ccaa' : canAffordExosphereSkin ? '#ddaa44' : '#445566'}
-                      disabled={isSkinGenerating || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin}
-                      right={planetSkinStatus?.exosphere && planetSkinStatus.exosphere !== 'succeed'
-                        ? <span style={{ color: '#4488aa', fontSize: 9 }}>{t('planet.skin_generating')}</span>
-                        : undefined}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <MenuItem
+                          icon="◍"
+                          label={planetSkinStatus?.exosphere === 'succeed'
+                            ? t('planet.skin_exosphere_ready')
+                            : <>{t('planet.skin_exosphere_label', { cost: exosphereSkinCost })}<QuarkIcon /></>}
+                          onClick={itemsActive && !isSkinGenerating && planetSkinStatus?.exosphere !== 'succeed' && canAffordExosphereSkin
+                            ? () => onGeneratePlanetSkin('exosphere')
+                            : undefined}
+                          color={planetSkinStatus?.exosphere === 'succeed' ? '#88ccaa' : canAffordExosphereSkin ? '#ddaa44' : '#445566'}
+                          disabled={isSkinGenerating || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin}
+                          right={planetSkinStatus?.exosphere && planetSkinStatus.exosphere !== 'succeed'
+                            ? <span style={{ color: '#4488aa', fontSize: 9 }}>{t('planet.skin_generating')}</span>
+                            : undefined}
+                        />
+                      </div>
+                      <div style={{ paddingRight: 12 }}>
+                        <PremiumHelpButton helpId="planet-skin" />
+                      </div>
+                    </div>
                     <div style={{ height: 1, background: 'rgba(80,65,35,0.35)', margin: '4px 0' }} />
                   </>
                 )}
                 {onTelescopePhoto && !isPhotoGenerating && (
                   <>
-                    <MenuItem
-                      icon="◉"
-                      label={<>{t('planet.photo_exosphere_label', { cost: exosphereCost })}<QuarkIcon /></>}
-                      onClick={canAffordExosphere && itemsActive ? () => onTelescopePhoto('exosphere') : undefined}
-                      color={canAffordExosphere ? '#ddaa44' : '#445566'}
-                      disabled={!canAffordExosphere}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <MenuItem
+                          icon="◉"
+                          label={<>{t('planet.photo_exosphere_label', { cost: exosphereCost })}<QuarkIcon /></>}
+                          onClick={canAffordExosphere && itemsActive ? () => onTelescopePhoto('exosphere') : undefined}
+                          color={canAffordExosphere ? '#ddaa44' : '#445566'}
+                          disabled={!canAffordExosphere}
+                        />
+                      </div>
+                      <div style={{ paddingRight: 12 }}>
+                        <PremiumHelpButton helpId="planet-photo-exosphere" />
+                      </div>
+                    </div>
                     {canGenerateSurfacePhotos && (
                       <>
-                        <MenuItem
-                          icon="▣"
-                          label={<>{t('planet.photo_biosphere_label', { cost: biosphereCost })}<QuarkIcon /></>}
-                          onClick={canAffordBiosphere && itemsActive ? () => onTelescopePhoto('biosphere') : undefined}
-                          color={canAffordBiosphere ? '#ddaa44' : '#445566'}
-                          disabled={!canAffordBiosphere}
-                        />
-                        <MenuItem
-                          icon="▽"
-                          label={<>{t('planet.photo_aerial_label', { cost: aerialCost })}<QuarkIcon /></>}
-                          onClick={canAffordAerial && itemsActive ? () => onTelescopePhoto('aerial') : undefined}
-                          color={canAffordAerial ? '#ddaa44' : '#445566'}
-                          disabled={!canAffordAerial}
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <div style={{ flex: 1 }}>
+                            <MenuItem
+                              icon="▣"
+                              label={<>{t('planet.photo_biosphere_label', { cost: biosphereCost })}<QuarkIcon /></>}
+                              onClick={canAffordBiosphere && itemsActive ? () => onTelescopePhoto('biosphere') : undefined}
+                              color={canAffordBiosphere ? '#ddaa44' : '#445566'}
+                              disabled={!canAffordBiosphere}
+                            />
+                          </div>
+                          <div style={{ paddingRight: 12 }}>
+                            <PremiumHelpButton helpId="planet-photo-biosphere" />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <div style={{ flex: 1 }}>
+                            <MenuItem
+                              icon="▽"
+                              label={<>{t('planet.photo_aerial_label', { cost: aerialCost })}<QuarkIcon /></>}
+                              onClick={canAffordAerial && itemsActive ? () => onTelescopePhoto('aerial') : undefined}
+                              color={canAffordAerial ? '#ddaa44' : '#445566'}
+                              disabled={!canAffordAerial}
+                            />
+                          </div>
+                          <div style={{ paddingRight: 12 }}>
+                            <PremiumHelpButton helpId="planet-photo-aerial" />
+                          </div>
+                        </div>
                       </>
                     )}
                   </>

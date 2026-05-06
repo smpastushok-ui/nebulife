@@ -172,6 +172,9 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
   const handleDash = useCallback(() => {
     engineRef.current?.triggerDash();
   }, []);
+  const handleLoop = useCallback(() => {
+    engineRef.current?.triggerLoop();
+  }, []);
   // Laser fire is handled exclusively by the left stick's "laser" sector
   // (top of the ring). Right stick is pitch/yaw only.
   const handleFireMissile = useCallback(() => {
@@ -191,6 +194,8 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
   const [missileAmmo, setMissileAmmo] = useState(10);
   const [warpReady, setWarpReady] = useState(true);
   const [isWarping, setIsWarping] = useState(false);
+  const [loopReady, setLoopReady] = useState(true);
+  const [isLooping, setIsLooping] = useState(false);
   useEffect(() => {
     if (!ready) return;
     const id = setInterval(() => {
@@ -199,6 +204,8 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
       setMissileAmmo(e.getMissileAmmo());
       setWarpReady(e.getWarpCooldown() <= 0);
       setIsWarping(e.isWarpActive());
+      setLoopReady(e.getLoopCooldown() <= 0);
+      setIsLooping(e.isLoopActive());
     }, 200); // 5 fps UI poll
     return () => clearInterval(id);
   }, [ready]);
@@ -936,18 +943,65 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
         </div>
       )}
 
+      {!mobile && ready && !matchResult && (
+        <button
+          onClick={handleLoop}
+          disabled={!loopReady || isDead}
+          title="Dead loop (E)"
+          style={{
+            position: 'absolute',
+            right: `calc(24px + env(safe-area-inset-right, 0px))`,
+            bottom: `calc(24px + env(safe-area-inset-bottom, 0px))`,
+            zIndex: 5,
+            pointerEvents: 'auto',
+            width: 76,
+            height: 76,
+            borderRadius: '50%',
+            background: isLooping
+              ? 'radial-gradient(circle, rgba(68,221,255,0.42), rgba(5,12,24,0.86))'
+              : 'rgba(5,12,24,0.82)',
+            border: `1px solid ${loopReady ? '#44ddff' : '#334455'}`,
+            color: loopReady ? '#aaddff' : '#556677',
+            fontFamily: 'monospace',
+            fontSize: 9,
+            letterSpacing: 1.4,
+            cursor: loopReady && !isDead ? 'pointer' : 'default',
+            boxShadow: loopReady
+              ? '0 0 18px rgba(68,221,255,0.22), inset 0 0 18px rgba(68,221,255,0.08)'
+              : 'none',
+            opacity: isDead ? 0.35 : 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+          }}
+        >
+          <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke={loopReady ? '#44ddff' : '#556677'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 18C7 10 15 6 21 10C27 14 24 24 16 24" />
+            <path d="M16 24L20 20M16 24L21 27" />
+            <path d="M9 17L5 13M9 17L4 19" />
+          </svg>
+          <span>{isLooping ? 'LOOP' : loopReady ? 'E LOOP' : 'WAIT'}</span>
+        </button>
+      )}
+
       {/* Mobile joysticks */}
       {mobile && ready && (
         <ArenaLandscapeControls
           onMove={handleMove}
           onAim={handleAim}
           onDash={handleDash}
+          onLoop={handleLoop}
           onFireMissile={handleFireMissile}
           onGravPush={handleGravPush}
           onVertical={handleVertical}
           onSector={handleSector}
+          allowLoop
           missileAmmo={missileAmmo}
           warpReady={warpReady}
+          loopReady={loopReady}
+          isLooping={isLooping}
           needRotate={needRotate}
         />
       )}
@@ -976,6 +1030,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
             ['LMB', 'WARP'],
             ['RMB', 'MISSILE'],
             ['SPACE / SHIFT', 'BACKUP'],
+            ['E', 'DEAD LOOP'],
             ['TAB', 'ROLL'],
           ].map(([keysLabel, action]) => (
             <div key={action} style={{ display: 'grid', gridTemplateColumns: '92px 1fr', alignItems: 'center', gap: 9 }}>

@@ -19,6 +19,8 @@ import {
   type CustomShip,
   type ShipStatusResponse,
 } from '../../../api/ship-api.js';
+import { PremiumHelpButton } from '../PremiumHelp.js';
+import { trackPaidFeatureOrder } from '../../../analytics/firebase-analytics.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -369,6 +371,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
         onQuarksChanged?.(response.newBalance);
       }
       if (!response.shipId) throw new Error('Missing ship id');
+      trackPaidFeatureOrder('custom_ship', CUSTOM_SHIP_COST, { ship_id: response.shipId });
       setShipDesignStatus('generating');
       setShipDesignProgress(10);
       setShipDesignMessage(t('hangar.ship_design.status_concept' as Parameters<typeof t>[0]));
@@ -763,27 +766,33 @@ export const HangarPage: React.FC<HangarPageProps> = ({
           })}
         </div>
 
-        <button
-          style={{
-            ...S.customShipCta,
-            opacity: mounted ? 1 : 0,
-            transform: mounted ? 'translateY(0)' : 'translateY(14px)',
-          }}
-          onClick={handleCustomShipOrder}
-        >
-          <span style={S.customShipCtaIcon}>
-            <span style={S.customShipCtaGlyph}><ShipGlyph color="#c6dbf2" /></span>
-            <span style={S.customPlus}>+</span>
-          </span>
-          <span style={S.customShipCtaText}>
-            <strong>{t('hangar.ship.custom_3d')}</strong>
-            <small>{t('hangar.ship.custom_hint' as Parameters<typeof t>[0])}</small>
-          </span>
-          <span style={S.customShipCtaCost}>
-            {CUSTOM_SHIP_COST}
-            <QuarkIcon />
-          </span>
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button
+            style={{
+              ...S.customShipCta,
+              opacity: mounted ? 1 : 0,
+              transform: mounted ? 'translateY(0)' : 'translateY(14px)',
+              paddingRight: 50,
+            }}
+            onClick={handleCustomShipOrder}
+          >
+            <span style={S.customShipCtaIcon}>
+              <span style={S.customShipCtaGlyph}><ShipGlyph color="#c6dbf2" /></span>
+              <span style={S.customPlus}>+</span>
+            </span>
+            <span style={S.customShipCtaText}>
+              <strong>{t('hangar.ship.custom_3d')}</strong>
+              <small>{t('hangar.ship.custom_hint' as Parameters<typeof t>[0])}</small>
+            </span>
+            <span style={S.customShipCtaCost}>
+              {CUSTOM_SHIP_COST}
+              <QuarkIcon />
+            </span>
+          </button>
+          <div style={{ position: 'absolute', top: 12, right: 12 }}>
+            <PremiumHelpButton helpId="custom-ship" />
+          </div>
+        </div>
 
         {/* ── Controls panel (desktop only) ─────────────────────── */}
         {!isMobile && (
@@ -943,7 +952,10 @@ function ShipDesignModal({
             <div style={S.modalKicker}>{t('hangar.ship_design.kicker' as Parameters<typeof t>[0])}</div>
             <div style={S.modalTitle}>{t('hangar.ship_design.title' as Parameters<typeof t>[0])}</div>
           </div>
-          <button style={S.modalClose} onClick={onClose}>X</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <PremiumHelpButton helpId="custom-ship" />
+            <button style={S.modalClose} onClick={onClose}>X</button>
+          </div>
         </div>
 
         <div style={S.modalBody}>

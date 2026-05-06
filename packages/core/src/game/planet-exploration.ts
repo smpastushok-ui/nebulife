@@ -222,7 +222,13 @@ export function canStartPlanetMission(params: {
   researchDataCost?: number;
 }): PlanetMissionStartCheck {
   const targetRevealLevel = getTargetRevealLevel(params.type);
-  if (params.revealLevel >= targetRevealLevel) return { canStart: false, reason: 'already_revealed' };
+  const isSupplementalDroneRecon = params.type === 'drone_recon';
+  if (!isSupplementalDroneRecon && params.revealLevel >= targetRevealLevel) {
+    return { canStart: false, reason: 'already_revealed' };
+  }
+  if (isSupplementalDroneRecon && params.revealLevel >= 3) {
+    return { canStart: false, reason: 'already_revealed' };
+  }
   if (params.activeMissions.some((m) => m.planetId === params.planet.id && m.status !== 'completed' && m.status !== 'report_ready')) {
     return { canStart: false, reason: 'active_mission' };
   }

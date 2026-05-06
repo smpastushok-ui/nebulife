@@ -294,13 +294,27 @@ export class ArenaEngine {
   private readonly WARP_COOLDOWN = 8;
   private warpCooldownTimer = 0;
 
+  // Loop maneuver — vertical Immelmann turn with warp acceleration.
+  // 1.2s animation: forward warp + nose pitches up over the top, then the
+  // ship's heading is flipped 180° on landing so the player ends up facing
+  // back the way they came — useful when someone is on your tail.
+  // Brief invulnerability covers the whole loop.
+  private loopActive = false;
+  private loopTimer = 0;
+  private loopCooldown = 0;
+  private readonly LOOP_DURATION = 1.2;
+  private readonly LOOP_COOLDOWN = 14;
+  private readonly LOOP_SPEED_MULT = 2.35;
+  private loopStartYaw = 0;
+  private loopStartPitch = 0;
+
   // Power-ups (collectable map orbs with 10s buffs)
-  private powerUps: { id: number; type: PowerUpType; x: number; z: number; mesh: THREE.Mesh; pulsePhase: number }[] = [];
+  private powerUps: { id: number; type: PowerUpType; x: number; y: number; z: number; mesh: THREE.Mesh; pulsePhase: number }[] = [];
   private powerUpCounter = 0;
-  private powerUpSpawnTimer = 5; // first spawn after 5s
-  private readonly POWERUP_SPAWN_INTERVAL = 15;
-  private readonly MAX_POWERUPS = 5;
-  private readonly POWERUP_COLLECT_RADIUS = 30;
+  private powerUpSpawnTimer = 3; // first spawn after 3s
+  private readonly POWERUP_SPAWN_INTERVAL = 4;  // dense arena: map should always have visible bonuses
+  private readonly MAX_POWERUPS = 16;
+  private readonly POWERUP_COLLECT_RADIUS = 110; // large enough to grab at dogfight speed
   private readonly POWERUP_BUFF_DURATION_MS = 10000; // 10s
   private readonly POWERUP_SHIELD_HP = 50;
   private readonly POWERUP_COLORS: Record<PowerUpType, number> = {
@@ -314,10 +328,10 @@ export class ArenaEngine {
   // Health pickups — green cross, +30 HP
   private healthPickups: { id: number; x: number; y: number; z: number; mesh: THREE.Group; respawnTimer: number; active: boolean }[] = [];
   private healthPickupCounter = 0;
-  private readonly HEALTH_PICKUP_COUNT = 5;
+  private readonly HEALTH_PICKUP_COUNT = 14;     // more health on the map
   private readonly HEALTH_PICKUP_HEAL = 30;
-  private readonly HEALTH_PICKUP_RESPAWN = 15; // seconds
-  private readonly HEALTH_PICKUP_RADIUS = 25;
+  private readonly HEALTH_PICKUP_RESPAWN = 6;    // respawns faster after pickup
+  private readonly HEALTH_PICKUP_RADIUS = 85;    // easier to grab in a flyby
 
   // Active player buffs from collected power-ups
   private playerBuffs: { type: PowerUpType; expiresAt: number }[] = [];
@@ -516,7 +530,7 @@ export class ArenaEngine {
       'w', 'a', 's', 'd',
       'ц', 'ф', 'і', 'в',
       'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
-      ' ', 'shift', 'tab',
+      ' ', 'shift', 'tab', 'e', 'у',
     ].includes(key);
   }
 
@@ -526,6 +540,7 @@ export class ArenaEngine {
       case 'KeyA': return 'a';
       case 'KeyS': return 's';
       case 'KeyD': return 'd';
+      case 'KeyE': return 'e';
       default: return e.key.toLowerCase();
     }
   }
@@ -540,6 +555,7 @@ export class ArenaEngine {
     if (wasPressed || this.playerDead) return;
     if (key === ' ' || key === 'shift') this.triggerDash();
     if (key === 'tab') this.triggerBarrelRoll();
+    if (key === 'e' || key === 'у') this.triggerLoop();
   }
 
   private onKeyUp(e: KeyboardEvent): void {
@@ -703,9 +719,9 @@ export class ArenaEngine {
 
   /** Left-stick sector dispatch. Called every frame the stick is held.
    *  Triggers continuous (laser) and rate-limited (missile) weapons. */
-  private _mobileSector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity' = 'center';
+  private _mobileSector: 'center' | 'missile' | 'warp' | 'dodge' | 'loop' | 'gravity' = 'center';
   private _missileSectorTimer = 0;
-  setMobileSector(sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity'): void {
+  setMobileSector(sector: 'center' | 'missile' | 'warp' | 'dodge' | 'loop' | 'gravity'): void {
     const prev = this._mobileSector;
     this._mobileSector = sector;
     // Missile: edge-trigger on enter + repeat every 2s while held.
@@ -721,6 +737,8 @@ export class ArenaEngine {
     if (sector === 'warp' && prev !== 'warp') this.triggerDash();
     // Dodge: edge-trigger on enter only.
     if (sector === 'dodge' && prev !== 'dodge') this.triggerBarrelRoll();
+    // Loop: edge-trigger on enter only.
+    if (sector === 'loop' && prev !== 'loop') this.triggerLoop();
     // Gravity push: edge-trigger on enter only.
     if (sector === 'gravity' && prev !== 'gravity') this.triggerGravPush();
   }
@@ -750,6 +768,30 @@ export class ArenaEngine {
       performance.now() + this.BARREL_ROLL_DURATION * 1000,
     );
     playSfx('arena-warp', 0.1);
+  }
+
+  /**
+   * Dead loop / Immelmann turn — a warp-assisted vertical reversal.
+   * The ship climbs through the top of the loop, flips heading 180 degrees,
+   * and exits facing the pursuer. Invulnerable during the maneuver so it is
+   * a real counterplay button when someone is shooting from behind.
+   */
+  triggerLoop(): void {
+    if (this.playerDead) return;
+    if (this.loopCooldown > 0 || this.loopActive) return;
+    const currentPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
+    this.loopStartYaw = Math.atan2(this.aimDirX, -this.aimDirZ);
+    this.loopStartPitch = currentPitch;
+    this.loopActive = true;
+    this.loopTimer = this.LOOP_DURATION;
+    this.loopCooldown = this.LOOP_COOLDOWN;
+    this.warpActive = false;
+    this.warpTimer = 0;
+    this.invulnerableUntil = Math.max(
+      this.invulnerableUntil,
+      performance.now() + this.LOOP_DURATION * 1000,
+    );
+    playSfx('arena-warp', 0.18, 0.82);
   }
 
   /** Gravity push — shove nearest asteroid in front of ship at 2x ship speed */
@@ -1393,7 +1435,9 @@ export class ArenaEngine {
     // InstancedMesh carries a single geometry; per-bullet orientation is
     // written via setMatrixAt each frame (see updateBullets).
     // Bullets are additive-blended and emissive-bright (no lighting).
-    const geo = new THREE.CylinderGeometry(0.5, 0.5, 12, 6);
+    // Open-ended beam avoids the dark 6-sided cap that could face the camera
+    // and look like a scaling black hexagonal hole during high-speed turns.
+    const geo = new THREE.CylinderGeometry(0.5, 0.5, 12, 12, 1, true);
     // Rotate so the cylinder extends along +Z (forward); then per-frame we
     // orient via rotation.y. After this bake, local +Z = beam length.
     geo.rotateX(Math.PI / 2);
@@ -1507,6 +1551,7 @@ export class ArenaEngine {
         }
         this.updateDeathRespawn(dt);
         this.updateWarp(dt);
+        this.updateLoop(dt);
         if (!this.playerDead) {
           this.updatePlayer(dt);
           this.updateAim(dt);
@@ -1557,7 +1602,7 @@ export class ArenaEngine {
     // centered even when the camera is still catching up behind the ship.
     // Warp widens FOV + pushes camera farther back for speed-sense.
     const speed = Math.sqrt(this.playerVelX * this.playerVelX + this.playerVelZ * this.playerVelZ);
-    const maxSpd = SHIP_MAX_SPEED * this.playerSpeedMult * (this.warpActive ? this.WARP_SPEED_MULT : 1);
+    const maxSpd = SHIP_MAX_SPEED * this.playerSpeedMult * (this.loopActive ? this.LOOP_SPEED_MULT : this.warpActive ? this.WARP_SPEED_MULT : 1);
     const speedRatio = Math.min(1, speed / (maxSpd > 0 ? maxSpd : SHIP_MAX_SPEED));
 
     // Smooth chase cam — follow the ship nose with a light inertial delay so
@@ -1575,7 +1620,7 @@ export class ArenaEngine {
     // Plus a gentle "breathe": camera sits at rest distance when ship is
     // idle and pulls back proportional to speed so acceleration reads as
     // the world receding, not just the starfield streaking.
-    const warpFactor = this.warpActive ? 1.0 : 0;
+    const warpFactor = this.loopActive ? 1.25 : this.warpActive ? 1.0 : 0;
     const speedBreathe = Math.min(1, speedRatio * 1.2);
     const behindDist = CAMERA_BEHIND - 5 + speedBreathe * 15 + warpFactor * 10;
     const upDist = CAMERA_UP + speedBreathe * 2 + warpFactor * 2;
@@ -1725,9 +1770,12 @@ export class ArenaEngine {
     this.playerVelY *= SHIP_DRAG;
     this.playerVelZ *= SHIP_DRAG;
 
-    // Warp: override velocity to full aim direction at 2x speed (3D now)
-    if (this.warpActive) {
-      const warpSpeed = SHIP_MAX_SPEED * this.WARP_SPEED_MULT * this.playerSpeedMult;
+    // Warp / loop: override velocity to full aim direction at boosted speed.
+    // During loop the aim vector is scripted in updateAim/updateLoop, creating
+    // a smooth climb-over-and-reverse instead of a flat instant 180.
+    if (this.warpActive || this.loopActive) {
+      const boost = this.loopActive ? this.LOOP_SPEED_MULT : this.WARP_SPEED_MULT;
+      const warpSpeed = SHIP_MAX_SPEED * boost * this.playerSpeedMult;
       this.playerVelX = this.aimDirX * warpSpeed;
       this.playerVelY = this.aimDirY * warpSpeed;
       this.playerVelZ = this.aimDirZ * warpSpeed;
@@ -1735,8 +1783,9 @@ export class ArenaEngine {
 
     // Clamp horizontal speed (XZ only — vertical clamped separately with a
     // lower cap so the ship can't instantly shoot up or down).
-    const maxSpd = this.warpActive
-      ? SHIP_MAX_SPEED * this.WARP_SPEED_MULT * this.playerSpeedMult
+    const boostMult = this.loopActive ? this.LOOP_SPEED_MULT : this.warpActive ? this.WARP_SPEED_MULT : 1;
+    const maxSpd = boostMult > 1
+      ? SHIP_MAX_SPEED * boostMult * this.playerSpeedMult
       : SHIP_MAX_SPEED * this.playerSpeedMult;
     const speed = Math.sqrt(this.playerVelX ** 2 + this.playerVelZ ** 2);
     if (speed > maxSpd) {
@@ -1863,7 +1912,22 @@ export class ArenaEngine {
   private updateAim(dt: number): void {
     const prevAngle = this.playerAimAngle;
 
-    if (this.isMobile || this.hasKeyboardAimInput()) {
+    if (this.loopActive) {
+      const p = 1 - this.loopTimer / this.LOOP_DURATION;
+      const eased = p * p * (3 - 2 * p);
+      const yaw = this.loopStartYaw + Math.PI * eased;
+      const loopArc = Math.sin(p * Math.PI);
+      const pitch = Math.max(
+        -this.MAX_PITCH,
+        Math.min(this.MAX_PITCH, this.loopStartPitch * (1 - eased) - 0.22 * eased + loopArc * 1.05),
+      );
+      const cp = Math.cos(pitch);
+      this.aimDirX = Math.sin(yaw) * cp;
+      this.aimDirY = Math.sin(pitch);
+      this.aimDirZ = -Math.cos(yaw) * cp;
+      this.shipRoll = Math.sin(p * Math.PI * 2) * 0.55;
+      this.mouseTargetReady = false;
+    } else if (this.isMobile || this.hasKeyboardAimInput()) {
       // Flight-sim right stick:
       //   X  → ROLL (bank) rate — stick right banks right wing down.
       //   Y  → PITCH rate — stick forward (up on screen, mobilePitchRate<0)
@@ -2741,17 +2805,17 @@ export class ArenaEngine {
   private setupHealthPickups(): void {
     for (let i = 0; i < this.HEALTH_PICKUP_COUNT; i++) {
       const group = new THREE.Group();
-      // Horizontal bar
-      const hGeo = new THREE.PlaneGeometry(10, 3);
+      // Horizontal bar — 4x larger so it reads as a real medkit cross.
+      const hGeo = new THREE.PlaneGeometry(40, 12);
       hGeo.rotateX(-Math.PI / 2);
       const mat = new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
       group.add(new THREE.Mesh(hGeo, mat));
-      // Vertical bar
-      const vGeo = new THREE.PlaneGeometry(3, 10);
+      // Vertical bar — 4x larger (was 3x10).
+      const vGeo = new THREE.PlaneGeometry(12, 40);
       vGeo.rotateX(-Math.PI / 2);
       group.add(new THREE.Mesh(vGeo, mat));
-      // Glow halo
-      const haloGeo = new THREE.CircleGeometry(8, 16);
+      // Glow halo — 4x larger (was r=8).
+      const haloGeo = new THREE.CircleGeometry(32, 24);
       haloGeo.rotateX(-Math.PI / 2);
       const haloMat = new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false });
       group.add(new THREE.Mesh(haloGeo, haloMat));
@@ -2833,8 +2897,9 @@ export class ArenaEngine {
     const type = types[Math.floor(Math.random() * types.length)];
     const color = this.POWERUP_COLORS[type];
 
-    // Glowing core sphere
-    const coreGeo = new THREE.SphereGeometry(6, 14, 10);
+    // Glowing core sphere — ~4x bigger than before (was r=6) so the orb is
+    // visible at distance and easy to spot in dogfights.
+    const coreGeo = new THREE.SphereGeometry(28, 24, 18);
     const coreMat = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
@@ -2845,8 +2910,8 @@ export class ArenaEngine {
     this.disposables.push(coreGeo, coreMat);
     const mesh = new THREE.Mesh(coreGeo, coreMat);
 
-    // Outer halo (additive, larger, dimmer)
-    const haloGeo = new THREE.SphereGeometry(11, 14, 10);
+    // Outer halo (additive, larger, dimmer) — also ~4x (was r=11)
+    const haloGeo = new THREE.SphereGeometry(58, 24, 18);
     const haloMat = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
@@ -2863,13 +2928,15 @@ export class ArenaEngine {
     const angle = Math.random() * Math.PI * 2;
     const x = Math.cos(angle) * r;
     const z = Math.sin(angle) * r;
-    mesh.position.set(x, 10, z);
+    const y = (Math.random() * 2 - 1) * (ARENA_HEIGHT_HALF * 0.55);
+    mesh.position.set(x, y, z);
     this.scene.add(mesh);
 
     this.powerUps.push({
       id: this.powerUpCounter++,
       type,
       x,
+      y,
       z,
       mesh,
       pulsePhase: Math.random() * Math.PI * 2,
@@ -2889,7 +2956,7 @@ export class ArenaEngine {
       pu.pulsePhase += dt * 3;
       const pulse = 1 + Math.sin(pu.pulsePhase) * 0.18;
       pu.mesh.scale.set(pulse, pulse, pulse);
-      pu.mesh.position.y = 10 + Math.sin(pu.pulsePhase * 0.7) * 3;
+      pu.mesh.position.y = pu.y + Math.sin(pu.pulsePhase * 0.7) * 5;
       pu.mesh.rotation.y += dt * 1.5;
     }
 
@@ -2898,8 +2965,9 @@ export class ArenaEngine {
       for (let i = this.powerUps.length - 1; i >= 0; i--) {
         const pu = this.powerUps[i];
         const dx = this.playerPos.x - pu.x;
+        const dy = this.playerPos.y - pu.y;
         const dz = this.playerPos.z - pu.z;
-        if (dx * dx + dz * dz < this.POWERUP_COLLECT_RADIUS * this.POWERUP_COLLECT_RADIUS) {
+        if (dx * dx + dy * dy + dz * dz < this.POWERUP_COLLECT_RADIUS * this.POWERUP_COLLECT_RADIUS) {
           this.collectPowerUp(i);
         }
       }
@@ -2912,8 +2980,9 @@ export class ArenaEngine {
         for (let i = this.powerUps.length - 1; i >= 0; i--) {
           const pu = this.powerUps[i];
           const dx = bot.pos.x - pu.x;
+          const dy = bot.pos.y - pu.y;
           const dz = bot.pos.z - pu.z;
-          if (dx * dx + dz * dz < this.POWERUP_COLLECT_RADIUS * this.POWERUP_COLLECT_RADIUS) {
+          if (dx * dx + dy * dy + dz * dz < this.POWERUP_COLLECT_RADIUS * this.POWERUP_COLLECT_RADIUS) {
             // Simplified bot buff: only apply HEALTH and SHIELD healing
             if (pu.type === 'HEALTH') {
               bot.hp = Math.min(bot.maxHp, bot.hp + 30);
@@ -3414,6 +3483,27 @@ export class ArenaEngine {
     }
   }
 
+  private updateLoop(dt: number): void {
+    this.loopCooldown = Math.max(0, this.loopCooldown - dt);
+    if (!this.loopActive) return;
+    this.loopTimer -= dt;
+    if (this.loopTimer <= 0) {
+      this.loopActive = false;
+      this.loopTimer = 0;
+      const finalYaw = this.loopStartYaw + Math.PI;
+      const finalPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, -0.22));
+      const cp = Math.cos(finalPitch);
+      this.aimDirX = Math.sin(finalYaw) * cp;
+      this.aimDirY = Math.sin(finalPitch);
+      this.aimDirZ = -Math.cos(finalYaw) * cp;
+      this.mouseTargetYaw = finalYaw;
+      this.mouseTargetPitch = finalPitch;
+      this.mouseTargetReady = true;
+      this.shipRoll = 0;
+      this.shakeAmount = Math.max(this.shakeAmount, 4);
+    }
+  }
+
   // ── VFX (hit flashes + explosions + debris) ─────────────────────────────
 
   private spawnAsteroidHitSparks(a: AsteroidDatum, x: number, y: number, z: number): void {
@@ -3752,7 +3842,7 @@ export class ArenaEngine {
     // Same cylinder-beam geometry as the player laser so bot shots look
     // like lasers too, not spheres. Colour is set per-instance via
     // setColorAt so red team fires red beams and blue team fires blue.
-    const geo = new THREE.CylinderGeometry(0.5, 0.5, 10, 6);
+    const geo = new THREE.CylinderGeometry(0.5, 0.5, 10, 12, 1, true);
     geo.rotateX(Math.PI / 2); // cylinder axis +Y → +Z so rotation.y steers yaw
     const mat = new THREE.MeshBasicMaterial({
       color: 0xffffff, // white base; per-instance color tints
@@ -5025,6 +5115,9 @@ export class ArenaEngine {
   isWarpActive(): boolean { return this.warpActive; }
   getWarpCooldown(): number { return this.warpCooldownTimer; }
   getWarpCooldownTotal(): number { return this.WARP_COOLDOWN; }
+  isLoopActive(): boolean { return this.loopActive; }
+  getLoopCooldown(): number { return this.loopCooldown; }
+  getLoopCooldownTotal(): number { return this.LOOP_COOLDOWN; }
 
   /** Normalized 0..1 player speed (capped). HUD uses it for the edge
    *  motion blur overlay so fast flight reads as speed. */

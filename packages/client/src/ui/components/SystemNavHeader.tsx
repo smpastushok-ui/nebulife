@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
+import { PremiumHelpButton } from './PremiumHelp.js';
 
 // ---------------------------------------------------------------------------
 // SystemNavHeader — Fixed top-center navigation between star systems
@@ -342,54 +343,55 @@ function TelescopeButton({ onClick, generating }: { onClick: () => void; generat
   const { t } = useTranslation();
   const [hover, setHover] = useState(false);
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      disabled={generating}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        padding: '4px 12px',
-        marginTop: 4,
-        background: hover && !generating
-          ? 'linear-gradient(135deg, rgba(42, 62, 92, 0.86), rgba(70, 45, 95, 0.78))'
-          : 'linear-gradient(135deg, rgba(10, 20, 34, 0.92), rgba(34, 24, 48, 0.88))',
-        border: '1px solid',
-        borderColor: generating ? '#446688' : hover ? '#ddaa44' : '#665522',
-        borderRadius: 4,
-        cursor: generating ? 'default' : 'pointer',
-        fontFamily: 'monospace',
-        fontSize: 10,
-        color: generating ? '#4488aa' : hover ? '#ffdda0' : '#ddaa44',
-        backdropFilter: 'blur(6px)',
-        transition: 'all 0.15s',
-        alignSelf: 'center',
-        boxShadow: hover && !generating ? '0 0 18px rgba(221, 170, 68, 0.2)' : '0 0 10px rgba(68, 136, 170, 0.12)',
-      }}
-    >
-      {/* Alpha camera aperture icon */}
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="4" width="12" height="9" rx="1.5" />
-        <path d="M5 4l1-2h4l1 2" />
-        <circle cx="8" cy="8.5" r="2.4" />
-        <path d="M8 6.1l1.9 3.6H6.1L8 6.1z" />
-      </svg>
-      <span>
-        {generating ? t('telescope.processing_panorama') : t('telescope.panorama_cost')}
-        {!generating && (
-          // Blue atom (quarks) icon — was a plain "Q" letter, visually noisy.
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.2" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 3 }}>
-            <circle cx="8" cy="8" r="1.6" fill="#7bb8ff" />
-            <ellipse cx="8" cy="8" rx="6.8" ry="2.8" />
-            <ellipse cx="8" cy="8" rx="6.8" ry="2.8" transform="rotate(60 8 8)" />
-            <ellipse cx="8" cy="8" rx="6.8" ry="2.8" transform="rotate(-60 8 8)" />
-          </svg>
-        )}
-      </span>
-    </button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, alignSelf: 'center' }}>
+      <button
+        onClick={onClick}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        disabled={generating}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          padding: '4px 12px',
+          background: hover && !generating
+            ? 'linear-gradient(135deg, rgba(42, 62, 92, 0.86), rgba(70, 45, 95, 0.78))'
+            : 'linear-gradient(135deg, rgba(10, 20, 34, 0.92), rgba(34, 24, 48, 0.88))',
+          border: '1px solid',
+          borderColor: generating ? '#446688' : hover ? '#ddaa44' : '#665522',
+          borderRadius: 4,
+          cursor: generating ? 'default' : 'pointer',
+          fontFamily: 'monospace',
+          fontSize: 10,
+          color: generating ? '#4488aa' : hover ? '#ffdda0' : '#ddaa44',
+          backdropFilter: 'blur(6px)',
+          transition: 'all 0.15s',
+          boxShadow: hover && !generating ? '0 0 18px rgba(221, 170, 68, 0.2)' : '0 0 10px rgba(68, 136, 170, 0.12)',
+        }}
+      >
+        {/* Alpha camera aperture icon */}
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="4" width="12" height="9" rx="1.5" />
+          <path d="M5 4l1-2h4l1 2" />
+          <circle cx="8" cy="8.5" r="2.4" />
+          <path d="M8 6.1l1.9 3.6H6.1L8 6.1z" />
+        </svg>
+        <span>
+          {generating ? t('telescope.processing_panorama') : t('telescope.panorama_cost')}
+          {!generating && (
+            // Blue atom (quarks) icon — was a plain "Q" letter, visually noisy.
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#7bb8ff" strokeWidth="1.2" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 3 }}>
+              <circle cx="8" cy="8" r="1.6" fill="#7bb8ff" />
+              <ellipse cx="8" cy="8" rx="6.8" ry="2.8" />
+              <ellipse cx="8" cy="8" rx="6.8" ry="2.8" transform="rotate(60 8 8)" />
+              <ellipse cx="8" cy="8" rx="6.8" ry="2.8" transform="rotate(-60 8 8)" />
+            </svg>
+          )}
+        </span>
+      </button>
+      {!generating && <PremiumHelpButton helpId="system-alpha-photo" />}
+    </div>
   );
 }
 

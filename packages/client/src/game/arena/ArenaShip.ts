@@ -50,8 +50,10 @@ async function loadShipGLB(url: string): Promise<THREE.Group> {
 export function createShipModel(): THREE.Group {
   const group = new THREE.Group();
 
-  // Hull — cone pointing forward (+Z)
-  const hullGeo = new THREE.ConeGeometry(6, 20, 6);
+  // Hull — cone pointing forward (+Z). 24 radial segments so silhouettes
+  // read as a smooth ship rather than a hexagonal prism (was 6 segments,
+  // which produced a noticeable black hexagon at distance / steep angles).
+  const hullGeo = new THREE.ConeGeometry(6, 20, 24);
   const hullMat = new THREE.MeshStandardMaterial({ color: 0x4488aa, roughness: 0.4, metalness: 0.7 });
   const hull = new THREE.Mesh(hullGeo, hullMat);
   hull.rotation.x = Math.PI / 2; // tip along +Z

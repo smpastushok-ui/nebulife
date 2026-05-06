@@ -138,6 +138,8 @@
     "hydrosphere_label": "Hydrosphere",
     "water_label": "Water",
     "ice_label": "Ice",
+    "water_liquid": "Liquid",
+    "water_ice": "Ice",
     "atmosphere_label": "Atmosphere",
     "no_resources": "No resource data available",
     "destroyed_label": "DESTROYED",
@@ -749,6 +751,9 @@
     "report_duplicate": "duplicate",
     "search_explainer": "Space research searches for unique events and objects for the catalog. Level chance: {{chance}}% at this observatory level; levels 1-5 give 10%, 20%, 30%, 35%, and 40%. Longer searches change the target rarity, and 24-hour searches never return empty.",
     "search_started": "Observatory search started. Results will arrive when the session completes.",
+    "search_started_after_ads": "3 ads watched. Observatory search started.",
+    "ad_gate_title": "Observatory ads",
+    "ad_gate_failed": "Watch 3 ads before starting the search. Premium removes this wait.",
     "search_no_signal_log": "Observatory search completed: no stable cosmic signal detected.",
     "search_found_log": "Observatory detected a new cosmic event: {{name}}.",
     "search_duplicate_log": "Observatory detected a repeated cosmic event: {{name}}.",
@@ -1472,10 +1477,20 @@
     "start_mission": "Begin Mission",
     "start_game": "START GAME",
     "syncing": "[ SYNCHRONIZING WITH COORDINATE MATRIX... ]",
-    "subtitle_1": "Millions of commanders in a shared universe.",
-    "subtitle_2": "The Nebulife galaxy -- just a grain of sand on the map of existence.",
-    "subtitle_3": "Are you ready to conquer the universe?",
+    "subtitle_1": "First, there was a point. Space had no direction, and time had no memory.",
+    "subtitle_2": "From quantum fluctuations came filaments of matter, stars, and the first galactic nodes.",
+    "subtitle_3": "Now one of those nodes opens to you. A.S.T.R.A. is locking onto your cluster.",
     "civilization_intro": "Your civilization has existed for thousands of years among the stars. But time is running out."
+  },
+  "loading": {
+    "quantum": {
+      "eyebrow": "NEBULIFE · QUANTUM SEED",
+      "title": "Birth of your cosmos",
+      "step_singularity": "t = 0 · singularity breached",
+      "step_inflation": "space is unfolding",
+      "step_web": "gravity gathers the first filaments",
+      "step_cluster": "A.S.T.R.A. synchronizing your cluster"
+    }
   },
   "gallery": {
     "discovered_count": "Discovered: {{count}} / {{total}}",
@@ -1606,7 +1621,7 @@
     "no_system_notifs": "No system notifications",
     "new_dm_btn": "+ New Conversation",
     "no_dms": "No conversations",
-    "astra_online": "A.S.T.R.A. online. Ask a question, Commander.",
+    "astra_online": "A.S.T.R.A. online. Premium channel active. Ask about Nebulife, space, missions, and colony work.",
     "astra_depleted": "Assistant depleted",
     "astra_charge_btn": "Charge assistant",
     "astra_unlock": "Unlock ($1)",
@@ -1616,7 +1631,11 @@
     "astra_charge_no_quarks": "Not enough quarks (need 50⚛)",
     "astra_charge_error": "Charge failed. Please try again.",
     "astra_placeholder": "Query A.S.T.R.A....",
+    "astra_placeholder_premium": "A.S.T.R.A. requires Premium...",
     "astra_placeholder_depleted": "A.S.T.R.A. depleted...",
+    "astra_premium_required": "A.S.T.R.A. is Premium-only. No separate charge: 10 game-themed messages per hour.",
+    "astra_hourly_messages": "{{count}}/10 messages this hour",
+    "astra_hourly_limit": "A.S.T.R.A. is depleted and recharging. The next 10 messages unlock in the next hour.",
     "weekly_digest_available": "Weekly space digest available",
     "open_digest": "Open digest",
     "you_label": "You",
@@ -1629,12 +1648,12 @@
     "search_callsign": "Search by callsign...",
     "no_results": "Nobody found",
     "pro_badge": "PRO",
-    "pro_messages_today": "{{count}}/50 messages",
-    "pro_daily_limit": "Daily limit reached. Resets tomorrow."
+    "pro_messages_today": "{{count}}/10 messages",
+    "pro_daily_limit": "A.S.T.R.A. is depleted. Return in the next hour."
   },
   "premium": {
     "title": "Premium",
-    "no_ads": "No ads · 50 daily AI chats · +5 Quarks daily",
+    "no_ads": "No ads · 10 A.S.T.R.A. messages every hour · +5 Quarks daily",
     "subscribe": "Subscribe",
     "active": "Premium active",
     "monthly": "{{price}}/month",
@@ -1650,6 +1669,121 @@
     "lifetime_price": "$59.99",
     "lifetime_save": "BEST"
   },
+  "premium_help": {
+    "common": {
+      "kicker": "Alpha / Premium explainer",
+      "before": "before",
+      "after": "after",
+      "gets": "What you get",
+      "why_paid": "Why it costs",
+      "result": "Result"
+    },
+    "system_alpha_photo": {
+      "title": "Star System Alpha Photo",
+      "short": "A photorealistic image of the system based on its generated physical parameters.",
+      "benefits": "Instead of only seeing an orbit diagram, the player receives a beautiful artifact for the gallery, viewing and sharing.",
+      "why_paid": "The image is created by external AI generation and stored as unique system content.",
+      "result": "A permanent, share-ready photo of this system in the collection."
+    },
+    "system_mission_video": {
+      "title": "System Video Mission",
+      "short": "A short cinematic mission based on the discovered star system.",
+      "benefits": "Turns exploration into a living moment: not just a catalog entry, but an event the player can watch.",
+      "why_paid": "Video needs a more expensive AI pipeline and extra result storage.",
+      "result": "A unique video artifact for this system that remains with the player."
+    },
+    "planet_skin": {
+      "title": "Planet Skin",
+      "short": "A unique AI texture mapped onto the planet in exosphere view.",
+      "benefits": "The planet becomes more than a procedural globe and gains a personal look owned by the player.",
+      "why_paid": "Each skin is generated separately and stored as a permanent visual artifact.",
+      "result": "A permanent unique exosphere look for the planet."
+    },
+    "planet_photo_exosphere": {
+      "title": "Exosphere Alpha Photo",
+      "short": "A photorealistic orbital shot of the planet.",
+      "benefits": "Shows atmosphere, stellar light, cloud forms and the overall character of the planet.",
+      "why_paid": "The frame is generated by AI from the planet physics and uses compute resources.",
+      "result": "A unique planet photo ready for gallery and sharing."
+    },
+    "planet_photo_biosphere": {
+      "title": "Biosphere Alpha Photo",
+      "short": "A photorealistic frame of a living or potentially living planetary zone.",
+      "benefits": "Helps the player see the ecosystem as a place, not only numbers in a report.",
+      "why_paid": "AI builds the scene from atmosphere, water, temperature and life signals.",
+      "result": "A permanent biosphere photo in the planet collection."
+    },
+    "planet_photo_aerial": {
+      "title": "Alpha Aerial Photo",
+      "short": "A high-altitude image showing terrain, channels, glaciers or cloud structures.",
+      "benefits": "Gives a readable visual overview of the surface after deeper exploration.",
+      "why_paid": "The frame starts a separate AI generation based on mission parameters.",
+      "result": "A unique aerial planet photo for the gallery."
+    },
+    "mission_alpha_photo": {
+      "title": "Mission Alpha Camera",
+      "short": "A premium frame generated from the results of a specific expedition.",
+      "benefits": "Turns a mission report into a beautiful artifact tied to the planet and date.",
+      "why_paid": "The frame is generated separately and stored as a personal result of this mission.",
+      "result": "The mission photo can be viewed, downloaded and shared."
+    },
+    "custom_ship": {
+      "title": "Personal 3D Ship",
+      "short": "The player describes a ship, and the system crafts a personal 3D hull.",
+      "benefits": "The ship becomes part of the hangar, arena and future fleet modes.",
+      "why_paid": "The pipeline includes prompt review, concept generation and a 3D model from an external service.",
+      "result": "A unique GLB ship attached to the player."
+    },
+    "astra_charge": {
+      "title": "A.S.T.R.A. Premium Channel",
+      "short": "A.S.T.R.A. is included with Premium and has no separate charge.",
+      "benefits": "The player gets 10 game-themed messages per hour for Nebulife, missions, colony work, and space guidance.",
+      "why_paid": "Each answer uses an AI model, so access is bundled into the Premium subscription.",
+      "result": "After the hourly limit, A.S.T.R.A. recharges until the next hour."
+    },
+    "quarks": {
+      "title": "Quarks",
+      "short": "Premium currency for AI artifacts, speed-ups and convenience actions.",
+      "benefits": "Unlock photos, skins, ships, boosts and future collectible items.",
+      "why_paid": "Quarks cover external AI services, infrastructure and premium convenience.",
+      "result": "The balance updates immediately after a successful payment or reward."
+    },
+    "premium_subscription": {
+      "title": "Premium",
+      "short": "A subscription for a more comfortable daily game.",
+      "benefits": "Fewer ads, more A.S.T.R.A. messages and a daily quark bonus.",
+      "why_paid": "The subscription supports servers, AI features and long-term development.",
+      "result": "Premium status applies to the account after purchase or restore."
+    },
+    "rewarded_ads": {
+      "title": "Rewarded Ads",
+      "short": "A way to access some premium actions without direct payment.",
+      "benefits": "The player can build progress toward a photo or quarks when ads are available on the device.",
+      "why_paid": "The advertiser offsets part of the cost instead of the player.",
+      "result": "After enough watched ads, the action starts or the reward is granted."
+    },
+    "colony_resource_boost": {
+      "title": "Colony Resource Boost",
+      "short": "Temporarily increases resource production in the selected colony.",
+      "benefits": "Helps cover shortages faster and prepare construction or expeditions.",
+      "why_paid": "This is premium convenience that saves time without changing the seed or breaking determinism.",
+      "result": "The boost lasts 24 hours only in this colony."
+    },
+    "colony_time_boost": {
+      "title": "Colony Time Boost",
+      "short": "Reduces waiting for production and colony processes.",
+      "benefits": "Useful when the player wants to reach the next development step faster.",
+      "why_paid": "This is premium time saving without selling unique planets or resource seeds.",
+      "result": "The acceleration lasts 24 hours in the selected colony."
+    },
+    "alpha_harvester": {
+      "title": "Alpha Harvester",
+      "short": "A premium building for difficult deposits and a faster extraction start.",
+      "benefits": "Gives the colony a strong local tool where the normal chain is still slow.",
+      "why_paid": "It is a high-level convenience with a quark price that does not replace the base economy.",
+      "result": "The building appears on the selected hex and works as part of the colony."
+    }
+  },
   "mission_report": {
     "atmosphere_title": "Atmosphere Research 100%",
     "surface_title": "Surface Research 100%",
@@ -1659,6 +1793,7 @@
     "action_rover_photo": "Take photo from rover",
     "action_drone_photo": "Take photo from drone",
     "action_alpha_photo": "Alpha Camera — {{cost}}⚛",
+    "action_alpha_replace": "Replace Alpha photo — {{cost}}⚛",
     "procedural_photo_desc": "Black-and-white instrument photo generated from mission data.",
     "alpha_photo_desc": "Photorealistic photo grounded in this report.",
     "photo_saving": "Saving photo...",

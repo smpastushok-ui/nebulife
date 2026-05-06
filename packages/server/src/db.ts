@@ -43,6 +43,12 @@ export interface PlayerRow {
   last_digest_seen: string | null;
   cluster_id: string | null;
   avatar_url: string | null;
+  premium_active: boolean;
+  premium_expires_at: string | null;
+  premium_product_id: string | null;
+  premium_source: string | null;
+  premium_updated_at: string | null;
+  premium_daily_quarks_claimed_on: string | null;
 }
 
 /** Starter wallet for new players. 30⚛ — first photo is FREE (handled in
@@ -75,6 +81,56 @@ export async function getPlayer(playerId: string): Promise<PlayerRow | null> {
   const sql = getSQL();
   const rows = await sql`SELECT * FROM players WHERE id = ${playerId}`;
   return (rows[0] as PlayerRow) ?? null;
+}
+
+export interface PremiumStatus {
+  active: boolean;
+  expiresAt: string | null;
+  productId: string | null;
+  source: string | null;
+  updatedAt: string | null;
+}
+
+function rowToPremiumStatus(row: PlayerRow | null): PremiumStatus {
+  if (!row) {
+    return { active: false, expiresAt: null, productId: null, source: null, updatedAt: null };
+  }
+  const active = row.premium_active === true
+    && (!row.premium_expires_at || new Date(row.premium_expires_at).getTime() > Date.now());
+  return {
+    active,
+    expiresAt: row.premium_expires_at,
+    productId: row.premium_product_id,
+    source: row.premium_source,
+    updatedAt: row.premium_updated_at,
+  };
+}
+
+export async function getPremiumStatus(playerId: string): Promise<PremiumStatus> {
+  return rowToPremiumStatus(await getPlayer(playerId));
+}
+
+export async function updatePlayerPremium(
+  playerId: string,
+  status: {
+    active: boolean;
+    expiresAt?: string | null;
+    productId?: string | null;
+    source: string;
+  },
+): Promise<PremiumStatus> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET premium_active = ${status.active},
+        premium_expires_at = ${status.expiresAt ?? null},
+        premium_product_id = ${status.productId ?? null},
+        premium_source = ${status.source},
+        premium_updated_at = NOW()
+    WHERE id = ${playerId}
+    RETURNING *
+  `;
+  return rowToPremiumStatus((rows[0] as PlayerRow) ?? null);
 }
 
 export async function updatePlayer(
@@ -755,6 +811,47 @@ export async function creditQuarks(
     RETURNING *
   `;
   return rows[0] as PlayerRow;
+}
+
+export async function claimPremiumDailyQuarks(
+  playerId: string,
+  amount: number,
+): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET quarks = quarks + ${amount},
+        premium_daily_quarks_claimed_on = CURRENT_DATE
+    WHERE id = ${playerId}
+      AND premium_active = TRUE
+      AND (premium_expires_at IS NULL OR premium_expires_at > NOW())
+      AND (premium_daily_quarks_claimed_on IS NULL OR premium_daily_quarks_claimed_on < CURRENT_DATE)
+    RETURNING *
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+export async function countMessagesSince(
+  channel: string,
+  since: string,
+  senderId?: string,
+): Promise<number> {
+  const sql = getSQL();
+  const rows = senderId
+    ? await sql`
+        SELECT COUNT(*)::int AS count
+        FROM messages
+        WHERE channel = ${channel}
+          AND sender_id = ${senderId}
+          AND created_at >= ${since}
+      `
+    : await sql`
+        SELECT COUNT(*)::int AS count
+        FROM messages
+        WHERE channel = ${channel}
+          AND created_at >= ${since}
+      `;
+  return Number((rows[0] as { count?: number | string } | undefined)?.count ?? 0);
 }
 
 /** Atomic increment of game_state.researchData (stored inside the JSONB blob).

@@ -11,7 +11,7 @@ import {
   type MessageData,
   type DMChannelInfo,
 } from '../../api/messages-api.js';
-import { askAstra, topupAstraTokens, type AstraMessage, type AstraResponse } from '../../api/ai-api.js';
+import { askAstra, type AstraMessage } from '../../api/ai-api.js';
 import { NewDMModal } from './NewDMModal.js';
 import type { LogEntry, LogCategory } from './CosmicArchive/SystemLog.js';
 
@@ -55,6 +55,7 @@ interface ChatWidgetProps {
   onSystemNotifRead?: (id: string) => void;
   onNavigateToPlanet?: (systemId: string, planetId: string) => void;
   onNavigateToSystem?: (systemId: string) => void;
+  onOpenPlanetMissionReport?: (systemId: string, planetId: string) => void;
   onOpenSystemReport?: (systemId: string) => void;
   onOpenLogDiscovery?: (entry: LogEntry) => void;
   /** week_date of the most recently seen digest (from player.last_digest_seen) */
@@ -72,6 +73,8 @@ interface ChatWidgetProps {
   playerLevel?: number;
   /** When true, force the widget into collapsed state (e.g. while tutorial is active). */
   forceCollapsed?: boolean;
+  /** Premium unlock state for A.S.T.R.A. chat. */
+  isPremium?: boolean;
 }
 
 type Tab = 'global' | 'dm-list' | 'dm-chat' | 'system' | 'astra';
@@ -122,7 +125,7 @@ const CHAT_PULSE_KEYFRAMES = `
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenSystemReport, onOpenLogDiscovery, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, isPremium = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [viewport, setViewport] = useState(() => ({
@@ -206,23 +209,19 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   const [astraMessages, setAstraMessages] = useState<MessageData[]>([]);
   const [astraInput, setAstraInput] = useState('');
   const [astraLoading, setAstraLoading] = useState(false);
-  const [astraLimitReached, setAstraLimitReached] = useState(false);
-  const [astraTokensRemaining, setAstraTokensRemaining] = useState<number | null>(null);
   const astraEndRef = useRef<HTMLDivElement>(null);
-
-  // Pro subscriber state
-  const isPremium = localStorage.getItem('nebulife_premium') === '1';
-  const PRO_DAILY_LIMIT = 50;
-
-  // Compute Pro daily message count from localStorage
-  const getProMsgsToday = (): number => {
-    const today = new Date().toISOString().slice(0, 10);
-    const savedDate = localStorage.getItem('nebulife_pro_msgs_date');
-    if (savedDate !== today) return 0;
-    return parseInt(localStorage.getItem('nebulife_pro_msgs_today') ?? '0', 10);
-  };
-  const [proMsgsToday, setProMsgsToday] = useState<number>(() => getProMsgsToday());
-  const proLimitReached = isPremium && proMsgsToday >= PRO_DAILY_LIMIT;
+  const ASTRA_HOURLY_LIMIT = 10;
+  const astraHourKey = useCallback(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2, '0')}`;
+  }, []);
+  const getAstraMsgsThisHour = useCallback((): number => {
+    const savedHour = localStorage.getItem('nebulife_astra_msgs_hour');
+    if (savedHour !== astraHourKey()) return 0;
+    return parseInt(localStorage.getItem('nebulife_astra_msgs_this_hour') ?? '0', 10);
+  }, [astraHourKey]);
+  const [astraMsgsThisHour, setAstraMsgsThisHour] = useState<number>(() => getAstraMsgsThisHour());
+  const astraLimitReached = isPremium && astraMsgsThisHour >= ASTRA_HOURLY_LIMIT;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
@@ -322,6 +321,13 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     iv = setInterval(fetchSysMsgs, 10000);
     return () => { if (iv) clearInterval(iv); };
   }, [collapsed, tab, playerId]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setAstraMsgsThisHour(getAstraMsgsThisHour());
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, [getAstraMsgsThisHour]);
 
   // Fetch A.S.T.R.A. conversation history from DB
   useEffect(() => {
@@ -526,16 +532,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   // A.S.T.R.A. send (with optimistic update for instant feedback)
   const handleAstraSend = async () => {
     const text = astraInput.trim();
-    // Block if: no text, loading, free limit reached, or pro daily limit reached
-    if (!text || astraLoading || astraLimitReached || proLimitReached) return;
+    if (!text || astraLoading || !isPremium || astraLimitReached) return;
 
-    // Pro: increment daily message counter before sending
-    if (isPremium) {
-      const today = new Date().toISOString().slice(0, 10);
-      const newCount = proMsgsToday + 1;
-      localStorage.setItem('nebulife_pro_msgs_today', String(newCount));
-      localStorage.setItem('nebulife_pro_msgs_date', today);
-      setProMsgsToday(newCount);
+    const currentCount = getAstraMsgsThisHour();
+    if (currentCount >= ASTRA_HOURLY_LIMIT) {
+      setAstraMsgsThisHour(currentCount);
+      return;
     }
 
     setAstraInput('');
@@ -554,14 +556,11 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     setAstraMessages(prev => [...prev, userMsg]);
 
     try {
-      const resp = await askAstra(text, isPremium);
-      // For free users: track token remaining
-      if (!isPremium) {
-        setAstraTokensRemaining(resp.tokensRemaining);
-        if (resp.limitReached) {
-          setAstraLimitReached(true);
-        }
-      }
+      const resp = await askAstra(text);
+      const nextCount = resp.hourlyMessagesUsed ?? (currentCount + 1);
+      localStorage.setItem('nebulife_astra_msgs_hour', astraHourKey());
+      localStorage.setItem('nebulife_astra_msgs_this_hour', String(Math.min(nextCount, ASTRA_HOURLY_LIMIT)));
+      setAstraMsgsThisHour(Math.min(nextCount, ASTRA_HOURLY_LIMIT));
       // Show Astra response immediately (optimistic)
       const astraMsg: MessageData = {
         id: `tmp_${Date.now() + 1}`,
@@ -574,48 +573,22 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
       setAstraMessages(prev => [...prev, astraMsg]);
       // Background sync with DB to get real IDs
       getMessages(`astra:${playerId}`, 40).then(msgs => setAstraMessages(msgs)).catch(() => {});
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error && err.message.includes('premium_required')
+        ? t('chat.astra_premium_required')
+        : 'A.S.T.R.A. offline. Помилка зв\'язку з сервером.';
       // Show error as Astra message so user sees feedback
       const errMsg: MessageData = {
         id: `tmp_${Date.now() + 1}`,
         sender_id: 'astra',
         sender_name: 'A.S.T.R.A.',
         channel: `astra:${playerId}`,
-        content: 'A.S.T.R.A. offline. Помилка зв\'язку з сервером.',
+        content: message,
         created_at: new Date().toISOString(),
       };
       setAstraMessages(prev => [...prev, errMsg]);
     } finally {
       setAstraLoading(false);
-    }
-  };
-
-  // A.S.T.R.A. charge via quarks (50Q -> 1,000,000 tokens)
-  const [astraCharging, setAstraCharging] = useState(false);
-  const [astraChargeMsg, setAstraChargeMsg] = useState<{ text: string; ok: boolean } | null>(null);
-
-  const handleAstraTopup = async () => {
-    if (astraCharging) return;
-    setAstraCharging(true);
-    setAstraChargeMsg(null);
-    try {
-      const result = await topupAstraTokens(playerId);
-      if (result.success) {
-        setAstraLimitReached(false);
-        setAstraTokensRemaining((prev) => (prev ?? 0) + result.tokensGranted);
-        setAstraChargeMsg({ text: t('chat.astra_charge_success'), ok: true });
-        setTimeout(() => setAstraChargeMsg(null), 3000);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('insufficient_quarks')) {
-        setAstraChargeMsg({ text: t('chat.astra_charge_no_quarks'), ok: false });
-      } else {
-        setAstraChargeMsg({ text: t('chat.astra_charge_error'), ok: false });
-      }
-      setTimeout(() => setAstraChargeMsg(null), 3000);
-    } finally {
-      setAstraCharging(false);
     }
   };
 
@@ -1001,6 +974,18 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                     {notif.text}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {onOpenPlanetMissionReport && (
+                      <button
+                        onClick={() => {
+                          onSystemNotifRead?.(notif.id);
+                          onOpenPlanetMissionReport(notif.systemId, notif.planetId);
+                          setCollapsed(true);
+                        }}
+                        style={SYSTEM_ACTION_BUTTON_STYLE}
+                      >
+                        {t('chat.view_report')}
+                      </button>
+                    )}
                     {onNavigateToSystem && (
                       <button
                         onClick={() => {
@@ -1011,18 +996,6 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                         style={SYSTEM_ACTION_BUTTON_STYLE}
                       >
                         {t('chat.go_to_system')}
-                      </button>
-                    )}
-                    {onNavigateToPlanet && (
-                      <button
-                        onClick={() => {
-                          onSystemNotifRead?.(notif.id);
-                          onNavigateToPlanet(notif.systemId, notif.planetId);
-                          setCollapsed(true);
-                        }}
-                        style={SYSTEM_ACTION_BUTTON_STYLE}
-                      >
-                        {t('chat.go_to_planet')}
                       </button>
                     )}
                   </div>
@@ -1076,6 +1049,17 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                       </div>
                       {(entry.systemId || (entry.systemId && entry.planetId) || entry.discoveryRef) && (
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {entry.objectType === 'planet_mission_report' && entry.systemId && entry.planetId && onOpenPlanetMissionReport && (
+                            <button
+                              onClick={() => {
+                                onOpenPlanetMissionReport(entry.systemId!, entry.planetId!);
+                                setCollapsed(true);
+                              }}
+                              style={SYSTEM_ACTION_BUTTON_STYLE}
+                            >
+                              {t('chat.view_report')}
+                            </button>
+                          )}
                           {entry.systemId && onNavigateToSystem && (
                             <button
                               onClick={() => {
@@ -1085,17 +1069,6 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                               style={SYSTEM_ACTION_BUTTON_STYLE}
                             >
                               {t('chat.go_to_system')}
-                            </button>
-                          )}
-                          {entry.systemId && entry.planetId && onNavigateToPlanet && (
-                            <button
-                              onClick={() => {
-                                onNavigateToPlanet(entry.systemId!, entry.planetId!);
-                                setCollapsed(true);
-                              }}
-                              style={SYSTEM_ACTION_BUTTON_STYLE}
-                            >
-                              {t('chat.go_to_planet')}
                             </button>
                           )}
                           {entry.objectType === 'system_research' && entry.systemId && onOpenSystemReport && (
@@ -1196,7 +1169,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         {/* A.S.T.R.A. tab */}
         {tab === 'astra' && (
           <>
-            {/* Pro badge / token counter */}
+            {/* Premium badge / hourly A.S.T.R.A. charge */}
             {isPremium ? (
               <div style={{
                 padding: '3px 12px',
@@ -1207,24 +1180,22 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                 gap: 6,
               }}>
                 <span style={{ color: '#7bb8ff', fontSize: 9, fontFamily: 'monospace', letterSpacing: 0.5 }}>
-                  PRO
+                  PREMIUM
                 </span>
-                <span style={{ color: proMsgsToday >= PRO_DAILY_LIMIT ? '#ff8844' : '#556677', fontSize: 9, fontFamily: 'monospace' }}>
-                  {t('chat.pro_messages_today', { count: proMsgsToday })}
+                <span style={{ color: astraLimitReached ? '#ff8844' : '#556677', fontSize: 9, fontFamily: 'monospace' }}>
+                  {t('chat.astra_hourly_messages', { count: astraMsgsThisHour })}
                 </span>
               </div>
-            ) : astraTokensRemaining !== null && (
+            ) : (
               <div style={{
-                padding: '3px 12px',
+                padding: '7px 12px',
                 borderBottom: '1px solid #223344',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                gap: 6,
+                color: '#ddaa44',
+                fontSize: 10,
+                fontFamily: 'monospace',
+                lineHeight: 1.45,
               }}>
-                <span style={{ color: astraTokensRemaining > 200 ? '#44ffaa' : '#ff8844', fontSize: 9, fontFamily: 'monospace' }}>
-                  {astraTokensRemaining} tokens
-                </span>
+                {t('chat.astra_premium_required')}
               </div>
             )}
 
@@ -1297,8 +1268,8 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               <div ref={astraEndRef} />
             </div>
 
-            {/* Limit reached banner + charge options */}
-            {((!isPremium && (astraLimitReached || astraChargeMsg)) || proLimitReached) && (
+            {/* Limit reached banner */}
+            {isPremium && astraLimitReached && (
               <div style={{
                 padding: '8px 12px',
                 borderTop: '1px solid #223344',
@@ -1307,47 +1278,9 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                 flexDirection: 'column',
                 gap: 6,
               }}>
-                {/* Pro: daily limit reached */}
-                {isPremium && proLimitReached && (
-                  <span style={{ color: '#ff8844', fontSize: 10, fontFamily: 'monospace' }}>
-                    {t('chat.pro_daily_limit')}
-                  </span>
-                )}
-                {/* Free: token depleted */}
-                {!isPremium && astraLimitReached && (
-                  <span style={{ color: '#ff8844', fontSize: 10, fontFamily: 'monospace' }}>
-                    {t('chat.astra_depleted')}
-                  </span>
-                )}
-                {!isPremium && astraChargeMsg && (
-                  <span style={{
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                    color: astraChargeMsg.ok ? '#44ff88' : '#cc4444',
-                  }}>
-                    {astraChargeMsg.text}
-                  </span>
-                )}
-                {!isPremium && astraLimitReached && (
-                  <button
-                    onClick={handleAstraTopup}
-                    disabled={astraCharging}
-                    style={{
-                      alignSelf: 'flex-start',
-                      background: astraCharging ? 'rgba(34,68,102,0.2)' : 'rgba(34,68,102,0.3)',
-                      border: '1px solid #446688',
-                      borderRadius: 3,
-                      color: '#7bb8ff',
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      padding: '4px 10px',
-                      cursor: astraCharging ? 'default' : 'pointer',
-                      opacity: astraCharging ? 0.6 : 1,
-                    }}
-                  >
-                    {astraCharging ? t('chat.astra_charging') : t('chat.astra_charge_quarks')}
-                  </button>
-                )}
+                <span style={{ color: '#ff8844', fontSize: 10, fontFamily: 'monospace' }}>
+                  {t('chat.astra_hourly_limit')}
+                </span>
               </div>
             )}
 
@@ -1358,9 +1291,9 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               gap: 8,
             }}>
               {(() => {
-                const blocked = astraLoading || (isPremium ? proLimitReached : astraLimitReached);
-                const placeholderKey = (isPremium && proLimitReached)
-                  ? 'chat.pro_daily_limit'
+                const blocked = astraLoading || !isPremium || astraLimitReached;
+                const placeholderKey = !isPremium
+                  ? 'chat.astra_placeholder_premium'
                   : astraLimitReached
                     ? 'chat.astra_placeholder_depleted'
                     : 'chat.astra_placeholder';

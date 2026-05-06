@@ -117,6 +117,182 @@ function drawPointCloud(
   ctx.restore();
 }
 
+function colorToRgb(color: number): [number, number, number] {
+  return [(color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff];
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * Math.max(0, Math.min(1, t));
+}
+
+function mixRgb(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
+  return [
+    Math.round(lerp(a[0], b[0], t)),
+    Math.round(lerp(a[1], b[1], t)),
+    Math.round(lerp(a[2], b[2], t)),
+  ];
+}
+
+function rgba(rgb: [number, number, number], alpha: number): string {
+  return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+}
+
+function planetPalette(planet: Planet): {
+  land: [number, number, number];
+  high: [number, number, number];
+  water: [number, number, number];
+  ice: [number, number, number];
+  cloud: [number, number, number];
+} {
+  if (planet.type === 'gas-giant') {
+    return { land: [176, 128, 78], high: [228, 186, 122], water: [112, 92, 86], ice: [238, 226, 204], cloud: [232, 210, 178] };
+  }
+  if (planet.type === 'ice-giant') {
+    return { land: [86, 154, 174], high: [148, 220, 230], water: [45, 102, 150], ice: [222, 244, 250], cloud: [192, 235, 242] };
+  }
+  if (planet.type === 'dwarf') {
+    return { land: [114, 108, 100], high: [174, 168, 154], water: [54, 78, 108], ice: [216, 222, 224], cloud: [190, 194, 190] };
+  }
+  if (planet.hasLife) {
+    return { land: [86, 116, 72], high: [168, 146, 96], water: [42, 105, 138], ice: [220, 236, 238], cloud: [216, 226, 220] };
+  }
+  const temp = planet.surfaceTempK;
+  if (temp > 420) return { land: [148, 80, 42], high: [226, 154, 82], water: [72, 58, 62], ice: [214, 198, 184], cloud: [218, 184, 142] };
+  if (temp < 240) return { land: [98, 116, 124], high: [174, 194, 204], water: [50, 86, 128], ice: [225, 238, 244], cloud: [204, 220, 226] };
+  return { land: [130, 108, 78], high: [192, 166, 114], water: [48, 96, 132], ice: [224, 232, 228], cloud: [214, 218, 210] };
+}
+
+function drawOrbitalGlobe(
+  ctx: CanvasRenderingContext2D,
+  planet: Planet,
+  missionType: PlanetMissionType,
+  seed: number,
+  rng: Rng,
+  w: number,
+  usableH: number,
+): void {
+  const palette = planetPalette(planet);
+  const cx = w * 0.5;
+  const cy = usableH * 0.47;
+  const radius = Math.min(w * 0.31, usableH * 0.42);
+  const water = planet.hydrosphere?.waterCoverageFraction ?? 0;
+  const ice = planet.hydrosphere?.iceCapFraction ?? 0;
+  const atmosphere = planet.atmosphere?.surfacePressureAtm ?? 0;
+  const isGiant = planet.type === 'gas-giant' || planet.type === 'ice-giant' || missionType === 'deep_atmosphere_probe';
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.clip();
+
+  const image = ctx.createImageData(Math.ceil(radius * 2), Math.ceil(radius * 2));
+  const width = image.width;
+  const height = image.height;
+  const data = image.data;
+  for (let py = 0; py < height; py++) {
+    for (let px = 0; px < width; px++) {
+      const dx = (px / (width - 1)) * 2 - 1;
+      const dy = (py / (height - 1)) * 2 - 1;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const idx = (py * width + px) * 4;
+      if (dist > 1) {
+        data[idx + 3] = 0;
+        continue;
+      }
+      const sphereX = dx * Math.sqrt(Math.max(0, 1 - dy * dy * 0.35));
+      const sphereY = dy;
+      const lat = Math.asin(Math.max(-1, Math.min(1, sphereY))) / (Math.PI / 2);
+      const lon = Math.atan2(sphereX, Math.sqrt(Math.max(0.0001, 1 - sphereX * sphereX - sphereY * sphereY))) / Math.PI;
+      const n =
+        noise(lon * 3.2 + 2.1, lat * 2.6, seed) * 0.46 +
+        noise(lon * 8.4, lat * 6.8 + 1.7, seed + 31) * 0.34 +
+        noise(lon * 18.0, lat * 15.0, seed + 89) * 0.20;
+      const polar = Math.abs(lat);
+      let base: [number, number, number];
+      if (isGiant) {
+        const band = 0.5 + Math.sin((lat * 9.5 + n * 1.6 + seed * 0.0007)) * 0.5;
+        base = mixRgb(palette.land, palette.high, band);
+      } else if (polar > Math.max(0.72, 1 - ice * 1.9)) {
+        base = palette.ice;
+      } else if (water > 0.04 && n < water * 0.58) {
+        base = mixRgb(palette.water, palette.ice, Math.max(0, polar - 0.72) * 1.8);
+      } else {
+        base = mixRgb(palette.land, palette.high, Math.max(0, n - 0.35) * 1.45);
+      }
+      const limb = Math.pow(1 - dist, 0.38);
+      const light = 0.42 + limb * 0.78 + Math.max(0, -dx - dy * 0.22) * 0.16;
+      data[idx] = Math.max(0, Math.min(255, base[0] * light));
+      data[idx + 1] = Math.max(0, Math.min(255, base[1] * light));
+      data[idx + 2] = Math.max(0, Math.min(255, base[2] * light));
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, cx - radius, cy - radius);
+
+  ctx.globalCompositeOperation = 'screen';
+  if (isGiant) {
+    for (let i = 0; i < 16; i++) {
+      const y = cy - radius * 0.76 + (i / 15) * radius * 1.52;
+      const bandW = radius * (1.7 + rng() * 0.28);
+      ctx.strokeStyle = rgba(mixRgb(palette.cloud, palette.high, rng()), 0.16 + rng() * 0.18);
+      ctx.lineWidth = 3 + rng() * 8;
+      ctx.beginPath();
+      for (let x = cx - bandW; x <= cx + bandW; x += 18) {
+        const dx = (x - cx) / radius;
+        const edge = Math.sqrt(Math.max(0, 1 - dx * dx));
+        const yy = y + Math.sin(x * 0.018 + i * 1.4 + seed * 0.01) * (3 + rng() * 8) * edge;
+        if (x === cx - bandW) ctx.moveTo(x, yy);
+        else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+  } else {
+    const cloudCount = 12 + Math.floor(Math.min(1, atmosphere / 1.2) * 16);
+    for (let i = 0; i < cloudCount; i++) {
+      const x = cx + (rng() - 0.5) * radius * 1.5;
+      const y = cy + (rng() - 0.5) * radius * 1.3;
+      if ((x - cx) ** 2 + (y - cy) ** 2 > radius ** 2 * 0.82) continue;
+      ctx.fillStyle = rgba(palette.cloud, 0.08 + rng() * 0.15);
+      ctx.beginPath();
+      ctx.ellipse(x, y, radius * (0.09 + rng() * 0.16), radius * (0.018 + rng() * 0.035), rng() * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  ctx.restore();
+
+  const atmoAlpha = Math.min(0.42, 0.09 + atmosphere * 0.05 + (isGiant ? 0.12 : 0));
+  const glow = ctx.createRadialGradient(cx, cy, radius * 0.92, cx, cy, radius * 1.42);
+  glow.addColorStop(0, rgba(palette.cloud, atmoAlpha));
+  glow.addColorStop(1, rgba(palette.cloud, 0));
+  ctx.fillStyle = glow;
+  ctx.fillRect(cx - radius * 1.45, cy - radius * 1.45, radius * 2.9, radius * 2.9);
+
+  ctx.strokeStyle = 'rgba(220,235,245,0.32)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (missionType === 'orbital_probe' || missionType === 'orbital_scan') {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(123,184,255,0.34)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 7]);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, radius * 1.25, radius * 0.20, -0.38, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(123,184,255,0.85)';
+    const satA = (seed % 360) * Math.PI / 180;
+    const sx = cx + Math.cos(satA) * radius * 1.25;
+    const sy = cy + Math.sin(satA) * radius * 0.20;
+    ctx.fillRect(sx - 3, sy - 3, 6, 6);
+    ctx.restore();
+  }
+}
+
 function drawSoftSun(ctx: CanvasRenderingContext2D, rng: Rng, w: number, usableH: number): void {
   const x = w * (0.18 + rng() * 0.64);
   const y = usableH * (0.10 + rng() * 0.16);
@@ -143,78 +319,25 @@ function drawOrbitalMap(
   h: number,
 ): void {
   const usableH = h - 42;
-  const water = planet.hydrosphere?.waterCoverageFraction ?? 0;
-  const ice = planet.hydrosphere?.iceCapFraction ?? 0;
 
   ctx.fillStyle = '#03060a';
   ctx.fillRect(0, 0, w, h);
 
-  for (let band = 0; band < 12; band++) {
-    const y = (band / 12) * usableH;
-    const alpha = missionType === 'deep_atmosphere_probe' ? 0.06 + band * 0.006 : 0.025;
-    ctx.fillStyle = `rgba(200,220,230,${alpha})`;
-    ctx.fillRect(0, y + Math.sin(band * 1.7 + seed) * 4, w, 8 + rng() * 10);
-  }
+  drawOrbitalGlobe(ctx, planet, missionType, seed, rng, w, usableH);
 
-  const cell = 8;
-  for (let y = 0; y < usableH; y += cell) {
-    for (let x = 0; x < w; x += cell) {
-      const nx = x / w;
-      const ny = y / usableH;
-      const n =
-        noise(nx * 4.5, ny * 4.5, seed) * 0.55 +
-        noise(nx * 13.0, ny * 13.0, seed + 19) * 0.30 +
-        noise(nx * 31.0, ny * 31.0, seed + 97) * 0.15;
-      const polar = Math.abs(ny - 0.5) * 2;
-      const isIce = polar > 1 - ice * 1.5;
-      const isWater = water > 0.08 && n < water * 0.72 && !isIce;
-      const shade = isIce ? 210 : isWater ? 54 : 92 + Math.floor(n * 105);
-      ctx.fillStyle = `rgba(${shade},${shade},${shade},${isWater ? 0.42 : 0.72})`;
-      ctx.fillRect(x, y, cell + 1, cell + 1);
-    }
-  }
-
-  ctx.strokeStyle = 'rgba(230,240,245,0.26)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 22; i++) {
-    const level = i / 22;
+  const palette = planetPalette(planet);
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < 9; i++) {
+    const y = usableH * (0.12 + i * 0.085);
+    ctx.strokeStyle = rgba(palette.cloud, 0.04 + i * 0.006);
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    for (let x = -10; x <= w + 10; x += 10) {
-      const nx = x / w;
-      const y = usableH * (0.1 + level * 0.78)
-        + Math.sin(nx * 10 + seed * 0.01 + i) * (10 + 18 * noise(i, nx, seed));
-      if (x === -10) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
+    ctx.moveTo(w * 0.08, y);
+    ctx.lineTo(w * 0.92, y + Math.sin(i + seed) * 10);
     ctx.stroke();
   }
-
-  if (planet.type === 'gas-giant' || planet.type === 'ice-giant' || missionType === 'deep_atmosphere_probe') {
-    ctx.globalCompositeOperation = 'screen';
-    for (let i = 0; i < 16; i++) {
-      const y = rng() * usableH;
-      ctx.strokeStyle = `rgba(230,240,245,${0.08 + rng() * 0.18})`;
-      ctx.lineWidth = 2 + rng() * 3;
-      ctx.beginPath();
-      for (let x = 0; x <= w; x += 16) {
-        const yy = y + Math.sin(x * 0.016 + i * 3.1) * (6 + rng() * 18);
-        if (x === 0) ctx.moveTo(x, yy);
-        else ctx.lineTo(x, yy);
-      }
-      ctx.stroke();
-    }
-    ctx.globalCompositeOperation = 'source-over';
-  }
-
-  for (let i = 0; i < 36; i++) {
-    const x = rng() * w;
-    const y = rng() * usableH;
-    const r = 4 + rng() * 18;
-    ctx.strokeStyle = `rgba(230,230,230,${0.08 + rng() * 0.12})`;
-    ctx.beginPath();
-    ctx.ellipse(x, y, r * (0.8 + rng() * 0.5), r * (0.4 + rng() * 0.4), rng() * Math.PI, 0, Math.PI * 2);
-    ctx.stroke();
-  }
+  ctx.restore();
 }
 
 function drawRoverView(
@@ -309,13 +432,21 @@ function drawRoverView(
   ctx.fillStyle = foreground;
   ctx.fillRect(0, usableH * 0.76, w, usableH * 0.24);
 
-  ctx.fillStyle = 'rgba(210,220,225,0.16)';
-  ctx.fillRect(w * 0.075, usableH - 74, w * 0.22, 24);
-  ctx.fillRect(w * 0.12, usableH - 98, 13, 48);
-  ctx.beginPath();
-  ctx.arc(w * 0.26, usableH - 50, 18, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(210,220,225,0.13)';
-  ctx.fill();
+  if (planet.hasLife) {
+    const mist = ctx.createLinearGradient(0, horizon - 24, 0, usableH);
+    mist.addColorStop(0, 'rgba(120,160,126,0.05)');
+    mist.addColorStop(1, 'rgba(80,120,92,0.11)');
+    ctx.fillStyle = mist;
+    ctx.fillRect(0, horizon - 24, w, usableH - horizon + 24);
+  } else {
+    ctx.fillStyle = 'rgba(210,220,225,0.16)';
+    ctx.fillRect(w * 0.075, usableH - 74, w * 0.22, 24);
+    ctx.fillRect(w * 0.12, usableH - 98, 13, 48);
+    ctx.beginPath();
+    ctx.arc(w * 0.26, usableH - 50, 18, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(210,220,225,0.13)';
+    ctx.fill();
+  }
 
   const lens = ctx.createRadialGradient(w * 0.5, usableH * 0.52, usableH * 0.16, w * 0.5, usableH * 0.52, usableH * 0.78);
   lens.addColorStop(0, 'rgba(255,255,255,0.035)');
@@ -344,7 +475,7 @@ export function renderMissionProbePhoto(params: {
   const seed = hashSeed(`${planet.id}:${report.missionId}:${report.missionType}`);
   const rng = rngFromSeed(seed);
 
-  if (report.missionType === 'surface_landing') {
+  if (report.missionType === 'surface_landing' || report.missionType === 'drone_recon') {
     drawRoverView(ctx, planet, seed, rng, w, h);
   } else {
     drawOrbitalMap(ctx, planet, report.missionType, seed, rng, w, h);

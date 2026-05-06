@@ -12,6 +12,7 @@ import {
 } from '../../api/iap-service.js';
 import { watchAdsWithProgress, canShowAd } from '../../services/ads-service.js';
 import { interstitialManager } from '../../services/interstitial-manager.js';
+import { PremiumHelpButton } from './PremiumHelp.js';
 
 const PRESETS = [50, 100, 200, 500];
 
@@ -58,7 +59,10 @@ function WebTopUpModal({ playerId, currentBalance, onClose }: QuarkTopUpModalPro
       <div style={styles.modal}>
         <div style={styles.header}>
           <span style={styles.title}>{t('topup.title')}</span>
-          <button style={styles.closeBtn} onClick={onClose}>x</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PremiumHelpButton helpId="quarks" />
+            <button style={styles.closeBtn} onClick={onClose}>x</button>
+          </div>
         </div>
         <div style={styles.balance}>
           {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} <QuarkIcon /></span>
@@ -228,7 +232,10 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
       <div style={styles.modal}>
         <div style={styles.header}>
           <span style={styles.title}>{t('topup.iap_title')}</span>
-          <button style={styles.closeBtn} onClick={onClose}>x</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PremiumHelpButton helpId="quarks" />
+            <button style={styles.closeBtn} onClick={onClose}>x</button>
+          </div>
         </div>
         <div style={styles.balance}>
           {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} <QuarkIcon /></span>
@@ -243,10 +250,11 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
           background: isPremiumActive ? 'rgba(68,255,136,0.06)' : 'rgba(68,136,170,0.08)',
         }}>
           <div style={{ marginBottom: isPremiumActive ? 0 : 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'monospace', color: isPremiumActive ? '#44ff88' : '#7bb8ff', marginBottom: 2 }}>
                 {t('premium.title')}
               </div>
+              {!isPremiumActive && <PremiumHelpButton helpId="premium-subscription" />}
               {isPremiumActive && (
                 <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#44ff88', fontWeight: 600 }}>
                   {t('premium.active')}
@@ -409,30 +417,34 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
 
         {/* Ads reward button */}
         {adsAvailable && (
-          <button
-            style={{
-              width: '100%',
-              padding: '11px 14px',
-              borderRadius: 3,
-              border: '1px solid #446688',
-              background: adsRunning ? 'rgba(68,102,136,0.25)' : 'rgba(68,102,136,0.12)',
-              color: '#7bb8ff',
-              fontFamily: 'monospace',
-              fontSize: 13,
-              cursor: adsRunning || !!purchasing ? 'default' : 'pointer',
-              opacity: !!purchasing ? 0.4 : 1,
-              marginBottom: 12,
-              textAlign: 'center' as const,
-            }}
-            onClick={handleWatchAds}
-            disabled={adsRunning || !!purchasing}
-          >
-            {adsRunning
-              ? t('topup.ads_btn_progress', { completed: adsProgress, total: ADS_FOR_QUARKS })
-              : adsProgress > 0
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <button
+              style={{
+                width: '100%',
+                padding: '11px 46px 11px 14px',
+                borderRadius: 3,
+                border: '1px solid #446688',
+                background: adsRunning ? 'rgba(68,102,136,0.25)' : 'rgba(68,102,136,0.12)',
+                color: '#7bb8ff',
+                fontFamily: 'monospace',
+                fontSize: 13,
+                cursor: adsRunning || !!purchasing ? 'default' : 'pointer',
+                opacity: !!purchasing ? 0.4 : 1,
+                textAlign: 'center' as const,
+              }}
+              onClick={handleWatchAds}
+              disabled={adsRunning || !!purchasing}
+            >
+              {adsRunning
                 ? t('topup.ads_btn_progress', { completed: adsProgress, total: ADS_FOR_QUARKS })
-                : t('topup.ads_btn')}
-          </button>
+                : adsProgress > 0
+                  ? t('topup.ads_btn_progress', { completed: adsProgress, total: ADS_FOR_QUARKS })
+                  : t('topup.ads_btn')}
+            </button>
+            <div style={{ position: 'absolute', top: 6, right: 8 }}>
+              <PremiumHelpButton helpId="rewarded-ads" />
+            </div>
+          </div>
         )}
 
         {message && (

@@ -43,7 +43,7 @@ import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
 import { getCatalogEntry, getCatalogName, BUILDING_DEFS } from '@nebulife/core';
-import { initIAP } from './api/iap-service.js';
+import { checkPremiumStatus, initIAP } from './api/iap-service.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
 import {
   createResearchState,
@@ -146,7 +146,7 @@ import { AuthScreen } from './ui/components/AuthScreen.js';
 import { CallsignModal } from './ui/components/CallsignModal.js';
 import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
 import { CinematicIntro } from './ui/components/CinematicIntro.js';
-import { LoadingDots } from './ui/components/LoadingDots.js';
+import { QuantumSeedLoader } from './ui/components/QuantumSeedLoader.js';
 import { PerfTierSelectScreen } from './ui/components/PerfTierSelectScreen.js';
 import { getDeviceTier, setPerfTierChoice } from './utils/device-tier.js';
 import { parseCompactNumber } from './utils/formatNumber.js';
@@ -190,6 +190,7 @@ import {
   type PlanetSkinKind,
 } from './api/planet-skin-api.js';
 import { saveMissionPhoto } from './api/mission-photo-api.js';
+import { trackPaidFeatureOrder } from './analytics/firebase-analytics.js';
 
 export type SceneType = 'universe' | 'cluster' | 'galaxy' | 'system' | 'home-intro' | 'planet-view';
 
@@ -204,6 +205,14 @@ const MISSION_PHOTO_REVEAL_MS = 15_000;
 
 function getPlanetPhotoCost(photoKind: PlanetPhotoKind): number {
   return photoKind === 'exosphere' ? KLING_PHOTO_COST : GEMINI_PHOTO_COST;
+}
+
+function getMissionAlphaPhotoKind(report: PlanetReportSummary): PlanetPhotoKind {
+  return report.missionType === 'surface_landing' ? 'biosphere' : 'aerial';
+}
+
+function getMissionAlphaPhotoKey(planetId: string, report: PlanetReportSummary): string {
+  return `planet-${getMissionAlphaPhotoKind(report)}-${planetId}__${report.missionId}`;
 }
 
 function MissionPhotoReceiveOverlay({ imageDataUrl, planetName, startedAt }: { imageDataUrl: string; planetName: string; startedAt: number }) {
@@ -3598,6 +3607,7 @@ function AppInner() {
   const [digestModalWeekDate, setDigestModalWeekDate] = useState('');
   const [lastDigestSeen, setLastDigestSeen] = useState<string | null>(null);
   const [latestDigestWeekDate, setLatestDigestWeekDate] = useState<string | null>(null);
+  const [isPremiumActive, setIsPremiumActive] = useState(() => localStorage.getItem('nebulife_premium') === '1');
   const [astraQuizAnswers, setAstraQuizAnswers] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('nebulife_astra_quiz_answers');
@@ -4513,6 +4523,12 @@ function AppInner() {
             setState((prev) => ({ ...prev, playerName: existing.callsign || existing.name || 'Explorer' }));
             // Initialize RevenueCat IAP (no-op on web)
             initIAP(id!).catch(() => { /* non-critical */ });
+            checkPremiumStatus()
+              .then((status) => {
+                setIsPremiumActive(status.active);
+                interstitialManager.setPremium(status.active);
+              })
+              .catch(() => { /* non-critical */ });
           }
           // Daily login bonus check — fires once per UTC day (server-side idempotent)
           claimDailyLoginBonusOnce().catch(() => { /* soft-fail */ });
@@ -4677,10 +4693,9 @@ function AppInner() {
 
               // Pro daily quarks: grant 5 quarks once per day for Pro subscribers
               try {
-                const isProSubscriber = localStorage.getItem('nebulife_premium') === '1';
                 const lastClaimDate = localStorage.getItem('nebulife_pro_daily_date');
                 const todayDate = new Date().toISOString().slice(0, 10);
-                if (isProSubscriber && lastClaimDate !== todayDate) {
+                if (lastClaimDate !== todayDate) {
                   const quarksRes = await authFetch('/api/player/daily-quarks', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
                   if (quarksRes.ok) {
                     const quarksData = await quarksRes.json();
@@ -4756,7 +4771,7 @@ function AppInner() {
       setSavedMissionPhotoKeys(() => {
         const saved: Record<string, boolean> = {};
         for (const [key, photo] of map) {
-          if ((key.startsWith('planet-probe-') || key.startsWith('planet-rover-')) && photo.status === 'succeed' && photo.photoUrl) {
+          if ((key.startsWith('planet-probe-') || key.startsWith('planet-rover-') || key.startsWith('planet-drone-')) && photo.status === 'succeed' && photo.photoUrl) {
             saved[key] = true;
           }
         }
@@ -5896,6 +5911,9 @@ function AppInner() {
     };
 
     // Call API
+    if (!adPhotoToken) {
+      trackPaidFeatureOrder('system_alpha_photo', 100, { system_id: sys.id });
+    }
     generateSystemPhoto(playerId.current, sysId, sys, undefined, undefined, undefined, adPhotoToken)
       .then(({ photoId, quarksRemaining, photoUrl }) => {
         if (quarksRemaining !== null && quarksRemaining !== undefined) setQuarks(quarksRemaining);
@@ -6000,6 +6018,12 @@ function AppInner() {
 
     // Call API with planetId. Planet photo generations use a synthetic key so
     // variants do not overwrite the system panorama row in system_photos.
+    if (!adPhotoToken) {
+      trackPaidFeatureOrder(`planet_${photoKind}_photo`, getPlanetPhotoCost(photoKind), {
+        system_id: sys.id,
+        planet_id: planet.id,
+      });
+    }
     generateSystemPhoto(playerId.current, photoKey, sys, undefined, undefined, planet.id, adPhotoToken, photoKind)
       .then(({ photoId, quarksRemaining, photoUrl }) => {
         if (quarksRemaining !== null && quarksRemaining !== undefined) setQuarks(quarksRemaining);
@@ -6083,6 +6107,7 @@ function AppInner() {
     });
     setToastMessage(t('planet.skin_generating'));
     setTimeout(() => setToastMessage(null), 3000);
+    trackPaidFeatureOrder('planet_skin', cost, { system_id: sys.id, planet_id: planet.id, skin_kind: skinKind });
 
     generatePlanetSkin(playerId.current, sys.id, planet.id, sys, skinKind)
       .then(({ skinId, status, textureUrl, quarksRemaining }) => {
@@ -6172,6 +6197,24 @@ function AppInner() {
     return engineRef.current?.getAllSystems().find((system) => system.id === report.systemId) ?? null;
   }, [state.selectedSystem]);
 
+  const openPlanetMissionReportByIds = useCallback((systemId: string, planetId: string): void => {
+    const allSystems = engineRef.current?.getAllSystems() ?? [];
+    const sys = allSystems.find((system) => system.id === systemId);
+    const planet = sys?.planets.find((entry) => entry.id === planetId);
+    const report = planetReports[planetId];
+    if (!sys || !planet || !report) return;
+    setState((prev) => ({
+      ...prev,
+      scene: 'system' as const,
+      selectedSystem: sys,
+      selectedPlanet: null,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+    }));
+    engineRef.current?.showSystemScene(sys);
+    setPlanetReportTarget({ planet, report });
+  }, [planetReports]);
+
   const handleSaveMissionProbePhoto = useCallback(async (planet: Planet, report: PlanetReportSummary): Promise<void> => {
     const sys = findSystemForPlanetReport(report);
     if (!sys) return;
@@ -6216,8 +6259,8 @@ function AppInner() {
   const handleMissionAlphaPhoto = useCallback((planet: Planet, report: PlanetReportSummary): void => {
     const sys = findSystemForPlanetReport(report);
     if (!sys) return;
-    const photoKind: PlanetPhotoKind = report.missionType === 'surface_landing' ? 'biosphere' : 'aerial';
-    const photoKey = `planet-${photoKind}-${planet.id}__${report.missionId}`;
+    const photoKind = getMissionAlphaPhotoKind(report);
+    const photoKey = getMissionAlphaPhotoKey(planet.id, report);
     const cost = getPlanetPhotoCost(photoKind);
     if (quarks < cost) {
       if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
@@ -6225,6 +6268,36 @@ function AppInner() {
     }
 
     setMissionAlphaGenerating(true);
+    setPlanetReportTarget(null);
+    setTelescopeOverlay({
+      phase: 'init',
+      targetName: planet.name,
+      targetType: 'planet',
+      photoUrl: null,
+      photoKey,
+      source: 'mission',
+    });
+    const initTimer = window.setTimeout(() => {
+      setTelescopeOverlay(prev => prev?.photoKey === photoKey ? { ...prev, phase: 'capture' } : prev);
+    }, 1500);
+    const revealPhoto = (url: string) => {
+      setTelescopeOverlay(prev => {
+        if (!prev || prev.photoKey !== photoKey) return prev;
+        if (prev.phase === 'init') {
+          window.clearTimeout(initTimer);
+          window.setTimeout(() => {
+            setTelescopeOverlay(current => current?.photoKey === photoKey ? { ...current, phase: 'reveal', photoUrl: url } : current);
+          }, 800);
+          return { ...prev, phase: 'capture' };
+        }
+        return { ...prev, phase: 'reveal', photoUrl: url };
+      });
+    };
+    trackPaidFeatureOrder(`mission_${photoKind}_photo`, cost, {
+      system_id: sys.id,
+      planet_id: planet.id,
+      mission_type: report.missionType,
+    });
 
     setSystemPhotos((prev) => {
       const next = new Map(prev);
@@ -6244,8 +6317,7 @@ function AppInner() {
             next.set(photoKey, { id: photoId, photoUrl, status: 'succeed', createdAt: new Date().toISOString() });
             return next;
           });
-          setToastMessage(t('mission_report.receiving_photo'));
-          setTimeout(() => setToastMessage(null), 3000);
+          revealPhoto(photoUrl);
         } else {
           setSystemPhotos(prev => {
             const next = new Map(prev);
@@ -6259,14 +6331,14 @@ function AppInner() {
                 next.set(photoKey, { id: photoId, photoUrl: result.photoUrl!, status: 'succeed', createdAt: new Date().toISOString() });
                 return next;
               });
-              setToastMessage(t('mission_report.receiving_photo'));
-              setTimeout(() => setToastMessage(null), 3000);
+              revealPhoto(result.photoUrl!);
             } else if (result.status === 'failed') {
               setSystemPhotos(prev => {
                 const next = new Map(prev);
                 next.set(photoKey, { id: photoId, photoUrl: '', status: 'failed' });
                 return next;
               });
+              setTelescopeOverlay(prev => prev?.photoKey === photoKey ? null : prev);
             }
           });
         }
@@ -6278,9 +6350,13 @@ function AppInner() {
           next.delete(photoKey);
           return next;
         });
+        setTelescopeOverlay(prev => prev?.photoKey === photoKey ? null : prev);
       })
-      .finally(() => setMissionAlphaGenerating(false));
-  }, [findSystemForPlanetReport, isGuest, quarks, t]);
+      .finally(() => {
+        window.clearTimeout(initTimer);
+        setMissionAlphaGenerating(false);
+      });
+  }, [findSystemForPlanetReport, isGuest, quarks]);
 
   // Keep ref updated for GameEngine callback (avoid stale closure)
   telescopePhotoRef.current = handleTelescopePhotoForSystem;
@@ -8950,23 +9026,38 @@ function AppInner() {
             const report = planetReports[state.selectedPlanet!.id];
             if (!report) return false;
             const key = getMissionPhotoKey(state.selectedPlanet!.id, report);
+            const alphaKey = getMissionAlphaPhotoKey(state.selectedPlanet!.id, report);
             const photo = systemPhotos.get(key);
-            return Boolean(savedMissionPhotoKeys[key] || (photo?.status === 'succeed' && photo.photoUrl));
+            const alphaPhoto = systemPhotos.get(alphaKey);
+            return Boolean(
+              savedMissionPhotoKeys[key]
+                || (photo?.status === 'succeed' && photo.photoUrl)
+                || (alphaPhoto?.status === 'succeed' && alphaPhoto.photoUrl),
+            );
           })()}
           missionPhotoUrl={(() => {
             const report = planetReports[state.selectedPlanet!.id];
             if (!report) return null;
             const key = getMissionPhotoKey(state.selectedPlanet!.id, report);
+            const alphaKey = getMissionAlphaPhotoKey(state.selectedPlanet!.id, report);
             const photo = systemPhotos.get(key);
-            return photo?.status === 'succeed' ? photo.photoUrl : null;
+            const alphaPhoto = systemPhotos.get(alphaKey);
+            return alphaPhoto?.status === 'succeed' && alphaPhoto.photoUrl
+              ? alphaPhoto.photoUrl
+              : photo?.status === 'succeed'
+                ? photo.photoUrl
+                : null;
           })()}
           onViewReport={(planet, report) => {
             setPlanetReportTarget({ planet, report });
             setState((prev) => ({ ...prev, showPlanetMenu: false }));
           }}
           onViewMissionPhoto={(planet, _report, photoUrl) => {
-            const key = getMissionPhotoKey(planet.id, _report);
-            setMissionPhotoViewer({ planetName: planet.name, photoUrl, photoKey: key, systemId: state.selectedSystem?.id, planetId: planet.id });
+            const proceduralKey = getMissionPhotoKey(planet.id, _report);
+            const alphaKey = getMissionAlphaPhotoKey(planet.id, _report);
+            const alphaPhoto = systemPhotos.get(alphaKey);
+            const key = alphaPhoto?.status === 'succeed' && alphaPhoto.photoUrl ? alphaKey : proceduralKey;
+            setMissionPhotoViewer({ planetName: planet.name, photoUrl, photoKey: key, systemId: _report.systemId, planetId: planet.id });
             setState((prev) => ({ ...prev, showPlanetMenu: false }));
           }}
           systemResearchProgress={currentSystemProgress}
@@ -9016,6 +9107,11 @@ function AppInner() {
             alphaCost={GEMINI_PHOTO_COST}
             proceduralSaving={missionPhotoSaving}
             alphaGenerating={missionAlphaGenerating}
+            alphaPhotoReady={(() => {
+              const key = getMissionAlphaPhotoKey(planetReportTarget.planet.id, planetReportTarget.report);
+              const photo = systemPhotos.get(key);
+              return Boolean(photo?.status === 'succeed' && photo.photoUrl);
+            })()}
             proceduralSaved={(() => {
               const key = getMissionPhotoKey(planetReportTarget.planet.id, planetReportTarget.report);
               const photo = systemPhotos.get(key);
@@ -9023,28 +9119,28 @@ function AppInner() {
             })()}
             onProceduralPhoto={() => handleSaveMissionProbePhoto(planetReportTarget.planet, planetReportTarget.report)}
             onAlphaPhoto={() => handleMissionAlphaPhoto(planetReportTarget.planet, planetReportTarget.report)}
-              onClose={() => {
-                setPlanetMissions((prev) => ({
-                  ...prev,
-                  [planetReportTarget.report.missionId]: {
-                    ...(prev[planetReportTarget.report.missionId] ?? {
-                      id: planetReportTarget.report.missionId,
-                      systemId: planetReportTarget.report.systemId,
-                      planetId: planetReportTarget.report.planetId,
-                      type: planetReportTarget.report.missionType,
-                      targetRevealLevel: planetReportTarget.report.revealLevel,
-                      startedAt: planetReportTarget.report.generatedAt,
-                      durationMs: 0,
-                      phaseDurations: { preparing: 0, outbound: 0, orbital_insertion: 0, scan_or_landing: 0, data_downlink: 0 },
-                      costPaid: {},
-                      status: 'completed' as const,
-                    }),
+            onClose={() => {
+              setPlanetMissions((prev) => ({
+                ...prev,
+                [planetReportTarget.report.missionId]: {
+                  ...(prev[planetReportTarget.report.missionId] ?? {
+                    id: planetReportTarget.report.missionId,
+                    systemId: planetReportTarget.report.systemId,
+                    planetId: planetReportTarget.report.planetId,
+                    type: planetReportTarget.report.missionType,
+                    targetRevealLevel: planetReportTarget.report.revealLevel,
+                    startedAt: planetReportTarget.report.generatedAt,
+                    durationMs: 0,
+                    phaseDurations: { preparing: 0, outbound: 0, orbital_insertion: 0, scan_or_landing: 0, data_downlink: 0 },
+                    costPaid: {},
                     status: 'completed' as const,
-                  },
-                }));
-                setPlanetReportTarget(null);
-                scheduleSyncToServer();
-              }}
+                  }),
+                  status: 'completed' as const,
+                },
+              }));
+              setPlanetReportTarget(null);
+              scheduleSyncToServer();
+            }}
           />
         </div>
       )}
@@ -9346,6 +9442,7 @@ function AppInner() {
           onStartPayloadProduction={handleStartPayloadProduction}
           observatoryState={observatoryState}
           onStartObservatorySearch={handleStartObservatorySearch}
+          isPremium={isPremiumActive}
           shutdownBuildingTypes={colonyState
             ? new Set(colonyState.buildings.filter(b => b.shutdown).map(b => b.type))
             : undefined}
@@ -9397,7 +9494,7 @@ function AppInner() {
           quarks={quarks}
           isGuest={isGuest}
           isNative={Capacitor.isNativePlatform()}
-          isPremium={localStorage.getItem('nebulife_premium') === '1'}
+          isPremium={isPremiumActive}
           avatarUrl={playerAvatarUrl}
           avatarUploading={avatarUploading}
           onChangeAvatar={handleChangeAvatar}
@@ -10093,6 +10190,7 @@ function AppInner() {
               setState((prev) => ({ ...prev, scene: 'system' as const, selectedSystem: sys, selectedPlanet: null }));
             }
           }}
+          onOpenPlanetMissionReport={openPlanetMissionReportByIds}
           onOpenSystemReport={(systemId) => {
             const allSystems = engineRef.current?.getAllSystems() ?? [];
             const sys = allSystems.find((s) => s.id === systemId);
@@ -10111,6 +10209,7 @@ function AppInner() {
           onQuizAnswer={handleAstraQuizAnswer}
           onDigestSeen={handleAstraDigestSeen}
           forceCollapsed={isTutorialActive && activeTutorialStep?.id !== 'astra-handoff'}
+          isPremium={isPremiumActive}
         />
       )}
 
@@ -10267,6 +10366,7 @@ function AppInner() {
               const key = String(Math.round(pct * 100));
               const price = priceTable[key];
               if (!price || quarks < price) return;
+              trackPaidFeatureOrder(`colony_${kind}_boost`, price, { planet_id: active.planet.id, pct: Math.round(pct * 100) });
               setQuarks((q) => Math.max(0, q - price));
               setColonyBoosts((prev) => ({
                 ...prev,
@@ -10295,14 +10395,7 @@ function AppInner() {
 
       {/* Auth: Loading screen */}
       {authLoading && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 10000,
-          background: '#020510',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'monospace', color: '#556677', fontSize: 12,
-        }}>
-          <LoadingDots label={t('common.loading')} />
-        </div>
+        <QuantumSeedLoader />
       )}
 
       {/* Auth: Login screen (only when Firebase is configured) */}

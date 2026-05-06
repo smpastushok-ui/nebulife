@@ -4,6 +4,7 @@ import type { BuildingType, FleetState, ObservatorySearchDuration, ObservatorySe
 import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
+import { watchAdsWithProgress } from '../../../services/ads-service.js';
 import {
   deriveBuildingDetailStats,
   getBuildingEconomyProfile,
@@ -37,7 +38,8 @@ export interface BuildingDetailPanelProps {
   onClose: () => void;
   onOpenColonyCenter?: (tab?: 'overview' | 'production') => void;
   onStartPayloadProduction?: (type: ProducibleType) => void;
-  onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram) => void;
+  onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram) => boolean | void;
+  isPremium?: boolean;
   onResourceChange?: (delta: Partial<ColonyResources>) => void;
   onResearchDataChange?: (delta: number) => void;
   onDemolish?: (building: PlacedBuilding) => void;
@@ -822,6 +824,7 @@ export function BuildingDetailPanel({
   onOpenColonyCenter,
   onStartPayloadProduction,
   onStartObservatorySearch,
+  isPremium = false,
   onResourceChange,
   onResearchDataChange,
   onDemolish,
@@ -831,6 +834,7 @@ export function BuildingDetailPanel({
   const [confirmDemolish, setConfirmDemolish] = useState(false);
   const [observatoryProgram, setObservatoryProgram] = useState<ObservatorySearchProgram>('routine_sky_watch');
   const [observatoryNow, setObservatoryNow] = useState(() => Date.now());
+  const [observatoryAdsRunning, setObservatoryAdsRunning] = useState(false);
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
 
@@ -1300,11 +1304,21 @@ export function BuildingDetailPanel({
                       key={duration}
                       duration={duration}
                       chance={chance}
-                      disabled={stats.isShutdown || !hasObservatorySlot || !onStartObservatorySearch}
-                      onClick={() => {
-                        if (!hasObservatorySlot) return;
-                        onStartObservatorySearch?.(duration, selectedObservatoryProgram);
-                        addInfoReport(t('observatory.in_progress'), t('observatory.search_started'));
+                      disabled={stats.isShutdown || !hasObservatorySlot || !onStartObservatorySearch || observatoryAdsRunning}
+                      onClick={async () => {
+                        if (!hasObservatorySlot || observatoryAdsRunning) return;
+                        if (!isPremium) {
+                          setObservatoryAdsRunning(true);
+                          const result = await watchAdsWithProgress('research_data', 3, () => {});
+                          setObservatoryAdsRunning(false);
+                          if (!result.rewarded) {
+                            addInfoReport(t('observatory.ad_gate_title'), t('observatory.ad_gate_failed'));
+                            return;
+                          }
+                        }
+                        const started = onStartObservatorySearch?.(duration, selectedObservatoryProgram);
+                        if (started === false) return;
+                        addInfoReport(t('observatory.in_progress'), isPremium ? t('observatory.search_started') : t('observatory.search_started_after_ads'));
                       }}
                     />
                   );
