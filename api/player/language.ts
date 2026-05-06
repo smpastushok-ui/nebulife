@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { updatePlayerLanguage } from '../../packages/server/src/db.js';
+import { updatePlayer } from '../../packages/server/src/db.js';
 
 /**
  * POST /api/player/language
@@ -14,10 +14,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const authResult = await authenticate(req);
-    if (!authResult) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const authResult = await authenticate(req, res);
+    if (!authResult) return; // 401/404 already sent
 
     const { language } = req.body ?? {};
 
@@ -25,12 +23,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid language. Must be "uk" or "en".' });
     }
 
-    const updated = await updatePlayerLanguage(authResult.playerId, language);
+    const updated = await updatePlayer(authResult.playerId, { preferred_language: language });
     if (!updated) {
       return res.status(404).json({ error: 'Player not found' });
     }
 
-    return res.status(200).json({ ok: true, language: updated.language });
+    return res.status(200).json({ ok: true, language: updated.preferred_language });
   } catch (err) {
     console.error('Player language update error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });

@@ -13,16 +13,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Verify Firebase token
-    const token = (req.headers.authorization ?? '').replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'Missing auth token' });
-    }
-
-    const authResult = await authenticateToken(token);
-    if (!authResult) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
+    // Verify Firebase token. authenticateToken does NOT lookup player (used at
+    // registration where the player row doesn't exist yet).
+    const authResult = await authenticateToken(req, res);
+    if (!authResult) return; // 401 already sent
 
     const { id, name, homeSystemId, homePlanetId } = req.body;
 
@@ -30,8 +24,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing required fields: id, name, homeSystemId, homePlanetId' });
     }
 
-    // Verify player ID matches authenticated user
-    if (id !== authResult.playerId && id !== authResult.uid) {
+    // Verify player ID matches authenticated Firebase uid
+    if (id !== authResult.uid) {
       return res.status(403).json({ error: 'Player ID mismatch' });
     }
 

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt, { type JwtHeader, type JwtPayload } from 'jsonwebtoken';
-import { createPublicKey } from 'node:crypto';
+import { createPublicKey, type JsonWebKey as CryptoJwk } from 'node:crypto';
 import { createFirebaseCustomToken } from '../../../packages/server/src/firebase-admin.js';
 
 const APPLE_ISSUER = 'https://appleid.apple.com';
@@ -31,7 +31,7 @@ async function getAppleKeys(): Promise<AppleJwk[]> {
 }
 
 function jwkToPem(jwk: AppleJwk): string {
-  return createPublicKey({ key: jwk, format: 'jwk' }).export({ type: 'spki', format: 'pem' }).toString();
+  return createPublicKey({ key: jwk as unknown as CryptoJwk, format: 'jwk' }).export({ type: 'spki', format: 'pem' }).toString();
 }
 
 async function verifyAppleIdentityToken(identityToken: string): Promise<JwtPayload> {

@@ -26,7 +26,10 @@ function verifyAdToken(token: string, playerId: string): boolean {
 
   const payload = `${sessionId}:${pid}:${expiresAtStr}`;
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length) return false;
+  return crypto.timingSafeEqual(new Uint8Array(sigBuf), new Uint8Array(expBuf));
 }
 
 /**

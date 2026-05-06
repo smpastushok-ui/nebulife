@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // If a photo URL (data URL or remote) was provided, save it too
       if (photoUrl) {
         await updateDiscoveryPhoto(id, photoUrl);
-        (row as Record<string, unknown>).photo_url = photoUrl;
+        (row as unknown as Record<string, unknown>).photo_url = photoUrl;
       }
 
       return res.status(200).json(row);

@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const description = normalizeShipDescription(req.body?.description);
     const validation = validateShipDescription(description);
-    if (!validation.ok) {
+    if (validation.ok === false) {
       return res.status(400).json({ error: validation.error });
     }
 

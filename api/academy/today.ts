@@ -4,7 +4,8 @@ import { getAcademyProgress, getCachedLesson, saveCachedLesson, getPlayer } from
 import { generateEducationPackage, generateLessonImage } from '../../packages/server/src/education-generator.js';
 
 // Use topic-catalog functions directly since @nebulife/core dist may not be up to date in worktree
-import { selectNextLesson, getLastCompletedLessonId, findLesson } from '../../packages/core/src/education/topic-selector.js';
+import { selectNextLesson, getLastCompletedLessonId } from '../../packages/core/src/education/topic-selector.js';
+import { findLesson } from '../../packages/core/src/education/topic-catalog.js';
 import type { TopicCategoryId } from '../../packages/core/src/types/education.js';
 
 /**
