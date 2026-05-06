@@ -1,0 +1,588 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'habitable-zones',
+  language: 'en',
+  section: 'astrobiology',
+  order: 3,
+  difficulty: 'intermediate',
+  readingTimeMin: 13,
+  title: 'Habitable Zones — Where Life Might Exist',
+  subtitle:
+    'Not too hot, not too cold. Where in the universe can liquid water exist on a surface — and is water always the prerequisite?',
+
+  hero: {
+    cacheKey: 'habitable-zones-hero',
+    prompt:
+      'Photorealistic scientific illustration of a star system showing the habitable zone: ' +
+      'a yellow-white G-type star at center, concentric orbital rings, ' +
+      'the habitable zone highlighted as a translucent green band between inner and outer boundaries, ' +
+      'an Earth-like blue-green planet positioned inside the zone, a hot red rocky planet inside the inner boundary, ' +
+      'a cold ice-covered planet outside the outer boundary. ' +
+      'Hard sci-fi style, dark space background, technically accurate geometry. ' +
+      'Add the following text labels on the image: "too hot", "habitable zone", "too cold", "liquid water possible".',
+    alt: 'Star system with the Goldilocks zone highlighted — a green band between the too-hot inner orbit and the too-cold outer orbit',
+    caption:
+      'The habitable zone around a star is a range of distances where liquid water can exist on a planetary surface. For our Sun it stretches roughly from the orbit of Venus to the orbit of Mars, with Earth occupying a comfortable middle position.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'In the tale of Goldilocks, everything must be "just right": not too hot, not too cold, ' +
+        'not too hard, not too soft. Astrobiologists searching for life across the universe follow the same logic. ' +
+        'Around every star there exists a range of distances where a planet receives exactly enough heat ' +
+        'to keep water liquid on its surface. That range is called the **habitable zone**, or the Goldilocks zone — ' +
+        'named after the same fairy-tale girl.',
+
+        'But the Goldilocks zone is neither a sentence nor a guarantee. ' +
+        'Earth sits inside it, which is good. Mars sits inside it too, but nothing flows there now. ' +
+        'Venus sits just outside, though it may once have had oceans. ' +
+        'And in an entirely different corner of the solar system, far beyond any habitable zone, ' +
+        'genuine subsurface oceans quietly slosh beneath the ice of Europa and Enceladus. ' +
+        'The habitable zone is an important concept — but not the only recipe for finding life.',
+      ],
+    },
+
+    {
+      heading: 'Why Water? Solvent, Thermostat, Catalyst',
+      level: 2,
+      paragraphs: [
+        'Water is a chemically extraordinary molecule. It is a _polar solvent_, meaning it dissolves ' +
+        'an enormous variety of substances — salts, sugars, amino acids, nucleotides. ' +
+        'Virtually all of Earth\'s biochemistry happens in aqueous solution: enzymes catalyze reactions in water, ' +
+        'DNA stores information in water, cell membranes separate "water rooms" from one another.',
+
+        'Water also has exceptional **heat capacity** — it heats and cools very slowly. ' +
+        'This makes it a natural thermostat: Earth\'s oceans dampen sharp temperature swings, ' +
+        'keeping conditions stable across billions of years. ' +
+        'Moreover, ice floats on liquid water — a rare property for a solid. ' +
+        'This means that even when the ocean surface freezes, liquid water remains beneath the ice, ' +
+        'and deep-sea life can survive.',
+
+        'Finally, hydrogen bonds between H₂O molecules keep water extraordinarily stable in its liquid state ' +
+        'at "moderate" temperatures — precisely where most organic molecules are stable and reactive. ' +
+        'Water and organic chemistry seem made for each other.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'habitable-zones-hz-star-types',
+        prompt:
+          'Scientific diagram comparing habitable zones for three types of stars: ' +
+          'on the left a dim red M-dwarf with a very close narrow habitable zone (0.1-0.4 AU), ' +
+          'in the center a yellow G-type star (like the Sun) with a wider habitable zone (0.9-1.5 AU), ' +
+          'on the right a bright white-blue F-type star with a wider and more distant habitable zone (1.5-3 AU). ' +
+          'Each star shown with concentric orbital rings, habitable zone as a green band, inner boundary red, outer boundary blue. ' +
+          'Hard sci-fi style, dark background, monospace font labels. ' +
+          'Add the following text labels on the image: "M-dwarf", "G-dwarf (Sun)", "F-dwarf", "habitable zone".',
+        alt: 'Comparison of habitable zones for M, G, and F class stars — size and distance from the star differ substantially',
+        caption:
+          'The brighter the star, the farther and wider its habitable zone. M-dwarfs — the most common stars in the universe — have their zone so close that their planets risk being tidally locked.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'The Habitable Zone Depends on the Star',
+      level: 2,
+      paragraphs: [
+        'The location and width of the habitable zone are determined primarily by stellar luminosity. ' +
+        'The Sun is a class G star, quite typical. Its habitable zone spans roughly the distance from ' +
+        'Venus to Mars, with Earth occupying a favorable central position. ' +
+        'But 75% of all stars in our galaxy are **M-dwarfs** (red dwarfs): ' +
+        'small, dim, extremely long-lived. Their habitable zones lie very close to the star — ' +
+        'at distances ten times smaller than Earth\'s distance from the Sun.',
+
+        'At the other end of the spectrum are **F-dwarfs**: larger, hotter, more luminous than the Sun. ' +
+        'Their zones are farther away and wider. But F-stars live shorter lives and bombard their planets ' +
+        'more intensely with ultraviolet radiation. **K-dwarfs** occupy the middle ground between G and M — ' +
+        'often called "quiet versions of the Sun," they are considered particularly promising candidates ' +
+        'in the astrobiological community when searching for potentially habitable worlds.',
+      ],
+    },
+
+    {
+      heading: 'The M-Dwarf Problem: Tidal Lock and Flares',
+      level: 3,
+      paragraphs: [
+        'M-dwarfs seem ideal for planet searches: they are numerous, they live for trillions of years, ' +
+        'and their planets are easier to detect thanks to the star\'s small size. ' +
+        'But they carry two serious complications.',
+
+        'First, _tidal locking_. A planet orbiting so close to its star gradually begins to rotate ' +
+        'synchronously with it: one hemisphere is permanently facing the star (eternal day), ' +
+        'the other is forever in darkness (eternal night). This does not automatically make life impossible — ' +
+        'an atmosphere can redistribute heat between both sides, and the terminator line may offer temperate conditions. ' +
+        'But it complicates climate models and raises the risk of the atmosphere freezing out on the night side.',
+
+        'Second, **stellar activity**. Young M-dwarfs are intensely active: they generate powerful flares ' +
+        'of X-ray and ultraviolet radiation. For a planet in the habitable zone of such a dwarf, ' +
+        'this means regular bombardment by high-energy radiation capable of dissociating atmospheric molecules ' +
+        'and stripping lighter gases into space. ' +
+        'Proxima Centauri b — one of the nearest known exoplanets in a habitable zone — ' +
+        'is subjected to such flares on a regular basis.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'habitable-zones-proxima-flare',
+        prompt:
+          'Scientific illustration of an M-dwarf red star with a massive stellar flare: ' +
+          'bright eruption of plasma and radiation from the star surface, ' +
+          'a small rocky planet nearby in its habitable zone being bombarded by UV and X-ray radiation shown as bright rays, ' +
+          'the planet atmosphere glowing and partly eroding at the upper layers, ' +
+          'dark space background, red star dominates the scene. ' +
+          'Hard sci-fi style scientific illustration. ' +
+          'Add the following text labels on the image: "M-dwarf flare", "UV / X-ray burst", "atmosphere erosion", "habitable zone planet".',
+        alt: 'A planet in an M-dwarf habitable zone during a powerful stellar flare — radiation strips away the atmosphere',
+        caption:
+          'Young M-dwarfs can produce flares thousands of times more powerful than the strongest solar events. For a planet in the habitable zone, this means periodic irradiation capable of eroding a thin atmosphere over billions of years.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Alternative Solvents: Methane, Ammonia, and Cold Worlds',
+      level: 2,
+      paragraphs: [
+        'The entire discussion of the Goldilocks zone implicitly assumes that water is the _solvent_ ' +
+        'for any biochemistry. But chemists point to other candidates.',
+
+        '**Liquid methane** (CH₄) remains liquid at very low temperatures — around -180 degrees Celsius. ' +
+        'On Titan, Saturn\'s moon, lakes and rivers of liquid methane and ethane actually exist. ' +
+        'In theory, organic chemistry different from Earth\'s is possible in liquid methane. ' +
+        'Ammonia (NH₃) is another candidate: it remains liquid across a wider temperature range than water ' +
+        'and is also a polar solvent.',
+
+        'But there is a serious caveat: chemical reactions at very low temperatures proceed extraordinarily slowly. ' +
+        'Where water-based biochemistry can complete a reaction in microseconds, ' +
+        'methane-based chemistry might take years. ' +
+        'Whether evolution and increasing complexity are possible at such rates is an open question. ' +
+        'Perhaps in cold worlds, time is simply counted differently.',
+      ],
+    },
+
+    {
+      heading: 'The Extended View: The Galactic Habitable Zone',
+      level: 2,
+      paragraphs: [
+        'The concept of a habitable zone can be extended to the scale of an entire galaxy. ' +
+        'Where stellar density is very high — at the core of the Milky Way — the radiation environment ' +
+        'from supernovae, gamma-ray bursts, and X-ray sources is extreme. ' +
+        'A planet there would have little chance of avoiding periodic sterilization by intense gamma radiation.',
+
+        'At the galactic periphery, a different problem arises: there are few heavy elements ' +
+        '(oxygen, carbon, silicon, iron), because heavy elements accumulate gradually ' +
+        'through supernova explosions over billions of years. ' +
+        'Without sufficient silicon and iron, it is hard to form rocky planets. ' +
+        'Without carbon, organic chemistry is impossible.',
+
+        'Thus, the **galactic habitable zone** is a ring between an overly active core ' +
+        'and an element-poor periphery. Our solar system sits at roughly the mid-distance from the galactic center — ' +
+        'a favorable position from both perspectives.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Habitable Zone Width versus Star Type',
+        svg: `<svg viewBox="0 0 660 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="660" height="300" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Y-axis label -->
+  <text x="18" y="150" fill="#8899aa" font-family="monospace" font-size="10"
+        text-anchor="middle" transform="rotate(-90 18 150)">Distance from star (relative)</text>
+
+  <!-- Axes -->
+  <line x1="60" y1="260" x2="620" y2="260" stroke="#334455" stroke-width="1.2"/>
+  <line x1="60" y1="30"  x2="60"  y2="260" stroke="#334455" stroke-width="1.2"/>
+
+  <!-- X axis tick labels -->
+  <text x="140" y="278" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle">M-dwarf</text>
+  <text x="340" y="278" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle">K/G-dwarf</text>
+  <text x="540" y="278" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle">F-dwarf</text>
+
+  <!-- Y axis ticks -->
+  <text x="52" y="250" fill="#667788" font-family="monospace" font-size="9" text-anchor="end">0</text>
+  <text x="52" y="200" fill="#667788" font-family="monospace" font-size="9" text-anchor="end">0.5</text>
+  <text x="52" y="150" fill="#667788" font-family="monospace" font-size="9" text-anchor="end">1.0</text>
+  <text x="52" y="100" fill="#667788" font-family="monospace" font-size="9" text-anchor="end">1.5</text>
+  <text x="52" y="50"  fill="#667788" font-family="monospace" font-size="9" text-anchor="end">2.0</text>
+  <line x1="57" y1="250" x2="63" y2="250" stroke="#334455" stroke-width="1"/>
+  <line x1="57" y1="200" x2="63" y2="200" stroke="#334455" stroke-width="1"/>
+  <line x1="57" y1="150" x2="63" y2="150" stroke="#334455" stroke-width="1"/>
+  <line x1="57" y1="100" x2="63" y2="100" stroke="#334455" stroke-width="1"/>
+  <line x1="57" y1="50"  x2="63" y2="50"  stroke="#334455" stroke-width="1"/>
+
+  <!-- M-dwarf HZ bar: 0.1–0.4 AU -->
+  <rect x="110" y="220" width="60" height="30" fill="rgba(68,255,136,0.25)" stroke="#44ff88" stroke-width="1.5"/>
+  <circle cx="140" cy="258" r="10" fill="#cc4444" opacity="0.9"/>
+  <text x="140" y="208" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">0.1–0.4 AU</text>
+
+  <!-- G-dwarf HZ bar: 0.95–1.5 AU -->
+  <rect x="310" y="110" width="60" height="55" fill="rgba(68,255,136,0.25)" stroke="#44ff88" stroke-width="1.5"/>
+  <circle cx="340" cy="158" r="5" fill="#7bb8ff" opacity="0.9"/>
+  <text x="350" y="154" fill="#7bb8ff" font-family="monospace" font-size="9">Earth</text>
+  <circle cx="340" cy="258" r="14" fill="#ffd080" opacity="0.9"/>
+  <text x="340" y="99" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">0.95–1.5 AU</text>
+
+  <!-- F-dwarf HZ bar: 1.5–3.0 AU -->
+  <rect x="510" y="35" width="60" height="75" fill="rgba(68,255,136,0.25)" stroke="#44ff88" stroke-width="1.5"/>
+  <text x="540" y="28" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">1.5–3.0 AU</text>
+  <circle cx="540" cy="258" r="17" fill="#ccddff" opacity="0.85"/>
+
+  <!-- Legend -->
+  <rect x="430" y="240" width="12" height="12" fill="rgba(68,255,136,0.25)" stroke="#44ff88" stroke-width="1"/>
+  <text x="446" y="250" fill="#44ff88" font-family="monospace" font-size="10">habitable zone</text>
+
+  <!-- Title -->
+  <text x="340" y="20" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Habitable Zone Width by Star Type</text>
+</svg>`,
+        caption:
+          'The habitable zone of an M-dwarf sits very close to the star (0.1–0.4 AU) and is narrow. ' +
+          'A G-dwarf (the Sun) gives Earth a comfortable mid-position in a wider zone (0.95–1.5 AU). ' +
+          'F-dwarfs have the widest zone, but also the most intense ultraviolet irradiation.',
+      },
+    },
+
+    {
+      heading: 'The Solar System: Earth, Mars, and Venus',
+      level: 2,
+      paragraphs: [
+        'In our solar system the habitable zone encompasses three planets — but only one ' +
+        'is actually suitable for surface life right now.',
+
+        '**Earth** occupies a winning central position. Mean surface temperature around 15 degrees Celsius, ' +
+        'liquid water covers 71% of the surface, a magnetic field shields it from the solar wind. ' +
+        'One decisive factor is the **carbonate-silicate cycle**: if the planet cools, CO₂ accumulates ' +
+        'in the atmosphere and strengthens the greenhouse effect; if it warms, silicate weathering accelerates, ' +
+        'drawing down CO₂. Earth, in essence, regulates itself.',
+
+        '**Mars** sits at the outer edge of the habitable zone. Four billion years ago it likely had ' +
+        'a warm, wet climate with liquid rivers and lakes. But Mars is smaller than Earth — ' +
+        'its magnetic field eventually died, the atmosphere was stripped by the solar wind, and the water vanished. ' +
+        'Only traces remain today: minerals that form in liquid water, dried riverbeds, ' +
+        'and seasonal methane fluctuations in the atmosphere.',
+
+        '**Venus** is the classic example that landing inside the habitable zone is not enough. ' +
+        'It is slightly smaller than Earth and only marginally closer to the Sun. ' +
+        'Yet a runaway greenhouse effect has baked its surface to 465 degrees Celsius — ' +
+        'hotter than Mercury. Most planetary scientists believe Venus could have had oceans ' +
+        'billions of years ago, until some trigger — perhaps massive volcanism — unleashed an irreversible greenhouse spiral.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'habitable-zones-solar-system-hz',
+        prompt:
+          'Scientific diagram of the inner Solar System showing the habitable zone: ' +
+          'the Sun at center, orbits of Mercury, Venus, Earth, and Mars shown as elliptical rings, ' +
+          'habitable zone highlighted as a wide translucent green band covering Venus orbit edge, Earth, and Mars orbits, ' +
+          'Venus labeled with hot orange glow, Earth labeled blue-green, Mars labeled as rusty red, ' +
+          'small legend showing past and present conditions. ' +
+          'Hard sci-fi style, dark background. ' +
+          'Add the following text labels on the image: "Venus (runaway greenhouse)", "Earth (liquid water)", "Mars (ice / dry)", "habitable zone".',
+        alt: 'Inner Solar System with the habitable zone highlighted — Earth at center, Venus too hot, Mars on the edge',
+        caption:
+          'All three planets lie in or near the habitable zone, but only Earth has retained liquid water on its surface. Venus and Mars illustrate extreme scenarios of climatic instability.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Subsurface Oceans: A Second Habitable Zone',
+      level: 2,
+      paragraphs: [
+        'Far beyond the Goldilocks zone — where a planet\'s surface is buried under thick ice — ' +
+        'warmth can come not from the star but from inside the body itself. ' +
+        'This is the **subsurface habitable zone**: worlds where internal heat (radiogenic or tidal) ' +
+        'maintains a liquid water ocean beneath the ice.',
+
+        '**Europa**, Jupiter\'s moon, is the best-known example. ' +
+        'Below a shell of ice tens of kilometers thick lies a liquid saltwater ocean ' +
+        'up to 100 kilometers deep — larger than all of Earth\'s oceans combined. ' +
+        'The heat comes from tidal flexing: Jupiter continuously kneads Europa with its gravity, ' +
+        'and internal friction generates warmth. At the bottom of this ocean there may be hydrothermal vents — ' +
+        'as on Earth\'s seafloor, where life thrives independently of sunlight.',
+
+        '**Enceladus**, Saturn\'s moon, is smaller than Europa but offers something even more striking: ' +
+        'it actively sprays ice fountains into space. Analysis of these _plumes_ has revealed ' +
+        'water vapor, molecular hydrogen (a sign of hydrothermal activity), silicate particles, and organic molecules. ' +
+        '**Titan**, another Saturnian moon, is an entire world with a methane cycle: ' +
+        'it has lakes, rivers, rain, and clouds — but all of liquid methane rather than water. ' +
+        'A subsurface water ocean is also thought to lie beneath Titan\'s surface.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'habitable-zones-europa-ocean',
+        prompt:
+          'Scientific cross-section illustration of Europa (Jupiter moon) showing subsurface ocean: ' +
+          'top layer of cracked blue-white ice surface, below it a deep dark blue liquid water ocean, ' +
+          'bottom layer of rocky seafloor with hydrothermal vents glowing orange, ' +
+          'Jupiter partially visible in the background through the icy surface. ' +
+          'Hard sci-fi style scientific illustration, technically accurate cross-section view. ' +
+          'Add the following text labels on the image: "ice shell ~15 km", "liquid water ocean ~100 km", "rocky seafloor", "hydrothermal vents".',
+        alt: 'Cross-section of Europa — ice shell, liquid water ocean below, hydrothermal vents on the seafloor',
+        caption:
+          'Europa\'s subsurface ocean is maintained by tidal heating from Jupiter. Its volume is two to three times that of all Earth\'s oceans combined, and possible hydrothermal vents on the seafloor could sustain a chemically active environment.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      image: {
+        cacheKey: 'habitable-zones-enceladus-plumes',
+        prompt:
+          'Photorealistic scientific illustration of Enceladus (Saturn moon) with active ice plumes: ' +
+          'small white icy moon with cracked surface at center, ' +
+          'dramatic jets of water vapor and ice particles erupting from the south pole region into space, ' +
+          'Saturn and its rings visible in the distant background, dark space. ' +
+          'Hard sci-fi style scientific illustration, dramatic and accurate. ' +
+          'Add the following text labels on the image: "ice plumes", "south pole region", "water vapor + organics", "Saturn".',
+        alt: 'Enceladus — ice plumes erupting from the south pole into space, carrying water and organic molecules',
+        caption:
+          'Enceladus\'s plumes are one of the most remarkable discoveries of the Cassini mission. They contain water vapor, molecular hydrogen, and organic molecules, pointing to active hydrothermal chemistry beneath the ice.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Biosignatures: What to Look for in Atmospheres',
+      level: 2,
+      paragraphs: [
+        'Finding a planet in the habitable zone is only the first step. ' +
+        'The real evidence of possible life is a **biosignature**: a chemical fingerprint ' +
+        'that is difficult to explain through abiotic (non-living) processes.',
+
+        'The strongest candidate is the simultaneous presence of **oxygen (O₂) and methane (CH₄)**. ' +
+        'These gases react with each other and disappear quickly unless constantly replenished. ' +
+        'On Earth, the biosphere maintains them in a state of thermodynamic disequilibrium. ' +
+        'Oxygen alone can have an abiotic origin (photolysis of CO₂), so it should be sought ' +
+        'together with other indicators.',
+
+        '**Dimethyl sulfide (DMS)** is a molecule produced by marine algae. ' +
+        'On Earth it is present in the atmosphere in trace concentrations. ' +
+        'In 2023, JWST observations of the exoplanet K2-18b found a possible DMS signal or related molecules — ' +
+        'but this is a preliminary result and its interpretation remains debated. ' +
+        'Other targets include N₂O (nitrous oxide — a byproduct of microbial metabolism), ' +
+        'CH₃Cl (chloromethane), and seasonal CO₂ variations characteristic of planets with a biosphere.',
+
+        'The core challenge: none of these signals is a definitive proof on its own. ' +
+        'A combination of several independent lines of evidence is required. ' +
+        'This logic is called _convergence of evidence_ — and that is exactly what ' +
+        'the next generation of telescopes is designed to find.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'habitable-zones-biosignature-spectrum',
+        prompt:
+          'Scientific diagram of an exoplanet atmosphere transmission spectrum showing biosignature molecules: ' +
+          'horizontal wavelength axis labeled from ultraviolet to infrared in micrometers, ' +
+          'vertical axis showing absorption depth, ' +
+          'several absorption features highlighted and labeled: O2 at 0.76 micrometers in blue, ' +
+          'H2O features across near-infrared in cyan, CH4 features in orange, CO2 features in red, ' +
+          'O3 ozone feature in purple, DMS feature labeled with question mark in green. ' +
+          'Hard sci-fi style scientific diagram, dark background, monospace labels. ' +
+          'Add the following text labels on the image: "O2", "H2O", "CH4", "CO2", "O3", "DMS (?)".',
+        alt: 'Transmission spectrum of an exoplanet atmosphere with labeled biosignature molecules: O₂, CH₄, CO₂, H₂O, DMS',
+        caption:
+          'Transit spectroscopy allows JWST to analyze the composition of exoplanet atmospheres. The combination of O₂ and CH₄, or the detection of DMS alongside evidence of liquid water, are among the most compelling biosignature candidates.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'The Future of the Search: JWST, LIFE, and the Habitable Worlds Observatory',
+      level: 2,
+      paragraphs: [
+        '**James Webb Space Telescope (JWST)** is already reshaping the search for habitable zones and biosignatures. ' +
+        'It was the first instrument capable of analyzing the atmospheres of rocky exoplanets in habitable zones — ' +
+        'most notably the TRAPPIST-1 system, where seven planets orbit an M-dwarf and at least three ' +
+        'fall within its habitable zone. So far, results for TRAPPIST-1b and 1c indicate the absence of a dense atmosphere — ' +
+        'but measurements for 1d, 1e, and 1f are still ahead.',
+
+        'The **LIFE** mission (Large Interferometer for Exoplanets) is a European Space Agency concept ' +
+        'currently in the conceptual development phase. ' +
+        'Four space telescopes in formation would suppress starlight ' +
+        'and directly measure the infrared emission of planets — ' +
+        'not through transits but directly. This would allow atmospheric analysis ' +
+        'for planets around a far larger number of stars.',
+
+        'The **Habitable Worlds Observatory (HWO)** is an American concept, the successor to Hubble and JWST ' +
+        'in the visible and ultraviolet range. Its goal: direct imaging of Earth-like planets ' +
+        'in the habitable zones of G and K stars, and the search for O₂ in their atmospheres. ' +
+        'HWO could, within its first decade of operation, answer the question ' +
+        '"does oxygen exist on at least one other planet?" ' +
+        'Launch is not expected before the mid-2040s.',
+
+        'From the Goldilocks zone around a single star to the galactic habitable zone, ' +
+        'from subsurface oceans to biosignatures in distant atmospheres — ' +
+        'the search for life-friendly places in the universe is becoming ever more nuanced. ' +
+        'We are no longer looking for just "the right temperature." ' +
+        'We are looking for a convergence of conditions — chemical, geological, atmospheric, galactic — ' +
+        'that together allow complexity to accumulate long enough for something ' +
+        'we would recognize as life to emerge.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Habitable zone (Goldilocks zone)',
+      definition:
+        'A range of distances around a star where temperatures allow liquid water to exist on a planetary surface. Its width and position depend on the luminosity of the star.',
+    },
+    {
+      term: 'Tidal locking',
+      definition:
+        'A state in which a moon or planet rotates synchronously with its star or parent planet — one side permanently facing it. Typical of planets orbiting M-dwarfs within the habitable zone.',
+    },
+    {
+      term: 'M-dwarf (red dwarf)',
+      definition:
+        'The most common type of star in the galaxy — small, dim, and long-lived. Their habitable zone lies very close to the star, creating problems of tidal locking and stellar activity.',
+    },
+    {
+      term: 'Subsurface ocean',
+      definition:
+        'A liquid water ocean hidden beneath a planet\'s or moon\'s ice layer, maintained by internal heat (radiogenic or tidal) rather than stellar irradiation. Examples: Europa, Enceladus.',
+    },
+    {
+      term: 'Biosignature',
+      definition:
+        'A chemical feature in a planet\'s atmosphere or on its surface that is difficult to explain by abiotic processes and may indicate living organisms. Example: simultaneous presence of O₂ and CH₄.',
+    },
+    {
+      term: 'Transit spectroscopy',
+      definition:
+        'A method for analyzing an exoplanet\'s atmosphere: as the planet passes in front of its star, some starlight filters through the atmosphere and is absorbed by molecules. The absorption spectrum reveals atmospheric composition.',
+    },
+    {
+      term: 'Galactic habitable zone',
+      definition:
+        'A ring-shaped region in a galaxy between an overly active center (where gamma-ray bursts and radiation sterilize planets) and an element-poor periphery. Our solar system is located within it.',
+    },
+    {
+      term: 'Dimethyl sulfide (DMS)',
+      definition:
+        'The molecule CH₃SCH₃, produced by marine algae and microorganisms. It is one of the biosignature candidates in exoplanet atmospheres. A possible DMS signal was detected by JWST in the atmosphere of K2-18b.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why is water considered an ideal solvent for the origin of life?',
+      options: [
+        'It is the only substance that can remain liquid in open space',
+        'It is a polar solvent with high heat capacity and hydrogen bonds that support organic chemistry',
+        'Water does not react with any organic molecules, making it a stable medium',
+        'It transmits ultraviolet radiation required for photosynthesis',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Water is a polar solvent that dissolves a wide range of organic and inorganic substances. Its high heat capacity stabilizes temperature, hydrogen bonds provide structural support for DNA and proteins, and the anomaly of floating ice protects the aquatic environment from freezing solid.',
+    },
+    {
+      question: 'What is the main problem for planets in the habitable zone of M-dwarfs?',
+      options: [
+        'They are too far from the star and always covered in ice',
+        'M-dwarfs live too briefly for complex life to evolve',
+        'Tidal locking and powerful stellar flares of ultraviolet and X-ray radiation',
+        'Liquid water is impossible in an M-dwarf habitable zone due to low atmospheric pressure',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Planets in an M-dwarf habitable zone orbit so close to their star that they are often tidally locked. In addition, young M-dwarfs produce powerful X-ray and ultraviolet flares capable of destroying planetary atmospheres.',
+    },
+    {
+      question: 'What provides the heat that maintains Europa\'s liquid subsurface ocean?',
+      options: [
+        'Sunlight penetrating through the thin ice shell',
+        'Radioactive decay in Jupiter\'s core',
+        'Tidal heating — Jupiter deforms Europa gravitationally, and internal friction generates heat',
+        'Chemical reactions between ice and the rocky seafloor',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Jupiter — the largest planet in the solar system — continuously deforms Europa through its gravity, and this deformation changes as Europa moves along its orbit. The resulting internal friction generates enough heat to sustain a liquid ocean beneath several kilometers of ice.',
+    },
+    {
+      question: 'Which combination of gases in an exoplanet\'s atmosphere is the most compelling potential biosignature?',
+      options: [
+        'Carbon dioxide and nitrogen simultaneously',
+        'Oxygen and methane in thermodynamic disequilibrium',
+        'A large abundance of water vapor',
+        'The presence of noble gases such as argon and xenon',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Oxygen and methane react with each other and disappear quickly — they cannot coexist for long without constant replenishment. On Earth, the biosphere provides that replenishment. Their simultaneous presence in an exoplanet atmosphere is therefore a strong (though not absolute) indication of possible biological activity.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Kasting J.F. et al. — Habitable Zones around Main-Sequence Stars',
+      url: 'https://www.sciencedirect.com/science/article/pii/S001910359371oras',
+      meta: 'Icarus, 101, 108–128, 1993 — foundational paper introducing the habitable zone concept',
+    },
+    {
+      title: 'Kopparapu R.K. et al. — Habitable Zones around Main-Sequence Stars: New Estimates',
+      url: 'https://arxiv.org/abs/1301.6674',
+      meta: 'ApJ, 765, 131, 2013 (open access)',
+    },
+    {
+      title: 'NASA — Habitable Zones: The Search for Life-Friendly Planets',
+      url: 'https://exoplanets.nasa.gov/search-for-life/habitable-zone/',
+      meta: 'NASA Exoplanet Exploration, official resource, updated 2025',
+    },
+    {
+      title: 'Shields A.L. et al. — The habitability of planets orbiting M-dwarf stars',
+      url: 'https://arxiv.org/abs/1604.01467',
+      meta: 'Physics Reports, 663, 1–38, 2016 (open access)',
+    },
+    {
+      title: 'Pappalardo R.T. et al. — Europa (Moon): Subsurface Ocean Evidence',
+      url: 'https://science.nasa.gov/europa/',
+      meta: 'NASA Europa Clipper Science Overview, 2024',
+    },
+    {
+      title: 'Waite J.H. et al. — Cassini finds molecular hydrogen in the Enceladus plume',
+      url: 'https://www.science.org/doi/10.1126/science.aai8703',
+      meta: 'Science, 356, 155–159, 2017',
+    },
+    {
+      title: 'Madhusudhan N. et al. — Carbon-bearing Molecules in a Possible Hycean Atmosphere (K2-18b)',
+      url: 'https://arxiv.org/abs/2309.05566',
+      meta: 'ApJL, 956, L18, 2023 (open access)',
+    },
+    {
+      title: 'Lustig-Yaeger J. et al. — TRAPPIST-1 Atmospheres with JWST',
+      url: 'https://arxiv.org/abs/2301.04191',
+      meta: 'Nature Astronomy, 2023 (open access)',
+    },
+    {
+      title: 'LIFE Mission Concept — Large Interferometer for Exoplanets',
+      url: 'https://life-space-mission.com/',
+      meta: 'ETH Zürich and ESA concept study, 2024–2025',
+    },
+    {
+      title: 'Astro2020 Decadal Survey — Pathways to Habitable Worlds',
+      url: 'https://nap.nationalacademies.org/catalog/26141/pathways-to-discovery-in-astronomy-and-astrophysics-for-the-2020s',
+      meta: 'National Academies Press, 2021 — recommendations include HWO as a priority',
+    },
+  ],
+
+  lastVerified: '2026-05-03',
+};
+
+export default lesson;

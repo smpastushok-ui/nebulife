@@ -1,0 +1,282 @@
+{
+  "slug": "dark-energy",
+  "language": "uk",
+  "section": "cosmology",
+  "order": 5,
+  "difficulty": "intermediate",
+  "readingTimeMin": 13,
+  "title": "Темна енергія і прискорене розширення",
+  "subtitle": "Невідома сила, що штовхає Всесвіт нарізно. Чому 68% реальності ми не можемо ані виміряти, ані пояснити.",
+  "hero": {
+    "cacheKey": "dark-energy-hero",
+    "prompt": "Photorealistic scientific illustration of the expanding universe: vast cosmic web of galaxy filaments stretching apart against deep black space, galaxies shown as glowing amber-white clusters connected by luminous threads, space fabric visibly stretching between them with a subtle grid distortion effect, scale bars showing increasing distances between galaxy groups. Hard sci-fi style scientific illustration, dark space background, wide aspect ratio. Add the following text labels on the image: \"dark energy 68%\", \"accelerating expansion\", \"cosmic web\".",
+    "alt": "Всесвіт що розширюється — галактики розбігаються по розтягнутій тканині простору",
+    "caption": "Космічна павутина — великомасштабна структура Всесвіту. Темна енергія діє як невидимий тиск, що прискорює розбіжність цих ниток одна від одної. Жоден інструмент не вловив її безпосередньо.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Якщо скласти разом усю видиму матерію у Всесвіті — зорі, газ, планети, чорні діри — отримаємо приблизно 5 відсотків від загального вмісту. Ще близько 27 відсотків складає _темна матерія_ — невидима, але гравітаційно активна речовина. Решта — цілих 68 відсотків — це **темна енергія**: щось, що ми не бачимо, не відчуваємо і не можемо пояснити жодною відомою фізикою. Але саме ця невидима «решта» визначає долю всього Всесвіту.",
+        "Ще дивніше те, що темну енергію відкрили випадково — і це відкриття перевернуло всю космологію кінця XX століття. Вчені збиралися підтвердити очікуване: розширення Всесвіту повільнішає під дією гравітації. Натомість вони виявили, що Всесвіт розширюється з прискоренням. За це відкриття 2011 року присудили Нобелівську премію з фізики."
+      ]
+    },
+    {
+      "heading": "Чому гравітація мала все гальмувати",
+      "level": 2,
+      "paragraphs": [
+        "Після Великого Вибуху Всесвіт розширювався. Це підтверджував Едвін Габбл ще в першій половині XX століття: далекі галактики рухаються від нас, і чим далі — тим швидше. Але швидкість цього розширення, за всіма уявленнями, мала поступово спадати. Гравітація — притягальна сила — має сповільнювати рух будь-якої матерії. Всесвіт, як м'яч, кинутий угору: Землі спочатку рухається, але потім все повільніше і повільніше. Питання було лише в тому, якою масою визначається підсумкова доля — буде Всесвіт розширюватись вічно, чи в підсумку стиснеться назад у Великому Стисненні.",
+        "Щоб визначити темп сповільнення, потрібен був _стандартний калібр відстані_ — об'єкт, чию абсолютну яскравість ми точно знаємо. Тоді, порівнявши очікувану і спостережувану яскравість, можна виміряти відстань до нього і зіставити з його швидкістю за червоним зміщенням. Ідеальним кандидатом виявились **наднові типу Ia**."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-energy-supernova-ia",
+        "prompt": "Photorealistic scientific illustration of a Type Ia supernova explosion: a white dwarf star in a binary system accreting matter from a companion red giant, then detonating in a brilliant spherical thermonuclear explosion with a blue-white shock wave front, surrounding space illuminated brightly, companion star visible at a distance. Hard sci-fi style, dark space background. Add the following text labels on the image: \"white dwarf\", \"companion star\", \"Type Ia supernova\", \"standard candle\".",
+        "alt": "Наднова типу Ia — вибух білого карлика, що перевищив межу Чандрасекара",
+        "caption": "Наднова типу Ia виникає, коли білий карлик у подвійній системі набирає матерію від сусідньої зорі до критичної маси (~1,4 маси Сонця) і вибухає як терміщ із передбачуваною піковою яскравістю. Це робить її ідеальним еталоном відстані у Всесвіті.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Стандартні свічки та несподіваний результат",
+      "level": 2,
+      "paragraphs": [
+        "Наднові типу Ia мають унікальну властивість: їхня _пікова абсолютна яскравість_ майже однакова для всіх таких подій у Всесвіті. Фізична причина проста: вибух відбувається щоразу, коли маса білого карлика перевищує однакову критичну позначку — так звану _межу Чандрасекара_ (приблизно 1,4 маси Сонця). Однаковий «детонатор» дає однаковий вибух. Знаючи справжню яскравість і вимірявши яскравість спостережувану, фізики можуть розрахувати відстань до наднової з точністю кількох відсотків — навіть на мільярди світлових років.",
+        "У другій половині 1990-х два незалежних колективи — під керівництвом Адама Ріса та Брайана Шмідта (команда High-Z Supernova Search) і Сола Перлмуттера (команда Supernova Cosmology Project) — систематично вимірювали яскравість далеких наднових типу Ia. Результат 1998 року вразив усіх: далекі наднові виявились _тьмянішими_, ніж мало бути, якби розширення гальмувалось. Це означало одне: вони далі, ніж передбачено стандартною моделлю сповільнення. Всесвіт не гальмує — він прискорюється."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-energy-expansion-graph",
+        "prompt": "Scientific graph showing the history of cosmic expansion: horizontal axis labeled \"time\" from Big Bang to present, vertical axis labeled \"scale factor a(t)\", two curves shown — dashed red curve showing decelerating expansion (expected without dark energy), solid blue curve showing accelerating expansion (observed), vertical marker at \"today\" showing the two curves diverging significantly, annotation showing \"deceleration era\" and \"acceleration era\" separated by a transition point. Hard sci-fi style, dark background, monospace font, Game Bible palette colors. Add the following text labels on the image: \"scale factor a(t)\", \"acceleration era\", \"deceleration era\", \"today\".",
+        "alt": "Графік масштабного фактора Всесвіту: очікуване сповільнення проти спостережуваного прискорення",
+        "caption": "Синя крива — реальна доля Всесвіту з темною енергією. Пунктирна червона — те, чого очікували без неї. Перехід від сповільнення до прискорення відбувся приблизно 5 мільярдів років тому.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Космологічна стала Ейнштейна",
+      "level": 2,
+      "paragraphs": [
+        "Щоб описати прискорення, фізики повернулись до ідеї, яку Ейнштейн сам у свій час відкинув як помилку. У рівняннях загальної теорії відносності є місце для **космологічної сталої** (позначається грецькою літерою лямбда). Спочатку Ейнштейн ввів її, щоб отримати статичний Всесвіт — але після відкриття Габблом розширення відмовився від неї, назвавши це своєю «найбільшою помилкою». Тепер виявилось, що ця «помилка» описує реальність точніше за будь-яку іншу модель.",
+        "Фізично лямбда означає, що _порожній простір_ має _енергетичну густину_ — енергію самого вакууму. Ця енергія не розбавляється при розширенні Всесвіту (на відміну від матерії чи фотонів), і тому з часом починає домінувати. Коли вакуумна енергія набирає вагу — вона діє як _від'ємний тиск_, що розштовхує простір із середини, прискорюючи розширення. Стандартна космологічна модель сьогодні позначається як **ЛCDM** — лямбда плюс холодна темна матерія."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Склад Всесвіту — модель ЛCDM",
+        "svg": "<svg viewBox=\"0 0 640 280\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"640\" height=\"280\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Pie chart approximation as arc segments -->\n  <!-- Dark energy 68%: ~245 degrees arc -->\n  <path d=\"M 200 140 L 200 60 A 80 80 0 1 1 66 193 Z\" fill=\"rgba(68,136,170,0.35)\" stroke=\"#4488aa\" stroke-width=\"1.5\"/>\n  <!-- Dark matter 27%: ~97 degrees arc -->\n  <path d=\"M 200 140 L 66 193 A 80 80 0 0 1 192 60 Z\" fill=\"rgba(123,184,255,0.25)\" stroke=\"#7bb8ff\" stroke-width=\"1.5\"/>\n  <!-- Ordinary matter 5%: ~18 degrees arc -->\n  <path d=\"M 200 140 L 192 60 A 80 80 0 0 1 200 60 Z\" fill=\"rgba(68,255,136,0.35)\" stroke=\"#44ff88\" stroke-width=\"1.5\"/>\n\n  <!-- Legend -->\n  <rect x=\"320\" y=\"80\" width=\"14\" height=\"14\" fill=\"rgba(68,136,170,0.35)\" stroke=\"#4488aa\" stroke-width=\"1\"/>\n  <text x=\"342\" y=\"92\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"13\">Темна енергія (Λ) — 68%</text>\n\n  <rect x=\"320\" y=\"110\" width=\"14\" height=\"14\" fill=\"rgba(123,184,255,0.25)\" stroke=\"#7bb8ff\" stroke-width=\"1\"/>\n  <text x=\"342\" y=\"122\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"13\">Темна матерія — 27%</text>\n\n  <rect x=\"320\" y=\"140\" width=\"14\" height=\"14\" fill=\"rgba(68,255,136,0.35)\" stroke=\"#44ff88\" stroke-width=\"1\"/>\n  <text x=\"342\" y=\"152\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"13\">Звичайна матерія — 5%</text>\n\n  <text x=\"320\" y=\"192\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">з них зорі та планети: ~0.5%</text>\n  <text x=\"320\" y=\"208\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">міжзоряний газ і пил: ~4.5%</text>\n\n  <text x=\"200\" y=\"240\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">Модель ΛCDM (Planck 2018)</text>\n\n  <defs>\n    <marker id=\"arr2\" markerWidth=\"6\" markerHeight=\"6\" refX=\"4\" refY=\"3\" orient=\"auto\">\n      <polygon points=\"0 0, 6 3, 0 6\" fill=\"#667788\"/>\n    </marker>\n  </defs>\n</svg>",
+        "caption": "Всесвіт, який ми бачимо і відчуваємо, — лише 5% від того, що існує. Решта 95% складають темна матерія і темна енергія, природу яких ми ще не розуміємо. Дані: супутник Planck 2018."
+      }
+    },
+    {
+      "heading": "Квантова фізика та катастрофа вакуумної енергії",
+      "level": 2,
+      "paragraphs": [
+        "Ідея вакуумної енергії є і в квантовій механіці — і тут починається одна з найглибших проблем сучасної фізики. Квантова теорія поля передбачає, що вакуум не є порожнечею: він кипить від _віртуальних частинок_, що безперервно народжуються і анігілюють. Ця флуктуаційна активність несе енергію — і ця енергія, за теорією, мала б відігравати роль космологічної сталої.",
+        "Проблема в тому, що теоретично розрахована величина вакуумної енергії перевищує виміряну темну енергію приблизно в 10 у 120-му степені разів. Це найбільше розходження між теорією і спостереженням у всій фізиці — іноді його називають «найгіршим передбаченням в історії науки». Чому темна енергія настільки мала, а не гігантська? Відповіді у нас немає. Це і є _проблема космологічної сталої_ — відкрите питання теоретичної фізики, яке хвилює сотні дослідників."
+      ]
+    },
+    {
+      "heading": "Як ми вимірюємо темну енергію",
+      "level": 2,
+      "paragraphs": [
+        "Наднові типу Ia — лише один метод. Сучасна космологія використовує кілька незалежних інструментів, щоб визначити параметри темної енергії з різних боків.",
+        "_Баріонні акустичні осциляції_ (BAO) — це «відбитки» звукових хвиль, що проходили через первинну плазму у перші 380 тисяч років після Великого Вибуху. Ці хвилі залишили характерний масштаб у розподілі галактик (приблизно 500 мільйонів світлових років) — ніби лінійка, закодована у великомасштабній структурі Всесвіту. Вимірюючи, як цей характерний розмір змінюється зі збільшенням відстані, ми відстежуємо темп розширення у різні епохи і виводимо поведінку темної енергії.",
+        "_Гравітаційне лінзування_ дозволяє карту розподілу темної матерії — і тим самим обмежує параметри темної енергії, яка змінює темп структуроутворення. _Реліктове випромінювання_ (CMB), виміряне супутниками WMAP та Planck, дає незалежне підтвердження: флуктуації температури на рівні мільйонних часток градуса узгоджуються з моделлю ЛCDM при точно відомому значенні лямбда."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-energy-bao-map",
+        "prompt": "Scientific visualization of Baryon Acoustic Oscillations (BAO) in galaxy distribution: slice of the observable universe showing galaxy positions as glowing amber-white points, with a subtle ring-like enhancement pattern at ~500 million light-year scale visible as a statistical overdensity ring, annotated with scale bar, deep black space background with cosmic web filaments faintly visible. Hard sci-fi style, dark space background, monospace labels. Add the following text labels on the image: \"BAO scale ~500 Mly\", \"galaxy overdensity ring\", \"standard ruler\".",
+        "alt": "Карта розподілу галактик з видимим BAO-кільцем — статистичним підвищенням густини на масштабі 500 мільйонів світлових років",
+        "caption": "Баріонні акустичні осциляції залишили в розподілі галактик характерний масштаб, що слугує «стандартною лінійкою» для вимірювання темпу розширення Всесвіту на різних відстанях.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "DESI і Euclid: нові виміри нового тисячоліття",
+      "level": 2,
+      "paragraphs": [
+        "У 2024 році інструмент DESI (Dark Energy Spectroscopic Instrument) опублікував перші результати: тривимірна карта більш ніж шести мільйонів галактик — найбільша на той момент у космології. Висновок виявився несподіваним: дані незначно відхиляються від моделі з постійною лямбда, натякаючи, що темна енергія може не бути константою в часі. Статистична значущість відхилення ще не переконлива для твердих висновків — але якщо результати підтвердяться більшим набором даних, це означатиме: темна енергія — не стала, а _поле_, що еволюціонує.",
+        "Космічний телескоп Euclid, запущений у 2023 році Європейським космічним агентством, картографує мільярд галактик до відстані близько 10 мільярдів світлових років. Його мета — виміряти і BAO, і гравітаційне лінзування з безпрецедентною точністю, щоб відповісти: постійна лямбда чи ні. Перші наукові знімки Euclid вийшли у 2024 році, основний науковий каталог очікується після 2026 року."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-energy-desi-3d-map",
+        "prompt": "Photorealistic scientific visualization of the DESI 3D galaxy map: vast three-dimensional slice of the universe showing millions of galaxies as tiny luminous points organized in cosmic web filaments, voids, and clusters, the slice extending billions of light-years into deep space with increasing galaxy density toward center, deep black background with faint cyan-blue coloring for closer structures, orange-amber for distant ones (redshift color coding). Hard sci-fi style, dark space background. Add the following text labels on the image: \"DESI 3D galaxy map\", \"6 million galaxies\", \"filaments and voids\".",
+        "alt": "Тривимірна карта DESI — шість мільйонів галактик у космічній павутині",
+        "caption": "Перші результати DESI (2024): найбільша тривимірна карта Всесвіту у космологічних масштабах. Колір кодує відстань — ближчі галактики (блакитні) і далекі (жовтогарячі). Дані дозволяють виміряти BAO з точністю кращою за один відсоток.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Альтернативи: quintessence і модифікована гравітація",
+      "level": 2,
+      "paragraphs": [
+        "Постійна лямбда — найпростіше рішення, але не єдине. Якщо темна енергія змінюється з часом, її можна описати як _квінтесенцію_ — гіпотетичне скалярне поле, що пронизує весь простір і повільно еволюціонує. На відміну від константи, квінтесенція має параметр стану (позначається літерою w), що може відрізнятись від мінус одиниці і змінюватись з часом. Дані DESI натякають саме на це: w може бути більшим за мінус одиницю у минулому і меншим зараз — так звана «динамічна темна енергія».",
+        "Ще радикальніша ідея — що гравітація описана Ейнштейном лише приблизно, і на космологічних масштабах вона поводиться інакше. _Модифіковані теорії гравітації_ (f(R)-гравітація, теорія Дікке-Брансa, галілеонні поля) намагаються пояснити прискорення без жодного нового поля — лише переписавши рівняння поля Ейнштейна. Поки жодна альтернатива не перемагає стандартну ЛCDM по сукупності даних, але дослідження тривають."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Параметр стану темної енергії w",
+        "svg": "<svg viewBox=\"0 0 640 240\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"640\" height=\"240\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Axes -->\n  <line x1=\"80\" y1=\"180\" x2=\"580\" y2=\"180\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n  <line x1=\"80\" y1=\"40\" x2=\"80\" y2=\"185\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n\n  <!-- X axis label -->\n  <text x=\"580\" y=\"195\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"11\">w (параметр стану)</text>\n\n  <!-- Key markers on x axis -->\n  <!-- w = -2 -->\n  <line x1=\"130\" y1=\"178\" x2=\"130\" y2=\"184\" stroke=\"#8899aa\" stroke-width=\"1\"/>\n  <text x=\"130\" y=\"196\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">-2</text>\n  <!-- w = -1 (cosmological constant) -->\n  <line x1=\"255\" y1=\"178\" x2=\"255\" y2=\"184\" stroke=\"#cc4444\" stroke-width=\"1.5\"/>\n  <text x=\"255\" y=\"196\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">-1 (Λ)</text>\n  <!-- w = -1/3 -->\n  <line x1=\"422\" y1=\"178\" x2=\"422\" y2=\"184\" stroke=\"#8899aa\" stroke-width=\"1\"/>\n  <text x=\"422\" y=\"196\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">-1/3</text>\n  <!-- w = 0 -->\n  <line x1=\"530\" y1=\"178\" x2=\"530\" y2=\"184\" stroke=\"#8899aa\" stroke-width=\"1\"/>\n  <text x=\"530\" y=\"196\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">0</text>\n\n  <!-- Regions labeled -->\n  <!-- w < -1: phantom, Big Rip -->\n  <rect x=\"82\" y=\"50\" width=\"170\" height=\"125\" fill=\"rgba(204,68,68,0.07)\" stroke=\"none\"/>\n  <text x=\"167\" y=\"90\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">фантом</text>\n  <text x=\"167\" y=\"103\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">(Big Rip)</text>\n\n  <!-- w = -1: cosmological constant -->\n  <line x1=\"255\" y1=\"50\" x2=\"255\" y2=\"178\" stroke=\"#cc4444\" stroke-width=\"1.5\" stroke-dasharray=\"4,3\"/>\n  <text x=\"262\" y=\"65\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">Λ = const</text>\n  <text x=\"262\" y=\"78\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">стандартна ΛCDM</text>\n\n  <!-- w between -1 and -1/3: quintessence, accelerating -->\n  <rect x=\"257\" y=\"50\" width=\"162\" height=\"125\" fill=\"rgba(68,255,136,0.05)\" stroke=\"none\"/>\n  <text x=\"338\" y=\"90\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">квінтесенція</text>\n  <text x=\"338\" y=\"103\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">(прискорення)</text>\n\n  <!-- w > -1/3: decelerating -->\n  <rect x=\"424\" y=\"50\" width=\"152\" height=\"125\" fill=\"rgba(170,187,204,0.05)\" stroke=\"none\"/>\n  <text x=\"500\" y=\"90\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">сповільнення</text>\n  <text x=\"500\" y=\"103\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">(матеріально-</text>\n  <text x=\"500\" y=\"116\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">подібний режим)</text>\n\n  <!-- DESI 2024 hint arrow -->\n  <line x1=\"255\" y1=\"130\" x2=\"210\" y2=\"130\" stroke=\"#ff8844\" stroke-width=\"1.5\" marker-end=\"url(#arr3)\"/>\n  <text x=\"260\" y=\"133\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">DESI 2024</text>\n  <text x=\"260\" y=\"144\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">натяк на w&lt;-1</text>\n\n  <defs>\n    <marker id=\"arr3\" markerWidth=\"6\" markerHeight=\"6\" refX=\"4\" refY=\"3\" orient=\"auto\">\n      <polygon points=\"0 0, 6 3, 0 6\" fill=\"#ff8844\"/>\n    </marker>\n  </defs>\n</svg>",
+        "caption": "Параметр стану w описує тип темної енергії. При w = -1 — космологічна стала Ейнштейна. При w < -1 — «фантомна» темна енергія, що веде до Big Rip. Між -1 і -1/3 — різні моделі квінтесенції. Поточні дані DESI злегка натякають на значення нижче -1."
+      }
+    },
+    {
+      "heading": "Майбутнє Всесвіту: Big Freeze чи Big Rip",
+      "level": 2,
+      "paragraphs": [
+        "Доля Всесвіту прямо залежить від того, чим насправді є темна енергія. При постійній лямбда розширення продовжується вічно, але з кінцевою швидкістю. Галактики поза нашою Місцевою групою поступово виходять за горизонт спостережуваності. Зорі вигоряють, чорні діри випаровуються, матерія розкидається — Всесвіт закінчується в замерзлій темряві. Це сценарій **Big Freeze** (Велике Замерзання).",
+        "Якщо ж параметр стану w менший за мінус одиницю — темна енергія з часом зростає. Тоді прискорення розширення збільшується без обмежень. Спочатку розриваються нитки великомасштабної структури, потім галактики, потім зоряні системи, потім планети, потім атоми — усе розривається у скінченний час. Цей сценарій зветься **Big Rip** (Великий Розрив). За поточними даними, якщо він і можливий — то не раніше ніж за десятки мільярдів років. Але відповідь залежить від того, чи дасть фізика нарешті пояснення природи темної енергії."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-energy-big-freeze-rip",
+        "prompt": "Scientific split illustration showing two cosmic fates side by side: left half labeled \"Big Freeze\" showing a very sparse universe with isolated cold dead galaxies, extreme darkness, right half labeled \"Big Rip\" showing galaxies, then stars, then atoms being torn apart by expanding space, intense red-orange glow along fracture lines in the right panel, central dividing line between scenarios. Hard sci-fi style, dark space background, monospace labels. Add the following text labels on the image: \"Big Freeze (w = -1)\", \"Big Rip (w < -1)\", \"heat death\", \"space tears apart\".",
+        "alt": "Два сценарії кінця Всесвіту: Big Freeze зліва і Big Rip справа",
+        "caption": "Якщо темна енергія стала — Всесвіт завершить існування у холодній темряві (Big Freeze). Якщо зростає з часом — він розірветься (Big Rip). Яка доля нас чекає — залежить від значення параметра w, який зараз вимірює Euclid і DESI.",
+        "aspectRatio": "16:9"
+      }
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Темна енергія",
+      "definition": "Невідома форма енергії, що рівномірно заповнює весь простір і відповідальна за прискорене розширення Всесвіту. Складає приблизно 68% загального вмісту Всесвіту. Природа лишається нез'ясованою."
+    },
+    {
+      "term": "Космологічна стала (Λ)",
+      "definition": "Член у рівняннях загальної теорії відносності, введений Ейнштейном. Фізично відповідає густині енергії вакууму — ненульовій у порожньому просторі. Найпростіша і найвживаніша модель темної енергії."
+    },
+    {
+      "term": "Наднова типу Ia",
+      "definition": "Вибух білого карлика в подвійній системі після набору критичної маси Чандрасекара (~1,4 M☉). Пікова яскравість майже однакова для всіх таких подій, що робить їх «стандартними свічками» для вимірювання відстані."
+    },
+    {
+      "term": "Баріонні акустичні осциляції (BAO)",
+      "definition": "Характерний масштаб у розподілі галактик (~500 мільйонів світлових років), що виник від звукових хвиль у первинній плазмі. Служить «стандартною лінійкою» для вимірювання темпу розширення Всесвіту."
+    },
+    {
+      "term": "Параметр стану (w)",
+      "definition": "Відношення тиску до густини енергії для темної енергії. При w = -1 — космологічна стала. При w < -1 — «фантомна» темна енергія (веде до Big Rip). При -1 < w < -1/3 — квінтесенція."
+    },
+    {
+      "term": "Квінтесенція",
+      "definition": "Гіпотетичне скалярне поле, що пронизує весь простір і еволюціонує в часі. Альтернатива космологічній сталі: пояснює прискорення розширення через динамічне поле, а не константу."
+    },
+    {
+      "term": "Big Freeze (Велике Замерзання)",
+      "definition": "Сценарій кінця Всесвіту при постійній темній енергії: нескінченне розширення призводить до виходу всіх галактик за горизонт, вигоряння зір і термодинамічної рівноваги."
+    },
+    {
+      "term": "Big Rip (Великий Розрив)",
+      "definition": "Сценарій кінця Всесвіту при фантомній темній енергії (w < -1): прискорення розширення зростає без обмежень і за скінченний час розриває галактики, зорі, планети і навіть атоми."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Чому наднові типу Ia використовуються як «стандартні свічки» для вимірювання відстані?",
+      "options": [
+        "Вони завжди вибухають з однаковою тривалістю",
+        "Їхня пікова яскравість майже однакова для всіх таких подій у Всесвіті",
+        "Вони знаходяться у центрах галактик",
+        "Їх видно неозброєним оком"
+      ],
+      "correctIndex": 1,
+      "explanation": "Наднова типу Ia вибухає, коли білий карлик набирає критичну масу Чандрасекара (~1,4 маси Сонця). Однаковий «детонатор» дає однаковий вибух і однакову пікову яскравість. Порівнявши очікувану яскравість із виміряною, можна точно розрахувати відстань."
+    },
+    {
+      "question": "Яке несподіване відкриття зробили команди Ріса і Перлмуттера 1998 року?",
+      "options": [
+        "Всесвіт не розширюється",
+        "Розширення Всесвіту сповільнюється швидше, ніж очікувалось",
+        "Далекі наднові виявились тьмянішими за очікуване — Всесвіт розширюється з прискоренням",
+        "Темна матерія складає 68% Всесвіту"
+      ],
+      "correctIndex": 2,
+      "explanation": "Далекі наднові типу Ia виявились тьмянішими (і, отже, дальшими), ніж передбачала модель зі сповільненням розширення. Єдине пояснення: розширення Всесвіту прискорюється під дією темної енергії. За це відкриття присудили Нобелівську премію 2011 року."
+    },
+    {
+      "question": "Що таке космологічна стала (Λ) у фізичному розумінні?",
+      "options": [
+        "Швидкість розширення Всесвіту",
+        "Маса темної матерії у центрі галактик",
+        "Густину вакуумної енергії — ненульова енергія порожнього простору",
+        "Константа всесвітнього тяжіння Ньютона"
+      ],
+      "correctIndex": 2,
+      "explanation": "Космологічна стала Λ відповідає густині енергії вакууму: порожній простір має ненульову енергію. Ця енергія не розбавляється при розширенні Всесвіту — і саме тому з часом домінує над матерією, діючи як від'ємний тиск, що прискорює розширення."
+    },
+    {
+      "question": "Що показали перші результати DESI 2024 року?",
+      "options": [
+        "Темна енергія точно є константою, відхилень немає",
+        "Всесвіт насправді не прискорюється",
+        "Дані незначно відхиляються від моделі постійної Λ, натякаючи на динамічну темну енергію",
+        "Темна матерія і темна енергія — одне й те саме поле"
+      ],
+      "correctIndex": 2,
+      "explanation": "Перші результати DESI (тривимірна карта більш ніж шести мільйонів галактик) показали незначне відхилення від моделі з постійною лямбда. Це може означати, що темна енергія еволюціонує в часі — але статистична значущість ще вимагає підтвердження більшим набором даних."
+    }
+  ],
+  "sources": [
+    {
+      "title": "Riess A. G. et al. — Observational Evidence from Supernovae for an Accelerating Universe",
+      "url": "https://iopscience.iop.org/article/10.1086/300499",
+      "meta": "AJ, 116, 1009, 1998 (відкритий доступ)"
+    },
+    {
+      "title": "Perlmutter S. et al. — Measurements of Omega and Lambda from 42 High-Redshift Supernovae",
+      "url": "https://iopscience.iop.org/article/10.1086/307221",
+      "meta": "ApJ, 517, 565, 1999 (відкритий доступ)"
+    },
+    {
+      "title": "DESI Collaboration — DESI 2024 VI: Cosmological Constraints from BAO Measurements",
+      "url": "https://arxiv.org/abs/2404.03002",
+      "meta": "arXiv:2404.03002, 2024 (відкритий доступ)"
+    },
+    {
+      "title": "Planck Collaboration — Planck 2018 Results VI: Cosmological Parameters",
+      "url": "https://arxiv.org/abs/1807.06209",
+      "meta": "A&A, 641, A6, 2020 (відкритий доступ)"
+    },
+    {
+      "title": "Euclid Collaboration — Euclid Early Release Observations",
+      "url": "https://arxiv.org/abs/2309.01201",
+      "meta": "arXiv:2309.01201, 2023 (відкритий доступ)"
+    },
+    {
+      "title": "Weinberg S. — The Cosmological Constant Problem",
+      "url": "https://link.aps.org/doi/10.1103/RevModPhys.61.1",
+      "meta": "Rev. Mod. Phys. 61, 1, 1989"
+    },
+    {
+      "title": "Carroll S. — The Cosmological Constant (review)",
+      "url": "https://link.livingreviews.org/articles/lrr-2001-1",
+      "meta": "Living Reviews in Relativity, 4, 1, 2001 (відкритий доступ)"
+    },
+    {
+      "title": "NASA — Dark Energy, Dark Matter",
+      "url": "https://science.nasa.gov/universe/dark-energy-dark-matter/",
+      "meta": "NASA Science, офіційна сторінка, оновлено 2024"
+    },
+    {
+      "title": "ESA Euclid mission — official website",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/Euclid",
+      "meta": "ESA, офіційна сторінка"
+    },
+    {
+      "title": "DESI — Dark Energy Spectroscopic Instrument — official website",
+      "url": "https://www.desi.lbl.gov/",
+      "meta": "Lawrence Berkeley National Laboratory"
+    }
+  ],
+  "lastVerified": "2026-05-03"
+}

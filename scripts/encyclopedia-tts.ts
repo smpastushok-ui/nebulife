@@ -87,6 +87,80 @@ function saveManifest(manifest: AssetsManifest) {
   writeFileSync(MANIFEST_PATH, JSON.stringify(wrapped, null, 2) + '\n', 'utf-8');
 }
 
+// ── Ukrainian number spell-out for TTS pre-processing ───────────────────────
+// ElevenLabs reads bare 4-digit years (e.g. "1946") oddly in Ukrainian. Pre-
+// processing them into the genitive ordinal form ("тисяча дев'ятсот сорок
+// шостого") matches the most common attribution context in our prose
+// ("у 1946 році", "1929 року", "(1965)") and is grammatically reasonable
+// even when the surrounding case differs slightly.
+const UA_HUNDREDS_CARDINAL: Record<number, string> = {
+  100: 'сто', 200: 'двісті', 300: 'триста', 400: 'чотириста',
+  500: "п'ятсот", 600: 'шістсот', 700: 'сімсот',
+  800: 'вісімсот', 900: "дев'ятсот",
+};
+const UA_HUNDREDS_GENITIVE: Record<number, string> = {
+  100: 'сотого', 200: 'двохсотого', 300: 'трьохсотого', 400: 'чотирьохсотого',
+  500: "п'ятисотого", 600: 'шестисотого', 700: 'семисотого',
+  800: 'восьмисотого', 900: "дев'ятисотого",
+};
+const UA_TENS_CARDINAL: Record<number, string> = {
+  20: 'двадцять', 30: 'тридцять', 40: 'сорок',
+  50: "п'ятдесят", 60: 'шістдесят', 70: 'сімдесят',
+  80: "вісімдесят", 90: "дев'яносто",
+};
+const UA_TENS_GENITIVE: Record<number, string> = {
+  20: 'двадцятого', 30: 'тридцятого', 40: 'сорокового',
+  50: "п'ятдесятого", 60: 'шістдесятого', 70: 'сімдесятого',
+  80: 'вісімдесятого', 90: "дев'яностого",
+};
+const UA_ONES_GENITIVE = ['', 'першого', 'другого', 'третього', 'четвертого',
+  "п'ятого", 'шостого', 'сьомого', 'восьмого', "дев'ятого"];
+const UA_TEENS_GENITIVE: Record<number, string> = {
+  10: 'десятого', 11: 'одинадцятого', 12: 'дванадцятого', 13: 'тринадцятого',
+  14: 'чотирнадцятого', 15: "п'ятнадцятого", 16: 'шістнадцятого',
+  17: 'сімнадцятого', 18: 'вісімнадцятого', 19: "дев'ятнадцятого",
+};
+
+function spellOutUkrainianYear(year: number): string {
+  if (year < 1000 || year > 2099) return String(year);
+  const isTwoThousand = year >= 2000;
+  const thousand = isTwoThousand ? 'дві тисячі' : 'тисяча';
+  const remainder = year - (isTwoThousand ? 2000 : 1000);
+  const hundreds = Math.floor(remainder / 100) * 100;
+  const lastTwo = remainder % 100;
+  const tens = Math.floor(lastTwo / 10) * 10;
+  const ones = lastTwo % 10;
+
+  const parts: string[] = [];
+  // Final-word position determines genitive ending. We add cardinal forms
+  // for non-final positions, genitive for the final.
+  if (lastTwo === 0 && hundreds === 0) {
+    return isTwoThousand ? 'двохтисячного' : 'тисячного';
+  }
+  parts.push(thousand);
+  if (lastTwo === 0) {
+    parts.push(UA_HUNDREDS_GENITIVE[hundreds]);
+    return parts.join(' ');
+  }
+  if (hundreds > 0) parts.push(UA_HUNDREDS_CARDINAL[hundreds]);
+  if (lastTwo >= 10 && lastTwo <= 19) {
+    parts.push(UA_TEENS_GENITIVE[lastTwo]);
+  } else if (ones === 0) {
+    parts.push(UA_TENS_GENITIVE[tens]);
+  } else if (tens === 0) {
+    parts.push(UA_ONES_GENITIVE[ones]);
+  } else {
+    parts.push(UA_TENS_CARDINAL[tens]);
+    parts.push(UA_ONES_GENITIVE[ones]);
+  }
+  return parts.join(' ');
+}
+
+/** Pre-process Ukrainian spoken text: replace bare years with spelled-out form. */
+function preprocessUkrainianForTts(text: string): string {
+  return text.replace(/\b(1[0-9]{3}|20[0-9]{2})\b/g, (m) => spellOutUkrainianYear(parseInt(m, 10)));
+}
+
 /** Plain-text body for TTS. */
 function buildSpokenText(lesson: Lesson): string {
   const parts: string[] = [];
@@ -103,7 +177,11 @@ function buildSpokenText(lesson: Lesson): string {
     if (block.image?.caption) parts.push(block.image.caption);
     if (block.diagram?.caption) parts.push(block.diagram.caption);
   }
-  return parts.join('\n\n');
+  let result = parts.join('\n\n');
+  // For Ukrainian lessons, swap bare years for genitive spelled-out form so
+  // ElevenLabs reads them naturally in attribution contexts.
+  if (lesson.language === 'uk') result = preprocessUkrainianForTts(result);
+  return result;
 }
 
 async function callTtsEndpoint(

@@ -1,0 +1,687 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'stars-classification',
+  language: 'uk',
+  section: 'astronomy',
+  order: 4,
+  difficulty: 'beginner',
+  readingTimeMin: 14,
+  title: 'Зорі: класифікація і життєвий цикл',
+  subtitle: 'Від протозоряної хмари до білого карлика або чорної діри — як маса зорі визначає весь її шлях.',
+
+  hero: {
+    cacheKey: 'stars-classification-hero',
+    prompt:
+      'Scientific illustration showing the full spectral classification of stars O B A F G K M arranged left to right as glowing spheres against deep black space. ' +
+      'Colors progress from intense blue-white (O-type, leftmost) through white (A), pale yellow (F), yellow (G, Sun-like), orange (K), to deep red (M, rightmost). ' +
+      'Each sphere is labeled with its spectral class letter below. Relative sizes increase slightly from O to M for the main sequence context. ' +
+      'Hard sci-fi scientific illustration, monospace font labels, dark space background with faint star field. ' +
+      'Add the following text labels on the image: "O", "B", "A", "F", "G", "K", "M", "spectral class", "hot → cool".',
+    alt: 'Сім спектральних класів зір O B A F G K M — від синьо-білих гігантів до червоних карликів',
+    caption:
+      'Спектральна класифікація O B A F G K M охоплює температури від понад тридцяти тисяч кельвінів (клас O) до менш ніж трьох тисяч кельвінів (клас M). Сонце належить до класу G — між теплими і холодними зорями.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Зоря — це не просто куля розпеченого газу. Це місце, де гравітація і термоядерний тиск ведуть нескінченну боротьбу. ' +
+        'Гравітація стискає водень до центру, розігріваючи його. Коли температура досягає кількох мільйонів кельвінів, ' +
+        'починається **термоядерне злиття**: ядра водню з\'єднуються в гелій, вивільняючи колосальну енергію. ' +
+        'Ця енергія тисне зсередини назовні, врівноважуючи гравітацію. Поки водень не вичерпається, зоря перебуває в стані _гідростатичної рівноваги_ — ' +
+        'точки, де два протилежні тиски рівні.',
+
+        'Саме ця рівновага пояснює, чому зорі живуть мільйони і мільярди років, а не вибухають чи гаснуть за роки. ' +
+        'Коли рівновага зрештою порушується — через вичерпання палива — починається наступна сторінка зоряної біографії. ' +
+        'Куди вона веде, залежить майже виключно від однієї речі: початкової маси зорі.',
+      ],
+    },
+
+    {
+      heading: 'Спектральна класифікація O B A F G K M',
+      level: 2,
+      paragraphs: [
+        'Наприкінці XIX та на початку XX століття астрономи Гарвардської обсерваторії — ' +
+        'серед них Анні Джамп Кеннон — систематично розклали спектри десятків тисяч зір. ' +
+        'Виявилось, що спектральні лінії поглинання утворюють чіткі групи: зорі природно розбиваються на класи ' +
+        'за температурою поверхні. Так народилась **Гарвардська класифікація** — сім букв O B A F G K M, ' +
+        'від найгарячіших до найхолодніших.',
+
+        'Щоб запам\'ятати порядок, англомовні астрономи використовують мнемоніку: ' +
+        '"_Oh Be A Fine Girl Kiss Me_". Кожен клас ділиться на підкласи від 0 до 9 (від гарячішого до холоднішого). ' +
+        'Наше Сонце — тип G2: жовта зоря середньої температури.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'stars-classification-harvard-table',
+        prompt:
+          'Scientific infographic table of Harvard stellar spectral classification: seven rows for classes O, B, A, F, G, K, M. ' +
+          'Each row shows: spectral class letter, color swatch (blue-white, blue-white, white, yellow-white, yellow, orange, red), ' +
+          'surface temperature range in Kelvin, example star name, and one dominant spectral feature. ' +
+          'Clean monospace font, dark background (deep space color #020510), cyan and amber accents. ' +
+          'Grid lines in dim blue-grey. ' +
+          'Add the following text labels on the image: "Class", "Color", "Temperature (K)", "Example", "Key feature".',
+        alt: 'Таблиця Гарвардської спектральної класифікації зір — сім рядків від класу O до M з температурами і прикладами',
+        caption:
+          'Гарвардська класифікація пов\'язує колір зорі з температурою її поверхні та хімічним складом атмосфери. ' +
+          'Іонізований гелій у спектрі означає клас O, молекули TiO — клас M.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      paragraphs: [
+        'Клас **O** — найгарячіші зорі: температура поверхні від тридцяти тисяч до понад ста тисяч кельвінів. ' +
+        'Вони сяють синьо-білим кольором і масивні — від двадцяти до ста і більше сонячних мас. ' +
+        'Живуть лише кілька мільйонів років: чим більша маса, тим швидше витрачається паливо. ' +
+        'Зорі класу O відповідають за більшу частину ультрафіолетового та іонізуючого випромінювання в галактиці.',
+
+        'Клас **B** — яскраво-блакитні зорі, температура від десяти до тридцяти тисяч кельвінів. ' +
+        'Сюди належить **Рігель** — одна з найяскравіших зір нашого неба: при відстані понад вісімсот світлових років ' +
+        'її видима яскравість порівнянна з найближчими сусідами Сонця.',
+
+        'Клас **A** — білі зорі, температура від семи тисяч п\'ятисот до десяти тисяч кельвінів. ' +
+        'Найяскравіша зоря нічного неба **Сіріус** (альфа Великого Пса) — клас A1. ' +
+        'У спектрі зір класу A домінують лінії поглинання водню (серія Бальмера).',
+
+        'Клас **F** — жовтувато-білі, від шести тисяч до семи тисяч п\'ятисот кельвінів. ' +
+        'Клас **G** — жовті зорі, як наше Сонце (п\'ять тисяч двісті — шість тисяч кельвінів). ' +
+        'Клас **K** — жовтогарячі, від три тисячі п\'ятисот до п\'яти тисяч двохсот кельвінів. ' +
+        'Клас **M** — найхолодніші зорі головної послідовності, менш ніж три тисячі п\'ятисот кельвінів, червоного кольору. ' +
+        'До них належать _червоні карлики_ — найпоширеніший тип зір у нашій Галактиці.',
+      ],
+    },
+
+    {
+      heading: 'Діаграма Герцшпрунга-Рассела',
+      level: 2,
+      paragraphs: [
+        'На початку XX століття данський астроном Ейнар Герцшпрунг і американець Генрі Норріс Рассел незалежно один від одного ' +
+        'побудували графік, де вісь X — температура (або спектральний клас) зорі, а вісь Y — її _абсолютна світність_. ' +
+        'Точки розподілились не хаотично, а утворили чіткі смуги: так з\'явилась **діаграма Герцшпрунга-Рассела** (HR-діаграма) — ' +
+        'найважливіший інструмент зоряної астрофізики.',
+
+        'Більшість зір (включно з Сонцем) лежить на широкій смузі від верхнього лівого кута (гарячі та яскраві) ' +
+        'до нижнього правого (холодні та тьмяні) — це **головна послідовність** (_main sequence_). ' +
+        'Зоря перебуває тут, поки спалює водень у ядрі. Щойно водень закінчується — вона покидає головну послідовність ' +
+        'і рухається до правого верхнього кута: стає червоним гігантом або надгігантом.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Діаграма Герцшпрунга-Рассела',
+        svg: `<svg viewBox="0 0 700 480" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="480" fill="rgba(10,15,25,0.7)" rx="4"/>
+
+  <!-- Axes -->
+  <line x1="80" y1="30" x2="80" y2="420" stroke="#334455" stroke-width="1.5"/>
+  <line x1="80" y1="420" x2="670" y2="420" stroke="#334455" stroke-width="1.5"/>
+
+  <!-- Y axis label: Luminosity -->
+  <text x="18" y="230" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle" transform="rotate(-90,18,230)">Світність (L☉)</text>
+
+  <!-- Y axis ticks -->
+  <text x="74" y="50"  fill="#667788" font-family="monospace" font-size="10" text-anchor="end">10⁶</text>
+  <text x="74" y="120" fill="#667788" font-family="monospace" font-size="10" text-anchor="end">10⁴</text>
+  <text x="74" y="190" fill="#667788" font-family="monospace" font-size="10" text-anchor="end">10²</text>
+  <text x="74" y="260" fill="#667788" font-family="monospace" font-size="10" text-anchor="end">1</text>
+  <text x="74" y="330" fill="#667788" font-family="monospace" font-size="10" text-anchor="end">10⁻²</text>
+  <text x="74" y="400" fill="#667788" font-family="monospace" font-size="10" text-anchor="end">10⁻⁴</text>
+  <line x1="78" y1="50"  x2="82" y2="50"  stroke="#334455" stroke-width="1"/>
+  <line x1="78" y1="120" x2="82" y2="120" stroke="#334455" stroke-width="1"/>
+  <line x1="78" y1="190" x2="82" y2="190" stroke="#334455" stroke-width="1"/>
+  <line x1="78" y1="260" x2="82" y2="260" stroke="#334455" stroke-width="1"/>
+  <line x1="78" y1="330" x2="82" y2="330" stroke="#334455" stroke-width="1"/>
+  <line x1="78" y1="400" x2="82" y2="400" stroke="#334455" stroke-width="1"/>
+
+  <!-- X axis label: Temperature / Spectral class -->
+  <text x="375" y="460" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle">Температура поверхні → (гаряча ліворуч)</text>
+
+  <!-- X axis spectral class labels -->
+  <text x="120" y="438" fill="#aad4ff" font-family="monospace" font-size="11" text-anchor="middle">O</text>
+  <text x="185" y="438" fill="#cce4ff" font-family="monospace" font-size="11" text-anchor="middle">B</text>
+  <text x="265" y="438" fill="#ffffff" font-family="monospace" font-size="11" text-anchor="middle">A</text>
+  <text x="345" y="438" fill="#ffffcc" font-family="monospace" font-size="11" text-anchor="middle">F</text>
+  <text x="415" y="438" fill="#ffee88" font-family="monospace" font-size="11" text-anchor="middle">G</text>
+  <text x="495" y="438" fill="#ffaa55" font-family="monospace" font-size="11" text-anchor="middle">K</text>
+  <text x="585" y="438" fill="#ff5533" font-family="monospace" font-size="11" text-anchor="middle">M</text>
+
+  <!-- Main sequence band (approximate diagonal strip) -->
+  <polygon
+    points="95,40 145,60 230,110 310,175 385,230 460,280 555,345 635,395 635,415 555,375 460,310 385,260 310,210 230,145 145,90 95,65"
+    fill="rgba(68,136,170,0.13)" stroke="rgba(68,136,170,0.4)" stroke-width="1"/>
+  <text x="280" y="155" fill="#4488aa" font-family="monospace" font-size="11" transform="rotate(-30,280,155)">Головна послідовність</text>
+
+  <!-- Red giants / supergiants region (upper right) -->
+  <ellipse cx="560" cy="120" rx="90" ry="55" fill="rgba(180,80,40,0.14)" stroke="rgba(180,80,40,0.45)" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="560" y="78" fill="#cc6633" font-family="monospace" font-size="10" text-anchor="middle">Червоні гіганти</text>
+  <text x="560" y="92" fill="#cc6633" font-family="monospace" font-size="10" text-anchor="middle">і надгіганти</text>
+
+  <!-- White dwarfs region (lower left) -->
+  <ellipse cx="175" cy="375" rx="65" ry="28" fill="rgba(180,210,240,0.13)" stroke="rgba(180,210,240,0.4)" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="175" y="372" fill="#cdd9e8" font-family="monospace" font-size="10" text-anchor="middle">Білі карлики</text>
+
+  <!-- Key stars as dots with labels -->
+  <!-- Sun: G2, L=1 -->
+  <circle cx="415" cy="260" r="7" fill="#ffee88" stroke="#ffd050" stroke-width="1.5"/>
+  <text x="430" y="257" fill="#ffee88" font-family="monospace" font-size="10">Сонце (G2)</text>
+
+  <!-- Sirius A: A1, ~25 L☉ -->
+  <circle cx="258" cy="205" r="6" fill="#eef4ff" stroke="#aad4ff" stroke-width="1.5"/>
+  <text x="272" y="202" fill="#aad4ff" font-family="monospace" font-size="10">Сіріус A (A1)</text>
+
+  <!-- Rigel: B8, ~120000 L☉ -->
+  <circle cx="200" cy="62" r="8" fill="#cce8ff" stroke="#aad4ff" stroke-width="1.5"/>
+  <text x="215" y="59" fill="#cce8ff" font-family="monospace" font-size="10">Рігель (B8)</text>
+
+  <!-- Polaris: F7 supergiant, ~2500 L☉ -->
+  <circle cx="350" cy="128" r="6" fill="#ffffcc" stroke="#ffee88" stroke-width="1.5"/>
+  <text x="364" y="125" fill="#ffffcc" font-family="monospace" font-size="10">Полярна (F7)</text>
+
+  <!-- Betelgeuse: M2, ~100000 L☉ -->
+  <circle cx="570" cy="68" r="9" fill="#ff5533" stroke="#ff8844" stroke-width="1.5"/>
+  <text x="505" y="58" fill="#ff8844" font-family="monospace" font-size="10">Бетельгейзе (M2)</text>
+
+  <!-- Proxima Centauri: M5, ~0.0017 L☉ -->
+  <circle cx="600" cy="382" r="4" fill="#ff4422" stroke="#ff6644" stroke-width="1"/>
+  <text x="515" y="380" fill="#ff6644" font-family="monospace" font-size="10">Проксима (M5)</text>
+
+  <!-- Sirius B: white dwarf DA -->
+  <circle cx="148" cy="368" r="4" fill="#ddeeff" stroke="#cdd9e8" stroke-width="1"/>
+  <text x="158" y="366" fill="#cdd9e8" font-family="monospace" font-size="10">Сіріус B (DA)</text>
+
+  <!-- Arrowhead marker for axes -->
+  <defs>
+    <marker id="arr2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#334455"/>
+    </marker>
+  </defs>
+</svg>`,
+        caption:
+          'HR-діаграма: зорі головної послідовності утворюють діагональну смугу. ' +
+          'Після вичерпання водню зорі, подібні до Сонця, переходять у зону червоних гігантів (праворуч вгорі). ' +
+          'Білі карлики розташовані в нижньому лівому куті — гарячі, але малі й тьмяні.',
+      },
+    },
+
+    {
+      paragraphs: [
+        'У правому верхньому куті HR-діаграми розташовані червоні **надгіганти** — ' +
+        'Бетельгейзе та інші масивні зорі на фінальній стадії. Вони у сотні разів більші за Сонце за радіусом, ' +
+        'але їх температура набагато нижча. У нижньому лівому куті — _білі карлики_: залишки зір, ' +
+        'позбавлені джерела ядерної енергії. Гарячі, але крихітні — їх площа випромінювання мала, тому й світність невисока.',
+      ],
+    },
+
+    {
+      heading: 'Народження зорі',
+      level: 2,
+      paragraphs: [
+        'Зорі народжуються в _молекулярних хмарах_ — величезних скупченнях холодного газу і пилу ' +
+        'розміром від кількох до сотень світлових років. Достатнє збурення (наприклад, ударна хвиля від наднової поряд) ' +
+        'може запустити **гравітаційний колапс** частини хмари. Газ стискається, розігрівається — і формується ' +
+        '_протозоря_, оточена обертовим **протопланетним диском**.',
+
+        'Протозоря набуває маси, поглинаючи газ з диска. Коли температура в її ядрі досягає близько десяти мільйонів кельвінів, ' +
+        'загоряється термоядерне злиття водню. З цього моменту зоря виходить на **головну послідовність** — ' +
+        'і буде залишатися там, поки не витратить весь водень у ядрі.',
+
+        'JWST спостерігає протозорі всередині протопланетних дисків із безпрецедентною деталізацією. ' +
+        'Знімки туманності Оріона та регіону Carina Nebula показують молоді зоряні системи, ' +
+        'схожі на те, якою могла бути Сонячна система понад чотири мільярди років тому.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'stars-classification-protoplanetary-disk',
+        prompt:
+          'Scientific illustration of a protoplanetary disk around a young T Tauri star: ' +
+          'central bright yellow-orange protostar surrounded by a flared accretion disk of gas and dust with dust lanes and spiral density waves, ' +
+          'bipolar protostellar jets shooting vertically from the poles in glowing blue-white, ' +
+          'outer disk regions slightly reddish-brown from cool dust, deep black space background. ' +
+          'Hard sci-fi style scientific illustration, technically accurate geometry, dark background. ' +
+          'Add the following text labels on the image: "protostar", "accretion disk", "protostellar jet", "dust lane".',
+        alt: 'Протозоря у центрі протопланетного диска з газом і пилом та двома полярними джетами',
+        caption:
+          'Протопланетний диск навколо молодої зорі — місце, де формуються планети. ' +
+          'JWST отримує знімки таких дисків у хмарах Оріона і Carina зі деталізацією, достатньою для бачення структури кілець і щілин.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Зоря, схожа на Сонце: від народження до білого карлика',
+      level: 2,
+      paragraphs: [
+        'Зорі масою від приблизно половини до восьми сонячних мас проживають типовий "середній" сценарій. ' +
+        'Сонце зараз перебуває в середині свого головносеквенційного віку — воно горить вже більше чотирьох мільярдів років ' +
+        'і продовжуватиме горіти ще близько п\'яти мільярдів.',
+
+        'Коли запас водню в ядрі вичерпається, ядро почне стискатися. Тепло від стискання запалить ' +
+        'водень у _оболонці_ навколо ядра. Зовнішні шари зорі розширяться і охолонуть — ' +
+        'зоря перетвориться на **червоного гіганта**. Розмір Сонця у цій фазі досягне приблизно ' +
+        'орбіти Землі або навіть Марса.',
+
+        'На цьому етапі у ядрі загоряється гелій (злиття гелію в _вуглець_ і _кисень_). ' +
+        'Ця фаза значно коротша. Зрештою і гелій у ядрі вичерпується. ' +
+        'Зовнішні оболонки зорі скидаються у вигляді розширюваної хмари газу — ' +
+        'красиво підсвіченої зоряним залишком: це **планетарна туманність**. ' +
+        'Назва оманлива — до планет вона не має стосунку, її дали старі астрономи через схожість із дисковим виглядом у телескоп.',
+
+        'Після скидання оболонок залишається **білий карлик** — гаряче компактне ядро ' +
+        'розміром приблизно з Землю, але масою близько половини-однієї маси Сонця. ' +
+        'Він більше не виробляє енергії через ядерні реакції — лише поступово остигає протягом мільярдів і мільярдів років.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'stars-classification-planetary-nebula',
+        prompt:
+          'Photorealistic scientific illustration of a planetary nebula: ' +
+          'central white dwarf as a bright white pinpoint at the center, ' +
+          'surrounding it are glowing shells and rings of ejected gas in vivid colors — inner ring in blue-green (ionized oxygen), outer shell in red (ionized hydrogen), ' +
+          'delicate filaments and bipolar symmetry visible in the structure, deep black space background with faint distant stars. ' +
+          'Hard sci-fi style scientific illustration, dramatic and beautiful. ' +
+          'Add the following text labels on the image: "white dwarf", "ionized gas shell", "expanding nebula".',
+        alt: 'Планетарна туманність — багатошарова кольорова хмара газу навколо центрального білого карлика',
+        caption:
+          'Планетарна туманність — фінальний "видих" зорі, схожої на Сонце. ' +
+          'Скинуті оболонки світяться завдяки ультрафіолетовому випромінюванню гарячого білого карлика в центрі. ' +
+          'Ці структури живуть кілька десятків тисяч років, перш ніж розсіятись у міжзоряному середовищі.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Масивна зоря: від надгіганта до нейтронної зорі або чорної діри',
+      level: 2,
+      paragraphs: [
+        'Масивні зорі — більше приблизно восьми сонячних мас — проживають набагато коротше і куди драматичніше. ' +
+        'Після головної послідовності вони також стають червоними надгігантами, ' +
+        'але їх ядра продовжують синтез важчих елементів: гелій → вуглець → неон → кисень → кремній → залізо. ' +
+        'Залізне ядро — _кінцева зупинка_: злиття заліза не вивільняє енергії, а поглинає її.',
+
+        'Коли маса залізного ядра перевищує межу приблизно в одну і чотири десятих сонячних маси ' +
+        '(межа Чандрасекара), тиск електронів більше не може протистояти гравітації. ' +
+        'За частки секунди ядро обвалюється до розміру міста, досягаючи густини атомного ядра. ' +
+        'Стрімке стиснення відбиває падаючу оболонку — ' +
+        'і ця ударна хвиля розриває зорю зсередини у вигляді **наднової** — одного з найпотужніших вибухів у Всесвіті.',
+
+        'У надновій за кілька секунд синтезується більше нейтронів, ніж усі реакції зорі за мільйони років. ' +
+        'Саме так у Всесвіті утворюється більшість важких елементів — від заліза до золота і урану. ' +
+        'Ми буквально складаємось з матерії, що вибухнула з масивних зір задовго до народження Сонця.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Зоряна еволюція: шляхи залежно від маси',
+        svg: `<svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="340" fill="rgba(10,15,25,0.6)" rx="4"/>
+
+  <defs>
+    <marker id="starr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#667788"/>
+    </marker>
+    <marker id="starrred" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#cc6633"/>
+    </marker>
+  </defs>
+
+  <!-- Dividing line between tracks -->
+  <line x1="20" y1="170" x2="680" y2="170" stroke="#334455" stroke-width="0.8" stroke-dasharray="6,5" opacity="0.6"/>
+  <text x="8" y="100" fill="#667788" font-family="monospace" font-size="9" dominant-baseline="middle" transform="rotate(-90,8,100)">Мала/середня</text>
+  <text x="8" y="248" fill="#667788" font-family="monospace" font-size="9" dominant-baseline="middle" transform="rotate(-90,8,248)">Масивна</text>
+
+  <!-- === Top track: Sun-like === -->
+  <!-- Protostar -->
+  <circle cx="70" cy="95" r="14" fill="#ffcc66" opacity="0.85"/>
+  <text x="70" y="99" fill="#020510" font-family="monospace" font-size="8" text-anchor="middle" font-weight="bold">Протозоря</text>
+  <text x="70" y="122" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">0.5–8 M☉</text>
+
+  <!-- Arrow -->
+  <line x1="86" y1="95" x2="148" y2="95" stroke="#667788" stroke-width="1.2" marker-end="url(#starr)"/>
+
+  <!-- Main sequence -->
+  <circle cx="178" cy="95" r="18" fill="#ffee88" opacity="0.9"/>
+  <text x="178" y="92" fill="#020510" font-family="monospace" font-size="7" text-anchor="middle" font-weight="bold">Головна</text>
+  <text x="178" y="102" fill="#020510" font-family="monospace" font-size="7" text-anchor="middle" font-weight="bold">послідовн.</text>
+  <text x="178" y="126" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">млрд років</text>
+
+  <!-- Arrow -->
+  <line x1="198" y1="95" x2="268" y2="95" stroke="#667788" stroke-width="1.2" marker-end="url(#starr)"/>
+
+  <!-- Red giant -->
+  <circle cx="302" cy="95" r="26" fill="#cc6633" opacity="0.85"/>
+  <text x="302" y="91" fill="#fff" font-family="monospace" font-size="8" text-anchor="middle">Червоний</text>
+  <text x="302" y="102" fill="#fff" font-family="monospace" font-size="8" text-anchor="middle">гігант</text>
+  <text x="302" y="132" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">~100–200 R☉</text>
+
+  <!-- Arrow -->
+  <line x1="330" y1="95" x2="395" y2="95" stroke="#667788" stroke-width="1.2" marker-end="url(#starr)"/>
+
+  <!-- Planetary nebula -->
+  <ellipse cx="430" cy="95" rx="26" ry="17" fill="none" stroke="#88ccdd" stroke-width="1.8" opacity="0.8"/>
+  <ellipse cx="430" cy="95" rx="14" ry="8" fill="none" stroke="#4488aa" stroke-width="1" opacity="0.6"/>
+  <text x="430" y="98" fill="#88ccdd" font-family="monospace" font-size="8" text-anchor="middle">Планетарна</text>
+  <text x="430" y="122" fill="#88ccdd" font-family="monospace" font-size="9" text-anchor="middle">туманність</text>
+
+  <!-- Arrow -->
+  <line x1="458" y1="95" x2="528" y2="95" stroke="#667788" stroke-width="1.2" marker-end="url(#starr)"/>
+
+  <!-- White dwarf -->
+  <circle cx="552" cy="95" r="10" fill="#ddeeff" opacity="0.95"/>
+  <text x="552" y="117" fill="#cdd9e8" font-family="monospace" font-size="9" text-anchor="middle">Білий</text>
+  <text x="552" y="130" fill="#cdd9e8" font-family="monospace" font-size="9" text-anchor="middle">карлик</text>
+
+  <!-- === Bottom track: massive star === -->
+  <!-- Massive protostar -->
+  <circle cx="70" cy="245" r="22" fill="#aad4ff" opacity="0.85"/>
+  <text x="70" y="242" fill="#020510" font-family="monospace" font-size="7" text-anchor="middle" font-weight="bold">Масивна</text>
+  <text x="70" y="252" fill="#020510" font-family="monospace" font-size="7" text-anchor="middle" font-weight="bold">зоря</text>
+  <text x="70" y="278" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">8+ M☉</text>
+
+  <!-- Arrow -->
+  <line x1="94" y1="245" x2="148" y2="245" stroke="#667788" stroke-width="1.2" marker-end="url(#starr)"/>
+
+  <!-- Main sequence (fast) -->
+  <circle cx="178" cy="245" r="18" fill="#99ccff" opacity="0.9"/>
+  <text x="178" y="242" fill="#020510" font-family="monospace" font-size="7" text-anchor="middle" font-weight="bold">Головна</text>
+  <text x="178" y="252" fill="#020510" font-family="monospace" font-size="7" text-anchor="middle" font-weight="bold">послідовн.</text>
+  <text x="178" y="276" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">млн років</text>
+
+  <!-- Arrow -->
+  <line x1="198" y1="245" x2="258" y2="245" stroke="#667788" stroke-width="1.2" marker-end="url(#starr)"/>
+
+  <!-- Red supergiant -->
+  <circle cx="298" cy="245" r="34" fill="#882211" opacity="0.85"/>
+  <text x="298" y="241" fill="#ffaa88" font-family="monospace" font-size="8" text-anchor="middle">Червоний</text>
+  <text x="298" y="252" fill="#ffaa88" font-family="monospace" font-size="8" text-anchor="middle">надгігант</text>
+  <text x="298" y="288" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">500–1500 R☉</text>
+
+  <!-- Arrow -->
+  <line x1="334" y1="245" x2="388" y2="245" stroke="#667788" stroke-width="1.2" marker-end="url(#starr)"/>
+
+  <!-- Supernova -->
+  <circle cx="418" cy="245" r="22" fill="none" stroke="#ff8844" stroke-width="2"/>
+  <circle cx="418" cy="245" r="12" fill="rgba(255,200,80,0.4)"/>
+  <text x="418" y="249" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">Наднова</text>
+  <text x="418" y="276" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">Type II</text>
+
+  <!-- Fork lines -->
+  <line x1="440" y1="235" x2="502" y2="200" stroke="#667788" stroke-width="1.2" marker-end="url(#starr)"/>
+  <line x1="440" y1="255" x2="502" y2="285" stroke="#667788" stroke-width="1.2" marker-end="url(#starr)"/>
+
+  <!-- Neutron star -->
+  <circle cx="524" cy="192" r="9" fill="#7bb8ff" opacity="0.95"/>
+  <text x="524" y="175" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">Нейтронна</text>
+  <text x="524" y="187" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">зоря</text>
+  <text x="524" y="212" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="middle">1.4–3 M☉</text>
+
+  <!-- Black hole -->
+  <circle cx="524" cy="288" r="12" fill="#080c18" stroke="#cc4444" stroke-width="2"/>
+  <circle cx="524" cy="288" r="3" fill="#ff8844"/>
+  <text x="524" y="308" fill="#cc4444" font-family="monospace" font-size="9" text-anchor="middle">Чорна діра</text>
+  <text x="524" y="320" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="middle">&gt;3 M☉</text>
+</svg>`,
+        caption:
+          'Зорі малої та середньої маси (до восьми M☉) закінчують як білі карлики. ' +
+          'Масивні зорі вибухають як наднові та залишають нейтронну зорю або чорну діру залежно від маси ядра.',
+      },
+    },
+
+    {
+      paragraphs: [
+        'Якщо ядро наднової важить від одної і чотирьох десятих до приблизно трьох сонячних мас, ' +
+        'воно залишається як **нейтронна зоря** — об\'єкт розміром із місто, ' +
+        'але з масою понад сонячну, де речовина настільки стиснута, що протони і електрони злились у нейтрони. ' +
+        'Деякі нейтронні зорі обертаються сотні разів на секунду і випромінюють радіоімпульси — ' +
+        'їх називають _пульсарами_.',
+
+        'Якщо маса ядра перевищує приблизно три маси Сонця — ніяка сила не зупиняє колапс. ' +
+        'Виникає **чорна діра** — область простору, з якої нічого не виходить, навіть світло.',
+      ],
+    },
+
+    {
+      heading: 'Зорі, які ми знаємо',
+      level: 2,
+      paragraphs: [
+        '**Сонце (G2V)** — жовта зоря головної послідовності, маса одна сонячна, температура поверхні близько п\'яти тисяч вісімсот кельвінів. ' +
+        'Перебуває приблизно в середині свого зоряного life-span. Ядро зливає водень у гелій, ' +
+        'потужність — триста вісімдесят шість йотаватів (386 × 10²⁴ вт). ' +
+        'Знаходиться на відстані близько восьми з половиною кілопарсек від центру Галактики.',
+
+        '**Полярна (F7 надгігант)** — Альфа Малої Ведмедиці, яскравий надгігант класу F, приблизно у чотири сотні вісімдесяти разів яскравіший за Сонце. ' +
+        'Розташована майже точно над Північним полюсом Землі, тому використовується для навігації тисячоліттями. ' +
+        'Вона також _цефеїда_ — змінна зоря, яскравість якої пульсує з точним визначеним періодом.',
+
+        '**Бетельгейзе (M2 надгігант)** — ліве плече сузір\'я Оріона, один з найбільших відомих об\'єктів: ' +
+        'її радіус у сімсот-тисячу разів перевищує сонячний. ' +
+        'Вона вже на фінальній стадії — червоний надгігант, кандидат на наднову. ' +
+        'На початку 2020-х астрономи зафіксували її незвичайне різке потемніння, яке виявилося ' +
+        'викидом газу і пилу з поверхні, а не передвісником вибуху.',
+
+        '**Сіріус (A1V)** — найяскравіша зоря нічного неба. Насправді подвійна система: ' +
+        'Сіріус A (клас A) і Сіріус B — перший відкритий білий карлик, ' +
+        'помічений у середині XIX століття як гравітаційне збурення орбіти A. ' +
+        'Відстань до системи — близько восьми і шести десятих світлових років.',
+
+        '**Проксима Центавра (M5Ve)** — найближча до Сонця зоря, на відстані приблизно чотири і два десятих світлових роки. ' +
+        'Червоний карлик, у багато разів менший і холодніший за Сонце. ' +
+        'Навколо неї знайдено щонайменше дві планети, одна з яких (Проксима b) розташована в зоні придатності. ' +
+        'Червоні карлики — найпоширеніший тип зір у Галактиці (понад сімдесят відсотків від усіх зір).',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'stars-classification-size-comparison',
+        prompt:
+          'Scientific size comparison illustration of five famous stars aligned left to right: ' +
+          'Proxima Centauri (tiny red dot), Sun (small yellow sphere), Sirius A (medium white-blue sphere), ' +
+          'Polaris (larger pale yellow sphere), Betelgeuse (enormous deep red sphere dominating right side). ' +
+          'Each labeled below with name and spectral class. Scale bar shown underneath. ' +
+          'Hard sci-fi style scientific illustration, dark space background, monospace labels. ' +
+          'Add the following text labels on the image: "Proxima Cen M5", "Sun G2", "Sirius A A1", "Polaris F7", "Betelgeuse M2".',
+        alt: 'Порівняння розмірів п\'яти відомих зір — від Проксими Центавра до Бетельгейзе',
+        caption:
+          'Маса зорі визначає не тільки її тривалість життя, а й розмір і яскравість. ' +
+          'Бетельгейзе настільки велика, що якби її помістити на місці Сонця, вона поглинула б орбіту Юпітера.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Сучасний погляд: JWST і зоряні ясла',
+      level: 2,
+      paragraphs: [
+        'Космічний телескоп Джеймса Вебба (JWST), запущений у 2021 році, відкрив нову епоху у спостереженні зоряного народження. ' +
+        'Його інфрачервоні інструменти проникають крізь непрозорі хмари пилу, ' +
+        'де народжуються зорі — щось, що раніше було цілком недоступне оптичним телескопам.',
+
+        'Знімки регіонів зорогенезу — таких як "Стовпи Творіння" у туманності Орел або хмари Хамелеона — ' +
+        'демонструють сотні _молодих зоряних об\'єктів_ (YSO) одночасно. ' +
+        'JWST виявляє дискові структури навколо протозір, ' +
+        'вимірює їх спектри та відслідковує протозоряні джети з точністю, ' +
+        'достатньою, щоб зрозуміти, як диски еволюціонують у планетні системи.',
+
+        'Дані JWST також показують, що зоряне формування в ранньому Всесвіті відбувалось набагато інтенсивніше — ' +
+        'за перший мільярд років після Великого Вибуху виникли масивні зорі першого покоління (так звані Population III зорі), ' +
+        'позбавлені металів. Вони вигоріли швидко, синтезувавши перші важкі елементи. ' +
+        'Ми ще не спостерігали жодної такої зорі безпосередньо, але JWST вже фіксує їхні непрямі сліди ' +
+        'у спектрах найвіддаленіших галактик.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'stars-classification-jwst-star-forming',
+        prompt:
+          'JWST-style infrared image of a star-forming region: dense dark dust pillar with glowing golden-orange edges lit by nearby massive young stars, ' +
+          'multiple bright young stellar objects visible as pinpoints embedded in the pillar and surrounding nebulosity, ' +
+          'vivid pink-magenta ionized hydrogen regions in the background, deep black space, diffraction spikes on bright sources. ' +
+          'Infrared false-color scientific image aesthetic, dramatic and colorful. ' +
+          'Add the following text labels on the image: "young stellar objects", "dust pillar", "ionized gas", "JWST NIRCam".',
+        alt: 'Область зореутворення у хибних кольорах інфрачервоного знімку JWST — стовпи пилу з молодими зоряними об\'єктами',
+        caption:
+          'JWST проникає крізь непрозорий пил зоряних яслів і виявляє сотні новонароджених зір одночасно. ' +
+          'Такі знімки дозволяють вивчати зоряне формування в різних середовищах — від сусідніх хмар до далеких галактик.',
+        aspectRatio: '16:9',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Гідростатична рівновага',
+      definition:
+        'Стан зорі, коли тиск термоядерного випромінювання, спрямований назовні, точно врівноважує гравітаційне стискання, спрямоване всередину. Поки ця рівновага зберігається, зоря стабільна.',
+    },
+    {
+      term: 'Спектральний клас',
+      definition:
+        'Буквенна категорія зорі (O B A F G K M) за температурою її поверхні та характером спектральних ліній поглинання. Гарвардська класифікація, розроблена наприкінці XIX та на початку XX століття.',
+    },
+    {
+      term: 'Головна послідовність',
+      definition:
+        'Смуга на діаграмі Герцшпрунга-Рассела, де розташовані зорі, що активно спалюють водень у ядрі. Сонце перебуває на головній послідовності близько чотирьох з половиною мільярдів років.',
+    },
+    {
+      term: 'Червоний гігант / надгігант',
+      definition:
+        'Зоря на пізній стадії еволюції, що вичерпала водень у ядрі. Її оболонки розширились і охолонули, тому вона має великий радіус і червоний колір. Надгіганти — версія для масивних зір.',
+    },
+    {
+      term: 'Планетарна туманність',
+      definition:
+        'Розширювана хмара газу, скинута зорею малої та середньої маси наприкінці її червоногігантської фази. Назва оманлива — до планет вона не має стосунку.',
+    },
+    {
+      term: 'Білий карлик',
+      definition:
+        'Залишок ядра зорі малої та середньої маси після скидання зовнішніх оболонок. Розміром приблизно з Землю, але масою близько половини-однієї сонячної маси. Не виробляє ядерної енергії — поступово остигає.',
+    },
+    {
+      term: 'Наднова',
+      definition:
+        'Катастрофічний вибух масивної зорі (Type II) або термоядерна детонація білого карлика (Type Ia) в подвійній системі. Один з найпотужніших вибухів у Всесвіті, у ході якого синтезуються важкі елементи.',
+    },
+    {
+      term: 'Нейтронна зоря',
+      definition:
+        'Надщільний залишок ядра масивної зорі після вибуху наднової. Маса — від одної і чотирьох десятих до трьох сонячних мас, радіус — близько десяти кілометрів. Речовина настільки стиснута, що складається майже повністю з нейтронів.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Що утримує зорю від гравітаційного стиснення під час перебування на головній послідовності?',
+      options: [
+        'Магнітне поле зорі',
+        'Тиск термоядерного випромінювання від злиття водню',
+        'Обертання зорі навколо своєї осі',
+        'Тиск зоряного вітру',
+      ],
+      correctIndex: 1,
+      explanation:
+        'На головній послідовності гравітаційне стиснення врівноважується тиском від термоядерного злиття водню в гелій у ядрі зорі — стан, який називається гідростатичною рівновагою. Щойно водень у ядрі вичерпується, рівновага порушується, і зоря починає еволюціонувати далі.',
+    },
+    {
+      question: 'Яким буде кінцевий результат еволюції зорі з масою, подібною до Сонця?',
+      options: [
+        'Нейтронна зоря',
+        'Чорна діра',
+        'Білий карлик',
+        'Наднова Type II',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Зорі з масою від приблизно половини до восьми сонячних мас закінчують своє існування як білі карлики — компактні залишки ядра після того, як зоря скидає зовнішні шари у вигляді планетарної туманності. Маси таких зір недостатньо для утворення нейтронної зорі або чорної діри.',
+    },
+    {
+      question: 'Чому на HR-діаграмі зорі утворюють смугу "головної послідовності", а не розподіляються хаотично?',
+      options: [
+        'Усі зорі народились одночасно і мають однаковий вік',
+        'Зорі на головній послідовності — в однаковому фізичному стані: вони спалюють водень у ядрі в стані рівноваги',
+        'Гравітація притягує зорі на цю смугу з усіх напрямків',
+        'Температура і світність зорі визначаються лише відстанню до центру Галактики',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Головна послідовність — не випадковість: зорі потрапляють на неї, бо перебувають в одному й тому ж стані — стабільного горіння водню в гідростатичній рівновазі. Маса зорі визначає, де саме на смузі вона розташована: масивніші зорі гарячіші та яскравіші, менш масивні — холодніші і тьмяніші.',
+    },
+    {
+      question: 'Що відбувається з масивною зорею, коли її залізне ядро перевищує межу Чандрасекара?',
+      options: [
+        'Зоря повільно остигає і стає білим карликом',
+        'Ядро скидає зовнішні шари у вигляді планетарної туманності',
+        'Ядро обвалюється за частки секунди, ударна хвиля розриває зорю як наднова',
+        'Зоря переходить на наступний спектральний клас і продовжує горіти',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Залізо не вивільняє енергії при термоядерному злитті — воно її поглинає. Коли залізне ядро масивної зорі перевищує приблизно одну і чотири десятих сонячних маси, тиск електронів більше не може зупинити гравітацію. Ядро стрімко обвалюється, відбиваюча ударна хвиля розриває зорю — відбувається вибух наднової Type II.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Harvard DASCH — Cannon Stellar Classification Archive',
+      url: 'https://dasch.cfa.harvard.edu/',
+      meta: 'Harvard College Observatory, digitized plates archive',
+    },
+    {
+      title: 'ESA — Hertzsprung-Russell Diagram (Gaia mission)',
+      url: 'https://sci.esa.int/web/gaia/-/60198-gaia-hertzsprung-russell-diagram',
+      meta: 'ESA / Gaia collaboration, 2018 — open access',
+    },
+    {
+      title: 'NASA JWST — Star Formation in the Carina Nebula',
+      url: 'https://www.nasa.gov/image-feature/goddard/2022/nasa-s-webb-reveals-cosmic-cliffs-in-a-star-forming-region',
+      meta: 'NASA Webb press release, 2022',
+    },
+    {
+      title: 'NASA JWST — Pillars of Creation (NIRCam + MIRI)',
+      url: 'https://www.nasa.gov/image-feature/goddard/2022/nasa-s-webb-takes-star-forming-pillars-of-creation',
+      meta: 'NASA Webb press release, 2022',
+    },
+    {
+      title: 'Carroll B.W., Ostlie D.A. — An Introduction to Modern Astrophysics (2nd ed.)',
+      url: 'https://www.pearson.com/en-us/subject-catalog/p/introduction-to-modern-astrophysics-an/P200000006757',
+      meta: 'Pearson, 2017 — standard university textbook',
+    },
+    {
+      title: 'Kippenhahn R., Weigert A., Weiss A. — Stellar Structure and Evolution (2nd ed.)',
+      url: 'https://link.springer.com/book/10.1007/978-3-642-30304-3',
+      meta: 'Springer, 2012',
+    },
+    {
+      title: 'Betelgeuse "Great Dimming" — Montargès et al. 2021',
+      url: 'https://www.nature.com/articles/s41586-021-03255-2',
+      meta: 'Nature, 591, 2021 — open access',
+    },
+    {
+      title: 'Proxima Centauri b — Anglada-Escudé et al. 2016',
+      url: 'https://www.nature.com/articles/nature19106',
+      meta: 'Nature, 536, 437–440, 2016',
+    },
+    {
+      title: 'NASA — Life Cycle of a Star',
+      url: 'https://science.nasa.gov/universe/stars/',
+      meta: 'NASA Science, офіційна сторінка, оновлено 2025',
+    },
+  ],
+
+  lastVerified: '2026-05-03',
+};
+
+export default lesson;

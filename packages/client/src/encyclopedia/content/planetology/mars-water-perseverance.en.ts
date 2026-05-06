@@ -42,7 +42,7 @@ const lesson: Lesson = {
       level: 2,
       paragraphs: [
         'Mars is the fourth planet from the Sun, at an average distance of about 1.52 astronomical units. ' +
-        'It is nearly half the size of Earth: diameter 6,779 km versus 12,742 km. ' +
+        'It is nearly half the size of Earth: diameter 6,779 km versus 12,742 kilometers ' +
         'A Martian year lasts 687 Earth days, and one Martian day — ' +
         'called a **_sol_** by scientists and engineers — is 24 hours and 37 minutes.',
 
@@ -214,7 +214,7 @@ const lesson: Lesson = {
       level: 2,
       paragraphs: [
         'Perseverance carried a small companion to Mars: the Ingenuity helicopter — ' +
-        'a technology demonstration weighing 1.8 kg. ' +
+        'a technology demonstration weighing 1.8 kilograms ' +
         'On April 19, 2021, Sol 58 of the mission, it spun its rotors and lifted off the Martian surface. ' +
         'The first powered, controlled flight on another planet in history lasted 39.1 seconds and reached an altitude of 3 meters.',
 

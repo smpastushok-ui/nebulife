@@ -1,0 +1,299 @@
+{
+  "slug": "cosmic-microwave-background",
+  "language": "en",
+  "section": "cosmology",
+  "order": 4,
+  "difficulty": "intermediate",
+  "readingTimeMin": 14,
+  "title": "Cosmic Microwave Background — Light From the Big Bang",
+  "subtitle": "The oldest light in the universe, permeating all of space. How it formed, why it survived, and what it tells us about the first moments after the universe was born.",
+  "hero": {
+    "cacheKey": "cmb-hero-planck-map",
+    "prompt": "Photorealistic scientific illustration of the Planck satellite full-sky Cosmic Microwave Background temperature anisotropy map: an oval projection of the entire sky showing subtle temperature fluctuations as color gradients from deep blue (cooler regions) through neutral beige to warm red-orange (hotter regions), smooth mottled texture across the whole ellipse, no galactic plane contamination, pure CMB signal. Hard sci-fi style scientific illustration, dark space background, wide aspect ratio. Add the following text labels on the image: \"Planck 2018\", \"T = 2.725 K\", \"delta T / T ~ 0.00001\".",
+    "alt": "Full-sky Planck map showing CMB temperature fluctuations as an oval projection with smooth color gradients from blue through beige to orange",
+    "caption": "The temperature anisotropy map of the cosmic microwave background as measured by the Planck satellite in 2018. The difference between the coldest and hottest regions is less than one hundred-thousandth of a percent. These microscopic fluctuations eventually grew into the galaxies we see today.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Every second, approximately four hundred photons of cosmic microwave background radiation pass through your body. They have been traveling through the universe for nearly fourteen billion years, and each one carries direct information about what the universe looked like 380 thousand years after its birth. This is the oldest light we can access — a cosmic horizon beyond which no photon can reach us.",
+        "The cosmic microwave background, or **CMB**, fills the entire observable universe with extraordinary uniformity. Its temperature is the same everywhere to an astonishing precision — approximately 2.725 kelvin — but under extremely careful measurement, the surface of this \"uniform sea\" turns out to be covered with microscopic ripples. These fluctuations are not measurement noise. They are literally an imprint of the early universe's structure, frozen at the moment when the first atoms finally became possible."
+      ]
+    },
+    {
+      "heading": "Why the Early Universe Was Opaque",
+      "level": 2,
+      "paragraphs": [
+        "To understand where the CMB came from, you need to picture the universe in its first hundred thousand years of existence. It was radically unlike anything familiar: extremely hot, dense, and — crucially — _opaque_.",
+        "Matter existed as **plasma**: free electrons and protons racing through a hot gas, while photons of light were constantly colliding with electrons and scattering in all directions. No photon could travel more than a tiny distance before hitting another electron. Think of being inside a cloud or dense fog: light exists, but visibility is zero. The entire early universe was this kind of \"fog\" — not made of water droplets, but of free charged particles.",
+        "Photons and matter were **tightly coupled** in a single system called the _baryon-photon fluid_. This fluid pulsed: gravity compressed the gas, radiation pressure from photons pushed it back outward. The medium oscillated between compression and rarefaction, generating acoustic waves in the plasma — exactly like sound in air, but on cosmic scales."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "cmb-plasma-opacity-diagram",
+        "prompt": "Scientific illustration comparing the early opaque universe versus the transparent universe after recombination: left half shows dense hot plasma with photons (shown as wavy arrows) bouncing repeatedly between free electrons (small dots), labeled \"before recombination — opaque plasma\"; right half shows neutral hydrogen atoms with photons traveling freely in straight lines across open space, labeled \"after recombination — transparent universe\". A vertical boundary line labeled \"recombination epoch\" separates the two halves. Hard sci-fi style, dark space background, monospace labels, cyan and orange color accents.",
+        "alt": "Diagram: left half shows photons scattering in opaque plasma; right half shows photons traveling freely after recombination",
+        "caption": "Before recombination, photons and charged particles formed a single tightly coupled fluid — the universe was opaque, like the interior of the solar corona. After recombination, neutral atoms formed, and photons were finally free to travel unimpeded.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The Recombination Epoch: When the Universe Became Transparent",
+      "level": 2,
+      "paragraphs": [
+        "Some 380 thousand years after the Big Bang, the temperature of the universe dropped to approximately three thousand kelvin. At that temperature, **recombination** occurred: electrons could finally remain bound to protons, forming stable atoms of hydrogen and helium.",
+        "This moment changed everything. Without free electrons to scatter photons, the universe abruptly _cleared_. Photons that had been imprisoned in the dense plasma broke free and streamed outward in all directions — nothing could stop them anymore. This moment is called the **surface of last scattering**: literally the last point where a photon interacted with matter before its endless journey across the universe.",
+        "These are the photons we call the cosmic microwave background. They have been traveling for nearly fourteen billion years, stretching in wavelength as they go, carried along by the expanding fabric of space. Once they had a temperature of three thousand kelvin and glowed red — like the filament of an incandescent bulb. Now, cooled by a factor of roughly a thousand through cosmological redshift, they sit at 2.725 kelvin and fall in the microwave range, invisible to the human eye."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Cosmic Timeline: From the Big Bang to the CMB",
+        "svg": "<svg viewBox=\"0 0 720 200\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"720\" height=\"200\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Timeline arrow -->\n  <line x1=\"30\" y1=\"100\" x2=\"690\" y2=\"100\" stroke=\"#334455\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <defs>\n    <marker id=\"arrow\" markerWidth=\"8\" markerHeight=\"8\" refX=\"6\" refY=\"4\" orient=\"auto\">\n      <polygon points=\"0 0, 8 4, 0 8\" fill=\"#334455\"/>\n    </marker>\n  </defs>\n\n  <!-- Big Bang -->\n  <circle cx=\"40\" cy=\"100\" r=\"6\" fill=\"#ff8844\"/>\n  <text x=\"40\" y=\"82\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">Big</text>\n  <text x=\"40\" y=\"94\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">Bang</text>\n  <text x=\"40\" y=\"120\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">t = 0</text>\n\n  <!-- Opaque plasma era -->\n  <rect x=\"50\" y=\"85\" width=\"230\" height=\"30\" fill=\"rgba(255,136,68,0.08)\" stroke=\"#ff8844\" stroke-width=\"0.5\" stroke-dasharray=\"3,3\"/>\n  <text x=\"165\" y=\"76\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">opaque plasma</text>\n\n  <!-- Recombination -->\n  <line x1=\"280\" y1=\"60\" x2=\"280\" y2=\"145\" stroke=\"#44ff88\" stroke-width=\"1.5\" stroke-dasharray=\"4,3\"/>\n  <circle cx=\"280\" cy=\"100\" r=\"5\" fill=\"#44ff88\"/>\n  <text x=\"280\" y=\"52\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">recombination</text>\n  <text x=\"280\" y=\"158\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">380,000 yrs</text>\n  <text x=\"280\" y=\"170\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">T ~ 3000 K</text>\n\n  <!-- CMB released label -->\n  <text x=\"340\" y=\"76\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">photons</text>\n  <text x=\"340\" y=\"88\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">free</text>\n\n  <!-- Transparent era / CMB travel -->\n  <rect x=\"290\" y=\"85\" width=\"350\" height=\"30\" fill=\"rgba(123,184,255,0.06)\" stroke=\"#7bb8ff\" stroke-width=\"0.5\" stroke-dasharray=\"3,3\"/>\n  <text x=\"465\" y=\"76\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">transparent universe — CMB travels freely</text>\n\n  <!-- Today -->\n  <circle cx=\"680\" cy=\"100\" r=\"5\" fill=\"#aabbcc\"/>\n  <text x=\"680\" y=\"82\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">today</text>\n  <text x=\"680\" y=\"120\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">13.8 Gyr</text>\n  <text x=\"680\" y=\"134\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">T = 2.725 K</text>\n</svg>",
+        "caption": "After 380 thousand years the universe cooled enough for recombination. The photons released at that moment became the CMB. Over the following nearly fourteen billion years they cooled by a factor of roughly a thousand — carried along by the expansion of space itself."
+      }
+    },
+    {
+      "heading": "The Prediction: An Idea That Waited for an Antenna",
+      "level": 2,
+      "paragraphs": [
+        "The theoretical foundation of the CMB was laid in the middle of the twentieth century. Physicist **George Gamow** and his colleagues proposed a hot early universe and argued that if the universe truly began in an extremely hot and dense state, residual thermal radiation from the primordial plasma should still fill all of space today. They even estimated its approximate temperature.",
+        "The idea stayed largely in the shadows until, in the late 1960s, two radio engineers at Bell Labs — **Arno Penzias and Robert Wilson** — encountered a persistent hiss. They were calibrating a large horn antenna and found a uniform background signal coming equally from every direction in the sky, regardless of what they did. They inspected the antenna, chased away pigeons nesting in the horn, cleaned out the bird droppings — the hiss remained. When they contacted nearby theorists, they learned: the noise they had been trying to eliminate was the greatest cosmological discovery in decades.",
+        "Penzias and Wilson received the Nobel Prize. More importantly, the discovery confirmed something profound: **the universe genuinely started in a hot state**. The CMB became the observational cornerstone of the Big Bang theory."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "cmb-bell-labs-horn-antenna",
+        "prompt": "Photorealistic scientific illustration of the Bell Labs Holmdel Horn Antenna: a large metal horn-shaped radio antenna structure mounted on a rotating base in a rural New Jersey setting, overcast sky, trees in background, the horn is white-grey metallic with visible rivets and supports. Two silhouetted figures near the base for scale. Hard sci-fi style, realistic lighting, no faces visible. Add the following text labels on the image: \"Bell Labs Horn Antenna\", \"Holmdel NJ\", \"discovery of CMB\".",
+        "alt": "The large Bell Labs horn antenna in Holmdel where Penzias and Wilson accidentally discovered the cosmic microwave background",
+        "caption": "The Bell Labs horn antenna in Holmdel, New Jersey — site of the CMB discovery. Built for satellite communications, it accidentally detected the oldest signal in the universe.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Three Generations of Maps: COBE, WMAP, and Planck",
+      "level": 2,
+      "paragraphs": [
+        "After the discovery of the CMB, astronomers wanted more: not just a measurement of its average temperature, but a detailed map of its fluctuations — the microscopic unevenness that might tell us about the structure of the early universe.",
+        "**COBE** — the first spacecraft dedicated to mapping the CMB, launched in the early 1990s — had modest angular resolution, like a blurry photograph. But it confirmed the crucial point: fluctuations exist and match theoretical predictions. The discovery brought the Nobel Prize in Physics to John Mather and George Smoot.",
+        "**WMAP** in the early 2000s looked with sharper eyes and returned the first quantitative portrait: specific numbers for the composition of the universe, its age, and its geometry. The real revolution came with **Planck** — the European Space Agency mission. It produced a final map of such extraordinary detail that researchers are still mining it for discoveries. Each new data release from Planck updates our understanding of the cosmos."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "cmb-cobe-wmap-planck-progression",
+        "prompt": "Scientific infographic showing three oval full-sky CMB maps side by side in chronological order: leftmost labeled \"COBE 1992\" — very blurry and pixelated blue/red oval with large coarse patches; center labeled \"WMAP 2003\" — somewhat clearer oval with medium-scale structures; rightmost labeled \"Planck 2018\" — highly detailed oval with fine mottled blue/beige/orange texture. All three ovals are the same size for comparison. Dark background, monospace labels below each oval. Hard sci-fi style scientific infographic, improving angular resolution shown visually.",
+        "alt": "Comparison of three full-sky CMB maps: blurry COBE, sharper WMAP, and highly detailed Planck",
+        "caption": "Three generations of CMB maps. Each successive generation revealed new details of the early universe — and raised new questions.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Anisotropies: Seeds of Galaxies",
+      "level": 2,
+      "paragraphs": [
+        "The CMB temperature fluctuations are not random noise. They carry a _characteristic pattern_, predicted by theory. Remember those acoustic waves in the baryon-photon fluid? They left their mark: where the gas was slightly denser at the moment of recombination, photons were slightly hotter. Where it was slightly more rarefied — slightly cooler. These micro-differences — smaller than one hundred-thousandth of a percent — are the CMB anisotropies.",
+        "After recombination, baryons remained where their density fluctuations were. Gravity began amplifying these inequalities: denser regions pulled in more matter, emptier regions grew more void. Over hundreds of millions of years, microscopic fluctuations grew into _protogalaxies_, then galaxy clusters, then the **cosmic web** — the network of filaments and voids we see when we map the large-scale structure of the universe today.",
+        "The CMB map is literally the _construction blueprint_ of the cosmos. Where major galaxy clusters exist today, the corresponding warm spots can be found on the CMB map. The link between the microwave snapshot at 380 thousand years and the structure of the universe at fourteen billion years is one of the greatest confirmations of modern cosmological theory."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "cmb-large-scale-structure-connection",
+        "prompt": "Scientific illustration split into two panels showing the connection between CMB fluctuations and cosmic large-scale structure: left panel labeled \"CMB anisotropies — 380,000 years\" showing an oval sky map with subtle warm/cool color fluctuations; arrows pointing right from warm spots; right panel labeled \"cosmic web today\" showing a dark simulation of the cosmic web — glowing filaments of galaxies and clusters with large voids between them. Hard sci-fi style, dark background, cyan and orange accents, monospace labels.",
+        "alt": "Connection between CMB temperature fluctuations and large-scale structure: warm spots became galaxy clusters",
+        "caption": "Where the CMB is slightly warmer, gravity had more material to work with. Over billions of years those micro-differences grew into the large-scale structure of the universe — filaments of galaxies and vast empty voids between them.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "What We Measure: Temperature, Power Spectrum, and Polarization",
+      "level": 2,
+      "paragraphs": [
+        "The average CMB temperature — 2.725 kelvin — is measured to the sixth significant figure. But physicists want more: a detailed analysis of the _angular power spectrum_, which shows how strong the fluctuations are at different angular scales.",
+        "This spectrum looks like a series of peaks and troughs — the **acoustic peaks**. The first peak corresponds to fluctuations at an angular scale of roughly one degree and encodes the state of the universe at recombination. The position of this peak determines the **geometry of the universe**: measurements show the universe is _flat_ (or extremely close to flat), meaning parallel lines neither converge nor diverge on cosmological scales. This matches the prediction of inflationary theory.",
+        "The relative heights of the peaks allow us to measure the **composition of the universe**: how much ordinary baryonic matter, how much dark matter, how much dark energy. The current answer: approximately 5 percent ordinary matter, 27 percent dark matter, and 68 percent dark energy. These figures are consistently confirmed by independent methods.",
+        "A third tool is CMB **polarization**. Photons acquired a preferred polarization direction at the moment of last scattering. Analyzing polarization patterns allows us to probe gravitational waves from the inflationary epoch (the B-mode signal) and to constrain cosmological parameters with even greater precision."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "CMB Angular Power Spectrum: The Acoustic Peaks",
+        "svg": "<svg viewBox=\"0 0 700 260\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"700\" height=\"260\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Axes -->\n  <line x1=\"60\" y1=\"20\" x2=\"60\" y2=\"210\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n  <line x1=\"60\" y1=\"210\" x2=\"670\" y2=\"210\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n\n  <!-- Y axis label -->\n  <text x=\"12\" y=\"120\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\" transform=\"rotate(-90, 12, 120)\">power</text>\n\n  <!-- X axis label -->\n  <text x=\"365\" y=\"242\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">angular scale (smaller angle to the right)</text>\n\n  <!-- Approximate CMB power spectrum curve -->\n  <!-- Sachs-Wolfe plateau -->\n  <path d=\"M 65 130 L 120 128 L 160 124\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\"/>\n  <!-- Rise to first peak -->\n  <path d=\"M 160 124 Q 200 80 230 42\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\"/>\n  <!-- First peak -->\n  <path d=\"M 230 42 Q 250 35 270 42\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\"/>\n  <!-- Fall to first trough -->\n  <path d=\"M 270 42 Q 310 130 350 145\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\"/>\n  <!-- Rise to second peak -->\n  <path d=\"M 350 145 Q 380 95 410 88\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\"/>\n  <!-- Second peak -->\n  <path d=\"M 410 88 Q 425 84 440 88\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\"/>\n  <!-- Fall to second trough -->\n  <path d=\"M 440 88 Q 470 148 500 158\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\"/>\n  <!-- Rise to third peak -->\n  <path d=\"M 500 158 Q 525 118 548 112\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\"/>\n  <!-- Third peak (smaller) -->\n  <path d=\"M 548 112 Q 560 108 572 112\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\"/>\n  <!-- Damping tail -->\n  <path d=\"M 572 112 Q 620 160 660 185\" stroke=\"#7bb8ff\" stroke-width=\"2\" fill=\"none\" stroke-dasharray=\"4,3\"/>\n\n  <!-- Peak labels -->\n  <line x1=\"250\" y1=\"36\" x2=\"250\" y2=\"60\" stroke=\"#44ff88\" stroke-width=\"1\" stroke-dasharray=\"3,3\"/>\n  <text x=\"250\" y=\"26\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">1st peak</text>\n  <text x=\"250\" y=\"36\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">~1 deg</text>\n\n  <line x1=\"425\" y1=\"80\" x2=\"425\" y2=\"102\" stroke=\"#44ff88\" stroke-width=\"1\" stroke-dasharray=\"3,3\"/>\n  <text x=\"425\" y=\"70\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">2nd peak</text>\n\n  <line x1=\"560\" y1=\"104\" x2=\"560\" y2=\"126\" stroke=\"#44ff88\" stroke-width=\"1\" stroke-dasharray=\"3,3\"/>\n  <text x=\"560\" y=\"94\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">3rd peak</text>\n\n  <!-- Annotation: flat universe -->\n  <text x=\"250\" y=\"190\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">position of 1st peak</text>\n  <text x=\"250\" y=\"202\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">— flat geometry</text>\n\n  <!-- Annotation: baryon ratio -->\n  <text x=\"425\" y=\"190\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">2nd / 1st peak ratio</text>\n  <text x=\"425\" y=\"202\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">— baryon fraction</text>\n\n  <!-- Sachs-Wolfe label -->\n  <text x=\"90\" y=\"118\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\">Sachs-Wolfe</text>\n\n  <!-- Damping tail label -->\n  <text x=\"620\" y=\"175\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">diffusion</text>\n  <text x=\"620\" y=\"186\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">damping</text>\n</svg>",
+        "caption": "The acoustic peaks in the CMB angular power spectrum — the universe's fingerprint. The position of the first peak encodes the flat geometry of the universe. The relative heights of the peaks allow us to measure the baryon and dark matter fractions. Damping at small scales reflects diffusion erasure (the Silk damping effect)."
+      }
+    },
+    {
+      "heading": "What the CMB Tells Us About the Universe",
+      "level": 2,
+      "paragraphs": [
+        "No other instrument gives such a comprehensive portrait of cosmological parameters. From the CMB map — primarily the Planck 2018 data — we know the **age of the universe** is 13.8 billion years, with precision better than one percent. We know the universe is _geometrically flat_ to within a few hundredths of a percent: parallel beams do not converge or diverge on cosmological distances.",
+        "The CMB tells us that **dark matter is real** — without it, the third acoustic peak would not look the way it does. The structure of the peaks is sensitive to the amount of \"invisible\" matter that interacts gravitationally but does not scatter photons. Dark matter leaves a characteristic imprint in the relative peak heights, and that imprint is consistent regardless of which independent method you use to search for it.",
+        "Finally, the CMB supports **inflationary theory** — the idea that in the first fractions of a second the universe underwent an extraordinary burst of accelerated expansion. Inflation predicts primordial fluctuations of a nearly scale-invariant character (the so-called nearly Gaussian spectrum), and the CMB map matches these theoretical predictions with a precision that is extremely difficult to explain by any alternative."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "cmb-polarization-b-modes",
+        "prompt": "Scientific illustration of CMB polarization patterns: an oval sky map showing polarization vectors as short oriented line segments across the map, some regions showing distinctive swirling \"B-mode\" curl patterns highlighted in orange, other regions showing straight \"E-mode\" patterns in cyan. Labels distinguish E-modes from B-modes. Hard sci-fi style, dark space background, monospace labels, color-coded polarization patterns. Add the following text labels on the image: \"E-mode polarization\", \"B-mode (gravitational waves)\", \"polarization vector\".",
+        "alt": "CMB polarization map with E-mode and B-mode patterns from primordial gravitational waves highlighted",
+        "caption": "CMB polarization carries information about gravitational waves from the inflationary epoch. E-modes have already been measured; primordial B-modes remain the primary target of future missions.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "The Hubble Tension: Where the CMB and the Real Universe Disagree",
+      "level": 2,
+      "paragraphs": [
+        "One of the sharpest problems in modern physics hides inside a number. The CMB gives a value for the Hubble constant — the rate at which the universe is expanding today — of approximately 67.4 kilometers per second per megaparsec. But independent measurements through _Cepheid variable stars_, supernovae, and gravitational lensing consistently return a value near 73. The discrepancy is about 8 percent.",
+        "This disagreement, known as the **Hubble tension**, no longer looks like a measurement error — it has been confirmed by several independent methods on both sides. Either there is a gap in the standard cosmological model, or both classes of measurements carry some unknown systematic bias. Subtle changes in the early universe — for instance, an extra species of dark matter or _early dark energy_ — could potentially resolve the contradiction, but no proposed explanation is yet convincing.",
+        "The Hubble tension is the hottest debate in cosmology as of 2026. If confirmed as a real physical effect rather than a measurement artefact, it would mean the standard model of cosmology needs revision."
+      ]
+    },
+    {
+      "heading": "Future Missions: LiteBIRD and CMB-S4",
+      "level": 2,
+      "paragraphs": [
+        "**LiteBIRD** is a Japanese space mission planned for launch in the second half of the 2020s. Its primary goal: to measure the full-sky CMB polarization with enough precision to detect or conclusively rule out a signal from primordial gravitational waves — the B-modes that inflation would have left behind. If LiteBIRD detects them, it would constitute direct observational evidence of physics at energies never achievable in any terrestrial accelerator.",
+        "**CMB-S4** is a next-generation ground-based project that will bring together tens of thousands of detectors across several large telescopes in Chile and Antarctica. It will focus on ultra-precise measurements of small-scale fluctuations and polarization. Among its goals: measuring the effective number of neutrino species (to detect possible sterile neutrinos), searching for signs of primordial gravitational lensing, and placing still tighter constraints on neutrino masses.",
+        "The cosmic microwave background was discovered in the late 1960s as an inconvenient hiss in a radio antenna. Within a few decades it became humanity's most precise cosmological instrument — and the closest window we have into the first moments of the universe."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Cosmic Microwave Background (CMB)",
+      "definition": "Thermal microwave radiation filling the entire universe uniformly. It originated 380 thousand years after the Big Bang at the moment of recombination, when the universe first became transparent to photons. Its temperature today is 2.725 kelvin."
+    },
+    {
+      "term": "Recombination",
+      "definition": "An epoch in the early universe (approximately 380 thousand years after the Big Bang) when the temperature dropped to the level where electrons could remain bound to nuclei, forming neutral atoms. The universe abruptly became transparent at this point."
+    },
+    {
+      "term": "Surface of Last Scattering",
+      "definition": "The spherical \"surface\" in spacetime corresponding to the moment of recombination. The CMB photons originated there — it is the oldest layer of the universe we observe directly."
+    },
+    {
+      "term": "Anisotropy",
+      "definition": "Deviation from complete isotropy (uniformity in all directions). CMB temperature anisotropies — temperature differences smaller than one hundred-thousandth of a percent — are imprints of density fluctuations in the early universe."
+    },
+    {
+      "term": "Acoustic Peaks",
+      "definition": "A series of characteristic maxima in the CMB angular power spectrum. They formed through acoustic oscillations of the baryon-photon fluid before recombination. Their positions and relative heights allow us to measure the geometry and composition of the universe."
+    },
+    {
+      "term": "Hubble Tension",
+      "definition": "A statistically significant discrepancy between the value of the Hubble constant inferred from the CMB (~67.4) and independent \"local\" measurements (~73). As of 2026, it remains unexplained and may indicate physics beyond the standard model."
+    },
+    {
+      "term": "B-mode Polarization",
+      "definition": "The curl component of the CMB polarization pattern. Primordial B-modes would have been generated by gravitational waves from the inflationary epoch. Their detection would provide direct observational evidence of quantum gravity effects in the very early universe."
+    },
+    {
+      "term": "Baryon-Photon Fluid",
+      "definition": "The state of matter in the early opaque universe: charged particles (baryons) and photons were tightly coupled together. This system oscillated under the competing forces of gravity and radiation pressure, generating acoustic waves."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Why was the early universe opaque to light?",
+      "options": [
+        "It was filled with dark matter that absorbed photons",
+        "Free electrons constantly scattered photons, preventing them from traveling far",
+        "The gravity of the Big Bang held photons in place",
+        "The temperature was too low for photons to form"
+      ],
+      "correctIndex": 1,
+      "explanation": "In the early universe, matter existed as plasma — a mixture of free electrons and protons. Photons constantly collided with electrons and scattered in all directions, preventing light from traveling any significant distance. This continued until recombination, when electrons joined nuclei to form neutral atoms."
+    },
+    {
+      "question": "What is the average temperature of the CMB today?",
+      "options": [
+        "0 kelvin — it has cooled completely",
+        "2.725 kelvin",
+        "3000 kelvin — as at the moment of recombination",
+        "273 kelvin"
+      ],
+      "correctIndex": 1,
+      "explanation": "The CMB formed at a temperature of approximately three thousand kelvin. Over nearly fourteen billion years it has cooled by roughly a factor of a thousand, carried along by the expansion of space, and now sits at 2.725 kelvin — corresponding to the microwave range of the electromagnetic spectrum."
+    },
+    {
+      "question": "What is the Hubble tension?",
+      "options": [
+        "The difference between the current and initial expansion rate of the universe",
+        "A discrepancy between the Hubble constant inferred from the CMB and from \"local\" measurements",
+        "Tension in the cosmic web caused by dark energy",
+        "A measurement error in the Planck mission data"
+      ],
+      "correctIndex": 1,
+      "explanation": "The Hubble tension is a disagreement between two classes of measurements of the universe's expansion rate. The CMB and the standard cosmological model give approximately 67.4, while independent measurements using Cepheids and supernovae give approximately 73. This disagreement does not go away as measurement precision improves, and may point to new physics."
+    },
+    {
+      "question": "What is the primary scientific goal of the upcoming LiteBIRD mission?",
+      "options": [
+        "To build a new galaxy map using CMB gravitational lensing",
+        "To measure CMB B-mode polarization as a possible imprint of primordial gravitational waves",
+        "To determine the age of the universe to within one million years",
+        "To find CMB anomalies pointing toward a multiverse"
+      ],
+      "correctIndex": 1,
+      "explanation": "LiteBIRD is a Japanese space mission dedicated to measuring full-sky CMB polarization with extreme precision. Its primary target is to detect or conclusively rule out B-mode polarization, which would have been imprinted by primordial gravitational waves from the inflationary epoch. A detection would provide direct data about the physics of the universe in its very first moments."
+    }
+  ],
+  "sources": [
+    {
+      "title": "Planck Collaboration — Planck 2018 Results VI: Cosmological Parameters",
+      "url": "https://arxiv.org/abs/1807.06209",
+      "meta": "A&A 641, A6, 2020 (open access)"
+    },
+    {
+      "title": "Penzias A., Wilson R. — A Measurement of Excess Antenna Temperature at 4080 Mc/s",
+      "url": "https://ui.adsabs.harvard.edu/abs/1965ApJ...142..419P",
+      "meta": "ApJ 142, 419–421, 1965"
+    },
+    {
+      "title": "Smoot G. et al. — Structure in the COBE DMR First Year Maps",
+      "url": "https://ui.adsabs.harvard.edu/abs/1992ApJ...396L...1S",
+      "meta": "ApJ Letters 396, L1–L5, 1992"
+    },
+    {
+      "title": "WMAP Collaboration — Nine-Year WMAP Observations: Cosmological Parameter Results",
+      "url": "https://arxiv.org/abs/1212.5226",
+      "meta": "ApJS 208, 19, 2013 (open access)"
+    },
+    {
+      "title": "Verde L., Treu T., Riess A. — Tensions between the Early and Late Universe",
+      "url": "https://arxiv.org/abs/1907.10625",
+      "meta": "Nature Astronomy 3, 891–895, 2019 (open access)"
+    },
+    {
+      "title": "LiteBIRD Collaboration — Probing Cosmic Inflation with LiteBIRD",
+      "url": "https://arxiv.org/abs/2202.02773",
+      "meta": "PTEP 2023, 042F01 (open access)"
+    },
+    {
+      "title": "CMB-S4 Collaboration — CMB-S4 Science Book",
+      "url": "https://arxiv.org/abs/1610.02743",
+      "meta": "arXiv:1610.02743, 2016 (open access)"
+    },
+    {
+      "title": "NASA LAMBDA — Legacy Archive for Microwave Background Data Analysis",
+      "url": "https://lambda.gsfc.nasa.gov/",
+      "meta": "NASA official archive, open access"
+    },
+    {
+      "title": "Wayne Hu — CMB Tutorials (educational resource)",
+      "url": "https://background.uchicago.edu/~whu/intermediate/intermediate.html",
+      "meta": "University of Chicago, online resource"
+    },
+    {
+      "title": "ESA Planck Mission — official website",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/Planck",
+      "meta": "ESA, open access"
+    }
+  ],
+  "lastVerified": "2026-05-03"
+}

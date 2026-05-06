@@ -99,7 +99,7 @@ export function LessonView({
         verifiedBy: 'Технічна перевірка',
         readingTime: 'хв читання',
         audioTime: 'хв аудіо',
-        audioPending: 'Аудіо ще генерується...',
+        audioPending: 'Озвучка — скоро',
         imagePending: 'Зображення генерується...',
       }
     : {
@@ -116,7 +116,7 @@ export function LessonView({
         verifiedBy: 'Technical review',
         readingTime: 'min read',
         audioTime: 'min audio',
-        audioPending: 'Audio is being generated...',
+        audioPending: 'Narration — coming soon',
         imagePending: 'Image is being generated...',
       };
 

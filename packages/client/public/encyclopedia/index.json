@@ -1,7 +1,43 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-04T18:39:08.002Z",
+  "updatedAt": "2026-05-06T15:52:07.758Z",
   "lessons": [
+    {
+      "slug": "habitable-zones",
+      "language": "en",
+      "section": "astrobiology",
+      "order": 3,
+      "difficulty": "intermediate",
+      "readingTimeMin": 13,
+      "title": "Habitable Zones — Where Life Might Exist",
+      "subtitle": "Not too hot, not too cold. Where in the universe can liquid water exist on a surface — and is water always the prerequisite?",
+      "lastVerified": "2026-05-03",
+      "contentHash": "0c048d40a8d57d61",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/habitable-zones.en.0c048d40a8d57d61.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063158392-qpdzwx.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063158392-qpdzwx.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/habitable-zones.en.female.mp3",
+      "durationSec": 968
+    },
+    {
+      "slug": "habitable-zones",
+      "language": "uk",
+      "section": "astrobiology",
+      "order": 3,
+      "difficulty": "intermediate",
+      "readingTimeMin": 13,
+      "title": "Зони населеності — де можливе життя",
+      "subtitle": "Не занадто гаряча, не занадто холодна. Де у Всесвіті може існувати рідка вода — і чи завжди вода є обов'язковою умовою?",
+      "lastVerified": "2026-05-03",
+      "contentHash": "e02254c3eae25fa1",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/habitable-zones.uk.e02254c3eae25fa1.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063158392-qpdzwx.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063158392-qpdzwx.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/habitable-zones.uk.female.mp3",
+      "durationSec": 1018
+    },
     {
       "slug": "what-is-astronomy",
       "language": "en",
@@ -12,13 +48,13 @@
       "title": "What is Astronomy and How It Became a Science",
       "subtitle": "From Babylonian priests to gravitational waves — how humanity learned to read the sky.",
       "lastVerified": "2026-05-03",
-      "contentHash": "9c62f4fc8b5cf5b6",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
-      "lessonUrl": "lessons/what-is-astronomy.en.9c62f4fc8b5cf5b6.json",
+      "contentHash": "d14aeee47347a957",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/what-is-astronomy.en.d14aeee47347a957.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830820957-d4xr8g.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830820957-d4xr8g.jpg",
       "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/what-is-astronomy.en.female.mp3",
-      "durationSec": 712
+      "durationSec": 816
     },
     {
       "slug": "what-is-astronomy",
@@ -30,13 +66,13 @@
       "title": "Що таке астрономія і як вона стала наукою",
       "subtitle": "Від вавилонських жерців до гравітаційних хвиль — як людство навчилося читати небо.",
       "lastVerified": "2026-05-03",
-      "contentHash": "20931dcb70d23c72",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
-      "lessonUrl": "lessons/what-is-astronomy.uk.20931dcb70d23c72.json",
+      "contentHash": "b6cca2a8c2a439f7",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/what-is-astronomy.uk.b6cca2a8c2a439f7.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830820957-d4xr8g.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830820957-d4xr8g.jpg",
       "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/what-is-astronomy.uk.female.mp3",
-      "durationSec": 782
+      "durationSec": 831
     },
     {
       "slug": "solar-system-overview",
@@ -49,12 +85,12 @@
       "subtitle": "Eight planets, trillions of smaller bodies, and one star. What we know about our cosmic address.",
       "lastVerified": "2026-05-03",
       "contentHash": "ba80a775a71f89ca",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
       "lessonUrl": "lessons/solar-system-overview.en.ba80a775a71f89ca.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830650154-g8x4d4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830650154-g8x4d4.jpg",
       "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/solar-system-overview.en.female.mp3",
-      "durationSec": 1000
+      "durationSec": 1123
     },
     {
       "slug": "solar-system-overview",
@@ -66,13 +102,147 @@
       "title": "Сонячна система — огляд",
       "subtitle": "Вісім планет, трильйони малих тіл і одна зоря. Що ми знаємо про нашу космічну адресу.",
       "lastVerified": "2026-05-03",
-      "contentHash": "432ee5deb48dc042",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
-      "lessonUrl": "lessons/solar-system-overview.uk.432ee5deb48dc042.json",
+      "contentHash": "7e64cbf2ba801df6",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/solar-system-overview.uk.7e64cbf2ba801df6.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830650154-g8x4d4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830650154-g8x4d4.jpg",
       "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/solar-system-overview.uk.female.mp3",
-      "durationSec": 1049
+      "durationSec": 1127
+    },
+    {
+      "slug": "stars-classification",
+      "language": "en",
+      "section": "astronomy",
+      "order": 4,
+      "difficulty": "beginner",
+      "readingTimeMin": 14,
+      "title": "Stars: Classification and Life Cycle",
+      "subtitle": "From a collapsing gas cloud to a white dwarf or black hole — how a star's mass decides its entire fate.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "bcfdb0d07afd6679",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/stars-classification.en.bcfdb0d07afd6679.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063489689-b925tp.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063489689-b925tp.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/stars-classification.en.female.mp3",
+      "durationSec": 897
+    },
+    {
+      "slug": "stars-classification",
+      "language": "uk",
+      "section": "astronomy",
+      "order": 4,
+      "difficulty": "beginner",
+      "readingTimeMin": 14,
+      "title": "Зорі: класифікація і життєвий цикл",
+      "subtitle": "Від протозоряної хмари до білого карлика або чорної діри — як маса зорі визначає весь її шлях.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "ecd818e2d2832348",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/stars-classification.uk.ecd818e2d2832348.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063489689-b925tp.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063489689-b925tp.jpg"
+    },
+    {
+      "slug": "milky-way",
+      "language": "en",
+      "section": "astronomy",
+      "order": 7,
+      "difficulty": "intermediate",
+      "readingTimeMin": 14,
+      "title": "The Milky Way — Our Galaxy",
+      "subtitle": "An island of two hundred billion stars we call home. What it is, how we study it from the inside, and what awaits it in the distant future.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "801b2ed2d57866fa",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/milky-way.en.801b2ed2d57866fa.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063329948-pu9awk.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063329948-pu9awk.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/milky-way.en.female.mp3",
+      "durationSec": 880
+    },
+    {
+      "slug": "milky-way",
+      "language": "uk",
+      "section": "astronomy",
+      "order": 7,
+      "difficulty": "intermediate",
+      "readingTimeMin": 14,
+      "title": "Молочний Шлях — наша галактика",
+      "subtitle": "Острів із двохсот мільярдів зір, в якому ми живемо. Що він собою являє, як ми його вивчаємо зсередини і що чекає на нього у далекому майбутньому.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "8f947c254fa93aad",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/milky-way.uk.8f947c254fa93aad.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063329948-pu9awk.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063329948-pu9awk.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/milky-way.uk.female.mp3",
+      "durationSec": 948
+    },
+    {
+      "slug": "gravity-newton-einstein",
+      "language": "en",
+      "section": "astrophysics",
+      "order": 1,
+      "difficulty": "beginner",
+      "readingTimeMin": 13,
+      "title": "Gravity: From Newton to Einstein",
+      "subtitle": "How humanity traveled from a falling apple to curved spacetime — and why that journey is still not finished.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "e1d09a1ff4cca407",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/gravity-newton-einstein.en.e1d09a1ff4cca407.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063889614-v61kbr.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063889614-v61kbr.jpg"
+    },
+    {
+      "slug": "gravity-newton-einstein",
+      "language": "uk",
+      "section": "astrophysics",
+      "order": 1,
+      "difficulty": "beginner",
+      "readingTimeMin": 13,
+      "title": "Гравітація: від Ньютона до Ейнштейна",
+      "subtitle": "Як людство пройшло шлях від яблука, що падає, до викривленого простору-часу — і чому ця подорож ще не закінчена.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "d2f80f15c0bd87ce",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/gravity-newton-einstein.uk.d2f80f15c0bd87ce.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063889614-v61kbr.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063889614-v61kbr.jpg"
+    },
+    {
+      "slug": "general-relativity",
+      "language": "en",
+      "section": "astrophysics",
+      "order": 4,
+      "difficulty": "intermediate",
+      "readingTimeMin": 14,
+      "title": "General Relativity",
+      "subtitle": "Mass does not pull — it curves space. Why the geometry of the universe turned out to matter more than force.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "03dfc8a625432f5d",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/general-relativity.en.03dfc8a625432f5d.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063688147-9z31t0.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063688147-9z31t0.jpg"
+    },
+    {
+      "slug": "general-relativity",
+      "language": "uk",
+      "section": "astrophysics",
+      "order": 4,
+      "difficulty": "intermediate",
+      "readingTimeMin": 14,
+      "title": "Загальна теорія відносності",
+      "subtitle": "Маса не притягує — вона деформує простір. Чому геометрія Всесвіту виявилась важливішою за силу.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "d46f7f9989be603c",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/general-relativity.uk.d46f7f9989be603c.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063688147-9z31t0.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063688147-9z31t0.jpg"
     },
     {
       "slug": "black-holes-intro",
@@ -84,9 +254,9 @@
       "title": "Black Holes — Introduction",
       "subtitle": "Objects you cannot escape. What we know, how we saw them, and why they are the best test of Einstein's theory.",
       "lastVerified": "2026-05-03",
-      "contentHash": "e51ed86fd7878eb6",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
-      "lessonUrl": "lessons/black-holes-intro.en.e51ed86fd7878eb6.json",
+      "contentHash": "ead01cdd7637fc6a",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/black-holes-intro.en.ead01cdd7637fc6a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830394185-qanlyi.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830394185-qanlyi.jpg",
       "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/black-holes-intro.en.female.mp3",
@@ -102,13 +272,45 @@
       "title": "Чорні діри — вступ",
       "subtitle": "Об'єкти, з яких не вирвешся. Що ми знаємо, як їх побачили і чому це найкраща перевірка теорії Ейнштейна.",
       "lastVerified": "2026-05-03",
-      "contentHash": "02073a8326babecc",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
-      "lessonUrl": "lessons/black-holes-intro.uk.02073a8326babecc.json",
+      "contentHash": "98a26f298bdfee61",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/black-holes-intro.uk.98a26f298bdfee61.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830394185-qanlyi.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830394185-qanlyi.jpg",
       "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/black-holes-intro.uk.female.mp3",
       "durationSec": 767
+    },
+    {
+      "slug": "neutron-stars-pulsars",
+      "language": "en",
+      "section": "astrophysics",
+      "order": 6,
+      "difficulty": "intermediate",
+      "readingTimeMin": 13,
+      "title": "Neutron Stars and Pulsars",
+      "subtitle": "The mass of the Sun packed into a city-sized sphere. A teaspoon weighs a billion tonnes. The densest stable objects in the universe — and cosmic clocks more precise than atomic timekeepers.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "e7f9d963260bd6bd",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/neutron-stars-pulsars.en.e7f9d963260bd6bd.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064044589-p37rhc.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064044589-p37rhc.jpg"
+    },
+    {
+      "slug": "neutron-stars-pulsars",
+      "language": "uk",
+      "section": "astrophysics",
+      "order": 6,
+      "difficulty": "intermediate",
+      "readingTimeMin": 13,
+      "title": "Нейтронні зорі і пульсари",
+      "subtitle": "Маса Сонця, розмір міста, чайна ложка вагою мільярд тонн. Найщільніші стабільні об'єкти Всесвіту — і маяки, що відлічують час точніше за атомний годинник.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "9f675a83aca7d342",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/neutron-stars-pulsars.uk.9f675a83aca7d342.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064044589-p37rhc.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064044589-p37rhc.jpg"
     },
     {
       "slug": "big-bang-simple",
@@ -121,7 +323,7 @@
       "subtitle": "Not an explosion in space, but the expansion of space itself. How we know it happened — and what remains a mystery.",
       "lastVerified": "2026-05-03",
       "contentHash": "57804508013e5f09",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
       "lessonUrl": "lessons/big-bang-simple.en.57804508013e5f09.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830974840-64ow1h.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830974840-64ow1h.jpg",
@@ -138,13 +340,77 @@
       "title": "Що таке Великий вибух простою мовою",
       "subtitle": "Не вибух у просторі, а вибух самого простору. Звідки ми знаємо, що це сталось, і що лишається загадкою.",
       "lastVerified": "2026-05-03",
-      "contentHash": "7b8c6ef283b13026",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
-      "lessonUrl": "lessons/big-bang-simple.uk.7b8c6ef283b13026.json",
+      "contentHash": "6f64f5ccd893d0ab",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/big-bang-simple.uk.6f64f5ccd893d0ab.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830974840-64ow1h.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830974840-64ow1h.jpg",
       "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/big-bang-simple.uk.female.mp3",
       "durationSec": 783
+    },
+    {
+      "slug": "cosmic-microwave-background",
+      "language": "en",
+      "section": "cosmology",
+      "order": 4,
+      "difficulty": "intermediate",
+      "readingTimeMin": 14,
+      "title": "Cosmic Microwave Background — Light From the Big Bang",
+      "subtitle": "The oldest light in the universe, permeating all of space. How it formed, why it survived, and what it tells us about the first moments after the universe was born.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "351fd921ae5c80c7",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/cosmic-microwave-background.en.351fd921ae5c80c7.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064245782-iabdju.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064245782-iabdju.jpg"
+    },
+    {
+      "slug": "cosmic-microwave-background",
+      "language": "uk",
+      "section": "cosmology",
+      "order": 4,
+      "difficulty": "intermediate",
+      "readingTimeMin": 14,
+      "title": "Реліктове випромінювання — світло від Великого вибуху",
+      "subtitle": "Найдавніше світло у Всесвіті, що пронизує весь простір. Як воно виникло, чому вижило і що розповідає про перші миті після народження Всесвіту.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "0986744abd10387b",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/cosmic-microwave-background.uk.0986744abd10387b.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064245782-iabdju.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064245782-iabdju.jpg"
+    },
+    {
+      "slug": "dark-energy",
+      "language": "en",
+      "section": "cosmology",
+      "order": 5,
+      "difficulty": "intermediate",
+      "readingTimeMin": 13,
+      "title": "Dark Energy and Accelerating Expansion",
+      "subtitle": "The unknown force pushing the universe apart. Why 68% of reality can't be measured, touched, or explained.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "d532ab2879107745",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/dark-energy.en.d532ab2879107745.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064433989-y4msjs.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064433989-y4msjs.jpg"
+    },
+    {
+      "slug": "dark-energy",
+      "language": "uk",
+      "section": "cosmology",
+      "order": 5,
+      "difficulty": "intermediate",
+      "readingTimeMin": 13,
+      "title": "Темна енергія і прискорене розширення",
+      "subtitle": "Невідома сила, що штовхає Всесвіт нарізно. Чому 68% реальності ми не можемо ані виміряти, ані пояснити.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "92fe8f57a1f73cae",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/dark-energy.uk.92fe8f57a1f73cae.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064433989-y4msjs.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064433989-y4msjs.jpg"
     },
     {
       "slug": "mars-water-perseverance",
@@ -156,9 +422,9 @@
       "title": "Mars: Water, Perseverance, Mars Sample Return",
       "subtitle": "From ancient oceans to sealed sample tubes — the planet where humanity is searching for its cosmic neighbors.",
       "lastVerified": "2026-05-03",
-      "contentHash": "f9c0ae0604b9ba01",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
-      "lessonUrl": "lessons/mars-water-perseverance.en.f9c0ae0604b9ba01.json",
+      "contentHash": "f6a7431f05389f00",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/mars-water-perseverance.en.f6a7431f05389f00.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777831127437-3b34kg.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777831127437-3b34kg.jpg",
       "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/mars-water-perseverance.en.female.mp3",
@@ -174,13 +440,77 @@
       "title": "Марс: вода, Perseverance, Mars Sample Return",
       "subtitle": "Від стародавніх океанів до зразків у пробірках — планета, де людство шукає сусідів по Всесвіту.",
       "lastVerified": "2026-05-03",
-      "contentHash": "dc0858fdf7161516",
-      "updatedAt": "2026-05-04T18:39:08.002Z",
-      "lessonUrl": "lessons/mars-water-perseverance.uk.dc0858fdf7161516.json",
+      "contentHash": "90b0a6dd1bcfc77a",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/mars-water-perseverance.uk.90b0a6dd1bcfc77a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777831127437-3b34kg.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777831127437-3b34kg.jpg",
       "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/mars-water-perseverance.uk.female.mp3",
       "durationSec": 1135
+    },
+    {
+      "slug": "jupiter-system",
+      "language": "en",
+      "section": "planetology",
+      "order": 7,
+      "difficulty": "intermediate",
+      "readingTimeMin": 14,
+      "title": "Jupiter and Its Moons",
+      "subtitle": "The largest planet in the solar system and four worlds where life beyond Earth may be hiding.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "30487fa16739bc37",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/jupiter-system.en.30487fa16739bc37.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064576408-pwaj4i.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064576408-pwaj4i.jpg"
+    },
+    {
+      "slug": "jupiter-system",
+      "language": "uk",
+      "section": "planetology",
+      "order": 7,
+      "difficulty": "intermediate",
+      "readingTimeMin": 14,
+      "title": "Юпітер і його супутники",
+      "subtitle": "Найбільша планета Сонячної системи і чотири світи, де можливо ховається позаземне життя.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "eb7414d07ad605af",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/jupiter-system.uk.eb7414d07ad605af.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064576408-pwaj4i.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064576408-pwaj4i.jpg"
+    },
+    {
+      "slug": "rocket-engines",
+      "language": "en",
+      "section": "space-tech",
+      "order": 1,
+      "difficulty": "beginner",
+      "readingTimeMin": 13,
+      "title": "How a Rocket Engine Works",
+      "subtitle": "Newton's third law, the Tsiolkovsky equation, and why fire in a vacuum pushes harder than fire in air.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "9eaf12fa5fc80bd6",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/rocket-engines.en.9eaf12fa5fc80bd6.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064760870-1f1n37.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064760870-1f1n37.jpg"
+    },
+    {
+      "slug": "rocket-engines",
+      "language": "uk",
+      "section": "space-tech",
+      "order": 1,
+      "difficulty": "beginner",
+      "readingTimeMin": 13,
+      "title": "Як працює ракетний двигун",
+      "subtitle": "Третій закон Ньютона, рівняння Ціолковського та чому вогонь у вакуумі штовхає краще, ніж у повітрі.",
+      "lastVerified": "2026-05-03",
+      "contentHash": "bcff6763bdd12c75",
+      "updatedAt": "2026-05-06T15:52:07.758Z",
+      "lessonUrl": "lessons/rocket-engines.uk.bcff6763bdd12c75.json",
+      "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064760870-1f1n37.jpg",
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064760870-1f1n37.jpg"
     }
   ],
   "assets": {
@@ -219,13 +549,13 @@
       "audio": {
         "uk": {
           "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/solar-system-overview.uk.female.mp3",
-          "male": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/solar-system-overview.uk.male.mp3",
-          "durationSec": 1049
+          "male": "",
+          "durationSec": 1127
         },
         "en": {
           "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/solar-system-overview.en.female.mp3",
-          "male": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/solar-system-overview.en.male.mp3",
-          "durationSec": 1000
+          "male": "",
+          "durationSec": 1123
         }
       }
     },
@@ -240,13 +570,13 @@
       "audio": {
         "uk": {
           "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/what-is-astronomy.uk.female.mp3",
-          "male": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/what-is-astronomy.uk.male.mp3",
-          "durationSec": 782
+          "male": "",
+          "durationSec": 831
         },
         "en": {
           "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/what-is-astronomy.en.female.mp3",
-          "male": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/what-is-astronomy.en.male.mp3",
-          "durationSec": 712
+          "male": "",
+          "durationSec": 816
         }
       }
     },
@@ -292,6 +622,231 @@
           "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/mars-water-perseverance.en.female.mp3",
           "male": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/mars-water-perseverance.en.male.mp3",
           "durationSec": 1046
+        }
+      }
+    },
+    "habitable-zones": {
+      "images": {
+        "habitable-zones-hero": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063158392-qpdzwx.jpg",
+        "habitable-zones-hz-star-types": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063188405-f21fc6.jpg",
+        "habitable-zones-proxima-flare": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063214602-77wydq.jpg",
+        "habitable-zones-solar-system-hz": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063238324-i4yqfl.jpg",
+        "habitable-zones-europa-ocean": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063258676-q86kw4.jpg",
+        "habitable-zones-enceladus-plumes": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063283362-f6g4s0.jpg",
+        "habitable-zones-biosignature-spectrum": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063303447-p9et9z.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/habitable-zones.uk.female.mp3",
+          "male": "",
+          "durationSec": 1018
+        },
+        "en": {
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/habitable-zones.en.female.mp3",
+          "male": "",
+          "durationSec": 968
+        }
+      }
+    },
+    "milky-way": {
+      "images": {
+        "milky-way-hero": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063329948-pu9awk.jpg",
+        "milky-way-top-view-artist": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063350464-rvrqjf.jpg",
+        "milky-way-sgr-a-star": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063372990-z1incd.jpg",
+        "milky-way-local-group": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063408003-jjrapc.jpg",
+        "milky-way-gaia-map": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063429531-z0opf8.jpg",
+        "milky-way-disk-warp": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063456817-k0ushp.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/milky-way.uk.female.mp3",
+          "male": "",
+          "durationSec": 948
+        },
+        "en": {
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/milky-way.en.female.mp3",
+          "male": "",
+          "durationSec": 880
+        }
+      }
+    },
+    "stars-classification": {
+      "images": {
+        "stars-classification-hero": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063489689-b925tp.jpg",
+        "stars-classification-harvard-table": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063514954-au1now.jpg",
+        "stars-classification-protoplanetary-disk": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063542788-bnwc17.jpg",
+        "stars-classification-planetary-nebula": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063567461-2xfxz5.jpg",
+        "stars-classification-size-comparison": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063608064-7a9ec1.jpg",
+        "stars-classification-jwst-star-forming": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063645977-494txm.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        },
+        "en": {
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/stars-classification.en.female.mp3",
+          "male": "",
+          "durationSec": 897
+        }
+      }
+    },
+    "general-relativity": {
+      "images": {
+        "general-relativity-hero": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063688147-9z31t0.jpg",
+        "general-relativity-mercury-perihelion": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063710671-l7xw7l.jpg",
+        "general-relativity-elevator-experiment": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063732964-h35woz.jpg",
+        "general-relativity-trampoline-analogy": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063754413-6wgh1s.jpg",
+        "general-relativity-light-bending-sun": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063780067-sf0hrq.jpg",
+        "general-relativity-gps-correction": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063800171-do26w4.jpg",
+        "general-relativity-gravitational-lensing": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063827990-iu237z.jpg",
+        "general-relativity-ligo-detector": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063856242-ge0qpp.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        },
+        "en": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        }
+      }
+    },
+    "gravity-newton-einstein": {
+      "images": {
+        "gravity-newton-einstein-hero": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063889614-v61kbr.jpg",
+        "gravity-newton-einstein-apple-moon": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063916647-71wzfw.jpg",
+        "gravity-newton-einstein-law-diagram": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063948148-l9dsii.jpg",
+        "gravity-newton-einstein-light-bending-eddington": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063967359-sa2dbs.jpg",
+        "gravity-newton-einstein-ligo": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063998837-p29m3c.jpg",
+        "gravity-newton-einstein-m87-shadow": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064020614-0g9ldj.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        },
+        "en": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        }
+      }
+    },
+    "neutron-stars-pulsars": {
+      "images": {
+        "neutron-stars-pulsars-hero": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064044589-p37rhc.jpg",
+        "neutron-stars-pulsars-compaction": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064063750-2piu6x.jpg",
+        "neutron-stars-pulsars-magnetar": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064096241-cp8gbk.jpg",
+        "neutron-stars-pulsars-pulsar-lighthouse": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064123608-4cb36i.jpg",
+        "neutron-stars-pulsars-kilonova": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064150701-bdbc7q.jpg",
+        "neutron-stars-pulsars-r-process": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064187569-oj9tsx.jpg",
+        "neutron-stars-pulsars-pulsar-timing": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064207043-79y5r9.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        },
+        "en": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        }
+      }
+    },
+    "cosmic-microwave-background": {
+      "images": {
+        "cmb-hero-planck-map": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064245782-iabdju.jpg",
+        "cmb-plasma-opacity-diagram": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064290057-7t5w91.jpg",
+        "cmb-bell-labs-horn-antenna": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064315707-qie0ar.jpg",
+        "cmb-cobe-wmap-planck-progression": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064347035-jh46gs.jpg",
+        "cmb-large-scale-structure-connection": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064381890-8g5tly.jpg",
+        "cmb-polarization-b-modes": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064414403-zxj203.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        },
+        "en": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        }
+      }
+    },
+    "dark-energy": {
+      "images": {
+        "dark-energy-hero": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064433989-y4msjs.jpg",
+        "dark-energy-supernova-ia": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064459893-8uie71.jpg",
+        "dark-energy-expansion-graph": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064480333-fpzm5n.jpg",
+        "dark-energy-bao-map": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064507488-hu2k6g.jpg",
+        "dark-energy-desi-3d-map": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064529809-cktmp0.jpg",
+        "dark-energy-big-freeze-rip": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064555549-jonmvr.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        },
+        "en": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        }
+      }
+    },
+    "jupiter-system": {
+      "images": {
+        "jupiter-system-hero": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064576408-pwaj4i.jpg",
+        "jupiter-cloud-bands": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064616499-8m4q8d.jpg",
+        "io-volcanoes": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064643868-owem7n.jpg",
+        "europa-ice-surface": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064683401-l50fi0.jpg",
+        "ganymede-callisto-comparison": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064709372-t6znim.jpg",
+        "juice-europa-clipper-render": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064740313-3xkk4m.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        },
+        "en": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        }
+      }
+    },
+    "rocket-engines": {
+      "images": {
+        "rocket-engines-hero": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064760870-1f1n37.jpg",
+        "rocket-engines-newton-third-law": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064788663-yb2qk7.jpg",
+        "rocket-engines-engine-cycles": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064822143-vkv8sc.jpg",
+        "rocket-engines-top-engines-comparison": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064852220-xzmub8.jpg",
+        "rocket-engines-ion-engine": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064873870-b1qzkj.jpg",
+        "rocket-engines-nozzle-diagram": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064908894-vicnub.jpg",
+        "rocket-engines-solar-sail-concept": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064928717-4035j6.jpg"
+      },
+      "audio": {
+        "uk": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
+        },
+        "en": {
+          "female": "",
+          "male": "",
+          "durationSec": 0
         }
       }
     }

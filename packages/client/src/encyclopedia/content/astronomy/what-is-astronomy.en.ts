@@ -44,7 +44,7 @@ const lesson: Lesson = {
       level: 2,
       paragraphs: [
         'The oldest systematic astronomical records that survive were made in **Babylon** around ' +
-        '800 BCE, though observations there began as early as the third millennium BCE. ' +
+        '800 before the common era, though observations there began as early as the third millennium before the common era. ' +
         'Astronomer-priests recorded planetary motions, lunar phases and solar eclipses on ' +
         'clay tablets. These were not mere notes — Babylonian astronomers derived the first ' +
         'mathematical formulas for predicting positions of celestial bodies. By modern standards, ' +
@@ -55,7 +55,7 @@ const lesson: Lesson = {
         'pole star of its era. The Egyptian solar calendar of 365 days was one of the most ' +
         'accurate in the ancient world — and its structure became the foundation of our own.',
 
-        'Britain\'s **Stonehenge** (roughly 3000-2500 BCE) served as an observatory long before ' +
+        'Britain\'s **Stonehenge** (roughly 3000-2500 before the common era) served as an observatory long before ' +
         'anyone had worked out mathematical formulas. The main avenue aligns precisely with ' +
         'sunset at the winter solstice. Who built it and exactly why remain open questions in ' +
         'scholarship. But the accuracy of the alignment rules out coincidence.',
@@ -80,22 +80,22 @@ const lesson: Lesson = {
     {
       paragraphs: [
         'In ancient **Greece**, astronomy took a form close to modern science. ' +
-        'Eudoxus of Cnidus (~370 BCE) built the first geometric model of planetary motion — ' +
-        'a system of concentric spheres. _Aristarchus of Samos_ (~270 BCE) was the first to ' +
+        'Eudoxus of Cnidus (~370 before the common era) built the first geometric model of planetary motion — ' +
+        'a system of concentric spheres. _Aristarchus of Samos_ (~270 before the common era) was the first to ' +
         'argue that Earth orbits the Sun, and even estimated the distances to the Moon and Sun ' +
         'using angular measurements. His heliocentric idea was rejected, and it would not ' +
         'return to mainstream thinking for nearly 1,800 years.',
 
-        '**Eratosthenes** (~240 BCE) measured Earth\'s circumference to within two percent, ' +
+        '**Eratosthenes** (~240 before the common era) measured Earth\'s circumference to within two percent, ' +
         'using nothing but a stick, shadows, and the angle between two Egyptian cities. ' +
-        'This was not guesswork — it was measurement. Hipparchus (~130 BCE) compiled the ' +
+        'This was not guesswork — it was measurement. Hipparchus (~130 before the common era) compiled the ' +
         'first star catalog of more than a thousand stars and discovered the precession of ' +
-        'Earth\'s axis. Ptolemy in the second century CE assembled everything into the ' +
+        'Earth\'s axis. Ptolemy in the second century of the common era assembled everything into the ' +
         '"Almagest" — a book that remained the authority in astronomy for the next millennium.',
 
         'The Maya of Central America independently developed an impressive astronomical system. ' +
         'Their **Venus cycle** of 584 days matched the actual orbital period of Venus to within ' +
-        'two hours per year. Chinese astronomers documented a supernova explosion in 1054 CE — ' +
+        'two hours per year. Chinese astronomers documented a supernova explosion in 1054 of the common era — ' +
         'the same event that left behind the _Crab Nebula_, which Hubble photographed in the twentieth century.',
       ],
     },

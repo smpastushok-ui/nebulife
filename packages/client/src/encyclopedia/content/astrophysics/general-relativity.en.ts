@@ -1,0 +1,597 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'general-relativity',
+  language: 'en',
+  section: 'astrophysics',
+  order: 4,
+  difficulty: 'intermediate',
+  readingTimeMin: 14,
+  title: 'General Relativity',
+  subtitle: 'Mass does not pull — it curves space. Why the geometry of the universe turned out to matter more than force.',
+
+  hero: {
+    cacheKey: 'general-relativity-hero',
+    prompt:
+      'Photorealistic scientific illustration of curved spacetime around a massive planet: ' +
+      'a glowing blue-white grid of spacetime fabric dramatically warped into a deep funnel shape beneath a large dense planet, ' +
+      'stars visible in the background through the undistorted distant regions, ' +
+      'light ray shown curving around the planet following the curvature. ' +
+      'Hard sci-fi style, dark space background, dramatic perspective view from above. ' +
+      'Add the following text labels on the image: "spacetime curvature", "massive body", "geodesic path".',
+    alt: 'Curved spacetime grid warped into a funnel around a massive planet in deep space',
+    caption:
+      'Mass deforms the geometry of spacetime. What we call gravitational attraction is simply objects following the straightest possible path through curved geometry.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Newton described gravity as a _force_ acting instantaneously between any two masses in the universe. ' +
+        'For two and a half centuries that formula delivered results precise enough to launch satellites ' +
+        'and predict comet trajectories. But it concealed a fundamental problem: ' +
+        'how does the Earth "know" where the Sun is right now? ' +
+        'If the Sun were suddenly to vanish — when would the Earth feel it? ' +
+        'Newtonian gravity had no answer. It assumed instantaneous action at any distance — ' +
+        'which contradicts the very nature of space and time.',
+
+        'At the start of the twentieth century a young patent clerk reconsidered the problem from scratch. ' +
+        'Instead of searching for a better force formula, he asked a different question: ' +
+        'what if gravity is not a force at all? What if it is geometry? ' +
+        'That insight became **general relativity** — one of the greatest intellectual achievements ' +
+        'in the history of science, which changed the very language we use to describe the universe.',
+      ],
+    },
+
+    {
+      heading: 'Why Newton Was Not Enough',
+      level: 2,
+      paragraphs: [
+        'Newtonian gravity is a _field theory without a field_. Mass acts on mass across empty space, ' +
+        'with no carrier. By the late nineteenth and early twentieth century, physicists already knew ' +
+        'about Maxwell\'s _electromagnetic field_, where disturbances propagate at the speed of light. ' +
+        'But in the Newtonian picture, gravity transmitted itself instantaneously through the vacuum. ' +
+        'That was already theoretically unsatisfying.',
+
+        'There was also a concrete observable anomaly. The perihelion of _Mercury\'s_ orbit — ' +
+        'its closest point to the Sun — shifts slightly with each revolution. ' +
+        'Newtonian mechanics predicted this shift from the gravitational influence of other planets, ' +
+        'but the calculation came out roughly 43 arcseconds per century short of what was actually observed. ' +
+        'A small number — but a stubborn one. No adjustment to the Newtonian model could account for it.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'general-relativity-mercury-perihelion',
+        prompt:
+          'Scientific diagram showing the orbital precession of Mercury around the Sun: ' +
+          'Mercury orbit drawn as a slowly rotating ellipse, with perihelion point shown at different positions across multiple orbits forming a rosette pattern, ' +
+          'Sun at center as a bright yellow-white sphere, orbit path in glowing cyan, precession angle labeled. ' +
+          'Hard sci-fi style, dark space background, monospace labels. ' +
+          'Add the following text labels on the image: "Mercury orbit", "perihelion shift", "43 arcseconds per century", "Sun".',
+        alt: 'Diagram of Mercury perihelion precession — the orbit rotates over time, forming a rosette figure',
+        caption:
+          'The precession of Mercury\'s perihelion was a long-known anomaly that Newtonian mechanics could not explain. General relativity accounted for it exactly — without additional assumptions.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Equivalence Principle',
+      level: 2,
+      paragraphs: [
+        'The starting point of the theory is a simple thought experiment. Imagine a sealed room ' +
+        'accelerating through empty space at 9.8 meters per second squared. ' +
+        'A person inside experiences exactly the same thing as a person standing on the surface of the Earth. ' +
+        'No local physical experiment can distinguish between these two situations. ' +
+        'This is the **equivalence principle**: gravity and acceleration are locally indistinguishable.',
+
+        'A remarkable consequence follows immediately. If you shine a flashlight horizontally ' +
+        'across the accelerating room, a stationary outside observer sees the beam travel straight ' +
+        'while the room accelerates upward. So from the inside observer\'s point of view, ' +
+        'the beam curves downward. But if gravity and acceleration are equivalent — ' +
+        'then **gravity must also bend light**. ' +
+        'And if that is true, gravity cannot be merely a force between masses. ' +
+        'It must be something that acts on everything — including photons, which have no rest mass.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'general-relativity-elevator-experiment',
+        prompt:
+          'Scientific split-panel illustration comparing two scenarios: ' +
+          'LEFT panel: a rocket in deep space accelerating upward, person inside standing on floor, light beam bending downward as seen from inside, ' +
+          'RIGHT panel: a room on Earth surface with gravity pulling down, person standing, identical light beam bending identically downward. ' +
+          'Both panels show identical physical experience. Hard sci-fi style, dark background, monospace labels, clean diagram style. ' +
+          'Add the following text labels on the image: "rocket acceleration a=g", "gravity g=9.8 m/s2", "light path identical", "equivalence principle".',
+        alt: 'Two equivalence scenarios: accelerating rocket in space and a room on Earth — the person feels the same thing',
+        caption:
+          'The equivalence principle: locally, uniform acceleration and a gravitational field are indistinguishable. From this it follows that gravity must bend light.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Spacetime as Fabric',
+      level: 2,
+      paragraphs: [
+        'To understand general relativity, you must first accept the idea from _special relativity_: ' +
+        'space and time are not separate things, but a single four-dimensional entity — **spacetime**. ' +
+        'Between two events there is not merely a spatial distance and a time interval separately — ' +
+        'there is a unified _spacetime interval_ that is the same for all observers regardless of their motion.',
+
+        'General relativity then says: this four-dimensional fabric is not flat. ' +
+        'Mass and energy _curve_ it. This is why the rubber-sheet analogy is so popular: ' +
+        'place a heavy ball on a stretched membrane and the membrane sags. ' +
+        'A smaller ball rolling nearby falls into the depression and follows a curved path. ' +
+        'But this is only an illustration — the real curvature happens in four dimensions, ' +
+        'and the most important of them is **time**. ' +
+        'Near a massive object, time passes more slowly. Not metaphorically — literally.',
+
+        'This effect is called _gravitational time dilation_. A clock on the surface of the Earth ' +
+        'runs slower than a clock in orbit. The difference is tiny — but GPS satellites account for it ' +
+        'in real time. Without these corrections, the navigation system would accumulate an error ' +
+        'of roughly ten kilometers per day and become useless within a few hours of operation.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'general-relativity-trampoline-analogy',
+        prompt:
+          'Scientific illustration of the rubber sheet spacetime analogy: ' +
+          'a large glowing blue-white grid (spacetime fabric) stretched into a deep funnel by a massive yellow-white sphere at center, ' +
+          'smaller spheres of different sizes orbiting at various distances following the curved surface, ' +
+          'arrows showing orbital motion along geodesics, ' +
+          'perspective view from slightly above. Hard sci-fi style, dark space background, visually striking. ' +
+          'Add the following text labels on the image: "spacetime curvature", "mass warps geometry", "orbital geodesic".',
+        alt: 'Rubber-sheet analogy: a massive ball warps the spacetime grid, smaller bodies follow curves',
+        caption:
+          'Mass and energy deform the geometry of spacetime. What we perceive as gravitational attraction is motion along a geodesic — the straightest possible path in curved space.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Geodesics: Why Objects "Fall"',
+      level: 2,
+      paragraphs: [
+        'In Euclidean geometry the shortest path between two points is a straight line. ' +
+        'On the surface of a sphere (like the Earth), the shortest path is a _great circle_ — ' +
+        'which is why aircraft fly along arcs rather than straight lines on a flat map. ' +
+        'These "straightest possible paths" in curved space are called **geodesics**.',
+
+        'General relativity states: a freely falling object follows a _geodesic in spacetime_. ' +
+        'No force acts on it — it simply moves as straight as possible. ' +
+        'But spacetime near the Earth is curved by the Earth\'s mass, so "the straightest path" ' +
+        'through that curved spacetime appears as a curve in ordinary three-dimensional space. ' +
+        'An apple does not fall because the Earth pulls it — it follows ' +
+        'the straightest possible trajectory through the curved geometry surrounding the Earth.',
+
+        'For planets this is even clearer. The Earth does not orbit the Sun ' +
+        'because the Sun pulls it. It follows a geodesic in spacetime curved by the Sun\'s mass. ' +
+        'The result is a circular (more precisely elliptical) orbit — ' +
+        'not from any force, but from the geometry of space itself.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: Geodesic in Curved Spacetime',
+        svg: `<svg viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="280" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Grid lines - flat spacetime left side -->
+  <g stroke="#334455" stroke-width="0.6" opacity="0.5">
+    <line x1="30" y1="60" x2="30" y2="260"/>
+    <line x1="80" y1="60" x2="80" y2="260"/>
+    <line x1="130" y1="60" x2="130" y2="260"/>
+    <line x1="180" y1="60" x2="180" y2="260"/>
+    <line x1="30" y1="80" x2="190" y2="80"/>
+    <line x1="30" y1="120" x2="190" y2="120"/>
+    <line x1="30" y1="160" x2="190" y2="160"/>
+    <line x1="30" y1="200" x2="190" y2="200"/>
+    <line x1="30" y1="240" x2="190" y2="240"/>
+  </g>
+  <text x="110" y="42" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle">flat spacetime</text>
+  <text x="110" y="54" fill="#667788" font-family="monospace" font-size="10" text-anchor="middle">(no mass)</text>
+  <!-- Straight geodesic in flat spacetime -->
+  <line x1="30" y1="160" x2="190" y2="160" stroke="#44ff88" stroke-width="2"/>
+  <text x="110" y="175" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">geodesic = straight line</text>
+
+  <!-- Divider -->
+  <line x1="220" y1="30" x2="220" y2="270" stroke="#334455" stroke-width="1" stroke-dasharray="4,4" opacity="0.6"/>
+
+  <!-- Curved spacetime right side - warped grid -->
+  <g stroke="#334455" stroke-width="0.6" opacity="0.45">
+    <!-- Vertical lines curved toward mass -->
+    <path d="M 270 60 Q 290 150 275 260" fill="none"/>
+    <path d="M 330 60 Q 360 150 340 260" fill="none"/>
+    <path d="M 390 60 Q 430 148 405 260" fill="none"/>
+    <path d="M 450 60 Q 495 150 465 260" fill="none"/>
+    <path d="M 510 60 Q 555 152 525 260" fill="none"/>
+    <path d="M 570 60 Q 610 155 580 260" fill="none"/>
+    <path d="M 620 60 Q 645 158 630 260" fill="none"/>
+    <!-- Horizontal lines curved toward mass -->
+    <path d="M 250 90 Q 420 70 650 88" fill="none"/>
+    <path d="M 250 130 Q 420 105 650 128" fill="none"/>
+    <path d="M 250 168 Q 420 140 650 166" fill="none"/>
+    <path d="M 250 206 Q 420 185 650 204" fill="none"/>
+    <path d="M 250 244 Q 420 225 650 242" fill="none"/>
+  </g>
+
+  <!-- Mass (Sun / planet) -->
+  <circle cx="410" cy="155" r="22" fill="#ffd080" opacity="0.9"/>
+  <circle cx="410" cy="155" r="22" fill="none" stroke="#ff8844" stroke-width="1.5" opacity="0.6"/>
+  <text x="410" y="190" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">massive body</text>
+
+  <!-- Geodesic curve in curved spacetime -->
+  <path d="M 250 80 Q 330 95 370 130 Q 395 150 370 175 Q 340 205 310 240" stroke="#44ff88" stroke-width="2" fill="none"/>
+  <text x="248" y="75" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="end">geodesic</text>
+  <text x="248" y="87" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="end">(curved space)</text>
+
+  <!-- Light ray path -->
+  <path d="M 250 115 Q 350 118 380 130 Q 408 140 440 138 Q 520 135 650 132" stroke="#7bb8ff" stroke-width="1.5" fill="none" stroke-dasharray="6,3"/>
+  <text x="655" y="132" fill="#7bb8ff" font-family="monospace" font-size="10">light ray</text>
+
+  <text x="440" y="42" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle">curved spacetime</text>
+  <text x="440" y="54" fill="#667788" font-family="monospace" font-size="10" text-anchor="middle">(near mass)</text>
+
+  <!-- Section label -->
+  <text x="340" y="270" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">object follows the straightest path — but space itself is bent</text>
+</svg>`,
+        caption:
+          'Left: in flat space a geodesic is a straight line. Right: near a massive body, geometry is curved and the "straightest possible path" through that geometry appears as a curve in ordinary space.',
+      },
+    },
+
+    {
+      heading: 'Einstein\'s Field Equations',
+      level: 2,
+      paragraphs: [
+        'The mathematical heart of the theory — _Einstein\'s field equations_ — is written as a single ' +
+        'tensor equation but actually comprises ten coupled differential equations. ' +
+        'The left side describes the **curvature of spacetime** — the geometry. ' +
+        'The right side describes the **distribution of mass and energy** — the sources of that curvature. ' +
+        'American physicist John Wheeler put it most simply: ' +
+        '"Spacetime tells matter how to move. Matter tells spacetime how to curve."',
+
+        'The equations are nonlinear: the curvature that mass creates alters the conditions for the ' +
+        'motion of mass, which in turn changes the curvature again. ' +
+        'Analytic solutions exist only for simplified cases. ' +
+        'The first and most important is the **Schwarzschild solution** (obtained almost immediately ' +
+        'after the theory\'s publication): the geometry of spacetime around a single spherical mass. ' +
+        'This is the foundation on which black hole event horizons are calculated.',
+      ],
+    },
+
+    {
+      heading: 'Confirmations: From the Sun to LIGO',
+      level: 2,
+      paragraphs: [
+        'The first spectacular confirmation of the theory was the **deflection of starlight by the Sun**. ' +
+        'General relativity predicted that light from distant stars passing near the Sun would be bent ' +
+        'by twice the angle that Newtonian mechanics would give. ' +
+        'Observations made during a total solar eclipse confirmed the prediction with enough precision ' +
+        'to overturn the scientific worldview. After this, Einstein became the most famous scientist on the planet.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'general-relativity-light-bending-sun',
+        prompt:
+          'Scientific diagram of gravitational lensing by the Sun during a solar eclipse: ' +
+          'Sun at center as bright sphere with corona, star positions shown in two sets: ' +
+          'dashed lines showing true star positions, solid glowing lines showing apparent deflected positions, ' +
+          'light ray paths curving around the Sun, angular deflection angle labeled. ' +
+          'Hard sci-fi style, dark background, monospace labels, clean scientific diagram. ' +
+          'Add the following text labels on the image: "true star position", "apparent position", "1.75 arcseconds deflection", "Sun".',
+        alt: 'Diagram of starlight deflection by the Sun — true and apparent star positions during an eclipse',
+        caption:
+          'General relativity predicted a deflection of starlight near the Sun of approximately 1.75 arcseconds. Newtonian mechanics gave half that. Solar eclipse observations confirmed Einstein\'s theory.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Gravitational Redshift and GPS',
+      level: 3,
+      paragraphs: [
+        'Near a massive body, time passes more slowly — this is **gravitational time dilation**. ' +
+        'For a photon climbing away from the Earth\'s surface this means: ' +
+        'it effectively "spends" part of its energy climbing against gravity. ' +
+        'A photon\'s energy is proportional to its frequency, so the frequency decreases — ' +
+        'the photon _shifts toward the red end of the spectrum_. This is **gravitational redshift**.',
+
+        'The practical consequence is in every GPS device. Satellites orbiting at roughly ' +
+        'twenty thousand kilometers experience weaker gravity, so their atomic clocks run _faster_ ' +
+        'than clocks on Earth\'s surface. At the same time their orbital velocity (special relativity) ' +
+        'slows their clocks. The net relativistic correction is approximately plus 38 microseconds per day ' +
+        'relative to a ground clock. Without this correction, positioning would accumulate an error ' +
+        'of roughly ten kilometers per day.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'general-relativity-gps-correction',
+        prompt:
+          'Scientific infographic showing GPS satellite and general relativity time corrections: ' +
+          'Earth at center with GPS satellite in orbit, two clocks shown: one on Earth surface (ticking slower due to gravity), ' +
+          'one on satellite (affected by both speed and altitude), ' +
+          'net correction value labeled, signal path shown as dashed line from satellite to ground receiver. ' +
+          'Hard sci-fi style, dark space background, monospace labels. ' +
+          'Add the following text labels on the image: "GPS satellite", "gravitational time dilation +45 us/day", "velocity time dilation -7 us/day", "net +38 us/day correction".',
+        alt: 'GPS correction infographic showing relativistic time dilation — gravitational and velocity components',
+        caption:
+          'Without accounting for general and special relativity, GPS would accumulate a positioning error of about ten kilometers per day. Einstein\'s theory is literally inside every navigation device.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Gravitational Lensing',
+      level: 3,
+      paragraphs: [
+        'When a massive object sits between us and a distant light source, ' +
+        'it acts as a **gravitational lens** — distorting and amplifying the image. ' +
+        'When the alignment is exact (source — lens — observer), ' +
+        'an _Einstein ring_ appears: a circular image of the source surrounding the lens. ' +
+        'Gravitational lensing is used for: ' +
+        'measuring the masses of distant galaxies and clusters, detecting dark matter, ' +
+        'finding exoplanets through microlensing, and observing objects ' +
+        'far behind other galaxies.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'general-relativity-gravitational-lensing',
+        prompt:
+          'Photorealistic scientific illustration of gravitational lensing: ' +
+          'massive galaxy cluster in the foreground causing dramatic arcs and Einstein rings of background galaxies, ' +
+          'multiple bright distorted arcs of blue-white distant galaxies visible around the central cluster, ' +
+          'deep space background with faint stars. ' +
+          'Hard sci-fi style, dark space background, Hubble-like visual quality. ' +
+          'Add the following text labels on the image: "gravitational lens (galaxy cluster)", "Einstein arcs", "background galaxies", "light paths bent by mass".',
+        alt: 'Gravitational lensing by a galaxy cluster — arc-shaped images of distant galaxies around the central mass',
+        caption:
+          'Massive galaxy clusters act as natural cosmic lenses, distorting and amplifying images of even more distant objects. Einstein arcs and rings are direct confirmation of the bending of light by mass.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Gravitational Waves',
+      level: 2,
+      paragraphs: [
+        'General relativity predicted one more unusual phenomenon: accelerating masses ' +
+        'send _waves_ through spacetime propagating at the speed of light. ' +
+        'These **gravitational waves** alternately stretch and compress space in two ' +
+        'mutually perpendicular directions, with extraordinarily small amplitude.',
+
+        'In 2015, LIGO detectors in the United States captured the first signal: ' +
+        'the merger of two black holes located roughly one billion four hundred million light-years away. ' +
+        'In a fraction of a second, two black holes with a combined mass of about 65 solar masses merged — ' +
+        'releasing approximately three solar masses as gravitational waves. ' +
+        'The power emitted at the moment of merger exceeded the combined electromagnetic output ' +
+        'of all the stars in the observable universe. ' +
+        'LIGO measured a distortion of its mirrors of roughly two thousandths of a proton diameter.',
+
+        'Since then, LIGO and Virgo have detected dozens of merger events — ' +
+        'both black holes and neutron stars. In 2017, a neutron star merger was observed simultaneously ' +
+        'in gravitational waves and across the electromagnetic spectrum — ' +
+        'launching **multi-messenger astronomy**: a new era of observing the universe.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'general-relativity-ligo-detector',
+        prompt:
+          'Photorealistic aerial illustration of the LIGO gravitational wave detector: ' +
+          'two 4-kilometer arms forming an L-shape in a flat landscape, laser beams shown as thin red lines inside the arms, ' +
+          'central control building at the junction, surrounding countryside visible. ' +
+          'Hard sci-fi style, semi-realistic, slightly elevated aerial perspective, dark-toned color grading. ' +
+          'Add the following text labels on the image: "LIGO interferometer", "4 km arm", "laser beam path", "beam splitter".',
+        alt: 'Aerial view of the LIGO interferometer — two four-kilometer arms in an L-shape',
+        caption:
+          'LIGO uses laser interferometry to measure spacetime deformations with precision down to thousandths of a proton diameter. The first gravitational-wave signal was detected in 2015.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Shadow of a Black Hole',
+      level: 2,
+      paragraphs: [
+        'In 2019 and 2022, the Event Horizon Telescope obtained the first images of the _shadow_ of black holes: ' +
+        'first the supermassive black hole at the center of galaxy Messier 87, ' +
+        'then Sagittarius A* at the center of the Milky Way. ' +
+        'The shape and size of the shadow are a direct imprint of the spacetime geometry near the event horizon. ' +
+        'The results precisely match the predictions of general relativity for a rotating Kerr black hole. ' +
+        'No deviation from the theory was detected.',
+      ],
+    },
+
+    {
+      heading: 'Open Questions: Where the Theory Falls Silent',
+      level: 2,
+      paragraphs: [
+        'General relativity is extraordinarily accurate within its domain of applicability. ' +
+        'But there are two key boundaries where it stops working — or at least should stop, ' +
+        'if our understanding is correct.',
+
+        '**Singularities.** At the centers of black holes and at the moment of the Big Bang, ' +
+        'Einstein\'s equations predict infinite curvature — a _singularity_. ' +
+        'Infinity in physics signals that a theory has exceeded its range of validity. ' +
+        'A _quantum theory of gravity_ is needed there — one that does not yet exist in completed form. ' +
+        'String theory and loop quantum gravity are candidates, but neither has been confirmed experimentally.',
+
+        '**Quantum mechanics.** General relativity and quantum mechanics are the two most successful ' +
+        'theories in physics, and they are fundamentally incompatible in their mathematical frameworks. ' +
+        'Quantum mechanics describes a discrete, probabilistic microworld. ' +
+        'General relativity describes a smooth, deterministically geometric field. ' +
+        'Under extreme conditions — inside black holes, in the first moments after the Big Bang — ' +
+        'both theories are simultaneously necessary, and they give contradictory results. ' +
+        'Building a **theory of quantum gravity** remains perhaps the central ' +
+        'unsolved problem of theoretical physics.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Equivalence Principle',
+      definition:
+        'A foundational principle of general relativity: locally, it is impossible to distinguish uniform acceleration from a gravitational field. From this it follows that gravity acts on everything — including light.',
+    },
+    {
+      term: 'Spacetime',
+      definition:
+        'A single four-dimensional entity (three spatial dimensions plus time), introduced by special relativity. General relativity describes how mass and energy deform the geometry of this entity.',
+    },
+    {
+      term: 'Geodesic',
+      definition:
+        'The straightest possible path between two points in curved spacetime. In flat space a geodesic is a straight line. Near a massive body, a freely falling object follows a geodesic.',
+    },
+    {
+      term: 'Gravitational Time Dilation',
+      definition:
+        'An effect predicted by general relativity: clocks run more slowly in stronger gravitational fields. Directly measured and applied in GPS satellite corrections.',
+    },
+    {
+      term: 'Gravitational Redshift',
+      definition:
+        'The decrease in frequency (increase in wavelength) of a photon climbing out of a deep gravitational well. Reflects the photon\'s loss of energy in the gravitational potential — a direct consequence of time dilation.',
+    },
+    {
+      term: 'Gravitational Lens',
+      definition:
+        'A massive object (a galaxy or galaxy cluster) that deflects light rays from a distant source — like an optical lens. When source, lens and observer are exactly aligned, an Einstein ring appears.',
+    },
+    {
+      term: 'Gravitational Waves',
+      definition:
+        'Wave-like deformations of spacetime geometry that propagate at the speed of light, produced by accelerating massive bodies. First directly detected by LIGO in 2015 from a black-hole merger.',
+    },
+    {
+      term: 'Schwarzschild Solution',
+      definition:
+        'The first exact solution to Einstein\'s field equations, describing the geometry of spacetime around a spherically symmetric non-rotating mass. The basis for calculating black hole event horizons.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why is Newtonian gravity considered theoretically unsatisfying?',
+      options: [
+        'It cannot account for planetary orbits around the Sun',
+        'It assumed instantaneous propagation of gravitational action, with no carrier of the interaction',
+        'It does not explain why objects have mass',
+        'It is inaccurate at short distances',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Newtonian gravity is action at a distance with no field or carrier. Gravitational attraction propagated instantaneously, which contradicts the principle that interactions travel at finite speed. General relativity resolved this: gravity propagates at the speed of light as deformations of spacetime.',
+    },
+    {
+      question: 'What does the equivalence principle state?',
+      options: [
+        'Mass and energy are equivalent according to E=mc²',
+        'The speed of light is the same for all observers',
+        'Locally, a gravitational field is indistinguishable from uniform acceleration',
+        'Time passes at the same rate in every reference frame',
+      ],
+      correctIndex: 2,
+      explanation:
+        'The equivalence principle is the starting point of general relativity. A person in a rocket accelerating at g experiences the same thing as a person on the surface of the Earth. No local experiment can tell them apart. From this it follows that gravity must act on everything — including light.',
+    },
+    {
+      question: 'What is the most widely known everyday application of general relativity?',
+      options: [
+        'Nuclear power generation',
+        'Time corrections in GPS satellite clocks',
+        'X-ray medical imaging',
+        'Predicting solar eclipses',
+      ],
+      correctIndex: 1,
+      explanation:
+        'GPS satellites move fast (clock slowing due to velocity — special relativity) and sit higher in the gravitational potential (clock speeding up due to weaker gravity — general relativity). The net correction is approximately plus 38 microseconds per day. Without it, positioning errors would accumulate at roughly ten kilometers per day.',
+    },
+    {
+      question: 'What are gravitational waves and when were they first detected directly?',
+      options: [
+        'Radio-wave pulses from pulsars; detected in the 1960s',
+        'Deformations of spacetime propagating at the speed of light; first detected by LIGO in 2015',
+        'Magnetic fields around neutron stars; detected in the 1970s',
+        'Brightness oscillations in quasars; detected in the 2000s',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Gravitational waves are ripples in the geometry of spacetime itself, predicted by general relativity. LIGO detected them for the first time in 2015 from a black-hole merger. The detector measured a mirror displacement of about two thousandths of a proton diameter — across arms four kilometers long.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Einstein A. — Die Grundlage der allgemeinen Relativitätstheorie',
+      url: 'https://link.springer.com/article/10.1007/BF01328389',
+      meta: 'Annalen der Physik, 354(7), 1916 — original paper',
+    },
+    {
+      title: 'Schwarzschild K. — Über das Gravitationsfeld eines Massenpunktes',
+      url: 'https://arxiv.org/abs/physics/9905030',
+      meta: 'Sitzungsber. Preuss. Akad. Wiss., 1916 (arXiv translation)',
+    },
+    {
+      title: 'Abbott B. et al. (LIGO) — Observation of Gravitational Waves from a Binary Black Hole Merger',
+      url: 'https://arxiv.org/abs/1602.03840',
+      meta: 'PRL 116, 061102, 2016 (open access)',
+    },
+    {
+      title: 'Event Horizon Telescope Collaboration — First M87* Image (Paper I)',
+      url: 'https://iopscience.iop.org/article/10.3847/2041-8213/ab0ec7',
+      meta: 'ApJL 875, L1, 2019 (open access)',
+    },
+    {
+      title: 'Event Horizon Telescope Collaboration — First Sgr A* Image (Paper I)',
+      url: 'https://iopscience.iop.org/article/10.3847/2041-8213/ac6674',
+      meta: 'ApJL 930, L12, 2022 (open access)',
+    },
+    {
+      title: 'Will C. — The Confrontation between General Relativity and Experiment',
+      url: 'https://link.springer.com/article/10.12942/lrr-2014-4',
+      meta: 'Living Reviews in Relativity, 17, 4, 2014 (open access)',
+    },
+    {
+      title: 'NASA — GPS and Relativity',
+      url: 'https://www.nasa.gov/feature/goddard/2021/gps-and-relativity',
+      meta: 'NASA Goddard, updated 2021',
+    },
+    {
+      title: 'Misner C., Thorne K., Wheeler J. — Gravitation',
+      url: 'https://press.princeton.edu/books/hardcover/9780691177793/gravitation',
+      meta: 'Princeton University Press, classic textbook, reissued 2017',
+    },
+    {
+      title: 'Penrose R. — Gravitational Collapse and Space-Time Singularities',
+      url: 'https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.14.57',
+      meta: 'PRL 14, 57–59, 1965 — singularity theorem',
+    },
+    {
+      title: 'ESA — Gravitational Waves: what they are and how to detect them',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/Gravitational_waves',
+      meta: 'ESA Science, open access',
+    },
+  ],
+
+  lastVerified: '2026-05-03',
+};
+
+export default lesson;

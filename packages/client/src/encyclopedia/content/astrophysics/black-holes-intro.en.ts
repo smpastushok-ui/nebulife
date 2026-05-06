@@ -107,7 +107,7 @@ const lesson: Lesson = {
   <text x="320" y="16" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">R_s = 2GM / c²</text>
 </svg>`,
         caption:
-          'R_s = 2GM/c². For one solar mass this is ~3 km. For M87* — 38 billion km (larger than Neptune\'s orbit). ' +
+          'R_s = 2GM/c². For one solar mass this is ~3 kilometers For M87* — 38 billion km (larger than Neptune\'s orbit). ' +
           'ISCO (innermost stable circular orbit) marks the inner edge of the accretion disk.',
       },
     },
