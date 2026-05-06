@@ -2,6 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { getPlanetSkin, getPlanetSkinsForSystem } from '../../packages/server/src/db.js';
 
+function isMissingPlanetSkinTable(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('planet_skins') && message.includes('does not exist');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -25,6 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const skins = await getPlanetSkinsForSystem(systemId);
     return res.status(200).json({ skins });
   } catch (err) {
+    if (isMissingPlanetSkinTable(err)) {
+      return res.status(200).json({
+        skins: [],
+        storageMissing: true,
+      });
+    }
     console.error('[planet-skin/list] Error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
   }

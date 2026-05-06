@@ -77,6 +77,10 @@ export async function listPlanetSkinsForSystem(systemId: string): Promise<Planet
   });
   const data = await res.json().catch(() => ({ error: 'Unknown error' }));
   if (!res.ok) {
+    const message = String(data.error ?? '');
+    if (message.includes('planet_skins') && message.includes('does not exist')) {
+      return [];
+    }
     throw new Error(data.error ?? `Planet skin list failed: ${res.status}`);
   }
   return (data.skins ?? []) as PlanetSkin[];

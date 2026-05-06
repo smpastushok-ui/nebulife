@@ -10,6 +10,11 @@ export const config = {
   maxDuration: 60,
 };
 
+function isMissingShipModelsTable(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('ship_models') && message.includes('does not exist');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -145,6 +150,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       progress: ship.status === 'generating_concept' ? 10 : 0,
     });
   } catch (err) {
+    if (isMissingShipModelsTable(err)) {
+      return res.status(503).json({ error: 'Ship generation database migration is not installed' });
+    }
     console.error('[ship/status] Error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
   }

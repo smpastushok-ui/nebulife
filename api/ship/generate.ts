@@ -27,6 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let chargedPlayerId: string | null = null;
   let chargedAmount = 0;
+  let createdShipId: string | null = null;
   try {
     const auth = await authenticate(req, res);
     if (!auth) return;
@@ -64,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: 'generating_3d',
       quarksPaid: SHIP_GENERATION_COST_QUARKS,
     });
+    createdShipId = ship.id;
 
     const modelPrompt = buildShipModelPrompt(moderation.cleanedPrompt);
     const tripo = await createShipTextModelTask(modelPrompt, buildShipModelNegativePrompt());
@@ -83,6 +85,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err) {
     console.error('[ship/generate] Error:', err);
+    if (createdShipId) {
+      try {
+        await updateShipModel(createdShipId, {
+          status: 'failed',
+          moderation_reason: err instanceof Error ? err.message.slice(0, 500) : 'Ship generation failed',
+        });
+      } catch (updateErr) {
+        console.error('[ship/generate] Failed to mark ship as failed:', updateErr);
+      }
+    }
     if (chargedPlayerId && chargedAmount > 0) {
       try {
         await creditQuarks(chargedPlayerId, chargedAmount);
@@ -93,12 +105,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = err instanceof Error ? err.message : 'Ship generation failed';
     const isConfigError = message.includes('TRIPO_API_KEY');
     const isDbMigrationError = message.includes('ship_models') || message.includes('relation') || message.includes('column');
-    return res.status(isConfigError || isDbMigrationError ? 503 : 500).json({
+    const isTripoError = message.includes('Tripo3D') || message.includes('tripo') || message.includes('TRIPO');
+    return res.status(isConfigError || isDbMigrationError || isTripoError ? 503 : 500).json({
       error: isConfigError
         ? 'Tripo ship generation is not configured on the server'
         : isDbMigrationError
           ? 'Ship generation database migration is not installed'
-          : 'Ship generation failed',
+          : isTripoError
+            ? 'Tripo ship generation service is unavailable. Quarks were refunded.'
+            : 'Ship generation failed',
+      refunded: Boolean(chargedPlayerId && chargedAmount > 0),
     });
   }
 }

@@ -129,11 +129,11 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 const overlayStyle: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
-  zIndex: 10000,
+  zIndex: 11000,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'rgba(2, 5, 16, 0.88)',
+  background: '#020510',
   fontFamily: 'monospace',
 };
 

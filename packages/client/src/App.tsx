@@ -29,6 +29,7 @@ import { ObservatoryView } from './ui/components/ObservatoryView.js';
 import { TelemetryView } from './ui/components/TelemetryView.js';
 import PlanetGlobeView from './ui/components/PlanetGlobeView.js';
 import type { PlanetGlobeViewHandle } from './ui/components/PlanetGlobeView.js';
+import { ExospherePremiumPanel } from './ui/components/ExospherePremiumPanel.js';
 import { HexSurface as SurfaceShaderView } from './ui/components/hex-surface/HexSurface.js';
 import type { SurfaceViewHandle, SurfacePhase } from './ui/components/hex-surface/HexSurface.js';
 import { QuarkTopUpModal } from './ui/components/QuarkTopUpModal.js';
@@ -202,6 +203,7 @@ const KLING_PHOTO_COST = 25;
 const GEMINI_PHOTO_COST = 50;
 const MISSION_CARRIER_RETURN_MS = 60 * 60_000;
 const MISSION_PHOTO_REVEAL_MS = 15_000;
+const MIN_BOOT_LOADER_MS = 4200;
 
 function getPlanetPhotoCost(photoKind: PlanetPhotoKind): number {
   return photoKind === 'exosphere' ? KLING_PHOTO_COST : GEMINI_PHOTO_COST;
@@ -757,6 +759,7 @@ function AppInner() {
   // ── Auth state ─────────────────────────────────────────────────────────
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [bootLoaderDone, setBootLoaderDone] = useState(false);
   const [needsCallsign, setNeedsCallsign] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -769,6 +772,11 @@ function AppInner() {
   const [cinematicActive, setCinematicActive] = useState(false);
   const [cinematicVideoPlaying, setCinematicVideoPlaying] = useState(false);
   const [showGuestReminder, setShowGuestReminder] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBootLoaderDone(true), MIN_BOOT_LOADER_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // ── Discovery system state ──────────────────────────────────────────────
   const playerId = useRef<string>('');
@@ -6072,6 +6080,21 @@ function AppInner() {
       });
   }, [state.selectedPlanet, state.selectedSystem, quarks, isGuest]);
 
+  const handleViewPlanetTelescopePhoto = useCallback((planet: Planet, photoKind: PlanetPhotoKind = 'exosphere') => {
+    const photoKey = `planet-${photoKind}-${planet.id}`;
+    const photo = systemPhotos.get(photoKey);
+    if (!photo?.photoUrl) return;
+
+    setTelescopeOverlay({
+      phase: 'reveal',
+      targetName: planet.name,
+      targetType: 'planet',
+      photoUrl: photo.photoUrl,
+      photoKey,
+      source: 'planet',
+    });
+  }, [systemPhotos]);
+
   const handleGeneratePlanetSkin = useCallback((_kind: PlanetSkinKind, targetSystem?: StarSystem, targetPlanet?: Planet) => {
     const planet = targetPlanet ?? state.selectedPlanet;
     const sys = targetSystem ?? state.selectedSystem;
@@ -8352,6 +8375,8 @@ function AppInner() {
     return blocked;
   })();
 
+  const showBootLoader = authLoading || !bootLoaderDone;
+
   return (
     <>
       <style>{`@keyframes nebu-planet-spin { to { transform: rotate(360deg); } }`}</style>
@@ -9352,6 +9377,33 @@ function AppInner() {
               ?? null;
           })()}
           onDoubleClick={handleGlobeDoubleClick}
+        />
+      )}
+
+      {state.scene === 'planet-view' && state.selectedPlanet && state.selectedSystem
+        && !showArena && !showRaid && !showHangar && !surfaceTarget
+        && !showPlayerPage && !showCosmicArchive && !showAcademy
+        && !showChaosModal && !showTopUpModal
+        && evacuationPhase !== 'stage4-orbit' && (
+        <ExospherePremiumPanel
+          planet={state.selectedPlanet}
+          quarks={quarks}
+          alphaPhotoStatus={(() => {
+            const status = systemPhotos.get(`planet-exosphere-${state.selectedPlanet!.id}`)?.status;
+            if (status === 'succeed') return 'ready';
+            if (status === 'generating') return 'generating';
+            return quarks >= getPlanetPhotoCost('exosphere') ? 'idle' : 'disabled';
+          })()}
+          planetSkinStatus={(() => {
+            const status = planetSkins.get(`exosphere-${state.selectedPlanet!.id}`)?.status;
+            if (status === 'succeed') return 'ready';
+            if (status === 'generating' || status === 'pending' || status === 'processing') return 'generating';
+            return quarks >= 50 ? 'idle' : 'disabled';
+          })()}
+          hasGoldenImage={Boolean(systemPhotos.get(`planet-exosphere-${state.selectedPlanet.id}`)?.photoUrl)}
+          onAlphaPhoto={() => handlePlanetTelescopePhoto('exosphere')}
+          onPlanetSkin={() => handleGeneratePlanetSkin('exosphere')}
+          onGoldenImage={() => handleViewPlanetTelescopePhoto(state.selectedPlanet!, 'exosphere')}
         />
       )}
       {/* Surface View (biosphere level) — unmount whenever hangar or arena is
@@ -10394,12 +10446,12 @@ function AppInner() {
       })()}
 
       {/* Auth: Loading screen */}
-      {authLoading && (
+      {showBootLoader && (
         <QuantumSeedLoader />
       )}
 
       {/* Auth: Login screen (only when Firebase is configured) */}
-      {isFirebaseConfigured && !authLoading && !firebaseUser && (
+      {isFirebaseConfigured && !showBootLoader && !firebaseUser && (
         <AuthScreen
           onAuthenticated={async (user, _isNew) => {
             setFirebaseUser(user);
@@ -10411,7 +10463,7 @@ function AppInner() {
       )}
 
       {/* Auth: Callsign selection */}
-      {isFirebaseConfigured && !authLoading && firebaseUser && needsCallsign && (
+      {isFirebaseConfigured && !showBootLoader && firebaseUser && needsCallsign && (
         <CallsignModal
           onComplete={(callsign) => {
             setNeedsCallsign(false);
@@ -10421,7 +10473,7 @@ function AppInner() {
       )}
 
       {/* Cinematic intro (new players) — only after auth is resolved */}
-      {needsOnboarding && !needsCallsign && homeInfo && (!isFirebaseConfigured || !!firebaseUser) && (
+      {!showBootLoader && needsOnboarding && !needsCallsign && homeInfo && (!isFirebaseConfigured || !!firebaseUser) && (
         <CinematicIntro
           homeInfo={homeInfo}
           engineRef={engineRef}

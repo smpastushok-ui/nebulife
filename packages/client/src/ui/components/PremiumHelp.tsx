@@ -11,18 +11,18 @@ interface PremiumHelpButtonProps {
 const modalBackdrop: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
-  zIndex: 30000,
+  zIndex: 200000,
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'flex-start',
   justifyContent: 'center',
-  padding: 16,
+  padding: '70px 14px 18px',
   background: 'rgba(0,0,0,0.66)',
   pointerEvents: 'auto',
 };
 
 const modalCard: React.CSSProperties = {
   width: 'min(420px, 94vw)',
-  maxHeight: '86vh',
+  maxHeight: 'calc(100vh - 92px)',
   overflow: 'auto',
   background: 'rgba(8,12,22,0.98)',
   border: '1px solid rgba(123,184,255,0.44)',
