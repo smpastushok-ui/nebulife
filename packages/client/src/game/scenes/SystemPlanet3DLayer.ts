@@ -51,12 +51,19 @@ const PLANET_FRAG = `
   uniform vec3 uLightDir;
   uniform vec3 uStarColor;
   uniform float uHasMap;
+  uniform float uLongitude;
 
   varying vec2 vUv;
   varying vec3 vWorldNormal;
 
   void main() {
-    vec3 base = uHasMap > 0.5 ? texture2D(uMap, vUv).rgb : vec3(0.42, 0.48, 0.52);
+    vec2 uv = vec2(fract(vUv.x + uLongitude), vUv.y);
+    vec3 base = uHasMap > 0.5 ? texture2D(uMap, uv).rgb : vec3(0.42, 0.48, 0.52);
+    if (uHasMap > 0.5) {
+      float seam = smoothstep(0.0, 0.035, uv.x) * (1.0 - smoothstep(0.965, 1.0, uv.x));
+      vec3 wrapSample = texture2D(uMap, vec2(fract(uv.x + 0.5), uv.y)).rgb;
+      base = mix(wrapSample, base, seam);
+    }
     vec3 n = normalize(vWorldNormal);
     vec3 lightDir = normalize(uLightDir);
     float daylight = dot(n, lightDir);
@@ -172,6 +179,7 @@ export class SystemPlanet3DLayer {
       const lightDir = new THREE.Vector3(star.x - node.x, star.y - node.y, 0.16).normalize();
       record.material.uniforms.uLightDir.value.copy(lightDir);
       record.material.uniforms.uStarColor.value.set(star.colorHex);
+      record.material.uniforms.uLongitude.value = (node.initialLongitude + record.longitude) % 1;
       record.mesh.rotation.set(0, 0, 0);
     }
 
@@ -283,7 +291,7 @@ export class SystemPlanet3DLayer {
       this.starFlare.renderOrder = 100000;
       this.scene.add(this.starFlare);
     }
-    const visualRadius = Math.max(6, Math.min(14, star.radius * 0.18));
+    const visualRadius = Math.max(10, Math.min(22, star.radius * 0.28));
     this.starSphere.position.set(star.x, star.y, 520);
     this.starSphere.scale.setScalar(visualRadius);
     const sphereMaterial = this.starSphere.material as THREE.MeshStandardMaterial;
@@ -347,6 +355,7 @@ export class SystemPlanet3DLayer {
         uLightDir: { value: new THREE.Vector3(-node.x, -node.y, 0.16).normalize() },
         uStarColor: { value: new THREE.Color(0xfff1d2) },
         uHasMap: { value: 0 },
+        uLongitude: { value: node.initialLongitude },
       },
     });
     const mesh = new THREE.Mesh(geometry, material);

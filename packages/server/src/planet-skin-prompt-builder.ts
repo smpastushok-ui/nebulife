@@ -23,10 +23,10 @@ function describePlanetSurface(planet: Planet): string {
     return 'ice giant with blue-cyan methane atmosphere, subtle banding, pale high-altitude haze';
   }
   if (planet.hydrosphere && planet.hydrosphere.waterCoverageFraction > 0.55) {
-    return 'rocky ocean world with deep blue oceans, continental landmasses, white cloud systems';
+    return 'Earth-like rocky ocean world with deep blue oceans, realistic plate-tectonic continents shaped like natural Earth continents, island arcs, mountain chains, deserts, green lowlands, polar caps, white cloud systems';
   }
   if (planet.hydrosphere && planet.hydrosphere.waterCoverageFraction > 0.15) {
-    return 'rocky world with scattered seas, dry continents, ice caps, weather systems';
+    return 'Earth-like rocky world with scattered seas, realistic plate-tectonic continents shaped like natural Earth continents, coastlines, inland basins, deserts, highlands, ice caps, weather systems';
   }
   if (planet.surfaceTempK > 700) {
     return 'rocky volcanic world with basalt plains, lava fractures, ash fields, glowing rift lines';
@@ -72,6 +72,7 @@ export function buildPlanetSkinPrompt(system: StarSystem, planet: Planet, kind: 
     'CRITICAL: fill the entire image with surface/atmosphere texture data only. No black space, no planet silhouette, no circular planet in frame, no camera view, no background, no starfield, no spacecraft.',
     'This is not a photograph of a planet in space. It is a flat diffuse albedo texture map that will be wrapped onto a 3D sphere by game code.',
     'Projection must be longitude-latitude equirectangular, horizontally seamless at the left and right edges, minimal polar distortion.',
+    'SEAMLESS WRAP: the far left and far right edges must match in color, terrain and cloud continuation; avoid a visible vertical seam after wrapping.',
     `Use case: ${useCase}.`,
     `Planet: ${planet.name}, type ${planet.type}, ${temp}, radius ${planet.radiusEarth.toFixed(2)} Earth radii, mass ${planet.massEarth.toFixed(2)} Earth masses.`,
     `Visual identity: ${surface}.`,

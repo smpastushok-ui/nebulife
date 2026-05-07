@@ -604,10 +604,10 @@ export class SystemScene {
       for (let i = 0; i < planet.moons.length; i++) {
         const moon = planet.moons[i];
         const normalizedMoon = Math.max(0.08, moon.radiusKm / 1737);
-        const moonBase = Math.pow(normalizedMoon, 0.92) * 4.8;
-        const moonVariance = 0.28 + Math.pow(moonRng.next(), 1.65) * 1.75;
-        const moonRadius = Math.max(0.35, Math.min(8.4, moonBase * moonVariance));
-        const moonOrbitR = planetSize + 5 + i * (7.5 + moonRadius * 2.2);
+        const moonBase = Math.pow(normalizedMoon, 0.8) * 2.35;
+        const moonVariance = 0.45 + Math.pow(moonRng.next(), 1.35) * 1.1;
+        const moonRadius = Math.max(0.35, Math.min(3.2, moonBase * moonVariance));
+        const moonOrbitR = planetSize + 3.8 + i * (3.4 + moonRadius * 1.15);
         const moonGfx = renderSystemMoon(moon.compositionType, moonRadius, moon.seed);
         if (moonRadius >= 3.0) {
           applyPlanetTexturePreview(
@@ -619,8 +619,8 @@ export class SystemScene {
         }
         const moonStartAngle = (moon.seed % 360) * Math.PI / 180;
         // Per-moon orbital inclination for visual diversity
-        const inclination = (moonRng.next() - 0.5) * 0.4;
-        const moonYCompress = Y_COMPRESS + inclination;
+        const orbitModes = [0.18, 0.52, 0.82, 1.1];
+        const moonYCompress = orbitModes[(moon.seed + i) % orbitModes.length] + (moonRng.next() - 0.5) * 0.08;
         moonGfx.x = Math.cos(moonStartAngle) * moonOrbitR;
         moonGfx.y = Math.sin(moonStartAngle) * moonOrbitR * moonYCompress;
         planetSprite.addChild(moonGfx);

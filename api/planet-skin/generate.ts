@@ -40,14 +40,35 @@ async function convertGeneratedSkinToTextureMap(imageUrl: string, skinId: string
 
   const targetWidth = Math.min(sourceWidth, sourceHeight * 2);
   const targetHeight = Math.floor(targetWidth / 2);
-  const texture = await image
+  const cropLeft = Math.max(0, Math.floor((sourceWidth - targetWidth) / 2));
+  const cropTop = Math.max(0, Math.floor((sourceHeight - targetHeight) / 2));
+  const cropped = await image
     .extract({
-      left: Math.max(0, Math.floor((sourceWidth - targetWidth) / 2)),
-      top: Math.max(0, Math.floor((sourceHeight - targetHeight) / 2)),
+      left: cropLeft,
+      top: cropTop,
       width: Math.floor(targetWidth),
       height: targetHeight,
     })
     .resize(2048, 1024, { fit: 'fill' })
+    .toBuffer();
+  const edgeBlend = 64;
+  const leftEdge = await sharp(cropped)
+    .extract({ left: 0, top: 0, width: edgeBlend, height: 1024 })
+    .toBuffer();
+  const rightEdge = await sharp(cropped)
+    .extract({ left: 2048 - edgeBlend, top: 0, width: edgeBlend, height: 1024 })
+    .toBuffer();
+  const blendedLeft = await sharp(leftEdge)
+    .composite([{ input: rightEdge, blend: 'over', opacity: 0.5 }])
+    .toBuffer();
+  const blendedRight = await sharp(rightEdge)
+    .composite([{ input: leftEdge, blend: 'over', opacity: 0.5 }])
+    .toBuffer();
+  const texture = await sharp(cropped)
+    .composite([
+      { input: blendedLeft, left: 0, top: 0 },
+      { input: blendedRight, left: 2048 - edgeBlend, top: 0 },
+    ])
     .webp({ quality: 88, effort: 4 })
     .toBuffer();
 
