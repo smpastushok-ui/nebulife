@@ -127,32 +127,24 @@ function createMiniGlobeOptics(size: number): Container {
   for (let i = 0; i < 5; i++) {
     const t = i / 4;
     dayGlow.circle(size * (0.28 + t * 0.08), -size * (0.20 + t * 0.04), size * (0.74 - t * 0.09));
-    dayGlow.fill({ color: 0xffffff, alpha: 0.055 - t * 0.007 });
+    dayGlow.fill({ color: 0xffffff, alpha: 0.028 - t * 0.004 });
   }
   optics.addChild(dayGlow);
-
-  const specular = new Graphics();
-  specular.name = 'planet-mini-specular';
-  specular.ellipse(size * 0.34, -size * 0.24, size * 0.28, size * 0.15);
-  specular.fill({ color: 0xffffff, alpha: 0.18 });
-  specular.ellipse(size * 0.43, -size * 0.29, size * 0.12, size * 0.055);
-  specular.fill({ color: 0xffffff, alpha: 0.32 });
-  optics.addChild(specular);
 
   const limbShade = new Graphics();
   limbShade.name = 'planet-mini-limb-shade';
   limbShade.circle(0, 0, size * 0.99);
-  limbShade.stroke({ width: Math.max(3, size * 0.18), color: 0x020510, alpha: 0.38 });
+  limbShade.stroke({ width: Math.max(3, size * 0.18), color: 0x020510, alpha: 0.30 });
   limbShade.circle(-size * 0.2, size * 0.1, size * 0.92);
-  limbShade.stroke({ width: Math.max(2, size * 0.12), color: 0x020510, alpha: 0.18 });
+  limbShade.stroke({ width: Math.max(2, size * 0.12), color: 0x020510, alpha: 0.14 });
   optics.addChild(limbShade);
 
   const rim = new Graphics();
   rim.name = 'planet-mini-rim';
   rim.circle(0, 0, size * 0.995);
-  rim.stroke({ width: Math.max(1.2, size * 0.045), color: 0xb8ddff, alpha: 0.24 });
+  rim.stroke({ width: Math.max(1.2, size * 0.045), color: 0xb8ddff, alpha: 0.14 });
   rim.circle(size * 0.06, -size * 0.03, size * 0.94);
-  rim.stroke({ width: Math.max(0.8, size * 0.025), color: 0xffffff, alpha: 0.12 });
+  rim.stroke({ width: Math.max(0.8, size * 0.025), color: 0xffffff, alpha: 0.06 });
   optics.addChild(rim);
 
   return optics;

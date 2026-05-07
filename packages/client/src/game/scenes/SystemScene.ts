@@ -63,8 +63,16 @@ function planetRotationPeriodHours(planet: Planet): number {
 function planetTextureSpinOptions(planet: Planet): PlanetTexturePreviewOptions {
   const periodHours = planetRotationPeriodHours(planet);
   const retrograde = seededUnit(planet.seed, 1710) < (planet.type === 'terrestrial' ? 0.08 : 0.16);
-  // Visual time compression keeps axial spin readable while preserving relative periods.
-  const visualDayMs = periodHours * 650;
+  // Keep axial spin readable but calm. Giants are visually large, so fast
+  // rotation reads as toy-like; slow them much more than rocky worlds.
+  const visualCompression = planet.type === 'gas-giant'
+    ? 12000
+    : planet.type === 'ice-giant'
+      ? 10000
+      : planet.type === 'dwarf'
+        ? 8500
+        : 6500;
+  const visualDayMs = periodHours * visualCompression;
   return {
     spinRevolutionsPerMs: (retrograde ? -1 : 1) / visualDayMs,
     initialLongitude: seededUnit(planet.seed, 1720),
@@ -75,7 +83,7 @@ function moonTextureSpinOptions(seed: number, orbitalPeriodDays: number): Planet
   // Most large moons are captured into synchronous rotation over time.
   const periodHours = Math.max(8, orbitalPeriodDays * 24);
   return {
-    spinRevolutionsPerMs: 1 / (periodHours * 650),
+    spinRevolutionsPerMs: 1 / (periodHours * 12000),
     initialLongitude: seededUnit(seed, 1730),
   };
 }
@@ -564,9 +572,9 @@ export class SystemScene {
         moonGfx.x = Math.cos(moonStartAngle) * moonOrbitR;
         moonGfx.y = Math.sin(moonStartAngle) * moonOrbitR * moonYCompress;
         planetSprite.addChild(moonGfx);
-        // Cap: no moon orbits faster than 1 revolution per 8 seconds (at 60fps)
-        const maxMoonSpeed = (2 * Math.PI) / (8 * 60);
-        const rawSpeed = (2 * Math.PI) / (moon.orbitalPeriodDays * 400);
+        // Calm visual orbit: no moon should visibly race around its planet.
+        const maxMoonSpeed = (2 * Math.PI) / (90 * 60);
+        const rawSpeed = (2 * Math.PI) / (moon.orbitalPeriodDays * 9000);
         moonNodes.push({
           gfx: moonGfx,
           angle: moonStartAngle,

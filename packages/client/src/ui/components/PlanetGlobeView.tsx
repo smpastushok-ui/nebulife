@@ -582,14 +582,14 @@ const texturedPlanetFrag = `
     float dayFactor = smoothstep(-0.82, 0.80, daylight);
     float softCore = smoothstep(-0.28, 0.70, daylight);
     vec3 starTint = mix(vec3(1.0), uStarColor, 0.08);
-    vec3 color = base * mix(0.48, 1.12, dayFactor) * mix(vec3(0.82, 0.88, 1.0), starTint, softCore);
+    vec3 color = base * mix(0.58, 1.0, dayFactor) * mix(vec3(0.86, 0.90, 0.98), starTint, softCore * 0.55);
 
     float rimFacing = max(dot(n, normalize(vViewDir)), 0.0);
     float limb = smoothstep(0.0, 0.56, rimFacing);
     color *= 0.82 + limb * 0.18;
 
     float atmosphereRim = pow(1.0 - rimFacing, 2.2) * smoothstep(-0.25, 0.65, daylight);
-    color += vec3(0.12, 0.24, 0.42) * atmosphereRim * 0.10;
+    color += vec3(0.08, 0.14, 0.24) * atmosphereRim * 0.045;
 
     gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
   }
@@ -1539,7 +1539,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       controls.enableDamping = true;
       controls.dampingFactor = 0.05;
       controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.15;
+      controls.autoRotateSpeed = 0.035;
       controls.minDistance = 1.5;
       controls.maxDistance = 8;
       controls.enablePan = false;
@@ -1681,14 +1681,14 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           const p = Math.min(1, (now - tr.startTime) / 2000);
           // easeInOutCubic
           const e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-          controls.autoRotateSpeed = 0.15 + e * 14.85;
+          controls.autoRotateSpeed = 0.035 + e * 5.965;
           const targetDist = controls.minDistance;
           const d = tr.startDist + (targetDist - tr.startDist) * e;
           camera.position.normalize().multiplyScalar(d);
           if (p >= 1) {
             const cb = tr.onComplete;
             transitionRef.current = null;
-            controls.autoRotateSpeed = 0.15;
+            controls.autoRotateSpeed = 0.035;
             controls.enabled = true;
             cb();
           }
