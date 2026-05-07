@@ -46,6 +46,12 @@
     "planet_names_on": "NAMES ON",
     "planet_names_tooltip": "Show planet names in this system"
   },
+  "context": {
+    "actions": {
+      "favorite": "Add to Favorites",
+      "unfavorite": "Remove from Favorites"
+    }
+  },
   "hangar": {
     "ship": {
       "custom_3d": "I WANT MY OWN SHIP DESIGN",

@@ -46,6 +46,12 @@
     "planet_names_on": "НАЗВИ УВІМК.",
     "planet_names_tooltip": "Показати назви планет у цій системі"
   },
+  "context": {
+    "actions": {
+      "favorite": "В обрані",
+      "unfavorite": "Прибрати з обраних"
+    }
+  },
   "hangar": {
     "ship": {
       "custom_3d": "ХОЧУ СВІЙ ДИЗАЙН КОРАБЛЯ",

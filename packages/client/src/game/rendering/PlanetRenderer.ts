@@ -118,6 +118,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
 
   // === Dark base (shadow side — full circle, deeper shadow) ===
   const darkBase = new Graphics();
+  darkBase.name = 'planet-dark-base';
   darkBase.circle(0, 0, size);
   darkBase.fill({ color: darkenColor(color, 0.15), alpha: 1 });
   container.addChild(darkBase);
@@ -125,11 +126,12 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   // === Multi-layer gradient lighting (4 concentric offset circles) ===
   // Creates smooth terminator transition from dark to lit side
   const litLayers = new Graphics();
+  litLayers.alpha = 0.42;
   const layerData = [
-    { offset: 0.05, radius: 0.98, brightness: 0.35, alpha: 0.6 },
-    { offset: 0.10, radius: 0.94, brightness: 0.55, alpha: 0.7 },
-    { offset: 0.18, radius: 0.88, brightness: 0.80, alpha: 0.8 },
-    { offset: 0.25, radius: 0.80, brightness: 1.00, alpha: 0.9 },
+    { offset: 0.05, radius: 0.98, brightness: 0.35, alpha: 0.22 },
+    { offset: 0.10, radius: 0.94, brightness: 0.55, alpha: 0.24 },
+    { offset: 0.18, radius: 0.88, brightness: 0.80, alpha: 0.26 },
+    { offset: 0.25, radius: 0.80, brightness: 1.00, alpha: 0.28 },
   ];
   for (const layer of layerData) {
     const layerColor = lerpColor(darkenColor(color, 0.3), color, layer.brightness);
@@ -142,6 +144,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   // System-view scale still needs texture language: storms, continents, craters,
   // ice caps, and clouds make planets read as worlds instead of flat icons.
   const detailGfx = new Graphics();
+  detailGfx.name = 'planet-procedural-surface';
   if (isGiant) {
     const bandCount = visuals.isGasGiant ? 11 : 7;
     for (let i = 0; i < bandCount; i++) {
@@ -225,7 +228,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   // === Terminator line (day/night boundary) ===
   const terminator = new Graphics();
   terminator.ellipse(0, 0, size * 0.15, size * 0.95);
-  terminator.fill({ color: 0x000000, alpha: 0.18 });
+  terminator.fill({ color: 0x000000, alpha: 0.08 });
   lightingGroup.addChild(terminator);
 
   // === Fresnel rim (bright edge on lit side) ===
@@ -238,13 +241,13 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   const specGfx = new Graphics();
   // Wide soft glow
   specGfx.circle(size * 0.25, -size * 0.08, size * 0.5);
-  specGfx.fill({ color: 0xffffff, alpha: 0.08 });
+  specGfx.fill({ color: 0xffffff, alpha: 0.05 });
   // Medium highlight
   specGfx.circle(size * 0.32, -size * 0.12, size * 0.3);
-  specGfx.fill({ color: 0xffffff, alpha: 0.18 });
+  specGfx.fill({ color: 0xffffff, alpha: 0.09 });
   // Sharp specular
   specGfx.circle(size * 0.38, -size * 0.15, size * 0.15);
-  specGfx.fill({ color: 0xffffff, alpha: 0.4 });
+  specGfx.fill({ color: 0xffffff, alpha: 0.16 });
   lightingGroup.addChild(specGfx);
 
   // === Limb darkening (dark edge ring — thicker for more volume) ===
@@ -353,12 +356,16 @@ export function applyPlanetTexturePreview(
   if (existing) existing.destroy();
   const existingMask = container.getChildByName('planet-skin-preview-mask');
   if (existingMask) existingMask.destroy();
+  const proceduralSurface = container.getChildByName('planet-procedural-surface');
+  if (proceduralSurface) proceduralSurface.visible = false;
+  const darkBase = container.getChildByName('planet-dark-base');
+  if (darkBase) darkBase.visible = false;
 
   const texture = Texture.from(textureUrl);
   const preview = new Container();
   preview.name = 'planet-skin-preview';
   preview.eventMode = 'none';
-  preview.zIndex = 10;
+  preview.zIndex = 12;
 
   const map = new Container();
   map.name = 'planet-skin-preview-map';

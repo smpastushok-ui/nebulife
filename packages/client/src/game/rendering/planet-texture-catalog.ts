@@ -74,7 +74,7 @@ export function getSystemPlanetTextureId(planet: Planet): SystemPlanetTextureId 
   const s = crustFraction(planet, 'S');
 
   if (planet.type === 'gas-giant') {
-    if (tempK < 140) return 'ammonia_cold';
+    if (tempK < 140) return pickBySeed(planet.seed, ['ammonia_cold', 'methane_lakes'] as const);
     if (tempK < 230 || ch4 > 0.04) return 'methane_lakes';
     if (tempK > 520 || co2 > 0.35) return 'toxic_greenhouse';
     return pickBySeed(planet.seed, ['acid_cloud_world_surface', 'volcanic_ash', 'toxic_greenhouse'] as const);
@@ -82,8 +82,8 @@ export function getSystemPlanetTextureId(planet: Planet): SystemPlanetTextureId 
 
   if (planet.type === 'ice-giant') {
     if (tempK < 170) return pickBySeed(planet.seed, ['ammonia_cold', 'methane_lakes'] as const);
-    if (tempK < 245 || ice > 0.12) return pickBySeed(planet.seed, ['frozen_ice', 'terran_ice_ocean', 'dwarf_icy_rocky'] as const);
-    return pickBySeed(planet.seed, ['methane_lakes', 'frozen_ice', 'acid_cloud_world_surface'] as const);
+    if (tempK < 245 || ice > 0.12) return pickBySeed(planet.seed, ['ammonia_cold', 'frozen_ice', 'methane_lakes'] as const);
+    return pickBySeed(planet.seed, ['methane_lakes', 'acid_cloud_world_surface', 'toxic_greenhouse'] as const);
   }
 
   if (tempK > 1150) return 'lava_volcanic';
