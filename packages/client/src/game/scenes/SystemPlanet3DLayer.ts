@@ -20,6 +20,10 @@ export interface SystemStar3DNode {
   y: number;
   radius: number;
   colorHex: string;
+  spectralClass: Star['spectralClass'];
+  temperatureK: number;
+  radiusSolar: number;
+  luminositySolar: number;
   timeMs: number;
 }
 
@@ -34,6 +38,34 @@ interface MeshRecord {
 }
 
 const SYSTEM_3D_SPIN_READABILITY = 6;
+
+function starRenderColor(star: SystemStar3DNode): THREE.Color {
+  const byClass: Record<string, string> = {
+    O: '#9bb8ff',
+    B: '#aabfff',
+    A: '#f8f7ff',
+    F: '#fff2dd',
+    G: '#fff0bf',
+    K: '#ffbd78',
+    M: '#ff6848',
+  };
+  const base = new THREE.Color(byClass[star.spectralClass] ?? star.colorHex);
+  const physical = new THREE.Color(star.colorHex);
+  return base.lerp(physical, 0.35);
+}
+
+function starVisualRadius(star: SystemStar3DNode): number {
+  const radiusTerm = Math.pow(Math.max(0.08, star.radiusSolar), 0.42) * 18;
+  const luminosityTerm = Math.log10(Math.max(0.001, star.luminositySolar) + 1) * 4.5;
+  const classBoost = star.spectralClass === 'O' || star.spectralClass === 'B'
+    ? 10
+    : star.spectralClass === 'A'
+      ? 5
+      : star.spectralClass === 'M'
+        ? -2
+        : 0;
+  return Math.max(12, Math.min(44, radiusTerm + luminosityTerm + classBoost));
+}
 
 const PLANET_VERT = `
   varying vec2 vUv;
@@ -247,7 +279,7 @@ export class SystemPlanet3DLayer {
   }
 
   private syncStar(star: SystemStar3DNode): void {
-    const color = new THREE.Color(star.colorHex);
+    const color = starRenderColor(star);
     if (!this.starSphere) {
       const geometry = new THREE.SphereGeometry(1, 64, 32);
       const material = new THREE.MeshStandardMaterial({
@@ -291,7 +323,7 @@ export class SystemPlanet3DLayer {
       this.starFlare.renderOrder = 100000;
       this.scene.add(this.starFlare);
     }
-    const visualRadius = Math.max(10, Math.min(22, star.radius * 0.28));
+    const visualRadius = starVisualRadius(star);
     this.starSphere.position.set(star.x, star.y, 520);
     this.starSphere.scale.setScalar(visualRadius);
     const sphereMaterial = this.starSphere.material as THREE.MeshStandardMaterial;
@@ -305,6 +337,7 @@ export class SystemPlanet3DLayer {
       this.starFlare.scale.set(visualRadius * 3.2, visualRadius * 0.2, 1);
     }
     this.starLight.color.copy(color);
+    this.starLight.intensity = 28000 + Math.min(42000, Math.sqrt(Math.max(0.001, star.luminositySolar)) * 9000);
     this.starLight.position.set(star.x, star.y, 520);
   }
 

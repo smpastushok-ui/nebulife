@@ -680,7 +680,8 @@ export class SystemScene {
     if (!this.use3DPlanets) return rawDistance;
     const size = getPlanetSize(planet);
     const minGap = Math.max(34, size * 2.4);
-    const visualDistance = Math.max(rawDistance, this.lastVisualPlanetOrbit + minGap);
+    const starClearance = this.starSize * 1.55 + size * 2.2 + 22;
+    const visualDistance = Math.max(rawDistance, starClearance, this.lastVisualPlanetOrbit + minGap);
     this.lastVisualPlanetOrbit = visualDistance;
     return visualDistance;
   }
@@ -849,6 +850,10 @@ export class SystemScene {
       y: parent.y,
       radius: this.starSize * parent.scale.x,
       colorHex: this.system.star.colorHex,
+      spectralClass: this.system.star.spectralClass,
+      temperatureK: this.system.star.temperatureK,
+      radiusSolar: this.system.star.radiusSolar,
+      luminositySolar: this.system.star.luminositySolar,
       timeMs: this.time,
     };
     for (const [, node] of this.planetNodes) {
@@ -929,7 +934,7 @@ export class SystemScene {
 
   private redrawPlanetStatusIcons() {
     for (const [, node] of this.planetNodes) {
-      const existing = node.container.getChildByName('planet-status-icons');
+      const existing = node.container.getChildByLabel('planet-status-icons');
       if (existing) node.container.removeChild(existing);
       if (!this.planetStatusIconsVisible) continue;
 
@@ -947,7 +952,7 @@ export class SystemScene {
       if (items.length === 0) continue;
 
       const group = new Container();
-      group.name = 'planet-status-icons';
+      group.label = 'planet-status-icons';
       group.zIndex = 10050;
       const orbitR = getPlanetSize(node.planet) + 13;
       items.forEach((item, index) => {
@@ -973,7 +978,7 @@ export class SystemScene {
   }
 
   private applyPlanetLabelVisibility(container: Container) {
-    const label = container.getChildByName('planet-name-label');
+    const label = container.getChildByLabel('planet-name-label');
     if (label) label.visible = this.planetLabelsVisible;
   }
 
@@ -985,8 +990,7 @@ export class SystemScene {
       'planet-skin-preview-mask',
     ]);
     for (const child of container.children) {
-      const name = child.name ?? '';
-      if (hideNames.has(name)) child.visible = false;
+      if (hideNames.has(child.label ?? '')) child.visible = false;
     }
   }
 

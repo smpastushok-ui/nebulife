@@ -87,7 +87,7 @@ function getWrappedFrameTexture(texture: Texture, u: number, widthU: number): Te
 
 function buildSphericalTextureMap(texture: Texture, size: number, initialLongitude: number): Container {
   const map = new Container();
-  map.name = 'planet-skin-preview-map';
+  map.label = 'planet-skin-preview-map';
   map.eventMode = 'none';
 
   const strips = 56;
@@ -118,12 +118,12 @@ function buildSphericalTextureMap(texture: Texture, size: number, initialLongitu
 
 function createMiniGlobeOptics(size: number): Container {
   const optics = new Container();
-  optics.name = 'planet-mini-globe-optics';
+  optics.label = 'planet-mini-globe-optics';
   optics.eventMode = 'none';
   optics.zIndex = 22;
 
   const limbShade = new Graphics();
-  limbShade.name = 'planet-mini-limb-shade';
+  limbShade.label = 'planet-mini-limb-shade';
   limbShade.circle(0, 0, size * 0.99);
   limbShade.stroke({ width: Math.max(2, size * 0.14), color: 0x020510, alpha: 0.22 });
   limbShade.circle(-size * 0.2, size * 0.1, size * 0.92);
@@ -134,7 +134,7 @@ function createMiniGlobeOptics(size: number): Container {
 }
 
 function replaceSphericalTextureMap(preview: Container, texture: Texture, size: number, initialLongitude: number): void {
-  const oldMap = preview.getChildByName('planet-skin-preview-map');
+  const oldMap = preview.getChildByLabel('planet-skin-preview-map');
   if (oldMap) oldMap.destroy({ children: true });
   preview.addChild(buildSphericalTextureMap(texture, size, initialLongitude));
 }
@@ -150,7 +150,7 @@ export function renderPlanet(planet: Planet, _star: Star): PlanetRenderResult {
   const size = getPlanetSize(planet);
 
   const base = new Graphics();
-  base.name = 'planet-photo-base';
+  base.label = 'planet-photo-base';
   base.zIndex = 0;
   base.circle(0, 0, size);
   base.fill({ color: 0x0b1320, alpha: 1 });
@@ -158,7 +158,7 @@ export function renderPlanet(planet: Planet, _star: Star): PlanetRenderResult {
 
   // SystemScene rotates this container so the mini-globe highlight faces the star.
   const lightingGroup = new Container();
-  lightingGroup.name = 'planet-mini-lighting';
+  lightingGroup.label = 'planet-mini-lighting';
   lightingGroup.zIndex = 30;
   lightingGroup.addChild(createMiniGlobeOptics(size));
   container.addChild(lightingGroup);
@@ -176,7 +176,7 @@ export function renderPlanet(planet: Planet, _star: Star): PlanetRenderResult {
     style: { fontSize: 9, fill: 0x889999, fontFamily: 'monospace', align: 'center', lineHeight: 11 },
     resolution: 3,
   });
-  label.name = 'planet-name-label';
+  label.label = 'planet-name-label';
   label.zIndex = 100;
   label.anchor.set(0.5, 0);
   label.y = size + 8;
@@ -192,12 +192,12 @@ export function applyPlanetTexturePreview(
   size: number,
   options: PlanetTexturePreviewOptions = {},
 ): void {
-  const existing = container.getChildByName('planet-skin-preview');
+  const existing = container.getChildByLabel('planet-skin-preview');
   if (existing) existing.destroy();
-  const existingMask = container.getChildByName('planet-skin-preview-mask');
+  const existingMask = container.getChildByLabel('planet-skin-preview-mask');
   if (existingMask) existingMask.destroy();
   const preview = new Container();
-  preview.name = 'planet-skin-preview';
+  preview.label = 'planet-skin-preview';
   preview.eventMode = 'none';
   preview.zIndex = 12;
 
@@ -208,7 +208,7 @@ export function applyPlanetTexturePreview(
   (preview as any).__sourceTexture = null;
 
   const mask = new Graphics();
-  mask.name = 'planet-skin-preview-mask';
+  mask.label = 'planet-skin-preview-mask';
   mask.circle(0, 0, size * 0.98);
   mask.fill({ color: 0xffffff, alpha: 1 });
   mask.eventMode = 'none';
@@ -230,7 +230,7 @@ export function applyPlanetTexturePreview(
 }
 
 export function tickPlanetTexturePreview(container: Container, deltaMs: number): void {
-  const preview = container.getChildByName('planet-skin-preview') as Container | null;
+  const preview = container.getChildByLabel('planet-skin-preview') as Container | null;
   if (!preview) return;
 
   const spinRevolutionsPerMs = (preview as any).__spinRevolutionsPerMs as number | undefined;

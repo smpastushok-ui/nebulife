@@ -594,11 +594,11 @@ const texturedPlanetFrag = `
 
     // Purchased/generated photo skins are final diffuse maps. Keep lighting
     // soft and directional: no black disk, no extra fake fill, no hard mask.
-    float dayFactor = smoothstep(-0.50, 0.46, daylight);
-    float nightFactor = smoothstep(-0.92, 0.08, daylight);
+    float dayFactor = smoothstep(-0.48, 0.50, daylight);
+    float nightFactor = smoothstep(-0.92, 0.04, daylight);
     vec3 starTint = mix(vec3(1.0), normalize(uStarColor + vec3(0.001)), 0.13);
-    vec3 color = base * mix(0.48, 1.02, dayFactor) * mix(vec3(0.82, 0.87, 0.95), starTint, dayFactor * 0.34);
-    color += base * 0.08 * nightFactor;
+    vec3 color = base * mix(0.24, 1.02, dayFactor) * mix(vec3(0.72, 0.80, 0.92), starTint, dayFactor * 0.34);
+    color += base * 0.03 * nightFactor;
 
     float rimFacing = max(dot(n, normalize(vViewDir)), 0.0);
     float limb = smoothstep(0.0, 0.56, rimFacing);
@@ -1402,7 +1402,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     onDoubleClickRef.current = onDoubleClick;
     const [renderFallback, setRenderFallback] = useState(false);
     const [validatedTextureUrl, setValidatedTextureUrl] = useState<string | null>(null);
-    const [textureValidationPending, setTextureValidationPending] = useState(false);
+    const [textureValidationPending, setTextureValidationPending] = useState(() => Boolean(textureUrl));
 
     const cleanup = useCallback(() => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -1434,6 +1434,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
       return () => { cancelled = true; };
     }, [textureUrl]);
+
+    const waitingForSkinTexture = Boolean(textureUrl) && textureValidationPending && !validatedTextureUrl;
 
     useImperativeHandle(ref, () => ({
       zoomIn() {
@@ -1514,6 +1516,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     useEffect(() => {
       const container = containerRef.current;
       if (!container) return;
+      if (waitingForSkinTexture) return;
       setRenderFallback(false);
 
       // --- Scene ---
@@ -1881,9 +1884,9 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           container.removeChild(renderer.domElement);
         }
       };
-    }, [planet.id, star.id, validatedTextureUrl, textureValidationPending]); // Re-create scene when planet/star/skin changes
+    }, [planet.id, star.id, validatedTextureUrl, waitingForSkinTexture]); // Re-create scene when planet/star/skin changes
 
-    const showSkinLoadingMask = Boolean(textureUrl) && textureValidationPending && !validatedTextureUrl;
+    const showSkinLoadingMask = waitingForSkinTexture;
 
     return (
       <div
