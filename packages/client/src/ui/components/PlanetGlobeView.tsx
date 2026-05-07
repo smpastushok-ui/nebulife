@@ -592,19 +592,20 @@ const texturedPlanetFrag = `
     vec3 n = normalize(vWorldNormal);
     float daylight = dot(n, normalize(uStarDir));
 
-    // Purchased/generated photo skins are already final art. Do not paint a
-    // hard night overlay over them; use only soft physically-readable dimming.
-    float dayFactor = smoothstep(-0.82, 0.80, daylight);
-    float softCore = smoothstep(-0.28, 0.70, daylight);
-    vec3 starTint = mix(vec3(1.0), uStarColor, 0.08);
-    vec3 color = base * mix(0.58, 1.0, dayFactor) * mix(vec3(0.86, 0.90, 0.98), starTint, softCore * 0.55);
+    // Purchased/generated photo skins are final diffuse maps. Keep lighting
+    // soft and directional: no black disk, no extra fake fill, no hard mask.
+    float dayFactor = smoothstep(-0.18, 0.72, daylight);
+    float nightFactor = smoothstep(-0.92, -0.08, daylight);
+    vec3 starTint = mix(vec3(1.0), normalize(uStarColor + vec3(0.001)), 0.045);
+    vec3 color = base * mix(0.22, 0.96, dayFactor) * mix(vec3(0.72, 0.78, 0.90), starTint, dayFactor * 0.28);
+    color += base * 0.10 * nightFactor;
 
     float rimFacing = max(dot(n, normalize(vViewDir)), 0.0);
     float limb = smoothstep(0.0, 0.56, rimFacing);
-    color *= 0.82 + limb * 0.18;
+    color *= 0.76 + limb * 0.24;
 
-    float atmosphereRim = pow(1.0 - rimFacing, 2.2) * smoothstep(-0.25, 0.65, daylight);
-    color += vec3(0.08, 0.14, 0.24) * atmosphereRim * 0.045;
+    float atmosphereRim = pow(1.0 - rimFacing, 2.2) * smoothstep(0.0, 0.75, daylight);
+    color += vec3(0.08, 0.14, 0.24) * atmosphereRim * 0.025;
 
     gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
   }
@@ -651,7 +652,7 @@ function createPlanetSphere(
         fragmentShader: texturedPlanetFrag,
         uniforms: {
           uMap: { value: generatedTexture },
-          uStarDir: { value: STAR_SPRITE_POSITION.clone().normalize().negate() },
+          uStarDir: { value: STAR_SPRITE_POSITION.clone().normalize() },
           uStarColor: { value: new THREE.Color(star.colorHex) },
           uIsGas: { value: isGas ? 1.0 : 0.0 },
         },
@@ -715,7 +716,7 @@ function createCloudLayer(
       uCoverage: { value: params.coverage },
       uTime: timeUniform,
       uSeed: { value: planet.seed },
-      uStarDir: { value: STAR_SPRITE_POSITION.clone().normalize().negate() },
+      uStarDir: { value: STAR_SPRITE_POSITION.clone().normalize() },
     },
     transparent: true,
     side: THREE.FrontSide,
@@ -1640,13 +1641,13 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // to the lit side). Bumping ambient fill 0.7 → 1.4 and the key light
       // 1.2 → 1.8 brightens the sphere across tiers without washing out the
       // high-end look (bloom still stacks on top on ultra).
-      const ambient = new THREE.AmbientLight(0x5577aa, 2.2);
+      const ambient = new THREE.AmbientLight(0x5577aa, validatedTextureUrl ? 0.18 : 2.2);
       scene.add(ambient);
       // Hemisphere fill — sky-tinted top, warm-dark bottom. Lifts the dark
       // hemisphere so the planet never goes fully black.
-      const hemi = new THREE.HemisphereLight(0x7799cc, 0x332211, 0.6);
+      const hemi = new THREE.HemisphereLight(0x7799cc, 0x332211, validatedTextureUrl ? 0.06 : 0.6);
       scene.add(hemi);
-      const dirLight = new THREE.DirectionalLight(0xfff2dd, 2.5);
+      const dirLight = new THREE.DirectionalLight(0xfff2dd, validatedTextureUrl ? 0.35 : 2.5);
       dirLight.position.copy(STAR_SPRITE_POSITION);
       scene.add(dirLight);
 

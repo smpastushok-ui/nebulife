@@ -8,7 +8,8 @@ export interface SystemPlanet3DNode {
   y: number;
   radius: number;
   zIndex: number;
-  lightAngle: number;
+  lightX: number;
+  lightY: number;
   spinRevolutionsPerMs: number;
   initialLongitude: number;
   visible: boolean;
@@ -32,15 +33,17 @@ interface MeshRecord {
   longitude: number;
 }
 
+const SYSTEM_3D_SPIN_READABILITY = 6;
+
 export class SystemPlanet3DLayer {
   private static activeLayers = new Set<SystemPlanet3DLayer>();
 
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
-  private ambient = new THREE.AmbientLight(0x6f86aa, 1.15);
-  private starLight = new THREE.PointLight(0xfff1d2, 900, 1800, 1.35);
-  private fillLight = new THREE.DirectionalLight(0x6f88bb, 0.35);
+  private ambient = new THREE.AmbientLight(0x5a6f90, 0.42);
+  private starLight = new THREE.PointLight(0xfff1d2, 36000, 2600, 1.12);
+  private fillLight = new THREE.DirectionalLight(0x5b739d, 0.12);
   private starSprite: THREE.Sprite | null = null;
   private starTexture: THREE.CanvasTexture | null = null;
   private records = new Map<string, MeshRecord>();
@@ -113,7 +116,7 @@ export class SystemPlanet3DLayer {
       live.add(node.planet.id);
       const record = this.getOrCreateRecord(node);
       record.spin = node.spinRevolutionsPerMs;
-      record.longitude = (record.longitude + record.spin * deltaMs) % 1;
+      record.longitude = (record.longitude + record.spin * deltaMs * SYSTEM_3D_SPIN_READABILITY) % 1;
       if (record.texture) record.texture.offset.x = (node.initialLongitude + record.longitude) % 1;
 
       record.mesh.visible = node.visible && (!node.textureUrl || (!record.texturePending && !!record.texture));
@@ -121,7 +124,7 @@ export class SystemPlanet3DLayer {
       record.mesh.scale.setScalar(Math.max(1, node.radius));
       record.mesh.renderOrder = node.zIndex;
 
-      const lightDir = new THREE.Vector3(Math.cos(node.lightAngle), Math.sin(node.lightAngle), 0.72).normalize();
+      const lightDir = new THREE.Vector3(node.lightX, node.lightY, 0.18).normalize();
       record.mesh.rotation.y = (node.initialLongitude + record.longitude) * Math.PI * 2;
       record.mesh.rotation.x = lightDir.y * 0.12;
     }
@@ -191,7 +194,7 @@ export class SystemPlanet3DLayer {
     this.starSprite.position.set(star.x, star.y, 800);
     this.starSprite.scale.set(star.radius * 7.2 * pulse, star.radius * 7.2 * pulse, 1);
     this.starLight.color.set(star.colorHex);
-    this.starLight.position.set(star.x, star.y, 620);
+    this.starLight.position.set(star.x, star.y, 260);
   }
 
   private createStarTexture(colorHex: string): THREE.CanvasTexture {
@@ -238,7 +241,7 @@ export class SystemPlanet3DLayer {
       roughness: 0.92,
       metalness: 0,
       emissive: new THREE.Color(0x05070a),
-      emissiveIntensity: 0.08,
+      emissiveIntensity: 0.015,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.frustumCulled = false;
