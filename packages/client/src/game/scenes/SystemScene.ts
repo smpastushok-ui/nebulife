@@ -16,6 +16,8 @@ import { getShipSpriteCanvas, peekShipSpriteCanvas } from '../rendering/ShipSpri
 import { getSystemMoonTextureUrl, getSystemPlanetTextureUrl } from '../rendering/planet-texture-catalog.js';
 import { tStatic } from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
+import { getDeviceTier } from '../../utils/device-tier.js';
+import { SystemPlanet3DLayer, type SystemPlanet3DNode } from './SystemPlanet3DLayer.js';
 
 /** Twinkling star data (inline to avoid dependency on HomePlanetBackdrop) */
 interface TwinkleStar {
@@ -110,6 +112,9 @@ interface PlanetNode {
   distance: number;
   eccentricity: number;
   moonNodes: MoonNode[];
+  textureUrl: string | null;
+  spinRevolutionsPerMs: number;
+  initialLongitude: number;
 }
 
 interface SysShootingStar {
@@ -189,6 +194,8 @@ export class SystemScene {
   private planetStatusVisuals: Map<string, PlanetStatusVisual> = new Map();
   private planetStatusIconsVisible = false;
   private planetLabelsVisible = false;
+  private planet3DLayer: SystemPlanet3DLayer | null = null;
+  private readonly use3DPlanets: boolean;
 
   /** True while camera is zooming — orbit animations pause to prevent jitter */
   private _freezeOrbits = false;
@@ -213,8 +220,14 @@ export class SystemScene {
     private onPlanetSelect: (planet: Planet, screenPos: { x: number; y: number }) => void,
     private clickGuard?: () => boolean,
     destroyedPlanetIds?: Set<string>,
+    private hostElement?: HTMLElement,
   ) {
     this.destroyedPlanetIds = destroyedPlanetIds ?? new Set();
+    const tier = getDeviceTier();
+    this.use3DPlanets = !!hostElement && (tier === 'high' || tier === 'ultra');
+    if (this.use3DPlanets && hostElement) {
+      this.planet3DLayer = new SystemPlanet3DLayer(hostElement);
+    }
     this.container = new Container();
     this.container.eventMode = 'static';
     this.container.sortableChildren = true;
@@ -520,9 +533,11 @@ export class SystemScene {
     const planetSprite = planetResult.container;
     planetSprite.zIndex = 10000;
     const defaultTextureUrl = getSystemPlanetTextureUrl(planet);
+    const spinOptions = planetTextureSpinOptions(planet);
     if (defaultTextureUrl) {
-      applyPlanetTexturePreview(planetSprite, defaultTextureUrl, getPlanetSize(planet), planetTextureSpinOptions(planet));
+      applyPlanetTexturePreview(planetSprite, defaultTextureUrl, getPlanetSize(planet), spinOptions);
     }
+    if (this.use3DPlanets) this.hidePixiPlanetBody(planetSprite);
     this.applyPlanetLabelVisibility(planetSprite);
     const startAngle = (planet.orbit.meanAnomalyDeg * Math.PI) / 180;
     const e = planet.orbit.eccentricity;
@@ -594,6 +609,9 @@ export class SystemScene {
       distance,
       eccentricity: e,
       moonNodes,
+      textureUrl: defaultTextureUrl,
+      spinRevolutionsPerMs: spinOptions.spinRevolutionsPerMs ?? 0,
+      initialLongitude: spinOptions.initialLongitude ?? 0,
     });
   }
 
@@ -722,10 +740,33 @@ export class SystemScene {
         tickPlanetTexturePreview(moon.gfx, deltaMs);
       }
     }
+    this.syncPlanet3DLayer(deltaMs);
 
     // Ship flight animation
     this.updateShip(deltaMs);
     this.updateMissionVisuals();
+  }
+
+  private syncPlanet3DLayer(deltaMs: number): void {
+    if (!this.planet3DLayer) return;
+    const nodes: SystemPlanet3DNode[] = [];
+    const parent = this.container;
+    for (const [, node] of this.planetNodes) {
+      const size = getPlanetSize(node.planet);
+      nodes.push({
+        planet: node.planet,
+        textureUrl: node.textureUrl,
+        x: parent.x + node.container.x * parent.scale.x,
+        y: parent.y + node.container.y * parent.scale.y,
+        radius: size * parent.scale.x * node.container.scale.x,
+        zIndex: node.container.zIndex,
+        lightAngle: Math.atan2(-node.container.y, -node.container.x),
+        spinRevolutionsPerMs: node.spinRevolutionsPerMs,
+        initialLongitude: node.initialLongitude,
+        visible: node.container.visible && node.container.alpha > 0,
+      });
+    }
+    this.planet3DLayer.sync(nodes, deltaMs);
   }
 
   setPlanetMissionVisuals(missions: PlanetMissionVisual[]) {
@@ -778,7 +819,10 @@ export class SystemScene {
       if (!textureUrl) continue;
       const node = this.planetNodes.get(planetId);
       if (!node) continue;
+      node.textureUrl = textureUrl;
+      this.planet3DLayer?.setTexture(planetId, textureUrl);
       applyPlanetTexturePreview(node.container, textureUrl, getPlanetSize(node.planet), planetTextureSpinOptions(node.planet));
+      if (this.use3DPlanets) this.hidePixiPlanetBody(node.container);
     }
   }
 
@@ -830,6 +874,19 @@ export class SystemScene {
   private applyPlanetLabelVisibility(container: Container) {
     const label = container.getChildByName('planet-name-label');
     if (label) label.visible = this.planetLabelsVisible;
+  }
+
+  private hidePixiPlanetBody(container: Container): void {
+    const hideNames = new Set([
+      'planet-photo-base',
+      'planet-mini-lighting',
+      'planet-skin-preview',
+      'planet-skin-preview-mask',
+    ]);
+    for (const child of container.children) {
+      const name = child.name ?? '';
+      if (hideNames.has(name)) child.visible = false;
+    }
   }
 
   private drawMissionVisual(planetNode: PlanetNode, visual: MissionVisualNode) {
@@ -1088,6 +1145,8 @@ export class SystemScene {
 
   destroy() {
     this.stopShipFlight();
+    this.planet3DLayer?.destroy();
+    this.planet3DLayer = null;
     for (const ss of this.sysShootingStars) { ss.gfx.destroy(); }
     this.sysShootingStars.length = 0;
     for (const visual of this.missionVisuals.values()) {

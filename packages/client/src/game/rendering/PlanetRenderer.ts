@@ -10,12 +10,12 @@ export function getPlanetSize(planet: Planet): number {
 
   if (planet.type === 'gas-giant') {
     const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 12));
-    return 22 + t * 8;
+    return 17 + t * 4;
   }
 
   if (planet.type === 'ice-giant') {
     const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 5));
-    return 18 + t * 7;
+    return 15 + t * 4;
   }
 
   if (planet.type === 'dwarf') {
@@ -24,7 +24,7 @@ export function getPlanetSize(planet: Planet): number {
   }
 
   const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 2.5));
-  return 9 + t * 10;
+  return 8 + t * 9;
 }
 
 /** Darken a color by a factor (0..1, lower = darker) */
@@ -158,6 +158,7 @@ export function renderPlanet(planet: Planet, _star: Star): PlanetRenderResult {
 
   // SystemScene rotates this container so the mini-globe highlight faces the star.
   const lightingGroup = new Container();
+  lightingGroup.name = 'planet-mini-lighting';
   lightingGroup.zIndex = 30;
   lightingGroup.addChild(createMiniGlobeOptics(size));
   container.addChild(lightingGroup);

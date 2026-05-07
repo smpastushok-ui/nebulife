@@ -73,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const prompt = buildPlanetSkinPrompt(system, planet, kind);
     const { taskId } = await generateImage({
       prompt,
-      aspectRatio: '16:9',
+      aspectRatio: '2:1',
       resolution: '2K',
     });
 

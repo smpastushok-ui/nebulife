@@ -56,6 +56,21 @@ interface PlanetGlobeViewProps {
   textureUrl?: string | null;
 }
 
+function validatePlanetTextureMap(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = img.naturalWidth / Math.max(1, img.naturalHeight);
+      // Existing bad premium skins were 16:9 "planet in space" images. A
+      // sphere texture map must be close to 2:1, otherwise black space becomes
+      // a giant black patch when wrapped around the globe.
+      resolve(ratio >= 1.9 && ratio <= 2.15);
+    };
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -1384,6 +1399,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     const onDoubleClickRef = useRef(onDoubleClick);
     onDoubleClickRef.current = onDoubleClick;
     const [renderFallback, setRenderFallback] = useState(false);
+    const [validatedTextureUrl, setValidatedTextureUrl] = useState<string | null>(null);
 
     const cleanup = useCallback(() => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -1395,6 +1411,23 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         rendererRef.current = null;
       }
     }, []);
+
+    useEffect(() => {
+      let cancelled = false;
+      setValidatedTextureUrl(null);
+      if (!textureUrl) return;
+
+      validatePlanetTextureMap(textureUrl).then((isValid) => {
+        if (cancelled) return;
+        if (isValid) {
+          setValidatedTextureUrl(textureUrl);
+        } else {
+          console.warn('[PlanetGlobeView] Ignoring non-equirectangular planet skin texture:', textureUrl);
+        }
+      });
+
+      return () => { cancelled = true; };
+    }, [textureUrl]);
 
     useImperativeHandle(ref, () => ({
       zoomIn() {
@@ -1569,17 +1602,17 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
       // 3. Planet sphere
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
-      const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, maxAnisotropy, textureUrl);
+      const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, maxAnisotropy, validatedTextureUrl);
 
       // 4. Cloud layer (skipped on low tier and on purchased/generated skins).
       // Photo skins already include their cloud/surface art; procedural clouds
       // over them read as the old non-premium shadow/art layer.
-      const cloudResult = textureUrl ? null : createCloudLayer(scene, planet, lod);
+      const cloudResult = validatedTextureUrl ? null : createCloudLayer(scene, planet, lod);
 
       // 5. Atmosphere (front + optional back glow with Rayleigh scattering).
       // Keep generated skins clean for now: the texture carries the planet art,
       // while the shader adds only subtle rim light.
-      if (!textureUrl) {
+      if (!validatedTextureUrl) {
         createAtmosphereShell(scene, planet, star, lod);
       }
 
@@ -1847,7 +1880,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           container.removeChild(renderer.domElement);
         }
       };
-    }, [planet.id, star.id, textureUrl]); // Re-create scene when planet/star/skin changes
+    }, [planet.id, star.id, validatedTextureUrl]); // Re-create scene when planet/star/skin changes
 
     return (
       <div

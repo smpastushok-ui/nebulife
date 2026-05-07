@@ -38,7 +38,7 @@ function generateJWT(): string {
 
 export interface KlingGenerateRequest {
   prompt: string;
-  aspectRatio?: string;  // '16:9' | '9:16' | '4:3' | '3:2' | '1:1' | '2:3' | '3:4'
+  aspectRatio?: string;  // '16:9' | '9:16' | '4:3' | '3:2' | '1:1' | '2:3' | '3:4' | provider-supported custom ratios
   resolution?: '1K' | '2K';
 }
 

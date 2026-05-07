@@ -66,7 +66,9 @@ export function buildPlanetSkinPrompt(system: StarSystem, planet: Planet, kind: 
 
   return [
     'Create a seamless equirectangular planetary texture map for wrapping onto a 3D sphere.',
-    'FORMAT: 2:1 panorama texture, ideal target 2048x1024, no borders, no labels, no text, no UI, no starfield, no spacecraft.',
+    'FORMAT: exact 2:1 longitude-latitude panorama texture map, ideal target 2048x1024.',
+    'CRITICAL: fill the entire image with surface/atmosphere texture data only. No black space, no planet silhouette, no circular planet in frame, no camera view, no background, no starfield, no spacecraft.',
+    'This is not a photograph of a planet in space. It is a flat diffuse albedo texture map that will be wrapped onto a 3D sphere by game code.',
     'Projection must be longitude-latitude equirectangular, horizontally seamless at the left and right edges, minimal polar distortion.',
     `Use case: ${useCase}.`,
     `Planet: ${planet.name}, type ${planet.type}, ${temp}, radius ${planet.radiusEarth.toFixed(2)} Earth radii, mass ${planet.massEarth.toFixed(2)} Earth masses.`,
@@ -74,7 +76,7 @@ export function buildPlanetSkinPrompt(system: StarSystem, planet: Planet, kind: 
     `Atmosphere: ${atmosphere}.`,
     `Hydrosphere: ${waterPct}. Biology: ${planet.hasLife ? `${planet.lifeComplexity} life signatures` : 'no visible life'}.`,
     `Orbital context: ${moons}, orbit ${planet.orbit.semiMajorAxisAU.toFixed(2)} AU around a ${star.spectralClass}${star.subType} star (${Math.round(star.temperatureK)}K).`,
-    'Lighting baked softly from upper-left only; avoid strong terminator shadows because the game renderer adds its own lighting.',
+    'Flat matte diffuse texture, no strong directional lighting, no terminator shadow, no black night side, no glossy highlights; the game renderer adds all lighting.',
     'Scientific realism, NASA planetary map style, high detail terrain/cloud pattern, natural muted colors, procedural uniqueness.',
   ].join(' ');
 }

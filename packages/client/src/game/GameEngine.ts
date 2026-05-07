@@ -312,6 +312,7 @@ export class GameEngine {
       },
       () => this.camera.recentlyInteracted,
       destroyedIds,
+      this.container,
     );
 
     this.app.stage.addChild(this.systemScene.container);
