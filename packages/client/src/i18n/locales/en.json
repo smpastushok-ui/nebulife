@@ -59,10 +59,10 @@
       "body": "From level 10 you can enter Arena training and the daily carrier raid on web/ultra mode.",
       "body_limited": "From level 10 Arena is available. Carrier Raid opens on the web version or ultra devices."
     },
-    "colony": {
-      "kicker": "Colonization Stage",
-      "title": "Colonization Available",
-      "body": "After evacuation, the planet enters colony mode: resources, production and surface development are active."
+    "terraform": {
+      "kicker": "Terraforming Stage",
+      "title": "Terraforming Available",
+      "body": "Level 48 opens terraforming: Genesis Vault, transport chains and resource deliveries between colonies become the next progression layer."
     },
     "buildings": {
       "kicker": "Engineering Access",

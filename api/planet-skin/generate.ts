@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { StarSystem } from '@nebulife/core';
+import sharp from 'sharp';
+import { put } from '@vercel/blob';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import {
   creditQuarks,
@@ -7,7 +9,7 @@ import {
   getPlanetSkin,
   savePlanetSkin,
 } from '../../packages/server/src/db.js';
-import { generateImage } from '../../packages/server/src/kling-client.js';
+import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
 import {
   buildPlanetSkinPrompt,
   PLANET_SKIN_EXOSPHERE_COST_QUARKS,
@@ -20,6 +22,40 @@ export const config = {
 
 function parseKind(value: unknown): PlanetSkinKind {
   return value === 'exosphere' ? 'exosphere' : 'system';
+}
+
+async function convertGeneratedSkinToTextureMap(imageUrl: string, skinId: string): Promise<string> {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch generated planet skin: ${response.status}`);
+  }
+  const source = Buffer.from(await response.arrayBuffer());
+  const image = sharp(source, { failOn: 'none' });
+  const metadata = await image.metadata();
+  const sourceWidth = metadata.width ?? 0;
+  const sourceHeight = metadata.height ?? 0;
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    throw new Error('Generated planet skin has invalid dimensions');
+  }
+
+  const targetWidth = Math.min(sourceWidth, sourceHeight * 2);
+  const targetHeight = Math.floor(targetWidth / 2);
+  const texture = await image
+    .extract({
+      left: Math.max(0, Math.floor((sourceWidth - targetWidth) / 2)),
+      top: Math.max(0, Math.floor((sourceHeight - targetHeight) / 2)),
+      width: Math.floor(targetWidth),
+      height: targetHeight,
+    })
+    .resize(2048, 1024, { fit: 'fill' })
+    .webp({ quality: 88, effort: 4 })
+    .toBuffer();
+
+  const blob = await put(`planet-skins/textures/${skinId}.webp`, texture, {
+    access: 'public',
+    contentType: 'image/webp',
+  });
+  return blob.url;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -70,23 +106,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       charged = true;
     }
 
-    const prompt = buildPlanetSkinPrompt(system, planet, kind);
-    const { taskId } = await generateImage({
-      prompt,
-      aspectRatio: '2:1',
-      resolution: '2K',
-    });
-
     const skinId = `ps_${kind}_${planetId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const prompt = buildPlanetSkinPrompt(system, planet, kind);
+    const generated = await generateImageWithGemini({
+      prompt,
+      aspectRatio: '21:9',
+      imageSize: '2K',
+      uploadPrefix: 'planet-skins/raw-21x9',
+    });
+    const textureUrl = await convertGeneratedSkinToTextureMap(generated.imageUrl, skinId);
     const skin = await savePlanetSkin({
       id: skinId,
       planetId,
       systemId,
       kind,
       playerId,
-      klingTaskId: taskId,
+      klingTaskId: null,
       promptUsed: prompt,
-      status: 'generating',
+      status: 'succeed',
+      textureUrl,
       quarksPaid: cost,
     });
 
@@ -94,6 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       skinId: skin.id,
       status: skin.status,
       kind: skin.kind,
+      textureUrl: skin.texture_url,
       quarksPaid: cost,
       quarksRemaining: player?.quarks ?? null,
       prompt,

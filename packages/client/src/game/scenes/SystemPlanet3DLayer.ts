@@ -25,7 +25,7 @@ export interface SystemStar3DNode {
 
 interface MeshRecord {
   mesh: THREE.Mesh;
-  material: THREE.MeshStandardMaterial;
+  material: THREE.ShaderMaterial;
   texture: THREE.Texture | null;
   textureUrl: string | null;
   texturePending: boolean;
@@ -35,16 +35,61 @@ interface MeshRecord {
 
 const SYSTEM_3D_SPIN_READABILITY = 6;
 
+const PLANET_VERT = `
+  varying vec2 vUv;
+  varying vec3 vNormalView;
+
+  void main() {
+    vUv = uv;
+    vNormalView = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const PLANET_FRAG = `
+  uniform sampler2D uMap;
+  uniform vec3 uLightDir;
+  uniform vec3 uStarColor;
+  uniform float uHasMap;
+
+  varying vec2 vUv;
+  varying vec3 vNormalView;
+
+  void main() {
+    vec3 base = uHasMap > 0.5 ? texture2D(uMap, vUv).rgb : vec3(0.42, 0.48, 0.52);
+    vec3 n = normalize(vNormalView);
+    vec3 lightDir = normalize(uLightDir);
+    float daylight = dot(n, lightDir);
+
+    // System-view miniatures need readability more than strict half-phase.
+    // This keeps roughly 2/3 of the visible disk lit and leaves the far 1/3
+    // as a soft, still-readable shadow instead of a black crescent.
+    float day = smoothstep(-0.58, 0.22, daylight);
+    float softFill = smoothstep(-0.94, -0.28, daylight);
+    float shade = mix(0.42, 1.03, day) + softFill * 0.08;
+
+    vec3 starTint = mix(vec3(1.0), normalize(uStarColor + vec3(0.001)), 0.16);
+    vec3 color = base * shade * mix(vec3(0.82, 0.88, 0.96), starTint, day * 0.24);
+
+    float rim = pow(1.0 - max(n.z, 0.0), 2.0);
+    color += vec3(0.08, 0.13, 0.20) * rim * 0.055 * day;
+
+    gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
+  }
+`;
+
 export class SystemPlanet3DLayer {
   private static activeLayers = new Set<SystemPlanet3DLayer>();
 
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
-  private ambient = new THREE.AmbientLight(0x5a6f90, 0.64);
-  private starLight = new THREE.PointLight(0xfff1d2, 30000, 3200, 1.05);
-  private fillLight = new THREE.DirectionalLight(0x5b739d, 0.22);
+  private ambient = new THREE.AmbientLight(0x5a6f90, 0.48);
+  private starLight = new THREE.PointLight(0xfff1d2, 52000, 4200, 0.92);
+  private fillLight = new THREE.DirectionalLight(0x5b739d, 0.16);
+  private starSphere: THREE.Mesh | null = null;
   private starSprite: THREE.Sprite | null = null;
+  private starFlare: THREE.Sprite | null = null;
   private starTexture: THREE.CanvasTexture | null = null;
   private records = new Map<string, MeshRecord>();
   private textureCache = new Map<string, THREE.Texture>();
@@ -124,7 +169,9 @@ export class SystemPlanet3DLayer {
       record.mesh.scale.setScalar(Math.max(1, node.radius));
       record.mesh.renderOrder = node.zIndex;
 
-      const lightDir = new THREE.Vector3(node.lightX, node.lightY, 0.42).normalize();
+      const lightDir = new THREE.Vector3(-node.x, -node.y, 0.34).normalize();
+      record.material.uniforms.uLightDir.value.copy(lightDir);
+      record.material.uniforms.uStarColor.value.set(star.colorHex);
       record.mesh.rotation.y = (node.initialLongitude + record.longitude) * Math.PI * 2;
       record.mesh.rotation.x = lightDir.y * 0.12;
     }
@@ -161,12 +208,27 @@ export class SystemPlanet3DLayer {
     this.records.clear();
     for (const texture of this.textureCache.values()) texture.dispose();
     this.textureCache.clear();
+    if (this.starSphere) {
+      this.scene.remove(this.starSphere);
+      const material = this.starSphere.material;
+      if (Array.isArray(material)) material.forEach((m) => m.dispose());
+      else material.dispose();
+      this.starSphere.geometry.dispose();
+      this.starSphere = null;
+    }
     if (this.starSprite) {
       this.scene.remove(this.starSprite);
       const material = this.starSprite.material;
       if (Array.isArray(material)) material.forEach((m) => m.dispose());
       else material.dispose();
       this.starSprite = null;
+    }
+    if (this.starFlare) {
+      this.scene.remove(this.starFlare);
+      const material = this.starFlare.material;
+      if (Array.isArray(material)) material.forEach((m) => m.dispose());
+      else material.dispose();
+      this.starFlare = null;
     }
     this.starTexture?.dispose();
     this.starTexture = null;
@@ -178,11 +240,29 @@ export class SystemPlanet3DLayer {
   }
 
   private syncStar(star: SystemStar3DNode): void {
+    const color = new THREE.Color(star.colorHex);
+    if (!this.starSphere) {
+      const geometry = new THREE.SphereGeometry(1, 64, 32);
+      const material = new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 2.6,
+        roughness: 0.65,
+        metalness: 0,
+      });
+      this.starSphere = new THREE.Mesh(geometry, material);
+      this.starSphere.frustumCulled = false;
+      this.starSphere.renderOrder = 100001;
+      this.scene.add(this.starSphere);
+    }
     if (!this.starSprite) {
       this.starTexture = this.createStarTexture(star.colorHex);
       const material = new THREE.SpriteMaterial({
         map: this.starTexture,
+        color,
         transparent: true,
+        opacity: 0.88,
+        blending: THREE.AdditiveBlending,
         depthTest: false,
         depthWrite: false,
       });
@@ -190,11 +270,37 @@ export class SystemPlanet3DLayer {
       this.starSprite.renderOrder = 100000;
       this.scene.add(this.starSprite);
     }
+    if (!this.starFlare) {
+      const material = new THREE.SpriteMaterial({
+        map: this.starTexture ?? this.createStarTexture(star.colorHex),
+        color,
+        transparent: true,
+        opacity: 0.22,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        depthWrite: false,
+      });
+      this.starFlare = new THREE.Sprite(material);
+      this.starFlare.renderOrder = 100000;
+      this.scene.add(this.starFlare);
+    }
     const pulse = 1 + Math.sin(star.timeMs * 0.002) * 0.035 + Math.sin(star.timeMs * 0.0051) * 0.012;
-    this.starSprite.position.set(star.x, star.y, 800);
-    this.starSprite.scale.set(star.radius * 7.2 * pulse, star.radius * 7.2 * pulse, 1);
-    this.starLight.color.set(star.colorHex);
-    this.starLight.position.set(star.x, star.y, 260);
+    const visualRadius = star.radius * 2.8 * pulse;
+    this.starSphere.position.set(star.x, star.y, 520);
+    this.starSphere.scale.setScalar(Math.max(8, visualRadius));
+    const sphereMaterial = this.starSphere.material as THREE.MeshStandardMaterial;
+    sphereMaterial.color.copy(color);
+    sphereMaterial.emissive.copy(color);
+    this.starSphere.rotation.y += 0.0025;
+
+    this.starSprite.position.set(star.x, star.y, 510);
+    this.starSprite.scale.set(star.radius * 8.6 * pulse, star.radius * 8.6 * pulse, 1);
+    if (this.starFlare) {
+      this.starFlare.position.set(star.x, star.y, 505);
+      this.starFlare.scale.set(star.radius * 13.5 * pulse, star.radius * 1.45 * pulse, 1);
+    }
+    this.starLight.color.copy(color);
+    this.starLight.position.set(star.x, star.y, 520);
   }
 
   private createStarTexture(colorHex: string): THREE.CanvasTexture {
@@ -236,12 +342,15 @@ export class SystemPlanet3DLayer {
     }
 
     const geometry = new THREE.SphereGeometry(1, 48, 32);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.92,
-      metalness: 0,
-      emissive: new THREE.Color(0x05070a),
-      emissiveIntensity: 0.015,
+    const material = new THREE.ShaderMaterial({
+      vertexShader: PLANET_VERT,
+      fragmentShader: PLANET_FRAG,
+      uniforms: {
+        uMap: { value: null },
+        uLightDir: { value: new THREE.Vector3(-node.x, -node.y, 0.34).normalize() },
+        uStarColor: { value: new THREE.Color(0xfff1d2) },
+        uHasMap: { value: 0 },
+      },
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.frustumCulled = false;
@@ -264,7 +373,8 @@ export class SystemPlanet3DLayer {
   private applyTexture(record: MeshRecord, textureUrl: string | null): void {
     record.texture = null;
     record.texturePending = !!textureUrl;
-    record.material.map = null;
+    record.material.uniforms.uMap.value = null;
+    record.material.uniforms.uHasMap.value = 0;
     record.material.needsUpdate = true;
     if (!textureUrl) return;
 
@@ -272,7 +382,8 @@ export class SystemPlanet3DLayer {
     if (cached) {
       record.texture = cached;
       record.texturePending = false;
-      record.material.map = cached;
+      record.material.uniforms.uMap.value = cached;
+      record.material.uniforms.uHasMap.value = 1;
       record.material.needsUpdate = true;
       return;
     }
@@ -291,7 +402,8 @@ export class SystemPlanet3DLayer {
       this.textureCache.set(textureUrl, texture);
       record.texture = texture;
       record.texturePending = false;
-      record.material.map = texture;
+      record.material.uniforms.uMap.value = texture;
+      record.material.uniforms.uHasMap.value = 1;
       record.material.needsUpdate = true;
     });
   }

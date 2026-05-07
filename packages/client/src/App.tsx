@@ -389,7 +389,7 @@ interface ArenaStats {
   sessions: number;
 }
 
-type UnlockPopupKind = 'combat' | 'colony' | 'buildings';
+type UnlockPopupKind = 'combat' | 'terraform' | 'buildings';
 
 interface UnlockPopupInfo {
   id: UnlockPopupKind;
@@ -1745,12 +1745,12 @@ function AppInner() {
       })) return;
     }
 
-    if (!isExodusPhase) {
+    if (playerLevel >= 48) {
       if (enqueueUnlockPopup({
-        id: 'colony',
-        kicker: t('unlock.colony.kicker'),
-        title: t('unlock.colony.title'),
-        body: t('unlock.colony.body'),
+        id: 'terraform',
+        kicker: t('unlock.terraform.kicker'),
+        title: t('unlock.terraform.title'),
+        body: t('unlock.terraform.body'),
         accent: '#44ff88',
       })) return;
     }

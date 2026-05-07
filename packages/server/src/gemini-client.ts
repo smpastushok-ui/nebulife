@@ -28,6 +28,8 @@ export interface GeminiGenerateImageRequest {
   screenWidth?: number;
   screenHeight?: number;
   aspectRatio?: string; // Override: '16:9' | '9:16' | '4:3' | '3:4' | '1:1'
+  imageSize?: string;
+  uploadPrefix?: string;
 }
 
 export interface GeminiGenerateImageResult {
@@ -101,7 +103,7 @@ export async function generateImageWithGemini(
           responseModalities: ['IMAGE', 'TEXT'],
           imageConfig: {
             aspectRatio: aspectRatio,
-            imageSize: '2K',
+            imageSize: req.imageSize ?? '2K',
           },
         },
       });
@@ -127,7 +129,8 @@ export async function generateImageWithGemini(
 
       // Upload to Vercel Blob
       const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
-      const filename = `system-photos/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const prefix = req.uploadPrefix ?? 'system-photos';
+      const filename = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
       const blob = await put(filename, buffer, {
         access: 'public',
