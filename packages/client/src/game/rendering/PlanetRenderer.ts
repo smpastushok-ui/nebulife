@@ -298,11 +298,13 @@ export function renderSystemMoon(compositionType: string, radius: number, seed: 
     }
   }
 
-  // Specular highlight (smaller for icy/metallic, larger for rocky)
-  const specSize = compositionType === 'metallic' ? 0.45 : compositionType === 'icy' ? 0.30 : 0.35;
-  const specAlpha = compositionType === 'metallic' ? 0.35 : compositionType === 'icy' ? 0.30 : 0.20;
-  gfx.circle(radius * 0.3, -radius * 0.2, radius * specSize);
-  gfx.fill({ color: 0xffffff, alpha: specAlpha });
+  // Keep small moons matte; only larger moons get a faint icy/metallic glint.
+  if (radius >= 2.4) {
+    const specSize = compositionType === 'metallic' ? 0.34 : compositionType === 'icy' ? 0.24 : 0.26;
+    const specAlpha = compositionType === 'metallic' ? 0.16 : compositionType === 'icy' ? 0.12 : 0.08;
+    gfx.circle(radius * 0.3, -radius * 0.2, radius * specSize);
+    gfx.fill({ color: 0xffffff, alpha: specAlpha });
+  }
   // Limb darkening
   if (radius > 2) {
     gfx.circle(0, 0, radius);

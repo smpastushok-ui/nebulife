@@ -17,7 +17,7 @@ import { getSystemMoonTextureUrl, getSystemPlanetTextureUrl } from '../rendering
 import { tStatic } from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
 import { getDeviceTier } from '../../utils/device-tier.js';
-import { SystemPlanet3DLayer, type SystemPlanet3DNode } from './SystemPlanet3DLayer.js';
+import { SystemPlanet3DLayer, type SystemPlanet3DNode, type SystemStar3DNode } from './SystemPlanet3DLayer.js';
 
 /** Twinkling star data (inline to avoid dependency on HomePlanetBackdrop) */
 interface TwinkleStar {
@@ -196,6 +196,8 @@ export class SystemScene {
   private planetLabelsVisible = false;
   private planet3DLayer: SystemPlanet3DLayer | null = null;
   private readonly use3DPlanets: boolean;
+  private starSize = 20;
+  private lastVisualPlanetOrbit = 0;
 
   /** True while camera is zooming — orbit animations pause to prevent jitter */
   private _freezeOrbits = false;
@@ -254,10 +256,11 @@ export class SystemScene {
     this.drawHabitableZone();
 
     // Star at center — size from radiusSolar (log-scale)
-    const starSize = Math.max(12, Math.min(50, 10 + Math.log2(1 + system.star.radiusSolar) * 12));
-    const starResult = renderStar(system.star, starSize);
+    this.starSize = Math.max(12, Math.min(50, 10 + Math.log2(1 + system.star.radiusSolar) * 12));
+    const starResult = renderStar(system.star, this.starSize);
     makeVisualOnly(starResult.container);
-    starResult.container.zIndex = 100;
+    starResult.container.zIndex = this.use3DPlanets ? 10002 : 100;
+    starResult.container.visible = !this.use3DPlanets;
     this.container.addChild(starResult.container);
     this.starCorona = starResult.corona;
 
@@ -268,7 +271,7 @@ export class SystemScene {
       resolution: 2,
     });
     starLabel.anchor.set(0.5, 0);
-    starLabel.y = starSize + 8;
+    starLabel.y = this.starSize + 8;
     starLabel.eventMode = 'none';
     starLabel.zIndex = 101;
     this.container.addChild(starLabel);
@@ -352,7 +355,8 @@ export class SystemScene {
       container.zIndex = 1;
       container.eventMode = 'none';
       const size = rng.next() < 0.12 ? rng.nextFloat(2.4, 4.6) : rng.nextFloat(0.9, 2.6);
-      const rock = this.createAsteroidRock(size, seed + i * 131);
+      const icy = rng.next() < 0.28;
+      const rock = icy ? this.createIcyFragment(size, seed + i * 131) : this.createAsteroidRock(size, seed + i * 131);
       container.addChild(rock);
       this.container.addChild(container);
       this.asteroidNodes.push({
@@ -361,9 +365,9 @@ export class SystemScene {
         angle,
         orbitRadius: orbitRadius + rng.nextGaussian(0, beltWidth * 0.35),
         yCompress: Y_COMPRESS + rng.nextFloat(-0.035, 0.035),
-        angularSpeed: rng.nextFloat(0.00002, 0.000075) * (rng.next() < 0.5 ? 1 : -1),
-        spinSpeed: rng.nextFloat(0.0008, 0.0032) * (rng.next() < 0.5 ? 1 : -1),
-        tumbleSpeed: rng.nextFloat(0.0012, 0.004),
+        angularSpeed: rng.nextFloat(0.000004, 0.000018) * (rng.next() < 0.5 ? 1 : -1),
+        spinSpeed: rng.nextFloat(0.00018, 0.00075) * (rng.next() < 0.5 ? 1 : -1),
+        tumbleSpeed: rng.nextFloat(0.00025, 0.0009),
       });
     }
   }
@@ -390,6 +394,26 @@ export class SystemScene {
       rock.fill({ color: rng.next() < 0.5 ? 0x4f473b : 0xc0aa84, alpha: rng.nextFloat(0.14, 0.26) });
     }
     return rock;
+  }
+
+  private createIcyFragment(size: number, seed: number): Graphics {
+    const rng = new SeededRNG(seed);
+    const ice = new Graphics();
+    const points = 6 + rng.nextInt(0, 4);
+    for (let i = 0; i < points; i++) {
+      const a = (i / points) * Math.PI * 2;
+      const r = size * rng.nextFloat(0.55, 1.15);
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r * rng.nextFloat(0.55, 0.95);
+      if (i === 0) ice.moveTo(x, y);
+      else ice.lineTo(x, y);
+    }
+    ice.closePath();
+    ice.fill({ color: 0xb8d8e8, alpha: 0.78 });
+    ice.stroke({ color: 0xe4f6ff, width: Math.max(0.3, size * 0.11), alpha: 0.32 });
+    ice.circle(rng.nextFloat(-size * 0.25, size * 0.25), rng.nextFloat(-size * 0.2, size * 0.2), size * rng.nextFloat(0.08, 0.18));
+    ice.fill({ color: 0xffffff, alpha: 0.18 });
+    return ice;
   }
 
   private drawBackground() {
@@ -512,6 +536,14 @@ export class SystemScene {
     hzLabel.x = outer + 4;
     hzLabel.alpha = 0.4;
 
+    if (this.use3DPlanets) {
+      hzGfx.alpha = 0.9;
+      hzRing.visible = false;
+      hzLabel.alpha = 0.58;
+      hzLabel.x = outer * 0.58;
+      hzLabel.y = -outer * Y_COMPRESS * 0.5;
+    }
+
     hzGfx.zIndex = 0;
     hzRing.zIndex = 0;
     hzLabel.zIndex = 0;
@@ -521,11 +553,12 @@ export class SystemScene {
   }
 
   private addPlanetNode(planet: Planet) {
-    const distance = auToScreen(planet.orbit.semiMajorAxisAU);
+    const distance = this.getVisualPlanetOrbitDistance(planet);
     if (distance > this.maxExtent) this.maxExtent = distance;
 
     // Orbit path (projected ellipse with glow)
     const orbitPath = renderOrbitProjected(distance, planet.orbit.eccentricity, Y_COMPRESS);
+    orbitPath.visible = !this.use3DPlanets;
     this.orbitContainer.addChild(orbitPath);
 
     // Planet sprite (mini-sphere with lighting)
@@ -539,7 +572,7 @@ export class SystemScene {
     }
     if (this.use3DPlanets) this.hidePixiPlanetBody(planetSprite);
     this.applyPlanetLabelVisibility(planetSprite);
-    const startAngle = (planet.orbit.meanAnomalyDeg * Math.PI) / 180;
+    const startAngle = this.getPlanetStartAngle(planet, distance);
     const e = planet.orbit.eccentricity;
     const b = distance * Math.sqrt(1 - e * e);
     const cFocal = distance * e;
@@ -572,15 +605,17 @@ export class SystemScene {
       const moonRng = new SeededRNG(planet.seed * 13 + 7);
       for (let i = 0; i < planet.moons.length; i++) {
         const moon = planet.moons[i];
-        const moonRadius = Math.max(2, Math.min(5, moon.radiusKm / 500));
+        const moonRadius = Math.max(1.1, Math.min(5.8, Math.pow(Math.max(80, moon.radiusKm) / 1737, 0.55) * 3.2));
         const moonOrbitR = planetSize + 6 + i * 8;
         const moonGfx = renderSystemMoon(moon.compositionType, moonRadius, moon.seed);
-        applyPlanetTexturePreview(
-          moonGfx,
-          getSystemMoonTextureUrl(moon.compositionType, moon.seed),
-          moonRadius,
-          moonTextureSpinOptions(moon.seed, moon.orbitalPeriodDays),
-        );
+        if (moonRadius >= 2.4) {
+          applyPlanetTexturePreview(
+            moonGfx,
+            getSystemMoonTextureUrl(moon.compositionType, moon.seed),
+            moonRadius,
+            moonTextureSpinOptions(moon.seed, moon.orbitalPeriodDays),
+          );
+        }
         const moonStartAngle = (moon.seed % 360) * Math.PI / 180;
         // Per-moon orbital inclination for visual diversity
         const inclination = (moonRng.next() - 0.5) * 0.4;
@@ -615,6 +650,40 @@ export class SystemScene {
     });
   }
 
+  private getPlanetStartAngle(planet: Planet, distance: number): number {
+    const base = (planet.orbit.meanAnomalyDeg * Math.PI) / 180;
+    if (!this.use3DPlanets) return base;
+    const minScreenGap = 46;
+    let angle = base;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance * Y_COMPRESS;
+      let clear = true;
+      for (const [, node] of this.planetNodes) {
+        const gap = getPlanetSize(planet) + getPlanetSize(node.planet) + minScreenGap;
+        const dx = x - node.container.x;
+        const dy = y - node.container.y;
+        if (dx * dx + dy * dy < gap * gap) {
+          clear = false;
+          break;
+        }
+      }
+      if (clear) return angle;
+      angle += 0.42 + attempt * 0.11;
+    }
+    return angle;
+  }
+
+  private getVisualPlanetOrbitDistance(planet: Planet): number {
+    const rawDistance = auToScreen(planet.orbit.semiMajorAxisAU);
+    if (!this.use3DPlanets) return rawDistance;
+    const size = getPlanetSize(planet);
+    const minGap = Math.max(34, size * 2.4);
+    const visualDistance = Math.max(rawDistance, this.lastVisualPlanetOrbit + minGap);
+    this.lastVisualPlanetOrbit = visualDistance;
+    return visualDistance;
+  }
+
   /** Render debris belt on a destroyed planet's orbit */
   private addDebrisBelt(planet: Planet) {
     const distance = auToScreen(planet.orbit.semiMajorAxisAU);
@@ -625,6 +694,7 @@ export class SystemScene {
     // Orbit path (dimmer, reddish)
     const orbitPath = renderOrbitProjected(distance, e, Y_COMPRESS);
     orbitPath.alpha = 0.5;
+    orbitPath.visible = !this.use3DPlanets;
     this.orbitContainer.addChild(orbitPath);
 
     // Debris particles along the orbit
@@ -751,6 +821,13 @@ export class SystemScene {
     if (!this.planet3DLayer) return;
     const nodes: SystemPlanet3DNode[] = [];
     const parent = this.container;
+    const starNode: SystemStar3DNode = {
+      x: parent.x,
+      y: parent.y,
+      radius: this.starSize * parent.scale.x,
+      colorHex: this.system.star.colorHex,
+      timeMs: this.time,
+    };
     for (const [, node] of this.planetNodes) {
       const size = getPlanetSize(node.planet);
       nodes.push({
@@ -766,7 +843,7 @@ export class SystemScene {
         visible: node.container.visible && node.container.alpha > 0,
       });
     }
-    this.planet3DLayer.sync(nodes, deltaMs);
+    this.planet3DLayer.sync(nodes, starNode, deltaMs);
   }
 
   setPlanetMissionVisuals(missions: PlanetMissionVisual[]) {
