@@ -37,11 +37,11 @@ const SYSTEM_3D_SPIN_READABILITY = 6;
 
 const PLANET_VERT = `
   varying vec2 vUv;
-  varying vec3 vNormalView;
+  varying vec3 vWorldNormal;
 
   void main() {
     vUv = uv;
-    vNormalView = normalize(normalMatrix * normal);
+    vWorldNormal = normalize(mat3(modelMatrix) * normal);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -53,26 +53,26 @@ const PLANET_FRAG = `
   uniform float uHasMap;
 
   varying vec2 vUv;
-  varying vec3 vNormalView;
+  varying vec3 vWorldNormal;
 
   void main() {
     vec3 base = uHasMap > 0.5 ? texture2D(uMap, vUv).rgb : vec3(0.42, 0.48, 0.52);
-    vec3 n = normalize(vNormalView);
+    vec3 n = normalize(vWorldNormal);
     vec3 lightDir = normalize(uLightDir);
     float daylight = dot(n, lightDir);
 
     // System-view miniatures need readability more than strict half-phase.
     // This keeps roughly 2/3 of the visible disk lit and leaves the far 1/3
     // as a soft, still-readable shadow instead of a black crescent.
-    float day = smoothstep(-0.58, 0.22, daylight);
-    float softFill = smoothstep(-0.94, -0.28, daylight);
-    float shade = mix(0.42, 1.03, day) + softFill * 0.08;
+    float day = smoothstep(-0.68, 0.16, daylight);
+    float softFill = smoothstep(-0.98, -0.18, daylight);
+    float shade = mix(0.58, 1.08, day) + softFill * 0.12;
 
     vec3 starTint = mix(vec3(1.0), normalize(uStarColor + vec3(0.001)), 0.16);
     vec3 color = base * shade * mix(vec3(0.82, 0.88, 0.96), starTint, day * 0.24);
 
     float rim = pow(1.0 - max(n.z, 0.0), 2.0);
-    color += vec3(0.08, 0.13, 0.20) * rim * 0.055 * day;
+    color += vec3(0.10, 0.15, 0.22) * rim * 0.075 * (0.55 + day);
 
     gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
   }
@@ -169,11 +169,10 @@ export class SystemPlanet3DLayer {
       record.mesh.scale.setScalar(Math.max(1, node.radius));
       record.mesh.renderOrder = node.zIndex;
 
-      const lightDir = new THREE.Vector3(-node.x, -node.y, 0.34).normalize();
+      const lightDir = new THREE.Vector3(star.x - node.x, star.y - node.y, 0.16).normalize();
       record.material.uniforms.uLightDir.value.copy(lightDir);
       record.material.uniforms.uStarColor.value.set(star.colorHex);
-      record.mesh.rotation.y = (node.initialLongitude + record.longitude) * Math.PI * 2;
-      record.mesh.rotation.x = lightDir.y * 0.12;
+      record.mesh.rotation.set(0, 0, 0);
     }
 
     for (const [planetId, record] of this.records) {
@@ -284,20 +283,18 @@ export class SystemPlanet3DLayer {
       this.starFlare.renderOrder = 100000;
       this.scene.add(this.starFlare);
     }
-    const pulse = 1 + Math.sin(star.timeMs * 0.002) * 0.035 + Math.sin(star.timeMs * 0.0051) * 0.012;
-    const visualRadius = star.radius * 2.8 * pulse;
+    const visualRadius = Math.max(6, Math.min(14, star.radius * 0.18));
     this.starSphere.position.set(star.x, star.y, 520);
-    this.starSphere.scale.setScalar(Math.max(8, visualRadius));
+    this.starSphere.scale.setScalar(visualRadius);
     const sphereMaterial = this.starSphere.material as THREE.MeshStandardMaterial;
     sphereMaterial.color.copy(color);
     sphereMaterial.emissive.copy(color);
-    this.starSphere.rotation.y += 0.0025;
 
     this.starSprite.position.set(star.x, star.y, 510);
-    this.starSprite.scale.set(star.radius * 8.6 * pulse, star.radius * 8.6 * pulse, 1);
+    this.starSprite.scale.set(visualRadius * 2.1, visualRadius * 2.1, 1);
     if (this.starFlare) {
       this.starFlare.position.set(star.x, star.y, 505);
-      this.starFlare.scale.set(star.radius * 13.5 * pulse, star.radius * 1.45 * pulse, 1);
+      this.starFlare.scale.set(visualRadius * 3.2, visualRadius * 0.2, 1);
     }
     this.starLight.color.copy(color);
     this.starLight.position.set(star.x, star.y, 520);
@@ -347,7 +344,7 @@ export class SystemPlanet3DLayer {
       fragmentShader: PLANET_FRAG,
       uniforms: {
         uMap: { value: null },
-        uLightDir: { value: new THREE.Vector3(-node.x, -node.y, 0.34).normalize() },
+        uLightDir: { value: new THREE.Vector3(-node.x, -node.y, 0.16).normalize() },
         uStarColor: { value: new THREE.Color(0xfff1d2) },
         uHasMap: { value: 0 },
       },

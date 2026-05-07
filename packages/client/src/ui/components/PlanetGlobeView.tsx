@@ -594,18 +594,18 @@ const texturedPlanetFrag = `
 
     // Purchased/generated photo skins are final diffuse maps. Keep lighting
     // soft and directional: no black disk, no extra fake fill, no hard mask.
-    float dayFactor = smoothstep(-0.42, 0.58, daylight);
-    float nightFactor = smoothstep(-0.86, 0.12, daylight);
-    vec3 starTint = mix(vec3(1.0), normalize(uStarColor + vec3(0.001)), 0.045);
-    vec3 color = base * mix(0.35, 0.98, dayFactor) * mix(vec3(0.82, 0.87, 0.95), starTint, dayFactor * 0.22);
-    color += base * 0.06 * nightFactor;
+    float dayFactor = smoothstep(-0.50, 0.46, daylight);
+    float nightFactor = smoothstep(-0.92, 0.08, daylight);
+    vec3 starTint = mix(vec3(1.0), normalize(uStarColor + vec3(0.001)), 0.13);
+    vec3 color = base * mix(0.48, 1.02, dayFactor) * mix(vec3(0.82, 0.87, 0.95), starTint, dayFactor * 0.34);
+    color += base * 0.08 * nightFactor;
 
     float rimFacing = max(dot(n, normalize(vViewDir)), 0.0);
     float limb = smoothstep(0.0, 0.56, rimFacing);
     color *= 0.82 + limb * 0.18;
 
-    float atmosphereRim = pow(1.0 - rimFacing, 2.4) * smoothstep(-0.08, 0.70, daylight);
-    color += vec3(0.08, 0.14, 0.24) * atmosphereRim * 0.018;
+    float atmosphereRim = pow(1.0 - rimFacing, 2.2) * smoothstep(-0.18, 0.70, daylight);
+    color += mix(vec3(0.08, 0.14, 0.24), starTint, 0.22) * atmosphereRim * 0.032;
 
     gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
   }
@@ -655,6 +655,7 @@ function createPlanetSphere(
           uStarDir: { value: STAR_SPRITE_POSITION.clone().normalize() },
           uStarColor: { value: new THREE.Color(star.colorHex) },
           uIsGas: { value: isGas ? 1.0 : 0.0 },
+          uTime: { value: 0.0 },
         },
       })
     : new THREE.ShaderMaterial({
@@ -1401,6 +1402,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     onDoubleClickRef.current = onDoubleClick;
     const [renderFallback, setRenderFallback] = useState(false);
     const [validatedTextureUrl, setValidatedTextureUrl] = useState<string | null>(null);
+    const [textureValidationPending, setTextureValidationPending] = useState(false);
 
     const cleanup = useCallback(() => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -1416,10 +1418,12 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     useEffect(() => {
       let cancelled = false;
       setValidatedTextureUrl(null);
+      setTextureValidationPending(Boolean(textureUrl));
       if (!textureUrl) return;
 
       validatePlanetTextureMap(textureUrl).then((isValid) => {
         if (cancelled) return;
+        setTextureValidationPending(false);
         if (!isValid) {
           console.warn('[PlanetGlobeView] Ignoring non-equirectangular planet skin texture:', textureUrl);
           setValidatedTextureUrl(null);
@@ -1606,17 +1610,12 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
       const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, maxAnisotropy, validatedTextureUrl);
 
-      // 4. Cloud layer (skipped on low tier and on purchased/generated skins).
-      // Photo skins already include their cloud/surface art; procedural clouds
-      // over them read as the old non-premium shadow/art layer.
-      const cloudResult = validatedTextureUrl ? null : createCloudLayer(scene, planet, lod);
+      // 4. Cloud layer. Valid 2:1 skins are diffuse maps; atmosphere/clouds
+      // remain physical overlays so generated planets match procedural ones.
+      const cloudResult = createCloudLayer(scene, planet, lod);
 
       // 5. Atmosphere (front + optional back glow with Rayleigh scattering).
-      // Keep generated skins clean for now: the texture carries the planet art,
-      // while the shader adds only subtle rim light.
-      if (!validatedTextureUrl) {
-        createAtmosphereShell(scene, planet, star, lod);
-      }
+      createAtmosphereShell(scene, planet, star, lod);
 
       // 6. Ring (if applicable; skipped on low tier)
       createRing(scene, planet, lod);
@@ -1644,13 +1643,13 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // to the lit side). Bumping ambient fill 0.7 → 1.4 and the key light
       // 1.2 → 1.8 brightens the sphere across tiers without washing out the
       // high-end look (bloom still stacks on top on ultra).
-      const ambient = new THREE.AmbientLight(0x5577aa, validatedTextureUrl ? 0.18 : 2.2);
+      const ambient = new THREE.AmbientLight(0x5577aa, validatedTextureUrl ? 0.42 : 2.2);
       scene.add(ambient);
       // Hemisphere fill — sky-tinted top, warm-dark bottom. Lifts the dark
       // hemisphere so the planet never goes fully black.
-      const hemi = new THREE.HemisphereLight(0x7799cc, 0x332211, validatedTextureUrl ? 0.06 : 0.6);
+      const hemi = new THREE.HemisphereLight(0x7799cc, 0x332211, validatedTextureUrl ? 0.16 : 0.6);
       scene.add(hemi);
-      const dirLight = new THREE.DirectionalLight(0xfff2dd, validatedTextureUrl ? 0.35 : 2.5);
+      const dirLight = new THREE.DirectionalLight(0xfff2dd, validatedTextureUrl ? 0.8 : 2.5);
       dirLight.position.copy(STAR_SPRITE_POSITION);
       scene.add(dirLight);
 
@@ -1882,7 +1881,9 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           container.removeChild(renderer.domElement);
         }
       };
-    }, [planet.id, star.id, validatedTextureUrl]); // Re-create scene when planet/star/skin changes
+    }, [planet.id, star.id, validatedTextureUrl, textureValidationPending]); // Re-create scene when planet/star/skin changes
+
+    const showSkinLoadingMask = Boolean(textureUrl) && textureValidationPending && !validatedTextureUrl;
 
     return (
       <div
@@ -1920,6 +1921,26 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
                 opacity: 0.92,
               }}
             />
+          </div>
+        )}
+        {showSkinLoadingMask && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 2,
+              background: '#020510',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#7bb8ff',
+              fontFamily: 'monospace',
+              fontSize: 11,
+              letterSpacing: 1,
+              pointerEvents: 'none',
+            }}
+          >
+            {''}
           </div>
         )}
       </div>

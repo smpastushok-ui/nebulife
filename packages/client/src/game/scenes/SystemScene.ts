@@ -260,6 +260,7 @@ export class SystemScene {
     const starResult = renderStar(system.star, this.starSize);
     makeVisualOnly(starResult.container);
     starResult.container.zIndex = this.use3DPlanets ? 10002 : 100;
+    starResult.container.visible = !this.use3DPlanets;
     this.container.addChild(starResult.container);
     this.starCorona = starResult.corona;
 
@@ -602,10 +603,13 @@ export class SystemScene {
       const moonRng = new SeededRNG(planet.seed * 13 + 7);
       for (let i = 0; i < planet.moons.length; i++) {
         const moon = planet.moons[i];
-        const moonRadius = Math.max(1.1, Math.min(5.8, Math.pow(Math.max(80, moon.radiusKm) / 1737, 0.55) * 3.2));
-        const moonOrbitR = planetSize + 6 + i * 8;
+        const normalizedMoon = Math.max(0.08, moon.radiusKm / 1737);
+        const moonBase = Math.pow(normalizedMoon, 0.92) * 4.8;
+        const moonVariance = 0.28 + Math.pow(moonRng.next(), 1.65) * 1.75;
+        const moonRadius = Math.max(0.35, Math.min(8.4, moonBase * moonVariance));
+        const moonOrbitR = planetSize + 5 + i * (7.5 + moonRadius * 2.2);
         const moonGfx = renderSystemMoon(moon.compositionType, moonRadius, moon.seed);
-        if (moonRadius >= 2.4) {
+        if (moonRadius >= 3.0) {
           applyPlanetTexturePreview(
             moonGfx,
             getSystemMoonTextureUrl(moon.compositionType, moon.seed),
