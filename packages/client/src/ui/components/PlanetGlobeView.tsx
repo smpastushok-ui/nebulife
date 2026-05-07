@@ -814,6 +814,7 @@ function createRing(
       uSeed: { value: planet.seed },
       uQuality: { value: lod.exosphereQuality },
       uIsIceGiant: { value: isIce ? 1.0 : 0.0 },
+      uInnerRatio: { value: innerR / outerR },
     },
     transparent: true,
     side: THREE.DoubleSide,

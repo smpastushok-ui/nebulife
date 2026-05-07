@@ -588,7 +588,8 @@ function AppInner() {
   const universeGroupCountRef = useRef<number>(1);
   const [universeVisible, setUniverseVisible] = useState(false);
   const [warpActive, setWarpActive] = useState(false);
-  const warpTargetRef = useRef<'universe' | 'galaxy' | 'home-intro'>('universe');
+  const warpTargetRef = useRef<'universe' | 'galaxy' | 'home-intro' | 'system'>('universe');
+  const warpSystemTargetRef = useRef<StarSystem | null>(null);
   const telescopePhotoRef = useRef<(sys: StarSystem) => void>(() => {});
 
   // Capture saved navigation state before any useEffect can overwrite them.
@@ -5525,6 +5526,19 @@ function AppInner() {
         engineRef.current?.showHomePlanetScene(true);
         setState(prev => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
         setShowExploreBtn(true);
+      } else if (target === 'system' && warpSystemTargetRef.current) {
+        const system = warpSystemTargetRef.current;
+        warpSystemTargetRef.current = null;
+        engineRef.current?.showSystemScene(system);
+        setState(prev => ({
+          ...prev,
+          scene: 'system',
+          selectedSystem: system,
+          selectedPlanet: null,
+          showPlanetMenu: false,
+          showPlanetInfo: false,
+          planetClickPos: null,
+        }));
       } else {
         engineRef.current?.showGalaxyScene();
         setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
@@ -7997,14 +8011,21 @@ function AppInner() {
         break;
       case 'system':
         if (state.selectedSystem) {
-          engineRef.current?.showSystemScene(state.selectedSystem);
-          setState((prev) => ({
-            ...prev,
-            scene: 'system' as const,
-            selectedPlanet: null,
-            showPlanetMenu: false,
-            showPlanetInfo: false,
-          }));
+          if (universeVisible) {
+            warpSystemTargetRef.current = state.selectedSystem;
+            warpTargetRef.current = 'system';
+            setWarpActive(true);
+          } else {
+            engineRef.current?.showSystemScene(state.selectedSystem);
+            setState((prev) => ({
+              ...prev,
+              scene: 'system' as const,
+              selectedPlanet: null,
+              showPlanetMenu: false,
+              showPlanetInfo: false,
+              planetClickPos: null,
+            }));
+          }
         }
         break;
       case 'planet-view':

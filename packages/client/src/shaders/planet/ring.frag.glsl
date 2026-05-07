@@ -4,6 +4,7 @@ varying vec2 vUv;
 uniform float uSeed;
 uniform float uQuality;
 uniform float uIsIceGiant;
+uniform float uInnerRatio;
 
 float hash1(float p) {
   p = fract(p * 0.1031);
@@ -17,9 +18,13 @@ float bandPulse(float r, float center, float width) {
 }
 
 void main() {
-  // Radial distance from inner to outer (v coordinate)
-  float r = vUv.y;
-  float a = vUv.x;
+  // Three.js RingGeometry UVs are Cartesian, not "x = angle, y = radius".
+  // Convert them back to polar coordinates so bands run orbitally around
+  // the planet instead of as straight stripes across the ring plane.
+  vec2 centeredUv = vUv - vec2(0.5);
+  float rawRadius = length(centeredUv) * 2.0;
+  float r = clamp((rawRadius - uInnerRatio) / max(0.001, 1.0 - uInnerRatio), 0.0, 1.0);
+  float a = fract(atan(centeredUv.y, centeredUv.x) / 6.28318530718 + 0.5);
 
   // Broad A/B/C ring regions plus Cassini-like divisions.
   float inner = smoothstep(0.02, 0.09, r) * smoothstep(0.42, 0.32, r);

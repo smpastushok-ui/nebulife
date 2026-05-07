@@ -1,6 +1,5 @@
-import { Graphics, Container, Sprite, Text, Texture } from 'pixi.js';
+import { Assets, Graphics, Container, Sprite, Text, Texture } from 'pixi.js';
 import type { Planet, Star } from '@nebulife/core';
-import { derivePlanetVisuals, lerpColor } from './PlanetVisuals.js';
 
 /** Y-axis compression factor for isometric perspective */
 export const Y_COMPRESS = 0.55;
@@ -36,16 +35,6 @@ function darkenColor(color: number, factor: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
-/** Get primary display color from already-derived planet visuals (no double-compute) */
-function getPlanetDisplayColorFromVisuals(v: ReturnType<typeof derivePlanetVisuals>): number {
-  if (v.isGasGiant || v.isIceGiant) return v.bandColor1;
-  if (v.hasOcean && v.waterCoverage > 0.3) {
-    return lerpColor(v.oceanShallow, v.surfaceBaseColor, 0.4);
-  }
-  if (v.hasBiomes) return v.biomeColors.temperate;
-  return v.surfaceBaseColor;
-}
-
 export interface PlanetRenderResult {
   container: Container;
   lightingGroup: Container;
@@ -69,255 +58,37 @@ function lightenColor(color: number, factor: number): number {
   return (lr << 16) | (lg << 8) | lb;
 }
 
-function seededUnit(seed: number, salt: number): number {
-  let x = (seed ^ (salt * 0x9e3779b9)) >>> 0;
-  x ^= x << 13;
-  x ^= x >>> 17;
-  x ^= x << 5;
-  return ((x >>> 0) % 10000) / 10000;
-}
+const textureLoadCache = new Map<string, Promise<Texture>>();
 
-function seededRange(seed: number, salt: number, min: number, max: number): number {
-  return min + seededUnit(seed, salt) * (max - min);
+function loadTexture(url: string): Promise<Texture> {
+  let promise = textureLoadCache.get(url);
+  if (!promise) {
+    promise = Assets.load<Texture>(url);
+    textureLoadCache.set(url, promise);
+  }
+  return promise;
 }
 
 /**
- * Render a planet as a volumetric mini-sphere with multi-layer 3D lighting.
- * The lightingGroup rotates to track the star direction.
- * Colors derived from physical parameters via derivePlanetVisuals.
+ * Render only the structural shell for a system-view planet.
+ * The actual visible planet body is the equirectangular photo applied later
+ * by applyPlanetTexturePreview(); keep this free of procedural paint layers.
  */
-export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
+export function renderPlanet(planet: Planet, _star: Star): PlanetRenderResult {
   const container = new Container();
   container.sortableChildren = true;
-  const visuals = derivePlanetVisuals(planet, star);
-  const baseColor = getPlanetDisplayColorFromVisuals(visuals);
-  // Star tint modulation: lit hemisphere takes on star's color (M-dwarf=warm, O/B=cool blue).
-  // Subtle 18% blend keeps planet identity but makes each system feel unique.
-  const color = lerpColor(baseColor, visuals.starTint, 0.18);
   const size = getPlanetSize(planet);
-  const isGiant = visuals.isGasGiant || visuals.isIceGiant;
 
-  // Lighting group — rotated by SystemScene to face the star
+  const base = new Graphics();
+  base.name = 'planet-photo-base';
+  base.zIndex = 0;
+  base.circle(0, 0, size);
+  base.fill({ color: 0x0b1320, alpha: 1 });
+  container.addChild(base);
+
+  // Kept for SystemScene's existing rotation/update path; intentionally empty.
   const lightingGroup = new Container();
-  lightingGroup.zIndex = 20;
-
-  // === Multi-layer atmosphere glow ===
-  if (visuals.hasAtmosphere) {
-    const atmoGfx = new Graphics();
-    const layers = isGiant ? 5 : 4;
-    const maxRadius = isGiant ? size + 10 : size + 7;
-    for (let i = 0; i < layers; i++) {
-      const t = i / (layers - 1); // 0..1
-      const r = maxRadius - t * (maxRadius - size - 1);
-      const a = 0.03 + t * 0.12;
-      atmoGfx.circle(0, 0, r);
-      atmoGfx.fill({ color: visuals.atmosColor, alpha: a });
-    }
-    container.addChild(atmoGfx);
-  }
-
-  // === Dark base (shadow side — full circle, deeper shadow) ===
-  const darkBase = new Graphics();
-  darkBase.name = 'planet-dark-base';
-  darkBase.circle(0, 0, size);
-  darkBase.fill({ color: darkenColor(color, 0.15), alpha: 1 });
-  container.addChild(darkBase);
-
-  // === Multi-layer gradient lighting (4 concentric offset circles) ===
-  // Creates smooth terminator transition from dark to lit side
-  const litLayers = new Graphics();
-  litLayers.alpha = 0.42;
-  const layerData = [
-    { offset: 0.05, radius: 0.98, brightness: 0.35, alpha: 0.22 },
-    { offset: 0.10, radius: 0.94, brightness: 0.55, alpha: 0.24 },
-    { offset: 0.18, radius: 0.88, brightness: 0.80, alpha: 0.26 },
-    { offset: 0.25, radius: 0.80, brightness: 1.00, alpha: 0.28 },
-  ];
-  for (const layer of layerData) {
-    const layerColor = lerpColor(darkenColor(color, 0.3), color, layer.brightness);
-    litLayers.circle(size * layer.offset, 0, size * layer.radius);
-    litLayers.fill({ color: layerColor, alpha: layer.alpha });
-  }
-  lightingGroup.addChild(litLayers);
-
-  // === Procedural surface detail ===
-  // System-view scale still needs texture language: storms, continents, craters,
-  // ice caps, and clouds make planets read as worlds instead of flat icons.
-  const detailGfx = new Graphics();
-  detailGfx.name = 'planet-procedural-surface';
-  if (isGiant) {
-    const bandCount = visuals.isGasGiant ? 11 : 7;
-    for (let i = 0; i < bandCount; i++) {
-      const t = (i + 0.5) / bandCount;
-      const bandY = (t - 0.5) * size * 1.72;
-      const wobble = Math.sin(seededRange(planet.seed, i + 10, 0, Math.PI * 2)) * size * 0.05;
-      const bandWidth = size * seededRange(planet.seed, i + 40, 0.05, 0.12);
-      const bandColor = i % 2 === 0 ? visuals.bandColor1 : visuals.bandColor2;
-      detailGfx.ellipse(size * 0.08 + wobble, bandY, size * 0.95, bandWidth);
-      detailGfx.fill({ color: bandColor, alpha: i % 2 === 0 ? 0.34 : 0.24 });
-    }
-
-    const stormCount = visuals.isGasGiant ? 2 + (Math.abs(planet.seed) % 3) : 1;
-    for (let i = 0; i < stormCount; i++) {
-      const sx = seededRange(planet.seed, i + 90, -0.35, 0.42) * size;
-      const sy = seededRange(planet.seed, i + 120, -0.45, 0.45) * size;
-      const stormR = seededRange(planet.seed, i + 150, 0.13, 0.28) * size;
-      detailGfx.ellipse(sx, sy, stormR * 1.7, stormR * 0.72);
-      detailGfx.fill({ color: lightenColor(visuals.bandColor2, 0.18), alpha: 0.18 });
-      detailGfx.ellipse(sx + stormR * 0.18, sy, stormR * 0.85, stormR * 0.34);
-      detailGfx.stroke({ color: darkenColor(visuals.bandColor1, 0.62), width: Math.max(0.5, size * 0.035), alpha: 0.28 });
-    }
-  } else {
-    const landColor = visuals.hasBiomes
-      ? lerpColor(visuals.biomeColors.temperate, visuals.surfaceHighColor, 0.35)
-      : visuals.surfaceHighColor;
-    const landCount = visuals.hasOcean ? 6 : 9;
-    for (let i = 0; i < landCount; i++) {
-      const angle = seededRange(planet.seed, i + 200, 0, Math.PI * 2);
-      const dist = seededRange(planet.seed, i + 240, 0.05, 0.72) * size;
-      const px = Math.cos(angle) * dist + size * 0.08;
-      const py = Math.sin(angle) * dist;
-      const patchR = seededRange(planet.seed, i + 280, 0.12, 0.33) * size;
-      detailGfx.ellipse(px, py, patchR * 1.35, patchR * seededRange(planet.seed, i + 320, 0.45, 0.78));
-      detailGfx.fill({ color: landColor, alpha: visuals.hasOcean ? 0.34 : 0.22 });
-    }
-
-    if (visuals.hasCraters || (planet.atmosphere?.surfacePressureAtm ?? 0) < 0.02) {
-      const craterCount = 5 + (Math.abs(planet.seed) % 6);
-      for (let i = 0; i < craterCount; i++) {
-        const angle = seededRange(planet.seed, i + 360, 0, Math.PI * 2);
-        const dist = seededRange(planet.seed, i + 390, 0.12, 0.78) * size;
-        const cr = seededRange(planet.seed, i + 420, 0.045, 0.105) * size;
-        const cx = Math.cos(angle) * dist + size * 0.05;
-        const cy = Math.sin(angle) * dist;
-        detailGfx.circle(cx, cy, cr);
-        detailGfx.stroke({ color: visuals.craterRimColor, width: Math.max(0.4, cr * 0.35), alpha: 0.24 });
-        detailGfx.circle(cx + cr * 0.18, cy + cr * 0.12, cr * 0.7);
-        detailGfx.fill({ color: visuals.craterColor, alpha: 0.18 });
-      }
-    }
-
-    if (visuals.iceCapFraction > 0.08) {
-      const capAlpha = Math.min(0.34, 0.12 + visuals.iceCapFraction * 0.28);
-      detailGfx.ellipse(size * 0.08, -size * 0.72, size * 0.72, size * 0.18);
-      detailGfx.fill({ color: 0xddeeff, alpha: capAlpha });
-      detailGfx.ellipse(size * 0.08, size * 0.72, size * 0.72, size * 0.18);
-      detailGfx.fill({ color: 0xddeeff, alpha: capAlpha * 0.85 });
-    }
-
-    if (visuals.hasSignificantClouds) {
-      const cloudCount = 4 + Math.floor(visuals.cloudDensity * 5);
-      for (let i = 0; i < cloudCount; i++) {
-        const cy = seededRange(planet.seed, i + 480, -0.62, 0.62) * size;
-        const cx = seededRange(planet.seed, i + 520, -0.18, 0.38) * size;
-        detailGfx.ellipse(cx, cy, size * seededRange(planet.seed, i + 560, 0.22, 0.46), size * 0.045);
-        detailGfx.fill({ color: visuals.cloudColor, alpha: 0.12 + visuals.cloudDensity * 0.12 });
-      }
-    }
-  }
-  lightingGroup.addChild(detailGfx);
-
-  // === Gas giant / ice giant broad equatorial glow ===
-  if (isGiant) {
-    const eqGlow = new Graphics();
-    eqGlow.ellipse(size * 0.15, 0, size * 0.6, size * 0.12);
-    eqGlow.fill({ color: lightenColor(visuals.bandColor1, 0.3), alpha: 0.1 });
-    lightingGroup.addChild(eqGlow);
-  }
-
-  // === Terminator line (day/night boundary) ===
-  const terminator = new Graphics();
-  terminator.ellipse(0, 0, size * 0.15, size * 0.95);
-  terminator.fill({ color: 0x000000, alpha: 0.08 });
-  lightingGroup.addChild(terminator);
-
-  // === Fresnel rim (bright edge on lit side) ===
-  const rim = new Graphics();
-  rim.circle(size * 0.3, 0, size);
-  rim.stroke({ width: size * 0.08, color: lightenColor(color, 0.5), alpha: 0.2 });
-  lightingGroup.addChild(rim);
-
-  // === Specular highlight (bright spot near light direction) ===
-  const specGfx = new Graphics();
-  // Wide soft glow
-  specGfx.circle(size * 0.25, -size * 0.08, size * 0.5);
-  specGfx.fill({ color: 0xffffff, alpha: 0.05 });
-  // Medium highlight
-  specGfx.circle(size * 0.32, -size * 0.12, size * 0.3);
-  specGfx.fill({ color: 0xffffff, alpha: 0.09 });
-  // Sharp specular
-  specGfx.circle(size * 0.38, -size * 0.15, size * 0.15);
-  specGfx.fill({ color: 0xffffff, alpha: 0.16 });
-  lightingGroup.addChild(specGfx);
-
-  // === Limb darkening (dark edge ring — thicker for more volume) ===
-  const limb = new Graphics();
-  limb.zIndex = 30;
-  limb.circle(0, 0, size);
-  limb.stroke({ width: size * 0.25, color: 0x000000, alpha: 0.3 });
-  container.addChild(limb);
-
-  // === Inner limb (softer, wider) ===
-  const innerLimb = new Graphics();
-  innerLimb.zIndex = 31;
-  innerLimb.circle(0, 0, size * 0.92);
-  innerLimb.stroke({ width: size * 0.15, color: 0x000000, alpha: 0.1 });
-  container.addChild(innerLimb);
-
-  // Add lighting group to container
   container.addChild(lightingGroup);
-
-  // === Ring system for massive gas giants + occasional ice giants ===
-  // Thin seeded ringlets read better than a few thick strokes at system scale:
-  // 1-3px gaps, subtle off-white tones, deterministic per planet seed.
-  const wantsRings = planet.type === 'gas-giant' && planet.massEarth > 50
-    || (planet.type === 'ice-giant' && (planet.seed % 5 === 0)); // ~20% of ice giants
-  if (wantsRings) {
-    const seed = planet.seed;
-    const ringGfx = new Graphics();
-    ringGfx.zIndex = 8;
-    const ringletCount = 10 + Math.floor(seededUnit(seed, 610) * 7);
-    const inner = size * seededRange(seed, 620, 1.42, 1.55);
-    const outer = size * seededRange(seed, 630, 1.86, 2.05);
-    let ringRadius = inner;
-
-    for (let i = 0; i < ringletCount && ringRadius < outer; i++) {
-      const t = i / Math.max(1, ringletCount - 1);
-      const tone = Math.round(seededRange(seed, 640 + i, 188, 246));
-      const warm = Math.round(seededRange(seed, 700 + i, -8, 10));
-      const cool = Math.round(seededRange(seed, 760 + i, -4, 14));
-      const r = Math.max(150, Math.min(255, tone + warm));
-      const g = Math.max(150, Math.min(255, tone + Math.floor(warm * 0.5)));
-      const b = Math.max(150, Math.min(255, tone + cool));
-      const color = (r << 16) | (g << 8) | b;
-      const alpha = seededRange(seed, 820 + i, 0.12, 0.34) * (0.8 + (1 - Math.abs(t - 0.5) * 2) * 0.4);
-      const width = seededRange(seed, 880 + i, 0.7, 1.6);
-      const yRadius = ringRadius * seededRange(seed, 940 + i, 0.16, 0.22) * Y_COMPRESS;
-
-      ringGfx.ellipse(0, 0, ringRadius, yRadius);
-      ringGfx.stroke({ width, color, alpha });
-      ringRadius += width + seededRange(seed, 1000 + i, 1.0, 3.0);
-    }
-
-    // Cassini-style gap — ~70% of ringed planets get one. Position varies a bit per seed.
-    if (seed % 10 < 7) {
-      const gapRadius = size * seededRange(seed, 1060, 1.58, 1.76);
-      ringGfx.ellipse(0, 0, gapRadius, gapRadius * 0.19 * Y_COMPRESS);
-      ringGfx.stroke({ width: 1.8, color: 0x020510, alpha: 0.72 });
-    }
-    container.addChild(ringGfx);
-  }
-
-  // === Life indicator (pulsing green glow) ===
-  if (planet.hasLife) {
-    const lifeGfx = new Graphics();
-    lifeGfx.zIndex = 60;
-    lifeGfx.circle(0, 0, size + 7);
-    lifeGfx.stroke({ width: 1, color: 0x44ff88, alpha: 0.25 });
-    lifeGfx.circle(0, 0, size + 5);
-    lifeGfx.stroke({ width: 1.5, color: 0x44ff88, alpha: 0.45 });
-    container.addChild(lifeGfx);
-  }
 
   // === Label ===
   const typeName = planet.type === 'gas-giant' ? 'Gas'
@@ -341,11 +112,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   return { container, lightingGroup };
 }
 
-/**
- * Adds a shared/generated equirectangular texture preview on top of the procedural mini-sphere.
- * This stays intentionally lightweight for SystemScene: a circular crop with the
- * existing Pixi lighting/shadow layers still providing the spherical read.
- */
+/** Adds an equirectangular photo as the only visible system-view planet body. */
 export function applyPlanetTexturePreview(
   container: Container,
   textureUrl: string,
@@ -356,12 +123,7 @@ export function applyPlanetTexturePreview(
   if (existing) existing.destroy();
   const existingMask = container.getChildByName('planet-skin-preview-mask');
   if (existingMask) existingMask.destroy();
-  const proceduralSurface = container.getChildByName('planet-procedural-surface');
-  if (proceduralSurface) proceduralSurface.visible = false;
-  const darkBase = container.getChildByName('planet-dark-base');
-  if (darkBase) darkBase.visible = false;
-
-  const texture = Texture.from(textureUrl);
+  const texture = Texture.EMPTY;
   const preview = new Container();
   preview.name = 'planet-skin-preview';
   preview.eventMode = 'none';
@@ -371,6 +133,7 @@ export function applyPlanetTexturePreview(
   map.name = 'planet-skin-preview-map';
   map.eventMode = 'none';
   const displaySize = size * 2;
+  const sprites: Sprite[] = [];
   for (let i = -1; i <= 1; i++) {
     const sprite = new Sprite(texture);
     sprite.anchor.set(0.5);
@@ -379,6 +142,7 @@ export function applyPlanetTexturePreview(
     sprite.x = i * displaySize;
     sprite.eventMode = 'none';
     map.addChild(sprite);
+    sprites.push(sprite);
   }
   map.x = -((options.initialLongitude ?? 0) % 1) * displaySize;
   (preview as any).__spinRevolutionsPerMs = options.spinRevolutionsPerMs ?? 0;
@@ -395,6 +159,18 @@ export function applyPlanetTexturePreview(
   preview.addChild(map);
   container.addChild(mask);
   container.addChild(preview);
+
+  void loadTexture(textureUrl).then((loadedTexture) => {
+    if (preview.destroyed || !loadedTexture) return;
+    for (const sprite of sprites) {
+      if (sprite.destroyed) continue;
+      sprite.texture = loadedTexture;
+      sprite.width = displaySize;
+      sprite.height = displaySize;
+    }
+  }).catch((err) => {
+    console.warn('[PlanetRenderer] Failed to load system planet texture:', textureUrl, err);
+  });
 }
 
 export function tickPlanetTexturePreview(container: Container, deltaMs: number): void {
